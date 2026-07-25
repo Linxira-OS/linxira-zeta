@@ -1,0 +1,155 @@
+import { NextResponse } from "next/server";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { completeSimple, type AssistantMessage } from "@earendil-works/pi-ai/compat";
+import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { getUsableOmpRuntimeCredentials } from "@/lib/omp-auth";
+
+export const dynamic = "force-dynamic";
+
+const TEST_TIMEOUT_MS = 20_000;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizedProvider(provider: Record<string, unknown>, model: Record<string, unknown>): Record<string, unknown> {
+  if (
+    provider.baseUrl === undefined
+    && provider.api === "openai-completions"
+    && model.api === "google-generative-ai"
+  ) {
+    return { ...provider, baseUrl: "https://daily-cloudcode-pa.googleapis.com" };
+  }
+  return provider;
+}
+
+function validateProvider(provider: Record<string, unknown>): string | null {
+  if (typeof provider.api !== "string" || !provider.api.trim()) {
+    return "Provider API type is required";
+  }
+  if (provider.baseUrl !== undefined && typeof provider.baseUrl !== "string") {
+    return "Provider base URL must be a string";
+  }
+  if (typeof provider.baseUrl === "string" && provider.baseUrl.trim()) {
+    try {
+      const url = new URL(provider.baseUrl);
+      if (url.protocol !== "https:" && url.protocol !== "http:") {
+        return "Provider base URL must use HTTP or HTTPS";
+      }
+    } catch {
+      return "Provider base URL is invalid";
+    }
+  }
+  return null;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getAssistantText(message: AssistantMessage): string {
+  return message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+}
+
+export async function POST(req: Request) {
+  let tempDir: string | undefined;
+
+  try {
+    const body = await req.json() as { providerName?: unknown; provider?: unknown; model?: unknown };
+    const providerName = typeof body.providerName === "string" ? body.providerName.trim() : "";
+    if (!providerName) return NextResponse.json({ ok: false, error: "providerName is required" }, { status: 400 });
+    if (!isRecord(body.provider)) return NextResponse.json({ ok: false, error: "provider is required" }, { status: 400 });
+    if (!isRecord(body.model)) return NextResponse.json({ ok: false, error: "model is required" }, { status: 400 });
+
+    const modelId = typeof body.model.id === "string" ? body.model.id.trim() : "";
+    if (!modelId) return NextResponse.json({ ok: false, error: "Model ID is required", stage: "configuration" }, { status: 400 });
+
+    const effectiveProvider = normalizedProvider(body.provider, body.model);
+    const providerError = validateProvider(effectiveProvider);
+    if (providerError) {
+      return NextResponse.json({ ok: false, error: providerError, stage: "configuration" }, { status: 400 });
+    }
+
+    tempDir = mkdtempSync(join(tmpdir(), "pi-web-model-test-"));
+    const modelsPath = join(tempDir, "models.json");
+    writeFileSync(modelsPath, JSON.stringify({
+      providers: {
+        [providerName]: {
+          ...effectiveProvider,
+          models: [{ ...body.model, id: modelId }],
+        },
+      },
+    }, null, 2), "utf8");
+
+    const modelRuntime = await ModelRuntime.create({ modelsPath });
+    for (const credential of getUsableOmpRuntimeCredentials()) {
+      await modelRuntime.setRuntimeApiKey(credential.provider, credential.apiKey, { allowNetwork: false });
+    }
+    const loadError = modelRuntime.getError();
+    if (loadError) return NextResponse.json({ ok: false, error: loadError });
+
+    const model = modelRuntime.getModel(providerName, modelId);
+    if (!model) return NextResponse.json({ ok: false, error: `Model not found: ${providerName}/${modelId}` });
+
+    const resolved = await modelRuntime.getAuth(model);
+    if (!resolved?.auth.apiKey) {
+      const ompCredential = getUsableOmpRuntimeCredentials().find((credential) => credential.provider === providerName);
+      if (ompCredential) {
+        return NextResponse.json({ ok: false, error: "Stored OMP credential could not be applied to this provider", stage: "credentials" }, { status: 400 });
+      }
+      return NextResponse.json({ ok: false, error: `No API key found for "${providerName}"`, stage: "credentials" });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TEST_TIMEOUT_MS);
+    let status: number | undefined;
+    const startedAt = Date.now();
+
+    try {
+      const message = await completeSimple(model, {
+        messages: [{
+          role: "user",
+          content: "Reply with OK only.",
+          timestamp: Date.now(),
+        }],
+      }, {
+        apiKey: resolved.auth.apiKey,
+        headers: resolved.auth.headers,
+        maxTokens: 16,
+        timeoutMs: TEST_TIMEOUT_MS,
+        maxRetries: 0,
+        cacheRetention: "none",
+        signal: controller.signal,
+        onResponse: (response) => { status = response.status; },
+      });
+
+      const latencyMs = Date.now() - startedAt;
+      if (message.stopReason === "error" || message.stopReason === "aborted") {
+        return NextResponse.json({
+          ok: false,
+          error: message.errorMessage ?? (controller.signal.aborted ? "Test timed out" : "Model returned an error"),
+          latencyMs,
+          status,
+        });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        latencyMs,
+        status,
+        responseText: getAssistantText(message).slice(0, 300),
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: errorMessage(error) }, { status: 500 });
+  } finally {
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+  }
+}
