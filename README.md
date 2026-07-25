@@ -1,45 +1,49 @@
-# Pi Web
+# omp-web
 
 [中文文档](./README.zh-CN.md)
 
-Local web UI for the [pi coding agent](https://github.com/badlogic/pi-mono). Pi Web reads your local pi session files and gives you a browser workspace for session browsing, real-time chat, model configuration, skill management, and project file preview.
+A browser-based UI for the [Oh My Pi](https://github.com/badlogic/pi-mono) coding agent — forked from [pi-web](https://github.com/agegr/pi-web) and adapted to work with the Oh My Pi (omp) harness.
 
-![Pi Web shows the same pi session with structured Markdown, tool calls, and project navigation beside the CLI](https://raw.githubusercontent.com/agegr/pi-web/main/docs/screenshot2.png)
+> **Origin**: This project is a fork of [agegr/pi-web](https://github.com/agegr/pi-web). The core architecture, session browsing, real-time chat, and file preview remain as built by the pi-web authors. Changes made here target compatibility and workflow improvements specific to the Oh My Pi environment.
 
-The same pi session in CLI and Pi Web: structured tool calls, readable Markdown, session browsing, and cleaner results.
+![omp-web showing a session with structured Markdown, tool calls, and project navigation](https://raw.githubusercontent.com/agegr/pi-web/main/docs/screenshot2.png)
+
+## What is Oh My Pi?
+
+Oh My Pi (omp) is a coding harness built on top of the pi coding agent. It adds structured agent sessions, skill management, worktree coordination, and a richer tool protocol on top of pi's core. `omp-web` surfaces the omp session format in the browser: the same `.jsonl` files pi writes, read and rendered by a Next.js server running locally alongside your agent.
 
 ## Quick Start
 
 **Run without installing:**
 
 ```bash
-npx @agegr/pi-web@latest
+npx omp-web@latest
 ```
 
 **Or install globally:**
 
 ```bash
-npm install -g @agegr/pi-web
-pi-web
+npm install -g omp-web
+omp-web
 ```
 
-Then open [http://localhost:30141](http://localhost:30141). The CLI will try to open the browser automatically after the server is ready.
+Then open [http://localhost:30141](http://localhost:30141). The server tries to open the browser automatically once it is ready.
 
 **Options:**
 
 ```bash
-pi-web --port 8080              # custom port
-pi-web --hostname 127.0.0.1     # local access only
-pi-web -p 8080 -H 127.0.0.1     # combine options
-pi-web --no-open                # do not open the browser automatically
+omp-web --port 8080              # custom port
+omp-web --hostname 127.0.0.1     # local access only
+omp-web -p 8080 -H 127.0.0.1     # combine options
+omp-web --no-open                # do not open the browser automatically
 
-PORT=8080 pi-web                # environment variable is also supported
-PI_WEB_NO_OPEN=1 pi-web         # useful when running as a background service
+PORT=8080 omp-web                # environment variable also works
+PI_WEB_NO_OPEN=1 omp-web         # useful when running as a background service
 ```
 
 ## HTTP Proxy
 
-Pi Web reads the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables for server-side model and API requests.
+omp-web reads the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables for server-side model and API requests.
 
 On macOS or Linux:
 
@@ -47,7 +51,7 @@ On macOS or Linux:
 HTTP_PROXY=http://127.0.0.1:7890 \
 HTTPS_PROXY=http://127.0.0.1:7890 \
 NO_PROXY=localhost,127.0.0.1 \
-npx @agegr/pi-web@latest
+npx omp-web@latest
 ```
 
 On Windows PowerShell:
@@ -56,26 +60,39 @@ On Windows PowerShell:
 $env:HTTP_PROXY = "http://127.0.0.1:7890"
 $env:HTTPS_PROXY = "http://127.0.0.1:7890"
 $env:NO_PROXY = "localhost,127.0.0.1"
-npx @agegr/pi-web@latest
+npx omp-web@latest
 ```
 
 ## Features
 
-- **Pick work back up**: browse previous pi conversations by project without digging through terminal history or session paths.
-- **Try different directions safely**: continue from an earlier message or fork a session into a separate route.
-- **Work across branches**: switch Git worktrees from the sidebar so new sessions and the Explorer follow the checkout you choose.
+- **Browse sessions by project**: find previous omp conversations without digging through terminal history or session paths.
+- **Fork or branch safely**: continue from any earlier message, or fork a session into a separate route without touching the original.
+- **Switch worktrees from the sidebar**: the Explorer and new sessions follow the Git checkout you select.
 - **Chat beside the project**: browse files on the left and preview source, docs, images, audio, and PDFs on the right while the agent works.
-- **See session state clearly**: context usage, cost, compaction state, and system prompt details are visible from the top bar.
-- **Configure less from the terminal**: manage models, login/API keys, model tests, and skill switches from the web UI.
+- **Visible session state**: context usage, cost, compaction state, and system prompt details from the top bar at all times.
+- **Manage everything from the UI**: models, login/API keys, model tests, and skill toggles — no need to leave the browser.
 
 ## Notes
 
-- **Data directory**: Pi Web reads `~/.pi/agent/sessions` by default. Set `PI_CODING_AGENT_DIR` to point at another pi agent directory.
-- **Session files**: files are stored as `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`.
-- **Model config**: the Models panel reads and writes `models.json` in the pi agent directory. Model lists and defaults come from pi's config.
+- **Data directory**: reads `~/.pi/agent/sessions` by default. Set `PI_CODING_AGENT_DIR` to point at another pi agent directory.
+- **Session files**: stored as `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`.
+- **Model config**: the Models panel reads and writes `models.json` in the pi agent directory.
 - **File access**: file browsing and preview are scoped to the selected project directory and working directories that appear in sessions.
-- **Git worktrees**: see [Worktrees in Pi Web](./docs/worktrees.md) for when the switcher appears, how new worktrees are created, and what removal does.
+- **Git worktrees**: see [Worktrees in omp-web](./docs/worktrees.md) for when the switcher appears, how worktrees are created, and what removal does.
 - **Forks vs in-session branches**: Fork creates a new `.jsonl` file. "Edit from here" creates another branch inside the same session file.
+
+## Relationship to pi-web
+
+omp-web is a direct fork of [pi-web](https://github.com/agegr/pi-web). The following areas have been changed to fit the Oh My Pi harness:
+
+| Area | Change |
+|---|---|
+| Package name & binary | `omp-web` instead of `pi-web` |
+| pi SDK dependency | Tracks `@earendil-works/pi-*` packages used by omp |
+| Session compatibility | Works with omp session format and tool protocol |
+| Default port | 30141 (same as omp dev convention) |
+
+Everything else — session reading, AgentSession lifecycle, SSE streaming, fork/branch logic, file access, worktree management — is inherited from pi-web and documented in [AGENTS.md](./AGENTS.md).
 
 ## Development
 
@@ -135,6 +152,10 @@ hooks/
   useDragDrop.ts      # image drag/drop
   useTheme.ts         # theme switching
 bin/
-  pi-web.js           # npm CLI entrypoint
+  omp-web.js          # npm CLI entrypoint
 instrumentation.ts    # initializes the server HTTP dispatcher
 ```
+
+## License
+
+MIT — same as the upstream [pi-web](https://github.com/agegr/pi-web) project.

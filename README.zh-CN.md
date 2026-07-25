@@ -1,41 +1,47 @@
-# Pi Web
+# omp-web
 
 [English](./README.md)
 
-[pi 编程智能体](https://github.com/badlogic/pi-mono) 的本地网页界面。它会读取本机的 pi 会话文件，在浏览器里提供会话管理、实时对话、模型配置、技能管理和项目文件预览。
+[Oh My Pi](https://github.com/badlogic/pi-mono) 编程智能体的浏览器界面——基于 [pi-web](https://github.com/agegr/pi-web) Fork 并改造，专门适配 Oh My Pi（omp）工作流。
+
+> **来源说明**：本项目 Fork 自 [agegr/pi-web](https://github.com/agegr/pi-web)。核心架构、会话浏览、实时对话、文件预览均来自 pi-web 原作者的工作。本仓库的改动专注于与 Oh My Pi 环境的兼容性和工作流优化。
+
+## 什么是 Oh My Pi？
+
+Oh My Pi（omp）是构建在 pi 编程智能体之上的 coding harness，在 pi 核心能力之上添加了结构化智能体会话、技能管理、worktree 协调和更丰富的工具协议。`omp-web` 将 omp 的会话格式呈现在浏览器中：pi 写入的同一批 `.jsonl` 文件，由本地运行的 Next.js 服务器读取并渲染。
 
 ## 快速开始
 
 **无需安装，直接运行：**
 
 ```bash
-npx @agegr/pi-web@latest
+npx omp-web@latest
 ```
 
 **或全局安装后使用：**
 
 ```bash
-npm install -g @agegr/pi-web
-pi-web
+npm install -g omp-web
+omp-web
 ```
 
-启动后打开 [http://localhost:30141](http://localhost:30141)。命令行版本会在服务就绪后尝试自动打开浏览器。
+启动后打开 [http://localhost:30141](http://localhost:30141)。服务就绪后会尝试自动打开浏览器。
 
 **可选参数：**
 
 ```bash
-pi-web --port 8080              # 自定义端口
-pi-web --hostname 127.0.0.1     # 仅本机访问
-pi-web -p 8080 -H 127.0.0.1     # 组合使用
-pi-web --no-open                # 不自动打开浏览器
+omp-web --port 8080              # 自定义端口
+omp-web --hostname 127.0.0.1     # 仅本机访问
+omp-web -p 8080 -H 127.0.0.1     # 组合使用
+omp-web --no-open                # 不自动打开浏览器
 
-PORT=8080 pi-web                # 也支持环境变量
-PI_WEB_NO_OPEN=1 pi-web         # 适用于后台服务或开机自启
+PORT=8080 omp-web                # 也支持环境变量
+PI_WEB_NO_OPEN=1 omp-web         # 适用于后台服务或开机自启
 ```
 
 ## HTTP 代理
 
-Pi Web 的服务端模型请求和 API 请求会读取标准的 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NO_PROXY` 环境变量。
+omp-web 的服务端模型请求和 API 请求会读取标准的 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NO_PROXY` 环境变量。
 
 macOS 或 Linux：
 
@@ -43,7 +49,7 @@ macOS 或 Linux：
 HTTP_PROXY=http://127.0.0.1:7890 \
 HTTPS_PROXY=http://127.0.0.1:7890 \
 NO_PROXY=localhost,127.0.0.1 \
-npx @agegr/pi-web@latest
+npx omp-web@latest
 ```
 
 Windows PowerShell：
@@ -52,26 +58,39 @@ Windows PowerShell：
 $env:HTTP_PROXY = "http://127.0.0.1:7890"
 $env:HTTPS_PROXY = "http://127.0.0.1:7890"
 $env:NO_PROXY = "localhost,127.0.0.1"
-npx @agegr/pi-web@latest
+npx omp-web@latest
 ```
 
 ## 功能介绍
 
-- **把历史工作接回来**：打开网页就能按项目找到以前的 pi 对话，不必在终端里翻文件或记住会话路径。
-- **放心试不同方向**：可以从某条历史消息重新开始，也可以复制出一条独立的新路线，探索方案时不怕弄乱原来的对话。
-- **跨分支工作**：在侧边栏切换 Git worktree，让新会话和 Explorer 跟随你选择的 checkout。
-- **边聊边看项目文件**：左侧浏览项目文件，右侧打开源码、文档、图片、音频和 PDF；文件变化会自动刷新，适合边让 agent 改边检查结果。
-- **随时掌握会话状态**：在顶部就能看到上下文占用、花费、压缩结果和系统提示，长会话不再像黑箱。
-- **少离开当前界面**：模型、登录/API key、模型测试和技能开关都能在网页里处理，配置 agent 时不用在多个工具之间来回切换。
+- **按项目找回历史对话**：打开网页即可按项目检索以前的 omp 会话，不必在终端里翻文件或记住会话路径。
+- **放心探索不同方向**：从任意历史消息重新开始，或将会话 Fork 成独立路线，不会影响原来的对话。
+- **侧边栏切换 Git worktree**：Explorer 和新会话跟随你所选的 checkout。
+- **边聊边看项目文件**：左侧浏览文件，右侧预览源码、文档、图片、音频和 PDF，智能体工作时同步检查。
+- **随时掌握会话状态**：顶部栏始终显示上下文占用、费用、压缩状态和系统提示，长会话不再是黑箱。
+- **在界面内完成所有配置**：模型、登录/API key、模型测试、技能开关，无需离开浏览器。
 
 ## 注意事项
 
-- **数据目录**：默认读取 `~/.pi/agent/sessions` 下的会话文件。可通过环境变量 `PI_CODING_AGENT_DIR` 指定其他 pi agent 目录。
+- **数据目录**：默认读取 `~/.pi/agent/sessions`。可通过环境变量 `PI_CODING_AGENT_DIR` 指定其他 pi agent 目录。
 - **会话文件**：路径形如 `~/.pi/agent/sessions/<编码后的工作目录>/<时间戳>_<uuid>.jsonl`。
-- **模型配置**：Models 面板读写 pi agent 目录下的 `models.json`，模型列表和默认模型由 pi 的配置解析得到。
+- **模型配置**：Models 面板读写 pi agent 目录下的 `models.json`，模型列表和默认值来自 pi 的配置。
 - **文件访问**：文件浏览和预览面向当前选择的项目目录，以及会话中已出现过的工作目录。
-- **Git worktree**：什么时候显示切换器、新建目录在哪里、删除会影响什么，见 [Pi Web 里的 Worktree](./docs/worktrees.zh-CN.md)。
-- **Fork 与会话内分支不同**：Fork 会创建新的 `.jsonl` 文件；“Edit from here” 是同一会话文件里的分支。
+- **Git worktree**：切换器何时出现、新 worktree 在哪里创建、删除会影响什么，见 [omp-web 里的 Worktree](./docs/worktrees.zh-CN.md)。
+- **Fork 与会话内分支不同**：Fork 会创建新的 `.jsonl` 文件；"Edit from here" 是同一会话文件里的分支。
+
+## 与 pi-web 的关系
+
+omp-web 直接 Fork 自 [pi-web](https://github.com/agegr/pi-web)，下表列出了针对 Oh My Pi harness 所做的主要改动：
+
+| 改动点 | 说明 |
+|---|---|
+| 包名与二进制 | 改为 `omp-web`，原为 `pi-web` |
+| pi SDK 依赖 | 跟踪 omp 使用的 `@earendil-works/pi-*` 系列包 |
+| 会话兼容性 | 适配 omp 会话格式和工具协议 |
+| 默认端口 | 30141（与 omp 开发约定一致） |
+
+其余内容——会话读取、AgentSession 生命周期、SSE 流式传输、Fork/分支逻辑、文件访问、worktree 管理——均继承自 pi-web，详见 [AGENTS.md](./AGENTS.md)。
 
 ## 开发
 
@@ -89,11 +108,11 @@ node_modules/.bin/tsc --noEmit
 npm run lint
 ```
 
-开发时不要运行 `next build` / `npm run build`，它会写入 `.next/`，容易影响正在运行的 dev server。发布流程再执行构建。
+开发时不要运行 `next build` / `npm run build`，它会写入 `.next/` 并影响正在运行的 dev server。发布流程再执行构建。
 
 ## 项目结构
 
-```
+```text
 app/
   api/
     agent/          # 创建/驱动 AgentSession，提供 SSE 事件流
@@ -131,6 +150,10 @@ hooks/
   useDragDrop.ts      # 图片拖拽
   useTheme.ts         # 主题切换
 bin/
-  pi-web.js           # npm CLI 入口
+  omp-web.js          # npm CLI 入口
 instrumentation.ts    # 初始化服务端 HTTP dispatcher
 ```
+
+## 开源协议
+
+MIT——与上游 [pi-web](https://github.com/agegr/pi-web) 项目保持一致。
