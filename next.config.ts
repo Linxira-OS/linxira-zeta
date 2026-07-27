@@ -11,6 +11,7 @@ try {
 
 const nextConfig: NextConfig = {
   serverExternalPackages: [
+    "better-sqlite3",
     "undici",
     "@earendil-works/pi-coding-agent",
     "@earendil-works/pi-agent-core",

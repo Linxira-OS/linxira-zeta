@@ -25,6 +25,18 @@ npm install -g omp-web
 omp-web
 ```
 
+**从源码运行（Git Clone）：**
+
+```bash
+git clone https://github.com/<your-username>/omp-web.git
+cd omp-web
+npm install
+npm run dev      # 启动开发服务器（端口 30141）
+# 或构建后运行生产模式：
+npm run build
+npm start
+```
+
 启动后打开 [http://localhost:30141](http://localhost:30141)。服务就绪后会尝试自动打开浏览器。
 
 **可选参数：**
@@ -80,6 +92,7 @@ npx omp-web@latest
 - **Fork 与会话内分支不同**：Fork 会创建新的 `.jsonl` 文件；"Edit from here" 是同一会话文件里的分支。
 - **Skills API**：`SKILLS_API_URL` 可覆盖默认的 `https://skills.sh` 接口地址，用于技能搜索和安装。
 - **GitHub token**：设置 `GITHUB_TOKEN` 或 `GH_TOKEN` 可提升技能更新检查器的 GitHub API 速率限制（可选；不设置时仍可请求，但可能触发 rate limit）。
+- **环境要求**：需要 Node.js >= 18.3.0。运行环境需安装 Git 并确保系统 `PATH` 中可调起 `git` 命令（用于 Git Worktree 和仓库浏览功能）。
 
 ## 与 pi-web 的关系
 

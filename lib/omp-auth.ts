@@ -1,6 +1,5 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import Database from "better-sqlite3";
 import { getOmpAgentDir } from "./file-paths";
 
 export interface OmpAuthCredential {
@@ -72,6 +71,8 @@ export function getOmpAuthCredentials(): OmpAuthCredential[] {
 
   // Strategy 1: Try better-sqlite3
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Database = require("better-sqlite3");
     const db = new Database(dbPath, { readonly: true });
     const rows = db.prepare("SELECT * FROM auth_credentials WHERE disabled_cause IS NULL").all() as OmpAuthCredential[];
     db.close();
@@ -112,6 +113,8 @@ export function saveOmpApiKeyCredential(provider: string, apiKey: string): void 
   const dbPath = join(getOmpAgentDir(), "agent.db");
   if (!existsSync(dbPath)) return;
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Database = require("better-sqlite3");
     const db = new Database(dbPath);
     const now = Math.floor(Date.now() / 1000);
     const dataStr = JSON.stringify({ apiKey });
@@ -129,6 +132,8 @@ export function deleteOmpCredential(provider: string): void {
   const dbPath = join(getOmpAgentDir(), "agent.db");
   if (!existsSync(dbPath)) return;
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Database = require("better-sqlite3");
     const db = new Database(dbPath);
     db.prepare("DELETE FROM auth_credentials WHERE provider = ?").run(provider);
     db.close();

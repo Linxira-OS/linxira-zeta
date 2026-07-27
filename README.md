@@ -27,6 +27,18 @@ npm install -g omp-web
 omp-web
 ```
 
+**Or run from source (Git clone):**
+
+```bash
+git clone https://github.com/<your-username>/omp-web.git
+cd omp-web
+npm install
+npm run dev      # run dev server on port 30141
+# or build and run production:
+npm run build
+npm start
+```
+
 Then open [http://localhost:30141](http://localhost:30141). The server tries to open the browser automatically once it is ready.
 
 **Options:**
@@ -82,7 +94,7 @@ npx omp-web@latest
 - **Forks vs in-session branches**: Fork creates a new `.jsonl` file. "Edit from here" creates another branch inside the same session file.
 - **Skills API**: `SKILLS_API_URL` overrides the default `https://skills.sh` endpoint used for skill search and install.
 - **GitHub token**: `GITHUB_TOKEN` or `GH_TOKEN` grants the skills update checker higher GitHub API rate limits (optional; unauthenticated requests are allowed but may hit rate limits).
-
+- **Prerequisites**: Node.js >= 18.3.0 is required. Git must be installed and accessible in system `PATH` for Git worktree and repository integration.
 ## Relationship to pi-web
 
 omp-web is a direct fork of [pi-web](https://github.com/agegr/pi-web). The following areas have been changed to fit the Oh My Pi harness:

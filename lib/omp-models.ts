@@ -1,7 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import yaml from "yaml";
-import Database from "better-sqlite3";
 import { getOmpAgentDir } from "./file-paths";
 import { getOmpAuthCredentials } from "./omp-auth";
 
@@ -187,6 +186,8 @@ export function readOmpModelsFromDb(): OmpModelItem[] {
 
   // Strategy 1: Try better-sqlite3 if available
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Database = require("better-sqlite3");
     const db = new Database(dbPath, { readonly: true });
     const rows = db.prepare("SELECT provider_id, models FROM model_cache").all() as Array<{ provider_id: string; models: string }>;
     db.close();
@@ -297,6 +298,8 @@ export function syncOmpRuntimeModelsJson(agentDir: string = getOmpAgentDir()): s
 
   if (existsSync(dbPath)) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Database = require("better-sqlite3");
       const db = new Database(dbPath, { readonly: true });
       const rows = db.prepare("SELECT provider_id, models FROM model_cache").all() as Array<{ provider_id: string; models: string }>;
       db.close();
