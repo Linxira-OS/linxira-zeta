@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vs } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { useTheme } from "@/hooks/useTheme";
+import { useCodeTheme } from "@/hooks/useCodeTheme";
 import { copyText } from "@/lib/clipboard";
 import { resolveLocalFileHref } from "@/lib/file-links";
 import { markdownRehypePlugins, markdownRemarkPlugins } from "@/lib/markdown";
@@ -206,7 +205,7 @@ function MermaidBlock({ code, isStreaming }: { code: string; isStreaming?: boole
 }
 
 function CodeBlock({ code, lang, headerAction }: { code: string; lang: string; headerAction?: ReactNode }) {
-  const { isDark } = useTheme();
+  const { codeStyle, codeBg } = useCodeTheme();
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
@@ -216,15 +215,22 @@ function CodeBlock({ code, lang, headerAction }: { code: string; lang: string; h
     });
   };
 
+  const headerStyle = codeBg ? {
+    background: `color-mix(in srgb, ${codeBg} 92%, black 8%)`,
+    borderColor: `color-mix(in srgb, ${codeBg} 80%, white 20%)`,
+    color: "#abb2bf",
+  } : undefined;
+
   return (
-    <div className="markdown-code-block">
-      <div className="markdown-code-header">
-        <span className="markdown-code-lang">{lang || "text"}</span>
+    <div className="markdown-code-block" style={codeBg ? { borderColor: `color-mix(in srgb, ${codeBg} 80%, white 20%)` } : undefined}>
+      <div className="markdown-code-header" style={headerStyle}>
+        <span className="markdown-code-lang" style={codeBg ? { color: "#e06c75" } : undefined}>{lang || "text"}</span>
         <div className="markdown-code-actions">
           {headerAction}
           <button
             onClick={copy}
             className="markdown-code-action"
+            style={codeBg ? { color: "#abb2bf", borderColor: `color-mix(in srgb, ${codeBg} 70%, white 30%)` } : undefined}
           >
             {copied ? "copied" : "copy"}
           </button>
@@ -232,16 +238,16 @@ function CodeBlock({ code, lang, headerAction }: { code: string; lang: string; h
       </div>
       <SyntaxHighlighter
         language={lang || "text"}
-        style={isDark ? vscDarkPlus : vs}
+        style={codeStyle}
         showLineNumbers
-        lineNumberStyle={{ color: "var(--text-dim)", fontStyle: "normal" }}
+        lineNumberStyle={{ color: codeBg ? "#5c6370" : "var(--text-dim)", fontStyle: "normal" }}
         customStyle={{
           margin: 0,
           padding: "11px 13px",
           fontSize: 12.5,
           lineHeight: 1.62,
           borderRadius: 0,
-          background: "color-mix(in srgb, var(--bg) 92%, var(--bg-panel))",
+          background: codeBg || "color-mix(in srgb, var(--bg) 92%, var(--bg-panel))",
         }}
         codeTagProps={{ style: { fontFamily: "var(--font-mono)" } }}
       >

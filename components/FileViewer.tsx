@@ -6,10 +6,8 @@ import {
   createElement as renderSyntaxNode,
   type SyntaxHighlighterProps,
 } from "react-syntax-highlighter";
-import { vs } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { useCodeTheme } from "@/hooks/useCodeTheme";
 import ReactMarkdown from "react-markdown";
-import { useTheme } from "@/hooks/useTheme";
 import { useLanguage } from "@/hooks/useLanguage";
 import {
   DOCX_PREVIEW_MAX_BYTES,
@@ -712,7 +710,7 @@ export function FileViewer({ filePath, cwd, sourceSessionId, onOpenFile, gitRefr
 
 function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile, gitRefreshKey }: Props) {
   const { t } = useLanguage();
-  const { isDark } = useTheme();
+  const { codeStyle, codeBg } = useCodeTheme();
   const [data, setData] = useState<FileData | null>(null);
   const [gitDiff, setGitDiff] = useState<GitFileDiffResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -976,7 +974,7 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile, gitRefresh
           <SyntaxHighlighter
             className={wrapLines ? "file-source-view is-wrapped" : "file-source-view"}
             language={data.language === "text" ? "plaintext" : data.language}
-            style={isDark ? vscDarkPlus : vs}
+            style={codeStyle}
             showLineNumbers
             lineNumberStyle={{
               ...FILE_LINE_NUMBER_STYLE,
@@ -985,7 +983,7 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile, gitRefresh
               margin: 0,
               padding: 0,
               border: 0,
-              background: "var(--bg)",
+              background: codeBg || "var(--bg)",
               ...FILE_CODE_STYLE,
               width: wrapLines ? "100%" : "max-content",
               minWidth: "100%",

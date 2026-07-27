@@ -2,7 +2,48 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme, type Theme } from "@/hooks/useTheme";
+import { useCodeTheme, type CodeTheme } from "@/hooks/useCodeTheme";
+import { useLanguage } from "@/hooks/useLanguage";
 import { StarfieldEmblem } from "./StarfieldEmblem";
+
+interface CodeThemeOption {
+  id: CodeTheme;
+  label: string;
+  subZh: string;
+  subEn: string;
+  swatch: string;
+}
+
+const CODE_THEMES: CodeThemeOption[] = [
+  {
+    id: "auto",
+    label: "Auto",
+    subZh: "跟随应用主题",
+    subEn: "Follow App Theme",
+    swatch: "linear-gradient(135deg, #ffffff 50%, #1e1e1e 50%)",
+  },
+  {
+    id: "vs",
+    label: "VS Light",
+    subZh: "浅色代码块",
+    subEn: "Light syntax theme",
+    swatch: "linear-gradient(135deg, #ffffff 0%, #0000ff 50%, #008000 100%)",
+  },
+  {
+    id: "vscDarkPlus",
+    label: "VSC Dark Plus",
+    subZh: "深色代码块",
+    subEn: "Dark syntax theme",
+    swatch: "linear-gradient(135deg, #1e1e1e 0%, #569cd6 50%, #4ec9b0 100%)",
+  },
+  {
+    id: "oneDark",
+    label: "One Dark Pro",
+    subZh: "One Dark Pro 配色",
+    subEn: "One Dark Pro theme",
+    swatch: "linear-gradient(135deg, #282c34 0%, #61afef 50%, #e06c75 100%)",
+  },
+];
 
 interface ThemeOption {
   id: Theme;
@@ -71,6 +112,9 @@ const CURRENT_COLOR: Record<Theme, string> = {
 
 export function ThemePicker() {
   const { theme, setTheme } = useTheme();
+  const { codeTheme, setCodeTheme } = useCodeTheme();
+  const { t, lang } = useLanguage();
+  const isZh = lang === "zh";
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -144,7 +188,7 @@ export function ThemePicker() {
             top: "calc(100% + 4px)",
             left: 0,
             zIndex: 9000,
-            minWidth: 200,
+            minWidth: 220,
             background: "var(--bg-panel)",
             border: "1px solid var(--border)",
             boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
@@ -171,7 +215,17 @@ export function ThemePicker() {
               ◈ Theme Selection
             </div>
           )}
-
+          {/* Section 1: App Theme */}
+          <div style={{
+            padding: "8px 12px 4px",
+            fontFamily: "var(--font-mono, monospace)",
+            fontSize: 9,
+            letterSpacing: "0.08em",
+            color: "var(--text-dim)",
+            textTransform: "uppercase",
+          }}>
+            {t("App Theme", "应用主题")}
+          </div>
           {THEMES.map((opt) => {
             const isActive = theme === opt.id;
             return (
@@ -242,6 +296,79 @@ export function ThemePicker() {
                 {isActive && (
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                     stroke={opt.id === "starfield" ? "#d99b26" : "var(--accent)"}
+                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ flexShrink: 0 }} aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Divider */}
+          <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+
+          {/* Section 2: Code Theme */}
+          <div style={{
+            padding: "6px 12px 4px",
+            fontFamily: "var(--font-mono, monospace)",
+            fontSize: 9,
+            letterSpacing: "0.08em",
+            color: "var(--text-dim)",
+            textTransform: "uppercase",
+          }}>
+            {t("Code Syntax Theme", "代码块配色")}
+          </div>
+
+          {CODE_THEMES.map((opt) => {
+            const isActive = codeTheme === opt.id;
+            return (
+              <button
+                key={opt.id}
+                role="option"
+                aria-selected={isActive}
+                onClick={() => {
+                  setCodeTheme(opt.id);
+                }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  width: "100%", padding: "8px 12px",
+                  background: isActive ? "var(--bg-selected)" : "none",
+                  border: "none",
+                  borderLeft: isActive
+                    ? theme === "starfield" ? "3px solid #d99b26"
+                    : "3px solid var(--accent)"
+                    : "3px solid transparent",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "background 0.1s",
+                }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
+              >
+                {/* Color swatch */}
+                <div style={{
+                  width: 26, height: 18, flexShrink: 0,
+                  background: opt.swatch,
+                  border: "1px solid var(--border)",
+                  borderRadius: 3,
+                  boxShadow: isActive ? "0 0 0 1.5px var(--accent)" : "none",
+                }} />
+
+                {/* Text */}
+                <div style={{ flex: 1, minWidth: 0, color: "var(--text)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>
+                    {opt.label}
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 1 }}>
+                    {isZh ? opt.subZh : opt.subEn}
+                  </div>
+                </div>
+
+                {/* Active checkmark */}
+                {isActive && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                    stroke={theme === "starfield" ? "#d99b26" : "var(--accent)"}
                     strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                     style={{ flexShrink: 0 }} aria-hidden="true">
                     <polyline points="20 6 9 17 4 12" />
