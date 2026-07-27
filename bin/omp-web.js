@@ -31,7 +31,7 @@ try {
 const { port, hostname, openBrowser } = parseLaunchOptions();
 
 if (!fs.existsSync(nextDir)) {
-  console.error("Build artifacts not found. Please report this issue.");
+  console.error("Build artifacts not found. Run `npm run build` first, or install via `npm install -g omp-web` to get a pre-built package.");
   process.exit(1);
 }
 

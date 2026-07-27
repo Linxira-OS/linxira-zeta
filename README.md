@@ -38,7 +38,7 @@ omp-web -p 8080 -H 127.0.0.1     # combine options
 omp-web --no-open                # do not open the browser automatically
 
 PORT=8080 omp-web                # environment variable also works
-PI_WEB_NO_OPEN=1 omp-web         # useful when running as a background service
+OMP_WEB_NO_OPEN=1 omp-web   # useful when running as a background service
 ```
 
 ## HTTP Proxy
@@ -74,12 +74,14 @@ npx omp-web@latest
 
 ## Notes
 
-- **Data directory**: reads `~/.pi/agent/sessions` by default. Set `PI_CODING_AGENT_DIR` to point at another pi agent directory.
-- **Session files**: stored as `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`.
-- **Model config**: the Models panel reads and writes `models.json` in the pi agent directory.
+- **Data directory**: reads `~/.omp/agent/sessions` by default. Set `OMP_CODING_AGENT_DIR` to point at another omp agent directory (falls back to `PI_CODING_AGENT_DIR` for compatibility with pi-web).
+- **Session files**: stored as `~/.omp/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`.
+- **Model config**: the Models panel reads and writes `models.json` in the omp agent directory.
 - **File access**: file browsing and preview are scoped to the selected project directory and working directories that appear in sessions.
 - **Git worktrees**: see [Worktrees in omp-web](./docs/worktrees.md) for when the switcher appears, how worktrees are created, and what removal does.
 - **Forks vs in-session branches**: Fork creates a new `.jsonl` file. "Edit from here" creates another branch inside the same session file.
+- **Skills API**: `SKILLS_API_URL` overrides the default `https://skills.sh` endpoint used for skill search and install.
+- **GitHub token**: `GITHUB_TOKEN` or `GH_TOKEN` grants the skills update checker higher GitHub API rate limits (optional; unauthenticated requests are allowed but may hit rate limits).
 
 ## Relationship to pi-web
 

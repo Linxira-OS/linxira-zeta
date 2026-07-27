@@ -36,7 +36,7 @@ omp-web -p 8080 -H 127.0.0.1     # 组合使用
 omp-web --no-open                # 不自动打开浏览器
 
 PORT=8080 omp-web                # 也支持环境变量
-PI_WEB_NO_OPEN=1 omp-web         # 适用于后台服务或开机自启
+OMP_WEB_NO_OPEN=1 omp-web         # 适用于后台服务或开机自启
 ```
 
 ## HTTP 代理
@@ -72,12 +72,14 @@ npx omp-web@latest
 
 ## 注意事项
 
-- **数据目录**：默认读取 `~/.pi/agent/sessions`。可通过环境变量 `PI_CODING_AGENT_DIR` 指定其他 pi agent 目录。
-- **会话文件**：路径形如 `~/.pi/agent/sessions/<编码后的工作目录>/<时间戳>_<uuid>.jsonl`。
-- **模型配置**：Models 面板读写 pi agent 目录下的 `models.json`，模型列表和默认值来自 pi 的配置。
+- **数据目录**：默认读取 `~/.omp/agent/sessions`。可通过环境变量 `OMP_CODING_AGENT_DIR` 指定其他 omp agent 目录（兼容旧版：同样支持 `PI_CODING_AGENT_DIR`，优先级低于前者）。
+- **会话文件**：路径形如 `~/.omp/agent/sessions/<编码后的工作目录>/<时间戳>_<uuid>.jsonl`。
+- **模型配置**：Models 面板读写 omp agent 目录下的 `models.json`，模型列表和默认值来自 omp 的配置。
 - **文件访问**：文件浏览和预览面向当前选择的项目目录，以及会话中已出现过的工作目录。
 - **Git worktree**：切换器何时出现、新 worktree 在哪里创建、删除会影响什么，见 [omp-web 里的 Worktree](./docs/worktrees.zh-CN.md)。
 - **Fork 与会话内分支不同**：Fork 会创建新的 `.jsonl` 文件；"Edit from here" 是同一会话文件里的分支。
+- **Skills API**：`SKILLS_API_URL` 可覆盖默认的 `https://skills.sh` 接口地址，用于技能搜索和安装。
+- **GitHub token**：设置 `GITHUB_TOKEN` 或 `GH_TOKEN` 可提升技能更新检查器的 GitHub API 速率限制（可选；不设置时仍可请求，但可能触发 rate limit）。
 
 ## 与 pi-web 的关系
 

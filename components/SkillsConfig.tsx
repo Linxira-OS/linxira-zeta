@@ -11,8 +11,11 @@ import type {
 } from "@/lib/api-types";
 
 function shortenPath(p: string): string {
-  // Match common home dir patterns: /Users/xxx, /home/xxx
-  return p.replace(/^\/(?:Users|home)\/[^/]+/, "~");
+  // POSIX: /Users/xxx or /home/xxx → ~
+  // Windows: C:\Users\xxx or C:/Users/xxx → ~
+  return p
+    .replace(/^\/(?:Users|home)\/[^/]+/, "~")
+    .replace(/^[A-Za-z]:[/\\]Users[/\\][^/\\]+/, "~");
 }
 
 function sourceLabel(skill: Skill): string {

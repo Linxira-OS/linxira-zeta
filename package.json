@@ -11,6 +11,9 @@
     "url": "https://github.com/agegr/pi-web/issues"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=18.3.0"
+  },
   "bin": {
     "omp-web": "bin/omp-web.js"
   },

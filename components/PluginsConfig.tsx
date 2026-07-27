@@ -10,7 +10,11 @@ type PluginScope = PluginPackageInfo["scope"];
 type PluginAction = "install" | "remove" | "update" | "disable" | "enable";
 
 function shortenPath(path: string): string {
-  return path.replace(/^\/(?:Users|home)\/[^/]+/, "~");
+  // POSIX: /Users/xxx or /home/xxx → ~
+  // Windows: C:\Users\xxx or C:/Users/xxx → ~
+  return path
+    .replace(/^\/(?:Users|home)\/[^/]+/, "~")
+    .replace(/^[A-Za-z]:[/\\]Users[/\\][^/\\]+/, "~");
 }
 
 function packageKey(pkg: Pick<PluginPackageInfo, "source" | "scope">): string {
