@@ -30,7 +30,7 @@ omp-web
 **Or run from source (Git clone):**
 
 ```bash
-git clone https://github.com/<your-username>/omp-web.git
+git clone https://github.com/17380936778/omp-web.git
 cd omp-web
 npm install
 npm run dev      # run dev server on port 30141

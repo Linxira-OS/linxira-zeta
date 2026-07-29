@@ -28,7 +28,7 @@ omp-web
 **从源码运行（Git Clone）：**
 
 ```bash
-git clone https://github.com/<your-username>/omp-web.git
+git clone https://github.com/17380936778/omp-web.git
 cd omp-web
 npm install
 npm run dev      # 启动开发服务器（端口 30141）
