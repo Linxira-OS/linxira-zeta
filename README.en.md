@@ -16,20 +16,7 @@ Oh My Pi (omp) is a coding harness built on top of the pi coding agent. It adds 
 
 Pi Web requires Node.js 22.19.0 or newer. Check your version with `node --version`.
 
-**Run without installing:**
-
-```bash
-npx omp-web@latest
-```
-
-**Or install globally:**
-
-```bash
-npm install -g omp-web
-omp-web
-```
-
-**Or run from source (Git clone):**
+**Run from source (Git clone):**
 
 ```bash
 git clone https://github.com/17380936778/omp-web.git

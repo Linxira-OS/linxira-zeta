@@ -14,19 +14,6 @@ Oh My Pi（omp）是构建在 pi 编程智能体之上的 coding harness，在 p
 
 Pi Web 要求 Node.js 22.19.0 或更高版本。可通过 `node --version` 检查当前版本。
 
-**无需安装，直接运行：**
-
-```bash
-npx omp-web@latest
-```
-
-**或全局安装后使用：**
-
-```bash
-npm install -g omp-web
-omp-web
-```
-
 **从源码运行（Git Clone）：**
 
 ```bash
