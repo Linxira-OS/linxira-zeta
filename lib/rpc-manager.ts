@@ -2,6 +2,7 @@ import { createAgentSessionFromServices, createAgentSessionServices, initTheme, 
 import { KeybindingsManager as TuiKeybindingsManager, TUI_KEYBINDINGS } from "@earendil-works/pi-tui";
 import { randomUUID } from "crypto";
 import { existsSync, writeFileSync } from "fs";
+import { validateAgentImages } from "./image-attachments";
 import { invalidateModelsCache } from "./models-cache";
 import { cacheSessionPath, invalidateSessionListCache, openSessionManager } from "./session-reader";
 import { join } from "path";
@@ -311,6 +312,11 @@ export class AgentSessionWrapper {
     const type = command.type as string;
     if (this.shouldWaitForExtensions(type)) await this.waitForExtensionsBound();
 
+    if (type === "prompt" || type === "steer" || type === "follow_up") {
+      const imageError = validateAgentImages(command.images);
+      if (imageError) throw new Error(imageError);
+    }
+
     switch (type) {
       case "prompt": {
         if (this.inner.isBashRunning) {
@@ -405,8 +411,14 @@ export class AgentSessionWrapper {
           }
         }
 
-        const model = this.inner.modelRuntime.getModel(cleanProvider, cleanModelId)
+        let model = this.inner.modelRuntime.getModel(cleanProvider, cleanModelId)
           || this.inner.modelRuntime.getModel(cleanProvider, modelId);
+
+        if (!model) {
+          await this.inner.modelRuntime.refresh({ allowNetwork: false });
+          model = this.inner.modelRuntime.getModel(cleanProvider, cleanModelId)
+            || this.inner.modelRuntime.getModel(cleanProvider, modelId);
+        }
 
         if (!model) {
           const dbModels = readOmpModelsFromDb();

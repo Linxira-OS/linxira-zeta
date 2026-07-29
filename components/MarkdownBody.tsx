@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useMemo, type MouseEvent } from "react";
 import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { useTheme } from "@/hooks/useTheme";
-import { useCodeTheme } from "@/hooks/useCodeTheme";
-import { copyText } from "@/lib/clipboard";
+
 import { resolveLocalFileHref } from "@/lib/file-links";
-import { markdownRehypePlugins, markdownRemarkPlugins } from "@/lib/markdown";
+import { encodeFilePathForApi } from "@/lib/file-paths";
+import { markdownRehypePlugins, markdownRemarkPlugins, normalizeDisplayMath } from "@/lib/markdown";
+import { MermaidBlock, CodeBlock } from "./MermaidBlock";
 
 interface MarkdownBodyProps {
   children: string;
@@ -76,6 +75,16 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
               </a>
             );
           },
+          img({ src, alt, ...props }) {
+            delete props.node;
+            const filePath = typeof src === "string" ? resolveLocalFileHref(src, cwd) : null;
+            const imageSrc = filePath
+              ? `/api/files/${encodeFilePathForApi(filePath)}?type=read`
+              : src;
+            // Dynamic local paths are served directly by the file API.
+            // eslint-disable-next-line @next/next/no-img-element
+            return <img src={imageSrc} alt={alt ?? ""} loading="lazy" {...props} />;
+          },
           table({ children }) {
             return (
               <div className="markdown-table-wrap">
@@ -91,168 +100,3 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
   );
 }
 
-function normalizeDisplayMath(markdown: string): string {
-  const lineBreak = markdown.includes("\r\n") ? "\r\n" : "\n";
-  const lines = markdown.split(/\r?\n/);
-  let fence: { marker: string; size: number } | null = null;
-
-  return lines
-    .map((line) => {
-      const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
-      if (fenceMatch) {
-        const marker = fenceMatch[1][0];
-        const size = fenceMatch[1].length;
-        if (!fence) fence = { marker, size };
-        else if (marker === fence.marker && size >= fence.size) fence = null;
-        return line;
-      }
-
-      if (fence) return line;
-
-      const displayMathMatch = line.match(/^([ \t]{0,3})\$\$(.+)\$\$[ \t]*$/);
-      if (!displayMathMatch) return line;
-
-      const math = displayMathMatch[2].trim();
-      if (!math) return line;
-
-      return `${displayMathMatch[1]}$$${lineBreak}${math}${lineBreak}${displayMathMatch[1]}$$`;
-    })
-    .join(lineBreak);
-}
-
-function MermaidBlock({ code, isStreaming }: { code: string; isStreaming?: boolean }) {
-  const { isDark } = useTheme();
-  const [showPreview, setShowPreview] = useState(false);
-  const [svg, setSvg] = useState<string | null>(null);
-  const [renderedKey, setRenderedKey] = useState("");
-  const [failedKey, setFailedKey] = useState<string | null>(null);
-  const currentKey = `${isDark ? "dark" : "light"}\n${code}`;
-
-  useEffect(() => {
-    if (!showPreview || isStreaming) return;
-
-    let cancelled = false;
-    setFailedKey(null);
-
-    const render = async () => {
-      const { default: mermaid } = await import("mermaid");
-      mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: "strict",
-        suppressErrorRendering: true,
-        theme: isDark ? "dark" : "default",
-      });
-
-      const parsed = await mermaid.parse(code, { suppressErrors: true });
-      if (!parsed) throw new Error("Invalid Mermaid diagram");
-
-      const id =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? `mermaid-${crypto.randomUUID()}`
-          : `mermaid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const result = await mermaid.render(id, code);
-      if (!cancelled) {
-        setSvg(result.svg);
-        setRenderedKey(currentKey);
-      }
-    };
-
-    render().catch(() => {
-      if (!cancelled) setFailedKey(currentKey);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [code, currentKey, isDark, isStreaming, showPreview]);
-
-  const previewButton = (
-    <button
-      onClick={() => setShowPreview((v) => !v)}
-      disabled={isStreaming}
-      title={isStreaming ? "Preview available after streaming" : (showPreview ? "Show Mermaid source" : "Preview Mermaid diagram")}
-      className={["markdown-code-action", showPreview ? "is-active" : ""].filter(Boolean).join(" ")}
-    >
-      {showPreview ? "Source" : "Preview"}
-    </button>
-  );
-
-  if (!showPreview || isStreaming) {
-    return <CodeBlock code={code} lang="mermaid" headerAction={previewButton} />;
-  }
-
-  const body =
-    failedKey === currentKey ? (
-      <div className="mermaid-block mermaid-block-error">Invalid Mermaid diagram</div>
-    ) : !svg || renderedKey !== currentKey ? (
-      <div className="mermaid-block mermaid-block-loading" aria-label="Rendering Mermaid diagram" />
-    ) : (
-      <div
-        className="mermaid-block"
-        dangerouslySetInnerHTML={{ __html: svg }}
-      />
-    );
-
-  return (
-    <div className="markdown-code-block">
-      <div className="markdown-code-header">
-        <span className="markdown-code-lang">mermaid</span>
-        {previewButton}
-      </div>
-      {body}
-    </div>
-  );
-}
-
-function CodeBlock({ code, lang, headerAction }: { code: string; lang: string; headerAction?: ReactNode }) {
-  const { codeStyle, codeBg } = useCodeTheme();
-  const [copied, setCopied] = useState(false);
-
-  const copy = () => {
-    copyText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-
-  const headerStyle = codeBg ? {
-    background: `color-mix(in srgb, ${codeBg} 92%, black 8%)`,
-    borderColor: `color-mix(in srgb, ${codeBg} 80%, white 20%)`,
-    color: "#abb2bf",
-  } : undefined;
-
-  return (
-    <div className="markdown-code-block" style={codeBg ? { borderColor: `color-mix(in srgb, ${codeBg} 80%, white 20%)` } : undefined}>
-      <div className="markdown-code-header" style={headerStyle}>
-        <span className="markdown-code-lang" style={codeBg ? { color: "#e06c75" } : undefined}>{lang || "text"}</span>
-        <div className="markdown-code-actions">
-          {headerAction}
-          <button
-            onClick={copy}
-            className="markdown-code-action"
-            style={codeBg ? { color: "#abb2bf", borderColor: `color-mix(in srgb, ${codeBg} 70%, white 30%)` } : undefined}
-          >
-            {copied ? "copied" : "copy"}
-          </button>
-        </div>
-      </div>
-      <SyntaxHighlighter
-        language={lang || "text"}
-        style={codeStyle}
-        showLineNumbers
-        lineNumberStyle={{ color: codeBg ? "#5c6370" : "var(--text-dim)", fontStyle: "normal" }}
-        customStyle={{
-          margin: 0,
-          padding: "11px 13px",
-          fontSize: 12.5,
-          lineHeight: 1.62,
-          borderRadius: 0,
-          background: codeBg || "color-mix(in srgb, var(--bg) 92%, var(--bg-panel))",
-        }}
-        codeTagProps={{ style: { fontFamily: "var(--font-mono)" } }}
-      >
-        {code}
-      </SyntaxHighlighter>
-    </div>
-  );
-}

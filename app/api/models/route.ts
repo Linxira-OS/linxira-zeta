@@ -2,10 +2,11 @@ import { stat } from "fs/promises";
 import { resolve, join } from "path";
 import { createAgentSessionServices, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import { loadModelsWithCache, type ModelsData } from "../../../lib/models-cache";
+import { loadModelsWithCache, withModelRuntimeError, type ModelsData } from "../../../lib/models-cache";
 import { readOmpModelsFromDb, readOmpConfig, parseOmpDefaultModel, syncOmpRuntimeModelsJson } from "../../../lib/omp-models";
 import { getUsableOmpRuntimeCredentials } from "../../../lib/omp-auth";
 import { getOmpAgentDir } from "../../../lib/file-paths";
+import { getAllowedFileRoots, isExistingFilePathAllowed } from "../../../lib/file-access";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ async function loadModels(cwd: string): Promise<ModelsData> {
       available = dbModels as unknown as typeof available;
     }
   }
+  const modelError = services.modelRuntime.getError();
   const settings = services.settingsManager;
   const enabledModels = settings.getEnabledModels();
 
@@ -119,7 +121,10 @@ async function loadModels(cwd: string): Promise<ModelsData> {
     defaultModel = { provider: modelList[0].provider, modelId: modelList[0].id };
   }
 
-  return { models: Object.fromEntries(nameMap), modelList, defaultModel, thinkingLevels, thinkingLevelMaps };
+  return withModelRuntimeError(
+    { models: Object.fromEntries(nameMap), modelList, defaultModel, thinkingLevels, thinkingLevelMaps },
+    modelError,
+  );
 }
 
 const EMPTY_MODELS: ModelsData = {
@@ -142,6 +147,10 @@ export async function GET(req: Request) {
   }
   if (!cwdStat.isDirectory()) {
     return Response.json({ error: `Not a directory: ${cwd}` }, { status: 400 });
+  }
+  const allowedRoots = await getAllowedFileRoots();
+  if (!isExistingFilePathAllowed(cwd, allowedRoots)) {
+    return Response.json({ error: "Access denied" }, { status: 403 });
   }
 
   try {

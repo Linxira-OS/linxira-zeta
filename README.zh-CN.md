@@ -1,6 +1,6 @@
 # omp-web
 
-[English](./README.md)
+[English](./README.md) | [日本語](./README.ja.md)
 
 [Oh My Pi](https://github.com/badlogic/pi-mono) 编程智能体的浏览器界面——基于 [pi-web](https://github.com/agegr/pi-web) Fork 并改造，专门适配 Oh My Pi（omp）工作流。
 
@@ -11,6 +11,8 @@
 Oh My Pi（omp）是构建在 pi 编程智能体之上的 coding harness，在 pi 核心能力之上添加了结构化智能体会话、技能管理、worktree 协调和更丰富的工具协议。`omp-web` 将 omp 的会话格式呈现在浏览器中：pi 写入的同一批 `.jsonl` 文件，由本地运行的 Next.js 服务器读取并渲染。
 
 ## 快速开始
+
+Pi Web 要求 Node.js 22.19.0 或更高版本。可通过 `node --version` 检查当前版本。
 
 **无需安装，直接运行：**
 
@@ -37,19 +39,22 @@ npm run build
 npm start
 ```
 
-启动后打开 [http://localhost:30141](http://localhost:30141)。服务就绪后会尝试自动打开浏览器。
+启动后打开 [http://127.0.0.1:30141](http://127.0.0.1:30141)。服务就绪后会尝试自动打开浏览器。omp-web 默认仅监听 `127.0.0.1`。
 
 **可选参数：**
 
 ```bash
 omp-web --port 8080              # 自定义端口
-omp-web --hostname 127.0.0.1     # 仅本机访问
-omp-web -p 8080 -H 127.0.0.1     # 组合使用
+omp-web --hostname 0.0.0.0       # 在可信网络中开放访问
+omp-web -p 8080 -H 0.0.0.0       # 组合使用
 omp-web --no-open                # 不自动打开浏览器
 
 PORT=8080 omp-web                # 也支持环境变量
+OMP_WEB_HOSTNAME=0.0.0.0 omp-web  # 显式开放网络访问
 OMP_WEB_NO_OPEN=1 omp-web         # 适用于后台服务或开机自启
 ```
+
+Pi Web 没有应用层身份验证，并且可以调用高权限智能体。请勿将其暴露到互联网；仅在可信网络中使用非 loopback 监听地址。
 
 ## HTTP 代理
 
@@ -114,7 +119,7 @@ npm install
 npm run dev
 ```
 
-本地开发端口为 [http://localhost:30141](http://localhost:30141)。
+本地开发端口为 [http://127.0.0.1:30141](http://127.0.0.1:30141)。
 
 常用检查：
 
@@ -132,6 +137,7 @@ app/
   api/
     agent/          # 创建/驱动 AgentSession，提供 SSE 事件流
     auth/           # OAuth 和 API key 管理
+    cwd/browse/     # 服务端目录浏览
     cwd/validate/   # 自定义工作目录校验
     default-cwd/    # 获取 pi 默认工作目录
     files/          # 文件列表、读取、预览、watch
@@ -143,6 +149,7 @@ app/
 components/
   AppShell.tsx        # 主布局、URL 状态、顶部面板、文件标签
   SessionSidebar.tsx  # 项目选择、会话树、Explorer
+  DirectoryPicker.tsx # 支持浏览和路径输入的工作目录选择器
   ChatWindow.tsx      # 消息区、SSE、拖拽图片、minimap
   ChatInput.tsx       # 输入栏、模型/工具/thinking/compact/slash controls
   MessageView.tsx     # 消息、thinking、tool call/result 渲染
@@ -151,6 +158,7 @@ components/
   FileExplorer.tsx    # 文件树
   FileViewer.tsx      # 源码、diff、图片、音频、PDF、DOCX 预览
 lib/
+  directory-browser.ts # 目录规范化和安全枚举工具
   http-dispatcher.ts  # 服务端 fetch 的 HTTP(S) 代理配置
   rpc-manager.ts      # AgentSessionWrapper 生命周期和全局 registry
   session-reader.ts   # 解析 .jsonl 会话文件和分支上下文
