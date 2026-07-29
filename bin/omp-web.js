@@ -45,9 +45,7 @@ if (!fs.existsSync(nextDir)) {
 }
 
 if (!loopbackHostnames.has(hostname)) {
-  console.warn(
-    `Warning: pi-web is listening on ${hostname} without authentication. Only use this on a trusted network.`,
-  );
+    `Warning: omp-web is listening on ${hostname} without authentication. Only use this on a trusted network.`,
 }
 
 const nextArgs = ["start", "-p", port];
