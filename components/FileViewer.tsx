@@ -785,7 +785,6 @@ export function FileViewer({ filePath, cwd, sourceSessionId, onOpenFile, onMenti
 
 function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile, onMentionLines, gitRefreshKey }: Props) {
   const { t } = useLanguage();
-  const { isDark } = useTheme();
   const { codeStyle, codeBg } = useCodeTheme();
   const [data, setData] = useState<FileData | null>(null);
   const [gitDiff, setGitDiff] = useState<GitFileDiffResponse | null>(null);
