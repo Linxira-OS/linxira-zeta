@@ -1,6 +1,6 @@
 # omp-web
 
-[English](./README.md) | [日本語](./README.ja.md)
+[English](./README.en.md)
 
 [Oh My Pi](https://github.com/badlogic/pi-mono) 编程智能体的浏览器界面——基于 [pi-web](https://github.com/agegr/pi-web) Fork 并改造，专门适配 Oh My Pi（omp）工作流。
 
