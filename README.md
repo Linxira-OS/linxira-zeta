@@ -80,15 +80,17 @@ $env:NO_PROXY = "localhost,127.0.0.1"
 npx omp-web@latest
 ```
 
-## Features
+## Features & Enhancements
 
+- **Code Highlighting Theme Selector**: Independent code block theme selector supporting **One Dark Pro**, VS Code Dark+, VS Code Light, and more.
+- **Deep Oh My Pi (OMP) Integration**: Fully supports `~/.omp/agent/` directory structure (`models.json`, `models.db`, `config.yml`, `agent.db`), auto-mapping OMP model roles (`defaultModel`, `smallModel`) and SQLite API credentials.
+- **Full i18n & Chinese Localization**: Complete bilingual UI, optimized CJK typography, fonts, and search experience.
 - **Browse sessions by project**: find previous omp conversations without digging through terminal history or session paths.
 - **Fork or branch safely**: continue from any earlier message, or fork a session into a separate route without touching the original.
 - **Switch worktrees from the sidebar**: the Explorer and new sessions follow the Git checkout you select.
 - **Chat beside the project**: browse files on the left and preview source, docs, images, audio, and PDFs on the right while the agent works.
 - **Visible session state**: context usage, cost, compaction state, and system prompt details from the top bar at all times.
 - **Manage everything from the UI**: models, login/API keys, model tests, and skill toggles — no need to leave the browser.
-
 ## Notes
 
 - **Data directory**: reads `~/.omp/agent/sessions` by default. Set `OMP_CODING_AGENT_DIR` to point at another omp agent directory (falls back to `PI_CODING_AGENT_DIR` for compatibility with pi-web).
@@ -102,17 +104,19 @@ npx omp-web@latest
 - **Prerequisites**: Node.js >= 18.3.0 is required. Git must be installed and accessible in system `PATH` for Git worktree and repository integration.
 ## Relationship to pi-web
 
-omp-web is a direct fork of [pi-web](https://github.com/agegr/pi-web). The following areas have been changed to fit the Oh My Pi harness:
+omp-web is a direct fork of [pi-web](https://github.com/agegr/pi-web). The table below details the enhancements and changes introduced for the Oh My Pi environment:
 
 | Area | Change |
 |---|---|
 | Package name & binary | `omp-web` instead of `pi-web` |
+| Code Theme Selector | **Added** independent syntax theme selector with support for **One Dark Pro** and others |
+| OMP DB & Role Mapping | **Added** support for `models.db`, `config.yml` model roles, and SQLite credentials under `~/.omp/agent/` |
+| Chinese & i18n Localization | **Enhanced** full bilingual interface and optimized CJK typography |
 | pi SDK dependency | Tracks `@earendil-works/pi-*` packages used by omp |
-| Session compatibility | Works with omp session format and tool protocol |
+| Session & Path Compatibility | Works with omp session format, tool protocol, and `~/.omp/agent/` data directory |
 | Default port | 30141 (same as omp dev convention) |
 
 Everything else — session reading, AgentSession lifecycle, SSE streaming, fork/branch logic, file access, worktree management — is inherited from pi-web and documented in [AGENTS.md](./AGENTS.md).
-
 ## Development
 
 ```bash

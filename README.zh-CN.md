@@ -78,16 +78,17 @@ $env:NO_PROXY = "localhost,127.0.0.1"
 npx omp-web@latest
 ```
 
-## 功能介绍
+## 特色与增强功能
 
+- **独立代码块语法主题选择器**：新增多主题代码渲染支持，内置 **One Dark Pro**、VS Code Dark+、VS Code Light 等高亮主题，用户可自由切换代码视觉风格。
+- **Oh My Pi (OMP) 生态深度集成**：完全适配 `~/.omp/agent/` 目录结构（`models.json`、`models.db`、`config.yml`、`agent.db` 等），自动识别并映射 OMP 专属的模型角色 (如 `defaultModel`, `smallModel` 等) 及 SQLite 凭据。
+- **全界面中文与双语本地化**：提供全面中文化的 UI 交互体验，优化 CJK 排版、字体与搜索体验。
 - **按项目找回历史对话**：打开网页即可按项目检索以前的 omp 会话，不必在终端里翻文件或记住会话路径。
 - **放心探索不同方向**：从任意历史消息重新开始，或将会话 Fork 成独立路线，不会影响原来的对话。
 - **侧边栏切换 Git worktree**：Explorer 和新会话跟随你所选的 checkout。
 - **边聊边看项目文件**：左侧浏览文件，右侧预览源码、文档、图片、音频和 PDF，智能体工作时同步检查。
 - **随时掌握会话状态**：顶部栏始终显示上下文占用、费用、压缩状态和系统提示，长会话不再是黑箱。
 - **在界面内完成所有配置**：模型、登录/API key、模型测试、技能开关，无需离开浏览器。
-
-## 注意事项
 
 - **数据目录**：默认读取 `~/.omp/agent/sessions`。可通过环境变量 `OMP_CODING_AGENT_DIR` 指定其他 omp agent 目录（兼容旧版：同样支持 `PI_CODING_AGENT_DIR`，优先级低于前者）。
 - **会话文件**：路径形如 `~/.omp/agent/sessions/<编码后的工作目录>/<时间戳>_<uuid>.jsonl`。
@@ -101,17 +102,19 @@ npx omp-web@latest
 
 ## 与 pi-web 的关系
 
-omp-web 直接 Fork 自 [pi-web](https://github.com/agegr/pi-web)，下表列出了针对 Oh My Pi harness 所做的主要改动：
+omp-web 直接 Fork 自 [pi-web](https://github.com/agegr/pi-web)，下表列出了针对 Oh My Pi (omp) 生态与用户体验所做的主要增强与改动：
 
 | 改动点 | 说明 |
 |---|---|
 | 包名与二进制 | 改为 `omp-web`，原为 `pi-web` |
-| pi SDK 依赖 | 跟踪 omp 使用的 `@earendil-works/pi-*` 系列包 |
-| 会话兼容性 | 适配 omp 会话格式和工具协议 |
+| 代码语法主题选择器 | **新增** 独立代码块主题选择器，支持 **One Dark Pro** 等主流主题切换 |
+| OMP 数据库与角色适配 | **新增** 对 `~/.omp/agent/` 下 `models.db`、`config.yml` 角色模型及 SQLite API Key 的读取与映射 |
+| 中文与国际化体验 | **增强** 完整双语界面与中文本地化交互优化 |
+| pi SDK 依赖 | 跟踪 omp 使用的 `@earendil-works/pi-*` 最新系列包 |
+| 会话与路径兼容性 | 适配 omp 会话格式、工具协议及 `~/.omp/agent/` 数据目录 |
 | 默认端口 | 30141（与 omp 开发约定一致） |
 
 其余内容——会话读取、AgentSession 生命周期、SSE 流式传输、Fork/分支逻辑、文件访问、worktree 管理——均继承自 pi-web，详见 [AGENTS.md](./AGENTS.md)。
-
 ## 开发
 
 ```bash
