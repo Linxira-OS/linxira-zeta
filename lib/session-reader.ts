@@ -17,38 +17,48 @@ import { getOmpAgentDir } from "./file-paths";
 export { getOmpAgentDir as getAgentDir };
 
 async function loadAllSessions(): Promise<SessionInfo[]> {
-  const piSessions: PiSessionInfo[] = await SessionManager.listAll();
-  if (piSessions.length === 0) {
-    const sessionsDir = join(getOmpAgentDir(), "sessions");
-    if (existsSync(sessionsDir)) {
-      try {
-        const subdirs = readdirSync(sessionsDir);
-        for (const sub of subdirs) {
-          const dirPath = join(sessionsDir, sub);
-          if (!statSync(dirPath).isDirectory()) continue;
-          const files = readdirSync(dirPath).filter((f) => f.endsWith(".jsonl"));
-          for (const file of files) {
-            const filePath = join(dirPath, file);
-            const header = readSessionHeader(filePath);
-            if (header && header.id) {
-              const stat = statSync(filePath);
-              piSessions.push({
-                path: filePath,
-                id: header.id,
-                cwd: header.cwd || "",
-                name: (header as unknown as Record<string, unknown>).name as string || (header as unknown as Record<string, unknown>).title as string,
-                created: header.timestamp ? new Date(header.timestamp) : stat.birthtime,
-                modified: stat.mtime,
-                messageCount: 1,
-                firstMessage: (header as unknown as Record<string, unknown>).title as string || "(session)",
-                parentSessionPath: header.parentSession,
-              } as unknown as PiSessionInfo);
-            }
+  let piSessions: PiSessionInfo[] = [];
+  try {
+    piSessions = await SessionManager.listAll();
+  } catch {
+    // ignore
+  }
+
+  // Always scan getOmpAgentDir()/sessions for session files that SessionManager missed
+  // (e.g. files where title entry or thinking_level_change is at line 1)
+  const knownPaths = new Set(piSessions.map((s) => sessionPathKey(s.path)));
+  const sessionsDir = join(getOmpAgentDir(), "sessions");
+  if (existsSync(sessionsDir)) {
+    try {
+      const subdirs = readdirSync(sessionsDir);
+      for (const sub of subdirs) {
+        const dirPath = join(sessionsDir, sub);
+        if (!statSync(dirPath).isDirectory()) continue;
+        const files = readdirSync(dirPath).filter((f) => f.endsWith(".jsonl"));
+        for (const file of files) {
+          const filePath = join(dirPath, file);
+          if (knownPaths.has(sessionPathKey(filePath))) continue;
+
+          const header = readSessionHeader(filePath);
+          if (header && header.id) {
+            const stat = statSync(filePath);
+            piSessions.push({
+              path: filePath,
+              id: header.id,
+              cwd: header.cwd || "",
+              name: (header as unknown as Record<string, unknown>).name as string || (header as unknown as Record<string, unknown>).title as string,
+              created: header.timestamp ? new Date(header.timestamp) : stat.birthtime,
+              modified: stat.mtime,
+              messageCount: 1,
+              firstMessage: (header as unknown as Record<string, unknown>).title as string || "(session)",
+              parentSessionPath: header.parentSession,
+            } as unknown as PiSessionInfo);
+            knownPaths.add(sessionPathKey(filePath));
           }
         }
-      } catch {
-        // ignore error
       }
+    } catch {
+      // ignore error
     }
   }
   const pathToId = new Map<string, string>();
