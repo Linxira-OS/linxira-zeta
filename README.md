@@ -170,6 +170,10 @@ bin/
 instrumentation.ts    # initializes the server HTTP dispatcher
 ```
 
+## Acknowledgements
+
+This project is built upon [pi-web](https://github.com/agegr/pi-web) and the `@earendil-works/pi-*` ecosystem. Special thanks to the original authors of `pi-web` and the Oh My Pi team for providing the open-source foundation.
+
 ## License
 
 MIT — same as the upstream [pi-web](https://github.com/agegr/pi-web) project.

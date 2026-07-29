@@ -169,6 +169,10 @@ bin/
 instrumentation.ts    # 初始化服务端 HTTP dispatcher
 ```
 
+## 致谢
+
+本项目基于 [pi-web](https://github.com/agegr/pi-web) 及 `@earendil-works/pi-*` 生态二次开发与增强。感谢 `pi-web` 原作者及 Oh My Pi 团队提供的优秀开源基石！
+
 ## 开源协议
 
 MIT——与上游 [pi-web](https://github.com/agegr/pi-web) 项目保持一致。
