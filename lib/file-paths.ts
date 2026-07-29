@@ -47,11 +47,12 @@ export function joinFilePath(parent: string, child: string): string {
 
 
 export function getOmpAgentDir(): string {
-  if (process.env.OMP_CODING_AGENT_DIR) {
-    return process.env.OMP_CODING_AGENT_DIR;
+  const dir = process.env.OMP_CODING_AGENT_DIR || process.env.PI_CODING_AGENT_DIR || join(homedir(), ".omp", "agent");
+  if (!process.env.OMP_CODING_AGENT_DIR) {
+    process.env.OMP_CODING_AGENT_DIR = dir;
   }
-  if (process.env.PI_CODING_AGENT_DIR) {
-    return process.env.PI_CODING_AGENT_DIR;
+  if (!process.env.PI_CODING_AGENT_DIR) {
+    process.env.PI_CODING_AGENT_DIR = dir;
   }
-  return join(homedir(), ".omp", "agent");
+  return dir;
 }

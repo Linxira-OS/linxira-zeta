@@ -93,8 +93,14 @@ async function loadModels(cwd: string): Promise<ModelsData> {
     visible = visible.filter((m) => authedProviderIds.has(m.provider));
   }
 
-  // Merge role entries first, then authenticated models
-  const combinedList: { id: string; name: string; provider: string; contextWindow?: number }[] = [...roleModelEntries];
+  // Merge role entries first (deduplicated), then authenticated models
+  const combinedList: { id: string; name: string; provider: string; contextWindow?: number }[] = [];
+  for (const entry of roleModelEntries) {
+    const existing = combinedList.find((x) => x.provider === entry.provider && x.id === entry.id);
+    if (!existing) {
+      combinedList.push({ ...entry });
+    }
+  }
   for (const m of visible) {
     if (!combinedList.some((x) => x.provider === m.provider && x.id === m.id)) {
       combinedList.push({
