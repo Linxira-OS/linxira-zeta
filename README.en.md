@@ -6,7 +6,7 @@ A browser-based UI for the [Oh My Pi](https://github.com/badlogic/pi-mono) codin
 
 > **Origin**: This project is a fork of [agegr/pi-web](https://github.com/agegr/pi-web). The core architecture, session browsing, real-time chat, and file preview remain as built by the pi-web authors. Changes made here target compatibility and workflow improvements specific to the Oh My Pi environment.
 
-![omp-web showing a session with structured Markdown, tool calls, and project navigation](https://raw.githubusercontent.com/agegr/pi-web/main/docs/screenshot2.png)
+![omp-web showing a session with structured Markdown, tool calls, and project navigation](./docs/Untitled%20blend-4096x4096.png)
 
 ## What is Oh My Pi?
 

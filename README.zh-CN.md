@@ -6,7 +6,7 @@
 
 > **来源说明**：本项目 Fork 自 [agegr/pi-web](https://github.com/agegr/pi-web)。核心架构、会话浏览、实时对话、文件预览均来自 pi-web 原作者的工作。本仓库的改动专注于与 Oh My Pi 环境的兼容性和工作流优化。
 
-## 什么是 Oh My Pi？
+![omp-web 界面展示：结构化 Markdown、工具调用与项目导航](./docs/Untitled%20blend-4096x4096.png)
 
 Oh My Pi（omp）是构建在 pi 编程智能体之上的 coding harness，在 pi 核心能力之上添加了结构化智能体会话、技能管理、worktree 协调和更丰富的工具协议。`omp-web` 将 omp 的会话格式呈现在浏览器中：pi 写入的同一批 `.jsonl` 文件，由本地运行的 Next.js 服务器读取并渲染。
 

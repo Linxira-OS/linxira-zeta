@@ -6,7 +6,7 @@
 
 > **来源说明**：本项目 Fork 自 [agegr/pi-web](https://github.com/agegr/pi-web)。核心架构、会话浏览、实时对话、文件预览均来自 pi-web 原作者的工作。本仓库的改动专注于与 Oh My Pi 环境的兼容性和工作流优化。
 
-![omp-web 界面展示：结构化 Markdown、工具调用与项目导航](https://raw.githubusercontent.com/agegr/pi-web/main/docs/screenshot2.png)
+![omp-web 界面展示：结构化 Markdown、工具调用与项目导航](./docs/Untitled%20blend-4096x4096.png)
 
 ## 什么是 Oh My Pi？
 
