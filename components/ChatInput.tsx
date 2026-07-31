@@ -1941,7 +1941,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     overflow: "hidden", minWidth: 180,
                   }}>
                     {THINKING_LEVELS.filter((lvl) => {
-                      if (!availableThinkingLevels) return true;
+                      if (!availableThinkingLevels || availableThinkingLevels.length <= 1) return true;
                       if (lvl === "auto") return true;
                       return availableThinkingLevels.includes(lvl);
                     }).map((lvl) => {
