@@ -1,0 +1,21 @@
+# 本地参考克隆（pi / oh-my-pi / pi-web / omp-web），永不追踪
+temp/
+
+# 依赖与构建产物
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# 日志与临时
+*.log
+*.pid
+.DS_Store
+Thumbs.db
+
+# 本地环境
+.env
+.env.local
+.pi/
+.omp/

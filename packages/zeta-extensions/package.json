@@ -1,0 +1,21 @@
+{
+	"name": "zeta-extensions",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Zeta: oh-my-pi features as pi extensions (loop, goals, and more)",
+	"engines": {
+		"node": ">=22.6.0"
+	},
+	"scripts": {
+		"check": "tsc --noEmit -p tsconfig.json",
+		"install:extensions": "powershell -ExecutionPolicy Bypass -File ../../scripts/install.ps1"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-agent-core": "0.83.0",
+		"@earendil-works/pi-coding-agent": "0.83.0",
+		"@types/node": "^24.0.0",
+		"typebox": "1.3.7",
+		"typescript": "5.9.3"
+	}
+}
