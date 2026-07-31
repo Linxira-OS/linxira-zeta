@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "fs";
 import { stat } from "fs/promises";
 import { resolve, join } from "path";
 import { createAgentSessionServices, ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -48,6 +49,27 @@ async function loadModels(cwd: string): Promise<ModelsData> {
   for (const credential of getUsableOmpRuntimeCredentials()) {
     await modelRuntime.setRuntimeApiKey(credential.provider, credential.apiKey, { allowNetwork: false });
   }
+
+  // Load custom provider API keys from models.json if specified
+  const modelsJsonPath = join(agentDir, "models.json");
+  let customProvidersData: Record<string, { apiKey?: string; key?: string; models?: Array<{ id: string; name?: string; contextWindow?: number }> }> = {};
+  if (existsSync(modelsJsonPath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(modelsJsonPath, "utf8")) as { providers?: typeof customProvidersData };
+      if (parsed?.providers) {
+        customProvidersData = parsed.providers;
+        for (const [provider, config] of Object.entries(customProvidersData)) {
+          const key = config.apiKey || config.key;
+          if (key && typeof key === "string" && key.trim()) {
+            await modelRuntime.setRuntimeApiKey(provider, key.trim(), { allowNetwork: false });
+          }
+        }
+      }
+    } catch {
+      // ignore parse error
+    }
+  }
+
   const services = await createAgentSessionServices({ cwd, agentDir, modelRuntime });
   let available = await services.modelRuntime.getAvailable();
   if (!available || available.length === 0) {
@@ -56,12 +78,34 @@ async function loadModels(cwd: string): Promise<ModelsData> {
       available = dbModels as unknown as typeof available;
     }
   }
+
+  // Merge models defined in models.json into available if not returned by ModelRuntime
+  const availableArr = [...available];
+  for (const [provider, pConfig] of Object.entries(customProvidersData)) {
+    if (Array.isArray(pConfig.models)) {
+      for (const m of pConfig.models) {
+        if (m && m.id && !availableArr.some((x) => x.provider === provider && x.id === m.id)) {
+          availableArr.push({
+            provider,
+            id: m.id,
+            name: m.name || m.id,
+            contextWindow: m.contextWindow || 128000,
+          } as unknown as (typeof available)[number]);
+        }
+      }
+    }
+  }
+  available = availableArr;
+
   const modelError = services.modelRuntime.getError();
   const settings = services.settingsManager;
   const enabledModels = settings.getEnabledModels();
 
   const ompCredentials = getUsableOmpRuntimeCredentials();
   const authedProviderIds = new Set(ompCredentials.map((c: { provider: string }) => c.provider));
+  for (const p of Object.keys(customProvidersData)) {
+    authedProviderIds.add(p);
+  }
   const ompConfig = readOmpConfig();
   const roles = ompConfig.modelRoles || {};
 
