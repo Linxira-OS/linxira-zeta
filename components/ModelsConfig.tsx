@@ -517,6 +517,42 @@ function ModelDetail({
   onDelete: () => void;
 }) {
   const [testState, setTestState] = useState<ModelTestState>({ phase: "idle" });
+  const [metadataState, setMetadataState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [metadataMessage, setMetadataMessage] = useState("");
+  const lookupMetadata = useCallback(async () => {
+    const modelId = model.id.trim();
+    if (!modelId || metadataState === "loading") return;
+    setMetadataState("loading");
+    setMetadataMessage("");
+    try {
+      const res = await fetch("/api/models-config/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ providerName, provider, modelId }),
+      });
+      const data = await res.json() as { ok?: boolean; contextWindow?: number; maxTokens?: number; source?: string; error?: string };
+      if (!res.ok || !data.ok || (data.contextWindow === undefined && data.maxTokens === undefined)) {
+        setMetadataState("error");
+        setMetadataMessage(data.error ?? "No metadata found");
+        return;
+      }
+      onChange({
+        ...model,
+        ...(data.contextWindow !== undefined && model.contextWindow === undefined ? { contextWindow: data.contextWindow } : {}),
+        ...(data.maxTokens !== undefined && model.maxTokens === undefined ? { maxTokens: data.maxTokens } : {}),
+      });
+      setMetadataState("success");
+      setMetadataMessage(data.source ?? "Metadata found");
+    } catch (error) {
+      setMetadataState("error");
+      setMetadataMessage(error instanceof Error ? error.message : String(error));
+    }
+  }, [metadataState, model, onChange, provider, providerName]);
+
+  useEffect(() => {
+    setMetadataState("idle");
+    setMetadataMessage("");
+  }, [providerName, provider.baseUrl, provider.api, provider.apiKey, model.id]);
   const set = <K extends keyof ModelEntry>(k: K, v: ModelEntry[K]) => onChange({ ...model, [k]: v });
   const costVal = (k: keyof NonNullable<ModelEntry["cost"]>) => model.cost?.[k] !== undefined ? String(model.cost[k]) : "";
   const setCost = (k: keyof NonNullable<ModelEntry["cost"]>, v: string) => {
@@ -647,11 +683,27 @@ function ModelDetail({
         <Select value={model.api ?? ""} onChange={(v) => set("api", v || undefined)} options={API_OPTIONS} />
       </Field>
 
-      <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-        <Check label="Reasoning / thinking" checked={model.reasoning ?? false} onChange={(v) => set("reasoning", v || undefined)} />
-        <Check label="Image input" checked={model.input?.includes("image") ?? false}
-          onChange={(v) => set("input", v ? ["text", "image"] : undefined)} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "end" }}>
+        <Field label="Context window (tokens)">
+          <NumInput value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
+            onChange={(v) => set("contextWindow", v ? parseInt(v) : undefined)} placeholder="128000" />
+        </Field>
+        <Field label="Max output tokens">
+          <NumInput value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
+            onChange={(v) => set("maxTokens", v ? parseInt(v) : undefined)} placeholder="16384" />
+        </Field>
+        <button
+          onClick={lookupMetadata}
+          disabled={!model.id.trim() || metadataState === "loading"}
+          title={metadataMessage || "Look up context and output limits from the local model catalog or provider /models endpoint"}
+          style={{ height: 28, padding: "0 9px", background: metadataState === "success" ? "#16a34a" : "none", border: `1px solid ${metadataState === "error" ? "#ef4444" : metadataState === "success" ? "#16a34a" : "var(--border)"}`, borderRadius: 4, color: metadataState === "success" ? "#fff" : metadataState === "error" ? "#ef4444" : "var(--text-muted)", cursor: !model.id.trim() || metadataState === "loading" ? "not-allowed" : "pointer", fontSize: 11, whiteSpace: "nowrap" }}
+        >
+          {metadataState === "loading" ? "Looking up…" : metadataState === "success" ? "Found" : "Auto-fill"}
+        </button>
       </div>
+      {metadataMessage && metadataState !== "success" && (
+        <div style={{ marginTop: -8, fontSize: 10, color: metadataState === "error" ? "#ef4444" : "var(--text-dim)" }}>{metadataMessage}</div>
+      )}
 
       {model.reasoning && (
         <>
@@ -679,17 +731,6 @@ function ModelDetail({
           </div>
         </>
       )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <Field label="Context window (tokens)">
-          <NumInput value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
-            onChange={(v) => set("contextWindow", v ? parseInt(v) : undefined)} placeholder="128000" />
-        </Field>
-        <Field label="Max output tokens">
-          <NumInput value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
-            onChange={(v) => set("maxTokens", v ? parseInt(v) : undefined)} placeholder="16384" />
-        </Field>
-      </div>
 
       <div>
         <SectionTitle>Cost (per million tokens)</SectionTitle>
