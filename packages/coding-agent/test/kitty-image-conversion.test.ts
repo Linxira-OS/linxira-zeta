@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
+import type { ImageContent } from "@zeta/pi-ai";
+import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
+import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
+import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@zeta/pi-tui";
 
 const IMAGE: ImageContent = {
 	type: "image",

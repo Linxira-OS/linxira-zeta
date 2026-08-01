@@ -2,16 +2,16 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, type CredentialDisabledEvent } from "@oh-my-pi/pi-ai";
-import * as oauthUtils from "@oh-my-pi/pi-ai/oauth";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { Extension, ExtensionError, ExtensionFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { ExtensionRuntime } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { AuthStorage, type CredentialDisabledEvent } from "@zeta/pi-ai";
+import * as oauthUtils from "@zeta/pi-ai/oauth";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { Extension, ExtensionError, ExtensionFactory } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { ExtensionRuntime } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
+import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
 
 interface SessionDirs {
 	cwd: string;

@@ -7,15 +7,15 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Context, Message, TextContent } from "@oh-my-pi/pi-ai";
+import type { AgentMessage } from "@zeta/pi-agent-core";
+import type { AssistantMessage, Context, Message, TextContent } from "@zeta/pi-ai";
 import {
 	builtinCredentialSecretEntries,
 	getExistingSecretPlaceholderKey,
 	getSecretPlaceholderKey,
 	getSecretPlaceholderKeySync,
 	loadSecrets,
-} from "@oh-my-pi/pi-coding-agent/secrets";
+} from "@zeta/pi-coding-agent/secrets";
 import {
 	deobfuscateAgentMessages,
 	deobfuscateToolArguments,
@@ -28,9 +28,9 @@ import {
 	secretEntriesNeedPlaceholderKey,
 	secretEntryNeedsPlaceholderKey,
 	stripPendingSecretPlaceholderSuffix,
-} from "@oh-my-pi/pi-coding-agent/secrets/obfuscator";
-import { compileSecretRegex } from "@oh-my-pi/pi-coding-agent/secrets/regex";
-import { getActiveProfile, getAgentDir, setProfile } from "@oh-my-pi/pi-utils/dirs";
+} from "@zeta/pi-coding-agent/secrets/obfuscator";
+import { compileSecretRegex } from "@zeta/pi-coding-agent/secrets/regex";
+import { getActiveProfile, getAgentDir, setProfile } from "@zeta/pi-utils/dirs";
 import { type } from "arktype";
 
 describe("compileSecretRegex", () => {

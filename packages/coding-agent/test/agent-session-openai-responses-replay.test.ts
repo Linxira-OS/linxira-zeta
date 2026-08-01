@@ -9,17 +9,17 @@ import type {
 	ProviderSessionState,
 	ToolResultMessage,
 	Usage,
-} from "@oh-my-pi/pi-ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@oh-my-pi/pi-ai/utils";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import type { SessionEntry, SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@zeta/pi-ai/utils";
+import { getBundledModel } from "@zeta/pi-catalog/models";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
+import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import type { SessionEntry, SessionMessageEntry } from "@zeta/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
 
 function createUsage(): Usage {
 	return {

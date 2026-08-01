@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
-import type { AssistantMessage, Context, FetchImpl, Model, SimpleStreamOptions, Usage } from "@oh-my-pi/pi-ai/types";
-import { buildOpenAICompat } from "@oh-my-pi/pi-catalog/compat/openai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
+import { streamSimple } from "@zeta/pi-ai/stream";
+import type { AssistantMessage, Context, FetchImpl, Model, SimpleStreamOptions, Usage } from "@zeta/pi-ai/types";
+import { buildOpenAICompat } from "@zeta/pi-catalog/compat/openai";
+import { getBundledModel } from "@zeta/pi-catalog/models";
 
 const model = getBundledModel<"openai-completions">("xai", "grok-code-fast-1");
 if (!model) throw new Error("Expected bundled xAI Grok model");

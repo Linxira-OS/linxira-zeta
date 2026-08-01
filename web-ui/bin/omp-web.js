@@ -40,13 +40,13 @@ const { port, hostname, openBrowser } = parseLaunchOptions();
 const loopbackHostnames = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 if (!fs.existsSync(nextDir)) {
-  console.error("Build artifacts not found. Run `npm run build` first, or install via `npm install -g omp-web` to get a pre-built package.");
+  console.error("Build artifacts not found. Run `npm run build` first, or install via `npm install -g zeta-web` to get a pre-built package.");
   process.exit(1);
 }
 
 if (!loopbackHostnames.has(hostname)) {
   console.warn(
-    `Warning: omp-web is listening on ${hostname} without authentication. Only use this on a trusted network.`,
+    `Warning: zeta-web is listening on ${hostname} without authentication. Only use this on a trusted network.`,
   );
 }
 
@@ -68,7 +68,7 @@ child.stdout.on("data", (chunk) => {
   const text = chunk.toString();
   process.stdout.write(text);
   if (text.includes("Ready")) {
-    console.log(`\n> OMP Web is ready at ${url}\n`);
+    console.log(`\n> Zeta Web is ready at ${url}\n`);
   }
   if (openBrowser && !browserOpened && text.includes("Ready")) {
     browserOpened = true;

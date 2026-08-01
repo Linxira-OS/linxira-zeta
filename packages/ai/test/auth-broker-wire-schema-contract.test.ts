@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import * as wireSchemas from "@oh-my-pi/pi-ai/auth-broker/wire-schemas";
+import * as wireSchemas from "@zeta/pi-ai/auth-broker/wire-schemas";
 import { Type, type } from "arktype";
 
 const REFRESHER = {

@@ -6,7 +6,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { isEnoent } from "@zeta/pi-utils";
 import { invalidate as invalidateFsCache } from "../capability/fs";
 import { withFileLock } from "../config/file-lock";
 

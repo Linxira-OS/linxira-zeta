@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
-import { type GeneratedProvider, getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import type { Api, Model } from "@zeta/pi-ai";
+import * as ai from "@zeta/pi-ai";
+import { type GeneratedProvider, getBundledModel } from "@zeta/pi-catalog/models";
 import {
 	disposeTerminalTitleState,
 	generateSessionTitle,
@@ -9,8 +9,8 @@ import {
 	setSessionTerminalTitle,
 	setTerminalTitle,
 	setTerminalTitleState,
-} from "@oh-my-pi/pi-coding-agent/utils/title-generator";
-import { logger, setTerminalHeadless } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-coding-agent/utils/title-generator";
+import { logger, setTerminalHeadless } from "@zeta/pi-utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 function getModelOrThrow(id: string): Model<Api> {
@@ -581,7 +581,7 @@ describe("title generator", () => {
 
 // The terminal title runtime is a module-global. `emitTerminalTitle()` composes
 // the emitted OSC title from three inputs — an extension override, a run-state
-// separator (spinner frame, static Windows `:`, `>`, or `!` between the `π`
+// separator (spinner frame, static Windows `:`, `>`, or `!` between the `ζ`
 // brand and the session label), and the session label — and writes it to
 // `process.stdout` as `ESC]0;<title>BEL`. These tests pin the observable
 // contract at that sink: what string actually reaches the terminal after a
@@ -720,7 +720,7 @@ describe("terminal title runtime", () => {
 			writes.length = 0;
 
 			setTerminalTitleState("working");
-			expect(emittedTitles()).toEqual(["π : windows-project"]);
+			expect(emittedTitles()).toEqual(["ζ : windows-project"]);
 
 			writes.length = 0;
 			vi.advanceTimersByTime(400);

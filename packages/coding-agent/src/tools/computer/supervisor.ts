@@ -1,7 +1,7 @@
-import type { DesktopAction, DesktopCapabilities, DesktopCapture, DesktopSessionOptions } from "@oh-my-pi/pi-natives";
-import { withTimeout } from "@oh-my-pi/pi-utils/async";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import { workerHostEntry } from "@oh-my-pi/pi-utils/worker-host";
+import type { DesktopAction, DesktopCapabilities, DesktopCapture, DesktopSessionOptions } from "@zeta/pi-natives";
+import { withTimeout } from "@zeta/pi-utils/async";
+import * as logger from "@zeta/pi-utils/logger";
+import { workerHostEntry } from "@zeta/pi-utils/worker-host";
 import { ToolAbortError, ToolError } from "../tool-errors";
 import {
 	COMPUTER_WORKER_ARG,

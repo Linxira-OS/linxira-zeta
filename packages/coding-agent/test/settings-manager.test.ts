@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { clearCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { __providerInFlightForTesting, streamSimple } from "@oh-my-pi/pi-ai/stream";
-import type { Context } from "@oh-my-pi/pi-ai/types";
+import { Effort } from "@zeta/pi-ai";
+import { clearCustomApis } from "@zeta/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
+import { __providerInFlightForTesting, streamSimple } from "@zeta/pi-ai/stream";
+import type { Context } from "@zeta/pi-ai/types";
 import {
 	getDefault,
 	getEnumValues,
@@ -14,11 +14,11 @@ import {
 	resetSettingsForTest,
 	type SettingPath,
 	Settings,
-} from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { AUTO_IMAGE_PROVIDER_ORDER } from "@oh-my-pi/pi-coding-agent/tools/image-providers";
-import { SEARCH_PROVIDER_ORDER } from "@oh-my-pi/pi-coding-agent/web/search/types";
-import { getProjectAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-coding-agent/config/settings";
+import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
+import { AUTO_IMAGE_PROVIDER_ORDER } from "@zeta/pi-coding-agent/tools/image-providers";
+import { SEARCH_PROVIDER_ORDER } from "@zeta/pi-coding-agent/web/search/types";
+import { getProjectAgentDir, TempDir } from "@zeta/pi-utils";
 import { YAML } from "bun";
 import * as fileLock from "../src/config/file-lock";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";

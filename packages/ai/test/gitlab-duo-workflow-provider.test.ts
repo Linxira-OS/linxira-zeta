@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isContextOverflow } from "@oh-my-pi/pi-ai/error";
+import { isContextOverflow } from "@zeta/pi-ai/error";
 import {
 	buildGitLabDuoWorkflowApprovalStartRequest,
 	buildGitLabDuoWorkflowCreateBody,
@@ -26,8 +26,8 @@ import {
 	selectGitLabDuoWorkflowModelRef,
 	streamGitLabDuoWorkflow,
 	traceGitLabDuoWorkflow,
-} from "@oh-my-pi/pi-ai/providers/gitlab-duo-workflow";
-import { configureCredentialRedaction } from "@oh-my-pi/pi-ai/providers/transform-messages";
+} from "@zeta/pi-ai/providers/gitlab-duo-workflow";
+import { configureCredentialRedaction } from "@zeta/pi-ai/providers/transform-messages";
 import type {
 	AssistantMessage,
 	Context,
@@ -37,10 +37,10 @@ import type {
 	ProviderSessionState,
 	Tool,
 	ToolResultMessage,
-} from "@oh-my-pi/pi-ai/types";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { extractHttpStatusFromError } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-ai/types";
+import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { extractHttpStatusFromError } from "@zeta/pi-utils";
 import { z } from "zod/v4";
 
 beforeAll(() => configureCredentialRedaction(true));

@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getMnemopiSessionState } from "@oh-my-pi/pi-coding-agent/mnemopi/state";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { resetMemoryForTests } from "@oh-my-pi/pi-mnemopi";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentTool } from "@zeta/pi-agent-core";
+import { createMockModel } from "@zeta/pi-ai/providers/mock";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { getMnemopiSessionState } from "@zeta/pi-coding-agent/mnemopi/state";
+import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { resetMemoryForTests } from "@zeta/pi-mnemopi";
+import { TempDir } from "@zeta/pi-utils";
 import { type } from "arktype";
 
 function createTool(name: string): AgentTool {

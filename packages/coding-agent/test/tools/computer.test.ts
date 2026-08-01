@@ -1,24 +1,24 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentTool, AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import type { Api, ComputerAction, ComputerToolCallMetadata, Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { ExtensionToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { getThemeByName } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { buildSystemPrompt } from "@oh-my-pi/pi-coding-agent/system-prompt";
+import type { AgentTool, AgentToolContext } from "@zeta/pi-agent-core";
+import type { Api, ComputerAction, ComputerToolCallMetadata, Model } from "@zeta/pi-ai";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { ExtensionToolWrapper } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { getThemeByName } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { buildSystemPrompt } from "@zeta/pi-coding-agent/system-prompt";
 import {
 	type ComputerParams,
 	ComputerTool,
 	computerApproval,
 	createTools,
 	type ToolSession,
-} from "@oh-my-pi/pi-coding-agent/tools";
+} from "@zeta/pi-coding-agent/tools";
 import type {
 	ComputerWorkerInbound,
 	ComputerWorkerOutbound,
 	ComputerWorkerTransport,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/protocol";
+} from "@zeta/pi-coding-agent/tools/computer/protocol";
 import {
 	type ComputerController,
 	ComputerSupervisor,
@@ -26,11 +26,11 @@ import {
 	registerComputerController,
 	releaseComputerSessionsForOwner,
 	smokeTestComputerWorker,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/supervisor";
-import { ComputerWorkerCore, type NativeDesktopSession } from "@oh-my-pi/pi-coding-agent/tools/computer/worker";
-import { computerToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/computer-renderer";
-import { buildNamedToolChoice, isToolChoiceActive } from "@oh-my-pi/pi-coding-agent/utils/tool-choice";
-import type { DesktopAction, DesktopCapabilities, DesktopCapture, DesktopSessionOptions } from "@oh-my-pi/pi-natives";
+} from "@zeta/pi-coding-agent/tools/computer/supervisor";
+import { ComputerWorkerCore, type NativeDesktopSession } from "@zeta/pi-coding-agent/tools/computer/worker";
+import { computerToolRenderer } from "@zeta/pi-coding-agent/tools/computer-renderer";
+import { buildNamedToolChoice, isToolChoiceActive } from "@zeta/pi-coding-agent/utils/tool-choice";
+import type { DesktopAction, DesktopCapabilities, DesktopCapture, DesktopSessionOptions } from "@zeta/pi-natives";
 import { type as arkType } from "arktype";
 
 const capabilities: DesktopCapabilities = {

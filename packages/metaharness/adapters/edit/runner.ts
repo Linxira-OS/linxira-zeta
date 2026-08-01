@@ -12,31 +12,31 @@ import {
 	formatHashlineHeader,
 	InMemorySnapshotStore,
 	Tokenizer as HashlineTokenizer,
-} from "@oh-my-pi/hashline";
-import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model, ToolExample } from "@oh-my-pi/pi-ai";
-import { formatSessionDumpText, RpcClient } from "@oh-my-pi/pi-coding-agent";
-import { prompt } from "@oh-my-pi/pi-utils";
+} from "@zeta/hashline";
+import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@zeta/pi-agent-core";
+import type { Model, ToolExample } from "@zeta/pi-ai";
+import { formatSessionDumpText, RpcClient } from "@zeta/pi-coding-agent";
+import { prompt } from "@zeta/pi-utils";
 import { diffLines } from "diff";
-import { formatDirectory } from "@oh-my-pi/typescript-edit-benchmark/formatter";
+import { formatDirectory } from "@zeta/typescript-edit-benchmark/formatter";
 import {
 	discoverSharedInfra,
 	InProcessClient,
 	type SharedInfra,
-} from "@oh-my-pi/typescript-edit-benchmark/in-process-client";
+} from "@zeta/typescript-edit-benchmark/in-process-client";
 import benchmarkRetryPrompt from "./prompts/benchmark-retry.md" with { type: "text" };
 import benchmarkSystemPrompt from "./prompts/benchmark-system.md" with { type: "text" };
 import benchmarkTaskPrompt from "./prompts/benchmark-task.md" with { type: "text" };
-import type { EditTask } from "@oh-my-pi/typescript-edit-benchmark/tasks";
+import type { EditTask } from "@zeta/typescript-edit-benchmark/tasks";
 import {
 	verifyExpectedFileSubset,
 	verifyExpectedFiles,
-} from "@oh-my-pi/typescript-edit-benchmark/verify";
+} from "@zeta/typescript-edit-benchmark/verify";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "..", "..", "..", "..");
 const RUNS_DIR = path.join(REPO_ROOT, "runs");
 const TMP = path.join(RUNS_DIR, `rb-${Math.random().toString(36).slice(2, 10)}`);
-const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@oh-my-pi/pi-coding-agent/cli"));
+const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@zeta/pi-coding-agent/cli"));
 
 function formatLogPath(logFile: string): string {
 	const relativePath = path.relative(REPO_ROOT, logFile);

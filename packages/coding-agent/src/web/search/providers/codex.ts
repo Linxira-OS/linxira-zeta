@@ -5,28 +5,21 @@
  * the official ChatGPT backend for OAuth logins.
  */
 import * as os from "node:os";
-import {
-	type AuthStorage,
-	type FetchImpl,
-	type Model,
-	type OAuthAccess,
-	withAuth,
-	withOAuthAccess,
-} from "@oh-my-pi/pi-ai";
-import { applyCodexResponsesLiteShape } from "@oh-my-pi/pi-ai/providers/openai-codex/request-transformer";
+import { type AuthStorage, type FetchImpl, type Model, type OAuthAccess, withAuth, withOAuthAccess } from "@zeta/pi-ai";
+import { applyCodexResponsesLiteShape } from "@zeta/pi-ai/providers/openai-codex/request-transformer";
 import {
 	createOpenAICodexCompatibilityMetadata,
 	resolveCodexResponsesUrl,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
+} from "@zeta/pi-ai/providers/openai-codex-responses";
+import { getBundledModels } from "@zeta/pi-catalog/models";
 import {
 	CODEX_BASE_URL,
 	CODEX_CLIENT_VERSION,
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@oh-my-pi/pi-catalog/wire/codex";
-import { $env, readSseJson } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-catalog/wire/codex";
+import { $env, readSseJson } from "@zeta/pi-utils";
 import packageJson from "../../../../package.json" with { type: "json" };
 import type { ModelRegistry } from "../../../config/model-registry";
 import type { SearchResponse, SearchSource } from "../../../web/search/types";

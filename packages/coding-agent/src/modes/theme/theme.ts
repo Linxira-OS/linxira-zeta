@@ -1,14 +1,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Effort } from "@oh-my-pi/pi-ai";
+import type { ThinkingLevel } from "@zeta/pi-agent-core";
+import type { Effort } from "@zeta/pi-ai";
 import {
 	detectMacOSAppearance,
 	MacAppearanceObserver,
 	type HighlightColors as NativeHighlightColors,
 	highlightCode as nativeHighlightCode,
 	supportsLanguage as nativeSupportsLanguage,
-} from "@oh-my-pi/pi-natives";
+} from "@zeta/pi-natives";
 import type {
 	EditorTheme,
 	MarkdownTheme,
@@ -17,8 +17,8 @@ import type {
 	SymbolTheme,
 	Terminal,
 	TerminalAppearance,
-} from "@oh-my-pi/pi-tui";
-import { adjustHsv, colorLuma, getCustomThemesDir, isEnoent, logger, relativeLuminance } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-tui";
+import { adjustHsv, colorLuma, getCustomThemesDir, isEnoent, logger, relativeLuminance } from "@zeta/pi-utils";
 import { type } from "arktype";
 import chalk from "chalk";
 import { LRUCache } from "lru-cache/raw";
@@ -326,7 +326,7 @@ const UNICODE_SYMBOLS: SymbolMap = {
 	"icon.context": "◫",
 	"icon.cost": "💲",
 	"icon.time": "⏱",
-	"icon.pi": "π",
+	"icon.pi": "ζ",
 	"icon.ghost": "👻",
 	"icon.agents": "👥",
 	"icon.job": "⚙",
@@ -602,8 +602,8 @@ const NERD_SYMBOLS: SymbolMap = {
 	"icon.cost": "\uf155",
 	// pick:  | alt: ◷ ◴
 	"icon.time": "\uf017",
-	// pick:  | alt: π ∏ ∑
-	"icon.pi": "\ue22c",
+	// Keep the legacy key, but render Zeta's visible product mark.
+	"icon.pi": "ζ",
 	// pick: 󰊠 (nf-md-ghost) | alt: 👻
 	"icon.ghost": "\u{f02a0}",
 	// pick:  | alt: 
@@ -846,7 +846,7 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"icon.context": "ctx:",
 	"icon.cost": "$",
 	"icon.time": "t:",
-	"icon.pi": "pi",
+	"icon.pi": "zeta",
 	"icon.ghost": "@",
 	"icon.agents": "AG",
 	"icon.job": "bg",

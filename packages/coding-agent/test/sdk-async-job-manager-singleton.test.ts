@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession, type ExtensionFactory } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AsyncJobSnapshot } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { AsyncJobManager } from "@zeta/pi-coding-agent/async/job-manager";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { createAgentSession, type ExtensionFactory } from "@zeta/pi-coding-agent/sdk";
+import type { AsyncJobSnapshot } from "@zeta/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
 import { type } from "arktype";
 
 describe("AsyncJobManager singleton across concurrent top-level sessions", () => {

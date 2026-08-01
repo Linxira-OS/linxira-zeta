@@ -5,14 +5,14 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { HookRunner, type LoadedHook } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
-import { HookToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/hooks/tool-wrapper";
-import { Type } from "@oh-my-pi/pi-coding-agent/extensibility/typebox";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentTool } from "@zeta/pi-agent-core";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { HookRunner, type LoadedHook } from "@zeta/pi-coding-agent/extensibility/hooks";
+import { HookToolWrapper } from "@zeta/pi-coding-agent/extensibility/hooks/tool-wrapper";
+import { Type } from "@zeta/pi-coding-agent/extensibility/typebox";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { TempDir } from "@zeta/pi-utils";
 
 describe("HookToolWrapper tool_call input override", () => {
 	let sharedTempDir: TempDir;

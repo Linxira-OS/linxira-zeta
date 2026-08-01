@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { computeFileHash } from "@oh-my-pi/hashline";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { computeFileHash } from "@zeta/hashline";
+import type { AgentToolResult } from "@zeta/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
 import {
 	DEFAULT_FUZZY_THRESHOLD,
 	type EditToolDetails,
@@ -12,14 +12,14 @@ import {
 	executePatchSingle,
 	executeReplaceSingle,
 	type hashlineEditParamsSchema,
-} from "@oh-my-pi/pi-coding-agent/edit";
-import { HashlineFilesystem } from "@oh-my-pi/pi-coding-agent/edit/hashline/filesystem";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { WritethroughCallback } from "@oh-my-pi/pi-coding-agent/lsp";
-import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
-import type { ClientBridge } from "@oh-my-pi/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-coding-agent/edit";
+import { HashlineFilesystem } from "@zeta/pi-coding-agent/edit/hashline/filesystem";
+import { resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
+import type { WritethroughCallback } from "@zeta/pi-coding-agent/lsp";
+import type { PlanModeState } from "@zeta/pi-coding-agent/plan-mode/state";
+import type { ClientBridge } from "@zeta/pi-coding-agent/session/client-bridge";
+import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { removeWithRetries } from "@zeta/pi-utils";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 

@@ -1,25 +1,25 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type StreamFn } from "@oh-my-pi/pi-agent-core";
-import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
-import type { AssistantMessage, Model, ToolCall } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { Agent, type AgentMessage, type StreamFn } from "@zeta/pi-agent-core";
+import * as compactionModule from "@zeta/pi-agent-core/compaction";
+import type { AssistantMessage, Model, ToolCall } from "@zeta/pi-ai";
+import { createMockModel } from "@zeta/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+import { getBundledModel } from "@zeta/pi-catalog/models";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
 import {
 	ExtensionRunner,
 	loadExtensionFromFactory,
 	loadExtensions,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { SecretObfuscator } from "@oh-my-pi/pi-coding-agent/secrets";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+} from "@zeta/pi-coding-agent/extensibility/extensions";
+import { SecretObfuscator } from "@zeta/pi-coding-agent/secrets";
+import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
+import { TempDir } from "@zeta/pi-utils";
+import * as snapcompact from "@zeta/snapcompact";
 
 const HANDOFF_SECRET = "HANDOFF_SECRET_TOKEN_12345";
 const UNRENDERABLE_SNAPCOMPACT_TEXT = "\uE000\uE001\uE002\uE003\uE004\uE005\uE006\uE007\uE008\uE009";

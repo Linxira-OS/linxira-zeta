@@ -11,9 +11,9 @@
  * `ls`/`find` use the cache when fresh (`online-if-uncached`); only `refresh`
  * forces the network (`online`).
  */
-import type { Api, Effort, Model } from "@oh-my-pi/pi-ai";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { formatNumber, getProjectDir } from "@oh-my-pi/pi-utils";
+import type { Api, Effort, Model } from "@zeta/pi-ai";
+import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
+import { formatNumber, getProjectDir } from "@zeta/pi-utils";
 import chalk from "chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";

@@ -10,8 +10,8 @@ const notoSansMono = Noto_Sans_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OMP Web",
-  description: "OMP Web interface for the omp coding agent",
+  title: "Zeta Web",
+  description: "Zeta's browser interface for the coding agent",
 };
 
 export default function RootLayout({

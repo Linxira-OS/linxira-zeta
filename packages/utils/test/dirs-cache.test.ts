@@ -9,8 +9,8 @@ import {
 	getDocumentConversionCacheDir,
 	getProfileRootDir,
 	setAgentDir,
-} from "@oh-my-pi/pi-utils/dirs";
-import { Snowflake } from "@oh-my-pi/pi-utils/snowflake";
+} from "@zeta/pi-utils/dirs";
+import { Snowflake } from "@zeta/pi-utils/snowflake";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {

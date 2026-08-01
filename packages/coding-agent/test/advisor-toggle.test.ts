@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@oh-my-pi/pi-agent-core";
-import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
-import type { AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { loadAdvisorTranscriptCosts } from "@oh-my-pi/pi-coding-agent/advisor/transcript-recorder";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentMessage } from "@zeta/pi-agent-core";
+import * as compactionModule from "@zeta/pi-agent-core/compaction";
+import type { AssistantMessage, Model } from "@zeta/pi-ai";
+import * as AIError from "@zeta/pi-ai/error";
+import { createMockModel } from "@zeta/pi-ai/providers/mock";
+import { getBundledModel } from "@zeta/pi-catalog/models";
+import { loadAdvisorTranscriptCosts } from "@zeta/pi-coding-agent/advisor/transcript-recorder";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
+import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { getProjectAgentDir, TempDir } from "@zeta/pi-utils";
 
 describe("AgentSession advisor toggle", () => {
 	let sharedDir: TempDir;

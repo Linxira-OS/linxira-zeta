@@ -1,10 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { googleVertexModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/google";
-import {
-	MODELS_DEV_PROVIDER_DESCRIPTORS,
-	mapModelsDevToModels,
-} from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
+import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
+import { googleVertexModelManagerOptions } from "@zeta/pi-catalog/provider-models/google";
+import { MODELS_DEV_PROVIDER_DESCRIPTORS, mapModelsDevToModels } from "@zeta/pi-catalog/provider-models/openai-compat";
 
 const googleVertexModelsDevPayload = {
 	"google-vertex": {

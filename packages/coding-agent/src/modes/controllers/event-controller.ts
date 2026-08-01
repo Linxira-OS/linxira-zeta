@@ -1,9 +1,9 @@
-import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { getStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { type Component, Loader, TERMINAL } from "@oh-my-pi/pi-tui";
-import { logger, prompt, sanitizeText } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { AssistantMessage, ImageContent } from "@zeta/pi-ai";
+import * as AIError from "@zeta/pi-ai/error";
+import { getStreamingPartialJson } from "@zeta/pi-ai/utils/block-symbols";
+import { type Component, Loader, TERMINAL } from "@zeta/pi-tui";
+import { logger, prompt, sanitizeText } from "@zeta/pi-utils";
+import { INTENT_FIELD } from "@zeta/pi-wire";
 import { extractTextContent } from "../../commit/utils";
 import { settings } from "../../config/settings";
 import { getEditClipboard } from "../../edit/edit-clipboard";
@@ -1769,7 +1769,7 @@ export class EventController {
 
 		const sessionName = this.ctx.sessionManager.getSessionName();
 		TERMINAL.sendNotification({
-			title: sessionName || "Oh My Pi",
+			title: sessionName || "Zeta",
 			body: "Stopped with error",
 			type: "error",
 			actions: "focus",
@@ -1794,7 +1794,7 @@ export class EventController {
 
 		const sessionName = this.ctx.sessionManager.getSessionName();
 		TERMINAL.sendNotification({
-			title: sessionName || "Oh My Pi",
+			title: sessionName || "Zeta",
 			body: "Complete",
 			type: "completion",
 			actions: "focus",

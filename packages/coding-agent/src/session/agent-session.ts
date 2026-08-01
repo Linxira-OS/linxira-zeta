@@ -19,7 +19,7 @@ import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import { isPromise } from "node:util/types";
 
-import type { Clipboard, InMemorySnapshotStore } from "@oh-my-pi/hashline";
+import type { Clipboard, InMemorySnapshotStore } from "@zeta/hashline";
 import {
 	type AfterToolCallContext,
 	type AfterToolCallResult,
@@ -42,7 +42,7 @@ import {
 	TERMINAL_TOOL_RESULT_ABORT_REASON,
 	type ThinkingLevel,
 	type ToolChoiceDirective,
-} from "@oh-my-pi/pi-agent-core";
+} from "@zeta/pi-agent-core";
 import {
 	type CompactionPreparation,
 	type CompactionResult,
@@ -51,7 +51,7 @@ import {
 	estimateTokens,
 	generateBranchSummary,
 	type ShakeConfig,
-} from "@oh-my-pi/pi-agent-core/compaction";
+} from "@zeta/pi-agent-core/compaction";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -74,13 +74,13 @@ import type {
 	ToolResultMessage,
 	UsageReport,
 	UserMessage,
-} from "@oh-my-pi/pi-ai";
-import { type Effort, streamSimple } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { resetOpenAICodexHistoryAfterCompaction } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { MacOSPowerAssertion } from "@oh-my-pi/pi-natives";
+} from "@zeta/pi-ai";
+import { type Effort, streamSimple } from "@zeta/pi-ai";
+import * as AIError from "@zeta/pi-ai/error";
+import { resetOpenAICodexHistoryAfterCompaction } from "@zeta/pi-ai/providers/openai-codex-responses";
+import { toolWireSchema } from "@zeta/pi-ai/utils/schema";
+import { modelsAreEqual } from "@zeta/pi-catalog/models";
+import { MacOSPowerAssertion } from "@zeta/pi-natives";
 import {
 	$env,
 	escapeXmlText,
@@ -96,7 +96,7 @@ import {
 	Snowflake,
 	stringProperty,
 	withTimeout,
-} from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-utils";
 import { type AdvisorConfig, type AdvisorRuntimeStatus, loadAdvisorTranscriptCosts } from "../advisor";
 import { type AsyncJob, AsyncJobManager } from "../async";
 import { shouldEnableAppendOnlyContext } from "../config/append-only-context-mode";
@@ -624,7 +624,7 @@ export class AgentSession {
 		if (mode === "off") return;
 		try {
 			this.#powerAssertion = MacOSPowerAssertion.start({
-				reason: "Oh My Pi agent session",
+				reason: "Zeta agent session",
 				idle: true,
 				display: mode === "display" || mode === "system",
 				system: mode === "system",

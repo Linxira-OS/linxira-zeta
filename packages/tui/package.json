@@ -1,9 +1,9 @@
 {
   "type": "module",
-  "name": "@oh-my-pi/pi-tui",
-  "version": "17.2.2",
+  "name": "@zeta/pi-tui",
+  "version": "1.0.0",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
-  "homepage": "https://omp.sh",
+  "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
   "contributors": [
     "Mario Zechner"
@@ -37,8 +37,8 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
+    "@zeta/pi-natives": "catalog:",
+    "@zeta/pi-utils": "catalog:",
     "lru-cache": "catalog:",
     "marked": "catalog:"
   },

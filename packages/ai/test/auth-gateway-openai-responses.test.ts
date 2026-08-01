@@ -2,16 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { startAuthGateway } from "@oh-my-pi/pi-ai/auth-gateway";
-import { AuthStorage } from "@oh-my-pi/pi-ai/auth-storage";
-import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { encodeResponse, encodeStream, parseRequest } from "@oh-my-pi/pi-ai/providers/openai-responses-server";
-import { buildResponsesInput } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import type { AssistantMessage, ModelSpec } from "@oh-my-pi/pi-ai/types";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { clearCustomApis } from "@zeta/pi-ai/api-registry";
+import { startAuthGateway } from "@zeta/pi-ai/auth-gateway";
+import { AuthStorage } from "@zeta/pi-ai/auth-storage";
+import { createMockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
+import { encodeResponse, encodeStream, parseRequest } from "@zeta/pi-ai/providers/openai-responses-server";
+import { buildResponsesInput } from "@zeta/pi-ai/providers/openai-shared";
+import type { AssistantMessage, ModelSpec } from "@zeta/pi-ai/types";
+import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { Effort } from "@zeta/pi-catalog/effort";
 
 function zeroUsage(): AssistantMessage["usage"] {
 	return {

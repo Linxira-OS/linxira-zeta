@@ -20,22 +20,19 @@
  *      marker present.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { CollabHost } from "@oh-my-pi/pi-coding-agent/collab/host";
+import { importRoomKey } from "@zeta/pi-coding-agent/collab/crypto";
+import { CollabHost } from "@zeta/pi-coding-agent/collab/host";
 import {
 	COLLAB_PROTO,
 	type CollabFrame,
 	parseCollabLink,
 	rewriteEnvelopePeer,
 	unpackEnvelope,
-} from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import {
-	MAX_REPLICATED_PAYLOAD_BYTES,
-	shrinkForReplication,
-} from "@oh-my-pi/pi-coding-agent/collab/replication-shrink";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+} from "@zeta/pi-coding-agent/collab/protocol";
+import { CollabSocket } from "@zeta/pi-coding-agent/collab/relay-client";
+import { MAX_REPLICATED_PAYLOAD_BYTES, shrinkForReplication } from "@zeta/pi-coding-agent/collab/replication-shrink";
+import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import type { SessionEntry } from "@zeta/pi-coding-agent/session/session-entries";
 
 interface RelayData {
 	role: "host" | "guest";

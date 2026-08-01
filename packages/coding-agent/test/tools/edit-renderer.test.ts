@@ -2,16 +2,16 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { InMemorySnapshotStore } from "@oh-my-pi/hashline";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { renderGalleryState, resolveFixture } from "@oh-my-pi/pi-coding-agent/cli/gallery-cli";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { editToolRenderer } from "@oh-my-pi/pi-coding-agent/edit/renderer";
-import { renderDiff } from "@oh-my-pi/pi-coding-agent/modes/components/diff";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import * as themeModule from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { Text, type TUI, visibleWidth } from "@oh-my-pi/pi-tui";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { InMemorySnapshotStore } from "@zeta/hashline";
+import type { AgentTool } from "@zeta/pi-agent-core";
+import { renderGalleryState, resolveFixture } from "@zeta/pi-coding-agent/cli/gallery-cli";
+import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import { editToolRenderer } from "@zeta/pi-coding-agent/edit/renderer";
+import { renderDiff } from "@zeta/pi-coding-agent/modes/components/diff";
+import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
+import * as themeModule from "@zeta/pi-coding-agent/modes/theme/theme";
+import { Text, type TUI, visibleWidth } from "@zeta/pi-tui";
+import { removeWithRetries } from "@zeta/pi-utils";
 import chalk from "chalk";
 
 beforeAll(async () => {

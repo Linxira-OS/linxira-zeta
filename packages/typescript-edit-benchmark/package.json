@@ -1,10 +1,10 @@
 {
   "type": "module",
   "private": true,
-  "name": "@oh-my-pi/typescript-edit-benchmark",
+  "name": "@zeta/typescript-edit-benchmark",
   "version": "0.0.1",
   "description": "Edit benchmark suite using TypeScript source code mutations",
-  "homepage": "https://omp.sh",
+  "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
   "license": "MIT",
   "repository": {
@@ -34,16 +34,16 @@
     "@babel/parser": "catalog:",
     "@babel/traverse": "catalog:",
     "@babel/types": "catalog:",
-    "@oh-my-pi/hashline": "catalog:",
-    "@oh-my-pi/pi-agent-core": "catalog:",
-    "@oh-my-pi/pi-coding-agent": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
+    "@zeta/hashline": "catalog:",
+    "@zeta/pi-agent-core": "catalog:",
+    "@zeta/pi-coding-agent": "catalog:",
+    "@zeta/pi-utils": "catalog:",
     "diff": "catalog:",
-    "@oh-my-pi/pi-natives": "catalog:",
+    "@zeta/pi-natives": "catalog:",
     "prettier": "catalog:",
     "regexp-tree": "catalog:",
-    "@oh-my-pi/pi-ai": "catalog:",
-    "@oh-my-pi/pi-tui": "catalog:"
+    "@zeta/pi-ai": "catalog:",
+    "@zeta/pi-tui": "catalog:"
   },
   "devDependencies": {
     "@types/babel__generator": "catalog:",

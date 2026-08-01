@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { getProjectDir, logger } from "@oh-my-pi/pi-utils";
+import { getProjectDir, logger } from "@zeta/pi-utils";
 import type { ToolSession } from "../../tools";
 import {
 	attachSessionOwner,

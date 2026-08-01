@@ -1,31 +1,31 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent } from "@oh-my-pi/pi-agent-core";
+import { Agent } from "@zeta/pi-agent-core";
 import {
 	type AssistantMessage,
 	Effort,
 	type Model,
 	type ModelUsageHealth,
 	type ProviderSessionState,
-} from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { parseModelPattern, parseModelString } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentHubOverlayComponent } from "@oh-my-pi/pi-coding-agent/modes/components/agent-hub";
-import { SessionObserverRegistry } from "@oh-my-pi/pi-coding-agent/modes/session-observer-registry";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-ai";
+import { createMockModel } from "@zeta/pi-ai/providers/mock";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { writeModelCache } from "@zeta/pi-catalog/model-cache";
+import { getBundledModel } from "@zeta/pi-catalog/models";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { parseModelPattern, parseModelString } from "@zeta/pi-coding-agent/config/model-resolver";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { IrcBus } from "@zeta/pi-coding-agent/irc/bus";
+import { AgentHubOverlayComponent } from "@zeta/pi-coding-agent/modes/components/agent-hub";
+import { SessionObserverRegistry } from "@zeta/pi-coding-agent/modes/session-observer-registry";
+import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
+import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { TempDir } from "@zeta/pi-utils";
 
 type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;

@@ -4,9 +4,9 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import * as path from "node:path";
 
-import { type Api, type AssistantMessage, completeSimple, type Model } from "@oh-my-pi/pi-ai";
-import { StreamMarkupHealing } from "@oh-my-pi/pi-ai/utils/stream-markup-healing";
-import { isTerminalHeadless, logger, prompt } from "@oh-my-pi/pi-utils";
+import { type Api, type AssistantMessage, completeSimple, type Model } from "@zeta/pi-ai";
+import { StreamMarkupHealing } from "@zeta/pi-ai/utils/stream-markup-healing";
+import { isTerminalHeadless, logger, prompt } from "@zeta/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 
 import { resolveRoleSelection } from "../config/model-resolver";
@@ -21,7 +21,7 @@ import { tinyTitleClient } from "../tiny/title-client";
 const TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
 const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 
-const DEFAULT_TERMINAL_TITLE = "π";
+const DEFAULT_TERMINAL_TITLE = "ζ";
 const TERMINAL_TITLE_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 interface WindowsConsoleTitleApi {

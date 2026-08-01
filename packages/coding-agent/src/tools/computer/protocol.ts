@@ -1,4 +1,4 @@
-import type { DesktopAction, DesktopCapabilities, DesktopCapture, DesktopSessionOptions } from "@oh-my-pi/pi-natives";
+import type { DesktopAction, DesktopCapabilities, DesktopCapture, DesktopSessionOptions } from "@zeta/pi-natives";
 
 export const COMPUTER_WORKER_ARG = "__omp_worker_computer";
 

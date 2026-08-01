@@ -1,6 +1,6 @@
-# MCP configuration in OMP
+# MCP configuration in Zeta
 
-This guide explains how to add, edit, and validate MCP servers for the OMP coding agent.
+This guide explains how to add, edit, and validate MCP servers for the Zeta coding agent.
 
 Source of truth in code:
 
@@ -12,14 +12,14 @@ Source of truth in code:
 
 ## Preferred config locations
 
-OMP can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for OMP-native configuration you should usually use one of these primary files:
+Zeta can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for Zeta-native configuration you should usually use one of these primary files:
 
 - Project: `.omp/mcp.json`
 - User: `~/.omp/agent/mcp.json` (or `~/.omp/profiles/<name>/agent/mcp.json` when a named profile is active — see [Profiles](#profiles))
 
-The native provider also reads `.omp/.mcp.json` and `~/.omp/agent/.mcp.json` for compatibility, but OMP writes to the primary `mcp.json` paths above.
+The native provider also reads `.omp/.mcp.json` and `~/.omp/agent/.mcp.json` for compatibility, but Zeta writes to the primary `mcp.json` paths above.
 
-OMP also accepts fallback standalone files in the project root:
+Zeta also accepts fallback standalone files in the project root:
 
 - `mcp.json`
 - `.mcp.json`

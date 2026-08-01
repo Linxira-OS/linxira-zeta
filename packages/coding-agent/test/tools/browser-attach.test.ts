@@ -1,15 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import {
-	pickElectronTarget,
-	shouldPreserveConnectedBrowserFocus,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
+import { pickElectronTarget, shouldPreserveConnectedBrowserFocus } from "@zeta/pi-coding-agent/tools/browser/attach";
 import {
 	acquireBrowser,
 	type BrowserHandle,
 	normalizeConnectedCdpUrl,
 	releaseBrowser,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { acquireTab, releaseTab } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
+} from "@zeta/pi-coding-agent/tools/browser/registry";
+import { acquireTab, releaseTab } from "@zeta/pi-coding-agent/tools/browser/tab-supervisor";
 import type { Browser, Page, Target } from "puppeteer-core";
 import { CHROMIUM_AVAILABLE } from "./chromium-probe";
 

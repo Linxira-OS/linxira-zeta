@@ -1,9 +1,9 @@
 {
   "type": "module",
-  "name": "@oh-my-pi/hashline",
-  "version": "17.2.2",
+  "name": "@zeta/hashline",
+  "version": "1.0.0",
   "description": "Hashline: a compact, line-anchored patch language and applier. Pluggable FS/IO so it works over disk, in-memory, or any custom backend.",
-  "homepage": "https://omp.sh",
+  "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
   "license": "MIT",
   "repository": {
@@ -33,7 +33,7 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@oh-my-pi/pi-natives": "catalog:",
+    "@zeta/pi-natives": "catalog:",
     "lru-cache": "catalog:"
   },
   "devDependencies": {

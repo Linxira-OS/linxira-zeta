@@ -21,10 +21,10 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { prompt } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-agent-core";
+import type { ToolExample } from "@zeta/pi-ai";
+import type { Component } from "@zeta/pi-tui";
+import { prompt } from "@zeta/pi-utils";
 import { type } from "arktype";
 import type { RenderResultOptions } from "../../extensibility/custom-tools/types";
 import { IrcBus } from "../../irc/bus";

@@ -1,10 +1,10 @@
 /**
  * Builtin Provider (.omp)
  *
- * Primary provider for OMP native configs. Supports all capabilities.
+ * Primary provider for Zeta native configs. Supports all capabilities.
  */
 import * as path from "node:path";
-import { getAgentDir, logger, parseFrontmatter, tryParseJson } from "@oh-my-pi/pi-utils";
+import { getAgentDir, logger, parseFrontmatter, tryParseJson } from "@zeta/pi-utils";
 import { YAML } from "bun";
 import { getManagedSkillsDir, MANAGED_SKILLS_PROVIDER_ID } from "../autolearn/managed-skills";
 import { registerProvider } from "../capability";
@@ -36,8 +36,8 @@ import {
 } from "./helpers";
 
 const PROVIDER_ID = "native";
-const DISPLAY_NAME = "OMP";
-const DESCRIPTION = "Native OMP configuration from ~/.omp and .omp/";
+const DISPLAY_NAME = "Zeta";
+const DESCRIPTION = "Native Zeta configuration from ~/.omp and .omp/";
 const PRIORITY = 100;
 
 const PATHS = SOURCE_PATHS.native;

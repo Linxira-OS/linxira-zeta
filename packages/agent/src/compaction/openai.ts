@@ -15,15 +15,15 @@
  *   with `{ summary, shortSummary? }`.
  */
 
-import { ProviderHttpError } from "@oh-my-pi/pi-ai/error";
-import { applyCodexResponsesLiteShape } from "@oh-my-pi/pi-ai/providers/openai-codex/request-transformer";
+import { ProviderHttpError } from "@zeta/pi-ai/error";
+import { applyCodexResponsesLiteShape } from "@zeta/pi-ai/providers/openai-codex/request-transformer";
 import {
 	createOpenAICodexCompactionRequestContext,
 	createOpenAICodexCompatibilityMetadata,
 	getCodexAttestationHeader,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { parseAzureDeploymentNameMap, parseTextSignature } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { transformMessages } from "@oh-my-pi/pi-ai/providers/transform-messages";
+} from "@zeta/pi-ai/providers/openai-codex-responses";
+import { parseAzureDeploymentNameMap, parseTextSignature } from "@zeta/pi-ai/providers/openai-shared";
+import { transformMessages } from "@zeta/pi-ai/providers/transform-messages";
 import type {
 	Api,
 	AssistantMessage,
@@ -32,20 +32,15 @@ import type {
 	Message,
 	Model,
 	ProviderSessionState,
-} from "@oh-my-pi/pi-ai/types";
+} from "@zeta/pi-ai/types";
 import {
 	getOpenAIResponsesHistoryItems,
 	getOpenAIResponsesHistoryPayload,
 	normalizeResponsesToolCallId,
-} from "@oh-my-pi/pi-ai/utils";
-import { captureOpenAIHttpError } from "@oh-my-pi/pi-ai/utils/openai-http";
-import {
-	CODEX_BASE_URL,
-	getCodexAccountId,
-	OPENAI_HEADER_VALUES,
-	OPENAI_HEADERS,
-} from "@oh-my-pi/pi-catalog/wire/codex";
-import { $env, isRecord, logger, prompt, stringifyJson, structuredCloneJSON } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-ai/utils";
+import { captureOpenAIHttpError } from "@zeta/pi-ai/utils/openai-http";
+import { CODEX_BASE_URL, getCodexAccountId, OPENAI_HEADER_VALUES, OPENAI_HEADERS } from "@zeta/pi-catalog/wire/codex";
+import { $env, isRecord, logger, prompt, stringifyJson, structuredCloneJSON } from "@zeta/pi-utils";
 import { countTokensConservatively } from "../tokenizer";
 import contextWindowTruncatedOutputPrompt from "./prompts/context-window-truncated-output.md" with { type: "text" };
 

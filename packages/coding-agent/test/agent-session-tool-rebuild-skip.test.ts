@@ -1,20 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { Message, Model } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockResponseSource } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CustomTool } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/types";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { type CustomMessage, convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { Agent, type AgentMessage, type AgentTool } from "@zeta/pi-agent-core";
+import type { Message, Model } from "@zeta/pi-ai";
+import { createMockModel, type MockResponseSource } from "@zeta/pi-ai/providers/mock";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { CustomTool } from "@zeta/pi-coding-agent/extensibility/custom-tools/types";
+import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { type CustomMessage, convertToLlm } from "@zeta/pi-coding-agent/session/messages";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import {
 	collectMountedMCPToolRoutes,
 	projectMountedMCPXdevGuidance,
-} from "@oh-my-pi/pi-coding-agent/session/session-tools";
-import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@oh-my-pi/pi-coding-agent/tools/xdev";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-coding-agent/session/session-tools";
+import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@zeta/pi-coding-agent/tools/xdev";
+import { logger } from "@zeta/pi-utils";
 import { type } from "arktype";
 
 // Cache-stability invariant: when MCP servers reconnect with byte-identical tool

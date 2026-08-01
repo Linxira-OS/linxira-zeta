@@ -1,5 +1,5 @@
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { BUILTIN_TOOLS, ComputerTool, createTools, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { BUILTIN_TOOLS, ComputerTool, createTools, type ToolSession } from "@zeta/pi-coding-agent/tools";
 import { type as arkType } from "arktype";
 
 declare global {

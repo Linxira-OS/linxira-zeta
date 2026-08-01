@@ -1,5 +1,5 @@
-import type { DesktopAction, DesktopCapture, DesktopSession, DesktopSessionOptions } from "@oh-my-pi/pi-natives";
-import { createDesktopSession } from "@oh-my-pi/pi-natives/desktop";
+import type { DesktopAction, DesktopCapture, DesktopSession, DesktopSessionOptions } from "@zeta/pi-natives";
+import { createDesktopSession } from "@zeta/pi-natives/desktop";
 import type { ComputerWorkerError, ComputerWorkerInbound, ComputerWorkerTransport } from "./protocol";
 
 export interface NativeDesktopSession {

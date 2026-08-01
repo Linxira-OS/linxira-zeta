@@ -8,9 +8,9 @@
  * non-empty assistant text returned.
  */
 
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@oh-my-pi/pi-ai/types";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@zeta/pi-ai/types";
+import { getBundledModel } from "@zeta/pi-catalog/models";
 
 const apiKey = process.env.WAFER_SERVERLESS_API_KEY;
 if (!apiKey) {

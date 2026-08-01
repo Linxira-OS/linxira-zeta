@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { convertMessages } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { NON_VISION_IMAGE_PLACEHOLDER } from "@oh-my-pi/pi-ai/providers/vision-guard";
-import type { AssistantMessage, Context, Model, ToolResultMessage, Usage } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { ResolvedOpenAICompat } from "@oh-my-pi/pi-catalog/types";
+import { convertMessages } from "@zeta/pi-ai/providers/openai-completions";
+import { NON_VISION_IMAGE_PLACEHOLDER } from "@zeta/pi-ai/providers/vision-guard";
+import type { AssistantMessage, Context, Model, ToolResultMessage, Usage } from "@zeta/pi-ai/types";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { getBundledModel } from "@zeta/pi-catalog/models";
+import type { ResolvedOpenAICompat } from "@zeta/pi-catalog/types";
 
 const emptyUsage: Usage = {
 	input: 0,

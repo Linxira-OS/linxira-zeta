@@ -2,8 +2,8 @@
  * Root command for the coding agent CLI.
  */
 
-import { APP_NAME } from "@oh-my-pi/pi-utils";
-import { Args, Command, Flags } from "@oh-my-pi/pi-utils/cli";
+import { APP_NAME } from "@zeta/pi-utils";
+import { Args, Command, Flags } from "@zeta/pi-utils/cli";
 import { type Args as ParsedArgs, parseArgs, reportCliUsageError } from "../cli/args";
 import { runRootCommand } from "../main";
 import { prepareAcpTerminalAuthArgs } from "../modes/acp/terminal-auth";
@@ -100,10 +100,10 @@ export default class Index extends Command {
 			description: "Resume a session (by ID prefix, path, or picker if omitted)",
 		}),
 		"from-claude": Flags.boolean({
-			description: "Import a Claude Code session into OMP",
+			description: "Import a Claude Code session into Zeta",
 		}),
 		"from-codex": Flags.boolean({
-			description: "Import a Codex session into OMP",
+			description: "Import a Codex session into Zeta",
 		}),
 		"session-dir": Flags.string({
 			description: "Directory for session storage and lookup",

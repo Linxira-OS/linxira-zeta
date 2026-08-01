@@ -1,6 +1,6 @@
-import { type FetchImpl, wrapFetchForExtraCa } from "@oh-my-pi/pi-utils";
+import { type FetchImpl, wrapFetchForExtraCa } from "@zeta/pi-utils";
 
-export { isRecord } from "@oh-my-pi/pi-utils";
+export { isRecord } from "@zeta/pi-utils";
 
 /**
  * Fetch implementation for catalog discovery probes: the caller's override

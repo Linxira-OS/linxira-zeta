@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@zeta/pi-utils";
 
 const preloadPath = path.join(import.meta.dir, "fixtures", "auth-broker-wire-construction-preload.ts");
 const probePath = path.join(import.meta.dir, "fixtures", "auth-broker-wire-construction-probe.ts");

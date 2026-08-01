@@ -1,4 +1,4 @@
-import { once } from "@oh-my-pi/pi-utils";
+import { once } from "@zeta/pi-utils";
 import { scope } from "arktype";
 
 export const getModelsConfigSchemaBundle = once(() => {

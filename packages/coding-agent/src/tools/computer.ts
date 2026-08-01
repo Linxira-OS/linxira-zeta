@@ -4,17 +4,17 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { ComputerAction, ComputerSafetyCheck, ComputerToolCallMetadata, Model } from "@oh-my-pi/pi-ai";
-import { isClaudeModelId } from "@oh-my-pi/pi-catalog/identity";
+} from "@zeta/pi-agent-core";
+import type { ComputerAction, ComputerSafetyCheck, ComputerToolCallMetadata, Model } from "@zeta/pi-ai";
+import { isClaudeModelId } from "@zeta/pi-catalog/identity";
 import type {
 	DesktopAction,
 	DesktopCapabilities,
 	DesktopCapture,
 	DesktopDisplay,
 	DesktopSessionOptions,
-} from "@oh-my-pi/pi-natives";
-import { once, prompt, sanitizeText } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-natives";
+import { once, prompt, sanitizeText } from "@zeta/pi-utils";
 import { type Type, type } from "arktype";
 import computerDescription from "../prompts/tools/computer.md" with { type: "text" };
 import { truncateForPrompt } from "./approval";

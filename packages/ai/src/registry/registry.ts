@@ -1,4 +1,4 @@
-import type { KnownProvider } from "@oh-my-pi/pi-catalog";
+import type { KnownProvider } from "@zeta/pi-catalog";
 import { aimlApiProvider } from "./aimlapi";
 import { alibabaCodingPlanProvider } from "./alibaba-coding-plan";
 import { alibabaTokenPlanProvider } from "./alibaba-token-plan";

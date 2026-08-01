@@ -3,8 +3,8 @@ import {
 	type AuthBrokerServerHandle,
 	discoverAuthStorage,
 	startAuthBroker,
-} from "@oh-my-pi/pi-ai/auth-broker";
-import type { AuthStorage } from "@oh-my-pi/pi-ai/auth-storage";
+} from "@zeta/pi-ai/auth-broker";
+import type { AuthStorage } from "@zeta/pi-ai/auth-storage";
 
 declare global {
 	var __authBrokerWireConstructionCount: number;

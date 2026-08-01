@@ -1,8 +1,8 @@
 import { describe, expect, it, type Mock, vi } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { type KeyId, matchesKey } from "@oh-my-pi/pi-tui";
+import type { ImageContent } from "@zeta/pi-ai";
+import { InputController } from "@zeta/pi-coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import { type KeyId, matchesKey } from "@zeta/pi-tui";
 import manualContinuePrompt from "../src/prompts/system/manual-continue.md" with { type: "text" };
 
 type FakeEditor = {

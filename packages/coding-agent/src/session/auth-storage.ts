@@ -1,5 +1,5 @@
 /**
- * Re-exports from @oh-my-pi/pi-ai.
+ * Re-exports from @zeta/pi-ai.
  * All credential storage types and the AuthStorage class now live in the ai package.
  */
 
@@ -20,6 +20,6 @@ export type {
 	ResetCreditTarget,
 	SerializedAuthStorage,
 	StoredAuthCredential,
-} from "@oh-my-pi/pi-ai";
-export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-export type { SnapshotResponse } from "@oh-my-pi/pi-ai/auth-broker/types";
+} from "@zeta/pi-ai";
+export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@zeta/pi-ai";
+export type { SnapshotResponse } from "@zeta/pi-ai/auth-broker/types";

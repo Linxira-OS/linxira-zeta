@@ -8,7 +8,7 @@ import {
 	logger,
 	stripWindowsExtendedLengthPathPrefix,
 	workerHostEntry,
-} from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-utils";
 import type { Subprocess } from "bun";
 
 /**

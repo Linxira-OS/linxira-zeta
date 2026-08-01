@@ -2,25 +2,25 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { StreamFn } from "@oh-my-pi/pi-agent-core";
-import type { Model, ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CursorExecHandlers } from "@oh-my-pi/pi-coding-agent/cursor";
-import type { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
+import type { StreamFn } from "@zeta/pi-agent-core";
+import type { Model, ToolResultMessage } from "@zeta/pi-ai";
+import { createMockModel } from "@zeta/pi-ai/providers/mock";
+import { getBundledModel } from "@zeta/pi-catalog/models";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { CursorExecHandlers } from "@zeta/pi-coding-agent/cursor";
+import type { MCPManager } from "@zeta/pi-coding-agent/mcp/manager";
 import {
 	type CreateAgentSessionOptions,
 	type CustomTool,
 	createAgentSession,
 	discoverAuthStorage,
 	type ExtensionFactory,
-} from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { VIBE_TOOL_NAMES } from "@oh-my-pi/pi-coding-agent/tools/vibe";
-import { logger, removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-coding-agent/sdk";
+import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { VIBE_TOOL_NAMES } from "@zeta/pi-coding-agent/tools/vibe";
+import { logger, removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
 import { type } from "arktype";
 
 const toolActivationExtension: ExtensionFactory = pi => {

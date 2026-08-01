@@ -1,4 +1,4 @@
-import type { Model } from "@oh-my-pi/pi-ai";
+import type { Model } from "@zeta/pi-ai";
 
 export type ComputerExposureMode = "native" | "function" | "unavailable";
 

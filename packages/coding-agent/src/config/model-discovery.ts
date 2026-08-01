@@ -5,24 +5,24 @@
  * `discoverModelsByProviderType` with a `DiscoveryContext`; built-in provider
  * discovery lives in pi-catalog's provider-models.
  */
-import { type ApiKey, type FetchImpl, withAuth } from "@oh-my-pi/pi-ai";
-import type { Api, Model, RemoteCompactionConfig } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { type ApiKey, type FetchImpl, withAuth } from "@zeta/pi-ai";
+import type { Api, Model, RemoteCompactionConfig } from "@zeta/pi-ai/types";
+import { buildModel } from "@zeta/pi-catalog/build";
 import {
 	getBundledModelReferenceIndex,
 	inheritReferenceThinking,
 	isQwenModelId,
 	resolveModelReference,
 	stripBracketedModelIdAffixes,
-} from "@oh-my-pi/pi-catalog/identity";
+} from "@zeta/pi-catalog/identity";
 import {
 	fetchLiteLLMRichModels,
 	fetchLmStudioNativeModelMetadata,
 	OPENAI_COMPAT_DISCOVERY_DEFAULT_CONTEXT_WINDOW,
 	OPENAI_COMPAT_DISCOVERY_DEFAULT_MAX_TOKENS,
-} from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { ModelSpec, OpenAICompat } from "@oh-my-pi/pi-catalog/types";
-import { isRecord } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-catalog/provider-models/openai-compat";
+import type { ModelSpec, OpenAICompat } from "@zeta/pi-catalog/types";
+import { isRecord } from "@zeta/pi-utils";
 import type { ProviderDiscovery } from "./models-config-schema";
 
 // Default cap on `max_tokens` for auto-discovered models that do not advertise

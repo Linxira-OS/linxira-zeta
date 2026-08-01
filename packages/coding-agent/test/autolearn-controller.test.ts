@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { Agent, type AgentMessage, type AgentOptions, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@oh-my-pi/pi-ai";
-import { streamGoogle } from "@oh-my-pi/pi-ai/providers/google";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { AutoLearnController, buildAutoLearnInstructions } from "@oh-my-pi/pi-coding-agent/autolearn/controller";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAutoLearnCaptureRunner } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { Agent, type AgentMessage, type AgentOptions, type AgentTool } from "@zeta/pi-agent-core";
+import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@zeta/pi-ai";
+import { streamGoogle } from "@zeta/pi-ai/providers/google";
+import { createMockModel } from "@zeta/pi-ai/providers/mock";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { AutoLearnController, buildAutoLearnInstructions } from "@zeta/pi-coding-agent/autolearn/controller";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { createAutoLearnCaptureRunner } from "@zeta/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
+import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { type } from "arktype";
 
 class FakeSession {

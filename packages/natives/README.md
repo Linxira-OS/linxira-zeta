@@ -1,4 +1,4 @@
-# @oh-my-pi/pi-natives
+# @zeta/pi-natives
 
 Native Rust functionality via N-API.
 
@@ -18,7 +18,7 @@ that terminal protocol.
 ## Usage
 
 ```typescript
-import { grep, find, encodeSixel } from "@oh-my-pi/pi-natives";
+import { grep, find, encodeSixel } from "@zeta/pi-natives";
 
 // Grep for a pattern
 const results = await grep({
@@ -51,7 +51,7 @@ bun run check
 
 ## Architecture
 
-`@oh-my-pi/pi-natives` publishes a small core package plus generated
+`@zeta/pi-natives` publishes a small core package plus generated
 platform-specific optional dependency packages:
 
 ```
@@ -67,7 +67,7 @@ native/                  # Core loader files and local/CI native build outputs
   pi_natives.<platform>-<arch>-baseline.node # x64 baseline ISA (local/CI artifact)
   pi_natives.<platform>-<arch>.node          # non-x64 build artifact
 npm/<platform>-<arch>/   # Generated at publish time, not committed
-  package.json           # @oh-my-pi/pi-natives-<platform>-<arch>
+  package.json           # @zeta/pi-natives-<platform>-<arch>
   *.node                 # Only that platform's addon binary or x64 ISA variants
 ```
 

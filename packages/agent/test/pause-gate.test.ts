@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { agentLoop, agentPauseGate } from "@oh-my-pi/pi-agent-core";
-import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@oh-my-pi/pi-agent-core/types";
-import type { Message } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { agentLoop, agentPauseGate } from "@zeta/pi-agent-core";
+import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@zeta/pi-agent-core/types";
+import type { Message } from "@zeta/pi-ai";
+import { createMockModel } from "@zeta/pi-ai/providers/mock";
 import { type } from "arktype";
 import { createUserMessage } from "./helpers";
 

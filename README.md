@@ -13,11 +13,11 @@ intentional architecture.
 
 ```text
 zeta/
-├── packages/       OMP TypeScript packages and coding-agent CLI
-├── crates/         OMP native Rust crates
-├── python/         OMP RPC and Robomp services
-├── docs/           OMP documentation plus Zeta upstream policy
-├── web-ui/         Standalone OMP Web snapshot
+├── packages/       Zeta TypeScript packages and coding-agent CLI
+├── crates/         Zeta native Rust crates
+├── python/         Zeta RPC and Robomp services
+├── docs/           Zeta documentation plus upstream policy
+├── web-ui/         Zeta's standalone browser interface
 └── temp/           Ignored local references for OMP, Pi, OMP Web, and Pi Web
 ```
 
@@ -73,6 +73,10 @@ production build while its development server is active.
 
 ## License And Attribution
 
-Zeta is derived from OMP, which is derived from Pi. Preserve upstream notices
-and licenses when porting code. The repository is distributed under the MIT
-license in [LICENSE](LICENSE).
+Zeta is derived from OMP, which is derived from Pi. It gratefully acknowledges
+Pi and [@mariozechner](https://github.com/mariozechner), Oh My Pi and
+[@can1357](https://github.com/can1357), Pi Web and
+[@agegr](https://github.com/agegr), and OMP Web and
+[@17380936778](https://github.com/17380936778). Preserve upstream notices and
+licenses when porting code. The repository is distributed under the MIT license
+in [LICENSE](LICENSE).

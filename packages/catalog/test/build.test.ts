@@ -3,14 +3,14 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { isOfficialAnthropicApiUrl } from "@oh-my-pi/pi-catalog/compat/anthropic";
-import { buildOpenAICompat, buildOpenAIResponsesCompat } from "@oh-my-pi/pi-catalog/compat/openai";
-import { readModelCache, writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { openrouterModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { Model, ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { isOfficialAnthropicApiUrl } from "@zeta/pi-catalog/compat/anthropic";
+import { buildOpenAICompat, buildOpenAIResponsesCompat } from "@zeta/pi-catalog/compat/openai";
+import { readModelCache, writeModelCache } from "@zeta/pi-catalog/model-cache";
+import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
+import { getBundledModel } from "@zeta/pi-catalog/models";
+import { openrouterModelManagerOptions } from "@zeta/pi-catalog/provider-models/openai-compat";
+import type { Model, ModelSpec } from "@zeta/pi-catalog/types";
 
 function completionsSpec(overrides: Partial<ModelSpec<"openai-completions">> = {}): ModelSpec<"openai-completions"> {
 	return {

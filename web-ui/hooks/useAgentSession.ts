@@ -1491,7 +1491,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         }
 
         case "changelog": {
-          return complete({ handled: true, message: "Pi Web v0.8.0 — Full CLI feature & model parity" });
+          return complete({ handled: true, message: "Zeta Web v0.8.0 - Full CLI feature and model parity" });
         }
 
         case "trust":

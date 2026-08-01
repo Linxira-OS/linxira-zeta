@@ -1,4 +1,4 @@
-import { $env, $flag } from "@oh-my-pi/pi-utils";
+import { $env, $flag } from "@zeta/pi-utils";
 
 export type EditMode = "replace" | "patch" | "hashline" | "apply_patch";
 

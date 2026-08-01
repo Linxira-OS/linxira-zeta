@@ -13,11 +13,11 @@ import {
 	getRepoRoot,
 	mergeTaskBranches,
 	parseIsolationMode,
-} from "@oh-my-pi/pi-coding-agent/task/worktree";
-import * as git from "@oh-my-pi/pi-coding-agent/utils/git";
-import * as jj from "@oh-my-pi/pi-coding-agent/utils/jj";
-import * as natives from "@oh-my-pi/pi-natives";
-import { removeWithRetries, setWorktreesDir } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-coding-agent/task/worktree";
+import * as git from "@zeta/pi-coding-agent/utils/git";
+import * as jj from "@zeta/pi-coding-agent/utils/jj";
+import * as natives from "@zeta/pi-natives";
+import { removeWithRetries, setWorktreesDir } from "@zeta/pi-utils";
 
 const tempDirs: string[] = [];
 

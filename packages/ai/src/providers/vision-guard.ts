@@ -1,5 +1,5 @@
-import { isDashscopeCompatibleModeUrl } from "@oh-my-pi/pi-catalog/hosts";
-import { isQwenModelId } from "@oh-my-pi/pi-catalog/identity";
+import { isDashscopeCompatibleModeUrl } from "@zeta/pi-catalog/hosts";
+import { isQwenModelId } from "@zeta/pi-catalog/identity";
 
 import type { ImageContent, Model, TextContent } from "../types";
 

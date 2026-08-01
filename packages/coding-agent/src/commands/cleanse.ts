@@ -1,5 +1,5 @@
-import { postmortem } from "@oh-my-pi/pi-utils";
-import { Command, Flags } from "@oh-my-pi/pi-utils/cli";
+import { postmortem } from "@zeta/pi-utils";
+import { Command, Flags } from "@zeta/pi-utils/cli";
 import { runCleanseCommand } from "../cleanse";
 import { CliUsageError } from "../cli/usage-error";
 

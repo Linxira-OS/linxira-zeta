@@ -1,6 +1,6 @@
-# LSP configuration in OMP
+# LSP configuration in Zeta
 
-This guide explains how to configure language servers for the OMP coding agent.
+This guide explains how to configure language servers for the Zeta coding agent.
 
 Source of truth in code:
 
@@ -10,7 +10,7 @@ Source of truth in code:
 
 ## Auto-detection
 
-When no LSP config file is present, OMP auto-detects servers by intersecting two conditions:
+When no LSP config file is present, Zeta auto-detects servers by intersecting two conditions:
 
 1. The project directory contains at least one of the server's `rootMarkers`.
 2. The server binary is available — checked in project-local bin directories first (e.g., `node_modules/.bin/`, `.venv/bin/`), then `$PATH`.
@@ -19,7 +19,7 @@ No configuration is required for common setups. The built-in server list covers 
 
 ## Config file locations
 
-OMP merges LSP config from multiple files, lowest to highest priority:
+Zeta merges LSP config from multiple files, lowest to highest priority:
 
 | Priority    | Location                                                                                                                    |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------- |

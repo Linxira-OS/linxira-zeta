@@ -1,7 +1,7 @@
 {
-  "name": "omp-web",
-  "version": "0.8.1",
-  "description": "Web UI for the omp coding agent",
+  "name": "zeta-web",
+  "version": "1.0.0",
+  "description": "Zeta's browser interface for the coding agent",
   "homepage": "https://github.com/17380936778/omp-web#readme",
   "repository": {
     "type": "git",
@@ -16,6 +16,7 @@
     "node": ">=22.19.0"
   },
   "bin": {
+    "zeta-web": "bin/omp-web.js",
     "omp-web": "bin/omp-web.js"
   },
   "files": [

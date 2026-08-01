@@ -8,13 +8,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentSideConnection, InitializeRequest } from "@agentclientprotocol/sdk";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { AcpAgent } from "@oh-my-pi/pi-coding-agent/modes/acp/acp-agent";
-import { ACP_TERMINAL_AUTH_FLAG, prepareAcpTerminalAuthArgs } from "@oh-my-pi/pi-coding-agent/modes/acp/terminal-auth";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getConfigRootDir, setAgentDir, VERSION } from "@oh-my-pi/pi-utils";
+import type { Model } from "@zeta/pi-ai";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { AcpAgent } from "@zeta/pi-coding-agent/modes/acp/acp-agent";
+import { ACP_TERMINAL_AUTH_FLAG, prepareAcpTerminalAuthArgs } from "@zeta/pi-coding-agent/modes/acp/terminal-auth";
+import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { getConfigRootDir, setAgentDir, VERSION } from "@zeta/pi-utils";
 import { type } from "arktype";
 import { expectAcpStructure } from "./helpers/acp-schema";
 
@@ -229,7 +229,7 @@ describe("ACP initialize conformance", () => {
 		expect(response.agentInfo).toEqual(
 			expect.objectContaining({
 				name: "oh-my-pi",
-				title: "Oh My Pi",
+				title: "Zeta",
 				version: VERSION,
 			}),
 		);

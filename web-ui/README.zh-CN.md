@@ -1,18 +1,18 @@
-# omp-web
+# Zeta Web
 
 [English](./README.en.md)
 
-[Oh My Pi](https://github.com/badlogic/pi-mono) 编程智能体的浏览器界面——基于 [pi-web](https://github.com/agegr/pi-web) Fork 并改造，专门适配 Oh My Pi（omp）工作流。
+Zeta 的浏览器界面，基于 OMP Web 快照，并保留现有 OMP 运行时和配置兼容层。
 
-> **来源说明**：本项目 Fork 自 [agegr/pi-web](https://github.com/agegr/pi-web)。核心架构、会话浏览、实时对话、文件预览均来自 pi-web 原作者的工作。本仓库的改动专注于与 Oh My Pi 环境的兼容性和工作流优化。
+> **来源说明**：Zeta Web 包含 OMP Web 快照和 [Pi Web](https://github.com/agegr/pi-web) 的历史。核心架构、会话浏览、实时对话和文件预览仍保留其上游作者归属。
 
-![omp-web 界面展示：结构化 Markdown、工具调用与项目导航](./docs/Untitled%20blend-4096x4096.png)
+![Zeta Web 界面展示：结构化 Markdown、工具调用与项目导航](./docs/Untitled%20blend-4096x4096.png)
 
-Oh My Pi（omp）是构建在 pi 编程智能体之上的 coding harness，在 pi 核心能力之上添加了结构化智能体会话、技能管理、worktree 协调和更丰富的工具协议。`omp-web` 将 omp 的会话格式呈现在浏览器中：pi 写入的同一批 `.jsonl` 文件，由本地运行的 Next.js 服务器读取并渲染。
+Zeta 是基于 OMP 运行时的开箱即用编码代理。Zeta Web 通过本地 Next.js 服务器在浏览器中展示兼容的会话文件。
 
 ## 快速开始
 
-Pi Web 要求 Node.js 22.19.0 或更高版本。可通过 `node --version` 检查当前版本。
+Zeta Web 要求 Node.js 22.19.0 或更高版本。可通过 `node --version` 检查当前版本。
 
 **从源码运行（Git Clone）：**
 
@@ -26,7 +26,7 @@ npm run build
 npm start
 ```
 
-启动后打开 [http://127.0.0.1:30141](http://127.0.0.1:30141)。服务就绪后会尝试自动打开浏览器。omp-web 默认仅监听 `127.0.0.1`。
+启动后打开 [http://127.0.0.1:30141](http://127.0.0.1:30141)。服务就绪后会尝试自动打开浏览器。Zeta Web 默认仅监听 `127.0.0.1`。
 
 **可选参数：**
 
@@ -41,11 +41,11 @@ OMP_WEB_HOSTNAME=0.0.0.0 omp-web  # 显式开放网络访问
 OMP_WEB_NO_OPEN=1 omp-web         # 适用于后台服务或开机自启
 ```
 
-Pi Web 没有应用层身份验证，并且可以调用高权限智能体。请勿将其暴露到互联网；仅在可信网络中使用非 loopback 监听地址。
+Zeta Web 没有应用层身份验证，并且可以调用高权限智能体。请勿将其暴露到互联网；仅在可信网络中使用非 loopback 监听地址。
 
 ## HTTP 代理
 
-omp-web 的服务端模型请求和 API 请求会读取标准的 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NO_PROXY` 环境变量。
+Zeta Web 的服务端模型请求和 API 请求会读取标准的 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NO_PROXY` 环境变量。
 
 macOS 或 Linux：
 
@@ -68,9 +68,9 @@ npx omp-web@latest
 ## 特色与增强功能
 
 - **独立代码块语法主题选择器**：新增多主题代码渲染支持，内置 **One Dark Pro**、VS Code Dark+、VS Code Light 等高亮主题，用户可自由切换代码视觉风格。
-- **Oh My Pi (OMP) 生态深度集成**：完全适配 `~/.omp/agent/` 目录结构（`models.json`、`models.db`、`config.yml`、`agent.db` 等），自动识别并映射 OMP 专属的模型角色 (如 `defaultModel`, `smallModel` 等) 及 SQLite 凭据。
+- **Zeta 兼容层**：兼容 `~/.omp/agent/` 目录结构（`models.json`、`models.db`、`config.yml`、`agent.db` 等）、角色模型（如 `defaultModel`、`smallModel`）和 SQLite 凭据。
 - **全界面中文与双语本地化**：提供全面中文化的 UI 交互体验，优化 CJK 排版、字体与搜索体验。
-- **按项目找回历史对话**：打开网页即可按项目检索以前的 omp 会话，不必在终端里翻文件或记住会话路径。
+- **按项目找回历史对话**：打开网页即可按项目检索以前的 Zeta 会话，不必在终端里翻文件或记住会话路径。
 - **放心探索不同方向**：从任意历史消息重新开始，或将会话 Fork 成独立路线，不会影响原来的对话。
 - **侧边栏切换 Git worktree**：Explorer 和新会话跟随你所选的 checkout。
 - **边聊边看项目文件**：左侧浏览文件，右侧预览源码、文档、图片、音频和 PDF，智能体工作时同步检查。
@@ -79,27 +79,27 @@ npx omp-web@latest
 
 - **数据目录**：默认读取 `~/.omp/agent/sessions`。可通过环境变量 `OMP_CODING_AGENT_DIR` 指定其他 omp agent 目录（兼容旧版：同样支持 `PI_CODING_AGENT_DIR`，优先级低于前者）。
 - **会话文件**：路径形如 `~/.omp/agent/sessions/<编码后的工作目录>/<时间戳>_<uuid>.jsonl`。
-- **模型配置**：Models 面板读写 omp agent 目录下的 `models.json`，模型列表和默认值来自 omp 的配置。
+- **模型配置**：Models 面板读写 Zeta agent 目录下的 `models.json`，模型列表和默认值来自兼容配置。
 - **文件访问**：文件浏览和预览面向当前选择的项目目录，以及会话中已出现过的工作目录。
-- **Git worktree**：切换器何时出现、新 worktree 在哪里创建、删除会影响什么，见 [omp-web 里的 Worktree](./docs/worktrees.zh-CN.md)。
+- **Git worktree**：切换器何时出现、新 worktree 在哪里创建、删除会影响什么，见 [Zeta Web 里的 Worktree](./docs/worktrees.zh-CN.md)。
 - **Fork 与会话内分支不同**：Fork 会创建新的 `.jsonl` 文件；"Edit from here" 是同一会话文件里的分支。
 - **Skills API**：`SKILLS_API_URL` 可覆盖默认的 `https://skills.sh` 接口地址，用于技能搜索和安装。
 - **GitHub token**：设置 `GITHUB_TOKEN` 或 `GH_TOKEN` 可提升技能更新检查器的 GitHub API 速率限制（可选；不设置时仍可请求，但可能触发 rate limit）。
 - **环境要求**：需要 Node.js >= 18.3.0。运行环境需安装 Git 并确保系统 `PATH` 中可调起 `git` 命令（用于 Git Worktree 和仓库浏览功能）。
 
-## 与 pi-web 的关系
+## 来源与兼容性
 
-omp-web 直接 Fork 自 [pi-web](https://github.com/agegr/pi-web)，下表列出了针对 Oh My Pi (omp) 生态与用户体验所做的主要增强与改动：
+Zeta Web 基于 OMP Web 快照，后者保留了 Pi Web 历史。下表列出 Zeta 的兼容表面和本地增强：
 
 | 改动点 | 说明 |
 |---|---|
-| 包名与二进制 | 改为 `omp-web`，原为 `pi-web` |
+| 兼容二进制 | 为现有脚本保留 `omp-web` |
 | 代码语法主题选择器 | **新增** 独立代码块主题选择器，支持 **One Dark Pro** 等主流主题切换 |
-| OMP 数据库与角色适配 | **新增** 对 `~/.omp/agent/` 下 `models.db`、`config.yml` 角色模型及 SQLite API Key 的读取与映射 |
+| 数据与角色映射 | 支持 `~/.omp/agent/` 下的 `models.db`、`config.yml` 角色模型及 SQLite API Key |
 | 中文与国际化体验 | **增强** 完整双语界面与中文本地化交互优化 |
-| pi SDK 依赖 | 跟踪 omp 使用的 `@earendil-works/pi-*` 最新系列包 |
-| 会话与路径兼容性 | 适配 omp 会话格式、工具协议及 `~/.omp/agent/` 数据目录 |
-| 默认端口 | 30141（与 omp 开发约定一致） |
+| 运行时依赖 | 使用兼容的 `@earendil-works/pi-*` 运行时包 |
+| 会话与路径兼容性 | 适配兼容会话格式、工具协议及 `~/.omp/agent/` 数据目录 |
+| 默认端口 | 30141 |
 
 其余内容——会话读取、AgentSession 生命周期、SSE 流式传输、Fork/分支逻辑、文件访问、worktree 管理——均继承自 pi-web，详见 [AGENTS.md](./AGENTS.md)。
 ## 开发
@@ -169,7 +169,9 @@ instrumentation.ts    # 初始化服务端 HTTP dispatcher
 
 ## 致谢
 
-本项目基于 [pi-web](https://github.com/agegr/pi-web) 及 `@earendil-works/pi-*` 生态二次开发与增强。感谢 `pi-web` 原作者及 Oh My Pi 团队提供的优秀开源基石！
+Zeta Web 基于 Pi、Oh My Pi、Pi Web 和 OMP Web。感谢
+[@mariozechner](https://github.com/mariozechner)、[@can1357](https://github.com/can1357)、
+[@agegr](https://github.com/agegr) 和 [@17380936778](https://github.com/17380936778)，以及所有贡献者。
 
 ## 开源协议
 

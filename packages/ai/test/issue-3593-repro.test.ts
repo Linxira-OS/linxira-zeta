@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@oh-my-pi/pi-ai/providers/openai-responses";
-import type { Context, Model, ModelSpec, Tool, ToolChoice } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
+import type { Context, Model, ModelSpec, Tool, ToolChoice } from "@zeta/pi-ai/types";
+import { buildModel } from "@zeta/pi-catalog/build";
 import { z } from "zod/v4";
 
 interface ChatCompletionsPayload {

@@ -17,9 +17,9 @@ import {
 	type AgentTelemetryConfig,
 	instrumentedCompleteSimple,
 	resolveTelemetry,
-} from "@oh-my-pi/pi-agent-core";
-import type { Api, completeSimple, ImageContent, Model, TextContent } from "@oh-my-pi/pi-ai";
-import { logger, prompt, toError } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-agent-core";
+import type { Api, completeSimple, ImageContent, Model, TextContent } from "@zeta/pi-ai";
+import { logger, prompt, toError } from "@zeta/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { expandRoleAlias, getModelMatchPreferences, resolveModelFromString } from "../config/model-resolver";

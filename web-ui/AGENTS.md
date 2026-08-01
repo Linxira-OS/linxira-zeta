@@ -6,7 +6,8 @@
 `omp-web@c71edcb2a548fafb3889f9065527e08a8db80d71`. Its direct upstream is
 `omp-web-upstream`; `pi-web-upstream` is a semantic-port source only.
 
-- Keep the OMP Web package name, session format support, and OMP-specific
+- The Zeta package name is `zeta-web` (npm), with `omp-web` retained as a
+  compatibility bin alias. Keep session format support and OMP-specific
   configuration behavior unless a focused Zeta change deliberately updates it.
 - Do not add `web-ui/` to the root Bun workspace or refresh its lockfiles from
   root commands.

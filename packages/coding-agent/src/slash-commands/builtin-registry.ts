@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { type AutocompleteItem, Spacer } from "@oh-my-pi/pi-tui";
-import { APP_NAME, getMCPConfigPath, getProjectDir, logger, setProjectDir } from "@oh-my-pi/pi-utils";
+import { getOAuthProviders } from "@zeta/pi-ai/oauth";
+import { type AutocompleteItem, Spacer } from "@zeta/pi-tui";
+import { APP_NAME, getMCPConfigPath, getProjectDir, logger, setProjectDir } from "@zeta/pi-utils";
 import { reset as resetCapabilities } from "../capability";
 import { COLLAB_GUEST_ALLOWED_COMMANDS, CollabGuestLink } from "../collab/guest";
 import { CollabHost } from "../collab/host";
@@ -377,7 +377,7 @@ function formatWorkspaceDirectories(runtime: SlashCommandRuntime, note?: string)
 const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "security",
-		description: "Plan, run, inspect, import, and compare OMP-native security scans",
+		description: "Plan, run, inspect, import, and compare Zeta security scans",
 		allowArgs: true,
 		acpInputHint: "<plan|scan|status|cancel|scans|show|import|export|validate|compare|disposition>",
 		subcommands: [
@@ -389,7 +389,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "show", description: "Render a scan or security:// resource" },
 			{ name: "import", description: "Import SARIF or a Codex Security bundle" },
 			{ name: "export", description: "Export a canonical bundle, SARIF, or report" },
-			{ name: "validate", description: "Validate one finding with OMP-native tools" },
+			{ name: "validate", description: "Validate one finding with Zeta tools" },
 			{ name: "compare", description: "Compare finding lineage across two scans" },
 			{ name: "disposition", description: "Set a finding disposition with rationale" },
 		],

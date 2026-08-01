@@ -1,9 +1,9 @@
 {
   "type": "module",
-  "name": "@oh-my-pi/pi-wire",
-  "version": "17.2.2",
+  "name": "@zeta/pi-wire",
+  "version": "1.0.0",
   "description": "Shared wire protocol types for Oh My Pi packages",
-  "homepage": "https://omp.sh",
+  "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
   "license": "MIT",
   "repository": {

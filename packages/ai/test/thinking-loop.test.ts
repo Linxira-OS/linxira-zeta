@@ -1,11 +1,11 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { clearCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { createMockModel, type MockContent, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { complete, completeSimple, stream, streamSimple } from "@oh-my-pi/pi-ai/stream";
-import type { Api, AssistantMessage, AssistantMessageEvent, Context, Model } from "@oh-my-pi/pi-ai/types";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { clearCustomApis } from "@zeta/pi-ai/api-registry";
+import * as AIError from "@zeta/pi-ai/error";
+import { createMockModel, type MockContent, registerMockApi } from "@zeta/pi-ai/providers/mock";
+import { complete, completeSimple, stream, streamSimple } from "@zeta/pi-ai/stream";
+import type { Api, AssistantMessage, AssistantMessageEvent, Context, Model } from "@zeta/pi-ai/types";
+import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
 import {
 	GEMINI_HEADER_RUNAWAY_THRESHOLD,
 	GeminiHeaderRunDetector,
@@ -16,8 +16,8 @@ import {
 	THINKING_LOOP_ERROR_MARKER,
 	ThinkingLoopDetector,
 	withGeminiThinkingLoopGuard,
-} from "@oh-my-pi/pi-ai/utils/thinking-loop";
-import { isRetryableError } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-ai/utils/thinking-loop";
+import { isRetryableError } from "@zeta/pi-utils";
 
 function context(): Context {
 	return { systemPrompt: [], messages: [{ role: "user", content: "go", timestamp: 0 }] };

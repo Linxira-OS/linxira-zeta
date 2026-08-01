@@ -1,5 +1,5 @@
-import type { Clipboard, SnapshotStore } from "@oh-my-pi/hashline";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { Clipboard, SnapshotStore } from "@zeta/hashline";
+import type { AgentTool } from "@zeta/pi-agent-core";
 import {
 	Box,
 	type Component,
@@ -13,8 +13,8 @@ import {
 	TERMINAL,
 	Text,
 	type TUI,
-} from "@oh-my-pi/pi-tui";
-import { getProjectDir, logger, sanitizeText } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-tui";
+import { getProjectDir, logger, sanitizeText } from "@zeta/pi-utils";
 import { EDIT_MODE_STRATEGIES, type EditMode, type PerFileDiffPreview } from "../../edit";
 import type { Theme } from "../../modes/theme/theme";
 import { getThemeEpoch, theme } from "../../modes/theme/theme";

@@ -3,11 +3,11 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { create, fromBinary } from "@bufbuild/protobuf";
-import type { AgentEvent, AgentTool, AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { type BlockState, handleServerMessage, type ToolCallState } from "@oh-my-pi/pi-ai/providers/cursor";
-import { buildPiLsResult, piTruncation } from "@oh-my-pi/pi-ai/providers/cursor/exec-modern";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai/types";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import type { AgentEvent, AgentTool, AgentToolContext } from "@zeta/pi-agent-core";
+import { type BlockState, handleServerMessage, type ToolCallState } from "@zeta/pi-ai/providers/cursor";
+import { buildPiLsResult, piTruncation } from "@zeta/pi-ai/providers/cursor/exec-modern";
+import type { AssistantMessage } from "@zeta/pi-ai/types";
+import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
 import {
 	AgentClientMessageSchema,
 	AgentServerMessageSchema,
@@ -16,21 +16,21 @@ import {
 	McpArgsSchema,
 	ReadArgsSchema,
 	ShellArgsSchema,
-} from "@oh-my-pi/pi-catalog/discovery/cursor-gen/agent_pb";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CursorExecHandlers } from "@oh-my-pi/pi-coding-agent/cursor";
+} from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { CursorExecHandlers } from "@zeta/pi-coding-agent/cursor";
 import {
 	bridgeToolMap,
 	createBridgeEditTool,
 	createBridgeGrepFactory,
-} from "@oh-my-pi/pi-coding-agent/cursor-bridge-tools";
-import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { ExtensionToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import type { TruncationMeta } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-coding-agent/cursor-bridge-tools";
+import { EditTool } from "@zeta/pi-coding-agent/edit";
+import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { ExtensionToolWrapper } from "@zeta/pi-coding-agent/extensibility/extensions";
+import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@zeta/pi-coding-agent/tools";
+import { BashTool } from "@zeta/pi-coding-agent/tools/bash";
+import type { TruncationMeta } from "@zeta/pi-coding-agent/tools/output-meta";
+import { removeWithRetries } from "@zeta/pi-utils";
 import { type } from "arktype";
 import { AdviseTool } from "../src/advisor/advise-tool";
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildAnthropicClientOptions, streamAnthropic } from "@oh-my-pi/pi-ai/providers/anthropic";
-import type { Model, ModelSpec } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { buildAnthropicClientOptions, streamAnthropic } from "@zeta/pi-ai/providers/anthropic";
+import type { Model, ModelSpec } from "@zeta/pi-ai/types";
+import { buildModel } from "@zeta/pi-catalog/build";
 
 /**
  * Repro for #6510 — every Claude (`anthropic-messages`) model on the

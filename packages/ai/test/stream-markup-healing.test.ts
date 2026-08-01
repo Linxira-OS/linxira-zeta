@@ -1,18 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import {
-	type Dialect,
-	getDialectDefinition,
-	type InbandScanEvent,
-	ThinkingInbandScanner,
-} from "@oh-my-pi/pi-ai/dialect";
-import { streamGoogleGeminiCli } from "@oh-my-pi/pi-ai/providers/google-gemini-cli";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { stream } from "@oh-my-pi/pi-ai/stream";
-import type { Context, FetchImpl, Model, TextContent, ThinkingContent, Tool, ToolCall } from "@oh-my-pi/pi-ai/types";
-import { getStreamMarkupHealingPattern, StreamMarkupHealing } from "@oh-my-pi/pi-ai/utils/stream-markup-healing";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import { type Dialect, getDialectDefinition, type InbandScanEvent, ThinkingInbandScanner } from "@zeta/pi-ai/dialect";
+import { streamGoogleGeminiCli } from "@zeta/pi-ai/providers/google-gemini-cli";
+import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
+import { stream } from "@zeta/pi-ai/stream";
+import type { Context, FetchImpl, Model, TextContent, ThinkingContent, Tool, ToolCall } from "@zeta/pi-ai/types";
+import { getStreamMarkupHealingPattern, StreamMarkupHealing } from "@zeta/pi-ai/utils/stream-markup-healing";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { getBundledModel } from "@zeta/pi-catalog/models";
+import { INTENT_FIELD } from "@zeta/pi-wire";
 
 interface SseToolCallDelta {
 	index: number;

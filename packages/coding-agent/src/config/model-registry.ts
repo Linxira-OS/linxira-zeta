@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import * as path from "node:path";
-import { registerCustomApi, unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
+import { registerCustomApi, unregisterCustomApis } from "@zeta/pi-ai/api-registry";
 import type {
 	Api,
 	Context,
@@ -9,17 +9,17 @@ import type {
 	RemoteCompactionConfig,
 	SimpleStreamOptions,
 	ThinkingConfig,
-} from "@oh-my-pi/pi-ai/types";
-import type { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { isVertexExpressOpenAIUrl } from "@oh-my-pi/pi-catalog/hosts";
-import { readModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+} from "@zeta/pi-ai/types";
+import type { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { isVertexExpressOpenAIUrl } from "@zeta/pi-catalog/hosts";
+import { readModelCache } from "@zeta/pi-catalog/model-cache";
 import {
 	createModelManager,
 	type ModelManagerOptions,
 	type ModelRefreshStrategy,
-} from "@oh-my-pi/pi-catalog/model-manager";
-import { getBundledModels, getBundledProviders } from "@oh-my-pi/pi-catalog/models";
+} from "@zeta/pi-catalog/model-manager";
+import { getBundledModels, getBundledProviders } from "@zeta/pi-catalog/models";
 import {
 	googleAntigravityModelManagerOptions,
 	googleGeminiCliModelManagerOptions,
@@ -28,12 +28,12 @@ import {
 	PROVIDER_DESCRIPTORS,
 	resolveModelCacheProviderId,
 	resolveOllamaModelCacheProviderId,
-} from "@oh-my-pi/pi-catalog/provider-models";
+} from "@zeta/pi-catalog/provider-models";
 import {
 	collapseBuiltModelVariants,
 	getVariantAliasSources,
 	resolveVariantAlias,
-} from "@oh-my-pi/pi-catalog/variant-collapse";
+} from "@zeta/pi-catalog/variant-collapse";
 
 const SPECIAL_MODEL_MANAGER_PROVIDER_IDS: readonly string[] = [
 	"google-antigravity",
@@ -64,16 +64,16 @@ const RUNTIME_DYNAMIC_MODEL_FETCH_TIMEOUT_MS = 15_000;
 const BUILT_IN_DISCOVERY_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 const BUILT_IN_DISCOVERY_NON_AUTHORITATIVE_RETRY_MS = 5 * 60 * 1000;
 
-import type { ApiKeyResolver, FetchImpl } from "@oh-my-pi/pi-ai";
-import { registerOAuthProvider, unregisterOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/oauth/types";
-import { setCodexAttestationProvider } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
+import type { ApiKeyResolver, FetchImpl } from "@zeta/pi-ai";
+import { registerOAuthProvider, unregisterOAuthProviders } from "@zeta/pi-ai/oauth";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@zeta/pi-ai/oauth/types";
+import { setCodexAttestationProvider } from "@zeta/pi-ai/providers/openai-codex-responses";
 import {
 	getBundledModelReferenceIndex,
 	inheritReferenceThinking,
 	resolveModelReference,
-} from "@oh-my-pi/pi-catalog/identity";
-import { isBunTestRuntime, isRecord, logger, wrapFetchForExtraCa } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-catalog/identity";
+import { isBunTestRuntime, isRecord, logger, wrapFetchForExtraCa } from "@zeta/pi-utils";
 import { parseModelString, resolveProviderModelReference } from "../config/model-resolver";
 import { generateCodexAttestation } from "../live/attestation";
 import type { AuthStorage, OAuthCredential } from "../session/auth-storage";

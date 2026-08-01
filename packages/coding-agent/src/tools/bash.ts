@@ -5,10 +5,10 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { ImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
-import { getProjectDir, isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-agent-core";
+import type { Component } from "@zeta/pi-tui";
+import { ImageProtocol, TERMINAL } from "@zeta/pi-tui";
+import { getProjectDir, isEnoent, logger, prompt } from "@zeta/pi-utils";
 import { type } from "arktype";
 import type { Settings } from "../config/settings";
 import { applyDirenvPreflight, type BashResult, executeBash } from "../exec/bash-executor";

@@ -1,6 +1,6 @@
-import type { ClipboardImage } from "@oh-my-pi/pi-natives";
-import * as native from "@oh-my-pi/pi-natives";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { ClipboardImage } from "@zeta/pi-natives";
+import * as native from "@zeta/pi-natives";
+import { logger } from "@zeta/pi-utils";
 import MAC_FILE_URL_SCRIPT from "./mac-file-urls.applescript" with { type: "text" };
 
 /**

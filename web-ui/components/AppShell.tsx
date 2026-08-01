@@ -384,7 +384,7 @@ export function AppShell() {
 
   const activeFileTab = fileTabs.find((t) => t.id === activeFileTabId) ?? null;
   const activeCwdName = activeCwd ? getFileName(activeCwd) || activeCwd : null;
-  const windowTitle = activeCwdName ? `${activeCwdName} - OMP Web` : "OMP Web";
+  const windowTitle = activeCwdName ? `${activeCwdName} - Zeta Web` : "Zeta Web";
 
   useEffect(() => {
     const syncWindowTitle = () => {

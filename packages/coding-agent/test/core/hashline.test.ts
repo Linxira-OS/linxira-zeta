@@ -6,8 +6,8 @@ import {
 	type InMemorySnapshotStore as FileReadCache,
 	formatHashlineHeader,
 	MismatchError as HashlineMismatchError,
-} from "@oh-my-pi/hashline";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+} from "@zeta/hashline";
+import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
 import {
 	canonicalSnapshotKey,
 	type ExecuteHashlineSingleOptions,
@@ -15,10 +15,10 @@ import {
 	getFileSnapshotStore as getFileReadCache,
 	HashlineFilesystem,
 	hashlineEditParamsSchema,
-} from "@oh-my-pi/pi-coding-agent/edit";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-coding-agent/edit";
+import { resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
+import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { removeWithRetries } from "@zeta/pi-utils";
 import { type Type, type } from "arktype";
 
 beforeAll(async () => {

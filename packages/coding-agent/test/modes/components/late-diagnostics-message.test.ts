@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { LateDiagnosticsMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/late-diagnostics-message";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { LateDiagnosticsMessageComponent } from "@zeta/pi-coding-agent/modes/components/late-diagnostics-message";
+import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
 
 const darkTheme = await getThemeByName("dark");
 

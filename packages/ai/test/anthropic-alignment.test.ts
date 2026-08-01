@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
-import { Effort } from "@oh-my-pi/pi-ai";
+import { Effort } from "@zeta/pi-ai";
 import {
 	applyClaudeToolPrefix,
 	buildAnthropicClientOptions,
@@ -17,10 +17,10 @@ import {
 	mapStainlessArch,
 	streamAnthropic,
 	stripClaudeToolPrefix,
-} from "@oh-my-pi/pi-ai/providers/anthropic";
-import type { MessageCreateParamsStreaming } from "@oh-my-pi/pi-ai/providers/anthropic-wire";
-import { claudeCodeVersion } from "@oh-my-pi/pi-ai/providers/claude-code-fingerprint";
-import { getEnvApiKey, streamSimple } from "@oh-my-pi/pi-ai/stream";
+} from "@zeta/pi-ai/providers/anthropic";
+import type { MessageCreateParamsStreaming } from "@zeta/pi-ai/providers/anthropic-wire";
+import { claudeCodeVersion } from "@zeta/pi-ai/providers/claude-code-fingerprint";
+import { getEnvApiKey, streamSimple } from "@zeta/pi-ai/stream";
 import type {
 	AssistantMessage,
 	Context,
@@ -29,9 +29,9 @@ import type {
 	TJsonSchema,
 	TokenTaskBudget,
 	Tool,
-} from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-ai/types";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { removeSyncWithRetries } from "@zeta/pi-utils";
 import { type as arkType } from "arktype";
 import { withEnv } from "./helpers";
 

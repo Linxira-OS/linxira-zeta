@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import {
 	convertCodexResponsesMessages,
 	streamOpenAICodexResponses,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { type OpenAIResponsesOptions, streamOpenAIResponses } from "@oh-my-pi/pi-ai/providers/openai-responses";
-import { buildResponsesInput } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import type { Context, Model, ModelSpec, ProviderSessionState, Tool } from "@oh-my-pi/pi-ai/types";
-import { createOpenAIResponsesHistoryPayload, truncateResponseItemId } from "@oh-my-pi/pi-ai/utils";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { type GeneratedProvider, getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import * as piUtils from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-ai/providers/openai-codex-responses";
+import { type OpenAIResponsesOptions, streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
+import { buildResponsesInput } from "@zeta/pi-ai/providers/openai-shared";
+import type { Context, Model, ModelSpec, ProviderSessionState, Tool } from "@zeta/pi-ai/types";
+import { createOpenAIResponsesHistoryPayload, truncateResponseItemId } from "@zeta/pi-ai/utils";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { type GeneratedProvider, getBundledModel } from "@zeta/pi-catalog/models";
+import * as piUtils from "@zeta/pi-utils";
 import { type } from "arktype";
 
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";

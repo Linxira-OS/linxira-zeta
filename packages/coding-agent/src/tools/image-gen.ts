@@ -1,15 +1,15 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { type ApiKey, type FetchImpl, getEnvApiKey, type Model, withAuth } from "@oh-my-pi/pi-ai";
-import { ProviderHttpError } from "@oh-my-pi/pi-ai/error";
+import { type ApiKey, type FetchImpl, getEnvApiKey, type Model, withAuth } from "@zeta/pi-ai";
+import { ProviderHttpError } from "@zeta/pi-ai/error";
 import {
 	CODEX_BASE_URL,
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
 	URL_PATHS,
-} from "@oh-my-pi/pi-catalog/wire/codex";
-import { getAntigravityUserAgent } from "@oh-my-pi/pi-catalog/wire/gemini-headers";
+} from "@zeta/pi-catalog/wire/codex";
+import { getAntigravityUserAgent } from "@zeta/pi-catalog/wire/gemini-headers";
 import {
 	$env,
 	isEnoent,
@@ -19,7 +19,7 @@ import {
 	readSseJson,
 	Snowflake,
 	untilAborted,
-} from "@oh-my-pi/pi-utils";
+} from "@zeta/pi-utils";
 import { type } from "arktype";
 import packageJson from "../../package.json" with { type: "json" };
 import { isAuthenticated, type ModelRegistry } from "../config/model-registry";
@@ -1479,7 +1479,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 									headers: {
 										"Content-Type": "application/json",
 										Authorization: `Bearer ${key}`,
-										"HTTP-Referer": "https://omp.sh/",
+										"HTTP-Referer": "https://linxira-os.github.io/",
 										"X-OpenRouter-Title": "Oh-My-Pi",
 										"X-OpenRouter-Categories": "cli-agent",
 									},

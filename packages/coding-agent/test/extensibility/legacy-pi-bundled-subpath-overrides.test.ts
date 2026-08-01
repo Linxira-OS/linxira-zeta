@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as url from "node:url";
-import { __buildLegacyPiPackageRootOverrides } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { __buildLegacyPiPackageRootOverrides } from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
+import { TempDir } from "@zeta/pi-utils";
 import { __renderLegacyPiVirtualModule, collectBundledPiEntries } from "../../scripts/legacy-pi-virtual-module";
 
 const bundledModuleKeys = new Set((await collectBundledPiEntries()).map(entry => entry.key));
@@ -62,9 +62,9 @@ process.stdout.write(JSON.stringify([
 		expect(JSON.parse(stdout)).toEqual([0, 0, 1, 0, 1, 1]);
 	});
 
-	it("serves @oh-my-pi/pi-ai/oauth through the bundled virtual namespace in compiled mode", () => {
+	it("serves @zeta/pi-ai/oauth through the bundled virtual namespace in compiled mode", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides["@oh-my-pi/pi-ai/oauth"]).toBe("omp-legacy-pi-bundled:@oh-my-pi/pi-ai/oauth");
+		expect(overrides["@zeta/pi-ai/oauth"]).toBe("omp-legacy-pi-bundled:@zeta/pi-ai/oauth");
 	});
 
 	it("expands wildcard exports for concrete on-disk targets (issue #3442 follow-up)", () => {
@@ -75,13 +75,11 @@ process.stdout.write(JSON.stringify([
 		// fall-through. The generator now globs each wildcard's source pattern
 		// and registers every concrete `.ts` match against the virtual namespace.
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides["@oh-my-pi/pi-ai/oauth/anthropic"]).toBe(
-			"omp-legacy-pi-bundled:@oh-my-pi/pi-ai/oauth/anthropic",
-		);
+		expect(overrides["@zeta/pi-ai/oauth/anthropic"]).toBe("omp-legacy-pi-bundled:@zeta/pi-ai/oauth/anthropic");
 		// Sanity: the wildcard expansion also reaches deeper subroots so plugins
-		// pinned to e.g. `@oh-my-pi/pi-ai/providers/openai` keep resolving.
-		expect(bundledModuleKeys.has("@oh-my-pi/pi-ai/oauth/anthropic")).toBe(true);
-		expect(bundledModuleKeys.has("@oh-my-pi/pi-ai/oauth/openai-codex")).toBe(true);
+		// pinned to e.g. `@zeta/pi-ai/providers/openai` keep resolving.
+		expect(bundledModuleKeys.has("@zeta/pi-ai/oauth/anthropic")).toBe(true);
+		expect(bundledModuleKeys.has("@zeta/pi-ai/oauth/openai-codex")).toBe(true);
 	});
 
 	it("actually loads the shim's shared Pi translation through the bundled registry", async () => {
@@ -93,7 +91,7 @@ process.stdout.write(JSON.stringify([
 		//
 		// Executing the generated registry is the contract — a key present in the
 		// override map still proves nothing if the module cannot be imported.
-		const key = "@oh-my-pi/pi-ai/providers/cursor-pi-args";
+		const key = "@zeta/pi-ai/providers/cursor-pi-args";
 		const entry = (await collectBundledPiEntries()).find(candidate => candidate.key === key);
 		expect(entry).toBeDefined();
 
@@ -141,10 +139,10 @@ process.stdout.write(JSON.stringify([
 	it("expands web search provider wildcard exports for compiled plugin imports", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		const providerKeys = [
-			"@oh-my-pi/pi-coding-agent/web/search/providers/xai",
-			"@oh-my-pi/pi-coding-agent/web/search/providers/tinyfish",
-			"@oh-my-pi/pi-coding-agent/web/search/providers/firecrawl",
-			"@oh-my-pi/pi-coding-agent/web/search/providers/duckduckgo",
+			"@zeta/pi-coding-agent/web/search/providers/xai",
+			"@zeta/pi-coding-agent/web/search/providers/tinyfish",
+			"@zeta/pi-coding-agent/web/search/providers/firecrawl",
+			"@zeta/pi-coding-agent/web/search/providers/duckduckgo",
 		] as const;
 
 		for (const key of providerKeys) {
@@ -158,9 +156,9 @@ process.stdout.write(JSON.stringify([
 		// like the package's own `cli.ts` and explode the bundle through the
 		// binary entry's transitive graph. Plugins almost never import top-level
 		// pi-* files directly, so we keep those routed via `Bun.resolveSync`.
-		// Concrete check: `@oh-my-pi/pi-coding-agent/cli` is NOT bundled.
-		expect(bundledModuleKeys.has("@oh-my-pi/pi-coding-agent/cli")).toBe(false);
-		expect(bundledModuleKeys.has("@oh-my-pi/pi-coding-agent/main")).toBe(false);
+		// Concrete check: `@zeta/pi-coding-agent/cli` is NOT bundled.
+		expect(bundledModuleKeys.has("@zeta/pi-coding-agent/cli")).toBe(false);
+		expect(bundledModuleKeys.has("@zeta/pi-coding-agent/main")).toBe(false);
 	});
 
 	it("does not bundle main-thread-unsafe worker entrypoints", () => {
@@ -168,7 +166,7 @@ process.stdout.write(JSON.stringify([
 		// The compiled legacy registry is imported on the main thread while
 		// validating plugin extensions, so enumerating these files recreates the
 		// `js worker-entry: missing parentPort` failure from #3508.
-		expect(bundledModuleKeys.has("@oh-my-pi/pi-coding-agent/eval/js/worker-entry")).toBe(false);
+		expect(bundledModuleKeys.has("@zeta/pi-coding-agent/eval/js/worker-entry")).toBe(false);
 	});
 
 	it("maps every bundled key (minus shimmed roots + typebox) to its virtual specifier in compiled mode", () => {
@@ -179,12 +177,7 @@ process.stdout.write(JSON.stringify([
 			// shims (they re-attach `Type`, `defineTool`, `decodeKittyPrintable`, etc.
 			// dropped from the canonical package surfaces); typebox is served via
 			// TYPEBOX_SHIM_PATH.
-			if (
-				key === "@oh-my-pi/pi-ai" ||
-				key === "@oh-my-pi/pi-coding-agent" ||
-				key === "@oh-my-pi/pi-tui" ||
-				key === "typebox"
-			)
+			if (key === "@zeta/pi-ai" || key === "@zeta/pi-coding-agent" || key === "@zeta/pi-tui" || key === "typebox")
 				continue;
 			if (overrides[key] !== `omp-legacy-pi-bundled:${key}`) {
 				missing.push(key);
@@ -200,16 +193,16 @@ process.stdout.write(JSON.stringify([
 		// canonical pi-* surface — extensions still see the `Type` /
 		// `defineTool` helpers the canonical entrypoints dropped.
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides["@oh-my-pi/pi-ai"]).toBeDefined();
-		expect(overrides["@oh-my-pi/pi-ai"]).not.toBe("omp-legacy-pi-bundled:@oh-my-pi/pi-ai/oauth");
-		expect(overrides["@oh-my-pi/pi-coding-agent"]).toBeDefined();
-		expect(overrides["@oh-my-pi/pi-tui"]).toBeDefined();
+		expect(overrides["@zeta/pi-ai"]).toBeDefined();
+		expect(overrides["@zeta/pi-ai"]).not.toBe("omp-legacy-pi-bundled:@zeta/pi-ai/oauth");
+		expect(overrides["@zeta/pi-coding-agent"]).toBeDefined();
+		expect(overrides["@zeta/pi-tui"]).toBeDefined();
 	});
 
 	it("does not register subpath overrides in dev/install mode", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(false);
-		expect(overrides).not.toHaveProperty("@oh-my-pi/pi-ai/oauth");
-		expect(overrides).not.toHaveProperty("@oh-my-pi/pi-coding-agent/tools");
+		expect(overrides).not.toHaveProperty("@zeta/pi-ai/oauth");
+		expect(overrides).not.toHaveProperty("@zeta/pi-coding-agent/tools");
 		// Dev keeps only the historical shim entries so canonical subpath
 		// imports continue to flow through `Bun.resolveSync` against the live
 		// monorepo / installed `node_modules` tree.

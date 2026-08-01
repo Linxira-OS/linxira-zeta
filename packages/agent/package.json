@@ -1,9 +1,9 @@
 {
   "type": "module",
-  "name": "@oh-my-pi/pi-agent-core",
-  "version": "17.2.2",
+  "name": "@zeta/pi-agent-core",
+  "version": "1.0.0",
   "description": "General-purpose agent with transport abstraction, state management, and attachment support",
-  "homepage": "https://omp.sh",
+  "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
   "contributors": [
     "Mario Zechner"
@@ -35,12 +35,12 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@oh-my-pi/pi-ai": "catalog:",
-    "@oh-my-pi/pi-catalog": "catalog:",
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
-    "@oh-my-pi/pi-wire": "catalog:",
-    "@oh-my-pi/snapcompact": "catalog:",
+    "@zeta/pi-ai": "catalog:",
+    "@zeta/pi-catalog": "catalog:",
+    "@zeta/pi-natives": "catalog:",
+    "@zeta/pi-utils": "catalog:",
+    "@zeta/pi-wire": "catalog:",
+    "@zeta/snapcompact": "catalog:",
     "@opentelemetry/api": "catalog:"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-import { preferredDialect } from "@oh-my-pi/pi-catalog/identity";
+import { preferredDialect } from "@zeta/pi-catalog/identity";
 import { jsonSchemaToTypeScript, toolWireSchema } from "../utils/schema";
 import { renderToolExamples } from "./examples";
 import type { InbandTool } from "./types";

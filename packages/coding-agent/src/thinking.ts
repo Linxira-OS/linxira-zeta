@@ -1,7 +1,7 @@
-import { type ResolvedThinkingLevel, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { Effort, type Model, THINKING_EFFORTS } from "@oh-my-pi/pi-ai";
-import { clampThinkingLevelForModel, getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
+import { type ResolvedThinkingLevel, ThinkingLevel } from "@zeta/pi-agent-core";
+import { Effort, type Model, THINKING_EFFORTS } from "@zeta/pi-ai";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@zeta/pi-catalog/models";
 
 /**
  * Metadata used to render thinking selector values in the coding-agent UI.

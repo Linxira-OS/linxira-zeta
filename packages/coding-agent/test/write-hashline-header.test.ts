@@ -2,14 +2,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Patch, Patcher } from "@oh-my-pi/hashline";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "@oh-my-pi/pi-coding-agent/edit/file-snapshot-store";
-import { HashlineFilesystem } from "@oh-my-pi/pi-coding-agent/edit/hashline/filesystem";
-import { writethroughNoop } from "@oh-my-pi/pi-coding-agent/lsp";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { Patch, Patcher } from "@zeta/hashline";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { canonicalSnapshotKey, getFileSnapshotStore } from "@zeta/pi-coding-agent/edit/file-snapshot-store";
+import { HashlineFilesystem } from "@zeta/pi-coding-agent/edit/hashline/filesystem";
+import { writethroughNoop } from "@zeta/pi-coding-agent/lsp";
+import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { WriteTool } from "@zeta/pi-coding-agent/tools/write";
+import { removeWithRetries } from "@zeta/pi-utils";
 
 function createSession(cwd: string): ToolSession {
 	return {

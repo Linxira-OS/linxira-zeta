@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+
 ## [17.2.2] - 2026-07-31
 
 ### Added

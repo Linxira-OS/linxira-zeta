@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import type { AsyncJobRegisterOptions } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resolveLocalRoot } from "@oh-my-pi/pi-coding-agent/internal-urls/local-protocol";
-import { TanCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/tan-command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry, MAIN_AGENT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage, Model } from "@zeta/pi-ai";
+import type { AsyncJobRegisterOptions } from "@zeta/pi-coding-agent/async/job-manager";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { resolveLocalRoot } from "@zeta/pi-coding-agent/internal-urls/local-protocol";
+import { TanCommandController } from "@zeta/pi-coding-agent/modes/controllers/tan-command-controller";
+import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import { AgentRegistry, MAIN_AGENT_ID } from "@zeta/pi-coding-agent/registry/agent-registry";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
+import * as sdkModule from "@zeta/pi-coding-agent/sdk";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { TempDir } from "@zeta/pi-utils";
 
 interface CapturedJobRunContext {
 	jobId: string;

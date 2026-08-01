@@ -1,16 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@zeta/pi-ai";
 import {
 	isContextOverflow,
 	parseJsonWithRepair,
 	parseStreamingJson,
 	repairJson,
-} from "@oh-my-pi/pi-coding-agent/extensibility/legacy-pi-ai-shim";
+} from "@zeta/pi-coding-agent/extensibility/legacy-pi-ai-shim";
 
 // Issue #6859: pi extensions import runtime helpers from the `@earendil-works/pi-ai`
-// (aliased to `@oh-my-pi/pi-ai`) package root that omp's barrel no longer forwards.
-// `isContextOverflow` moved under `@oh-my-pi/pi-ai/error` and the JSON-repair
-// helpers moved to `@oh-my-pi/pi-utils`, so `export * from "@oh-my-pi/pi-ai"` left
+// (aliased to `@zeta/pi-ai`) package root that omp's barrel no longer forwards.
+// `isContextOverflow` moved under `@zeta/pi-ai/error` and the JSON-repair
+// helpers moved to `@zeta/pi-utils`, so `export * from "@zeta/pi-ai"` left
 // them off the shim surface and a named import tripped Bun's static
 // "No matching export" check during plugin validation (e.g.
 // `omp plugin install pi-blackhole`). This pins the bridged root surface so it
