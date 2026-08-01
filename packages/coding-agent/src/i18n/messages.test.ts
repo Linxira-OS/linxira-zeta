@@ -23,11 +23,20 @@ describe("catalogue completeness", () => {
 	});
 
 	test("translations are not accidental English copies", () => {
-		// Local names of the languages themselves legitimately match across
-		// catalogues (e.g. "中文" in both en and zh), so exclude them.
-		const selfNames = new Set<keyof typeof en>(["languageEnLabel", "languageZhLabel"]);
+		// Fields that intentionally read the same in every language: local
+		// language names (e.g. "中文" in both en and zh) and proper nouns that
+		// stay untranslated (glyph/theme names like "Nerd Font", "Titanium").
+		const identicalIntentionally = new Set<keyof typeof en>([
+			"languageEnLabel",
+			"languageZhLabel",
+			"setupGlyphLabelNerd",
+			"setupGlyphLabelUnicode",
+			"setupGlyphLabelAscii",
+			"setupThemeTitaniumLabel",
+			"setupThemeLightLabel",
+		]);
 		for (const key of Object.keys(en) as Array<keyof typeof en>) {
-			if (selfNames.has(key)) continue;
+			if (identicalIntentionally.has(key)) continue;
 			expect(zh[key]).not.toBe(en[key]);
 		}
 	});

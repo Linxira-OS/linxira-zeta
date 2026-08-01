@@ -383,27 +383,27 @@ function formatWorkspaceDirectories(runtime: SlashCommandRuntime, note?: string)
 const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "security",
-		description: "Plan, run, inspect, import, and compare Zeta security scans",
+		description: M.cmdPlanRunInspectImportAndCompareZetaSecurityScans,
 		allowArgs: true,
 		acpInputHint: "<plan|scan|status|cancel|scans|show|import|export|validate|compare|disposition>",
 		subcommands: [
-			{ name: "plan", description: "Create an immutable security scan plan" },
-			{ name: "scan", description: "Start a planned or newly planned native scan" },
-			{ name: "status", description: "Show native scan operation status" },
-			{ name: "cancel", description: "Cancel a running native scan" },
-			{ name: "scans", description: "List stored project security scans" },
-			{ name: "show", description: "Render a scan or security:// resource" },
-			{ name: "import", description: "Import SARIF or a Codex Security bundle" },
-			{ name: "export", description: "Export a canonical bundle, SARIF, or report" },
-			{ name: "validate", description: "Validate one finding with Zeta tools" },
-			{ name: "compare", description: "Compare finding lineage across two scans" },
-			{ name: "disposition", description: "Set a finding disposition with rationale" },
+			{ name: "plan", description: M.cmdCreateAnImmutableSecurityScanPlan },
+			{ name: "scan", description: M.cmdStartAPlannedOrNewlyPlannedNativeScan },
+			{ name: "status", description: M.cmdShowNativeScanOperationStatus },
+			{ name: "cancel", description: M.cmdCancelARunningNativeScan },
+			{ name: "scans", description: M.cmdListStoredProjectSecurityScans },
+			{ name: "show", description: M.cmdRenderAScanOrSecurityResource },
+			{ name: "import", description: M.cmdImportSARIFOrACodexSecurityBundle },
+			{ name: "export", description: M.cmdExportACanonicalBundleSARIFOrReport },
+			{ name: "validate", description: M.cmdValidateOneFindingWithZetaTools },
+			{ name: "compare", description: M.cmdCompareFindingLineageAcrossTwoScans },
+			{ name: "disposition", description: M.cmdSetAFindingDispositionWithRationale },
 		],
 		handle: handleSecurityCommand,
 	},
 	{
 		name: "settings",
-		description: "Open settings menu",
+		description: M.cmdOpenSettingsMenu,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showSettingsSelector();
 			runtime.ctx.editor.setText("");
@@ -412,9 +412,9 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "setup",
 		aliases: ["providers"],
-		description: "Open provider setup",
+		description: M.cmdOpenProviderSetup,
 		allowArgs: true,
-		subcommands: [{ name: "providers", description: "Configure sign-in and web search providers" }],
+		subcommands: [{ name: "providers", description: M.cmdConfigureSignInAndWebSearchProviders }],
 		handleTui: async (command, runtime) => {
 			const args = command.args.trim().toLowerCase();
 			const opensProviders = args === "" || args === "providers";
@@ -428,7 +428,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "plan",
-		description: "Toggle plan mode (agent plans before executing)",
+		description: M.cmdTogglePlanModeAgentPlansBeforeExecuting,
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -447,7 +447,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "plan-review",
-		description: "Re-open the plan review for the latest plan (plan mode only)",
+		description: M.cmdReOpenThePlanReviewForTheLatestPlanPlanModeOnly,
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.planModeEnabled ? "Plan review: available" : "Plan review: plan mode inactive",
 		handleTui: async (_command, runtime) => {
@@ -457,7 +457,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "vibe",
-		description: "Toggle vibe mode (direct persistent fast/good worker sessions; read-only toolset)",
+		description: M.cmdToggleVibeModeDirectPersistentFastGoodWorkerSessionsReadOnlyToolset,
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -473,14 +473,14 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "goal",
-		description: "Toggle goal mode (persistent autonomous objective for this session)",
+		description: M.cmdToggleGoalModePersistentAutonomousObjectiveForThisSession,
 		subcommands: [
-			{ name: "set", description: "Set or replace the goal", usage: "<objective>" },
-			{ name: "show", description: "Show current goal details" },
-			{ name: "pause", description: "Pause the current goal" },
-			{ name: "resume", description: "Resume a paused goal" },
-			{ name: "drop", description: "Drop the current goal" },
-			{ name: "budget", description: "Adjust the token budget", usage: "<N|off>" },
+			{ name: "set", description: M.cmdSetOrReplaceTheGoal, usage: "<objective>" },
+			{ name: "show", description: M.cmdShowCurrentGoalDetails },
+			{ name: "pause", description: M.cmdPauseTheCurrentGoal },
+			{ name: "resume", description: M.cmdResumeAPausedGoal },
+			{ name: "drop", description: M.cmdDropTheCurrentGoal },
+			{ name: "budget", description: M.cmdAdjustTheTokenBudget, usage: "<N|off>" },
 		],
 		inlineHint: "[objective]",
 		allowArgs: true,
@@ -497,7 +497,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "guided-goal",
-		description: "Have the agent interview you in chat, then set up goal mode",
+		description: M.cmdHaveTheAgentInterviewYouInChatThenSetUpGoalMode,
 		inlineHint: "[rough objective]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -531,7 +531,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "queue",
-		description: "Queue a message for after the agent yields",
+		description: M.cmdQueueAMessageForAfterTheAgentYields,
 		inlineHint: "<message>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -541,8 +541,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "model",
 		aliases: ["models"],
-		description: "Switch model for this session",
-		acpDescription: "Show current model selection",
+		description: M.cmdSwitchModelForThisSession,
+		acpDescription: M.cmdShowCurrentModelSelection,
 		getTuiAutocompleteDescription: runtime => {
 			const model = runtime.ctx.session.model;
 			return model ? `Model: ${model.provider}/${model.id}` : "Model: none selected";
@@ -584,7 +584,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "switch",
-		description: "Switch model for this session (same as alt+p)",
+		description: M.cmdSwitchModelForThisSessionSameAsAltP,
 		getTuiAutocompleteDescription: runtime => {
 			const model = runtime.ctx.session.model;
 			return model ? `Model: ${model.provider}/${model.id}` : "Model: none selected";
@@ -596,13 +596,13 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "fast",
-		description: "Toggle priority service tier (OpenAI service_tier=priority, Anthropic speed=fast)",
-		acpDescription: "Toggle fast mode",
+		description: M.cmdTogglePriorityServiceTierOpenAIServiceTierPriorityAnthropicSpeedFast,
+		acpDescription: M.cmdToggleFastMode,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: "Enable fast mode" },
-			{ name: "off", description: "Disable fast mode" },
-			{ name: "status", description: "Show fast mode status" },
+			{ name: "on", description: M.cmdEnableFastMode },
+			{ name: "off", description: M.cmdDisableFastMode },
+			{ name: "status", description: M.cmdShowFastModeStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => `Fast: ${formatFastModeStatus(runtime.ctx.session)}`,
@@ -665,13 +665,13 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "computer",
-		description: "Toggle the native computer-use tool for this session",
-		acpDescription: "Toggle computer use",
+		description: M.cmdToggleTheNativeComputerUseToolForThisSession,
+		acpDescription: M.cmdToggleComputerUse,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: "Enable computer use for this session" },
-			{ name: "off", description: "Disable computer use for this session" },
-			{ name: "status", description: "Show computer use status" },
+			{ name: "on", description: M.cmdEnableComputerUseForThisSession },
+			{ name: "off", description: M.cmdDisableComputerUseForThisSession },
+			{ name: "status", description: M.cmdShowComputerUseStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -709,14 +709,14 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "vision",
-		description: "Control the inspect_image vision-delegation tool for this session",
-		acpDescription: "Toggle vision delegation",
+		description: M.cmdControlTheInspectImageVisionDelegationToolForThisSession,
+		acpDescription: M.cmdToggleVisionDelegation,
 		acpInputHint: "[on|off|auto|status]",
 		subcommands: [
-			{ name: "on", description: "Always expose inspect_image this session" },
-			{ name: "off", description: "Never expose inspect_image this session" },
-			{ name: "auto", description: "Follow inspect_image.mode (auto hides it for vision-capable models)" },
-			{ name: "status", description: "Show inspect_image status" },
+			{ name: "on", description: M.cmdAlwaysExposeInspectImageThisSession },
+			{ name: "off", description: M.cmdNeverExposeInspectImageThisSession },
+			{ name: "auto", description: M.cmdFollowInspectImageModeAutoHidesItForVisionCapableModels },
+			{ name: "status", description: M.cmdShowInspectImageStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => `Vision: ${runtime.ctx.session.inspectImageState().mode}`,
@@ -750,8 +750,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "prewalk",
-		description: "Switch to a fast/cheap model at the next action (works even without --prewalk)",
-		acpDescription: "Prewalk at the next action",
+		description: M.cmdSwitchToAFastCheapModelAtTheNextActionWorksEvenWithoutPrewalk,
+		acpDescription: M.cmdPrewalkAtTheNextAction,
 		handle: async (_command, runtime) => {
 			const rolePattern = expandRoleAlias("@smol", runtime.settings);
 			const resolved = resolveCliModel({
@@ -774,15 +774,15 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "advisor",
-		description: "Toggle the advisor (a second model that reviews each turn and injects notes)",
-		acpDescription: "Toggle advisor",
+		description: M.cmdToggleTheAdvisorASecondModelThatReviewsEachTurnAndInjectsNotes,
+		acpDescription: M.cmdToggleAdvisor,
 		acpInputHint: "[on|off|status|dump [raw]|configure]",
 		subcommands: [
-			{ name: "on", description: "Enable the advisor" },
-			{ name: "off", description: "Disable the advisor" },
-			{ name: "status", description: "Show advisor status" },
-			{ name: "dump", description: "Copy the advisor's transcript to clipboard", usage: "[raw]" },
-			{ name: "configure", description: "Open the advisor configuration editor (TUI)" },
+			{ name: "on", description: M.cmdEnableTheAdvisor },
+			{ name: "off", description: M.cmdDisableTheAdvisor },
+			{ name: "status", description: M.cmdShowAdvisorStatus },
+			{ name: "dump", description: M.cmdCopyTheAdvisorSTranscriptToClipboard, usage: "[raw]" },
+			{ name: "configure", description: M.cmdOpenTheAdvisorConfigurationEditorTUI },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -890,7 +890,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "export",
-		description: "Export session to HTML file",
+		description: M.cmdExportSessionToHTMLFile,
 		inlineHint: "[--themes] [path]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -913,8 +913,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "dump",
-		description: "Copy session transcript to clipboard (and write LLM request JSON to tmp)",
-		acpDescription: "Return full transcript as plain text, with LLM request JSON path",
+		description: M.cmdCopySessionTranscriptToClipboardAndWriteLLMRequestJSONToTmp,
+		acpDescription: M.cmdReturnFullTranscriptAsPlainTextWithLLMRequestJSONPath,
 		allowArgs: true,
 		handle: async (_command, runtime) => {
 			const text = runtime.session.formatSessionAsText();
@@ -945,7 +945,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "share",
-		description: "Share session via an encrypted link (share server or secret gist)",
+		description: M.cmdShareSessionViaAnEncryptedLinkShareServerOrSecretGist,
 		handle: async (_command, runtime) => {
 			try {
 				const result = await shareSession(runtime.sessionManager, {
@@ -970,12 +970,12 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "collab",
-		description: "Share this session live via a relay",
+		description: M.cmdShareThisSessionLiveViaARelay,
 		inlineHint: "[start|view|stop|status] [relayUrl]",
 		subcommands: [
-			{ name: "view", description: "Share a read-only link (guests can watch, not prompt)" },
-			{ name: "status", description: "Show link + participants" },
-			{ name: "stop", description: "Stop sharing" },
+			{ name: "view", description: M.cmdShareAReadOnlyLinkGuestsCanWatchNotPrompt },
+			{ name: "status", description: M.cmdShowLinkParticipants },
+			{ name: "stop", description: M.cmdStopSharing },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -1056,7 +1056,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "join",
-		description: "Join a shared collab session",
+		description: M.cmdJoinASharedCollabSession,
 		inlineHint: "<link>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -1084,7 +1084,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "leave",
-		description: "Leave the collab session",
+		description: M.cmdLeaveTheCollabSession,
 		getTuiAutocompleteDescription: runtime => {
 			if (runtime.ctx.collabHost) return "Leave collab: hosting";
 			if (runtime.ctx.collabGuest) return "Leave collab: guest";
@@ -1107,11 +1107,11 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "browser",
-		description: "Toggle browser headless vs visible mode",
+		description: M.cmdToggleBrowserHeadlessVsVisibleMode,
 		acpInputHint: "[headless|visible]",
 		subcommands: [
-			{ name: "headless", description: "Switch to headless mode" },
-			{ name: "visible", description: "Switch to visible mode" },
+			{ name: "headless", description: M.cmdSwitchToHeadlessMode },
+			{ name: "visible", description: M.cmdSwitchToVisibleMode },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -1182,7 +1182,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "copy",
-		description: "Pick text or code from the conversation to copy",
+		description: M.cmdPickTextOrCodeFromTheConversationToCopy,
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
@@ -1221,23 +1221,23 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "todo",
-		description: "View or modify the agent's todo list",
-		acpDescription: "Manage todos",
+		description: M.cmdViewOrModifyTheAgentSTodoList,
+		acpDescription: M.cmdManageTodos,
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "edit", description: "Open todos in $EDITOR (Markdown round-trip)" },
-			{ name: "copy", description: "Copy todos as Markdown to clipboard" },
-			{ name: "export", description: "Write todos as Markdown to a file (default: TODO.md)", usage: "[<path>]" },
-			{ name: "import", description: "Replace todos from a Markdown file (default: TODO.md)", usage: "[<path>]" },
+			{ name: "edit", description: M.cmdOpenTodosInEDITORMarkdownRoundTrip },
+			{ name: "copy", description: M.cmdCopyTodosAsMarkdownToClipboard },
+			{ name: "export", description: M.cmdWriteTodosAsMarkdownToAFileDefaultTODOMd, usage: "[<path>]" },
+			{ name: "import", description: M.cmdReplaceTodosFromAMarkdownFileDefaultTODOMd, usage: "[<path>]" },
 			{
 				name: "append",
-				description: "Append a task; phase fuzzy-matched or auto-created",
+				description: M.cmdAppendATaskPhaseFuzzyMatchedOrAutoCreated,
 				usage: "[<phase>] <task...>",
 			},
-			{ name: "start", description: "Mark task in_progress (fuzzy-matched)", usage: "<task>" },
-			{ name: "done", description: "Mark task/phase/all completed (fuzzy-matched)", usage: "[<task|phase>]" },
-			{ name: "drop", description: "Mark task/phase/all abandoned (fuzzy-matched)", usage: "[<task|phase>]" },
-			{ name: "rm", description: "Remove task/phase/all (fuzzy-matched)", usage: "[<task|phase>]" },
+			{ name: "start", description: M.cmdMarkTaskInProgressFuzzyMatched, usage: "<task>" },
+			{ name: "done", description: M.cmdMarkTaskPhaseAllCompletedFuzzyMatched, usage: "[<task|phase>]" },
+			{ name: "drop", description: M.cmdMarkTaskPhaseAllAbandonedFuzzyMatched, usage: "[<task|phase>]" },
+			{ name: "rm", description: M.cmdRemoveTaskPhaseAllFuzzyMatched, usage: "[<task|phase>]" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -1256,15 +1256,15 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "session",
-		description: "Session management commands",
-		acpDescription: "Show or configure the current session",
+		description: M.cmdSessionManagementCommands,
+		acpDescription: M.cmdShowOrConfigureTheCurrentSession,
 		acpInputHint: "[info|delete|pin [account]]",
 		subcommands: [
-			{ name: "info", description: "Show session info and stats" },
-			{ name: "delete", description: "Delete current session and return to selector" },
+			{ name: "info", description: M.cmdShowSessionInfoAndStats },
+			{ name: "delete", description: M.cmdDeleteCurrentSessionAndReturnToSelector },
 			{
 				name: "pin",
-				description: "Pin the current provider to a stored OAuth account",
+				description: M.cmdPinTheCurrentProviderToAStoredOAuthAccount,
 				usage: "[account]",
 			},
 		],
@@ -1333,8 +1333,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "jobs",
-		description: "Show async background jobs status",
-		acpDescription: "Show background jobs",
+		description: M.cmdShowAsyncBackgroundJobsStatus,
+		acpDescription: M.cmdShowBackgroundJobs,
 		getTuiAutocompleteDescription: runtime => {
 			const snapshot = runtime.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });
 			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) return "Jobs: none";
@@ -1374,12 +1374,12 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "usage",
-		description: "Show provider usage and limits",
-		acpDescription: "Show token usage",
+		description: M.cmdShowProviderUsageAndLimits,
+		acpDescription: M.cmdShowTokenUsage,
 		acpInputHint: "[show|reset [account|active]]",
 		subcommands: [
-			{ name: "show", description: "Show provider usage and limits" },
-			{ name: "reset", description: "Spend a saved Codex rate-limit reset", usage: "[account|active]" },
+			{ name: "show", description: M.cmdShowProviderUsageAndLimits },
+			{ name: "reset", description: M.cmdSpendASavedCodexRateLimitReset, usage: "[account|active]" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -1416,7 +1416,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "stats",
-		description: "Launch the local stats dashboard",
+		description: M.cmdLaunchTheLocalStatsDashboard,
 		inlineHint: "[--port <port>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -1435,10 +1435,10 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "changelog",
-		description: "Show changelog entries",
-		acpDescription: "Show changelog",
+		description: M.cmdShowChangelogEntries,
+		acpDescription: M.cmdShowChangelog,
 		acpInputHint: "[full]",
-		subcommands: [{ name: "full", description: "Show complete changelog" }],
+		subcommands: [{ name: "full", description: M.cmdShowCompleteChangelog }],
 		allowArgs: true,
 		handle: async (command, runtime) => {
 			const changelogPath = getChangelogPath();
@@ -1460,7 +1460,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "hotkeys",
-		description: "Show all keyboard shortcuts",
+		description: M.cmdShowAllKeyboardShortcuts,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.handleHotkeysCommand();
 			runtime.ctx.editor.setText("");
@@ -1468,8 +1468,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "tools",
-		description: "Show tools currently visible to the agent",
-		acpDescription: "Show available tools",
+		description: M.cmdShowToolsCurrentlyVisibleToTheAgent,
+		acpDescription: M.cmdShowAvailableTools,
 		getTuiAutocompleteDescription: runtime => {
 			const active = runtime.ctx.session.getActiveToolNames().length;
 			const all = runtime.ctx.session.getAllToolNames().length;
@@ -1496,8 +1496,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "context",
-		description: "Show estimated context usage breakdown",
-		acpDescription: "Show context usage",
+		description: M.cmdShowEstimatedContextUsageBreakdown,
+		acpDescription: M.cmdShowContextUsage,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
 			if (!usage) return "Context: unavailable";
@@ -1515,7 +1515,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "extensions",
 		aliases: ["status"],
-		description: "Open Extension Control Center dashboard",
+		description: M.cmdOpenExtensionControlCenterDashboard,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showExtensionsDashboard();
 			runtime.ctx.editor.setText("");
@@ -1523,7 +1523,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "agents",
-		description: "Open Agent Control Center dashboard",
+		description: M.cmdOpenAgentControlCenterDashboard,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showAgentsDashboard();
 			runtime.ctx.editor.setText("");
@@ -1531,7 +1531,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "branch",
-		description: "Create a new branch from a previous message",
+		description: M.cmdCreateANewBranchFromAPreviousMessage,
 		handleTui: (_command, runtime) => {
 			if (settings.get("doubleEscapeAction") === "tree") {
 				runtime.ctx.showTreeSelector();
@@ -1543,7 +1543,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "fork",
-		description: "Create a new fork from a previous message",
+		description: M.cmdCreateANewForkFromAPreviousMessage,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleForkCommand();
@@ -1551,7 +1551,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "tree",
-		description: "Navigate session tree (switch branches)",
+		description: M.cmdNavigateSessionTreeSwitchBranches,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showTreeSelector();
 			runtime.ctx.editor.setText("");
@@ -1559,7 +1559,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "login",
-		description: "Login with OAuth provider",
+		description: M.cmdLoginWithOAuthProvider,
 		inlineHint: "[provider|redirect URL]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -1611,7 +1611,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "logout",
-		description: "Logout from OAuth provider",
+		description: M.cmdLogoutFromOAuthProvider,
 		inlineHint: "[provider]",
 		allowArgs: true,
 		handleTui: (command, runtime) => {
@@ -1633,35 +1633,35 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "mcp",
-		description: "Manage MCP servers (add, list, remove, test)",
-		acpDescription: "Manage MCP servers",
+		description: M.cmdManageMCPServersAddListRemoveTest,
+		acpDescription: M.cmdManageMCPServers,
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
 				name: "add",
-				description: "Add a new MCP server",
+				description: M.cmdAddANewMCPServer,
 				usage: "<name> [--scope project|user] [--url <url>] [-- <command...>]",
 			},
-			{ name: "list", description: "List all configured MCP servers" },
-			{ name: "remove", description: "Remove an MCP server", usage: "<name> [--scope project|user]" },
-			{ name: "test", description: "Test connection to a server", usage: "<name>" },
-			{ name: "reauth", description: "Reauthorize OAuth for a server", usage: "<name>" },
-			{ name: "unauth", description: "Remove OAuth auth from a server", usage: "<name>" },
-			{ name: "enable", description: "Enable an MCP server", usage: "<name>" },
-			{ name: "disable", description: "Disable an MCP server", usage: "<name>" },
+			{ name: "list", description: M.cmdListAllConfiguredMCPServers },
+			{ name: "remove", description: M.cmdRemoveAnMCPServer, usage: "<name> [--scope project|user]" },
+			{ name: "test", description: M.cmdTestConnectionToAServer, usage: "<name>" },
+			{ name: "reauth", description: M.cmdReauthorizeOAuthForAServer, usage: "<name>" },
+			{ name: "unauth", description: M.cmdRemoveOAuthAuthFromAServer, usage: "<name>" },
+			{ name: "enable", description: M.cmdEnableAnMCPServer, usage: "<name>" },
+			{ name: "disable", description: M.cmdDisableAnMCPServer, usage: "<name>" },
 			{
 				name: "smithery-search",
-				description: "Search Smithery registry and deploy an MCP server",
+				description: M.cmdSearchSmitheryRegistryAndDeployAnMCPServer,
 				usage: "<keyword> [--scope project|user] [--limit <1-100>] [--semantic]",
 			},
-			{ name: "smithery-login", description: "Login to Smithery and cache API key" },
-			{ name: "smithery-logout", description: "Remove cached Smithery API key" },
-			{ name: "reconnect", description: "Reconnect to a specific MCP server", usage: "<name>" },
-			{ name: "reload", description: "Force reload MCP runtime tools" },
-			{ name: "resources", description: "List available resources from connected servers" },
-			{ name: "prompts", description: "List available prompts from connected servers" },
-			{ name: "notifications", description: "Show notification capabilities and subscriptions" },
-			{ name: "help", description: "Show help message" },
+			{ name: "smithery-login", description: M.cmdLoginToSmitheryAndCacheAPIKey },
+			{ name: "smithery-logout", description: M.cmdRemoveCachedSmitheryAPIKey },
+			{ name: "reconnect", description: M.cmdReconnectToASpecificMCPServer, usage: "<name>" },
+			{ name: "reload", description: M.cmdForceReloadMCPRuntimeTools },
+			{ name: "resources", description: M.cmdListAvailableResourcesFromConnectedServers },
+			{ name: "prompts", description: M.cmdListAvailablePromptsFromConnectedServers },
+			{ name: "notifications", description: M.cmdShowNotificationCapabilitiesAndSubscriptions },
+			{ name: "help", description: M.cmdShowHelpMessage },
 		],
 		allowArgs: true,
 		handle: handleMcpAcp,
@@ -1672,18 +1672,18 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "ssh",
-		description: "Manage SSH hosts (add, list, remove)",
-		acpDescription: "Manage SSH connections",
+		description: M.cmdManageSSHHostsAddListRemove,
+		acpDescription: M.cmdManageSSHConnections,
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
 				name: "add",
-				description: "Add an SSH host",
+				description: M.cmdAddAnSSHHost,
 				usage: "<name> --host <host> [--user <user>] [--port <port>] [--key <keyPath>]",
 			},
-			{ name: "list", description: "List all configured SSH hosts" },
-			{ name: "remove", description: "Remove an SSH host", usage: "<name> [--scope project|user]" },
-			{ name: "help", description: "Show help message" },
+			{ name: "list", description: M.cmdListAllConfiguredSSHHosts },
+			{ name: "remove", description: M.cmdRemoveAnSSHHost, usage: "<name> [--scope project|user]" },
+			{ name: "help", description: M.cmdShowHelpMessage },
 		],
 		allowArgs: true,
 		handle: handleSshAcp,
@@ -1695,7 +1695,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "new",
 		aliases: ["clear"],
-		description: "Start a new session",
+		description: M.cmdStartANewSession,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleClearCommand();
@@ -1703,7 +1703,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "fresh",
-		description: "Reset provider stream state without changing the local transcript",
+		description: M.cmdResetProviderStreamStateWithoutChangingTheLocalTranscript,
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.session.isStreaming ? "Fresh: unavailable while streaming" : "Fresh: ready",
 		handle: async (_command, runtime) => {
@@ -1724,7 +1724,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "drop",
-		description: "Delete the current session and start a new one",
+		description: M.cmdDeleteTheCurrentSessionAndStartANewOne,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleDropCommand();
@@ -1732,8 +1732,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "compact",
-		description: "Manually compact the session context",
-		acpDescription: "Compact the conversation",
+		description: M.cmdManuallyCompactTheSessionContext,
+		acpDescription: M.cmdCompactTheConversation,
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
 			description: mode.description,
@@ -1780,11 +1780,11 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "shake",
-		description: "Drop heavy content from context (tool results, large blocks)",
-		acpDescription: "Shake heavy content out of the conversation context",
+		description: M.cmdDropHeavyContentFromContextToolResultsLargeBlocks,
+		acpDescription: M.cmdShakeHeavyContentOutOfTheConversationContext,
 		subcommands: [
-			{ name: "elide", description: "Strip tool results + large blocks (default)" },
-			{ name: "images", description: "Strip image blocks" },
+			{ name: "elide", description: M.cmdStripToolResultsLargeBlocksDefault },
+			{ name: "images", description: M.cmdStripImageBlocks },
 		],
 		acpInputHint: "[elide|images]",
 		allowArgs: true,
@@ -1807,7 +1807,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "handoff",
-		description: "Hand off session context to a new session",
+		description: M.cmdHandOffSessionContextToANewSession,
 		inlineHint: "[focus instructions]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -1818,7 +1818,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "resume",
-		description: "Resume a different session",
+		description: M.cmdResumeADifferentSession,
 		inlineHint: "[session id|@claude|@codex]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -1848,7 +1848,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "btw",
-		description: "Ask an ephemeral side question using the current session context",
+		description: M.cmdAskAnEphemeralSideQuestionUsingTheCurrentSessionContext,
 		inlineHint: "<question>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -1859,7 +1859,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "tan",
-		description: "Run a full background agent on tangential work",
+		description: M.cmdRunAFullBackgroundAgentOnTangentialWork,
 		inlineHint: "<work>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -1870,7 +1870,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "omfg",
-		description: "Forge a TTSR rule from a complaint to stop a recurring behavior",
+		description: M.cmdForgeATTSRRuleFromAComplaintToStopARecurringBehavior,
 		inlineHint: "<complaint>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -1881,7 +1881,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "retry",
-		description: "Retry the last failed agent turn",
+		description: M.cmdRetryTheLastFailedAgentTurn,
 		handleTui: async (_command, runtime) => {
 			const didRetry = await runtime.ctx.session.retry();
 			if (!didRetry) {
@@ -1892,7 +1892,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "debug",
-		description: "Open debug tools selector",
+		description: M.cmdOpenDebugToolsSelector,
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.showDebugSelector();
 			runtime.ctx.editor.setText("");
@@ -1900,27 +1900,27 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "memory",
-		description: "Inspect and operate memory maintenance",
-		acpDescription: "Manage memory",
+		description: M.cmdInspectAndOperateMemoryMaintenance,
+		acpDescription: M.cmdManageMemory,
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "view", description: "Show current memory injection payload" },
-			{ name: "stats", description: "Show memory backend statistics" },
-			{ name: "diagnose", description: "Run memory backend diagnostics" },
-			{ name: "clear", description: "Clear persisted memory data and artifacts" },
-			{ name: "reset", description: "Alias for clear" },
-			{ name: "enqueue", description: "Enqueue memory consolidation maintenance" },
-			{ name: "rebuild", description: "Alias for enqueue" },
-			{ name: "mm list", description: "List mental models on the active bank" },
-			{ name: "mm show", description: "Show one mental model (id required)" },
+			{ name: "view", description: M.cmdShowCurrentMemoryInjectionPayload },
+			{ name: "stats", description: M.cmdShowMemoryBackendStatistics },
+			{ name: "diagnose", description: M.cmdRunMemoryBackendDiagnostics },
+			{ name: "clear", description: M.cmdClearPersistedMemoryDataAndArtifacts },
+			{ name: "reset", description: M.cmdAliasForClear },
+			{ name: "enqueue", description: M.cmdEnqueueMemoryConsolidationMaintenance },
+			{ name: "rebuild", description: M.cmdAliasForEnqueue },
+			{ name: "mm list", description: M.cmdListMentalModelsOnTheActiveBank },
+			{ name: "mm show", description: M.cmdShowOneMentalModelIdRequired },
 			{
 				name: "mm refresh",
-				description: "Refresh auto-refresh models bank-wide, or one model by id",
+				description: M.cmdRefreshAutoRefreshModelsBankWideOrOneModelById,
 			},
-			{ name: "mm history", description: "Diff the change history of a mental model" },
-			{ name: "mm seed", description: "Create any built-in mental models that are missing" },
-			{ name: "mm delete", description: "Delete a mental model from the bank (id required)" },
-			{ name: "mm reload", description: "Re-pull the cached <mental_models> block" },
+			{ name: "mm history", description: M.cmdDiffTheChangeHistoryOfAMentalModel },
+			{ name: "mm seed", description: M.cmdCreateAnyBuiltInMentalModelsThatAreMissing },
+			{ name: "mm delete", description: M.cmdDeleteAMentalModelFromTheBankIdRequired },
+			{ name: "mm reload", description: M.cmdRePullTheCachedMentalModelsBlock },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -1972,7 +1972,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "rename",
-		description: "Rename the current session",
+		description: M.cmdRenameTheCurrentSession,
 		inlineHint: "<title>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -1999,8 +1999,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "move",
-		description: "Move the current session to a different directory",
-		acpDescription: "Move the current session to a different directory",
+		description: M.cmdMoveTheCurrentSessionToADifferentDirectory,
+		acpDescription: M.cmdMoveTheCurrentSessionToADifferentDirectory,
 		inlineHint: "[<path>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -2044,8 +2044,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "add-dir",
-		description: "Add a workspace directory to this session (multi-root)",
-		acpDescription: "Add a workspace directory to this session",
+		description: M.cmdAddAWorkspaceDirectoryToThisSessionMultiRoot,
+		acpDescription: M.cmdAddAWorkspaceDirectoryToThisSession,
 		inlineHint: "<path>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -2075,8 +2075,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "remove-dir",
-		description: "Remove a workspace directory from this session",
-		acpDescription: "Remove a workspace directory from this session",
+		description: M.cmdRemoveAWorkspaceDirectoryFromThisSession,
+		acpDescription: M.cmdRemoveAWorkspaceDirectoryFromThisSession,
 		inlineHint: "<path>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -2103,8 +2103,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "dirs",
-		description: "List this session's workspace directories",
-		acpDescription: "List this session's workspace directories",
+		description: M.cmdListThisSessionSWorkspaceDirectories,
+		acpDescription: M.cmdListThisSessionSWorkspaceDirectories,
 		handle: async (_command, runtime) => {
 			await runtime.output(formatWorkspaceDirectories(runtime));
 			return commandConsumed();
@@ -2112,29 +2112,29 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "exit",
-		description: "Exit the application",
+		description: M.cmdExitTheApplication,
 		handleTui: shutdownHandlerTui,
 	},
 	{
 		name: "marketplace",
-		description: "Manage marketplace plugin sources and installed plugins",
-		acpDescription: "Manage plugins from marketplaces",
+		description: M.cmdManageMarketplacePluginSourcesAndInstalledPlugins,
+		acpDescription: M.cmdManagePluginsFromMarketplaces,
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "add", description: "Add a marketplace source", usage: "<source>" },
-			{ name: "remove", description: "Remove a marketplace source", usage: "<name>" },
-			{ name: "update", description: "Update marketplace catalog(s)", usage: "[name]" },
-			{ name: "list", description: "List configured marketplaces" },
-			{ name: "discover", description: "Browse available plugins", usage: "[marketplace]" },
+			{ name: "add", description: M.cmdAddAMarketplaceSource, usage: "<source>" },
+			{ name: "remove", description: M.cmdRemoveAMarketplaceSource, usage: "<name>" },
+			{ name: "update", description: M.cmdUpdateMarketplaceCatalogS, usage: "[name]" },
+			{ name: "list", description: M.cmdListConfiguredMarketplaces },
+			{ name: "discover", description: M.cmdBrowseAvailablePlugins, usage: "[marketplace]" },
 			{
 				name: "install",
-				description: "Install a plugin (interactive browser if no args)",
+				description: M.cmdInstallAPluginInteractiveBrowserIfNoArgs,
 				usage: "[--force] [name@marketplace]",
 			},
-			{ name: "uninstall", description: "Uninstall a plugin (selector if no args)", usage: "[name@marketplace]" },
-			{ name: "installed", description: "List installed marketplace plugins" },
-			{ name: "upgrade", description: "Upgrade outdated plugins", usage: "[name@marketplace]" },
-			{ name: "help", description: "Show usage guide" },
+			{ name: "uninstall", description: M.cmdUninstallAPluginSelectorIfNoArgs, usage: "[name@marketplace]" },
+			{ name: "installed", description: M.cmdListInstalledMarketplacePlugins },
+			{ name: "upgrade", description: M.cmdUpgradeOutdatedPlugins, usage: "[name@marketplace]" },
+			{ name: "help", description: M.cmdShowUsageGuide },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -2496,13 +2496,13 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "plugins",
-		description: "View and manage installed plugins",
-		acpDescription: "Manage plugins",
+		description: M.cmdViewAndManageInstalledPlugins,
+		acpDescription: M.cmdManagePlugins,
 		acpInputHint: "[list|enable|disable]",
 		subcommands: [
-			{ name: "list", description: "List all installed plugins (npm + marketplace)" },
-			{ name: "enable", description: "Enable a marketplace plugin", usage: "<name@marketplace>" },
-			{ name: "disable", description: "Disable a marketplace plugin", usage: "<name@marketplace>" },
+			{ name: "list", description: M.cmdListAllInstalledPluginsNpmMarketplace },
+			{ name: "enable", description: M.cmdEnableAMarketplacePlugin, usage: "<name@marketplace>" },
+			{ name: "disable", description: M.cmdDisableAMarketplacePlugin, usage: "<name@marketplace>" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -2626,8 +2626,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "reload-plugins",
-		description: "Reload all plugins (skills, commands, hooks, tools, agents, MCP)",
-		acpDescription: "Reload all plugins",
+		description: M.cmdReloadAllPluginsSkillsCommandsHooksToolsAgentsMCP,
+		acpDescription: M.cmdReloadAllPlugins,
 		handle: async (_command, runtime) => {
 			await runtime.reloadPlugins();
 			await runtime.output("Plugins reloaded.");
@@ -2641,7 +2641,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "force",
-		description: "Force next turn to use a specific tool",
+		description: M.cmdForceNextTurnToUseASpecificTool,
 		aliases: ["force:"],
 		inlineHint: "<tool-name> [prompt]",
 		allowArgs: true,
@@ -2690,7 +2690,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "live",
-		description: "Start Codex-backed realtime voice mode",
+		description: M.cmdStartCodexBackedRealtimeVoiceMode,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleLiveCommand();
@@ -2698,7 +2698,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "pause",
-		description: "Freeze all agents (main, subagents, advisor) until resumed",
+		description: M.cmdFreezeAllAgentsMainSubagentsAdvisorUntilResumed,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runPauseScreen(runtime.ctx);
@@ -2707,11 +2707,11 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "language",
 		description: M.cmdLanguage,
-		acpDescription: "Set the CLI display language",
+		acpDescription: M.cmdSetTheCLIDisplayLanguage,
 		acpInputHint: "[en|zh]",
 		subcommands: [
-			{ name: "en", description: "English" },
-			{ name: "zh", description: "中文" },
+			{ name: "en", description: M.cmdEnglish },
+			{ name: "zh", description: M.languageZhLabel },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -2759,7 +2759,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "quit",
 		aliases: ["q"],
-		description: "Quit the application",
+		description: M.cmdQuitTheApplication,
 		handleTui: shutdownHandlerTui,
 	},
 ];
