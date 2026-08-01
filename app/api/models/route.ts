@@ -5,6 +5,8 @@ import { createAgentSessionServices, ModelRuntime } from "@earendil-works/pi-cod
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import { loadModelsWithCache, withModelRuntimeError, type ModelsData } from "../../../lib/models-cache";
 import { readOmpModelsFromDb, readOmpConfig, parseOmpDefaultModel, syncOmpRuntimeModelsJson } from "../../../lib/omp-models";
+import { buildVisibleRoleModels } from "../../../lib/model-role-filter";
+
 import { getUsableOmpRuntimeCredentials } from "../../../lib/omp-auth";
 import { getOmpAgentDir } from "../../../lib/file-paths";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "../../../lib/file-access";
@@ -109,33 +111,18 @@ async function loadModels(cwd: string): Promise<ModelsData> {
   const ompConfig = readOmpConfig();
   const roles = ompConfig.modelRoles || {};
 
-  // 1. Build role models from config.yml
-  const roleModelEntries: { id: string; name: string; provider: string; contextWindow?: number }[] = [];
-  for (const [role, ref] of Object.entries(roles)) {
-    if (typeof ref !== "string" || !ref.trim()) continue;
-    const cleanRef = ref.trim();
-    let provider = "google-antigravity";
-    let modelId = cleanRef;
-    const slashIdx = cleanRef.indexOf("/");
-    if (slashIdx > 0) {
-      provider = cleanRef.slice(0, slashIdx);
-      modelId = cleanRef.slice(slashIdx + 1);
-    }
-    const pureModelId = stripThinkingSuffix(modelId);
-    const mObj = available.find((m) => m.provider === provider && (m.id === pureModelId || pureModelId.includes(m.id)));
-    roleModelEntries.push({
-      id: pureModelId,
-      name: `${pureModelId} (${role})`,
-      provider,
-      contextWindow: mObj?.contextWindow,
-    });
-  }
-
-  // 2. Filter available models to ONLY authenticated providers if auth exists
+  // 1. Filter available models to ONLY authenticated or explicitly configured providers.
   let visible = filterByExactEnabledModels(available, enabledModels);
   if (authedProviderIds.size > 0) {
     visible = visible.filter((m) => authedProviderIds.has(m.provider));
   }
+
+  // Role references can outlive a deleted provider in config.yml. Only retain roles
+  // whose provider is configured and whose model still exists in the runtime catalog.
+  const roleModelEntries = buildVisibleRoleModels(roles, available, authedProviderIds);
+
+
+  // 2. Merge role models first, then authenticated models.
 
   // Merge role entries first (deduplicated), then authenticated models
   const combinedList: { id: string; name: string; provider: string; contextWindow?: number }[] = [];
