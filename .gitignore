@@ -1,21 +1,89 @@
-# 本地参考克隆（pi / oh-my-pi / pi-web / omp-web），永不追踪
-temp/
+# Dependencies
+node_modules
+.npm/
 
-# 依赖与构建产物
-node_modules/
+# Build output
 dist/
-build/
-.next/
-out/
+packages/*/dist/
+packages/*/dist-chrome/
+packages/*/dist-firefox/
+target/
+*.tsbuildinfo
+*.node
+*.b64.js
 
-# 日志与临时
-*.log
-*.pid
-.DS_Store
-Thumbs.db
-
-# 本地环境
+# Environment
 .env
-.env.local
-.pi/
-.omp/
+
+# Editors
+.vscode/
+.zed/
+.idea/
+*.swp
+*.swo
+*.kate-swp
+*~
+
+# OS
+*.tmp
+# Bun compile temp artifacts, left in cwd if a `Bun.build({ compile })` run is killed mid-write
+*.bun-build
+.DS_Store
+
+# Logs & profiling
+*.log
+tui-debug.log
+*.cpuprofile
+
+# Test & coverage
+coverage/
+.nyc_output/
+packages/ai/test/.temp-images/
+
+# Project specific
+!.omp/
+.omp/plugins/
+.pi_config/
+.opencode/
+.worktrees/
+.worktree/
+compaction-results/
+changes/
+__pycache__/
+
+# Scratch files
+syntax.jsonl
+out.jsonl
+out.html
+pi-*.html
+.close_issue.sh
+
+# Generated files
+packages/coding-agent/src/export/html/tool-views.generated.js
+packages/natives/npm/
+packages/coding-agent/src/utils/mupdf-wasm.wasm
+/runs/
+python/omp-rpc/src/omp_rpc.egg-info/
+# parallel-agent worktrees
+.wt/
+CPU*.md
+packages/coding-agent/binaries/
+
+# robomp runtime state
+python/robomp/data/
+python/robomp/.cache/
+python/robomp/src/robomp/static/
+python/robomp/web/dist/
+python/robomp/web/verify-out/
+/verify-out/
+python/robomp/.env
+
+# Local, machine-specific boot perf baseline (see packages/coding-agent/scripts/bench-guard.ts)
+packages/coding-agent/bench/boot-baseline.json
+
+# Bazel
+/bazel-bin
+/bazel-out
+/bazel-testlogs
+/bazel-pi
+/.bazelrc.user
