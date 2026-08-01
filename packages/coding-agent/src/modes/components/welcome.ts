@@ -450,7 +450,7 @@ export class WelcomeComponent implements Component {
 	}
 }
 
-export const ZETA_LOGO = ["▀██████████▀", "       ▄██▀ ", "    ▄██▀    ", " ▄██▀       ", "▀██████████▀"];
+export const ZETA_LOGO = ["Z"];
 
 /** Multi-stop palette for the diagonal gradient. */
 const GRADIENT_STOPS: ReadonlyArray<readonly [number, number, number]> = [

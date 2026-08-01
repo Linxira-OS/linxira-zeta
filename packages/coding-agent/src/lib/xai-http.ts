@@ -13,7 +13,7 @@ interface XAICredentials {
 }
 
 export function ohMyPiXAIUserAgent(): string {
-	return "oh-my-pi/xai";
+	return "zeta/xai";
 }
 
 /** xAI provider ids supported by shared HTTP tool transport resolution. */

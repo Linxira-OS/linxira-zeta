@@ -1480,7 +1480,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 										"Content-Type": "application/json",
 										Authorization: `Bearer ${key}`,
 										"HTTP-Referer": "https://linxira-os.github.io/",
-										"X-OpenRouter-Title": "Oh-My-Pi",
+										"X-OpenRouter-Title": "Zeta",
 										"X-OpenRouter-Categories": "cli-agent",
 									},
 									body: JSON.stringify(requestBody),

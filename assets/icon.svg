@@ -1,3 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" width="120" height="90">
-  <path d="M16 14H104L34 76H104" fill="none" stroke="#fafafa" stroke-linecap="round" stroke-linejoin="round" stroke-width="12"/>
+  <text x="60" y="70" font-family="Helvetica, Arial, sans-serif" font-size="76" font-weight="700" fill="#fafafa" text-anchor="middle">ζ</text>
 </svg>

@@ -1,7 +1,7 @@
 /**
  * OTLP telemetry export bootstrap.
  *
- * oh-my-pi's agent core (`@zeta/pi-agent-core`) emits OpenTelemetry GenAI
+ * OMP's agent core (`@zeta/pi-agent-core`) emits OpenTelemetry GenAI
  * spans through the global `@opentelemetry/api` tracer, and exposes run-level
  * callbacks for metrics/log pipelines. This module registers the OTLP/proto
  * trace, log, and metric SDK providers when the standard `OTEL_*` endpoint env
@@ -51,7 +51,7 @@ import { logger, postmortem } from "@zeta/pi-utils";
  */
 const FLUSH_INTERVAL_MS = 30_000;
 
-const SERVICE_NAME = "oh-my-pi";
+const SERVICE_NAME = "zeta";
 
 type TelemetrySignal = "trace" | "log" | "metric";
 type OtelLogLevel = "none" | logger.LogLevel;
