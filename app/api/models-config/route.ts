@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { getOmpAgentDir } from "@/lib/file-paths";
 import { invalidateModelsCache } from "@/lib/models-cache";
-import { readOmpModelsFromDb } from "@/lib/omp-models";
+import { readOmpModelsFromDb, syncOmpRuntimeModelsJson } from "@/lib/omp-models";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +46,7 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json() as Record<string, unknown>;
     writeModelsJson(body);
+    syncOmpRuntimeModelsJson(getOmpAgentDir());
     invalidateModelsCache();
     return NextResponse.json({ success: true });
   } catch (error) {
