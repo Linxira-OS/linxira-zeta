@@ -8,8 +8,7 @@ import { cacheSessionPath, invalidateSessionListCache, openSessionManager } from
 import { join } from "path";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { getOmpAgentDir } from "./file-paths";
-import { getUsableOmpRuntimeCredentials } from "./omp-auth";
-import { readOmpModelsFromDb, syncOmpRuntimeModelsJson } from "./omp-models";
+import { applyOmpRuntimeCredentials, readOmpModelsFromDb, syncOmpRuntimeModelsJson } from "./omp-models";
 import type { SlashCommandInfo } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionLike, ExtensionUiContextLike, ToolInfo } from "./pi-types";
 import type { ExtensionUiRequest, ExtensionUiResponse, ExtensionWidgetItem } from "./types";
@@ -389,16 +388,8 @@ export class AgentSessionWrapper {
 
       case "set_model": {
         const { provider, modelId } = command as { provider: string; modelId: string };
-        let cleanProvider = provider;
+        let cleanProvider = (provider || "").trim();
         let cleanModelId = (modelId || "").trim();
-
-        if (cleanModelId.startsWith(`${cleanProvider}/`)) {
-          cleanModelId = cleanModelId.slice(cleanProvider.length + 1);
-        } else if (cleanModelId.includes("/")) {
-          const parts = cleanModelId.split("/");
-          cleanProvider = parts[0];
-          cleanModelId = parts.slice(1).join("/");
-        }
 
         const THINKING_SUFFIXES = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
         let thinkingLevel: string | undefined;
@@ -411,13 +402,53 @@ export class AgentSessionWrapper {
           }
         }
 
-        let model = this.inner.modelRuntime.getModel(cleanProvider, cleanModelId)
-          || this.inner.modelRuntime.getModel(cleanProvider, modelId);
+        if (cleanProvider && cleanModelId.startsWith(`${cleanProvider}/`)) {
+          cleanModelId = cleanModelId.slice(cleanProvider.length + 1);
+        }
+
+        let model = cleanProvider
+          ? (this.inner.modelRuntime.getModel(cleanProvider, cleanModelId)
+            || this.inner.modelRuntime.getModel(cleanProvider, modelId))
+          : undefined;
+
+        if (!model && cleanModelId.includes("/")) {
+          const slashIdx = cleanModelId.indexOf("/");
+          const possibleProvider = cleanModelId.slice(0, slashIdx);
+          const possibleModelId = cleanModelId.slice(slashIdx + 1);
+          const altModel = this.inner.modelRuntime.getModel(possibleProvider, possibleModelId);
+          if (altModel) {
+            cleanProvider = possibleProvider;
+            cleanModelId = possibleModelId;
+            model = altModel;
+          }
+        }
 
         if (!model) {
-          await this.inner.modelRuntime.refresh({ allowNetwork: false });
-          model = this.inner.modelRuntime.getModel(cleanProvider, cleanModelId)
-            || this.inner.modelRuntime.getModel(cleanProvider, modelId);
+          const agentDir = getOmpAgentDir();
+          syncOmpRuntimeModelsJson(agentDir);
+          try {
+            await this.inner.modelRuntime.reloadConfig?.();
+          } catch {
+            // ignore reloadConfig error
+          }
+          await applyOmpRuntimeCredentials(this.inner.modelRuntime as unknown as ModelRuntime, agentDir);
+
+          model = cleanProvider
+            ? (this.inner.modelRuntime.getModel(cleanProvider, cleanModelId)
+              || this.inner.modelRuntime.getModel(cleanProvider, modelId))
+            : undefined;
+
+          if (!model && cleanModelId.includes("/")) {
+            const slashIdx = cleanModelId.indexOf("/");
+            const possibleProvider = cleanModelId.slice(0, slashIdx);
+            const possibleModelId = cleanModelId.slice(slashIdx + 1);
+            const altModel = this.inner.modelRuntime.getModel(possibleProvider, possibleModelId);
+            if (altModel) {
+              cleanProvider = possibleProvider;
+              cleanModelId = possibleModelId;
+              model = altModel;
+            }
+          }
         }
 
         if (!model) {
@@ -425,7 +456,7 @@ export class AgentSessionWrapper {
           const foundInDb = dbModels.find((m) => m.provider === cleanProvider && (m.id === cleanModelId || m.id === modelId));
           if (foundInDb) {
             throw new Error(
-              `Model ${cleanProvider}/${cleanModelId} is listed by OMP but its provider configuration is missing. Add an explicit API type and base URL in OMP models.json.`,
+              `Model ${cleanProvider}/${cleanModelId} is listed by OMP but its provider configuration is missing. Add an explicit API type and base URL in OMP models.yml.`,
             );
           }
           throw new Error(`Model not found: ${cleanProvider}/${cleanModelId}`);
@@ -1139,9 +1170,7 @@ export async function startRpcSession(
 
     // OMP stores credential metadata as JSON. The runtime needs the actual
     // API key or OAuth access token, never the serialized credential object.
-    for (const credential of getUsableOmpRuntimeCredentials()) {
-      await modelRuntime.setRuntimeApiKey(credential.provider, credential.apiKey, { allowNetwork: false });
-    }
+    await applyOmpRuntimeCredentials(modelRuntime, agentDir);
 
     const services = await createAgentSessionServices({ cwd, agentDir, modelRuntime });
     const { session: inner } = await createAgentSessionFromServices({

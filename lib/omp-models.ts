@@ -2,9 +2,9 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import yaml from "yaml";
 import { getOmpAgentDir } from "./file-paths";
-import { getOmpAuthCredentials } from "./omp-auth";
-import { syncOmpCliModelsYaml } from "./omp-cli-models";
-
+import { getOmpAuthCredentials, getUsableOmpRuntimeCredentials } from "./omp-auth";
+import { readOmpModelsConfig } from "./omp-model-config";
+import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 
 let isAntiGravityInterceptorInstalled = false;
 
@@ -16,9 +16,9 @@ export function setupAntiGravityFetchInterceptor(): void {
   globalThis.fetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const urlStr = String(url);
     if (
-      urlStr.includes("cloudcode-pa.googleapis.com") ||
-      urlStr.includes("daily-cloudcode-pa.googleapis.com") ||
-      urlStr.includes("generativelanguage.googleapis.com")
+      urlStr.includes("cloudcode-pa.googleapis.com")
+      || urlStr.includes("daily-cloudcode-pa.googleapis.com")
+      || urlStr.includes("generativelanguage.googleapis.com")
     ) {
       const ompCreds = getOmpAuthCredentials();
       const gaCred = ompCreds.find((c) => c.provider === "google-antigravity");
@@ -49,7 +49,6 @@ export function setupAntiGravityFetchInterceptor(): void {
         const effectiveProject = projectId
           ? (projectId.startsWith("projects/") ? projectId : `projects/${projectId}`)
           : "projects/resolute-altar-lt3g1";
-
         const antiGravityPayload = {
           project: effectiveProject,
           model: modelId,
@@ -67,17 +66,11 @@ export function setupAntiGravityFetchInterceptor(): void {
         const realUrl = "https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse";
         const targetHeaders: Record<string, string> = {
           "Content-Type": "application/json",
-          "Accept": "text/event-stream",
-          "Authorization": `Bearer ${token}`,
+          Accept: "text/event-stream",
+          Authorization: `Bearer ${token}`,
           "User-Agent": "antigravity/1.21.9",
         };
-
-        const resp = await origFetch(realUrl, {
-          method: "POST",
-          headers: targetHeaders,
-          body: JSON.stringify(antiGravityPayload),
-        });
-
+        const resp = await origFetch(realUrl, { method: "POST", headers: targetHeaders, body: JSON.stringify(antiGravityPayload) });
         if (!resp.ok || !resp.body) return resp;
 
         let buffer = "";
@@ -86,7 +79,6 @@ export function setupAntiGravityFetchInterceptor(): void {
             buffer += new TextDecoder().decode(chunk, { stream: true });
             const lines = buffer.split("\n");
             buffer = lines.pop() ?? "";
-
             const outLines: string[] = [];
             for (const line of lines) {
               if (line.startsWith("data: ")) {
@@ -98,12 +90,7 @@ export function setupAntiGravityFetchInterceptor(): void {
                     if (respObj.candidates && Array.isArray(respObj.candidates)) {
                       for (const cand of respObj.candidates as Array<{ content?: { parts?: Array<Record<string, unknown>> } }>) {
                         if (cand.content && Array.isArray(cand.content.parts)) {
-                          cand.content.parts = cand.content.parts.map((p) => {
-                            if (typeof p.text !== "string") {
-                              return { text: "", ...p };
-                            }
-                            return p;
-                          });
+                          cand.content.parts = cand.content.parts.map((p) => typeof p.text !== "string" ? { text: "", ...p } : p);
                         }
                       }
                     }
@@ -114,42 +101,17 @@ export function setupAntiGravityFetchInterceptor(): void {
                   // ignore json parse error
                 }
               }
-              if (line.trim()) {
-                outLines.push(line);
-              }
+              if (line.trim()) outLines.push(line);
             }
-            if (outLines.length > 0) {
-              controller.enqueue(new TextEncoder().encode(outLines.join("\n") + "\n\n"));
-            }
+            if (outLines.length > 0) controller.enqueue(new TextEncoder().encode(outLines.join("\n") + "\n\n"));
           },
           flush(controller) {
-            if (buffer.trim()) {
-              if (buffer.startsWith("data: ")) {
-                const dataStr = buffer.slice(6).trim();
-                try {
-                  const parsed = JSON.parse(dataStr) as { response?: Record<string, unknown> };
-                  if (parsed && typeof parsed === "object" && parsed.response) {
-                    const respObj = parsed.response;
-                    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(respObj)}\n\n`));
-                    return;
-                  }
-                } catch {
-                  // ignore json parse error
-                }
-              }
-              controller.enqueue(new TextEncoder().encode(buffer + "\n\n"));
-            }
+            if (buffer.trim()) controller.enqueue(new TextEncoder().encode(buffer + "\n\n"));
           },
         });
-
-        return new Response(resp.body.pipeThrough(transformStream), {
-          status: resp.status,
-          statusText: resp.statusText,
-          headers: resp.headers,
-        });
+        return new Response(resp.body.pipeThrough(transformStream), { status: resp.status, statusText: resp.statusText, headers: resp.headers });
       }
     }
-
     return origFetch(url, init);
   };
 }
@@ -181,12 +143,27 @@ export function readOmpConfig(): OmpConfig {
     return {};
   }
 }
+export async function applyOmpRuntimeCredentials(
+  modelRuntime: ModelRuntime,
+  agentDir: string = getOmpAgentDir(),
+): Promise<void> {
+  for (const credential of getUsableOmpRuntimeCredentials()) {
+    await modelRuntime.setRuntimeApiKey(credential.provider, credential.apiKey, { allowNetwork: false });
+  }
+  const customProvidersData = (readOmpModelsConfig(agentDir).providers ?? {}) as Record<string, { apiKey?: string; key?: string }>;
+  for (const [provider, config] of Object.entries(customProvidersData)) {
+    const key = config.apiKey || config.key;
+    if (key && typeof key === "string" && key.trim()) {
+      await modelRuntime.setRuntimeApiKey(provider, key.trim(), { allowNetwork: false });
+    }
+  }
+}
+
 
 export function readOmpModelsFromDb(): OmpModelItem[] {
   const dbPath = join(getOmpAgentDir(), "models.db");
   if (!existsSync(dbPath)) return [];
 
-  // Strategy 1: Try better-sqlite3 if available
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Database = require("better-sqlite3");
@@ -194,19 +171,14 @@ export function readOmpModelsFromDb(): OmpModelItem[] {
     const rows = db.prepare("SELECT provider_id, models FROM model_cache").all() as Array<{ provider_id: string; models: string }>;
     db.close();
 
+
     const items: OmpModelItem[] = [];
     for (const row of rows) {
       try {
         const parsed = JSON.parse(row.models) as Array<{ id: string; name?: string }>;
         if (Array.isArray(parsed)) {
           for (const m of parsed) {
-            if (m && m.id) {
-              items.push({
-                id: m.id,
-                name: m.name || m.id,
-                provider: row.provider_id,
-              });
-            }
+            if (m && m.id) items.push({ id: m.id, name: m.name || m.id, provider: row.provider_id });
           }
         }
       } catch {
@@ -218,10 +190,8 @@ export function readOmpModelsFromDb(): OmpModelItem[] {
     // continue to fallback
   }
 
-  // Strategy 2: Extract model JSON arrays directly from SQLite file buffer if native driver fails
   try {
-    const fileBuffer = readFileSync(dbPath);
-    const fileStr = fileBuffer.toString("utf8");
+    const fileStr = readFileSync(dbPath).toString("utf8");
     const items: OmpModelItem[] = [];
     const jsonMatch = fileStr.match(/\[\s*\{\s*"id"\s*:[\s\S]*?\]/g);
     if (jsonMatch) {
@@ -230,13 +200,7 @@ export function readOmpModelsFromDb(): OmpModelItem[] {
           const parsed = JSON.parse(block) as Array<{ id: string; name?: string; provider?: string }>;
           if (Array.isArray(parsed)) {
             for (const m of parsed) {
-              if (m && m.id) {
-                items.push({
-                  id: m.id,
-                  name: m.name || m.id,
-                  provider: m.provider || "omp",
-                });
-              }
+              if (m && m.id) items.push({ id: m.id, name: m.name || m.id, provider: m.provider || "omp" });
             }
           }
         } catch {
@@ -256,26 +220,21 @@ export function parseOmpDefaultModel(config: OmpConfig): { provider: string; mod
 
   let cleanRef = defaultRef.trim();
   const colonIndex = cleanRef.lastIndexOf(":");
-  if (colonIndex > 0) {
-    cleanRef = cleanRef.slice(0, colonIndex);
-  }
+  if (colonIndex > 0) cleanRef = cleanRef.slice(0, colonIndex);
 
   const slashIndex = cleanRef.indexOf("/");
   if (slashIndex > 0) {
-    return {
-      provider: cleanRef.slice(0, slashIndex),
-      modelId: cleanRef.slice(slashIndex + 1),
-    };
+    return { provider: cleanRef.slice(0, slashIndex), modelId: cleanRef.slice(slashIndex + 1) };
   }
   return null;
 }
+
 function sanitizeObject<T>(obj: T): T {
   if (obj === null || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) return obj.map(sanitizeObject) as unknown as T;
   const result: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-    if (v === null) continue;
-    result[k] = sanitizeObject(v);
+    if (v !== null) result[k] = sanitizeObject(v);
   }
   return result as T;
 }
@@ -295,7 +254,6 @@ export function syncOmpRuntimeModelsJson(agentDir: string = getOmpAgentDir()): s
   setupAntiGravityFetchInterceptor();
   const runtimeModelsPath = join(agentDir, "omp-web-models.json");
   const dbPath = join(agentDir, "models.db");
-  const modelsJsonPath = join(agentDir, "models.json");
   const providers: Record<string, Record<string, unknown>> = {};
 
   if (existsSync(dbPath)) {
@@ -336,46 +294,40 @@ export function syncOmpRuntimeModelsJson(agentDir: string = getOmpAgentDir()): s
     }
   }
 
-  if (existsSync(modelsJsonPath)) {
-    try {
-      const parsed = JSON.parse(readFileSync(modelsJsonPath, "utf8")) as {
-        providers?: Record<string, Record<string, unknown>>;
-      };
-      const cachedProviderIds = new Set(Object.keys(providers));
-      const customProviders: Record<string, Record<string, unknown>> = {};
-      for (const [providerId, rawConfig] of Object.entries(parsed.providers ?? {})) {
-        if (cachedProviderIds.has(providerId)) continue;
-        const providerConfig = sanitizeObject(rawConfig);
-        if (providerId === "google-antigravity") {
-          providerConfig.api = "google-generative-ai";
-          if (!providerConfig.baseUrl) providerConfig.baseUrl = "https://daily-cloudcode-pa.googleapis.com";
-          const models = Array.isArray(providerConfig.models) ? providerConfig.models : [];
-          for (const model of models) {
-            if (model && typeof model === "object") (model as Record<string, unknown>).api = "google-generative-ai";
-          }
-        }
-        customProviders[providerId] = providerConfig;
-        const dbModelList = (providers[providerId]?.models as Array<Record<string, unknown>>) ?? [];
-        const customModelList = Array.isArray(providerConfig.models) ? (providerConfig.models as Array<Record<string, unknown>>) : [];
-        const dbModelMap = new Map(dbModelList.map((m) => [String(m.id || ""), m]));
-        const mergedModels: Array<Record<string, unknown>> = [];
-        for (const customM of customModelList) {
-          const customId = String(customM.id || "");
-          const dbM = dbModelMap.get(customId);
-          const merged = { ...(dbM || {}), ...customM };
-          if (!merged.contextWindow || typeof merged.contextWindow !== "number" || (merged.contextWindow as number) <= 0) {
-            merged.contextWindow = inferContextWindow(customId);
-          }
-          mergedModels.push(merged);
-          dbModelMap.delete(customId);
-        }
-        for (const dbM of dbModelMap.values()) mergedModels.push(dbM);
-        providers[providerId] = { ...(providers[providerId] || {}), ...providerConfig, models: mergedModels };
+  const configuredProviders = readOmpModelsConfig(agentDir).providers ?? {};
+  const customProviders: Record<string, Record<string, unknown>> = {};
+  const cachedProviderIds = new Set(Object.keys(providers).map((providerId) => providerId.toLowerCase()));
+  for (const [providerId, rawConfig] of Object.entries(configuredProviders)) {
+    const providerConfig = sanitizeObject(rawConfig);
+    if (providerId === "google-antigravity") {
+      providerConfig.api = "google-generative-ai";
+      if (!providerConfig.baseUrl) providerConfig.baseUrl = "https://daily-cloudcode-pa.googleapis.com";
+      const models = Array.isArray(providerConfig.models) ? providerConfig.models : [];
+      for (const model of models) {
+        if (model && typeof model === "object") (model as Record<string, unknown>).api = "google-generative-ai";
       }
-      syncOmpCliModelsYaml(agentDir, customProviders);
-    } catch {
-      // ignore JSON parse error
     }
+    const cachedProviderId = Object.keys(providers).find((candidate) => candidate.toLowerCase() === providerId.toLowerCase());
+    const dbModelList = (cachedProviderId ? providers[cachedProviderId]?.models : undefined) as Array<Record<string, unknown>> ?? [];
+    const customModelList = Array.isArray(providerConfig.models) ? (providerConfig.models as Array<Record<string, unknown>>) : [];
+    const dbModelMap = new Map(dbModelList.map((m) => [String(m.id || ""), m]));
+    const mergedModels: Array<Record<string, unknown>> = [];
+    for (const customM of customModelList) {
+      const customId = String(customM.id || "");
+      const dbM = dbModelMap.get(customId);
+      const merged = { ...(dbM || {}), ...customM };
+      if (!merged.contextWindow || typeof merged.contextWindow !== "number" || (merged.contextWindow as number) <= 0) {
+        merged.contextWindow = inferContextWindow(customId);
+      }
+      mergedModels.push(merged);
+      dbModelMap.delete(customId);
+    }
+    for (const dbM of dbModelMap.values()) mergedModels.push(dbM);
+    const mergedProvider = { ...(cachedProviderId ? providers[cachedProviderId] : {}), ...providerConfig, models: mergedModels };
+    providers[providerId] = mergedProvider;
+    customProviders[providerId] = mergedProvider;
+    if (cachedProviderId && cachedProviderId !== providerId) delete providers[cachedProviderId];
+    cachedProviderIds.add(providerId.toLowerCase());
   }
 
   const dir = dirname(runtimeModelsPath);

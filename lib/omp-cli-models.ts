@@ -19,8 +19,8 @@ export function syncOmpCliModelsYaml(
 
   const next = yaml.stringify({
     ...existing,
-    // models.json is the web editor's source of truth. Replace the provider map
-    // so deleting a provider in the web UI also deletes its CLI entry.
+    // models.yml is the shared provider/model source of truth for web and CLI.
+    // Replacing the provider map also removes providers deleted in the web editor.
     providers: customProviders,
   });
   let current = "";

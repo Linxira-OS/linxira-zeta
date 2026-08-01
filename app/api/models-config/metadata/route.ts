@@ -1,5 +1,7 @@
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { extractMatchingModelMetadata, extractModelMetadata, isRecord, type ModelMetadata } from "@/lib/model-metadata";
+import { getOmpAgentDir } from "@/lib/file-paths";
+import { readOmpModelsConfig } from "@/lib/omp-model-config";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +117,17 @@ export async function POST(req: Request) {
       }
     } catch {
       // Continue with the provider's own catalog if the local runtime cannot load.
+    }
+
+    const configuredProvider = (readOmpModelsConfig(getOmpAgentDir()).providers ?? {})[providerName];
+    const configuredModel = configuredProvider && Array.isArray(configuredProvider.models)
+      ? configuredProvider.models.find((model) => isRecord(model) && model.id === modelId)
+      : undefined;
+    if (configuredModel && isRecord(configuredModel)) {
+      const localMetadata = extractModelMetadata({ ...configuredModel, provider: providerName } as Parameters<typeof extractModelMetadata>[0]);
+      if (hasMetadata(localMetadata)) {
+        return Response.json({ ok: true, ...localMetadata, source: "models.yml" });
+      }
     }
 
     const remoteMetadata = await fetchRemoteMetadata(provider, modelId);

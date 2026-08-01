@@ -4,6 +4,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { completeSimple, type AssistantMessage } from "@earendil-works/pi-ai/compat";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { getOmpAgentDir } from "@/lib/file-paths";
+import { readOmpModelsConfig } from "@/lib/omp-model-config";
 import { getUsableOmpRuntimeCredentials } from "@/lib/omp-auth";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +91,11 @@ export async function POST(req: Request) {
     const modelRuntime = await ModelRuntime.create({ modelsPath });
     for (const credential of getUsableOmpRuntimeCredentials()) {
       await modelRuntime.setRuntimeApiKey(credential.provider, credential.apiKey, { allowNetwork: false });
+    }
+    const configuredProvider = readOmpModelsConfig(getOmpAgentDir()).providers?.[providerName];
+    const configuredKey = configuredProvider?.apiKey;
+    if (typeof configuredKey === "string" && configuredKey.trim()) {
+      await modelRuntime.setRuntimeApiKey(providerName, configuredKey.trim(), { allowNetwork: false });
     }
     const loadError = modelRuntime.getError();
     if (loadError) return NextResponse.json({ ok: false, error: loadError });

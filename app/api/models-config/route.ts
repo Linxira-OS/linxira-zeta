@@ -1,52 +1,22 @@
 import { NextResponse } from "next/server";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join, dirname } from "path";
 import { getOmpAgentDir } from "@/lib/file-paths";
 import { invalidateModelsCache } from "@/lib/models-cache";
-import { readOmpModelsFromDb, syncOmpRuntimeModelsJson } from "@/lib/omp-models";
+import { readOmpModelsConfig, writeOmpModelsConfig } from "@/lib/omp-model-config";
 
 export const dynamic = "force-dynamic";
 
-function getModelsPath(): string {
-  return join(getOmpAgentDir(), "models.json");
-}
-
-function readModelsJson(): Record<string, unknown> {
-  const path = getModelsPath();
-  if (existsSync(path)) {
-    try {
-      return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-    } catch {
-      // ignore error and fallback
-    }
-  }
-  const dbModels = readOmpModelsFromDb();
-  const providers: Record<string, { models: { id: string; name: string }[] }> = {};
-  for (const m of dbModels) {
-    if (!providers[m.provider]) {
-      providers[m.provider] = { models: [] };
-    }
-    providers[m.provider].models.push({ id: m.id, name: m.name });
-  }
-  return { providers };
-}
-
-function writeModelsJson(data: Record<string, unknown>): void {
-  const path = getModelsPath();
-  const dir = dirname(path);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(path, JSON.stringify(data, null, 2), "utf8");
+function readModelsConfig(): Record<string, unknown> {
+  return readOmpModelsConfig(getOmpAgentDir());
 }
 
 export async function GET() {
-  return NextResponse.json(readModelsJson());
+  return NextResponse.json(readModelsConfig());
 }
 
 export async function PUT(req: Request) {
   try {
     const body = await req.json() as Record<string, unknown>;
-    writeModelsJson(body);
-    syncOmpRuntimeModelsJson(getOmpAgentDir());
+    writeOmpModelsConfig(body, getOmpAgentDir());
     invalidateModelsCache();
     return NextResponse.json({ success: true });
   } catch (error) {

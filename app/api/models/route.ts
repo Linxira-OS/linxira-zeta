@@ -1,18 +1,16 @@
-import { existsSync, readFileSync } from "fs";
 import { stat } from "fs/promises";
 import { resolve, join } from "path";
 import { createAgentSessionServices, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import { loadModelsWithCache, withModelRuntimeError, type ModelsData } from "../../../lib/models-cache";
-import { readOmpModelsFromDb, readOmpConfig, parseOmpDefaultModel, syncOmpRuntimeModelsJson } from "../../../lib/omp-models";
+import { readOmpModelsFromDb, readOmpConfig, parseOmpDefaultModel, syncOmpRuntimeModelsJson, applyOmpRuntimeCredentials } from "../../../lib/omp-models";
 import { buildVisibleRoleModels } from "../../../lib/model-role-filter";
-
+import { readOmpModelsConfig } from "../../../lib/omp-model-config";
 import { getUsableOmpRuntimeCredentials } from "../../../lib/omp-auth";
 import { getOmpAgentDir } from "../../../lib/file-paths";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "../../../lib/file-access";
 
 export const dynamic = "force-dynamic";
-
 
 const THINKING_SUFFIXES = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
@@ -48,29 +46,12 @@ async function loadModels(cwd: string): Promise<ModelsData> {
     authPath: join(agentDir, "auth.json"),
     modelsPath: runtimeModelsPath,
   });
-  for (const credential of getUsableOmpRuntimeCredentials()) {
-    await modelRuntime.setRuntimeApiKey(credential.provider, credential.apiKey, { allowNetwork: false });
-  }
-
-  // Load custom provider API keys from models.json if specified
-  const modelsJsonPath = join(agentDir, "models.json");
-  let customProvidersData: Record<string, { apiKey?: string; key?: string; models?: Array<{ id: string; name?: string; contextWindow?: number }> }> = {};
-  if (existsSync(modelsJsonPath)) {
-    try {
-      const parsed = JSON.parse(readFileSync(modelsJsonPath, "utf8")) as { providers?: typeof customProvidersData };
-      if (parsed?.providers) {
-        customProvidersData = parsed.providers;
-        for (const [provider, config] of Object.entries(customProvidersData)) {
-          const key = config.apiKey || config.key;
-          if (key && typeof key === "string" && key.trim()) {
-            await modelRuntime.setRuntimeApiKey(provider, key.trim(), { allowNetwork: false });
-          }
-        }
-      }
-    } catch {
-      // ignore parse error
-    }
-  }
+  await applyOmpRuntimeCredentials(modelRuntime, agentDir);
+  const customProvidersData = (readOmpModelsConfig(agentDir).providers ?? {}) as Record<string, {
+    apiKey?: string;
+    key?: string;
+    models?: Array<{ id: string; name?: string; contextWindow?: number }>;
+  }>;
 
   const services = await createAgentSessionServices({ cwd, agentDir, modelRuntime });
   let available = await services.modelRuntime.getAvailable();
@@ -81,7 +62,7 @@ async function loadModels(cwd: string): Promise<ModelsData> {
     }
   }
 
-  // Merge models defined in models.json into available if not returned by ModelRuntime
+  // Merge models defined in models.yml into available if not returned by ModelRuntime.
   const availableArr = [...available];
   for (const [provider, pConfig] of Object.entries(customProvidersData)) {
     if (Array.isArray(pConfig.models)) {
@@ -121,10 +102,7 @@ async function loadModels(cwd: string): Promise<ModelsData> {
   // whose provider is configured and whose model still exists in the runtime catalog.
   const roleModelEntries = buildVisibleRoleModels(roles, available, authedProviderIds);
 
-
   // 2. Merge role models first, then authenticated models.
-
-  // Merge role entries first (deduplicated), then authenticated models
   const combinedList: { id: string; name: string; provider: string; contextWindow?: number }[] = [];
   for (const entry of roleModelEntries) {
     const existing = combinedList.find((x) => x.provider === entry.provider && x.id === entry.id);
