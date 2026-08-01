@@ -569,10 +569,25 @@ export const SETTINGS_SCHEMA = {
 
 	cycleOrder: { type: "array", default: DEFAULT_CYCLE_ORDER },
 
+	language: {
+		type: "enum",
+		values: ["en", "zh"] as const,
+		default: "en",
+		ui: {
+			tab: "appearance",
+			group: "General",
+			label: "Language",
+			description: "CLI language for user-facing text (system prompts stay English)",
+			options: [
+				{ value: "en", label: "English", description: "English UI text (default)" },
+				{ value: "zh", label: "中文", description: "简体中文界面" },
+			],
+		},
+	},
+
 	// ────────────────────────────────────────────────────────────────────────
 	// Appearance
 	// ────────────────────────────────────────────────────────────────────────
-
 	// Theme
 	"theme.dark": {
 		type: "string",

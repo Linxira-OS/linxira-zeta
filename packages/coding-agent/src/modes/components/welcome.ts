@@ -8,14 +8,16 @@ import {
 	wrapTextWithAnsi,
 } from "@zeta/pi-tui";
 import { APP_NAME } from "@zeta/pi-utils";
+import { currentLanguage, M } from "../../i18n";
 import { theme } from "../../modes/theme/theme";
-import tipsText from "./tips.txt" with { type: "text" };
+import tipsEnText from "./tips-en.txt" with { type: "text" };
+import tipsZhText from "./tips-zh.txt" with { type: "text" };
 
 /** Tips embedded at build time, one per line; blanks dropped. */
-const TIPS: readonly string[] = tipsText
-	.split("\n")
-	.map(line => line.trim())
-	.filter(line => line.length > 0);
+const TIPS: Readonly<Record<"en" | "zh", readonly string[]>> = {
+	en: tipsEnText.split("\n").map(line => line.trim()).filter(line => line.length > 0),
+	zh: tipsZhText.split("\n").map(line => line.trim()).filter(line => line.length > 0),
+};
 
 /**
  * Fixed number of session rows in the welcome box so its height stays stable
@@ -34,8 +36,11 @@ export const WELCOME_LSP_SLOTS = 4;
  *  painted as a shimmering rainbow. Non-global so `.test` stays stateless. */
 const NEW_TIP_MARKER = /\s*\[NEW\]\s*$/;
 
-/** Visible text rendered in place of {@link NEW_TIP_MARKER}. */
-const NEW_TAG_TEXT = "NEW!";
+/** Visible text rendered in place of {@link NEW_TIP_MARKER}. Read at render
+ *  time so a `/language` switch takes effect immediately. */
+function newTagText(): string {
+	return M.welcomeNewTag;
+}
 
 /** Milliseconds for one full hue rotation of the rainbow "NEW!" tag. */
 const NEW_GLOW_PERIOD_MS = 1500;
@@ -68,7 +73,7 @@ function renderNewTag(phase: number, encoding: ColorEncoding): string {
 	const bold = "\x1b[1m";
 	const reset = "\x1b[0m";
 	const wrapped = ((phase % 1) + 1) % 1;
-	const chars = [...NEW_TAG_TEXT];
+	const chars = [...newTagText()];
 	let out = bold;
 	let prev = "";
 	for (let i = 0; i < chars.length; i++) {
@@ -83,7 +88,7 @@ function renderNewTag(phase: number, encoding: ColorEncoding): string {
 	return out + reset;
 }
 export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): string[] {
-	const label = "Tip: ";
+	const label = M.welcomeTipLabel;
 	const labelWidth = visibleWidth(label);
 	const bodyBudget = boxWidth - 1 - labelWidth; // 1 = leading indent
 	if (bodyBudget < 8) return [];
@@ -112,7 +117,7 @@ export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): stri
 		// styled glyphs never overflow or reflow the wrapped body.
 		const encoding: ColorEncoding = TERMINAL.trueColor ? "ansi-16m" : "ansi-256";
 		const tag = renderNewTag(phase, encoding);
-		const tagWidth = 1 + visibleWidth(NEW_TAG_TEXT); // 1 = space separator
+		const tagWidth = 1 + visibleWidth(newTagText()); // 1 = space separator
 		const lastLine = lines[lines.length - 1];
 		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= boxWidth) {
 			lines[lines.length - 1] = `${lastLine} ${tag}`;
@@ -158,9 +163,9 @@ export class WelcomeComponent implements Component {
 	get tip(): string | undefined {
 		if (this.#selectedTip === undefined) {
 			if (theme.getSymbolPreset() === "unicode" && Math.random() < 0.1) {
-				this.#selectedTip = "Please use nerdfont 😭.";
+				this.#selectedTip = M.welcomeNerdFontJoke;
 			} else {
-				this.#selectedTip = pickWeightedTip(TIPS, Math.random());
+				this.#selectedTip = pickWeightedTip(TIPS[currentLanguage()], Math.random());
 			}
 		}
 		return this.#selectedTip || undefined;
@@ -244,7 +249,7 @@ export class WelcomeComponent implements Component {
 		const minRightCol = 20;
 		const leftMinContentWidth = Math.max(
 			minLeftCol,
-			visibleWidth("Welcome back!"),
+			visibleWidth(M.welcomeBack),
 			visibleWidth(this.modelName),
 			visibleWidth(this.providerName),
 		);
@@ -264,7 +269,7 @@ export class WelcomeComponent implements Component {
 		// Left column - centered content
 		const leftLines = [
 			"",
-			this.#centerText(theme.bold("Welcome back!"), leftCol),
+			this.#centerText(theme.bold(M.welcomeBack), leftCol),
 			"",
 			...logoColored.map(l => this.#centerText(l, leftCol)),
 			"",
@@ -279,7 +284,7 @@ export class WelcomeComponent implements Component {
 		// Recent sessions content
 		const sessionLines: string[] = [];
 		if (this.recentSessions.length === 0) {
-			sessionLines.push(` ${theme.fg("dim", "No recent sessions")}`);
+			sessionLines.push(` ${theme.fg("dim", M.welcomeNoRecentSessions)}`);
 		} else {
 			// Reserve width for the bullet prefix (" • ") and the trailing " (timeAgo)"
 			// so the relative time is never the part that gets truncated. The name
@@ -305,7 +310,7 @@ export class WelcomeComponent implements Component {
 		// LSP servers content
 		const lspLines: string[] = [];
 		if (this.lspServers.length === 0) {
-			lspLines.push(` ${theme.fg("dim", "No LSP servers")}`);
+			lspLines.push(` ${theme.fg("dim", M.welcomeNoLspServers)}`);
 		} else {
 			for (const server of this.lspServers.slice(0, WELCOME_LSP_SLOTS)) {
 				const icon =
@@ -327,16 +332,16 @@ export class WelcomeComponent implements Component {
 
 		// Right column
 		const rightLines = [
-			` ${theme.bold(theme.fg("accent", "Tips"))}`,
-			` ${theme.fg("dim", "#")}${theme.fg("muted", " for prompt actions")}`,
-			` ${theme.fg("dim", "/")}${theme.fg("muted", " for commands")}`,
-			` ${theme.fg("dim", "!")}${theme.fg("muted", " to run bash")}`,
-			` ${theme.fg("dim", "$")}${theme.fg("muted", " to run python")}`,
+			` ${theme.bold(theme.fg("accent", M.welcomeTipsTitle))}`,
+			` ${theme.fg("dim", "#")}${theme.fg("muted", M.welcomePromptActionsHint)}`,
+			` ${theme.fg("dim", "/")}${theme.fg("muted", M.welcomeCommandsHint)}`,
+			` ${theme.fg("dim", "!")}${theme.fg("muted", M.welcomeRunBashHint)}`,
+			` ${theme.fg("dim", "$")}${theme.fg("muted", M.welcomeRunPythonHint)}`,
 			separator,
-			` ${theme.bold(theme.fg("accent", "LSP Servers"))}`,
+			` ${theme.bold(theme.fg("accent", M.welcomeLspServersTitle))}`,
 			...lspLines,
 			separator,
-			` ${theme.bold(theme.fg("accent", "Recent sessions"))}`,
+			` ${theme.bold(theme.fg("accent", M.welcomeRecentSessionsTitle))}`,
 			...sessionLines,
 			"",
 		];

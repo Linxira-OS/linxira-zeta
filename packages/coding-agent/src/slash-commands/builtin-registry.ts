@@ -32,6 +32,7 @@ import {
 	MarketplaceManager,
 } from "../extensibility/plugins/marketplace";
 import { readMCPConfigFile } from "../mcp/config-writer";
+import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
 import { resolveMemoryBackend } from "../memory-backend";
 import { runPauseScreen } from "../modes/components/pause-screen";
 import { collectMcpServerNames, MCPCommandController } from "../modes/controllers/mcp-command-controller";
@@ -94,6 +95,11 @@ export interface TuiBuiltinSlashCommand extends BuiltinSlashCommand {
 function refreshStatusLine(ctx: InteractiveModeContext): void {
 	ctx.statusLine.invalidate();
 	ctx.ui.requestRender();
+}
+
+/** `/language` listing row: "en (English)". */
+function formatLanguageRow(tag: string, name: string): string {
+	return M.languageListRowFmt.replace("%s", tag).replace("%s", name);
 }
 
 /** `/fast status` label for the active model: "on" when its family is priority, else "off". */
@@ -2696,6 +2702,58 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runPauseScreen(runtime.ctx);
+		},
+	},
+	{
+		name: "language",
+		description: M.cmdLanguage,
+		acpDescription: "Set the CLI display language",
+		acpInputHint: "[en|zh]",
+		subcommands: [
+			{ name: "en", description: "English" },
+			{ name: "zh", description: "中文" },
+		],
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			const arg = command.args.trim().toLowerCase();
+			if (!arg) {
+				const rows = [
+					M.languageCurrentFmt.replace("%s", currentLanguage()),
+					...LANGUAGE_TAGS.map(tag => formatLanguageRow(tag, tag === "en" ? M.languageEnLabel : M.languageZhLabel)),
+				].join("\n");
+				await runtime.output(rows);
+				return commandConsumed();
+			}
+			if (!(LANGUAGE_TAGS as readonly string[]).includes(arg)) {
+				return usage(M.languageUnknownFmt.replace("%s", arg), runtime);
+			}
+			const tag = arg as ZetaLanguage;
+			runtime.settings.set("language" as SettingPath, tag as SettingValue<SettingPath>);
+			setLanguage(tag);
+			await runtime.output(M.languageChangedFmt.replace("%s", tag));
+			return commandConsumed();
+		},
+		handleTui: async (command, runtime) => {
+			const arg = command.args.trim().toLowerCase();
+			if (!arg) {
+				const rows = [
+					M.languageCurrentFmt.replace("%s", currentLanguage()),
+					...LANGUAGE_TAGS.map(tag => formatLanguageRow(tag, tag === "en" ? M.languageEnLabel : M.languageZhLabel)),
+				].join("\n");
+				runtime.ctx.showStatus(rows);
+				runtime.ctx.editor.setText("");
+				return;
+			}
+			if (!(LANGUAGE_TAGS as readonly string[]).includes(arg)) {
+				runtime.ctx.showStatus(M.languageUnknownFmt.replace("%s", arg));
+				runtime.ctx.editor.setText("");
+				return;
+			}
+			const tag = arg as ZetaLanguage;
+			settings.set("language" as SettingPath, tag as SettingValue<SettingPath>);
+			setLanguage(tag);
+			runtime.ctx.showStatus(M.languageChangedFmt.replace("%s", tag));
+			runtime.ctx.editor.setText("");
 		},
 	},
 	{

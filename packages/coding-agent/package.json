@@ -361,6 +361,14 @@
       "types": "./src/internal-urls/*.ts",
       "import": "./src/internal-urls/*.ts"
     },
+    "./i18n": {
+      "types": "./src/i18n/index.ts",
+      "import": "./src/i18n/index.ts"
+    },
+    "./i18n/*": {
+      "types": "./src/i18n/*.ts",
+      "import": "./src/i18n/*.ts"
+    },
     "./eval": {
       "types": "./src/eval/index.ts",
       "import": "./src/eval/index.ts"
