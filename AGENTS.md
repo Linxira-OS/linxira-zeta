@@ -1,4 +1,28 @@
-# Development Rules
+# Zeta Development Rules
+
+## Zeta Direction
+
+Zeta is an OMP downstream distribution. The runtime tree, package layout, Bun
+workflow, and internal `@oh-my-pi/*` package names intentionally follow OMP so
+that OMP updates remain mergeable.
+
+- `main` is the Zeta product branch.
+- `sync/omp` tracks `omp-upstream/main` and must remain an unmodified OMP tree.
+  Use short-lived `sync/omp/<release>` branches to integrate OMP releases into
+  `main`.
+- `pi-upstream` is a semantic-port source, never a raw merge source. Use
+  `port/pi/<scope>` branches and preserve OMP behavior where the projects
+  intentionally diverge.
+- `web-ui/` is a standalone OMP Web snapshot. It has its own package manager,
+  lockfiles, and development rules in `web-ui/AGENTS.md`; it is not a root Bun
+  workspace package. Sync it from `omp-web-upstream`, and port Pi Web changes
+  through `port/pi-web/<scope>` branches.
+- `temp/` holds local reference clones only. It is ignored and must never be
+  committed.
+
+Current baseline references and the sync procedure live in
+`docs/upstream-sync.md`. Before starting an upstream port, read that file and
+the upstream OMP guide at `docs/porting-from-pi-mono.md`.
 
 ## Default Context
 

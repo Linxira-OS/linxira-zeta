@@ -1,4 +1,18 @@
-# omp-web - Development Notes
+# Zeta Web UI Development Notes
+
+## Zeta Upstream Policy
+
+`web-ui/` is a standalone snapshot of OMP Web, currently sourced from
+`omp-web@c71edcb2a548fafb3889f9065527e08a8db80d71`. Its direct upstream is
+`omp-web-upstream`; `pi-web-upstream` is a semantic-port source only.
+
+- Keep the OMP Web package name, session format support, and OMP-specific
+  configuration behavior unless a focused Zeta change deliberately updates it.
+- Do not add `web-ui/` to the root Bun workspace or refresh its lockfiles from
+  root commands.
+- Use `sync/web-ui/omp/<sha>` for OMP Web snapshots and
+  `port/pi-web/<scope>` for Pi Web ports.
+- Read `../docs/upstream-sync.md` before starting upstream work.
 
 ## Quick Start
 

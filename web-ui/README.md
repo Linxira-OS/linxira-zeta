@@ -1,4 +1,8 @@
-# omp-web
+# Zeta Web UI
+
+Zeta's browser interface is an OMP Web snapshot. It remains compatible with
+the OMP runtime and configuration model; see `../docs/upstream-sync.md` for
+the source baseline and Pi Web porting policy.
 
 [English](./README.en.md)
 
