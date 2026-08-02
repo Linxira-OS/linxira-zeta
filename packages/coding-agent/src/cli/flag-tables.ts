@@ -30,6 +30,7 @@
  * real implementations at the dispatch site.
  */
 
+import { M } from "../i18n/messages";
 import type { ConfiguredThinkingLevel } from "../thinking";
 import type { Args } from "./args";
 import { CliUsageError } from "./usage-error";
@@ -99,9 +100,7 @@ function parseMaxTimeSeconds(value: string): number {
 	const duration = MAX_TIME_DURATION_RE.exec(trimmed);
 	const seconds = duration ? Number(duration[1]) * maxTimeMultiplier(duration[2]) : Number(trimmed);
 	if (Number.isFinite(seconds) && seconds > 0) return seconds;
-	throw new CliUsageError(
-		`Invalid --max-time value: ${JSON.stringify(value)}. Expected a positive number of seconds or duration like "5s", "10m", "1h".`,
-	);
+	throw new CliUsageError(M.ftInvalidMaxTime(JSON.stringify(value)));
 }
 
 /**
@@ -186,7 +185,11 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 		const unknown = names.filter(name => !deps.builtinToolNames.includes(name));
 		if (unknown.length > 0) {
 			throw new CliUsageError(
-				`Unknown tool${unknown.length === 1 ? "" : "s"} in --tools: ${unknown.join(", ")}. Valid tools: ${deps.builtinToolNames.join(", ")}.`,
+				M.ftUnknownToolsFmt(
+					unknown.length === 1 ? "" : M.ftPluralS,
+					unknown.join(", "),
+					deps.builtinToolNames.join(", "),
+				),
 			);
 		}
 		result.tools = names;

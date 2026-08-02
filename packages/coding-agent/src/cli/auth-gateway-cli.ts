@@ -636,7 +636,7 @@ async function runCheck(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 								? chalk.red("FAIL    ")
 								: chalk.yellow("unknown ");
 					const base =
-						row.email ?? row.accountId ?? (row.type === "api_key" ? "(api key)" : "(no identity on credential)");
+						row.email ?? row.accountId ?? (row.type === "api_key" ? M.abkApiKey : M.agwNoIdentityOnCredential);
 					// Two subscriptions (orgs) can share one email — without the org a
 					// failed row can't say which subscription needs re-login.
 					const org = row.orgName ?? row.orgId;

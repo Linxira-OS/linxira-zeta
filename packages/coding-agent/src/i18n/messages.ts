@@ -1400,5 +1400,37 @@ export interface Messages {
 	slDetached: string;
 	slAgent: string;
 	slAgents: string;
+
+	agsChooseScope: string;
+	cfgValidCommands: string;
+	cfgInvalidValue: string;
+	ftInvalidMaxTime: string;
+	ftUnknownToolsFmt: string;
+	ftPluralS: string;
+	fpFileNotFoundFmt: string;
+	xdgUnsupported: string;
+	xdgEnsure: string;
+	xdgAreSet: string;
+	abkLoginUsage: string;
+	abkLoginCancelled: string;
+	abkNoProviders: string;
+	abkSshNotFound: string;
+	abkMissingTokens: string;
+	abkNoIdentity: string;
+	abkExpired: string;
+	abkDisabled: string;
+	abkApiKey: string;
+	abkMigrateSource: string;
+	abkNoSnapshot: string;
+	abkSentinelReason: string;
+	abkOauthSkipped: string;
+	abkAlreadyOnBroker: string;
+	abkAnotherApiKeyPlanned: string;
+	abkAlreadyApiKey: string;
+	abkSqliteSupplied: string;
+	abkLoggedOut: string;
+	agwNoInitialSnapshot: string;
+	agwPluralS: string;
+	agwNoIdentityOnCredential: string;
 	mcpExampleScopes: string; // Example scopes hint
 }

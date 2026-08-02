@@ -8,6 +8,7 @@ import * as path from "node:path";
 import { getAgentDir, getProjectDir, isEnoent } from "@zeta/pi-utils";
 import { YAML } from "bun";
 import chalk from "chalk";
+import { M } from "../i18n/messages";
 import { theme } from "../modes/theme/theme";
 import { loadBundledAgents } from "../task/agents";
 import type { AgentDefinition } from "../task/types";
@@ -42,7 +43,7 @@ function resolveTargetDir(flags: AgentsCommandArgs["flags"]): string {
 	}
 
 	if (flags.user && flags.project) {
-		throw new Error("Choose either --user or --project, not both.");
+		throw new Error(M.agsChooseScope);
 	}
 
 	if (flags.project) {

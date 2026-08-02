@@ -37,6 +37,7 @@ import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, V
 import { setTransports as setLoggerTransports } from "@zeta/pi-utils/logger";
 import { $ } from "bun";
 import chalk from "chalk";
+import { M } from "../i18n/messages";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";
 
 export type AuthBrokerAction = "serve" | "token" | "login" | "logout" | "status" | "import" | "migrate" | "list";
@@ -182,9 +183,7 @@ async function runLogin(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	let providerArg = flags.provider;
 	if (!providerArg) {
 		if (flags.via) {
-			throw new Error(
-				"Usage: omp auth-broker login <provider> --via=user@host (provider required for remote login)",
-			);
+			throw new Error(M.abkLoginUsage);
 		}
 		providerArg = await pickProviderInteractively(providers);
 	}
@@ -286,7 +285,7 @@ function promptLine(rl: readline.Interface, question: string): Promise<string> {
 	};
 
 	const cancel = () => {
-		finish(() => reject(new Error("Login cancelled")));
+		finish(() => reject(new Error(M.abkLoginCancelled)));
 	};
 
 	const onSigint = () => {
@@ -315,7 +314,7 @@ function promptLine(rl: readline.Interface, question: string): Promise<string> {
 
 async function pickProviderInteractively(providers: readonly OAuthProviderInfo[]): Promise<string> {
 	if (providers.length === 0) {
-		throw new Error("No OAuth providers registered");
+		throw new Error(M.abkNoProviders);
 	}
 	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 	try {
@@ -356,7 +355,7 @@ async function runRemoteLogin(provider: string, via: string, dryRun: boolean): P
 	}
 	const sshBin = $which("ssh");
 	if (!sshBin) {
-		throw new Error("ssh binary not found in PATH");
+		throw new Error(M.abkSshNotFound);
 	}
 	const proc = Bun.spawn({
 		cmd: [sshBin, ...sshArgs],
@@ -382,7 +381,7 @@ async function runLogout(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 			}
 			providerArg = await pickStoredProviderInteractively(stored);
 		}
-		store.deleteAuthCredentialsForProvider(providerArg, "logged out by user");
+		store.deleteAuthCredentialsForProvider(providerArg, M.abkLoggedOut);
 		process.stdout.write(`Logged out of ${providerArg}\n`);
 	} finally {
 		store.close();
@@ -524,7 +523,7 @@ async function loadImportPlan(
 			continue;
 		}
 		if (!json.access_token || !json.refresh_token) {
-			skipped.push({ file, reason: "missing access_token or refresh_token" });
+			skipped.push({ file, reason: M.abkMissingTokens });
 			continue;
 		}
 		const expiresAt = parseCliProxyExpiry(json.expired);
@@ -556,9 +555,9 @@ async function loadImportPlan(
 }
 
 function describeImportEntry(entry: ImportPlanEntry): string {
-	const ident = entry.email ?? entry.accountId ?? "(no identity)";
-	const stale = entry.expiresAt < Date.now() ? " [expired]" : "";
-	const disabled = entry.disabled ? " [disabled]" : "";
+	const ident = entry.email ?? entry.accountId ?? M.abkNoIdentity;
+	const stale = entry.expiresAt < Date.now() ? M.abkExpired : "";
+	const disabled = entry.disabled ? M.abkDisabled : "";
 	return `${entry.provider}: ${ident}${stale}${disabled} from ${entry.sourceFile}`;
 }
 
@@ -659,7 +658,7 @@ interface MigrateSkip {
 }
 
 function credentialIdentity(provider: string, credential: AuthCredential): string {
-	if (credential.type === "api_key") return "(api key)";
+	if (credential.type === "api_key") return M.abkApiKey;
 	const base = credential.email ?? credential.accountId ?? credential.projectId ?? `<${provider} oauth>`;
 	return credential.orgId ? `${base} (${credential.orgName ?? credential.orgId})` : base;
 }
@@ -727,14 +726,12 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 		);
 	}
 	if (flags.fromLocal !== true) {
-		throw new Error(
-			"`omp auth-broker migrate` requires an explicit source. Pass `--from-local` to migrate from the local SQLite store and env vars.",
-		);
+		throw new Error(M.abkMigrateSource);
 	}
 
 	const client = new AuthBrokerClient({ url: brokerConfig.url, token: brokerConfig.token });
 	const snapshotResult = await client.fetchSnapshot();
-	if (snapshotResult.status !== 200) throw new Error("Auth broker returned no snapshot");
+	if (snapshotResult.status !== 200) throw new Error(M.abkNoSnapshot);
 	const existing = indexBrokerSnapshot(snapshotResult.snapshot);
 
 	const plan: MigratePlanEntry[] = [];
@@ -754,8 +751,8 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 				skipped.push({
 					source: "local-sqlite",
 					provider: row.provider,
-					identity: "(api key)",
-					reason: "placeholder sentinel '<authenticated>' is not a real key",
+					identity: M.abkApiKey,
+					reason: M.abkSentinelReason,
 				});
 				continue;
 			}
@@ -765,7 +762,7 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 					source: "local-sqlite",
 					provider: row.provider,
 					identity,
-					reason: "OAuth from local SQLite skipped by default (use --include-oauth)",
+					reason: M.abkOauthSkipped,
 				});
 				continue;
 			}
@@ -774,7 +771,7 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 					source: "local-sqlite",
 					provider: row.provider,
 					identity,
-					reason: "already on broker",
+					reason: M.abkAlreadyOnBroker,
 				});
 				continue;
 			}
@@ -783,7 +780,7 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 					source: "local-sqlite",
 					provider: row.provider,
 					identity,
-					reason: "another local api_key for this provider already planned",
+					reason: M.abkAnotherApiKeyPlanned,
 				});
 				continue;
 			}
@@ -805,8 +802,8 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 				skipped.push({
 					source: "env",
 					provider,
-					identity: "(api key)",
-					reason: "already on broker (provider has an api_key)",
+					identity: M.abkApiKey,
+					reason: M.abkAlreadyApiKey,
 				});
 				continue;
 			}
@@ -815,8 +812,8 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 				skipped.push({
 					source: "env",
 					provider,
-					identity: "(api key)",
-					reason: "local SQLite already supplied an api_key for this provider",
+					identity: M.abkApiKey,
+					reason: M.abkSqliteSupplied,
 				});
 				continue;
 			}
