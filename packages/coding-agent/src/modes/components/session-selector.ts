@@ -14,6 +14,7 @@ import {
 	visibleWidth,
 } from "@zeta/pi-tui";
 import { formatBytes } from "@zeta/pi-utils";
+import { M } from "../../i18n";
 import { theme } from "../../modes/theme/theme";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../../modes/utils/keybinding-matchers";
 import type { SessionInfo, SessionStatus } from "../../session/session-listing";
@@ -30,15 +31,15 @@ import { HookSelectorComponent } from "./hook-selector";
 function formatSessionStatus(status: SessionStatus | undefined): string | undefined {
 	switch (status) {
 		case "complete":
-			return theme.fg("success", `${theme.status.success} done`);
+			return theme.fg("success", `${theme.status.success} ${M.ssStatusDone}`);
 		case "interrupted":
-			return theme.fg("warning", `${theme.status.warning} interrupted`);
+			return theme.fg("warning", `${theme.status.warning} ${M.ssStatusInterrupted}`);
 		case "aborted":
-			return theme.fg("muted", `${theme.status.aborted} aborted`);
+			return theme.fg("muted", `${theme.status.aborted} ${M.ssStatusAborted}`);
 		case "error":
-			return theme.fg("error", `${theme.status.error} error`);
+			return theme.fg("error", `${theme.status.error} ${M.ssStatusError}`);
 		case "pending":
-			return theme.fg("accent", `${theme.status.pending} pending`);
+			return theme.fg("accent", `${theme.status.pending} ${M.ssStatusPending}`);
 		default:
 			return undefined;
 	}
@@ -529,12 +530,10 @@ class SessionList implements Component {
 		if (this.#filteredSessions.length === 0) {
 			if (this.#showCwd) {
 				// "All" scope - no sessions anywhere that match filter
-				lines.push(truncateToWidth(theme.fg("muted", "  No sessions found"), width));
+				lines.push(truncateToWidth(theme.fg("muted", M.ssNoSessionsFound), width));
 			} else {
 				// "Current folder" scope - hint to try "all"
-				lines.push(
-					truncateToWidth(theme.fg("muted", "  No sessions in current folder. Press Tab to view all."), width),
-				);
+				lines.push(truncateToWidth(theme.fg("muted", M.ssNoSessionsInFolder), width));
 			}
 			return lines;
 		}
@@ -547,11 +546,13 @@ class SessionList implements Component {
 			const diffHours = Math.floor(diffMs / 3600000);
 			const diffDays = Math.floor(diffMs / 86400000);
 
-			if (diffMins < 1) return "just now";
-			if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
-			if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
-			if (diffDays === 1) return "1 day ago";
-			if (diffDays < 7) return `${diffDays} days ago`;
+			if (diffMins < 1) return M.ssJustNow;
+			if (diffMins < 60)
+				return M.ssMinuteAgoFmt.replace("%s", String(diffMins)).replace("%s", diffMins !== 1 ? "s" : "");
+			if (diffHours < 24)
+				return M.ssHourAgoFmt.replace("%s", String(diffHours)).replace("%s", diffHours !== 1 ? "s" : "");
+			if (diffDays === 1) return M.ssDayAgo;
+			if (diffDays < 7) return M.ssDaysAgoFmt.replace("%s", String(diffDays));
 
 			return date.toLocaleDateString();
 		};
@@ -614,7 +615,7 @@ class SessionList implements Component {
 				metadata += ` ${dot} ${status}`;
 			}
 			if (session.parentSessionPath) {
-				metadata += ` ${dot} ${dim(`${theme.icon.branch} fork`)}`;
+				metadata += ` ${dot} ${dim(`${theme.icon.branch} ${M.ssForkLabel}`)}`;
 			}
 			if (this.#showCwd && session.cwd) {
 				metadata += ` ${dot} ${dim(shortenPath(session.cwd))}`;
@@ -798,7 +799,7 @@ export class SessionSelectorComponent extends Container {
 		this.#globalSessions = options.allSessions ?? null;
 		this.#getTerminalRows = options.getTerminalRows ?? (() => 24);
 		this.#fillHeight = options.fillHeight ?? false;
-		this.#title = options.title ?? "Resume Session";
+		this.#title = options.title ?? M.ssTitleResume;
 		this.#scopeLabel = options.scopeLabel;
 		// Add header
 		this.addChild(new Spacer(1));
@@ -847,7 +848,7 @@ export class SessionSelectorComponent extends Container {
 
 	#headerLabel(): string {
 		if (this.#scopeLabel === false) return theme.bold(this.#title);
-		const scopeLabel = this.#scopeLabel ?? (this.#scope === "all" ? "all projects" : "current folder");
+		const scopeLabel = this.#scopeLabel ?? (this.#scope === "all" ? M.ssAllProjectsLabel : M.ssCurrentFolderLabel);
 		return `${theme.bold(this.#title)} ${theme.fg("muted", `(${scopeLabel})`)}`;
 	}
 
@@ -864,7 +865,7 @@ export class SessionSelectorComponent extends Container {
 				if (!this.#loadAllSessions) return;
 				this.#toggling = true;
 				this.#messageContainer.clear();
-				this.#messageContainer.addChild(new Text(theme.fg("muted", "  Loading all projects…"), 1, 0));
+				this.#messageContainer.addChild(new Text(theme.fg("muted", M.ssLoadingAllProjects), 1, 0));
 				this.#onRequestRender?.();
 				try {
 					global = await this.#loadAllSessions();
@@ -916,7 +917,9 @@ export class SessionSelectorComponent extends Container {
 
 	#showError(message: string): void {
 		this.#messageContainer.clear();
-		this.#messageContainer.addChild(new Text(theme.fg("error", `Error: ${replaceTabs(message)}`), 1, 0));
+		this.#messageContainer.addChild(
+			new Text(theme.fg("error", M.ssErrorPrefixFmt.replace("%s", replaceTabs(message))), 1, 0),
+		);
 		this.#messageContainer.addChild(new Spacer(1));
 	}
 
@@ -932,10 +935,10 @@ export class SessionSelectorComponent extends Container {
 			this.#onRequestRender?.();
 		};
 		this.#confirmationDialog = new HookSelectorComponent(
-			`Delete session?\n${displayName}`,
-			["Yes", "No"],
+			M.ssDeleteSessionFmt.replace("%s", displayName),
+			[M.ssConfirmYes, M.ssConfirmNo],
 			async (option: string) => {
-				if (option === "Yes" && this.#onDelete) {
+				if (option === M.ssConfirmYes && this.#onDelete) {
 					this.#clearError();
 					try {
 						const deleted = await this.#onDelete(session);
@@ -991,8 +994,8 @@ export class SessionSelectorComponent extends Container {
 
 	/** Blank · keybinding hint · bottom border. Rendered by {@link render}. */
 	#footerLines(width: number): string[] {
-		const scopeHint = this.#scope === "all" ? "current folder" : "all projects";
-		const hint = theme.fg("muted", `  [Del/⌫ delete · Enter select · Tab ${scopeHint} · Esc cancel]`);
+		const scopeHint = this.#scope === "all" ? M.ssCurrentFolderLabel : M.ssAllProjectsLabel;
+		const hint = theme.fg("muted", M.ssFooterHintFmt.replace("%s", scopeHint));
 		return ["", hint, "", ...this.#bottomBorder.render(width)];
 	}
 

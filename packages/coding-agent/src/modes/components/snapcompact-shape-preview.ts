@@ -27,6 +27,7 @@ import {
 	type ShapeTarget,
 	type ShapeVariantName,
 } from "@zeta/snapcompact";
+import { M } from "../../i18n";
 import { theme } from "../theme/theme";
 import sampleDoc from "./snapcompact-shape-preview-doc.md" with { type: "text" };
 
@@ -80,27 +81,31 @@ export class SnapcompactShapePreview implements Component {
 		const shape = resolveShape(this.#model, this.#variant);
 		const name = resolvedVariantName(shape);
 		const geo = geometry(shape);
-		const label = this.#variant === "auto" ? `auto → ${name}` : name;
+		const label = this.#variant === "auto" ? M.scpAutoLabelFmt.replace("%s", name) : name;
 		const chars = geo.capacity >= 1000 ? `${(geo.capacity / 1000).toFixed(1)}k` : String(geo.capacity);
 		const tokens =
 			shape.frameTokenEstimate >= 1000
 				? `${(shape.frameTokenEstimate / 1000).toFixed(1)}k`
 				: String(shape.frameTokenEstimate);
-		const stats = `full frame ${geo.cols}×${geo.rows} cells ≈ ${chars} chars ≈ ${tokens} tokens`;
-		const lines: string[] = [theme.fg("muted", `  Sample (zoomed) · ${label} · ${stats}`), ""];
+		const stats = M.scpStatsFmt
+			.replace("%s", String(geo.cols))
+			.replace("%s", String(geo.rows))
+			.replace("%s", chars)
+			.replace("%s", tokens);
+		const lines: string[] = [theme.fg("muted", M.scpHeaderFmt.replace("%s", label).replace("%s", stats)), ""];
 
 		if (!this.#budget || !TERMINAL.imageProtocol) {
-			lines.push(theme.fg("dim", "  (graphic sample needs a Kitty-graphics terminal)"));
+			lines.push(theme.fg("dim", M.scpNeedsKitty));
 			return lines;
 		}
 
 		const entry = this.#ensureEntry(name, shape);
 		if (entry.state === "rendering") {
-			lines.push(theme.fg("dim", "  rendering sample…"));
+			lines.push(theme.fg("dim", M.scpRendering));
 			return lines;
 		}
 		if (entry.state === "failed") {
-			lines.push(theme.fg("dim", "  (sample render failed)"));
+			lines.push(theme.fg("dim", M.scpRenderFailed));
 			return lines;
 		}
 
@@ -117,7 +122,7 @@ export class SnapcompactShapePreview implements Component {
 		// Only the unicode-placeholder path returns text-cell `lines`; cursor-moving
 		// placements would corrupt the bordered settings frame, so skip them.
 		if (!result?.lines) {
-			lines.push(theme.fg("dim", "  (graphic sample needs Kitty unicode-placeholder graphics)"));
+			lines.push(theme.fg("dim", M.scpNeedsKittyPlaceholder));
 			return lines;
 		}
 		if (result.transmit) {

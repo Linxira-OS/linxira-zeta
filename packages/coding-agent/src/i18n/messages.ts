@@ -686,5 +686,55 @@ export interface Messages {
 	mcpWizardRetry: string; // Retry option
 	mcpExampleAuthUrl: string; // Example URL hint
 	mcpExampleTokenUrl: string; // Example URL hint
+
+	// session selector (resume picker)
+	ssTitleResume: string; // Resume Session
+	ssStatusDone: string; // done
+	ssStatusInterrupted: string; // interrupted
+	ssStatusAborted: string; // aborted
+	ssStatusError: string; // error
+	ssStatusPending: string; // pending
+	ssNoSessionsFound: string; //   No sessions found
+	ssNoSessionsInFolder: string; //   No sessions in current folder. Press Tab to view all.
+	ssJustNow: string; // just now
+	ssMinuteAgoFmt: string; // %s minute%s ago
+	ssHourAgoFmt: string; // %s hour%s ago
+	ssDayAgo: string; // 1 day ago
+	ssDaysAgoFmt: string; // %s days ago
+	ssForkLabel: string; // fork
+	ssAllProjectsLabel: string; // all projects
+	ssCurrentFolderLabel: string; // current folder
+	ssLoadingAllProjects: string; //   Loading all projects…
+	ssErrorPrefixFmt: string; // Error: %s
+	ssDeleteSessionFmt: string; // Delete session?\n%s
+	ssConfirmYes: string; // Yes
+	ssConfirmNo: string; // No
+	ssFooterHintFmt: string; //   [Del/⌫ delete · Enter select · Tab %s · Esc cancel]
+
+	// compaction summary / handoff / branch dividers
+	csLabelCompacted: string; // compacted
+	csCompactedFromFmt: string; // **Compacted from %s tokens**
+	csFramesAttachedFmt: string; // _%s snapcompact frame%s attached_
+	csWarningFmt: string; // **Warning:** %s
+	csLabelHandoff: string; // handoff
+	csHandoffContext: string; // **Handoff context**
+	csNoHandoffContent: string; // _No handoff content._
+	csLabelBranch: string; // branch
+	csBranchSummary: string; // **Branch summary**
+
+	// snapcompact shape preview
+	scpHeaderFmt: string; //   Sample (zoomed) · %s · %s
+	scpStatsFmt: string; // full frame %s×%s cells ≈ %s chars ≈ %s tokens
+	scpAutoLabelFmt: string; // auto → %s
+	scpNeedsKitty: string; // (graphic sample needs a Kitty-graphics terminal)
+	scpRendering: string; //   rendering sample…
+	scpRenderFailed: string; // (sample render failed)
+	scpNeedsKittyPlaceholder: string; // (graphic sample needs Kitty unicode-placeholder graphics)
+
+	// hook selector defaults
+	hsHelpHint: string; // up/down navigate  enter select  esc cancel
+	hsNoMatchingOptions: string; //   No matching options
+	hsTypeToSearch: string; //   Type to search
+	hsSearchFmt: string; //   Search: %s
 	mcpExampleScopes: string; // Example scopes hint
 }

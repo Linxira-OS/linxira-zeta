@@ -1,4 +1,5 @@
 import { Box, type Component, Markdown } from "@zeta/pi-tui";
+import { M } from "../../i18n";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import type { BranchSummaryMessage, CompactionSummaryMessage, CustomMessage } from "../../session/messages";
 
@@ -91,8 +92,8 @@ export class CompactionSummaryMessageComponent implements Component {
 			// the full text lives in the ctrl+o detail block below.
 			label: () =>
 				this.message.warning
-					? `${theme.icon.camera} compacted ${theme.fg("warning", theme.icon.warning)}`
-					: `${theme.icon.camera} compacted`,
+					? `${theme.icon.camera} ${M.csLabelCompacted} ${theme.fg("warning", theme.icon.warning)}`
+					: `${theme.icon.camera} ${M.csLabelCompacted}`,
 			detailMarkdown: () => this.#detailMarkdown(),
 		});
 	}
@@ -113,9 +114,13 @@ export class CompactionSummaryMessageComponent implements Component {
 		const tokenStr = this.message.tokensBefore.toLocaleString();
 		const frameCount = this.message.images?.length ?? 0;
 		const frameNote =
-			frameCount > 0 ? `\n\n_${frameCount} snapcompact frame${frameCount === 1 ? "" : "s"} attached_` : "";
-		const warningNote = this.message.warning ? `\n\n${theme.icon.warning} **Warning:** ${this.message.warning}` : "";
-		return `**Compacted from ${tokenStr} tokens**${warningNote}\n\n${this.message.summary}${frameNote}`;
+			frameCount > 0
+				? `\n\n${M.csFramesAttachedFmt.replace("%s", String(frameCount)).replace("%s", frameCount === 1 ? "" : "s")}`
+				: "";
+		const warningNote = this.message.warning
+			? `\n\n${theme.icon.warning} ${M.csWarningFmt.replace("%s", this.message.warning)}`
+			: "";
+		return `${M.csCompactedFromFmt.replace("%s", tokenStr)}${warningNote}\n\n${this.message.summary}${frameNote}`;
 	}
 }
 
@@ -129,7 +134,7 @@ export class HandoffSummaryMessageComponent implements Component {
 
 	constructor(private readonly message: CustomMessage<unknown>) {
 		this.#divider = new SummaryDividerComponent({
-			label: () => `${theme.icon.context} handoff`,
+			label: () => `${theme.icon.context} ${M.csLabelHandoff}`,
 			detailMarkdown: () => this.#detailMarkdown(),
 		});
 	}
@@ -148,7 +153,7 @@ export class HandoffSummaryMessageComponent implements Component {
 
 	#detailMarkdown(): string {
 		const document = extractHandoffDocument(getCustomMessageText(this.message));
-		return `**Handoff context**\n\n${document || "_No handoff content._"}`;
+		return `${M.csHandoffContext}\n\n${document || M.csNoHandoffContent}`;
 	}
 }
 
@@ -172,8 +177,8 @@ export class BranchSummaryMessageComponent implements Component {
 
 	constructor(private readonly message: BranchSummaryMessage) {
 		this.#divider = new SummaryDividerComponent({
-			label: () => `${theme.icon.branch} branch`,
-			detailMarkdown: () => `**Branch summary**\n\n${this.message.summary}`,
+			label: () => `${theme.icon.branch} ${M.csLabelBranch}`,
+			detailMarkdown: () => `${M.csBranchSummary}\n\n${this.message.summary}`,
 		});
 	}
 

@@ -20,6 +20,7 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "@zeta/pi-tui";
+import { M } from "../../i18n";
 import { getMarkdownTheme, type ThemeColor, theme } from "../../modes/theme/theme";
 import {
 	matchesAppExternalEditor,
@@ -262,7 +263,7 @@ export class HookSelectorComponent extends Container {
 			this.addChild(this.#listContainer);
 		}
 		this.addChild(new Spacer(1));
-		const controlsHint = opts?.helpText ?? "up/down navigate  enter select  esc cancel";
+		const controlsHint = opts?.helpText ?? M.hsHelpHint;
 		this.addChild(new Text(theme.fg("dim", controlsHint), 1, 0));
 		this.addChild(new Spacer(1));
 		this.addChild(new DynamicBorder());
@@ -538,7 +539,7 @@ export class HookSelectorComponent extends Container {
 		}
 
 		if (total === 0) {
-			rows.push({ text: theme.fg("dim", "  No matching options"), highlight: false });
+			rows.push({ text: theme.fg("dim", M.hsNoMatchingOptions), highlight: false });
 		}
 
 		if (startIndex > 0 || endIndex < total || this.#shouldRenderSearchStatus(renderWidth, mdTheme)) {
@@ -604,7 +605,7 @@ export class HookSelectorComponent extends Container {
 			this.#searchQuery.trim() && total !== this.#options.length
 				? `${selectedCount}/${total} of ${this.#options.length}`
 				: `${selectedCount}/${total}`;
-		const suffix = this.#searchQuery.trim() ? `  Search: ${this.#searchQuery}` : "  Type to search";
+		const suffix = this.#searchQuery.trim() ? M.hsSearchFmt.replace("%s", this.#searchQuery) : M.hsTypeToSearch;
 		return theme.fg("dim", `  (${count})${suffix}`);
 	}
 
