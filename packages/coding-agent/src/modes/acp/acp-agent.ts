@@ -55,6 +55,7 @@ import { runExtensionCompact } from "../../extensibility/extensions/compact-hand
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { buildSkillPromptMessage, parseSkillInvocation } from "../../extensibility/skills";
 import { loadSlashCommands } from "../../extensibility/slash-commands";
+import { M } from "../../i18n";
 import { resolveLocalUrlToPath } from "../../internal-urls";
 import { MCPManager } from "../../mcp/manager";
 import type { MCPServerConfig } from "../../mcp/types";
@@ -91,8 +92,8 @@ import { ACP_TERMINAL_AUTH_FLAG } from "./terminal-auth";
 const ACP_DEFAULT_MODE_ID = "default";
 const ACP_PLAN_MODE_ID = "plan";
 const DEFAULT_PLAN_FILE_URL = "local://PLAN.md";
-const APPROVE_OPTION = "Approve and execute";
-const REFINE_OPTION = "Refine plan";
+const APPROVE_OPTION = M.imPlanApproveExecute;
+const REFINE_OPTION = M.imPlanRefine;
 const MODE_CONFIG_ID = "mode";
 const MODEL_CONFIG_ID = "model";
 const THINKING_CONFIG_ID = "thinking";
@@ -462,7 +463,7 @@ export function createAcpExtensionUiContext(
 		},
 		getAllThemes: async () => [],
 		getTheme: async () => undefined,
-		setTheme: async () => ({ success: false, error: "Theme changes are unavailable in ACP mode" }),
+		setTheme: async () => ({ success: false, error: M.acpThemeChangesUnavailable }),
 		getToolsExpanded: () => false,
 		setToolsExpanded: () => {},
 	};
@@ -495,16 +496,16 @@ export class AcpAgent implements Agent {
 		const authMethods: AuthMethod[] = [
 			{
 				id: "agent",
-				name: "Use existing local credentials",
-				description: "Authenticate via the provider keys/OAuth state already configured under ~/.omp.",
+				name: M.acpAuthLocalCredentialsName,
+				description: M.acpAuthLocalCredentialsDesc,
 			},
 		];
 		if (params.clientCapabilities?.auth?.terminal === true) {
 			authMethods.push({
 				type: "terminal",
 				id: "terminal",
-				name: "Set up Zeta in terminal",
-				description: "Launch the omp TUI to add provider keys and select models.",
+				name: M.acpAuthTerminalName,
+				description: M.acpAuthTerminalDesc,
 				args: [ACP_TERMINAL_AUTH_FLAG],
 			});
 		}
@@ -543,7 +544,7 @@ export class AcpAgent implements Agent {
 		const supportsTerminalAuth = this.#clientCapabilities?.auth?.terminal === true;
 		const validMethods = supportsTerminalAuth ? ["agent", "terminal"] : ["agent"];
 		if (!validMethods.includes(params.methodId)) {
-			throw new Error(`Unknown ACP auth method: ${params.methodId}`);
+			throw new Error(M.acpErrUnknownAuthMethodFmt.replace("%s", params.methodId));
 		}
 		return {};
 	}
@@ -635,7 +636,7 @@ export class AcpAgent implements Agent {
 	async setSessionConfigOption(params: SetSessionConfigOptionRequest): Promise<SetSessionConfigOptionResponse> {
 		const record = this.#getSessionRecord(params.sessionId);
 		if (typeof params.value === "boolean") {
-			throw new Error(`Unsupported boolean ACP config option: ${params.configId}`);
+			throw new Error(M.acpErrUnsupportedBooleanOptionFmt.replace("%s", params.configId));
 		}
 
 		switch (params.configId) {
@@ -649,7 +650,7 @@ export class AcpAgent implements Agent {
 				this.#setThinkingLevelById(record.session, params.value);
 				break;
 			default:
-				throw new Error(`Unknown ACP config option: ${params.configId}`);
+				throw new Error(M.acpErrUnknownConfigOptionFmt.replace("%s", params.configId));
 		}
 
 		// When mode is changed via the generic config-option API, mirror the
@@ -933,7 +934,7 @@ export class AcpAgent implements Agent {
 	async #runCancelCleanup(record: ManagedSessionRecord, promptTurn: PromptTurnState): Promise<void> {
 		let timer: NodeJS.Timeout | undefined;
 		const timeout = new Promise<never>((_, reject) => {
-			timer = setTimeout(() => reject(new Error("ACP cancel cleanup timed out")), this.#cancelCleanupTimeoutMs);
+			timer = setTimeout(() => reject(new Error(M.acpErrCancelCleanupTimedOut)), this.#cancelCleanupTimeoutMs);
 		});
 		try {
 			await Promise.race([record.session.abort({ reason: USER_INTERRUPT_LABEL }), timeout]);
@@ -991,7 +992,7 @@ export class AcpAgent implements Agent {
 			}
 			case "_omp/chats/byCwd": {
 				const cwd = typeof params.cwd === "string" ? (params.cwd as string) : undefined;
-				if (!cwd) throw new Error("cwd required");
+				if (!cwd) throw new Error(M.acpErrCwdRequired);
 				const limit = typeof params.limit === "number" ? Math.max(1, Math.min(500, params.limit as number)) : 100;
 				const sessions = await SessionManager.list(cwd);
 				const sorted = sessions.sort((l, r) => r.modified.getTime() - l.modified.getTime()).slice(0, limit);
@@ -1024,7 +1025,7 @@ export class AcpAgent implements Agent {
 				return { enabled: true };
 			}
 			default:
-				throw new Error(`Unknown ACP ext method: ${method}`);
+				throw new Error(M.acpErrUnknownExtMethodFmt.replace("%s", method));
 		}
 	}
 
@@ -1073,7 +1074,7 @@ export class AcpAgent implements Agent {
 
 		const storedSession = await this.#findStoredSession(sessionId, cwd);
 		if (!storedSession) {
-			throw new Error(`ACP session not found: ${sessionId}`);
+			throw new Error(M.acpErrSessionNotFoundFmt.replace("%s", sessionId));
 		}
 		return await this.#openStoredSession(storedSession.path, cwd, mcpServers, sessionId);
 	}
@@ -1088,7 +1089,7 @@ export class AcpAgent implements Agent {
 
 		const storedSession = await this.#findStoredSession(sessionId, cwd);
 		if (!storedSession) {
-			throw new Error(`ACP session not found: ${sessionId}`);
+			throw new Error(M.acpErrSessionNotFoundFmt.replace("%s", sessionId));
 		}
 		return await this.#openStoredSession(storedSession.path, cwd, mcpServers, sessionId);
 	}
@@ -1099,11 +1100,11 @@ export class AcpAgent implements Agent {
 		try {
 			const success = await session.switchSession(sourcePath);
 			if (!success) {
-				throw new Error(`ACP session fork was cancelled: ${params.sessionId}`);
+				throw new Error(M.acpErrForkCancelledFmt.replace("%s", params.sessionId));
 			}
 			const forked = await session.fork();
 			if (!forked) {
-				throw new Error(`ACP session fork failed: ${params.sessionId}`);
+				throw new Error(M.acpErrForkFailedFmt.replace("%s", params.sessionId));
 			}
 		} catch (error) {
 			await this.#disposeStandaloneSession(session);
@@ -1122,7 +1123,7 @@ export class AcpAgent implements Agent {
 		try {
 			const success = await session.switchSession(sessionPath);
 			if (!success) {
-				throw new Error(`ACP session load was cancelled: ${sessionId}`);
+				throw new Error(M.acpErrLoadCancelledFmt.replace("%s", sessionId));
 			}
 		} catch (error) {
 			await this.#disposeStandaloneSession(session);
@@ -1183,7 +1184,7 @@ export class AcpAgent implements Agent {
 	#getSessionRecord(sessionId: string): ManagedSessionRecord {
 		const record = this.#sessions.get(sessionId);
 		if (!record) {
-			throw new Error(`Unsupported ACP session: ${sessionId}`);
+			throw new Error(M.acpErrUnsupportedSessionFmt.replace("%s", sessionId));
 		}
 		return record;
 	}
@@ -1192,7 +1193,9 @@ export class AcpAgent implements Agent {
 		const expected = path.resolve(cwd);
 		const actual = path.resolve(session.sessionManager.getCwd());
 		if (actual !== expected) {
-			throw new Error(`ACP session ${session.sessionId} is already loaded for ${actual}, not ${expected}`);
+			throw new Error(
+				M.acpErrCwdMismatchFmt.replace("%s", session.sessionId).replace("%s", actual).replace("%s", expected),
+			);
 		}
 	}
 
@@ -1200,19 +1203,19 @@ export class AcpAgent implements Agent {
 		const loaded = this.#sessions.get(sessionId);
 		if (loaded) {
 			if (isPromptTurnInFlight(loaded.promptTurn)) {
-				throw new Error(`ACP session fork is unavailable while a prompt is in progress: ${sessionId}`);
+				throw new Error(M.acpErrForkWhilePromptFmt.replace("%s", sessionId));
 			}
 			await loaded.session.sessionManager.flush();
 			const sessionPath = loaded.session.sessionManager.getSessionFile();
 			if (!sessionPath) {
-				throw new Error(`ACP session cannot be forked before it is persisted: ${sessionId}`);
+				throw new Error(M.acpErrForkBeforePersistFmt.replace("%s", sessionId));
 			}
 			return sessionPath;
 		}
 
 		const storedSession = await this.#findStoredSessionById(sessionId);
 		if (!storedSession) {
-			throw new Error(`ACP session not found: ${sessionId}`);
+			throw new Error(M.acpErrSessionNotFoundFmt.replace("%s", sessionId));
 		}
 		return storedSession.path;
 	}
@@ -1485,7 +1488,7 @@ export class AcpAgent implements Agent {
 
 	#assertAbsoluteCwd(cwd: string): void {
 		if (!path.isAbsolute(cwd)) {
-			throw new Error(`ACP cwd must be absolute: ${cwd}`);
+			throw new Error(M.acpErrCwdAbsoluteFmt.replace("%s", cwd));
 		}
 	}
 
@@ -1517,7 +1520,7 @@ export class AcpAgent implements Agent {
 					textParts.push(block.title ?? block.name ?? block.uri);
 					break;
 				case "audio":
-					textParts.push("[audio omitted]");
+					textParts.push(M.acpAudioOmitted);
 					break;
 			}
 		}
@@ -1614,7 +1617,7 @@ export class AcpAgent implements Agent {
 	async #setModelById(session: AgentSession, modelId: string): Promise<void> {
 		const model = session.getAvailableModels().find(candidate => this.#toModelId(candidate) === modelId);
 		if (!model) {
-			throw new Error(`Unknown ACP model: ${modelId}`);
+			throw new Error(M.acpErrUnknownModelFmt.replace("%s", modelId));
 		}
 		await session.setModel(model);
 	}
@@ -1622,7 +1625,7 @@ export class AcpAgent implements Agent {
 	#setThinkingLevelById(session: AgentSession, value: string): void {
 		const thinkingLevel = parseConfiguredThinkingLevel(value);
 		if (!thinkingLevel) {
-			throw new Error(`Unknown ACP thinking level: ${value}`);
+			throw new Error(M.acpErrUnknownThinkingFmt.replace("%s", value));
 		}
 		session.setThinkingLevel(thinkingLevel);
 	}
@@ -1632,12 +1635,12 @@ export class AcpAgent implements Agent {
 	}
 
 	#getAvailableModes(session: AgentSession): Array<{ id: string; name: string; description: string }> {
-		const modes = [{ id: ACP_DEFAULT_MODE_ID, name: "Default", description: "Standard ACP headless mode" }];
+		const modes = [{ id: ACP_DEFAULT_MODE_ID, name: M.acpModeDefaultName, description: M.acpModeDefaultDesc }];
 		if (session.settings.get("plan.enabled")) {
 			modes.push({
 				id: ACP_PLAN_MODE_ID,
-				name: "Plan",
-				description: "Read-only planning mode that drafts a plan to a markdown file before any code changes",
+				name: M.acpModePlanName,
+				description: M.acpModePlanDesc,
 			});
 		}
 		void session;
@@ -1651,7 +1654,7 @@ export class AcpAgent implements Agent {
 	#applyModeChange(session: AgentSession, modeId: string): void {
 		const availableModes = this.#getAvailableModes(session);
 		if (!availableModes.some(mode => mode.id === modeId)) {
-			throw new Error(`Unsupported ACP mode: ${modeId}`);
+			throw new Error(M.acpErrUnsupportedModeFmt.replace("%s", modeId));
 		}
 		if (modeId === ACP_PLAN_MODE_ID) {
 			const previous = session.getPlanModeState();
@@ -1688,7 +1691,7 @@ export class AcpAgent implements Agent {
 	async #handleAcpPlanProposal(session: AgentSession, title: string): Promise<AgentToolResult<unknown>> {
 		const state = session.getPlanModeState();
 		if (!state?.enabled) {
-			throw new ToolError("Plan mode is not active.");
+			throw new ToolError(M.imPlanModeNotActive);
 		}
 		const {
 			planFilePath,
@@ -1813,7 +1816,7 @@ export class AcpAgent implements Agent {
 		// inline and a multi-thousand-line plan blows out the dialog.
 		const previewLines = planContent.split("\n").slice(0, 12).join("\n");
 		const ellipsis = planContent.split("\n").length > 12 ? "\n…" : "";
-		const message = `Approve plan "${title}" and start implementation?\n\n${previewLines}${ellipsis}`;
+		const message = `${M.acpPlanApproveMessageFmt.replace("%s", title)}\n\n${previewLines}${ellipsis}`;
 		const value = await elicitFromAcpClient(
 			this.#connection,
 			sessionId,
@@ -2033,7 +2036,7 @@ export class AcpAgent implements Agent {
 		}
 		const parsed = Number.parseInt(cursor, 10);
 		if (!Number.isFinite(parsed) || parsed < 0) {
-			throw new Error(`Invalid ACP session cursor: ${cursor}`);
+			throw new Error(M.acpErrInvalidCursorFmt.replace("%s", cursor));
 		}
 		return parsed;
 	}
@@ -2315,11 +2318,14 @@ export class AcpAgent implements Agent {
 			record.session.setUsageFallbackConfirmer(confirmation => {
 				const reserve =
 					confirmation.remainingPercent === undefined
-						? "inside the configured reserve margin"
-						: `${confirmation.remainingPercent.toFixed(1)}% remaining`;
+						? M.acpReserveMargin
+						: M.acpReservePercentFmt.replace("%s", confirmation.remainingPercent.toFixed(1));
 				return uiContext.confirm(
-					"Coding-plan reserve reached",
-					`${confirmation.from} has ${reserve}. Switch to ${confirmation.to}? Choose No to keep using the current plan.`,
+					M.acpReserveTitle,
+					M.acpReserveBodyFmt
+						.replace("%s", confirmation.from)
+						.replace("%s", reserve)
+						.replace("%s", confirmation.to),
 				);
 			});
 		}
@@ -2458,7 +2464,7 @@ export class AcpAgent implements Agent {
 			configs[server.name] = this.#toMcpConfig(server);
 			sources[server.name] = {
 				provider: "acp",
-				providerName: "ACP Client",
+				providerName: M.acpProviderName,
 				path: `acp://${server.name}`,
 				level: "project",
 			};
@@ -2502,7 +2508,7 @@ export class AcpAgent implements Agent {
 		}
 		// The experimental ACP-channel transport (`type: "acp"`) is not advertised in
 		// `mcpCapabilities`, so a spec-compliant client never sends it; reject defensively.
-		throw new Error(`Unsupported MCP server transport: ${server.type}`);
+		throw new Error(M.acpErrUnsupportedTransportFmt.replace("%s", server.type));
 	}
 
 	#toNameValueMap(values: Array<{ name: string; value: string }>): { [name: string]: string } {
@@ -2514,7 +2520,7 @@ export class AcpAgent implements Agent {
 	}
 
 	async #closeManagedSession(sessionId: string, record: ManagedSessionRecord): Promise<void> {
-		record.closedError ??= this.#createPromptLifecycleError("ACP session closed before queued prompt could run");
+		record.closedError ??= this.#createPromptLifecycleError(M.acpErrClosedBeforeQueued);
 		this.#sessions.delete(sessionId);
 		await this.#cancelPromptForClose(record);
 		await this.#disposeSessionRecord(record);
@@ -2571,9 +2577,7 @@ export class AcpAgent implements Agent {
 			await Promise.all(
 				records.map(async ([sessionId, record]) => {
 					try {
-						record.closedError ??= this.#createPromptLifecycleError(
-							"ACP agent disposed before queued prompt could run",
-						);
+						record.closedError ??= this.#createPromptLifecycleError(M.acpErrDisposedBeforeQueued);
 						await this.#cancelPromptForClose(record);
 						await this.#disposeSessionRecord(record, reason);
 					} catch (error) {

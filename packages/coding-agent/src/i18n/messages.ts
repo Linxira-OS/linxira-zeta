@@ -1061,5 +1061,54 @@ export interface Messages {
 	imBtwBranched: string;
 	imBtwBranchFailedFmt: string;
 	imVibeModeEnabledDesc: string;
+	// read tool group previews
+	rtgReadTitleFmt: string;
+	rtgReadTitle: string;
+	rtgCorrectedFromFmt: string;
+	rtgConflictsFmt: string;
+	// ACP mode: auth, errors, plan approval, reserve confirmation
+	acpThemeChangesUnavailable: string;
+	acpAuthLocalCredentialsName: string;
+	acpAuthLocalCredentialsDesc: string;
+	acpAuthTerminalName: string;
+	acpAuthTerminalDesc: string;
+	acpErrUnknownAuthMethodFmt: string;
+	acpErrUnsupportedBooleanOptionFmt: string;
+	acpErrUnknownConfigOptionFmt: string;
+	acpErrCwdRequired: string;
+	acpErrUnknownExtMethodFmt: string;
+	acpErrSessionNotFoundFmt: string;
+	acpErrForkCancelledFmt: string;
+	acpErrForkFailedFmt: string;
+	acpErrLoadCancelledFmt: string;
+	acpErrUnsupportedSessionFmt: string;
+	acpErrCwdMismatchFmt: string;
+	acpErrForkWhilePromptFmt: string;
+	acpErrForkBeforePersistFmt: string;
+	acpErrCwdAbsoluteFmt: string;
+	acpAudioOmitted: string;
+	acpErrUnknownModelFmt: string;
+	acpErrUnknownThinkingFmt: string;
+	acpModeDefaultName: string;
+	acpModeDefaultDesc: string;
+	acpModePlanName: string;
+	acpModePlanDesc: string;
+	acpErrUnsupportedModeFmt: string;
+	acpPlanApproveMessageFmt: string;
+	acpErrInvalidCursorFmt: string;
+	acpReserveMargin: string;
+	acpReservePercentFmt: string;
+	acpReserveTitle: string;
+	acpReserveBodyFmt: string;
+	acpProviderName: string;
+	acpErrUnsupportedTransportFmt: string;
+	acpErrClosedBeforeQueued: string;
+	acpErrDisposedBeforeQueued: string;
+	acpErrCancelCleanupTimedOut: string;
+	acpModeStderrBanner: string;
+	acpModeStderrSpawnHint: string;
+	acpModeStderrWaitHint: string;
+	acpSkillRunFmt: string;
+	acpExtensionCommandDesc: string;
 	mcpExampleScopes: string; // Example scopes hint
 }

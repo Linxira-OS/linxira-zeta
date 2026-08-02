@@ -4,6 +4,7 @@ import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { ExtensionRunner } from "../extensibility/extensions";
 import { getSkillSlashCommandName, type Skill } from "../extensibility/skills";
 import { type FileSlashCommand, loadSlashCommands } from "../extensibility/slash-commands";
+import { M } from "../i18n";
 import { ACP_BUILTIN_RESERVED_NAMES, isAcpBuiltinShadowedName } from "./acp-builtins";
 import { BUILTIN_SLASH_COMMANDS_INTERNAL } from "./builtin-registry";
 
@@ -57,7 +58,7 @@ export async function buildAvailableSlashCommands(
 		for (const skill of session.skills) {
 			appendCommand({
 				name: getSkillSlashCommandName(skill),
-				description: skill.description || `Run ${skill.name} skill`,
+				description: skill.description || M.acpSkillRunFmt.replace("%s", skill.name),
 				input: { hint: "arguments" },
 				source: "skill",
 			});
@@ -70,7 +71,7 @@ export async function buildAvailableSlashCommands(
 			if (isAcpBuiltinShadowedName(command.name)) continue;
 			appendCommand({
 				name: command.name,
-				description: command.description ?? "(extension command)",
+				description: command.description ?? M.acpExtensionCommandDesc,
 				input: { hint: "arguments" },
 				source: "extension",
 			});

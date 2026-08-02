@@ -1,6 +1,7 @@
 import * as stream from "node:stream";
 import { AgentSideConnection, ndJsonStream, type Stream } from "@agentclientprotocol/sdk";
 import { postmortem } from "@zeta/pi-utils";
+import { M } from "../../i18n";
 import type { AgentSession } from "../../session/agent-session";
 import { AcpAgent } from "./acp-agent";
 
@@ -29,9 +30,7 @@ export async function runAcpMode(createSession: AcpSessionFactory, initialSessio
 	// before the transport starts.
 	if (process.stdin.isTTY) {
 		process.stderr.write(
-			"omp acp: ACP server speaking JSON-RPC over stdio.\n" +
-				'This command is meant to be spawned by an ACP client (e.g. Zed\'s "agent_servers" config), not run directly.\n' +
-				"Waiting for protocol frames on stdin; logs: ~/.omp/logs/\n",
+			`${M.acpModeStderrBanner}\n` + `${M.acpModeStderrSpawnHint}\n` + `${M.acpModeStderrWaitHint}\n`,
 		);
 	}
 	let agent: AcpAgent | undefined;
