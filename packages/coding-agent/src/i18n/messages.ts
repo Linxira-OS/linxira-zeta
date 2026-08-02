@@ -1484,6 +1484,42 @@ export interface Messages {
 	biForceKill: string;
 	biInputForwarded: string;
 	biSessionFinished: string;
+	rdErrHashlineSnapshot: string;
+	rdErrPdfExtract: string;
+	rdNoPdfImageMembers: string;
+	rdPdfImageMembers: string;
+	rdPdfMemberItem: string;
+	rdErrPdfMemberNotFound: string;
+	rdErrImageTooLarge: string;
+	rdErrPdfMemberUnsupported: string;
+	rdErrImageFormat: string;
+	rdErrArchivePathNotFound: string;
+	rdErrArchiveMultiRange: string;
+	rdErrSqliteSelector: string;
+	rdErrUrlDisabled: string;
+	rdErrPathIsDirectory: string;
+	rdErrPathNotFound: string;
+	rdErrDirMultiRange: string;
+	rdCannotReadExt: string;
+	rdConversionFailed: string;
+	rdErrQueryWithSelectors: string;
+	rdErrXdevNotMounted: string;
+	rdErrReadDirectory: string;
+	rdConflictWildcard: string;
+	rdElisionFooter: string;
+	rdUnknownError: string;
+	rdNone: string;
+	rdImageMetadata: string;
+	rdMimeFmt: string;
+	rdBytesFmt: string;
+	rdDimensionsFmt: string;
+	rdDimensionsUnknown: string;
+	rdChannelsFmt: string;
+	rdChannelsUnknown: string;
+	rdAlphaYes: string;
+	rdAlphaNo: string;
+	rdAlphaUnknown: string;
+	rdInspectImageHint: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

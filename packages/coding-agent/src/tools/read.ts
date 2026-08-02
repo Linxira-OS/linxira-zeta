@@ -38,6 +38,7 @@ import {
 import { normalizeToLF } from "../edit/normalize";
 import { isNotebookPath, readEditableNotebookText } from "../edit/notebook";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { InternalUrlRouter, resolveLocalUrlToFile, resolveLocalUrlToPath } from "../internal-urls";
 import { type ResolvedArtifactFile, resolveArtifactFile } from "../internal-urls/artifact-protocol";
 import { parseInternalUrl } from "../internal-urls/parse";
@@ -240,7 +241,7 @@ async function readHashlineHeaderContext(
 		formatPathRelativeToCwd(absolutePath, cwd),
 		fullText,
 	);
-	if (!context) throw new ToolError(`Cannot record hashline snapshot for non-absolute path: ${absolutePath}`);
+	if (!context) throw new ToolError(M.rdErrHashlineSnapshot.replace("%s", absolutePath));
 	return context;
 }
 
@@ -401,7 +402,7 @@ function formatSummaryElisionFooter(
 		.join(",");
 	const example = `${readPath}:${selector}`;
 	const tail = elidedRanges.length > sampleCount ? `, e.g. ${example}` : ` with ${example}`;
-	return `[…${elidedLines}ln elided; re-read needed ranges${tail}]`;
+	return M.rdElisionFooter.replace("%s", String(elidedLines)).replace("%s", tail);
 }
 const READ_CHUNK_SIZE = 8 * 1024;
 
@@ -1182,7 +1183,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		try {
 			const result = await convertFileWithMarkit(snapshot.filePath, signal, { imageDir: stagingDir });
 			if (!result.ok) {
-				throw new ToolError(`Cannot extract images from PDF: ${result.error ?? "conversion failed"}`);
+				throw new ToolError(M.rdErrPdfExtract.replace("%s", result.error ?? M.rdConversionFailed));
 			}
 			await Bun.write(path.join(stagingDir, ".extracted"), "ok");
 			try {
@@ -1258,10 +1259,13 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		if (member.length === 0) {
 			const text =
 				members.length === 0
-					? "No extractable PDF image members found."
-					: `Extractable PDF image members:\n${members
-							.map(imageMember => `- read \`${pdfDisplayPath}:${imageMember}\``)
-							.join("\n")}`;
+					? M.rdNoPdfImageMembers
+					: M.rdPdfImageMembers.replace(
+							"%s",
+							members
+								.map(imageMember => M.rdPdfMemberItem.replace("%s", pdfDisplayPath).replace("%s", imageMember))
+								.join("\n"),
+						);
 			return toolResult<ReadToolDetails>({ resolvedPath: absolutePdfPath, suffixResolution })
 				.text(prependSuffixResolutionNotice(text, suffixResolution))
 				.sourcePath(absolutePdfPath)
@@ -1269,8 +1273,8 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		}
 
 		if (!members.includes(member)) {
-			const available = members.length === 0 ? "(none)" : members.join(", ");
-			throw new ToolError(`PDF image member '${member}' not found. Available members: ${available}`);
+			const available = members.length === 0 ? M.rdNone : members.join(", ");
+			throw new ToolError(M.rdErrPdfMemberNotFound.replace("%s", member).replace("%s", available));
 		}
 
 		const imagePath = path.join(imageDir, member);
@@ -1278,11 +1282,11 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		if (imageStat.size > MAX_IMAGE_SIZE) {
 			const sizeStr = formatBytes(imageStat.size);
 			const maxStr = formatBytes(MAX_IMAGE_SIZE);
-			throw new ToolError(`Image file too large: ${sizeStr} exceeds ${maxStr} limit.`);
+			throw new ToolError(M.rdErrImageTooLarge.replace("%s", sizeStr).replace("%s", maxStr));
 		}
 		const metadata = await readImageMetadata(imagePath);
 		const mimeType = metadata?.mimeType;
-		if (!mimeType) throw new ToolError(`PDF image member '${member}' is not a supported image.`);
+		if (!mimeType) throw new ToolError(M.rdErrPdfMemberUnsupported.replace("%s", member));
 		const imageInput = await loadImageInput({
 			path: `${pdfDisplayPath}:${member}`,
 			cwd: this.session.cwd,
@@ -1293,7 +1297,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			excludeWebP: webpExclusionForModel(this.session.getActiveModel?.()),
 		});
 		if (!imageInput) {
-			throw new ToolError(`Read image file [${mimeType}] failed: unsupported image format.`);
+			throw new ToolError(M.rdErrImageFormat.replace("%s", mimeType));
 		}
 		const textNote = prependSuffixResolutionNotice(imageInput.textNote, suffixResolution);
 		return toolResult<ReadToolDetails>({ resolvedPath: absolutePdfPath, suffixResolution })
@@ -1323,23 +1327,22 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		if (this.syncInspectImageState()) {
 			const outputMime = imageMetadata?.mimeType ?? mimeType;
 			const metadataLines = [
-				"Image metadata:",
-				`- MIME: ${outputMime}`,
-				`- Bytes: ${fileSize} (${formatBytes(fileSize)})`,
+				M.rdImageMetadata,
+				M.rdMimeFmt.replace("%s", outputMime),
+				M.rdBytesFmt.replace("%s", String(fileSize)).replace("%s", formatBytes(fileSize)),
 				imageMetadata?.width !== undefined && imageMetadata.height !== undefined
-					? `- Dimensions: ${imageMetadata.width}x${imageMetadata.height}`
-					: "- Dimensions: unknown",
-				imageMetadata?.channels !== undefined ? `- Channels: ${imageMetadata.channels}` : "- Channels: unknown",
+					? M.rdDimensionsFmt.replace("%s", `${imageMetadata.width}x${imageMetadata.height}`)
+					: M.rdDimensionsUnknown,
+				imageMetadata?.channels !== undefined
+					? M.rdChannelsFmt.replace("%s", String(imageMetadata.channels))
+					: M.rdChannelsUnknown,
 				imageMetadata?.hasAlpha === true
-					? "- Alpha: yes"
+					? M.rdAlphaYes
 					: imageMetadata?.hasAlpha === false
-						? "- Alpha: no"
-						: "- Alpha: unknown",
+						? M.rdAlphaNo
+						: M.rdAlphaUnknown,
 				"",
-				`If you want to analyze the image, call inspect_image with path="${formatPathRelativeToCwd(
-					absolutePath,
-					this.session.cwd,
-				)}" and a question describing what to inspect and the desired output format.`,
+				M.rdInspectImageHint.replace("%s", formatPathRelativeToCwd(absolutePath, this.session.cwd)),
 			];
 			return { content: [{ type: "text", text: metadataLines.join("\n") }], details: {}, sourcePath: absolutePath };
 		}
@@ -1896,12 +1899,12 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			}
 		}
 		if (!node) {
-			throw new ToolError(`Path '${readPath}' not found inside archive`);
+			throw new ToolError(M.rdErrArchivePathNotFound.replace("%s", readPath));
 		}
 
 		if (node.isDirectory) {
 			if (isMultiRange(sel)) {
-				throw new ToolError("Multi-range line selectors are not supported for archive directory listings.");
+				throw new ToolError(M.rdErrArchiveMultiRange);
 			}
 			const { offset, limit } = selToOffsetLimit(sel);
 			return this.#readArchiveDirectory(
@@ -2070,7 +2073,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				}
 			}
 
-			throw new ToolError("Unsupported SQLite selector");
+			throw new ToolError(M.rdErrSqliteSelector);
 		} catch (error) {
 			if (error instanceof ToolError) {
 				throw error;
@@ -2257,9 +2260,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		const conflictUri = parseConflictUri(readPath);
 		if (conflictUri) {
 			if (conflictUri.id === "*") {
-				throw new ToolError(
-					"Reading `conflict://*` is not supported — wildcards are write-only. Use the `<path>:conflicts` read selector for the full list of conflicts in a file, or read `conflict://<N>` to inspect a single block.",
-				);
+				throw new ToolError(M.rdConflictWildcard);
 			}
 			return this.#readConflictRegion(conflictUri.id, conflictUri.scope);
 		}
@@ -2268,7 +2269,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		const parsedUrlTarget = parseReadUrlTarget(readPath);
 		if (parsedUrlTarget) {
 			if (!this.session.settings.get("fetch.enabled")) {
-				throw new ToolError("URL reads are disabled by settings.");
+				throw new ToolError(M.rdErrUrlDisabled);
 			}
 			const urlRaw = parsedUrlTarget.raw;
 			const urlRanges = parsedUrlTarget.ranges;
@@ -2382,11 +2383,11 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				try {
 					const stat = await Bun.file(absolutePdfPath).stat();
 					if (stat.isDirectory())
-						throw new ToolError(`Path '${pdfImageMemberPath.pdfPath}' is a directory, not a PDF file`);
+						throw new ToolError(M.rdErrPathIsDirectory.replace("%s", pdfImageMemberPath.pdfPath));
 				} catch (error) {
 					if (!isNotFoundError(error) || isRemoteMountPath(absolutePdfPath)) throw error;
 					const suffixMatch = await this.#findSuffixMatchCached(suffixCache, pdfImageMemberPath.pdfPath, signal);
-					if (!suffixMatch) throw new ToolError(`Path '${pdfImageMemberPath.pdfPath}' not found`);
+					if (!suffixMatch) throw new ToolError(M.rdErrPathNotFound.replace("%s", pdfImageMemberPath.pdfPath));
 					absolutePdfPath = suffixMatch.absolutePath;
 					suffixResolution = { from: pdfImageMemberPath.pdfPath, to: suffixMatch.displayPath };
 				}
@@ -2453,7 +2454,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				if (!recoveredApprovedPlan && !suffixResolution) {
 					const delimitedResult = await this.#tryReadDelimitedPaths(readPath, signal);
 					if (delimitedResult) return delimitedResult;
-					throw new ToolError(`Path '${localReadPath}' not found`);
+					throw new ToolError(M.rdErrPathNotFound.replace("%s", localReadPath));
 				}
 			} else {
 				throw error;
@@ -2462,7 +2463,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 
 		if (isDirectory) {
 			if (isMultiRange(parsed)) {
-				throw new ToolError("Multi-range line selectors are not supported for directory listings.");
+				throw new ToolError(M.rdErrDirMultiRange);
 			}
 			const { offset, limit } = selToOffsetLimit(parsed);
 			// Directory listings are deterministic and fast; never abort them mid-scan
@@ -2572,9 +2573,16 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					raw: isRawSelector(parsed),
 				});
 			} else if (result.error) {
-				content = [{ type: "text", text: `[Cannot read ${ext} file: ${result.error || "conversion failed"}]` }];
+				content = [
+					{
+						type: "text",
+						text: M.rdCannotReadExt.replace("%s", ext).replace("%s", result.error || M.rdConversionFailed),
+					},
+				];
 			} else {
-				content = [{ type: "text", text: `[Cannot read ${ext} file: conversion failed]` }];
+				content = [
+					{ type: "text", text: M.rdCannotReadExt.replace("%s", ext).replace("%s", M.rdConversionFailed) },
+				];
 			}
 		} else {
 			// Binary sniff before any UTF-8 text materialization. A binary file
@@ -3293,7 +3301,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 
 		// Reject line selectors when query extraction is used
 		if (hasExtraction && parsedSel.kind !== "none" && parsedSel.kind !== "raw") {
-			throw new ToolError("Cannot combine query extraction with line selectors");
+			throw new ToolError(M.rdErrQueryWithSelectors);
 		}
 
 		// Resolve the internal URL
@@ -3308,7 +3316,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					if (name === REPORT_ISSUE_DEVICE_NAME) return reportIssueDeviceUsage();
 					if (name && isResolutionDeviceName(name)) return resolutionDeviceUsage(name);
 					const xdev = this.session.xdev;
-					if (!xdev) throw new ToolError("xd:// is not mounted in this session.");
+					if (!xdev) throw new ToolError(M.rdErrXdevNotMounted);
 					return name === null ? xdevListing(xdev) : xdevDocs(xdev, name);
 				},
 			},
@@ -3410,7 +3418,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			throw new ToolError(`Cannot read directory: ${message}`);
+			throw new ToolError(M.rdErrReadDirectory.replace("%s", message));
 		}
 		throwIfAborted(signal);
 
@@ -3581,7 +3589,7 @@ export const readToolRenderer = {
 
 		if (result.isError) {
 			const rawErrorText = result.content?.find(c => c.type === "text")?.text ?? "";
-			const errorText = (rawErrorText || "Unknown error").replace(/^Error:\s*/, "");
+			const errorText = (rawErrorText || M.rdUnknownError).replace(/^Error:\s*/, "");
 			const rawPath =
 				typeof args?.file_path === "string" ? args.file_path : typeof args?.path === "string" ? args.path : "";
 			const filePath =
