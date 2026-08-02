@@ -1715,6 +1715,27 @@ export interface Messages {
 	evJavascriptDefault: string;
 	evElidedChFmt: string;
 	evDisplayFmt: string;
+	brErrMissingCode: string;
+	brActionLabel: string;
+	brMissing: string;
+	brTabLabel: string;
+	brUrlLabel: string;
+	brCodeLabel: string;
+	cmErrNotArray: string;
+	cmErrInvalidAction: string;
+	cmErrClosed: string;
+	cmErrSafetyApproval: string;
+	iiErrNoAttachmentsFmt: string;
+	iiErrResolveFmt: string;
+	iiAttachmentListFmt: string;
+	vbSpawnedFmt: string;
+	vbNewTurnFmt: string;
+	vbSteeredFmt: string;
+	vbQueuedFmt: string;
+	vbNoTurnsInFlight: string;
+	xdDocsSuffixFmt: string;
+	xdExecuteHintFmt: string;
+	xdErrInvalidArgsFmt: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

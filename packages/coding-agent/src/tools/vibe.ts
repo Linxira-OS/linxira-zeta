@@ -16,6 +16,7 @@ import { Text } from "@zeta/pi-tui";
 import { prompt } from "@zeta/pi-utils";
 import { type } from "arktype";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { shimmerEnabled, shimmerText } from "../modes/theme/shimmer";
 import type { Theme } from "../modes/theme/theme";
 import vibeKillDescription from "../prompts/tools/vibe-kill.md" with { type: "text" };
@@ -114,7 +115,7 @@ export class VibeSpawnTool implements AgentTool<typeof vibeSpawnSchema, VibeTool
 	async execute(_toolCallId: string, params: typeof vibeSpawnSchema.infer): Promise<AgentToolResult<VibeToolDetails>> {
 		const { id, jobId } = await VibeSessionRegistry.global().spawn(this.session, params);
 		return textResult(
-			`Spawned ${params.cli} session \`${id}\` (turn job \`${jobId}\`). The turn result will be delivered when it finishes — keep directing other sessions meanwhile. Continue this one with vibe_send \`${id}\`.`,
+			M.vbSpawnedFmt.replace("%s", params.cli).replace("%s", id).replace("%s", jobId).replace("%s", id),
 			{ op: "spawn", screens: screensOf(this.session), spawned: { id, cli: params.cli, jobId } },
 		);
 	}
@@ -136,10 +137,10 @@ export class VibeSendTool implements AgentTool<typeof vibeSendSchema, VibeToolDe
 		const outcome = await VibeSessionRegistry.global().send(this.session, params);
 		const ack =
 			outcome.mode === "turn"
-				? `Started a new turn on \`${outcome.id}\` (job \`${outcome.jobId}\`). Its result will be delivered when the turn finishes.`
+				? M.vbNewTurnFmt.replace("%s", outcome.id).replace("%s", String(outcome.jobId))
 				: outcome.mode === "steered"
-					? `Steered \`${outcome.id}\` mid-turn — the running turn sees your message at its next step.`
-					: `\`${outcome.id}\` is mid-turn; your message is queued and runs automatically as the next turn.`;
+					? M.vbSteeredFmt.replace("%s", outcome.id)
+					: M.vbQueuedFmt.replace("%s", outcome.id);
 		return textResult(ack, { op: "send", screens: screensOf(this.session), send: outcome });
 	}
 }
@@ -200,7 +201,7 @@ export class VibeWaitTool implements AgentTool<typeof vibeWaitSchema, VibeToolDe
 			},
 		};
 		if (outcome.settled.length === 0 && outcome.stillRunning.length === 0) {
-			return { ...textResult("No turns in flight to wait for.", details), useless: true };
+			return { ...textResult(M.vbNoTurnsInFlight, details), useless: true };
 		}
 		const lines: string[] = [];
 		for (const entry of outcome.settled) {

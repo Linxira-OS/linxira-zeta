@@ -16,6 +16,7 @@ import type {
 } from "@zeta/pi-natives";
 import { once, prompt, sanitizeText } from "@zeta/pi-utils";
 import { type Type, type } from "arktype";
+import { M } from "../i18n/messages";
 import computerDescription from "../prompts/tools/computer.md" with { type: "text" };
 import { truncateForPrompt } from "./approval";
 import { type ComputerController, ComputerSupervisor, registerComputerController } from "./computer/supervisor";
@@ -288,9 +289,9 @@ function parseActions(value: unknown): ComputerAction[] {
 	// Missing or empty action batches degrade to a plain screenshot so a
 	// function-calling model can observe the screen before acting.
 	if (value == null) return [{ type: "screenshot" }];
-	if (!Array.isArray(value)) throw new ToolError("Computer call requires an array of actions");
+	if (!Array.isArray(value)) throw new ToolError(M.cmErrNotArray);
 	if (value.length === 0) return [{ type: "screenshot" }];
-	if (!value.every(isComputerAction)) throw new ToolError("Computer call contains an invalid action");
+	if (!value.every(isComputerAction)) throw new ToolError(M.cmErrInvalidAction);
 	return value;
 }
 
@@ -470,12 +471,12 @@ export class ComputerTool implements AgentTool<ComputerSchema, ComputerToolDetai
 		context?: AgentToolContext,
 	): Promise<AgentToolResult<ComputerToolDetails>> {
 		throwIfAborted(signal);
-		if (this.#closed) throw new ToolError("Computer session is closed");
+		if (this.#closed) throw new ToolError(M.cmErrClosed);
 		const metadata = callMetadata(context);
 		const actions = parseActions(metadata?.actions ?? params.actions);
 		const pendingSafetyChecks: ComputerSafetyCheck[] = metadata?.pendingSafetyChecks ?? [];
 		if (pendingSafetyChecks.length > 0 && context?.providerSafetyApproved !== true) {
-			throw new ToolError("Provider safety checks require interactive approval before computer input");
+			throw new ToolError(M.cmErrSafetyApproval);
 		}
 		await this.#refreshControllerForModel();
 		throwIfAborted(signal);

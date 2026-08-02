@@ -33,6 +33,7 @@ import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema, validateTo
 import { type Component, Container, Text } from "@zeta/pi-tui";
 import { parseStreamingJson } from "@zeta/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { XD_URL_PREFIX } from "../internal-urls/xd-protocol";
 import type { Theme } from "../modes/theme/theme";
 import { truncateHeadBytes } from "../session/streaming-output";
@@ -115,7 +116,7 @@ function renderDocs(inst: Tool, heading = "#", descriptionCap?: number): string 
 	const schema = jsonSchemaToTypeScript(toolWireSchema(inst as AiTool));
 	let description = inst.description ?? "";
 	if (descriptionCap !== undefined && description.length > descriptionCap) {
-		description = `${description.slice(0, descriptionCap).trimEnd()}… (full docs: read ${XD_URL_PREFIX}${inst.name})`;
+		description = `${description.slice(0, descriptionCap).trimEnd()}${M.xdDocsSuffixFmt.replace("%s", XD_URL_PREFIX + inst.name)}`;
 	}
 	return [
 		`${heading} ${inst.name}${inst.label ? ` — ${inst.label}` : ""}`,
@@ -126,7 +127,7 @@ function renderDocs(inst: Tool, heading = "#", descriptionCap?: number): string 
 		"```ts",
 		`type Args = ${schema};`,
 		"```",
-		`Execute by writing JSON to ${XD_URL_PREFIX}${inst.name}.`,
+		M.xdExecuteHintFmt.replace("%s", XD_URL_PREFIX + inst.name),
 	].join("\n");
 }
 
@@ -168,7 +169,12 @@ function parseDeviceArgs(
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		throw new ToolError(`Invalid args for ${XD_URL_PREFIX}${device.name}: ${message}\n\n${docs()}`);
+		throw new ToolError(
+			M.xdErrInvalidArgsFmt
+				.replace("%s", XD_URL_PREFIX + device.name)
+				.replace("%s", message)
+				.replace("%s", docs()),
+		);
 	}
 }
 

@@ -2,6 +2,7 @@ import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallb
 import type { ToolExample } from "@zeta/pi-ai";
 import { prompt, untilAborted } from "@zeta/pi-utils";
 import { type } from "arktype";
+import { M } from "../i18n/messages";
 import browserDescription from "../prompts/tools/browser.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import { enforceInlineByteCap } from "../session/streaming-output";
@@ -121,14 +122,14 @@ export class BrowserTool implements AgentTool<typeof browserSchema, BrowserToolD
 	readonly approval = "exec" as const;
 	readonly formatApprovalDetails = (args: unknown): string[] => {
 		const params = args as Partial<BrowserParams>;
-		const lines = [`Action: ${typeof params.action === "string" ? params.action : "(missing)"}`];
+		const lines = [M.brActionLabel.replace("%s", typeof params.action === "string" ? params.action : M.brMissing)];
 		const tabName = typeof params.name === "string" ? params.name : DEFAULT_TAB_NAME;
-		lines.push(`Tab: ${truncateForPrompt(tabName)}`);
+		lines.push(M.brTabLabel.replace("%s", truncateForPrompt(tabName)));
 		if (typeof params.url === "string" && params.url.length > 0) {
-			lines.push(`URL: ${truncateForPrompt(params.url)}`);
+			lines.push(M.brUrlLabel.replace("%s", truncateForPrompt(params.url)));
 		}
 		if (typeof params.code === "string" && params.code.length > 0) {
-			lines.push(`Code:\n${truncateForPrompt(params.code)}`);
+			lines.push(M.brCodeLabel.replace("%s", truncateForPrompt(params.code)));
 		}
 		return lines;
 	};
@@ -358,7 +359,7 @@ export class BrowserTool implements AgentTool<typeof browserSchema, BrowserToolD
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<BrowserToolDetails>> {
 		if (!params.code?.trim()) {
-			throw new ToolError("Missing required parameter 'code' for action 'run'.");
+			throw new ToolError(M.brErrMissingCode);
 		}
 		const tab = getTab(name);
 		if (tab) {
