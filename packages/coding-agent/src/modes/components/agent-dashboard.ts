@@ -45,6 +45,7 @@ import {
 	resolveModelOverride,
 } from "../../config/model-resolver";
 import { Settings } from "../../config/settings";
+import { M } from "../../i18n/messages";
 import agentCreationArchitectPrompt from "../../prompts/system/agent-creation-architect.md" with { type: "text" };
 import agentCreationUserPrompt from "../../prompts/system/agent-creation-user.md" with { type: "text" };
 import { createAgentSession } from "../../sdk";
@@ -103,17 +104,16 @@ const SOURCE_ORDER: Record<AgentSource, number> = {
 };
 
 const SOURCE_LABEL: Record<AgentSource, string> = {
-	project: "Project",
-	user: "User",
-	bundled: "Bundled",
+	project: M.adshSourceProject,
+	user: M.adshSourceUser,
+	bundled: M.adshSourceBundled,
 };
 
-const LIST_FOOTER =
-	" ↑/↓: navigate  Space: toggle  Enter: model override  P: prewalk  N: new agent  ←/→: source  Ctrl+R: reload  Esc: close";
+const LIST_FOOTER = M.adshNavHint;
 
 const IDENTIFIER_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+){1,5}$/;
 function joinPatterns(patterns: string[]): string {
-	if (patterns.length === 0) return "(session model)";
+	if (patterns.length === 0) return M.adshSessionModel;
 	return patterns.join(", ");
 }
 
@@ -167,14 +167,14 @@ function extractJsonObject(raw: string): string {
 function parseGeneratedAgentSpec(raw: string): GeneratedAgentSpec {
 	const parsed = JSON.parse(extractJsonObject(raw)) as Partial<GeneratedAgentSpec>;
 	if (!parsed || typeof parsed !== "object") {
-		throw new Error("Model output is not a JSON object");
+		throw new Error(M.adshErrNotJson);
 	}
 	if (
 		typeof parsed.identifier !== "string" ||
 		typeof parsed.whenToUse !== "string" ||
 		typeof parsed.systemPrompt !== "string"
 	) {
-		throw new Error("Model output is missing required fields (identifier, whenToUse, systemPrompt)");
+		throw new Error(M.adshErrMissingFields);
 	}
 
 	const identifier = parsed.identifier.trim();
@@ -182,13 +182,13 @@ function parseGeneratedAgentSpec(raw: string): GeneratedAgentSpec {
 	const systemPrompt = parsed.systemPrompt.trim();
 
 	if (!IDENTIFIER_PATTERN.test(identifier)) {
-		throw new Error("Generated identifier is invalid (must be lowercase kebab-case, 2+ words)");
+		throw new Error(M.adshErrIdentifier);
 	}
 	if (!whenToUse.toLowerCase().startsWith("use this agent when")) {
-		throw new Error("Generated whenToUse must start with 'Use this agent when...'");
+		throw new Error(M.adshErrWhenToUse);
 	}
 	if (!systemPrompt) {
-		throw new Error("Generated systemPrompt is empty");
+		throw new Error(M.adshErrSystemPromptEmpty);
 	}
 
 	return { identifier, whenToUse, systemPrompt };
@@ -205,13 +205,13 @@ class AgentListPane implements Component {
 
 	render(width: number): readonly string[] {
 		const lines: string[] = [];
-		const searchPrefix = theme.fg("muted", "Search: ");
-		const searchText = this.searchQuery || theme.fg("dim", "type to filter");
+		const searchPrefix = theme.fg("muted", M.adshSearchPrefix);
+		const searchText = this.searchQuery || theme.fg("dim", M.adshTypeToFilter);
 		lines.push(`${searchPrefix}${searchText}`);
 		lines.push("");
 
 		if (this.agents.length === 0) {
-			lines.push(theme.fg("muted", "  No agents found."));
+			lines.push(theme.fg("muted", M.adshNoAgents));
 			return lines;
 		}
 
@@ -228,7 +228,7 @@ class AgentListPane implements Component {
 				? theme.fg("dim", theme.status.disabled)
 				: theme.fg("success", theme.status.enabled);
 			const source = theme.fg("dim", `[${SOURCE_LABEL[agent.source]}]`);
-			const override = agent.overrideModel ? ` ${theme.fg("warning", "(override)")}` : "";
+			const override = agent.overrideModel ? ` ${theme.fg("warning", M.adshOverride)}` : "";
 			let line = ` ${status} ${replaceTabs(agent.name)} ${source}${override}`;
 
 			if (selected) {
@@ -268,7 +268,7 @@ class AgentInspectorPane implements Component {
 
 	render(width: number): readonly string[] {
 		if (!this.agent) {
-			return [theme.fg("muted", "Select an agent"), theme.fg("dim", "to inspect settings")];
+			return [theme.fg("muted", M.adshSelectAgent), theme.fg("dim", M.adshInspectSettings)];
 		}
 
 		const lines: string[] = [];
@@ -278,32 +278,32 @@ class AgentInspectorPane implements Component {
 
 		lines.push(theme.bold(theme.fg("accent", replaceTabs(this.agent.name))));
 		lines.push("");
-		lines.push(`${theme.fg("muted", "Status:")} ${state}`);
-		lines.push(`${theme.fg("muted", "Source:")} ${SOURCE_LABEL[this.agent.source]}`);
+		lines.push(`${theme.fg("muted", M.adshStatus)} ${state}`);
+		lines.push(`${theme.fg("muted", M.adshSource)} ${SOURCE_LABEL[this.agent.source]}`);
 		lines.push("");
 
-		lines.push(`${theme.fg("muted", "Default pattern:")} ${replaceTabs(joinPatterns(this.defaultPatterns))}`);
+		lines.push(`${theme.fg("muted", M.adshDefaultPattern)} ${replaceTabs(joinPatterns(this.defaultPatterns))}`);
 		lines.push(
-			`${theme.fg("muted", "Default resolves:")} ${this.defaultResolution ? this.#formatResolution(this.defaultResolution) : theme.fg("dim", "(unresolved)")}`,
+			`${theme.fg("muted", M.adshDefaultResolves)} ${this.defaultResolution ? this.#formatResolution(this.defaultResolution) : theme.fg("dim", M.adshUnresolved)}`,
 		);
 		lines.push(
-			`${theme.fg("muted", "Override:")} ${this.agent.overrideModel ? theme.fg("warning", replaceTabs(this.agent.overrideModel)) : theme.fg("dim", "(none)")}`,
+			`${theme.fg("muted", M.adshOverrideLabel)} ${this.agent.overrideModel ? theme.fg("warning", replaceTabs(this.agent.overrideModel)) : theme.fg("dim", M.adshNone)}`,
 		);
-		lines.push(`${theme.fg("muted", "Effective pattern:")} ${replaceTabs(joinPatterns(this.effectivePatterns))}`);
+		lines.push(`${theme.fg("muted", M.adshEffectivePattern)} ${replaceTabs(joinPatterns(this.effectivePatterns))}`);
 		lines.push(
-			`${theme.fg("muted", "Effective:")} ${this.effectiveResolution ? this.#formatResolution(this.effectiveResolution) : theme.fg("dim", "(unresolved)")}`,
+			`${theme.fg("muted", M.adshEffective)} ${this.effectiveResolution ? this.#formatResolution(this.effectiveResolution) : theme.fg("dim", M.adshUnresolved)}`,
 		);
-		lines.push(`${theme.fg("muted", "Prewalk:")} ${this.#prewalkLabel()}`);
+		lines.push(`${theme.fg("muted", M.adshPrewalk)} ${this.#prewalkLabel()}`);
 
 		if (this.agent.filePath) {
 			lines.push("");
-			lines.push(theme.fg("muted", "Path:"));
+			lines.push(theme.fg("muted", M.adshPath));
 			lines.push(theme.fg("dim", `  ${replaceTabs(shortenPath(this.agent.filePath))}`));
 		}
 
 		if (this.agent.description) {
 			lines.push("");
-			lines.push(theme.fg("muted", "Description:"));
+			lines.push(theme.fg("muted", M.adshDescription));
 			for (const wrapped of wrapTextWithAnsi(replaceTabs(this.agent.description), Math.max(10, width - 2))) {
 				lines.push(truncateToWidth(wrapped, width));
 			}
@@ -313,20 +313,20 @@ class AgentInspectorPane implements Component {
 	}
 	/** "off", "on → target" (with source: agent default vs override), or the unresolved pattern. */
 	#prewalkLabel(): string {
-		if (!this.agent) return theme.fg("dim", "off");
+		if (!this.agent) return theme.fg("dim", M.adshOff);
 		const override = this.agent.prewalkOverride?.trim();
 		const sourceTag = override
-			? theme.fg("warning", " (override)")
+			? theme.fg("warning", M.adshOverrideSuffix)
 			: this.agent.prewalk !== undefined && this.agent.prewalk !== false
-				? theme.fg("dim", " (agent default)")
+				? theme.fg("dim", M.adshAgentDefaultSuffix)
 				: "";
 		if (!this.prewalkPattern) {
-			return `${theme.fg("dim", "off")}${override ? sourceTag : ""}`;
+			return `${theme.fg("dim", M.adshOff)}${override ? sourceTag : ""}`;
 		}
 		const target = this.prewalkResolution
 			? this.#formatResolution(this.prewalkResolution)
-			: theme.fg("dim", "(unresolved)");
-		return `${theme.fg("success", "on")} ${theme.fg("dim", `${replaceTabs(this.prewalkPattern)} →`)} ${target}${sourceTag}`;
+			: theme.fg("dim", M.adshUnresolved);
+		return `${theme.fg("success", M.adshOn)} ${theme.fg("dim", `${replaceTabs(this.prewalkPattern)} →`)} ${target}${sourceTag}`;
 	}
 
 	#formatResolution(resolution: ModelResolution): string {
@@ -605,7 +605,7 @@ export class AgentDashboard extends Container {
 			settingsOverride: selected.prewalkOverride,
 			agentPrewalk: resolveAgentPrewalkDefault(selected, this.#settingsManager?.get("task.prewalk") ?? false),
 		});
-		const state = selected.prewalkOverride ?? "agent default";
+		const state = selected.prewalkOverride ?? M.adshAgentDefault;
 		this.#notice = `Prewalk for ${selected.name}: ${state}${pattern ? ` (into ${pattern})` : ""}`;
 		this.#buildLayout();
 	}
@@ -702,7 +702,7 @@ export class AgentDashboard extends Container {
 		const description = rawDescription.trim();
 		this.#createDescription = description;
 		if (!description) {
-			this.#createError = "Description is required.";
+			this.#createError = M.adshErrDescription;
 			this.#buildLayout();
 			return;
 		}
@@ -728,7 +728,7 @@ export class AgentDashboard extends Container {
 	async #runAgentCreationArchitect(description: string): Promise<GeneratedAgentSpec> {
 		const modelRegistry = this.modelContext.modelRegistry;
 		if (!modelRegistry) {
-			throw new Error("Model registry unavailable in current session.");
+			throw new Error(M.adshErrRegistry);
 		}
 		await modelRegistry.refresh();
 
@@ -743,7 +743,7 @@ export class AgentDashboard extends Container {
 		const fallbackModel = modelRegistry.getAvailable()[0];
 		const selectedModel = model ?? fallbackModel;
 		if (!selectedModel) {
-			throw new Error("No available model to generate agent specification.");
+			throw new Error(M.adshErrNoModel);
 		}
 
 		const systemPrompt = prompt.render(agentCreationArchitectPrompt, {});
@@ -781,7 +781,7 @@ export class AgentDashboard extends Container {
 			await session.prompt(userPrompt, { expandPromptTemplates: false });
 			const raw = extractAssistantText(session.state.messages);
 			if (!raw) {
-				throw new Error("No response returned by agent creation architect.");
+				throw new Error(M.adshErrNoResponse);
 			}
 			return parseGeneratedAgentSpec(raw);
 		} finally {
@@ -914,9 +914,9 @@ export class AgentDashboard extends Container {
 		return parts.join("");
 	}
 	#renderCreateInput(): void {
-		this.addChild(new Text(theme.bold(theme.fg("accent", " Create New Agent")), 0, 0));
+		this.addChild(new Text(theme.bold(theme.fg("accent", M.adshCreateTitle)), 0, 0));
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("muted", "Describe what the new agent should do:"), 0, 0));
+		this.addChild(new Text(theme.fg("muted", M.adshCreatePrompt), 0, 0));
 		this.addChild(new Spacer(1));
 		if (this.#createInput) {
 			this.#createInput.setMaxHeight(Math.max(3, Math.min(8, this.#terminalRows() - 12)));
@@ -926,7 +926,7 @@ export class AgentDashboard extends Container {
 		this.addChild(new Text(theme.fg("muted", `Scope: ${this.#createScope}`), 0, 0));
 		if (this.#createGenerating) {
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("accent", "Generating agent specification..."), 0, 0));
+			this.addChild(new Text(theme.fg("accent", M.adshGenerating), 0, 0));
 			if (this.#createStreamingText) {
 				this.addChild(new Spacer(1));
 				const maxPreview = Math.max(3, this.#terminalRows() - 18);
@@ -950,9 +950,7 @@ export class AgentDashboard extends Container {
 			this.addChild(new Text(theme.fg("error", replaceTabs(this.#createError)), 0, 0));
 		}
 		this.addChild(new Spacer(1));
-		const hints = this.#createGenerating
-			? " Generating..."
-			: " Ctrl+Q/Ctrl+Enter: generate  Enter: newline  Tab: toggle scope  Esc: cancel";
+		const hints = this.#createGenerating ? M.adshGeneratingShort : M.adshCreateHint;
 		this.addChild(new Text(theme.fg("dim", hints), 0, 0));
 	}
 
@@ -960,17 +958,17 @@ export class AgentDashboard extends Container {
 		const spec = this.#createSpec;
 		if (!spec) return;
 
-		this.addChild(new Text(theme.bold(theme.fg("accent", " Review Generated Agent")), 0, 0));
+		this.addChild(new Text(theme.bold(theme.fg("accent", M.adshReviewTitle)), 0, 0));
 		this.addChild(new Spacer(1));
 		this.addChild(new Text(theme.fg("muted", `Identifier: ${spec.identifier}`), 0, 0));
 		this.addChild(new Text(theme.fg("muted", `Scope: ${this.#createScope}`), 0, 0));
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("muted", "whenToUse:"), 0, 0));
+		this.addChild(new Text(theme.fg("muted", M.adshWhenToUse), 0, 0));
 		for (const line of wrapTextWithAnsi(replaceTabs(spec.whenToUse), Math.max(20, this.#uiWidth() - 2)).slice(0, 8)) {
 			this.addChild(new Text(truncateToWidth(line, this.#uiWidth() - 2), 0, 0));
 		}
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("muted", "systemPrompt preview:"), 0, 0));
+		this.addChild(new Text(theme.fg("muted", M.adshSystemPromptPreview), 0, 0));
 		const promptWidth = Math.max(20, this.#uiWidth() - 4);
 		const wrappedPrompt: string[] = [];
 		for (const raw of spec.systemPrompt.split("\n")) {
@@ -992,7 +990,7 @@ export class AgentDashboard extends Container {
 			this.addChild(new Text(theme.fg("error", replaceTabs(this.#createError)), 0, 0));
 		}
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", " Enter: save  Tab: toggle scope  R: regenerate  Esc: cancel"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.adshReviewHint), 0, 0));
 	}
 
 	#uiWidth(): number {
@@ -1008,7 +1006,7 @@ export class AgentDashboard extends Container {
 	#buildLayout(): void {
 		this.clear();
 		this.addChild(new DynamicBorder());
-		this.addChild(new Text(theme.bold(theme.fg("accent", " Agent Control Center")), 0, 0));
+		this.addChild(new Text(theme.bold(theme.fg("accent", M.adshControlTitle)), 0, 0));
 		this.addChild(new Text(this.#renderTabBar(), 0, 0));
 		this.addChild(new Spacer(1));
 
@@ -1018,7 +1016,7 @@ export class AgentDashboard extends Container {
 		}
 
 		if (this.#loading) {
-			this.addChild(new Text(theme.fg("muted", "Loading agents..."), 0, 0));
+			this.addChild(new Text(theme.fg("muted", M.adshLoading), 0, 0));
 			this.addChild(new Spacer(1));
 		} else if (this.#loadError) {
 			this.addChild(new Text(theme.fg("error", `Failed to load agents: ${replaceTabs(this.#loadError)}`), 0, 0));
@@ -1040,7 +1038,7 @@ export class AgentDashboard extends Container {
 				new Text(theme.bold(theme.fg("accent", `Model override: ${replaceTabs(this.#editingAgentName)}`)), 0, 0),
 			);
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("muted", "Enter model pattern (empty clears override)"), 0, 0));
+			this.addChild(new Text(theme.fg("muted", M.adshModelPatternPrompt), 0, 0));
 			this.addChild(new Spacer(1));
 			this.addChild(this.#editInput);
 			this.addChild(new Spacer(1));
@@ -1050,14 +1048,14 @@ export class AgentDashboard extends Container {
 			);
 			this.addChild(
 				new Text(
-					`${theme.fg("muted", "Default resolves:")} ${defaultResolution ? formatResolution(defaultResolution) : theme.fg("dim", "(unresolved)")}`,
+					`${theme.fg("muted", M.adshDefaultResolves)} ${defaultResolution ? formatResolution(defaultResolution) : theme.fg("dim", M.adshUnresolved)}`,
 					0,
 					0,
 				),
 			);
 			this.addChild(
 				new Text(
-					`${theme.fg("muted", "Preview effective:")} ${previewResolution ? formatResolution(previewResolution) : theme.fg("dim", "(unresolved)")}`,
+					`${theme.fg("muted", M.adshPreviewEffective)} ${previewResolution ? formatResolution(previewResolution) : theme.fg("dim", M.adshUnresolved)}`,
 					0,
 					0,
 				),
@@ -1065,14 +1063,14 @@ export class AgentDashboard extends Container {
 
 			if (suggestions.length > 0) {
 				this.addChild(new Spacer(1));
-				this.addChild(new Text(theme.fg("muted", "Suggestions:"), 0, 0));
+				this.addChild(new Text(theme.fg("muted", M.adshSuggestions), 0, 0));
 				for (const suggestion of suggestions) {
 					this.addChild(new Text(theme.fg("dim", `  ${suggestion}`), 0, 0));
 				}
 			}
 
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("dim", " Enter: save  Esc: cancel"), 0, 0));
+			this.addChild(new Text(theme.fg("dim", M.adshSaveHint), 0, 0));
 		} else {
 			const selected = this.#selectedAgent();
 			const defaultPatterns = selected ? this.#defaultPatternsFor(selected) : [];

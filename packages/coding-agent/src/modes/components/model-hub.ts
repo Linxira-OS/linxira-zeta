@@ -31,6 +31,7 @@ import type { ModelRegistry } from "../../config/model-registry";
 import { type ModelRoleLookup, type ResolvedModelRoleValue, resolveModelRoleValue } from "../../config/model-resolver";
 import { getKnownRoleIds, getRoleInfo } from "../../config/model-roles";
 import type { Settings } from "../../config/settings";
+import { M } from "../../i18n/messages";
 import { AUTO_THINKING, type ConfiguredThinkingLevel, getConfiguredThinkingLevelMetadata } from "../../thinking";
 import { theme } from "../theme/theme";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../utils/keybinding-matchers";
@@ -413,7 +414,7 @@ export class ModelHubComponent implements Component {
 				label: "Roles",
 				annotation: `${assignedCount}/${visibleRoles.length}`,
 			},
-			{ id: "all", kind: "all", label: "All models", annotation: String(availableModels.length) },
+			{ id: "all", kind: "all", label: M.mhAllModels, annotation: String(availableModels.length) },
 		];
 
 		this.#fixedEntries = fixed;
@@ -701,14 +702,14 @@ export class ModelHubComponent implements Component {
 	#formatDiscoveryAge(fetchedAt: number | undefined): string | undefined {
 		if (!fetchedAt) return undefined;
 		const ageMs = Math.max(0, Date.now() - fetchedAt);
-		if (ageMs < 60_000) return "less than a minute ago";
+		if (ageMs < 60_000) return M.mhJustNow;
 		return `${Math.round(ageMs / 60_000)}m ago`;
 	}
 
 	#emptyStateMessage(): string | undefined {
 		if (this.#configError) return `  ${this.#configError}`;
 		const entry = this.#activeEntry();
-		if (entry.kind === "recent") return "  No recently used models yet";
+		if (entry.kind === "recent") return M.mhNoRecent;
 		if (entry.kind !== "provider" || entry.locked) return undefined;
 		if (this.#browser.query.trim()) {
 			return `  No matching models in ${entry.label}. Switch to All models to search every provider.`;
@@ -719,23 +720,21 @@ export class ModelHubComponent implements Component {
 		const age = this.#formatDiscoveryAge(state.fetchedAt);
 		switch (state.status) {
 			case "cached":
-				return age
-					? `  Using cached model list from ${age}. Live refresh is still pending.`
-					: "  Using cached model list. Live refresh is still pending.";
+				return age ? `  Using cached model list from ${age}. Live refresh is still pending.` : M.mhUsingCached;
 			case "unavailable": {
 				const httpMatch = state.error?.match(/^HTTP (\d+) from (.+)$/);
 				if (httpMatch?.[1] === "404") {
 					return `  Discovery endpoint ${httpMatch[2]} returned 404. Point baseUrl at the host that serves /models (usually .../v1).`;
 				}
 				if (state.error) return `  Discovery failed: ${state.error}`;
-				return age ? `  Provider unavailable. Using cached model list from ${age}.` : "  Provider unavailable.";
+				return age ? M.mhCachedAgeFmt(age) : M.mhUnavailable;
 			}
 			case "unauthenticated":
-				return "  Provider requires authentication before models can be discovered.";
+				return M.mhNeedsAuth;
 			case "idle":
-				return "  Provider has not been refreshed yet.";
+				return M.mhNotRefreshed;
 			case "empty":
-				return "  Discovery succeeded but returned 0 models. Check that /models returns { data: [{ id }] }.";
+				return M.mhZeroModels;
 			case "ok":
 				return undefined;
 		}
@@ -856,14 +855,14 @@ export class ModelHubComponent implements Component {
 			styled: theme.fg("muted", `fallbacks:${item.model.provider}/*`),
 			action: "fallbackProvider",
 		});
-		chips.push({ label: "fallback", styled: theme.fg("muted", "retry-fallback"), action: "fallback" });
+		chips.push({ label: "fallback", styled: theme.fg("muted", M.mhRetryFallbackChip), action: "fallback" });
 		this.#strip = { kind: "role", item, chips, index: 0, returnToRoles: false };
 	}
 
 	#openScopeStrip(item: ModelBrowserItem, role: string, returnToRoles: boolean): void {
 		const chips: StripChip[] = [
-			{ label: "project", styled: theme.fg("accent", "project"), action: "scope", scope: "project" },
-			{ label: "global", styled: theme.fg("muted", "global"), action: "scope", scope: "global" },
+			{ label: M.mhProjectChip, styled: theme.fg("accent", M.mhProjectChip), action: "scope", scope: "project" },
+			{ label: M.mhGlobalChip, styled: theme.fg("muted", M.mhGlobalChip), action: "scope", scope: "global" },
 		];
 		this.#strip = { kind: "scope", item, role, chips, index: 0, returnToRoles };
 	}
@@ -1638,15 +1637,12 @@ export class ModelHubComponent implements Component {
 	#statusRow(width: number): string {
 		if (this.#assigning !== null) {
 			if (this.#assigning.kind === "fallbackKey") {
-				return truncateToWidth(
-					theme.fg("accent", " New fallback chain — Enter picks the model it protects, Esc cancels"),
-					width,
-				);
+				return truncateToWidth(theme.fg("accent", M.mhNewFallbackChainHint), width);
 			}
 			const info = getRoleInfo(this.#assigning.role, this.#settings);
 			const label = info.tag ?? info.name ?? this.#assigning.role;
 			if (this.#assigning.kind === "fallback") {
-				const verb = this.#assigning.index === null ? "Adding fallback for" : "Replacing fallback of";
+				const verb = this.#assigning.index === null ? M.mhAddingFallback : M.mhReplacingFallback;
 				return truncateToWidth(
 					theme.fg("accent", ` ${verb} ${theme.bold(label)} — Enter picks the fallback model, Esc cancels`),
 					width,
@@ -1658,14 +1654,14 @@ export class ModelHubComponent implements Component {
 			);
 		}
 		const entry = this.#activeEntry();
-		const scopedSuffix = this.#scopedModels.length > 0 ? " · --models scope" : "";
+		const scopedSuffix = this.#scopedModels.length > 0 ? M.mhModelsScopeSuffix : "";
 		let text: string;
 		switch (entry.kind) {
 			case "recent":
 				text = `Recently used models${scopedSuffix}`;
 				break;
 			case "roles":
-				text = "Model roles — f adds a retry fallback, cleared roles fall back to auto-selection";
+				text = M.mhRolesText;
 				break;
 			case "provider":
 				if (entry.locked) {
@@ -1832,14 +1828,9 @@ export class ModelHubComponent implements Component {
 		lines.push("");
 		const envVars = entry.providerId ? (getCatalogProviderEntry(entry.providerId)?.envVars ?? []) : [];
 		if (envVars.length > 0) {
-			lines.push(
-				truncateToWidth(
-					theme.fg("muted", `  Set ${envVars.join(" or ")} in your environment, or add a key in config.`),
-					width,
-				),
-			);
+			lines.push(truncateToWidth(theme.fg("muted", M.mhEnvHintFmt(envVars.join(M.mhOr))), width));
 		} else {
-			lines.push(truncateToWidth(theme.fg("muted", "  Add an API key for this provider in config."), width));
+			lines.push(truncateToWidth(theme.fg("muted", M.mhApiKeyHint), width));
 		}
 		if (entry.oauth) {
 			this.#lockedLoginLine = lines.length + 1; // +1 for the status row offset handled by caller
@@ -1864,44 +1855,44 @@ export class ModelHubComponent implements Component {
 		const strip = this.#strip;
 		if (strip) {
 			if (strip.kind === "roleName") {
-				return "Enter create + pick model · Esc cancel";
+				return M.mhCreateHint;
 			}
-			if (strip.kind === "role") return "←/→ choose · Enter assign/clear · Esc cancel";
-			if (strip.kind === "scope") return "←/→ save scope · Enter choose · Esc cancel";
-			return "←/→ thinking level · Enter apply · Esc keep";
+			if (strip.kind === "role") return M.mhRoleStripHint;
+			if (strip.kind === "scope") return M.mhScopeStripHint;
+			return M.mhThinkingStripHint;
 		}
 		if (this.#assigning !== null) {
 			switch (this.#assigning.kind) {
 				case "fallback":
-					return "Enter pick fallback · ↑/↓ providers · type to search · Esc cancel";
+					return M.mhPickFallbackHint;
 				case "fallbackKey":
-					return "Enter pick the protected model · ↑/↓ providers · type to search · Esc cancel";
+					return M.mhPickProtectedHint;
 				default:
-					return "Enter assign · ↑/↓ providers · type to search · Esc cancel";
+					return M.mhAssignHint;
 			}
 		}
 		const entry = this.#activeEntry();
 		if (entry.kind === "roles") {
 			if (this.#focus !== "list") {
-				return "↑/↓ providers · → roles · Esc close";
+				return M.mhScopeNavHint;
 			}
 			const row = this.#rolesRows[this.#roleIndex];
 			if (row?.kind === "fallback") {
-				return "↑/↓ rows · Enter replace · f add another · x remove · [/] reorder · ← providers";
+				return M.mhRolesHint;
 			}
 			if (row?.kind === "chainKey") {
-				return "↑/↓ rows · Enter/f add fallback · x clear chain · ← providers";
+				return M.mhChainHint;
 			}
 			if (row?.kind === "newFallback") {
-				return "↑/↓ rows · Enter new model/provider fallback chain · ← providers";
+				return M.mhNewChainHint;
 			}
-			return "↑/↓ rows · Enter pick · f fallback · x clear · t thinking · c cycle · [/] reorder · n new";
+			return M.mhRowsHint;
 		}
 		if (entry.kind === "provider" && entry.locked) {
-			return entry.oauth ? "Enter log in · ↑/↓ providers · Esc close" : "↑/↓ providers · Esc close";
+			return entry.oauth ? M.mhOauthHint : M.mhProvidersHint;
 		}
-		const arrows = this.#focus === "scope" ? "↑/↓ providers · → models" : "↑/↓ models · ← providers";
-		const refresh = entry.kind === "provider" ? " · F5 refresh" : "";
+		const arrows = this.#focus === "scope" ? M.mhScopeToModels : M.mhScopeToProviders;
+		const refresh = entry.kind === "provider" ? M.mhRefreshSuffix : "";
 		return `Enter assign roles · ${arrows} · type to search${refresh} · Esc close`;
 	}
 
@@ -1914,10 +1905,10 @@ export class ModelHubComponent implements Component {
 		}
 
 		if (strip.kind === "roleName") {
-			const label = theme.fg("accent", "New role name:");
-			const inputWidth = Math.max(8, Math.min(32, width - visibleWidth("New role name:") - 24));
+			const label = theme.fg("accent", M.mhNewRoleName);
+			const inputWidth = Math.max(8, Math.min(32, width - visibleWidth(M.mhNewRoleName) - 24));
 			const inputLine = strip.input.render(inputWidth)[0] ?? "";
-			return truncateToWidth(`${label} ${inputLine} ${theme.fg("dim", "(letters, digits, - and _)")}`, width);
+			return truncateToWidth(`${label} ${inputLine} ${theme.fg("dim", M.mhRoleNameChars)}`, width);
 		}
 
 		const prefix =

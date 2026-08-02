@@ -38,6 +38,7 @@ describe("catalogue completeness", () => {
 			"mcpHelpSearchUsage",
 			"sshHelpAddUsage",
 			"psBadgeNpm",
+			"mhModelsScopeSuffix",
 			"scpAutoLabelFmt",
 		]);
 		for (const key of Object.keys(en) as Array<keyof typeof en>) {
