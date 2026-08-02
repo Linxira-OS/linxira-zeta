@@ -1507,5 +1507,20 @@ export const en = {
 	rdAlphaUnknown: "- Alpha: unknown",
 	rdInspectImageHint:
 		'If you want to analyze the image, call inspect_image with path="%s" and a question describing what to inspect and the desired output format.',
+	wrExecutableNotice: "[Notice: Made executable via chmod +x]",
+	wrErrSelectorListMisfire:
+		"write target '%s' is a semicolon-joined list of %s read-tool selectors, not a filesystem path — refusing to create it. ",
+	wrErrSelectorListMisfireHint:
+		'write creates a single file; issue one read() per path to read these ranges (e.g. read({ path: "<one path>:<range>" })).',
+	wrErrArchivePathFile: "Archive write path must target a file inside the archive",
+	wrErrArchivePathNotDir: "Archive write path must target a file, not a directory",
+	wrErrArchiveDotDot: "Archive path cannot contain '..'",
+	wrErrSqliteQueryParams: "SQLite write paths do not support query parameters",
+	wrErrSqliteTable: "SQLite write path must target a table",
+	wrErrSqliteRowKey: "SQLite row writes require a non-empty row key",
+	wrErrSqliteDeleteRowKey: "SQLite deletes require a row key in the path",
+	wrErrSqliteJsonObject: "SQLite write content must be a JSON object",
+	wrErrBulkUnknownIds: "Bulk directive references unknown conflict id(s) %s. Currently registered: %s.",
+	wrErrFileNoLongerExists: "file no longer exists",
 	mcpExampleScopes: "e.g., read write",
 } satisfies Messages;

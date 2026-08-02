@@ -1520,6 +1520,19 @@ export interface Messages {
 	rdAlphaNo: string;
 	rdAlphaUnknown: string;
 	rdInspectImageHint: string;
+	wrExecutableNotice: string;
+	wrErrSelectorListMisfire: string;
+	wrErrSelectorListMisfireHint: string;
+	wrErrArchivePathFile: string;
+	wrErrArchivePathNotDir: string;
+	wrErrArchiveDotDot: string;
+	wrErrSqliteQueryParams: string;
+	wrErrSqliteTable: string;
+	wrErrSqliteRowKey: string;
+	wrErrSqliteDeleteRowKey: string;
+	wrErrSqliteJsonObject: string;
+	wrErrBulkUnknownIds: string;
+	wrErrFileNoLongerExists: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

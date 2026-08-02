@@ -17,6 +17,7 @@ import { type } from "arktype";
 import { canonicalSnapshotKey, getFileSnapshotStore } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { InternalUrlRouter } from "../internal-urls";
 import { parseInternalUrl } from "../internal-urls/parse";
 import { couldBecomeXdUrl, parseXdUrl } from "../internal-urls/xd-protocol";
@@ -98,7 +99,7 @@ import {
 } from "./xdev";
 
 const LOOSE_HASHLINE_HEADER_RE = /^\s*\[[^#\r\n]+#[^ \t\r\n]*\]\s*$/;
-const EXECUTABLE_NOTICE = "[Notice: Made executable via chmod +x]";
+const EXECUTABLE_NOTICE = M.wrExecutableNotice;
 const URI_LIKE_WRITE_PATH_RE = /^([a-z][a-z0-9+.-]*):\/{1,2}(.*)$/i;
 const XD_MISSING_DELIMITER_RE = /^xd\/+(.*)$/i;
 const XD_SCHEME_NEAR_MISSES: Record<string, true> = { dx: true, xdd: true, xdt: true };
@@ -186,8 +187,7 @@ function readSelectorListMisfire(target: string): number | undefined {
 
 function throwReadSelectorListMisfire(target: string, count: number): never {
 	throw new ToolError(
-		`write target '${target}' is a semicolon-joined list of ${count} read-tool selectors, not a filesystem path — refusing to create it. ` +
-			`write creates a single file; issue one read() per path to read these ranges (e.g. read({ path: "<one path>:<range>" })).`,
+		M.wrErrSelectorListMisfire.replace("%s", target).replace("%s", String(count)) + M.wrErrSelectorListMisfireHint,
 	);
 }
 
@@ -447,10 +447,10 @@ function isArchivePathNotFound(error: unknown): boolean {
 function normalizeArchiveWriteSubPath(rawPath: string): string {
 	const normalized = rawPath.replace(/\\/g, "/");
 	if (normalized.length === 0) {
-		throw new ToolError("Archive write path must target a file inside the archive");
+		throw new ToolError(M.wrErrArchivePathFile);
 	}
 	if (normalized.endsWith("/")) {
-		throw new ToolError("Archive write path must target a file, not a directory");
+		throw new ToolError(M.wrErrArchivePathNotDir);
 	}
 
 	const parts = normalized.split("/");
@@ -458,7 +458,7 @@ function normalizeArchiveWriteSubPath(rawPath: string): string {
 	for (const part of parts) {
 		if (!part || part === ".") continue;
 		if (part === "..") {
-			throw new ToolError("Archive path cannot contain '..'");
+			throw new ToolError(M.wrErrArchiveDotDot);
 		}
 		normalizedParts.push(part);
 	}
@@ -472,12 +472,12 @@ function normalizeArchiveWriteSubPath(rawPath: string): string {
 
 function parseSqliteWriteTarget(subPath: string, queryString: string): { table: string; key?: string } {
 	if (queryString.trim().length > 0) {
-		throw new ToolError("SQLite write paths do not support query parameters");
+		throw new ToolError(M.wrErrSqliteQueryParams);
 	}
 
 	const normalized = subPath.replace(/^:+/, "").trim();
 	if (!normalized) {
-		throw new ToolError("SQLite write path must target a table");
+		throw new ToolError(M.wrErrSqliteTable);
 	}
 
 	const separatorIndex = normalized.indexOf(":");
@@ -487,7 +487,7 @@ function parseSqliteWriteTarget(subPath: string, queryString: string): { table: 
 		throw new ToolError("SQLite write path must target a table");
 	}
 	if (key !== undefined && key.length === 0) {
-		throw new ToolError("SQLite row writes require a non-empty row key");
+		throw new ToolError(M.wrErrSqliteRowKey);
 	}
 
 	return { table, key };
@@ -757,7 +757,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 			let resultText: string;
 			if (trimmedContent.length === 0) {
 				if (!resolvedSqlitePath.key) {
-					throw new ToolError("SQLite deletes require a row key in the path");
+					throw new ToolError(M.wrErrSqliteDeleteRowKey);
 				}
 
 				const lookup = resolveTableRowLookup(db, resolvedSqlitePath.table);
@@ -780,7 +780,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 				}
 
 				if (!isRecord(parsedContent)) {
-					throw new ToolError("SQLite write content must be a JSON object");
+					throw new ToolError(M.wrErrSqliteJsonObject);
 				}
 
 				if (resolvedSqlitePath.key) {
@@ -949,7 +949,9 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 			const unknown = [...directives.keys()].filter(id => !known.has(id));
 			if (unknown.length > 0) {
 				throw new ToolError(
-					`Bulk directive references unknown conflict id(s) ${unknown.map(id => `#${id}`).join(", ")}. Currently registered: ${allEntries.map(e => `#${e.id}`).join(", ")}.`,
+					M.wrErrBulkUnknownIds
+						.replace("%s", unknown.map(id => `#${id}`).join(", "))
+						.replace("%s", allEntries.map(e => `#${e.id}`).join(", ")),
 				);
 			}
 		}
@@ -975,7 +977,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 				failedFiles.push({
 					displayPath: sample.displayPath,
 					count: fileEntries.length,
-					error: "file no longer exists",
+					error: M.wrErrFileNoLongerExists,
 				});
 				continue;
 			}
