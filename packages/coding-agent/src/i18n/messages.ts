@@ -1702,6 +1702,19 @@ export interface Messages {
 	bsBackgroundedFmt2: string;
 	bsWallFmt: string;
 	bsTimeoutDisabled: string;
+	evErrPyDisabled: string;
+	evErrPyUnavailableFmt: string;
+	evErrRbDisabled: string;
+	evErrRbUnavailableFmt: string;
+	evErrJlDisabled: string;
+	evErrJlUnavailableFmt: string;
+	evErrJsDisabled: string;
+	evOrWord: string;
+	evLanguageFmt: string;
+	evCodeLabel: string;
+	evJavascriptDefault: string;
+	evElidedChFmt: string;
+	evDisplayFmt: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

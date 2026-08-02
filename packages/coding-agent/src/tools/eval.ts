@@ -8,6 +8,7 @@ import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "../eval/bridge-ti
 import { IdleTimeout } from "../eval/idle-timeout";
 import { defaultEvalSessionId } from "../eval/session-id";
 import type { EvalCellResult, EvalDisplayOutput, EvalLanguage, EvalStatusEvent, EvalToolDetails } from "../eval/types";
+import { M } from "../i18n/messages";
 import evalDescription from "../prompts/tools/eval.md" with { type: "text" };
 import { DEFAULT_MAX_BYTES, OutputSink, type OutputSummary, TailBuffer } from "../session/streaming-output";
 import { resolveSpawnPolicy } from "../task/spawn-policy";
@@ -138,7 +139,7 @@ function formatDisplayJsonForText(value: unknown): string {
 		text = String(value);
 	}
 	if (text.length > MAX_DISPLAY_TEXT_BYTES) {
-		text = `${text.slice(0, MAX_DISPLAY_TEXT_BYTES)}\n[…${text.length - MAX_DISPLAY_TEXT_BYTES}ch elided…]`;
+		text = `${text.slice(0, MAX_DISPLAY_TEXT_BYTES)}${M.evElidedChFmt.replace("%s", String(text.length - MAX_DISPLAY_TEXT_BYTES))}`;
 	}
 	return text;
 }
@@ -154,7 +155,9 @@ function formatDisplayOutputsForText(outputs: EvalDisplayOutput[]): string {
 	for (const output of outputs) {
 		if (output.type !== "json") continue;
 		displayIndex++;
-		chunks.push(`display[${displayIndex}]:\n${formatDisplayJsonForText(output.data)}`);
+		chunks.push(
+			M.evDisplayFmt.replace("%s", String(displayIndex)).replace("%s", formatDisplayJsonForText(output.data)),
+		);
 	}
 	return chunks.join("\n\n");
 }
@@ -225,48 +228,48 @@ async function resolveBackend(session: ToolSession, language: EvalLanguage): Pro
 	const allowJl = backends.julia;
 
 	if (language === "python") {
-		if (!allowPy) throw new ToolError("Python backend is disabled (PI_PY=0 or eval.py = false).");
+		if (!allowPy) throw new ToolError(M.evErrPyDisabled);
 		if (!(await pythonBackend.isAvailable(session))) {
 			const alternatives = [allowJs ? '"js"' : null, allowRb ? '"rb"' : null, allowJl ? '"jl"' : null].filter(
 				Boolean,
 			);
 			throw new ToolError(
 				alternatives.length > 0
-					? `Python backend is unavailable in this session. Pass language: ${alternatives.join(" or ")} or install the python kernel.`
+					? M.evErrPyUnavailableFmt.replace("%s", alternatives.join(M.evOrWord))
 					: 'Python backend is unavailable in this session. Install the python kernel to use language: "py".',
 			);
 		}
 		return { backend: pythonBackend };
 	}
 	if (language === "ruby") {
-		if (!allowRb) throw new ToolError("Ruby backend is disabled (PI_RB=0 or eval.rb = false).");
+		if (!allowRb) throw new ToolError(M.evErrRbDisabled);
 		if (!(await rubyBackend.isAvailable(session))) {
 			const alternatives = [allowJs ? '"js"' : null, allowPy ? '"py"' : null, allowJl ? '"jl"' : null].filter(
 				Boolean,
 			);
 			throw new ToolError(
 				alternatives.length > 0
-					? `Ruby backend is unavailable in this session. Pass language: ${alternatives.join(" or ")} or install Ruby.`
+					? M.evErrRbUnavailableFmt.replace("%s", alternatives.join(M.evOrWord))
 					: 'Ruby backend is unavailable in this session. Install Ruby to use language: "rb".',
 			);
 		}
 		return { backend: rubyBackend };
 	}
 	if (language === "julia") {
-		if (!allowJl) throw new ToolError("Julia backend is disabled (PI_JL=0 or eval.jl = false).");
+		if (!allowJl) throw new ToolError(M.evErrJlDisabled);
 		if (!(await juliaBackend.isAvailable(session))) {
 			const alternatives = [allowJs ? '"js"' : null, allowPy ? '"py"' : null, allowRb ? '"rb"' : null].filter(
 				Boolean,
 			);
 			throw new ToolError(
 				alternatives.length > 0
-					? `Julia backend is unavailable in this session. Pass language: ${alternatives.join(" or ")} or install Julia.`
+					? M.evErrJlUnavailableFmt.replace("%s", alternatives.join(M.evOrWord))
 					: 'Julia backend is unavailable in this session. Install Julia to use language: "jl".',
 			);
 		}
 		return { backend: juliaBackend };
 	}
-	if (!allowJs) throw new ToolError("JavaScript backend is disabled (PI_JS=0 or eval.js = false).");
+	if (!allowJs) throw new ToolError(M.evErrJsDisabled);
 	return { backend: jsBackend };
 }
 function formatEvalInputLanguage(value: string): string {
@@ -283,9 +286,9 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 	readonly formatApprovalDetails = (args: unknown): string[] => {
 		const params = args as Partial<EvalToolParams>;
 		const language =
-			typeof params.language === "string" ? formatEvalInputLanguage(params.language) : "javascript (default)";
+			typeof params.language === "string" ? formatEvalInputLanguage(params.language) : M.evJavascriptDefault;
 		const code = typeof params.code === "string" ? params.code : "";
-		return [`Language: ${language}`, `Code:\n${truncateForPrompt(code)}`];
+		return [M.evLanguageFmt.replace("%s", language), `${M.evCodeLabel}\n${truncateForPrompt(code)}`];
 	};
 	get summary(): string {
 		return summarizeEvalLanguages(this.#enabledLanguages());
