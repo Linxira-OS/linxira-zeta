@@ -330,4 +330,59 @@ export interface Messages {
 	cmdViewAndManageInstalledPlugins: string; // View and manage installed plugins
 	cmdViewOrModifyTheAgentSTodoList: string; // View or modify the agent's todo list
 	cmdWriteTodosAsMarkdownToAFileDefaultTODOMd: string; // Write todos as Markdown to a file (default: TODO.md)
+
+	// input & selector controller status texts
+	statusImagePasteIsNotSupportedInThisPrompt: string; // Image paste is not supported in this prompt
+	statusLocalExecutionIsHostOnlyDuringACollabSession: string; // Local execution is host-only during a collab session
+	statusThisCollabLinkIsReadOnlyPromptingIsDisabled: string; // This collab link is read-only — prompting is disabled
+	statusABashCommandIsAlreadyRunningPressEscToCancelItFirst: string; // A bash command is already running. Press Esc to cancel it first.
+	statusAPythonExecutionIsAlreadyRunningPressEscToCancelItFirst: string; // A Python execution is already running. Press Esc to cancel it first.
+	statusCommandsRunInTheMainSessionPressToReturnFirst: string; // Commands run in the main session — press ←← to return first
+	statusSuspendCtrlZIsNotSupportedOnThisPlatform: string; // Suspend (Ctrl+Z) is not supported on this platform
+	statusNoQueuedMessagesToRestore: string; // No queued messages to restore
+	statusRetryIsHostOnlyDuringACollabSession: string; // /retry is host-only during a collab session
+	statusNothingToRetry: string; // Nothing to retry
+	statusUsageQueueMessageOrStartAPromptWith: string; // Usage: /queue <message> (or start a prompt with -> / =>)
+	statusPastedPathIsNotASupportedImage: string; // Pasted path is not a supported image
+	statusFailedToReadPastedImagePath: string; // Failed to read pasted image path
+	statusClipboardIsEmpty: string; // Clipboard is empty
+	statusFailedToReadClipboard: string; // Failed to read clipboard
+	statusNoTextInClipboardToPasteRaw: string; // No text in clipboard to paste raw
+	statusFailedToPasteRawTextFromClipboard: string; // Failed to paste raw text from clipboard
+	statusFailedToSavePasteToAFilePastedInlineInstead: string; // Failed to save paste to a file — pasted inline instead
+	statusNothingToCopy: string; // Nothing to copy
+	statusFailedToCopyToClipboard: string; // Failed to copy to clipboard
+	statusModelThinkingApplyToTheMainSessionPressToReturnFirst: string; // Model/thinking apply to the main session — press ←← to return first
+	statusCurrentModelDoesNotSupportThinking: string; // Current model does not support thinking
+	statusOnlyOneRoleModelAvailable: string; // Only one role model available
+	statusThinkingIsOffEnableThinkingToShowBlocks: string; // Thinking is off — enable thinking to show blocks
+	statusNoEditorConfiguredSetVISUALOrEDITOREnvironmentVariable: string; // No editor configured. Set $VISUAL or $EDITOR environment variable.
+	statusNoMessagesToBranchFrom: string; // No messages to branch from
+	statusBranchedToNewSession: string; // Branched to new session
+	statusNothingToCopyYet: string; // Nothing to copy yet.
+	statusNoEntriesInSession: string; // No entries in session
+	statusAlreadyAtThisPoint: string; // Already at this point
+	statusReAnswerCancelled: string; // Re-answer cancelled
+	statusBranchSummarizationCancelled: string; // Branch summarization cancelled
+	statusNavigationCancelled: string; // Navigation cancelled
+	statusNavigatedToSelectedPoint: string; // Navigated to selected point
+	statusAskToolUIIsNotReady: string; // Ask tool UI is not ready
+	statusNoSessionFileToDeleteInMemorySession: string; // No session file to delete (in-memory session)
+	statusSessionHasNotBeenSavedYet: string; // Session has not been saved yet
+	statusDeleteCancelled: string; // Delete cancelled
+	statusSessionDeleted: string; // Session deleted
+	statusNoStoredProviderCredentialsToLogOutRemoveEnvOrConfigAuthAtItsSource: string; // No stored provider credentials to log out. Remove env or config auth at its source.
+	statusCannotPinAnAccountWhileTheSessionIsStreaming: string; // Cannot pin an account while the session is streaming.
+	statusLoadingProviderAccounts: string; // Loading provider accounts…
+	statusSelectAModelBeforePinningAProviderAccount: string; // Select a model before pinning a provider account.
+	statusCheckingSavedRateLimitResets: string; // Checking saved rate-limit resets…
+	statusNoCodexAccountsFoundUseLoginToAddOne: string; // No Codex accounts found. Use /login to add one.
+	statusWrapTheTextInAttachmentTagsCollapsedToAMarker: string; // Wrap the text in <attachment> tags, collapsed to a marker
+	statusSaveTheTextToALocalPasteFile: string; // Save the text to a local://paste file
+	statusCollapseTheTextToAnInlinePasteMarker: string; // Collapse the text to an inline paste marker
+	statusEscToPasteInline: string; // Esc to paste inline
+	statusQueuedMessageForAfterCompaction: string; // Queued message for after compaction
+	statusSentQueuedMessage: string; // Sent queued message
+	statusQueuedMessageForWhenTheAgentYields: string; // Queued message for when the agent yields
+
 }
