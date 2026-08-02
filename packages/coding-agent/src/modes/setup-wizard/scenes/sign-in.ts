@@ -3,8 +3,8 @@ import { PASTE_CODE_LOGIN_PROVIDERS } from "@zeta/pi-ai";
 import type { OAuthProvider } from "@zeta/pi-ai/oauth/types";
 import { type Component, type Focusable, Input, matchesKey, type SgrMouseEvent, wrapTextWithAnsi } from "@zeta/pi-tui";
 import { getAgentDbPath } from "@zeta/pi-utils";
-import { copyToClipboard } from "../../../utils/clipboard";
 import { M } from "../../../i18n";
+import { copyToClipboard } from "../../../utils/clipboard";
 import { OAuthSelectorComponent } from "../../components/oauth-selector";
 import { theme } from "../../theme/theme";
 import type { SetupSceneHost, SetupTab } from "./types";
@@ -212,9 +212,9 @@ export class SignInTab implements SetupTab {
 					if (info.instructions) {
 						this.#statusLines.push(theme.fg("warning", info.instructions));
 					}
-				if (useManualInput) {
-					this.#statusLines.push(theme.fg("dim", M.setupSignInPasteCodeHint));
-				}
+					if (useManualInput) {
+						this.#statusLines.push(theme.fg("dim", M.setupSignInPasteCodeHint));
+					}
 					void this.#copyAuthUrl();
 					this.host.ctx.openInBrowser(info.url);
 					this.host.requestRender();
@@ -224,7 +224,7 @@ export class SignInTab implements SetupTab {
 					this.#statusLines.push(theme.fg("dim", message));
 					this.host.requestRender();
 				},
-			onManualCodeInput: () => this.#showPrompt({ message: M.setupSignInPasteCodePrompt }),
+				onManualCodeInput: () => this.#showPrompt({ message: M.setupSignInPasteCodePrompt }),
 			});
 			// Provider-scoped online refresh so the just-persisted credential re-runs
 			// discovery instead of reusing a fresh authoritative cache row (#5780).

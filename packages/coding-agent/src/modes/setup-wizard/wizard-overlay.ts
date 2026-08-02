@@ -206,7 +206,13 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 			"",
 			...logo.map(line => centerLine(line, width)),
 			centerLine(theme.bold(theme.fg("accent", APP_NAME)), width),
-			centerLine(theme.fg("muted", M.setupStepFmt.replace("%s", String(this.#sceneIndex + 1)).replace("%s", String(this.scenes.length))), width),
+			centerLine(
+				theme.fg(
+					"muted",
+					M.setupStepFmt.replace("%s", String(this.#sceneIndex + 1)).replace("%s", String(this.scenes.length)),
+				),
+				width,
+			),
 			"",
 			indentLine(theme.bold(title), width, SCENE_MARGIN_X),
 		];
@@ -216,10 +222,7 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 		header.push("");
 		this.#bodyRowStart = header.length;
 
-		const footer = [
-			"",
-			centerLine(theme.fg("dim", M.setupFooterHint), width),
-		];
+		const footer = ["", centerLine(theme.fg("dim", M.setupFooterHint), width)];
 		const maxBodyLines = Math.max(0, height - header.length - footer.length);
 		const body = this.#activeScene?.render(contentWidth, maxBodyLines).slice(0, maxBodyLines) ?? [];
 		const lines = [...header, ...body.map(line => indentLine(line, width, SCENE_MARGIN_X))];

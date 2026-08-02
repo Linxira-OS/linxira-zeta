@@ -1,6 +1,5 @@
 import { type AgentToolResult, ThinkingLevel } from "@zeta/pi-agent-core";
 import { PASTE_CODE_LOGIN_PROVIDERS } from "@zeta/pi-ai";
-import { M } from "../../i18n";
 import { getOAuthProviders } from "@zeta/pi-ai/oauth";
 import type { OAuthProvider } from "@zeta/pi-ai/oauth/types";
 import type { Component, OverlayHandle } from "@zeta/pi-tui";
@@ -30,6 +29,7 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 } from "../../extensibility/plugins/marketplace";
+import { M } from "../../i18n";
 import {
 	getAvailableThemes,
 	getSymbolTheme,

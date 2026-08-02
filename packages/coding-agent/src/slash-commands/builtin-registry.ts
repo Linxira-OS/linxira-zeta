@@ -31,8 +31,8 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 } from "../extensibility/plugins/marketplace";
-import { readMCPConfigFile } from "../mcp/config-writer";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
+import { readMCPConfigFile } from "../mcp/config-writer";
 import { resolveMemoryBackend } from "../memory-backend";
 import { runPauseScreen } from "../modes/components/pause-screen";
 import { collectMcpServerNames, MCPCommandController } from "../modes/controllers/mcp-command-controller";
@@ -2719,7 +2719,9 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 			if (!arg) {
 				const rows = [
 					M.languageCurrentFmt.replace("%s", currentLanguage()),
-					...LANGUAGE_TAGS.map(tag => formatLanguageRow(tag, tag === "en" ? M.languageEnLabel : M.languageZhLabel)),
+					...LANGUAGE_TAGS.map(tag =>
+						formatLanguageRow(tag, tag === "en" ? M.languageEnLabel : M.languageZhLabel),
+					),
 				].join("\n");
 				await runtime.output(rows);
 				return commandConsumed();
@@ -2738,7 +2740,9 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 			if (!arg) {
 				const rows = [
 					M.languageCurrentFmt.replace("%s", currentLanguage()),
-					...LANGUAGE_TAGS.map(tag => formatLanguageRow(tag, tag === "en" ? M.languageEnLabel : M.languageZhLabel)),
+					...LANGUAGE_TAGS.map(tag =>
+						formatLanguageRow(tag, tag === "en" ? M.languageEnLabel : M.languageZhLabel),
+					),
 				].join("\n");
 				runtime.ctx.showStatus(rows);
 				runtime.ctx.editor.setText("");

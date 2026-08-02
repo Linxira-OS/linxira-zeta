@@ -1,11 +1,11 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { ThinkingLevel } from "@zeta/pi-agent-core";
-import { M } from "../../i18n";
 import type { ImageContent } from "@zeta/pi-ai";
 import { type AutocompleteProvider, matchesKey, type SlashCommand } from "@zeta/pi-tui";
 import { isEnoent, logger, sanitizeText } from "@zeta/pi-utils";
 import { isSettingsInitialized, settings } from "../../config/settings";
+import { M } from "../../i18n";
 import { resolveLocalRoot } from "../../internal-urls";
 import { AssistantMessageComponent } from "../../modes/components/assistant-message";
 import { extractImagePathFromText } from "../../modes/components/custom-editor";

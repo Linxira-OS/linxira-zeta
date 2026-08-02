@@ -1,4 +1,5 @@
 import { routeSelectListMouse, type SelectItem, SelectList, type SgrMouseEvent, truncateToWidth } from "@zeta/pi-tui";
+import { M } from "../../../i18n";
 import { getSearchProvider, setSearchProviderOrder } from "../../../web/search/provider";
 import {
 	isSearchProviderId,
@@ -6,7 +7,6 @@ import {
 	SEARCH_PROVIDER_ORDER,
 	type SearchProviderId,
 } from "../../../web/search/types";
-import { M } from "../../../i18n";
 import { getSelectListTheme, theme } from "../../theme/theme";
 import type { SetupSceneHost, SetupTab } from "./types";
 

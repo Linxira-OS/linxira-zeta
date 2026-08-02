@@ -15,8 +15,14 @@ import tipsZhText from "./tips-zh.txt" with { type: "text" };
 
 /** Tips embedded at build time, one per line; blanks dropped. */
 const TIPS: Readonly<Record<"en" | "zh", readonly string[]>> = {
-	en: tipsEnText.split("\n").map(line => line.trim()).filter(line => line.length > 0),
-	zh: tipsZhText.split("\n").map(line => line.trim()).filter(line => line.length > 0),
+	en: tipsEnText
+		.split("\n")
+		.map(line => line.trim())
+		.filter(line => line.length > 0),
+	zh: tipsZhText
+		.split("\n")
+		.map(line => line.trim())
+		.filter(line => line.length > 0),
 };
 
 /**

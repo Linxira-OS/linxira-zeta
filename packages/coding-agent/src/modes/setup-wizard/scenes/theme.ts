@@ -7,6 +7,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "@zeta/pi-tui";
+import { M } from "../../../i18n";
 import {
 	enableAutoTheme,
 	getAvailableThemes,
@@ -19,7 +20,6 @@ import {
 	setSymbolPreset,
 	theme,
 } from "../../theme/theme";
-import { M } from "../../../i18n";
 import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 
 type ThemeMode = "curated" | "all";
@@ -144,9 +144,7 @@ class ThemeSceneController implements SetupSceneController {
 		const budget = maxLines ?? Number.POSITIVE_INFINITY;
 		const lines = [
 			theme.fg("muted", M.setupThemeLiveHint),
-			this.#mode === "all"
-				? theme.fg("dim", M.setupThemeBrowsing)
-				: theme.fg("dim", M.setupThemeEscHint),
+			this.#mode === "all" ? theme.fg("dim", M.setupThemeBrowsing) : theme.fg("dim", M.setupThemeEscHint),
 			"",
 		];
 		// The mock status-line/editor block is decorative — the wizard itself

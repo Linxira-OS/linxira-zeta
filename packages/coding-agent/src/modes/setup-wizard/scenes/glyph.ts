@@ -6,7 +6,11 @@ import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 const GLYPH_PRESETS = ["nerd", "unicode", "ascii"] as const satisfies readonly SymbolPreset[];
 
 function glyphLabel(preset: SymbolPreset): string {
-	return preset === "nerd" ? M.setupGlyphLabelNerd : preset === "unicode" ? M.setupGlyphLabelUnicode : M.setupGlyphLabelAscii;
+	return preset === "nerd"
+		? M.setupGlyphLabelNerd
+		: preset === "unicode"
+			? M.setupGlyphLabelUnicode
+			: M.setupGlyphLabelAscii;
 }
 
 const GLYPH_SAMPLES: Readonly<Record<SymbolPreset, string>> = {

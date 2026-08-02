@@ -1,12 +1,12 @@
 import type { Model } from "@zeta/pi-ai";
 import type { SgrMouseEvent } from "@zeta/pi-tui";
+import { M } from "../../../i18n";
 import {
 	buildBrowserItems,
 	ModelBrowser,
 	resolveRoleAssignments,
 	sortModelItems,
 } from "../../components/model-browser";
-import { M } from "../../../i18n";
 import { theme } from "../../theme/theme";
 import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 
@@ -57,10 +57,7 @@ class ModelSceneController implements SetupSceneController {
 	}
 
 	render(width: number, maxLines?: number): readonly string[] {
-		const lines = [
-			this.#status ?? theme.fg("muted", M.setupModelSearchHint),
-			"",
-		];
+		const lines = [this.#status ?? theme.fg("muted", M.setupModelSearchHint), ""];
 		const budget = maxLines === undefined ? MAX_VISIBLE_MODELS : maxLines - lines.length - BROWSER_FRAME_ROWS;
 		this.#browser.setMaxVisible(Math.max(1, Math.min(MAX_VISIBLE_MODELS, budget)));
 		this.#browserRowStart = lines.length;
