@@ -31,6 +31,7 @@ import {
 	MarketplaceManager,
 } from "../../extensibility/plugins/marketplace";
 import type { InstalledPlugin, PluginSettingSchema } from "../../extensibility/plugins/types";
+import { M } from "../../i18n/messages";
 import { getSelectListTheme, getSettingsListTheme, theme } from "../../modes/theme/theme";
 import { shortenPath } from "../../tools/render-utils";
 import { DynamicBorder } from "./dynamic-border";
@@ -112,16 +113,14 @@ export class PluginListComponent extends Container {
 
 		// Title
 		this.addChild(new DynamicBorder());
-		this.addChild(new Text(theme.bold(theme.fg("accent", "  Plugins")), 0, 0));
+		this.addChild(new Text(theme.bold(theme.fg("accent", M.psTitle)), 0, 0));
 		this.addChild(new Spacer(1));
 
 		if (entries.length === 0) {
-			this.addChild(new Text(theme.fg("muted", "  No plugins installed"), 0, 0));
+			this.addChild(new Text(theme.fg("muted", M.psNoPlugins), 0, 0));
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("dim", "  Install npm plugins:        omp plugin install <package>"), 0, 0));
-			this.addChild(
-				new Text(theme.fg("dim", "  Install marketplace plugins: omp plugin install <name>@<marketplace>"), 0, 0),
-			);
+			this.addChild(new Text(theme.fg("dim", M.psInstallNpmHint), 0, 0));
+			this.addChild(new Text(theme.fg("dim", M.psInstallMarketplaceHint), 0, 0));
 			this.addChild(new Spacer(1));
 			this.addChild(new DynamicBorder());
 
@@ -152,12 +151,12 @@ export class PluginListComponent extends Container {
 
 		this.addChild(this.#selectList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", "  Enter to configure · Esc to go back"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psConfigHint), 0, 0));
 		this.addChild(new DynamicBorder());
 	}
 
 	#renderItem(entry: PluginListEntry): SelectItem {
-		const kindBadge = theme.fg("dim", entry.kind === "npm" ? "[npm]" : "[marketplace]");
+		const kindBadge = theme.fg("dim", entry.kind === "npm" ? M.psBadgeNpm : M.psBadgeMarketplace);
 
 		if (entry.kind === "npm") {
 			const p = entry.plugin;
@@ -253,7 +252,7 @@ export class PluginDetailComponent extends Container {
 		items.push({
 			id: "__enabled__",
 			label: "Enabled",
-			description: "Enable or disable this plugin",
+			description: M.psToggleDesc,
 			currentValue: plugin.enabled ? "true" : "false",
 			values: ["true", "false"],
 		});
@@ -286,7 +285,7 @@ export class PluginDetailComponent extends Container {
 
 			for (const [key, schema] of Object.entries(manifest.settings)) {
 				const currentValue = settings[key] ?? schema.default;
-				const displayValue = schema.secret && currentValue ? "••••••••" : String(currentValue ?? "(not set)");
+				const displayValue = schema.secret && currentValue ? "••••••••" : String(currentValue ?? M.psNotSet);
 
 				if (schema.type === "boolean") {
 					items.push({
@@ -326,7 +325,7 @@ export class PluginDetailComponent extends Container {
 							new ConfigInputSubmenu(
 								key,
 								schema,
-								cv === "(not set)" ? "" : cv,
+								cv === M.psNotSet ? "" : cv,
 								value => {
 									const parsed = schema.type === "number" ? Number(value) : value;
 									this.callbacks.onConfigChange(key, parsed);
@@ -371,7 +370,7 @@ export class PluginDetailComponent extends Container {
 
 		this.addChild(this.#settingsList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", "  Enter to edit · Esc to go back"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psEditHint), 0, 0));
 		this.addChild(new DynamicBorder());
 	}
 
@@ -420,7 +419,7 @@ export class MarketplacePluginDetailComponent extends Container {
 			{
 				id: "__enabled__",
 				label: "Enabled",
-				description: "Enable or disable this marketplace plugin",
+				description: M.psMarketToggleDesc,
 				currentValue: enabled ? "true" : "false",
 				values: ["true", "false"],
 			},
@@ -448,23 +447,23 @@ export class MarketplacePluginDetailComponent extends Container {
 
 		// Read-only metadata. SettingsList rejects items without `values`/`submenu`,
 		// so we render the metadata as plain text rows beneath the toggle.
-		this.addChild(new Text(theme.fg("dim", `  version       ${entry?.version ?? "(unknown)"}`), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psVersionFmt(entry?.version ?? M.psUnknown)), 0, 0));
 		this.addChild(new Text(theme.fg("dim", `  scope         ${plugin.scope}`), 0, 0));
 		this.addChild(
 			new Text(
-				theme.fg("dim", `  install path  ${entry?.installPath ? shortenPath(entry.installPath) : "(unknown)"}`),
+				theme.fg("dim", M.psInstallPathFmt(entry?.installPath ? shortenPath(entry.installPath) : M.psUnknown)),
 				0,
 				0,
 			),
 		);
-		this.addChild(new Text(theme.fg("dim", `  installed at  ${entry?.installedAt ?? "(unknown)"}`), 0, 0));
-		this.addChild(new Text(theme.fg("dim", `  last updated  ${entry?.lastUpdated ?? "(unknown)"}`), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psInstalledAtFmt(entry?.installedAt ?? M.psUnknown)), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psLastUpdatedFmt(entry?.lastUpdated ?? M.psUnknown)), 0, 0));
 		if (entry?.gitCommitSha) {
 			this.addChild(new Text(theme.fg("dim", `  git sha       ${entry.gitCommitSha}`), 0, 0));
 		}
 
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", "  Enter to toggle · Esc to go back"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psToggleHint), 0, 0));
 		this.addChild(new DynamicBorder());
 	}
 
@@ -513,7 +512,7 @@ class ConfigEnumSubmenu extends Container {
 
 		this.addChild(this.#selectList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", "  Enter to select · Esc to cancel"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psSelectHint), 0, 0));
 	}
 
 	handleInput(data: string): void {
@@ -571,7 +570,7 @@ class ConfigInputSubmenu extends Container {
 
 		this.addChild(this.#input);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", "  Enter to save · Esc to cancel"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psSaveHint), 0, 0));
 	}
 
 	handleInput(data: string): void {
