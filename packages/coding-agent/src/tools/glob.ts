@@ -8,6 +8,7 @@ import { Text } from "@zeta/pi-tui";
 import { formatGroupedPaths, isEnoent, prompt, untilAborted } from "@zeta/pi-utils";
 import { type } from "arktype";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { InternalUrlRouter } from "../internal-urls";
 import { splitMemoryGlobPattern } from "../internal-urls/memory-protocol";
 import type { Theme } from "../modes/theme/theme";
@@ -115,15 +116,15 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 			call: { path: "src/**/*.ts" },
 		},
 		{
-			caption: "Multiple targets — semicolon-delimited list",
+			caption: M.glCaptionMultiTargets,
 			call: { path: "src/**/*.ts; test/**/*.ts" },
 		},
 		{
-			caption: "Glob gitignored files like .env",
+			caption: M.glCaptionGitignored,
 			call: { path: ".env*", gitignore: false },
 		},
 		{
-			caption: "Glob directories matching a name (returns both files and dirs; directories are suffixed with `/`)",
+			caption: M.glCaptionDirs,
 			call: { path: "**/tests" },
 		},
 	];
@@ -211,7 +212,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 				normalizedPatterns.push(resource.sourcePath);
 			}
 			if (normalizedPatterns.some(pattern => pattern.length === 0)) {
-				throw new ToolError("`path` must contain non-empty globs or paths");
+				throw new ToolError(M.glErrEmptyPath);
 			}
 
 			// Tolerate missing entries in a multi-path call: skip ones whose base
@@ -257,7 +258,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 
 			const requestedLimit = limit ?? DEFAULT_LIMIT;
 			if (!Number.isFinite(requestedLimit) || requestedLimit <= 0) {
-				throw new ToolError("Limit must be a positive number");
+				throw new ToolError(M.glErrLimitPositive);
 			}
 			const effectiveLimit = Math.min(MAX_LIMIT, Math.max(1, Math.floor(requestedLimit)));
 			const includeHidden = hidden ?? true;
@@ -294,7 +295,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 					// A timed-out empty result is an incomplete scan, not a verified
 					// absence — never emit the definitive "No files found" claim next
 					// to a timeout notice (the two statements contradict each other).
-					const parts = opts?.timedOut ? [] : ["No files found matching pattern"];
+					const parts = opts?.timedOut ? [] : [M.glNoFilesFound];
 					if (notice) parts.push(notice);
 					if (missingPathsNote) parts.push(missingPathsNote);
 					// Zero results is useless regardless of notices: the follow-up
@@ -554,7 +555,7 @@ export const globToolRenderer = {
 		const details = result.details;
 
 		if (result.isError || details?.error) {
-			const errorText = details?.error || result.content?.find(c => c.type === "text")?.text || "Unknown error";
+			const errorText = details?.error || result.content?.find(c => c.type === "text")?.text || M.glUnknownError;
 			return new Text(formatErrorMessage(errorText, uiTheme), 1, 0);
 		}
 

@@ -1,6 +1,7 @@
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
 import { prompt } from "@zeta/pi-utils";
 import { type } from "arktype";
+import { M } from "../i18n/messages";
 import checkpointDescription from "../prompts/tools/checkpoint.md" with { type: "text" };
 import rewindDescription from "../prompts/tools/rewind.md" with { type: "text" };
 import type { ToolSession } from ".";
@@ -77,17 +78,11 @@ export class CheckpointTool implements AgentTool<typeof checkpointSchema, Checkp
 		_context?: AgentToolContext,
 	): Promise<AgentToolResult<CheckpointToolDetails>> {
 		if (this.session.getCheckpointState?.()) {
-			throw new ToolError("Checkpoint already active.");
+			throw new ToolError(M.ckErrAlreadyActive);
 		}
 		const startedAt = new Date().toISOString();
 		return toolResult<CheckpointToolDetails>({ goal: params.goal, startedAt })
-			.text(
-				[
-					"Checkpoint created.",
-					`Goal: ${params.goal}`,
-					"Run your investigation, then call rewind with a concise report.",
-				].join("\n"),
-			)
+			.text([M.ckCreated, `Goal: ${params.goal}`, M.ckRewindHint].join("\n"))
 			.done();
 	}
 }
@@ -124,14 +119,14 @@ export class RewindTool implements AgentTool<typeof rewindSchema, RewindToolDeta
 					"Checkpoint already completed; continue from the retained rewind report instead of calling rewind again.",
 				);
 			}
-			throw new ToolError("No active checkpoint. Create a checkpoint before calling rewind.");
+			throw new ToolError(M.ckErrNoActive);
 		}
 		const report = params.report.trim();
 		if (report.length === 0) {
-			throw new ToolError("Report cannot be empty.");
+			throw new ToolError(M.ckErrReportEmpty);
 		}
 		return toolResult<RewindToolDetails>({ report, rewound: true })
-			.text(["Rewind requested.", "Report captured for context replacement."].join("\n"))
+			.text([M.ckRewindRequested, M.ckReportCaptured].join("\n"))
 			.done();
 	}
 }

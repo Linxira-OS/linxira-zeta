@@ -1604,6 +1604,42 @@ export interface Messages {
 	ftFetchedImageBinary: string;
 	ftConvertedWithMarkit: string;
 	ftExtractMainContent: string;
+	glErrEmptyPath: string;
+	glErrLimitPositive: string;
+	glNoFilesFound: string;
+	glUnknownError: string;
+	glCaptionMultiTargets: string;
+	glCaptionGitignored: string;
+	glCaptionDirs: string;
+	lnLessonStored: string;
+	lnLessonQueued: string;
+	lnErrMnemopiNotInit: string;
+	lnErrMnemopiNoId: string;
+	lnErrEmptyLesson: string;
+	lnErrHindsightNotInit: string;
+	lnDidNotCreateSkillFmt: string;
+	lnManagedSkillFmt: string;
+	lnVerbCreated: string;
+	lnVerbUpdated: string;
+	tdErrMissingContent: string;
+	tdErrMissingPhase: string;
+	tdErrMissingInitList: string;
+	tdErrDuplicatePhaseFmt: string;
+	tdEmptyListHint: string;
+	ckErrAlreadyActive: string;
+	ckCreated: string;
+	ckRewindHint: string;
+	ckErrNoActive: string;
+	ckErrReportEmpty: string;
+	ckRewindRequested: string;
+	ckReportCaptured: string;
+	rsProposeTitle: string;
+	rsRejectTitle: string;
+	rsResolveTitle: string;
+	rsAppliedLabel: string;
+	rsRejectedLabel: string;
+	rsPendingAction: string;
+	rsNoReason: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

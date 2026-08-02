@@ -19,6 +19,7 @@ import type { Component } from "@zeta/pi-tui";
 import { Text } from "@zeta/pi-tui";
 import { prompt } from "@zeta/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { parseXdUrl, XD_URL_PREFIX } from "../internal-urls/xd-protocol";
 import type { Theme } from "../modes/theme/theme";
 import resolveReminderPrompt from "../prompts/system/resolve-device-reminder.md" with { type: "text" };
@@ -344,7 +345,12 @@ export async function dispatchResolutionDevice(
 /** Streaming-safe call preview for a resolution-device write: `Resolve/Reject/Propose: <text>`. */
 export function renderResolutionDeviceCall(device: ResolutionDeviceName, content: unknown, uiTheme: Theme): Component {
 	const body = typeof content === "string" ? replaceTabs(content.trim().split("\n")[0] ?? "") : "";
-	const title = device === PROPOSE_DEVICE_NAME ? "Propose" : device === REJECT_DEVICE_NAME ? "Reject" : "Resolve";
+	const title =
+		device === PROPOSE_DEVICE_NAME
+			? M.rsProposeTitle
+			: device === REJECT_DEVICE_NAME
+				? M.rsRejectTitle
+				: M.rsResolveTitle;
 	const text = renderStatusLine(
 		{
 			icon: "pending",
@@ -366,7 +372,7 @@ export const resolveRenderer = {
 				title: "Resolve",
 				description: args.action,
 				badge: {
-					label: args.action === "apply" ? "proposed -> resolved" : "proposed -> rejected",
+					label: args.action === "apply" ? M.rsAppliedLabel : M.rsRejectedLabel,
 					color: args.action === "apply" ? "success" : "warning",
 				},
 				meta: reason ? [uiTheme.fg("muted", reason)] : undefined,
@@ -382,8 +388,8 @@ export const resolveRenderer = {
 		uiTheme: Theme,
 	): Component {
 		const details = result.details;
-		const label = replaceTabs(details?.label ?? "pending action");
-		const reason = replaceTabs(details?.reason?.trim() || "No reason provided");
+		const label = replaceTabs(details?.label ?? M.rsPendingAction);
+		const reason = replaceTabs(details?.reason?.trim() || M.rsNoReason);
 		const action = details?.action ?? "apply";
 		const isApply = action === "apply" && !result.isError;
 		const isFailedApply = action === "apply" && result.isError;
