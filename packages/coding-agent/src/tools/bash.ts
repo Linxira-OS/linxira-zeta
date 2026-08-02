@@ -13,6 +13,7 @@ import { type } from "arktype";
 import type { Settings } from "../config/settings";
 import { applyDirenvPreflight, type BashResult, executeBash } from "../exec/bash-executor";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { InternalUrlRouter } from "../internal-urls";
 import { truncateToVisualLines } from "../modes/components/visual-truncate";
 import { highlightCode, type Theme } from "../modes/theme/theme";
@@ -319,7 +320,7 @@ function normalizeBashEnv(env: Record<string, string> | undefined): Record<strin
 	const normalized: Record<string, string> = {};
 	for (const [key, value] of Object.entries(env)) {
 		if (!BASH_ENV_NAME_PATTERN.test(key)) {
-			throw new ToolError(`Invalid bash env name: ${key}`);
+			throw new ToolError(M.bsErrInvalidEnvNameFmt.replace("%s", key));
 		}
 		normalized[key] = value;
 	}
@@ -424,9 +425,12 @@ function formatTimeoutClampNotice(
 	if (requestedTimeoutSec === effectiveTimeoutSec) return undefined;
 	const cappedByGlobal = maxTimeout > 0 && effectiveTimeoutSec === maxTimeout && maxTimeout < TOOL_TIMEOUTS.bash.max;
 	const limit = cappedByGlobal
-		? `global tools.maxTimeout ceiling ${maxTimeout}s`
-		: `allowed range ${TOOL_TIMEOUTS.bash.min}-${TOOL_TIMEOUTS.bash.max}s`;
-	return `Timeout clamped to ${effectiveTimeoutSec}s (requested ${requestedTimeoutSec}s; ${limit}).`;
+		? M.bsMaxTimeoutCeilingFmt.replace("%s", String(maxTimeout))
+		: M.bsAllowedRangeFmt.replace("%s", String(TOOL_TIMEOUTS.bash.min)).replace("%s", String(TOOL_TIMEOUTS.bash.max));
+	return M.bsTimeoutClampedFmt
+		.replace("%s", String(effectiveTimeoutSec))
+		.replace("%s", String(requestedTimeoutSec))
+		.replace("%s", limit);
 }
 
 function formatWallTimeSeconds(wallTimeMs: number): string {
@@ -434,15 +438,15 @@ function formatWallTimeSeconds(wallTimeMs: number): string {
 }
 
 function formatWallTimeNotice(wallTimeMs: number): string {
-	return `Wall time: ${formatWallTimeSeconds(wallTimeMs)} seconds`;
+	return M.bsWallTimeFmt.replace("%s", formatWallTimeSeconds(wallTimeMs));
 }
 
 function formatExitCodeNotice(exitCode: number): string {
-	return `Command exited with code ${exitCode}`;
+	return M.bsExitedCodeFmt.replace("%s", String(exitCode));
 }
 
 function formatBackgroundNotice(jobId: string): string {
-	return `Backgrounded as job ${jobId}; result will be delivered automatically.`;
+	return M.bsBackgroundedFmt.replace("%s", String(jobId));
 }
 
 /**
@@ -495,11 +499,11 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 				tier: "exec",
 				override: true,
 				policy: "deny",
-				reason: `Blocked by bash pattern: ${patternRule.match}`,
+				reason: M.bsBlockedByPatternFmt.replace("%s", patternRule.match),
 			};
 		}
 		if (command !== "" && CRITICAL_BASH_PATTERNS.some(pattern => pattern.test(command))) {
-			return { tier: "exec", override: true, reason: "Critical pattern detected" };
+			return { tier: "exec", override: true, reason: M.bsCriticalPatternDetected };
 		}
 		if (patternRule?.approval === "allow") return { tier: "write", policy: "allow" };
 		if (patternRule?.approval === "prompt") {
@@ -507,15 +511,15 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 				tier: "exec",
 				override: true,
 				policy: "prompt",
-				reason: `Prompt required by bash pattern: ${patternRule.match}`,
+				reason: M.bsPromptRequiredByPatternFmt.replace("%s", patternRule.match),
 			};
 		}
 		return "exec";
 	};
 	readonly formatApprovalDetails = (args: unknown): string[] => {
 		const rawCommand = (args as Partial<BashToolInput>).command;
-		const command = typeof rawCommand === "string" ? rawCommand : "(missing)";
-		return [`Command: ${truncateForPrompt(command)}`];
+		const command = typeof rawCommand === "string" ? rawCommand : M.bsMissingCommand;
+		return [M.bsCommandFmt.replace("%s", truncateForPrompt(command))];
 	};
 	readonly label = "Bash";
 	readonly loadMode = "essential";
@@ -595,11 +599,13 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 		if (result.timedOut === true) {
 			const out = normalizeResultOutput(result);
 			const message =
-				timeoutSec === undefined ? "Command timed out" : `Command timed out after ${timeoutSec} seconds`;
+				timeoutSec === undefined
+					? M.bsCommandTimedOut
+					: M.bsCommandTimedOutAfterFmt.replace("%s", String(timeoutSec));
 			throw new ToolError(out ? `${out}\n\n[${message}]` : message);
 		}
 		if (result.exitCode === undefined) {
-			throw new ToolError(`${outputText}\n\nCommand failed: missing exit status`);
+			throw new ToolError(M.bsErrMissingExitStatusFmt.replace("%s", outputText));
 		}
 	}
 
@@ -748,7 +754,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 	}): ManagedBashJobHandle {
 		const manager = this.session.asyncJobManager;
 		if (!manager) {
-			throw new ToolError("Background job manager unavailable for this session.");
+			throw new ToolError(M.bsErrJobManagerUnavailable);
 		}
 
 		const label = options.command.length > 120 ? `${options.command.slice(0, 117)}...` : options.command;
@@ -910,7 +916,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			}
 		}
 		if (asyncRequested && !this.#asyncEnabled) {
-			throw new ToolError("Async bash execution is disabled. Enable async.enabled to use async mode.");
+			throw new ToolError(M.bsErrAsyncDisabled);
 		}
 
 		// Check both the original command and the cwd-normalized command so
@@ -922,7 +928,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			for (const commandToCheck of commandsToCheck) {
 				const interception = checkBashInterception(commandToCheck, ctx?.toolNames ?? [], rules, rawCommand);
 				if (interception.block) {
-					throw new ToolError(interception.message ?? "Command blocked");
+					throw new ToolError(interception.message ?? M.bsErrCommandBlocked);
 				}
 			}
 		}
@@ -969,12 +975,12 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			cwdStat = await fs.promises.stat(commandCwd);
 		} catch (err) {
 			if (isEnoent(err)) {
-				throw new ToolError(`Working directory does not exist: ${commandCwd}`);
+				throw new ToolError(M.bsErrWorkdirMissingFmt.replace("%s", commandCwd));
 			}
 			throw err;
 		}
 		if (!cwdStat.isDirectory()) {
-			throw new ToolError(`Working directory is not a directory: ${commandCwd}`);
+			throw new ToolError(M.bsErrWorkdirNotDirFmt.replace("%s", commandCwd));
 		}
 
 		// A timeout of 0 is an explicit long-running-command contract: the user
@@ -992,7 +998,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 
 		if (asyncRequested) {
 			if (!this.session.asyncJobManager) {
-				throw new ToolError("Async job manager unavailable for this session.");
+				throw new ToolError(M.bsErrAsyncManagerUnavailable);
 			}
 			const job = this.#startManagedBashJob({
 				command,
@@ -1068,16 +1074,13 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			}
 			if (waitResult.kind === "aborted") {
 				autoBgManager.cancel(job.jobId);
-				throw new ToolAbortError(job.getLatestText() || "Command aborted");
+				throw new ToolAbortError(job.getLatestText() || M.bsCommandAborted);
 			}
 			job.stopUpdates();
 			autoBgManager.resumeDeliveries([job.jobId]);
 			// "steer": a queued user/peer message arrived mid-wait — background
 			// the command (it keeps running) so the message injects promptly.
-			const notices =
-				waitResult.kind === "steer"
-					? [...pendingNotices, "Backgrounded early to handle an incoming message; the command keeps running."]
-					: pendingNotices;
+			const notices = waitResult.kind === "steer" ? [...pendingNotices, M.bsBackgroundedEarly] : pendingNotices;
 			return this.#buildBackgroundStartResult(job.jobId, job.getLatestText(), timeoutSec, {
 				requestedTimeoutSec,
 				notices,
@@ -1115,7 +1118,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			// we need explicit kill-before-read ordering and distinct abort vs
 			// timeout result shapes. Per-route race retained for testability.
 			if (signal?.aborted) {
-				throw new ToolAbortError("Command aborted");
+				throw new ToolAbortError(M.bsCommandAborted);
 			}
 
 			const bridgeWallTimeStart = performance.now();
@@ -1204,7 +1207,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 						outputBytes: 0,
 					};
 					this.#throwIfUnfinished(timedOutResult, timeoutSec, this.#formatResultOutput(timedOutResult));
-					throw new ToolError("Command timed out");
+					throw new ToolError(M.bsCommandTimedOut);
 				}
 
 				handle = createRaced.handle;
@@ -1333,7 +1336,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 				};
 
 				const bridgeNotices: string[] = [];
-				if (finalOutput.truncated) bridgeNotices.push("(output truncated)");
+				if (finalOutput.truncated) bridgeNotices.push(M.bsOutputTruncated);
 				for (const notice of pendingNotices) bridgeNotices.push(notice);
 
 				return this.#buildCompletedResult(bridgeResult, timeoutSec, {
@@ -1367,7 +1370,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 
 		const interactiveUi = canUseInteractiveBashPty(pty, ctx) ? ctx?.ui : undefined;
 		if (pty && !interactiveUi) {
-			pendingNotices.push("pty requested but unavailable in this environment; ran without a terminal");
+			pendingNotices.push(M.bsPtyUnavailable);
 		}
 		const wallTimeStart = performance.now();
 		const result: BashResult | BashInteractiveResult = interactiveUi
@@ -1635,13 +1638,13 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 					const wallTimeMs = details?.wallTimeMs;
 					const statsParts: string[] = [];
 					if (details?.async?.state === "running") {
-						statsParts.push(`Backgrounded: ${details.async.jobId}`);
+						statsParts.push(M.bsBackgroundedFmt2.replace("%s", String(details.async.jobId)));
 					}
 					if (wallTimeMs !== undefined) {
-						statsParts.push(`Wall: ${formatWallTimeSeconds(wallTimeMs)}s`);
+						statsParts.push(M.bsWallFmt.replace("%s", formatWallTimeSeconds(wallTimeMs)));
 					}
 					if (timeoutDisabled) {
-						statsParts.push("Timeout: disabled");
+						statsParts.push(M.bsTimeoutDisabled);
 					}
 					if (typeof timeoutSeconds === "number") {
 						statsParts.push(

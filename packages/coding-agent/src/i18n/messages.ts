@@ -1672,6 +1672,36 @@ export interface Messages {
 	msDeletedFmt: string;
 	msCannotCreateFmt: string;
 	msVerbedFmt: string;
+	bsErrInvalidEnvNameFmt: string;
+	bsErrJobManagerUnavailable: string;
+	bsErrAsyncDisabled: string;
+	bsErrCommandBlocked: string;
+	bsErrWorkdirMissingFmt: string;
+	bsErrWorkdirNotDirFmt: string;
+	bsErrAsyncManagerUnavailable: string;
+	bsCommandAborted: string;
+	bsCommandCancelled: string;
+	bsCommandAbortedMarker: string;
+	bsCommandTimedOut: string;
+	bsCommandTimedOutAfterFmt: string;
+	bsErrMissingExitStatusFmt: string;
+	bsTimeoutClampedFmt: string;
+	bsMaxTimeoutCeilingFmt: string;
+	bsAllowedRangeFmt: string;
+	bsWallTimeFmt: string;
+	bsExitedCodeFmt: string;
+	bsBackgroundedFmt: string;
+	bsBlockedByPatternFmt: string;
+	bsCriticalPatternDetected: string;
+	bsPromptRequiredByPatternFmt: string;
+	bsMissingCommand: string;
+	bsCommandFmt: string;
+	bsBackgroundedEarly: string;
+	bsOutputTruncated: string;
+	bsPtyUnavailable: string;
+	bsBackgroundedFmt2: string;
+	bsWallFmt: string;
+	bsTimeoutDisabled: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 
