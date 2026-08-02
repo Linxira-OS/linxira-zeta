@@ -10,6 +10,7 @@ import { type } from "arktype";
 import { canonicalSnapshotKey, getFileSnapshotStore } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import astEditDescription from "../prompts/tools/ast-edit.md" with { type: "text" };
 import {
@@ -201,8 +202,8 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 		}
 		return lines;
 	};
-	readonly label = "AST Edit";
-	readonly summary = "Perform AST-aware code edits (structural refactoring)";
+	readonly label = M.aedLabel;
+	readonly summary = M.aedSummary;
 	readonly description: string;
 	readonly parameters = astEditSchema;
 	readonly strict = true;
@@ -272,7 +273,7 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 				return [entry.pat, entry.out] as const;
 			});
 			if (ops.length === 0) {
-				throw new ToolError("`ops` must include at least one op entry");
+				throw new ToolError(M.aedErrNoOps);
 			}
 			const seenPatterns = new Set<string>();
 			for (const [pat] of ops) {
@@ -430,7 +431,7 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 				count: fileReplacementCounts.get(filePath) ?? 0,
 			}));
 			if (result.limitReached) {
-				outputLines.push("", "Limit reached; narrow paths.");
+				outputLines.push("", M.aedLimitReached);
 			}
 			if (cappedParseErrors.length) {
 				outputLines.push("", ...formatParseErrors(cappedParseErrors, parseErrorsTotal));
@@ -575,7 +576,7 @@ function buildChangeBody(groups: string[][], expanded: boolean, budget: number, 
 		shown++;
 	}
 	const remaining = groups.length - shown;
-	if (!expanded && remaining > 0) lines.push(theme.fg("muted", formatMoreItems(remaining, "change")));
+	if (!expanded && remaining > 0) lines.push(theme.fg("muted", formatMoreItems(remaining, M.aedChangeNoun)));
 	return lines;
 }
 
@@ -630,7 +631,7 @@ export const astEditToolRenderer = {
 		if (totalReplacements === 0) {
 			const rewriteCount = args?.ops?.length ?? 0;
 			const description = rewriteCount === 1 ? patternPreview(args?.ops?.[0]?.pat) : undefined;
-			const meta = ["0 replacements"];
+			const meta = [M.aedZeroReplacements];
 			if (details?.scopePath) meta.push(`in ${details.scopePath}`);
 			if (filesSearched > 0) meta.push(`searched ${filesSearched}`);
 			const header = renderStatusLine({ icon: "warning", title: "AST Edit", description, meta }, uiTheme);
@@ -648,11 +649,14 @@ export const astEditToolRenderer = {
 			}));
 		}
 
-		const summaryParts = [formatCount("replacement", totalReplacements), formatCount("file", filesTouched)];
+		const summaryParts = [
+			formatCount(M.aedReplacementNoun, totalReplacements),
+			formatCount(M.aedFileNoun, filesTouched),
+		];
 		const meta = [...summaryParts];
 		if (details?.scopePath) meta.push(`in ${details.scopePath}`);
 		meta.push(`searched ${filesSearched}`);
-		if (limitReached) meta.push(uiTheme.fg("warning", "limit reached"));
+		if (limitReached) meta.push(uiTheme.fg("warning", M.tLimitReached));
 		const rewriteCount = args?.ops?.length ?? 0;
 		const description = rewriteCount === 1 ? patternPreview(args?.ops?.[0]?.pat) : undefined;
 
@@ -693,7 +697,7 @@ export const astEditToolRenderer = {
 
 		const extraLines: string[] = [];
 		if (limitReached) {
-			extraLines.push(uiTheme.fg("warning", "limit reached; narrow path"));
+			extraLines.push(uiTheme.fg("warning", M.aedLimitNarrowPath));
 		}
 		if (details?.parseErrors?.length) {
 			extraLines.push(

@@ -9,6 +9,7 @@ import { prompt, untilAborted } from "@zeta/pi-utils";
 import { type } from "arktype";
 import { recordFileSnapshot, recordSeenLinesFromBody } from "../edit/file-snapshot-store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import astGrepDescription from "../prompts/tools/ast-grep.md" with { type: "text" };
 import { Ellipsis, fileHyperlink, renderStatusLine, renderTreeList, truncateToWidth } from "../tui";
@@ -148,8 +149,8 @@ export interface AstGrepToolDetails {
 export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolDetails> {
 	readonly name = "ast_grep";
 	readonly approval = "read" as const;
-	readonly label = "AST Grep";
-	readonly summary = "Search code with AST patterns (structural grep)";
+	readonly label = M.agrpLabel;
+	readonly summary = M.agrpSummary;
 	readonly description: string;
 	readonly parameters = astGrepSchema;
 	readonly strict = true;
@@ -192,12 +193,12 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 		return untilAborted(signal, async () => {
 			const pattern = params.pat.trim();
 			if (pattern.length === 0) {
-				throw new ToolError("`pat` must be a non-empty pattern");
+				throw new ToolError(M.agrpErrNoPat);
 			}
 			const patterns = [pattern];
 			const skip = params.skip === undefined ? 0 : Math.floor(params.skip);
 			if (!Number.isFinite(skip) || skip < 0) {
-				throw new ToolError("skip must be a non-negative number");
+				throw new ToolError(M.agrpErrSkip);
 			}
 			const scopedPaths = toPathList(params.path);
 			const rawPaths = scopedPaths.length > 0 ? scopedPaths : ["."];
@@ -274,9 +275,7 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 			};
 
 			if (result.matches.length === 0) {
-				const noMatchMessage = cappedParseErrors.length
-					? "No matches found. Parse issues mean the query may be mis-scoped; narrow `path` before concluding absence."
-					: "No matches found";
+				const noMatchMessage = cappedParseErrors.length ? M.agrpNoMatchesHelp : "No matches found";
 				const parseMessage = cappedParseErrors.length
 					? `\n${formatParseErrors(cappedParseErrors, parseErrorsTotal).join("\n")}`
 					: "";
@@ -375,7 +374,7 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 				displayContent: displayLines.join("\n"),
 			};
 			if (result.limitReached) {
-				outputLines.push("", "Result limit reached; narrow path or increase limit.");
+				outputLines.push("", M.agrpLimitReached);
 			}
 			if (cappedParseErrors.length) {
 				outputLines.push("", ...formatParseErrors(cappedParseErrors, parseErrorsTotal));
@@ -433,23 +432,23 @@ export const astGrepToolRenderer = {
 
 		if (matchCount === 0) {
 			const description = args?.pat;
-			const meta = ["0 matches"];
+			const meta = [M.agrpZeroMatches];
 			if (details?.scopePath) meta.push(`in ${details.scopePath}`);
 			if (filesSearched > 0) meta.push(`searched ${filesSearched}`);
 			const header = renderStatusLine({ icon: "warning", title: "AST Grep", description, meta }, uiTheme);
-			const lines = [header, formatEmptyMessage("No matches found", uiTheme)];
+			const lines = [header, formatEmptyMessage(M.agrpNoMatches, uiTheme)];
 			if (details?.parseErrors?.length) {
-				lines.push(uiTheme.fg("warning", "Query may be mis-scoped; narrow `path` before concluding absence"));
+				lines.push(uiTheme.fg("warning", M.agrpMisScoped));
 				appendParseErrorsBulletList(lines, details.parseErrors, uiTheme, details.parseErrorsTotal);
 			}
 			return new Text(lines.join("\n"), 0, 0);
 		}
 
-		const summaryParts = [formatCount("match", matchCount), formatCount("file", fileCount)];
+		const summaryParts = [formatCount(M.agrpMatchNoun, matchCount), formatCount(M.agrpFileNoun, fileCount)];
 		const meta = [...summaryParts];
 		if (details?.scopePath) meta.push(`in ${details.scopePath}`);
 		meta.push(`searched ${filesSearched}`);
-		if (limitReached) meta.push(uiTheme.fg("warning", "limit reached"));
+		if (limitReached) meta.push(uiTheme.fg("warning", M.tLimitReached));
 		const description = args?.pat;
 		const header = renderStatusLine(
 			{
@@ -490,7 +489,7 @@ export const astGrepToolRenderer = {
 
 		const extraLines: string[] = [];
 		if (limitReached) {
-			extraLines.push(uiTheme.fg("warning", "limit reached; narrow path or increase limit"));
+			extraLines.push(uiTheme.fg("warning", M.agrpLimitNarrowPath));
 		}
 		if (details?.parseErrors?.length) {
 			extraLines.push(

@@ -447,17 +447,24 @@ export class MarketplacePluginDetailComponent extends Container {
 
 		// Read-only metadata. SettingsList rejects items without `values`/`submenu`,
 		// so we render the metadata as plain text rows beneath the toggle.
-		this.addChild(new Text(theme.fg("dim", M.psVersionFmt(entry?.version ?? M.psUnknown)), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.psVersionFmt.replace("%s", entry?.version ?? M.psUnknown)), 0, 0));
 		this.addChild(new Text(theme.fg("dim", `  scope         ${plugin.scope}`), 0, 0));
 		this.addChild(
 			new Text(
-				theme.fg("dim", M.psInstallPathFmt(entry?.installPath ? shortenPath(entry.installPath) : M.psUnknown)),
+				theme.fg(
+					"dim",
+					M.psInstallPathFmt.replace("%s", entry?.installPath ? shortenPath(entry.installPath) : M.psUnknown),
+				),
 				0,
 				0,
 			),
 		);
-		this.addChild(new Text(theme.fg("dim", M.psInstalledAtFmt(entry?.installedAt ?? M.psUnknown)), 0, 0));
-		this.addChild(new Text(theme.fg("dim", M.psLastUpdatedFmt(entry?.lastUpdated ?? M.psUnknown)), 0, 0));
+		this.addChild(
+			new Text(theme.fg("dim", M.psInstalledAtFmt.replace("%s", entry?.installedAt ?? M.psUnknown)), 0, 0),
+		);
+		this.addChild(
+			new Text(theme.fg("dim", M.psLastUpdatedFmt.replace("%s", entry?.lastUpdated ?? M.psUnknown)), 0, 0),
+		);
 		if (entry?.gitCommitSha) {
 			this.addChild(new Text(theme.fg("dim", `  git sha       ${entry.gitCommitSha}`), 0, 0));
 		}

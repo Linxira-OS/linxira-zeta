@@ -14,6 +14,7 @@ import {
 } from "@zeta/pi-tui";
 import { sanitizeText } from "@zeta/pi-utils";
 import { Settings } from "../config/settings";
+import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import { OutputSink, type OutputSummary } from "../session/streaming-output";
 import { sanitizeWithOptionalSixelPassthrough } from "../utils/sixel";
@@ -245,8 +246,8 @@ class BashInteractiveOverlayComponent implements Component {
 		if (this.#state === "running") return this.uiTheme.fg("warning", "running");
 		if (this.#state === "timed_out") return this.uiTheme.fg("warning", "timed out");
 		if (this.#state === "killed") return this.uiTheme.fg("warning", "killed");
-		if (this.#exitCode === 0) return this.uiTheme.fg("success", "exit 0");
-		if (this.#exitCode === undefined) return this.uiTheme.fg("warning", "exited");
+		if (this.#exitCode === 0) return this.uiTheme.fg("success", M.biExit0);
+		if (this.#exitCode === undefined) return this.uiTheme.fg("warning", M.biExited);
 		return this.uiTheme.fg("error", `exit ${this.#exitCode}`);
 	}
 
@@ -281,7 +282,7 @@ class BashInteractiveOverlayComponent implements Component {
 				: this.#state === "complete" && this.#exitCode === 0
 					? this.uiTheme.styledSymbol("tool.bash", "accent")
 					: formatStatusIcon("warning", this.uiTheme);
-		const title = this.uiTheme.fg("accent", "Console");
+		const title = this.uiTheme.fg("accent", M.biConsole);
 		const statusBadge = `${this.uiTheme.fg("dim", this.uiTheme.format.bracketLeft)}${this.#stateText()}${this.uiTheme.fg("dim", this.uiTheme.format.bracketRight)}`;
 		const prefix = `${statusIcon} ${title} `;
 		const suffix = ` ${statusBadge}`;
@@ -291,10 +292,10 @@ class BashInteractiveOverlayComponent implements Component {
 		const footer =
 			this.#state === "running"
 				? truncateToWidth(
-						`${this.uiTheme.fg("warning", "esc")} ${this.uiTheme.fg("dim", "force-kill")} ${this.uiTheme.fg("dim", "· input forwarded to PTY")}`,
+						`${this.uiTheme.fg("warning", M.biEsc)} ${this.uiTheme.fg("dim", M.biForceKill)} ${this.uiTheme.fg("dim", M.biInputForwarded)}`,
 						innerWidth,
 					)
-				: truncateToWidth(this.uiTheme.fg("dim", "session finished"), innerWidth);
+				: truncateToWidth(this.uiTheme.fg("dim", M.biSessionFinished), innerWidth);
 		const visibleLines = this.#readViewport(innerWidth, maxContentRows);
 		const content = visibleLines.length > 0 ? visibleLines : [padding(innerWidth)];
 		const borderHorizontal = this.uiTheme.fg("border", this.uiTheme.boxRound.horizontal.repeat(innerWidth));

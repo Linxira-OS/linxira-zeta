@@ -6,7 +6,9 @@
  * - compare a tool capability tier against the active approval mode,
  * - format the generic approval prompt body.
  */
+
 import type { AgentTool, ToolApprovalDecision, ToolTier } from "@zeta/pi-agent-core";
+import { M } from "../i18n/messages";
 
 export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@zeta/pi-agent-core";
 
@@ -202,10 +204,7 @@ export function requiresApproval(
 		if (source === "tool") {
 			throw new Error(`Tool "${tool.name}" is blocked by tool policy.${reason ? `\nReason: ${reason}` : ""}`);
 		}
-		throw new Error(
-			`Tool "${tool.name}" is blocked by user policy.\n` +
-				`To allow: remove "tools.approval.${tool.name}: deny" from config.`,
-		);
+		throw new Error(M.apprBlockedFmt.replace("%s", tool.name).replace("%s", tool.name));
 	}
 
 	if (policy === "prompt") return { required: true, reason };
@@ -225,7 +224,7 @@ export function formatApprovalPrompt(tool: ApprovalSubject, args: unknown, reaso
 	const lines = [`Allow tool: ${tool.name}`];
 
 	if (tool.name.startsWith("mcp__") && tool.approval === undefined) {
-		lines.push("Origin: MCP server tool");
+		lines.push(M.apprOriginMcp);
 	}
 
 	if (reason) {

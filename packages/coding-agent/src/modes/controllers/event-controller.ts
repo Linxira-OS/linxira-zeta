@@ -1564,7 +1564,9 @@ export class EventController {
 			this.#clearRetrySupersededAssistantComponents();
 		} else {
 			this.#clearRetrySupersededAssistantComponents();
-			this.ctx.showError(M.ecRetryFailedFmt(event.attempt, event.finalError || M.ccUnknownError));
+			this.ctx.showError(
+				M.ecRetryFailedFmt.replace("%d", String(event.attempt)).replace("%s", event.finalError || M.ccUnknownError),
+			);
 		}
 		this.#ensureWorkingLoaderWhileStreaming();
 		this.ctx.ui.requestRender();

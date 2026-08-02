@@ -35,6 +35,7 @@ import { type GeneratedProvider, getBundledModels } from "@zeta/pi-catalog/model
 import { getConfigRootDir, isEnoent, logger, VERSION } from "@zeta/pi-utils";
 import chalk from "chalk";
 import { ModelRegistry } from "../config/model-registry";
+import { M } from "../i18n/messages";
 import { type AuthBrokerClientConfig, resolveAuthBrokerConfig } from "../session/auth-broker-config";
 
 export type AuthGatewayAction = "serve" | "token" | "status" | "check";

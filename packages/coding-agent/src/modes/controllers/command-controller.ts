@@ -795,7 +795,7 @@ export class CommandController {
 			showMarkdownPanel(
 				this.ctx,
 				model.name,
-				M.ccModelIdFmt.replace("%s", model.id) + tags + refreshed + sourceQuery + "\n\n" + content,
+				`${M.ccModelIdFmt.replace("%s", model.id)}${tags}${refreshed}${sourceQuery}\n\n${content}`,
 			);
 		} catch (error) {
 			this.ctx.showError(M.ccMmShowFailedFmt.replace("%s", error instanceof Error ? error.message : String(error)));

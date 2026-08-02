@@ -47,7 +47,7 @@ export class SSHCommandController {
 				await this.#handleRemove(text);
 				break;
 			default:
-				this.ctx.showError(M.sshErrUnknownSubcommandFmt(subcommand));
+				this.ctx.showError(M.sshErrUnknownSubcommandFmt.replace("%s", subcommand));
 		}
 	}
 
@@ -209,14 +209,19 @@ export class SSHCommandController {
 			resetCapabilities();
 
 			const scopeLabel = scope === "user" ? "user" : "project";
-			const lines = ["", theme.fg("success", M.sshAddedFmt(name, scopeLabel)), "", `  Host: ${host}`];
+			const lines = [
+				"",
+				theme.fg("success", M.sshAddedFmt.replace("%s", name).replace("%s", scopeLabel)),
+				"",
+				`  Host: ${host}`,
+			];
 			if (username) lines.push(`  User: ${username}`);
 			if (port) lines.push(`  Port: ${port}`);
 			if (keyPath) lines.push(`  Key:  ${keyPath}`);
 			if (description) lines.push(`  Desc: ${description}`);
 			if (compat) lines.push(`  Compat: true`);
 			lines.push("");
-			lines.push(theme.fg("muted", M.sshListHintFmt(theme.fg("accent", "/ssh list"))));
+			lines.push(theme.fg("muted", M.sshListHintFmt.replace("%s", theme.fg("accent", "/ssh list"))));
 			lines.push("");
 
 			this.#showMessage(lines.join("\n"));
@@ -225,7 +230,7 @@ export class SSHCommandController {
 
 			let helpText = "";
 			if (errorMsg.includes("already exists")) {
-				helpText = M.sshTipAlreadyExistsFmt(theme.fg("accent", "/ssh remove"));
+				helpText = M.sshTipAlreadyExistsFmt.replace("%s", theme.fg("accent", "/ssh remove"));
 			}
 
 			this.ctx.showError(`Failed to add host: ${errorMsg}${helpText}`);
@@ -263,9 +268,13 @@ export class SSHCommandController {
 
 			if (userHosts.length === 0 && projectHosts.length === 0 && discoveredHosts.length === 0) {
 				this.#showMessage(
-					["", theme.fg("muted", M.sshNoHosts), "", M.sshAddHintFmt(theme.fg("accent", "/ssh add")), ""].join(
-						"\n",
-					),
+					[
+						"",
+						theme.fg("muted", M.sshNoHosts),
+						"",
+						M.sshAddHintFmt.replace("%s", theme.fg("accent", "/ssh add")),
+						"",
+					].join("\n"),
 				);
 				return;
 			}
@@ -299,7 +308,7 @@ export class SSHCommandController {
 				for (const { providerName, shortPath, items: hosts } of groupBySource(discoveredHosts, h => h._source)) {
 					lines.push(
 						theme.fg("accent", M.sshDiscovered) +
-							theme.fg("muted", M.sshDiscoveredFmt(providerName, shortPath)) +
+							theme.fg("muted", M.sshDiscoveredFmt.replace("%s", providerName).replace("%s", shortPath)) +
 							theme.fg("dim", M.sshDiscoveredReadOnly),
 					);
 					for (const host of hosts) {
@@ -360,7 +369,9 @@ export class SSHCommandController {
 			await removeSSHHost(filePath, name);
 			resetCapabilities();
 
-			this.#showMessage(["", theme.fg("success", M.sshRemovedFmt(name, scope)), ""].join("\n"));
+			this.#showMessage(
+				["", theme.fg("success", M.sshRemovedFmt.replace("%s", name).replace("%s", scope)), ""].join("\n"),
+			);
 		} catch (error) {
 			this.ctx.showError(`Failed to remove host: ${error instanceof Error ? error.message : String(error)}`);
 		}

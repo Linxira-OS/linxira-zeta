@@ -100,7 +100,7 @@ function parseMaxTimeSeconds(value: string): number {
 	const duration = MAX_TIME_DURATION_RE.exec(trimmed);
 	const seconds = duration ? Number(duration[1]) * maxTimeMultiplier(duration[2]) : Number(trimmed);
 	if (Number.isFinite(seconds) && seconds > 0) return seconds;
-	throw new CliUsageError(M.ftInvalidMaxTime(JSON.stringify(value)));
+	throw new CliUsageError(M.ftInvalidMaxTime.replace("%s", JSON.stringify(value)));
 }
 
 /**
@@ -185,11 +185,10 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 		const unknown = names.filter(name => !deps.builtinToolNames.includes(name));
 		if (unknown.length > 0) {
 			throw new CliUsageError(
-				M.ftUnknownToolsFmt(
-					unknown.length === 1 ? "" : M.ftPluralS,
-					unknown.join(", "),
-					deps.builtinToolNames.join(", "),
-				),
+				M.ftUnknownToolsFmt
+					.replace("%s", unknown.length === 1 ? "" : M.ftPluralS)
+					.replace("%s", unknown.join(", "))
+					.replace("%s", deps.builtinToolNames.join(", ")),
 			);
 		}
 		result.tools = names;

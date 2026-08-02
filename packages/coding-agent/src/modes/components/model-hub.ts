@@ -727,7 +727,7 @@ export class ModelHubComponent implements Component {
 					return `  Discovery endpoint ${httpMatch[2]} returned 404. Point baseUrl at the host that serves /models (usually .../v1).`;
 				}
 				if (state.error) return `  Discovery failed: ${state.error}`;
-				return age ? M.mhCachedAgeFmt(age) : M.mhUnavailable;
+				return age ? M.mhCachedAgeFmt.replace("%s", age) : M.mhUnavailable;
 			}
 			case "unauthenticated":
 				return M.mhNeedsAuth;
@@ -1828,7 +1828,7 @@ export class ModelHubComponent implements Component {
 		lines.push("");
 		const envVars = entry.providerId ? (getCatalogProviderEntry(entry.providerId)?.envVars ?? []) : [];
 		if (envVars.length > 0) {
-			lines.push(truncateToWidth(theme.fg("muted", M.mhEnvHintFmt(envVars.join(M.mhOr))), width));
+			lines.push(truncateToWidth(theme.fg("muted", M.mhEnvHintFmt.replace("%s", envVars.join(M.mhOr))), width));
 		} else {
 			lines.push(truncateToWidth(theme.fg("muted", M.mhApiKeyHint), width));
 		}

@@ -97,7 +97,7 @@ export function parseConfigArgs(args: string[]): ConfigCommandArgs | undefined {
 	const action = args[1];
 	if (!VALID_ACTIONS.includes(action as ConfigAction)) {
 		console.error(chalk.red(`Unknown config command: ${action}`));
-		console.error(M.cfgValidCommands(VALID_ACTIONS.join(", ")));
+		console.error(M.cfgValidCommands.replace("%s", VALID_ACTIONS.join(", ")));
 		process.exit(1);
 	}
 
@@ -196,7 +196,7 @@ function parseAndSetValue(path: SettingPath, rawValue: string): void {
 		case "enum": {
 			const valid = getEnumValues(path);
 			if (valid && !valid.includes(trimmed)) {
-				throw new Error(M.cfgInvalidValue(rawValue, valid.join(", ")));
+				throw new Error(M.cfgInvalidValue.replace("%s", rawValue).replace("%s", valid.join(", ")));
 			}
 			parsedValue = trimmed;
 			break;

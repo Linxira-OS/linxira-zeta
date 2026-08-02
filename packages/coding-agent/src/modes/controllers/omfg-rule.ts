@@ -502,18 +502,17 @@ function buildScopeFeedback(rule: Rule, matches: readonly HistorySurface[]): str
 
 	const problems: string[] = [];
 	if (hasBroadToolScope) {
-		problems.push(M.omfgScopeBroaderFmt(formatRuleList(rule.scope)));
+		problems.push(M.omfgScopeBroaderFmt.replace("%s", formatRuleList(rule.scope)));
 	}
 	if (hasTextScope) {
 		problems.push(M.omfgProblemTextScope);
 	}
 
-	return M.omfgConditionMatchedFmt(
-		toolMatch.label,
-		problems.join("; "),
-		JSON.stringify(recommendedScope),
-		formatRuleList(rule.scope),
-	);
+	return M.omfgConditionMatchedFmt
+		.replace("%s", toolMatch.label)
+		.replace("%s", problems.join("; "))
+		.replace("%s", JSON.stringify(recommendedScope))
+		.replace("%s", formatRuleList(rule.scope));
 }
 
 function findFileToolMatch(matches: readonly HistorySurface[]): HistorySurface | undefined {

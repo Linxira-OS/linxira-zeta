@@ -185,7 +185,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 	render(width: number): readonly string[] {
 		const height = Math.max(14, process.stdout.rows || 40);
 		const bodyRows = Math.max(3, height - 4);
-		const title = M.adTitleFmt(this.#scope, this.#dirty ? M.adUnsaved : "");
+		const title = M.adTitleFmt.replace("%s", this.#scope).replace("%s", this.#dirty ? M.adUnsaved : "");
 		const out: string[] = [];
 
 		if (this.#screen === "list") {
@@ -313,7 +313,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 				`${liveStat.tokens.output.toLocaleString()} out`,
 			];
 			if (liveStat.tokens.cacheRead > 0) spendParts.push(`${liveStat.tokens.cacheRead.toLocaleString()} cache`);
-			lines.push(theme.fg("dim", M.adTokensFmt(spendParts.join(", "))));
+			lines.push(theme.fg("dim", M.adTokensFmt.replace("%s", spendParts.join(", "))));
 			if (liveStat.cost > 0) lines.push(theme.fg("dim", `  Cost: $${liveStat.cost.toFixed(4)}`));
 			if (liveStat.contextWindow > 0) {
 				const pct = Math.round((liveStat.contextTokens / liveStat.contextWindow) * 100);
@@ -465,7 +465,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 		const list = new SelectList(items, Math.max(1, items.length), getSelectListTheme());
 		list.onSelect = item => this.#onDetailSelect(index, item.value);
 		list.onCancel = () => this.#showList();
-		this.#setScreen("detail", list, M.adEditingFmt(advisor.name));
+		this.#setScreen("detail", list, M.adEditingFmt.replace("%s", advisor.name));
 	}
 
 	#onDetailSelect(index: number, field: string): void {
