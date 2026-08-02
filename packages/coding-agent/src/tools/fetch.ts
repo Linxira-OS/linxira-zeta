@@ -10,6 +10,7 @@ import { $which, ptree, truncate } from "@zeta/pi-utils";
 import type { Settings } from "../config/settings";
 import { readEditableNotebookText } from "../edit/notebook";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { type Theme, theme } from "../modes/theme/theme";
 import type { ToolSession } from "../sdk";
 import type { AgentStorage } from "../session/agent-storage";
@@ -640,7 +641,7 @@ export async function renderHtmlToText(
 			const parallelResult = await extractWithParallel(
 				[url],
 				{
-					objective: "Extract the main content",
+					objective: M.ftExtractMainContent,
 					excerpts: true,
 					fullContent: false,
 					signal: remoteSignal(),
@@ -900,7 +901,7 @@ async function tryRenderBinaryPayload(
 	const resultNotes = [...notes];
 	const binary = await fetchBinary(finalUrl, timeout, signal);
 	if (!binary.ok) {
-		resultNotes.push(binary.error ? `Binary fetch failed: ${binary.error}` : "Binary fetch failed");
+		resultNotes.push(binary.error ? M.ftBinaryFetchFailedFmt.replace("%s", binary.error) : M.ftBinaryFetchFailed);
 		return buildBinaryPayloadResult(
 			url,
 			finalUrl,
@@ -1075,7 +1076,7 @@ async function renderUrl(
 			content: "",
 			fetchedAt,
 			truncated: false,
-			notes: ["Internal protocol URL - no external content"],
+			notes: [M.ftInternalProtocolUrl],
 		};
 	}
 
@@ -1103,7 +1104,7 @@ async function renderUrl(
 			fetchedAt,
 			truncated: false,
 			notes: [
-				response.status ? `Failed to fetch URL (HTTP ${response.status})` : "Failed to fetch URL",
+				response.status ? M.ftFetchFailedFmt.replace("%s", String(response.status)) : M.ftFetchFailed,
 				...(response.error ? [`Cause: ${response.error}`] : []),
 			],
 		};
@@ -1128,7 +1129,7 @@ async function renderUrl(
 		} else {
 			const binary = await fetchBinary(finalUrl, timeout, signal);
 			if (binary.ok) {
-				notes.push("Fetched image binary");
+				notes.push(M.ftFetchedImageBinary);
 
 				if (binary.buffer.byteLength > MAX_INLINE_IMAGE_SOURCE_BYTES) {
 					notes.push(
@@ -1211,7 +1212,7 @@ async function renderUrl(
 					},
 				};
 			}
-			notes.push(binary.error ? `Binary fetch failed: ${binary.error}` : "Binary fetch failed");
+			notes.push(binary.error ? M.ftBinaryFetchFailedFmt.replace("%s", binary.error) : M.ftBinaryFetchFailed);
 			notes.push("Falling back to textual rendering from initial response");
 			skipConvertibleBinaryRetry = true;
 		}
@@ -1225,7 +1226,7 @@ async function renderUrl(
 			const converted = await convertWithMarkit(binary.buffer, ext, timeout, signal);
 			if (converted.ok) {
 				if (converted.content.trim().length > 50) {
-					notes.push("Converted with markit");
+					notes.push(M.ftConvertedWithMarkit);
 					const output = finalizeOutput(converted.content);
 					return {
 						url,
@@ -1603,7 +1604,7 @@ function readUrlContentExtension(finalUrl: string): string {
 async function materializeReadUrlContent(session: ToolSession, entry: ReadUrlEntry, raw: boolean): Promise<string> {
 	const root = session.getArtifactsDir?.();
 	if (!root) {
-		throw new ToolError("Cannot search URL output because this session cannot materialize read artifacts.");
+		throw new ToolError(M.ftErrCannotSearchUrl);
 	}
 	const dir = path.join(root, "url-search");
 	await fs.mkdir(dir, { recursive: true });
@@ -1667,7 +1668,7 @@ export async function materializeReadUrlToFile(
 	signal?: AbortSignal,
 ): Promise<{ path: string; details: ReadUrlToolDetails }> {
 	if (!session.settings.get("fetch.enabled")) {
-		throw new ToolError("URL reads are disabled by settings.");
+		throw new ToolError(M.ftErrUrlDisabled);
 	}
 	const entry = await fetchReadUrl(session, params, signal);
 	const contentPath = await materializeReadUrlContent(session, entry, params.raw ?? false);

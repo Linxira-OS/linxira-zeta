@@ -1594,6 +1594,16 @@ export interface Messages {
 	ghFailedJobLogsLabel: string;
 	ghItemTitleFmt: string;
 	ghRepoItemFmt: string;
+	ftErrCannotSearchUrl: string;
+	ftErrUrlDisabled: string;
+	ftInternalProtocolUrl: string;
+	ftBinaryFetchFailedFmt: string;
+	ftBinaryFetchFailed: string;
+	ftFetchFailedFmt: string;
+	ftFetchFailed: string;
+	ftFetchedImageBinary: string;
+	ftConvertedWithMarkit: string;
+	ftExtractMainContent: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 
