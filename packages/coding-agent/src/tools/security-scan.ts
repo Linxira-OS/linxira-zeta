@@ -1,5 +1,6 @@
 import type { AgentTool, AgentToolResult, ToolTier } from "@zeta/pi-agent-core";
 import { type } from "arktype";
+import { M } from "../i18n/messages";
 import securityScanDescription from "../prompts/tools/security-scan.md" with { type: "text" };
 import { selectSecurityAccount } from "../security/auth";
 import {
@@ -61,7 +62,7 @@ function targetFromParams(params: SecurityScanParams): SecurityTargetRequest {
 	switch (params.target_kind ?? "repository") {
 		case "scoped_path": {
 			if (!params.include_paths?.some(value => value.trim().length > 0)) {
-				throw new ToolError("scoped_path security scans require at least one include path");
+				throw new ToolError(M.ssErrScopedPathInclude);
 			}
 			return { kind: "scoped_path", includePaths: params.include_paths, excludePaths: params.exclude_paths };
 		}
@@ -69,7 +70,7 @@ function targetFromParams(params: SecurityScanParams): SecurityTargetRequest {
 			return { kind: "working_tree", ...common };
 		case "ref_diff":
 			if (!params.base_revision || !params.head_revision) {
-				throw new ToolError("ref_diff preflight requires base_revision and head_revision");
+				throw new ToolError(M.ssErrRefDiffRevisions);
 			}
 			return {
 				kind: "ref_diff",
@@ -83,12 +84,12 @@ function targetFromParams(params: SecurityScanParams): SecurityTargetRequest {
 }
 
 function requireValue(value: string | undefined, label: string): string {
-	if (!value?.trim()) throw new ToolError(`${label} is required for this action`);
+	if (!value?.trim()) throw new ToolError(M.ssErrRequiredFmt.replace("%s", label));
 	return value.trim();
 }
 
 function cloudClientForSession(session: ToolSession, credentialId?: number): CodexSecurityCloudClient {
-	if (!session.authStorage) throw new ToolError("Codex Security cloud requires the authentication registry");
+	if (!session.authStorage) throw new ToolError(M.ssErrNoAuthRegistry);
 	const account = selectSecurityAccount(
 		session.authStorage,
 		"openai-codex",
@@ -120,7 +121,7 @@ export class SecurityScanTool implements AgentTool<typeof securityScanSchema, Se
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<SecurityScanToolDetails>> {
 		if (!this.session.settings.get("security.enabled")) {
-			throw new ToolError("Security is disabled. Enable security.enabled before using security_scan.");
+			throw new ToolError(M.ssErrDisabled);
 		}
 		const coordinatorForSession = () => {
 			if (!this.session.modelRegistry || !this.session.authStorage) {

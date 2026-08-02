@@ -38,6 +38,7 @@ import {
 	selectAttachAdapter,
 	selectLaunchAdapter,
 } from "../dap";
+import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import debugDescription from "../prompts/tools/debug.md" with { type: "text" };
 import { renderStatusLine } from "../tui";
@@ -203,7 +204,7 @@ function formatSessionSnapshot(snapshot: DapSessionSummary): string[] {
 	const location = formatLocation(snapshot);
 	if (location) lines.push(`Location: ${location}`);
 	if (snapshot.needsConfigurationDone) {
-		lines.push("Configuration: pending configurationDone; set breakpoints, then continue.");
+		lines.push(M.dbgConfigPending);
 	}
 	if (snapshot.exitCode !== undefined) lines.push(`Exit code: ${snapshot.exitCode}`);
 	return lines;
@@ -217,21 +218,29 @@ function formatBreakpoints(filePath: string, breakpoints: DapBreakpointRecord[])
 	}
 	for (const breakpoint of breakpoints) {
 		lines.push(
-			`- line ${breakpoint.line}: ${breakpoint.verified ? "verified" : "pending"}${breakpoint.condition ? ` if ${breakpoint.condition}` : ""}${breakpoint.message ? ` (${breakpoint.message})` : ""}`,
+			M.dbgLineFmt
+				.replace("%s", String(breakpoint.line))
+				.replace("%s", breakpoint.verified ? M.dbgVerified : M.dbgPending)
+				.replace("%s", breakpoint.condition ? M.dbgIfFmt.replace("%s", breakpoint.condition) : "")
+				.replace("%s", breakpoint.message ? M.dbgMsgFmt.replace("%s", breakpoint.message) : ""),
 		);
 	}
 	return lines.join("\n");
 }
 
 function formatFunctionBreakpoints(breakpoints: DapFunctionBreakpointRecord[]): string {
-	const lines = ["Function breakpoints:"];
+	const lines = [M.dbgFunctionBreakpoints];
 	if (breakpoints.length === 0) {
 		lines.push("(none)");
 		return lines.join("\n");
 	}
 	for (const breakpoint of breakpoints) {
 		lines.push(
-			`- ${breakpoint.name}: ${breakpoint.verified ? "verified" : "pending"}${breakpoint.condition ? ` if ${breakpoint.condition}` : ""}${breakpoint.message ? ` (${breakpoint.message})` : ""}`,
+			M.dbgFuncFmt
+				.replace("%s", breakpoint.name)
+				.replace("%s", breakpoint.verified ? M.dbgVerified : M.dbgPending)
+				.replace("%s", breakpoint.condition ? M.dbgIfFmt.replace("%s", breakpoint.condition) : "")
+				.replace("%s", breakpoint.message ? M.dbgMsgFmt.replace("%s", breakpoint.message) : ""),
 		);
 	}
 	return lines.join("\n");
@@ -272,7 +281,11 @@ function formatScopes(scopes: DapScope[]): string {
 	}
 	for (const scope of scopes) {
 		lines.push(
-			`- ${scope.name}: ref=${scope.variablesReference}, expensive=${scope.expensive ? "yes" : "no"}${scope.presentationHint ? `, hint=${scope.presentationHint}` : ""}`,
+			M.dbgScopeFmt
+				.replace("%s", scope.name)
+				.replace("%s", String(scope.variablesReference))
+				.replace("%s", scope.expensive ? M.dbgYes : M.dbgNo)
+				.replace("%s", scope.presentationHint ? M.dbgHintFmt.replace("%s", scope.presentationHint) : ""),
 		);
 	}
 	return lines.join("\n");
@@ -286,7 +299,14 @@ function formatVariables(variables: DapVariable[]): string {
 	}
 	for (const variable of variables) {
 		lines.push(
-			`- ${variable.name} = ${variable.value}${variable.type ? ` (${variable.type})` : ""}${variable.variablesReference > 0 ? ` [ref=${variable.variablesReference}]` : ""}`,
+			M.dbgVarFmt
+				.replace("%s", variable.name)
+				.replace("%s", variable.value)
+				.replace("%s", variable.type ? M.dbgTypeFmt.replace("%s", variable.type) : "")
+				.replace(
+					"%s",
+					variable.variablesReference > 0 ? M.dbgRefFmt.replace("%s", String(variable.variablesReference)) : "",
+				),
 		);
 	}
 	return lines.join("\n");
@@ -338,7 +358,7 @@ function formatMemoryRead(address: string, data: string | undefined, unreadableB
 	const lines = [`Memory at ${address}:`];
 	const buffer = data ? Buffer.from(data, "base64") : Buffer.alloc(0);
 	if (buffer.length === 0) {
-		lines.push("(no readable bytes)");
+		lines.push(M.dbgNoReadableBytes);
 	} else {
 		for (let offset = 0; offset < buffer.length; offset += 16) {
 			const chunk = buffer.subarray(offset, offset + 16);

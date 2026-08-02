@@ -1736,6 +1736,29 @@ export interface Messages {
 	xdDocsSuffixFmt: string;
 	xdExecuteHintFmt: string;
 	xdErrInvalidArgsFmt: string;
+	dbgConfigPending: string;
+	dbgVerified: string;
+	dbgPending: string;
+	dbgIfFmt: string;
+	dbgMsgFmt: string;
+	dbgLineFmt: string;
+	dbgFunctionBreakpoints: string;
+	dbgFuncFmt: string;
+	dbgScopeFmt: string;
+	dbgYes: string;
+	dbgNo: string;
+	dbgHintFmt: string;
+	dbgVarFmt: string;
+	dbgTypeFmt: string;
+	dbgRefFmt: string;
+	dbgNoReadableBytes: string;
+	ssErrScopedPathInclude: string;
+	ssErrRefDiffRevisions: string;
+	ssErrRequiredFmt: string;
+	ssErrNoAuthRegistry: string;
+	ssErrDisabled: string;
+	ttErrNoXaiCreds: string;
+	ttSpeechGeneration: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

@@ -9,6 +9,7 @@ import { ProviderHttpError } from "@zeta/pi-ai/error";
 import { type } from "arktype";
 import { settings } from "../config/settings";
 import type { CustomTool, CustomToolContext } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { ohMyPiXAIUserAgent, resolveXAIHttpCredentials } from "../lib/xai-http";
 import { DEFAULT_TTS_LOCAL_MODEL_KEY, DEFAULT_TTS_VOICE, isTtsLocalModelKey, KOKORO_VOICES } from "../tts/models";
 import { ttsClient } from "../tts/tts-client";
@@ -103,7 +104,7 @@ async function synthesizeXai(
 			content: [
 				{
 					type: "text",
-					text: "No xAI credentials. Run /login → xAI Grok OAuth (SuperGrok or X Premium+) or set XAI_API_KEY.",
+					text: M.ttErrNoXaiCreds,
 				},
 			],
 		};
@@ -231,7 +232,7 @@ async function synthesizeLocal(
 
 export const ttsTool: CustomTool<typeof ttsSchema, TtsToolDetails> = {
 	name: "tts",
-	label: "Speech Generation",
+	label: M.ttSpeechGeneration,
 	strict: false,
 	approval: "write",
 	description:
