@@ -25,6 +25,7 @@ import packageJson from "../../package.json" with { type: "json" };
 import { isAuthenticated, type ModelRegistry } from "../config/model-registry";
 import { settings } from "../config/settings";
 import type { CustomTool } from "../extensibility/custom-tools/types";
+import { M } from "../i18n/messages";
 import { ohMyPiXAIUserAgent, resolveXAIHttpCredentials } from "../lib/xai-http";
 import imageGenDescription from "../prompts/tools/image-gen.md" with { type: "text" };
 import { AUTO_IMAGE_PROVIDER_ORDER, type ImageProvider, isImageProviderId } from "./image-providers";
@@ -42,8 +43,7 @@ const OPENAI_IMAGE_MIME_TYPE = "image/webp";
 
 const DEFAULT_ANTIGRAVITY_ENDPOINT_PROD = "https://daily-cloudcode-pa.googleapis.com";
 const DEFAULT_ANTIGRAVITY_ENDPOINT_SANDBOX = "https://daily-cloudcode-pa.sandbox.googleapis.com";
-const IMAGE_SYSTEM_INSTRUCTION =
-	"You are an AI image generator. Generate images based on user descriptions. Focus on creating high-quality, visually appealing images that match the user's request.";
+const IMAGE_SYSTEM_INSTRUCTION = M.igSysPrompt;
 
 export type { ImageProvider } from "./image-providers";
 export type ImageProviderPreference = ImageProvider | "auto";
@@ -379,10 +379,10 @@ async function loadImageFromUrl(
 	if (imageUrl.startsWith("data:")) {
 		const normalized = normalizeDataUrl(imageUrl.trim());
 		if (!normalized.mimeType) {
-			throw new Error("mime_type is required when providing raw base64 data.");
+			throw new Error(M.igErrMimeType);
 		}
 		if (!normalized.data) {
-			throw new Error("Image data is empty.");
+			throw new Error(M.igErrEmptyData);
 		}
 		return { data: normalized.data, mimeType: normalized.mimeType };
 	}
@@ -390,11 +390,11 @@ async function loadImageFromUrl(
 	const response = await fetchImpl(imageUrl, { signal });
 	if (!response.ok) {
 		const rawText = await response.text();
-		throw new Error(`Image download failed (${response.status}): ${rawText}`);
+		throw new Error(M.igErrDownloadFmt.replace("%s", String(response.status)).replace("%s", rawText));
 	}
 	const contentType = response.headers.get("content-type")?.split(";")[0];
 	if (!contentType?.startsWith("image/")) {
-		throw new Error(`Unsupported image type from URL: ${imageUrl}`);
+		throw new Error(M.igErrUnsupportedUrlFmt.replace("%s", imageUrl));
 	}
 	const buffer = await response.bytes();
 	return { data: buffer.toBase64(), mimeType: contentType };
@@ -661,18 +661,18 @@ async function loadImageFromPath(imagePath: string, cwd: string): Promise<Inline
 	try {
 		const buffer = await Bun.file(resolved).bytes();
 		if (buffer.length > MAX_IMAGE_SIZE) {
-			throw new Error(`Image file too large: ${imagePath}`);
+			throw new Error(M.igErrTooLargeFmt.replace("%s", imagePath));
 		}
 
 		const metadata = parseImageMetadata(buffer);
 		const mimeType = metadata?.mimeType;
 		if (!mimeType) {
-			throw new Error(`Unsupported image type: ${imagePath}`);
+			throw new Error(M.igErrUnsupportedTypeFmt.replace("%s", imagePath));
 		}
 
 		return { data: buffer.toBase64(), mimeType };
 	} catch (err) {
-		if (isEnoent(err)) throw new Error(`Image file not found: ${imagePath}`);
+		if (isEnoent(err)) throw new Error(M.igErrNotFoundFmt.replace("%s", imagePath));
 		throw err;
 	}
 }
@@ -694,7 +694,7 @@ async function resolveInputImage(input: ImageInput, cwd: string): Promise<Inline
 		return { data: normalized.data, mimeType };
 	}
 
-	throw new Error("input_images entries must include either path or data.");
+	throw new Error(M.igErrEntriesPathOrData);
 }
 
 function getExtensionForMime(mimeType: string): string {
@@ -909,7 +909,7 @@ function buildOpenAIImageHeaders(model: Model, apiKey: string, sessionId: string
 
 async function parseOpenAIHostedImageSse(response: Response, signal?: AbortSignal): Promise<OpenAIHostedImageResult> {
 	if (!response.body) {
-		throw new Error("No response body");
+		throw new Error(M.igErrNoResponseBody);
 	}
 
 	const fallbackOutput: OpenAIResponseOutput[] = [];
@@ -1147,7 +1147,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 					}
 					if (provider === "openai" || provider === "openai-codex") {
 						if (!apiKey.model) {
-							throw new Error("Missing active GPT model for OpenAI image generation");
+							throw new Error(M.igErrMissingGptModel);
 						}
 
 						const hostedModel = apiKey.model;
@@ -1206,7 +1206,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 
 					if (provider === "antigravity") {
 						if (!apiKey.projectId) {
-							throw new Error("Missing projectId in antigravity credentials");
+							throw new Error(M.igErrMissingProjectId);
 						}
 
 						const prompt = assemblePrompt(params);
@@ -1298,7 +1298,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 								}
 
 								if (!resp?.ok) {
-									throw lastError ?? new Error("Antigravity image generation failed");
+									throw lastError ?? new Error(M.igErrAntigravityFailed);
 								}
 
 								return resp;
@@ -1343,7 +1343,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 
 					if (provider === "xai") {
 						if (!ctx.modelRegistry) {
-							throw new Error("Missing modelRegistry for xAI image generation");
+							throw new Error(M.igErrMissingModelRegistry);
 						}
 						const xaiCreds = await resolveXAIHttpCredentials(ctx.modelRegistry, resolvedModel);
 						if (!xaiCreds) {

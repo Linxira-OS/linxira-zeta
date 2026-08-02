@@ -1759,6 +1759,22 @@ export interface Messages {
 	ssErrDisabled: string;
 	ttErrNoXaiCreds: string;
 	ttSpeechGeneration: string;
+	igSysPrompt: string;
+	igErrMimeType: string;
+	igErrEmptyData: string;
+	igErrDownloadFmt: string;
+	igErrUnsupportedUrlFmt: string;
+	igErrTooLargeFmt: string;
+	igErrUnsupportedTypeFmt: string;
+	igErrNotFoundFmt: string;
+	igErrEntriesPathOrData: string;
+	igErrNoResponseBody: string;
+	igErrMissingGptModel: string;
+	igErrMissingProjectId: string;
+	igErrAntigravityFailed: string;
+	igErrMissingModelRegistry: string;
+	rtiErrEmptyFmt: string;
+	rtiErrInvalidFmt: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

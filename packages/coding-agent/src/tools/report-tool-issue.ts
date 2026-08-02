@@ -37,6 +37,7 @@ import type { Component } from "@zeta/pi-tui";
 import { Text } from "@zeta/pi-tui";
 import { $env, $flag, getAutoQaDbPath, getInstallId, logger, VERSION } from "@zeta/pi-utils";
 import type { Settings } from "..";
+import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import { renderStatusLine, truncateToWidth } from "../tui";
 import type { ToolSession } from "./index";
@@ -78,7 +79,7 @@ export function renderReportIssueDeviceCall(content: unknown, uiTheme: Theme): C
 function parseReportIssueBody(text: string): { tool: string; report: string } {
 	const body = text.trim();
 	if (!body) {
-		throw new ToolError(`Empty report. ${reportIssueDeviceUsage()}`);
+		throw new ToolError(M.rtiErrEmptyFmt.replace("%s", reportIssueDeviceUsage()));
 	}
 	const firstNewline = body.indexOf("\n");
 	if (firstNewline >= 0) {
@@ -92,7 +93,7 @@ function parseReportIssueBody(text: string): { tool: string; report: string } {
 		const report = body.slice(colon + 1).trim();
 		if (tool && report) return { tool, report };
 	}
-	throw new ToolError(`Invalid report format. ${reportIssueDeviceUsage()}`);
+	throw new ToolError(M.rtiErrInvalidFmt.replace("%s", reportIssueDeviceUsage()));
 }
 
 /**
