@@ -13,6 +13,7 @@ import type {
 import { getWorktreeDir, hashPath, isEnoent, logger, prompt, untilAborted } from "@zeta/pi-utils";
 import { type } from "arktype";
 import type { Settings } from "../config/settings";
+import { M } from "../i18n/messages";
 import githubDescription from "../prompts/tools/github.md" with { type: "text" };
 import * as git from "../utils/git";
 import type { ToolSession } from ".";
@@ -668,7 +669,7 @@ function resolveSearchLimit(value: number | undefined): number {
 	}
 
 	if (!Number.isFinite(value) || value <= 0) {
-		throw new ToolError("limit must be a positive number");
+		throw new ToolError(M.ghErrLimitPositive);
 	}
 
 	return Math.min(Math.floor(value), SEARCH_LIMIT_MAX);
@@ -680,7 +681,7 @@ function resolveTailLimit(value: number | undefined): number {
 	}
 
 	if (!Number.isFinite(value) || value <= 0) {
-		throw new ToolError("tail must be a positive number");
+		throw new ToolError(M.ghErrTailPositive);
 	}
 
 	return Math.min(Math.floor(value), RUN_WATCH_TAIL_MAX);
@@ -714,7 +715,7 @@ const FIXED_UNIT_MS: Record<string, number> = {
 export function parseSearchDateBound(raw: string, now: Date = new Date()): string {
 	const trimmed = raw.trim();
 	if (!trimmed) {
-		throw new ToolError("date bound must not be empty");
+		throw new ToolError(M.ghErrDateBoundEmpty);
 	}
 
 	const relMatch = trimmed.match(RELATIVE_DURATION_PATTERN);
@@ -797,7 +798,7 @@ function composeSearchQuery(parts: ReadonlyArray<string | undefined>): string {
 		if (trimmed) cleaned.push(trimmed);
 	}
 	if (cleaned.length === 0) {
-		throw new ToolError("query is required (or pass since/until to filter by date)");
+		throw new ToolError(M.ghErrQueryRequired);
 	}
 	return cleaned.join(" ");
 }
@@ -925,7 +926,7 @@ function toLocalBranchRef(value: string): string {
 async function requireGitRepoRoot(cwd: string, signal?: AbortSignal): Promise<string> {
 	const repoRoot = await git.repo.root(cwd, signal);
 	if (!repoRoot) {
-		throw new ToolError("Current git repository is unavailable.");
+		throw new ToolError(M.ghErrRepoUnavailable);
 	}
 
 	return repoRoot;
@@ -943,7 +944,7 @@ async function requirePrimaryGitRepoRoot(cwd: string, signal?: AbortSignal): Pro
 async function requireCurrentGitBranch(cwd: string, signal?: AbortSignal): Promise<string> {
 	const branch = await git.branch.current(cwd, signal);
 	if (!branch) {
-		throw new ToolError("Current git branch is unavailable. Pass `branch` or `run` explicitly.");
+		throw new ToolError(M.ghErrBranchUnavailable);
 	}
 
 	return branch;
@@ -952,7 +953,7 @@ async function requireCurrentGitBranch(cwd: string, signal?: AbortSignal): Promi
 async function requireCurrentGitHead(cwd: string, signal?: AbortSignal): Promise<string> {
 	const headSha = await git.head.sha(cwd, signal);
 	if (!headSha) {
-		throw new ToolError("Current git HEAD is unavailable. Pass `run` explicitly.");
+		throw new ToolError(M.ghErrHeadUnavailable);
 	}
 
 	return headSha;
@@ -1020,7 +1021,7 @@ async function ensurePrRemote(
 	if (!data.isCrossRepository) {
 		const originUrl = await git.remote.url(repoRoot, "origin", signal);
 		if (!originUrl) {
-			throw new ToolError("origin remote is unavailable for this repository.");
+			throw new ToolError(M.ghErrOriginUnavailable);
 		}
 
 		return {
@@ -1143,7 +1144,7 @@ function parseRunReference(value: string | undefined): GhRunReference {
 
 	const match = run.match(RUN_URL_PATTERN);
 	if (!match) {
-		throw new ToolError("run must be a numeric workflow run ID or a full GitHub Actions run URL");
+		throw new ToolError(M.ghErrRunInvalid);
 	}
 
 	return {
@@ -1229,7 +1230,7 @@ function normalizeRunJob(job: GhActionsJobApi): GhRunJobSnapshot | null {
 
 function normalizeRunSnapshot(run: GhActionsRunApi, jobs: GhRunJobSnapshot[]): GhRunSnapshot {
 	if (typeof run.id !== "number") {
-		throw new ToolError("GitHub Actions run response did not include a run ID.");
+		throw new ToolError(M.ghErrRunNoId);
 	}
 
 	return {
@@ -1376,7 +1377,7 @@ function buildFailedLogDetails(failedJobLogs: GhFailedJobLog[]): GhRunWatchFaile
 
 function renderJobsSection(jobs: GhRunJobSnapshot[]): string[] {
 	if (jobs.length === 0) {
-		return ["## Jobs", "", "No jobs reported yet."];
+		return [M.ghJobsTitle, "", M.ghNoJobsReported];
 	}
 
 	const lines: string[] = [`## Jobs (${jobs.length})`, ""];
@@ -1404,7 +1405,7 @@ function renderFailedJobLogs(
 		return [];
 	}
 
-	const lines: string[] = ["## Failed Jobs", ""];
+	const lines: string[] = [M.ghFailedJobsTitle, ""];
 	for (const entry of failedJobLogs) {
 		lines.push(`### ${entry.job.name} [${entry.job.conclusion ?? "failed"}]`);
 		pushLine(lines, "Run", `#${entry.run.id}`);
@@ -1426,7 +1427,7 @@ function renderFailedJobLogs(
 			lines.push(logText);
 			lines.push("```");
 		} else {
-			lines.push(options.mode === "full" ? "Full log unavailable." : "Log tail unavailable.");
+			lines.push(options.mode === "full" ? M.ghFullLogUnavailable : M.ghLogTailUnavailable);
 		}
 		lines.push("");
 	}
@@ -1481,7 +1482,7 @@ function formatRunWatchSnapshot(
 
 	if (includeOutcome) {
 		lines.push("");
-		lines.push(failedJobs.length > 0 ? "Failures detected." : "All jobs passed.");
+		lines.push(failedJobs.length > 0 ? M.ghFailuresDetected : M.ghAllJobsPassed);
 	}
 
 	return lines.join("\n").trim();
@@ -1519,7 +1520,7 @@ function formatRunWatchResult(
 		lines.push("All jobs passed.");
 	} else {
 		lines.push("");
-		lines.push("Run completed without successful jobs, but no failed job logs were available.");
+		lines.push(M.ghNoSuccessfulJobLogs);
 	}
 
 	return lines.join("\n").trim();
@@ -1551,7 +1552,7 @@ function formatCommitRunWatchSnapshot(
 
 	if (runs.length === 0) {
 		lines.push("");
-		lines.push("Waiting for workflow runs for this commit.");
+		lines.push(M.ghWaitingForRuns);
 		return lines.join("\n").trim();
 	}
 
@@ -1589,13 +1590,13 @@ function formatCommitRunWatchResult(
 		lines.push(
 			...renderFailedJobLogs(failedJobLogs, options?.mode === "full" ? { mode: "full" } : { mode: "tail", tail }),
 		);
-		lines.push("Workflow runs for this commit failed.");
+		lines.push(M.ghRunsFailed);
 	} else if (outcome === "success") {
 		lines.push("");
-		lines.push("All workflow runs for this commit passed.");
+		lines.push(M.ghRunsPassed);
 	} else {
 		lines.push("");
-		lines.push("Workflow runs for this commit did not complete successfully.");
+		lines.push(M.ghRunsIncomplete);
 	}
 
 	return lines.join("\n").trim();
@@ -1697,7 +1698,7 @@ async function resolveGitHubRepo(
 	signal?: AbortSignal,
 ): Promise<string> {
 	if (repo && runRepo && !githubRepoSlugEquals(repo, runRepo)) {
-		throw new ToolError("run URL repository does not match the provided repo");
+		throw new ToolError(M.ghErrRunRepoMismatch);
 	}
 
 	if (repo) {
@@ -2109,7 +2110,7 @@ function formatReviewCommentsSection(comments: GhPrReviewComment[] | undefined):
 		pushLine(lines, "Reply to", comment.inReplyToId);
 		pushLine(lines, "URL", comment.url);
 		lines.push("");
-		lines.push(normalizeText(comment.body) || "No review comment body.");
+		lines.push(normalizeText(comment.body) || M.ghNoReviewCommentBody);
 		lines.push("");
 	}
 
@@ -2121,7 +2122,7 @@ function formatRepoView(data: GhRepoViewData, input: { repo?: string; branch?: s
 	const name = data.nameWithOwner ?? input.repo ?? "GitHub Repository";
 	lines.push(`# ${name}`);
 	lines.push("");
-	lines.push(normalizeText(data.description) || "No description provided.");
+	lines.push(normalizeText(data.description) || M.ghNoDescription);
 	lines.push("");
 	pushLine(lines, "URL", data.url);
 	pushLine(lines, "Default branch", data.defaultBranchRef?.name);
@@ -2158,7 +2159,7 @@ function formatIssueView(data: GhIssueViewData, input: { issue: string; repo?: s
 	lines.push("");
 	lines.push("## Body");
 	lines.push("");
-	lines.push(normalizeText(data.body) || "No description provided.");
+	lines.push(normalizeText(data.body) || M.ghNoDescription);
 
 	if ((input.comments ?? true) && data.comments) {
 		const commentSection = formatCommentsSection(data.comments);
@@ -2208,7 +2209,7 @@ function formatPrView(data: GhPrViewData, input: { pr?: string; repo?: string; c
 	lines.push("");
 	lines.push("## Body");
 	lines.push("");
-	lines.push(normalizeText(data.body) || "No description provided.");
+	lines.push(normalizeText(data.body) || M.ghNoDescription);
 
 	const fileSection = formatPrFiles(data.files);
 	if (fileSection.length > 0) {
@@ -2253,7 +2254,9 @@ function formatPrCheckoutResult(options: {
 }): string {
 	const { data, localBranch, worktreePath, remoteName, remoteUrl, reused } = options;
 	const lines: string[] = [
-		reused ? `# Pull Request #${data.number ?? "?"} Worktree` : `# Checked Out Pull Request #${data.number ?? "?"}`,
+		reused
+			? M.ghPrWorktreeTitle.replace("%s", String(data.number ?? "?"))
+			: M.ghCheckedOutPrTitle.replace("%s", String(data.number ?? "?")),
 		"",
 	];
 	pushLine(lines, "Title", data.title ?? undefined);
@@ -2265,13 +2268,9 @@ function formatPrCheckoutResult(options: {
 	pushLine(lines, "Remote", remoteName);
 	pushLine(lines, "Remote URL", remoteUrl);
 	pushLine(lines, "Cross repository", data.isCrossRepository);
-	pushLine(lines, "Maintainer can modify", data.maintainerCanModify);
+	pushLine(lines, M.ghMaintainerCanModify, data.maintainerCanModify);
 	lines.push("");
-	lines.push(
-		reused
-			? "Reused the existing PR worktree."
-			: "Created a dedicated worktree for this PR and configured the local branch to push back to the PR head branch.",
-	);
+	lines.push(reused ? M.ghReusedPrWorktree : M.ghCreatedPrWorktree);
 	return lines.join("\n").trim();
 }
 
@@ -2283,7 +2282,7 @@ function formatPrPushResult(options: {
 	prUrl?: string;
 	forceWithLease: boolean;
 }): string {
-	const lines: string[] = ["# Pushed Pull Request Branch", ""];
+	const lines: string[] = [M.ghPushedPrBranchTitle, ""];
 	pushLine(lines, "Local branch", options.localBranch);
 	pushLine(lines, "Remote", options.remoteName);
 	pushLine(lines, "Remote branch", options.remoteBranch);
@@ -2313,7 +2312,7 @@ function formatSearchResults(
 
 	for (const item of items) {
 		lines.push("");
-		lines.push(`- #${item.number ?? "?"} ${item.title ?? "Untitled"}`);
+		lines.push(M.ghItemTitleFmt.replace("%s", String(item.number ?? "?")).replace("%s", item.title ?? M.ghUntitled));
 		pushLine(lines, "  Repo", item.repository?.nameWithOwner);
 		pushLine(lines, "  State", item.state);
 		pushLine(lines, "  Author", formatAuthor(item.author));
@@ -2333,7 +2332,7 @@ function formatSearchCodeResults(query: string, repo: string | undefined, items:
 
 	if (items.length === 0) {
 		lines.push("");
-		lines.push("No code matches found.");
+		lines.push(M.ghNoCodeMatches);
 		return lines.join("\n").trim();
 	}
 
@@ -2345,7 +2344,7 @@ function formatSearchCodeResults(query: string, repo: string | undefined, items:
 		pushLine(lines, "  URL", item.url);
 		const fragment = item.textMatches?.find(match => match.fragment)?.fragment;
 		if (fragment) {
-			pushLine(lines, "  Match", normalizeText(fragment).split("\n", 1)[0]);
+			pushLine(lines, M.ghMatchLabel, normalizeText(fragment).split("\n", 1)[0]);
 		}
 	}
 
@@ -2372,7 +2371,7 @@ function formatSearchCommitsResults(query: string, repo: string | undefined, ite
 	for (const item of items) {
 		lines.push("");
 		const sha = formatShortSha(item.sha) ?? "(unknown sha)";
-		const subject = formatSearchCommitMessage(item.commit?.message) ?? "(no commit message)";
+		const subject = formatSearchCommitMessage(item.commit?.message) ?? M.ghNoCommitMessage;
 		lines.push(`- ${sha} ${subject}`);
 		pushLine(lines, "  Repo", item.repository?.nameWithOwner);
 		pushLine(lines, "  Author", formatAuthor(item.author) ?? item.commit?.author?.name);
@@ -2389,13 +2388,13 @@ function formatSearchReposResults(query: string, items: GhSearchRepoResult[]): s
 
 	if (items.length === 0) {
 		lines.push("");
-		lines.push("No repositories found.");
+		lines.push(M.ghNoReposFound);
 		return lines.join("\n").trim();
 	}
 
 	for (const item of items) {
 		lines.push("");
-		lines.push(`- ${item.fullName ?? "(unknown repository)"}`);
+		lines.push(M.ghRepoItemFmt.replace("%s", item.fullName ?? M.ghUnknownRepository));
 		const description = normalizeText(item.description).split("\n", 1)[0];
 		if (description) {
 			pushLine(lines, "  Description", description);
@@ -2537,7 +2536,7 @@ async function executeFileRead(
 	const repo = await resolveGitHubRepo(session.cwd, normalizeOptionalString(params.repo), undefined, signal);
 	const filePath = requireNonEmpty(normalizeOptionalString(params.path), "path");
 	if (filePath.startsWith("/")) {
-		throw new ToolError("path must be repository-relative");
+		throw new ToolError(M.ghErrPathRepoRelative);
 	}
 	const branch = normalizeOptionalString(params.branch);
 	const endpointPath = filePath
@@ -3218,7 +3217,7 @@ async function executePrCheckout(
 		// the failures so the agent does not lose track of them.
 		const sections = outcomes.map(formatPrCheckoutResult);
 		const header = `# ${outcomes.length}/${settled.length} Pull Request Worktrees checked out (${failures.length} failed)`;
-		const text = [header, "", ...joinSections(sections), "", "## Failed", ...failureLines].join("\n").trim();
+		const text = [header, "", ...joinSections(sections), "", M.ghFailedSection, ...failureLines].join("\n").trim();
 		return buildTextResult(text, undefined, {
 			repo,
 			checkouts: outcomes.map(outcomeToSummary),
@@ -3287,7 +3286,7 @@ async function checkoutPullRequest(
 	});
 	const prNumber = data.number;
 	if (typeof prNumber !== "number") {
-		throw new ToolError("GitHub CLI did not return a pull request number.");
+		throw new ToolError(M.ghErrNoPrNumber);
 	}
 
 	const headRefName = requireNonEmpty(data.headRefName, "head branch");
@@ -3459,10 +3458,10 @@ async function executePrCreate(
 	const labels = normalizePrIdentifierList(params.label);
 
 	if (!fill && !title) {
-		throw new ToolError("title is required unless fill is true");
+		throw new ToolError(M.ghErrTitleRequired);
 	}
 	if (fill && (title || body !== undefined)) {
-		throw new ToolError("fill is mutually exclusive with title and body");
+		throw new ToolError(M.ghErrFillExclusive);
 	}
 
 	const args = ["pr", "create"];
@@ -3627,7 +3626,7 @@ async function executeSearchCode(
 	const since = normalizeOptionalString(params.since);
 	const until = normalizeOptionalString(params.until);
 	if (since !== undefined || until !== undefined) {
-		throw new ToolError("search_code does not support since/until; GitHub code search has no date qualifier.");
+		throw new ToolError(M.ghErrSearchCodeDates);
 	}
 	const limit = resolveSearchLimit(params.limit);
 	const repo = await resolveSearchRepoScope(session.cwd, normalizeOptionalString(params.repo), query, signal);
@@ -3791,7 +3790,10 @@ async function executeRunWatch(
 					formatRunWatchResult(repo, run, failedJobLogs, tail),
 					run.url,
 					{ ...finalDetails, artifactId },
-					{ artifactId, artifactLabel: "Full failed-job logs" },
+					{
+						artifactId,
+						artifactLabel: M.ghFailedJobLogsLabel,
+					},
 				);
 			}
 
@@ -3822,7 +3824,7 @@ async function executeRunWatch(
 		const cwdRepo = await tryResolveCurrentRepoFresh(session.cwd, signal);
 		if (!githubRepoSlugEquals(cwdRepo, repo)) {
 			throw new ToolError(
-				`Cannot infer the watched commit for ${repo}: current checkout is ${cwdRepo ?? "not a GitHub repository"}. Pass \`branch\` or \`run\` to scope the watch.`,
+				M.ghCannotInferWatchCommit.replace("%s", repo).replace("%s", cwdRepo ?? M.ghNotAGitHubRepository),
 			);
 		}
 		branch = await requireCurrentGitBranch(session.cwd, signal);
@@ -3904,7 +3906,10 @@ async function executeRunWatch(
 				formatCommitRunWatchResult(repo, headSha, branch, runs, failedJobLogs, tail),
 				undefined,
 				{ ...finalDetails, artifactId },
-				{ artifactId, artifactLabel: "Full failed-job logs" },
+				{
+					artifactId,
+					artifactLabel: M.ghFailedJobLogsLabel,
+				},
 			);
 		}
 
