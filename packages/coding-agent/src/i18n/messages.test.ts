@@ -36,6 +36,7 @@ describe("catalogue completeness", () => {
 			"setupThemeLightLabel",
 			"mcpHelpAddUsage",
 			"mcpHelpSearchUsage",
+			"sshHelpAddUsage",
 			"scpAutoLabelFmt",
 		]);
 		for (const key of Object.keys(en) as Array<keyof typeof en>) {

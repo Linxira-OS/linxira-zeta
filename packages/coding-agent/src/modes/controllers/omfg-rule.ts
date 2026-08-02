@@ -4,6 +4,7 @@ import type { AssistantMessage } from "@zeta/pi-ai";
 import { compileRuleCondition, type Rule } from "../../capability/rule";
 import { buildRuleFromMarkdown, createSourceMeta } from "../../discovery/helpers";
 import { TtsrManager, type TtsrMatchContext } from "../../export/ttsr";
+import { M } from "../../i18n/messages";
 
 export interface ParsedGeneratedRule {
 	rule: Rule;
@@ -95,7 +96,7 @@ function unescapeRegexConditionOnce(condition: string): string {
 export function parseGeneratedRule(text: string): GeneratedRuleParseResult {
 	const jsonText = extractGeneratedRuleJson(text);
 	if (!jsonText) {
-		return { error: "Missing generated rule JSON object" };
+		return { error: M.omfgErrMissingJson };
 	}
 
 	const payloadResult = parseGeneratedRulePayload(jsonText);
@@ -105,7 +106,7 @@ export function parseGeneratedRule(text: string): GeneratedRuleParseResult {
 
 	const ruleName = sanitizeRuleName(payloadResult.name);
 	if (ruleName.length === 0) {
-		return { error: "Rule name must contain at least one letter or digit" };
+		return { error: M.omfgErrNameChars };
 	}
 
 	const conditionResult = normalizeConditionRegexes(payloadResult.condition);
@@ -130,7 +131,7 @@ export function parseGeneratedRule(text: string): GeneratedRuleParseResult {
 	}
 
 	if (!rule.condition || rule.condition.length === 0) {
-		return { error: "Generated rule JSON must include at least one condition" };
+		return { error: M.omfgErrNoCondition };
 	}
 
 	for (const condition of rule.condition) {
@@ -147,7 +148,7 @@ export function parseGeneratedRule(text: string): GeneratedRuleParseResult {
 
 	const manager = new TtsrManager();
 	if (!manager.addRule(rule)) {
-		return { error: "Rule has no valid condition or reachable scope" };
+		return { error: M.omfgErrNoValidCondition };
 	}
 
 	return { rule, fileContent };
@@ -214,32 +215,32 @@ function parseGeneratedRulePayload(jsonText: string): GeneratedRulePayload | { e
 	}
 
 	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-		return { error: "Generated rule JSON must be an object" };
+		return { error: M.omfgErrNotObject };
 	}
 
 	const object = parsed as Record<string, unknown>;
 	const rawName = stringField(object, "name");
 	if (!rawName) {
-		return { error: "Generated rule JSON must include a non-empty name" };
+		return { error: M.omfgErrEmptyName };
 	}
 	const description = stringField(object, "description") ?? stringField(object, "desc");
 	if (!description) {
-		return { error: "Generated rule JSON must include a non-empty description" };
+		return { error: M.omfgErrEmptyDescription };
 	}
 
 	const condition = stringArrayField(object, "condition") ?? stringArrayField(object, "cond");
 	if (!condition || condition.length === 0) {
-		return { error: "Generated rule JSON must include at least one condition" };
+		return { error: M.omfgErrNoCondition };
 	}
 
 	const scope = stringArrayField(object, "scope");
 	if (!scope || scope.length === 0) {
-		return { error: "Generated rule JSON must include at least one scope" };
+		return { error: M.omfgErrNoScope };
 	}
 
 	const body = stringField(object, "body");
 	if (!body) {
-		return { error: "Generated rule JSON must include a non-empty body" };
+		return { error: M.omfgErrEmptyBody };
 	}
 
 	return {
@@ -312,7 +313,7 @@ function collectAssistantSurfaces(messages: readonly AgentMessage[]): HistorySur
 			if (block.type === "text") {
 				surfaces.push({
 					text: block.text,
-					label: "assistant text",
+					label: M.omfgLabelAssistantText,
 					context: { source: "text" },
 				});
 				continue;
@@ -320,7 +321,7 @@ function collectAssistantSurfaces(messages: readonly AgentMessage[]): HistorySur
 			if (block.type === "thinking") {
 				surfaces.push({
 					text: block.thinking,
-					label: "assistant thinking",
+					label: M.omfgLabelAssistantThinking,
 					context: { source: "thinking" },
 				});
 				continue;
@@ -351,7 +352,7 @@ export function validateRuleAgainstAssistantHistory(
 	if (!manager.addRule(rule)) {
 		return {
 			matched: false,
-			feedback: "TTSR rejected the rule: it has no valid condition or its scope cannot reach any stream.",
+			feedback: M.omfgFeedbackRejected,
 		};
 	}
 
@@ -454,11 +455,11 @@ function buildNoMatchFeedback(rule: Rule, surfaces: readonly HistorySurface[]): 
 		`No assistant history surface matched condition ${formatRuleList(rule.condition)} within scope ${formatRuleList(rule.scope)}.`,
 	];
 	if (surfaces.length === 0) {
-		lines.push("No assistant text, thinking, or tool-call argument surfaces were available to check.");
+		lines.push(M.omfgNoSurfaces);
 		return lines.join("\n");
 	}
 
-	lines.push("Checked surfaces:");
+	lines.push(M.omfgCheckedSurfaces);
 	const max = Math.min(surfaces.length, 5);
 	for (let i = 0; i < max; i++) {
 		const surface = surfaces[i];
@@ -470,7 +471,7 @@ function buildNoMatchFeedback(rule: Rule, surfaces: readonly HistorySurface[]): 
 	lines.push(
 		'If the visible bad code contains quotes, remember tool arguments are checked as serialized JSON, so quotes may appear as escaped sequences such as \\".',
 	);
-	lines.push("If the condition looks right, fix the scope so it reaches the offending tool and file glob.");
+	lines.push(M.omfgFixScopeHint);
 	return lines.join("\n");
 }
 
@@ -501,15 +502,18 @@ function buildScopeFeedback(rule: Rule, matches: readonly HistorySurface[]): str
 
 	const problems: string[] = [];
 	if (hasBroadToolScope) {
-		problems.push(`scope ${formatRuleList(rule.scope)} is broader than the matching file-specific tool call`);
+		problems.push(M.omfgScopeBroaderFmt(formatRuleList(rule.scope)));
 	}
 	if (hasTextScope) {
-		problems.push("scope includes `text`, but the offending content was confirmed in tool arguments");
+		problems.push(M.omfgProblemTextScope);
 	}
 
-	return `The condition matched ${toolMatch.label}, but ${problems.join("; ")}. Use a narrow scope such as ${JSON.stringify(
-		recommendedScope,
-	)} and do not repeat the failed scope ${formatRuleList(rule.scope)}.`;
+	return M.omfgConditionMatchedFmt(
+		toolMatch.label,
+		problems.join("; "),
+		JSON.stringify(recommendedScope),
+		formatRuleList(rule.scope),
+	);
 }
 
 function findFileToolMatch(matches: readonly HistorySurface[]): HistorySurface | undefined {
