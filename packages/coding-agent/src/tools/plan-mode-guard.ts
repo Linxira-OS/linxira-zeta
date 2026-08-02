@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { HL_FILE_HASH_LENGTH, HL_FILE_HASH_SEP, HL_FILE_PREFIX, HL_FILE_SUFFIX } from "@zeta/hashline";
+import { M } from "../i18n/messages";
 import {
 	type LocalProtocolOptions,
 	resolveLocalRoot,
@@ -140,11 +141,11 @@ export function enforcePlanModeWrite(
 	if (!state?.enabled) return;
 
 	if (options?.move) {
-		throw new ToolError("Plan mode: renaming files is not allowed.");
+		throw new ToolError(M.plErrRenameNotAllowed);
 	}
 
 	if (options?.op === "delete") {
-		throw new ToolError("Plan mode: deleting files is not allowed.");
+		throw new ToolError(M.plErrDeleteNotAllowed);
 	}
 
 	if (targetsLocalSandbox(session, targetPath)) return;

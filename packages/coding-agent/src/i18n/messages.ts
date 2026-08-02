@@ -1640,6 +1640,24 @@ export interface Messages {
 	rsRejectedLabel: string;
 	rsPendingAction: string;
 	rsNoReason: string;
+	meErrMnemopiNotInit: string;
+	meErrHindsightNotInit: string;
+	meNoMemoriesFound: string;
+	meRecallFmt: string;
+	meMemoryNoun: string;
+	meMemoriesNoun: string;
+	meNoInfoToReflect: string;
+	meReflectFmt: string;
+	meStoredFmt: string;
+	meQueuedFmt: string;
+	meAdditionalContext: string;
+	meEditNotFoundFmt: string;
+	meEditReadonlyFmt: string;
+	meEditStatusFmt: string;
+	meInBankFmt: string;
+	meStoreSuffixFmt: string;
+	plErrRenameNotAllowed: string;
+	plErrDeleteNotAllowed: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

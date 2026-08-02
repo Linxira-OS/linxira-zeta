@@ -2,6 +2,7 @@ import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
 import { logger, untilAborted } from "@zeta/pi-utils";
 import { type } from "arktype";
 import { ensureBankExists } from "../hindsight/bank";
+import { M } from "../i18n/messages";
 import reflectDescription from "../prompts/tools/reflect.md" with { type: "text" };
 import type { ToolSession } from ".";
 
@@ -36,23 +37,23 @@ export class MemoryReflectTool implements AgentTool<typeof memoryReflectSchema> 
 			if (backend === "mnemopi") {
 				const state = this.session.getMnemopiSessionState?.();
 				if (!state) {
-					throw new Error("Mnemopi backend is not initialised for this session.");
+					throw new Error(M.meErrMnemopiNotInit);
 				}
 
 				try {
 					const query = params.context?.trim()
-						? `${params.query.trim()}\n\nAdditional context:\n${params.context.trim()}`
+						? `${params.query.trim()}\n\n${M.meAdditionalContext}\n${params.context.trim()}`
 						: params.query;
 					const results = await state.recallResultsScoped(query);
 					if (results.length === 0) {
 						return {
-							content: [{ type: "text", text: "No relevant information found to reflect on." }],
+							content: [{ type: "text", text: M.meNoInfoToReflect }],
 							details: {},
 						};
 					}
 					const summary = state.formatContextScoped(results);
 					return {
-						content: [{ type: "text", text: `Based on recalled memories:\n\n${summary}` }],
+						content: [{ type: "text", text: M.meReflectFmt.replace("%s", summary) }],
 						details: {},
 					};
 				} catch (err) {
@@ -63,7 +64,7 @@ export class MemoryReflectTool implements AgentTool<typeof memoryReflectSchema> 
 
 			const state = this.session.getHindsightSessionState?.();
 			if (!state) {
-				throw new Error("Hindsight backend is not initialised for this session.");
+				throw new Error(M.meErrHindsightNotInit);
 			}
 
 			try {
@@ -74,7 +75,7 @@ export class MemoryReflectTool implements AgentTool<typeof memoryReflectSchema> 
 					tags: state.recallTags,
 					tagsMatch: state.recallTagsMatch,
 				});
-				const text = response.text?.trim() || "No relevant information found to reflect on.";
+				const text = response.text?.trim() || M.meNoInfoToReflect;
 				return {
 					content: [{ type: "text", text }],
 					details: {},

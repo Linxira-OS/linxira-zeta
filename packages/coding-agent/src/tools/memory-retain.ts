@@ -1,5 +1,6 @@
 import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
 import { type } from "arktype";
+import { M } from "../i18n/messages";
 import retainDescription from "../prompts/tools/retain.md" with { type: "text" };
 import type { ToolSession } from ".";
 
@@ -37,7 +38,7 @@ export class MemoryRetainTool implements AgentTool<typeof memoryRetainSchema> {
 		if (backend === "mnemopi") {
 			const state = this.session.getMnemopiSessionState?.();
 			if (!state) {
-				throw new Error("Mnemopi backend is not initialised for this session.");
+				throw new Error(M.meErrMnemopiNotInit);
 			}
 
 			for (const item of params.items) {
@@ -61,14 +62,14 @@ export class MemoryRetainTool implements AgentTool<typeof memoryRetainSchema> {
 			const count = params.items.length;
 			const noun = count === 1 ? "memory" : "memories";
 			return {
-				content: [{ type: "text", text: `${count} ${noun} stored.` }],
+				content: [{ type: "text", text: M.meStoredFmt.replace("%s", String(count)).replace("%s", noun) }],
 				details: { count },
 			};
 		}
 
 		const state = this.session.getHindsightSessionState?.();
 		if (!state) {
-			throw new Error("Hindsight backend is not initialised for this session.");
+			throw new Error(M.meErrHindsightNotInit);
 		}
 
 		// Push every item onto the session-owned queue and return immediately.
@@ -82,7 +83,7 @@ export class MemoryRetainTool implements AgentTool<typeof memoryRetainSchema> {
 		const count = params.items.length;
 		const noun = count === 1 ? "memory" : "memories";
 		return {
-			content: [{ type: "text", text: `${count} ${noun} queued.` }],
+			content: [{ type: "text", text: M.meQueuedFmt.replace("%s", String(count)).replace("%s", noun) }],
 			details: { count },
 		};
 	}
