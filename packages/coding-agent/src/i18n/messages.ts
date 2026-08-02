@@ -1658,6 +1658,20 @@ export interface Messages {
 	meStoreSuffixFmt: string;
 	plErrRenameNotAllowed: string;
 	plErrDeleteNotAllowed: string;
+	ydNoSchemaProvided: string;
+	ydUnserializableSchema: string;
+	ydErrTypeInvalid: string;
+	ydErrUnresolvedRef: string;
+	ydErrSchemaInvalid: string;
+	ydErrDataAndError: string;
+	ydErrDataRequired: string;
+	ydResultSubmitted: string;
+	ydRetryHint: string;
+	ydSubmitHint: string;
+	msErrActionNeedsBodyFmt: string;
+	msDeletedFmt: string;
+	msCannotCreateFmt: string;
+	msVerbedFmt: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

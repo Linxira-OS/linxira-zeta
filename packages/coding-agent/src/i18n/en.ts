@@ -1653,5 +1653,22 @@ export const en = {
 	meStoreSuffixFmt: " (%s)",
 	plErrRenameNotAllowed: "Plan mode: renaming files is not allowed.",
 	plErrDeleteNotAllowed: "Plan mode: deleting files is not allowed.",
+	ydNoSchemaProvided: "No schema provided.",
+	ydUnserializableSchema: "[unserializable schema]",
+	ydErrTypeInvalid: "type must be a string or non-empty array of strings",
+	ydErrUnresolvedRef: "schema contains unresolved $ref after dereferencing",
+	ydErrSchemaInvalid: "yield parameters schema is invalid",
+	ydErrDataAndError: "result cannot contain both data and error",
+	ydErrDataRequired: "data is required when yield indicates success",
+	ydResultSubmitted: "Result submitted.",
+	ydRetryHint:
+		" Call yield again with the corrected shape — this is the final retry before the schema constraint is dropped.",
+	ydSubmitHint:
+		'Submit success as `{ "result": { "data": <your output> } }` or failure as `{ "result": { "error": "message" } }`.',
+	msErrActionNeedsBodyFmt: '"%s" requires both "description" and "body".',
+	msDeletedFmt: 'Deleted managed skill "%s".',
+	msCannotCreateFmt:
+		'Cannot create managed skill "%s": an authored skill of that name already exists, and managed skills cannot override authored ones. Choose a different name.',
+	msVerbedFmt: '%s managed skill "%s" (managed-skills/%s).',
 	mcpExampleScopes: "e.g., read write",
 } satisfies Messages;

@@ -8,6 +8,7 @@ import {
 	writeManagedSkill,
 } from "../autolearn/managed-skills";
 import { isNameClaimedByAuthoredSkill } from "../extensibility/skills";
+import { M } from "../i18n/messages";
 import manageSkillDescription from "../prompts/tools/manage-skill.md" with { type: "text" };
 import type { ToolSession } from ".";
 
@@ -57,7 +58,7 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 			await deleteManagedSkill(params.name);
 			await this.refreshSkills?.();
 			return {
-				content: [{ type: "text", text: `Deleted managed skill "${params.name}".` }],
+				content: [{ type: "text", text: M.msDeletedFmt.replace("%s", params.name) }],
 				details: { action: "delete", name: params.name },
 			};
 		}
@@ -66,7 +67,7 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 		// without both fields, so this is unreachable for valid input — it only
 		// proves the strings are present to `writeManagedSkill`'s typed contract.
 		if (!params.description || !params.body) {
-			throw new Error(`"${params.action}" requires both "description" and "body".`);
+			throw new Error(M.msErrActionNeedsBodyFmt.replace("%s", params.action));
 		}
 		// A managed skill resolves below any authored skill of the same name
 		// (authored always wins in discovery), so creating one under a name an
@@ -78,7 +79,7 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 				content: [
 					{
 						type: "text",
-						text: `Cannot create managed skill "${params.name}": an authored skill of that name already exists, and managed skills cannot override authored ones. Choose a different name.`,
+						text: M.msCannotCreateFmt.replace("%s", params.name),
 					},
 				],
 				isError: true,
@@ -95,7 +96,12 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 		const relativePath = path.relative(getManagedSkillsDir(), skillPath);
 		const verb = params.action === "create" ? "Created" : "Updated";
 		return {
-			content: [{ type: "text", text: `${verb} managed skill "${params.name}" (managed-skills/${relativePath}).` }],
+			content: [
+				{
+					type: "text",
+					text: M.msVerbedFmt.replace("%s", verb).replace("%s", params.name).replace("%s", relativePath),
+				},
+			],
 			details: { action: params.action, name: params.name },
 		};
 	}

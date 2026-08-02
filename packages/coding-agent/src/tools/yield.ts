@@ -12,6 +12,7 @@ import {
 	sanitizeSchemaForStrictMode,
 	tryEnforceStrictSchema,
 } from "@zeta/pi-ai/utils/schema";
+import { M } from "../i18n/messages";
 import { subprocessToolRegistry } from "../task/subprocess-tool-registry";
 import type { ToolSession } from ".";
 import { buildOutputValidator, formatAllValidationIssues } from "./output-schema-validator";
@@ -39,12 +40,12 @@ export interface YieldDetails {
 }
 
 function formatSchema(schema: unknown): string {
-	if (schema === undefined) return "No schema provided.";
+	if (schema === undefined) return M.ydNoSchemaProvided;
 	if (typeof schema === "string") return schema;
 	try {
 		return JSON.stringify(schema, null, 2);
 	} catch {
-		return "[unserializable schema]";
+		return M.ydUnserializableSchema;
 	}
 }
 
@@ -98,7 +99,7 @@ function parseYieldType(value: unknown): string | string[] | undefined {
 	// required+nullable, so an untyped final yield arrives as `type: null`.
 	if (value === undefined || value === null) return undefined;
 	if (isYieldType(value)) return value;
-	throw new Error("type must be a string or non-empty array of strings");
+	throw new Error(M.ydErrTypeInvalid);
 }
 
 /**
@@ -278,7 +279,7 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 					description: schemaDescription,
 				}) as Record<string, unknown>;
 				if (hasUnresolvedRefs(resolved)) {
-					throw new Error("schema contains unresolved $ref after dereferencing");
+					throw new Error(M.ydErrUnresolvedRef);
 				}
 				dataSchema = withSectionVariants(resolved);
 			} else {
@@ -289,7 +290,7 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 			}
 			parameters = wrapYieldParameters(dataSchema);
 			JSON.stringify(parameters);
-			if (!isValidJsonSchema(parameters)) throw new Error("yield parameters schema is invalid");
+			if (!isValidJsonSchema(parameters)) throw new Error(M.ydErrSchemaInvalid);
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
 			parameters = wrapYieldParameters(
@@ -331,7 +332,7 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 		const isIncremental = Array.isArray(yieldType) && yieldType.length > 0;
 
 		if (errorMessage !== undefined && data !== undefined) {
-			throw new Error("result cannot contain both data and error");
+			throw new Error(M.ydErrDataAndError);
 		}
 		if (errorMessage === undefined && data === undefined && yieldType === undefined) {
 			this.#emptyResultFailures++;
@@ -340,7 +341,7 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 				this.#emptyResultFailures = 0;
 				const error =
 					`yield result stayed empty after ${attemptCount} consecutive attempt(s); aborting child instead of retrying forever. ` +
-					'Submit success as `{ "result": { "data": <your output> } }` or failure as `{ "result": { "error": "message" } }`.';
+					M.ydSubmitHint;
 				return {
 					content: [{ type: "text", text: `Task aborted: ${error}` }],
 					details: {
@@ -376,7 +377,7 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 		}
 		if (status === "success" && !useLastTurn) {
 			if (data === null) {
-				throw new Error("data is required when yield indicates success");
+				throw new Error(M.ydErrDataRequired);
 			}
 			const sectionFailure = isIncremental
 				? this.#validateIncrementalSection(yieldType as string[], data)
@@ -390,7 +391,7 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 					const retryHint =
 						remaining > 0
 							? ` Call yield again with the corrected shape — ${remaining} retry attempt(s) remain before the schema constraint is dropped.`
-							: " Call yield again with the corrected shape — this is the final retry before the schema constraint is dropped.";
+							: M.ydRetryHint;
 					const scope = isIncremental ? `Section ${formatYieldLabels(yieldType as string[])}` : "Output";
 					throw new Error(
 						`${scope} does not match schema: ${formatAllValidationIssues(sectionFailure.issues)}.${retryHint}`,
@@ -406,7 +407,7 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 				? `Task aborted: ${errorMessage}`
 				: schemaValidationOverridden
 					? `Result submitted (schema validation overridden after ${this.#schemaValidationFailures} failed attempt(s)).`
-					: "Result submitted.";
+					: M.ydResultSubmitted;
 		return {
 			content: [{ type: "text", text: responseText }],
 			details: {
