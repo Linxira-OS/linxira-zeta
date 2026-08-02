@@ -1160,5 +1160,46 @@ export interface Messages {
 	omfgProblemTextScope: string;
 	omfgScopeBroaderFmt: string;
 	omfgConditionMatchedFmt: string;
+
+	ssSaveHint: string;
+	ssPreview: string;
+	ssSelectHint: string;
+	ssOrderedToggleHint: string;
+	ssToggleHint: string;
+	ssMaxInFlightTitle: string;
+	ssLimitsHelp: string;
+	ssClearAll: string;
+	ssClearAllDesc: string;
+	ssEditProviderHint: string;
+	ssLimitHelp: string;
+	ssErrLimitPositive: string;
+	ssSearchHint: string;
+	ssCloseHint: string;
+	ssNavSectionsHint: string;
+	ssNavTabsHint: string;
+	ssMatchesOne: string;
+	ssMatchesFmt: string;
+	ssNoMatching: string;
+	ssPreviewUnavailable: string;
+	tselFilterNoTools: string;
+	tselFilterUser: string;
+	tselFilterLabeled: string;
+	tselFilterAll: string;
+	tselNoEntries: string;
+	tselNoMatchFmt: string;
+	tselPressBackspaceHint: string;
+	tselPressAltHint: string;
+	tselRoleUser: string;
+	tselRoleDeveloper: string;
+	tselRoleAssistant: string;
+	tselAborted: string;
+	tselNoContent: string;
+	tselTool: string;
+	tselCleared: string;
+	tselSearchLabel: string;
+	tselLabelPrompt: string;
+	tselLabelHint: string;
+	tselTitle: string;
+	tselHelpHint: string;
 	mcpExampleScopes: string; // Example scopes hint
 }

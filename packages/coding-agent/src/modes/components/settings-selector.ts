@@ -618,7 +618,7 @@ export class SettingsSelectorComponent implements Component {
 		if (this.#currentList?.sectionFocused) {
 			return "↑/↓ to jump sections · Tab/Enter to settings · ←/→ to switch tabs · Esc to close";
 		}
-		const nav = this.#hasSectionJump ? "Tab to jump sections · ←/→ to switch tabs" : "Tab to switch tabs";
+		const nav = this.#hasSectionJump ? M.ssNavSectionsHint : M.ssNavTabsHint;
 		return `Enter/Space to change · ${nav} · Type to search · Esc to close`;
 	}
 
