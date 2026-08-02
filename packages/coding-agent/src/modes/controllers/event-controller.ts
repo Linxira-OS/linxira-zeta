@@ -8,6 +8,7 @@ import { extractTextContent } from "../../commit/utils";
 import { settings } from "../../config/settings";
 import { getEditClipboard } from "../../edit/edit-clipboard";
 import { getFileSnapshotStore } from "../../edit/file-snapshot-store";
+import { M } from "../../i18n/messages";
 import { AssistantMessageComponent } from "../../modes/components/assistant-message";
 import { detectCacheInvalidation } from "../../modes/components/cache-invalidation-marker";
 import {
@@ -1267,9 +1268,7 @@ export class EventController {
 			// This is the render boundary, not the persisted result: the stored
 			// error stays full-fidelity for the transcript and for replays.
 			const detail = textContent ? previewLine(sanitizeText(textContent), TRUNCATE_LENGTHS.LINE) : "";
-			this.ctx.showWarning(
-				`Todo update failed${detail ? `: ${detail}` : ". Progress may be stale until todo succeeds."}`,
-			);
+			this.ctx.showWarning(`${M.ecTodoUpdateFailedPrefix}${detail ? `: ${detail}` : M.ecTodoUpdateFailedSuffix}`);
 		}
 		// Plan approval rides a `write` to xd://propose: the dispatch metadata on
 		// the write details carries the approval payload as `inner`.
@@ -1400,7 +1399,7 @@ export class EventController {
 	 * label carries no dangling whitespace.
 	 */
 	#maintenanceEscHint(): string {
-		return this.ctx.focusedAgentId ? "" : " (esc to cancel)";
+		return this.ctx.focusedAgentId ? "" : M.ecEscToCancel;
 	}
 
 	async #handleAutoCompactionStart(
@@ -1413,20 +1412,20 @@ export class EventController {
 		this.ctx.statusContainer.disposeChildren();
 		const reasonText =
 			event.reason === "overflow"
-				? "Context overflow detected, "
+				? M.ecReasonOverflow
 				: event.reason === "incomplete"
-					? "Response incomplete, "
+					? M.ecReasonIncomplete
 					: event.reason === "idle"
-						? "Idle "
+						? M.ecReasonIdle
 						: "";
 		const actionLabel =
 			event.action === "handoff"
-				? "Auto-handoff"
+				? M.ecActionHandoff
 				: event.action === "shake"
-					? "Auto-shake"
+					? M.ecActionShake
 					: event.action === "snapcompact"
-						? "Auto-snapcompact"
-						: "Auto context-full maintenance";
+						? M.ecActionSnapcompact
+						: M.ecActionMaintenance;
 		this.ctx.autoCompactionLoader = new Loader(
 			this.ctx.ui,
 			spinner => theme.fg("accent", spinner),
@@ -1453,12 +1452,12 @@ export class EventController {
 		if (event.aborted) {
 			this.ctx.showStatus(
 				isHandoffAction
-					? "Auto-handoff cancelled"
+					? M.ecHandoffCancelled
 					: isShakeAction
-						? "Auto-shake cancelled"
+						? M.ecShakeCancelled
 						: isSnapcompactAction
-							? "Auto-snapcompact cancelled"
-							: "Auto context-full maintenance cancelled",
+							? M.ecSnapCancelled
+							: M.ecMaintenanceCancelled,
 			);
 		} else if (isShakeAction) {
 			// Shake produces no CompactionResult; rebuild on success, suppress benign skips.
@@ -1477,7 +1476,7 @@ export class EventController {
 				this.ctx.rebuildChatFromMessages();
 				this.ctx.statusLine.invalidate();
 				this.ctx.ui.requestRender();
-				this.ctx.showStatus("Auto-shake completed");
+				this.ctx.showStatus(M.ecShakeCompleted);
 			}
 		} else if (event.result) {
 			this.ctx.lastAssistantUsage = undefined;
@@ -1505,14 +1504,14 @@ export class EventController {
 			this.ctx.statusLine.invalidate();
 			await this.ctx.reloadTodos();
 			this.ctx.ui.requestRender(true, { clearScrollback: true });
-			this.ctx.showStatus("Auto-handoff completed");
+			this.ctx.showStatus(M.ecHandoffCompleted);
 		} else if (event.skipped) {
 			// Benign skip: no model selected, no candidate models available, or nothing
 			// to compact yet. Not a failure — suppress the warning.
 		} else if (isSnapcompactAction) {
-			this.ctx.showWarning("Auto-snapcompact maintenance failed; continuing without maintenance");
+			this.ctx.showWarning(M.ecSnapFailed);
 		} else {
-			this.ctx.showWarning("Auto context-full maintenance failed; continuing without maintenance");
+			this.ctx.showWarning(M.ecMaintenanceFailed);
 		}
 		await this.ctx.flushCompactionQueue({ willRetry: event.willRetry });
 		this.#ensureWorkingLoaderWhileStreaming();
@@ -1565,7 +1564,7 @@ export class EventController {
 			this.#clearRetrySupersededAssistantComponents();
 		} else {
 			this.#clearRetrySupersededAssistantComponents();
-			this.ctx.showError(`Retry failed after ${event.attempt} attempts: ${event.finalError || "Unknown error"}`);
+			this.ctx.showError(M.ecRetryFailedFmt(event.attempt, event.finalError || M.ccUnknownError));
 		}
 		this.#ensureWorkingLoaderWhileStreaming();
 		this.ctx.ui.requestRender();
@@ -1770,7 +1769,7 @@ export class EventController {
 		const sessionName = this.ctx.sessionManager.getSessionName();
 		TERMINAL.sendNotification({
 			title: sessionName || "Zeta",
-			body: "Stopped with error",
+			body: M.ecStoppedWithError,
 			type: "error",
 			actions: "focus",
 		});

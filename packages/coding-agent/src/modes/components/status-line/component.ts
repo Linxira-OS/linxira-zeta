@@ -5,6 +5,7 @@ import type { AssistantMessage, UsageLimit, UsageReport } from "@zeta/pi-ai";
 import { type Component, truncateToWidth, visibleWidth } from "@zeta/pi-tui";
 import { getProjectDir } from "@zeta/pi-utils";
 import { settings } from "../../../config/settings";
+import { M } from "../../../i18n/messages";
 import type { AgentSession } from "../../../session/agent-session";
 import type { OAuthAccountIdentity } from "../../../session/auth-storage";
 import { limitMatchesActiveAccount } from "../../../slash-commands/helpers/active-oauth-account";
@@ -876,7 +877,7 @@ export class StatusLineComponent implements Component {
 			this.#cachedBranch = null;
 			return null;
 		}
-		this.#cachedBranch = head.kind === "ref" ? (head.branchName ?? head.ref) : "detached";
+		this.#cachedBranch = head.kind === "ref" ? (head.branchName ?? head.ref) : M.slDetached;
 		return this.#cachedBranch ?? null;
 	}
 
@@ -1629,7 +1630,7 @@ export class StatusLineComponent implements Component {
 
 	#subagentBadgeText(): string | undefined {
 		if (this.#subagentCount === 0) return undefined;
-		const noun = this.#subagentCount === 1 ? "agent" : "agents";
+		const noun = this.#subagentCount === 1 ? M.slAgent : M.slAgents;
 		return theme.fg("statusLineSubagents", `${theme.icon.agents} ${this.#subagentCount} ${noun}`);
 	}
 
