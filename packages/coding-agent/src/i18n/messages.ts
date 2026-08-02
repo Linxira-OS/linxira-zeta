@@ -1533,6 +1533,19 @@ export interface Messages {
 	wrErrSqliteJsonObject: string;
 	wrErrBulkUnknownIds: string;
 	wrErrFileNoLongerExists: string;
+	gpErrInvalidSelector: string;
+	gpErrOnlyLineRanges: string;
+	gpErrLineRangeNeedsFile: string;
+	gpErrEmptyPattern: string;
+	gpErrNegativeSkip: string;
+	gpErrInvalidRegex: string;
+	gpMultipathStatHint: string;
+	gpNoMatches: string;
+	gpNoMoreResultsFmt: string;
+	gpSkippedMissingFmt: string;
+	gpOversizedNoteFmt: string;
+	gpInLabelFmt: string;
+	gpSkippedUnreadableFmt: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 

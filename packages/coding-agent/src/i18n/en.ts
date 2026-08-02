@@ -1522,5 +1522,21 @@ export const en = {
 	wrErrSqliteJsonObject: "SQLite write content must be a JSON object",
 	wrErrBulkUnknownIds: "Bulk directive references unknown conflict id(s) %s. Currently registered: %s.",
 	wrErrFileNoLongerExists: "file no longer exists",
+	gpErrInvalidSelector:
+		'path entry "%s" has an invalid selector ":%s" — use ":N-M" line ranges, ":raw"/":conflicts", a range plus ":raw", or percent-encode a literal ":" as %3A',
+	gpErrOnlyLineRanges:
+		'path entry "%s" — only line-range selectors like ":50-100" are supported (no ":raw"/":conflicts")',
+	gpErrLineRangeNeedsFile: "Line-range selector requires a single file, not a glob: %s",
+	gpErrEmptyPattern: "Pattern must not be empty",
+	gpErrNegativeSkip: "Skip must be a non-negative number",
+	gpErrInvalidRegex: "Invalid regex: %s",
+	gpMultipathStatHint: " (`path` list entries must each exist relative to cwd)",
+	gpNoMatches: "No matches found",
+	gpNoMoreResultsFmt: "No more results (%s files total; skip=%s is past the end)",
+	gpSkippedMissingFmt: "skipped missing: %s",
+	gpOversizedNoteFmt:
+		"Searched only the first %sMB of large files (matches past the %sMB window are not shown; use `read` for the rest): %s",
+	gpInLabelFmt: "in %s",
+	gpSkippedUnreadableFmt: "Skipped %s unreadable large file(s); target them directly with `read`",
 	mcpExampleScopes: "e.g., read write",
 } satisfies Messages;
