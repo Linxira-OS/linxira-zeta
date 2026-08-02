@@ -357,6 +357,7 @@ export interface Messages {
 	statusOnlyOneRoleModelAvailable: string; // Only one role model available
 	statusThinkingIsOffEnableThinkingToShowBlocks: string; // Thinking is off — enable thinking to show blocks
 	statusNoEditorConfiguredSetVISUALOrEDITOREnvironmentVariable: string; // No editor configured. Set $VISUAL or $EDITOR environment variable.
+	mcpStatusLabel: string; // "Status:" row label
 	statusNoMessagesToBranchFrom: string; // No messages to branch from
 	statusBranchedToNewSession: string; // Branched to new session
 	statusNothingToCopyYet: string; // Nothing to copy yet.
@@ -385,4 +386,305 @@ export interface Messages {
 	statusSentQueuedMessage: string; // Sent queued message
 	statusQueuedMessageForWhenTheAgentYields: string; // Queued message for when the agent yields
 
+	mcpManualLoginTip: string; // Headless? Paste the redirect URL or code with /login <value>.
+	mcpClickHereToAuthorize: string; // OSC 8 hyperlink label
+	mcpOpenAuthorizationUrl: string; // OAuth banner line
+	mcpCopyUrl: string; // Copy URL row label
+	mcpLocalShortcutFmt: string; // Local shortcut row, %s = launch url
+	mcpConnectingToFmt: string; // Connecting spinner line, %s = server name
+	mcpOAuthFlowCancelled: string; // MCPOAuthCancelledError default message
+	mcpNoManagerAvailable: string; // "No MCP manager available."
+	mcpManagerNotAvailable: string; // "MCP manager not available."
+	mcpUnknownSubcommandFmt: string; // Unknown /mcp subcommand, %s = subcommand
+	mcpHelpTitle: string; // Help title
+	mcpHelpIntro: string; // Help intro
+	mcpHelpCommands: string; // Commands header
+	mcpHelpAdd: string; // Help row
+	mcpHelpAddUsage: string; // Help row
+	mcpHelpList: string; // Help row
+	mcpHelpRemove: string; // Help row
+	mcpHelpTest: string; // Help row
+	mcpHelpReauth: string; // Help row
+	mcpHelpUnauth: string; // Help row
+	mcpHelpEnable: string; // Help row
+	mcpHelpDisable: string; // Help row
+	mcpHelpSearchUsage: string; // Help row
+	mcpHelpSearchDesc: string; // Help row
+	mcpHelpLogin: string; // Help row
+	mcpHelpLogout: string; // Help row
+	mcpHelpReconnect: string; // Help row
+	mcpHelpReload: string; // Help row
+	mcpHelpResources: string; // Help row
+	mcpHelpPrompts: string; // Help row
+	mcpHelpNotifications: string; // Help row
+	mcpHelpHelp: string; // Help row
+	mcpMissingUrlValue: string; // Missing --url value
+	mcpInvalidTransportValue: string; // Invalid --transport value
+	mcpMissingTokenValue: string; // Missing --token value
+	mcpUnknownOptionFmt: string; // Unknown option, %s = option
+	mcpQuickAddNameRequired: string; // Quick add without a name
+	mcpUrlOrCommandNotBoth: string; // Both --url and -- given
+	mcpTokenRequiresUrl: string; // --token without --url
+	mcpKeywordRequired: string; // smithery-search without keyword
+	mcpInvalidScopeValue: string; // Invalid --scope value
+	mcpMissingLimitValue: string; // Missing --limit value
+	mcpInvalidLimitValue: string; // Invalid --limit value
+	mcpAuthFailedForFmt: string; // Quick-add auth failed, %s = name, %s = error
+	mcpOAuthEndpointsNotDiscoveredFmt: string; // Quick-add OAuth endpoints missing, %s = name (twice)
+	mcpAddCancelledForFmt: string; // Quick-add cancelled, %s = name
+	mcpOAuthFlowFailedForFmt: string; // Quick-add OAuth failed, %s = name, %s = error
+	mcpInvalidOAuthUrlsFmt: string; // Invalid OAuth URLs, %s = auth url, %s = token url
+	mcpOAuthLoginInProgressFmt: string; // OAuth login already in progress, %s = provider
+	mcpOAuthRequiredBanner: string; // OAuth banner title
+	mcpPreparingBrowserAuth: string; // Preparing browser authorization line
+	mcpWaitingForAuth: string; // Waiting for authorization line
+	mcpAttemptingOpenBrowser: string; // Attempting to open browser line
+	mcpAlternativeIfBrowserNotOpen: string; // Alternative copy line
+	mcpOAuthTimedOutMessage: string; // OAuth timeout message
+	mcpAuthCompletedInBrowser: string; // Authorization completed line
+	mcpOAuthFlowTimedOut: string; // OAuth timeout error
+	mcpOAuthFailedCheckCredentials: string; // OAuth 403 error
+	mcpOAuthCodeInvalid: string; // OAuth invalid_grant error
+	mcpOAuthCannotConnect: string; // OAuth connect error
+	mcpOAuthAuthFailedFmt: string; // OAuth fallback error, %s = error
+	mcpOAuthFlowAborted: string; // Abort reason default
+	mcpMcpRemoteProxyHintFmt: string; // mcp-remote proxy explanation, %s = http hint
+	mcpStdioNoOAuthFmt: string; // stdio reauth explanation, %s = http hint
+	mcpReauthNotRequired: string; // Server already works without auth
+	mcpOAuthEndpointsNotFound: string; // No OAuth endpoints discovered
+	mcpConnectionStillPending: string; // Internal connection wait message
+	mcpConnectedToFmt: string; // Connected status, %s = name
+	mcpStillConnectingFmt: string; // Still connecting status, %s = name
+	mcpConnectionCheckCompleteFmt: string; // Suppressed warning status, %s = name
+	mcpCouldNotConnectYetFmt: string; // Could not connect status, %s = name
+	mcpAddedServerToFmt: string; // Server added, %s = name, %s = scope word
+	mcpSuccessfullyConnected: string; // Success line
+	mcpConnectingInBackground: string; // Connecting in background line
+	mcpRunTestInSecondsFmt: string; // Run test hint, %s = name
+	mcpAddedButNotConnected: string; // Added but not connected warning
+	mcpRunTestToTestFmt: string; // Run test hint, %s = name
+	mcpRunListToSee: string; // Run list hint
+	mcpTipCheckPermissions: string; // EACCES tip
+	mcpTipInsufficientDisk: string; // ENOSPC tip
+	mcpTipUseList: string; // Already-exists tip
+	mcpFailedToAddServerFmt: string; // Failed to add, %s = error
+	mcpServerCreationCancelled: string; // Wizard cancelled line
+	mcpTipEscCancel: string; // Cancel tip
+	mcpNoServersConfigured: string; // Empty list line
+	mcpUseAddToAdd: string; // Empty list hint
+	mcpConfiguredServersTitle: string; // List title
+	mcpUserLevel: string; // User level label
+	mcpProjectLevel: string; // Project level label
+	mcpStatusInactive: string; // Inactive status
+	mcpStatusConnected: string; // Connected status
+	mcpStatusConnecting: string; // Connecting status
+	mcpStatusNotConnected: string; // Not connected status
+	mcpStatusDisabled: string; // Disabled status
+	mcpDisabledHeader: string; // Disabled header
+	mcpDiscoveredSuffix: string; // Discovered servers suffix
+	mcpFailedToListServersFmt: string; // Failed to list, %s = error
+	mcpServerNotFoundInFmt: string; // Server not found, %s = name, %s = scope word
+	mcpRemovedServerFromFmt: string; // Server removed, %s = name, %s = scope word
+	mcpFailedToRemoveServerFmt: string; // Failed to remove, %s = error
+	mcpServerNotFoundTipFmt: string; // Test: not found, %s = name
+	mcpServerDisabledEnableFirstFmt: string; // Disabled server, %s = name (twice)
+	mcpTestingConnectionFmt: string; // Testing line, %s = name
+	mcpTestSuccessfullyConnectedFmt: string; // Test success, %s = name
+	mcpTestServerFmt: string; // Server line, %s = name, %s = version
+	mcpTestToolsFmt: string; // Tools line, %s = count
+	mcpAvailableTools: string; // Available tools header
+	mcpCancelledMCPTestFmt: string; // Test cancelled, %s = name
+	mcpTipCheckCommand: string; // ENOENT tip
+	mcpTipCheckFilePermissions: string; // EACCES tip
+	mcpTipCheckServerRunning: string; // ECONNREFUSED tip
+	mcpTipServerSlow: string; // Timeout tip
+	mcpTipCheckCredentials: string; // 401/403 tip
+	mcpFailedToConnectToFmt: string; // Failed to connect, %s = name, %s = error
+	mcpServerNameRequiredFmt: string; // Name required, %s = enable/disable literal
+	mcpServerNotFoundFmt: string; // Server not found, %s = name
+	mcpServerAlreadyEnabledFmt: string; // Already enabled, %s = name
+	mcpServerAlreadyDisabledFmt: string; // Already disabled, %s = name
+	mcpStatusWordConnected: string; // Status word
+	mcpStatusWordConnecting: string; // Status word
+	mcpStatusWordNotConnected: string; // Status word
+	mcpEnabledNameFmt: string; // Enabled line, %s = name
+	mcpDisabledNameFmt: string; // Disabled line, %s = name
+	mcpEnabledNameScopeFmt: string; // Enabled with scope, %s = name, %s = scope word
+	mcpDisabledNameScopeFmt: string; // Disabled with scope, %s = name, %s = scope word
+	mcpFailedToEnableServerFmt: string; // Failed to enable, %s = error
+	mcpFailedToDisableServerFmt: string; // Failed to disable, %s = error
+	mcpScopeWordUser: string; // Scope word inserted into config phrases
+	mcpScopeWordProject: string; // Scope word inserted into config phrases
+	mcpNoStoredOAuthFmt: string; // No stored auth, %s = name
+	mcpClearedAuthForFmt: string; // Auth cleared, %s = name, %s = scope word
+	mcpFailedToClearAuthFmt: string; // Failed to clear auth, %s = error
+	mcpReauthorizingFmt: string; // Reauthorizing line, %s = name
+	mcpReauthorizedFmt: string; // Reauthorized line, %s = name, %s = scope word
+	mcpStateWordConnected: string; // Reauth status word
+	mcpStateWordConnecting: string; // Reauth status word
+	mcpStateWordNotConnected: string; // Reauth status word
+	mcpReauthorizationCancelledFmt: string; // Reauth cancelled, %s = name
+	mcpFailedToReauthorizeFmt: string; // Failed to reauthorize, %s = error
+	mcpReloading: string; // Reloading line
+	mcpReloadComplete: string; // Reload complete
+	mcpConnectedServersFmt: string; // Connected count, %s = count
+	mcpFailedToReloadFmt: string; // Failed to reload, %s = error
+	mcpReconnectingToFmt: string; // Reconnecting line, %s = name
+	mcpReconnectedToFmt: string; // Reconnected line, %s = name
+	mcpReconnectFailedCheckStatusFmt: string; // Reconnect failed, %s = name
+	mcpReconnectFailedFmt: string; // Reconnect failed with error, %s = name, %s = error
+	mcpSomeServersFailedToConnect: string; // Connection errors header
+	mcpResourcesTitle: string; // Resources title
+	mcpTemplatesLabel: string; // Templates label
+	mcpNoResourcesAvailable: string; // Empty resources
+	mcpPromptsTitle: string; // Prompts title
+	mcpNoPromptsAvailable: string; // Empty prompts
+	mcpNotificationsTitle: string; // Notifications title
+	mcpNotifEnabled: string; // Notifications enabled word
+	mcpNotifDisabled: string; // Notifications disabled word
+	mcpNotifSettingRef: string; // Setting reference
+	mcpNotifSubscribedFmt: string; // Subscribed state, %s = count, %s = plural s
+	mcpNotifNoSubscriptions: string; // No subscriptions
+	mcpNotifInactive: string; // Inactive state
+	mcpNotifNotSupported: string; // Not supported
+	mcpNoServersSupportNotifications: string; // Empty notifications
+	mcpSmitheryKeyCannotBeEmpty: string; // Empty API key
+	mcpSmitheryKeyValidationFailedFmt: string; // Validation failed, %s = error
+	mcpSmitheryApiKeyPrompt: string; // API key input label
+	mcpSmitheryKeySaved: string; // Key saved status
+	mcpSmitheryAuthTimedOut: string; // Poll timeout
+	mcpSmitheryAuthFailed: string; // Poll error
+	mcpSmitheryAuthCancelled: string; // Poll cancelled
+	mcpSmitheryLoginTitle: string; // Login title
+	mcpSmitheryBrowserAuthStarted: string; // Browser auth started
+	mcpSmitheryAuthorizeUrl: string; // Authorize URL label
+	mcpSmitheryFallbackFmt: string; // Fallback URL, %s = url
+	mcpSmitheryAuthRequiredReasonFmt: string; // Auth required, %s = reason
+	mcpSmitheryPasteApiKey: string; // Manual fallback hint
+	mcpSmitheryBrowserFailedFmt: string; // Browser failed, %s = error
+	mcpSmitheryRateLimited: string; // 429 reason
+	mcpSmitheryForbidden: string; // 401/403 reason
+	mcpSmitheryLoginCancelledRetry: string; // Login cancelled, retry hint
+	mcpSmitheryKeyNotFoundAfterLogin: string; // Key missing after login
+	mcpSmitheryLoginCancelled: string; // Login cancelled status
+	mcpSmitheryKeyRemoved: string; // Key removed
+	mcpNoCachedSmitheryKey: string; // No cached key
+	mcpServerNameForDeployFmt: string; // Deploy name prompt, %s = default
+	mcpServerNameCannotBeEmpty: string; // Empty deploy name
+	mcpServerAlreadyExistsInFmt: string; // Name taken, %s = name, %s = scope word
+	mcpRegistryInputRequiredFmt: string; // Required input label, %s = key
+	mcpRegistryInputOptionalFmt: string; // Optional input label, %s = key
+	mcpMissingRequiredValueFmt: string; // Missing required input, %s = key
+	mcpRegistryResultsForFmt: string; // Registry picker title, %s = keyword
+	mcpDeployCancelled: string; // Deploy cancelled
+	mcpSearchingRegistryFmt: string; // Searching line, %s = keyword
+	mcpNoResultsFoundFmt: string; // No results, %s = keyword
+	mcpSelectionCancelled: string; // Selection cancelled
+	mcpLoginFirstToAuthenticateFmt: string; // Auth-first hint, %s = message
+	mcpSmitherySearchFailedFmt: string; // Search failed, %s = error
+	mcpRequiredForSmitherySearch: string; // Reason for auth retry
+	mcpWizardTitle: string; // Wizard title
+	mcpStepNameTitle: string; // Step title
+	mcpStepTransportTitle: string; // Step title
+	mcpStepCommandTitle: string; // Step title
+	mcpStepArgsTitle: string; // Step title
+	mcpStepUrlTitle: string; // Step title
+	mcpStepAuthMethodTitle: string; // Step title
+	mcpStepAuthLocationTitle: string; // Step title
+	mcpStepEnvVarTitle: string; // Step title
+	mcpStepHeaderTitle: string; // Step title
+	mcpStepScopeTitle: string; // Step title
+	mcpConfirmTitle: string; // Confirm step title
+	mcpOAuthAuthUrlTitle: string; // OAuth step title
+	mcpOAuthTokenUrlTitle: string; // OAuth step title
+	mcpOAuthClientIdTitle: string; // OAuth step title
+	mcpOAuthClientSecretTitle: string; // OAuth step title
+	mcpOAuthScopesTitle: string; // OAuth step title
+	mcpApiKeyTitle: string; // API key step title
+	mcpOAuthAuthFailedTitle: string; // OAuth error step title
+	mcpWizardEnterUniqueName: string; // Name step prompt
+	mcpWizardNameChars: string; // Name charset hint
+	mcpWizardEnterContinueEscCancel: string; // Key hint
+	mcpWizardSelectTransport: string; // Transport step prompt
+	mcpWizardNavigateHint: string; // Key hint
+	mcpWizardEnterCommand: string; // Command step prompt
+	mcpWizardEnterContinueEscBack: string; // Key hint
+	mcpWizardEnterArgs: string; // Args step prompt
+	mcpWizardEnterSkipContinue: string; // Key hint
+	mcpWizardEnterUrl: string; // URL step prompt
+	mcpWizardUrlSchemeHint: string; // URL scheme hint
+	mcpWizardEnterEnvVarName: string; // Env var prompt
+	mcpWizardEnterHeaderName: string; // Header prompt
+	mcpWizardNavigateSelectBackHint: string; // Key hint
+	mcpWizardSaveConfig: string; // Confirm prompt
+	mcpWizardYes: string; // Yes option
+	mcpWizardNo: string; // No option
+	mcpWizardEnterOAuthAuthEndpoint: string; // OAuth prompt
+	mcpWizardEnterOAuthTokenEndpoint: string; // OAuth prompt
+	mcpWizardEnterOAuthClientId: string; // OAuth prompt
+	mcpWizardEnterOAuthClientSecret: string; // OAuth prompt
+	mcpWizardPkceHint: string; // PKCE hint
+	mcpWizardEnterOAuthScopes: string; // OAuth prompt
+	mcpWizardChooseNextAction: string; // Error step prompt
+	mcpWizardRetryOAuth: string; // Retry option
+	mcpWizardEditOAuthSettings: string; // Edit option
+	mcpWizardEnterApiKey: string; // API key prompt
+	mcpWizardPwManagerHint: string; // Password manager hint
+	mcpTransportStdio: string; // Transport option
+	mcpTransportHttp: string; // Transport option
+	mcpTransportSse: string; // Transport option
+	mcpAuthOAuth: string; // Auth option
+	mcpAuthOAuthDesc: string; // Auth option description
+	mcpAuthManual: string; // Auth option
+	mcpAuthManualDesc: string; // Auth option description
+	mcpAuthLocationEnv: string; // Location option
+	mcpAuthLocationHeader: string; // Location option
+	mcpScopeUserLabelFmt: string; // Scope option, %s = path
+	mcpScopeProjectLabelFmt: string; // Scope option, %s = path
+	mcpConfirmNameFmt: string; // Summary row, %s = name
+	mcpConfirmTypeFmt: string; // Summary row, %s = type
+	mcpConfirmCommandFmt: string; // Summary row, %s = command
+	mcpConfirmArgsFmt: string; // Summary row, %s = args
+	mcpConfirmUrlFmt: string; // Summary row, %s = url
+	mcpConfirmAuthNone: string; // Summary row
+	mcpConfirmAuthOAuth: string; // Summary row
+	mcpConfirmAuthEnvKeyFmt: string; // Summary row, %s = env var name
+	mcpConfirmAuthHeaderKeyFmt: string; // Summary row, %s = header name
+	mcpConfirmScopeFmt: string; // Summary row, %s = scope label
+	mcpConnSuccess: string; // Test success
+	mcpNoAuthRequired: string; // No auth needed
+	mcpOAuthDetected: string; // OAuth detected
+	mcpLaunchingBrowser: string; // Launching browser
+	mcpAuthRequiredWarning: string; // Auth required warning
+	mcpOAuthNotDiscovered: string; // OAuth params missing
+	mcpProvideApiKeyManually: string; // Manual key fallback
+	mcpConnFailed: string; // Connection failed
+	mcpAddingServerAnyway: string; // Proceed anyway hint
+	mcpUrlIsRequired: string; // URL validation error
+	mcpInvalidUrlFormat: string; // URL validation error
+	mcpUrlSchemeInvalid: string; // URL validation error
+	mcpOAuthFlowNotAvailable: string; // No OAuth callback
+	mcpOAuthConfigIncomplete: string; // Incomplete OAuth config
+	mcpAuthTokenUrlsRequired: string; // Required URLs
+	mcpPressEscToGoBack: string; // Key hint
+	mcpOAuthAuthentication: string; // OAuth flow title
+	mcpLaunchingOAuthFlow: string; // Launching OAuth line
+	mcpBrowserWillOpen: string; // Browser hint
+	mcpIfBrowserNotOpen: string; // Copy URL hint
+	mcpPressEscToCancel: string; // Cancel hint
+	mcpAuthSuccessful: string; // Auth success
+	mcpRunningHealthCheck: string; // Health check line
+	mcpCheckingServerConnectionFmt: string; // Health spinner, %s = frame
+	mcpHealthCheckPassed: string; // Health passed
+	mcpHealthCheckFailed: string; // Health failed
+	mcpHealthCheckTimedOut: string; // Health timeout message
+	mcpOAuthCancelledTitle: string; // Cancelled heading
+	mcpTipRetryLaunchBrowser: string; // Cancel tip
+	mcpTipCompleteFaster: string; // Timeout tip
+	mcpTipCheckOAuthUrls: string; // URL tip
+	mcpTipVerifyOAuthServer: string; // Connect tip
+	mcpWizardRetry: string; // Retry option
+	mcpExampleAuthUrl: string; // Example URL hint
+	mcpExampleTokenUrl: string; // Example URL hint
+	mcpExampleScopes: string; // Example scopes hint
 }

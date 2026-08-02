@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { M, currentLanguage, detectLanguage, setLanguage, type ZetaLanguage } from "./index";
 import { en } from "./en";
+import { currentLanguage, detectLanguage, M, setLanguage, type ZetaLanguage } from "./index";
 import { zh } from "./zh";
 
 const ENV_KEYS = ["ZETA_LANG", "LC_ALL", "LC_MESSAGES", "LANG"] as const;
@@ -34,6 +34,8 @@ describe("catalogue completeness", () => {
 			"setupGlyphLabelAscii",
 			"setupThemeTitaniumLabel",
 			"setupThemeLightLabel",
+			"mcpHelpAddUsage",
+			"mcpHelpSearchUsage",
 		]);
 		for (const key of Object.keys(en) as Array<keyof typeof en>) {
 			if (identicalIntentionally.has(key)) continue;
