@@ -510,16 +510,15 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "loop",
-		description:
-			"Toggle loop mode. While enabled, the next prompt you send re-submits after every yield. Esc cancels the current iteration; /loop again to disable.",
+		description: M.imLoopCommandDesc,
 		inlineHint: "[count|duration] [prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.loopModeEnabled) return "Loop: off";
-			if (runtime.ctx.loopModePaused) return "Loop: paused";
-			if (runtime.ctx.loopLimit) return `Loop: on (${describeLoopLimitRuntime(runtime.ctx.loopLimit)})`;
-			if (runtime.ctx.loopPrompt) return "Loop: on (repeating prompt)";
-			return "Loop: on (waiting for next prompt)";
+			if (!runtime.ctx.loopModeEnabled) return M.imLoopOffLabel;
+			if (runtime.ctx.loopModePaused) return M.imLoopPausedLabel;
+			if (runtime.ctx.loopLimit) return M.imLoopOnFmt.replace("%s", describeLoopLimitRuntime(runtime.ctx.loopLimit));
+			if (runtime.ctx.loopPrompt) return M.imLoopOnRepeatingLabel;
+			return M.imLoopOnWaitingLabel;
 		},
 		handleTui: async (command, runtime) => {
 			const prompt = await runtime.ctx.handleLoopCommand(command.args);
