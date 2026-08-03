@@ -686,10 +686,10 @@ async function resolveInputImage(input: ImageInput, cwd: string): Promise<Inline
 		const normalized = normalizeDataUrl(input.data.trim());
 		const mimeType = normalized.mimeType ?? input.mime_type;
 		if (!mimeType) {
-			throw new Error("mime_type is required when providing raw base64 data.");
+			throw new Error(M.igErrMimeType);
 		}
 		if (!normalized.data) {
-			throw new Error("Image data is empty.");
+			throw new Error(M.igErrEmptyData);
 		}
 		return { data: normalized.data, mimeType };
 	}
@@ -1059,7 +1059,7 @@ interface AntigravitySseResult {
 
 async function parseAntigravitySseForImage(response: Response, signal?: AbortSignal): Promise<AntigravitySseResult> {
 	if (!response.body) {
-		throw new Error("No response body");
+		throw new Error(M.igErrNoResponseBody);
 	}
 
 	const textParts: string[] = [];

@@ -464,7 +464,7 @@ function normalizeArchiveWriteSubPath(rawPath: string): string {
 	}
 
 	if (normalizedParts.length === 0) {
-		throw new ToolError("Archive write path must target a file inside the archive");
+		throw new ToolError(M.wrErrArchivePath);
 	}
 
 	return normalizedParts.join("/");
@@ -484,7 +484,7 @@ function parseSqliteWriteTarget(subPath: string, queryString: string): { table: 
 	const table = separatorIndex === -1 ? normalized : normalized.slice(0, separatorIndex);
 	const key = separatorIndex === -1 ? undefined : normalized.slice(separatorIndex + 1);
 	if (!table) {
-		throw new ToolError("SQLite write path must target a table");
+		throw new ToolError(M.wrErrSqliteTable);
 	}
 	if (key !== undefined && key.length === 0) {
 		throw new ToolError(M.wrErrSqliteRowKey);
@@ -1151,7 +1151,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 								}
 								const xdev = this.session.xdev;
 								if (!xdev) {
-									throw new ToolError("xd:// is not mounted in this session.");
+									throw new ToolError(M.wrErrXdNotMounted);
 								}
 								if (!name) {
 									throw new ToolError(`Cannot write to xd:// itself — pick a device:\n${xdevListing(xdev)}`);

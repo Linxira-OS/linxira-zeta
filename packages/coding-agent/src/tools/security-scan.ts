@@ -125,7 +125,7 @@ export class SecurityScanTool implements AgentTool<typeof securityScanSchema, Se
 		}
 		const coordinatorForSession = () => {
 			if (!this.session.modelRegistry || !this.session.authStorage) {
-				throw new ToolError("Security scan requires the session model and authentication registries");
+				throw new ToolError(M.ssErrSessionModel);
 			}
 			return getSecurityCoordinator({
 				cwd: this.session.cwd,
@@ -252,7 +252,7 @@ export class SecurityScanTool implements AgentTool<typeof securityScanSchema, Se
 				const scanId = requireValue(params.scan_id, "scan_id");
 				const findingId = requireValue(params.finding_id, "finding_id");
 				const status = params.validation_status;
-				if (!status) throw new ToolError("validation_status is required for this action");
+				if (!status) throw new ToolError(M.ssErrValidationStatus);
 				const summary = requireValue(params.validation_summary, "validation_summary");
 				const store = await SecurityStore.openForCwd(this.session.cwd, { signal });
 				const finding = await store.getFinding(scanId, findingId);

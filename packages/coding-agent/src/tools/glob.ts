@@ -163,7 +163,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 				? rawPatterns.map(pattern => (/^\/+$/.test(pattern) ? "." : pattern))
 				: rawPatterns;
 			if (aliasResolvedPatterns.some(pattern => /^\/+$/.test(pattern))) {
-				throw new ToolError("Searching from root directory '/' is not allowed");
+				throw new ToolError(M.glRootNotAllowed);
 			}
 			const internalRouter = InternalUrlRouter.instance();
 			const normalizedPatterns: string[] = [];
@@ -252,7 +252,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 
 			for (const target of targets) {
 				if (target.searchPath === "/") {
-					throw new ToolError("Searching from root directory '/' is not allowed");
+					throw new ToolError(M.glRootNotAllowed);
 				}
 			}
 

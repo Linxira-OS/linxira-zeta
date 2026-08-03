@@ -935,7 +935,7 @@ async function requireGitRepoRoot(cwd: string, signal?: AbortSignal): Promise<st
 async function requirePrimaryGitRepoRoot(cwd: string, signal?: AbortSignal): Promise<string> {
 	const primaryRepoRoot = await git.repo.primaryRoot(cwd, signal);
 	if (!primaryRepoRoot) {
-		throw new ToolError("Current git repository is unavailable.");
+		throw new ToolError(M.ghErrRepoUnavailable);
 	}
 
 	return primaryRepoRoot;

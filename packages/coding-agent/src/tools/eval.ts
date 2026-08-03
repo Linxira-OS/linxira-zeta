@@ -404,7 +404,7 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 		}
 
 		if (!this.session) {
-			throw new ToolError("Eval tool requires a session when not using proxy executor");
+			throw new ToolError(M.evErrNeedsSession);
 		}
 		const session = this.session;
 		const excludeWebP = webpExclusionForModel(session.getActiveModel?.());

@@ -38,7 +38,7 @@ export class MemoryEditTool implements AgentTool<typeof memoryEditSchema> {
 			throw new Error(M.meErrMnemopiNotInit);
 		}
 		if (params.op === "update" && params.content === undefined && params.importance === undefined) {
-			throw new Error("memory_edit update requires content or importance.");
+			throw new Error(M.meErrUpdateRequires);
 		}
 
 		const importance = params.importance === undefined ? undefined : Math.max(0, Math.min(1, params.importance));

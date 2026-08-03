@@ -1277,7 +1277,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 							outputBytes: current.output.length,
 						};
 						this.#throwIfUnfinished(timedOutResult, timeoutSec, this.#formatResultOutput(timedOutResult));
-						throw new ToolError("Command timed out");
+						throw new ToolError(M.bshCommandTimedOut);
 					}
 
 					if (raced.kind === "exit") {

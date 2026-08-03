@@ -1775,6 +1775,43 @@ export interface Messages {
 	igErrMissingModelRegistry: string;
 	rtiErrEmptyFmt: string;
 	rtiErrInvalidFmt: string;
+	dbgErrNoSession: string;
+	dbgErrProgramRequired: string;
+	dbgErrAttachPidOrPort: string;
+	dbgErrSetBpFileLine: string;
+	dbgErrRemoveBpFileLine: string;
+	dbgErrSetInstBpRef: string;
+	dbgErrRemoveInstBpRef: string;
+	dbgErrDbInfoName: string;
+	dbgErrSetDbDataId: string;
+	dbgErrRemoveDbDataId: string;
+	dbgErrEvalExpression: string;
+	dbgErrVarsRef: string;
+	dbgErrDisasmCount: string;
+	dbgErrReadMemRef: string;
+	dbgErrReadMemCount: string;
+	dbgErrWriteMemRef: string;
+	dbgErrWriteMemData: string;
+	dbgErrCustomCommand: string;
+	slErrRawWithSelectors: string;
+	slErrQueryEmpty: string;
+	slErrQueryNeedsSelector: string;
+	slErrSelectorTable: string;
+	slErrRowsWithParams: string;
+	slErrRawNoParams: string;
+	slErrUpdateColumn: string;
+	buPathTraversal: string;
+	bshCommandTimedOut: string;
+	evErrNeedsSession: string;
+	meErrUpdateRequires: string;
+	glRootNotAllowed: string;
+	ssErrSessionModel: string;
+	ssErrValidationStatus: string;
+	wrErrArchivePath: string;
+	wrErrXdNotMounted: string;
+	puErrLineSelectorZero: string;
+	puErrScopeEmpty: string;
+	puErrPathsRequired: string;
 	mcpExampleScopes: string; // Example scopes hint
 }
 
