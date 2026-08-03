@@ -20,8 +20,14 @@ const OMP_BRANCH = "main";
 const DRY_RUN = process.argv.includes("--dry-run");
 const AUTO_COMMIT = process.argv.includes("--auto-commit");
 
-async function sh(cmd: string, cwd?: string): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	const result = await $`${{ raw: cmd }}`.cwd(cwd ?? process.cwd()).quiet().nothrow();
+async function sh(
+	cmd: string,
+	cwd?: string,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+	const result = await $`${{ raw: cmd }}`
+		.cwd(cwd ?? process.cwd())
+		.quiet()
+		.nothrow();
 	return {
 		exitCode: result.exitCode,
 		stdout: result.stdout.toString(),
@@ -57,12 +63,10 @@ async function main() {
 
 	// 3. Find latest OMP tag
 	console.log("[3/6] Finding latest OMP release tag...");
-	const tags = await sh(
-		`git tag --list "v*" --sort=-v:refname | Select-Object -First 5`,
-	);
+	const tags = await sh(`git tag --list "v*" --sort=-v:refname | Select-Object -First 5`);
 	const ompTags = tags.stdout
 		.split("\n")
-		.map((t) => t.trim())
+		.map(t => t.trim())
 		.filter(Boolean);
 
 	if (ompTags.length === 0) {
@@ -80,12 +84,8 @@ async function main() {
 	}
 
 	// 4. Get merge base info
-	const mergeBase = await sh(
-		`git merge-base HEAD ${OMP_REMOTE}/${OMP_BRANCH}`,
-	);
-	const upstreamHead = await sh(
-		`git rev-parse ${OMP_REMOTE}/${OMP_BRANCH}`,
-	);
+	const mergeBase = await sh(`git merge-base HEAD ${OMP_REMOTE}/${OMP_BRANCH}`);
+	const upstreamHead = await sh(`git rev-parse ${OMP_REMOTE}/${OMP_BRANCH}`);
 	const upstreamHeadShort = upstreamHead.stdout.trim().slice(0, 7);
 	console.log(`  Upstream HEAD: ${upstreamHeadShort}`);
 	console.log(`  Merge base: ${mergeBase.stdout.trim().slice(0, 7)}`);
@@ -104,9 +104,7 @@ async function main() {
 
 		// 6. Merge upstream
 		console.log(`[5/6] Merging ${OMP_REMOTE}/${OMP_BRANCH}...`);
-		const merge = await sh(
-			`git merge ${OMP_REMOTE}/${OMP_BRANCH} --no-commit --no-ff`,
-		);
+		const merge = await sh(`git merge ${OMP_REMOTE}/${OMP_BRANCH} --no-commit --no-ff`);
 
 		if (merge.exitCode !== 0) {
 			console.log("  Conflicts detected. Auto-resolving...");
@@ -115,7 +113,7 @@ async function main() {
 			const conflictFiles = await sh("git diff --name-only --diff-filter=U");
 			const conflicts = conflictFiles.stdout
 				.split("\n")
-				.map((f) => f.trim())
+				.map(f => f.trim())
 				.filter(Boolean);
 
 			console.log(`  ${conflicts.length} conflicted files:`);
@@ -127,13 +125,11 @@ async function main() {
 			// - package.json files: use our merge driver (Zeta identity + upstream deps)
 			// - Test files: accept upstream (theirs)
 			// - Source files: accept upstream code, keep Zeta i18n
-			const pkgJsons = conflicts.filter((f) => f.endsWith("package.json"));
+			const pkgJsons = conflicts.filter(f => f.endsWith("package.json"));
 			const testFiles = conflicts.filter(
-				(f) => f.includes(".test.") || f.includes("/test/") || f.includes("\\test\\"),
+				f => f.includes(".test.") || f.includes("/test/") || f.includes("\\test\\"),
 			);
-			const sourceFiles = conflicts.filter(
-				(f) => !pkgJsons.includes(f) && !testFiles.includes(f),
-			);
+			const sourceFiles = conflicts.filter(f => !pkgJsons.includes(f) && !testFiles.includes(f));
 
 			// Resolve package.json files with our merge driver
 			for (const pkg of pkgJsons) {
@@ -158,9 +154,7 @@ async function main() {
 			}
 
 			// Check if merge is now clean
-			const remainingConflicts = await sh(
-				"git diff --name-only --diff-filter=U",
-			);
+			const remainingConflicts = await sh("git diff --name-only --diff-filter=U");
 			if (remainingConflicts.stdout.trim()) {
 				console.log("  WARNING: Unresolved conflicts remain:");
 				console.log(remainingConflicts.stdout);
@@ -172,10 +166,7 @@ async function main() {
 
 		// Verify i18n integrity
 		console.log("  Verifying i18n consistency...");
-		const i18nTest = await sh(
-			"bun test packages/coding-agent/src/i18n/messages.test.ts",
-			// This may fail if i18n keys are out of sync
-		);
+		const i18nTest = await sh("bun test packages/coding-agent/src/i18n/messages.test.ts");
 		if (i18nTest.exitCode !== 0) {
 			console.log("  WARNING: i18n test failed. Some translations may need updating.");
 			console.log(i18nTest.stderr.slice(0, 500));
@@ -212,7 +203,9 @@ async function main() {
 			}
 		} else {
 			console.log("  Review changes, then:");
-			console.log(`    git commit -m "Merge OMP ${latestTag}: auto-resolved conflicts, kept Zeta scope/brand/i18n"`);
+			console.log(
+				`    git commit -m "Merge OMP ${latestTag}: auto-resolved conflicts, kept Zeta scope/brand/i18n"`,
+			);
 			console.log(`    git checkout main && git merge ${branchName}`);
 		}
 	}
@@ -221,7 +214,7 @@ async function main() {
 	console.log("Done.");
 }
 
-main().catch((err) => {
+main().catch(err => {
 	console.error("Unexpected error:", err);
 	process.exit(1);
 });

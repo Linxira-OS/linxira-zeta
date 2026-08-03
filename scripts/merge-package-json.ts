@@ -11,7 +11,7 @@
  *   git config merge.zeta-package.name "Zeta package.json merge driver"
  *
  * The .gitattributes file maps package.json files to this driver:
- *   packages/*/package.json merge=zeta-package
+ *   packages/&#42;/package.json merge=zeta-package
  *   package.json merge=zeta-package
  */
 
