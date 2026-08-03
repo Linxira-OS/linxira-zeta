@@ -217,7 +217,7 @@ function installFakeLsp(handler: FakeLspHandler, options?: FakeLspOptions): Fake
 		},
 	} as unknown as LspClient["proc"];
 
-	vi.spyOn(piUtils.ptree, "spawn").mockReturnValue(proc);
+	vi.spyOn(piUtils.ptree, "spawn").mockReturnValue(proc as unknown as piUtils.ptree.ChildProcess<"pipe">);
 	return server;
 }
 
@@ -3383,7 +3383,7 @@ describe("lsp regressions", () => {
 				},
 			} as unknown as LspClient["proc"];
 
-			vi.spyOn(piUtils.ptree, "spawn").mockReturnValue(proc);
+			vi.spyOn(piUtils.ptree, "spawn").mockReturnValue(proc as unknown as piUtils.ptree.ChildProcess<"pipe">);
 
 			const tempDir = TempDir.createSync("@omp-lsp-flush-wedge-");
 			try {

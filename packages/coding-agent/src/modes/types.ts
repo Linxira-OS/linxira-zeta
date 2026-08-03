@@ -162,6 +162,7 @@ export interface InteractiveModeContext {
 	initialChatRendered: boolean;
 	isBashMode: boolean;
 	toolOutputExpanded: boolean;
+	hideToolActivity: boolean;
 	todoExpanded: boolean;
 	planModeEnabled: boolean;
 	vibeModeEnabled: boolean;
@@ -355,7 +356,11 @@ export interface InteractiveModeContext {
 	handlePythonCommand(code: string, excludeFromContext?: boolean): Promise<void>;
 	handleMCPCommand(text: string): Promise<void>;
 	handleSSHCommand(text: string): Promise<void>;
-	handleCompactCommand(customInstructions?: string, mode?: CompactMode): Promise<CompactionOutcome>;
+	handleCompactCommand(
+		customInstructions?: string,
+		mode?: CompactMode,
+		beforeFlush?: (outcome: CompactionOutcome) => void | Promise<void>,
+	): Promise<CompactionOutcome>;
 	handleHandoffCommand(customInstructions?: string): Promise<void>;
 	handleShakeCommand(mode: ShakeMode): Promise<void>;
 	handleMoveCommand(targetPath?: string): Promise<void>;

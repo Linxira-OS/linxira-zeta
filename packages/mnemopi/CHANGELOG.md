@@ -5,6 +5,11 @@
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [17.2.3] - 2026-08-01
+
+### Fixed
+
+- Stripped `<think>…</think>` reasoning blocks from remote LLM output in `cleanOutput`, so reasoning-model responses no longer leak into consolidated memories or corrupt fact extraction (the reasoning wrapper previously survived parsing and every stored fact became reasoning prose). ([#7231](https://github.com/can1357/oh-my-pi/issues/7231))
 
 ## [17.2.2] - 2026-07-31
 
