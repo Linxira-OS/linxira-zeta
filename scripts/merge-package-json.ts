@@ -1,0 +1,139 @@
+/**
+ * Custom Git merge driver for package.json files.
+ *
+ * Called by Git with three args: %A (current/target), %O (base), %B (other/source).
+ * Zeta keeps its own identity fields (name, version, bin, homepage, repository,
+ * bugs, @zeta/* scope in deps) but accepts upstream changes to dependencies,
+ * scripts, engines, exports, and other structural fields.
+ *
+ * Setup:
+ *   git config merge.zeta-package.driver "bun scripts/merge-package-json.ts %A %O %B"
+ *   git config merge.zeta-package.name "Zeta package.json merge driver"
+ *
+ * The .gitattributes file maps package.json files to this driver:
+ *   packages/*/package.json merge=zeta-package
+ *   package.json merge=zeta-package
+ */
+
+import * as fs from "node:fs";
+
+const ZETA_IDENTITY_FIELDS = new Set([
+	"name",
+	"version",
+	"homepage",
+	"bin",
+	"repository",
+	"bugs",
+	"author",
+	"contributors",
+	"keywords",
+]);
+
+const ZETA_SCOPE = "@zeta/";
+
+function loadJson(path: string): Record<string, unknown> | null {
+	try {
+		const raw = fs.readFileSync(path, "utf-8");
+		return JSON.parse(raw);
+	} catch {
+		return null;
+	}
+}
+
+function saveJson(path: string, obj: Record<string, unknown>): void {
+	fs.writeFileSync(path, JSON.stringify(obj, null, 2) + "\n");
+}
+
+function mergeDeps(
+	current: Record<string, string>,
+	other: Record<string, string>,
+): Record<string, string> {
+	const result: Record<string, string> = {};
+
+	// Keep Zeta-scoped deps from current, accept everything else from other
+	for (const [key, value] of Object.entries(other)) {
+		if (key.startsWith(ZETA_SCOPE)) {
+			// Keep Zeta's own version if it exists, otherwise use upstream's
+			result[key] = current[key] ?? value;
+		} else {
+			result[key] = value;
+		}
+	}
+
+	// Also keep any Zeta deps that upstream doesn't have
+	for (const [key, value] of Object.entries(current)) {
+		if (key.startsWith(ZETA_SCOPE) && !(key in result)) {
+			result[key] = value;
+		}
+	}
+
+	return result;
+}
+
+function main() {
+	const [currentPath, basePath, otherPath] = process.argv.slice(2);
+
+	if (!currentPath || !basePath || !otherPath) {
+		console.error("Usage: merge-package-json.ts %A %O %B");
+		process.exit(1);
+	}
+
+	const current = loadJson(currentPath);
+	const base = loadJson(basePath);
+	const other = loadJson(otherPath);
+
+	if (!current || !base || !other) {
+		// If any side is invalid JSON, fall back to current (keep ours)
+		if (current) saveJson(currentPath, current);
+		process.exit(0);
+	}
+
+	const result: Record<string, unknown> = { ...other };
+
+	// Preserve Zeta identity fields from current
+	for (const field of ZETA_IDENTITY_FIELDS) {
+		if (field in current) {
+			result[field] = current[field];
+		}
+	}
+
+	// Merge dependency sections: keep Zeta scoped deps, accept upstream rest
+	const depSections = [
+		"dependencies",
+		"devDependencies",
+		"optionalDependencies",
+		"peerDependencies",
+	] as const;
+
+	for (const section of depSections) {
+		const currentDeps = current[section] as Record<string, string> | undefined;
+		const otherDeps = other[section] as Record<string, string> | undefined;
+
+		if (currentDeps && otherDeps) {
+			result[section] = mergeDeps(currentDeps, otherDeps);
+		} else if (otherDeps) {
+			result[section] = otherDeps;
+		}
+		// If only current has deps, keep them (already handled by identity pass)
+	}
+
+	// Handle workspace catalog entries in root package.json
+	const catalogKey = "catalog";
+	if (catalogKey in result && catalogKey in current) {
+		const currentWorkspaces = current.workspaces as Record<string, unknown> | undefined;
+		const resultWorkspaces = result.workspaces as Record<string, unknown> | undefined;
+		const currentCatalog = currentWorkspaces?.[catalogKey] as Record<string, string> | undefined;
+		const resultCatalog = resultWorkspaces?.[catalogKey] as Record<string, string> | undefined;
+
+		if (currentCatalog && resultCatalog) {
+			(resultWorkspaces as Record<string, unknown>)[catalogKey] =
+				mergeDeps(currentCatalog, resultCatalog);
+		}
+	}
+
+	saveJson(currentPath, result);
+	console.log("package.json merged: kept Zeta identity, accepted upstream deps");
+	process.exit(0);
+}
+
+main();

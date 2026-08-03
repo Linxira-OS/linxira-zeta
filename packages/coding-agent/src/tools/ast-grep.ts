@@ -152,7 +152,14 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 	readonly approval = "read" as const;
 	readonly label = M.agrpLabel;
 	readonly summary = M.agrpSummary;
-	readonly description: string;
+	get description(): string {
+		return prompt.render(astGrepDescription, {
+			scoutAvailable: isScoutSpawnable(
+				this.session.settings.get("task.disabledAgents") as string[] | undefined,
+				this.session.getSessionSpawns?.() ?? "*",
+			),
+		});
+	}
 	readonly parameters = astGrepSchema;
 	readonly strict = true;
 

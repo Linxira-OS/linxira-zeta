@@ -11,6 +11,7 @@ import {
 import { prompt } from "@zeta/pi-utils";
 import { type } from "arktype";
 import { extractTextContent } from "../commit/utils";
+import { M } from "../i18n/messages";
 
 import {
 	expandRoleAlias,
