@@ -239,6 +239,38 @@ function sanitizeObject<T>(obj: T): T {
   return result as T;
 }
 
+const MODEL_COST_RATE_KEYS = ["input", "output", "cacheRead", "cacheWrite"] as const;
+
+/**
+ * The SDK's ModelCostSchema requires all four cost rates on every model (and
+ * on every tier, plus inputTokensAbove). Upstream model caches sometimes omit
+ * or null these fields, which would make the generated omp-web-models.json
+ * fail schema validation. Fill missing rates with 0 and drop non-object costs.
+ */
+function normalizeModelCostForSchema(model: Record<string, unknown>): void {
+  const cost = model.cost;
+  if (cost && typeof cost === "object") {
+    const costObj = cost as Record<string, unknown>;
+    for (const key of MODEL_COST_RATE_KEYS) {
+      if (typeof costObj[key] !== "number") costObj[key] = 0;
+    }
+    const tiers = costObj.tiers;
+    if (Array.isArray(tiers)) {
+      for (const tier of tiers) {
+        if (tier && typeof tier === "object") {
+          const tierObj = tier as Record<string, unknown>;
+          if (typeof tierObj.inputTokensAbove !== "number") tierObj.inputTokensAbove = 0;
+          for (const key of MODEL_COST_RATE_KEYS) {
+            if (typeof tierObj[key] !== "number") tierObj[key] = 0;
+          }
+        }
+      }
+    }
+  } else {
+    delete model.cost;
+  }
+}
+
 function inferContextWindow(modelId: string): number {
   const id = modelId.toLowerCase();
   if (id.includes("gemini-1.5") || id.includes("gemini-2.5") || id.includes("gemini-3") || id.includes("gemini-3.5") || id.includes("gemini-3.6")) return 1048576;
@@ -328,6 +360,18 @@ export function syncOmpRuntimeModelsJson(agentDir: string = getOmpAgentDir()): s
     customProviders[providerId] = mergedProvider;
     if (cachedProviderId && cachedProviderId !== providerId) delete providers[cachedProviderId];
     cachedProviderIds.add(providerId.toLowerCase());
+  }
+
+  // The SDK validates omp-web-models.json against a strict schema (all four
+  // cost rates required). Normalize every provider's models before writing so
+  // incomplete upstream cache entries cannot break model loading.
+  for (const providerConfig of Object.values(providers)) {
+    const providerModels = providerConfig.models;
+    if (Array.isArray(providerModels)) {
+      for (const model of providerModels) {
+        if (model && typeof model === "object") normalizeModelCostForSchema(model as Record<string, unknown>);
+      }
+    }
   }
 
   const dir = dirname(runtimeModelsPath);
