@@ -4,6 +4,7 @@
  * Extends the base AgentMessage type with coding-agent specific message types,
  * and provides a transformer to convert them to LLM-compatible messages.
  */
+
 import type { AgentMessage } from "@zeta/pi-agent-core";
 import { invalidateMessageCache, registerMessageCacheInvalidator } from "@zeta/pi-agent-core/compaction/message-cache";
 import {
@@ -18,10 +19,10 @@ import type {
 	MessageAttribution,
 	TextContent,
 	UserMessage,
-} from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { isRecord, logger, prompt } from "@oh-my-pi/pi-utils";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
+} from "@zeta/pi-ai";
+import * as AIError from "@zeta/pi-ai/error";
+import { isRecord, logger, prompt } from "@zeta/pi-utils";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@zeta/pi-wire";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
 

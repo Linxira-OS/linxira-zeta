@@ -6,7 +6,7 @@ import { useTheme } from "./useTheme";
 
 export type CodeTheme = "auto" | "vs" | "vscDarkPlus" | "oneDark";
 
-const STORAGE_KEY = "omp-code-theme";
+const STORAGE_KEY = "zeta-code-theme";
 
 const listeners = new Set<() => void>();
 

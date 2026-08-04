@@ -1,4 +1,3 @@
-
 import { jsonSchemaToTypeScript, toolWireSchema } from "../utils/schema";
 import { renderToolExamples } from "./examples";
 import type { InbandTool } from "./types";

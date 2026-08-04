@@ -2,6 +2,7 @@
  * Agent loop that works with AgentMessage throughout.
  * Transforms to Message[] only at the LLM call boundary.
  */
+
 import {
 	type AssistantMessage,
 	type AssistantMessageEvent,
@@ -41,9 +42,9 @@ import {
 	isHarmonyLeakMitigationTarget,
 	recoverHarmonyToolCall,
 	signalListLabel,
-} from "@oh-my-pi/pi-ai/utils/harmony-leak";
-import { logger, sanitizeText, structuredCloneJSON } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+} from "@zeta/pi-ai/utils/harmony-leak";
+import { logger, sanitizeText, structuredCloneJSON } from "@zeta/pi-utils";
+import { INTENT_FIELD } from "@zeta/pi-wire";
 import { agentPauseGate } from "./pause";
 import { type AgentRunCoverage, type AgentRunSummary, ToolCallBlockedError } from "./run-collector";
 import {

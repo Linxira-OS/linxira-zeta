@@ -1,40 +1,46 @@
 @import "tailwindcss/index.css";
 
 /* ==========================================================================
-   OMP Theme Variables & Color Scheme
+   Zeta Theme Variables & Color Scheme (aligned with Zeta Web UI globals.css)
    ========================================================================== */
 :root {
   color-scheme: dark;
-  /* OMP brand palette — packages/collab-web/src/styles/tokens.css:
-     deep-purple surfaces (hue 307), pink accent #ed4abf, cyan focus ring #5ad8e6. */
-  --page: oklch(0.16 0.02 307);
-  --surface: oklch(0.19 0.022 307);
-  --surface-2: oklch(0.235 0.026 307);
-  --border: oklch(1 0 0 / 9%);
-  --border-strong: oklch(1 0 0 / 13%);
-  --text: oklch(0.92 0.01 307);
-  --muted: oklch(0.71 0.016 307);
-  --dim: oklch(0.53 0.018 307);
-  --accent: oklch(0.674 0.23 341);          /* brand pink #ed4abf */
-  --accent-fg: oklch(0.2 0.07 341);         /* ink on accent fills */
-  --accent-muted: oklch(0.674 0.23 341 / 18%);
-  --link: oklch(0.817 0.112 205);           /* brand cyan #5ad8e6 */
-  --success: oklch(0.76 0.14 150);
-  --danger: oklch(0.66 0.19 25);
-  --warning: oklch(0.79 0.14 85);
+  /* Zeta dark theme — blue accent #60a5fa, neutral-gray surfaces.
+     Mirrors web-ui/app/globals.css `html.dark` token set. */
+  --bg: #1a1a1a;
+  --bg-panel: #242424;
+  --bg-hover: #2e2e2e;
+  --bg-selected: #383838;
+  --bg-subtle: rgba(255,255,255,0.04);
+  --border: #3a3a3a;
+  --border-strong: rgba(255,255,255,0.13);
+  --text: #e8e8e8;
+  --text-muted: #9ca3af;
+  --text-dim: #6b7280;
+  --accent: #60a5fa;          /* Zeta blue */
+  --accent-hover: #93c5fd;
+  --accent-fg: #0f172a;       /* ink on accent fills */
+  --accent-muted: rgba(96,165,250,0.18);
+  --link: #60a5fa;            /* Zeta blue */
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
 
-  /* Bridge the view components' token vocabulary to the OMP base tokens so
-     muted/secondary text and semantic accents resolve instead of silently
-     falling back to inherited text color. Re-resolve per theme via var(). */
+  /* Backward-compat aliases for existing class references */
+  --page: var(--bg);
+  --surface: var(--bg-panel);
+  --surface-2: var(--bg-hover);
+  --muted: var(--text-muted);
+  --dim: var(--text-dim);
+
+  /* Bridge view-component token vocabulary */
   --text-primary: var(--text);
-  --text-secondary: var(--muted);
-  --text-muted: var(--dim);
+  --text-secondary: var(--text-muted);
   --border-subtle: var(--border);
   --accent-red: var(--danger);
   --accent-green: var(--success);
   --accent-cyan: var(--link);
-  --bg-hover: var(--surface-2);
-  --bg-elevated: var(--surface-2);
+  --bg-elevated: var(--bg-hover);
 
   --radius-sm: 3px;
   --radius-md: 6px;
@@ -46,42 +52,89 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     color-scheme: light;
-    --page: oklch(0.985 0.004 307);
-    --surface: oklch(1 0 0);
-    --surface-2: oklch(0.965 0.006 307);
-    --border: oklch(0 0 0 / 10%);
-    --border-strong: oklch(0 0 0 / 15%);
-    --text: oklch(0.26 0.03 307);
-    --muted: oklch(0.46 0.03 307);
-    --dim: oklch(0.58 0.025 307);
-    --accent: oklch(0.62 0.23 341);
-    --accent-fg: oklch(0.99 0.01 341);
-    --accent-muted: oklch(0.62 0.23 341 / 14%);
-    --link: oklch(0.58 0.13 230);
-    --success: oklch(0.55 0.13 150);
-    --danger: oklch(0.55 0.19 25);
-    --warning: oklch(0.6 0.13 85);
+    --bg: #ffffff;
+    --bg-panel: #f5f5f5;
+    --bg-hover: #eeeeee;
+    --bg-selected: #e8e8e8;
+    --bg-subtle: rgba(0,0,0,0.03);
+    --border: #e0e0e0;
+    --border-strong: rgba(0,0,0,0.15);
+    --text: #1a1a1a;
+    --text-muted: #6b7280;
+    --text-dim: #9ca3af;
+    --accent: #2563eb;          /* Zeta blue */
+    --accent-hover: #1d4ed8;
+    --accent-fg: #ffffff;
+    --accent-muted: rgba(37,99,235,0.14);
+    --link: #2563eb;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #d97706;
+    /* Backward-compat aliases */
+    --page: var(--bg);
+    --surface: var(--bg-panel);
+    --surface-2: var(--bg-hover);
+    --muted: var(--text-muted);
+    --dim: var(--text-dim);
   }
 }
 
 /* Explicit theme override (toggle or persisted preference). */
 [data-theme="light"] {
   color-scheme: light;
-  --page: oklch(0.985 0.004 307);
-  --surface: oklch(1 0 0);
-  --surface-2: oklch(0.965 0.006 307);
-  --border: oklch(0 0 0 / 10%);
-  --border-strong: oklch(0 0 0 / 15%);
-  --text: oklch(0.26 0.03 307);
-  --muted: oklch(0.46 0.03 307);
-  --dim: oklch(0.58 0.025 307);
-  --accent: oklch(0.62 0.23 341);
-  --accent-fg: oklch(0.99 0.01 341);
-  --accent-muted: oklch(0.62 0.23 341 / 14%);
-  --link: oklch(0.58 0.13 230);
-  --success: oklch(0.55 0.13 150);
-  --danger: oklch(0.55 0.19 25);
-  --warning: oklch(0.6 0.13 85);
+  --bg: #ffffff;
+  --bg-panel: #f5f5f5;
+  --bg-hover: #eeeeee;
+  --bg-selected: #e8e8e8;
+  --bg-subtle: rgba(0,0,0,0.03);
+  --border: #e0e0e0;
+  --border-strong: rgba(0,0,0,0.15);
+  --text: #1a1a1a;
+  --text-muted: #6b7280;
+  --text-dim: #9ca3af;
+  --accent: #2563eb;          /* Zeta blue */
+  --accent-hover: #1d4ed8;
+  --accent-fg: #ffffff;
+  --accent-muted: rgba(37,99,235,0.14);
+  --link: #2563eb;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --warning: #d97706;
+  /* Backward-compat aliases */
+  --page: var(--bg);
+  --surface: var(--bg-panel);
+  --surface-2: var(--bg-hover);
+  --muted: var(--text-muted);
+  --dim: var(--text-dim);
+}
+
+/* Zeta Starfield theme — NASA-punk deep-space HUD, aligned with web-ui globals.css */
+[data-theme="starfield"] {
+  color-scheme: dark;
+  --bg: #08090d;
+  --bg-panel: #0d1117;
+  --bg-hover: #161d2e;
+  --bg-selected: #1a2540;
+  --bg-subtle: rgba(217,155,38,0.05);
+  --border: #1e2d45;
+  --border-strong: rgba(217,155,38,0.2);
+  --text: #e8eeff;
+  --text-muted: #8fa3c0;
+  --text-dim: #3d5070;
+  --accent: #d99b26;          /* Zeta Starfield gold */
+  --accent-hover: #f0b840;
+  --accent-fg: #0f172a;
+  --accent-muted: rgba(217,155,38,0.18);
+  --link: #d99b26;
+  --success: #22c55e;
+  --danger: #c81d25;
+  --warning: #e05a2b;
+  /* Backward-compat aliases */
+  --page: var(--bg);
+  --surface: var(--bg-panel);
+  --surface-2: var(--bg-hover);
+  --muted: var(--text-muted);
+  --dim: var(--text-dim);
 }
 
 /* ==========================================================================
@@ -1234,7 +1287,7 @@
 }
 
 /* ==========================================================================
-   Brand mark on the OMP wordmark (both rail + mobile drawer headers)
+   Brand mark on the Zeta wordmark (both rail + mobile drawer headers)
    ========================================================================== */
 .stats-logo-container {
   display: grid;
@@ -1249,7 +1302,7 @@
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  background: linear-gradient(135deg, #ed4abf 0%, #9b4dff 50%, #5ad8e6 100%); /* OMP brand gradient mark */
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #60a5fa 100%); /* Zeta brand gradient mark */
 }
 
 .stats-logo-text,

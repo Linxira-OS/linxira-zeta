@@ -4,7 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 export type Language = "en" | "zh";
 
-const STORAGE_KEY = "omp-lang";
+const STORAGE_KEY = "zeta-lang";
 const listeners = new Set<() => void>();
 
 function subscribe(cb: () => void): () => void {

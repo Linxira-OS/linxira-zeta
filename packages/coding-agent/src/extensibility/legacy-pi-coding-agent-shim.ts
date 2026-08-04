@@ -1418,10 +1418,10 @@ export function getPackageDir(): string {
 // Legacy pi's `@earendil-works/pi-coding-agent` re-exported `estimateTokens`,
 // `compact`, and `serializeConversation` from its package root (via
 // `./core/compaction/index.ts`). In omp they live in
-// `@oh-my-pi/pi-agent-core/compaction`, and the coding-agent barrel below does
+// `@zeta/pi-agent-core/compaction`, and the coding-agent barrel below does
 // not forward them, so legacy extensions importing them fail Bun's static
 // export check during validation (issues #6583, #7174, #7403).
-export { compact, estimateTokens, serializeConversation } from "@oh-my-pi/pi-agent-core/compaction";
+export { compact, estimateTokens, serializeConversation } from "@zeta/pi-agent-core/compaction";
 
 // Same barrel gap for two more legacy package-root exports: pi re-exported the
 // `CONFIG_DIR_NAME` constant and the CLI parser `parseArgs`. In omp

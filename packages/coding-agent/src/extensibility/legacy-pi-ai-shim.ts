@@ -27,9 +27,9 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	streamSimple,
-} from "@oh-my-pi/pi-ai";
-import type { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { clampThinkingLevelForModel } from "@oh-my-pi/pi-catalog/model-thinking";
+} from "@zeta/pi-ai";
+import type { Effort } from "@zeta/pi-catalog/effort";
+import { clampThinkingLevelForModel } from "@zeta/pi-catalog/model-thinking";
 import {
 	calculateCost,
 	getBundledModel,

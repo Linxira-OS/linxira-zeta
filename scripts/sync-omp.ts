@@ -20,10 +20,7 @@ const OMP_BRANCH = "main";
 const DRY_RUN = process.argv.includes("--dry-run");
 const AUTO_COMMIT = process.argv.includes("--auto-commit");
 
-async function sh(
-	cmd: string,
-	cwd?: string,
-): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+async function sh(cmd: string, cwd?: string): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	const result = await $`${{ raw: cmd }}`
 		.cwd(cwd ?? process.cwd())
 		.quiet()
@@ -203,9 +200,7 @@ async function main() {
 			}
 		} else {
 			console.log("  Review changes, then:");
-			console.log(
-				`    git commit -m "Merge OMP ${latestTag}: auto-resolved conflicts, kept Zeta scope/brand/i18n"`,
-			);
+			console.log(`    git commit -m "Merge OMP ${latestTag}: auto-resolved conflicts, kept Zeta scope/brand/i18n"`);
 			console.log(`    git checkout main && git merge ${branchName}`);
 		}
 	}

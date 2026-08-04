@@ -25,7 +25,7 @@ export default function RootLayout({
         <meta name="google" content="notranslate" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("omp-theme");if(t==="dark")document.documentElement.classList.add("dark");else if(t==="starfield")document.documentElement.classList.add("starfield");}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("zeta-theme");if(t==="dark")document.documentElement.classList.add("dark");else if(t==="starfield")document.documentElement.classList.add("starfield");}catch(e){}})();`,
           }}
         />
       </head>

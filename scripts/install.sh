@@ -238,7 +238,7 @@ install_binary() {
         fi
     fi
 
-    BINARY="omp-${PLATFORM}-${ARCH}"
+    BINARY="zeta-${PLATFORM}-${ARCH}"
     # Get release tag
     if [ -n "$REF" ]; then
         echo "Fetching release $REF..."

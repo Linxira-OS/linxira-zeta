@@ -1,0 +1,29 @@
+# Maintainer: Zeta Team
+# Zeta Coding Agent — AI-powered terminal coding assistant
+#
+# Build: makepkg -si
+# Or install from AUR: yay -S zeta-bin
+
+pkgname=zeta-bin
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Zeta Coding Agent — AI-powered terminal coding assistant"
+arch=('x86_64')
+url="https://github.com/can1357/oh-my-pi"
+license=('MIT')
+depends=('glibc')
+source=("zeta-linux-x64::https://github.com/can1357/oh-my-pi/releases/download/v${pkgver}/zeta-linux-x64")
+sha256sums=('SKIP')
+install=zeta.install
+
+package() {
+  install -Dm755 "$srcdir/zeta-linux-x64" "$pkgdir/usr/bin/zeta"
+
+  # Shell completions directories
+  install -d "$pkgdir/usr/share/bash-completion/completions"
+  install -d "$pkgdir/usr/share/zsh/site-functions"
+  install -d "$pkgdir/usr/share/fish/vendor_completions.d"
+
+  # License
+  install -Dm644 "$srcdir/../LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+}

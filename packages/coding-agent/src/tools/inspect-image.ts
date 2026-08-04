@@ -11,14 +11,13 @@ import {
 import { prompt } from "@zeta/pi-utils";
 import { type } from "arktype";
 import { extractTextContent } from "../commit/utils";
-import { M } from "../i18n/messages";
-
 import {
 	expandRoleAlias,
 	extractExplicitThinkingSelector,
 	getModelMatchPreferences,
 	resolveModelFromString,
 } from "../config/model-resolver";
+import { M } from "../i18n/messages";
 import inspectImageDescription from "../prompts/tools/inspect-image.md" with { type: "text" };
 import inspectImageSystemPromptTemplate from "../prompts/tools/inspect-image-system.md" with { type: "text" };
 import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";

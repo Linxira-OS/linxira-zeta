@@ -1,7 +1,7 @@
 /**
  * CLI argument parsing and help display
  */
-import { $env, APP_NAME, logger } from "@oh-my-pi/pi-utils";
+import { $env, APP_NAME, logger } from "@zeta/pi-utils";
 import chalk from "chalk";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
 import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "../thinking";
@@ -335,7 +335,6 @@ export function reportCliUsageError(
 	write(`Run \`${APP_NAME} --help\` for available flags.\n`);
 	return true;
 }
-
 
 export function printHelp(): void {
 	process.stdout.write(

@@ -5,7 +5,7 @@ import { useCallback, useSyncExternalStore } from "react";
 export type Theme = "light" | "dark" | "starfield";
 
 const THEME_ORDER: Theme[] = ["light", "dark", "starfield"];
-const STORAGE_KEY = "omp-theme";
+const STORAGE_KEY = "zeta-theme";
 
 const listeners = new Set<() => void>();
 

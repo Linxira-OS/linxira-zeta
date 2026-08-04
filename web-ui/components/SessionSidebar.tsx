@@ -52,7 +52,7 @@ interface WorktreeState {
   worktrees: WorktreeEntry[];
 }
 
-const UNREAD_SESSIONS_STORAGE_KEY = "omp-web:unread-session-ids";
+const UNREAD_SESSIONS_STORAGE_KEY = "zeta-web:unread-session-ids";
 
 function loadUnreadSessionIds(): Set<string> {
   if (typeof window === "undefined") return new Set();

@@ -16,7 +16,7 @@ import {
 	type OpenAICodexCompactionBody,
 	type OpenAICodexCompatibilityMetadata,
 	openCodexCompactionEventStream,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
+} from "@zeta/pi-ai/providers/openai-codex-responses";
 import {
 	getOpenAIPromptCacheKey,
 	getOpenAIResponsesRoutingSessionId,

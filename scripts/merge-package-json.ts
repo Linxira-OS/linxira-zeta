@@ -41,13 +41,10 @@ function loadJson(path: string): Record<string, unknown> | null {
 }
 
 function saveJson(path: string, obj: Record<string, unknown>): void {
-	fs.writeFileSync(path, JSON.stringify(obj, null, 2) + "\n");
+	fs.writeFileSync(path, `${JSON.stringify(obj, null, 2)}\n`);
 }
 
-function mergeDeps(
-	current: Record<string, string>,
-	other: Record<string, string>,
-): Record<string, string> {
+function mergeDeps(current: Record<string, string>, other: Record<string, string>): Record<string, string> {
 	const result: Record<string, string> = {};
 
 	// Keep Zeta-scoped deps from current, accept everything else from other
@@ -98,12 +95,7 @@ function main() {
 	}
 
 	// Merge dependency sections: keep Zeta scoped deps, accept upstream rest
-	const depSections = [
-		"dependencies",
-		"devDependencies",
-		"optionalDependencies",
-		"peerDependencies",
-	] as const;
+	const depSections = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
 
 	for (const section of depSections) {
 		const currentDeps = current[section] as Record<string, string> | undefined;
@@ -126,8 +118,7 @@ function main() {
 		const resultCatalog = resultWorkspaces?.[catalogKey] as Record<string, string> | undefined;
 
 		if (currentCatalog && resultCatalog) {
-			(resultWorkspaces as Record<string, unknown>)[catalogKey] =
-				mergeDeps(currentCatalog, resultCatalog);
+			(resultWorkspaces as Record<string, unknown>)[catalogKey] = mergeDeps(currentCatalog, resultCatalog);
 		}
 	}
 

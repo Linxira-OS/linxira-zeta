@@ -19,8 +19,8 @@ import { engines, version } from "../package.json" with { type: "json" };
 /** App name (e.g. "zeta") */
 export const APP_NAME: string = "zeta";
 
-/** Config directory name (e.g. ".omp") */
-export const CONFIG_DIR_NAME: string = ".omp";
+/** Config directory name (e.g. ".zeta") */
+export const CONFIG_DIR_NAME: string = ".zeta";
 
 /** Ordered main settings filenames: canonical write target first, legacy-compatible YAML fallback second. */
 export const MAIN_CONFIG_FILENAMES = ["config.yml", "config.yaml"] as const;
@@ -202,9 +202,18 @@ export async function directoryExists(dir: string): Promise<boolean> {
 	}
 }
 
-/** Get the config directory name relative to home (e.g. ".omp" or PI_CONFIG_DIR override). */
+/** Get the config directory name relative to home (e.g. ".zeta" or PI_CONFIG_DIR override). Falls back to ".omp" for backward compatibility. */
 export function getConfigDirName(): string {
-	return process.env.PI_CONFIG_DIR || CONFIG_DIR_NAME;
+	if (process.env.PI_CONFIG_DIR) return process.env.PI_CONFIG_DIR;
+	// Prefer .zeta; fall back to .omp for existing installs
+	const home = os.homedir();
+	try {
+		if (fs.existsSync(path.join(home, ".zeta"))) return ".zeta";
+	} catch {}
+	try {
+		if (fs.existsSync(path.join(home, ".omp"))) return ".omp";
+	} catch {}
+	return ".zeta"; // default for new installs with no existing .omp dir
 }
 
 /** Get the config agent directory name relative to home (e.g. ".omp/agent" or PI_CONFIG_DIR + "/agent"). */
@@ -494,9 +503,17 @@ export function getAgentDir(): string {
 	return dirs.agentDir;
 }
 
-/** Get the project-local config directory (.omp). */
+/** Get the project-local config directory (.zeta). Falls back to .omp for backward compatibility. */
 export function getProjectAgentDir(cwd: string = getProjectDir()): string {
-	return path.join(cwd, CONFIG_DIR_NAME);
+	const zetaDir = path.join(cwd, ".zeta");
+	try {
+		if (fs.existsSync(zetaDir)) return zetaDir;
+	} catch {}
+	const ompDir = path.join(cwd, ".omp");
+	try {
+		if (fs.existsSync(ompDir)) return ompDir;
+	} catch {}
+	return zetaDir; // default for new projects
 }
 
 // =============================================================================

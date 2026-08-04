@@ -1,10 +1,10 @@
 import { dirname } from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type * as MnemopiNs from "@oh-my-pi/pi-mnemopi";
-import type { Mnemopi, RecallResult } from "@oh-my-pi/pi-mnemopi";
-import type * as MnemopiCoreNs from "@oh-my-pi/pi-mnemopi/core";
-import type { LocalModelInitializer } from "@oh-my-pi/pi-mnemopi/core";
-import { logger, toError } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@zeta/pi-agent-core";
+import type * as MnemopiNs from "@zeta/pi-mnemopi";
+import type { Mnemopi, RecallResult } from "@zeta/pi-mnemopi";
+import type * as MnemopiCoreNs from "@zeta/pi-mnemopi/core";
+import type { LocalModelInitializer } from "@zeta/pi-mnemopi/core";
+import { logger, toError } from "@zeta/pi-utils";
 import {
 	composeRecallQuery,
 	formatCurrentTime,

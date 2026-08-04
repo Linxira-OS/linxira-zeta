@@ -1,0 +1,15 @@
+post_install() {
+  echo "============================================"
+  echo "  Zeta Coding Agent installed successfully!"
+  echo "  Run 'zeta' to start."
+  echo "  Stats Dashboard: http://localhost:3847"
+  echo "============================================"
+}
+
+post_upgrade() {
+  echo "Zeta upgraded to ${pkgver}-${pkgrel}"
+}
+
+pre_remove() {
+  echo "Removing Zeta..."
+}

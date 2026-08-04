@@ -16,7 +16,7 @@
     "node": ">=22.19.0"
   },
   "bin": {
-    "zeta-web": "bin/omp-web.js",
+    "zeta-web": "bin/zeta-web.js",
     "omp-web": "bin/omp-web.js"
   },
   "files": [
