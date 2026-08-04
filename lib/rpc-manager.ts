@@ -1,7 +1,9 @@
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { createAgentSessionFromServices, createAgentSessionServices, initTheme, SessionManager, Theme } from "@earendil-works/pi-coding-agent";
 import { KeybindingsManager as TuiKeybindingsManager, TUI_KEYBINDINGS } from "@earendil-works/pi-tui";
 import { randomUUID } from "crypto";
-import { existsSync, writeFileSync } from "fs";
+import { existsSync, realpathSync, writeFileSync } from "fs";
+import { resolve } from "path";
 import { validateAgentImages } from "./image-attachments";
 import { invalidateModelsCache } from "./models-cache";
 import { cacheSessionPath, invalidateSessionListCache, openSessionManager } from "./session-reader";
@@ -9,6 +11,9 @@ import { join } from "path";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { getOmpAgentDir } from "./file-paths";
 import { applyOmpRuntimeCredentials, readOmpModelsFromDb, syncOmpRuntimeModelsJson } from "./omp-models";
+import { resolveVisibleModels, selectInitialModelScope } from "./model-scope";
+import { getProjectTrustStatus, projectTrustReloadOptions } from "./project-trust";
+import { persistExplicitStartupPreferences } from "./startup-preferences";
 import type { SlashCommandInfo } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionLike, ExtensionUiContextLike, ToolInfo } from "./pi-types";
 import type { ExtensionUiRequest, ExtensionUiResponse, ExtensionWidgetItem } from "./types";
@@ -62,6 +67,29 @@ type ExtensionCommandContextActionsLike = {
 type ExtensionBindingOptions = {
   forceEmptySystemPrompt?: boolean;
 };
+
+const RUNNING_STATE_EVENT_TYPES = new Set([
+  "agent_start",
+  "agent_end",
+  "agent_settled",
+  "auto_compaction_start",
+  "auto_compaction_end",
+  "compaction_start",
+  "compaction_end",
+]);
+
+const IDLE_RESET_EVENT_TYPES = new Set([
+  "agent_end",
+  "agent_settled",
+  "auto_compaction_end",
+  "compaction_end",
+]);
+
+export interface RpcSessionStartOptions {
+  toolNames?: string[];
+  initialModel?: { provider: string; modelId: string };
+  thinkingLevel?: ThinkingLevel;
+}
 
 const CODING_TOOL_NAMES = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 
@@ -125,6 +153,7 @@ export class AgentSessionWrapper {
   private unsubscribe: (() => void) | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private onDestroyCallback: (() => void) | null = null;
+  private shutdownPromise: Promise<void> | null = null;
   private _alive = true;
 
   constructor(public readonly inner: AgentSessionLike) {}
@@ -137,6 +166,10 @@ export class AgentSessionWrapper {
     return this.inner.sessionFile ?? "";
   }
 
+  get cwd(): string {
+    return this.inner.sessionManager.getCwd();
+  }
+
   isAlive(): boolean {
     return this._alive;
   }
@@ -147,14 +180,12 @@ export class AgentSessionWrapper {
 
   start(): void {
     this.unsubscribe = this.inner.subscribe((event: AgentEvent) => {
-      this.resetIdleTimer();
       if (event.type === "agent_end") {
         invalidateSessionListCache();
       }
+      if (IDLE_RESET_EVENT_TYPES.has(event.type)) this.resetIdleTimer();
       this.emit(event);
-      // Streaming / compaction / tool events flow through here; re-broadcast
-      // the running-status snapshot so the sidebar can update live.
-      notifyRunningChange();
+      if (RUNNING_STATE_EVENT_TYPES.has(event.type)) notifyRunningChange();
     });
     this.resetIdleTimer();
     notifyRunningChange();
@@ -248,6 +279,7 @@ export class AgentSessionWrapper {
     try {
       return await operation();
     } finally {
+      this.resetIdleTimer();
       notifyRunningChange();
     }
   }
@@ -269,7 +301,9 @@ export class AgentSessionWrapper {
         this.resetIdleTimer();
         return;
       }
-      this.destroy();
+      void this.shutdown().catch((error) => {
+        console.error("[pi-web] failed to shut down idle session:", error instanceof Error ? error.message : error);
+      });
     }, 10 * 60 * 1000);
   }
 
@@ -332,10 +366,12 @@ export class AgentSessionWrapper {
           source: "rpc",
         }).then(() => {
           this.promptRunning = false;
+          this.resetIdleTimer();
           if (!streamingBehavior) this.emit({ type: "prompt_done" });
           notifyRunningChange();
         }).catch((error) => {
           this.promptRunning = false;
+          this.resetIdleTimer();
           invalidateSessionListCache();
           this.emit({
             type: "prompt_error",
@@ -508,7 +544,7 @@ export class AgentSessionWrapper {
         const newSessionId = openSessionManager(newSessionFile, sessionDir).getSessionId();
         cacheSessionPath(newSessionId, newSessionFile);
         invalidateSessionListCache();
-        this.destroy();
+        await this.shutdown();
         return { cancelled: false, newSessionId };
       }
 
@@ -636,11 +672,13 @@ export class AgentSessionWrapper {
         await this.waitForExtensionsBound();
         this.extensionStatuses.clear();
         this.extensionWidgets.clear();
+        this.syncProjectTrust();
         await this.inner.reload();
         if (typeof this.inner.bindExtensions !== "function") {
           this.inner.extensionRunner.setUIContext?.(this.createExtensionUiContext(), "rpc");
         }
         this.applyForcedEmptySystemPrompt();
+        invalidateModelsCache();
         return { success: true };
       }
 
@@ -679,6 +717,7 @@ export class AgentSessionWrapper {
           this.persistBashOnlySession();
           return result;
         } finally {
+          this.resetIdleTimer();
           invalidateSessionListCache();
           notifyRunningChange();
         }
@@ -704,8 +743,37 @@ export class AgentSessionWrapper {
     for (const id of Array.from(this.activeCustomUis.keys())) this.closeCustomUi(id, undefined);
     this.pendingUiResponses.clear();
     this.pendingUiRequests.clear();
-    this.onDestroyCallback?.();
-    notifyRunningChange();
+    try {
+      this.inner.dispose();
+    } finally {
+      try {
+        this.onDestroyCallback?.();
+      } finally {
+        notifyRunningChange();
+      }
+    }
+  }
+
+  async shutdown(): Promise<void> {
+    if (this.shutdownPromise) return this.shutdownPromise;
+    if (!this._alive) return;
+
+    this.shutdownPromise = (async () => {
+      try {
+        try {
+          await this.waitForExtensionsBound();
+        } catch (error) {
+          console.error(
+            "[pi-web] extension binding failed before session shutdown:",
+            error instanceof Error ? error.message : error,
+          );
+        }
+        await this.inner.extensionRunner.emit?.({ type: "session_shutdown", reason: "quit" });
+      } finally {
+        this.destroy();
+      }
+    })();
+    return this.shutdownPromise;
   }
 
   private resolveExtensionUiResponse(response: ExtensionUiResponse): void {
@@ -1030,6 +1098,7 @@ export class AgentSessionWrapper {
       reload: async () => {
         this.extensionStatuses.clear();
         this.extensionWidgets.clear();
+        this.syncProjectTrust();
         await this.inner.reload({
           beforeSessionStart: () => {
             this.inner.extensionRunner.setUIContext?.(this.createExtensionUiContext(), "rpc");
@@ -1038,6 +1107,11 @@ export class AgentSessionWrapper {
         this.applyForcedEmptySystemPrompt();
       },
     };
+  }
+
+  private syncProjectTrust(): void {
+    const status = getProjectTrustStatus(this.cwd, getOmpAgentDir());
+    this.inner.settingsManager.setProjectTrusted(status.trusted);
   }
 }
 
@@ -1048,6 +1122,7 @@ export class AgentSessionWrapper {
 declare global {
   var __piSessions: Map<string, AgentSessionWrapper> | undefined;
   var __piStartLocks: Map<string, Promise<{ session: AgentSessionWrapper; realSessionId: string }>> | undefined;
+  var __piStartingSessionCwds: Map<string, number> | undefined;
   var __piRunningListeners: Set<(ids: string[]) => void> | undefined;
 }
 
@@ -1067,8 +1142,50 @@ function getLocks(): Map<string, Promise<{ session: AgentSessionWrapper; realSes
   return globalThis.__piStartLocks;
 }
 
+function normalizeRpcCwd(cwd: string): string {
+  const resolvedCwd = resolve(cwd);
+  try {
+    return realpathSync(resolvedCwd);
+  } catch {
+    return resolvedCwd;
+  }
+}
+
+function getStartingSessionCwds(): Map<string, number> {
+  if (!globalThis.__piStartingSessionCwds) globalThis.__piStartingSessionCwds = new Map();
+  return globalThis.__piStartingSessionCwds;
+}
+
+function trackStartingSession(cwd: string): () => void {
+  const startingCwds = getStartingSessionCwds();
+  const key = normalizeRpcCwd(cwd);
+  startingCwds.set(key, (startingCwds.get(key) ?? 0) + 1);
+  return () => {
+    const remaining = (startingCwds.get(key) ?? 1) - 1;
+    if (remaining > 0) startingCwds.set(key, remaining);
+    else startingCwds.delete(key);
+  };
+}
+
 export function getRpcSession(sessionId: string): AgentSessionWrapper | undefined {
   return getRegistry().get(sessionId);
+}
+
+export function hasBusyRpcSessionForCwd(cwd: string): boolean {
+  const targetCwd = normalizeRpcCwd(cwd);
+  if (getStartingSessionCwds().has(targetCwd)) return true;
+  return Array.from(getRegistry().values()).some(
+    (session) => normalizeRpcCwd(session.cwd) === targetCwd && session.isRunning(),
+  );
+}
+
+export async function destroyRpcSessionsForCwd(cwd: string): Promise<number> {
+  const targetCwd = normalizeRpcCwd(cwd);
+  const sessions = Array.from(getRegistry().values()).filter(
+    (session) => normalizeRpcCwd(session.cwd) === targetCwd,
+  );
+  await Promise.all(sessions.map((session) => session.shutdown()));
+  return sessions.length;
 }
 
 export function getRunningRpcSessionIds(): string[] {
@@ -1104,14 +1221,21 @@ let lastRunningSnapshot = "";
 
 /**
  * Recompute the running-session-id set and, if it changed since the last
- * notification, broadcast it to subscribers. Cheap to call often.
+ * notification, broadcast it to subscribers.
  */
 export function notifyRunningChange(): void {
+  const listeners = getRunningListeners();
+  if (listeners.size === 0) {
+    // A future subscriber receives its own initial snapshot. Clear this one so
+    // its first state transition cannot match stale state from an old listener.
+    lastRunningSnapshot = "";
+    return;
+  }
   const ids = getRunningRpcSessionIds();
   const snapshot = JSON.stringify([...ids].sort());
   if (snapshot === lastRunningSnapshot) return;
   lastRunningSnapshot = snapshot;
-  for (const listener of getRunningListeners()) {
+  for (const listener of listeners) {
     try { listener(ids); } catch { /* ignore listener errors */ }
   }
 }
@@ -1119,14 +1243,17 @@ export function notifyRunningChange(): void {
 /**
  * Get or create an AgentSession for the given session.
  * For new sessions (sessionFile === ""), pi generates its own id.
- * Pass toolNames to pre-configure active tools (empty array = all tools disabled).
+ * New sessions resolve enabledModels before construction so the initial model,
+ * thinking pin, and SDK scopedModels share one settings snapshot.
+ * Pass options.toolNames to pre-configure active tools (empty = all disabled).
  */
 export async function startRpcSession(
   sessionId: string,
   sessionFile: string,
-  cwd: string,
-  toolNames?: string[]
+  cwd: string | undefined,
+  options: RpcSessionStartOptions = {},
 ): Promise<{ session: AgentSessionWrapper; realSessionId: string }> {
+  const { toolNames, initialModel, thinkingLevel } = options;
   const registry = getRegistry();
   const locks = getLocks();
 
@@ -1136,14 +1263,19 @@ export async function startRpcSession(
   const inflight = locks.get(sessionId);
   if (inflight) return inflight;
 
+  let sessionManager: SessionManager;
+  if (sessionFile) {
+    sessionManager = SessionManager.open(sessionFile, undefined);
+  } else {
+    if (!cwd) throw new Error("cwd is required for a new session");
+    sessionManager = SessionManager.create(cwd, undefined);
+  }
+  const sessionCwd = sessionManager.getCwd();
+  const finishStartingSession = trackStartingSession(sessionCwd);
   const starting = (async () => {
     // Some extensions access the SDK's global theme even outside the terminal UI.
     initTheme();
     const agentDir = getOmpAgentDir();
-
-    const sessionManager = sessionFile
-      ? openSessionManager(sessionFile, undefined)
-      : SessionManager.create(cwd, undefined);
 
     // Determine which tools to pass based on requested toolNames.
     // Since v0.68.0, session creation expects string[] tool names instead of Tool[] instances.
@@ -1172,12 +1304,55 @@ export async function startRpcSession(
     // API key or OAuth access token, never the serialized credential object.
     await applyOmpRuntimeCredentials(modelRuntime, agentDir);
 
-    const services = await createAgentSessionServices({ cwd, agentDir, modelRuntime });
+    // Gate untrusted project extensions so opening a repository does not run
+    // its .pi/extensions code automatically (see lib/project-trust.ts, #236).
+    const trustReloadOptions = projectTrustReloadOptions(sessionCwd, agentDir);
+    const services = await createAgentSessionServices({
+      cwd: sessionCwd,
+      agentDir,
+      modelRuntime,
+      ...(trustReloadOptions ? { resourceLoaderReloadOptions: trustReloadOptions } : {}),
+    });
+    const scope = await resolveVisibleModels(
+      services.modelRuntime,
+      services.settingsManager.getEnabledModels(),
+    );
+    const defaultProvider = services.settingsManager.getDefaultProvider();
+    const defaultModelId = services.settingsManager.getDefaultModel();
+    const hasExistingMessages = sessionManager.getBranch().some((entry) => entry.type === "message");
+    const initial = hasExistingMessages
+      ? { scopedModels: [...scope.scopedModels] }
+      : selectInitialModelScope(scope, {
+        ...(initialModel ? { requestedModel: initialModel } : {}),
+        ...(defaultProvider && defaultModelId
+          ? { defaultModel: { provider: defaultProvider, modelId: defaultModelId } }
+          : {}),
+        ...(thinkingLevel ? { thinkingLevel } : {}),
+      });
     const { session: inner } = await createAgentSessionFromServices({
       services,
       sessionManager,
+      ...(initial.model ? { model: initial.model } : {}),
+      ...(initial.thinkingLevel ? { thinkingLevel: initial.thinkingLevel } : {}),
+      ...(initial.scopedModels.length > 0 ? { scopedModels: initial.scopedModels } : {}),
       ...(toolsOption !== undefined ? { tools: toolsOption } : {}),
     });
+
+    const persistedPreferences = await persistExplicitStartupPreferences(
+      services.settingsManager,
+      {
+        ...(initialModel ? { model: initialModel } : {}),
+        ...(thinkingLevel ? { thinkingLevel } : {}),
+      },
+      {
+        ...(inner.model
+          ? { model: { provider: inner.model.provider, modelId: inner.model.id } }
+          : {}),
+        thinkingLevel: inner.thinkingLevel,
+        supportsThinking: inner.supportsThinking(),
+      },
+    );
+    if (persistedPreferences.modelDefaultChanged) invalidateModelsCache();
 
     // If specific tool names were requested (non-empty), set the active tools to the
     // requested builtin coding tools PLUS all extension/package tools, so installed
@@ -1204,7 +1379,10 @@ export async function startRpcSession(
     wrapper.beginExtensionBinding({ forceEmptySystemPrompt: toolNames?.length === 0 });
 
     return { session: wrapper, realSessionId };
-  })().finally(() => locks.delete(sessionId));
+  })().finally(() => {
+    locks.delete(sessionId);
+    finishStartingSession();
+  });
 
   locks.set(sessionId, starting);
   return starting;

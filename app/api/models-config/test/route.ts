@@ -7,6 +7,7 @@ import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { getOmpAgentDir } from "@/lib/file-paths";
 import { readOmpModelsConfig } from "@/lib/omp-model-config";
 import { getUsableOmpRuntimeCredentials } from "@/lib/omp-auth";
+import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,16 @@ function getAssistantText(message: AssistantMessage): string {
 }
 
 export async function POST(req: Request) {
+  if (!isApiRequestAllowed(req)) {
+    return NextResponse.json({ ok: false, error: "Untrusted API request" }, { status: 403 });
+  }
+  if (!hasJsonContentType(req)) {
+    return NextResponse.json(
+      { ok: false, error: "Content-Type must be application/json" },
+      { status: 415 },
+    );
+  }
+
   let tempDir: string | undefined;
 
   try {

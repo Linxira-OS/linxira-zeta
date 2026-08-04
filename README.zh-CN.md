@@ -10,6 +10,8 @@
 
 Oh My Pi（omp）是构建在 pi 编程智能体之上的 coding harness，在 pi 核心能力之上添加了结构化智能体会话、技能管理、worktree 协调和更丰富的工具协议。`omp-web` 将 omp 的会话格式呈现在浏览器中：pi 写入的同一批 `.jsonl` 文件，由本地运行的 Next.js 服务器读取并渲染。
 
+中文微信群：请查看 [GitHub Discussions 帖子](https://github.com/agegr/pi-web/discussions/271)。
+
 ## 快速开始
 
 Pi Web 要求 Node.js 22.19.0 或更高版本。可通过 `node --version` 检查当前版本。
@@ -41,7 +43,10 @@ OMP_WEB_HOSTNAME=0.0.0.0 omp-web  # 显式开放网络访问
 OMP_WEB_NO_OPEN=1 omp-web         # 适用于后台服务或开机自启
 ```
 
-Pi Web 没有应用层身份验证，并且可以调用高权限智能体。请勿将其暴露到互联网；仅在可信网络中使用非 loopback 监听地址。
+设置 `PI_WEB_PASSWORD` 后，网页和所有 API 端点都会启用 HTTP Basic Auth，用户名固定为 `pi`。未设置或设置为空值时不启用认证。
+
+Pi Web 可以调用高权限智能体。Basic Auth 不会加密传输中的密码，因此不要把明文 HTTP 暴露到互联网。远程访问时应使用可信反向代理提供 HTTPS，或通过可信 VPN 访问。
+API 请求仅接受 loopback 名称、IP 字面量、当前监听主机名，以及 `PI_WEB_ALLOWED_HOSTS` 中以逗号分隔的精确主机名。可信反向代理使用不同的外部主机名时，请配置该变量。
 
 ## HTTP 代理
 

@@ -137,7 +137,14 @@ async function loadModels(cwd: string): Promise<ModelsData> {
   }
 
   return withModelRuntimeError(
-    { models: Object.fromEntries(nameMap), modelList, defaultModel, thinkingLevels, thinkingLevelMaps },
+    {
+      models: Object.fromEntries(nameMap),
+      modelList,
+      defaultModel,
+      thinkingLevels,
+      thinkingLevelMaps,
+      thinkingLevelPins: {},
+    },
     modelError,
   );
 }
@@ -148,6 +155,7 @@ const EMPTY_MODELS: ModelsData = {
   defaultModel: null,
   thinkingLevels: {},
   thinkingLevelMaps: {},
+  thinkingLevelPins: {},
 };
 
 export async function GET(req: Request) {

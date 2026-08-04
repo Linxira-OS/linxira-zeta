@@ -2,6 +2,7 @@ import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { NextResponse } from "next/server";
 import { getUsableOmpRuntimeCredentials, saveOmpApiKeyCredential, deleteOmpCredential } from "@/lib/omp-auth";
 import { invalidateModelsCache } from "@/lib/models-cache";
+import { removeStoredCredentialIfType, storeProviderCredential } from "@/lib/provider-credential-store";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +35,12 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "apiKey is required" }, { status: 400 });
     }
     const modelRuntime = await ModelRuntime.create();
+    const apiKeyAuth = modelRuntime.getProvider(provider)?.auth.apiKey;
+    if (!apiKeyAuth?.login) {
+      throw new Error(`${provider} does not support API key login`);
+    }
     let keySubmitted = false;
-    await modelRuntime.login(provider, "api_key", {
+    const credential = await apiKeyAuth.login({
       notify: () => {},
       prompt: async (prompt) => {
         if (prompt.type === "select") {
@@ -50,6 +55,11 @@ export async function POST(req: Request, { params }: Params) {
         throw new Error(`${provider} requires additional authentication settings`);
       },
     });
+    // ModelRuntime.login() persists the credential and then performs an
+    // unbounded network catalog refresh. Store the returned credential
+    // directly so a slow catalog cannot leave the save request hanging.
+    await storeProviderCredential(provider, credential);
+    // Keep omp-web's CLI-synced credential store in sync as well.
     saveOmpApiKeyCredential(provider, apiKey.trim());
     invalidateModelsCache();
     return NextResponse.json({ success: true });
@@ -62,6 +72,13 @@ export async function POST(req: Request, { params }: Params) {
 export async function DELETE(_req: Request, { params }: Params) {
   const { provider } = await params;
   try {
+    const removal = await removeStoredCredentialIfType(provider, "api_key");
+    if (removal.status === "type_mismatch") {
+      return NextResponse.json(
+        { error: `${provider} is authenticated with OAuth, not an API key` },
+        { status: 409 },
+      );
+    }
     const modelRuntime = await ModelRuntime.create();
     await modelRuntime.logout(provider);
     deleteOmpCredential(provider);

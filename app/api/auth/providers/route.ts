@@ -1,48 +1,32 @@
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { getOmpAuthCredentials } from "@/lib/omp-auth";
+import { buildOAuthProviderList } from "@/lib/provider-listing";
+import { collectProviderListingInputs } from "@/lib/provider-listing-runtime";
 
 export const dynamic = "force-dynamic";
 
+// Providers that declare an OAuth login method, including anthropic
+// (Claude Pro/Max) — see lib/provider-listing.ts (#309).
 export async function GET() {
   const modelRuntime = await ModelRuntime.create();
-  const credentials = await modelRuntime.listCredentials();
+  const providers = buildOAuthProviderList(await collectProviderListingInputs(modelRuntime));
+
+  // Also surface custom OAuth providers recorded in omp-web's CLI-synced
+  // credential store that do not appear as first-class runtime providers.
+  const listed = new Set(providers.map((p) => p.id));
   const ompCredentials = getOmpAuthCredentials();
-  const loggedInProviders = new Set([
-    ...credentials.filter((credential) => credential.type === "oauth").map((credential) => credential.providerId),
-    ...ompCredentials.map((c) => c.provider),
-  ]);
-  const providers = modelRuntime.getProviders().filter((provider) => provider.auth.oauth);
-
-  const EXCLUDED = new Set(["anthropic"]);
-  const DISPLAY_NAMES: Record<string, string> = {
-    "openai-codex": "ChatGPT Plus/Pro",
-    "github-copilot": "GitHub Copilot",
-    "google-antigravity": "Google AntiGravity-login",
-  };
-
-  const providerList = [...providers];
+  const extra: typeof providers = [];
   for (const c of ompCredentials) {
-    if (!providerList.some((p) => p.id === c.provider)) {
-      providerList.push({
-        id: c.provider,
-        name: DISPLAY_NAMES[c.provider] ?? c.provider,
-        auth: { oauth: true },
-      } as unknown as typeof providers[0]);
-    }
+    if (listed.has(c.provider)) continue;
+    listed.add(c.provider);
+    extra.push({
+      id: c.provider,
+      name: c.provider,
+      usesCallbackServer: false,
+      loggedIn: true,
+      supportsApiKey: false,
+    });
   }
 
-  const result = await Promise.all(
-    providerList
-      .filter((p) => !EXCLUDED.has(p.id))
-      .map(async (p) => {
-        return {
-          id: p.id,
-          name: DISPLAY_NAMES[p.id] ?? p.name,
-          usesCallbackServer: false,
-          loggedIn: loggedInProviders.has(p.id),
-        };
-      })
-  );
-
-  return Response.json({ providers: result });
+  return Response.json({ providers: [...providers, ...extra] });
 }
