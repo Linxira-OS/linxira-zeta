@@ -14,7 +14,7 @@ import {
 	estimateToolSchemaTokens,
 	renderContextUsage,
 } from "@zeta/pi-coding-agent/modes/utils/context-usage";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 describe("estimateToolSchemaTokens", () => {
 	it("counts arktype tool schemas by their wire JSON Schema, not arktype internals", () => {

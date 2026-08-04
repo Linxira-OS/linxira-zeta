@@ -20,8 +20,8 @@ import {
 import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import { VIBE_TOOL_NAMES } from "@zeta/pi-coding-agent/tools/vibe";
+import { type } from "@zeta/pi-omptype";
 import { logger, removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 const toolActivationExtension: ExtensionFactory = pi => {
 	pi.registerTool({

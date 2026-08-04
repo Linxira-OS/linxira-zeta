@@ -9,9 +9,8 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@zeta/pi-agent-core";
-
+import { type } from "@zeta/pi-omptype";
 import { getWorktreeDir, hashPath, isEnoent, logger, prompt, untilAborted } from "@zeta/pi-utils";
-import { type } from "arktype";
 import type { Settings } from "../config/settings";
 import { M } from "../i18n/messages";
 import githubDescription from "../prompts/tools/github.md" with { type: "text" };

@@ -13,8 +13,8 @@ import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import type { ToolSession } from "@zeta/pi-coding-agent/tools";
 import { TodoTool } from "@zeta/pi-coding-agent/tools";
+import { type } from "@zeta/pi-omptype";
 import { setInteractiveHost, TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 type ObservedPromptCall = {

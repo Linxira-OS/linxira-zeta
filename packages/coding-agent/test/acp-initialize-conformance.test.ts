@@ -14,8 +14,8 @@ import { AcpAgent } from "@zeta/pi-coding-agent/modes/acp/acp-agent";
 import { ACP_TERMINAL_AUTH_FLAG, prepareAcpTerminalAuthArgs } from "@zeta/pi-coding-agent/modes/acp/terminal-auth";
 import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import { getConfigRootDir, setAgentDir, VERSION } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { expectAcpStructure } from "./helpers/acp-schema";
 
 const arkInitializeResponse = type({

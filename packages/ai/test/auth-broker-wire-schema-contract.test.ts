@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as wireSchemas from "@zeta/pi-ai/auth-broker/wire-schemas";
-import { Type, type } from "arktype";
+import { Type, type } from "@zeta/pi-omptype";
 
 const REFRESHER = {
 	enabled: false,

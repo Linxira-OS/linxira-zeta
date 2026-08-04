@@ -1,5 +1,5 @@
 import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import { sanitizeSkillName, writeManagedSkill } from "../autolearn/managed-skills";
 import { isNameClaimedByAuthoredSkill } from "../extensibility/skills";
 import { M } from "../i18n/messages";

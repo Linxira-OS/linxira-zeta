@@ -545,7 +545,8 @@ async function statIfPresent(path: string) {
 	try {
 		return await fsp.stat(path);
 	} catch (error) {
-		const code = typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
+		const code =
+			typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
 		if (code === "ENOENT") return null;
 		throw error;
 	}
@@ -556,7 +557,8 @@ function processExists(pid: number): boolean {
 		process.kill(pid, 0);
 		return true;
 	} catch (error) {
-		const code = typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
+		const code =
+			typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
 		if (code === "ESRCH" || code === "EINVAL") return false;
 		return true;
 	}
@@ -565,10 +567,7 @@ function processExists(pid: number): boolean {
 async function isStatsLockStale(lockPath: string): Promise<boolean> {
 	const stat = await statIfPresent(lockPath);
 	if (!stat) return false;
-	const pid = Number.parseInt(
-		(await Bun.file(lockPath).text()).split(/\r?\n/, 1)[0] ?? "",
-		10,
-	);
+	const pid = Number.parseInt((await Bun.file(lockPath).text()).split(/\r?\n/, 1)[0] ?? "", 10);
 	if (Number.isSafeInteger(pid) && pid > 0) return !processExists(pid);
 	return Date.now() - stat.mtimeMs > STATS_LOCK_STALE_MS;
 }
@@ -592,14 +591,20 @@ export async function withStatsSyncLock<T>(dbPath: string, fn: () => Promise<T>)
 				await fsp.unlink(lockPath).catch(() => {});
 			}
 		} catch (error) {
-			const code = typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
+			const code =
+				typeof error === "object" && error !== null && "code" in error
+					? (error as { code: string }).code
+					: undefined;
 			if (code !== "EEXIST") throw error;
 		}
 		if (await isStatsLockStale(lockPath)) {
 			try {
 				await fsp.unlink(lockPath);
 			} catch (error) {
-				const code = typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
+				const code =
+					typeof error === "object" && error !== null && "code" in error
+						? (error as { code: string }).code
+						: undefined;
 				if (code !== "ENOENT") throw error;
 			}
 		}

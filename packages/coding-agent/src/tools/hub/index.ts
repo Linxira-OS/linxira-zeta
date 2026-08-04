@@ -23,9 +23,9 @@ import type {
 	ToolApprovalDecision,
 } from "@zeta/pi-agent-core";
 import type { ToolExample } from "@zeta/pi-ai";
+import { type } from "@zeta/pi-omptype";
 import type { Component } from "@zeta/pi-tui";
 import { prompt } from "@zeta/pi-utils";
-import { type } from "arktype";
 import type { RenderResultOptions } from "../../extensibility/custom-tools/types";
 import { IrcBus } from "../../irc/bus";
 import type { Theme } from "../../modes/theme/theme";

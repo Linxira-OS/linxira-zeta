@@ -20,7 +20,7 @@ import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completion
 import type { AssistantMessage, Context, Model, ModelSpec, Tool } from "@zeta/pi-ai/types";
 import { buildModel } from "@zeta/pi-catalog/build";
 import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 function abortedSignal(): AbortSignal {
 	const controller = new AbortController();

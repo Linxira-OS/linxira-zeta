@@ -5,9 +5,9 @@ import { Settings } from "@zeta/pi-coding-agent/config/settings";
 import { disposeAllVmContexts } from "@zeta/pi-coding-agent/eval/js/context-manager";
 import { executeJs, type JsResult } from "@zeta/pi-coding-agent/eval/js/executor";
 import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
 import { INTENT_FIELD } from "@zeta/pi-wire";
-import { type } from "arktype";
 
 // JS eval cold-starts a Bun worker; under --isolate + high CI concurrency that startup
 // can exceed Bun's 5s default per-test timeout, flaking the suite. Give the worker-backed

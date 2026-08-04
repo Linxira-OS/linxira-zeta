@@ -12,19 +12,19 @@
  */
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, Usage } from "@oh-my-pi/pi-ai";
-import { kStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { StrippedToolCallsPlaceholder } from "@oh-my-pi/pi-coding-agent/modes/components/stripped-tool-calls-placeholder";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext, StrippedToolCallsMarker } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@zeta/pi-agent-core";
+import type { AssistantMessage, ImageContent, Usage } from "@zeta/pi-ai";
+import { kStreamingPartialJson } from "@zeta/pi-ai/utils/block-symbols";
+import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
+import { StrippedToolCallsPlaceholder } from "@zeta/pi-coding-agent/modes/components/stripped-tool-calls-placeholder";
+import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import { UiHelpers } from "@zeta/pi-coding-agent/modes/utils/ui-helpers";
+import type { SessionContext, StrippedToolCallsMarker } from "@zeta/pi-coding-agent/session/session-context";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@zeta/pi-tui";
+import { TempDir } from "@zeta/pi-utils";
 
 beforeAll(() => {
 	initTheme();

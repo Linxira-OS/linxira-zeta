@@ -6,14 +6,14 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as arktype from "@zeta/pi-omptype";
+import * as typebox from "@zeta/pi-omptype/typebox";
+import * as zodModule from "@zeta/pi-omptype/zod";
 import { getAgentDir, getProjectDir, isEnoent, logger } from "@zeta/pi-utils";
-import * as arktype from "arktype";
-import * as zodModule from "zod/v4";
 import { getConfigDirs } from "../../config";
 import { execCommand } from "../../exec/exec";
 // Runtime self-reference: dereference this namespace only inside loader functions to keep the index.ts cycle safe.
 import * as PiCodingAgent from "../../index";
-import * as typebox from "../typebox";
 import { GreenCommand } from "./bundled/ci-green";
 import { ReviewCommand } from "./bundled/review";
 import type {

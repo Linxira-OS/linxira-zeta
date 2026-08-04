@@ -8,8 +8,8 @@ import { Settings } from "@zeta/pi-coding-agent/config/settings";
 import { createAgentSession, type ExtensionFactory } from "@zeta/pi-coding-agent/sdk";
 import type { AsyncJobSnapshot } from "@zeta/pi-coding-agent/session/agent-session";
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { type } from "@zeta/pi-omptype";
 import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 describe("AsyncJobManager singleton across concurrent top-level sessions", () => {
 	const tempDirs: string[] = [];

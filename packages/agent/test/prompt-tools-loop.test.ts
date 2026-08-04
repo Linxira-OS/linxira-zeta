@@ -3,7 +3,7 @@ import { agentLoop } from "@zeta/pi-agent-core/agent-loop";
 import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@zeta/pi-agent-core/types";
 import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@zeta/pi-ai";
 import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

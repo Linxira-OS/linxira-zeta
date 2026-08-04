@@ -29,8 +29,8 @@ import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { USER_INTERRUPT_LABEL } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import { Snowflake, TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 interface MockYieldDetails {
 	status: "success";

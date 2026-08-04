@@ -30,8 +30,8 @@ import { ExtensionToolWrapper } from "@zeta/pi-coding-agent/extensibility/extens
 import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@zeta/pi-coding-agent/tools";
 import { BashTool } from "@zeta/pi-coding-agent/tools/bash";
 import type { TruncationMeta } from "@zeta/pi-coding-agent/tools/output-meta";
+import { type } from "@zeta/pi-omptype";
 import { removeWithRetries } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { AdviseTool } from "../src/advisor/advise-tool";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {

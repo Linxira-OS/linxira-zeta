@@ -18,8 +18,8 @@ import {
 } from "@zeta/pi-coding-agent/edit";
 import { resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
 import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { type Type, type } from "@zeta/pi-omptype";
 import { removeWithRetries } from "@zeta/pi-utils";
-import { type Type, type } from "arktype";
 
 beforeAll(async () => {
 	resetSettingsForTest();

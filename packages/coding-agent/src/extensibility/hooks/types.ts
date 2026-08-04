@@ -1,7 +1,7 @@
 import type { ImageContent, Message, Model, TextContent } from "@zeta/pi-ai";
+import type { Type } from "@zeta/pi-omptype";
 import type { Component, TUI } from "@zeta/pi-tui";
 import type { logger as PiLogger } from "@zeta/pi-utils";
-import type { Type } from "arktype";
 import type * as zod from "zod/v4";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { EditToolDetails } from "../../edit";

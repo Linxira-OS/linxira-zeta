@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { Tool } from "@zeta/pi-ai/types";
 import { isArkSchema, toolWireSchema } from "@zeta/pi-ai/utils/schema";
 import { validateToolArguments } from "@zeta/pi-ai/utils/validation";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import { z } from "zod/v4";
 
 // ---------------------------------------------------------------------------

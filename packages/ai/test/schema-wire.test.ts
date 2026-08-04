@@ -13,7 +13,7 @@ import {
 	toolWireSchema,
 	zodToWireSchema,
 } from "@zeta/pi-ai/utils/schema";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import { z } from "zod/v4";
 
 describe("isZodSchema", () => {

@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import {
 	deleteManagedSkill,
 	getManagedSkillsDir,

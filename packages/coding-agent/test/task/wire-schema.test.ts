@@ -4,7 +4,7 @@ import { TaskTool, taskSchema } from "@zeta/pi-coding-agent/task";
 import * as discoveryModule from "@zeta/pi-coding-agent/task/discovery";
 import { getTaskSchema, oneLineLabel } from "@zeta/pi-coding-agent/task/types";
 import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 // Contract: the task tool's wire shape is flat `{ name?, agent?, task, isolated? }`
 // (batch: `{ context, tasks[] }` of the same items). `agent` defaults to the

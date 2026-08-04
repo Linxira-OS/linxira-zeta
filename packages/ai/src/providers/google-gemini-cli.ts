@@ -12,8 +12,8 @@ import {
 	getAntigravityUserAgent,
 	getGeminiCliHeaders,
 } from "@zeta/pi-catalog/wire/gemini-headers";
+import { type } from "@zeta/pi-omptype";
 import { extractHttpStatusFromError, fetchWithRetry, readSseJson } from "@zeta/pi-utils";
-import { type } from "arktype";
 import * as AIError from "../error";
 import type {
 	Api,

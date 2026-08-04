@@ -8,9 +8,9 @@ import type {
 	ToolApprovalDecision,
 } from "@zeta/pi-agent-core";
 import type { ToolExample } from "@zeta/pi-ai";
+import { type } from "@zeta/pi-omptype";
 import { type Component, Text } from "@zeta/pi-tui";
 import { isEnoent, prompt } from "@zeta/pi-utils";
-import { type } from "arktype";
 import {
 	type DapBreakpointRecord,
 	type DapCapabilities,

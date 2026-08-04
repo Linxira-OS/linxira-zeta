@@ -33,6 +33,7 @@ export class YieldQueue {
 	readonly #options: YieldQueueOptions;
 	readonly #dispatchers = new Map<string, StoredDispatcher>();
 	readonly #entries = new Map<string, unknown[]>();
+	readonly #receipts = new Map<unknown, () => void>();
 	#idleFlushPending = false;
 
 	constructor(options: YieldQueueOptions) {
@@ -67,6 +68,23 @@ export class YieldQueue {
 		if (!this.#options.isStreaming() && !this.#dispatchers.get(kind)!.skipIdleFlush) {
 			this.#scheduleIdleFlush();
 		}
+	}
+
+	enqueueWithReceipt<P>(kind: string, entry: P): Promise<void> {
+		const { promise, resolve } = Promise.withResolvers<void>();
+		this.enqueue(kind, entry);
+		this.#receipts.set(entry, resolve);
+		return promise;
+	}
+
+	requestIdleFlush(): void {
+		if (!this.#options.isStreaming()) {
+			this.#scheduleIdleFlush();
+		}
+	}
+
+	cancelIdleFlushScheduling(): void {
+		this.#idleFlushPending = false;
 	}
 
 	has(kind?: string): boolean {

@@ -30,8 +30,8 @@ import {
 	stripPendingSecretPlaceholderSuffix,
 } from "@zeta/pi-coding-agent/secrets/obfuscator";
 import { compileSecretRegex } from "@zeta/pi-coding-agent/secrets/regex";
+import { type } from "@zeta/pi-omptype";
 import { getActiveProfile, getAgentDir, setProfile } from "@zeta/pi-utils/dirs";
-import { type } from "arktype";
 
 describe("compileSecretRegex", () => {
 	it("adds global flag when not provided", () => {

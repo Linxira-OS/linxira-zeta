@@ -3,7 +3,7 @@ import { buildParams, convertTools } from "@zeta/pi-ai/providers/openai-response
 import type { Context, Model, ModelSpec, Tool } from "@zeta/pi-ai/types";
 import { findStrictToolSchemaViolation } from "@zeta/pi-ai/utils/schema";
 import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 function makeModel(): Model<"openai-responses"> {
 	return buildModel({

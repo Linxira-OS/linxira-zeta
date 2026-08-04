@@ -12,6 +12,7 @@ import type {
 } from "@zeta/pi-agent-core";
 import type { ImageContent, TextContent } from "@zeta/pi-ai";
 import { type SummaryResult, summarizeCode } from "@zeta/pi-natives";
+import { type } from "@zeta/pi-omptype";
 import type { Component } from "@zeta/pi-tui";
 import { Text } from "@zeta/pi-tui";
 import {
@@ -25,7 +26,6 @@ import {
 	readImageMetadata,
 	untilAborted,
 } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { LRUCache } from "lru-cache/raw";
 import {
 	canonicalSnapshotKey,

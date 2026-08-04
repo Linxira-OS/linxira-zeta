@@ -6,8 +6,8 @@
  */
 import * as path from "node:path";
 import type { AgentToolResult } from "@zeta/pi-agent-core";
+import { type } from "@zeta/pi-omptype";
 import { logger } from "@zeta/pi-utils";
-import { type } from "arktype";
 import * as zodModule from "zod/v4";
 import { toolCapability } from "../../capability/tool";
 import { type CustomTool, loadCapability } from "../../discovery";

@@ -10,8 +10,8 @@
 import { describe, expect, it } from "bun:test";
 import type { Model, Usage } from "@zeta/pi-ai";
 import { formatSessionDumpText } from "@zeta/pi-coding-agent/session/session-dump-format";
+import { type } from "@zeta/pi-omptype";
 import { INTENT_FIELD } from "@zeta/pi-wire";
-import { type } from "arktype";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

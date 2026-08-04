@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { buildSessionOptions } from "@oh-my-pi/pi-coding-agent/main";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { parseArgs } from "@zeta/pi-coding-agent/cli/args";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { buildSessionOptions } from "@zeta/pi-coding-agent/main";
+import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { TempDir } from "@zeta/pi-utils";
 
 describe("--service-tier", () => {
 	it("parses supported OpenAI tiers without leaking the value into the prompt", () => {

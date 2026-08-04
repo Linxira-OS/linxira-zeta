@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { AuthStorage } from "@oh-my-pi/pi-ai";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { buildSessionOptions } from "@oh-my-pi/pi-coding-agent/main";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { AuthStorage } from "@zeta/pi-ai";
+import { parseArgs } from "@zeta/pi-coding-agent/cli/args";
+import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { buildSessionOptions } from "@zeta/pi-coding-agent/main";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { TempDir } from "@zeta/pi-utils";
 
 let tempDir: TempDir;
 let authStorage: AuthStorage;

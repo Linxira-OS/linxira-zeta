@@ -1,8 +1,8 @@
 import type { ThinkingLevel } from "@zeta/pi-agent-core";
 import type { Api, ApiKey, AssistantMessage, Model } from "@zeta/pi-ai";
 import { completeSimple, validateToolCall } from "@zeta/pi-ai";
+import { type } from "@zeta/pi-omptype";
 import { prompt } from "@zeta/pi-utils";
-import { type } from "arktype";
 import summarySystemPrompt from "../../commit/prompts/summary-system.md" with { type: "text" };
 import summaryUserPrompt from "../../commit/prompts/summary-user.md" with { type: "text" };
 import type { CommitSummary } from "../../commit/types";

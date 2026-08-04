@@ -1,5 +1,5 @@
 import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core/types";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 export interface GetCurrentTimeResult extends AgentToolResult<{ utcTimestamp: number }> {}
 

@@ -12,22 +12,22 @@
  * helper itself is exercised directly.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { runSearchQuery, WebSearchTool } from "@oh-my-pi/pi-coding-agent/web/search";
-import * as provider from "@oh-my-pi/pi-coding-agent/web/search/provider";
-import { searchAnthropic } from "@oh-my-pi/pi-coding-agent/web/search/providers/anthropic";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchBrave } from "@oh-my-pi/pi-coding-agent/web/search/providers/brave";
-import { withHardTimeout } from "@oh-my-pi/pi-coding-agent/web/search/providers/utils";
+import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
+import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
+import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { ToolAbortError } from "@zeta/pi-coding-agent/tools/tool-errors";
+import { runSearchQuery, WebSearchTool } from "@zeta/pi-coding-agent/web/search";
+import * as provider from "@zeta/pi-coding-agent/web/search/provider";
+import { searchAnthropic } from "@zeta/pi-coding-agent/web/search/providers/anthropic";
+import type { SearchParams } from "@zeta/pi-coding-agent/web/search/providers/base";
+import { searchBrave } from "@zeta/pi-coding-agent/web/search/providers/brave";
+import { withHardTimeout } from "@zeta/pi-coding-agent/web/search/providers/utils";
 import {
 	SearchProviderError,
 	type SearchProviderId,
 	type SearchResponse,
-} from "@oh-my-pi/pi-coding-agent/web/search/types";
+} from "@zeta/pi-coding-agent/web/search/types";
 
 const FAKE_SESSION = {} as ToolSession;
 const fakeStorage = {

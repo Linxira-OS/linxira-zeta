@@ -8,8 +8,8 @@ import type {
 import type { Model } from "@zeta/pi-ai";
 import { isClaudeModelId } from "@zeta/pi-catalog/identity";
 import type { DesktopCapabilities } from "@zeta/pi-natives";
+import { type Type, type } from "@zeta/pi-omptype";
 import { once, prompt } from "@zeta/pi-utils";
-import { type Type, type } from "arktype";
 import { callSessionTool } from "../eval/js/tool-bridge";
 import { M } from "../i18n/messages";
 import computerDescription from "../prompts/tools/computer.md" with { type: "text" };

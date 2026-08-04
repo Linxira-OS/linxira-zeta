@@ -16,8 +16,8 @@ import {
 	todoMatchesAnyDescription,
 	todoToolRenderer,
 } from "@zeta/pi-coding-agent/tools";
+import { type } from "@zeta/pi-omptype";
 import type { Component } from "@zeta/pi-tui";
-import { type } from "arktype";
 
 function createSession(initialPhases: TodoPhase[] = []): ToolSession {
 	let phases = initialPhases;

@@ -9,8 +9,8 @@ import type { Context, Model, ModelSpec, ProviderSessionState, Tool } from "@zet
 import { createOpenAIResponsesHistoryPayload, truncateResponseItemId } from "@zeta/pi-ai/utils";
 import { buildModel } from "@zeta/pi-catalog/build";
 import { type GeneratedProvider, getBundledModel } from "@zeta/pi-catalog/models";
+import { type } from "@zeta/pi-omptype";
 import * as piUtils from "@zeta/pi-utils";
-import { type } from "arktype";
 
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";
 

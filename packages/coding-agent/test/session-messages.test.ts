@@ -1,13 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { type AgentMessage, filterProviderReplayMessages } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, Message, TextContent } from "@oh-my-pi/pi-ai";
-import { inferCopilotInitiator } from "@oh-my-pi/pi-ai/providers/github-copilot-headers";
-import {
-	convertToLlm,
-	SKILL_PROMPT_MESSAGE_TYPE,
-	wrapSteeringForModel,
-} from "@oh-my-pi/pi-coding-agent/session/messages";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
+import { type AgentMessage, filterProviderReplayMessages } from "@zeta/pi-agent-core";
+import type { ImageContent, Message, TextContent } from "@zeta/pi-ai";
+import { inferCopilotInitiator } from "@zeta/pi-ai/providers/github-copilot-headers";
+import { convertToLlm, SKILL_PROMPT_MESSAGE_TYPE, wrapSteeringForModel } from "@zeta/pi-coding-agent/session/messages";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@zeta/pi-wire";
 
 function expectAttribution(message: Message | undefined, expected: "user" | "agent" | undefined): void {
 	expect(message).toBeDefined();

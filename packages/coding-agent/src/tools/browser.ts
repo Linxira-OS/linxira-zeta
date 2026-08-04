@@ -1,7 +1,7 @@
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
 import type { ToolExample } from "@zeta/pi-ai";
+import { type } from "@zeta/pi-omptype";
 import { prompt, untilAborted } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { M } from "../i18n/messages";
 import browserDescription from "../prompts/tools/browser.md" with { type: "text" };
 import type { ToolSession } from "../sdk";

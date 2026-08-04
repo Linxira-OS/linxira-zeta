@@ -1,6 +1,6 @@
 import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
+import { type } from "@zeta/pi-omptype";
 import { logger, untilAborted } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { ensureBankExists } from "../hindsight/bank";
 import { M } from "../i18n/messages";
 import reflectDescription from "../prompts/tools/reflect.md" with { type: "text" };

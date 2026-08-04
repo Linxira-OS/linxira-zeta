@@ -14,8 +14,8 @@ import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 function activeGoalState(): GoalModeState {
 	const now = Date.now();

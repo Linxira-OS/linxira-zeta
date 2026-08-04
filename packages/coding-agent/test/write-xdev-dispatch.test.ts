@@ -21,8 +21,8 @@ import {
 	xdevDocsAll,
 	xdevEntries,
 } from "@zeta/pi-coding-agent/tools/xdev";
+import { type } from "@zeta/pi-omptype";
 import { removeWithRetries } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 // xdev mounting is default-on: discoverable tools like ast_edit unmount into
 // xd://, and a plain `write xd://ast_edit` dispatches them. These guard the

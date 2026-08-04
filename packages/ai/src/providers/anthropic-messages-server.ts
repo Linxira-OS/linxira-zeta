@@ -1,6 +1,6 @@
 import { Effort } from "@zeta/pi-catalog/effort";
+import { type } from "@zeta/pi-omptype";
 import { logger } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { captureRequestHeaders, resolvePromptCacheKey } from "../auth-gateway/http";
 import * as AIError from "../error";
 import type {

@@ -1,5 +1,5 @@
+import { type } from "@zeta/pi-omptype";
 import { prompt } from "@zeta/pi-utils";
-import { type } from "arktype";
 import analyzeFilePrompt from "../../../commit/agentic/prompts/analyze-file.md" with { type: "text" };
 import type { CommitAgentState } from "../../../commit/agentic/state";
 import type { NumstatEntry } from "../../../commit/types";

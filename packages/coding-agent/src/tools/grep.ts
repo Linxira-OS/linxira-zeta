@@ -10,10 +10,10 @@ import type {
 	ToolTier,
 } from "@zeta/pi-agent-core";
 import { type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@zeta/pi-natives";
+import { type } from "@zeta/pi-omptype";
 import type { Component } from "@zeta/pi-tui";
 import { Text } from "@zeta/pi-tui";
 import { prompt, untilAborted } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { recordFileSnapshot, recordSeenLinesFromBody } from "../edit/file-snapshot-store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n/messages";

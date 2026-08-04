@@ -14,8 +14,8 @@ import {
 	type SkillPromptDetails,
 } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 type ObservedSkillTurn = {

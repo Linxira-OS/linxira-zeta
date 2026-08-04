@@ -6,8 +6,8 @@
  */
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
 import type { AuthStorage } from "@zeta/pi-ai";
+import { type } from "@zeta/pi-omptype";
 import { prompt } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { ModelRegistry } from "../../config/model-registry";
 import { settings } from "../../config/settings";
 import type { CustomTool, CustomToolContext, RenderResultOptions } from "../../extensibility/custom-tools/types";

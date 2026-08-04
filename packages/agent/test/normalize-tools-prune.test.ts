@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { normalizeTools } from "@zeta/pi-agent-core/agent-loop";
 import type { AgentTool } from "@zeta/pi-agent-core/types";
+import { type } from "@zeta/pi-omptype";
 import { INTENT_FIELD } from "@zeta/pi-wire";
-import { type } from "arktype";
 
 const toolSchema = type({
 	path: type("string").describe("where to read"),

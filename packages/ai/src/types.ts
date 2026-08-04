@@ -35,7 +35,7 @@ import type {
 import type { Effort } from "@zeta/pi-catalog/effort";
 import { isOpenAIModelId } from "@zeta/pi-catalog/identity/family";
 import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@zeta/pi-catalog/types";
-import type { Type } from "arktype";
+import type { Type } from "@zeta/pi-omptype";
 import type { ZodType, z } from "zod/v4";
 import type { ApiKey } from "./auth-retry";
 import type { BedrockOptions } from "./providers/amazon-bedrock";
@@ -638,6 +638,8 @@ export interface SimpleStreamOptions extends Omit<StreamOptions, "apiKey"> {
 	 * provider. Non-Anthropic providers ignore the field.
 	 */
 	fallbacks?: FallbackParam[];
+	/** Provider-specific options passthrough (e.g. Bedrock Mantle). */
+	providerOptions?: Record<string, unknown>;
 }
 
 // Generic StreamFunction with typed options

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype/ark";
+import { type } from "@zeta/pi-omptype/ark";
 
 it("alpha", () => {
 	const Alpha = type("string.alpha");

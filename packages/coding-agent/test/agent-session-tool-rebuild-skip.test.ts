@@ -14,8 +14,8 @@ import {
 	projectMountedMCPXdevGuidance,
 } from "@zeta/pi-coding-agent/session/session-tools";
 import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@zeta/pi-coding-agent/tools/xdev";
+import { type } from "@zeta/pi-omptype";
 import { logger } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 // Cache-stability invariant: when MCP servers reconnect with byte-identical tool
 // definitions, `refreshMCPTools` must not rebuild the system prompt. A rebuild

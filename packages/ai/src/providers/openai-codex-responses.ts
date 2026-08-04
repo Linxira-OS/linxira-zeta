@@ -8,6 +8,7 @@ import {
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
 } from "@zeta/pi-catalog/wire/codex";
+import { type } from "@zeta/pi-omptype";
 import {
 	$env,
 	$flag,
@@ -19,7 +20,6 @@ import {
 	readSseJson,
 	structuredCloneJSON,
 } from "@zeta/pi-utils";
-import { type } from "arktype";
 import packageJson from "../../package.json" with { type: "json" };
 import * as AIError from "../error";
 import { getEnvApiKey, isOfficialCodexApiUrl } from "../stream";

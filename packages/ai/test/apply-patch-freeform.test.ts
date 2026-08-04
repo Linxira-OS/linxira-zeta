@@ -18,7 +18,7 @@ import {
 } from "@zeta/pi-ai/providers/openai-shared";
 import type { AssistantMessage, Model, ModelSpec, Tool, ToolResultMessage } from "@zeta/pi-ai/types";
 import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 const GRAMMAR = [
 	"// top-level comment",

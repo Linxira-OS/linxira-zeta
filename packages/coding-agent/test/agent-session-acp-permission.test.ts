@@ -22,8 +22,8 @@ import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import type { ToolSession } from "@zeta/pi-coding-agent/tools";
 import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@zeta/pi-coding-agent/tools/xdev";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 // ---------------------------------------------------------------------------
 // Shared setup

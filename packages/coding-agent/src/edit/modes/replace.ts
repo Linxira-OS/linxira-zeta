@@ -5,7 +5,7 @@
  * fallback strategies for finding text in files.
  */
 import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../../lsp";
 import type { ToolSession } from "../../tools";
 import { routeWriteThroughBridge } from "../../tools/acp-bridge";

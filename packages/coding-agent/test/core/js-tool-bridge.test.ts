@@ -3,8 +3,8 @@ import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
 import { Settings } from "@zeta/pi-coding-agent/config/settings";
 import { callSessionTool } from "@zeta/pi-coding-agent/eval/js/tool-bridge";
 import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { type } from "@zeta/pi-omptype";
 import { INTENT_FIELD } from "@zeta/pi-wire";
-import { type } from "arktype";
 
 function createTool(
 	name: string,

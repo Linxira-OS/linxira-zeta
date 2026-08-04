@@ -12,7 +12,7 @@
 import { describe, expect, it } from "bun:test";
 import { usageReportSchema } from "@zeta/pi-ai";
 import { usageResponseSchema } from "@zeta/pi-ai/auth-broker/wire-schemas";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 const DISCLAIMER = "OMP-observed spend only; OpenCode usage outside OMP is not included.";
 

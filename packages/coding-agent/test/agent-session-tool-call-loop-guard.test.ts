@@ -10,8 +10,8 @@ import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { type CustomMessage, convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 const zeroUsage = {
 	input: 0,

@@ -22,8 +22,8 @@ import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
 import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import { Snowflake, TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 import planModeReminderPrompt from "../src/prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
 
 /** A stable, literal (non-templated) line of the reminder prompt, so the test

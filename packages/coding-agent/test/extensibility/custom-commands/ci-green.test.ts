@@ -3,10 +3,10 @@ import * as piCodingAgent from "@zeta/pi-coding-agent";
 import { GreenCommand } from "@zeta/pi-coding-agent/extensibility/custom-commands/bundled/ci-green";
 import type { CustomCommandAPI } from "@zeta/pi-coding-agent/extensibility/custom-commands/types";
 import type { HookCommandContext } from "@zeta/pi-coding-agent/extensibility/hooks/types";
-import type * as TypeBox from "@zeta/pi-coding-agent/extensibility/typebox";
 import * as git from "@zeta/pi-coding-agent/utils/git";
-import * as arktype from "arktype";
-import * as zod from "zod/v4";
+import * as arktype from "@zeta/pi-omptype";
+import type * as TypeBox from "@zeta/pi-omptype/typebox";
+import * as zod from "@zeta/pi-omptype/zod";
 
 afterEach(() => {
 	vi.restoreAllMocks();

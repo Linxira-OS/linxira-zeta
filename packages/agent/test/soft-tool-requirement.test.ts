@@ -9,7 +9,7 @@ import type {
 } from "@zeta/pi-agent-core/types";
 import type { Message, ToolChoice } from "@zeta/pi-ai";
 import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

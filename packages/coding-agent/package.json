@@ -52,18 +52,18 @@
     "@agentclientprotocol/sdk": "catalog:",
     "@babel/parser": "catalog:",
     "@mozilla/readability": "catalog:",
-    "@oh-my-pi/hashline": "catalog:",
-    "@oh-my-pi/omp-stats": "catalog:",
-    "@oh-my-pi/omptype": "catalog:",
-    "@oh-my-pi/pi-agent-core": "catalog:",
-    "@oh-my-pi/pi-ai": "catalog:",
-    "@oh-my-pi/pi-catalog": "catalog:",
-    "@oh-my-pi/pi-mnemopi": "catalog:",
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-tui": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
-    "@oh-my-pi/pi-wire": "catalog:",
-    "@oh-my-pi/snapcompact": "catalog:",
+    "@zeta/hashline": "catalog:",
+    "@zeta/omp-stats": "catalog:",
+    "@zeta/pi-omptype": "catalog:",
+    "@zeta/pi-agent-core": "catalog:",
+    "@zeta/pi-ai": "catalog:",
+    "@zeta/pi-catalog": "catalog:",
+    "@zeta/pi-mnemopi": "catalog:",
+    "@zeta/pi-natives": "catalog:",
+    "@zeta/pi-tui": "catalog:",
+    "@zeta/pi-utils": "catalog:",
+    "@zeta/pi-wire": "catalog:",
+    "@zeta/snapcompact": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
@@ -89,18 +89,7 @@
     "puppeteer-core": "catalog:",
     "turndown": "catalog:",
     "turndown-plugin-gfm": "catalog:",
-    "zod": "catalog:",
-    "@zeta/hashline": "catalog:",
-    "@zeta/omp-stats": "catalog:",
-    "@zeta/pi-agent-core": "catalog:",
-    "@zeta/pi-ai": "catalog:",
-    "@zeta/pi-catalog": "catalog:",
-    "@zeta/pi-mnemopi": "catalog:",
-    "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-tui": "catalog:",
-    "@zeta/pi-utils": "catalog:",
-    "@zeta/pi-wire": "catalog:",
-    "@zeta/snapcompact": "catalog:"
+    "zod": "catalog:"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "catalog:",
@@ -135,6 +124,14 @@
     "./*": {
       "types": "./src/*.ts",
       "import": "./src/*.ts"
+    },
+    "./i18n": {
+      "types": "./src/i18n/index.ts",
+      "import": "./src/i18n/index.ts"
+    },
+    "./i18n/*": {
+      "types": "./src/i18n/*.ts",
+      "import": "./src/i18n/*.ts"
     },
     "./async": {
       "types": "./src/async/index.ts",

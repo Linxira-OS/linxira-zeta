@@ -14,7 +14,7 @@
 import { instrumentedCompleteSimple, resolveTelemetry } from "@zeta/pi-agent-core";
 import { type Api, Effort, type Model, type Tool } from "@zeta/pi-ai";
 import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import { extractTextContent, extractToolCall, parseJsonPayload } from "../commit/utils";
 
 import {

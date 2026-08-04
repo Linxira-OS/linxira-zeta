@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool } from "@zeta/pi-agent-core";
+import { type } from "@zeta/pi-omptype";
 import { Settings } from "../../src/config/settings";
 import {
 	EVAL_TIMEOUT_PAUSE_OP,

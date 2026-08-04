@@ -3,8 +3,8 @@ import type { AgentMessage, AgentTelemetryConfig } from "@zeta/pi-agent-core";
 import type { AssistantMessage } from "@zeta/pi-ai";
 import * as AIError from "@zeta/pi-ai/error";
 import { kCursorExecResolved } from "@zeta/pi-ai/utils/block-symbols";
+import { type } from "@zeta/pi-omptype";
 import type { TUI } from "@zeta/pi-tui";
-import { type } from "arktype";
 import {
 	ADVISOR_DEFAULT_TOOL_NAMES,
 	AdviseTool,

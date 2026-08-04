@@ -22,8 +22,8 @@ import { FileSessionStorage, type WriteTextAtomicOptions } from "@zeta/pi-coding
 import { VIBE_TOOL_NAMES } from "@zeta/pi-coding-agent/tools/vibe";
 import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
 import { VibeSessionRegistry } from "@zeta/pi-coding-agent/vibe/runtime";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 function stubTool(name: string): AgentTool {
 	return {

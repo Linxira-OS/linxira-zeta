@@ -1,12 +1,12 @@
+import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@oh-my-pi/pi-ai/utils/schema";
 import {
 	type ObjectOpts,
 	Type as OmpType,
 	type TypeBuilder as OmpTypeBuilder,
 	type TUnsafe,
-} from "@oh-my-pi/omptype/typebox";
-import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@oh-my-pi/pi-ai/utils/schema";
+} from "@zeta/pi-omptype/typebox";
 
-export * from "@oh-my-pi/omptype/typebox";
+export * from "@zeta/pi-omptype/typebox";
 
 const VALIDATION_FAILURE = Symbol("pi.typebox.validationFailure");
 

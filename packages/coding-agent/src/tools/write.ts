@@ -10,9 +10,9 @@ import type {
 	AgentToolUpdateCallback,
 	ToolTier,
 } from "@zeta/pi-agent-core";
+import { type } from "@zeta/pi-omptype";
 import { type Component, Text } from "@zeta/pi-tui";
 import { isEnoent, isRecord, prompt, untilAborted } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 import { canonicalSnapshotKey, getFileSnapshotStore } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";

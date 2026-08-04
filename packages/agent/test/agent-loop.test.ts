@@ -18,8 +18,8 @@ import type {
 import type { AssistantMessage, AssistantMessageEvent, Context, Message, ToolResultMessage } from "@zeta/pi-ai";
 import { createMockModel, type MockResponse } from "@zeta/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+import { type } from "@zeta/pi-omptype";
 import { INTENT_FIELD } from "@zeta/pi-wire";
-import { type } from "arktype";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 
 declare module "@zeta/pi-agent-core/types" {

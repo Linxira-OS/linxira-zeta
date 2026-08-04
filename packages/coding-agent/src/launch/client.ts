@@ -11,6 +11,7 @@ import {
 	DAEMON_IDLE_GRACE_ENV,
 	DAEMON_PROJECT_DIR_ENV,
 	DAEMON_RUNTIME_DIR_ENV,
+	type DaemonCompletionNotification,
 	type DaemonOperation,
 	type DaemonRpcResult,
 	type DaemonWireResponse,
@@ -43,11 +44,28 @@ export interface DaemonBrokerClientOptions {
 	idleGraceMs?: number;
 }
 
+/** Error thrown when the daemon broker rejects a request (e.g., overlapping daemon start). */
+export class DaemonBrokerRejectedError extends Error {}
+
+/** Options passed to the unregister callback returned by {@link DaemonBrokerClient.onCompletion}. */
+export interface DaemonCompletionUnregisterOptions {
+	/** If true, preserve pending completions so they are delivered to the next registration. */
+	preservePending?: boolean;
+}
+
 /** Persistent per-process connection to one project or global daemon broker. */
 export interface DaemonBrokerClient {
 	/** Canonical project directory or synthetic directory identifying a global scope. */
 	readonly projectDir: string;
 	request(operation: DaemonOperation, signal?: AbortSignal): Promise<DaemonRpcResult>;
+	/**
+	 * Register a callback for unsolicited daemon-completion notifications for
+	 * the given owner. Returns an unregister function.
+	 */
+	onCompletion(
+		owner: string,
+		sink: (notification: DaemonCompletionNotification) => Promise<void> | void,
+	): (options?: DaemonCompletionUnregisterOptions) => void;
 	close(): void;
 }
 
@@ -136,6 +154,7 @@ class SocketDaemonClient implements DaemonBrokerClient {
 	readonly #token: string;
 	readonly #idleGraceMs: number | undefined;
 	readonly #pending = new Map<string, PendingRequest>();
+	readonly #completionSinks = new Map<string, (notification: DaemonCompletionNotification) => Promise<void> | void>();
 	#socket: net.Socket | undefined;
 	#connectPromise: Promise<void> | undefined;
 	#buffer = "";
@@ -186,6 +205,29 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		this.#socket?.destroy();
 		this.#socket = undefined;
 		this.#rejectPending(new Error("Daemon broker client closed"));
+	}
+
+	onCompletion(
+		owner: string,
+		sink: (notification: DaemonCompletionNotification) => Promise<void> | void,
+	): (options?: DaemonCompletionUnregisterOptions) => void {
+		this.#completionSinks.set(owner, sink);
+		return (options?: DaemonCompletionUnregisterOptions) => {
+			if (options?.preservePending) return;
+			this.#completionSinks.delete(owner);
+		};
+	}
+
+	#deliverCompletion(completion: DaemonCompletionNotification): void {
+		const sink = this.#completionSinks.get(completion.owner);
+		if (!sink) return;
+		void (async () => {
+			try {
+				await sink(completion);
+			} catch {
+				// Sink errors are swallowed; the completion was already delivered.
+			}
+		})();
 	}
 
 	async #connect(): Promise<void> {
@@ -262,9 +304,24 @@ class SocketDaemonClient implements DaemonBrokerClient {
 			const line = this.#buffer.slice(0, newline);
 			this.#buffer = this.#buffer.slice(newline + 1);
 			if (line.length === 0) continue;
+			let decoded: unknown;
+			try {
+				decoded = JSON.parse(line);
+			} catch {
+				continue;
+			}
+			// Completion notifications are unsolicited and have no `id` field.
+			if (
+				typeof decoded === "object" &&
+				decoded !== null &&
+				"event" in decoded &&
+				(decoded as Record<string, unknown>).event === "daemon-completed"
+			) {
+				this.#deliverCompletion(decoded as DaemonCompletionNotification);
+				continue;
+			}
 			let response: DaemonWireResponse;
 			try {
-				const decoded: unknown = JSON.parse(line);
 				response = parseDaemonWireResponse(decoded);
 			} catch (error) {
 				this.#rejectPending(error instanceof Error ? error : new Error(String(error)));

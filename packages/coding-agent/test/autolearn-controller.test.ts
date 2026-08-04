@@ -9,7 +9,7 @@ import { Settings } from "@zeta/pi-coding-agent/config/settings";
 import { createAutoLearnCaptureRunner } from "@zeta/pi-coding-agent/sdk";
 import type { AgentSession, AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
 import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 class FakeSession {
 	readonly listeners: Array<(event: AgentSessionEvent) => void> = [];

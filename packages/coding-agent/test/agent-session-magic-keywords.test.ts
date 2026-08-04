@@ -12,8 +12,8 @@ import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import { AUTO_THINKING } from "@zeta/pi-coding-agent/thinking";
+import { type } from "@zeta/pi-omptype";
 import { removeWithRetries } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 const mockTaskTool: AgentTool = {
 	name: "task",

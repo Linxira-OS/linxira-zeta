@@ -20,7 +20,7 @@ import {
 import type { AssistantMessage, Context, Model, ModelSpec, Tool, ToolResultMessage } from "@zeta/pi-ai/types";
 import { sanitizeOpenAIResponsesHistoryItemsForReplay } from "@zeta/pi-ai/utils";
 import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 function model<TApi extends "openai-responses" | "openai-codex-responses">(
 	api: TApi,

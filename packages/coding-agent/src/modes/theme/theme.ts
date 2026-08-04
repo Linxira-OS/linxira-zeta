@@ -9,6 +9,7 @@ import {
 	highlightCode as nativeHighlightCode,
 	supportsLanguage as nativeSupportsLanguage,
 } from "@zeta/pi-natives";
+import { type } from "@zeta/pi-omptype";
 import type {
 	EditorTheme,
 	MarkdownTheme,
@@ -19,7 +20,6 @@ import type {
 	TerminalAppearance,
 } from "@zeta/pi-tui";
 import { adjustHsv, colorLuma, getCustomThemesDir, isEnoent, logger, relativeLuminance } from "@zeta/pi-utils";
-import { type } from "arktype";
 import chalk from "chalk";
 import { LRUCache } from "lru-cache/raw";
 // Embed theme JSON files at build time
@@ -1118,7 +1118,7 @@ const spinnerFramesSchema = type("unknown").narrow((value): value is SpinnerFram
 const themeJsonSchema = type({
 	"$schema?": "string",
 	name: "string",
-	"vars?": "Record<string, string | number>",
+	"vars?": "object",
 	colors: themeColorsSchema,
 	"export?": {
 		"pageBg?": "string | number",
@@ -2081,7 +2081,7 @@ const COLORBLIND_ADJUSTMENT = { h: 60, s: 0.71 };
 function createTheme(themeJson: ThemeJson, options: CreateThemeOptions = {}): Theme {
 	const { mode, symbolPresetOverride, colorBlindMode } = options;
 	const colorMode = mode ?? detectColorMode();
-	const resolvedColors = resolveThemeColors(themeJson.colors, themeJson.vars);
+	const resolvedColors = resolveThemeColors(themeJson.colors, themeJson.vars as Record<string, ColorValue>);
 
 	if (colorBlindMode) {
 		const added = resolvedColors.toolDiffAdded;
@@ -2788,7 +2788,10 @@ function ansi256ToHex(index: number): string {
  */
 function isLightThemeJson(themeJson: ThemeJson): boolean {
 	try {
-		const resolved = resolveVarRefs(themeJson.colors.statusLineBg, themeJson.vars ?? {});
+		const resolved = resolveVarRefs(
+			themeJson.colors.statusLineBg,
+			(themeJson.vars ?? {}) as Record<string, ColorValue>,
+		);
 		const luminance = colorLuma(resolved);
 		return luminance !== undefined && luminance > 0.5;
 	} catch {
@@ -2809,7 +2812,7 @@ function resolveThemeExportColors(themeJson: ThemeJson): {
 	const exportSection = themeJson.export;
 	if (!exportSection) return {};
 
-	const vars = themeJson.vars ?? {};
+	const vars = (themeJson.vars ?? {}) as Record<string, ColorValue>;
 	const resolve = (value: string | number | undefined): string | undefined => {
 		if (value === undefined) return undefined;
 		if (typeof value === "number") return ansi256ToHex(value);
@@ -2837,7 +2840,7 @@ export async function getResolvedThemeColors(themeName?: string): Promise<Record
 	const name = themeName ?? getDefaultTheme();
 	const themeJson = await loadThemeJson(name);
 	const exportColors = resolveThemeExportColors(themeJson);
-	const resolved = resolveThemeColors(themeJson.colors, themeJson.vars);
+	const resolved = resolveThemeColors(themeJson.colors, themeJson.vars as Record<string, ColorValue>);
 
 	// Empty foreground tokens use the terminal default color. In HTML export,
 	// that default must contrast the export surface, not the TUI status line:

@@ -37,12 +37,10 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
-    "lru-cache": "catalog:",
-    "marked": "catalog:",
     "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-utils": "catalog:"
+    "@zeta/pi-utils": "catalog:",
+    "lru-cache": "catalog:",
+    "marked": "catalog:"
   },
   "devDependencies": {
     "chalk": "catalog:",

@@ -7,14 +7,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { withStatsSyncLock } from "@zeta/omp-stats/aggregator";
 import { type GcResult, runGcCommand } from "@zeta/pi-coding-agent/cli/gc-cli";
 import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import {
-	getAgentDir,
-	getBlobsDir,
-	getHistoryDbPath,
-	getSessionsDir,
-	setAgentDir,
-	setProjectDir,
-} from "@zeta/pi-utils";
+import { getAgentDir, getBlobsDir, getHistoryDbPath, getSessionsDir, setAgentDir, setProjectDir } from "@zeta/pi-utils";
 import { runCli } from "../src/cli";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

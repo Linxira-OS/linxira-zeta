@@ -34,9 +34,9 @@ import type {
 	TSchema,
 } from "@zeta/pi-ai";
 import type { OAuthCredentials, OAuthLoginCallbacks } from "@zeta/pi-ai/oauth/types";
+import type { Type as arktype } from "@zeta/pi-omptype";
 import type { AutocompleteItem, AutocompleteProvider, Component, EditorTheme, KeyId, TUI } from "@zeta/pi-tui";
 import type { logger as PiLogger } from "@zeta/pi-utils";
-import type { Type as arktype } from "arktype";
 import type * as zod from "zod/v4";
 import type { KeybindingsManager } from "../../config/keybindings";
 import type { ModelRegistry } from "../../config/model-registry";

@@ -4,7 +4,7 @@ import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
 import type { Context, FetchImpl, Model, ModelSpec, OpenAICompat, ProviderSessionState, Tool } from "@zeta/pi-ai/types";
 import { buildModel } from "@zeta/pi-catalog/build";
 import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 const testTool: Tool = {
 	name: "echo",

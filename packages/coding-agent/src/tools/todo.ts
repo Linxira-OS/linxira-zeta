@@ -1,9 +1,9 @@
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
 import type { ToolExample } from "@zeta/pi-ai";
+import { type } from "@zeta/pi-omptype";
 import type { Component } from "@zeta/pi-tui";
 import { Text } from "@zeta/pi-tui";
 import { isRecord, prompt, sanitizeText } from "@zeta/pi-utils";
-import { type } from "arktype";
 import chalk from "chalk";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n/messages";

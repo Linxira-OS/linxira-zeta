@@ -11,7 +11,7 @@ import { getThemeByName, initTheme } from "@zeta/pi-coding-agent/modes/theme/the
 import type { ToolSession } from "@zeta/pi-coding-agent/tools";
 import { AskTool, askToolRenderer } from "@zeta/pi-coding-agent/tools/ask";
 import { ToolAbortError } from "@zeta/pi-coding-agent/tools/tool-errors";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 function createSession(overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

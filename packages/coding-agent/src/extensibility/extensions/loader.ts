@@ -14,9 +14,9 @@ import type {
 	TextContent,
 	TSchema,
 } from "@zeta/pi-ai";
+import { Type } from "@zeta/pi-omptype";
 import type { KeyId } from "@zeta/pi-tui";
 import { hasFsCode, isEacces, isEnoent, logger } from "@zeta/pi-utils";
-import { Type } from "arktype";
 import * as zodModule from "zod/v4";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";
 import { type Hook, hookCapability } from "../../capability/hook";

@@ -3,7 +3,7 @@ import { Settings } from "@zeta/pi-coding-agent/config/settings";
 import { TaskTool, taskSchema } from "@zeta/pi-coding-agent/task";
 import * as discoveryModule from "@zeta/pi-coding-agent/task/discovery";
 import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 // Contract: the single-spawn schema (`task.batch: false`; the exported
 // `taskSchema` instance) carries no batch fields while accepting a caller

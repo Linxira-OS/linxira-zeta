@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { type } from "@zeta/pi-omptype";
 import { Text } from "@zeta/pi-tui";
 import { formatBytes } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { executeBash } from "../../exec/bash-executor";
 import type { ToolDefinition } from "../../extensibility/extensions";
 import type { Theme } from "../../modes/theme/theme";

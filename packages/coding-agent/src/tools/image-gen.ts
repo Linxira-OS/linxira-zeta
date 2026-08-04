@@ -10,6 +10,7 @@ import {
 	URL_PATHS,
 } from "@zeta/pi-catalog/wire/codex";
 import { getAntigravityUserAgent } from "@zeta/pi-catalog/wire/gemini-headers";
+import { type } from "@zeta/pi-omptype";
 import {
 	$env,
 	isEnoent,
@@ -20,7 +21,6 @@ import {
 	Snowflake,
 	untilAborted,
 } from "@zeta/pi-utils";
-import { type } from "arktype";
 import packageJson from "../../package.json" with { type: "json" };
 import { isAuthenticated, type ModelRegistry } from "../config/model-registry";
 import { settings } from "../config/settings";

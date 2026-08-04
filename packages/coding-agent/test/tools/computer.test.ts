@@ -1,15 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { type as arkType } from "@oh-my-pi/omptype";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ComputerTool, computerApproval, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { ComputerTool, computerApproval, type ToolSession } from "@zeta/pi-coding-agent/tools";
 import type {
 	ComputerSessionSnapshot,
 	ComputerWorkerInbound,
 	ComputerWorkerOutbound,
 	ComputerWorkerTransport,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/protocol";
-import { ComputerSupervisor, type ComputerWorkerHandle } from "@oh-my-pi/pi-coding-agent/tools/computer/supervisor";
-import { ComputerWorkerCore, type NativeDesktopSession } from "@oh-my-pi/pi-coding-agent/tools/computer/worker";
+} from "@zeta/pi-coding-agent/tools/computer/protocol";
+import { ComputerSupervisor, type ComputerWorkerHandle } from "@zeta/pi-coding-agent/tools/computer/supervisor";
+import { ComputerWorkerCore, type NativeDesktopSession } from "@zeta/pi-coding-agent/tools/computer/worker";
 import type {
 	AxNode,
 	AxQuery,
@@ -19,7 +18,8 @@ import type {
 	DesktopPoint,
 	DesktopWindow,
 	PointerOptions,
-} from "@oh-my-pi/pi-natives";
+} from "@zeta/pi-natives";
+import { type as arkType } from "@zeta/pi-omptype";
 
 const capabilities: DesktopCapabilities = {
 	backend: "fake",

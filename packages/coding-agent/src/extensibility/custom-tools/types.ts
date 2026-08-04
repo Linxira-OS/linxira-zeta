@@ -14,9 +14,9 @@ import type {
 } from "@zeta/pi-agent-core";
 import type { CompactionResult } from "@zeta/pi-agent-core/compaction";
 import type { FetchImpl, Model, Static, TSchema } from "@zeta/pi-ai";
+import type { type as ArkType } from "@zeta/pi-omptype";
 import type { Component } from "@zeta/pi-tui";
 import type { logger as PiLogger } from "@zeta/pi-utils";
-import type { type as ArkType } from "arktype";
 import type * as zod from "zod/v4";
 import type { Rule } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";

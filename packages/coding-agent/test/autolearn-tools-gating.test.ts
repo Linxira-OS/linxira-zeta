@@ -10,9 +10,9 @@ import type { MnemopiSessionState } from "@zeta/pi-coding-agent/mnemopi/state";
 import { createTools, type ToolSession } from "@zeta/pi-coding-agent/tools";
 import { LearnTool } from "@zeta/pi-coding-agent/tools/learn";
 import { ManageSkillTool } from "@zeta/pi-coding-agent/tools/manage-skill";
+import { type } from "@zeta/pi-omptype";
 import { removeWithRetries } from "@zeta/pi-utils";
 import { getAgentDir, setAgentDir } from "@zeta/pi-utils/dirs";
-import { type } from "arktype";
 
 function makeSession(
 	settingsOverrides: Partial<Record<SettingPath, unknown>> = {},

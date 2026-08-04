@@ -1,5 +1,5 @@
 import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core/types";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 export interface CalculateResult extends AgentToolResult<undefined> {
 	content: Array<{ type: "text"; text: string }>;

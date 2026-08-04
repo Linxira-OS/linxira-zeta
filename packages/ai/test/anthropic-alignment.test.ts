@@ -31,8 +31,8 @@ import type {
 	Tool,
 } from "@zeta/pi-ai/types";
 import { buildModel } from "@zeta/pi-catalog/build";
+import { type as arkType } from "@zeta/pi-omptype";
 import { removeSyncWithRetries } from "@zeta/pi-utils";
-import { type as arkType } from "arktype";
 import { withEnv } from "./helpers";
 
 const ANTHROPIC_MODEL_SPEC: ModelSpec<"anthropic-messages"> = {

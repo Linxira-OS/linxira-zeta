@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
 import type { Context, Model, Tool } from "@zeta/pi-ai/types";
 import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 const echoTool: Tool = {
 	name: "echo",

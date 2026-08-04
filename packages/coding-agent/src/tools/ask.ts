@@ -17,6 +17,7 @@
 
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
 import type { ToolExample } from "@zeta/pi-ai";
+import { type as arkType } from "@zeta/pi-omptype";
 import {
 	type Component,
 	Ellipsis,
@@ -30,7 +31,6 @@ import {
 	visibleWidth,
 } from "@zeta/pi-tui";
 import { prompt, untilAborted } from "@zeta/pi-utils";
-import { type as arkType } from "arktype";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { ExtensionUISelectItem } from "../extensibility/extensions";
 import { M } from "../i18n/messages";

@@ -6,7 +6,7 @@
 import type { AgentToolResult } from "@zeta/pi-agent-core";
 import { type ApiKey, withAuth } from "@zeta/pi-ai";
 import { ProviderHttpError } from "@zeta/pi-ai/error";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import { settings } from "../config/settings";
 import type { CustomTool, CustomToolContext } from "../extensibility/custom-tools/types";
 import { M } from "../i18n/messages";

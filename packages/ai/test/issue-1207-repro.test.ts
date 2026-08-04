@@ -4,7 +4,7 @@ import type { Context, Model, ModelSpec, Tool } from "@zeta/pi-ai/types";
 import { buildModel } from "@zeta/pi-catalog/build";
 import { Effort } from "@zeta/pi-catalog/effort";
 import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 const echoTool: Tool = {
 	name: "echo",

@@ -6,8 +6,8 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 } from "@zeta/pi-agent-core";
+import { type } from "@zeta/pi-omptype";
 import { escapeXmlAttribute, escapeXmlText } from "@zeta/pi-utils";
-import { type } from "arktype";
 import adviseDescription from "../prompts/advisor/advise-tool.md" with { type: "text" };
 
 const adviseSchema = type({

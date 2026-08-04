@@ -13,7 +13,7 @@ import { RegisteredToolAdapter } from "@zeta/pi-coding-agent/extensibility/exten
 import { BUILTIN_TOOLS, type ToolSession } from "@zeta/pi-coding-agent/tools";
 import { defaultLoadModeForToolName, ESSENTIAL_BUILTIN_TOOL_NAMES } from "@zeta/pi-coding-agent/tools/essential-tools";
 import { isMountableUnderXdev } from "@zeta/pi-coding-agent/tools/xdev";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 
 function makeSession(): ToolSession {
 	return {

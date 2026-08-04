@@ -8,8 +8,8 @@ import {
 	type Model,
 	type ToolExample,
 } from "@zeta/pi-ai";
+import { type } from "@zeta/pi-omptype";
 import { prompt } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { extractTextContent } from "../commit/utils";
 import {
 	expandRoleAlias,

@@ -18,9 +18,9 @@ import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
 import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import type { AutocompleteProvider } from "@zeta/pi-tui";
 import { TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 function makeTool(name: string): AgentTool {
 	return {

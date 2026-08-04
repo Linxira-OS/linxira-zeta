@@ -9,8 +9,8 @@ import { complete, getEnvApiKey, stream } from "@zeta/pi-ai/stream";
 import type { Api, Context, ImageContent, Model, OptionsForApi, Tool, ToolResultMessage } from "@zeta/pi-ai/types";
 import { buildModel } from "@zeta/pi-catalog/build";
 import { getBundledModel } from "@zeta/pi-catalog/models";
+import { type } from "@zeta/pi-omptype";
 import { $which } from "@zeta/pi-utils";
-import { type } from "arktype";
 import { removeWithRetries } from "../../utils/src/temp";
 import { e2eApiKey, resolveApiKey } from "./oauth";
 

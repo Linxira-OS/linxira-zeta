@@ -15,7 +15,7 @@ import {
 import { snapshotResponseSchema } from "@zeta/pi-ai/auth-broker/wire-schemas";
 import * as oauthUtils from "@zeta/pi-ai/registry/oauth";
 import type { UsageLimit, UsageReport } from "@zeta/pi-ai/usage";
-import { type } from "arktype";
+import { type } from "@zeta/pi-omptype";
 import { removeWithRetries } from "../../utils/src/temp";
 
 function requireLimit(report: UsageReport, id: string): UsageLimit {

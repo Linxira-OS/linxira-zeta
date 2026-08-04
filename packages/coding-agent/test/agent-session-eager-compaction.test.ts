@@ -13,8 +13,8 @@ import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import { TodoTool, type ToolSession, USER_TODO_EDIT_CUSTOM_TYPE } from "@zeta/pi-coding-agent/tools";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
-import { type } from "arktype";
 
 // Re-injecting eager preludes after compaction: the first-message preludes are the
 // oldest messages, so compaction summarizes them away and the agent silently loses
