@@ -25,7 +25,11 @@ function parseRuntimeCredential(credential: OmpAuthCredential): OmpRuntimeCreden
 
   try {
     const parsed = JSON.parse(data) as Record<string, unknown>;
-    const apiKey = typeof parsed.apiKey === "string" ? parsed.apiKey : undefined;
+    const apiKey = typeof parsed.apiKey === "string"
+      ? parsed.apiKey
+      : typeof parsed.key === "string"
+        ? parsed.key
+        : undefined;
     const accessToken = typeof parsed.access === "string"
       ? parsed.access
       : typeof parsed.access_token === "string"
@@ -86,12 +90,12 @@ export function getOmpAuthCredentials(): OmpAuthCredential[] {
     const fileBuffer = readFileSync(dbPath);
     const fileStr = fileBuffer.toString("utf8");
     const credentials: OmpAuthCredential[] = [];
-    const jsonMatches = fileStr.match(/\{"access":[\s\S]*?\}|\{"apiKey":[\s\S]*?\}/g);
+    const jsonMatches = fileStr.match(/\{"access":[\s\S]*?\}|\{"apiKey":[\s\S]*?\}|\{"key":[\s\S]*?\}/g);
     if (jsonMatches) {
       for (const match of jsonMatches) {
         try {
           const parsed = JSON.parse(match) as Record<string, unknown>;
-          if (parsed.access || parsed.apiKey) {
+          if (parsed.access || parsed.apiKey || parsed.key) {
             credentials.push({
               provider: (parsed.provider as string) || "google-antigravity",
               credential_type: parsed.access ? "oauth" : "api_key",
