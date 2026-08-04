@@ -629,7 +629,6 @@ export function PluginsConfig({
 }) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
-  const { t } = useI18n();
   const [data, setData] = useState<PluginsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

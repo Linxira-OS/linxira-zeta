@@ -44,7 +44,6 @@ import type { SessionStatsInfo } from "@/lib/pi-types";
 type SessionCopyField = "file" | "id";
 
 const TOP_BAR_ICON_BUTTON_SIZE = 36;
-const LANGUAGE_MENU_WIDTH = 176;
 
 export function AppShell() {
   const router = useRouter();
