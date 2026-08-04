@@ -23,8 +23,8 @@ Zeta Web 要求 Node.js 22.19.0 或更高版本。可通过 `node --version` 检
 **从源码运行（Git Clone）：**
 
 ```bash
-git clone https://github.com/17380936778/omp-web.git
-cd omp-web
+git clone https://github.com/Linxira-OS/linxira-zeta.git
+cd linxira-zeta/web-ui
 npm install
 npm run dev      # 启动开发服务器（端口 30141）
 # 或构建后运行生产模式：
@@ -37,14 +37,14 @@ npm start
 **可选参数：**
 
 ```bash
-omp-web --port 8080              # 自定义端口
-omp-web --hostname 0.0.0.0       # 在可信网络中开放访问
-omp-web -p 8080 -H 0.0.0.0       # 组合使用
-omp-web --no-open                # 不自动打开浏览器
+zeta-web --port 8080              # 自定义端口
+zeta-web --hostname 0.0.0.0       # 在可信网络中开放访问
+zeta-web -p 8080 -H 0.0.0.0       # 组合使用
+zeta-web --no-open                # 不自动打开浏览器
 
-PORT=8080 omp-web                # 也支持环境变量
-OMP_WEB_HOSTNAME=0.0.0.0 omp-web  # 显式开放网络访问
-OMP_WEB_NO_OPEN=1 omp-web         # 适用于后台服务或开机自启
+PORT=8080 zeta-web                # 也支持环境变量
+ZETA_WEB_HOSTNAME=0.0.0.0 zeta-web  # 显式开放网络访问
+ZETA_WEB_NO_OPEN=1 zeta-web         # 适用于后台服务或开机自启
 ```
 
 Zeta Web 没有应用层身份验证，并且可以调用高权限智能体。请勿将其暴露到互联网；仅在可信网络中使用非 loopback 监听地址。
@@ -59,7 +59,7 @@ macOS 或 Linux：
 HTTP_PROXY=http://127.0.0.1:7890 \
 HTTPS_PROXY=http://127.0.0.1:7890 \
 NO_PROXY=localhost,127.0.0.1 \
-npx omp-web@latest
+npx zeta-web@latest
 ```
 
 Windows PowerShell：
@@ -68,13 +68,13 @@ Windows PowerShell：
 $env:HTTP_PROXY = "http://127.0.0.1:7890"
 $env:HTTPS_PROXY = "http://127.0.0.1:7890"
 $env:NO_PROXY = "localhost,127.0.0.1"
-npx omp-web@latest
+npx zeta-web@latest
 ```
 
 ## 特色与增强功能
 
 - **独立代码块语法主题选择器**：新增多主题代码渲染支持，内置 **One Dark Pro**、VS Code Dark+、VS Code Light 等高亮主题，用户可自由切换代码视觉风格。
-- **Zeta 兼容层**：兼容 `~/.omp/agent/` 目录结构（`models.json`、`models.db`、`config.yml`、`agent.db` 等）、角色模型（如 `defaultModel`、`smallModel`）和 SQLite 凭据。
+- **Zeta 兼容层**：默认使用 `~/.zeta/agent/` 目录结构（`models.json`、`models.db`、`config.yml`、`agent.db` 等），兼容 `~/.omp/agent/` 旧目录。支持角色模型（如 `defaultModel`、`smallModel`）和 SQLite 凭据。
 - **全界面中文与双语本地化**：提供全面中文化的 UI 交互体验，优化 CJK 排版、字体与搜索体验。
 - **按项目找回历史对话**：打开网页即可按项目检索以前的 Zeta 会话，不必在终端里翻文件或记住会话路径。
 - **放心探索不同方向**：从任意历史消息重新开始，或将会话 Fork 成独立路线，不会影响原来的对话。
@@ -85,8 +85,8 @@ npx omp-web@latest
 
 ## 注意事项
 
-- **数据目录**：默认读取 `~/.omp/agent/sessions`。可通过环境变量 `OMP_CODING_AGENT_DIR` 指定其他 omp agent 目录（兼容旧版：同样支持 `PI_CODING_AGENT_DIR`，优先级低于前者）。
-- **会话文件**：路径形如 `~/.omp/agent/sessions/<编码后的工作目录>/<时间戳>_<uuid>.jsonl`。
+- **数据目录**：默认读取 `~/.zeta/agent/sessions`。可通过环境变量 `ZETA_CODING_AGENT_DIR` 指定其他 agent 目录（兼容旧版：同样支持 `OMP_CODING_AGENT_DIR` 和 `PI_CODING_AGENT_DIR`，`ZETA_*` 优先级最高）。
+- **会话文件**：路径形如 `~/.zeta/agent/sessions/<编码后的工作目录>/<时间戳>_<uuid>.jsonl`。
 - **模型配置**：Models 面板读写 Zeta agent 目录下的 `models.json`，模型列表和默认值来自兼容配置。
 - **文件访问**：文件浏览和预览面向当前选择的项目目录，以及会话中已出现过的工作目录。
 - **Git worktree**：切换器何时出现、新 worktree 在哪里创建、删除会影响什么，见 [Zeta Web 里的 Worktree](./docs/worktrees.zh-CN.md)。
@@ -103,10 +103,10 @@ Zeta Web 基于 OMP Web 快照，后者保留了 Pi Web 历史。下表列出 Ze
 |---|---|
 | 兼容二进制 | 为现有脚本保留 `omp-web` |
 | 代码语法主题选择器 | **新增** 独立代码块主题选择器，支持 **One Dark Pro** 等主流主题切换 |
-| 数据与角色映射 | 支持 `~/.omp/agent/` 下的 `models.db`、`config.yml` 角色模型及 SQLite API Key |
+| 数据与角色映射 | 支持 `~/.zeta/agent/` 下的 `models.db`、`config.yml` 角色模型及 SQLite API Key |
 | 中文与国际化体验 | **增强** 完整双语界面与中文本地化交互优化 |
 | 运行时依赖 | 使用兼容的 `@earendil-works/pi-*` 运行时包 |
-| 会话与路径兼容性 | 适配兼容会话格式、工具协议及 `~/.omp/agent/` 数据目录 |
+| 会话与路径兼容性 | 适配兼容会话格式、工具协议及 `~/.zeta/agent/` 数据目录 |
 | 默认端口 | 30141 |
 
 其余内容——会话读取、AgentSession 生命周期、SSE 流式传输、Fork/分支逻辑、文件访问、worktree 管理——均继承自 pi-web，详见 [AGENTS.md](./AGENTS.md)。
@@ -178,9 +178,14 @@ instrumentation.ts    # 初始化服务端 HTTP dispatcher
 
 ## 致谢
 
-Zeta Web 基于 Pi、Oh My Pi、Pi Web 和 OMP Web。感谢
-[@mariozechner](https://github.com/mariozechner)、[@can1357](https://github.com/can1357)、
-[@agegr](https://github.com/agegr) 和 [@17380936778](https://github.com/17380936778)，以及所有贡献者。
+Zeta Web 基于以下上游项目，深表感谢：
+
+- **[Pi](https://github.com/earendil-works/pi)** — 编码代理架构的奠基项目，由 [@mariozechner](https://github.com/mariozechner) 创建
+- **[Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi)** — Zeta 的直接运行时上游，由 [@can1357](https://github.com/can1357) 维护
+- **[Pi Web](https://github.com/agegr/pi-web)** — 浏览器界面架构的原始实现，由 [@agegr](https://github.com/agegr) 创建
+- **[OMP Web](https://github.com/17380936778/omp-web)** — Web UI 的直接上游快照，由 [@17380936778](https://github.com/17380936778) 维护
+
+感谢所有贡献者对这些项目的持续投入。
 
 ## 开源协议
 

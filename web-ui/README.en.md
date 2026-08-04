@@ -74,7 +74,7 @@ npx omp-web@latest
 ## Features & Enhancements
 
 - **Code Highlighting Theme Selector**: Independent code block theme selector supporting **One Dark Pro**, VS Code Dark+, VS Code Light, and more.
-- **Zeta Compatibility**: Fully supports the compatible `~/.omp/agent/` directory structure (`models.json`, `models.db`, `config.yml`, `agent.db`), role models (`defaultModel`, `smallModel`), and SQLite API credentials.
+- **Zeta Compatibility**: Uses `~/.zeta/agent/` directory structure by default (`models.json`, `models.db`, `config.yml`, `agent.db`), backward-compatible with `~/.omp/agent/`. Supports role models (`defaultModel`, `smallModel`) and SQLite API credentials.
 - **Full i18n & Chinese Localization**: Complete bilingual UI, optimized CJK typography, fonts, and search experience.
 - **Browse sessions by project**: find previous Zeta conversations without digging through terminal history or session paths.
 - **Fork or branch safely**: continue from any earlier message, or fork a session into a separate route without touching the original.
@@ -85,8 +85,8 @@ npx omp-web@latest
 
 ## Notes
 
-- **Data directory**: reads `~/.omp/agent/sessions` by default. Set `OMP_CODING_AGENT_DIR` to point at another omp agent directory (falls back to `PI_CODING_AGENT_DIR` for compatibility with pi-web).
-- **Session files**: stored as `~/.omp/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`.
+- **Data directory**: reads `~/.zeta/agent/sessions` by default. Set `ZETA_CODING_AGENT_DIR` to point at another agent directory (falls back to `OMP_CODING_AGENT_DIR` and `PI_CODING_AGENT_DIR` for compatibility).
+- **Session files**: stored as `~/.zeta/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`.
 - **Model config**: the Models panel reads and writes `models.json` in the Zeta agent directory.
 - **File access**: file browsing and preview are scoped to the selected project directory and working directories that appear in sessions.
 - **Git worktrees**: see [Worktrees in Zeta Web](./docs/worktrees.md) for when the switcher appears, how worktrees are created, and what removal does.
@@ -104,10 +104,10 @@ table below describes Zeta's compatibility surface and local enhancements:
 |---|---|
 | Compatibility binary | `omp-web` remains available for existing scripts |
 | Code Theme Selector | **Added** independent syntax theme selector with support for **One Dark Pro** and others |
-| Data & Role Mapping | Supports `models.db`, `config.yml` model roles, and SQLite credentials under `~/.omp/agent/` |
+| Data & Role Mapping | Supports `models.db`, `config.yml` model roles, and SQLite credentials under `~/.zeta/agent/` |
 | Chinese & i18n Localization | **Enhanced** full bilingual interface and optimized CJK typography |
 | Runtime dependency | Uses the compatible `@earendil-works/pi-*` runtime packages |
-| Session & Path Compatibility | Works with the compatible session format, tool protocol, and `~/.omp/agent/` data directory |
+| Session & Path Compatibility | Works with the compatible session format, tool protocol, and `~/.zeta/agent/` data directory |
 | Default port | 30141 |
 
 Everything else — session reading, AgentSession lifecycle, SSE streaming, fork/branch logic, file access, worktree management — is inherited from pi-web and documented in [AGENTS.md](./AGENTS.md).

@@ -2,13 +2,13 @@
   "name": "zeta-web",
   "version": "1.0.0",
   "description": "Zeta's browser interface for the coding agent",
-  "homepage": "https://github.com/17380936778/omp-web#readme",
+  "homepage": "https://github.com/Linxira-OS/linxira-zeta#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/17380936778/omp-web.git"
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git"
   },
   "bugs": {
-    "url": "https://github.com/17380936778/omp-web/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "author": "17380936778",
   "license": "MIT",

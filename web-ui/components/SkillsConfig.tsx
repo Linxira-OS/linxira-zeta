@@ -421,8 +421,8 @@ function AddSkillPanel({
 
   const installPath =
     scope === "global"
-      ? "~/.omp/agent/skills/"
-      : `${shortenPath(cwd)}/.omp/skills/`;
+      ? "~/.zeta/agent/skills/"
+      : `${shortenPath(cwd)}/.zeta/skills/`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>

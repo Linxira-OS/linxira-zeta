@@ -130,7 +130,7 @@ export function annotateSkillsWithInstallInfo(
   const globalEntries = readSkillLock(globalLockPath);
   const projectEntries = readSkillLock(projectLockPath);
   const globalSkillsRoot = join(agentDir, "skills");
-  const projectSkillsRoot = join(cwd, ".omp", "skills");
+  const projectSkillsRoot = join(cwd, ".zeta", "skills");
 
   return skills.map((skill) => {
     if (!existsSync(skill.filePath)) return skill;

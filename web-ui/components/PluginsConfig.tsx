@@ -41,8 +41,8 @@ function versionSummary(pkg: PluginPackageInfo): string {
 
 function installLocation(scope: PluginScope, cwd: string): string {
   return scope === "project"
-    ? `${shortenPath(cwd)}/.omp/agent/{npm,git}`
-    : "~/.omp/agent/{npm,git}";
+    ? `${shortenPath(cwd)}/.zeta/agent/{npm,git}`
+    : "~/.zeta/agent/{npm,git}";
 }
 
 function findInstalledPackage(
