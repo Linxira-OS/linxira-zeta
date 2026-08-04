@@ -75,12 +75,13 @@ import type {
 	AgentTurnEndContext,
 	AsideMessage,
 	BeforeToolCallResult,
+	CommittableAsideMessage,
 	SoftToolRequirement,
 	SteeringInterruptSource,
 	SteeringQueueState,
 	StreamFn,
 } from "./types";
-import { isSoftToolRequirement } from "./types";
+import { ASIDE_MESSAGE_COMMIT, ASIDE_MESSAGE_DISCARD, isSoftToolRequirement } from "./types";
 import { yieldIfDue } from "./utils/yield";
 
 /** Stop-details marker for a provider error after assistant content/tool args already streamed. */
@@ -528,6 +529,9 @@ export function agentLoop(
 			...context,
 			messages: [...context.messages, ...prompts],
 		};
+		for (const prompt of prompts) {
+			(prompt as CommittableAsideMessage)[ASIDE_MESSAGE_COMMIT]?.();
+		}
 
 		stream.push({ type: "agent_start" });
 
@@ -953,11 +957,22 @@ function emitInputMessages(stream: EventStream<AgentEvent, AgentMessage[]>, mess
 function resolveAsides(entries: AsideMessage[] | undefined): AgentMessage[] {
 	if (!entries || entries.length === 0) return [];
 	const out: AgentMessage[] = [];
-	for (const entry of entries) {
-		const message = typeof entry === "function" ? entry() : entry;
-		if (message) out.push(message);
+	try {
+		for (const entry of entries) {
+			const message = typeof entry === "function" ? entry() : entry;
+			if (message) out.push(message);
+		}
+	} catch (error) {
+		discardAsides(out, error instanceof Error ? error : new Error(String(error)));
+		throw error;
 	}
 	return out;
+}
+
+function discardAsides(messages: readonly AgentMessage[], error: Error): void {
+	for (const message of messages) {
+		(message as CommittableAsideMessage)[ASIDE_MESSAGE_DISCARD]?.(error);
+	}
 }
 
 async function runLoopBody(
@@ -990,6 +1005,7 @@ async function runLoopBody(
 	const softRequirementState = config.softToolRequirementState ?? { escalations: 0 };
 	let preserveSoftRequirementState = false;
 
+	let pendingMessages: AgentMessage[] = [];
 	try {
 		let messagesToEmit = [...initialMessages];
 		if (isDeadlineExceeded(config.deadline)) {
@@ -1000,7 +1016,6 @@ async function runLoopBody(
 		// Check for steering messages at start (user may have typed while waiting).
 		// Skip when the run is already externally aborted — dequeuing would strand
 		// the messages in a run that is about to die.
-		let pendingMessages: AgentMessage[];
 		try {
 			pendingMessages = signal?.aborted ? [] : (await config.getSteeringMessages?.()) || [];
 		} catch (error) {
@@ -1052,6 +1067,7 @@ async function runLoopBody(
 						currentContext.messages.push(message);
 						newMessages.push(message);
 						turnMessages.push(message);
+						(message as CommittableAsideMessage)[ASIDE_MESSAGE_COMMIT]?.();
 					}
 					pendingMessages = [];
 				}
@@ -1450,6 +1466,7 @@ async function runLoopBody(
 
 		endAgentStream(stream, newMessages, telemetry, stepCounter.count);
 	} finally {
+		discardAsides(pendingMessages, new Error("Aside message was not committed before the agent loop ended"));
 		if (!preserveSoftRequirementState) {
 			softRequirementState.id = undefined;
 			softRequirementState.forcedToolChoice = undefined;
@@ -2394,7 +2411,16 @@ async function executeToolCalls(
 	};
 
 	const runTool = async (record: (typeof records)[number], index: number): Promise<void> => {
-		if (interruptState.triggered) {
+		// A pending interrupt preempts not-yet-started tools so the message
+		// injects promptly. A peer-IRC interrupt is the exception: it aborts
+		// interruptible waits only and leaves non-interruptible foreground work
+		// untouched (see the emit branch below and the `does not abort a
+		// non-interruptible foreground tool` case). That guarantee must hold for
+		// work still queued behind the aborted wait too — otherwise a batched
+		// `todo`/`write` gets dropped as "Skipped due to pending peer interrupt"
+		// purely for being ordered after the wait (#7493). User/system steering
+		// still preempts everything queued.
+		if (interruptState.triggered && (record.interruptible || interruptState.source !== "irc")) {
 			// Skip both span emission and the collector orphan record here. The
 			// tail sweep below (after `Promise.allSettled`) is the single path
 			// that handles "no result message was produced" — it calls
@@ -2876,6 +2902,9 @@ function createSkippedToolResult(
 	if (source === "user") {
 		reason = "queued user message";
 		blocker = "queued message";
+	} else if (source === "agent") {
+		reason = "pending parent steering message";
+		blocker = "steering message";
 	} else if (source === "system") {
 		reason = "pending system advisory";
 		blocker = "advisory";

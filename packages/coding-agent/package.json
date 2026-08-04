@@ -52,17 +52,18 @@
     "@agentclientprotocol/sdk": "catalog:",
     "@babel/parser": "catalog:",
     "@mozilla/readability": "catalog:",
-    "@zeta/hashline": "catalog:",
-    "@zeta/omp-stats": "catalog:",
-    "@zeta/pi-agent-core": "catalog:",
-    "@zeta/pi-ai": "catalog:",
-    "@zeta/pi-catalog": "catalog:",
-    "@zeta/pi-mnemopi": "catalog:",
-    "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-tui": "catalog:",
-    "@zeta/pi-utils": "catalog:",
-    "@zeta/pi-wire": "catalog:",
-    "@zeta/snapcompact": "catalog:",
+    "@oh-my-pi/hashline": "catalog:",
+    "@oh-my-pi/omp-stats": "catalog:",
+    "@oh-my-pi/omptype": "catalog:",
+    "@oh-my-pi/pi-agent-core": "catalog:",
+    "@oh-my-pi/pi-ai": "catalog:",
+    "@oh-my-pi/pi-catalog": "catalog:",
+    "@oh-my-pi/pi-mnemopi": "catalog:",
+    "@oh-my-pi/pi-natives": "catalog:",
+    "@oh-my-pi/pi-tui": "catalog:",
+    "@oh-my-pi/pi-utils": "catalog:",
+    "@oh-my-pi/pi-wire": "catalog:",
+    "@oh-my-pi/snapcompact": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
@@ -77,7 +78,6 @@
     "@puppeteer/browsers": "catalog:",
     "@types/turndown": "catalog:",
     "@xterm/headless": "catalog:",
-    "arktype": "catalog:",
     "chalk": "catalog:",
     "fast-xml-parser": "catalog:",
     "handlebars": "catalog:",
@@ -89,7 +89,18 @@
     "puppeteer-core": "catalog:",
     "turndown": "catalog:",
     "turndown-plugin-gfm": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@zeta/hashline": "catalog:",
+    "@zeta/omp-stats": "catalog:",
+    "@zeta/pi-agent-core": "catalog:",
+    "@zeta/pi-ai": "catalog:",
+    "@zeta/pi-catalog": "catalog:",
+    "@zeta/pi-mnemopi": "catalog:",
+    "@zeta/pi-natives": "catalog:",
+    "@zeta/pi-tui": "catalog:",
+    "@zeta/pi-utils": "catalog:",
+    "@zeta/pi-wire": "catalog:",
+    "@zeta/snapcompact": "catalog:"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "catalog:",
@@ -360,14 +371,6 @@
     "./internal-urls/*": {
       "types": "./src/internal-urls/*.ts",
       "import": "./src/internal-urls/*.ts"
-    },
-    "./i18n": {
-      "types": "./src/i18n/index.ts",
-      "import": "./src/i18n/index.ts"
-    },
-    "./i18n/*": {
-      "types": "./src/i18n/*.ts",
-      "import": "./src/i18n/*.ts"
     },
     "./eval": {
       "types": "./src/eval/index.ts",

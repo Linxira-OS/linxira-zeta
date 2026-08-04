@@ -5,6 +5,13 @@
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [17.2.6] - 2026-08-03
+
+### Fixed
+
+- Fixed an issue where peer-IRC interrupts (such as subagent messages) incorrectly skipped non-interruptible tool calls queued in the same batch.
+- Improved interruption messaging to clearly distinguish between parent-agent steering and system-advisory interruptions.
+
 ## [17.2.5] - 2026-08-03
 
 ### Breaking Changes

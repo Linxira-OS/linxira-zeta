@@ -110,6 +110,7 @@ export const zh = {
 	cmdAskAnEphemeralSideQuestionUsingTheCurrentSessionContext: "基于当前会话上下文提出临时旁路问题",
 	cmdBrowseAvailablePlugins: "浏览可用插件",
 	cmdCancelARunningNativeScan: "取消正在运行的原生扫描",
+	cmdClearConversationContext: "原地清除对话上下文，但保留会话",
 	cmdClearPersistedMemoryDataAndArtifacts: "清除已持久化的记忆数据与工件",
 	cmdCompactTheConversation: "压缩对话",
 	cmdCompareFindingLineageAcrossTwoScans: "对比两次扫描的发现谱系",

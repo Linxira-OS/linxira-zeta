@@ -111,6 +111,7 @@ export const en = {
 		"Ask an ephemeral side question using the current session context",
 	cmdBrowseAvailablePlugins: "Browse available plugins",
 	cmdCancelARunningNativeScan: "Cancel a running native scan",
+	cmdClearConversationContext: "Clear the conversation context in place, keeping the session",
 	cmdClearPersistedMemoryDataAndArtifacts: "Clear persisted memory data and artifacts",
 	cmdCompactTheConversation: "Compact the conversation",
 	cmdCompareFindingLineageAcrossTwoScans: "Compare finding lineage across two scans",

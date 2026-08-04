@@ -33,8 +33,9 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@zeta/pi-natives": "catalog:",
-    "lru-cache": "catalog:"
+    "@oh-my-pi/pi-natives": "catalog:",
+    "lru-cache": "catalog:",
+    "@zeta/pi-natives": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

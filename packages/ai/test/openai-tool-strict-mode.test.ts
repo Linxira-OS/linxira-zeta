@@ -263,7 +263,7 @@ describe("OpenAI tool strict mode", () => {
 					name: "dynamic_map",
 					description: "Dynamic object map",
 					parameters: type({
-						values: "Record<string, string>?",
+						"values?": { "[string]": "string" },
 					}),
 				},
 			],

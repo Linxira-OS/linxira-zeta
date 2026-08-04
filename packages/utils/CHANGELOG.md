@@ -5,6 +5,12 @@
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [17.2.6] - 2026-08-03
+
+### Added
+
+- Added a shared `file-lock` utility backed by process-owned native OS locks with automatic crash release and bounded asynchronous retry.
+
 ## [17.2.5] - 2026-08-03
 
 ### Added

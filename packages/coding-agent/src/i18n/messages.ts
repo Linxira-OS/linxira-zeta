@@ -149,6 +149,7 @@ export interface Messages {
 	cmdAskAnEphemeralSideQuestionUsingTheCurrentSessionContext: string; // Ask an ephemeral side question using the current session context
 	cmdBrowseAvailablePlugins: string; // Browse available plugins
 	cmdCancelARunningNativeScan: string; // Cancel a running native scan
+	cmdClearConversationContext: string; // Clear the conversation context in place, keeping the session
 	cmdClearPersistedMemoryDataAndArtifacts: string; // Clear persisted memory data and artifacts
 	cmdCompactTheConversation: string; // Compact the conversation
 	cmdCompareFindingLineageAcrossTwoScans: string; // Compare finding lineage across two scans
