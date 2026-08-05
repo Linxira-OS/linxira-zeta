@@ -1,0 +1,212 @@
+/**
+ * Web UI 启动工具 — 被 `zeta serve` 和 `zeta web` 共用。
+ *
+ * 按优先级尝试启动 Web UI：
+ * 1. 编译后二进制内嵌的 web-ui（PI_COMPILED 模式）
+ * 2. 全局安装的 zeta-web npm 包
+ * 3. 源码仓库中的 web-ui 目录
+ */
+
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { $which } from "@zeta/pi-utils";
+
+export interface WebUiChild {
+	kill: () => void;
+}
+
+/**
+ * 启动 Web UI 服务器，返回子进程句柄。
+ * @param port 监听端口，默认 30141
+ */
+export async function spawnWebUi(port: number = 30141): Promise<WebUiChild> {
+	// 1. 编译后二进制：尝试从内嵌资源启动
+	if (process.env.PI_COMPILED === "true") {
+		return spawnEmbeddedWebUi(port);
+	}
+
+	// 2. 尝试全局安装的 zeta-web
+	const zetaWebBin = await findZetaWebBin();
+	if (zetaWebBin) {
+		return spawnZetaWebBin(zetaWebBin, port);
+	}
+
+	// 3. 尝试源码仓库中的 web-ui
+	const webUiDir = findSourceWebUiDir();
+	if (webUiDir) {
+		return spawnSourceWebUi(webUiDir, port);
+	}
+
+	throw new Error("Web UI not found. Install with: npm install -g zeta-web, or run from the Zeta repository root.");
+}
+
+async function findZetaWebBin(): Promise<string | null> {
+	// Try zeta-web binary first
+	const bin = $which("zeta-web");
+	if (bin) return bin;
+
+	// Try npx zeta-web
+	const npx = $which("npx");
+	if (npx) return "npx:zeta-web";
+
+	return null;
+}
+
+function findSourceWebUiDir(): string | null {
+	// Walk up from the coding-agent package to find the repo root, then web-ui
+	let dir = path.join(import.meta.dir, "..", "..", "..", "web-ui");
+	if (fs.existsSync(path.join(dir, "package.json"))) {
+		return dir;
+	}
+
+	// Try relative to cwd
+	dir = path.join(process.cwd(), "web-ui");
+	if (fs.existsSync(path.join(dir, "package.json"))) {
+		return dir;
+	}
+
+	return null;
+}
+
+function spawnZetaWebBin(bin: string, port: number): WebUiChild {
+	const args =
+		bin === "npx:zeta-web"
+			? ["npx", "zeta-web", "--port", String(port), "--hostname", "127.0.0.1"]
+			: [bin, "--port", String(port), "--hostname", "127.0.0.1"];
+
+	const env = {
+		...process.env,
+		ZETA_WEB_HOSTNAME: "127.0.0.1",
+		ZETA_WEB_PORT: String(port),
+		ZETA_WEB_NO_OPEN: "1", // zeta serve handles browser opening
+	};
+
+	const child = Bun.spawn(args, {
+		env,
+		stdout: "inherit",
+		stderr: "inherit",
+	});
+
+	return {
+		kill: () => {
+			child.kill();
+		},
+	};
+}
+
+function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
+	// Check if web-ui has been built
+	const nextDir = path.join(webUiDir, ".next");
+	if (!fs.existsSync(nextDir)) {
+		throw new Error(
+			`Web UI build artifacts not found in ${nextDir}. Run 'cd web-ui && npm install && npm run build' first.`,
+		);
+	}
+
+	// Use the zeta-web bin script directly
+	const binScript = path.join(webUiDir, "bin", "zeta-web.js");
+	if (fs.existsSync(binScript)) {
+		const child = Bun.spawn(["node", binScript], {
+			cwd: webUiDir,
+			env: {
+				...process.env,
+				ZETA_WEB_HOSTNAME: "127.0.0.1",
+				ZETA_WEB_PORT: String(port),
+				ZETA_WEB_NO_OPEN: "1",
+			},
+			stdout: "inherit",
+			stderr: "inherit",
+		});
+
+		return {
+			kill: () => {
+				child.kill();
+			},
+		};
+	}
+
+	// Fallback: use next start directly
+	const child = Bun.spawn(["npx", "next", "start", "-H", "127.0.0.1", "-p", String(port)], {
+		cwd: webUiDir,
+		env: {
+			...process.env,
+			ZETA_WEB_HOSTNAME: "127.0.0.1",
+			ZETA_WEB_PORT: String(port),
+			ZETA_WEB_NO_OPEN: "1",
+		},
+		stdout: "inherit",
+		stderr: "inherit",
+	});
+
+	return {
+		kill: () => {
+			child.kill();
+		},
+	};
+}
+
+/**
+ * 编译后二进制：从内嵌或同目录的 Web UI 资源启动。
+ *
+ * 查找顺序：
+ * 1. 同目录下的 web-ui/ 目录（分发包结构）
+ * 2. 上级目录的 web-ui/（monorepo 开发结构）
+ * 3. 全局安装的 zeta-web npm 包
+ *
+ * 使用 Bun.serve 代理到 Next.js standalone server。
+ */
+function spawnEmbeddedWebUi(port: number): WebUiChild {
+	// 1. 查找同目录下的 web-ui standalone
+	const candidates = [
+		path.join(process.cwd(), "web-ui"),
+		path.join(import.meta.dir, "..", "web-ui"),
+		path.join(import.meta.dir, "..", "..", "..", "web-ui"),
+	];
+
+	for (const dir of candidates) {
+		const serverJs = path.join(dir, ".next", "standalone", "server.js");
+		if (fs.existsSync(serverJs)) {
+			const child = Bun.spawn(["node", "server.js"], {
+				cwd: path.join(dir, ".next", "standalone"),
+				env: {
+					...process.env,
+					PORT: String(port),
+					HOSTNAME: "127.0.0.1",
+				},
+				stdout: "inherit",
+				stderr: "inherit",
+			});
+
+			return {
+				kill: () => {
+					child.kill();
+				},
+			};
+		}
+	}
+
+	// 2. 尝试 zeta-web bin 脚本
+	const binScript = path.join(import.meta.dir, "..", "web-ui", "bin", "zeta-web.js");
+	if (fs.existsSync(binScript)) {
+		const child = Bun.spawn(["node", binScript], {
+			env: {
+				...process.env,
+				ZETA_WEB_HOSTNAME: "127.0.0.1",
+				ZETA_WEB_PORT: String(port),
+				ZETA_WEB_NO_OPEN: "1",
+			},
+			stdout: "inherit",
+			stderr: "inherit",
+		});
+
+		return {
+			kill: () => {
+				child.kill();
+			},
+		};
+	}
+
+	throw new Error(
+		"Embedded Web UI not found. Place the web-ui standalone build next to the binary, or install zeta-web globally.",
+	);
+}

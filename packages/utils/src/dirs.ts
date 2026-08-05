@@ -934,6 +934,20 @@ export function getSSHConfigPath(scope: "user" | "project", cwd: string = getPro
 }
 
 // =============================================================================
+// Project tracking
+// =============================================================================
+
+/** Get the project-level tracking directory (<project>/.zeta/tracking). */
+export function getProjectTrackingDir(cwd: string = getProjectDir()): string {
+	return path.join(getProjectAgentDir(cwd), "tracking");
+}
+
+/** Get the global tracking index path (~/.zeta/agent/tracking-index.json). */
+export function getTrackingIndexPath(agentDir?: string): string {
+	return path.join(agentDir ?? getAgentDir(), "tracking-index.json");
+}
+
+// =============================================================================
 // Install identity
 // =============================================================================
 

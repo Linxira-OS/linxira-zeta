@@ -141,9 +141,20 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.sshHelp,
 	},
 	{
+		name: "serve",
+		load: () => import("./commands/serve").then(m => m.default),
+		help: commandHelp.serveHelp,
+	},
+	{
 		name: "stats",
 		load: () => import("./commands/stats").then(m => m.default),
 		help: commandHelp.statsHelp,
+	},
+	{
+		name: "web",
+		load: () => import("./commands/web").then(m => m.default),
+		aliases: ["web-ui"],
+		help: commandHelp.webHelp,
 	},
 	{
 		name: "update",

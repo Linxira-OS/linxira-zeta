@@ -98,6 +98,14 @@ export const usageHelp = {
 	description: "Show provider usage limits for every authenticated account",
 } satisfies CommandMetadata;
 
+export const serveHelp = {
+	description: "Start Stats Dashboard and Web UI, then open the browser",
+} satisfies CommandMetadata;
+
+export const webHelp = {
+	description: "Start the Web UI server and open the browser",
+} satisfies CommandMetadata;
+
 export const worktreeHelp = {
 	description: "List or clear agent-managed git worktrees (~/.omp/wt)",
 } satisfies CommandMetadata;

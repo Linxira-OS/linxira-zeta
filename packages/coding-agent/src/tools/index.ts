@@ -63,6 +63,7 @@ import { ReadTool } from "./read";
 import type { PlanProposalHandler } from "./resolve";
 import { SecurityScanTool } from "./security-scan";
 import { type TodoPhase, TodoTool } from "./todo";
+import { TrackingTool } from "./tracking";
 import { WriteTool } from "./write";
 import { isMountableUnderXdev, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
@@ -103,6 +104,7 @@ export * from "./resolve";
 export * from "./review";
 export * from "./security-scan";
 export * from "./todo";
+export * from "./tracking";
 export * from "./tts";
 export * from "./vibe";
 export * from "./write";
@@ -441,6 +443,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reflect: MemoryReflectTool.createIf,
 	learn: LearnTool.createIf,
 	manage_skill: ManageSkillTool.createIf,
+	tracking_update: s => new TrackingTool(s),
 };
 
 export const HIDDEN_TOOLS: Record<HiddenToolName, ToolFactory> = {
