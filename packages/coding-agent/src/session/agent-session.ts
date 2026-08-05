@@ -334,6 +334,7 @@ import { ToolChoiceQueue } from "./tool-choice-queue";
 import { planTurnPersistence, sameMessageContent, sessionMessagePersistenceKey } from "./turn-persistence";
 import { TurnRecovery, type TurnRecoveryHost } from "./turn-recovery";
 import { YieldQueue } from "./yield-queue";
+import { ZetaContextManager, type ZetaContextManagerHost } from "./zeta-context-manager";
 
 export * from "./agent-session-events";
 export * from "./agent-session-types";
@@ -564,6 +565,7 @@ export class AgentSession {
 	#usagePreflightReadyModel: Model | undefined;
 	#detachUsageBeforeQueueDequeue: (() => void) | undefined;
 	#detachUsageBeforeModelCall: (() => void) | undefined;
+	#zetaContextManager: ZetaContextManager;
 
 	#transformContext: (messages: AgentMessage[], signal?: AbortSignal) => AgentMessage[] | Promise<AgentMessage[]>;
 	#onPayload: SimpleStreamOptions["onPayload"] | undefined;
@@ -1497,6 +1499,16 @@ export class AgentSession {
 		};
 		this.#maintenance = new SessionMaintenance(maintenanceHost);
 
+		const zetaContextManagerHost: ZetaContextManagerHost = {
+			settings: this.settings,
+			getContextUsage: options => this.getContextUsage(options),
+			runAutoCompaction: (reason, willRetry, deferred, allowDefer, options) =>
+				this.#maintenance.runAutoCompaction(reason, willRetry, deferred, allowDefer, options),
+			findLastAssistantMessage: () => this.#findLastAssistantMessage(),
+		};
+		this.#zetaContextManager = new ZetaContextManager(zetaContextManagerHost);
+		this.#zetaContextManager.register(this.agent);
+
 		const handoffHost: SessionHandoffHost = {
 			agent: this.agent,
 			sessionManager: this.sessionManager,
@@ -1608,6 +1620,9 @@ export class AgentSession {
 				reminder: [buildResolveReminderMessage(head.sourceToolName)],
 			};
 		}
+		// Zeta: State Machine A — memory write when context exceeds threshold
+		const memoryWrite = this.#zetaContextManager.getMemoryWriteRequirement();
+		if (memoryWrite !== undefined) return memoryWrite;
 		return undefined;
 	}
 
@@ -3650,6 +3665,7 @@ export class AgentSession {
 		this.#detachUsageBeforeQueueDequeue = undefined;
 		this.#detachUsageBeforeModelCall?.();
 		this.#detachUsageBeforeModelCall = undefined;
+		this.#zetaContextManager.unregister();
 		this.#memory.cancelLocalMemoryStartup();
 		this.#titleGenerationAbortController.abort();
 		this.#abortAutolearnCapture();

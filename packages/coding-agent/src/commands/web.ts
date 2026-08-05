@@ -1,14 +1,13 @@
 /**
  * `zeta web` — 启动 Web UI 服务器
  *
- * 启动 Web UI 服务器并自动打开浏览器。作为 `zeta serve --web-only` 的快捷方式。
+ * 使用 ZetaServer 统一 HTTP 反向代理启动 Web UI。作为 `zeta serve --web-only` 的快捷方式。
  */
 
 import { APP_NAME, logger } from "@zeta/pi-utils";
 import { Command, Flags } from "@zeta/pi-utils/cli";
 import chalk from "chalk";
-import { openPath } from "../utils/open";
-import { spawnWebUi } from "./web-ui-launcher";
+import { startZetaServer } from "../server/zeta-server";
 
 export default class Web extends Command {
 	static description = "Start the Web UI server and open the browser";
@@ -30,41 +29,43 @@ export default class Web extends Command {
 
 		const port = flags.port;
 		const noBrowser = flags["no-browser"];
-		const webUrl = `http://localhost:${port}`;
 
 		console.log(chalk.bold(`\n  ${APP_NAME} Web UI\n`));
 
-		let webUiChild: { kill: () => void } | null = null;
+		let instance: Awaited<ReturnType<typeof startZetaServer>> | null = null;
 		try {
-			webUiChild = await spawnWebUi(port);
-			console.log(chalk.green(`  Web UI:  ${webUrl}`));
+			instance = await startZetaServer({
+				port,
+				noBrowser,
+				webOnly: true,
+			});
+
+			console.log(chalk.green(`  Web UI:  ${instance.url}`));
+
+			console.log(chalk.dim(`\n  Press Ctrl+C to stop\n`));
+
+			const shutdown = () => {
+				console.log(chalk.dim("\n  Shutting down..."));
+				if (instance) {
+					instance.shutdown().catch(() => {});
+				}
+				process.exit(0);
+			};
+
+			process.on("SIGINT", shutdown);
+			process.on("SIGTERM", shutdown);
+
+			await new Promise(() => {});
 		} catch (err) {
-			logger.warn("Failed to start Web UI", {
+			logger.error("Failed to start Web UI", {
 				error: err instanceof Error ? err.message : String(err),
 			});
 			console.log(chalk.red(`  Failed to start Web UI: ${err instanceof Error ? err.message : err}`));
 			console.log(chalk.dim(`  Install with: npm install -g zeta-web`));
+			if (instance) {
+				await instance.shutdown().catch(() => {});
+			}
 			process.exit(1);
 		}
-
-		if (!noBrowser) {
-			await Bun.sleep(1500);
-			openPath(webUrl);
-		}
-
-		console.log(chalk.dim(`\n  Press Ctrl+C to stop\n`));
-
-		const shutdown = () => {
-			console.log(chalk.dim("\n  Shutting down..."));
-			if (webUiChild) {
-				webUiChild.kill();
-			}
-			process.exit(0);
-		};
-
-		process.on("SIGINT", shutdown);
-		process.on("SIGTERM", shutdown);
-
-		await new Promise(() => {});
 	}
 }

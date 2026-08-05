@@ -11,7 +11,7 @@ export function setupAntiGravityFetchInterceptor(): void {
   isAntiGravityInterceptorInstalled = true;
 
   const origFetch = globalThis.fetch;
-  globalThis.fetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const urlStr = String(url);
     if (
       urlStr.includes("cloudcode-pa.googleapis.com") ||
@@ -149,7 +149,7 @@ export function setupAntiGravityFetchInterceptor(): void {
     }
 
     return origFetch(url, init);
-  };
+  }) as typeof globalThis.fetch;
 }
 
 export interface OmpModelItem {

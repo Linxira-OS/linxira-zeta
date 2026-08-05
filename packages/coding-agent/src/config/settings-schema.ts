@@ -139,7 +139,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Agent",
 		"Git",
 	],
-	context: ["General", "Compaction", "Rules (TTSR)", "Experimental"],
+	context: ["General", "Compaction", "Zeta Context Cache", "Rules (TTSR)", "Experimental"],
 	memory: ["General", "Auto-Learn", "Mnemopi", "Hindsight"],
 	files: ["Editing", "Reading", "Read Summaries", "LSP"],
 	shell: ["Bash", "Eval & Runtimes"],
@@ -5597,6 +5597,52 @@ export const SETTINGS_SCHEMA = {
 	"thinkingBudgets.xhigh": { type: "number", default: 32768 },
 
 	"thinkingBudgets.max": { type: "number", default: 32768 },
+
+	// Zeta Context Cache — dual state machine thresholds
+	"zeta.contextCache.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "context",
+			group: "Zeta Context Cache",
+			label: "Enable Context Cache",
+			description: "Enable the dual state machine for context-aware memory writing and endTurn compaction",
+		},
+	},
+
+	"zeta.contextCache.thresholdTokens": {
+		type: "number",
+		default: 400000,
+		ui: {
+			tab: "context",
+			group: "Zeta Context Cache",
+			label: "Memory Write Threshold",
+			description: "Context token threshold that triggers a soft memory_edit requirement (State Machine A)",
+		},
+	},
+
+	"zeta.contextCache.memoryWriteEnabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "context",
+			group: "Zeta Context Cache",
+			label: "Memory Write (State Machine A)",
+			description:
+				"When context exceeds the threshold, prompt the model to save important info to memory via memory_edit",
+		},
+	},
+
+	"zeta.contextCache.endTurnCompactionEnabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "context",
+			group: "Zeta Context Cache",
+			label: "EndTurn Compaction (State Machine B)",
+			description: "Trigger auto-compaction when the model emits an endTurn tag",
+		},
+	},
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════════════

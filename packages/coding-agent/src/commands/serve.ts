@@ -1,15 +1,14 @@
 /**
  * `zeta serve` — 一键启动 Stats Dashboard + Web UI
  *
- * 启动后自动打开浏览器访问 Web UI。适用于开发环境（源码运行）和
- * 编译后的二进制分发。
+ * 使用 ZetaServer 统一 HTTP 反向代理，将 Web UI（Next.js）和 Stats Dashboard
+ * 作为内部后端，用户只需访问一个端口。
  */
 
 import { APP_NAME, logger } from "@zeta/pi-utils";
 import { Command, Flags } from "@zeta/pi-utils/cli";
 import chalk from "chalk";
-import { openPath } from "../utils/open";
-import { spawnWebUi } from "./web-ui-launcher";
+import { startZetaServer } from "../server/zeta-server";
 
 export default class Serve extends Command {
 	static description = "Start the Stats Dashboard and Web UI, then open the browser";
@@ -48,85 +47,50 @@ export default class Serve extends Command {
 		const statsOnly = flags["stats-only"];
 		const webOnly = flags["web-only"];
 
-		const webUrl = `http://localhost:${webPort}`;
-		const statsUrl = `http://localhost:${statsPort}`;
-
 		console.log(chalk.bold(`\n  ${APP_NAME} Serve\n`));
 
-		const cleanupFns: Array<() => void | Promise<void>> = [];
+		let instance: Awaited<ReturnType<typeof startZetaServer>> | null = null;
+		try {
+			instance = await startZetaServer({
+				port: webPort,
+				statsPort,
+				noBrowser,
+				statsOnly,
+				webOnly,
+			});
 
-		// Start Stats Dashboard
-		if (!webOnly) {
-			try {
-				const { startServer } = await import("@zeta/omp-stats");
-				await startServer(statsPort);
-				console.log(chalk.green(`  Stats Dashboard:  ${statsUrl}`));
-				cleanupFns.push(async () => {
-					try {
-						const { closeDb } = await import("@zeta/omp-stats");
-						closeDb();
-					} catch {}
-				});
-			} catch (err) {
-				logger.warn("Failed to start Stats Dashboard", {
-					error: err instanceof Error ? err.message : String(err),
-				});
-				console.log(
-					chalk.yellow(`  Stats Dashboard:  failed to start (${err instanceof Error ? err.message : err})`),
-				);
+			if (!webOnly && instance.statsUrl) {
+				console.log(chalk.green(`  Stats Dashboard:  ${instance.statsUrl}`));
 			}
+			if (!statsOnly && instance.url) {
+				console.log(chalk.green(`  Web UI:           ${instance.url}`));
+			}
+
+			console.log(chalk.dim(`\n  Press Ctrl+C to stop all services\n`));
+
+			// Graceful shutdown
+			const shutdown = () => {
+				console.log(chalk.dim("\n  Shutting down..."));
+				if (instance) {
+					instance.shutdown().catch(() => {});
+				}
+				process.exit(0);
+			};
+
+			process.on("SIGINT", shutdown);
+			process.on("SIGTERM", shutdown);
+
+			// Keep the process alive
+			await new Promise(() => {});
+		} catch (err) {
+			logger.error("Failed to start Zeta Server", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+			console.log(chalk.red(`  Failed to start: ${err instanceof Error ? err.message : err}`));
+			if (instance) {
+				await instance.shutdown().catch(() => {});
+			}
+			process.exit(1);
 		}
-
-		// Start Web UI
-		let webUiChild: { kill: () => void } | null = null;
-		if (!statsOnly) {
-			try {
-				webUiChild = await spawnWebUi(webPort);
-				console.log(chalk.green(`  Web UI:           ${webUrl}`));
-			} catch (err) {
-				logger.warn("Failed to start Web UI", {
-					error: err instanceof Error ? err.message : String(err),
-				});
-				console.log(
-					chalk.yellow(`  Web UI:           not available (${err instanceof Error ? err.message : err})`),
-				);
-				console.log(chalk.dim(`  Install with: npm install -g zeta-web`));
-			}
-		}
-
-		// Open browser
-		if (!noBrowser && webUiChild) {
-			// Wait a moment for the server to be ready
-			await Bun.sleep(1500);
-			openPath(webUrl);
-		} else if (!noBrowser && webOnly && !webUiChild) {
-			// Nothing to open
-		} else if (!noBrowser && !webUiChild && !webOnly) {
-			// Only stats is available
-			await Bun.sleep(1000);
-			openPath(statsUrl);
-		}
-
-		console.log(chalk.dim(`\n  Press Ctrl+C to stop all services\n`));
-
-		// Graceful shutdown
-		const shutdown = () => {
-			console.log(chalk.dim("\n  Shutting down..."));
-			if (webUiChild) {
-				webUiChild.kill();
-			}
-			for (const fn of cleanupFns) {
-				try {
-					fn();
-				} catch {}
-			}
-			process.exit(0);
-		};
-
-		process.on("SIGINT", shutdown);
-		process.on("SIGTERM", shutdown);
-
-		// Keep the process alive
-		await new Promise(() => {});
 	}
 }
