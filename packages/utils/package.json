@@ -31,10 +31,11 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@zeta/pi-natives": "catalog:",
+    "@oh-my-pi/pi-natives": "catalog:",
     "handlebars": "catalog:",
     "winston": "catalog:",
-    "winston-daily-rotate-file": "catalog:"
+    "winston-daily-rotate-file": "catalog:",
+    "@zeta/pi-natives": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

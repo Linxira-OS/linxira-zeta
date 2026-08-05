@@ -6,7 +6,7 @@ import * as natives from "@zeta/pi-natives";
 import { type } from "@zeta/pi-omptype";
 import type { Component } from "@zeta/pi-tui";
 import { Text } from "@zeta/pi-tui";
-import { formatGroupedPaths, isEnoent, prompt, untilAborted } from "@zeta/pi-utils";
+import { formatGroupedPaths, hasFsCode, isEnoent, prompt, untilAborted } from "@zeta/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n/messages";
 import { InternalUrlRouter } from "../internal-urls";
@@ -416,7 +416,9 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 				try {
 					stat = await fs.promises.stat(target.searchPath);
 				} catch (err) {
-					if (isEnoent(err)) {
+					// ENAMETOOLONG can never name a real target; surface a clean
+					// "Path not found" instead of leaking the raw errno (issue #7597).
+					if (isEnoent(err) || hasFsCode(err, "ENAMETOOLONG")) {
 						if (isSingle) throw new ToolError(`Path not found: ${scopePath}`);
 						return [];
 					}

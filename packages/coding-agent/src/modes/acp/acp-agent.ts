@@ -2315,17 +2315,15 @@ export class AcpAgent implements Agent {
 			this.#clientCapabilities,
 		);
 		if (this.#clientCapabilities?.elicitation?.form != null) {
-			record.session.setUsageFallbackConfirmer(confirmation => {
+			record.session.setUsageFallbackConfirmer((confirmation, signal) => {
 				const reserve =
 					confirmation.remainingPercent === undefined
 						? M.acpReserveMargin
 						: M.acpReservePercentFmt.replace("%s", confirmation.remainingPercent.toFixed(1));
 				return uiContext.confirm(
-					M.acpReserveTitle,
-					M.acpReserveBodyFmt
-						.replace("%s", confirmation.from)
-						.replace("%s", reserve)
-						.replace("%s", confirmation.to),
+					"Coding-plan reserve reached",
+					`${confirmation.from} has ${reserve}. Switch to ${confirmation.to}? Choose No to keep using the current plan.`,
+					{ signal },
 				);
 			});
 		}

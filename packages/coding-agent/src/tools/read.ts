@@ -738,6 +738,8 @@ export interface ReadToolDetails {
 	meta?: OutputMeta;
 	/** Full on-disk byte size recorded before applying a file range. */
 	fileSize?: number;
+	/** Full source line count when the read reached EOF and the count is exact. */
+	totalLines?: number;
 	/** Raw text + start line for user-visible TUI rendering, set when content is text-like.
 	 * Mirrors the same lines the model receives but without hashline/line-number prefixes,
 	 * so the TUI can render the file content with its own gutter without re-parsing the formatted text. */
@@ -1400,6 +1402,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		const details = options.details ?? {};
 		const allLines = text.split("\n");
 		const totalLines = allLines.length;
+		details.totalLines = totalLines;
 		// User-requested 0-indexed range start. Lines BEFORE this are leading
 		// context (added below if offset is explicit).
 		const requestedStart = offset ? Math.max(0, offset - 1) : 0;
@@ -1595,6 +1598,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		const details = options.details ?? {};
 		const allLines = text.split("\n");
 		const totalLines = allLines.length;
+		details.totalLines = totalLines;
 		const shouldAddHashLines = displayMode.hashLines;
 		const shouldAddLineNumbers = shouldAddHashLines ? false : displayMode.lineNumbers;
 		const hashContext =
@@ -2916,6 +2920,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						details = {};
 						sourcePath = absolutePath;
 					}
+					if (reachedEof) details.totalLines = totalFileLines;
 
 					if (hashContext?.tag) {
 						recordSeenLinesFromBody(this.session, absolutePath, hashContext.tag, outputText);
@@ -3247,6 +3252,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		if (!rawSelector && artifact.size > MAX_ARTIFACT_RAW_INLINE_BYTES) {
 			outputText += `\n\n[${this.#formatArtifactWorkflowNotice(artifact, artifactUrl)}]`;
 		}
+		if (reachedEof) details.totalLines = totalFileLines;
 		if (displayContent) details.displayContent = displayContent;
 		if (truncationInfo) details.truncation = truncationInfo.result;
 		const resultBuilder = toolResult<ReadToolDetails>(details)
