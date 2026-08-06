@@ -154,7 +154,9 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
  * 3. 全局安装的 zeta-web npm 包
  */
 function spawnEmbeddedWebUi(port: number): WebUiChild {
+	// PI_COMPILED 模式下，二进制旁边就是 web-ui 目录（便携版布局）
 	const candidates = [
+		path.join(path.dirname(process.execPath), "web-ui"),
 		path.join(process.cwd(), "web-ui"),
 		path.join(import.meta.dir, "..", "web-ui"),
 		path.join(import.meta.dir, "..", "..", "..", "web-ui"),

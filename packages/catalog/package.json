@@ -35,16 +35,14 @@
   },
   "dependencies": {
     "@bufbuild/protobuf": "catalog:",
-    "@oh-my-pi/omptype": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
+    "@zeta/omptype": "catalog:",
+    "@zeta/pi-utils": "catalog:",
     "zod": "catalog:",
-    "@zeta/pi-omptype": "catalog:",
-    "@zeta/pi-utils": "catalog:"
+    "@zeta/pi-omptype": "catalog:"
   },
   "devDependencies": {
-    "@oh-my-pi/pi-ai": "catalog:",
-    "@types/bun": "catalog:",
-    "@zeta/pi-ai": "catalog:"
+    "@zeta/pi-ai": "catalog:",
+    "@types/bun": "catalog:"
   },
   "engines": {
     "bun": ">=1.3.14"

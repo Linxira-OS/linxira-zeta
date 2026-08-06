@@ -35,7 +35,7 @@ interface BuildConfig {
 
 function getBuildConfig(): BuildConfig {
 	const args = Bun.argv.slice(2);
-	const platformFlag = args.find((a) => a.startsWith("--platform="))?.split("=")[1];
+	const platformFlag = args.find(a => a.startsWith("--platform="))?.split("=")[1];
 
 	const platform = platformFlag ?? process.platform;
 	const arch = process.arch === "arm64" ? "arm64" : "x64";
@@ -89,7 +89,7 @@ async function copyCliBinary(config: BuildConfig, outDir: string): Promise<void>
 	});
 }
 
-async function copyWebUi(config: BuildConfig, outDir: string): Promise<void> {
+async function copyWebUi(_config: BuildConfig, outDir: string): Promise<void> {
 	const nextDir = path.join(WEB_UI_DIR, ".next");
 	if (!fs.existsSync(path.join(nextDir, "BUILD_ID"))) {
 		throw new Error("Web UI not built. Run 'cd web-ui && npm run build' first.");
@@ -138,6 +138,12 @@ function copyNodeModules(webUiOutDir: string): void {
 
 async function createLauncher(config: BuildConfig, outDir: string): Promise<void> {
 	if (config.platform === "win32") {
+		// VBS 无窗口启动器 — 双击后不显示终端窗口，直接打开浏览器
+		const vbsContent = `CreateObject("WScript.Shell").Run ".\\zeta.exe serve", 0, False
+`;
+		await Bun.write(path.join(outDir, "start.vbs"), vbsContent);
+
+		// BAT 备用启动器（调试用）
 		const batContent = `@echo off
 title Zeta
 echo Starting Zeta...
@@ -146,6 +152,14 @@ echo.
 pause
 `;
 		await Bun.write(path.join(outDir, "start.bat"), batContent);
+
+		// 自述文件
+		const readmeContent = `Zeta 绿色版
+
+双击 start.vbs 启动（无窗口，自动打开浏览器）
+如遇问题，双击 start.bat 查看终端输出
+`;
+		await Bun.write(path.join(outDir, "README.txt"), readmeContent);
 	}
 }
 
@@ -159,7 +173,9 @@ async function createZip(config: BuildConfig, outDir: string): Promise<void> {
 		}
 
 		if (config.platform === "win32") {
-			await $`powershell -Command "Compress-Archive -Path '${outDir}\\*' -DestinationPath '${zipPath}' -Force"`.cwd(REPO_ROOT);
+			await $`powershell -Command "Compress-Archive -Path '${outDir}\\*' -DestinationPath '${zipPath}' -Force"`.cwd(
+				REPO_ROOT,
+			);
 		} else {
 			await $`zip -r ${zipPath} .`.cwd(outDir);
 		}
