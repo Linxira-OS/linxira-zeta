@@ -1,5 +1,5 @@
-import { once } from "@oh-my-pi/pi-utils";
 import { type } from "@zeta/pi-omptype";
+import { once } from "@zeta/pi-utils";
 
 export const getSecurityContractSchemas = once(() => {
 	const stringRecordSchema = type({ "[string]": "string" });

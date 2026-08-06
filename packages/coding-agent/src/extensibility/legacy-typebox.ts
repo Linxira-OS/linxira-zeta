@@ -1,4 +1,4 @@
-import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@oh-my-pi/pi-ai/utils/schema";
+import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@zeta/pi-ai/utils/schema";
 import {
 	type ObjectOpts,
 	Type as OmpType,

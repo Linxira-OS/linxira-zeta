@@ -99,7 +99,7 @@ export const usageHelp = {
 } satisfies CommandMetadata;
 
 export const serveHelp = {
-	description: "Start Stats Dashboard and Web UI, then open the browser",
+	description: "Start the Stats Dashboard and Web UI, then open the browser",
 } satisfies CommandMetadata;
 
 export const webHelp = {
