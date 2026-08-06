@@ -146,17 +146,14 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 }
 
 /**
- * 编译后二进制：从内嵌或同目录的 Web UI 资源启动。
+ * 编译后二进制：从同目录的 Web UI 资源启动。
  *
  * 查找顺序：
- * 1. 同目录下的 web-ui/ 目录（分发包结构）
- * 2. 上级目录的 web-ui/（monorepo 开发结构）
+ * 1. web-ui/.next/standalone/server.js（standalone 模式）
+ * 2. web-ui/.next/BUILD_ID + node_modules/next（普通构建）
  * 3. 全局安装的 zeta-web npm 包
- *
- * 使用 Bun.serve 代理到 Next.js standalone server。
  */
 function spawnEmbeddedWebUi(port: number): WebUiChild {
-	// 1. 查找同目录下的 web-ui standalone
 	const candidates = [
 		path.join(process.cwd(), "web-ui"),
 		path.join(import.meta.dir, "..", "web-ui"),
@@ -164,6 +161,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 	];
 
 	for (const dir of candidates) {
+		// 1. Standalone 模式
 		const serverJs = path.join(dir, ".next", "standalone", "server.js");
 		if (fs.existsSync(serverJs)) {
 			const child = Bun.spawn(["node", "server.js"], {
@@ -183,9 +181,32 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 				},
 			};
 		}
+
+		// 2. 普通 .next/ 构建 + 同目录 node_modules/next
+		const buildId = path.join(dir, ".next", "BUILD_ID");
+		const nextBin = path.join(dir, "node_modules", "next", "dist", "bin", "next");
+		if (fs.existsSync(buildId) && fs.existsSync(nextBin)) {
+			const child = Bun.spawn(["node", nextBin, "start", "-H", "127.0.0.1", "-p", String(port)], {
+				cwd: dir,
+				env: {
+					...process.env,
+					ZETA_WEB_HOSTNAME: "127.0.0.1",
+					ZETA_WEB_PORT: String(port),
+					ZETA_WEB_NO_OPEN: "1",
+				},
+				stdout: "inherit",
+				stderr: "inherit",
+			});
+
+			return {
+				kill: () => {
+					child.kill();
+				},
+			};
+		}
 	}
 
-	// 2. 尝试 zeta-web bin 脚本
+	// 3. 尝试 zeta-web bin 脚本
 	const binScript = path.join(import.meta.dir, "..", "web-ui", "bin", "zeta-web.js");
 	if (fs.existsSync(binScript)) {
 		const child = Bun.spawn(["node", binScript], {
@@ -207,6 +228,6 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 	}
 
 	throw new Error(
-		"Embedded Web UI not found. Place the web-ui standalone build next to the binary, or install zeta-web globally.",
+		"Embedded Web UI not found. Place the web-ui build next to the binary, or install zeta-web globally.",
 	);
 }

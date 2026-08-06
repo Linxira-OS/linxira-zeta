@@ -10,6 +10,10 @@ try {
 } catch { /* package not found, use default */ }
 
 const nextConfig: NextConfig = {
+  // 通过环境变量启用 standalone 输出模式（用于绿色版/便携版打包）
+  output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
+  // 仅在 standalone 模式下设置，避免开发模式下的警告
+  ...(process.env.NEXT_OUTPUT_STANDALONE === "1" ? { outputFileTracingRoot: join(__dirname, "..") } : {}),
   serverExternalPackages: [
     "better-sqlite3",
     "undici",
