@@ -197,7 +197,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tarball="$(npm view @zeta/pi-natives-linux-x64@latest dist.tarball)"
+              tarball="$(npm view @oh-my-pi/pi-natives-linux-x64@latest dist.tarball)"
               echo "Fetching $tarball"
               curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
               mkdir -p bazel-bin/natives-linux-x64-baseline bazel-bin/natives-linux-x64-modern
@@ -249,7 +249,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tarball="$(npm view @zeta/pi-natives-linux-x64@latest dist.tarball)"
+              tarball="$(npm view @oh-my-pi/pi-natives-linux-x64@latest dist.tarball)"
               echo "Fetching $tarball"
               curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
               mkdir -p bazel-bin/natives-linux-x64-baseline bazel-bin/natives-linux-x64-modern
