@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@bufbuild/protobuf": "catalog:",
-    "@zeta/omptype": "catalog:",
+    "@zeta/pi-omptype": "catalog:",
     "@zeta/pi-catalog": "catalog:",
     "@zeta/pi-utils": "catalog:",
     "@zeta/pi-wire": "catalog:",

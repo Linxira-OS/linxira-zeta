@@ -54,7 +54,7 @@
     "@mozilla/readability": "catalog:",
     "@zeta/hashline": "catalog:",
     "@zeta/omp-stats": "catalog:",
-    "@zeta/omptype": "catalog:",
+    "@zeta/pi-omptype": "catalog:",
     "@zeta/pi-agent-core": "catalog:",
     "@zeta/pi-ai": "catalog:",
     "@zeta/pi-catalog": "catalog:",

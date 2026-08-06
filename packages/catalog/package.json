@@ -35,10 +35,9 @@
   },
   "dependencies": {
     "@bufbuild/protobuf": "catalog:",
-    "@zeta/omptype": "catalog:",
+    "@zeta/pi-omptype": "catalog:",
     "@zeta/pi-utils": "catalog:",
-    "zod": "catalog:",
-    "@zeta/pi-omptype": "catalog:"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@zeta/pi-ai": "catalog:",
