@@ -5,8 +5,7 @@ import type {
 	ToolCallContent,
 	ToolCallLocation,
 	ToolKind,
-} from "@agentclientprotocol/sdk";
-import { M } from "../../i18n";
+} from "@zeta/pi-utils/acp";
 import { parseXdUrl } from "../../internal-urls/xd-protocol";
 import type { AgentSessionEvent } from "../../session/agent-session";
 import { resolveToCwd } from "../../tools/path-utils";
@@ -344,7 +343,7 @@ function mapAssistantMessageUpdate(
 			break;
 		case "error":
 			sessionUpdate = "agent_message_chunk";
-			text = event.assistantMessageEvent.error.errorMessage ?? M.ccUnknownError;
+			text = event.assistantMessageEvent.error.errorMessage ?? "Unknown error";
 			// The surfaced error is the message's visible text: keeps the
 			// message_end / agent_end fallbacks from emitting again.
 			if (text.length > 0 && progress) {

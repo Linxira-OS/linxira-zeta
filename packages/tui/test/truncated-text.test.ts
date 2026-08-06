@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
 import { TruncatedText } from "@zeta/pi-tui/components/truncated-text";
 import { visibleWidth } from "@zeta/pi-tui/utils";
-import { Chalk } from "chalk";
+import { Chalk } from "@zeta/pi-utils/chalk";
 
 // Force full color in CI so ANSI assertions are deterministic
 const chalk = new Chalk({ level: 3 });

@@ -26,7 +26,7 @@ import {
 	readImageMetadata,
 	untilAborted,
 } from "@zeta/pi-utils";
-import { LRUCache } from "lru-cache/raw";
+import { LRUCache } from "@zeta/pi-utils/lru";
 import {
 	canonicalSnapshotKey,
 	getFileSnapshotStore,
@@ -722,6 +722,10 @@ const readSchema = type({
 	),
 });
 
+const readSchemaWithoutMemory = type({
+	path: type("string").describe("Local path, internal URI (e.g. skill://), or URL. Inline selectors are supported."),
+});
+
 export type ReadToolInput = typeof readSchema.infer;
 
 export interface ReadToolDetails {
@@ -867,7 +871,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	readonly label = "Read";
 	readonly loadMode = "essential";
 	description: string;
-	readonly parameters = readSchema;
+	get parameters(): typeof readSchema {
+		return this.session.settings.get("memory.backend") === "off" ? readSchemaWithoutMemory : readSchema;
+	}
 	readonly strict = true;
 
 	readonly #autoResizeImages: boolean;
@@ -963,8 +969,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	async #tryReadDelimitedPaths(
 		readPath: string,
 		signal?: AbortSignal,
+		routedUrlPredicate?: (entry: string) => boolean,
 	): Promise<AgentToolResult<ReadToolDetails> | null> {
-		const parts = await splitDelimitedPathEntry(readPath, this.session.cwd);
+		const parts = await splitDelimitedPathEntry(readPath, this.session.cwd, { routedUrlPredicate });
 		if (!parts) return null;
 
 		const notice = `Note: interpreted as ${parts.length} paths: ${parts.join(", ")}`;
@@ -2307,9 +2314,13 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		}
 
 		// Handle native OMP URLs and custom-scheme resources advertised by MCP servers.
-		// Use the internal-URL-aware splitter so malformed selectors are peeled
-		// off the URL and surfaced via parseSel rather than confusing handlers.
 		const internalRouter = InternalUrlRouter.instance();
+		const delimitedInternalResult = internalRouter.canResolve(readPath)
+			? await this.#tryReadDelimitedPaths(readPath, signal, entry => internalRouter.canResolve(entry))
+			: null;
+		if (delimitedInternalResult) return delimitedInternalResult;
+
+		// Peel malformed selectors through the internal-URL-aware parser before routing.
 		let promotedSelector: string | undefined;
 		if (internalRouter.canResolve(readPath)) {
 			const internalTarget = splitInternalUrlSel(readPath);

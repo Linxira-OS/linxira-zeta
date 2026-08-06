@@ -11,7 +11,7 @@ import type {
 	ClientCapabilities,
 	RequestPermissionRequest,
 	ToolCallUpdate,
-} from "@agentclientprotocol/sdk";
+} from "@zeta/pi-utils/acp";
 import type {
 	ClientBridge,
 	ClientBridgeCapabilities,

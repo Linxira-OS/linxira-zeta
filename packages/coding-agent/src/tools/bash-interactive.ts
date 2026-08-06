@@ -1,5 +1,3 @@
-import type * as XtermModule from "@xterm/headless";
-import type { Terminal as XtermTerminalType } from "@xterm/headless";
 import type { AgentToolContext } from "@zeta/pi-agent-core";
 import { type PtyRunResult, PtySession } from "@zeta/pi-natives";
 import {
@@ -13,6 +11,8 @@ import {
 	visibleWidth,
 } from "@zeta/pi-tui";
 import { sanitizeText } from "@zeta/pi-utils";
+import type * as XtermModule from "@zeta/pi-utils/vterm";
+import type { Terminal as XtermTerminalType } from "@zeta/pi-utils/vterm";
 import { Settings } from "../config/settings";
 import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
@@ -37,13 +37,13 @@ function normalizeCaptureChunk(chunk: string): string {
 // source of truth for the final captured output.
 const MAX_LIVE_WRITE_QUEUE_CHUNKS = 512;
 
-// @xterm/headless is only needed once an interactive PTY session actually starts,
+// The virtual terminal is only needed once an interactive PTY session actually starts,
 // so it is loaded lazily (and memoized) instead of weighing down CLI startup.
 let xtermTerminalCtor: typeof XtermModule.Terminal | undefined;
 
 async function loadXtermTerminal(): Promise<typeof XtermModule.Terminal> {
 	if (!xtermTerminalCtor) {
-		const mod = (await import("@xterm/headless")) as typeof XtermModule & { default?: typeof XtermModule };
+		const mod = (await import("@zeta/pi-utils/vterm")) as typeof XtermModule & { default?: typeof XtermModule };
 		xtermTerminalCtor = (mod.default ?? mod).Terminal;
 	}
 	return xtermTerminalCtor;

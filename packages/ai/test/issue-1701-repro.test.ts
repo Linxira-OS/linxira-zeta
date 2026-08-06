@@ -5,8 +5,8 @@ import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completion
 import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
 import type { Context, Model, Tool, ToolChoice } from "@zeta/pi-ai/types";
 import { buildModel } from "@zeta/pi-catalog/build";
+import { type } from "@zeta/pi-omptype";
 import * as piUtils from "@zeta/pi-utils";
-import { z } from "zod/v4";
 
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -73,19 +73,19 @@ const codexModel: Model<"openai-codex-responses"> = buildModel({
 const forkAgentTool: Tool = {
 	name: "fork_agent",
 	description: "Fork a subagent",
-	parameters: z.object({ prompt: z.string() }),
+	parameters: type({ prompt: type("string") }),
 };
 
 const searchTool: Tool = {
 	name: "dataforseo_search",
 	description: "Search via DataForSEO",
-	parameters: z.object({ query: z.string() }),
+	parameters: type({ query: type("string") }),
 };
 
 const todoTool: Tool = {
 	name: "todo",
 	description: "Manage a phased task list",
-	parameters: z.object({ ops: z.array(z.object({ op: z.string() })) }),
+	parameters: type({ ops: type.array(type({ op: type("string") })) }),
 };
 
 const absentTodoContext: Context = {

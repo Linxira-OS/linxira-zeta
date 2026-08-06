@@ -12,7 +12,7 @@ import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/t
 import * as themeModule from "@zeta/pi-coding-agent/modes/theme/theme";
 import { Text, type TUI, visibleWidth } from "@zeta/pi-tui";
 import { removeWithRetries } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 
 beforeAll(async () => {
 	resetSettingsForTest();

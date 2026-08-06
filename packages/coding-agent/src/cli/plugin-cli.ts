@@ -5,7 +5,7 @@
  */
 
 import { APP_NAME, getProjectDir } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { resolveOrDefaultProjectRegistryPath } from "../discovery/helpers";
 import { PluginManager, parseSettingValue, validateSetting } from "../extensibility/plugins";
 import {

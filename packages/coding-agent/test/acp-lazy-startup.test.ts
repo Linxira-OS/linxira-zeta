@@ -1,5 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import type { Model } from "@zeta/pi-ai";
+import { buildModel } from "@zeta/pi-catalog/build";
+import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { createAcpConnection } from "@zeta/pi-coding-agent/modes/acp/acp-mode";
+import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { TempDir } from "@zeta/pi-utils";
 import {
 	type Client,
 	ClientSideConnection,
@@ -9,15 +17,7 @@ import {
 	type RequestPermissionRequest,
 	type RequestPermissionResponse,
 	type SessionNotification,
-} from "@agentclientprotocol/sdk";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createAcpConnection } from "@zeta/pi-coding-agent/modes/acp/acp-mode";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+} from "@zeta/pi-utils/acp";
 
 const TEST_MODEL: Model = buildModel({
 	id: "claude-sonnet-4-20250514",
@@ -442,7 +442,7 @@ describe("ACP lazy startup", () => {
 			expect(initializeResponse).toEqual(
 				expect.objectContaining({
 					protocolVersion: 1,
-					agentInfo: expect.objectContaining({ name: "zeta" }),
+					agentInfo: expect.objectContaining({ name: "oh-my-pi" }),
 				}),
 			);
 			expect(createCalls).toBe(0);

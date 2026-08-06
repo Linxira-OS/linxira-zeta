@@ -2,12 +2,12 @@ import { HookEditorComponent, HookInputComponent, HookSelectorComponent } from "
 
 // Core session management
 
+export * as zod from "@zeta/pi-omptype/zod";
+export { z } from "@zeta/pi-omptype/zod";
 // Re-export TUI components for custom tool rendering
 export { Container, Markdown, Spacer, Text } from "@zeta/pi-tui";
 // Logging
 export { getAgentDir, logger, VERSION } from "@zeta/pi-utils";
-export * as zod from "zod/v4";
-export { z } from "zod/v4";
 export * from "./config/keybindings";
 export * from "./config/model-registry";
 // Prompt templates

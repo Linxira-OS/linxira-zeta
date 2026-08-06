@@ -8,7 +8,6 @@ import {
 	type Model,
 	type ModelUsageHealth,
 	type ProviderSessionState,
-	z,
 } from "@zeta/pi-ai";
 import { createMockModel } from "@zeta/pi-ai/providers/mock";
 import { buildModel } from "@zeta/pi-catalog/build";
@@ -26,6 +25,7 @@ import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
 import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
 
 type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;
@@ -978,7 +978,7 @@ describe("AgentSession retry fallback", () => {
 		if (!primaryModel) throw new Error("Expected bundled tool-continuation model");
 		const requestedModels: string[] = [];
 		let useReserve = false;
-		const toolSchema = z.object({ value: z.string() });
+		const toolSchema = type({ value: type("string") });
 		const tool: AgentTool<typeof toolSchema, { value: string }> = {
 			name: "consume",
 			label: "Consume",

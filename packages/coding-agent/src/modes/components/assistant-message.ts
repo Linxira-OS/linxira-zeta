@@ -11,7 +11,7 @@ import {
 	Text,
 } from "@zeta/pi-tui";
 import { formatNumber } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import type { AssistantThinkingRenderer } from "../../extensibility/extensions/types";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import { expandKeyHint, getPreviewLines, resolveImageOptions, TRUNCATE_LENGTHS } from "../../tools/render-utils";

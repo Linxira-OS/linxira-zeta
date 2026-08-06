@@ -5,8 +5,8 @@ import { type ApiKey, getOpenRouterHeaders, withAuth } from "@zeta/pi-ai";
 import { ProviderHttpError } from "@zeta/pi-ai/error";
 import { hostMatchesUrl } from "@zeta/pi-catalog/hosts";
 import { $env, $flag, extractHttpStatusFromError, fetchWithRetry, getFastembedCacheDir, logger } from "@zeta/pi-utils";
+import { LRUCache } from "@zeta/pi-utils/lru";
 import type { EmbeddingModel } from "fastembed";
-import { LRUCache } from "lru-cache/raw";
 import { ensureFastembedModelSidecars } from "./fastembed-model-cache";
 import { loadFastembed } from "./fastembed-runtime";
 import {

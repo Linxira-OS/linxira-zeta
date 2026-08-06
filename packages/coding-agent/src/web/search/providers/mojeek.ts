@@ -1,6 +1,6 @@
 import type { AuthStorage } from "@zeta/pi-ai";
 import { untilAborted } from "@zeta/pi-utils";
-import { parseHTML } from "linkedom";
+import { parseHTML } from "@zeta/pi-utils/dom";
 import type { Page } from "puppeteer-core";
 import type { SearchResponse, SearchSource } from "../../../web/search/types";
 import { SearchProviderError } from "../../../web/search/types";

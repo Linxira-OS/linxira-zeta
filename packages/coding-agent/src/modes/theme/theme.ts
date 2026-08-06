@@ -20,8 +20,8 @@ import type {
 	TerminalAppearance,
 } from "@zeta/pi-tui";
 import { adjustHsv, colorLuma, getCustomThemesDir, isEnoent, logger, relativeLuminance } from "@zeta/pi-utils";
-import chalk from "chalk";
-import { LRUCache } from "lru-cache/raw";
+import chalk from "@zeta/pi-utils/chalk";
+import { LRUCache } from "@zeta/pi-utils/lru";
 // Embed theme JSON files at build time
 import darkThemeJson from "./dark.json" with { type: "json" };
 import { defaultThemes } from "./defaults";

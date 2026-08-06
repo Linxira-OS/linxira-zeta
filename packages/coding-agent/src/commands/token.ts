@@ -3,8 +3,8 @@
  */
 
 import { PROVIDER_REGISTRY } from "@zeta/pi-ai";
+import chalk from "@zeta/pi-utils/chalk";
 import { Args, Command, Flags } from "@zeta/pi-utils/cli";
-import chalk from "chalk";
 import { tokenHelp as commandHelp } from "../cli/command-help";
 import { isAuthenticated, ModelRegistry } from "../config/model-registry";
 import { discoverAuthStorage } from "../sdk";

@@ -1,5 +1,5 @@
 import type { AuthStorage } from "@zeta/pi-ai";
-import { parseHTML } from "linkedom";
+import { type Element, parseHTML } from "@zeta/pi-utils/dom";
 import type { SearchResponse, SearchSource } from "../../../web/search/types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatScraperQuery } from "../query";

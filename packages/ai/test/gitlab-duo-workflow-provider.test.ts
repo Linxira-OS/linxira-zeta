@@ -40,8 +40,8 @@ import type {
 } from "@zeta/pi-ai/types";
 import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
 import { buildModel } from "@zeta/pi-catalog/build";
+import { type } from "@zeta/pi-omptype";
 import { extractHttpStatusFromError } from "@zeta/pi-utils";
-import { z } from "zod/v4";
 
 beforeAll(() => configureCredentialRedaction(true));
 afterAll(() => configureCredentialRedaction(false));
@@ -67,13 +67,13 @@ const context: Context = {
 const editTool: Tool = {
 	name: "edit",
 	description: "Apply a hashline patch.",
-	parameters: z.object({ input: z.string() }),
+	parameters: type({ input: type("string") }),
 };
 
 const nativeTools: Tool[] = ["read", "write", "grep", "glob", "bash", "lsp", "todo"].map(name => ({
 	name,
 	description: `${name} native bridge`,
-	parameters: z.object({}),
+	parameters: type({}),
 }));
 
 function restoreOptionalEnv(name: string, value: string | undefined): void {

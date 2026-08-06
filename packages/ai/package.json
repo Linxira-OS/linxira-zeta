@@ -41,8 +41,7 @@
     "@zeta/pi-omptype": "catalog:",
     "@zeta/pi-catalog": "catalog:",
     "@zeta/pi-utils": "catalog:",
-    "@zeta/pi-wire": "catalog:",
-    "zod": "catalog:"
+    "@zeta/pi-wire": "catalog:"
   },
   "devDependencies": {
     "@bufbuild/protoc-gen-es": "catalog:",

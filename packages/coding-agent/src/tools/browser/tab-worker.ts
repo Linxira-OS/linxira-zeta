@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { postmortem, Snowflake, untilAborted, withTimeout } from "@zeta/pi-utils";
-import type { HTMLElement } from "linkedom";
+import type { HTMLElement } from "@zeta/pi-utils/dom";
 import type {
 	Browser,
 	CDPSession,

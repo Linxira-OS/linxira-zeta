@@ -42,8 +42,7 @@
     "@zeta/pi-ai": "catalog:",
     "@zeta/pi-catalog": "catalog:",
     "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-utils": "catalog:",
-    "lru-cache": "catalog:"
+    "@zeta/pi-utils": "catalog:"
   },
   "peerDependencies": {
     "fastembed": "2.1.0",

@@ -42,8 +42,8 @@ import {
 	type ToolCall,
 } from "@zeta/pi-ai";
 import { type GeneratedProvider, getBundledModel } from "@zeta/pi-catalog/models";
+import { type } from "@zeta/pi-omptype";
 import { getAgentDbPath } from "@zeta/pi-utils";
-import { z } from "zod/v4";
 import {
 	type ChangelogDocument,
 	changelogPaths,
@@ -151,15 +151,13 @@ interface RewrittenSection {
 	items: string[];
 }
 
-const REWRITE_RESPONSE = z.object({
-	sections: z
-		.array(
-			z.object({
-				category: z.enum(["Breaking Changes", "Added", "Changed", "Fixed", "Removed"]),
-				items: z.array(z.string()),
-			}),
-		)
-		.default([]),
+const REWRITE_RESPONSE = type({
+	sections: type({
+		category: "'Breaking Changes' | 'Added' | 'Changed' | 'Fixed' | 'Removed'",
+		items: "string[]",
+	})
+		.array()
+		.default(() => []),
 });
 
 const REWRITE_PARAMETERS = {
@@ -198,11 +196,11 @@ const REWRITE_TOOL: Tool = {
 };
 
 function validateRewrite(args: Record<string, unknown>): RewrittenSection[] {
-	const parsed = REWRITE_RESPONSE.safeParse(args);
-	if (!parsed.success) {
-		throw new Error(`invalid tool arguments: ${parsed.error.issues.map(issue => issue.message).join("; ")}`);
+	const parsed = REWRITE_RESPONSE(args);
+	if (parsed instanceof type.errors) {
+		throw new Error(`invalid tool arguments: ${parsed.summary}`);
 	}
-	return parsed.data.sections
+	return parsed.sections
 		.map(sec => ({
 			category: sec.category,
 			items: sec.items.map(item => item.trim()).filter(Boolean),

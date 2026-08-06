@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@zeta/pi-natives": "catalog:",
-    "lru-cache": "catalog:"
+    "@zeta/pi-utils": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

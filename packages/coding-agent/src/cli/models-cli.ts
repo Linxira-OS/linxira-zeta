@@ -14,7 +14,7 @@
 import type { Api, Effort, Model } from "@zeta/pi-ai";
 import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
 import { formatNumber, getProjectDir } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAndLoadExtensions, ExtensionRunner, emitSessionShutdownEvent } from "../extensibility/extensions";

@@ -27,7 +27,7 @@ import { DEFAULT_MODEL_PER_PROVIDER } from "@zeta/pi-catalog/provider-models";
 import { resolveBareVariantAlias, resolveVariantAlias } from "@zeta/pi-catalog/variant-collapse";
 import { fuzzyMatch } from "@zeta/pi-tui";
 import { logger } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import {
 	AUTO_THINKING,

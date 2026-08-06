@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "@zeta/pi-utils/dates";
 
 export function formatInteger(value: number): string {
 	return value.toLocaleString();

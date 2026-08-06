@@ -37,9 +37,9 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
+    "@zeta/pi-utils": "catalog:",
     "@zeta/pi-wire": "catalog:",
     "lucide-react": "catalog:",
-    "marked": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

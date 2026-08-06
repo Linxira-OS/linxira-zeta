@@ -9,7 +9,7 @@ import { Text } from "@zeta/pi-tui/components/text";
 import { ProcessTerminal } from "@zeta/pi-tui/terminal";
 import { TUI } from "@zeta/pi-tui/tui";
 import { getProjectDir } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { defaultEditorTheme, defaultMarkdownTheme } from "./test-themes";
 
 // Create terminal

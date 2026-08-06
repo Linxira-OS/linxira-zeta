@@ -1,6 +1,6 @@
 import "@zeta/pi-utils/env";
+import chalk from "@zeta/pi-utils/chalk";
 import { APP_NAME, CONFIG_DIR_NAME } from "@zeta/pi-utils/dirs";
-import chalk from "chalk";
 
 export function getExtraHelpText(): string {
 	return `${chalk.bold("Environment Variables:")}

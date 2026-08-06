@@ -6,7 +6,7 @@
 import * as path from "node:path";
 import { GrepOutputMode, grep } from "@zeta/pi-natives";
 import { APP_NAME } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { expandPath } from "../tools/path-utils";
 
 export interface GrepCommandArgs {

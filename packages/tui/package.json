@@ -38,12 +38,9 @@
   },
   "dependencies": {
     "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-utils": "catalog:",
-    "lru-cache": "catalog:",
-    "marked": "catalog:"
+    "@zeta/pi-utils": "catalog:"
   },
   "devDependencies": {
-    "chalk": "catalog:",
     "ghostty-web": "catalog:"
   },
   "engines": {

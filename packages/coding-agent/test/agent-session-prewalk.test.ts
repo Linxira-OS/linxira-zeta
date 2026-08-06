@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { Agent, type AgentTool, ThinkingLevel } from "@zeta/pi-agent-core";
-import { type Api, Effort, type Model, z } from "@zeta/pi-ai";
+import { type Api, Effort, type Model } from "@zeta/pi-ai";
 import { createMockModel, type MockResponse } from "@zeta/pi-ai/providers/mock";
 import { getBundledModel } from "@zeta/pi-catalog/models";
 import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
@@ -11,6 +11,7 @@ import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import { AUTO_THINKING } from "@zeta/pi-coding-agent/thinking";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
 
 /**
@@ -45,7 +46,7 @@ describe("AgentSession prewalk", () => {
 		return model;
 	}
 
-	const recordToolSchema = z.object({});
+	const recordToolSchema = type({});
 	const recordTool: AgentTool<typeof recordToolSchema, undefined> = {
 		name: "record",
 		label: "Record",
@@ -55,7 +56,7 @@ describe("AgentSession prewalk", () => {
 			return { content: [{ type: "text", text: "ok" }], details: undefined };
 		},
 	};
-	const bashToolSchema = z.object({});
+	const bashToolSchema = type({});
 	const bashTool: AgentTool<typeof bashToolSchema, undefined> = {
 		name: "bash",
 		label: "Bash",
@@ -65,7 +66,7 @@ describe("AgentSession prewalk", () => {
 			return { content: [{ type: "text", text: "ran" }], details: undefined };
 		},
 	};
-	const writeToolSchema = z.object({});
+	const writeToolSchema = type({});
 	const writeTool: AgentTool<typeof writeToolSchema, undefined> = {
 		name: "write",
 		label: "Write",
@@ -75,7 +76,7 @@ describe("AgentSession prewalk", () => {
 			return { content: [{ type: "text", text: "wrote" }], details: undefined };
 		},
 	};
-	const todoToolSchema = z.object({});
+	const todoToolSchema = type({});
 	const todoTool: AgentTool<typeof todoToolSchema, undefined> = {
 		name: "todo",
 		label: "Todo",

@@ -1,5 +1,5 @@
-import xterm, { type Terminal as XtermTerminal } from "@xterm/headless";
 import { logger } from "@zeta/pi-utils";
+import xterm, { type Terminal as XtermTerminal } from "@zeta/pi-utils/vterm";
 import { readTerminalRows } from "../tools/terminal-output";
 import { DAEMON_PTY_COLUMNS, DAEMON_PTY_ROWS } from "./protocol";
 

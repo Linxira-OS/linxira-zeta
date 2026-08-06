@@ -14,7 +14,7 @@ import type {
 import { streamSimple } from "@zeta/pi-ai";
 import { replaceTabs, truncateToWidth } from "@zeta/pi-tui";
 import { formatDuration, getProjectDir } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import {
 	formatModelString,

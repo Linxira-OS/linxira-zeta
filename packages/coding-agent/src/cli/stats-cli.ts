@@ -6,7 +6,7 @@
 
 import { truncateToWidth } from "@zeta/pi-tui/utils";
 import { APP_NAME, formatDuration, formatNumber, formatPercent } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { openPath } from "../utils/open";
 
 /**

@@ -4,7 +4,7 @@ import { GreenCommand } from "@zeta/pi-coding-agent/extensibility/custom-command
 import type { CustomCommandAPI } from "@zeta/pi-coding-agent/extensibility/custom-commands/types";
 import type { HookCommandContext } from "@zeta/pi-coding-agent/extensibility/hooks/types";
 import * as git from "@zeta/pi-coding-agent/utils/git";
-import * as arktype from "@zeta/pi-omptype";
+import { type } from "@zeta/pi-omptype";
 import type * as TypeBox from "@zeta/pi-omptype/typebox";
 import * as zod from "@zeta/pi-omptype/zod";
 
@@ -22,7 +22,7 @@ function createApi(): CustomCommandAPI {
 			killed: false,
 		}),
 		typebox: {} as unknown as typeof TypeBox,
-		arktype,
+		arktype: type,
 		zod,
 		pi: piCodingAgent,
 	};

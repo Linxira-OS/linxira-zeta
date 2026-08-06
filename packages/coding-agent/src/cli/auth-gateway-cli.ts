@@ -33,9 +33,8 @@ import {
 import { DEFAULT_AUTH_GATEWAY_BIND, startAuthGateway } from "@zeta/pi-ai/auth-gateway";
 import { type GeneratedProvider, getBundledModels } from "@zeta/pi-catalog/models";
 import { getConfigRootDir, isEnoent, logger, VERSION } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
-import { M } from "../i18n/messages";
 import { type AuthBrokerClientConfig, resolveAuthBrokerConfig } from "../session/auth-broker-config";
 
 export type AuthGatewayAction = "serve" | "token" | "status" | "check";
@@ -637,7 +636,7 @@ async function runCheck(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 								? chalk.red("FAIL    ")
 								: chalk.yellow("unknown ");
 					const base =
-						row.email ?? row.accountId ?? (row.type === "api_key" ? M.abkApiKey : M.agwNoIdentityOnCredential);
+						row.email ?? row.accountId ?? (row.type === "api_key" ? "(api key)" : "(no identity on credential)");
 					// Two subscriptions (orgs) can share one email — without the org a
 					// failed row can't say which subscription needs re-login.
 					const org = row.orgName ?? row.orgId;

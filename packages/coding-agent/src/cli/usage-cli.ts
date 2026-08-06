@@ -18,7 +18,7 @@ import {
 	type UsageUnit,
 } from "@zeta/pi-ai";
 import { formatDuration, formatNumber, sanitizeText } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { discoverAuthStorage } from "../sdk";
 

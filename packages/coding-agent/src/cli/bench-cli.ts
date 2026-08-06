@@ -17,7 +17,7 @@ import { resolveModelServiceTier, streamSimple } from "@zeta/pi-ai";
 import { buildModelProviderPriorityRank } from "@zeta/pi-catalog/identity";
 import { replaceTabs, truncateToWidth } from "@zeta/pi-tui";
 import { formatDuration, getProjectDir, prompt } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import type { ApiKeyResolverModel } from "../config/api-key-resolver";
 import { ModelRegistry } from "../config/model-registry";
 import {

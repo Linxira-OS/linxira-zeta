@@ -4,7 +4,7 @@ import { type } from "@zeta/pi-omptype";
 import type { Component } from "@zeta/pi-tui";
 import { Text } from "@zeta/pi-tui";
 import { isRecord, prompt, sanitizeText } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";

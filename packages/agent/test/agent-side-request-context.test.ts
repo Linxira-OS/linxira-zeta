@@ -1,8 +1,9 @@
 import { describe, expect, it, mock } from "bun:test";
-import { type AssistantMessage, type Context, z } from "@zeta/pi-ai";
+import type { AssistantMessage, Context } from "@zeta/pi-ai";
 import { createMockModel } from "@zeta/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
 import { buildModel } from "@zeta/pi-catalog/build";
+import { type } from "@zeta/pi-omptype";
 import { Agent } from "../src/agent";
 import type { AgentTool } from "../src/types";
 
@@ -59,7 +60,7 @@ describe("Agent — buildSideRequestContext", () => {
 		name: "test_tool",
 		label: "Test Tool",
 		description: "a cool tool",
-		parameters: z.object({ arg: z.string() }) as unknown as AgentTool["parameters"],
+		parameters: type({ arg: type("string") }) as unknown as AgentTool["parameters"],
 		execute: async () => ({ content: [{ type: "text", text: "success" }], details: { value: "success" } }),
 	};
 

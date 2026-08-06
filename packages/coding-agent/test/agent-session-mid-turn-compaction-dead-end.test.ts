@@ -3,7 +3,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Agent, type AgentTool } from "@zeta/pi-agent-core";
 import * as compactionModule from "@zeta/pi-agent-core/compaction";
-import { z } from "@zeta/pi-ai";
 import { createMockModel, type MockResponse } from "@zeta/pi-ai/providers/mock";
 import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
 import { Settings } from "@zeta/pi-coding-agent/config/settings";
@@ -13,9 +12,10 @@ import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import { getProjectAgentDir, TempDir } from "@zeta/pi-utils";
 
-const noopSchema = z.object({});
+const noopSchema = type({});
 const noopTool: AgentTool<typeof noopSchema, undefined> = {
 	name: "noop",
 	label: "No-op",

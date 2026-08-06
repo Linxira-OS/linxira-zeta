@@ -7,7 +7,7 @@ import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Shell } from "@zeta/pi-natives";
 import { APP_NAME, getProjectDir } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import { Settings } from "../config/settings";
 import { buildMinimizerOptions } from "../exec/bash-executor";
 import { getOrCreateSnapshot } from "../utils/shell-snapshot";

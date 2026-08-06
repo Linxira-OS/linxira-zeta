@@ -26,6 +26,7 @@ import * as AIError from "@zeta/pi-ai/error";
 import { createOpenAICodexCompactionRequestContext } from "@zeta/pi-ai/providers/openai-codex-responses";
 import { convertTools } from "@zeta/pi-ai/providers/openai-responses";
 import { buildResponsesInput, resolveOpenAICompatPolicy } from "@zeta/pi-ai/providers/openai-shared";
+import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@zeta/pi-ai/utils";
 import { preferredDialect } from "@zeta/pi-catalog/identity";
 import { clampThinkingLevelForModel } from "@zeta/pi-catalog/model-thinking";
 import { isRecord, logger, prompt, stringifyJson } from "@zeta/pi-utils";
@@ -1351,7 +1352,9 @@ function buildOpenAiResponsesCompactionInput(
 		}
 		nativeInput.push(item);
 	}
-	return previousReplacementHistory ? [...previousReplacementHistory, ...nativeInput] : nativeInput;
+	return stripOpenAIResponsesOutputOnlyStatusesForReplay(
+		previousReplacementHistory ? [...previousReplacementHistory, ...nativeInput] : nativeInput,
+	);
 }
 
 /**

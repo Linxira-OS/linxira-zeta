@@ -4,8 +4,9 @@ import { generateHandoff, generateHandoffFromContext, renderHandoffPrompt } from
 import { ThinkingLevel } from "@zeta/pi-agent-core/thinking";
 import type { AssistantMessage, Model, ToolCall } from "@zeta/pi-ai";
 import * as ai from "@zeta/pi-ai";
-import { Effort, z } from "@zeta/pi-ai";
+import { Effort } from "@zeta/pi-ai";
 import { getBundledModel } from "@zeta/pi-catalog/models";
+import { type } from "@zeta/pi-omptype";
 
 function createAssistantMessage(content: AssistantMessage["content"]): AssistantMessage {
 	return {
@@ -36,7 +37,7 @@ function createAssistantError(errorStatus: number, errorMessage: string): Assist
 	};
 }
 
-const handoffToolSchema = z.object({ note: z.string().optional() });
+const handoffToolSchema = type({ note: type("string").optional() });
 
 function createHandoffTool(): AgentTool<typeof handoffToolSchema> {
 	return {

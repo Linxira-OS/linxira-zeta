@@ -3,7 +3,7 @@ import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completion
 import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
 import type { Context, Model, ModelSpec, Tool, ToolChoice } from "@zeta/pi-ai/types";
 import { buildModel } from "@zeta/pi-catalog/build";
-import { z } from "zod/v4";
+import { type } from "@zeta/pi-omptype";
 
 interface ChatCompletionsPayload {
 	tool_choice?: unknown;
@@ -18,13 +18,13 @@ interface ResponsesPayload {
 const resolveTool: Tool = {
 	name: "resolve",
 	description: "Apply or discard a pending preview",
-	parameters: z.object({ action: z.enum(["apply", "discard"]), reason: z.string() }),
+	parameters: type({ action: type.enumeration(["apply", "discard"]), reason: type("string") }),
 };
 
 const todoTool: Tool = {
 	name: "todo",
 	description: "Track work items",
-	parameters: z.object({ note: z.string() }),
+	parameters: type({ note: type("string") }),
 };
 
 const multiToolContext: Context = {

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import { Agent, type AgentMessage, type AgentTool } from "@zeta/pi-agent-core";
-import { type ThinkingContent, z } from "@zeta/pi-ai";
+import type { ThinkingContent } from "@zeta/pi-ai";
 import { createMockModel, type MockModel, type MockResponse } from "@zeta/pi-ai/providers/mock";
 import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
 import { type SettingPath, Settings } from "@zeta/pi-coding-agent/config/settings";
@@ -11,9 +11,10 @@ import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/sess
 import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
 import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { type } from "@zeta/pi-omptype";
 import { TempDir } from "@zeta/pi-utils";
 
-const recordToolSchema = z.object({ value: z.string() });
+const recordToolSchema = type({ value: type("string") });
 
 type Harness = {
 	session: AgentSession;

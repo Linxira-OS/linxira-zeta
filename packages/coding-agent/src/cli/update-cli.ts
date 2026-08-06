@@ -11,15 +11,15 @@ import * as path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { $env, $which, APP_NAME, compareVersions, isEnoent, VERSION } from "@zeta/pi-utils";
+import chalk from "@zeta/pi-utils/chalk";
 import { $ } from "bun";
-import chalk from "chalk";
 import { theme } from "../modes/theme/theme";
 import { isTimeoutError, withTimeoutSignal } from "../utils/fetch-timeout";
 
-const REPO = "Linxira-OS/linxira-zeta";
+const REPO = "can1357/oh-my-pi";
 const PACKAGE = "@zeta/pi-coding-agent";
-const HOMEBREW_FORMULA = "Linxira-OS/linxira-zeta";
-const MISE_TOOL = "github:Linxira-OS/linxira-zeta";
+const HOMEBREW_FORMULA = "can1357/tap/omp";
+const MISE_TOOL = "github:can1357/oh-my-pi";
 /**
  * Official npm registry origin.
  *
@@ -827,7 +827,7 @@ async function printVerification(expectedVersion: string): Promise<void> {
 		return;
 	}
 	console.log(chalk.yellow(`\nWarning: ${formatVerificationFailure(result, expectedVersion)}`));
-	console.log(chalk.yellow(`You may need to reinstall: curl -fsSL https://linxira-os.github.io/install | sh`));
+	console.log(chalk.yellow(`You may need to reinstall: curl -fsSL https://omp.sh/install | sh`));
 }
 
 async function unlinkIfExists(filePath: string): Promise<void> {

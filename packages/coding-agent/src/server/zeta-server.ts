@@ -38,6 +38,34 @@ export interface ZetaServerInstance {
 }
 
 // ---------------------------------------------------------------------------
+// Routing
+// ---------------------------------------------------------------------------
+
+/** The classification result for an incoming request path. */
+export interface ZetaServerRoute {
+	type: "stats" | "webui" | "unavailable";
+}
+
+/**
+ * Classify an incoming request based on its URL path.
+ * Extracted as a standalone function so routing logic can be tested without
+ * a running Bun.serve server.
+ */
+export function classifyRequest(req: Request, webUiPort: number): ZetaServerRoute {
+	const path = new URL(req.url).pathname;
+
+	if (path.startsWith("/api/stats") || path === "/api/sync" || path.startsWith("/api/request/")) {
+		return { type: "stats" };
+	}
+
+	if (webUiPort > 0) {
+		return { type: "webui" };
+	}
+
+	return { type: "unavailable" };
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -209,20 +237,16 @@ export class ZetaServer {
 			port,
 			hostname: "127.0.0.1",
 			async fetch(req) {
-				const url = new URL(req.url);
-				const path = url.pathname;
+				const route = classifyRequest(req, webUiPort);
 
-				// Route /api/stats/* and stats API paths to Stats Dashboard
-				if (path.startsWith("/api/stats") || path === "/api/sync" || path.startsWith("/api/request/")) {
-					return proxyRequest(req, statsInternal);
+				switch (route.type) {
+					case "stats":
+						return proxyRequest(req, statsInternal);
+					case "webui":
+						return proxyRequest(req, webUiInternal);
+					case "unavailable":
+						return new Response("Web UI not available", { status: 503 });
 				}
-
-				// Everything else goes to Web UI (Next.js)
-				if (webUiPort > 0) {
-					return proxyRequest(req, webUiInternal);
-				}
-
-				return new Response("Web UI not available", { status: 503 });
 			},
 		});
 

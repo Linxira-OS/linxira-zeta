@@ -5,6 +5,13 @@
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [17.2.10] - 2026-08-06
+
+### Fixed
+
+- Fixed per-window capture failing on Wayland with `InvalidTarget` errors for window IDs returned by `desktop.windows()`.
+- Fixed `desktop.capabilities()` incorrectly reporting `capture: true` on Wayland builds compiled without the `wayland-pipewire` feature.
+
 ## [17.2.9] - 2026-08-05
 
 ### Changed

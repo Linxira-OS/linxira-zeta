@@ -5,8 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ImageContent } from "@zeta/pi-ai";
 import { getProjectDir, isEnoent, readImageMetadata } from "@zeta/pi-utils";
-import chalk from "chalk";
-import { M } from "../i18n/messages";
+import chalk from "@zeta/pi-utils/chalk";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatBytes } from "../tools/render-utils";
 import { formatDimensionNote, resizeImage } from "../utils/image-resize";
@@ -39,7 +38,7 @@ export async function processFileArguments(fileArgs: string[], options?: Process
 
 		const stat = fs.statSync(absolutePath, { throwIfNoEntry: false });
 		if (!stat) {
-			console.error(chalk.red(M.fpFileNotFoundFmt.replace("%s", absolutePath)));
+			console.error(chalk.red(`Error: File not found: ${absolutePath}`));
 			process.exit(1);
 		}
 
@@ -61,7 +60,7 @@ export async function processFileArguments(fileArgs: string[], options?: Process
 			buffer = await Bun.file(absolutePath).bytes();
 		} catch (err) {
 			if (isEnoent(err)) {
-				console.error(chalk.red(M.fpFileNotFoundFmt.replace("%s", absolutePath)));
+				console.error(chalk.red(`Error: File not found: ${absolutePath}`));
 				process.exit(1);
 			}
 			throw err;

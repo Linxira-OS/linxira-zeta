@@ -5,6 +5,12 @@
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [17.2.10] - 2026-08-06
+
+### Breaking Changes
+
+- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@oh-my-pi/omptype/zod`.
+
 ## [17.2.9] - 2026-08-05
 
 ### Fixed

@@ -37,6 +37,7 @@ import {
 	getOpenAIResponsesHistoryItems,
 	getOpenAIResponsesHistoryPayload,
 	normalizeResponsesToolCallId,
+	stripOpenAIResponsesOutputOnlyStatusesForReplay,
 } from "@zeta/pi-ai/utils";
 import { captureOpenAIHttpError } from "@zeta/pi-ai/utils/openai-http";
 import { CODEX_BASE_URL, getCodexAccountId, OPENAI_HEADER_VALUES, OPENAI_HEADERS } from "@zeta/pi-catalog/wire/codex";
@@ -734,7 +735,7 @@ export function buildOpenAiNativeHistory(
 		msgIndex++;
 	}
 
-	return input;
+	return stripOpenAIResponsesOutputOnlyStatusesForReplay(input);
 }
 
 // ============================================================================

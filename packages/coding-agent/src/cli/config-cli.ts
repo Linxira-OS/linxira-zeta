@@ -6,7 +6,7 @@
  */
 
 import { APP_NAME, getAgentDir } from "@zeta/pi-utils";
-import chalk from "chalk";
+import chalk from "@zeta/pi-utils/chalk";
 import {
 	getDefault,
 	getEnumValues,
@@ -20,7 +20,6 @@ import {
 	validateProviderMaxInFlightRequests,
 } from "../config/settings";
 import { SETTINGS_SCHEMA } from "../config/settings-schema";
-import { M } from "../i18n/messages";
 import { theme } from "../modes/theme/theme";
 import { initXdg } from "./commands/init-xdg";
 
@@ -97,7 +96,7 @@ export function parseConfigArgs(args: string[]): ConfigCommandArgs | undefined {
 	const action = args[1];
 	if (!VALID_ACTIONS.includes(action as ConfigAction)) {
 		console.error(chalk.red(`Unknown config command: ${action}`));
-		console.error(M.cfgValidCommands.replace("%s", VALID_ACTIONS.join(", ")));
+		console.error(`Valid commands: ${VALID_ACTIONS.join(", ")}`);
 		process.exit(1);
 	}
 
@@ -196,7 +195,7 @@ function parseAndSetValue(path: SettingPath, rawValue: string): void {
 		case "enum": {
 			const valid = getEnumValues(path);
 			if (valid && !valid.includes(trimmed)) {
-				throw new Error(M.cfgInvalidValue.replace("%s", rawValue).replace("%s", valid.join(", ")));
+				throw new Error(`Invalid value: ${rawValue}. Valid values: ${valid.join(", ")}`);
 			}
 			parsedValue = trimmed;
 			break;

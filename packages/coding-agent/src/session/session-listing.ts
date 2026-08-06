@@ -2,7 +2,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { Message } from "@zeta/pi-ai";
 import { getAgentDir as getDefaultAgentDir, logger, parseJsonlLenient, toError } from "@zeta/pi-utils";
-import { LRUCache } from "lru-cache/raw";
+import { LRUCache } from "@zeta/pi-utils/lru";
 import { computeDefaultSessionDir } from "./session-paths";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
 

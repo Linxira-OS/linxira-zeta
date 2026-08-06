@@ -1,8 +1,9 @@
 import type { ImageContent, Message, Model, TextContent } from "@zeta/pi-ai";
-import type { Type } from "@zeta/pi-omptype";
+import type { type as ArkType } from "@zeta/pi-omptype";
+import type * as TypeBox from "@zeta/pi-omptype/typebox";
+import type * as zod from "@zeta/pi-omptype/zod";
 import type { Component, TUI } from "@zeta/pi-tui";
 import type { logger as PiLogger } from "@zeta/pi-utils";
-import type * as zod from "zod/v4";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { EditToolDetails } from "../../edit";
 import type { ExecOptions, ExecResult } from "../../exec/exec";
@@ -43,7 +44,6 @@ import type {
 	TurnEndEvent,
 	TurnStartEvent,
 } from "../shared-events";
-import type * as TypeBox from "../typebox";
 
 // Re-export for backward compatibility
 export type { ExecOptions, ExecResult } from "../../exec/exec";
@@ -582,11 +582,11 @@ export interface HookAPI {
 
 	/** File logger for error/warning/debug messages */
 	logger: typeof PiLogger;
-	/** Injected zod-backed typebox shim (legacy/compat — prefer `arktype`). */
+	/** Injected TypeBox shim (legacy/compat — prefer `arktype`). */
 	typebox: typeof TypeBox;
-	/** Injected arktype module for arktype-authored hooks. */
-	arktype: typeof Type;
-	/** Injected zod/v4 module for canonical hook validation. */
+	/** Injected omptype schema builder for hooks. */
+	arktype: typeof ArkType;
+	/** Injected Zod-compatible omptype builder for hooks. */
 	zod: typeof zod;
 	/** Injected pi-coding-agent exports */
 	pi: typeof PiCodingAgent;

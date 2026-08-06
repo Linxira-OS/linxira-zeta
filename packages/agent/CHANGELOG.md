@@ -5,6 +5,12 @@
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [17.2.10] - 2026-08-06
+
+### Fixed
+
+- Fixed an issue in remote OpenAI response compaction replay where output-only `status` fields were incorrectly sent back as input, affecting persisted native and V1/V2 replacement history.
+
 ## [17.2.9] - 2026-08-05
 
 ### Fixed

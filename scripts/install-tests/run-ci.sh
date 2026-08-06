@@ -219,15 +219,14 @@ mkdir -p "$TARBALL_APP_DIR"
       exit 1
    }
    omptype_probe="$(bun -e '
-      import { type } from "@zeta/omptype";
+import { type } from "@zeta/omptype";
       import { Type } from "@zeta/omptype/typebox";
       import { z } from "@zeta/omptype/zod";
       const root = type({ name: "string", enabled: "boolean = false" }).assert({ name: "omp" });
       const typebox = Type.Object({ name: Type.String() }).assert({ name: "tb" });
-      const zod = z.object({ name: z.string() }).parse({ name: "z" });
-      process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}:${zod.name}`);
+      process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}`);
    ')"
-   [ "$omptype_probe" = "omp:false:tb:z" ] || {
+[ "$omptype_probe" = "omp:false:tb:z" ] || {
       echo "Unexpected @zeta/omptype probe result: $omptype_probe"
       exit 1
    }

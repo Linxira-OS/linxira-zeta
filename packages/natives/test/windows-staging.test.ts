@@ -193,11 +193,11 @@ describe("windows native addon staging", () => {
 	});
 
 	it("removes only older version directories after the current native version loads", async () => {
-		const nativesDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-natives-cache-"));
+		const nativesDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-natives-cache-"));
 		const currentMajor = Number.parseInt(packageJson.version, 10);
 		const futureVersion = `${currentMajor + 1}.0.0`;
-		const staleVersion = "15.10.11";
-		const freshVersion = "15.10.12";
+		const staleVersion = "0.5.0";
+		const freshVersion = "0.9.0";
 		try {
 			await fs.mkdir(path.join(nativesDir, staleVersion));
 			await fs.mkdir(path.join(nativesDir, freshVersion));
