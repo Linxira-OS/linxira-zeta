@@ -224,7 +224,8 @@ import { type } from "@zeta/pi-omptype";
       import { z } from "@zeta/pi-omptype/zod";
       const root = type({ name: "string", enabled: "boolean = false" }).assert({ name: "omp" });
       const typebox = Type.Object({ name: Type.String() }).assert({ name: "tb" });
-      process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}`);
+      const zod = z.object({ name: z.string() }).parse({ name: "z" });
+      process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}:${zod.name}`);
    ')"
 [ "$omptype_probe" = "omp:false:tb:z" ] || {
       echo "Unexpected @zeta/pi-omptype probe result: $omptype_probe"
