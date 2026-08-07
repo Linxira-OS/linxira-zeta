@@ -1696,7 +1696,6 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "new",
-		aliases: ["clear"],
 		description: M.cmdStartANewSession,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");

@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/../.."
 
 echo "=== Testing binary build ==="
-podman build -f scripts/install-tests/binary.dockerfile -t omp-test-binary .
+podman build -f scripts/install-tests/binary.dockerfile -t zeta-test-binary .
 
 echo ""
 echo "=== Testing source install ==="
