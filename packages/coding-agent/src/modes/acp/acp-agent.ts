@@ -511,8 +511,8 @@ export class AcpAgent implements Agent {
 		return {
 			protocolVersion: PROTOCOL_VERSION,
 			agentInfo: {
-				name: "oh-my-pi",
-				title: "Oh My Pi",
+				name: "zeta",
+				title: "Zeta",
 				version: VERSION,
 			},
 			authMethods,
