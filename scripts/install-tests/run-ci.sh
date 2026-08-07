@@ -187,7 +187,7 @@ mkdir -p "$TARBALL_APP_DIR"
 		pkg.overrides = {
 			'@zeta/pi-utils': '$utils_tgz',
 			'@zeta/pi-wire': '$wire_tgz',
-			'@zeta/omptype': '$omptype_tgz',
+			'@zeta/pi-omptype': '$omptype_tgz',
 			'@zeta/pi-natives': '$natives_tgz',
 			'@zeta/pi-natives-$host_tag': '$natives_leaf_tgz',
 			'@zeta/hashline': '$hashline_tgz',
@@ -219,15 +219,15 @@ mkdir -p "$TARBALL_APP_DIR"
       exit 1
    }
    omptype_probe="$(bun -e '
-import { type } from "@zeta/omptype";
-      import { Type } from "@zeta/omptype/typebox";
-      import { z } from "@zeta/omptype/zod";
+import { type } from "@zeta/pi-omptype";
+      import { Type } from "@zeta/pi-omptype/typebox";
+      import { z } from "@zeta/pi-omptype/zod";
       const root = type({ name: "string", enabled: "boolean = false" }).assert({ name: "omp" });
       const typebox = Type.Object({ name: Type.String() }).assert({ name: "tb" });
       process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}`);
    ')"
 [ "$omptype_probe" = "omp:false:tb:z" ] || {
-      echo "Unexpected @zeta/omptype probe result: $omptype_probe"
+      echo "Unexpected @zeta/pi-omptype probe result: $omptype_probe"
       exit 1
    }
    [ -f "node_modules/@zeta/collab-web/dist/index.html" ] || {
