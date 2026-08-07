@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentSideConnection, InitializeRequest } from "@zeta/pi-utils/acp";
 import type { Model } from "@zeta/pi-ai";
 import { buildModel } from "@zeta/pi-catalog/build";
 import { AcpAgent } from "@zeta/pi-coding-agent/modes/acp/acp-agent";
@@ -16,6 +15,7 @@ import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
 import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import { type } from "@zeta/pi-omptype";
 import { getConfigRootDir, setAgentDir, VERSION } from "@zeta/pi-utils";
+import type { AgentSideConnection, InitializeRequest } from "@zeta/pi-utils/acp";
 import { expectAcpStructure } from "./helpers/acp-schema";
 
 const arkInitializeResponse = type({
