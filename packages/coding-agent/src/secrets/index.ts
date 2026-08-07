@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { SENSITIVE_TOKEN_RE } from "@zeta/pi-ai/providers/transform-messages";
 import { getSecretPlaceholderKeyPath, isEnoent, logger } from "@zeta/pi-utils";
+import { CONFIG_DIR_NAME } from "@zeta/pi-utils/dirs";
 import { YAML } from "bun";
 import { regexHasUnresolvableShortMatchFallback, type SecretEntry, sanitizeSecretFriendlyName } from "./obfuscator";
 import { compileSecretRegex } from "./regex";
@@ -163,7 +164,7 @@ export {
  * Project-local entries override global entries with matching content.
  */
 export async function loadSecrets(cwd: string, agentDir: string): Promise<SecretEntry[]> {
-	const projectPath = path.join(cwd, ".omp", "secrets.yml");
+	const projectPath = path.join(cwd, CONFIG_DIR_NAME, "secrets.yml");
 	const globalPath = path.join(agentDir, "secrets.yml");
 
 	const globalEntries = await loadSecretsFile(globalPath);

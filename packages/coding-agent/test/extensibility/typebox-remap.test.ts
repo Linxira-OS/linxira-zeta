@@ -2,11 +2,11 @@ import { afterAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { Type as TypeBoxShimType } from "@zeta/pi-coding-agent/extensibility/legacy-typebox";
 import {
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
 } from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { Type as TypeBoxShimType } from "@zeta/pi-coding-agent/extensibility/legacy-typebox";
 import { removeWithRetries } from "@zeta/pi-utils";
 
 // The remap installs a Bun.plugin onResolve hook plus an explicit
