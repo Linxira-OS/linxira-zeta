@@ -188,7 +188,7 @@ describe("buildSpec", () => {
 	});
 });
 
-describe("omp completions (integration / drift)", () => {
+describe("zeta completions (integration / drift)", () => {
 	it("emits a zsh script reflecting the live command + flag surface", async () => {
 		const proc = Bun.spawn([process.execPath, cliEntry, "completions", "zsh"], {
 			cwd: repoRoot,
@@ -217,10 +217,10 @@ describe("omp completions (integration / drift)", () => {
 		expect(stdout).toContain("_omp_cmd_commit");
 		expect(stdout).toContain("'completions:");
 		// zsh routes single-value dynamic flags through the _omp_call action, which
-		// itself shells out to `omp __complete $kind`.
+		// itself shells out to `zeta __complete $kind`.
 		expect(stdout).toContain("_omp_call models");
 		expect(stdout).toContain("_omp_call sessions");
-		expect(stdout).toContain("command omp __complete $kind");
+		expect(stdout).toContain("command zeta __complete $kind");
 		// Hidden/default commands must NOT surface as completable subcommands.
 		expect(stdout).not.toContain("_omp_cmd_launch");
 		expect(stdout).not.toContain("_omp_cmd___complete");

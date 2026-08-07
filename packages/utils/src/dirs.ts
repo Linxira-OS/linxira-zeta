@@ -547,7 +547,7 @@ export function getLogPath(date = new Date(), pid = process.pid): string {
  */
 export function getPluginsDir(home?: string): string {
 	if (home !== undefined && home !== RESOLVER_HOME) {
-		return path.join(home, getConfigDirName(), "plugins");
+		return path.join(home, CONFIG_DIR_NAME, "plugins");
 	}
 	return dirs.rootSubdir("plugins", "data");
 }

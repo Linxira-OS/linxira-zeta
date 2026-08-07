@@ -37,7 +37,7 @@ import {
 	getBundledProviders,
 	modelsAreEqual,
 } from "@zeta/pi-catalog/models";
-import { type TSchema, Type } from "./typebox";
+import { type TSchema, Type } from "./legacy-typebox";
 
 export interface StringEnumOptions<T extends string> {
 	description?: string;
