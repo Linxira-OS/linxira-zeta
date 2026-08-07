@@ -1074,6 +1074,7 @@ export class EventController {
 						content.name,
 						renderArgs,
 						{
+							useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool(content.name),
 							snapshots: getFileSnapshotStore(this.ctx.viewSession),
 							clipboard: getEditClipboard(this.ctx.viewSession),
 							showImages: settings.get("terminal.showImages"),
@@ -1323,6 +1324,7 @@ export class EventController {
 				event.toolName,
 				event.args,
 				{
+					useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool(event.toolName),
 					snapshots: getFileSnapshotStore(this.ctx.viewSession),
 					clipboard: getEditClipboard(this.ctx.viewSession),
 					showImages: settings.get("terminal.showImages"),
@@ -1920,15 +1922,15 @@ export class EventController {
 			this.ctx.statusContainer.disposeChildren();
 		}
 		if (event.success) {
-			let appliedRecovered = false;
-			for (const recovered of event.recoveredErrors ?? []) {
-				const component = this.#takeRetrySupersededAssistantComponent(recovered.persistenceKey);
+			let appliedRetryUpdate = false;
+			for (const retryError of event.retryErrors ?? []) {
+				const component = this.#takeRetrySupersededAssistantComponent(retryError.persistenceKey);
 				if (!component) continue;
-				component.applyRetryRecovery(recovered.retryRecovery);
+				component.applyRetryRecovery(retryError.retryRecovery);
 				if (this.#pinnedErrorComponent === component) this.#pinnedErrorComponent = undefined;
-				appliedRecovered = true;
+				appliedRetryUpdate = true;
 			}
-			if (appliedRecovered || (event.recoveredErrors?.length ?? 0) > 0) {
+			if (appliedRetryUpdate || (event.retryErrors?.length ?? 0) > 0) {
 				this.ctx.clearPinnedError();
 			}
 			this.#clearRetrySupersededAssistantComponents();
