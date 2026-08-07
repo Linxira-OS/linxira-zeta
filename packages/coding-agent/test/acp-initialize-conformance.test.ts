@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentSideConnection, InitializeRequest } from "@agentclientprotocol/sdk";
+import type { AgentSideConnection, InitializeRequest } from "@zeta/pi-utils/acp";
 import type { Model } from "@zeta/pi-ai";
 import { buildModel } from "@zeta/pi-catalog/build";
 import { AcpAgent } from "@zeta/pi-coding-agent/modes/acp/acp-agent";
