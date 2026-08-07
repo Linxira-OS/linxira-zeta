@@ -15,6 +15,7 @@ const NO_MULTIPLEXER_ENV: Record<string, string | undefined> = {
 	TMUX: undefined,
 	STY: undefined,
 	ZELLIJ: undefined,
+	HERDR_ENV: undefined,
 	CMUX_WORKSPACE_ID: undefined,
 	CMUX_SURFACE_ID: undefined,
 	CMUX_REMOTE_TRANSPORT: undefined,
