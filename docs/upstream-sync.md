@@ -60,6 +60,10 @@ tags. A release tag, not the upstream main branch, is the immutable boundary.
    conflict decision. Follow with separate commits for necessary Zeta branding,
    packaging, Bun, CI, or product adaptations; never use later untagged OMP
    work for these decisions.
+   Root `README.md`, Zeta logo assets, product naming, homepage, install
+   instructions, and public examples are Zeta-owned product surfaces. Restore
+   them through a documented branding-overlay commit after the complete merge,
+   not by skipping upstream files during the merge.
 6. Verify `git merge-base --is-ancestor <tag-commit> HEAD`, run focused checks
    and required CI, then merge the integration branch into `main`.
 7. Add a baseline tag and update the release ledger below after acceptance.
@@ -75,6 +79,27 @@ For every OMP runtime sync, record:
 - Checks and CI results.
 
 Do not alter an existing ledger entry after it records an accepted release.
+
+### Pending: v17.2.11
+
+- Prior baseline: `v17.2.2` at `80627462b4e91f46795ba87f3678174bd3c0b907`.
+- Source: `refs/tags/v17.2.11` at `4dc97f89ab78fab003f40142ca0b4ebe68224b14`
+  (verified with `git ls-remote --tags omp-upstream refs/tags/v17.2.11`).
+- Zeta start: `a6dcdc34d7e2ce1cab726877819ec0bbeb5e24ce`; integration branch:
+  `sync/omp-release/v17.2.11`; tag merge commit:
+  `5d251c2d620d216dcbdc62726f3a7b60f7fc0cbf`.
+- Merge-tree found ten conflicts: `bun.lock`, the native version sentinel,
+  model registry, command controller, and seven coding-agent test files.
+- Retained Zeta package identity, workspace graph, localized handoff display,
+  explicit retry-after behavior, provenance-aware renderer tests, and native
+  sentinel `__piNativesV1_0_0`. Restored the OMP provider unregistration
+  lifecycle, provider discovery preparation, normalized handoff cancellation,
+  task-agent refresh regressions, and regenerated `bun.lock` with Bun 1.3.14.
+- Checks: `bun install --frozen-lockfile` and
+  `bun --cwd=packages/coding-agent run check` passed. Targeted coding-agent
+  tests and root Rust checks are blocked locally because the Windows host has
+  no MSVC `link.exe`; required CI remains pending before this branch may reach
+  `main`.
 
 ## Pi Runtime Ports
 

@@ -47,6 +47,12 @@ hard release-boundary rule, not a suggestion.
   behavior through documented conflict decisions, then make any required Zeta
   brand, package, Bun, CI, or product adaptations in separate commits after
   the merge. Do not use later untagged upstream work to resolve conflicts.
+- Treat the root `README.md`, Zeta logo assets, product name, homepage, install
+  instructions, and public examples as Zeta-owned product surfaces. A release
+  merge must never skip their upstream history; instead, follow the complete
+  merge with a separate, documented Zeta branding-overlay commit that restores
+  the approved product presentation. Do not let upstream README text become
+  the default Zeta front door.
 - Every release sync updates `docs/upstream-sync.md` with the prior baseline,
   source tag, source SHA, Zeta starting commit, conflict decisions, checks,
   and final merge commit. A release sync reaches `main` only after its focused
