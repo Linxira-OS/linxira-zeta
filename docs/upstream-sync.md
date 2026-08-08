@@ -30,7 +30,7 @@ small README and AGENTS overlay. OMP Web and Pi Web share `pi-web v0.8.1` at
 | --- | --- |
 | `main` | Zeta product branch. Only reviewed OMP syncs and Zeta changes land here. |
 | `sync/omp` | Clean local branch tracking `omp-upstream/main`. Do not add Zeta changes. |
-| `sync/omp/<release>` | Temporary OMP integration branch created from `main`. |
+| `sync/omp-release/<release>` | Temporary OMP integration branch created from `main`. |
 | `port/pi/<scope>` | Temporary semantic port of one Pi PR, package, or tightly related range. |
 | `sync/web-ui/omp/<sha>` | Temporary OMP Web subtree update branch. |
 | `port/pi-web/<scope>` | Temporary semantic port of one Pi Web feature. |
@@ -52,7 +52,7 @@ tags. A release tag, not the upstream main branch, is the immutable boundary.
    with the remote result. Stop if the tag is missing, ambiguous, or moved.
 3. Fast-forward the unmodified `sync/omp` mirror to `omp-upstream/main`. Never
    merge this mirror into `main`.
-4. Create `sync/omp/<release>` from `main`, preferably in an isolated
+4. Create `sync/omp-release/<release>` from `main`, preferably in an isolated
    worktree. Run a merge-tree report, then make a real non-squash merge of the
    verified release tag. Never cherry-pick, rebase, squash, copy individual
    upstream files, or omit incoming files to simplify a sync.

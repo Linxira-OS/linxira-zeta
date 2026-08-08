@@ -8,8 +8,8 @@ that OMP updates remain mergeable.
 
 - `main` is the Zeta product branch.
 - `sync/omp` tracks `omp-upstream/main` and must remain an unmodified OMP tree.
-  Use short-lived `sync/omp/<release>` branches to integrate OMP releases into
-  `main`.
+  Use short-lived `sync/omp-release/<release>` branches to integrate OMP
+  releases into `main`.
 - `pi-upstream` is a semantic-port source, never a raw merge source. Use
   `port/pi/<scope>` branches and preserve OMP behavior where the projects
   intentionally diverge.
@@ -33,8 +33,8 @@ hard release-boundary rule, not a suggestion.
   If a locally fetched tag disagrees with the remote, stop and escalate; do
   not force-update or silently accept a moved release tag.
 - Product integration starts from `main` on a short-lived
-  `sync/omp/<release>` branch (preferably in an isolated worktree) and uses a
-  real non-squash Git merge of the verified tag. Afterward,
+  `sync/omp-release/<release>` branch (preferably in an isolated worktree) and
+  uses a real non-squash Git merge of the verified tag. Afterward,
   `git merge-base --is-ancestor <tag-commit> HEAD` must succeed. This proves
   the full upstream release is present in history.
 - Never integrate raw upstream commits, `omp-upstream/main`, arbitrary SHAs,
