@@ -35,19 +35,19 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
+    "@opentelemetry/api": "catalog:",
     "@zeta/pi-ai": "catalog:",
     "@zeta/pi-catalog": "catalog:",
     "@zeta/pi-natives": "catalog:",
     "@zeta/pi-utils": "catalog:",
     "@zeta/pi-wire": "catalog:",
-    "@zeta/snapcompact": "catalog:",
-    "@opentelemetry/api": "catalog:"
+    "@zeta/snapcompact": "catalog:"
   },
   "devDependencies": {
-    "@zeta/pi-omptype": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
-    "@types/bun": "catalog:"
+    "@types/bun": "catalog:",
+    "@zeta/pi-omptype": "catalog:"
   },
   "engines": {
     "bun": ">=1.3.14"

@@ -1499,7 +1499,8 @@ export class CommandController {
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			if (message === M.ccHandoffCancelled || (error instanceof Error && error.name === "AbortError")) {
+			// `session.handoff()` normalizes genuine cancellations to this exact message.
+			if (message === "Handoff cancelled") {
 				this.ctx.showError(M.ccHandoffCancelled);
 			} else {
 				this.ctx.showError(M.ccHandoffFailedFmt.replace("%s", message));

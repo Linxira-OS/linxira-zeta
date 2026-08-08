@@ -2,10 +2,17 @@
 
 ## [Unreleased]
 
+## [17.2.11] - 2026-08-07
+
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
 - Pasting an empty named register (`PUT … @name` with no matching capture) no longer errors — it pastes nothing (a span target is still removed) and surfaces a warning naming the available registers
+- Pasting an empty named register (`PUT … @name` with no matching capture) now surfaces a warning listing available registers and removes the span target instead of throwing an error.
+
+### Fixed
+
+- Fixed an issue where pipe-numbered `read`/`search` rows copied into top-level and bare-body patch payloads were not properly recovered (#7905).
 
 ## [17.2.10] - 2026-08-06
 

@@ -39,16 +39,16 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@zeta/pi-ai": "catalog:",
-    "@zeta/pi-catalog": "catalog:",
-    "@zeta/pi-utils": "catalog:",
     "@tailwindcss/node": "catalog:",
     "chart.js": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-chartjs-2": "catalog:",
     "react-dom": "catalog:",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "@zeta/pi-ai": "catalog:",
+    "@zeta/pi-catalog": "catalog:",
+    "@zeta/pi-utils": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

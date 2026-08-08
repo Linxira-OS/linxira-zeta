@@ -39,8 +39,8 @@
     "@zeta/pi-utils": "catalog:"
   },
   "devDependencies": {
-    "@zeta/pi-ai": "catalog:",
-    "@types/bun": "catalog:"
+    "@types/bun": "catalog:",
+    "@zeta/pi-ai": "catalog:"
   },
   "engines": {
     "bun": ">=1.3.14"
