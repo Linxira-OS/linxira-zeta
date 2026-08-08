@@ -713,7 +713,7 @@ export class ToolExecutionComponent extends Container implements NativeScrollbac
 				// Component-scoped: a spinner tick only changes this tool block, so
 				// the TUI reuses every other root subtree instead of walking the
 				// whole tree (issue #4377).
-				this.#ui.requestComponentRender(this);
+				this.#requestRender();
 			}, SPINNER_RENDER_INTERVAL_MS);
 		} else if (!needsSpinner && this.#spinnerInterval) {
 			clearInterval(this.#spinnerInterval);
@@ -780,7 +780,7 @@ export class ToolExecutionComponent extends Container implements NativeScrollbac
 			}
 			// Component-scoped: strike animation only mutates this tool block's
 			// glyph, so the TUI reuses every other root subtree (issue #4377).
-			this.#ui.requestComponentRender(this);
+			this.#requestRender();
 		}, 65);
 	}
 
@@ -793,6 +793,15 @@ export class ToolExecutionComponent extends Container implements NativeScrollbac
 			this.#spinnerFrame = undefined;
 			this.#renderState.spinnerFrame = undefined;
 		}
+	}
+
+	#requestRender(): void {
+		const requestComponentRender = this.#ui.requestComponentRender;
+		if (typeof requestComponentRender === "function") {
+			requestComponentRender.call(this.#ui, this);
+			return;
+		}
+		this.#ui.requestRender();
 	}
 
 	/**

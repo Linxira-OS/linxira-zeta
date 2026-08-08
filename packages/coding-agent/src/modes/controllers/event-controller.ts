@@ -1074,7 +1074,7 @@ export class EventController {
 						content.name,
 						renderArgs,
 						{
-							useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool(content.name),
+							useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool?.(content.name) ?? false,
 							snapshots: getFileSnapshotStore(this.ctx.viewSession),
 							clipboard: getEditClipboard(this.ctx.viewSession),
 							showImages: settings.get("terminal.showImages"),
@@ -1324,7 +1324,7 @@ export class EventController {
 				event.toolName,
 				event.args,
 				{
-					useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool(event.toolName),
+					useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool?.(event.toolName) ?? false,
 					snapshots: getFileSnapshotStore(this.ctx.viewSession),
 					clipboard: getEditClipboard(this.ctx.viewSession),
 					showImages: settings.get("terminal.showImages"),

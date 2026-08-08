@@ -324,7 +324,9 @@ async function commandsForMode(mode: Mode): Promise<TestCommand[]> {
 		case "workspace":
 			return fastWorkspacePackages.map(pkg => workspaceTestCommand(pkg, 8));
 		case "native":
-			return nativeAndIntegrationPackages.map(pkg => workspaceTestCommand(pkg, 4, { smol: true }));
+			return nativeAndIntegrationPackages.map(pkg =>
+				workspaceTestCommand(pkg, pkg === "packages/tui" ? 1 : 4, { smol: true }),
+			);
 		case "coding-agent-singleton":
 			return await codingAgentTestCommands("singleton");
 		case "coding-agent-ui":
