@@ -7,6 +7,10 @@
 - Fixed normal CLI startup loading native computer-worker bindings before they are needed, which made lightweight commands fail when native addons were disabled.
 - Fixed async result delivery receipts never settling after their aside was committed or discarded.
 - Fixed the setup theme picker hiding its final curated choice on 24-row terminals.
+- Fixed daemon completion notifications, acknowledgements, and owner subscriptions being lost across broker reconnects and restarts.
+- Fixed a new `/mcp reauth` command failing to supersede an unfinished MCP OAuth login.
+- Fixed `/memory stats` and `/memory diagnose` describing the disabled memory state as an "off backend".
+- Fixed bash approval rules rejecting literal shell metacharacters inside quoted arguments.
 
 ## [1.0.0] - 2026-08-07
 

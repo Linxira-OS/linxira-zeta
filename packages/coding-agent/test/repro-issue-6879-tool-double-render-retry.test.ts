@@ -93,6 +93,7 @@ describe("issue #6879 — tool output appears twice after a superseded turn", ()
 
 		session = new AgentSession({
 			agent: new Agent({ initialState: { model, systemPrompt: ["Test"], tools: [], messages: [] } }),
+			builtInToolNames: ["bash"],
 			sessionManager: SessionManager.create(tempDir.path(), tempDir.path()),
 			settings: Settings.isolated(),
 			modelRegistry,

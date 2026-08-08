@@ -141,6 +141,7 @@ function makeRenderCtx(
 	transcript: SessionContext,
 	showImages = true,
 	hideToolActivity = false,
+	builtInToolNames: readonly string[] = [],
 ): { ctx: InteractiveModeContext; chatContainer: Container } {
 	const chatContainer = new Container();
 	let helpers: UiHelpers;
@@ -173,6 +174,7 @@ function makeRenderCtx(
 		viewSession: {
 			buildTranscriptSessionContext: () => transcript,
 			getToolByName: () => undefined,
+			hasBuiltInTool: (name: string) => builtInToolNames.includes(name),
 			extensionRunner: undefined,
 			sessionManager: {
 				getEntries: vi.fn(() => []),
@@ -280,7 +282,7 @@ describe("UiHelpers.renderInitialMessages — image replay", () => {
 			},
 		]);
 
-		const { ctx, chatContainer } = makeRenderCtx(transcript);
+		const { ctx, chatContainer } = makeRenderCtx(transcript, true, false, ["eval"]);
 
 		new UiHelpers(ctx).renderInitialMessages();
 

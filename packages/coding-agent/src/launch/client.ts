@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getGlobalDaemonRuntimeDir, isEexist, isEisdir, isEnoent, postmortem } from "@zeta/pi-utils";
+import { getGlobalDaemonRuntimeDir, isEexist, isEisdir, isEnoent, logger, postmortem } from "@zeta/pi-utils";
 import { hostHasInheritableConsole } from "../eval/py/spawn-options";
 import { resolveWorkerSpawnCmd, workerEnvFromParent } from "../subprocess/worker-client";
 import { daemonBrokerEndpoint, daemonRuntimeDir } from "./paths";
@@ -14,9 +14,9 @@ import {
 	type DaemonCompletionNotification,
 	type DaemonOperation,
 	type DaemonRpcResult,
-	type DaemonWireResponse,
+	type DaemonWireMessage,
 	parseDaemonRpcResult,
-	parseDaemonWireResponse,
+	parseDaemonWireMessage,
 } from "./protocol";
 import { resolveDaemonSpawnOptions } from "./spawn-options";
 
@@ -152,13 +152,20 @@ class SocketDaemonClient implements DaemonBrokerClient {
 	readonly #runtimeDir: string;
 	readonly #endpoint: string;
 	readonly #token: string;
+	readonly #seenCompletionIds = new Set<string>();
 	readonly #idleGraceMs: number | undefined;
 	readonly #pending = new Map<string, PendingRequest>();
 	readonly #completionSinks = new Map<string, (notification: DaemonCompletionNotification) => Promise<void> | void>();
+	readonly #completionUnsubscribes = new Set<string>();
+	readonly #preservedCompletionOwners = new Set<string>();
+	readonly #completionReplays = new Set<string>();
+	readonly #inFlightCompletionIds = new Set<string>();
+	readonly #completionSubscriptionId = crypto.randomUUID();
 	#socket: net.Socket | undefined;
 	#connectPromise: Promise<void> | undefined;
 	#buffer = "";
 	#closed = false;
+	#completionReconnectTimer: NodeJS.Timeout | undefined;
 
 	constructor(projectDir: string, runtimeDir: string, token: string, options: DaemonBrokerClientOptions) {
 		this.projectDir = projectDir;
@@ -175,6 +182,8 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		const socket = this.#socket;
 		if (!socket || socket.destroyed) throw new Error("Daemon broker socket is unavailable");
 
+		const completionUnsubscribes = [...this.#completionUnsubscribes];
+		const completionReplays = [...this.#completionReplays];
 		const id = crypto.randomUUID();
 		const { promise, resolve, reject } = Promise.withResolvers<DaemonRpcResult>();
 		const timer = setTimeout(() => {
@@ -195,14 +204,38 @@ class SocketDaemonClient implements DaemonBrokerClient {
 			pending.removeAbort = () => signal.removeEventListener("abort", abort);
 		}
 		this.#pending.set(id, pending);
-		socket.write(`${JSON.stringify({ id, token: this.#token, operation })}\n`);
-		return promise;
+		socket.write(
+			`${JSON.stringify({
+				id,
+				token: this.#token,
+				owners: [...this.#completionSinks.keys()],
+				detachedOwners: [...this.#preservedCompletionOwners],
+				completionEvents: true,
+				completionUnsubscribes,
+				completionReplays,
+				completionSubscriptionId: this.#completionSubscriptionId,
+				operation,
+			})}\n`,
+		);
+		const result = await promise;
+		for (const owner of completionUnsubscribes) {
+			if (!this.#completionSinks.has(owner)) this.#completionUnsubscribes.delete(owner);
+		}
+		for (const owner of completionReplays) {
+			if (this.#completionSinks.has(owner)) this.#completionReplays.delete(owner);
+		}
+		return result;
 	}
 
 	close(): void {
 		if (this.#closed) return;
 		this.#closed = true;
+		clearTimeout(this.#completionReconnectTimer);
+		this.#completionReconnectTimer = undefined;
 		this.#socket?.destroy();
+		this.#completionSinks.clear();
+		this.#preservedCompletionOwners.clear();
+		this.#completionReplays.clear();
 		this.#socket = undefined;
 		this.#rejectPending(new Error("Daemon broker client closed"));
 	}
@@ -211,23 +244,46 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		owner: string,
 		sink: (notification: DaemonCompletionNotification) => Promise<void> | void,
 	): (options?: DaemonCompletionUnregisterOptions) => void {
+		this.#completionUnsubscribes.delete(owner);
+		if (this.#preservedCompletionOwners.delete(owner)) this.#completionReplays.add(owner);
 		this.#completionSinks.set(owner, sink);
+		this.#publishCompletionOwners();
 		return (options?: DaemonCompletionUnregisterOptions) => {
-			if (options?.preservePending) return;
+			if (this.#completionSinks.get(owner) !== sink) return;
 			this.#completionSinks.delete(owner);
+			if (options?.preservePending) {
+				this.#preservedCompletionOwners.add(owner);
+			} else {
+				this.#preservedCompletionOwners.delete(owner);
+				this.#completionUnsubscribes.add(owner);
+			}
+			if (this.#completionSinks.size === 0 && this.#completionReconnectTimer) {
+				clearTimeout(this.#completionReconnectTimer);
+				this.#completionReconnectTimer = undefined;
+			}
+			this.#publishCompletionOwners();
 		};
 	}
 
-	#deliverCompletion(completion: DaemonCompletionNotification): void {
-		const sink = this.#completionSinks.get(completion.owner);
-		if (!sink) return;
-		void (async () => {
-			try {
-				await sink(completion);
-			} catch {
-				// Sink errors are swallowed; the completion was already delivered.
-			}
-		})();
+	#publishCompletionOwners(): void {
+		if (this.#closed) return;
+		void this.request({ op: "ping" }).catch(() => this.#scheduleCompletionReconnect());
+	}
+
+	#scheduleCompletionReconnect(): void {
+		if (
+			this.#closed ||
+			this.#completionSinks.size === 0 ||
+			this.#completionReconnectTimer !== undefined ||
+			(this.#socket !== undefined && !this.#socket.destroyed)
+		) {
+			return;
+		}
+		this.#completionReconnectTimer = setTimeout(() => {
+			this.#completionReconnectTimer = undefined;
+			this.#publishCompletionOwners();
+		}, CONNECT_RETRY_MS);
+		this.#completionReconnectTimer.unref();
 	}
 
 	async #connect(): Promise<void> {
@@ -293,6 +349,7 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		socket.on("close", () => {
 			if (this.#socket === socket) this.#socket = undefined;
 			this.#rejectPending(new Error("Daemon broker connection closed"));
+			this.#scheduleCompletionReconnect();
 		});
 	}
 
@@ -307,33 +364,29 @@ class SocketDaemonClient implements DaemonBrokerClient {
 			let decoded: unknown;
 			try {
 				decoded = JSON.parse(line);
-			} catch {
-				continue;
-			}
-			// Completion notifications are unsolicited and have no `id` field.
-			if (
-				typeof decoded === "object" &&
-				decoded !== null &&
-				"event" in decoded &&
-				(decoded as Record<string, unknown>).event === "daemon-completed"
-			) {
-				this.#deliverCompletion(decoded as DaemonCompletionNotification);
-				continue;
-			}
-			let response: DaemonWireResponse;
-			try {
-				response = parseDaemonWireResponse(decoded);
 			} catch (error) {
 				this.#rejectPending(error instanceof Error ? error : new Error(String(error)));
 				continue;
 			}
+			let message: DaemonWireMessage;
+			try {
+				message = parseDaemonWireMessage(decoded);
+			} catch (error) {
+				this.#rejectPending(error instanceof Error ? error : new Error(String(error)));
+				continue;
+			}
+			if ("event" in message) {
+				void this.#deliverCompletion(message);
+				continue;
+			}
+			const response = message;
 			const pending = this.#pending.get(response.id);
 			if (!pending) continue;
 			this.#pending.delete(response.id);
 			clearTimeout(pending.timer);
 			pending.removeAbort?.();
 			if (!response.ok) {
-				pending.reject(new Error(response.error));
+				pending.reject(new DaemonBrokerRejectedError(response.error));
 				continue;
 			}
 			try {
@@ -342,6 +395,53 @@ class SocketDaemonClient implements DaemonBrokerClient {
 				pending.reject(error instanceof Error ? error : new Error(String(error)));
 			}
 		}
+	}
+
+	async #deliverCompletion(message: DaemonCompletionNotification): Promise<void> {
+		if (this.#seenCompletionIds.has(message.completionId)) {
+			this.#ackCompletion(message.completionId);
+			return;
+		}
+		if (this.#inFlightCompletionIds.has(message.completionId)) return;
+		const sink = this.#completionSinks.get(message.owner);
+		if (!sink) return;
+		this.#inFlightCompletionIds.add(message.completionId);
+		try {
+			await sink(message);
+			if (this.#seenCompletionIds.size >= 512) {
+				const oldest = this.#seenCompletionIds.values().next().value;
+				if (oldest !== undefined) this.#seenCompletionIds.delete(oldest);
+			}
+			this.#seenCompletionIds.add(message.completionId);
+			this.#ackCompletion(message.completionId);
+		} catch (error) {
+			logger.warn("Daemon completion sink failed", {
+				owner: message.owner,
+				completionId: message.completionId,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			this.#socket?.destroy();
+		} finally {
+			this.#inFlightCompletionIds.delete(message.completionId);
+		}
+	}
+
+	#ackCompletion(completionId: string): void {
+		const socket = this.#socket;
+		if (!socket || socket.destroyed) return;
+		socket.write(
+			`${JSON.stringify({
+				id: crypto.randomUUID(),
+				token: this.#token,
+				owners: [...this.#completionSinks.keys()],
+				detachedOwners: [...this.#preservedCompletionOwners],
+				completionEvents: true,
+				completionAcks: [completionId],
+				completionUnsubscribes: [...this.#completionUnsubscribes],
+				completionSubscriptionId: this.#completionSubscriptionId,
+				operation: { op: "ping" },
+			})}\n`,
+		);
 	}
 
 	#rejectPending(error: Error): void {
