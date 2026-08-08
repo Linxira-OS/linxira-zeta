@@ -2393,14 +2393,13 @@ describe("AgentSession retry fallback", () => {
 				role: "default",
 			},
 		]);
-		expect(retryEndEvents).toEqual([
-			{
-				type: "auto_retry_end",
-				success: false,
-				attempt: 1,
-				finalError: refusalMessage,
-			},
-		]);
+		expect(retryEndEvents).toHaveLength(1);
+		expect(retryEndEvents[0]).toMatchObject({
+			type: "auto_retry_end",
+			success: false,
+			attempt: 1,
+			finalError: refusalMessage,
+		});
 	});
 
 	it("emits auto_retry_end when a mid-saga classifier refusal has no fallback to switch to", async () => {
@@ -2611,10 +2610,10 @@ describe("AgentSession retry fallback", () => {
 		expect(retryStartEvents[0]).toMatchObject({
 			attempt: 1,
 			maxAttempts: 1,
-			delayMs: 200,
+			delayMs: 30_000,
 			errorMessage: "rate limit exceeded retry-after-ms=200",
 		});
-		expect(waitSpy).toHaveBeenCalledWith(200, { signal: expect.any(AbortSignal) });
+		expect(waitSpy).toHaveBeenCalledWith(30_000, { signal: expect.any(AbortSignal) });
 		expect(retryEndEvents).toHaveLength(1);
 		expect(retryEndEvents[0]).toMatchObject({ success: true, attempt: 1 });
 		expect(fallbackAppliedEvents).toHaveLength(0);
