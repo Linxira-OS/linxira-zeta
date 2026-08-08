@@ -42,14 +42,39 @@ branches that invite a raw merge from those trees.
 ## OMP Runtime Sync
 
 OMP updates are regular downstream integrations because OMP is an ancestor of
-Zeta `main`.
+Zeta `main`, but they are admitted only at complete, official OMP release
+tags. A release tag, not the upstream main branch, is the immutable boundary.
 
-1. Fetch `omp-upstream` and fast-forward `sync/omp` to its `main`.
-2. Read the release notes and diff against the last Zeta OMP baseline.
-3. Create `sync/omp/<release>` from `main` and merge the desired OMP range.
-4. Resolve only Zeta-specific conflicts, preserve OMP behavior elsewhere, run
-   the relevant checks, and merge the integration branch into `main`.
-5. Add a baseline tag and update this document after an accepted release sync.
+1. The user supplies the exact tag. Do not infer the latest release or accept
+   `omp-upstream/main`, a commit SHA, or a commit range as the source.
+2. Verify the remote tag with `git ls-remote --tags omp-upstream
+   refs/tags/<tag>`. Fetch that exact tag and confirm its resolved commit agrees
+   with the remote result. Stop if the tag is missing, ambiguous, or moved.
+3. Fast-forward the unmodified `sync/omp` mirror to `omp-upstream/main`. Never
+   merge this mirror into `main`.
+4. Create `sync/omp/<release>` from `main`, preferably in an isolated
+   worktree. Run a merge-tree report, then make a real non-squash merge of the
+   verified release tag. Never cherry-pick, rebase, squash, copy individual
+   upstream files, or omit incoming files to simplify a sync.
+5. Resolve Zeta-specific conflicts within that complete merge. Record every
+   conflict decision. Follow with separate commits for necessary Zeta branding,
+   packaging, Bun, CI, or product adaptations; never use later untagged OMP
+   work for these decisions.
+6. Verify `git merge-base --is-ancestor <tag-commit> HEAD`, run focused checks
+   and required CI, then merge the integration branch into `main`.
+7. Add a baseline tag and update the release ledger below after acceptance.
+
+### OMP Release Ledger
+
+For every OMP runtime sync, record:
+
+- Previous Zeta OMP baseline and target release tag.
+- Exact remote tag ref and resolved source commit SHA.
+- Zeta starting commit, integration branch, and final merge commit.
+- Merge-tree result and each conflict decision.
+- Checks and CI results.
+
+Do not alter an existing ledger entry after it records an accepted release.
 
 ## Pi Runtime Ports
 

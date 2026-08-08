@@ -20,6 +20,41 @@ that OMP updates remain mergeable.
 - `temp/` holds local reference clones only. It is ignored and must never be
   committed.
 
+## OMP Release Sync Policy
+
+Zeta integrates OMP only at complete, official OMP release tags. This is a
+hard release-boundary rule, not a suggestion.
+
+- The user must name the exact upstream tag (for example, `v17.2.11`). Never
+  infer a "latest" release or substitute `omp-upstream/main`.
+- Before any integration, fetch and verify the exact remote tag name and its
+  peeled commit SHA with `git ls-remote --tags omp-upstream
+  refs/tags/<tag>`. Record that immutable source SHA in the sync ledger.
+  If a locally fetched tag disagrees with the remote, stop and escalate; do
+  not force-update or silently accept a moved release tag.
+- Product integration starts from `main` on a short-lived
+  `sync/omp/<release>` branch (preferably in an isolated worktree) and uses a
+  real non-squash Git merge of the verified tag. Afterward,
+  `git merge-base --is-ancestor <tag-commit> HEAD` must succeed. This proves
+  the full upstream release is present in history.
+- Never integrate raw upstream commits, `omp-upstream/main`, arbitrary SHAs,
+  individual files, partial diffs, cherry-picks, rebases, or squash merges.
+  Do not skip incoming files to make a release sync easier.
+- `sync/omp` is an unmodified mirror of `omp-upstream/main`, never a product
+  integration branch. It may only be fast-forwarded from upstream; it is not
+  merged into `main`.
+- Resolve conflicts inside the complete tag merge. Preserve intentional Zeta
+  behavior through documented conflict decisions, then make any required Zeta
+  brand, package, Bun, CI, or product adaptations in separate commits after
+  the merge. Do not use later untagged upstream work to resolve conflicts.
+- Every release sync updates `docs/upstream-sync.md` with the prior baseline,
+  source tag, source SHA, Zeta starting commit, conflict decisions, checks,
+  and final merge commit. A release sync reaches `main` only after its focused
+  checks and required CI pass.
+- Automation must require an explicit `--tag <tag>` argument, reject branch
+  names and bare SHAs, verify the remote tag before merge, and produce a
+  merge-tree/conflict report before changing a product branch.
+
 Current baseline references and the sync procedure live in
 `docs/upstream-sync.md`. Before starting an upstream port, read that file and
 the upstream OMP guide at `docs/porting-from-pi-mono.md`.
