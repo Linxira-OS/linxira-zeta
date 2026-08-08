@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed normal CLI startup loading native computer-worker bindings before they are needed, which made lightweight commands fail when native addons were disabled.
+- Fixed async result delivery receipts never settling after their aside was committed or discarded.
+- Fixed the setup theme picker hiding its final curated choice on 24-row terminals.
+
 ## [1.0.0] - 2026-08-07
 
 ### Changed

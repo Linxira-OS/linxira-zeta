@@ -31,7 +31,7 @@
  */
 
 import { isServiceTierOpenAISettingValue, SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
-import { M } from "../i18n/messages";
+import type { Messages } from "../i18n/messages";
 import type { ConfiguredThinkingLevel } from "../thinking";
 import type { Args } from "./args";
 import { CliUsageError } from "./usage-error";
@@ -47,6 +47,7 @@ import { CliUsageError } from "./usage-error";
  */
 export interface ParseDeps {
 	logger: { warn: (message: string, meta?: Record<string, unknown>) => void };
+	messages: Pick<Messages, "ftInvalidMaxTime" | "ftUnknownToolsFmt" | "ftPluralS">;
 	parseThinking: (value: string | null | undefined) => ConfiguredThinkingLevel | undefined;
 	builtinToolNames: readonly string[];
 	normalizeToolNames: (values: Iterable<string>) => string[];
@@ -96,12 +97,12 @@ function maxTimeMultiplier(unit: string | undefined): number {
 	return 1;
 }
 
-function parseMaxTimeSeconds(value: string): number {
+function parseMaxTimeSeconds(value: string, deps: ParseDeps): number {
 	const trimmed = value.trim();
 	const duration = MAX_TIME_DURATION_RE.exec(trimmed);
 	const seconds = duration ? Number(duration[1]) * maxTimeMultiplier(duration[2]) : Number(trimmed);
 	if (Number.isFinite(seconds) && seconds > 0) return seconds;
-	throw new CliUsageError(M.ftInvalidMaxTime.replace("%s", JSON.stringify(value)));
+	throw new CliUsageError(deps.messages.ftInvalidMaxTime.replace("%s", JSON.stringify(value)));
 }
 
 /**
@@ -149,8 +150,8 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 	"--plan-yolo-into": (result, value) => {
 		result.planYoloInto = value;
 	},
-	"--max-time": (result, value) => {
-		result.maxTime = parseMaxTimeSeconds(value);
+	"--max-time": (result, value, deps) => {
+		result.maxTime = parseMaxTimeSeconds(value, deps);
 	},
 	"--service-tier": (result, value) => {
 		if (!isServiceTierOpenAISettingValue(value)) {
@@ -194,8 +195,8 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 		const unknown = names.filter(name => !deps.builtinToolNames.includes(name));
 		if (unknown.length > 0) {
 			throw new CliUsageError(
-				M.ftUnknownToolsFmt
-					.replace("%s", unknown.length === 1 ? "" : M.ftPluralS)
+				deps.messages.ftUnknownToolsFmt
+					.replace("%s", unknown.length === 1 ? "" : deps.messages.ftPluralS)
 					.replace("%s", unknown.join(", "))
 					.replace("%s", deps.builtinToolNames.join(", ")),
 			);

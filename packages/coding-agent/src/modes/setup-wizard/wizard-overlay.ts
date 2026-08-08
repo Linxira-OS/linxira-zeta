@@ -220,9 +220,16 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 			header.push(indentLine(theme.fg("muted", subtitle), width, SCENE_MARGIN_X));
 		}
 		header.push("");
+		const footer = ["", centerLine(theme.fg("dim", M.setupFooterHint), width)];
+		// Decorative chrome yields to the scene on short terminals: drop the logo
+		// block (art + wordmark) when the fixed footer leaves the scene fewer rows
+		// than the theme picker needs (3 chrome rows + 6 curated rows + search status).
+		const MIN_SCENE_BODY_ROWS = 10;
+		if (height - header.length - footer.length < MIN_SCENE_BODY_ROWS) {
+			header.splice(1, logo.length + 1);
+		}
 		this.#bodyRowStart = header.length;
 
-		const footer = ["", centerLine(theme.fg("dim", M.setupFooterHint), width)];
 		const maxBodyLines = Math.max(0, height - header.length - footer.length);
 		const body = this.#activeScene?.render(contentWidth, maxBodyLines).slice(0, maxBodyLines) ?? [];
 		const lines = [...header, ...body.map(line => indentLine(line, width, SCENE_MARGIN_X))];

@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { $env, APP_NAME, logger } from "@zeta/pi-utils";
 import chalk from "@zeta/pi-utils/chalk";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
+import { M } from "../i18n";
 import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "../thinking";
 import { BUILTIN_TOOL_NAMES, HIDDEN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";
 import {
@@ -106,6 +107,7 @@ export interface Args {
  */
 const PARSE_DEPS: ParseDeps = {
 	logger,
+	messages: M,
 	parseThinking: parseCliThinkingLevel,
 	builtinToolNames: [...BUILTIN_TOOL_NAMES, ...HIDDEN_TOOL_NAMES],
 	normalizeToolNames,
