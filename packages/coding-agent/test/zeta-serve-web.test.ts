@@ -8,7 +8,7 @@ import Web from "@zeta/pi-coding-agent/commands/web";
 
 describe("zeta serve command", () => {
 	it("has the expected description", () => {
-		expect(Serve.description).toBe("Start the Stats Dashboard and Web UI, then open the browser");
+		expect(Serve.description).toBe("Start the Stats Dashboard and Web UI services (no browser)");
 	});
 
 	it("defines stats-port flag with default 3847", () => {
@@ -24,10 +24,10 @@ describe("zeta serve command", () => {
 		expect(flags["web-port"].default).toBe(30141);
 	});
 
-	it("defines no-browser boolean flag", () => {
+	it("defines no-browser boolean flag (default on: no auto-open browser)", () => {
 		const flags = Serve.flags;
 		expect(flags["no-browser"]).toBeDefined();
-		expect(flags["no-browser"].default).toBe(false);
+		expect(flags["no-browser"].default).toBe(true);
 	});
 
 	it("defines stats-only boolean flag", () => {
@@ -45,7 +45,7 @@ describe("zeta serve command", () => {
 
 describe("zeta web command", () => {
 	it("has the expected description", () => {
-		expect(Web.description).toBe("Start the Web UI server and open the browser");
+		expect(Web.description).toBe("Start the Web UI server (no browser)");
 	});
 
 	it("defines port flag with default 30141", () => {
@@ -54,9 +54,9 @@ describe("zeta web command", () => {
 		expect(flags.port.default).toBe(30141);
 	});
 
-	it("defines no-browser boolean flag", () => {
+	it("defines no-browser boolean flag (default on: no auto-open browser)", () => {
 		const flags = Web.flags;
 		expect(flags["no-browser"]).toBeDefined();
-		expect(flags["no-browser"].default).toBe(false);
+		expect(flags["no-browser"].default).toBe(true);
 	});
 });
