@@ -80,7 +80,7 @@ For every OMP runtime sync, record:
 
 Do not alter an existing ledger entry after it records an accepted release.
 
-### Pending: v17.2.11
+### Accepted: v17.2.11
 
 - Prior baseline: `v17.2.2` at `80627462b4e91f46795ba87f3678174bd3c0b907`.
 - Source: `refs/tags/v17.2.11` at `4dc97f89ab78fab003f40142ca0b4ebe68224b14`
@@ -95,11 +95,44 @@ Do not alter an existing ledger entry after it records an accepted release.
   sentinel `__piNativesV1_0_0`. Restored the OMP provider unregistration
   lifecycle, provider discovery preparation, normalized handoff cancellation,
   task-agent refresh regressions, and regenerated `bun.lock` with Bun 1.3.14.
-- Checks: `bun install --frozen-lockfile` and
-  `bun --cwd=packages/coding-agent run check` passed. Targeted coding-agent
-  tests and root Rust checks are blocked locally because the Windows host has
-  no MSVC `link.exe`; required CI remains pending before this branch may reach
-  `main`.
+- Deliverable: tag merge integrated into `main` at
+  `bd5a049836340f5534b1e071e44679823f0e1f77` (verified with
+  `git merge-base --is-ancestor`).
+
+### Pending: v17.2.12
+
+- Prior baseline: `v17.2.11` at `4dc97f89ab78fab003f40142ca0b4ebe68224b14`.
+- Source: `refs/tags/v17.2.12` at `45e12e5bb758198a920c6070e7e64cb33b21beac`
+  (verified with `git ls-remote --tags omp-upstream refs/tags/v17.2.12`).
+- Zeta start: `bd5a049836340f5534b1e071e44679823f0e1f77`; integration branch:
+  `sync/omp-release/v17.2.12`; tag merge commit:
+  `81acf1f86d3c29ce82a32c5710f68e0bd27f20b5`; follow-up Zeta adaptation
+  commit: `7d4d2c5186afed67606282c35552a0c4643a550c` (merge driver scope fix,
+  native sentinel sync, upstream test adaptation, biome fixes).
+- Merge-tree found 26 conflicts: `bun.lock`; root + all ten workspace
+  `package.json` files; the native version sentinel (`lib.rs`); nineteen
+  coding-agent/ai/catalog/hashline/tui/natives src and test files; `README.md`;
+  `docs/native-crates.md`.
+- Conflict decisions: package identity, `@zeta/*` scope, and the 1.0.0 version
+  line preserved everywhere (package.json merge driver + `@oh-my-pi` → `@zeta`
+  sweep). Native sentinel `__piNativesV1_0_0` retained over upstream's
+  `V17_2_12` and re-synced into the generated `index.js`/`index.d.ts`. The
+  nineteen source/test files resolved to theirs where zeta-side deltas were
+  scope-only renames, keeping zeta behavior elsewhere. `README.md` kept the
+  Zeta product page (Zeta-owned surface; upstream marketing README not
+  imported). `docs/native-crates.md` took the upstream `pi-builtins` restructure
+  (v17.2.12 unified uu-*/brush-builtins/jaq into `crates/pi-builtins`) with
+  `@oh-my-pi` → `@zeta` branding.
+- Post-merge findings: the package.json merge driver had `OMP_SCOPE` set to
+  `@zeta/` (upstream is `@oh-my-pi/`); corrected with regression tests. The
+  upstream dispose-release memory test referenced the global
+  `AsyncJobManager.resetForTests()` which Zeta's per-session manager does not
+  have; call removed.
+- Checks: `bun check` green (all workspaces + `check:rs`); 26 targeted
+  tests pass including the native sentinel contract
+  (`windows-staging.test.ts`), loader freshness, and the dispose-release
+  suite; CLI smoke probe passes (`zeta/1.0.0`, `--smoke-test: ok`). Required
+  CI remains pending before this branch may reach `main`.
 
 ## Pi Runtime Ports
 
