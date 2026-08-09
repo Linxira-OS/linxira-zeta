@@ -6,10 +6,8 @@ export async function register(): Promise<void> {
   // ZETA_CODING_AGENT_DIR takes priority; fall back to OMP_CODING_AGENT_DIR
   // and PI_CODING_AGENT_DIR for backward compatibility.
   if (!process.env.ZETA_CODING_AGENT_DIR && !process.env.OMP_CODING_AGENT_DIR && !process.env.PI_CODING_AGENT_DIR) {
-    const osName = "os";
-    const pathName = "path";
-    const { homedir } = await import(osName);
-    const { join } = await import(pathName);
+    const { homedir } = await import("node:os");
+    const { join } = await import("node:path");
     const defaultDir = join(homedir(), ".zeta", "agent");
     process.env.ZETA_CODING_AGENT_DIR = defaultDir;
     process.env.OMP_CODING_AGENT_DIR = defaultDir;
