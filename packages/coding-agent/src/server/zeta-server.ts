@@ -102,7 +102,7 @@ async function proxyRequest(req: Request, targetBase: string): Promise<Response>
 		});
 
 		const res = await fetch(proxyReq);
-		return res;
+		return normalizeProxiedResponse(res);
 	} catch (err) {
 		logger.debug("Proxy request failed", {
 			target: targetUrl,
@@ -110,6 +110,24 @@ async function proxyRequest(req: Request, targetBase: string): Promise<Response>
 		});
 		return new Response("Bad Gateway", { status: 502 });
 	}
+}
+
+/**
+ * Bun transparently decodes compressed fetch responses but retains their
+ * Content-Encoding header. Passing that stale header to Chromium makes it try
+ * to decode the already-plain Web UI chunks a second time.
+ */
+export function normalizeProxiedResponse(response: Response): Response {
+	if (!response.headers.has("content-encoding")) return response;
+
+	const headers = new Headers(response.headers);
+	headers.delete("content-encoding");
+	headers.delete("content-length");
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +255,8 @@ export class ZetaServer {
 		const server = Bun.serve({
 			port,
 			hostname: "127.0.0.1",
+			// Agent streams are Server-Sent Events and may stay quiet between turns.
+			idleTimeout: 0,
 			async fetch(req) {
 				const route = classifyRequest(req, webUiPort);
 

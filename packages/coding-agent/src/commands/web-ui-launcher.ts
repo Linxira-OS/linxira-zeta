@@ -3,8 +3,8 @@
  *
  * 按优先级尝试启动 Web UI：
  * 1. 编译后二进制内嵌的 web-ui（PI_COMPILED 模式）
- * 2. 全局安装的 zeta-web npm 包
- * 3. 源码仓库中的 web-ui 目录
+ * 2. 源码仓库中的 web-ui 目录
+ * 3. 全局安装的 zeta-web npm 包
  */
 
 import * as fs from "node:fs";
@@ -13,6 +13,15 @@ import { $which } from "@zeta/pi-utils";
 
 export interface WebUiChild {
 	kill: () => void;
+}
+
+/** Resolve the Node-compatible runtime used to host the standalone Web UI. */
+export function resolveWebUiRuntime(env: NodeJS.ProcessEnv = process.env): string {
+	return env.ZETA_WEB_RUNTIME || "node";
+}
+
+function hideWebUiWindow(): boolean {
+	return process.env.ZETA_DESKTOP === "1";
 }
 
 /**
@@ -85,6 +94,7 @@ function spawnZetaWebBin(bin: string, port: number): WebUiChild {
 		env,
 		stdout: "inherit",
 		stderr: "inherit",
+		windowsHide: hideWebUiWindow(),
 	});
 
 	return {
@@ -95,6 +105,7 @@ function spawnZetaWebBin(bin: string, port: number): WebUiChild {
 }
 
 function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
+	const runtime = resolveWebUiRuntime();
 	// Check if web-ui has been built
 	const nextDir = path.join(webUiDir, ".next");
 	if (!fs.existsSync(nextDir)) {
@@ -106,7 +117,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 	// Use the zeta-web bin script directly
 	const binScript = path.join(webUiDir, "bin", "zeta-web.js");
 	if (fs.existsSync(binScript)) {
-		const child = Bun.spawn(["node", binScript, "--port", String(port), "--hostname", "127.0.0.1"], {
+		const child = Bun.spawn([runtime, binScript, "--port", String(port), "--hostname", "127.0.0.1"], {
 			cwd: webUiDir,
 			env: {
 				...process.env,
@@ -116,6 +127,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 			},
 			stdout: "inherit",
 			stderr: "inherit",
+			windowsHide: hideWebUiWindow(),
 		});
 
 		return {
@@ -131,7 +143,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 		throw new Error(`Web UI runtime not found in ${webUiDir}. Run 'cd web-ui && npm install' first.`);
 	}
 
-	const child = Bun.spawn(["node", nextBin, "start", "-H", "127.0.0.1", "-p", String(port)], {
+	const child = Bun.spawn([runtime, nextBin, "start", "-H", "127.0.0.1", "-p", String(port)], {
 		cwd: webUiDir,
 		env: {
 			...process.env,
@@ -141,6 +153,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 		},
 		stdout: "inherit",
 		stderr: "inherit",
+		windowsHide: hideWebUiWindow(),
 	});
 
 	return {
@@ -159,6 +172,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
  * 3. 全局安装的 zeta-web npm 包
  */
 function spawnEmbeddedWebUi(port: number): WebUiChild {
+	const runtime = resolveWebUiRuntime();
 	// PI_COMPILED 模式下，二进制旁边就是 web-ui 目录（便携版布局）
 	const candidates = [
 		path.join(path.dirname(process.execPath), "web-ui"),
@@ -171,7 +185,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 		// 1. Standalone 模式
 		const serverJs = path.join(dir, ".next", "standalone", "server.js");
 		if (fs.existsSync(serverJs)) {
-			const child = Bun.spawn(["node", "server.js"], {
+			const child = Bun.spawn([runtime, "server.js"], {
 				cwd: path.join(dir, ".next", "standalone"),
 				env: {
 					...process.env,
@@ -180,6 +194,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 				},
 				stdout: "inherit",
 				stderr: "inherit",
+				windowsHide: hideWebUiWindow(),
 			});
 
 			return {
@@ -193,7 +208,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 		const buildId = path.join(dir, ".next", "BUILD_ID");
 		const nextBin = path.join(dir, "node_modules", "next", "dist", "bin", "next");
 		if (fs.existsSync(buildId) && fs.existsSync(nextBin)) {
-			const child = Bun.spawn(["node", nextBin, "start", "-H", "127.0.0.1", "-p", String(port)], {
+			const child = Bun.spawn([runtime, nextBin, "start", "-H", "127.0.0.1", "-p", String(port)], {
 				cwd: dir,
 				env: {
 					...process.env,
@@ -203,6 +218,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 				},
 				stdout: "inherit",
 				stderr: "inherit",
+				windowsHide: hideWebUiWindow(),
 			});
 
 			return {
@@ -216,7 +232,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 	// 3. 尝试 zeta-web bin 脚本
 	const binScript = path.join(import.meta.dir, "..", "web-ui", "bin", "zeta-web.js");
 	if (fs.existsSync(binScript)) {
-		const child = Bun.spawn(["node", binScript, "--port", String(port), "--hostname", "127.0.0.1", "--no-open"], {
+		const child = Bun.spawn([runtime, binScript, "--port", String(port), "--hostname", "127.0.0.1", "--no-open"], {
 			env: {
 				...process.env,
 				ZETA_WEB_HOSTNAME: "127.0.0.1",
@@ -225,6 +241,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 			},
 			stdout: "inherit",
 			stderr: "inherit",
+			windowsHide: hideWebUiWindow(),
 		});
 
 		return {

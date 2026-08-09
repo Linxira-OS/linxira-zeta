@@ -29,6 +29,14 @@ import type { SessionStatsInfo } from "@/lib/pi-types";
 type SessionCopyField = "file" | "id";
 
 export function AppShell() {
+	return (
+		<I18nProvider>
+			<AppShellContent />
+		</I18nProvider>
+	);
+}
+
+function AppShellContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [initialNavigation] = useState(() => getInitialNavigation(searchParams));
@@ -483,9 +491,8 @@ export function AppShell() {
     </>
   );
 
-  return (
-    <I18nProvider>
-    <>
+	return (
+		<>
     <style>{`
       @keyframes session-info-pop {
         0% {
@@ -1222,7 +1229,6 @@ export function AppShell() {
         onReloaded={() => setSessionKey((k) => k + 1)}
       />
     )}
-    </>
-    </I18nProvider>
-  );
+		</>
+	);
 }

@@ -1,7 +1,8 @@
-import { readdirSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { homedir } from "os";
 import path from "path";
 import { getAdditionalAllowedRoots, normalizeSlashes } from "./allowed-roots";
+import { defaultWorkspacePath } from "./default-workspace";
 import { isExistingPathWithinRoots } from "./path-security";
 import { listAllSessions } from "./session-reader";
 export { allowFileRoot, normalizeSlashes } from "./allowed-roots";
@@ -35,7 +36,10 @@ export async function getAllowedFileRoots(): Promise<Set<string>> {
     if (s.projectRoot) roots.add(normalizeSlashes(s.projectRoot));
   }
 
-  // Also allow ~/omp-cwd-* and ~/pi-cwd-* directories created by the default-cwd endpoint.
+  const defaultWorkspace = defaultWorkspacePath(homedir());
+  if (existsSync(defaultWorkspace)) roots.add(normalizeSlashes(defaultWorkspace));
+
+  // Retain access to timestamped directories created by older default-cwd versions.
   try {
     for (const name of readdirSync(homedir())) {
       if (/^(omp|pi)-cwd-\d{8}$/.test(name)) {
