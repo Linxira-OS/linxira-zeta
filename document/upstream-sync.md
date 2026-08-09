@@ -111,7 +111,7 @@ storage, runtime, and test framework.
 2. Classify each change: direct port, semantic port, covered, divergence, or
    not applicable.
 3. Create `port/pi/<scope>` from `main`.
-4. Follow `docs/porting-from-pi-mono.md`: read both implementations, map APIs,
+4. Follow `document/porting-from-pi-mono.md`: read both implementations, map APIs,
    retain OMP guarantees, and add focused coverage for changed behavior.
 5. Record the source commit range and classification in the port commit body or
    pull request description. Update OMP's Pi marker only after a coherent port

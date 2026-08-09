@@ -53,7 +53,7 @@ hard release-boundary rule, not a suggestion.
   merge with a separate, documented Zeta branding-overlay commit that restores
   the approved product presentation. Do not let upstream README text become
   the default Zeta front door.
-- Every release sync updates `docs/upstream-sync.md` with the prior baseline,
+- Every release sync updates `document/upstream-sync.md` with the prior baseline,
   source tag, source SHA, Zeta starting commit, conflict decisions, checks,
   and final merge commit. A release sync reaches `main` only after its focused
   checks and required CI pass.
@@ -62,8 +62,8 @@ hard release-boundary rule, not a suggestion.
   merge-tree/conflict report before changing a product branch.
 
 Current baseline references and the sync procedure live in
-`docs/upstream-sync.md`. Before starting an upstream port, read that file and
-the upstream OMP guide at `docs/porting-from-pi-mono.md`.
+`document/upstream-sync.md`. Before starting an upstream port, read that file and
+the upstream OMP guide at `document/porting-from-pi-mono.md`.
 
 ## Upstream Reference Hygiene
 
@@ -79,13 +79,13 @@ Zeta keeps upstream references minimal so the repository stays lean:
 - Local tags are curated: OMP tags only for the two most recent versions
   (currently `v17.2.11`, `v17.2.12`), plus `baseline/*` markers and Zeta
   product release tags. All other upstream history is preserved through the
-  SHAs recorded in `docs/upstream-sync.md`, not through tag refs.
+  SHAs recorded in `document/upstream-sync.md`, not through tag refs.
 - `origin` (the GitHub remote) is the product truth: the Zeta `main` branch,
   the `sync/omp` mirror, and short-lived `sync/omp-release/<release>` or
   `port/<scope>` integration branches. `temp/` reference clones and local
   scratch branches never reach `origin`.
 - Zeta product versions are Zeta-semver, decoupled from OMP version numbers.
-  OMP tags are integration baselines recorded in `docs/upstream-sync.md`;
+  OMP tags are integration baselines recorded in `document/upstream-sync.md`;
   `bun run release` bumps Zeta package versions, not OMP-derived ones.
 
 ## Default Context

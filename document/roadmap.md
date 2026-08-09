@@ -100,6 +100,25 @@ OpenCode's `autotools` lesson: a huge tool schema set costs large token
 overhead (multi-ten-thousand-token tool definitions) and forced two-phase tool
 decision. Right-size Zeta's tool schemas and consider two-phase selection.
 
+### P1 — Context-file and prompt hot updates (agent-doc awareness)
+
+Today the session system prompt is a signature-driven snapshot
+(`session-tools.ts`): active tool names, tool labels/descriptions, MCP
+projection, and MCP instruction text form a signature, and the prompt is only
+rebuilt when that signature changes (or on explicit `refreshBaseSystemPrompt`
+calls: model/agent switch, memory ops, commands). The provider request tools
+list is dynamic per turn, but **AGENTS.md and other context files change is
+not watched**: editing them mid-session does not reach the model until some
+other trigger rebuilds the prompt.
+
+- **Acceptance**: context-file changes (AGENTS.md/CLAUDE.md/…, custom prompts)
+  are detected and diffed against the rendered base prompt; when the rendered
+  bytes change, rebuild and clear the provider prompt-cache key per the P0
+  tracking contract (a changing prefix means the old cache no longer applies —
+  never ship a stale prefix).
+- Distinct from full config hot-reload (V2-style debounced watchers for
+  commands/agents) — that stays a later item.
+
 ### P3 — Compaction fidelity (QA detail retention)
 
 Compacted summaries lose specifics that later turns need. Design distillation
@@ -110,6 +129,6 @@ singlesources context that must survive long sessions.
 
 - Everything here must land as Zeta-branded overlay/brand commits after
   release merges, never inside the sync tree.
-- `docs/upstream-sync.md` records the release-baseline ledger; this document
+- `document/upstream-sync.md` records the release-baseline ledger; this document
   is the product-side counterpart.
 - Re-check upstream for competing roadmaps before each priority starts.

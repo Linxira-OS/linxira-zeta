@@ -14,7 +14,7 @@
   - `packages/coding-agent/src/config/settings-schema.ts` — default context lines.
   - `packages/natives/native/index.d.ts` — native `grep()` types exposed to TS.
   - `crates/pi-natives/src/grep.rs` — native regex/file search implementation.
-  - `docs/natives-text-search-pipeline.md` — native search pipeline overview.
+  - `document/natives-text-search-pipeline.md` — native search pipeline overview.
 
 ## Inputs
 
