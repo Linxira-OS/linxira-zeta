@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { M } from "@zeta/pi-coding-agent/i18n";
 import { pickWeightedTip, WelcomeComponent } from "@zeta/pi-coding-agent/modes/components/welcome";
 import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { M } from "../../../src/i18n";
 
 describe("WelcomeComponent tips", () => {
 	beforeAll(async () => {

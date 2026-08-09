@@ -50,18 +50,6 @@
   },
   "dependencies": {
     "@babel/parser": "catalog:",
-    "@zeta/hashline": "catalog:",
-    "@zeta/omp-stats": "catalog:",
-    "@zeta/pi-omptype": "catalog:",
-    "@zeta/pi-agent-core": "catalog:",
-    "@zeta/pi-ai": "catalog:",
-    "@zeta/pi-catalog": "catalog:",
-    "@zeta/pi-mnemopi": "catalog:",
-    "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-tui": "catalog:",
-    "@zeta/pi-utils": "catalog:",
-    "@zeta/pi-wire": "catalog:",
-    "@zeta/snapcompact": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
@@ -74,7 +62,19 @@
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@opentelemetry/sdk-trace-node": "catalog:",
     "mupdf": "catalog:",
-    "puppeteer-core": "catalog:"
+    "puppeteer-core": "catalog:",
+    "@zeta/hashline": "catalog:",
+    "@zeta/omp-stats": "catalog:",
+    "@zeta/pi-omptype": "catalog:",
+    "@zeta/pi-agent-core": "catalog:",
+    "@zeta/pi-ai": "catalog:",
+    "@zeta/pi-catalog": "catalog:",
+    "@zeta/pi-mnemopi": "catalog:",
+    "@zeta/pi-natives": "catalog:",
+    "@zeta/pi-tui": "catalog:",
+    "@zeta/pi-utils": "catalog:",
+    "@zeta/pi-wire": "catalog:",
+    "@zeta/snapcompact": "catalog:"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "catalog:",
@@ -108,14 +108,6 @@
     "./*": {
       "types": "./src/*.ts",
       "import": "./src/*.ts"
-    },
-    "./i18n": {
-      "types": "./src/i18n/index.ts",
-      "import": "./src/i18n/index.ts"
-    },
-    "./i18n/*": {
-      "types": "./src/i18n/*.ts",
-      "import": "./src/i18n/*.ts"
     },
     "./async": {
       "types": "./src/async/index.ts",

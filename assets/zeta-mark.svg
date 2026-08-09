@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 160" role="img" aria-labelledby="title">
+  <title id="title">Zeta</title>
+  <rect width="512" height="160" fill="#101820"/>
+  <path fill="#35D0BA" d="M42 30h156v30L93 130h108v30H42v-30l105-70H42z"/>
+  <path fill="#FF6B4A" d="M219 30h24v100h-24z"/>
+  <path fill="#F4F7F5" d="M272 44h42c29 0 47 15 47 39 0 16-8 28-22 34l28 43h-32l-24-38h-12v38h-27zm27 23v33h15c13 0 20-6 20-17s-7-16-20-16zM379 44h91v23h-64v22h57v22h-57v26h66v23h-93z"/>
+</svg>
