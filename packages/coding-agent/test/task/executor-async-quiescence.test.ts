@@ -178,7 +178,6 @@ function mockCreateAgentSession(session: AgentSession) {
 describe("runSubprocess async quiescence fresh-yield contract", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
-		AsyncJobManager.resetForTests();
 	});
 
 	it("parks a pending yield, injects the result, and completes on the fresh yield", async () => {
@@ -310,7 +309,6 @@ describe("runSubprocess async quiescence fresh-yield contract", () => {
 		const disposeGate = Promise.withResolvers<void>();
 		const lateJobGate = Promise.withResolvers<void>();
 		const manager = new AsyncJobManager({});
-		AsyncJobManager.setInstance(manager);
 		let lateJobId: string | undefined;
 		let deferredCleanup: Promise<void> | undefined;
 		const harness = createAsyncSession(
@@ -348,6 +346,10 @@ describe("runSubprocess async quiescence fresh-yield contract", () => {
 			index: 0,
 			id: "cleanup-timeout",
 			keepAlive: false,
+			// The manager is owned by the spawner in production (structured-subagent
+			// forwards the parent session's manager); the executor reaps this
+			// subagent's owner jobs through it during cleanup.
+			asyncJobManager: manager,
 			onCleanupDeferred: completion => {
 				deferredCleanup = completion;
 			},

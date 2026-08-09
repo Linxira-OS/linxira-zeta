@@ -527,6 +527,14 @@ export interface CreateAgentSessionOptions {
 	/** Parent task ID prefix for nested artifact naming (e.g., "Extensions") */
 	parentTaskPrefix?: string;
 	/**
+	 * AsyncJobManager to inherit. Set by the task executor so a subagent's
+	 * background bash/task work shares the spawning session's manager (jobs
+	 * and `onJobComplete` deliveries then flow into the conversation that
+	 * spawned it). Top-level sessions never receive this — they construct
+	 * their own manager in `createAgentSession`.
+	 */
+	asyncJobManager?: AsyncJobManager;
+	/**
 	 * Registry id of the spawning agent, recorded as this subagent's parent in
 	 * the agent registry. Distinct from `parentTaskPrefix`, which is this agent's
 	 * own artifact/output-id prefix (the executor passes the child's own id
@@ -1589,23 +1597,20 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	const enableLsp = options.enableLsp ?? !restrictToolNames;
 	const lspReadOnly = options.lspReadOnly ?? restrictToolNames;
 	const asyncMaxJobs = Math.min(100, Math.max(1, settings.get("async.maxJobs") ?? 100));
-	// Only the first top-level session in a process owns an AsyncJobManager.
-	// Subagents inherit the parent's manager via `AsyncJobManager.instance()`
-	// (set below), and any additional top-level session spun up in-process
-	// (e.g. the agent-creation architect in `agent-dashboard.ts`) must share
-	// the live singleton — otherwise its dispose path would clobber the
-	// owning session's manager and break the `task`/`bash` async paths
-	// (issue #1923). The `instance()` guard means later sessions also skip
-	// constructing an orphaned manager that nothing would ever route to.
+	// Every top-level session owns an AsyncJobManager; subagents inherit the
+	// spawning session's manager via `options.asyncJobManager` (forwarded by
+	// the task executor). There is deliberately no process-global singleton:
+	// multiple in-process top-level sessions (e.g. the agent-creation
+	// architect in `agent-dashboard.ts`, the eval bridge, a second SDK
+	// session) each get their own manager, so their bash/task async work and
+	// `onJobComplete` deliveries stay routed to the session that spawned them
+	// instead of fighting over one shared owner (issue #1923).
 	// Delivery is owner-routed: every AgentSession registers its own sink
 	// (see session/async-job-delivery.ts), so the manager takes no default
 	// onJobComplete here.
-	const asyncJobManager =
-		!options.parentTaskPrefix && !AsyncJobManager.instance()
-			? new AsyncJobManager({ maxRunningJobs: asyncMaxJobs })
-			: undefined;
+	const asyncJobManager = options.parentTaskPrefix ? undefined : new AsyncJobManager({ maxRunningJobs: asyncMaxJobs });
 
-	const scopedAsyncJobManager = asyncJobManager ?? (options.parentTaskPrefix ? AsyncJobManager.instance() : undefined);
+	const scopedAsyncJobManager = asyncJobManager ?? options.asyncJobManager;
 
 	const agentRegistry = options.agentRegistry ?? AgentRegistry.global();
 	const resolvedAgentId = options.agentId ?? options.parentTaskPrefix ?? MAIN_AGENT_ID;
@@ -1775,12 +1780,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			authStorage,
 			modelRegistry,
 			getTelemetry: () => agent?.telemetry,
-			// Subagents inherit the singleton (the parent's manager) so their bash/task
-			// completions still flow into the spawning conversation's yieldQueue.
-			// Secondary in-process top-level sessions (no parentTaskPrefix, no
-			// constructed manager because the singleton was already installed) leave
-			// this undefined so tools and session job snapshots refuse async work
-			// instead of silently routing into the owning session (issue #1923).
+			// Subagents inherit the parent's manager (forwarded by the task
+			// executor) so their bash/task completions still flow into the
+			// spawning conversation's yieldQueue. Top-level sessions always
+			// carry their own constructed manager (issue #1923).
 			asyncJobManager: scopedAsyncJobManager,
 		};
 
@@ -1798,7 +1801,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// so without this a TTSR-only rule (e.g. a triggered builtin) is not
 			// addressable and `rule://` reports "Available: none".
 			setActiveRules([...rulebookRules, ...alwaysApplyRules, ...ttsrManager.getRules()]);
-			if (asyncJobManager) AsyncJobManager.setInstance(asyncJobManager);
 		}
 		const localProtocolOptions = options.localProtocolOptions ?? {
 			getArtifactsDir,
@@ -3781,9 +3783,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			} else {
 				if (hasRegistered) unregisterUnlessParked();
 				if (asyncJobManager) {
-					if (AsyncJobManager.instance() === asyncJobManager) {
-						AsyncJobManager.setInstance(undefined);
-					}
 					await asyncJobManager.dispose({ timeoutMs: 3_000 });
 				}
 				await releaseComputerSessionsForOwner(evalKernelOwnerId);

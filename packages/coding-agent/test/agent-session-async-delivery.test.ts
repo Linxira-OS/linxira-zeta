@@ -26,6 +26,7 @@ describe("AgentSession owner-routed async delivery", () => {
 	let session: AgentSession;
 	let tempDir: string;
 	const authStorages: AuthStorage[] = [];
+	const managers: AsyncJobManager[] = [];
 
 	beforeEach(() => {
 		tempDir = path.join(os.tmpdir(), `pi-async-delivery-test-${Snowflake.next()}`);
@@ -36,13 +37,15 @@ describe("AgentSession owner-routed async delivery", () => {
 		if (session) {
 			await session.dispose();
 		}
+		for (const manager of managers.splice(0)) {
+			await manager.dispose({ timeoutMs: 200 });
+		}
 		for (const authStorage of authStorages.splice(0)) {
 			authStorage.close();
 		}
 		if (tempDir && fs.existsSync(tempDir)) {
 			removeSyncWithRetries(tempDir);
 		}
-		AsyncJobManager.resetForTests();
 	});
 
 	it("injects an owned completion as a follow-up turn and reaches quiescence", async () => {
@@ -58,7 +61,7 @@ describe("AgentSession owner-routed async delivery", () => {
 		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		const manager = new AsyncJobManager({});
-		AsyncJobManager.setInstance(manager);
+		managers.push(manager);
 
 		session = new AgentSession({
 			agent,
@@ -108,7 +111,7 @@ describe("AgentSession owner-routed async delivery", () => {
 		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		const manager = new AsyncJobManager({ retentionMs: 60_000 });
-		AsyncJobManager.setInstance(manager);
+		managers.push(manager);
 
 		session = new AgentSession({
 			agent,
@@ -162,7 +165,7 @@ describe("AgentSession owner-routed async delivery", () => {
 		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		const manager = new AsyncJobManager({ retentionMs: 60_000 });
-		AsyncJobManager.setInstance(manager);
+		managers.push(manager);
 
 		session = new AgentSession({
 			agent,
@@ -214,7 +217,7 @@ describe("AgentSession owner-routed async delivery", () => {
 		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		const manager = new AsyncJobManager({ retentionMs: 60_000 });
-		AsyncJobManager.setInstance(manager);
+		managers.push(manager);
 
 		session = new AgentSession({
 			agent,
@@ -271,7 +274,7 @@ describe("AgentSession owner-routed async delivery", () => {
 		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		const manager = new AsyncJobManager({});
-		AsyncJobManager.setInstance(manager);
+		managers.push(manager);
 
 		session = new AgentSession({
 			agent,

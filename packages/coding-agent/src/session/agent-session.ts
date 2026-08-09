@@ -98,7 +98,7 @@ import {
 	withTimeout,
 } from "@zeta/pi-utils";
 import { type AdvisorConfig, type AdvisorRuntimeStatus, loadAdvisorTranscriptCosts } from "../advisor";
-import { type AsyncJob, AsyncJobManager } from "../async";
+import type { AsyncJob, AsyncJobManager } from "../async";
 import { shouldEnableAppendOnlyContext } from "../config/append-only-context-mode";
 import type { ModelRegistry } from "../config/model-registry";
 import type { ResolvedModelRoleValue } from "../config/model-resolver";
@@ -504,15 +504,15 @@ export class AgentSession {
 	readonly #eval: EvalRunner;
 	/**
 	 * AsyncJobManager owned by this session (top-level only). Subagents leave
-	 * this undefined and **MUST NOT** dispose the global instance on teardown.
+	 * this undefined and must not dispose the parent's manager on teardown.
 	 */
 	readonly #ownedAsyncJobManager: AsyncJobManager | undefined;
 	/**
 	 * AsyncJobManager scoped to this session for introspection/cancellation.
 	 *
-	 * This differs from `#ownedAsyncJobManager`: subagents can inherit a parent
-	 * manager for their own owner id, while secondary top-level sessions are left
-	 * undefined to avoid reading the primary's jobs.
+	 * This differs from `#ownedAsyncJobManager`: subagents inherit their
+	 * parent's manager so their jobs report under their own owner id while
+	 * completing into the spawning conversation's yieldQueue.
 	 */
 	readonly #asyncJobManager: AsyncJobManager | undefined;
 	/** Clears this session's owner delivery sink registration; set when a manager + agent id exist. */
@@ -3716,16 +3716,10 @@ export class AgentSession {
 		const manager = this.#ownedAsyncJobManager;
 		if (!manager) return;
 
-		try {
-			const drained = await manager.dispose({ timeoutMs: 3_000 });
-			const deliveryState = manager.getDeliveryState();
-			if (drained === false && deliveryState) {
-				logger.warn("Async job completion deliveries still pending during dispose", { ...deliveryState });
-			}
-		} finally {
-			if (AsyncJobManager.instance() === manager) {
-				AsyncJobManager.setInstance(undefined);
-			}
+		const drained = await manager.dispose({ timeoutMs: 3_000 });
+		const deliveryState = manager.getDeliveryState();
+		if (drained === false && deliveryState) {
+			logger.warn("Async job completion deliveries still pending during dispose", { ...deliveryState });
 		}
 	}
 

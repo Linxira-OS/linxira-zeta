@@ -36,7 +36,6 @@ describe("AgentSession concurrent disposal", () => {
 		session = undefined;
 		if (current) await current.dispose();
 		authStorage.close();
-		AsyncJobManager.resetForTests();
 		vi.restoreAllMocks();
 		tempDir.removeSync();
 	});
@@ -144,17 +143,16 @@ describe("AgentSession concurrent disposal", () => {
 		);
 	});
 
-	it("clears the owned async manager when its dispose rejects", async () => {
+	it("surfaces a rejected owned async manager dispose through parallel teardown", async () => {
 		const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
 		const owned = new AsyncJobManager({ maxRunningJobs: 1, retentionMs: 1_000, onJobComplete: () => {} });
 		vi.spyOn(owned, "dispose").mockRejectedValue(new Error("async dispose failed"));
-		AsyncJobManager.setInstance(owned);
 		const current = createSession(owned);
 
 		await current.dispose();
 		session = undefined;
 
-		expect(AsyncJobManager.instance()).toBeUndefined();
+		expect(owned.dispose).toHaveBeenCalledTimes(1);
 		expect(warn).toHaveBeenCalledWith("Session dispose subsystem failed during parallel teardown", {
 			error: "Error: async dispose failed",
 		});

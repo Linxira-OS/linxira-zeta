@@ -9,7 +9,7 @@ import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } fr
 import { recordHandoff, resolveTelemetry } from "@zeta/pi-agent-core";
 import type { Api, Model, ServiceTierByFamily, Usage } from "@zeta/pi-ai";
 import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@zeta/pi-utils";
-import { AsyncJobManager } from "../async";
+import type { AsyncJobManager } from "../async";
 import type { Rule } from "../capability/rule";
 import { ModelRegistry } from "../config/model-registry";
 import {
@@ -460,6 +460,14 @@ export interface ExecutorOptions {
 	parentArtifactManager?: ArtifactManager;
 	parentHindsightSessionState?: HindsightSessionState;
 	parentMnemopiSessionState?: MnemopiSessionState;
+	/**
+	 * Parent session's AsyncJobManager, forwarded so the subagent shares the
+	 * spawning conversation's manager: background bash/task work reports under
+	 * the subagent's own owner id while `onJobComplete` deliveries still land
+	 * in the parent's yieldQueue. Also used to reap the subagent's owner jobs
+	 * during cleanup.
+	 */
+	asyncJobManager?: AsyncJobManager;
 	/** Parent agent's eval executor session id. Subagents reuse it so eval state is shared. */
 	parentEvalSessionId?: string;
 	/**
@@ -3028,6 +3036,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				rules: options.rules,
 				preloadedExtensionPaths: restrictToolNames ? [] : options.preloadedExtensionPaths,
 				preloadedCustomToolPaths: restrictToolNames ? [] : options.preloadedCustomToolPaths,
+				asyncJobManager: options.asyncJobManager,
 				systemPrompt: defaultPrompt => {
 					const subagentPrompt = prompt.render(subagentSystemPromptTemplate, {
 						agent: agent.systemPrompt,
@@ -3305,7 +3314,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				}
 				unsubscribe = null;
 			}
-			const jobManager = AsyncJobManager.instance();
+			const jobManager = options.asyncJobManager;
 			if (jobManager) {
 				const reap = await jobManager.cancelAndReapOwnerJobs(id, cleanupDeadlineAt);
 				if (!reap.settled) {
