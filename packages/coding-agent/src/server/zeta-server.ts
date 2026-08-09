@@ -128,7 +128,8 @@ export class ZetaServer {
 		this.#options = {
 			port: options.port ?? 30141,
 			statsPort: options.statsPort ?? 3847,
-			noBrowser: options.noBrowser ?? false,
+			// 默认不打开系统浏览器：服务仅监听端口，由 UI 壳（Electron/web-ui）消费。
+			noBrowser: options.noBrowser ?? true,
 			statsOnly: options.statsOnly ?? false,
 			webOnly: options.webOnly ?? false,
 		};

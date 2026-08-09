@@ -103,11 +103,11 @@ export const usageHelp = {
 } satisfies CommandMetadata;
 
 export const serveHelp = {
-	description: "Start the Stats Dashboard and Web UI, then open the browser",
+	description: "Start the Stats Dashboard and Web UI services (no browser)",
 } satisfies CommandMetadata;
 
 export const webHelp = {
-	description: "Start the Web UI server and open the browser",
+	description: "Start the Web UI server (no browser)",
 } satisfies CommandMetadata;
 
 export const worktreeHelp = {

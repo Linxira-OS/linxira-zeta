@@ -25,16 +25,16 @@ export async function spawnWebUi(port: number = 30141): Promise<WebUiChild> {
 		return spawnEmbeddedWebUi(port);
 	}
 
-	// 2. 尝试全局安装的 zeta-web
-	const zetaWebBin = await findZetaWebBin();
-	if (zetaWebBin) {
-		return spawnZetaWebBin(zetaWebBin, port);
-	}
-
-	// 3. 尝试源码仓库中的 web-ui
+	// 2. 优先源码仓库中的 web-ui（开发/便携场景，避免依赖全局 npm 包或 npx）
 	const webUiDir = findSourceWebUiDir();
 	if (webUiDir) {
 		return spawnSourceWebUi(webUiDir, port);
+	}
+
+	// 3. 回退：全局安装的 zeta-web
+	const zetaWebBin = await findZetaWebBin();
+	if (zetaWebBin) {
+		return spawnZetaWebBin(zetaWebBin, port);
 	}
 
 	throw new Error("Web UI not found. Install with: npm install -g zeta-web, or run from the Zeta repository root.");
@@ -53,8 +53,8 @@ async function findZetaWebBin(): Promise<string | null> {
 }
 
 function findSourceWebUiDir(): string | null {
-	// Walk up from the coding-agent package to find the repo root, then web-ui
-	let dir = path.join(import.meta.dir, "..", "..", "..", "web-ui");
+	// Walk up from the commands dir (src/commands) to the repo root, then web-ui
+	let dir = path.join(import.meta.dir, "..", "..", "..", "..", "web-ui");
 	if (fs.existsSync(path.join(dir, "package.json"))) {
 		return dir;
 	}
@@ -106,7 +106,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 	// Use the zeta-web bin script directly
 	const binScript = path.join(webUiDir, "bin", "zeta-web.js");
 	if (fs.existsSync(binScript)) {
-		const child = Bun.spawn(["node", binScript], {
+		const child = Bun.spawn(["node", binScript, "--port", String(port), "--hostname", "127.0.0.1"], {
 			cwd: webUiDir,
 			env: {
 				...process.env,
@@ -125,8 +125,13 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 		};
 	}
 
-	// Fallback: use next start directly
-	const child = Bun.spawn(["npx", "next", "start", "-H", "127.0.0.1", "-p", String(port)], {
+	// Fallback: use the local next binary (no npx dependency)
+	const nextBin = path.join(webUiDir, "node_modules", "next", "dist", "bin", "next");
+	if (!fs.existsSync(nextBin)) {
+		throw new Error(`Web UI runtime not found in ${webUiDir}. Run 'cd web-ui && npm install' first.`);
+	}
+
+	const child = Bun.spawn(["node", nextBin, "start", "-H", "127.0.0.1", "-p", String(port)], {
 		cwd: webUiDir,
 		env: {
 			...process.env,
@@ -211,7 +216,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 	// 3. 尝试 zeta-web bin 脚本
 	const binScript = path.join(import.meta.dir, "..", "web-ui", "bin", "zeta-web.js");
 	if (fs.existsSync(binScript)) {
-		const child = Bun.spawn(["node", binScript], {
+		const child = Bun.spawn(["node", binScript, "--port", String(port), "--hostname", "127.0.0.1", "--no-open"], {
 			env: {
 				...process.env,
 				ZETA_WEB_HOSTNAME: "127.0.0.1",

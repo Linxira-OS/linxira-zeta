@@ -11,7 +11,7 @@ import chalk from "chalk";
 import { startZetaServer } from "../server/zeta-server";
 
 export default class Serve extends Command {
-	static description = "Start the Stats Dashboard and Web UI, then open the browser";
+	static description = "Start the Stats Dashboard and Web UI services (no browser)";
 
 	static flags = {
 		"stats-port": Flags.integer({
@@ -25,8 +25,8 @@ export default class Serve extends Command {
 			default: 30141,
 		}),
 		"no-browser": Flags.boolean({
-			description: "Don't open the browser automatically",
-			default: false,
+			description: "Don't open the browser automatically (default)",
+			default: true,
 		}),
 		"stats-only": Flags.boolean({
 			description: "Start only the Stats Dashboard (no Web UI)",

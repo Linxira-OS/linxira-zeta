@@ -10,7 +10,7 @@ import chalk from "chalk";
 import { startZetaServer } from "../server/zeta-server";
 
 export default class Web extends Command {
-	static description = "Start the Web UI server and open the browser";
+	static description = "Start the Web UI server (no browser)";
 
 	static flags = {
 		port: Flags.integer({
@@ -19,8 +19,8 @@ export default class Web extends Command {
 			default: 30141,
 		}),
 		"no-browser": Flags.boolean({
-			description: "Don't open the browser automatically",
-			default: false,
+			description: "Don't open the browser automatically (default)",
+			default: true,
 		}),
 	};
 
