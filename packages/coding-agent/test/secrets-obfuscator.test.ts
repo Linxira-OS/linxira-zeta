@@ -7,7 +7,6 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@zeta/pi-omptype";
 import type { AgentMessage } from "@zeta/pi-agent-core";
 import type { AssistantMessage, Context, Message, TextContent } from "@zeta/pi-ai";
 import {
@@ -32,6 +31,7 @@ import {
 	stripPendingSecretPlaceholderSuffix,
 } from "@zeta/pi-coding-agent/secrets/placeholder";
 import { compileSecretRegex } from "@zeta/pi-coding-agent/secrets/regex";
+import { type } from "@zeta/pi-omptype";
 import { getActiveProfile, getAgentDir, setProfile } from "@zeta/pi-utils/dirs";
 
 describe("compileSecretRegex", () => {

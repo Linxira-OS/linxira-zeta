@@ -4,7 +4,6 @@ import { Agent, type AgentMessage, AppendOnlyContextManager } from "@zeta/pi-age
 import type { AssistantMessage } from "@zeta/pi-ai";
 import { createMockModel } from "@zeta/pi-ai/providers/mock";
 import { getBundledModel } from "@zeta/pi-catalog/models";
-import { AsyncJobManager } from "@zeta/pi-coding-agent/async";
 import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
 import { Settings } from "@zeta/pi-coding-agent/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
@@ -40,7 +39,6 @@ describe("AgentSession dispose releases retained memory", () => {
 		session = undefined;
 		if (current) await current.dispose();
 		authStorage.close();
-		AsyncJobManager.resetForTests();
 		vi.restoreAllMocks();
 		tempDir.removeSync();
 	});

@@ -1,6 +1,5 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@zeta/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -9,6 +8,7 @@ import type {
 	ToolTier,
 } from "@zeta/pi-agent-core";
 import type { ImageContent, TextContent } from "@zeta/pi-ai";
+import { type } from "@zeta/pi-omptype";
 import { type ImageMetadata, isProbablyBinary, logger, prompt, readImageMetadata } from "@zeta/pi-utils";
 import {
 	canonicalSnapshotKey,

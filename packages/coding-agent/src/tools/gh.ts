@@ -1,4 +1,3 @@
-import { type } from "@zeta/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -6,6 +5,7 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@zeta/pi-agent-core";
+import { type } from "@zeta/pi-omptype";
 import { prompt, untilAborted } from "@zeta/pi-utils";
 import githubDescription from "../prompts/tools/github.md" with { type: "text" };
 import * as git from "../utils/git";

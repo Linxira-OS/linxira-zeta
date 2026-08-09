@@ -31,14 +31,14 @@ const ZETA_IDENTITY_FIELDS = new Set([
 
 const ZETA_SCOPE = "@zeta/";
 
-// Upstream workspace packages are named @zeta/*. Zeta renames that scope
+// Upstream workspace packages are named @oh-my-pi/*. Zeta renames that scope
 // to @zeta/* and keeps its own independent versions (1.0.0 product line), so
 // the driver must map upstream keys back to Zeta names before merging.
-const OMP_SCOPE = "@zeta/";
+const OMP_SCOPE = "@oh-my-pi/";
 
 // Upstream names whose catalog/tail does not equal the Zeta package tail.
 const RENAME_BY_TAIL: Record<string, string> = {
-	// upstream packages/omptype is @zeta/pi-omptype; Zeta names it pi-omptype
+	// upstream packages/omptype is @oh-my-pi/omptype; Zeta names it pi-omptype
 	omptype: "pi-omptype",
 };
 
