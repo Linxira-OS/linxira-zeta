@@ -65,6 +65,29 @@ Current baseline references and the sync procedure live in
 `docs/upstream-sync.md`. Before starting an upstream port, read that file and
 the upstream OMP guide at `docs/porting-from-pi-mono.md`.
 
+## Upstream Reference Hygiene
+
+Zeta keeps upstream references minimal so the repository stays lean:
+
+- Each upstream remote tracks only its `main` branch
+  (`git remote set-branches <remote> main`): no upstream feature, farm, or CI
+  snapshot branches are fetched or kept.
+- Fetching never auto-follows tags (`remote.<name>.tagOpt = --no-tags` on all
+  upstream remotes). Verify integration tags with `git ls-remote` per the
+  sync policy, and fetch a specific tag explicitly only when a release sync
+  needs it: `git fetch omp-upstream tag v17.2.12`.
+- Local tags are curated: OMP tags only for the two most recent versions
+  (currently `v17.2.11`, `v17.2.12`), plus `baseline/*` markers and Zeta
+  product release tags. All other upstream history is preserved through the
+  SHAs recorded in `docs/upstream-sync.md`, not through tag refs.
+- `origin` (the GitHub remote) is the product truth: the Zeta `main` branch,
+  the `sync/omp` mirror, and short-lived `sync/omp-release/<release>` or
+  `port/<scope>` integration branches. `temp/` reference clones and local
+  scratch branches never reach `origin`.
+- Zeta product versions are Zeta-semver, decoupled from OMP version numbers.
+  OMP tags are integration baselines recorded in `docs/upstream-sync.md`;
+  `bun run release` bumps Zeta package versions, not OMP-derived ones.
+
 ## Default Context
 
 This repo contains multiple packages, but **`packages/coding-agent/`** is the primary focus. Unless otherwise specified, assume work refers to this package.
