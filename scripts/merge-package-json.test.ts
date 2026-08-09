@@ -1,0 +1,47 @@
+import { describe, expect, test } from "bun:test";
+import { mergeDeps, zetaKeyFor } from "./merge-package-json";
+
+describe("zetaKeyFor", () => {
+	test("maps upstream scope keys to the Zeta scope", () => {
+		expect(zetaKeyFor("@zeta/pi-ai")).toBe("@zeta/pi-ai");
+		expect(zetaKeyFor("@zeta/hashline")).toBe("@zeta/hashline");
+		expect(zetaKeyFor("@zeta/pi-utils")).toBe("@zeta/pi-utils");
+	});
+
+	test("applies renames where upstream and Zeta tails differ", () => {
+		expect(zetaKeyFor("@zeta/pi-omptype")).toBe("@zeta/pi-omptype");
+	});
+
+	test("returns null for third-party and Zeta-scoped keys", () => {
+		expect(zetaKeyFor("react")).toBe(null);
+		expect(zetaKeyFor("@omega/pi-ai")).toBe(null);
+		expect(zetaKeyFor("@zeta/pi-ai")).toBe(null);
+	});
+});
+
+describe("mergeDeps", () => {
+	test("adopts upstream workspace deps under Zeta names with current versions", () => {
+		const current = { "@zeta/pi-ai": "1.0.0", "@zeta/pi-utils": "1.0.0" };
+		const other = { "@zeta/pi-ai": "17.2.12", "@zeta/pi-utils": "17.2.12" };
+		const merged = mergeDeps(current, other);
+		expect(merged["@zeta/pi-ai"]).toBe("1.0.0");
+		expect(merged["@zeta/pi-utils"]).toBe("1.0.0");
+	});
+
+	test("keeps third-party dependency ranges from upstream", () => {
+		const merged = mergeDeps({}, { "react": "^19.0.0", "@tanstack/react-table": "^8.0.0" });
+		expect(merged["react"]).toBe("^19.0.0");
+		expect(merged["@tanstack/react-table"]).toBe("^8.0.0");
+	});
+
+	test("keeps Zeta deps upstream does not have", () => {
+		const merged = mergeDeps({ "@zeta/pi-metaharness": "1.0.0" }, {});
+		expect(merged["@zeta/pi-metaharness"]).toBe("1.0.0");
+	});
+
+	test("keeps Zeta 1.0.0 versions over conflicting upstream keys", () => {
+		const current = { "@zeta/pi-tui": "1.0.0" };
+		const other = { "@zeta/pi-tui": "17.2.12" };
+		expect(mergeDeps(current, other)["@zeta/pi-tui"]).toBe("1.0.0");
+	});
+});

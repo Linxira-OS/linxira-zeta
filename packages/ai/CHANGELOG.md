@@ -5,6 +5,12 @@
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [17.2.12] - 2026-08-08
+
+### Fixed
+
+- Fixed account-scoped Codex cyber-policy denials bypassing sibling credential rotation; replay-safe requests now try every configured account before surfacing the error.
+
 ## [17.2.11] - 2026-08-07
 
 ### Breaking Changes
