@@ -39,6 +39,23 @@ toolchain required by Rust.
 - A planned local web workbench and desktop distribution that use the same
   coding-agent runtime rather than a separate product stack.
 
+## Zeta-Originated Capabilities
+
+Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
+[docs/roadmap.md](docs/roadmap.md)):
+
+- **Adaptive long-term tracking** — ongoing session observation with standing
+  system guidance that keeps provider prefix caches stable across long
+  sessions.
+- **Experiment measurement** — per-project local experiment tracking with
+  metrics, directions, and baseline commits.
+- **TypeScript custom commands** — user-defined slash commands from
+  `~/.omp/commands/` and project command dirs, with `arktype`/`typebox`/`zod`
+  argument schemas and full access to the runtime API.
+- **Command marketplace** — install and share slash commands as Bun packages.
+- **ACP collaboration builtins** — Agent Client Protocol session support.
+- **Local stats dashboard** — `omp stats` observability for the coding agent.
+
 ## Development
 
 ```sh
