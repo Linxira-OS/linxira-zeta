@@ -15,7 +15,7 @@ import {
 } from "@/lib/file-fuzzy";
 import { FolderIcon, getFileIcon } from "./FileIcons";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 
 export interface AttachedImage {
   data: string;   // base64, no prefix
@@ -1038,7 +1038,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
 
 
-  const { t } = useLanguage();
+  const { t } = useI18n();
   return (
     <div
       className="sf-chat-input-wrap"
@@ -1548,9 +1548,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             onPaste={handlePaste}
             placeholder={
               isStreaming && (onSteer || onFollowUp)
-                ? t("Steer now / queue follow-up...", "立刻插队 / 队列追问...")
-                : isStreaming ? t("Agent is running…", "Agent 正在运行…")
-                : t("Message… Type / for commands, @ for files", "输入消息... 输入 / 触发命令，@ 引用文件")
+                ? t("steer-now-queue-follow-up")
+                : isStreaming ? t("agent-is-running")
+                : t("message-type-for-commands-for-files")
             }
             rows={1}
             style={{
@@ -1591,7 +1591,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 1 L9 5 L5 9" /><line x1="1" y1="5" x2="9" y2="5" />
                   </svg>
-                  {t("Steer", "插队")}
+                  {t("steer")}
                 </button>
               )}
               {onFollowUp && (
@@ -1615,7 +1615,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     <line x1="5" y1="1" x2="5" y2="6" /><polyline points="2.5 3.5 5 1 7.5 3.5" />
                     <line x1="2" y1="9" x2="8" y2="9" />
                   </svg>
-                  {t("Follow-up", "追问")}
+                  {t("follow-up")}
                 </button>
               )}
             </div>
@@ -1645,7 +1645,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 <line x1="2" y1="7" x2="11" y2="7" />
                 <polyline points="7.5 3 12 7 7.5 11" />
               </svg>
-              {t("Send", "发送")}
+              {t("send")}
             </button>
           )}
           </div>

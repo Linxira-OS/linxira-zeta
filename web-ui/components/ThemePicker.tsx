@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, type Theme } from "@/hooks/useTheme";
 import { useCodeTheme, type CodeTheme } from "@/hooks/useCodeTheme";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 import { StarfieldEmblem } from "./StarfieldEmblem";
 
 interface CodeThemeOption {
@@ -113,8 +113,7 @@ const CURRENT_COLOR: Record<Theme, string> = {
 export function ThemePicker() {
   const { theme, setTheme } = useTheme();
   const { codeTheme, setCodeTheme } = useCodeTheme();
-  const { t, lang } = useLanguage();
-  const isZh = lang === "zh";
+  const { t, isZh } = useI18n();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -224,7 +223,7 @@ export function ThemePicker() {
             color: "var(--text-dim)",
             textTransform: "uppercase",
           }}>
-            {t("App Theme", "应用主题")}
+            {t("app-theme")}
           </div>
           {THEMES.map((opt) => {
             const isActive = theme === opt.id;
@@ -317,7 +316,7 @@ export function ThemePicker() {
             color: "var(--text-dim)",
             textTransform: "uppercase",
           }}>
-            {t("Code Syntax Theme", "代码块配色")}
+            {t("code-syntax-theme")}
           </div>
 
           {CODE_THEMES.map((opt) => {

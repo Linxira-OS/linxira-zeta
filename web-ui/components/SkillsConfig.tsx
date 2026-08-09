@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 import type {
   SkillInfo as Skill,
   SkillInstallScope,
@@ -680,7 +680,7 @@ export function SkillsConfig({
   cwd: string;
   onClose: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const isMobile = useIsMobile();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -891,7 +891,7 @@ export function SkillsConfig({
             <span
               style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}
             >
-              {t("Skills", "技能扩展")}
+              {t("skills")}
             </span>
             <code
               style={{
@@ -1155,7 +1155,7 @@ export function SkillsConfig({
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                {t("Add skill", "添加技能")}
+                {t("add-skill")}
               </div>
             </div>
           </div>

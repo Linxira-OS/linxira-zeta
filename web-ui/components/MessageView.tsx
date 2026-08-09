@@ -3,7 +3,7 @@
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { MarkdownBody } from "./MarkdownBody";
 import { copyText } from "@/lib/clipboard";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 import { parseCompactionSummary } from "@/lib/compaction-summary";
 import { isEmptyThinkingBlock } from "@/lib/message-display";
 import { parseUnifiedPatch, type SplitDiffCell } from "@/lib/patch";
@@ -148,7 +148,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   prevAssistantEntryId?: string;
   onEditContent?: (content: string) => void;
 }) {
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -267,7 +267,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                 </svg>
               )}
-              {copied ? t("Copied", "已复制") : t("Copy", "复制")}
+              {copied ? t("copied") : t("copy")}
             </button>
           </div>
           {(canFork || canNavigate) && (
@@ -299,7 +299,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                     <polyline points="15 10 20 15 15 20" />
                     <path d="M4 4v7a4 4 0 0 0 4 4h12" />
                   </svg>
-                  {t("Edit from here", "从此处编辑")}
+                  {t("edit-from-here")}
                 </button>
               )}
               {canFork && (
@@ -327,7 +327,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                     <circle cx="6" cy="18" r="3" />
                     <path d="M18 9a9 9 0 0 1-9 9" />
                   </svg>
-                  {forking ? t("Creating…", "创建中…") : t("New session", "新建会话")}
+                  {forking ? t("creating") : t("new-session")}
                 </button>
               )}
             </div>
@@ -362,7 +362,7 @@ function AssistantMessageView({
   sessionId?: string;
   entryId?: string;
 }) {
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const time = showTimestamp ? formatTime(message.timestamp) : null;
   const blockItems = (message.content ?? [])
     .map((block, originalIndex) => ({ block, originalIndex }))
@@ -571,7 +571,7 @@ function AssistantMessageView({
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
               </svg>
             )}
-            {copied ? t("Copied", "已复制") : t("Copy", "复制")}
+            {copied ? t("copied") : t("copy")}
           </button>
         )}
         {time && !isStreaming && (
@@ -609,7 +609,7 @@ function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
   entryId?: string;
   blockIndex: number;
 }) {
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -661,7 +661,7 @@ function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
           textAlign: "left",
         }}
       >
-        <span>{t("Thinking", "深度思考")}</span>
+        <span>{t("thinking")}</span>
         {duration !== undefined && (
           <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>{duration}s</span>
         )}
@@ -678,7 +678,7 @@ function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
             borderTop: "1px solid var(--border)",
           }}
         >
-          {loading ? t("Loading thinking...", "正在加载思考内容...") : error ?? (block.deferred ? content : block.thinking)}
+          {loading ? t("loading-thinking") : error ?? (block.deferred ? content : block.thinking)}
         </div>
       )}
     </div>

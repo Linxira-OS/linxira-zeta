@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 import type { SessionEntry, SessionTreeNode } from "@/lib/types";
 
 interface Props {
@@ -218,7 +218,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
 }
 
 export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, containerRef, open: openProp, onToggle, hasSession, compact }: Props) {
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const [openInternal, setOpenInternal] = useState(false);
   const open = openProp !== undefined ? openProp : openInternal;
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -248,9 +248,9 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   }, [onLeafChange]);
 
   const noBranchReason = !hasSession
-    ? t("No active session", "暂无活跃会话")
+    ? t("no-active-session")
     : !hasBranch(tree)
-      ? t("This session has no branches", "此会话暂无分支")
+      ? t("this-session-has-no-branches")
       : null;
   // Find first meaningful node (skip pure linear prefix)
   const compressed = tree.length > 0 ? compress(tree[0]) : null;
@@ -297,8 +297,8 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = open ? "var(--text)" : "var(--text-muted)"; }}
-          title={t("Branches", "分支导航")}
-          aria-label={t("Branches", "分支导航")}
+          title={t("branches")}
+          aria-label={t("branches")}
           aria-pressed={open}
         >
           {branchIcon}

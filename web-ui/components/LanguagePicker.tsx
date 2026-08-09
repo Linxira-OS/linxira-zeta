@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useLanguage, type Language } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 import { useTheme } from "@/hooks/useTheme";
+import type { Locale } from "@/lib/i18n/types";
 
 interface LangOption {
-  id: Language;
+  id: string;
   label: string;
   sub: string;
   flag: string;
 }
 
-const LANG_OPTIONS: LangOption[] = [
-  { id: "en", label: "English", sub: "English", flag: "🇺🇸" },
-  { id: "zh", label: "中文", sub: "Chinese (Simplified)", flag: "🇨🇳" },
-];
+const FLAGS: Record<string, string> = {
+  en: "🇺🇸",
+  "zh-CN": "🇨🇳",
+};
 
 const GlobeIcon = () => (
   <svg
@@ -36,10 +37,17 @@ const GlobeIcon = () => (
 );
 
 export function LanguagePicker() {
-  const { lang, setLanguage } = useLanguage();
+  const { locale, setLocale, supportedLocales } = useI18n();
   const { isStarfield } = useTheme();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const langOptions: LangOption[] = supportedLocales.map((plugin) => ({
+    id: plugin.id,
+    label: plugin.label,
+    sub: plugin.id === "zh-CN" ? "Chinese (Simplified)" : plugin.label,
+    flag: FLAGS[plugin.id] ?? "🌐",
+  }));
 
   useEffect(() => {
     if (!open) return;
@@ -66,7 +74,7 @@ export function LanguagePicker() {
           // Quick toggle on primary click or open dropdown on secondary
           setOpen((v) => !v);
         }}
-        title={`Language: ${lang === "zh" ? "中文" : "English"} (Click to switch)`}
+        title={`Language: ${locale === "zh-CN" ? "中文" : "English"} (Click to switch)`}
         aria-label="Switch language"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -103,7 +111,7 @@ export function LanguagePicker() {
             opacity: 0.9,
           }}
         >
-          {lang === "zh" ? "中文" : "EN"}
+          {locale === "zh-CN" ? "中文" : "EN"}
         </span>
         {/* Chevron */}
         <svg
@@ -157,15 +165,15 @@ export function LanguagePicker() {
             </div>
           )}
 
-          {LANG_OPTIONS.map((opt) => {
-            const isActive = lang === opt.id;
+          {langOptions.map((opt) => {
+            const isActive = locale === opt.id;
             return (
               <button
                 key={opt.id}
                 role="option"
                 aria-selected={isActive}
                 onClick={() => {
-                  setLanguage(opt.id);
+                  setLocale(opt.id as Locale);
                   setOpen(false);
                 }}
                 style={{

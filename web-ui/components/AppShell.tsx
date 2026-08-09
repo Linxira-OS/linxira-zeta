@@ -14,7 +14,7 @@ import { BranchNavigator } from "./BranchNavigator";
 import { ThemePicker } from "./ThemePicker";
 import { LanguagePicker } from "./LanguagePicker";
 import { useTheme } from "@/hooks/useTheme";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n, I18nProvider } from "@/hooks/useI18n";
 import { StarfieldEmblem } from "./StarfieldEmblem";
 import { TrackingPanel } from "./TrackingPanel";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -33,7 +33,7 @@ export function AppShell() {
   const searchParams = useSearchParams();
   const [initialNavigation] = useState(() => getInitialNavigation(searchParams));
   const { isStarfield } = useTheme();
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const isMobile = useIsMobile();
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
   // When user clicks +, we only store the cwd — no fake session id
@@ -421,7 +421,7 @@ export function AppShell() {
       <div style={{ padding: "8px", flexShrink: 0, display: "flex", justifyContent: "space-between", gap: 4 }}>
         {([
           {
-            label: t("Models", "模型"),
+            label: t("models"),
             onClick: () => setModelsConfigOpen(true),
             disabled: false,
             icon: (
@@ -435,7 +435,7 @@ export function AppShell() {
             ),
           },
           {
-            label: t("Skills", "技能"),
+            label: t("skills"),
             onClick: () => setSkillsConfigOpen(true),
             disabled: !activeCwd && !selectedSession?.cwd && !newSessionCwd,
             icon: (
@@ -447,7 +447,7 @@ export function AppShell() {
             ),
           },
           {
-            label: t("Plugins", "插件"),
+            label: t("plugins"),
             onClick: () => setPluginsConfigOpen(true),
             disabled: !activeCwd && !selectedSession?.cwd && !newSessionCwd,
             icon: (
@@ -484,6 +484,7 @@ export function AppShell() {
   );
 
   return (
+    <I18nProvider>
     <>
     <style>{`
       @keyframes session-info-pop {
@@ -621,8 +622,8 @@ export function AppShell() {
               <button
                 onClick={handleViewFullHistory}
                 disabled={!selectedSession}
-                title={selectedSession ? t("View full history", "查看完整历史") : t("Full history is available after the session is saved", "保存会话后可查看完整历史")}
-                aria-label={t("View full history", "查看完整历史")}
+                title={selectedSession ? t("view-full-history") : t("full-history-is-available-after-the-session-is-s")}
+                aria-label={t("view-full-history")}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -669,7 +670,7 @@ export function AppShell() {
                   <path d="M3 3v5h5" />
                   <path d="M12 7v5l3 2" />
                 </svg>
-                {!isMobile && <span>{t("Full history", "完整历史")}</span>}
+                {!isMobile && <span>{t("full-history")}</span>}
               </button>
               <BranchNavigator
                 tree={branchTree}
@@ -1057,11 +1058,11 @@ export function AppShell() {
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                     <StarfieldEmblem size={120} />
                     <div style={{ fontFamily: "var(--font-display)", fontSize: 13, letterSpacing: "0.16em", color: "#d99b26", textTransform: "uppercase" }}>
-                      {t("CONSTELLATION // READY", "星群 // 就绪")}
+                      {t("constellation-ready")}
                     </div>
                   </div>
                 )}
-                <div>{t("Select a session from the sidebar", "请从侧边栏选择一个历史会话")}</div>
+                <div>{t("select-a-session-from-the-sidebar")}</div>
               </div>
             ) : (
               <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, userSelect: "none" }}>
@@ -1075,8 +1076,8 @@ export function AppShell() {
                       SYS.LOC // OMP-WEB-INTERFACE · MISSION AGENT ACTIVE
                     </div>
                     <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.8, background: "rgba(27,54,93,0.3)", border: "1px solid #1e2d45", borderLeft: "3px solid #d99b26", padding: "14px 20px", textAlign: "left", width: "100%" }}>
-                      <span style={{ color: "#e05a2b", fontFamily: "var(--font-mono)", fontWeight: 700 }}>01.</span> {t("Select a project directory from the sidebar", "从左侧边栏选择目标项目目录")}<br />
-                      <span style={{ color: "#e05a2b", fontFamily: "var(--font-mono)", fontWeight: 700 }}>02.</span> {t("Configure provider models via the Models configuration panel", "点击底部“模型”按钮配置 AI 模型")}
+                      <span style={{ color: "#e05a2b", fontFamily: "var(--font-mono)", fontWeight: 700 }}>01.</span> {t("select-a-project-directory-from-the-sidebar")}<br />
+                      <span style={{ color: "#e05a2b", fontFamily: "var(--font-mono)", fontWeight: 700 }}>02.</span> {t("configure-provider-models-via-the-models-configu")}
                     </div>
                   </div>
                 ) : (
@@ -1085,10 +1086,10 @@ export function AppShell() {
                       <line x1="20" y1="12" x2="4" y2="12" /><polyline points="10 6 4 12 10 18" />
                     </svg>
                     <div>
-                      <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{t("Get Started", "开始使用")}</div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{t("get-started")}</div>
                       <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.8 }}>
-                        <span style={{ color: "var(--text-dim)", marginRight: 6 }}>1.</span>{t("Select a project directory from the sidebar", "从左侧边栏选择目标项目目录")}<br />
-                        <span style={{ color: "var(--text-dim)", marginRight: 6 }}>2.</span>{t("Add models via the Models button at the bottom", "点击底部“模型”按钮配置 AI 模型")}
+                        <span style={{ color: "var(--text-dim)", marginRight: 6 }}>1.</span>{t("select-a-project-directory-from-the-sidebar")}<br />
+                        <span style={{ color: "var(--text-dim)", marginRight: 6 }}>2.</span>{t("add-models-via-the-models-button-at-the-bottom")}
                       </div>
                     </div>
                   </div>
@@ -1222,5 +1223,6 @@ export function AppShell() {
       />
     )}
     </>
+    </I18nProvider>
   );
 }

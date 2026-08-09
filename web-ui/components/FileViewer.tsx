@@ -8,7 +8,7 @@ import {
 } from "react-syntax-highlighter";
 import { useCodeTheme } from "@/hooks/useCodeTheme";
 import ReactMarkdown from "react-markdown";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 import {
   DOCX_PREVIEW_MAX_BYTES,
   getFileExt,
@@ -784,7 +784,7 @@ export function FileViewer({ filePath, cwd, sourceSessionId, onOpenFile, onMenti
 }
 
 function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile, onMentionLines, gitRefreshKey }: Props) {
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const { codeStyle, codeBg } = useCodeTheme();
   const [data, setData] = useState<FileData | null>(null);
   const [gitDiff, setGitDiff] = useState<GitFileDiffResponse | null>(null);
@@ -1025,7 +1025,7 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile, onMentionL
                       color: active ? "var(--text)" : "var(--text-muted)",
                     }}
                   >
-                    {mode === "source" ? t("Source", "源码") : mode === "preview" ? t("Preview", "预览") : t("Diff", "差异")}
+                    {mode === "source" ? t("source") : mode === "preview" ? t("preview") : t("diff")}
                   </button>
                 );
               })}

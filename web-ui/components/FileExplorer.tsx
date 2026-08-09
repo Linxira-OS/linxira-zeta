@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useState, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 import { getFileIcon, FolderIcon } from "./FileIcons";
 import {
   encodeFilePathForApi,
@@ -444,7 +444,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   onAtMentions,
   onUploadBusyChange,
 }, ref) {
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const [roots, setRoots] = useState<FileNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -756,7 +756,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
 
       <div style={{ padding: "2px 4px" }}>
         {loading ? (
-          <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-dim)" }}>{t("Loading files...", "正在加载文件...")}</div>
+          <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-dim)" }}>{t("loading-files")}</div>
         ) : error ? (
           <div style={{ padding: "8px 12px", fontSize: 11, color: "#f87171" }}>{error}</div>
         ) : (
@@ -779,7 +779,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         )}
         {!loading && !error && roots.length === 0 && (
           <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-dim)" }}>
-            {t("No files found", "未找到文件")}
+            {t("no-files-found")}
           </div>
         )}
       </div>

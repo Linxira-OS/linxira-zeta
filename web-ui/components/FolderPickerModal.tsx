@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useI18n } from "@/hooks/useI18n";
 import { FolderIcon } from "./FileIcons";
 
 interface DirectoryItem {
@@ -28,7 +28,7 @@ interface Props {
 }
 
 export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Props) {
-  const { t } = useLanguage();
+  const { t } = useI18n();
   const isMobile = useIsMobile();
   const [currentPath, setCurrentPath] = useState<string>("");
   const [parentPath, setParentPath] = useState<string | null>(null);
@@ -197,7 +197,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <FolderIcon size={18} />
             <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
-              {t("Select Target Directory", "选择目标文件夹")}
+              {t("select-target-directory")}
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -216,7 +216,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                   cursor: "pointer",
                 }}
               >
-                {t("OS Dialog", "系统原生弹窗")}
+                {t("os-dialog")}
               </button>
             )}
             <button
@@ -273,7 +273,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
               fontFamily: "var(--font-mono)",
             }}
           >
-            {t("↑ Up", "↑ 上级")}
+            {t("up")}
           </button>
 
           {/* Home shortcut */}
@@ -291,7 +291,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
               fontFamily: "var(--font-mono)",
             }}
           >
-            {t("~ Home", "~ 主目录")}
+            {t("home")}
           </button>
 
           {/* Drive shortcuts on Windows */}
@@ -377,7 +377,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
           <input
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
-            placeholder={t("Filter subfolders...", "搜索子文件夹...")}
+            placeholder={t("filter-subfolders")}
             style={{
               flex: 1,
               padding: "5px 10px",
@@ -404,7 +404,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
               whiteSpace: "nowrap",
             }}
           >
-            {t("+ New Folder", "+ 新建文件夹")}
+            {t("new-folder")}
           </button>
         </div>
 
@@ -561,7 +561,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                       flexShrink: 0,
                     }}
                   >
-                    {t("Open →", "进入 →")}
+                    {t("open")}
                   </button>
                 </div>
               );
@@ -583,7 +583,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 10, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-              {t("Selected Path", "当前选择路径")}
+              {t("selected-path")}
             </div>
             <div
               style={{
@@ -615,7 +615,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                 cursor: "pointer",
               }}
             >
-              {t("Select Folder", "选择此文件夹")}
+              {t("select-folder")}
             </button>
             <button
               onClick={onClose}
@@ -630,7 +630,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                 cursor: "pointer",
               }}
             >
-              {t("Cancel", "取消")}
+              {t("cancel")}
             </button>
           </div>
         </div>
