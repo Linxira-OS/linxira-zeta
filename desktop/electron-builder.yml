@@ -1,0 +1,59 @@
+# Zeta desktop shell packaging
+# Directory target: a no-install Zeta.exe with its local service runtime.
+# The shell spawns Zeta + Web UI and hosts them inside Electron.
+# Installer/archive targets (NSIS, zip, deb) are release assets.
+
+appId: com.zeta.desktop
+productName: Zeta
+copyright: Copyright (c) 2026 Zeta
+electronVersion: 37.10.3
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**
+  - package.json
+
+extraResources:
+  - from: staging/zeta
+    to: zeta
+  - from: build/icon.ico
+    to: icon.ico
+
+artifactName: ${name}-${version}-${os}-${arch}.${ext}
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: dir
+      arch:
+        - x64
+    - target: zip
+      arch:
+        - x64
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  icon: build/icon.png
+  executableName: zeta-desktop
+  target:
+    - target: tar.gz
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+
+deb:
+  maintainer: Zeta Contributors
+
+npmRebuild: false

@@ -271,6 +271,19 @@ async function cmdRelease(versionOrBump: string): Promise<void> {
 
 	await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${publicPkgPaths}`;
 
+	// 2b. The desktop shell is private (skipped above), but its electron-builder
+	// artifacts are named after its package version and uploaded under this
+	// release's tag, and the zetabin Linux package fetches them by that name.
+	// Keep desktop/package.json (and the package-lock.json root version, which
+	// must match for `npm ci`) in lockstep with the release version.
+	console.log("Updating desktop version...");
+	for (const manifestPath of ["desktop/package.json", "desktop/package-lock.json"]) {
+		const manifest = await Bun.file(manifestPath).json();
+		manifest.version = version;
+		await Bun.write(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+	}
+	console.log(`  desktop: ${version}`);
+
 	// Verify
 	console.log("  Verifying versions:");
 	for (const pkgPath of publicPkgPaths) {
