@@ -1,4 +1,4 @@
-import { tryParseJson } from "@zeta/pi-utils";
+import { tryParseJson } from "@linxiraos/pi-utils";
 import { buildResult, formatNumber, loadPage, type RenderResult, type SpecialHandler } from "./types";
 
 interface RubyGemsDependency {

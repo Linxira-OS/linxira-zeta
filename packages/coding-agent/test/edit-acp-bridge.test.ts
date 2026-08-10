@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { computeFileHash } from "@zeta/hashline";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { computeFileHash } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	DEFAULT_FUZZY_THRESHOLD,
 	type EditToolDetails,
@@ -12,14 +13,13 @@ import {
 	executePatchSingle,
 	executeReplace,
 	type hashlineEditParamsSchema,
-} from "@zeta/pi-coding-agent/edit";
-import { HashlineFilesystem } from "@zeta/pi-coding-agent/edit/hashline/filesystem";
-import { resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
-import type { WritethroughCallback } from "@zeta/pi-coding-agent/lsp";
-import type { PlanModeState } from "@zeta/pi-coding-agent/plan-mode/state";
-import type { ClientBridge } from "@zeta/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/edit";
+import { HashlineFilesystem } from "@linxiraos/zeta/edit/hashline/filesystem";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import type { WritethroughCallback } from "@linxiraos/zeta/lsp";
+import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
+import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 

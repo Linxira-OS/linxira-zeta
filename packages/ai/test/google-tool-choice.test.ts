@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { buildGoogleGenerateContentParams } from "@zeta/pi-ai/providers/google-shared";
-import { mapGoogleToolChoice } from "@zeta/pi-ai/stream";
-import type { Context, Tool, ToolChoice } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { buildGoogleGenerateContentParams } from "@linxiraos/pi-ai/providers/google-shared";
+import { mapGoogleToolChoice } from "@linxiraos/pi-ai/stream";
+import type { Context, Tool, ToolChoice } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 describe("mapGoogleToolChoice (F7)", () => {
 	it("returns string passthrough for auto/none/any", () => {

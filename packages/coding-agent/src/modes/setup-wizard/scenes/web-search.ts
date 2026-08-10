@@ -1,4 +1,10 @@
-import { routeSelectListMouse, type SelectItem, SelectList, type SgrMouseEvent, truncateToWidth } from "@zeta/pi-tui";
+import {
+	routeSelectListMouse,
+	type SelectItem,
+	SelectList,
+	type SgrMouseEvent,
+	truncateToWidth,
+} from "@linxiraos/pi-tui";
 import { M } from "../../../i18n";
 import { getSearchProvider, setSearchProviderOrder } from "../../../web/search/provider";
 import {

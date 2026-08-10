@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs } from "@zeta/pi-coding-agent/cli/args";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
 
 describe("parseArgs — Windows extension paths", () => {
 	it("rejoins a module path split at spaces before parsing following flags", () => {

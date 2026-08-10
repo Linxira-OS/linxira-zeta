@@ -1,6 +1,6 @@
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { type Component, getSegmenter } from "@zeta/pi-tui";
-import { LRUCache } from "@zeta/pi-utils/lru";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { type Component, getSegmenter } from "@linxiraos/pi-tui";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { formatThinkingForDisplay, hasDisplayableThinking } from "../../utils/thinking-display";
 import type { AssistantMessageComponent } from "../components/assistant-message";
 

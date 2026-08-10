@@ -1,5 +1,5 @@
-import type { AgentToolContext } from "@zeta/pi-agent-core";
-import { type PtyRunResult, PtySession } from "@zeta/pi-natives";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { type PtyRunResult, PtySession } from "@linxiraos/pi-natives";
 import {
 	type Component,
 	extractPrintableText,
@@ -9,10 +9,10 @@ import {
 	parseKittySequence,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
-import { sanitizeText } from "@zeta/pi-utils";
-import type * as XtermModule from "@zeta/pi-utils/vterm";
-import type { Terminal as XtermTerminalType } from "@zeta/pi-utils/vterm";
+} from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type * as XtermModule from "@linxiraos/pi-utils/vterm";
+import type { Terminal as XtermTerminalType } from "@linxiraos/pi-utils/vterm";
 import { Settings } from "../config/settings";
 import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
@@ -43,7 +43,7 @@ let xtermTerminalCtor: typeof XtermModule.Terminal | undefined;
 
 async function loadXtermTerminal(): Promise<typeof XtermModule.Terminal> {
 	if (!xtermTerminalCtor) {
-		const mod = (await import("@zeta/pi-utils/vterm")) as typeof XtermModule & { default?: typeof XtermModule };
+		const mod = (await import("@linxiraos/pi-utils/vterm")) as typeof XtermModule & { default?: typeof XtermModule };
 		xtermTerminalCtor = (mod.default ?? mod).Terminal;
 	}
 	return xtermTerminalCtor;

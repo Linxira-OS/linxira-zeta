@@ -1,4 +1,4 @@
-import TurndownService, { gfm } from "@zeta/pi-utils/turndown";
+import TurndownService, { gfm } from "@linxiraos/pi-utils/turndown";
 
 type TurndownListParent = {
 	nodeName: string;

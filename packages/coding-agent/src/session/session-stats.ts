@@ -1,12 +1,12 @@
-import type { Agent, AgentMessage } from "@zeta/pi-agent-core";
+import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	calculatePromptTokens,
 	estimateTokens,
 	hasContextTokenUsage,
 	type SessionMessageEntry,
-} from "@zeta/pi-agent-core/compaction";
-import type { AssistantMessage, Model, ProviderResponseMetadata, Usage } from "@zeta/pi-ai";
-import { isRecord } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, Model, ProviderResponseMetadata, Usage } from "@linxiraos/pi-ai";
+import { isRecord } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import type { ContextUsage } from "../extensibility/extensions/types";
 import {

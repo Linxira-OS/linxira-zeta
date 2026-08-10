@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { hasMagicKeyword, highlightMagicKeywords } from "@zeta/pi-coding-agent/modes/magic-keywords";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { hasMagicKeyword, highlightMagicKeywords } from "@linxiraos/zeta/modes/magic-keywords";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	// Gradient palettes read the active theme's color mode.

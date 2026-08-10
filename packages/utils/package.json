@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@zeta/pi-utils",
+  "name": "@linxiraos/pi-utils",
   "version": "1.0.0",
   "description": "Shared utilities for pi packages",
   "homepage": "https://linxira-os.github.io",
@@ -31,7 +31,7 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@zeta/pi-natives": "catalog:"
+    "@linxiraos/pi-natives": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

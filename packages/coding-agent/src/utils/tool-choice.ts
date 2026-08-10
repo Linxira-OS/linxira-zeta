@@ -1,4 +1,4 @@
-import type { Api, Model, ToolChoice } from "@zeta/pi-ai";
+import type { Api, Model, ToolChoice } from "@linxiraos/pi-ai";
 
 /**
  * Build a provider-aware tool choice that targets one specific tool when supported.

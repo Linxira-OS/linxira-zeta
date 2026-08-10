@@ -1,7 +1,7 @@
 /**
  * CLI handler for `omp grievances` — view, clean, and manually push reported tool issues.
  */
-import chalk from "@zeta/pi-utils/chalk";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { Settings } from "../config/settings";
 import { flushGrievances, openAutoQaDb } from "../tools/report-tool-issue";
 

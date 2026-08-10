@@ -1,4 +1,4 @@
-import type { RenderScheduler } from "@zeta/pi-tui/tui";
+import type { RenderScheduler } from "@linxiraos/pi-tui/tui";
 import type { VirtualTerminal } from "./virtual-terminal";
 
 export class StressRenderScheduler implements RenderScheduler {

@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getManagedSkillsDir } from "@zeta/pi-coding-agent/autolearn/managed-skills";
-import { type SettingPath, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@zeta/pi-coding-agent/extensibility/skills";
-import type { HindsightSessionState } from "@zeta/pi-coding-agent/hindsight/state";
-import type { MnemopiSessionState } from "@zeta/pi-coding-agent/mnemopi/state";
-import { createTools, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { LearnTool } from "@zeta/pi-coding-agent/tools/learn";
-import { ManageSkillTool } from "@zeta/pi-coding-agent/tools/manage-skill";
-import { type } from "@zeta/pi-omptype";
-import { removeWithRetries } from "@zeta/pi-utils";
-import { getAgentDir, setAgentDir } from "@zeta/pi-utils/dirs";
+import { type } from "@linxiraos/pi-omptype";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import { getManagedSkillsDir } from "@linxiraos/zeta/autolearn/managed-skills";
+import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
+import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
+import type { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
+import type { MnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
+import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
+import { LearnTool } from "@linxiraos/zeta/tools/learn";
+import { ManageSkillTool } from "@linxiraos/zeta/tools/manage-skill";
 
 function makeSession(
 	settingsOverrides: Partial<Record<SettingPath, unknown>> = {},

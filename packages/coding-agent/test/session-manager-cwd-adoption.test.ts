@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { removeWithRetries, TempDir } from "@zeta/pi-utils";
+import { removeWithRetries, TempDir } from "@linxiraos/pi-utils";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const tempDirs: TempDir[] = [];
 

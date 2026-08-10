@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Api, ApiKey, AssistantMessage, Message, Model } from "@zeta/pi-ai";
-import { completeSimple } from "@zeta/pi-ai";
-import { prompt } from "@zeta/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, ApiKey, AssistantMessage, Message, Model } from "@linxiraos/pi-ai";
+import { completeSimple } from "@linxiraos/pi-ai";
+import { prompt } from "@linxiraos/pi-utils";
 import fileObserverSystemPrompt from "../../commit/prompts/file-observer-system.md" with { type: "text" };
 import fileObserverUserPrompt from "../../commit/prompts/file-observer-user.md" with { type: "text" };
 import type { FileDiff, FileObservation } from "../../commit/types";

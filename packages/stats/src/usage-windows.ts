@@ -13,8 +13,8 @@
  * dashboard must keep working for API-key-only setups that never record usage.
  */
 import { Database } from "bun:sqlite";
-import { AuthBrokerClient, resolveAuthBrokerConfig } from "@zeta/pi-ai/auth-broker";
-import { getAgentDbPath, logger } from "@zeta/pi-utils";
+import { AuthBrokerClient, resolveAuthBrokerConfig } from "@linxiraos/pi-ai/auth-broker";
+import { getAgentDbPath, logger } from "@linxiraos/pi-utils";
 import type { ProviderWindowInsight, UsageWindowPoint, UsageWindowSeries } from "./shared-types";
 
 /** Subset of a `usage_history` row consumed by the window analytics. */

@@ -5,26 +5,26 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, expectTypeOf, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage, AgentTool } from "@zeta/pi-agent-core";
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { discoverAndLoadExtensions, ExtensionRuntime } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
+import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { discoverAndLoadExtensions, ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	testSetExtensionHandlerTimeoutMs,
-} from "@zeta/pi-coding-agent/extensibility/extensions/runner";
+} from "@linxiraos/zeta/extensibility/extensions/runner";
 import type {
 	ExtensionError,
 	ExtensionServiceTier,
 	ExtensionUIContext,
-} from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import { ExtensionToolWrapper } from "@zeta/pi-coding-agent/extensibility/extensions/wrapper";
-import { Type } from "@zeta/pi-coding-agent/extensibility/typebox";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions/types";
+import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
+import { Type } from "@linxiraos/zeta/extensibility/typebox";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("ExtensionRunner", () => {
 	let tempDir: TempDir;

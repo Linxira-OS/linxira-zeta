@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
-import { searchTinyFish } from "@zeta/pi-coding-agent/web/search/providers/tinyfish";
-import { SearchProviderError } from "@zeta/pi-coding-agent/web/search/types";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { searchTinyFish } from "@linxiraos/zeta/web/search/providers/tinyfish";
+import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
 
 const TEST_KEY = "test-tinyfish-key";
 

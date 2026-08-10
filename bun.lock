@@ -20,33 +20,33 @@
       },
     },
     "packages/agent": {
-      "name": "@zeta/pi-agent-core",
+      "name": "@linxiraos/pi-agent-core",
       "version": "1.0.0",
       "dependencies": {
+        "@linxiraos/pi-ai": "catalog:",
+        "@linxiraos/pi-catalog": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
+        "@linxiraos/pi-snapcompact": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
+        "@linxiraos/pi-wire": "catalog:",
         "@opentelemetry/api": "catalog:",
-        "@zeta/pi-ai": "catalog:",
-        "@zeta/pi-catalog": "catalog:",
-        "@zeta/pi-natives": "catalog:",
-        "@zeta/pi-utils": "catalog:",
-        "@zeta/pi-wire": "catalog:",
-        "@zeta/snapcompact": "catalog:",
       },
       "devDependencies": {
+        "@linxiraos/pi-omptype": "catalog:",
         "@opentelemetry/context-async-hooks": "catalog:",
         "@opentelemetry/sdk-trace-base": "catalog:",
         "@types/bun": "catalog:",
-        "@zeta/pi-omptype": "catalog:",
       },
     },
     "packages/ai": {
-      "name": "@zeta/pi-ai",
+      "name": "@linxiraos/pi-ai",
       "version": "1.0.0",
       "dependencies": {
         "@bufbuild/protobuf": "catalog:",
-        "@zeta/pi-catalog": "catalog:",
-        "@zeta/pi-omptype": "catalog:",
-        "@zeta/pi-utils": "catalog:",
-        "@zeta/pi-wire": "catalog:",
+        "@linxiraos/pi-catalog": "catalog:",
+        "@linxiraos/pi-omptype": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
+        "@linxiraos/pi-wire": "catalog:",
       },
       "devDependencies": {
         "@bufbuild/protoc-gen-es": "catalog:",
@@ -54,7 +54,7 @@
       },
     },
     "packages/browser-relay": {
-      "name": "@zeta/browser-relay",
+      "name": "@linxiraos/browser-relay",
       "version": "0.1.0",
       "devDependencies": {
         "@types/bun": "catalog:",
@@ -62,26 +62,38 @@
       },
     },
     "packages/catalog": {
-      "name": "@zeta/pi-catalog",
+      "name": "@linxiraos/pi-catalog",
       "version": "1.0.0",
       "dependencies": {
         "@bufbuild/protobuf": "catalog:",
-        "@zeta/pi-omptype": "catalog:",
-        "@zeta/pi-utils": "catalog:",
+        "@linxiraos/pi-omptype": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
       },
       "devDependencies": {
+        "@linxiraos/pi-ai": "catalog:",
         "@types/bun": "catalog:",
-        "@zeta/pi-ai": "catalog:",
       },
     },
     "packages/coding-agent": {
-      "name": "@zeta/pi-coding-agent",
+      "name": "@linxiraos/zeta",
       "version": "1.0.0",
       "bin": {
         "zeta": "src/cli.ts",
       },
       "dependencies": {
         "@babel/parser": "catalog:",
+        "@linxiraos/pi-agent-core": "catalog:",
+        "@linxiraos/pi-ai": "catalog:",
+        "@linxiraos/pi-catalog": "catalog:",
+        "@linxiraos/pi-hashline": "catalog:",
+        "@linxiraos/pi-mnemopi": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
+        "@linxiraos/pi-omptype": "catalog:",
+        "@linxiraos/pi-snapcompact": "catalog:",
+        "@linxiraos/pi-stats": "catalog:",
+        "@linxiraos/pi-tui": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
+        "@linxiraos/pi-wire": "catalog:",
         "@opentelemetry/api": "catalog:",
         "@opentelemetry/api-logs": "catalog:",
         "@opentelemetry/context-async-hooks": "catalog:",
@@ -93,18 +105,6 @@
         "@opentelemetry/sdk-metrics": "catalog:",
         "@opentelemetry/sdk-trace-base": "catalog:",
         "@opentelemetry/sdk-trace-node": "catalog:",
-        "@zeta/hashline": "catalog:",
-        "@zeta/omp-stats": "catalog:",
-        "@zeta/pi-agent-core": "catalog:",
-        "@zeta/pi-ai": "catalog:",
-        "@zeta/pi-catalog": "catalog:",
-        "@zeta/pi-mnemopi": "catalog:",
-        "@zeta/pi-natives": "catalog:",
-        "@zeta/pi-omptype": "catalog:",
-        "@zeta/pi-tui": "catalog:",
-        "@zeta/pi-utils": "catalog:",
-        "@zeta/pi-wire": "catalog:",
-        "@zeta/snapcompact": "catalog:",
         "mupdf": "catalog:",
         "puppeteer-core": "catalog:",
       },
@@ -117,11 +117,11 @@
       },
     },
     "packages/collab-web": {
-      "name": "@zeta/collab-web",
+      "name": "@linxiraos/collab-web",
       "version": "1.0.0",
       "dependencies": {
-        "@zeta/pi-utils": "catalog:",
-        "@zeta/pi-wire": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
+        "@linxiraos/pi-wire": "catalog:",
         "lucide-react": "catalog:",
         "react": "catalog:",
         "react-dom": "catalog:",
@@ -133,31 +133,31 @@
       },
     },
     "packages/hashline": {
-      "name": "@zeta/hashline",
+      "name": "@linxiraos/pi-hashline",
       "version": "1.0.0",
       "dependencies": {
-        "@zeta/pi-natives": "catalog:",
-        "@zeta/pi-utils": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
       },
       "devDependencies": {
         "@types/bun": "catalog:",
       },
     },
     "packages/metaharness": {
-      "name": "@zeta/pi-metaharness",
+      "name": "@linxiraos/pi-metaharness",
       "version": "0.0.1",
       "bin": {
         "metaharness": "src/server.ts",
       },
       "dependencies": {
-        "@zeta/hashline": "catalog:",
-        "@zeta/pi-agent-core": "catalog:",
-        "@zeta/pi-ai": "catalog:",
-        "@zeta/pi-catalog": "catalog:",
-        "@zeta/pi-coding-agent": "catalog:",
-        "@zeta/pi-natives": "catalog:",
-        "@zeta/pi-utils": "catalog:",
-        "@zeta/typescript-edit-benchmark": "workspace:*",
+        "@linxiraos/pi-agent-core": "catalog:",
+        "@linxiraos/pi-ai": "catalog:",
+        "@linxiraos/pi-catalog": "catalog:",
+        "@linxiraos/pi-hashline": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
+        "@linxiraos/typescript-edit-benchmark": "workspace:*",
+        "@linxiraos/zeta": "catalog:",
         "clsx": "^2.1.1",
         "d3-scale": "^4.0.2",
         "d3-shape": "^3.2.0",
@@ -177,16 +177,16 @@
       },
     },
     "packages/mnemopi": {
-      "name": "@zeta/pi-mnemopi",
+      "name": "@linxiraos/pi-mnemopi",
       "version": "1.0.0",
       "bin": {
         "mnemopi": "src/cli.ts",
       },
       "dependencies": {
-        "@zeta/pi-ai": "catalog:",
-        "@zeta/pi-catalog": "catalog:",
-        "@zeta/pi-natives": "catalog:",
-        "@zeta/pi-utils": "catalog:",
+        "@linxiraos/pi-ai": "catalog:",
+        "@linxiraos/pi-catalog": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
       },
       "devDependencies": {
         "@types/bun": "catalog:",
@@ -203,7 +203,7 @@
       ],
     },
     "packages/natives": {
-      "name": "@zeta/pi-natives",
+      "name": "@linxiraos/pi-natives",
       "version": "1.0.0",
       "devDependencies": {
         "@napi-rs/cli": "catalog:",
@@ -211,7 +211,7 @@
       },
     },
     "packages/omptype": {
-      "name": "@zeta/pi-omptype",
+      "name": "@linxiraos/pi-omptype",
       "version": "1.0.0",
       "devDependencies": {
         "@ark/attest": "0.56.3",
@@ -224,29 +224,29 @@
       },
     },
     "packages/snapcompact": {
-      "name": "@zeta/snapcompact",
+      "name": "@linxiraos/pi-snapcompact",
       "version": "1.0.0",
       "dependencies": {
-        "@zeta/pi-ai": "catalog:",
-        "@zeta/pi-natives": "catalog:",
-        "@zeta/pi-utils": "catalog:",
-        "@zeta/pi-wire": "catalog:",
+        "@linxiraos/pi-ai": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
+        "@linxiraos/pi-wire": "catalog:",
       },
       "devDependencies": {
         "@types/bun": "catalog:",
       },
     },
     "packages/stats": {
-      "name": "@zeta/omp-stats",
+      "name": "@linxiraos/pi-stats",
       "version": "1.0.0",
       "bin": {
         "omp-stats": "./src/index.ts",
       },
       "dependencies": {
+        "@linxiraos/pi-ai": "catalog:",
+        "@linxiraos/pi-catalog": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
         "@tailwindcss/node": "catalog:",
-        "@zeta/pi-ai": "catalog:",
-        "@zeta/pi-catalog": "catalog:",
-        "@zeta/pi-utils": "catalog:",
         "chart.js": "catalog:",
         "lucide-react": "catalog:",
         "react": "catalog:",
@@ -262,31 +262,31 @@
       },
     },
     "packages/tui": {
-      "name": "@zeta/pi-tui",
+      "name": "@linxiraos/pi-tui",
       "version": "1.0.0",
       "dependencies": {
-        "@zeta/pi-natives": "catalog:",
-        "@zeta/pi-utils": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
       },
       "devDependencies": {
         "ghostty-web": "catalog:",
       },
     },
     "packages/typescript-edit-benchmark": {
-      "name": "@zeta/typescript-edit-benchmark",
+      "name": "@linxiraos/typescript-edit-benchmark",
       "version": "0.0.1",
       "dependencies": {
         "@babel/generator": "catalog:",
         "@babel/parser": "catalog:",
         "@babel/traverse": "catalog:",
         "@babel/types": "catalog:",
-        "@zeta/hashline": "catalog:",
-        "@zeta/pi-agent-core": "catalog:",
-        "@zeta/pi-ai": "catalog:",
-        "@zeta/pi-coding-agent": "catalog:",
-        "@zeta/pi-natives": "catalog:",
-        "@zeta/pi-tui": "catalog:",
-        "@zeta/pi-utils": "catalog:",
+        "@linxiraos/pi-agent-core": "catalog:",
+        "@linxiraos/pi-ai": "catalog:",
+        "@linxiraos/pi-hashline": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
+        "@linxiraos/pi-tui": "catalog:",
+        "@linxiraos/pi-utils": "catalog:",
+        "@linxiraos/zeta": "catalog:",
         "diff": "catalog:",
         "prettier": "catalog:",
         "regexp-tree": "catalog:",
@@ -298,17 +298,17 @@
       },
     },
     "packages/utils": {
-      "name": "@zeta/pi-utils",
+      "name": "@linxiraos/pi-utils",
       "version": "1.0.0",
       "dependencies": {
-        "@zeta/pi-natives": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
       },
       "devDependencies": {
         "@types/bun": "catalog:",
       },
     },
     "packages/wire": {
-      "name": "@zeta/pi-wire",
+      "name": "@linxiraos/pi-wire",
       "version": "1.0.0",
       "devDependencies": {
         "@types/bun": "catalog:",
@@ -346,6 +346,19 @@
     "@bufbuild/protobuf": "^2.12.1",
     "@bufbuild/protoc-gen-es": "^2.12.1",
     "@huggingface/transformers": "^4.2.0",
+    "@linxiraos/pi-agent-core": "1.0.0",
+    "@linxiraos/pi-ai": "1.0.0",
+    "@linxiraos/pi-catalog": "1.0.0",
+    "@linxiraos/pi-hashline": "1.0.0",
+    "@linxiraos/pi-mnemopi": "1.0.0",
+    "@linxiraos/pi-natives": "1.0.0",
+    "@linxiraos/pi-omptype": "1.0.0",
+    "@linxiraos/pi-snapcompact": "1.0.0",
+    "@linxiraos/pi-stats": "1.0.0",
+    "@linxiraos/pi-tui": "1.0.0",
+    "@linxiraos/pi-utils": "1.0.0",
+    "@linxiraos/pi-wire": "1.0.0",
+    "@linxiraos/zeta": "1.0.0",
     "@napi-rs/cli": "3.7.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.220.0",
@@ -366,19 +379,6 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
-    "@zeta/hashline": "1.0.0",
-    "@zeta/omp-stats": "1.0.0",
-    "@zeta/pi-agent-core": "1.0.0",
-    "@zeta/pi-ai": "1.0.0",
-    "@zeta/pi-catalog": "1.0.0",
-    "@zeta/pi-coding-agent": "1.0.0",
-    "@zeta/pi-mnemopi": "1.0.0",
-    "@zeta/pi-natives": "1.0.0",
-    "@zeta/pi-omptype": "1.0.0",
-    "@zeta/pi-tui": "1.0.0",
-    "@zeta/pi-utils": "1.0.0",
-    "@zeta/pi-wire": "1.0.0",
-    "@zeta/snapcompact": "1.0.0",
     "chart.js": "^4.5.1",
     "diff": "^9.0.0",
     "fastembed": "2.1.0",
@@ -593,6 +593,40 @@
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "https://registry.npmmirror.com/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
     "@kurkle/color": ["@kurkle/color@0.3.4", "https://registry.npmmirror.com/@kurkle/color/-/color-0.3.4.tgz", {}, "sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w=="],
+
+    "@linxiraos/browser-relay": ["@linxiraos/browser-relay@workspace:packages/browser-relay"],
+
+    "@linxiraos/collab-web": ["@linxiraos/collab-web@workspace:packages/collab-web"],
+
+    "@linxiraos/pi-agent-core": ["@linxiraos/pi-agent-core@workspace:packages/agent"],
+
+    "@linxiraos/pi-ai": ["@linxiraos/pi-ai@workspace:packages/ai"],
+
+    "@linxiraos/pi-catalog": ["@linxiraos/pi-catalog@workspace:packages/catalog"],
+
+    "@linxiraos/pi-hashline": ["@linxiraos/pi-hashline@workspace:packages/hashline"],
+
+    "@linxiraos/pi-metaharness": ["@linxiraos/pi-metaharness@workspace:packages/metaharness"],
+
+    "@linxiraos/pi-mnemopi": ["@linxiraos/pi-mnemopi@workspace:packages/mnemopi"],
+
+    "@linxiraos/pi-natives": ["@linxiraos/pi-natives@workspace:packages/natives"],
+
+    "@linxiraos/pi-omptype": ["@linxiraos/pi-omptype@workspace:packages/omptype"],
+
+    "@linxiraos/pi-snapcompact": ["@linxiraos/pi-snapcompact@workspace:packages/snapcompact"],
+
+    "@linxiraos/pi-stats": ["@linxiraos/pi-stats@workspace:packages/stats"],
+
+    "@linxiraos/pi-tui": ["@linxiraos/pi-tui@workspace:packages/tui"],
+
+    "@linxiraos/pi-utils": ["@linxiraos/pi-utils@workspace:packages/utils"],
+
+    "@linxiraos/pi-wire": ["@linxiraos/pi-wire@workspace:packages/wire"],
+
+    "@linxiraos/typescript-edit-benchmark": ["@linxiraos/typescript-edit-benchmark@workspace:packages/typescript-edit-benchmark"],
+
+    "@linxiraos/zeta": ["@linxiraos/zeta@workspace:packages/coding-agent"],
 
     "@napi-rs/cli": ["@napi-rs/cli@3.7.2", "https://registry.npmmirror.com/@napi-rs/cli/-/cli-3.7.2.tgz", { "dependencies": { "@inquirer/prompts": "^8.5.2", "@napi-rs/cross-toolchain": "^1.0.3", "@napi-rs/wasm-tools": "^1.0.1", "@octokit/rest": "^22.0.1", "clipanion": "^4.0.0-rc.4", "colorette": "^2.0.20", "emnapi": "^1.11.1", "es-toolkit": "^1.47.0", "js-yaml": "^4.2.0", "obug": "^2.1.2", "semver": "^7.8.2", "typanion": "^3.14.0" }, "peerDependencies": { "@emnapi/runtime": "^1.7.1" }, "optionalPeers": ["@emnapi/runtime"], "bin": { "napi": "dist/cli.js", "napi-raw": "cli.mjs" } }, "sha512-shDW0Td/XZQpP04Yy+OsMt1ILMKGGkoLcy1zVAsSAK0fLfWm0Upgkmfs/NOV2ZhMQwkgpR3ZEdyHmTwgrUDQuA=="],
 
@@ -931,40 +965,6 @@
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "https://registry.npmmirror.com/@typescript/typescript-win32-x64/-/typescript-win32-x64-7.0.2.tgz", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
     "@typescript/vfs": ["@typescript/vfs@1.6.1", "https://registry.npmmirror.com/@typescript/vfs/-/vfs-1.6.1.tgz", { "dependencies": { "debug": "^4.1.1" }, "peerDependencies": { "typescript": "*" } }, "sha512-JwoxboBh7Oz1v38tPbkrZ62ZXNHAk9bJ7c9x0eI5zBfBnBYGhURdbnh7Z4smN/MV48Y5OCcZb58n972UtbazsA=="],
-
-    "@zeta/browser-relay": ["@zeta/browser-relay@workspace:packages/browser-relay"],
-
-    "@zeta/collab-web": ["@zeta/collab-web@workspace:packages/collab-web"],
-
-    "@zeta/hashline": ["@zeta/hashline@workspace:packages/hashline"],
-
-    "@zeta/omp-stats": ["@zeta/omp-stats@workspace:packages/stats"],
-
-    "@zeta/pi-agent-core": ["@zeta/pi-agent-core@workspace:packages/agent"],
-
-    "@zeta/pi-ai": ["@zeta/pi-ai@workspace:packages/ai"],
-
-    "@zeta/pi-catalog": ["@zeta/pi-catalog@workspace:packages/catalog"],
-
-    "@zeta/pi-coding-agent": ["@zeta/pi-coding-agent@workspace:packages/coding-agent"],
-
-    "@zeta/pi-metaharness": ["@zeta/pi-metaharness@workspace:packages/metaharness"],
-
-    "@zeta/pi-mnemopi": ["@zeta/pi-mnemopi@workspace:packages/mnemopi"],
-
-    "@zeta/pi-natives": ["@zeta/pi-natives@workspace:packages/natives"],
-
-    "@zeta/pi-omptype": ["@zeta/pi-omptype@workspace:packages/omptype"],
-
-    "@zeta/pi-tui": ["@zeta/pi-tui@workspace:packages/tui"],
-
-    "@zeta/pi-utils": ["@zeta/pi-utils@workspace:packages/utils"],
-
-    "@zeta/pi-wire": ["@zeta/pi-wire@workspace:packages/wire"],
-
-    "@zeta/snapcompact": ["@zeta/snapcompact@workspace:packages/snapcompact"],
-
-    "@zeta/typescript-edit-benchmark": ["@zeta/typescript-edit-benchmark@workspace:packages/typescript-edit-benchmark"],
 
     "adm-zip": ["adm-zip@0.5.18", "https://registry.npmmirror.com/adm-zip/-/adm-zip-0.5.18.tgz", {}, "sha512-ufJnssQGbxzLNS1Ho9bCtX4rQKCCvoVuDLHoJyc3F9dOGDB4BkWs2Ci0kv53lqocAEQ/Cbi+I2XCsNYGqVYqng=="],
 

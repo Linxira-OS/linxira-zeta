@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
-import { Effort } from "@zeta/pi-ai";
+import { Effort } from "@linxiraos/pi-ai";
 import {
 	applyClaudeToolPrefix,
 	buildAnthropicClientOptions,
@@ -17,10 +17,10 @@ import {
 	mapStainlessArch,
 	streamAnthropic,
 	stripClaudeToolPrefix,
-} from "@zeta/pi-ai/providers/anthropic";
-import type { MessageCreateParamsStreaming } from "@zeta/pi-ai/providers/anthropic-wire";
-import { claudeCodeVersion } from "@zeta/pi-ai/providers/claude-code-fingerprint";
-import { getEnvApiKey, streamSimple } from "@zeta/pi-ai/stream";
+} from "@linxiraos/pi-ai/providers/anthropic";
+import type { MessageCreateParamsStreaming } from "@linxiraos/pi-ai/providers/anthropic-wire";
+import { claudeCodeVersion } from "@linxiraos/pi-ai/providers/claude-code-fingerprint";
+import { getEnvApiKey, streamSimple } from "@linxiraos/pi-ai/stream";
 import type {
 	AssistantMessage,
 	Context,
@@ -29,10 +29,10 @@ import type {
 	TJsonSchema,
 	TokenTaskBudget,
 	Tool,
-} from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { type as arkType } from "@zeta/pi-omptype";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type as arkType } from "@linxiraos/pi-omptype";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { withEnv } from "./helpers";
 
 const ANTHROPIC_MODEL_SPEC: ModelSpec<"anthropic-messages"> = {

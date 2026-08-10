@@ -1,5 +1,5 @@
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { prompt } from "@zeta/pi-utils";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { prompt } from "@linxiraos/pi-utils";
 import btwUserPrompt from "../../prompts/system/btw-user.md" with { type: "text" };
 import { copyToClipboard } from "../../utils/clipboard";
 import { BtwPanelComponent } from "../components/btw-panel";

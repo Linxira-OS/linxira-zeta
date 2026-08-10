@@ -1,5 +1,5 @@
-import { type } from "@zeta/pi-omptype";
-import { once } from "@zeta/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import { once } from "@linxiraos/pi-utils";
 
 export const getSecurityContractSchemas = once(() => {
 	const stringRecordSchema = type({ "[string]": "string" });

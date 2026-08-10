@@ -8,8 +8,8 @@
  * `session-manager`, the TUI tool renderers). It has no side effects and
  * depends only on the yield type and the output-schema validator.
  */
-import { dereferenceJsonSchema } from "@zeta/pi-ai/utils/schema";
-import { isRecord } from "@zeta/pi-utils";
+import { dereferenceJsonSchema } from "@linxiraos/pi-ai/utils/schema";
+import { isRecord } from "@linxiraos/pi-utils";
 import { buildOutputValidator } from "../tools/output-schema-validator";
 import type { YieldItem } from "./types";
 

@@ -1,5 +1,5 @@
-import type { Component } from "@zeta/pi-tui";
-import { parseStreamingJson, parseStreamingJsonThrottled, STREAMING_JSON_PARSE_MIN_GROWTH } from "@zeta/pi-utils";
+import type { Component } from "@linxiraos/pi-tui";
+import { parseStreamingJson, parseStreamingJsonThrottled, STREAMING_JSON_PARSE_MIN_GROWTH } from "@linxiraos/pi-utils";
 import { nextStep, STREAMING_REVEAL_FRAME_MS } from "./streaming-reveal";
 
 /** Minimal component surface the reveal pushes frames into. */

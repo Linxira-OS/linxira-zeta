@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Context, ToolCall, ToolResultMessage, Usage } from "@zeta/pi-ai";
+import type { AssistantMessage, Context, ToolCall, ToolResultMessage, Usage } from "@linxiraos/pi-ai";
 import {
 	createInbandScanner,
 	type Dialect,
@@ -9,7 +9,7 @@ import {
 	type InbandScanEvent,
 	parseInbandToolMessage,
 	renderInbandToolPrompt,
-} from "@zeta/pi-ai/dialect";
+} from "@linxiraos/pi-ai/dialect";
 
 const TOOLS = [
 	{

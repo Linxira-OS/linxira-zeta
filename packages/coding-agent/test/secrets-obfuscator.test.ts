@@ -7,15 +7,17 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Context, Message, TextContent } from "@zeta/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Context, Message, TextContent } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { getActiveProfile, getAgentDir, setProfile } from "@linxiraos/pi-utils/dirs";
 import {
 	builtinCredentialSecretEntries,
 	getExistingSecretPlaceholderKey,
 	getSecretPlaceholderKey,
 	getSecretPlaceholderKeySync,
 	loadSecrets,
-} from "@zeta/pi-coding-agent/secrets";
+} from "@linxiraos/zeta/secrets";
 import {
 	deobfuscateAgentMessages,
 	deobfuscateToolArguments,
@@ -28,10 +30,8 @@ import {
 	secretEntriesNeedPlaceholderKey,
 	secretEntryNeedsPlaceholderKey,
 	stripPendingSecretPlaceholderSuffix,
-} from "@zeta/pi-coding-agent/secrets/obfuscator";
-import { compileSecretRegex } from "@zeta/pi-coding-agent/secrets/regex";
-import { type } from "@zeta/pi-omptype";
-import { getActiveProfile, getAgentDir, setProfile } from "@zeta/pi-utils/dirs";
+} from "@linxiraos/zeta/secrets/obfuscator";
+import { compileSecretRegex } from "@linxiraos/zeta/secrets/regex";
 
 describe("compileSecretRegex", () => {
 	it("adds global flag when not provided", () => {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { CommandController } from "@zeta/pi-coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 function createMemoryContext(backend: string) {
 	const showWarning = vi.fn();

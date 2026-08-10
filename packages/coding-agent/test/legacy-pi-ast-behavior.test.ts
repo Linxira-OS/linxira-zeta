@@ -3,11 +3,11 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	__rewriteLegacyExtensionSourceForTests,
 	loadLegacyPiModule,
-} from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 
 interface RewriteCase {
 	name: string;

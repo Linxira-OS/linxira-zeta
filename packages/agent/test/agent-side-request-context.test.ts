@@ -1,9 +1,9 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { AssistantMessage, Context } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "@zeta/pi-omptype";
+import type { AssistantMessage, Context } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
 import { Agent } from "../src/agent";
 import type { AgentTool } from "../src/types";
 

@@ -6,14 +6,14 @@
  * / `write xd://<tool>`).
  */
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { CustomToolAdapter } from "@zeta/pi-coding-agent/extensibility/custom-tools/wrapper";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions/runner";
-import { RegisteredToolAdapter } from "@zeta/pi-coding-agent/extensibility/extensions/wrapper";
-import { BUILTIN_TOOLS, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { defaultLoadModeForToolName, ESSENTIAL_BUILTIN_TOOL_NAMES } from "@zeta/pi-coding-agent/tools/essential-tools";
-import { isMountableUnderXdev } from "@zeta/pi-coding-agent/tools/xdev";
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { CustomToolAdapter } from "@linxiraos/zeta/extensibility/custom-tools/wrapper";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { RegisteredToolAdapter } from "@linxiraos/zeta/extensibility/extensions/wrapper";
+import { BUILTIN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
+import { defaultLoadModeForToolName, ESSENTIAL_BUILTIN_TOOL_NAMES } from "@linxiraos/zeta/tools/essential-tools";
+import { isMountableUnderXdev } from "@linxiraos/zeta/tools/xdev";
 
 function makeSession(): ToolSession {
 	return {

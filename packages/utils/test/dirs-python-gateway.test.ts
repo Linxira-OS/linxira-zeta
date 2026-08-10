@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAgentDir, getConfigDirName, getPythonGatewayDir, setAgentDir } from "@zeta/pi-utils/dirs";
-import { Snowflake } from "@zeta/pi-utils/snowflake";
+import { getAgentDir, getConfigDirName, getPythonGatewayDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 
 describe("python gateway directory", () => {
 	let tempRoot = "";

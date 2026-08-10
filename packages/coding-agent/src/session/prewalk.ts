@@ -1,7 +1,7 @@
-import type { Agent, AgentMessage, AgentToolResult, AgentTurnEndContext } from "@zeta/pi-agent-core";
-import { invalidateMessageCache } from "@zeta/pi-agent-core/compaction";
-import type { Model, ToolResultMessage } from "@zeta/pi-ai";
-import { prompt } from "@zeta/pi-utils";
+import type { Agent, AgentMessage, AgentToolResult, AgentTurnEndContext } from "@linxiraos/pi-agent-core";
+import { invalidateMessageCache } from "@linxiraos/pi-agent-core/compaction";
+import type { Model, ToolResultMessage } from "@linxiraos/pi-ai";
+import { prompt } from "@linxiraos/pi-utils";
 import type { LocalProtocolOptions } from "../internal-urls";
 import { resolveApprovedPlan } from "../plan-mode/approved-plan";
 import { listPlanFiles, readPlanFile } from "../plan-mode/plan-files";

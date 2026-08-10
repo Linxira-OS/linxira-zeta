@@ -8,8 +8,8 @@
  * first field. The import surface is kept deliberately narrow so a TAB press
  * doesn't pay for the full agent boot.
  */
-import { type GeneratedProvider, getBundledModels, getBundledProviders } from "@zeta/pi-catalog/models";
-import { Command } from "@zeta/pi-utils/cli";
+import { type GeneratedProvider, getBundledModels, getBundledProviders } from "@linxiraos/pi-catalog/models";
+import { Command } from "@linxiraos/pi-utils/cli";
 import { completeHelp as commandHelp } from "../cli/command-help";
 import { SessionManager } from "../session/session-manager";
 

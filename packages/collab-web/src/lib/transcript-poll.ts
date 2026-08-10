@@ -7,7 +7,7 @@
  * cursor, so retrying would loop hot without ever surfacing the failure.
  */
 
-import type { SessionEntry } from "@zeta/pi-wire";
+import type { SessionEntry } from "@linxiraos/pi-wire";
 import type { TranscriptResult } from "./client";
 import { parseJsonl } from "./jsonl";
 

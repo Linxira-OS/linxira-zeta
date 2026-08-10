@@ -5,7 +5,7 @@ import {
 	type AgentMessage,
 	isSyntheticToolResultMessage,
 	type ThinkingLevel,
-} from "@zeta/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import type {
 	AssistantMessage,
 	AssistantRetryRecovery,
@@ -17,13 +17,13 @@ import type {
 	TextContent,
 	ThinkingContent,
 	ToolChoice,
-} from "@zeta/pi-ai";
-import { calculateRateLimitBackoffMs, parseRateLimitReason } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { kCursorExecResolved } from "@zeta/pi-ai/utils/block-symbols";
-import { isFireworksFastModelId, toFireworksBaseModelId } from "@zeta/pi-catalog/fireworks-model-id";
-import { modelsAreEqual } from "@zeta/pi-catalog/models";
-import { extractRetryHint, logger, prompt } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { calculateRateLimitBackoffMs, parseRateLimitReason } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { isFireworksFastModelId, toFireworksBaseModelId } from "@linxiraos/pi-catalog/fireworks-model-id";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { extractRetryHint, logger, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelStringWithRouting, resolveModelOverride } from "../config/model-resolver";
 

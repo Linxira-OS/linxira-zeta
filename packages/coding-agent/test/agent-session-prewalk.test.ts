@@ -1,21 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentTool, ThinkingLevel } from "@zeta/pi-agent-core";
-import { type Api, Effort, type Model } from "@zeta/pi-ai";
-import { createMockModel, type MockResponse } from "@zeta/pi-ai/providers/mock";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { executeBuiltinSlashCommand } from "@zeta/pi-coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@zeta/pi-coding-agent/slash-commands/types";
-import { AUTO_THINKING } from "@zeta/pi-coding-agent/thinking";
-import { type } from "@zeta/pi-omptype";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, type AgentTool, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
+import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 
 /**
  * Prewalk: one-way switch from the starting model to a fast/cheap target

@@ -1,6 +1,6 @@
 import * as stream from "node:stream";
-import { postmortem } from "@zeta/pi-utils";
-import { AgentSideConnection, ndJsonStream, type Stream } from "@zeta/pi-utils/acp";
+import { postmortem } from "@linxiraos/pi-utils";
+import { AgentSideConnection, ndJsonStream, type Stream } from "@linxiraos/pi-utils/acp";
 import type { AgentSession } from "../../session/agent-session";
 import { AcpAgent } from "./acp-agent";
 

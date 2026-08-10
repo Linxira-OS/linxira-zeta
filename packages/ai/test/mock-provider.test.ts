@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { clearCustomApis, getCustomApi } from "@zeta/pi-ai/api-registry";
+import { clearCustomApis, getCustomApi } from "@linxiraos/pi-ai/api-registry";
 import {
 	createMockModel,
 	isMockModel,
@@ -8,8 +8,8 @@ import {
 	type MockModel,
 	registerMockApi,
 	streamMock,
-} from "@zeta/pi-ai/providers/mock";
-import type { AssistantMessage, AssistantMessageEvent, Context, ToolCall } from "@zeta/pi-ai/types";
+} from "@linxiraos/pi-ai/providers/mock";
+import type { AssistantMessage, AssistantMessageEvent, Context, ToolCall } from "@linxiraos/pi-ai/types";
 
 afterEach(() => {
 	clearCustomApis();

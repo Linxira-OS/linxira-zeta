@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { isReadOnlyAgent } from "@zeta/pi-coding-agent/task";
-import { loadBundledAgents } from "@zeta/pi-coding-agent/task/agents";
-import type { AgentDefinition } from "@zeta/pi-coding-agent/task/types";
+import { isReadOnlyAgent } from "@linxiraos/zeta/task";
+import { loadBundledAgents } from "@linxiraos/zeta/task/agents";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 
 function agentByName(agents: AgentDefinition[], name: string): AgentDefinition {
 	const agent = agents.find(candidate => candidate.name === name);

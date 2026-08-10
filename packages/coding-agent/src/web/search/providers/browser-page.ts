@@ -1,5 +1,5 @@
-import type { FetchImpl } from "@zeta/pi-ai";
-import { untilAborted } from "@zeta/pi-utils";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { untilAborted } from "@linxiraos/pi-utils";
 import type { Page } from "puppeteer-core";
 import { applyStealthPatches, applyViewport } from "../../../tools/browser/launch";
 import { acquireBrowser, holdBrowser, releaseBrowser } from "../../../tools/browser/registry";

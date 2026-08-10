@@ -5,8 +5,8 @@
  * (issue #6177). Non-error stops must not emit it.
  */
 import { afterAll, afterEach, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { logger } from "@zeta/pi-utils";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import { logProviderTurnError } from "../../src/session/messages";
 
 function makeMessage(overrides: Partial<AssistantMessage>): AssistantMessage {

@@ -4,7 +4,7 @@
 import type * as fs1 from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type {
 	ImageContent,
 	Model,
@@ -13,11 +13,11 @@ import type {
 	ServiceTierFamily,
 	TextContent,
 	TSchema,
-} from "@zeta/pi-ai";
-import { type } from "@zeta/pi-omptype";
-import * as zod from "@zeta/pi-omptype/zod";
-import type { KeyId } from "@zeta/pi-tui";
-import { hasFsCode, isEacces, isEnoent, logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import * as zod from "@linxiraos/pi-omptype/zod";
+import type { KeyId } from "@linxiraos/pi-tui";
+import { hasFsCode, isEacces, isEnoent, logger } from "@linxiraos/pi-utils";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";
 import { type Hook, hookCapability } from "../../capability/hook";
 import { isServiceTierFamily, isServiceTierForFamily } from "../../config/service-tier";

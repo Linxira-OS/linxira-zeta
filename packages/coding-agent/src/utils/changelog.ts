@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { getLastChangelogVersionPath, isEnoent, logger } from "@zeta/pi-utils";
+import { getLastChangelogVersionPath, isEnoent, logger } from "@linxiraos/pi-utils";
 import bundledChangelogPath from "../../CHANGELOG.md" with { type: "file" };
 import type { SettingValue } from "../config/settings";
 

@@ -1,5 +1,5 @@
-import { sanitizeText } from "@zeta/pi-utils";
-import type { Terminal as XtermTerminal } from "@zeta/pi-utils/vterm";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { Terminal as XtermTerminal } from "@linxiraos/pi-utils/vterm";
 
 const RESET = "\x1b[0m";
 const SGR = /\x1b\[([0-9;]*)m/g;

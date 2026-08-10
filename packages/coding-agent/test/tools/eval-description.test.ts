@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import type { Tool as AiTool } from "@zeta/pi-ai";
-import { toolWireSchema } from "@zeta/pi-ai/utils/schema";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { EvalTool, getEvalToolDescription } from "@zeta/pi-coding-agent/tools/eval";
+import type { Tool as AiTool } from "@linxiraos/pi-ai";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool, getEvalToolDescription } from "@linxiraos/zeta/tools/eval";
 
 function makeSession(opts: { spawns?: string | null; backends?: Record<string, boolean> }): ToolSession {
 	const settings = Settings.isolated();

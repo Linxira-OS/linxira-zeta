@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { ImageContent } from "@zeta/pi-ai";
-import { type AutocompleteProvider, matchesKey, type SlashCommand } from "@zeta/pi-tui";
-import { isEnoent, logger, sanitizeText } from "@zeta/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { type AutocompleteProvider, matchesKey, type SlashCommand } from "@linxiraos/pi-tui";
+import { isEnoent, logger, sanitizeText } from "@linxiraos/pi-utils";
 import { isSettingsInitialized, settings } from "../../config/settings";
 import { M } from "../../i18n";
 import { resolveLocalRoot } from "../../internal-urls";

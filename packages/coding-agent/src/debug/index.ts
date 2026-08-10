@@ -5,7 +5,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as url from "node:url";
-import { getWorkProfile } from "@zeta/pi-natives";
+import { getWorkProfile } from "@linxiraos/pi-natives";
 import {
 	Container,
 	isNotificationSuppressed,
@@ -17,8 +17,8 @@ import {
 	TERMINAL,
 	type TerminalNotification,
 	Text,
-} from "@zeta/pi-tui";
-import { getSessionsDir } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { getSessionsDir } from "@linxiraos/pi-utils";
 import { DynamicBorder } from "../modes/components/dynamic-border";
 import { TranscriptBlock } from "../modes/components/transcript-container";
 import { getSelectListTheme, getSymbolTheme, theme } from "../modes/theme/theme";

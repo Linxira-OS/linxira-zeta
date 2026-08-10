@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { applyDirenvPreflight, executeBash } from "@zeta/pi-coding-agent/exec/bash-executor";
-import { findEnvrc, loadDirenvEnv, parseDirenvExport } from "@zeta/pi-coding-agent/exec/direnv";
-import { $which, TempDir } from "@zeta/pi-utils";
+import { $which, TempDir } from "@linxiraos/pi-utils";
+import { applyDirenvPreflight, executeBash } from "@linxiraos/zeta/exec/bash-executor";
+import { findEnvrc, loadDirenvEnv, parseDirenvExport } from "@linxiraos/zeta/exec/direnv";
 
 /** Real-direnv cases need the binary on PATH; skip cleanly when it's absent so
  *  the graceful-degradation code path (returns `null`) isn't asserted against. */

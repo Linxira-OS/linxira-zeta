@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const packageRoot = path.resolve(import.meta.dir, "..");
 
@@ -205,8 +205,8 @@ function writeModelsJson(fixture: ProviderFixture): void {
 
 function loadDefaultRegistryModel(lookup: ModelLookup): ModelSnapshot | undefined {
 	const script = `
-		import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-		import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+		import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+		import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 		const authStorage = await AuthStorage.create(":memory:");
 		try {

@@ -185,21 +185,21 @@ mkdir -p "$TARBALL_APP_DIR"
    node -e "
 		const pkg = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
 		pkg.overrides = {
-			'@zeta/pi-utils': '$utils_tgz',
-			'@zeta/pi-wire': '$wire_tgz',
-			'@zeta/pi-omptype': '$omptype_tgz',
-			'@zeta/pi-natives': '$natives_tgz',
-			'@zeta/pi-natives-$host_tag': '$natives_leaf_tgz',
-			'@zeta/hashline': '$hashline_tgz',
-			'@zeta/pi-ai': '$ai_tgz',
-			'@zeta/pi-catalog': '$catalog_tgz',
-			'@zeta/pi-mnemopi': '$mnemopi_tgz',
-			'@zeta/snapcompact': '$snapcompact_tgz',
-			'@zeta/pi-agent-core': '$agent_tgz',
-			'@zeta/pi-tui': '$tui_tgz',
-			'@zeta/omp-stats': '$stats_tgz',
-			'@zeta/pi-coding-agent': '$coding_agent_tgz',
-			'@zeta/collab-web': '$collab_web_tgz'
+			'@linxiraos/pi-utils': '$utils_tgz',
+			'@linxiraos/pi-wire': '$wire_tgz',
+			'@linxiraos/pi-omptype': '$omptype_tgz',
+			'@linxiraos/pi-natives': '$natives_tgz',
+			'@linxiraos/pi-natives-$host_tag': '$natives_leaf_tgz',
+			'@linxiraos/pi-hashline': '$hashline_tgz',
+			'@linxiraos/pi-ai': '$ai_tgz',
+			'@linxiraos/pi-catalog': '$catalog_tgz',
+			'@linxiraos/pi-mnemopi': '$mnemopi_tgz',
+			'@linxiraos/pi-snapcompact': '$snapcompact_tgz',
+			'@linxiraos/pi-agent-core': '$agent_tgz',
+			'@linxiraos/pi-tui': '$tui_tgz',
+			'@linxiraos/pi-stats': '$stats_tgz',
+			'@linxiraos/zeta': '$coding_agent_tgz',
+			'@linxiraos/collab-web': '$collab_web_tgz'
 		};
 		require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 	"
@@ -208,30 +208,30 @@ mkdir -p "$TARBALL_APP_DIR"
    # The platform leaf must arrive through the core's optionalDependencies +
    # override, not as a direct dependency — assert it landed before smoking so a
    # resolution regression is distinguishable from a runtime loader bug.
-   leaf_dir="node_modules/@zeta/pi-natives-$host_tag"
+   leaf_dir="node_modules/@linxiraos/pi-natives-$host_tag"
    [ -d "$leaf_dir" ] || {
       echo "Platform leaf package not installed: $leaf_dir"
       exit 1
    }
-   wire_proto="$(bun -e 'import { COLLAB_PROTO } from "@zeta/pi-wire"; process.stdout.write(String(COLLAB_PROTO));')"
+   wire_proto="$(bun -e 'import { COLLAB_PROTO } from "@linxiraos/pi-wire"; process.stdout.write(String(COLLAB_PROTO));')"
    [ "$wire_proto" = "3" ] || {
-      echo "Unexpected @zeta/pi-wire COLLAB_PROTO: $wire_proto"
+      echo "Unexpected @linxiraos/pi-wire COLLAB_PROTO: $wire_proto"
       exit 1
    }
    omptype_probe="$(bun -e '
-import { type } from "@zeta/pi-omptype";
-      import { Type } from "@zeta/pi-omptype/typebox";
-      import { z } from "@zeta/pi-omptype/zod";
+import { type } from "@linxiraos/pi-omptype";
+      import { Type } from "@linxiraos/pi-omptype/typebox";
+      import { z } from "@linxiraos/pi-omptype/zod";
       const root = type({ name: "string", enabled: "boolean = false" }).assert({ name: "omp" });
       const typebox = Type.Object({ name: Type.String() }).assert({ name: "tb" });
       const zod = z.object({ name: z.string() }).parse({ name: "z" });
       process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}:${zod.name}`);
    ')"
 [ "$omptype_probe" = "omp:false:tb:z" ] || {
-      echo "Unexpected @zeta/pi-omptype probe result: $omptype_probe"
+      echo "Unexpected @linxiraos/pi-omptype probe result: $omptype_probe"
       exit 1
    }
-   [ -f "node_modules/@zeta/collab-web/dist/index.html" ] || {
+   [ -f "node_modules/@linxiraos/collab-web/dist/index.html" ] || {
       echo "Collab web tarball did not install built dist/index.html"
       exit 1
    }

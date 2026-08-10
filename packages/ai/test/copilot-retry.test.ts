@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { callWithCopilotModelRetry, isCopilotTransientModelError } from "@zeta/pi-ai/utils/retry";
-import { isRetryableError } from "@zeta/pi-utils";
+import { callWithCopilotModelRetry, isCopilotTransientModelError } from "@linxiraos/pi-ai/utils/retry";
+import { isRetryableError } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

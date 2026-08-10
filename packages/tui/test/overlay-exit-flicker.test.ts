@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type Component, type RenderScheduler, type RenderTimer, TUI } from "@zeta/pi-tui";
+import { type Component, type RenderScheduler, type RenderTimer, TUI } from "@linxiraos/pi-tui";
 import { VirtualTerminal } from "./virtual-terminal";
 
 // A terminal that re-reports its size when the alternate screen buffer toggles

@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 
 describe("AgentStorage model perf aggregates", () => {
 	let tempDir: TempDir;

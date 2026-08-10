@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { TreeSelectorComponent } from "@zeta/pi-coding-agent/modes/components/tree-selector";
-import * as themeModule from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { SessionEntry, SessionTreeNode } from "@zeta/pi-coding-agent/session/session-entries";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 
 let counter = 0;
 function makeMessageNode(message: AgentMessage, parentId: string | null = null, label?: string): SessionTreeNode {

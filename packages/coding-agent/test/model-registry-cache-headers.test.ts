@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { writeModelCache } from "@zeta/pi-catalog/model-cache";
-import { getBundledModels } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 describe("startup model cache header restoration (#5780)", () => {
 	let tempDir: string;

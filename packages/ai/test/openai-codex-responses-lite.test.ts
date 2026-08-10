@@ -3,18 +3,18 @@ import {
 	type InputItem,
 	type RequestBody,
 	transformRequestBody,
-} from "@zeta/pi-ai/providers/openai-codex/request-transformer";
+} from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import {
 	buildTransformedCodexRequestBody,
 	convertCodexResponsesMessages,
 	resetOpenAICodexHistoryAfterCompaction,
 	streamOpenAICodexResponses,
-} from "@zeta/pi-ai/providers/openai-codex-responses";
-import { isOpenAIResponsesProgressEvent } from "@zeta/pi-ai/providers/openai-shared";
-import { configureCredentialRedaction } from "@zeta/pi-ai/providers/transform-messages";
-import type { CodexCompactionRequestContext, Context, FetchImpl, ProviderSessionState } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import * as piUtils from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { isOpenAIResponsesProgressEvent } from "@linxiraos/pi-ai/providers/openai-shared";
+import { configureCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
+import type { CodexCompactionRequestContext, Context, FetchImpl, ProviderSessionState } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import * as piUtils from "@linxiraos/pi-utils";
 import { createCodexModel } from "./helpers";
 
 beforeAll(() => configureCredentialRedaction(true));

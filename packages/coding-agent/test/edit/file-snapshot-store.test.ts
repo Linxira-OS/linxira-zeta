@@ -2,12 +2,12 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { InMemorySnapshotStore } from "@zeta/hashline";
+import type { InMemorySnapshotStore } from "@linxiraos/pi-hashline";
 import {
 	canonicalSnapshotKey,
 	getFileSnapshotStore,
 	parseSeenLinesFromHashlineBody,
-} from "@zeta/pi-coding-agent/edit/file-snapshot-store";
+} from "@linxiraos/zeta/edit/file-snapshot-store";
 
 interface SessionOwner {
 	fileSnapshotStore?: InMemorySnapshotStore;

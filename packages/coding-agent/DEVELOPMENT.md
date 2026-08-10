@@ -1,4 +1,4 @@
-# Developing `@zeta/pi-coding-agent`
+# Developing `@linxiraos/zeta`
 
 This package is the `omp` CLI. This file is a **developer's map**: where things live
 in `src/`, how to run the local loops, and — for each subsystem — which document in

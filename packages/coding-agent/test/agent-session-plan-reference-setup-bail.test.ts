@@ -21,11 +21,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@zeta/pi-agent-core";
-import type { TextContent } from "@zeta/pi-ai";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
+import type { TextContent } from "@linxiraos/pi-ai";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import { resolveLocalUrlToPath } from "../src/internal-urls";

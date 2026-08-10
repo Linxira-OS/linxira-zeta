@@ -17,8 +17,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { countTokens, Encoding } from "@zeta/pi-natives";
-import { prompt } from "@zeta/pi-utils";
+import { countTokens, Encoding } from "@linxiraos/pi-natives";
+import { prompt } from "@linxiraos/pi-utils";
 import { loadBundledAgents } from "../packages/coding-agent/src/task/agents";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "..");

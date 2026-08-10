@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
-import type { ImageContent } from "@zeta/pi-ai";
-import { TreeSelectorComponent } from "@zeta/pi-coding-agent/modes/components/tree-selector";
-import { InputController } from "@zeta/pi-coding-agent/modes/controllers/input-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { SessionTreeNode } from "@zeta/pi-coding-agent/session/session-entries";
-import { type KeyId, matchesKey } from "@zeta/pi-tui";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { type KeyId, matchesKey } from "@linxiraos/pi-tui";
+import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 import manualContinuePrompt from "../src/prompts/system/manual-continue.md" with { type: "text" };
 
 type FakeEditor = {

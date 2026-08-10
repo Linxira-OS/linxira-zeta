@@ -1,8 +1,8 @@
 /**
  * Bordered output container with optional header and sections.
  */
-import type { Component } from "@zeta/pi-tui";
-import { ImageProtocol, padding, TERMINAL, visibleWidth, wrapTextWithAnsi } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
+import { ImageProtocol, padding, TERMINAL, visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
 import type { Theme, ThemeColor } from "../modes/theme/theme";
 import { getSixelLineMask } from "../utils/sixel";
 import type { State } from "./types";

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, ProviderPayload, Usage } from "@zeta/pi-ai";
-import { BlobStore } from "@zeta/pi-coding-agent/session/blob-store";
-import type { SessionMessageEntry } from "@zeta/pi-coding-agent/session/session-entries";
-import { prepareEntryForPersistence } from "@zeta/pi-coding-agent/session/session-persistence";
-import { TempDir } from "@zeta/pi-utils";
+import type { AssistantMessage, ProviderPayload, Usage } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { BlobStore } from "@linxiraos/zeta/session/blob-store";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
+import { prepareEntryForPersistence } from "@linxiraos/zeta/session/session-persistence";
 
 const usage = (): Usage => ({
 	input: 1,

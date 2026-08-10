@@ -2,13 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolContext } from "@zeta/pi-agent-core";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const BASE_SETTINGS = {
 	"async.enabled": false,

@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { ImageContent, MessageAttribution, ServiceTierByFamily, TextContent } from "@zeta/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ImageContent, MessageAttribution, ServiceTierByFamily, TextContent } from "@linxiraos/pi-ai";
 import type { StructuredSubagentSchemaMode } from "../task/types";
 
 export const CURRENT_SESSION_VERSION = 3;
@@ -167,7 +167,7 @@ export interface TitleChangeEntry extends SessionEntryBase {
 	trigger?: string;
 }
 
-declare module "@zeta/pi-agent-core/compaction/entries" {
+declare module "@linxiraos/pi-agent-core/compaction/entries" {
 	interface CustomCompactionSessionEntries {
 		titleChange: TitleChangeEntry;
 		credentialPin: CredentialPinEntry;

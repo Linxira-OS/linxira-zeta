@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { parseTurnBudget } from "@zeta/pi-coding-agent/modes/turn-budget";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { parseTurnBudget } from "@linxiraos/zeta/modes/turn-budget";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("parseTurnBudget", () => {
 	it("parses k/m multipliers, plain counts, and decimals", () => {

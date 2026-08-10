@@ -2,16 +2,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as ai from "@zeta/pi-ai";
-import { Effort, type Model } from "@zeta/pi-ai";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import {
-	buildMemoryToolDeveloperInstructions,
-	getMemoryRoot,
-	startMemoryStartupTask,
-} from "@zeta/pi-coding-agent/memories";
-import * as memoryStorage from "@zeta/pi-coding-agent/memories/storage";
-import { getAgentDbPath, Snowflake, TempDir } from "@zeta/pi-utils";
+import * as ai from "@linxiraos/pi-ai";
+import { Effort, type Model } from "@linxiraos/pi-ai";
+import { getAgentDbPath, Snowflake, TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { buildMemoryToolDeveloperInstructions, getMemoryRoot, startMemoryStartupTask } from "@linxiraos/zeta/memories";
+import * as memoryStorage from "@linxiraos/zeta/memories/storage";
 
 interface SessionFixture {
 	agentDir: string;

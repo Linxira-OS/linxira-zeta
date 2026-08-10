@@ -7,12 +7,12 @@ import {
 	truncateToWidth as nativeTruncateToWidth,
 	wrapTextWithAnsi as nativeWrapTextWithAnsi,
 	type SliceResult,
-} from "@zeta/pi-natives";
-import { DEFAULT_TAB_WIDTH } from "@zeta/pi-utils";
+} from "@linxiraos/pi-natives";
+import { DEFAULT_TAB_WIDTH } from "@linxiraos/pi-utils";
 
-export { Ellipsis } from "@zeta/pi-natives";
+export { Ellipsis } from "@linxiraos/pi-natives";
 
-export { DEFAULT_TAB_WIDTH } from "@zeta/pi-utils";
+export { DEFAULT_TAB_WIDTH } from "@linxiraos/pi-utils";
 
 export type HangulCompatibilityJamoWidth = "platform" | "unicode" | 1 | 2;
 

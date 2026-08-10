@@ -2,10 +2,14 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@zeta/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
-import { __providerInFlightForTesting, configureProviderMaxInFlightRequests, streamSimple } from "@zeta/pi-ai/stream";
-import type { Context } from "@zeta/pi-ai/types";
+import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import {
+	__providerInFlightForTesting,
+	configureProviderMaxInFlightRequests,
+	streamSimple,
+} from "@linxiraos/pi-ai/stream";
+import type { Context } from "@linxiraos/pi-ai/types";
 
 function context(): Context {
 	return {

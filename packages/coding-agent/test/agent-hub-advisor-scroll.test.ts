@@ -10,12 +10,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { AgentHubRemote } from "@zeta/pi-coding-agent/modes/components/agent-hub";
-import { AgentTranscriptViewer } from "@zeta/pi-coding-agent/modes/components/agent-transcript-viewer";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { CURRENT_SESSION_VERSION } from "@zeta/pi-coding-agent/session/session-entries";
 import {
 	getKittyGraphics,
 	ImageBudget,
@@ -24,8 +18,14 @@ import {
 	setTerminalImageProtocol,
 	TERMINAL,
 	type TUI,
-} from "@zeta/pi-tui";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { AgentHubRemote } from "@linxiraos/zeta/modes/components/agent-hub";
+import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 
 const TS = new Date().toISOString();
 

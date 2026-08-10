@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractReadableFromHtml } from "@zeta/pi-coding-agent/tools/browser";
+import { extractReadableFromHtml } from "@linxiraos/zeta/tools/browser";
 
 describe("browser readable extraction", () => {
 	it("extracts markdown content from article-style pages", async () => {

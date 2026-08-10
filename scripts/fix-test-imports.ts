@@ -5,9 +5,9 @@ import { dirname, extname, join, relative, resolve, sep } from "node:path";
  * Codemod: rewrite relative test imports that reach into a package's `src/`
  * into the package's public subpath import.
  *
- *   ../src/format                  ->  @zeta/pi-utils/format
- *   ../../src/task/repair-args     ->  @zeta/pi-coding-agent/task/repair-args
- *   ../src/index                   ->  @zeta/pi-utils
+ *   ../src/format                  ->  @linxiraos/pi-utils/format
+ *   ../../src/task/repair-args     ->  @linxiraos/zeta/task/repair-args
+ *   ../src/index                   ->  @linxiraos/pi-utils
  *
  * Only specifiers that resolve onto a file under `<pkg>/src/` are touched, and
  * only when they have no extension or a `.ts`/`.js` extension (the package

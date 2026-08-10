@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { getDaemonRuntimeDir } from "@zeta/pi-utils";
+import { getDaemonRuntimeDir } from "@linxiraos/pi-utils";
 
 /** Resolve the private runtime directory shared by omp processes in one project directory. */
 export { getDaemonRuntimeDir as daemonRuntimeDir };

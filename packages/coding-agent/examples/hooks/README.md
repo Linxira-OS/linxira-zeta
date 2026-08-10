@@ -34,7 +34,7 @@ cp permission-gate.ts ~/.omp/agent/hooks/
 See [docs/hooks.md](../../docs/hooks.md) for full documentation.
 
 ```typescript
-import type { HookAPI } from "@zeta/pi-coding-agent/hooks";
+import type { HookAPI } from "@linxiraos/zeta/hooks";
 
 export default function (pi: HookAPI) {
 	// Subscribe to events

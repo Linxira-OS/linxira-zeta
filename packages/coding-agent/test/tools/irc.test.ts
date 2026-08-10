@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@zeta/pi-agent-core";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { SettingPath } from "@zeta/pi-coding-agent/config/settings-schema";
-import { IrcBus, type IrcMessage } from "@zeta/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@zeta/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import type { CustomMessage } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { type CoordinationDetails, HubTool, isIrcEnabled } from "@zeta/pi-coding-agent/tools/hub";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { SettingPath } from "@linxiraos/zeta/config/settings-schema";
+import { IrcBus, type IrcMessage } from "@linxiraos/zeta/irc/bus";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { type CoordinationDetails, HubTool, isIrcEnabled } from "@linxiraos/zeta/tools/hub";
 
 interface FakeSession {
 	session: AgentSession;

@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@zeta/pi-coding-agent/internal-urls/router";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { GlobTool } from "@zeta/pi-coding-agent/tools/glob";
-import { resolveToolSearchScope } from "@zeta/pi-coding-agent/tools/path-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { GlobTool } from "@linxiraos/zeta/tools/glob";
+import { resolveToolSearchScope } from "@linxiraos/zeta/tools/path-utils";
 
 // Minimal ToolSession stub (ssh-url-approval.test.ts shape). The ssh:// guard
 // fires before any session/SSH access, so no real cwd/fs is needed.

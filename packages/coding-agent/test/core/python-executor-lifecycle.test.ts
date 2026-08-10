@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { disposeAllKernelSessions, executePython } from "@zeta/pi-coding-agent/eval/py/executor";
-import type { KernelExecuteResult } from "@zeta/pi-coding-agent/eval/py/kernel";
-import * as pythonKernel from "@zeta/pi-coding-agent/eval/py/kernel";
-import { getProjectDir } from "@zeta/pi-utils";
+import { getProjectDir } from "@linxiraos/pi-utils";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { KernelExecuteResult } from "@linxiraos/zeta/eval/py/kernel";
+import * as pythonKernel from "@linxiraos/zeta/eval/py/kernel";
 
 class FakeKernel {
 	execute = vi.fn(async () => this.result);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import * as Beam from "@zeta/pi-mnemopi/core/beam";
-import * as Db from "@zeta/pi-mnemopi/db";
+import * as Beam from "@linxiraos/pi-mnemopi/core/beam";
+import * as Db from "@linxiraos/pi-mnemopi/db";
 
 describe("Foundation smoke test", () => {
 	it("initializes beam schema twice and inserts working memory row", () => {

@@ -1,4 +1,4 @@
-import { popLoopPhase, pushLoopPhase } from "@zeta/pi-utils";
+import { popLoopPhase, pushLoopPhase } from "@linxiraos/pi-utils";
 import { fuzzyFilter } from "../fuzzy";
 import { getKeybindings } from "../keybindings";
 import { extractPrintableText } from "../keys";

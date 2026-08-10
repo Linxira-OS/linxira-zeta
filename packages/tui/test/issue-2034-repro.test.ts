@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { chunkForConPTY, ProcessTerminal } from "@zeta/pi-tui/terminal";
-import { setTerminalHeadless } from "@zeta/pi-utils";
+import { chunkForConPTY, ProcessTerminal } from "@linxiraos/pi-tui/terminal";
+import { setTerminalHeadless } from "@linxiraos/pi-utils";
 
 // Regression test for https://github.com/can1357/oh-my-pi/issues/2034
 //

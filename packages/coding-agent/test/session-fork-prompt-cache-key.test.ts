@@ -1,19 +1,19 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type Args, parseArgs } from "@zeta/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import type { ScopedModel } from "@zeta/pi-coding-agent/config/model-resolver";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { buildSessionOptions } from "@zeta/pi-coding-agent/main";
-import { type CreateAgentSessionOptions, createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { CURRENT_SESSION_VERSION, type SessionHeader } from "@zeta/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { type Args, parseArgs } from "@linxiraos/zeta/cli/args";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { ScopedModel } from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { buildSessionOptions } from "@linxiraos/zeta/main";
+import { type CreateAgentSessionOptions, createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { CURRENT_SESSION_VERSION, type SessionHeader } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const OPENAI_TEST_MODEL = getBundledModel("openai", "gpt-4o-mini");
 

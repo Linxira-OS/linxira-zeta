@@ -1,4 +1,4 @@
-import { toError } from "@zeta/pi-utils";
+import { toError } from "@linxiraos/pi-utils";
 import type {
 	SessionStorage,
 	SessionStorageStat,

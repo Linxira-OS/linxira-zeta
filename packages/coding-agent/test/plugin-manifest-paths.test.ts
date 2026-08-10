@@ -2,12 +2,9 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-	resolvePluginExtensionPaths,
-	resolvePluginToolPaths,
-} from "@zeta/pi-coding-agent/extensibility/plugins/loader";
-import type { InstalledPlugin, PluginManifest } from "@zeta/pi-coding-agent/extensibility/plugins/types";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { resolvePluginExtensionPaths, resolvePluginToolPaths } from "@linxiraos/zeta/extensibility/plugins/loader";
+import type { InstalledPlugin, PluginManifest } from "@linxiraos/zeta/extensibility/plugins/types";
 
 function makePlugin(pluginPath: string, manifest: PluginManifest): InstalledPlugin {
 	return {

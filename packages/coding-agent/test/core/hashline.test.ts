@@ -6,8 +6,10 @@ import {
 	type InMemorySnapshotStore as FileReadCache,
 	formatHashlineHeader,
 	MismatchError as HashlineMismatchError,
-} from "@zeta/hashline";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+} from "@linxiraos/pi-hashline";
+import { type Type, type } from "@linxiraos/pi-omptype";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	canonicalSnapshotKey,
 	type ExecuteHashlineSingleOptions,
@@ -15,11 +17,9 @@ import {
 	getFileSnapshotStore as getFileReadCache,
 	HashlineFilesystem,
 	hashlineEditParamsSchema,
-} from "@zeta/pi-coding-agent/edit";
-import { resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { type Type, type } from "@zeta/pi-omptype";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/edit";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 beforeAll(async () => {
 	resetSettingsForTest();

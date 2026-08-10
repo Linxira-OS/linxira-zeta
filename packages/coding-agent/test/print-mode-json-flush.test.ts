@@ -13,8 +13,8 @@
  * fires (so `process.exit` can't discard it), and the full record is delivered.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { runPrintMode } from "@zeta/pi-coding-agent/modes/print-mode";
-import type { AgentSession, AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
+import { runPrintMode } from "@linxiraos/zeta/modes/print-mode";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 
 interface FlushHarness {
 	session: AgentSession;

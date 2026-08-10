@@ -17,11 +17,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@zeta/pi-coding-agent/capability/fs";
-import { type Skill, skillCapability } from "@zeta/pi-coding-agent/capability/skill";
-import { type SlashCommand, slashCommandCapability } from "@zeta/pi-coding-agent/capability/slash-command";
-import { loadCapability } from "@zeta/pi-coding-agent/discovery";
-import { getConfigRootDir, removeWithRetries, setAgentDir } from "@zeta/pi-utils";
+import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { type Skill, skillCapability } from "@linxiraos/zeta/capability/skill";
+import { type SlashCommand, slashCommandCapability } from "@linxiraos/zeta/capability/slash-command";
+import { loadCapability } from "@linxiraos/zeta/discovery";
 
 const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");

@@ -5,17 +5,17 @@
  * `queuedMessageCount` from the agent-core queue for host and guest UI state.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { importRoomKey } from "@zeta/pi-coding-agent/collab/crypto";
-import { CollabHost } from "@zeta/pi-coding-agent/collab/host";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
 import {
 	COLLAB_PROTO,
 	type CollabFrame,
 	parseCollabLink,
 	rewriteEnvelopePeer,
 	unpackEnvelope,
-} from "@zeta/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@zeta/pi-coding-agent/collab/relay-client";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+} from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 interface RelayData {
 	role: "host" | "guest";

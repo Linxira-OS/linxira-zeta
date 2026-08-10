@@ -5,7 +5,7 @@ import {
 	type OpenAIGatewayRoutingParams,
 	type ResolveOpenAIOutputTokenInput,
 	resolveOpenAIOutputTokenParam,
-} from "@zeta/pi-ai/providers/openai-shared";
+} from "@linxiraos/pi-ai/providers/openai-shared";
 
 const OPENAI_MAX_OUTPUT_TOKENS = 64_000;
 

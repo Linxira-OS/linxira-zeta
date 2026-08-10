@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderTreeList } from "@zeta/pi-coding-agent/tui/tree-list";
+import { renderTreeList } from "@linxiraos/zeta/tui/tree-list";
 
 const stubTheme = {
 	fg: (_color: string, text: string) => text,

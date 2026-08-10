@@ -2,19 +2,15 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as cleanseAgent from "@zeta/pi-coding-agent/cleanse/agent";
-import { balanceDiagnostics } from "@zeta/pi-coding-agent/cleanse/balance";
-import * as cleanseCheckers from "@zeta/pi-coding-agent/cleanse/checkers";
-import { runCleanseCommand } from "@zeta/pi-coding-agent/cleanse/index";
-import { runCleanseLoop } from "@zeta/pi-coding-agent/cleanse/loop";
-import { parseCleanseDiagnostics } from "@zeta/pi-coding-agent/cleanse/parsers";
-import { createCleanseProgressReporter } from "@zeta/pi-coding-agent/cleanse/progress";
-import type {
-	CleanseAgentOutcome,
-	CleanseDiagnostic,
-	CleanseDiagnosticReport,
-} from "@zeta/pi-coding-agent/cleanse/types";
-import { resolveCliArgv } from "@zeta/pi-coding-agent/cli-commands";
+import * as cleanseAgent from "@linxiraos/zeta/cleanse/agent";
+import { balanceDiagnostics } from "@linxiraos/zeta/cleanse/balance";
+import * as cleanseCheckers from "@linxiraos/zeta/cleanse/checkers";
+import { runCleanseCommand } from "@linxiraos/zeta/cleanse/index";
+import { runCleanseLoop } from "@linxiraos/zeta/cleanse/loop";
+import { parseCleanseDiagnostics } from "@linxiraos/zeta/cleanse/parsers";
+import { createCleanseProgressReporter } from "@linxiraos/zeta/cleanse/progress";
+import type { CleanseAgentOutcome, CleanseDiagnostic, CleanseDiagnosticReport } from "@linxiraos/zeta/cleanse/types";
+import { resolveCliArgv } from "@linxiraos/zeta/cli-commands";
 
 afterEach(() => {
 	vi.restoreAllMocks();

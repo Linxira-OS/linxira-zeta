@@ -15,8 +15,8 @@ import type {
 	ThinkingLevel,
 	ToolApproval,
 	ToolLoadMode,
-} from "@zeta/pi-agent-core";
-import type { CompactionResult } from "@zeta/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core";
+import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type {
 	Api,
 	AssistantMessageEvent,
@@ -33,13 +33,13 @@ import type {
 	Static,
 	TextContent,
 	TSchema,
-} from "@zeta/pi-ai";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@zeta/pi-ai/oauth/types";
-import type { type as ArkType } from "@zeta/pi-omptype";
-import type * as TypeBox from "@zeta/pi-omptype/typebox";
-import type * as zod from "@zeta/pi-omptype/zod";
-import type { AutocompleteItem, AutocompleteProvider, Component, EditorTheme, KeyId, TUI } from "@zeta/pi-tui";
-import type { logger as PiLogger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
+import type { type as ArkType } from "@linxiraos/pi-omptype";
+import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
+import type * as zod from "@linxiraos/pi-omptype/zod";
+import type { AutocompleteItem, AutocompleteProvider, Component, EditorTheme, KeyId, TUI } from "@linxiraos/pi-tui";
+import type { logger as PiLogger } from "@linxiraos/pi-utils";
 import type { KeybindingsManager } from "../../config/keybindings";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { EditToolDetails } from "../../edit";

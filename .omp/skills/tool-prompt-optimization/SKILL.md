@@ -11,7 +11,7 @@ Core move: give a model only `(name, JSON schema, outline)` and have it predict 
 
 ## Run the probe
 
-`scripts/probe.ts` routes through `@zeta/pi-ai` (`completeSimple`) so model/auth/provider behavior matches production.
+`scripts/probe.ts` routes through `@linxiraos/pi-ai` (`completeSimple`) so model/auth/provider behavior matches production.
 
 ```bash
 bun .omp/skills/tool-prompt-optimization/scripts/probe.ts \
@@ -41,7 +41,7 @@ bun .omp/skills/tool-prompt-optimization/scripts/probe-builtin.ts --tool <name> 
 **Schema** — use the *wire* schema the model actually sees, not a hand-sketch. For this repo's arktype tool schemas:
 
 ```ts
-import { arkToWireSchema } from "@zeta/pi-ai"; // or toolWireSchema(tool)
+import { arkToWireSchema } from "@linxiraos/pi-ai"; // or toolWireSchema(tool)
 JSON.stringify(arkToWireSchema(toolSchema), null, 2);
 ```
 

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@zeta/pi-ai";
+import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
@@ -11,11 +11,11 @@ import {
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
 	startAuthBroker,
-} from "@zeta/pi-ai/auth-broker";
-import { snapshotResponseSchema } from "@zeta/pi-ai/auth-broker/wire-schemas";
-import * as oauthUtils from "@zeta/pi-ai/registry/oauth";
-import type { UsageLimit, UsageReport } from "@zeta/pi-ai/usage";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-ai/auth-broker";
+import { snapshotResponseSchema } from "@linxiraos/pi-ai/auth-broker/wire-schemas";
+import * as oauthUtils from "@linxiraos/pi-ai/registry/oauth";
+import type { UsageLimit, UsageReport } from "@linxiraos/pi-ai/usage";
+import { type } from "@linxiraos/pi-omptype";
 import { removeWithRetries } from "../../utils/src/temp";
 
 function requireLimit(report: UsageReport, id: string): UsageLimit {

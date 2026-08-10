@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { agentLoop } from "@zeta/pi-agent-core/agent-loop";
-import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@zeta/pi-agent-core/types";
-import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { type } from "@zeta/pi-omptype";
+import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
+import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@linxiraos/pi-agent-core/types";
+import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { type } from "@linxiraos/pi-omptype";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

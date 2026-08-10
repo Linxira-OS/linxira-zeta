@@ -11,7 +11,7 @@ import type {
 	ClientCapabilities,
 	RequestPermissionRequest,
 	ToolCallUpdate,
-} from "@zeta/pi-utils/acp";
+} from "@linxiraos/pi-utils/acp";
 import type {
 	ClientBridge,
 	ClientBridgeCapabilities,

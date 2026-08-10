@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which } from "@zeta/pi-utils";
-import { LRUCache } from "@zeta/pi-utils/lru";
+import { $which } from "@linxiraos/pi-utils";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { withTimeoutSignal } from "./fetch-timeout";
 import * as git from "./git";
 

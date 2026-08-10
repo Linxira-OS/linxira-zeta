@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@zeta/pi-agent-core",
+  "name": "@linxiraos/pi-agent-core",
   "version": "1.0.0",
   "description": "General-purpose agent with transport abstraction, state management, and attachment support",
   "homepage": "https://linxira-os.github.io",
@@ -36,18 +36,18 @@
   },
   "dependencies": {
     "@opentelemetry/api": "catalog:",
-    "@zeta/pi-ai": "catalog:",
-    "@zeta/pi-catalog": "catalog:",
-    "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-utils": "catalog:",
-    "@zeta/pi-wire": "catalog:",
-    "@zeta/snapcompact": "catalog:"
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
+    "@linxiraos/pi-wire": "catalog:",
+    "@linxiraos/pi-snapcompact": "catalog:"
   },
   "devDependencies": {
     "@opentelemetry/context-async-hooks": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@types/bun": "catalog:",
-    "@zeta/pi-omptype": "catalog:"
+    "@linxiraos/pi-omptype": "catalog:"
   },
   "engines": {
     "bun": ">=1.3.14"

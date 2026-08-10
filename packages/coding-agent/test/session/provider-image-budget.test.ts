@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Context, ImageContent, TextContent } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { clampProviderContextImages } from "@zeta/pi-coding-agent/session/provider-image-budget";
+import type { Context, ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { clampProviderContextImages } from "@linxiraos/zeta/session/provider-image-budget";
 
 const UMANS_MODEL = buildModel({
 	id: "umans-glm-5.2",

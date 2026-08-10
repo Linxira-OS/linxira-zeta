@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl } from "@zeta/pi-ai/types";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { KimiProvider, searchKimi } from "@zeta/pi-coding-agent/web/search/providers/kimi";
-import { removeWithRetries } from "@zeta/pi-utils";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { KimiProvider, searchKimi } from "@linxiraos/zeta/web/search/providers/kimi";
 
 const originalMoonshotSearchApiKey = process.env.MOONSHOT_SEARCH_API_KEY;
 const originalKimiSearchApiKey = process.env.KIMI_SEARCH_API_KEY;

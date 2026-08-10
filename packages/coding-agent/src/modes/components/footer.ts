@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import { type Component, padding, truncateToWidth, visibleWidth } from "@zeta/pi-tui";
-import { formatNumber, getProjectDir } from "@zeta/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { type Component, padding, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
+import { formatNumber, getProjectDir } from "@linxiraos/pi-utils";
 import { settings } from "../../config/settings";
 import { theme } from "../../modes/theme/theme";
 import type { AgentSession } from "../../session/agent-session";

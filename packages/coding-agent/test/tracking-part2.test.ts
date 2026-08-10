@@ -5,11 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { TextContent } from "@zeta/pi-ai";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { TrackingTool } from "@zeta/pi-coding-agent/tools/tracking";
-import { setAgentDir } from "@zeta/pi-utils";
-import { Snowflake } from "@zeta/pi-utils/snowflake";
+import type { TextContent } from "@linxiraos/pi-ai";
+import { setAgentDir } from "@linxiraos/pi-utils";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { TrackingTool } from "@linxiraos/zeta/tools/tracking";
 
 function createMockSession(cwd: string): ToolSession {
 	return { cwd, hasUI: false } as ToolSession;

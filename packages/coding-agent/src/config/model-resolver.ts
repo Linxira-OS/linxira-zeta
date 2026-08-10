@@ -15,19 +15,19 @@
  *   CLI flags, scope globs — onto that pipeline.
  */
 
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { modelMatchesHost } from "@zeta/pi-catalog/hosts";
-import { buildModelProviderPriorityRank } from "@zeta/pi-catalog/identity";
-import { stripThinkingVariantToken } from "@zeta/pi-catalog/identity/family";
-import { clampThinkingLevelForModel } from "@zeta/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@zeta/pi-catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@zeta/pi-catalog/provider-models";
-import { resolveBareVariantAlias, resolveVariantAlias } from "@zeta/pi-catalog/variant-collapse";
-import { fuzzyMatch } from "@zeta/pi-tui";
-import { logger } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { modelMatchesHost } from "@linxiraos/pi-catalog/hosts";
+import { buildModelProviderPriorityRank } from "@linxiraos/pi-catalog/identity";
+import { stripThinkingVariantToken } from "@linxiraos/pi-catalog/identity/family";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models";
+import { resolveBareVariantAlias, resolveVariantAlias } from "@linxiraos/pi-catalog/variant-collapse";
+import { fuzzyMatch } from "@linxiraos/pi-tui";
+import { logger } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import {
 	AUTO_THINKING,

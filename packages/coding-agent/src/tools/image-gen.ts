@@ -1,16 +1,16 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { type ApiKey, type FetchImpl, getEnvApiKey, type Model, withAuth } from "@zeta/pi-ai";
-import { ProviderHttpError } from "@zeta/pi-ai/error";
+import { type ApiKey, type FetchImpl, getEnvApiKey, type Model, withAuth } from "@linxiraos/pi-ai";
+import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 import {
 	CODEX_BASE_URL,
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
 	URL_PATHS,
-} from "@zeta/pi-catalog/wire/codex";
-import { getAntigravityUserAgent } from "@zeta/pi-catalog/wire/gemini-headers";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-catalog/wire/codex";
+import { getAntigravityUserAgent } from "@linxiraos/pi-catalog/wire/gemini-headers";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	$env,
 	isEnoent,
@@ -20,7 +20,7 @@ import {
 	readSseJson,
 	Snowflake,
 	untilAborted,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import packageJson from "../../package.json" with { type: "json" };
 import { isAuthenticated, type ModelRegistry } from "../config/model-registry";
 import { settings } from "../config/settings";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { shouldEnableAppendOnlyContext } from "@zeta/pi-coding-agent/config/append-only-context-mode";
+import { shouldEnableAppendOnlyContext } from "@linxiraos/zeta/config/append-only-context-mode";
 
 const XIAOMI_TOKEN_PLAN_ANTHROPIC = {
 	provider: "xiaomi-token-plan-sgp",

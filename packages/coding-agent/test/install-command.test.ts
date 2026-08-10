@@ -15,9 +15,9 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { commands, isSubcommand, resolveCliArgv } from "@zeta/pi-coding-agent/cli-commands";
-import { looksLikeLocalPath } from "@zeta/pi-coding-agent/commands/install";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { commands, isSubcommand, resolveCliArgv } from "@linxiraos/zeta/cli-commands";
+import { looksLikeLocalPath } from "@linxiraos/zeta/commands/install";
 
 describe("install command is registered as a top-level subcommand", () => {
 	test("CLI runner sees `install` as a known command", () => {
@@ -54,7 +54,7 @@ describe("looksLikeLocalPath", () => {
 	});
 
 	test("npm specs and marketplace refs are remote", () => {
-		expect(looksLikeLocalPath("@zeta/exa")).toBe(false);
+		expect(looksLikeLocalPath("@linxiraos/exa")).toBe(false);
 		expect(looksLikeLocalPath("my-pkg")).toBe(false);
 		expect(looksLikeLocalPath("my-pkg@1.2.3")).toBe(false);
 		expect(looksLikeLocalPath("name@marketplace")).toBe(false);

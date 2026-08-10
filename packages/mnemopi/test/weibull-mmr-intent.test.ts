@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { mmrRerank } from "@zeta/pi-mnemopi/core/mmr";
-import { adjustWeights, classifyIntent } from "@zeta/pi-mnemopi/core/query-intent";
+import { mmrRerank } from "@linxiraos/pi-mnemopi/core/mmr";
+import { adjustWeights, classifyIntent } from "@linxiraos/pi-mnemopi/core/query-intent";
 import {
 	DEFAULT_HALFLIFE_HOURS,
 	WEIBULL_PARAMS,
 	weibullBoost,
 	weibullDecayFactor,
-} from "@zeta/pi-mnemopi/core/weibull";
+} from "@linxiraos/pi-mnemopi/core/weibull";
 
 describe("Weibull decay", () => {
 	it("exposes parameters for memory types used by recall", () => {

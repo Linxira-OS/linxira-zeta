@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { Skill } from "@zeta/pi-coding-agent/extensibility/skills";
-import * as skillsModule from "@zeta/pi-coding-agent/extensibility/skills";
-import type { CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@zeta/pi-coding-agent/session/agent-session";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@zeta/pi-coding-agent/session/messages";
-import { runSubprocess } from "@zeta/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@zeta/pi-coding-agent/task/types";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import * as skillsModule from "@linxiraos/zeta/extensibility/skills";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -62,8 +62,7 @@ function createMockSession(
 function createSessionResult(session: AgentSession): CreateAgentSessionResult {
 	return {
 		session,
-		extensionsResult:
-			{} as unknown as import("@zeta/pi-coding-agent/extensibility/extensions/types").LoadExtensionsResult,
+		extensionsResult: {} as unknown as import("@linxiraos/zeta/extensibility/extensions/types").LoadExtensionsResult,
 		setToolUIContext: () => {},
 		eventBus: new EventBus(),
 	};
@@ -92,7 +91,7 @@ describe("autoloadSkills in executor", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@zeta/pi-coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry,
 		enableLsp: false,
 	};
 

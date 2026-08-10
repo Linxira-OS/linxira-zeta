@@ -7,10 +7,10 @@ import {
 	resolveTelemetry,
 	type StreamFn,
 	type ThinkingLevel,
-} from "@zeta/pi-agent-core";
-import { generateHandoffFromContext, renderHandoffPrompt } from "@zeta/pi-agent-core/compaction";
-import type { Message, Model, ServiceTier, SimpleStreamOptions } from "@zeta/pi-ai";
-import { logger, Snowflake } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { generateHandoffFromContext, renderHandoffPrompt } from "@linxiraos/pi-agent-core/compaction";
+import type { Message, Model, ServiceTier, SimpleStreamOptions } from "@linxiraos/pi-ai";
+import { logger, Snowflake } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import type { ExtensionRunner, SessionBeforeSwitchResult } from "../extensibility/extensions";

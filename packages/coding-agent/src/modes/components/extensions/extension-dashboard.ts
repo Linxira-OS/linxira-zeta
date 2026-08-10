@@ -23,8 +23,8 @@ import {
 	TabBar,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
-import { getMCPConfigPath, logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { getMCPConfigPath, logger } from "@linxiraos/pi-utils";
 import { Settings } from "../../../config/settings";
 import { setMcpServerEnabled } from "../../../mcp/config-writer";
 import { getTabBarTheme } from "../../../modes/shared";

@@ -1,20 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { LoadExtensionsResult } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import { IrcBus } from "@zeta/pi-coding-agent/irc/bus";
-import { RpcSubagentRegistry } from "@zeta/pi-coding-agent/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@zeta/pi-coding-agent/modes/rpc/rpc-types";
-import { AgentLifecycleManager } from "@zeta/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@zeta/pi-coding-agent/session/agent-session";
-import type { CustomMessage } from "@zeta/pi-coding-agent/session/messages";
-import { resolveSoftRequestBudget, runSubprocess } from "@zeta/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@zeta/pi-coding-agent/task/types";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { RpcSubagentRegistry } from "@linxiraos/zeta/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import { resolveSoftRequestBudget, runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 /**
  * Contracts under test — the soft request budget must degrade gracefully

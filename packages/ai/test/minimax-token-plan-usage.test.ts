@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { type AuthCredentialStore, AuthStorage } from "@zeta/pi-ai/auth-storage";
-import type { FetchImpl } from "@zeta/pi-ai/types";
-import type { UsageFetchParams } from "@zeta/pi-ai/usage";
-import { minimaxCodeUsageProvider } from "@zeta/pi-ai/usage/minimax-code";
+import { type AuthCredentialStore, AuthStorage } from "@linxiraos/pi-ai/auth-storage";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import type { UsageFetchParams } from "@linxiraos/pi-ai/usage";
+import { minimaxCodeUsageProvider } from "@linxiraos/pi-ai/usage/minimax-code";
 
 const INTERVAL_START = 1_785_009_600_000;
 const INTERVAL_END = 1_785_024_000_000;

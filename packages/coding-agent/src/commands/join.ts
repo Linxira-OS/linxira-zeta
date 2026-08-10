@@ -3,8 +3,8 @@
  * immediately runs `/join <link>`.
  */
 
-import { APP_NAME } from "@zeta/pi-utils";
-import { Args, Command } from "@zeta/pi-utils/cli";
+import { APP_NAME } from "@linxiraos/pi-utils";
+import { Args, Command } from "@linxiraos/pi-utils/cli";
 import { parseArgs } from "../cli/args";
 import { joinHelp as commandHelp } from "../cli/command-help";
 import { runRootCommand } from "../main";

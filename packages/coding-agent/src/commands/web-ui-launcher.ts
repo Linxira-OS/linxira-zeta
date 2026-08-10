@@ -9,7 +9,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which } from "@zeta/pi-utils";
+import { $which } from "@linxiraos/pi-utils";
 
 export interface WebUiChild {
 	kill: () => void;

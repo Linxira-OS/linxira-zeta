@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { getThemeByName, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { formatStatusIcon } from "@zeta/pi-coding-agent/tools/render-utils";
-import { TUI } from "@zeta/pi-tui";
+import { TUI } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { formatStatusIcon } from "@linxiraos/zeta/tools/render-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 beforeAll(async () => {

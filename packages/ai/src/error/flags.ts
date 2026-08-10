@@ -1,4 +1,4 @@
-import { isUnexpectedSocketCloseMessage } from "@zeta/pi-utils";
+import { isUnexpectedSocketCloseMessage } from "@linxiraos/pi-utils";
 import type { Api, AssistantMessage } from "../types";
 import { AwsCredentialsError } from "./aws";
 import {

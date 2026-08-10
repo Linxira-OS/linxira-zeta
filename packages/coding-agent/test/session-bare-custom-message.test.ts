@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { convertToLlm, normalizeCustomMessagePayload } from "@zeta/pi-coding-agent/session/messages";
-import { buildSessionContext } from "@zeta/pi-coding-agent/session/session-context";
-import type { CustomMessageEntry, SessionEntry } from "@zeta/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { convertToLlm, normalizeCustomMessagePayload } from "@linxiraos/zeta/session/messages";
+import { buildSessionContext } from "@linxiraos/zeta/session/session-context";
+import type { CustomMessageEntry, SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("bare custom_message recovery", () => {
 	it("drops poisoned custom messages before LLM conversion", () => {

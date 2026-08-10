@@ -1,6 +1,6 @@
-import { THINKING_EFFORTS } from "@zeta/pi-ai";
-import { DEFAULT_SHARE_URL } from "@zeta/pi-wire";
-import { SHAPE_VARIANT_NAMES } from "@zeta/snapcompact";
+import { THINKING_EFFORTS } from "@linxiraos/pi-ai";
+import { SHAPE_VARIANT_NAMES } from "@linxiraos/pi-snapcompact";
+import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import { DEFAULT_RELAY_URL } from "../collab/protocol";
 import { DEFAULT_LIVE_VOICE, LIVE_VOICE_OPTIONS, LIVE_VOICE_VALUES } from "../live/voices";
 import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS, STT_MODEL_VALUES } from "../stt/models";

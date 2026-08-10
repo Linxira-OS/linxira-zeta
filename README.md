@@ -35,7 +35,7 @@ toolchain required by Rust.
   discovery, session recovery, and controllable retry behavior.
 - Native text, image, terminal, browser, and desktop capabilities where the
   host platform supports them.
-- A Bun-first monorepo with internal packages under the `@zeta/*` namespace.
+- A Bun-first monorepo with internal packages under the `@linxiraos/*` namespace.
 - A planned local web workbench and desktop distribution that use the same
   coding-agent runtime rather than a separate product stack.
 

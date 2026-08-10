@@ -1,30 +1,30 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { Api, Model } from "@zeta/pi-ai";
-import * as ai from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { isSubcommand } from "@zeta/pi-coding-agent/cli-commands";
-import { getDefault, getEnumValues, getUi } from "@zeta/pi-coding-agent/config/settings-schema";
-import { TinyTitleDownloadProgressComponent } from "@zeta/pi-coding-agent/modes/components/tiny-title-download-progress";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { RefCountedWorkerHandle } from "@zeta/pi-coding-agent/subprocess/worker-client";
+import type { Api, Model } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { isSubcommand } from "@linxiraos/zeta/cli-commands";
+import { getDefault, getEnumValues, getUi } from "@linxiraos/zeta/config/settings-schema";
+import { TinyTitleDownloadProgressComponent } from "@linxiraos/zeta/modes/components/tiny-title-download-progress";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { RefCountedWorkerHandle } from "@linxiraos/zeta/subprocess/worker-client";
 import {
 	TINY_MODEL_DEVICE_DEFAULT,
 	TINY_MODEL_DEVICE_SETTING_OPTIONS,
 	TINY_MODEL_DEVICE_SETTING_VALUES,
-} from "@zeta/pi-coding-agent/tiny/device";
+} from "@linxiraos/zeta/tiny/device";
 import {
 	TINY_MODEL_DTYPE_DEFAULT,
 	TINY_MODEL_DTYPE_SETTING_OPTIONS,
 	TINY_MODEL_DTYPE_SETTING_VALUES,
-} from "@zeta/pi-coding-agent/tiny/dtype";
+} from "@linxiraos/zeta/tiny/dtype";
 import {
 	ONLINE_TINY_TITLE_MODEL_KEY,
 	TINY_TITLE_MODEL_OPTIONS,
 	TINY_TITLE_MODEL_VALUES,
-} from "@zeta/pi-coding-agent/tiny/models";
-import { createTinyTitleSubprocess, TinyTitleClient, tinyTitleClient } from "@zeta/pi-coding-agent/tiny/title-client";
-import type { TinyTitleWorkerInbound, TinyTitleWorkerOutbound } from "@zeta/pi-coding-agent/tiny/title-protocol";
-import { generateSessionTitle } from "@zeta/pi-coding-agent/utils/title-generator";
+} from "@linxiraos/zeta/tiny/models";
+import { createTinyTitleSubprocess, TinyTitleClient, tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
+import type { TinyTitleWorkerInbound, TinyTitleWorkerOutbound } from "@linxiraos/zeta/tiny/title-protocol";
+import { generateSessionTitle } from "@linxiraos/zeta/utils/title-generator";
 import type { Subprocess } from "bun";
 
 function getModelOrThrow(id: string): Model<Api> {

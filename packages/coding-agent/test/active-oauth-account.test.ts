@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { StoredAuthCredential, UsageLimit, UsageReport } from "@zeta/pi-ai";
+import type { StoredAuthCredential, UsageLimit, UsageReport } from "@linxiraos/pi-ai";
 import {
 	limitMatchesActiveAccount,
 	reportMatchesActiveAccount,

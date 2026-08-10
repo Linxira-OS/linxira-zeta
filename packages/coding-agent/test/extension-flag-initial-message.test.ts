@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs } from "@zeta/pi-coding-agent/cli/args";
-import { applyExtensionFlags, type ExtensionFlagSink } from "@zeta/pi-coding-agent/cli/extension-flags";
-import { buildInitialMessage } from "@zeta/pi-coding-agent/cli/initial-message";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions/runner";
-import { normalizeContinueSessionArgs } from "@zeta/pi-coding-agent/main";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { applyExtensionFlags, type ExtensionFlagSink } from "@linxiraos/zeta/cli/extension-flags";
+import { buildInitialMessage } from "@linxiraos/zeta/cli/initial-message";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { normalizeContinueSessionArgs } from "@linxiraos/zeta/main";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 // Regression coverage for extension-registered flags leaking into the initial
 // prompt. The CLI parses argv twice: once at startup (before extensions load,

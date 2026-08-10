@@ -1,7 +1,7 @@
 import { expect, test, vi } from "bun:test";
-import { streamSimple } from "@zeta/pi-ai/stream";
-import { ollamaCloudModelManagerOptions } from "@zeta/pi-catalog/provider-models/ollama";
-import type { FetchImpl, Model } from "@zeta/pi-catalog/types";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import { ollamaCloudModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/ollama";
+import type { FetchImpl, Model } from "@linxiraos/pi-catalog/types";
 
 const cloudModel: Model<"ollama-chat"> = {
 	id: "deepseek-v4-flash",

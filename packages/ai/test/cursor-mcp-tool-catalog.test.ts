@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildMcpToolDefinitions } from "@zeta/pi-ai/providers/cursor";
-import type { Tool } from "@zeta/pi-ai/types";
+import { buildMcpToolDefinitions } from "@linxiraos/pi-ai/providers/cursor";
+import type { Tool } from "@linxiraos/pi-ai/types";
 
 const tool = (name: string): Tool => ({
 	name,

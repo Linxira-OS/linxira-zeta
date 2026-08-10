@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { claudeCodeVersion } from "@zeta/pi-ai/providers/claude-code-fingerprint";
-import { AnthropicOAuthFlow, refreshAnthropicToken } from "@zeta/pi-ai/registry/oauth/anthropic";
+import { claudeCodeVersion } from "@linxiraos/pi-ai/providers/claude-code-fingerprint";
+import { AnthropicOAuthFlow, refreshAnthropicToken } from "@linxiraos/pi-ai/registry/oauth/anthropic";
 import {
 	buildAnthropicAuthConfig,
 	buildAnthropicSearchHeaders,
 	buildAnthropicUrl,
-} from "@zeta/pi-ai/utils/anthropic-auth";
+} from "@linxiraos/pi-ai/utils/anthropic-auth";
 import { withEnv } from "./helpers";
 
 afterEach(() => {

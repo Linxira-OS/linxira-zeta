@@ -23,16 +23,16 @@ import {
 	type TSchema,
 	toolWireSchema,
 	validateToolArguments,
-} from "@zeta/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	type Dialect,
 	encodeInbandToolHistory,
 	renderInbandToolPrompt,
 	renderToolExamples,
 	wrapInbandToolStream,
-} from "@zeta/pi-ai/dialect";
-import * as AIError from "@zeta/pi-ai/error";
-import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@zeta/pi-ai/utils/block-symbols";
+} from "@linxiraos/pi-ai/dialect";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 import {
 	createHarmonyAuditEvent,
 	detectHarmonyLeakInAssistantMessage,
@@ -42,9 +42,9 @@ import {
 	isHarmonyLeakMitigationTarget,
 	recoverHarmonyToolCall,
 	signalListLabel,
-} from "@zeta/pi-ai/utils/harmony-leak";
-import { logger, sanitizeText, structuredCloneJSON } from "@zeta/pi-utils";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+} from "@linxiraos/pi-ai/utils/harmony-leak";
+import { logger, sanitizeText, structuredCloneJSON } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { agentPauseGate } from "./pause";
 import { type AgentRunCoverage, type AgentRunSummary, ToolCallBlockedError } from "./run-collector";
 import {

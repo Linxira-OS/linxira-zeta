@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CompactionCancelledError, type CompactionOutcome } from "@zeta/pi-agent-core/compaction";
+import { CompactionCancelledError, type CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import {
 	getEnvApiKey,
 	getProviderDetails,
@@ -9,9 +9,9 @@ import {
 	resolveUsedFraction,
 	type UsageLimit,
 	type UsageReport,
-} from "@zeta/pi-ai";
-import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@zeta/pi-tui";
-import { formatDuration, Snowflake, sanitizeText } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@linxiraos/pi-tui";
+import { formatDuration, Snowflake, sanitizeText } from "@linxiraos/pi-utils";
 import { shouldEnableAppendOnlyContext } from "../../config/append-only-context-mode";
 import { type BashResult, isPersistentShellCdCommand } from "../../exec/bash-executor";
 import { type LoadedCustomShare, loadCustomShare } from "../../export/custom-share";

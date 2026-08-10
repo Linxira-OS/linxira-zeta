@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { BashExecutionComponent } from "@zeta/pi-coding-agent/modes/components/bash-execution";
-import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { TUI } from "@zeta/pi-tui";
-import { visibleWidth } from "@zeta/pi-tui";
+import type { TUI } from "@linxiraos/pi-tui";
+import { visibleWidth } from "@linxiraos/pi-tui";
+import { BashExecutionComponent } from "@linxiraos/zeta/modes/components/bash-execution";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 
 const MAX_DISPLAY_LINE_CHARS = 4000;
 

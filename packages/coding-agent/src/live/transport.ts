@@ -1,7 +1,12 @@
-import { type AuthStorage, isAuthRetryableError, type OAuthAccess, withOAuthAccess } from "@zeta/pi-ai";
-import { getProxyForUrl, wrapFetchForProxy } from "@zeta/pi-ai/utils/proxy";
-import { CODEX_BASE_URL, CODEX_CLIENT_VERSION, getCodexAccountId, OPENAI_HEADERS } from "@zeta/pi-catalog/wire/codex";
-import { LiveWebRtcPeer } from "@zeta/pi-natives";
+import { type AuthStorage, isAuthRetryableError, type OAuthAccess, withOAuthAccess } from "@linxiraos/pi-ai";
+import { getProxyForUrl, wrapFetchForProxy } from "@linxiraos/pi-ai/utils/proxy";
+import {
+	CODEX_BASE_URL,
+	CODEX_CLIENT_VERSION,
+	getCodexAccountId,
+	OPENAI_HEADERS,
+} from "@linxiraos/pi-catalog/wire/codex";
+import { LiveWebRtcPeer } from "@linxiraos/pi-natives";
 import { generateCodexAttestation } from "./attestation";
 import {
 	buildLiveSessionPayload,

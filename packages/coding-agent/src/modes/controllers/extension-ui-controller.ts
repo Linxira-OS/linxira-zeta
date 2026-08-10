@@ -1,6 +1,6 @@
-import type { Component, OverlayHandle, TUI } from "@zeta/pi-tui";
-import { Container, Spacer, Text } from "@zeta/pi-tui";
-import type { CollabUiRequestDraft, CollabUiSelectItem } from "@zeta/pi-wire";
+import type { Component, OverlayHandle, TUI } from "@linxiraos/pi-tui";
+import { Container, Spacer, Text } from "@linxiraos/pi-tui";
+import type { CollabUiRequestDraft, CollabUiSelectItem } from "@linxiraos/pi-wire";
 import { KeybindingsManager } from "../../config/keybindings";
 import type {
 	CompactOptions,

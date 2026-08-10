@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildCompactDiffPreview } from "@zeta/hashline";
+import { buildCompactDiffPreview } from "@linxiraos/pi-hashline";
 
 describe("buildCompactDiffPreview", () => {
 	it("renders current lines and omits removed content while preserving counts", () => {

@@ -1,7 +1,7 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import type { ImageContent, ToolExample } from "@zeta/pi-ai";
-import { type } from "@zeta/pi-omptype";
-import { prompt } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ImageContent, ToolExample } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { prompt } from "@linxiraos/pi-utils";
 import { jsBackend, juliaBackend, pythonBackend, rubyBackend } from "../eval";
 import type { ExecutorBackend, ExecutorBackendResult } from "../eval/backend";
 import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "../eval/bridge-timeout";

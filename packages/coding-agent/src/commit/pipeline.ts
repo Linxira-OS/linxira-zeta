@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Api, ApiKey, Model } from "@zeta/pi-ai";
-import { getProjectDir, logger, prompt } from "@zeta/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, ApiKey, Model } from "@linxiraos/pi-ai";
+import { getProjectDir, logger, prompt } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";

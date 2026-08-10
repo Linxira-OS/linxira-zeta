@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { createBackgroundTanDispatchBlock } from "@zeta/pi-coding-agent/modes/components/background-tan-message";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE, type CustomMessage } from "@zeta/pi-coding-agent/session/messages";
+import { createBackgroundTanDispatchBlock } from "@linxiraos/zeta/modes/components/background-tan-message";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE, type CustomMessage } from "@linxiraos/zeta/session/messages";
 
 function dispatchMessage(details: { jobId: string; work: string; sessionFile: string }): CustomMessage<unknown> {
 	return {

@@ -6,23 +6,23 @@
  * target identical to the starting model).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { Model } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { LoadExtensionsResult } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import { AgentLifecycleManager } from "@zeta/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@zeta/pi-coding-agent/session/agent-session";
-import { TaskTool } from "@zeta/pi-coding-agent/task";
-import * as discoveryModule from "@zeta/pi-coding-agent/task/discovery";
-import * as executorModule from "@zeta/pi-coding-agent/task/executor";
-import { runSubprocess } from "@zeta/pi-coding-agent/task/executor";
-import type { AgentDefinition, SingleResult } from "@zeta/pi-coding-agent/task/types";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
+import type { Model } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition, SingleResult } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 function yieldEmittingSession(
 	initialTools: string[] = ["read", "yield"],

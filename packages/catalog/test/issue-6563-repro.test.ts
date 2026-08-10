@@ -14,7 +14,7 @@
  * keep the provider base URL.
  */
 import { describe, expect, it } from "bun:test";
-import { anthropicModelManagerOptions } from "@zeta/pi-catalog/provider-models/openai-compat";
+import { anthropicModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 const PROVIDER_BASE_URL = "https://api.anthropic.com";
 

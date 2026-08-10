@@ -2,7 +2,7 @@
  * Resolve auth-broker connection configuration for the local omp client.
  *
  * This is a thin coding-agent wrapper around the shared resolver in
- * `@zeta/pi-ai/auth-broker/discover` that preserves the process-lifetime
+ * `@linxiraos/pi-ai/auth-broker/discover` that preserves the process-lifetime
  * memoization expected by the CLI and injects the full `resolveConfigValue`
  * (including `!command` config indirection) from coding-agent's config layer.
  *
@@ -27,8 +27,8 @@ import {
 	discoverAuthStorage as discoverAuthStorageShared,
 	getAuthBrokerTokenFilePath,
 	resolveAuthBrokerConfig as resolveAuthBrokerConfigShared,
-} from "@zeta/pi-ai/auth-broker/discover";
-import { getAgentDir } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/auth-broker/discover";
+import { getAgentDir } from "@linxiraos/pi-utils";
 import { resolveConfigValue } from "../config/resolve-config-value";
 import type { AuthStorage } from "./auth-storage";
 

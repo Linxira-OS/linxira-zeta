@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { buildBrowserItems, ModelBrowser, sortModelItems } from "@zeta/pi-coding-agent/modes/components/model-browser";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { buildBrowserItems, ModelBrowser, sortModelItems } from "@linxiraos/zeta/modes/components/model-browser";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 function makeModel(provider: string, id: string): Model {
 	return buildModel({

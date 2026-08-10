@@ -1,9 +1,9 @@
-import type { ImageContent, Message, Model, TextContent } from "@zeta/pi-ai";
-import type { type as ArkType } from "@zeta/pi-omptype";
-import type * as TypeBox from "@zeta/pi-omptype/typebox";
-import type * as zod from "@zeta/pi-omptype/zod";
-import type { Component, TUI } from "@zeta/pi-tui";
-import type { logger as PiLogger } from "@zeta/pi-utils";
+import type { ImageContent, Message, Model, TextContent } from "@linxiraos/pi-ai";
+import type { type as ArkType } from "@linxiraos/pi-omptype";
+import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
+import type * as zod from "@linxiraos/pi-omptype/zod";
+import type { Component, TUI } from "@linxiraos/pi-tui";
+import type { logger as PiLogger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { EditToolDetails } from "../../edit";
 import type { ExecOptions, ExecResult } from "../../exec/exec";

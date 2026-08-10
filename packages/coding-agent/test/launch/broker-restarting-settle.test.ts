@@ -6,8 +6,8 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Process } from "@zeta/pi-natives";
-import { TempDir } from "@zeta/pi-utils";
+import { Process } from "@linxiraos/pi-natives";
+import { TempDir } from "@linxiraos/pi-utils";
 import { startDaemonBrokerFromEnvironment } from "../../src/launch/broker";
 import { createDaemonBrokerClient, type DaemonBrokerClient } from "../../src/launch/client";
 import {

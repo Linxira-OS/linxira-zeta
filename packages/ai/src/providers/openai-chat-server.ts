@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 import { resolvePromptCacheKey } from "../auth-gateway/http";
 /**
  * Parsed inbound OpenAI chat-completions request, ready to feed into pi-ai

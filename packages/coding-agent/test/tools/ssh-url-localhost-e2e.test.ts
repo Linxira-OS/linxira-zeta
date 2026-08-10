@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import * as capability from "@zeta/pi-coding-agent/capability";
-import type { SSHHost } from "@zeta/pi-coding-agent/capability/ssh";
-import type { CapabilityResult } from "@zeta/pi-coding-agent/capability/types";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { parseInternalUrl } from "@zeta/pi-coding-agent/internal-urls/parse";
-import { InternalUrlRouter } from "@zeta/pi-coding-agent/internal-urls/router";
-import { SshProtocolHandler } from "@zeta/pi-coding-agent/internal-urls/ssh-protocol";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { GrepTool } from "@zeta/pi-coding-agent/tools/grep";
-import { ReadTool } from "@zeta/pi-coding-agent/tools/read";
-import { WriteTool } from "@zeta/pi-coding-agent/tools/write";
+import * as capability from "@linxiraos/zeta/capability";
+import type { SSHHost } from "@linxiraos/zeta/capability/ssh";
+import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
+import { SshProtocolHandler } from "@linxiraos/zeta/internal-urls/ssh-protocol";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { GrepTool } from "@linxiraos/zeta/tools/grep";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
 
 // Live integration against `ssh localhost`. Skips automatically where key-based
 // localhost SSH is unavailable (CI without sshd). Capability lookup is mocked

@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAndLoadExtensions } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { getAgentDir, getPluginsDir, removeSyncWithRetries, setAgentDir, TempDir } from "@zeta/pi-utils";
+import { getAgentDir, getPluginsDir, removeSyncWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { discoverAndLoadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 
-const currentPiCodingAgentPath = Bun.resolveSync("@zeta/pi-coding-agent", import.meta.dir);
-const currentPiExtensionsPath = Bun.resolveSync("@zeta/pi-coding-agent/extensibility/extensions", import.meta.dir);
+const currentPiCodingAgentPath = Bun.resolveSync("@linxiraos/zeta", import.meta.dir);
+const currentPiExtensionsPath = Bun.resolveSync("@linxiraos/zeta/extensibility/extensions", import.meta.dir);
 
 describe("plugin extension discovery", () => {
 	let projectDir: TempDir;
@@ -462,7 +462,7 @@ describe("plugin extension discovery", () => {
 				// Side-effect imports — no `from`, no dynamic `import()`. The
 				// regex matchers must walk and rewrite both shapes so the legacy
 				// `@earendil-works` import inside `register.ts` resolves to the
-				// host `@zeta` package.
+				// host `@linxiraos` package.
 				'import "#src/register";',
 				'import "./marker";',
 				"",

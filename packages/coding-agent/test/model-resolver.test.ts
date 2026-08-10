@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { type Api, Effort, type Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@zeta/pi-catalog/provider-models";
+import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models";
 import {
 	expandRoleAlias,
 	extractExplicitThinkingSelector,
@@ -19,9 +19,9 @@ import {
 	resolveModelOverride,
 	resolveModelRoleValue,
 	resolveModelScope,
-} from "@zeta/pi-coding-agent/config/model-resolver";
-import { DEFAULT_MODEL_ROLE_ALIAS, LEGACY_MODEL_ROLE_ALIAS_PREFIX } from "@zeta/pi-coding-agent/config/model-roles";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+} from "@linxiraos/zeta/config/model-resolver";
+import { DEFAULT_MODEL_ROLE_ALIAS, LEGACY_MODEL_ROLE_ALIAS_PREFIX } from "@linxiraos/zeta/config/model-roles";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 // Mock models for testing
 const mockModels: Model<"anthropic-messages">[] = [

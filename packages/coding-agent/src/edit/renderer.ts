@@ -2,10 +2,10 @@
  * Edit tool renderer and LSP batching helpers.
  */
 
-import { HL_FILE_PREFIX, HL_FILE_SUFFIX, HL_MOVE_KEYWORD, HL_REM_KEYWORD } from "@zeta/hashline";
-import type { Component } from "@zeta/pi-tui";
-import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "@zeta/pi-tui";
-import { sanitizeText } from "@zeta/pi-utils";
+import { HL_FILE_PREFIX, HL_FILE_SUFFIX, HL_MOVE_KEYWORD, HL_REM_KEYWORD } from "@linxiraos/pi-hashline";
+import type { Component } from "@linxiraos/pi-tui";
+import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { FileDiagnosticsResult } from "../lsp";
 import { renderDiff as renderDiffColored } from "../modes/components/diff";

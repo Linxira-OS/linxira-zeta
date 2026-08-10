@@ -2,8 +2,8 @@
  * List and clean up agent-managed git worktrees under `~/.omp/wt`.
  */
 
-import { getProjectDir } from "@zeta/pi-utils";
-import { Args, Command, Flags } from "@zeta/pi-utils/cli";
+import { getProjectDir } from "@linxiraos/pi-utils";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { worktreeHelp as commandHelp } from "../cli/command-help";
 import { clearWorktrees, listWorktrees } from "../cli/worktree-cli";
 import { Settings } from "../config/settings";

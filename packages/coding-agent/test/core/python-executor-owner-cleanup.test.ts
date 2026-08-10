@@ -3,14 +3,14 @@ import {
 	disposeAllKernelSessions,
 	disposeKernelSessionsByOwner,
 	executePython,
-} from "@zeta/pi-coding-agent/eval/py/executor";
+} from "@linxiraos/zeta/eval/py/executor";
 import type {
 	KernelExecuteResult,
 	KernelShutdownResult,
 	PythonKernel as PythonKernelInstance,
-} from "@zeta/pi-coding-agent/eval/py/kernel";
-import * as pythonKernel from "@zeta/pi-coding-agent/eval/py/kernel";
-import { PythonKernel } from "@zeta/pi-coding-agent/eval/py/kernel";
+} from "@linxiraos/zeta/eval/py/kernel";
+import * as pythonKernel from "@linxiraos/zeta/eval/py/kernel";
+import { PythonKernel } from "@linxiraos/zeta/eval/py/kernel";
 
 const OK_RESULT: KernelExecuteResult = {
 	status: "ok",

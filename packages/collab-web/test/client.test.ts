@@ -9,7 +9,7 @@ import type {
 	SessionState,
 	SubagentProgressPayload,
 	WireMessage,
-} from "@zeta/pi-wire";
+} from "@linxiraos/pi-wire";
 import { GuestClient } from "../src/lib/client";
 import { COLLAB_PROTO, encodeBase64Url } from "../src/lib/link";
 import { CollabSocket } from "../src/lib/socket";

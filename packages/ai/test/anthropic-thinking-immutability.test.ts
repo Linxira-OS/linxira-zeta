@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@zeta/pi-ai/providers/anthropic";
-import type { AssistantMessage, Model, UserMessage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { convertAnthropicMessages } from "@linxiraos/pi-ai/providers/anthropic";
+import type { AssistantMessage, Model, UserMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const model: Model<"anthropic-messages"> = buildModel({
 	api: "anthropic-messages",

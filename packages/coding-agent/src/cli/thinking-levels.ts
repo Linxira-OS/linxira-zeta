@@ -1,4 +1,4 @@
-import { THINKING_EFFORTS } from "@zeta/pi-catalog/effort";
+import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
 
 /**
  * Thinking selectors accepted by the `--thinking` CLI flag, in display order.

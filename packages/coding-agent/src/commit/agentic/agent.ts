@@ -1,9 +1,9 @@
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Api, Model } from "@zeta/pi-ai";
-import { Markdown } from "@zeta/pi-tui";
-import { prompt } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, Model } from "@linxiraos/pi-ai";
+import { Markdown } from "@linxiraos/pi-tui";
+import { prompt } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import typesDescriptionPrompt from "../../commit/prompts/types-description.md" with { type: "text" };
 import type { ModelRegistry } from "../../config/model-registry";
 import type { Settings } from "../../config/settings";

@@ -16,12 +16,12 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	type CustomToolAPI,
 	loadCustomTools,
 	type ToolPathWithSource,
-} from "@zeta/pi-coding-agent/extensibility/custom-tools";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/custom-tools";
 
 describe("loadCustomTools per-session binding (#2190 review fix)", () => {
 	let tmp: string;

@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { containsOrchestrate, highlightOrchestrate, ORCHESTRATE_NOTICE } from "@zeta/pi-coding-agent/modes/orchestrate";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { containsUltrathink, highlightUltrathink } from "@zeta/pi-coding-agent/modes/ultrathink";
-import { clearBundledCommandsCache, loadBundledCommands } from "@zeta/pi-coding-agent/task/commands";
+import { containsOrchestrate, highlightOrchestrate, ORCHESTRATE_NOTICE } from "@linxiraos/zeta/modes/orchestrate";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { containsUltrathink, highlightUltrathink } from "@linxiraos/zeta/modes/ultrathink";
+import { clearBundledCommandsCache, loadBundledCommands } from "@linxiraos/zeta/task/commands";
 
 beforeAll(() => {
 	// highlightOrchestrate/highlightUltrathink read the global theme's color mode.

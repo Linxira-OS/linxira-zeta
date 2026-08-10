@@ -9,7 +9,7 @@
  * in either process.
  */
 
-import { defaultLocalModelInitializer, type StandardEmbeddingModel } from "@zeta/pi-mnemopi/core";
+import { defaultLocalModelInitializer, type StandardEmbeddingModel } from "@linxiraos/pi-mnemopi/core";
 import type { MnemopiEmbedModelId, MnemopiEmbedTransport, MnemopiEmbedWorkerInbound } from "./embed-protocol";
 
 interface LoadedModel {

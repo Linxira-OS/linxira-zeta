@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { OAuthManualInputManager } from "@zeta/pi-coding-agent/modes/oauth-manual-input";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@zeta/pi-coding-agent/slash-commands/builtin-registry";
+import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-input";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 type RuntimeHarness = {
 	runtime: { ctx: InteractiveModeContext };

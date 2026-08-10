@@ -15,15 +15,15 @@
  *   with `{ summary, shortSummary? }`.
  */
 
-import { ProviderHttpError } from "@zeta/pi-ai/error";
-import { applyCodexResponsesLiteShape } from "@zeta/pi-ai/providers/openai-codex/request-transformer";
+import { ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { applyCodexResponsesLiteShape } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import {
 	createOpenAICodexCompactionRequestContext,
 	createOpenAICodexCompatibilityMetadata,
 	getCodexAttestationHeader,
-} from "@zeta/pi-ai/providers/openai-codex-responses";
-import { parseAzureDeploymentNameMap, parseTextSignature } from "@zeta/pi-ai/providers/openai-shared";
-import { transformMessages } from "@zeta/pi-ai/providers/transform-messages";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { parseAzureDeploymentNameMap, parseTextSignature } from "@linxiraos/pi-ai/providers/openai-shared";
+import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
 import type {
 	Api,
 	AssistantMessage,
@@ -32,16 +32,21 @@ import type {
 	Message,
 	Model,
 	ProviderSessionState,
-} from "@zeta/pi-ai/types";
+} from "@linxiraos/pi-ai/types";
 import {
 	getOpenAIResponsesHistoryItems,
 	getOpenAIResponsesHistoryPayload,
 	normalizeResponsesToolCallId,
 	stripOpenAIResponsesOutputOnlyStatusesForReplay,
-} from "@zeta/pi-ai/utils";
-import { captureOpenAIHttpError } from "@zeta/pi-ai/utils/openai-http";
-import { CODEX_BASE_URL, getCodexAccountId, OPENAI_HEADER_VALUES, OPENAI_HEADERS } from "@zeta/pi-catalog/wire/codex";
-import { $env, isRecord, logger, prompt, stringifyJson, structuredCloneJSON } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/utils";
+import { captureOpenAIHttpError } from "@linxiraos/pi-ai/utils/openai-http";
+import {
+	CODEX_BASE_URL,
+	getCodexAccountId,
+	OPENAI_HEADER_VALUES,
+	OPENAI_HEADERS,
+} from "@linxiraos/pi-catalog/wire/codex";
+import { $env, isRecord, logger, prompt, stringifyJson, structuredCloneJSON } from "@linxiraos/pi-utils";
 import { countTokensConservatively } from "../tokenizer";
 import contextWindowTruncatedOutputPrompt from "./prompts/context-window-truncated-output.md" with { type: "text" };
 

@@ -17,7 +17,7 @@ import type {
 	ToolResultMessage,
 	WireModel,
 	WireUsage,
-} from "@zeta/pi-wire";
+} from "@linxiraos/pi-wire";
 
 export const HOST_DISPLAY_NAME = "kai";
 

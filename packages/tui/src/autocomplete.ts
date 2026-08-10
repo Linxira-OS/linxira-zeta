@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fuzzyFind } from "@zeta/pi-natives";
-import { getProjectDir } from "@zeta/pi-utils";
+import { fuzzyFind } from "@linxiraos/pi-natives";
+import { getProjectDir } from "@linxiraos/pi-utils";
 
 const PATH_DELIMITERS = new Set([" ", "\t", '"', "'", "="]);
 

@@ -1,19 +1,16 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as os from "node:os";
 import { stripVTControlCharacters } from "node:util";
-import { PluginManager } from "@zeta/pi-coding-agent/extensibility/plugins";
-import {
-	type InstalledPluginSummary,
-	MarketplaceManager,
-} from "@zeta/pi-coding-agent/extensibility/plugins/marketplace";
-import type { InstalledPlugin } from "@zeta/pi-coding-agent/extensibility/plugins/types";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins";
+import { type InstalledPluginSummary, MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import type { InstalledPlugin } from "@linxiraos/zeta/extensibility/plugins/types";
 import {
 	MarketplacePluginDetailComponent,
 	PluginListComponent,
 	type PluginListEntry,
 	PluginSettingsComponent,
-} from "@zeta/pi-coding-agent/modes/components/plugin-settings";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/zeta/modes/components/plugin-settings";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();

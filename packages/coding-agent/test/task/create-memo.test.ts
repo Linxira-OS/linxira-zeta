@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { refreshAgentDiscovery, TaskTool } from "@zeta/pi-coding-agent/task";
-import * as discoveryModule from "@zeta/pi-coding-agent/task/discovery";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { refreshAgentDiscovery, TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const TEST_AGENTS = [
 	{

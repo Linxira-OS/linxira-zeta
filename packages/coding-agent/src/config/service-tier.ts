@@ -1,4 +1,4 @@
-import type { ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@zeta/pi-ai";
+import type { ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@linxiraos/pi-ai";
 import type { SubmenuOption } from "./settings-schema";
 
 /**

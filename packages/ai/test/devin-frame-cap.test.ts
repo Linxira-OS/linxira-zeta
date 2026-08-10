@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { create, toBinary } from "@bufbuild/protobuf";
-import { streamDevin } from "@zeta/pi-ai/providers/devin";
-import type { Context, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { GetUserJwtResponseSchema } from "@zeta/pi-catalog/discovery/devin-gen/exa/auth_pb/auth_pb";
+import { streamDevin } from "@linxiraos/pi-ai/providers/devin";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { GetUserJwtResponseSchema } from "@linxiraos/pi-catalog/discovery/devin-gen/exa/auth_pb/auth_pb";
 
 /**
  * Regression for #4228: a Devin Connect frame header advertising an outsized

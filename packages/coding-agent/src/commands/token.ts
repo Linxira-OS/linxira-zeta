@@ -2,9 +2,9 @@
  * Get the API key or OAuth token for a provider.
  */
 
-import { PROVIDER_REGISTRY } from "@zeta/pi-ai";
-import chalk from "@zeta/pi-utils/chalk";
-import { Args, Command, Flags } from "@zeta/pi-utils/cli";
+import { PROVIDER_REGISTRY } from "@linxiraos/pi-ai";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { tokenHelp as commandHelp } from "../cli/command-help";
 import { isAuthenticated, ModelRegistry } from "../config/model-registry";
 import { discoverAuthStorage } from "../sdk";

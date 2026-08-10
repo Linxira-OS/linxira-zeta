@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { handleHuggingFace } from "@zeta/pi-coding-agent/web/scrapers/huggingface";
-import { handleSpotify } from "@zeta/pi-coding-agent/web/scrapers/spotify";
-import { handleVimeo } from "@zeta/pi-coding-agent/web/scrapers/vimeo";
+import { handleHuggingFace } from "@linxiraos/zeta/web/scrapers/huggingface";
+import { handleSpotify } from "@linxiraos/zeta/web/scrapers/spotify";
+import { handleVimeo } from "@linxiraos/zeta/web/scrapers/vimeo";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

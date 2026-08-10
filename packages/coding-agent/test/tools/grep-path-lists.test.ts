@@ -2,22 +2,22 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { validateToolArguments } from "@zeta/pi-ai/utils/validation";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { canonicalSnapshotKey } from "@zeta/pi-coding-agent/edit/file-snapshot-store";
-import type { RenderResultOptions } from "@zeta/pi-coding-agent/extensibility/custom-tools/types";
-import { AgentTranscriptViewer } from "@zeta/pi-coding-agent/modes/components/agent-transcript-viewer";
-import { TreeSelectorComponent } from "@zeta/pi-coding-agent/modes/components/tree-selector";
-import type { ObservableSession, SessionObserverRegistry } from "@zeta/pi-coding-agent/modes/session-observer-registry";
-import type { Theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { SessionEntry, SessionTreeNode } from "@zeta/pi-coding-agent/session/session-entries";
-import { ToolChoiceQueue } from "@zeta/pi-coding-agent/session/tool-choice-queue";
-import { createTools, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { Text } from "@zeta/pi-tui";
-import { removeWithRetries } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { Text } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { canonicalSnapshotKey } from "@linxiraos/zeta/edit/file-snapshot-store";
+import type { RenderResultOptions } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
+import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
+import type { ObservableSession, SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
+import type { Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
+import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";
+import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
 import { grepToolRenderer } from "../../src/tools/grep";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {

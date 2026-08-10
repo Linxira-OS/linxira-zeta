@@ -18,7 +18,7 @@
  * if you need those off-host too.
  */
 
-import { createAgentSession, SessionManager, SqlSessionStorage } from "@zeta/pi-coding-agent";
+import { createAgentSession, SessionManager, SqlSessionStorage } from "@linxiraos/zeta";
 import { SQL } from "bun";
 
 // Pick one — Bun.SQL auto-detects the dialect from the URL scheme.

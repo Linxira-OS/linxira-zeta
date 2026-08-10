@@ -8,13 +8,6 @@
  * `runInActiveSpan` → `finishChatSpan` / `failChatSpan`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { SpanStatusCode } from "@opentelemetry/api";
-import {
-	BasicTracerProvider,
-	InMemorySpanExporter,
-	type ReadableSpan,
-	SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
 import {
 	type CompactionPreparation,
 	compact,
@@ -23,18 +16,25 @@ import {
 	generateBranchSummary,
 	generateHandoff,
 	generateSummary,
-} from "@zeta/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core/compaction";
 import {
 	type AgentTelemetryConfig,
 	GenAIAttr,
 	GenAIOperation,
 	PiGenAIAttr,
 	resolveTelemetry,
-} from "@zeta/pi-agent-core/telemetry";
-import type { AgentMessage } from "@zeta/pi-agent-core/types";
-import type { AssistantMessage, Model, Usage } from "@zeta/pi-ai";
-import * as ai from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
+} from "@linxiraos/pi-agent-core/telemetry";
+import type { AgentMessage } from "@linxiraos/pi-agent-core/types";
+import type { AssistantMessage, Model, Usage } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { SpanStatusCode } from "@opentelemetry/api";
+import {
+	BasicTracerProvider,
+	InMemorySpanExporter,
+	type ReadableSpan,
+	SimpleSpanProcessor,
+} from "@opentelemetry/sdk-trace-base";
 
 const MODEL: Model = buildModel({
 	id: "mock-model",

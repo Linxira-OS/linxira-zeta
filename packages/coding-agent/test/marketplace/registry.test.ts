@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import type {
 	InstalledPluginEntry,
 	InstalledPluginsRegistry,
 	MarketplaceRegistryEntry,
 	MarketplacesRegistry,
-} from "@zeta/pi-coding-agent/extensibility/plugins/marketplace";
+} from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
 	addMarketplaceEntry,
@@ -22,11 +23,10 @@ import {
 	removeMarketplaceEntry,
 	writeInstalledPluginsRegistry,
 	writeMarketplacesRegistry,
-} from "@zeta/pi-coding-agent/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/marketplace";
 
 // Inline the parseClaudePluginsRegistry validation logic to avoid pulling
-// in discovery/helpers.ts which transitively imports @zeta/pi-natives.
+// in discovery/helpers.ts which transitively imports @linxiraos/pi-natives.
 // Matches the exact checks in helpers.ts parseClaudePluginsRegistry().
 function validateClaudeRegistryFormat(content: string): Record<string, unknown> | null {
 	let data: Record<string, unknown>;

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { encodeResponse, encodeStream, parseRequest } from "@zeta/pi-ai/providers/anthropic-messages-server";
+import { encodeResponse, encodeStream, parseRequest } from "@linxiraos/pi-ai/providers/anthropic-messages-server";
 import type {
 	WebSearchServerToolUseBlockParam,
 	WebSearchToolResultBlockParam,
-} from "@zeta/pi-ai/providers/anthropic-wire";
-import type { AssistantMessage, AssistantMessageEvent, ToolResultMessage } from "@zeta/pi-ai/types";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { Effort } from "@zeta/pi-catalog/effort";
+} from "@linxiraos/pi-ai/providers/anthropic-wire";
+import type { AssistantMessage, AssistantMessageEvent, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 
 function emptyUsage(): AssistantMessage["usage"] {
 	return {

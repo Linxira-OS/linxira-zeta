@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@zeta/pi-ai";
-import { searchTavily } from "@zeta/pi-coding-agent/web/search/providers/tavily";
-import type { SearchProviderError } from "@zeta/pi-coding-agent/web/search/types";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import { searchTavily } from "@linxiraos/zeta/web/search/providers/tavily";
+import type { SearchProviderError } from "@linxiraos/zeta/web/search/types";
 
 describe("Tavily web search provider", () => {
 	beforeEach(() => {

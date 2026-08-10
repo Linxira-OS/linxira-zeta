@@ -11,8 +11,8 @@
  * massage shapes the LLM almost got right.
  */
 
-import { type Type, type } from "@zeta/pi-omptype";
-import { structuredCloneJSON } from "@zeta/pi-utils";
+import { type Type, type } from "@linxiraos/pi-omptype";
+import { structuredCloneJSON } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type { Tool, ToolCall } from "../types";
 import { upgradeJsonSchemaTo202012 } from "./schema/draft";

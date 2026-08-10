@@ -1,4 +1,4 @@
-import { getProjectDir, sanitizeText } from "@zeta/pi-utils";
+import { getProjectDir, sanitizeText } from "@linxiraos/pi-utils";
 import { shortenPath } from "../tools/render-utils";
 import { type CleanseAgentRuntime, createCleanseAgentRuntime } from "./agent";
 import { groupDiagnosticsByFile } from "./balance";

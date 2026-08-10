@@ -10,7 +10,7 @@ It documents only active behavior.
 
 ## Resolution model and precedence
 
-Most runtime lookups use `$env` from `@zeta/pi-utils` (`packages/utils/src/env.ts`).
+Most runtime lookups use `$env` from `@linxiraos/pi-utils` (`packages/utils/src/env.ts`).
 
 `$env` loading order:
 

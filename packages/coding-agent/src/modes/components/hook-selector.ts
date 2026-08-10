@@ -19,7 +19,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import { M } from "../../i18n";
 import { getMarkdownTheme, type ThemeColor, theme } from "../../modes/theme/theme";
 import {

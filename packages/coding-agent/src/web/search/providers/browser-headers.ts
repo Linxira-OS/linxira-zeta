@@ -1,4 +1,4 @@
-import { HeaderGenerator } from "@zeta/pi-utils/headers";
+import { HeaderGenerator } from "@linxiraos/pi-utils/headers";
 
 const generator = new HeaderGenerator({
 	browserListQuery: "last 3 versions",

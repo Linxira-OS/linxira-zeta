@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@zeta/pi-omptype/ark";
+import { type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "./type-assert";
 
 describe("tuple expressions", () => {

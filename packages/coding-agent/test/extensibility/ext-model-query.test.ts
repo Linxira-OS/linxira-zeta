@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { Api, Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import type { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { Api, Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { Settings } from "@linxiraos/zeta/config/settings";
 import { createExtensionModelQuery } from "../../src/extensibility/extensions/model-api";
 
 function model(id: string, name: string, provider: string): Model<"anthropic-messages"> {

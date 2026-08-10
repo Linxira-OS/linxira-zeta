@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { resolveModels, runTinyModelsCommand } from "@zeta/pi-coding-agent/cli/tiny-models-cli";
-import { TINY_LOCAL_MODELS } from "@zeta/pi-coding-agent/tiny/models";
-import { tinyTitleClient } from "@zeta/pi-coding-agent/tiny/title-client";
+import { resolveModels, runTinyModelsCommand } from "@linxiraos/zeta/cli/tiny-models-cli";
+import { TINY_LOCAL_MODELS } from "@linxiraos/zeta/tiny/models";
+import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
 
 afterEach(() => {
 	vi.restoreAllMocks();

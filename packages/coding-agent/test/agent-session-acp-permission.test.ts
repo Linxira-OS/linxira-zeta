@@ -6,24 +6,24 @@
  * behavior they have in the TUI.
  */
 import { afterEach, beforeEach, expect, it, spyOn } from "bun:test";
-import { Agent, type AgentTool } from "@zeta/pi-agent-core";
-import { createMockModel, type MockModelOptions } from "@zeta/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type SettingPath, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { EditTool } from "@zeta/pi-coding-agent/edit";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { createMockModel, type MockModelOptions } from "@linxiraos/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir } from "@linxiraos/pi-utils";
+import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool } from "@linxiraos/zeta/edit";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type {
 	ClientBridge,
 	ClientBridgePermissionOutcome,
 	ClientBridgePermissionToolCall,
-} from "@zeta/pi-coding-agent/session/client-bridge";
-import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@zeta/pi-coding-agent/tools/xdev";
-import { type } from "@zeta/pi-omptype";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/session/client-bridge";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@linxiraos/zeta/tools/xdev";
 
 // ---------------------------------------------------------------------------
 // Shared setup

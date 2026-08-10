@@ -1,14 +1,14 @@
 import * as os from "node:os";
 import { scheduler } from "node:timers/promises";
-import { calculateCost } from "@zeta/pi-catalog/models";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import {
 	CODEX_BASE_URL,
 	CODEX_CLIENT_VERSION,
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@zeta/pi-catalog/wire/codex";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-catalog/wire/codex";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	$env,
 	$flag,
@@ -19,7 +19,7 @@ import {
 	parseStreamingJson,
 	readSseJson,
 	structuredCloneJSON,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import packageJson from "../../package.json" with { type: "json" };
 import * as AIError from "../error";
 import { getEnvApiKey, isOfficialCodexApiUrl } from "../stream";

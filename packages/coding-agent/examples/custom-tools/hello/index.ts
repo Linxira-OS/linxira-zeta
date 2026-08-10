@@ -1,4 +1,4 @@
-import type { CustomToolFactory } from "@zeta/pi-coding-agent";
+import type { CustomToolFactory } from "@linxiraos/zeta";
 
 const factory: CustomToolFactory = pi => ({
 	name: "hello",

@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import type { HookSelectorSlider } from "@zeta/pi-coding-agent/modes/components/hook-selector";
-import { PlanReviewOverlay } from "@zeta/pi-coding-agent/modes/components/plan-review-overlay";
-import { getThemeByName, setThemeInstance, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { setKeybindings } from "@zeta/pi-tui";
+import { setKeybindings } from "@linxiraos/pi-tui";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import type { HookSelectorSlider } from "@linxiraos/zeta/modes/components/hook-selector";
+import { PlanReviewOverlay } from "@linxiraos/zeta/modes/components/plan-review-overlay";
+import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 const UP = "\x1b[A";
 const DOWN = "\x1b[B";

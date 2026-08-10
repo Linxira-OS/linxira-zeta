@@ -1,4 +1,4 @@
-import { $pickenv } from "@zeta/pi-utils";
+import { $pickenv } from "@linxiraos/pi-utils";
 import { isFoundryEnabled } from "../utils/foundry";
 import type { OAuthCredentials, OAuthLoginCallbacks } from "./oauth/types";
 import type { ProviderDefinition } from "./types";

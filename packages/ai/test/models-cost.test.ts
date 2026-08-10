@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Usage } from "@zeta/pi-ai/types";
-import { calculateCost, getBundledModel } from "@zeta/pi-catalog/models";
+import type { Usage } from "@linxiraos/pi-ai/types";
+import { calculateCost, getBundledModel } from "@linxiraos/pi-catalog/models";
 
 describe("calculateCost", () => {
 	it("keeps token-based calculation for GitHub Copilot models", () => {

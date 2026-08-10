@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from "@zeta/pi-utils/dates";
+import { formatDistanceToNow } from "@linxiraos/pi-utils/dates";
 
 export function formatInteger(value: number): string {
 	return value.toLocaleString();

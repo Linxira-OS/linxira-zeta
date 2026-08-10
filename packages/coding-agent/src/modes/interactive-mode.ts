@@ -4,10 +4,16 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type Agent, AgentBusyError, type AgentMessage, EventLoopKeepalive, ThinkingLevel } from "@zeta/pi-agent-core";
-import type { CompactionOutcome } from "@zeta/pi-agent-core/compaction";
-import type { AssistantMessage, ImageContent, Message, Model, Usage, UsageReport } from "@zeta/pi-ai";
-import { modelsAreEqual } from "@zeta/pi-catalog/models";
+import {
+	type Agent,
+	AgentBusyError,
+	type AgentMessage,
+	EventLoopKeepalive,
+	ThinkingLevel,
+} from "@linxiraos/pi-agent-core";
+import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, ImageContent, Message, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type {
 	AutocompleteProvider,
 	Component,
@@ -16,7 +22,7 @@ import type {
 	NativeScrollbackLiveRegion,
 	OverlayHandle,
 	SlashCommand,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import {
 	Container,
 	clearRenderCache,
@@ -30,9 +36,9 @@ import {
 	Text,
 	TUI,
 	visibleWidth,
-} from "@zeta/pi-tui";
-import type { TerminalAppearanceRequestToken } from "@zeta/pi-tui/terminal";
-import { isInsideTerminalMultiplexer } from "@zeta/pi-tui/terminal-capabilities";
+} from "@linxiraos/pi-tui";
+import type { TerminalAppearanceRequestToken } from "@linxiraos/pi-tui/terminal";
+import { isInsideTerminalMultiplexer } from "@linxiraos/pi-tui/terminal-capabilities";
 import {
 	$env,
 	APP_NAME,
@@ -45,8 +51,8 @@ import {
 	postmortem,
 	prompt,
 	setProjectDir,
-} from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+} from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { reset as resetCapabilities } from "../capability";
 import type { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";

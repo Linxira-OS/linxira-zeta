@@ -1,4 +1,4 @@
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 
 export const commitTypeSchema = type(
 	"'feat' | 'fix' | 'refactor' | 'perf' | 'docs' | 'test' | 'build' | 'ci' | 'chore' | 'style' | 'revert'",

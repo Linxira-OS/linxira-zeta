@@ -1,4 +1,4 @@
-import type { ToolResultMessage } from "@zeta/pi-ai";
+import type { ToolResultMessage } from "@linxiraos/pi-ai";
 import type { AgentToolCall } from "../types";
 import type { SessionEntry } from "./entries";
 

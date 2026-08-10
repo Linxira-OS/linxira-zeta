@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import type { AuthStorage, CredentialOriginKind, FetchImpl } from "@zeta/pi-ai";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { runSearchQuery } from "@zeta/pi-coding-agent/web/search";
-import { searchXAI, XAIProvider } from "@zeta/pi-coding-agent/web/search/providers/xai";
-import { SearchProviderError } from "@zeta/pi-coding-agent/web/search/types";
+import type { AuthStorage, CredentialOriginKind, FetchImpl } from "@linxiraos/pi-ai";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { runSearchQuery } from "@linxiraos/zeta/web/search";
+import { searchXAI, XAIProvider } from "@linxiraos/zeta/web/search/providers/xai";
+import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
 
 type CapturedRequest = {
 	url: string;

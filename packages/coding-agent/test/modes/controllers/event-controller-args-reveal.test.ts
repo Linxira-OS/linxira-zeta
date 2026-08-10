@@ -6,15 +6,15 @@
  * how assistant text snaps at message_end.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { kStreamingPartialJson } from "@zeta/pi-ai/utils/block-symbols";
-import { resetSettingsForTest, Settings, settings } from "@zeta/pi-coding-agent/config/settings";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { EventController } from "@zeta/pi-coding-agent/modes/controllers/event-controller";
-import { STREAMING_REVEAL_FRAME_MS } from "@zeta/pi-coding-agent/modes/controllers/streaming-reveal";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { kStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { STREAMING_REVEAL_FRAME_MS } from "@linxiraos/zeta/modes/controllers/streaming-reveal";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 
 beforeAll(async () => {
 	await initTheme();

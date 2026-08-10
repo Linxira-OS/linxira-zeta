@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings, settings } from "@zeta/pi-coding-agent/config/settings";
-import { MCPAuthorizationLinkPrompt } from "@zeta/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { visibleWidth } from "@zeta/pi-tui";
+import { visibleWidth } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { MCPAuthorizationLinkPrompt } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 const OSC = "\x1b]";
 const BEL = "\x07";

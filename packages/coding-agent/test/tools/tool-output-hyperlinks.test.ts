@@ -3,14 +3,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@zeta/pi-coding-agent/config/settings";
-import { editToolRenderer } from "@zeta/pi-coding-agent/edit/renderer";
-import { getThemeByName, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { astGrepToolRenderer } from "@zeta/pi-coding-agent/tools/ast-grep";
-import { ReadTool, readToolRenderer } from "@zeta/pi-coding-agent/tools/read";
-import { WriteTool, writeToolRenderer } from "@zeta/pi-coding-agent/tools/write";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { editToolRenderer } from "@linxiraos/zeta/edit/renderer";
+import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { astGrepToolRenderer } from "@linxiraos/zeta/tools/ast-grep";
+import { ReadTool, readToolRenderer } from "@linxiraos/zeta/tools/read";
+import { WriteTool, writeToolRenderer } from "@linxiraos/zeta/tools/write";
 import { grepToolRenderer } from "../../src/tools/grep";
 
 // 1x1 PNG so the read tool takes its image branch.

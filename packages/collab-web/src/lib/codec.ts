@@ -1,11 +1,11 @@
 /**
  * AES-256-GCM sealing for collab frames (browser-safe vendored mirror of
- * `@zeta/pi-coding-agent/src/collab/crypto.ts` — WebCrypto only).
+ * `@linxiraos/zeta/src/collab/crypto.ts` — WebCrypto only).
  *
  * The room key lives only in the link fragment; the relay sees opaque bytes.
  * Sealed layout: `[12B IV][ciphertext+tag]`.
  */
-import type { WireFrame } from "@zeta/pi-wire";
+import type { WireFrame } from "@linxiraos/pi-wire";
 
 const AES_ALGORITHM = "AES-GCM";
 const IV_LENGTH = 12;

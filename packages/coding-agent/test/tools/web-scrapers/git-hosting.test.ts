@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { handleGitHub, parseGitHubUrl, stripActionsLogTimestamps } from "@zeta/pi-coding-agent/web/scrapers/github";
-import { handleGitHubGist } from "@zeta/pi-coding-agent/web/scrapers/github-gist";
+import { handleGitHub, parseGitHubUrl, stripActionsLogTimestamps } from "@linxiraos/zeta/web/scrapers/github";
+import { handleGitHubGist } from "@linxiraos/zeta/web/scrapers/github-gist";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

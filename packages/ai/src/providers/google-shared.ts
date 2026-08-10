@@ -3,8 +3,8 @@
  */
 
 import { scheduler } from "node:timers/promises";
-import { calculateCost } from "@zeta/pi-catalog/models";
-import { readSseJson } from "@zeta/pi-utils";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
+import { readSseJson } from "@linxiraos/pi-utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";
 import type {

@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { listSessions } from "@zeta/pi-coding-agent/session/session-listing";
-import { MemorySessionStorage } from "@zeta/pi-coding-agent/session/session-storage";
+import { listSessions } from "@linxiraos/zeta/session/session-listing";
+import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 const SESSION_DIR = "/sessions/project";
 

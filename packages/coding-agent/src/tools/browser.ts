@@ -1,7 +1,7 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import type { ToolExample } from "@zeta/pi-ai";
-import { type } from "@zeta/pi-omptype";
-import { prompt, untilAborted } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { prompt, untilAborted } from "@linxiraos/pi-utils";
 import { M } from "../i18n/messages";
 import browserDescription from "../prompts/tools/browser.md" with { type: "text" };
 import type { ToolSession } from "../sdk";

@@ -1,4 +1,4 @@
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 import type { CommitAgentState, GitOverviewSnapshot } from "../../../commit/agentic/state";
 import { extractScopeCandidates } from "../../../commit/analysis/scope";
 import type { CustomTool } from "../../../extensibility/custom-tools/types";

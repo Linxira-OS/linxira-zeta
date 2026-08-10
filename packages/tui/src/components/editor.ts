@@ -1,4 +1,4 @@
-import { getProjectDir, logger } from "@zeta/pi-utils";
+import { getProjectDir, logger } from "@linxiraos/pi-utils";
 import {
 	type AutocompleteProvider,
 	findLeadingSlashCommandStart,

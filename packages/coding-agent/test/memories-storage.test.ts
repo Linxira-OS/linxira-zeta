@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage, Model } from "@zeta/pi-ai";
-import * as ai from "@zeta/pi-ai";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { startMemoryStartupTask } from "@zeta/pi-coding-agent/memories";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { getAgentDbPath, TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { startMemoryStartupTask } from "@linxiraos/zeta/memories";
 import {
 	claimStage1Jobs,
 	clearMemoryData,
@@ -15,8 +16,7 @@ import {
 	openMemoryDb,
 	tryClaimGlobalPhase2Job,
 	upsertThreads,
-} from "@zeta/pi-coding-agent/memories/storage";
-import { getAgentDbPath, TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/memories/storage";
 
 const GLOBAL_KIND = "memory_consolidate_global";
 const PROJECT_CWD = "/repo";

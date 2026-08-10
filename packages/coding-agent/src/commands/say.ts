@@ -9,9 +9,9 @@
  * model into the worker's cache.
  */
 
-import { getProjectDir } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
-import { Args, Command, Flags } from "@zeta/pi-utils/cli";
+import { getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { sayHelp as commandHelp } from "../cli/command-help";
 import { Settings, settings } from "../config/settings";
 import { TTS_LOCAL_VOICE_VALUES } from "../tts/models";

@@ -3,13 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai";
-import * as mcpClient from "@zeta/pi-coding-agent/mcp/client";
-import * as oauthFlow from "@zeta/pi-coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@zeta/pi-coding-agent/mcp/types";
-import { MCPCommandController } from "@zeta/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { OAuthManualInputManager } from "@zeta/pi-coding-agent/modes/oauth-manual-input";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -17,7 +11,13 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
+import * as mcpClient from "@linxiraos/zeta/mcp/client";
+import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-input";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 const RAW_SERVER_URL = `https://\${MCP_HOST}/mcp`;
 const EXPANDED_SERVER_URL = "https://mcp.example.com/mcp";

@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 import {
 	PRINT_MODE_ADVISOR_DRAIN_TIMEOUT_MS,
 	PRINT_MODE_ERROR_ADVISOR_DRAIN_TIMEOUT_MS,
 	runPrintMode,
-} from "@zeta/pi-coding-agent/modes/print-mode";
-import type { PlanModeState } from "@zeta/pi-coding-agent/plan-mode/state";
-import type { AgentSession, AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { type PlanProposalHandler, PROPOSE_DEVICE_NAME } from "@zeta/pi-coding-agent/tools/resolve";
+} from "@linxiraos/zeta/modes/print-mode";
+import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { type PlanProposalHandler, PROPOSE_DEVICE_NAME } from "@linxiraos/zeta/tools/resolve";
 
 function makeAssistantMessage(text: string): AssistantMessage {
 	const timestamp = Date.now();

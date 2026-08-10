@@ -1,4 +1,4 @@
-import { $env } from "@zeta/pi-utils";
+import { $env } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import { getEnvApiKey } from "../stream";
 import type {

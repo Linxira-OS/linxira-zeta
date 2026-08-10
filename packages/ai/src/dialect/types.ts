@@ -1,7 +1,7 @@
-import type { Dialect as CatalogDialect } from "@zeta/pi-catalog/identity";
+import type { Dialect as CatalogDialect } from "@linxiraos/pi-catalog/identity";
 import type { Context, Message, ToolCall } from "../types";
 
-export type { Dialect } from "@zeta/pi-catalog/identity";
+export type { Dialect } from "@linxiraos/pi-catalog/identity";
 
 export type InbandScanEvent =
 	| { type: "text"; text: string }

@@ -31,11 +31,11 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import type { FetchImpl } from "@zeta/pi-ai";
-import type { Component } from "@zeta/pi-tui";
-import { Text } from "@zeta/pi-tui";
-import { $env, $flag, getAutoQaDbPath, getInstallId, logger, VERSION } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
+import { $env, $flag, getAutoQaDbPath, getInstallId, logger, VERSION } from "@linxiraos/pi-utils";
 import type { Settings } from "..";
 import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";

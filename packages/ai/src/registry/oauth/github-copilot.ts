@@ -2,7 +2,7 @@
  * GitHub Copilot OAuth flow (opencode OAuth app)
  */
 import { scheduler } from "node:timers/promises";
-import { getBundledModels } from "@zeta/pi-catalog/models";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
 import {
 	COPILOT_API_HEADERS,
 	getGitHubCopilotBaseUrl,
@@ -11,7 +11,7 @@ import {
 	normalizeGitHubCopilotApiEndpoint,
 	normalizeGitHubCopilotEnterpriseDomain,
 	OPENCODE_HEADERS,
-} from "@zeta/pi-catalog/wire/github-copilot";
+} from "@linxiraos/pi-catalog/wire/github-copilot";
 import * as AIError from "../../error";
 import type { FetchImpl } from "../../types";
 import type { OAuthCredentials } from "./types";

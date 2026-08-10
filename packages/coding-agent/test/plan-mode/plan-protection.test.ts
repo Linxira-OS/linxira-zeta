@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentToolCall } from "@zeta/pi-agent-core";
-import type { SessionMessageEntry } from "@zeta/pi-agent-core/compaction/entries";
-import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@zeta/pi-agent-core/compaction/pruning";
-import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@zeta/pi-agent-core/compaction/shake";
-import type { ProtectedToolContext } from "@zeta/pi-agent-core/compaction/tool-protection";
-import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@zeta/pi-ai";
-import { createPlanReadMatcher } from "@zeta/pi-coding-agent/plan-mode/plan-protection";
+import type { AgentToolCall } from "@linxiraos/pi-agent-core";
+import type { SessionMessageEntry } from "@linxiraos/pi-agent-core/compaction/entries";
+import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@linxiraos/pi-agent-core/compaction/pruning";
+import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@linxiraos/pi-agent-core/compaction/shake";
+import type { ProtectedToolContext } from "@linxiraos/pi-agent-core/compaction/tool-protection";
+import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@linxiraos/pi-ai";
+import { createPlanReadMatcher } from "@linxiraos/zeta/plan-mode/plan-protection";
 
 function context(opts: { toolName?: string; callName?: string | undefined; path?: string }): ProtectedToolContext {
 	const toolResult = {

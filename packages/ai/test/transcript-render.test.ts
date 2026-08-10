@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Message, Usage } from "@zeta/pi-ai";
-import { type Dialect, getDialectDefinition } from "@zeta/pi-ai/dialect";
+import type { Message, Usage } from "@linxiraos/pi-ai";
+import { type Dialect, getDialectDefinition } from "@linxiraos/pi-ai/dialect";
 
 function usage(): Usage {
 	return {

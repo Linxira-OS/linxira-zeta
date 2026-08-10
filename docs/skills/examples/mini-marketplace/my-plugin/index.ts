@@ -1,5 +1,5 @@
-// @ts-nocheck — example file; install @zeta/pi-coding-agent before running
-import type { ExtensionAPI } from "@zeta/pi-coding-agent";
+// @ts-nocheck — example file; install @linxiraos/zeta before running
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function myPlugin(pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {

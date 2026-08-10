@@ -3,14 +3,14 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import { WorkerCore } from "@zeta/pi-coding-agent/eval/js/worker-core";
+import { postmortem } from "@linxiraos/pi-utils";
+import { WorkerCore } from "@linxiraos/zeta/eval/js/worker-core";
 import type {
 	SessionSnapshot,
 	Transport,
 	WorkerInbound,
 	WorkerOutbound,
-} from "@zeta/pi-coding-agent/eval/js/worker-protocol";
-import { postmortem } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/eval/js/worker-protocol";
 
 interface WorkerHarness {
 	send(message: WorkerInbound): void;

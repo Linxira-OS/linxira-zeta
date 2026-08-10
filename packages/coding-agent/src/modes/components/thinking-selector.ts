@@ -1,5 +1,5 @@
-import type { Effort } from "@zeta/pi-ai";
-import { Container, type SelectItem, SelectList, type SgrMouseEvent } from "@zeta/pi-tui";
+import type { Effort } from "@linxiraos/pi-ai";
+import { Container, type SelectItem, SelectList, type SgrMouseEvent } from "@linxiraos/pi-tui";
 import { getSelectListTheme } from "../../modes/theme/theme";
 import { getThinkingLevelMetadata } from "../../thinking";
 import { DynamicBorder } from "./dynamic-border";

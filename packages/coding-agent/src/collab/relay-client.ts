@@ -5,7 +5,7 @@
  * exponential backoff on transient drops. Fatal relay close codes (room gone,
  * host conflict, room full) and decryption failures never reconnect.
  */
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { open, seal } from "./crypto";
 import type { CollabFrame, RelayControlMessage } from "./protocol";
 import { packEnvelope, unpackEnvelope } from "./protocol";

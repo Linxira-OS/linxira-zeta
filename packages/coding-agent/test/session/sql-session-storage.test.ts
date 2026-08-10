@@ -7,8 +7,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { serializeTitleSlot } from "@zeta/pi-coding-agent/session/session-title-slot";
-import { SqlSessionStorage, type SqlSessionStorageClient } from "@zeta/pi-coding-agent/session/sql-session-storage";
+import { serializeTitleSlot } from "@linxiraos/zeta/session/session-title-slot";
+import { SqlSessionStorage, type SqlSessionStorageClient } from "@linxiraos/zeta/session/sql-session-storage";
 import { SQL } from "bun";
 
 async function createSqlite(): Promise<{ client: InstanceType<typeof SQL>; storage: SqlSessionStorage }> {

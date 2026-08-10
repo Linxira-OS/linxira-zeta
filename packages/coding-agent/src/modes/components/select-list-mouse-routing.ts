@@ -1,4 +1,4 @@
-import type { SelectList, SgrMouseEvent } from "@zeta/pi-tui";
+import type { SelectList, SgrMouseEvent } from "@linxiraos/pi-tui";
 
 interface RoutableSelectList {
 	routeMouse?: (event: SgrMouseEvent, line: number, col: number) => void;

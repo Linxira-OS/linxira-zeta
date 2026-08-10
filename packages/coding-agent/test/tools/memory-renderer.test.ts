@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getThemeByName } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { recallToolRenderer, reflectToolRenderer, retainToolRenderer } from "@zeta/pi-coding-agent/tools/memory-render";
-import { sanitizeText } from "@zeta/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+import { recallToolRenderer, reflectToolRenderer, retainToolRenderer } from "@linxiraos/zeta/tools/memory-render";
 
 async function theme() {
 	const t = await getThemeByName("dark");

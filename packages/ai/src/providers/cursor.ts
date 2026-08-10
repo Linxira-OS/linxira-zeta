@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import http2 from "node:http2";
 import { create, fromBinary, fromJson, type JsonValue, toBinary, toJson } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
-import type { ConversationStep, McpToolDefinition } from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
+import type { ConversationStep, McpToolDefinition } from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
 import {
 	AgentClientMessageSchema,
 	AgentConversationTurnStructureSchema,
@@ -139,9 +139,9 @@ import {
 	WriteShellStdinErrorSchema,
 	WriteShellStdinResultSchema,
 	WriteSuccessSchema,
-} from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
-import { isKimiK3ModelId } from "@zeta/pi-catalog/identity";
-import { calculateCost } from "@zeta/pi-catalog/models";
+} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+import { isKimiK3ModelId } from "@linxiraos/pi-catalog/identity";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import {
 	$env,
 	logger,
@@ -149,7 +149,7 @@ import {
 	parseStreamingJson,
 	parseStreamingJsonThrottled,
 	sanitizeText,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type {
 	Api,

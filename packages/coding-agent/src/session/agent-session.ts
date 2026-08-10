@@ -18,8 +18,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import { isPromise } from "node:util/types";
-
-import type { Clipboard, InMemorySnapshotStore } from "@zeta/hashline";
 import {
 	type AfterToolCallContext,
 	type AfterToolCallResult,
@@ -42,7 +40,7 @@ import {
 	TERMINAL_TOOL_RESULT_ABORT_REASON,
 	type ThinkingLevel,
 	type ToolChoiceDirective,
-} from "@zeta/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import {
 	type CompactionPreparation,
 	type CompactionResult,
@@ -51,7 +49,7 @@ import {
 	estimateTokens,
 	generateBranchSummary,
 	type ShakeConfig,
-} from "@zeta/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core/compaction";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -73,13 +71,14 @@ import type {
 	ToolResultMessage,
 	UsageReport,
 	UserMessage,
-} from "@zeta/pi-ai";
-import { type Effort, streamSimple } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { resetOpenAICodexHistoryAfterCompaction } from "@zeta/pi-ai/providers/openai-codex-responses";
-import { toolWireSchema } from "@zeta/pi-ai/utils/schema";
-import { modelsAreEqual } from "@zeta/pi-catalog/models";
-import { MacOSPowerAssertion } from "@zeta/pi-natives";
+} from "@linxiraos/pi-ai";
+import { type Effort, streamSimple } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
+import { MacOSPowerAssertion } from "@linxiraos/pi-natives";
 import {
 	$env,
 	APP_NAME,
@@ -96,7 +95,7 @@ import {
 	Snowflake,
 	stringProperty,
 	withTimeout,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import { type AdvisorConfig, type AdvisorRuntimeStatus, loadAdvisorTranscriptCosts } from "../advisor";
 import type { AsyncJob, AsyncJobManager } from "../async";
 import { shouldEnableAppendOnlyContext } from "../config/append-only-context-mode";

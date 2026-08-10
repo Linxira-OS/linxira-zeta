@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	enforceInlineByteCap,
 	formatHeadTruncationNotice,
@@ -15,9 +16,8 @@ import {
 	truncateMiddle,
 	truncateTail,
 	truncateTailBytes,
-} from "@zeta/pi-coding-agent/session/streaming-output";
-import { formatOutputNotice, outputMeta } from "@zeta/pi-coding-agent/tools/output-meta";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/session/streaming-output";
+import { formatOutputNotice, outputMeta } from "@linxiraos/zeta/tools/output-meta";
 
 const createdTempDirs: string[] = [];
 const originalForceProtocol = Bun.env.PI_FORCE_IMAGE_PROTOCOL;

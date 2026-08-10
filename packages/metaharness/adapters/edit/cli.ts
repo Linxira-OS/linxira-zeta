@@ -12,10 +12,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { type ResolvedThinkingLevel, ThinkingLevel } from "@zeta/pi-agent-core";
-import { THINKING_EFFORTS } from "@zeta/pi-ai";
-import { postmortem, TempDir } from "@zeta/pi-utils";
-import { loadTasksFromDir, validateFixturesFromDir } from "@zeta/typescript-edit-benchmark/tasks";
+import { type ResolvedThinkingLevel, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { THINKING_EFFORTS } from "@linxiraos/pi-ai";
+import { postmortem, TempDir } from "@linxiraos/pi-utils";
+import { loadTasksFromDir, validateFixturesFromDir } from "@linxiraos/typescript-edit-benchmark/tasks";
 import { LiveProgress } from "./live-progress";
 import { generateJsonReport, generateReport } from "./report";
 import { type BenchmarkConfig, type BenchmarkResult, buildBenchmarkResult, runBenchmark } from "./runner";

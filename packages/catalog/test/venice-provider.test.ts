@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import {
 	KIMI_K27_CODE_RECOMMENDED_MAX_TOKENS,
 	veniceModelManagerOptions,
-} from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@zeta/pi-catalog/types";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@linxiraos/pi-catalog/types";
 
 describe("Venice provider catalog", () => {
 	it("bundles Kimi K2.7 Code with its recommended output cap", () => {

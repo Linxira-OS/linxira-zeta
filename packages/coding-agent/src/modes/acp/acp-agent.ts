@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Model } from "@zeta/pi-ai";
-import { getBlobsDir, isEnoent, logger, type postmortem, VERSION } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
+import { getBlobsDir, isEnoent, logger, type postmortem, VERSION } from "@linxiraos/pi-utils";
 import {
 	type Agent,
 	type AgentSideConnection,
@@ -42,7 +42,7 @@ import {
 	type SetSessionModeRequest,
 	type SetSessionModeResponse,
 	type Usage,
-} from "@zeta/pi-utils/acp";
+} from "@linxiraos/pi-utils/acp";
 import { disableProvider, enableProvider, reset as resetCapabilities } from "../../capability";
 import { Settings } from "../../config/settings";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";

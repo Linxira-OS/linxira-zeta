@@ -2,16 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@zeta/pi-ai/api-registry";
-import { startAuthGateway } from "@zeta/pi-ai/auth-gateway";
-import { AuthStorage } from "@zeta/pi-ai/auth-storage";
-import { createMockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
-import { encodeResponse, encodeStream, parseRequest } from "@zeta/pi-ai/providers/openai-responses-server";
-import { buildResponsesInput } from "@zeta/pi-ai/providers/openai-shared";
-import type { AssistantMessage, ModelSpec } from "@zeta/pi-ai/types";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
+import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
+import { AuthStorage } from "@linxiraos/pi-ai/auth-storage";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { encodeResponse, encodeStream, parseRequest } from "@linxiraos/pi-ai/providers/openai-responses-server";
+import { buildResponsesInput } from "@linxiraos/pi-ai/providers/openai-shared";
+import type { AssistantMessage, ModelSpec } from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 
 function zeroUsage(): AssistantMessage["usage"] {
 	return {

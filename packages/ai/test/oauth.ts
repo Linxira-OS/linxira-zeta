@@ -8,9 +8,9 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { getOAuthApiKey } from "@zeta/pi-ai/oauth";
-import type { OAuthCredentials, OAuthProvider } from "@zeta/pi-ai/oauth/types";
-import { $flag, getAgentDir, isEnoent } from "@zeta/pi-utils";
+import { getOAuthApiKey } from "@linxiraos/pi-ai/oauth";
+import type { OAuthCredentials, OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
+import { $flag, getAgentDir, isEnoent } from "@linxiraos/pi-utils";
 
 /**
  * E2E tests require explicit opt-in via E2E=1 environment variable.

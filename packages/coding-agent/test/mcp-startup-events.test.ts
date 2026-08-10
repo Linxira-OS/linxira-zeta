@@ -5,7 +5,7 @@ import {
 	formatMCPConnectionStatusMessage,
 	isMcpConnectionStatusEvent,
 	MCP_CONNECTION_STATUS_EVENT_CHANNEL,
-} from "@zeta/pi-coding-agent/mcp/startup-events";
+} from "@linxiraos/zeta/mcp/startup-events";
 
 // Cross-module contract guard.
 //

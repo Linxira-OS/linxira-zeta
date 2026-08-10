@@ -3,7 +3,7 @@
  *
  * Types for the Exa MCP client and tool implementations.
  */
-import type { TSchema } from "@zeta/pi-ai";
+import type { TSchema } from "@linxiraos/pi-ai";
 
 /** MCP tool definition from server */
 export interface MCPTool {

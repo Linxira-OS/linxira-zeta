@@ -4,8 +4,8 @@ import * as path from "node:path";
 const repoRoot = path.resolve(import.meta.dir, "../../../..");
 
 const probe = `
-import { CmuxTab, runCmuxCode } from "@zeta/pi-coding-agent/tools/browser/cmux/cmux-tab";
-import { CmuxSocketClient } from "@zeta/pi-coding-agent/tools/browser/cmux/socket-client";
+import { CmuxTab, runCmuxCode } from "@linxiraos/zeta/tools/browser/cmux/cmux-tab";
+import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
 
 const cwd = process.cwd();
 const tab = new CmuxTab({

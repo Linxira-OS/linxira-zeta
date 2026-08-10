@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { SessionAccountSelectorComponent } from "@zeta/pi-coding-agent/modes/components/session-account-selector";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { toSessionPinAccounts } from "@zeta/pi-coding-agent/slash-commands/helpers/session-pin";
+import { SessionAccountSelectorComponent } from "@linxiraos/zeta/modes/components/session-account-selector";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { toSessionPinAccounts } from "@linxiraos/zeta/slash-commands/helpers/session-pin";
 
 beforeAll(async () => {
 	await initTheme();

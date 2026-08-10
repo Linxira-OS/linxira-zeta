@@ -1,5 +1,5 @@
-import { encodeSixel } from "@zeta/pi-natives";
-import { $env, isBunTestRuntime, isTerminalHeadless } from "@zeta/pi-utils";
+import { encodeSixel } from "@linxiraos/pi-natives";
+import { $env, isBunTestRuntime, isTerminalHeadless } from "@linxiraos/pi-utils";
 import { sendDesktopNotification, shouldDeliverDesktopNotification } from "./desktop-notify";
 import {
 	detectKittyUnicodePlaceholdersSupport,

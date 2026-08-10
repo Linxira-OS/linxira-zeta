@@ -9,7 +9,7 @@
  *                                 └─ 其他所有请求 → Web UI Next.js (随机内部端口)
  */
 
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { openPath } from "../utils/open";
 
@@ -222,7 +222,7 @@ export class ZetaServer {
 
 	async #startStats(port: number): Promise<void> {
 		try {
-			const { startServer } = await import("@zeta/omp-stats");
+			const { startServer } = await import("@linxiraos/pi-stats");
 			const server = await startServer(port);
 			this.#statsServer = server;
 			logger.info("Stats Dashboard started", { port: server.port });

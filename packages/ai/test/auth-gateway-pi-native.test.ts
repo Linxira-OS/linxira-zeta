@@ -2,19 +2,19 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@zeta/pi-ai/api-registry";
-import { startAuthGateway } from "@zeta/pi-ai/auth-gateway";
-import { AuthStorage } from "@zeta/pi-ai/auth-storage";
-import { createMockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
-import { encodeStream, formatError, parseRequest } from "@zeta/pi-ai/providers/pi-native-server";
+import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
+import { AuthStorage } from "@linxiraos/pi-ai/auth-storage";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { encodeStream, formatError, parseRequest } from "@linxiraos/pi-ai/providers/pi-native-server";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
 	Context,
 	Usage,
-} from "@zeta/pi-ai/types";
-import { Effort } from "@zeta/pi-catalog/effort";
+} from "@linxiraos/pi-ai/types";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 
 function makeEventStream(events: AssistantMessageEvent[], final: AssistantMessage): AssistantMessageEventStream {
 	async function* iter() {

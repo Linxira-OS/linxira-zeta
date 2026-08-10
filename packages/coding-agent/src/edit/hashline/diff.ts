@@ -32,7 +32,7 @@ import {
 	type SnapshotStore,
 	stripBom,
 	validateClipboardSequence,
-} from "@zeta/hashline";
+} from "@linxiraos/pi-hashline";
 import { resolveToCwd } from "../../tools/path-utils";
 import { generateDiffString } from "../diff";
 import { canonicalSnapshotKey } from "../file-snapshot-store";

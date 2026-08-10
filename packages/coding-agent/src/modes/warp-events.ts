@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { isInsideTmux, wrapTmuxPassthrough } from "@zeta/pi-tui/terminal-capabilities";
-import { VERSION } from "@zeta/pi-utils/dirs";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { isInsideTmux, wrapTmuxPassthrough } from "@linxiraos/pi-tui/terminal-capabilities";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import type { ExtensionContext, ExtensionFactory } from "../extensibility/extensions/types";
 import { isSilentAbort, isUserInterruptAbort, SKILL_PROMPT_MESSAGE_TYPE } from "../session/messages";
 

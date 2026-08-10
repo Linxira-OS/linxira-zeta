@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage, ImageContent } from "@zeta/pi-ai";
-import type { SessionMessageEntry } from "@zeta/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { getBlobsDir, TempDir } from "@zeta/pi-utils";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import { getBlobsDir, TempDir } from "@linxiraos/pi-utils";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 function isAssistantSessionEntry(entry: unknown): entry is SessionMessageEntry & { message: AssistantMessage } {
 	return (

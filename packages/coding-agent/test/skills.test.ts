@@ -2,16 +2,11 @@ import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type Skill as CapabilitySkill, skillCapability } from "@zeta/pi-coding-agent/capability/skill";
-import { getCapability } from "@zeta/pi-coding-agent/discovery";
-import { getWslWindowsHomeCandidate } from "@zeta/pi-coding-agent/discovery/agents";
-import {
-	loadSkills,
-	loadSkillsFromDir,
-	parseSkillInvocation,
-	type Skill,
-} from "@zeta/pi-coding-agent/extensibility/skills";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { type Skill as CapabilitySkill, skillCapability } from "@linxiraos/zeta/capability/skill";
+import { getCapability } from "@linxiraos/zeta/discovery";
+import { getWslWindowsHomeCandidate } from "@linxiraos/zeta/discovery/agents";
+import { loadSkills, loadSkillsFromDir, parseSkillInvocation, type Skill } from "@linxiraos/zeta/extensibility/skills";
 
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");

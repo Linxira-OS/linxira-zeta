@@ -1,4 +1,4 @@
-import type { AssistantMessage, ServiceTier, ServiceTierByFamily, StopReason, Usage } from "@zeta/pi-ai";
+import type { AssistantMessage, ServiceTier, ServiceTierByFamily, StopReason, Usage } from "@linxiraos/pi-ai";
 import type { AgentType } from "./shared-types";
 
 export * from "./shared-types";

@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { ModelsConfigFile } from "@zeta/pi-coding-agent/config/models-config";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { ModelsConfigFile } from "@linxiraos/zeta/config/models-config";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { YAML } from "bun";
 
 interface HeapSnapshot {

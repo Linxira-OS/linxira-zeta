@@ -1,4 +1,4 @@
-export { type Type, type } from "@zeta/pi-omptype";
+export { type Type, type } from "@linxiraos/pi-omptype";
 export * from "./api-registry";
 export type * from "./auth-broker";
 export type { AuthGatewayBootOptions, ModelResolver } from "./auth-gateway/server";

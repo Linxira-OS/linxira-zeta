@@ -1,4 +1,4 @@
-import { $env } from "@zeta/pi-utils";
+import { $env } from "@linxiraos/pi-utils";
 import { getKimiCommonHeaders } from "../registry/oauth/kimi";
 import type {
 	UsageAmount,

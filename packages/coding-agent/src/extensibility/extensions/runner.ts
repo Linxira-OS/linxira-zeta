@@ -7,10 +7,10 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@zeta/pi-agent-core";
-import type { CredentialDisabledEvent, ImageContent, Model, ProviderResponseMetadata } from "@zeta/pi-ai";
-import type { KeyId } from "@zeta/pi-tui";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import type { CredentialDisabledEvent, ImageContent, Model, ProviderResponseMetadata } from "@linxiraos/pi-ai";
+import type { KeyId } from "@linxiraos/pi-tui";
+import { logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { Settings } from "../../config/settings";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";

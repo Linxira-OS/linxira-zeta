@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { shouldInlineToolDescriptors } from "@zeta/pi-coding-agent/config/inline-tool-descriptors-mode";
+import { shouldInlineToolDescriptors } from "@linxiraos/zeta/config/inline-tool-descriptors-mode";
 
 describe("shouldInlineToolDescriptors", () => {
 	test("honors explicit on and off regardless of model", () => {

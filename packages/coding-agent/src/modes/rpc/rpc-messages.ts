@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { isRecord } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { isRecord } from "@linxiraos/pi-utils";
 
 const DEFAULT_RPC_MESSAGE_PAGE_LIMIT = 100;
 const MAX_RPC_MESSAGE_PAGE_LIMIT = 256;

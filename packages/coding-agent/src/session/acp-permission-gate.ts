@@ -1,5 +1,5 @@
-import { Patch } from "@zeta/hashline";
-import { isRecord, stringProperty } from "@zeta/pi-utils";
+import { Patch } from "@linxiraos/pi-hashline";
+import { isRecord, stringProperty } from "@linxiraos/pi-utils";
 import { expandApplyPatchToEntries } from "../edit";
 import { resolveToCwd } from "../tools/path-utils";
 import type { ClientBridgePermissionOption } from "./client-bridge";

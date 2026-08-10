@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
-import { setExcludedSearchProviders } from "@zeta/pi-coding-agent/web/search/provider";
-import type { SearchParams } from "@zeta/pi-coding-agent/web/search/providers/base";
-import { searchPublicWeb } from "@zeta/pi-coding-agent/web/search/providers/public";
-import { SearchProviderError, type SearchProviderId } from "@zeta/pi-coding-agent/web/search/types";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { setExcludedSearchProviders } from "@linxiraos/zeta/web/search/provider";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import { searchPublicWeb } from "@linxiraos/zeta/web/search/providers/public";
+import { SearchProviderError, type SearchProviderId } from "@linxiraos/zeta/web/search/types";
 
 const fakeAuthStorage = {
 	async getApiKey() {

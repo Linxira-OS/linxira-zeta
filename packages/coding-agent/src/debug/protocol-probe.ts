@@ -26,7 +26,7 @@ import {
 	TERMINAL,
 	Text,
 	type TextSizingScale,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import { DynamicBorder } from "../modes/components/dynamic-border";
 import { theme } from "../modes/theme/theme";
 

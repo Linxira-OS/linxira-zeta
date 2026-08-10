@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { STREAMING_REVEAL_FRAME_MS } from "@zeta/pi-coding-agent/modes/controllers/streaming-reveal";
+import { STREAMING_JSON_PARSE_MIN_GROWTH } from "@linxiraos/pi-utils";
+import { STREAMING_REVEAL_FRAME_MS } from "@linxiraos/zeta/modes/controllers/streaming-reveal";
 import {
 	decodeStreamedToolArgs,
 	streamingStringKeysForTool,
 	ToolArgsRevealController,
-} from "@zeta/pi-coding-agent/modes/controllers/tool-args-reveal";
-import { STREAMING_JSON_PARSE_MIN_GROWTH } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/modes/controllers/tool-args-reveal";
 
 class RecordingArgsComponent {
 	frames: Array<Record<string, unknown>> = [];

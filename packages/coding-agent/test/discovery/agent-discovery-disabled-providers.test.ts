@@ -6,11 +6,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disableProvider, enableProvider } from "@zeta/pi-coding-agent/capability";
-import { clearCache as clearFsCache } from "@zeta/pi-coding-agent/capability/fs";
-import { clearClaudePluginRootsCache } from "@zeta/pi-coding-agent/discovery/helpers";
-import { discoverAgents } from "@zeta/pi-coding-agent/task/discovery";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { disableProvider, enableProvider } from "@linxiraos/zeta/capability";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
+import { discoverAgents } from "@linxiraos/zeta/task/discovery";
 
 const PLUGIN_AGENT_MD = [
 	"---",

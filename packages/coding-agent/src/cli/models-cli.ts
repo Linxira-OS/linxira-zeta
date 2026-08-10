@@ -11,10 +11,10 @@
  * `ls`/`find` use the cache when fresh (`online-if-uncached`); only `refresh`
  * forces the network (`online`).
  */
-import type { Api, Effort, Model } from "@zeta/pi-ai";
-import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
-import { formatNumber, getProjectDir } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import type { Api, Effort, Model } from "@linxiraos/pi-ai";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { formatNumber, getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAndLoadExtensions, ExtensionRunner, emitSessionShutdownEvent } from "../extensibility/extensions";

@@ -10,13 +10,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { ReadTool, type ReadToolDetails } from "@zeta/pi-coding-agent/tools/read";
-import * as markit from "@zeta/pi-coding-agent/utils/markit";
-import * as piUtils from "@zeta/pi-utils";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import * as piUtils from "@linxiraos/pi-utils";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool, type ReadToolDetails } from "@linxiraos/zeta/tools/read";
+import * as markit from "@linxiraos/zeta/utils/markit";
 
 // 1x1 transparent PNG — small enough to pass through image loading untouched.
 const TINY_PNG = Buffer.from(

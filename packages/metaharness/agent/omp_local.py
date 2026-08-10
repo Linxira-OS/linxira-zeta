@@ -300,7 +300,7 @@ class OmpLocal(BaseInstalledAgent):
                     "if command -v apt-get >/dev/null 2>&1; then "
                     "  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip ca-certificates tar; "
                     "elif command -v apk >/dev/null 2>&1; then "
-                    "  echo 'ERROR: Alpine/musl base image; @zeta/pi-natives ships no musl prebuilt' >&2; exit 3; "
+                    "  echo 'ERROR: Alpine/musl base image; @linxiraos/pi-natives ships no musl prebuilt' >&2; exit 3; "
                     "elif command -v dnf >/dev/null 2>&1; then dnf install -y curl unzip tar; "
                     "elif command -v yum >/dev/null 2>&1; then yum install -y curl unzip tar; "
                     "fi"
@@ -358,7 +358,7 @@ class OmpLocal(BaseInstalledAgent):
                 "set -e; "
                 f"test -x {q(self._source_bun)} || {{ echo 'omp source mode: bun mount missing' >&2; exit 5; }}; "
                 f"test -f {q(cli)} || {{ echo 'omp source mode: repo mount missing' >&2; exit 5; }}; "
-                f"test -d {q(self._source_dir + '/node_modules/@zeta')} || "
+                f"test -d {q(self._source_dir + '/node_modules/@linxiraos')} || "
                 "{ echo 'omp source mode: linux deps mount missing' >&2; exit 5; }; "
                 f"{q(self._source_bun)} --version"
             ),
@@ -388,8 +388,8 @@ class OmpLocal(BaseInstalledAgent):
                 # Native leaf MUST match the bundle version exactly (loader/API skew
                 # otherwise). Read it straight from the packed package.json.
                 'ver=$(bun -e "process.stdout.write(require(\\"./package.json\\").version)"); '
-                'echo "pinning native @zeta/pi-natives-linux-$na@$ver"; '
-                'bun add --production "@zeta/pi-natives-linux-$na@$ver"'
+                'echo "pinning native @linxiraos/pi-natives-linux-$na@$ver"; '
+                'bun add --production "@linxiraos/pi-natives-linux-$na@$ver"'
             ),
             timeout_sec=900,
         )
@@ -426,7 +426,7 @@ class OmpLocal(BaseInstalledAgent):
 
     async def _install_published(self, environment: BaseEnvironment) -> str:
         app = f"{self._home}/.omp-bench/app"
-        spec = f"@zeta/pi-coding-agent@{self._pkg_version}"
+        spec = f"@linxiraos/zeta@{self._pkg_version}"
         await self.exec_as_agent(
             environment,
             command=self._wrap(
@@ -437,7 +437,7 @@ class OmpLocal(BaseInstalledAgent):
             ),
             timeout_sec=900,
         )
-        return f"{app}/node_modules/@zeta/pi-coding-agent/dist/cli.js"
+        return f"{app}/node_modules/@linxiraos/zeta/dist/cli.js"
 
     async def _write_models_yaml(self, environment: BaseEnvironment) -> None:
         if self._models_yaml_path and os.path.isfile(self._models_yaml_path):

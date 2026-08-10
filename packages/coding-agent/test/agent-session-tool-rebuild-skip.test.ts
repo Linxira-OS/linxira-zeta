@@ -1,21 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage, type AgentTool } from "@zeta/pi-agent-core";
-import type { Message, Model } from "@zeta/pi-ai";
-import { createMockModel, type MockResponseSource } from "@zeta/pi-ai/providers/mock";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { CustomTool } from "@zeta/pi-coding-agent/extensibility/custom-tools/types";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { type CustomMessage, convertToLlm } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import {
-	collectMountedMCPToolRoutes,
-	projectMountedMCPXdevGuidance,
-} from "@zeta/pi-coding-agent/session/session-tools";
-import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@zeta/pi-coding-agent/tools/xdev";
-import { type } from "@zeta/pi-omptype";
-import { logger } from "@zeta/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
+import type { Message, Model } from "@linxiraos/pi-ai";
+import { createMockModel, type MockResponseSource } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { logger } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { type CustomMessage, convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { collectMountedMCPToolRoutes, projectMountedMCPXdevGuidance } from "@linxiraos/zeta/session/session-tools";
+import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@linxiraos/zeta/tools/xdev";
 
 // Cache-stability invariant: when MCP servers reconnect with byte-identical tool
 // definitions, `refreshMCPTools` must not rebuild the system prompt. A rebuild

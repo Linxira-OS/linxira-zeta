@@ -1,5 +1,5 @@
-import type { AuthStorage, OAuthAccess } from "@zeta/pi-ai";
-import { $env } from "@zeta/pi-utils";
+import type { AuthStorage, OAuthAccess } from "@linxiraos/pi-ai";
+import { $env } from "@linxiraos/pi-utils";
 
 export const PERPLEXITY_CHAT_BASE_URL = "https://api.perplexity.ai";
 export const PERPLEXITY_RESPONSES_BASE_URL = "https://api.perplexity.ai/v1";

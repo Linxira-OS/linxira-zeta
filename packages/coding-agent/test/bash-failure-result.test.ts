@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { BashTool } from "@zeta/pi-coding-agent/tools/bash";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
 
 function makeSession(): ToolSession {
 	return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { CURSOR_MARKER } from "@zeta/pi-tui/tui";
+import { CURSOR_MARKER } from "@linxiraos/pi-tui/tui";
 import {
 	compositeExpectedLineAt,
 	cursorInsertionIndex,

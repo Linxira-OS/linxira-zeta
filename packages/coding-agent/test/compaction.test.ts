@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	type CompactionSettings,
 	calculateContextTokens,
@@ -14,21 +14,21 @@ import {
 	prepareCompaction,
 	resolveThresholdTokens,
 	shouldCompact,
-} from "@zeta/pi-agent-core/compaction/compaction";
-import * as ai from "@zeta/pi-ai";
-import { encodeTextSignatureV1 } from "@zeta/pi-ai/providers/openai-shared";
-import type { AssistantMessage, Model, ProviderPayload, Usage } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { buildSessionContext } from "@zeta/pi-coding-agent/session/session-context";
+} from "@linxiraos/pi-agent-core/compaction/compaction";
+import * as ai from "@linxiraos/pi-ai";
+import { encodeTextSignatureV1 } from "@linxiraos/pi-ai/providers/openai-shared";
+import type { AssistantMessage, Model, ProviderPayload, Usage } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { buildSessionContext } from "@linxiraos/zeta/session/session-context";
 import type {
 	CompactionEntry,
 	ModelChangeEntry,
 	SessionEntry,
 	SessionMessageEntry,
 	ThinkingLevelChangeEntry,
-} from "@zeta/pi-coding-agent/session/session-entries";
-import { parseSessionEntries } from "@zeta/pi-coding-agent/session/session-loader";
-import { migrateSessionEntries } from "@zeta/pi-coding-agent/session/session-migrations";
+} from "@linxiraos/zeta/session/session-entries";
+import { parseSessionEntries } from "@linxiraos/zeta/session/session-loader";
+import { migrateSessionEntries } from "@linxiraos/zeta/session/session-migrations";
 import { mockFetch } from "./helpers/fetch-mock";
 import { e2eApiKey } from "./utilities";
 

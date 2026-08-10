@@ -2,8 +2,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { glob } from "@zeta/pi-natives";
-import { hasFsCode, isEnoent, isEnotdir, stripWindowsExtendedLengthPathPrefix, untilAborted } from "@zeta/pi-utils";
+import { glob } from "@linxiraos/pi-natives";
+import {
+	hasFsCode,
+	isEnoent,
+	isEnotdir,
+	stripWindowsExtendedLengthPathPrefix,
+	untilAborted,
+} from "@linxiraos/pi-utils";
 import type { Skill } from "../extensibility/skills";
 import { M } from "../i18n/messages";
 import { InternalUrlRouter, type LocalProtocolOptions } from "../internal-urls";

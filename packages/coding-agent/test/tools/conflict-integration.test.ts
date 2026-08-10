@@ -2,10 +2,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createTools, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { ConflictHistory } from "@zeta/pi-coding-agent/tools/conflict-detect";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
+import { ConflictHistory } from "@linxiraos/zeta/tools/conflict-detect";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { convertMessages } from "@zeta/pi-ai/providers/google-shared";
-import type { Context, Model, Usage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { convertMessages } from "@linxiraos/pi-ai/providers/google-shared";
+import type { Context, Model, Usage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

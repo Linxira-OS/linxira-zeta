@@ -6,7 +6,7 @@
  *
  * Usage:
  *
- *   import { createMockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
+ *   import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
  *
  *   // 1. Array of responses, one per call.
  *   const mock = createMockModel({

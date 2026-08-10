@@ -7,7 +7,12 @@ import type {
 	AutomaticSpeechRecognitionPipeline,
 	ProgressInfo,
 } from "@huggingface/transformers";
-import { ensureRuntimeInstalled, getTinyModelsCacheDir, isCompiledBinary, resolveRuntimeModule } from "@zeta/pi-utils";
+import {
+	ensureRuntimeInstalled,
+	getTinyModelsCacheDir,
+	isCompiledBinary,
+	resolveRuntimeModule,
+} from "@linxiraos/pi-utils";
 import packageJson from "../../package.json" with { type: "json" };
 import {
 	errorMessage,

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetExtraCaCache } from "@zeta/pi-utils";
+import { __resetExtraCaCache } from "@linxiraos/pi-utils";
 import { fetchOpenAICompatibleModels } from "../src/discovery/openai-compatible";
 
 describe("discovery null limits", () => {

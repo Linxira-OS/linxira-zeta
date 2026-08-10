@@ -1,3 +1,3 @@
-import { isBunTestRuntime } from "@zeta/pi-utils/env";
+import { isBunTestRuntime } from "@linxiraos/pi-utils/env";
 
 process.stdout.write(JSON.stringify(isBunTestRuntime()));

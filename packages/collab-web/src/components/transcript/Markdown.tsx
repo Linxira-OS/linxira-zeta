@@ -1,4 +1,4 @@
-import { Marked } from "@zeta/pi-utils/marked";
+import { Marked } from "@linxiraos/pi-utils/marked";
 import type { ReactNode } from "react";
 import { memo, useMemo } from "react";
 

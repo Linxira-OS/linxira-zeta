@@ -1,9 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@zeta/pi-coding-agent/config/settings";
-import { LocalProtocolHandler } from "@zeta/pi-coding-agent/internal-urls/local-protocol";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
+import * as terminalCaps from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { LocalProtocolHandler } from "@linxiraos/zeta/internal-urls/local-protocol";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import {
 	fileHyperlink,
 	isHyperlinkEnabled,
@@ -11,8 +12,7 @@ import {
 	uriHyperlink,
 	urlHyperlink,
 	urlHyperlinkAlways,
-} from "@zeta/pi-coding-agent/tui/hyperlink";
-import * as terminalCaps from "@zeta/pi-tui";
+} from "@linxiraos/zeta/tui/hyperlink";
 
 // OSC 8 sequence markers
 const OSC = "\x1b]";

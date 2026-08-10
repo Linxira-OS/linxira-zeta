@@ -3,8 +3,8 @@ import {
 	renderSegmentTrack,
 	resolveSegmentPalette,
 	type TrackSegment,
-} from "@zeta/pi-coding-agent/modes/components/segment-track";
-import { initTheme, type ThemeColor, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/zeta/modes/components/segment-track";
+import { initTheme, type ThemeColor, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();

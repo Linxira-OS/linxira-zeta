@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs } from "@zeta/pi-coding-agent/cli/args";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
 
 describe("parseArgs — --advisor flag", () => {
 	it("parses --advisor as a boolean flag", () => {

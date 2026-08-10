@@ -2,16 +2,17 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@zeta/pi-ai";
-import { RpcClient } from "@zeta/pi-coding-agent/modes/rpc/rpc-client";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 import {
 	handleRpcSessionChange,
 	type RpcSessionChangeCommand,
 	type RpcSessionChangeResult,
 	type RpcSessionChangeSession,
-} from "@zeta/pi-coding-agent/modes/rpc/rpc-mode";
-import { RpcSubagentRegistry, readRpcSubagentTranscript } from "@zeta/pi-coding-agent/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@zeta/pi-coding-agent/modes/rpc/rpc-types";
+} from "@linxiraos/zeta/modes/rpc/rpc-mode";
+import { RpcSubagentRegistry, readRpcSubagentTranscript } from "@linxiraos/zeta/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
 import {
 	type AgentProgress,
 	type SubagentEventPayload,
@@ -20,9 +21,8 @@ import {
 	TASK_SUBAGENT_EVENT_CHANNEL,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@zeta/pi-coding-agent/task";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/task";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 const tempPaths: string[] = [];
 

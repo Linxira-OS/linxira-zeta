@@ -14,9 +14,9 @@
  * Throws on any failure (no model, no key, unparseable output, abort/timeout);
  * the caller falls back to a concrete level and continues the turn.
  */
-import { type AssistantMessage, completeSimple, Effort, type Model } from "@zeta/pi-ai";
-import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
-import { prompt } from "@zeta/pi-utils";
+import { type AssistantMessage, completeSimple, Effort, type Model } from "@linxiraos/pi-ai";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { prompt } from "@linxiraos/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { resolveRoleSelection } from "../config/model-resolver";

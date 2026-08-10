@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { Message, UserMessage } from "@zeta/pi-ai";
-import { logger } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Message, UserMessage } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import { visitEntriesFromFileStream } from "../session/session-loader";
 import { SessionManager } from "../session/session-manager";
 

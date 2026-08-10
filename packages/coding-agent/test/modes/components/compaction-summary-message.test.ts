@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	createHandoffSummaryMessageComponent,
 	HandoffSummaryMessageComponent,
-} from "@zeta/pi-coding-agent/modes/components/compaction-summary-message";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { CustomMessage } from "@zeta/pi-coding-agent/session/messages";
+} from "@linxiraos/zeta/modes/components/compaction-summary-message";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 
 beforeAll(async () => {
 	resetSettingsForTest();

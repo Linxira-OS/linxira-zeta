@@ -10,12 +10,12 @@
  * 4. A persisted `"denied"` short-circuits the handler AND no-ops the tool.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	__resetAutoQaConsentForTests,
 	resolveAutoQaConsent,
 	setAutoQaConsentHandler,
-} from "@zeta/pi-coding-agent/tools/report-tool-issue";
+} from "@linxiraos/zeta/tools/report-tool-issue";
 
 afterEach(() => {
 	__resetAutoQaConsentForTests();

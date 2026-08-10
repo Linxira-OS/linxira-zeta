@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { keywordInProse, maskNonProse } from "@zeta/pi-coding-agent/modes/markdown-prose";
+import { keywordInProse, maskNonProse } from "@linxiraos/zeta/modes/markdown-prose";
 
 const ORCHESTRATE = /\borchestrate\b/i;
 

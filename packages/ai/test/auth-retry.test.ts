@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ApiKeyResolveContext, OAuthAccess, OAuthAccessSource } from "@zeta/pi-ai";
+import type { ApiKeyResolveContext, OAuthAccess, OAuthAccessSource } from "@linxiraos/pi-ai";
 import {
 	AUTH_RETRY_MAX_ATTEMPTS,
 	isApiKeyResolver,
@@ -7,8 +7,8 @@ import {
 	resolveApiKeyOnce,
 	withAuth,
 	withOAuthAccess,
-} from "@zeta/pi-ai";
-import { ProviderHttpError } from "@zeta/pi-ai/error";
+} from "@linxiraos/pi-ai";
+import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 
 function authError(status = 401): Error & { status: number } {
 	return Object.assign(new Error(`${status} authentication_error`), { status });

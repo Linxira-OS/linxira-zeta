@@ -13,7 +13,7 @@ import {
 	Patch,
 	Patcher,
 	type WriteResult,
-} from "@zeta/hashline";
+} from "@linxiraos/pi-hashline";
 
 const PATH = "a.ts";
 

@@ -1,10 +1,17 @@
 /** Provider-facing message, image, secret, and stream normalization for a session. */
 
-import type { Agent, AgentMessage } from "@zeta/pi-agent-core";
-import type { CompactionPreparation } from "@zeta/pi-agent-core/compaction";
-import type { AssistantMessage, ImageContent, Message, Model, SimpleStreamOptions, TextContent } from "@zeta/pi-ai";
-import { isRecord, logger } from "@zeta/pi-utils";
-import * as snapcompact from "@zeta/snapcompact";
+import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
+import type { CompactionPreparation } from "@linxiraos/pi-agent-core/compaction";
+import type {
+	AssistantMessage,
+	ImageContent,
+	Message,
+	Model,
+	SimpleStreamOptions,
+	TextContent,
+} from "@linxiraos/pi-ai";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { isRecord, logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import type { Settings } from "../config/settings";

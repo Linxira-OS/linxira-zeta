@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { getThemeByName, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { renderMarkdownCell } from "@zeta/pi-coding-agent/tui/code-cell";
-import { renderOutputBlock } from "@zeta/pi-coding-agent/tui/output-block";
+import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { renderMarkdownCell } from "@linxiraos/zeta/tui/code-cell";
+import { renderOutputBlock } from "@linxiraos/zeta/tui/output-block";
 
 describe("renderOutputBlock", () => {
 	beforeAll(async () => {

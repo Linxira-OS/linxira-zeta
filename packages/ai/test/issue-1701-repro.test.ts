@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { streamAzureOpenAIResponses } from "@zeta/pi-ai/providers/azure-openai-responses";
-import { streamOpenAICodexResponses } from "@zeta/pi-ai/providers/openai-codex-responses";
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
-import type { Context, Model, Tool, ToolChoice } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "@zeta/pi-omptype";
-import * as piUtils from "@zeta/pi-utils";
+import { streamAzureOpenAIResponses } from "@linxiraos/pi-ai/providers/azure-openai-responses";
+import { streamOpenAICodexResponses } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import type { Context, Model, Tool, ToolChoice } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import * as piUtils from "@linxiraos/pi-utils";
 
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";
 

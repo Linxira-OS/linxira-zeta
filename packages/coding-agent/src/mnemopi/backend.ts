@@ -1,11 +1,11 @@
 import { rm } from "node:fs/promises";
 import * as path from "node:path";
-import { type ApiKeyResolver, completeSimple } from "@zeta/pi-ai";
-import { hostMatchesUrl } from "@zeta/pi-catalog/hosts";
-import type { Mnemopi } from "@zeta/pi-mnemopi";
-import type * as MnemopiDiagnoseNs from "@zeta/pi-mnemopi/diagnose";
-import type { DiagnosticSummary } from "@zeta/pi-mnemopi/diagnose";
-import { logger } from "@zeta/pi-utils";
+import { type ApiKeyResolver, completeSimple } from "@linxiraos/pi-ai";
+import { hostMatchesUrl } from "@linxiraos/pi-catalog/hosts";
+import type { Mnemopi } from "@linxiraos/pi-mnemopi";
+import type * as MnemopiDiagnoseNs from "@linxiraos/pi-mnemopi/diagnose";
+import type { DiagnosticSummary } from "@linxiraos/pi-mnemopi/diagnose";
+import { logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { resolveRoleSelection } from "../config/model-resolver";
 import type {
@@ -45,7 +45,7 @@ let mnemopiDiagnoseMod: typeof MnemopiDiagnoseNs | undefined;
 
 async function loadMnemopiDiagnose(): Promise<typeof MnemopiDiagnoseNs> {
 	if (!mnemopiDiagnoseMod) {
-		mnemopiDiagnoseMod = await import("@zeta/pi-mnemopi/diagnose");
+		mnemopiDiagnoseMod = await import("@linxiraos/pi-mnemopi/diagnose");
 	}
 	return mnemopiDiagnoseMod;
 }

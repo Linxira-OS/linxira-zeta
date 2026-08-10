@@ -15,9 +15,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { getPluginsDir, isEnoent, logger, tryParseJson } from "@zeta/pi-utils";
+import { getPluginsDir, isEnoent, logger, tryParseJson } from "@linxiraos/pi-utils";
 
-export { getMarketplacesRegistryPath } from "@zeta/pi-utils";
+export { getMarketplacesRegistryPath } from "@linxiraos/pi-utils";
 
 import type {
 	InstalledPluginEntry,

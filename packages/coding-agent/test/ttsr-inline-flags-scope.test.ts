@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { compileRuleCondition } from "@zeta/pi-coding-agent/capability/rule";
-import { buildRuleFromMarkdown, createSourceMeta } from "@zeta/pi-coding-agent/discovery/helpers";
-import { TtsrManager } from "@zeta/pi-coding-agent/export/ttsr";
+import { compileRuleCondition } from "@linxiraos/zeta/capability/rule";
+import { buildRuleFromMarkdown, createSourceMeta } from "@linxiraos/zeta/discovery/helpers";
+import { TtsrManager } from "@linxiraos/zeta/export/ttsr";
 
 /**
  * Regression coverage for issue #4796: a rule with a leading `(?i)` inline regex

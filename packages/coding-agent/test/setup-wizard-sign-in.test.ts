@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@zeta/pi-ai";
-import type { OAuthLoginCallbacks, OAuthProviderId } from "@zeta/pi-ai/oauth/types";
-import { SignInTab } from "@zeta/pi-coding-agent/modes/setup-wizard/scenes/sign-in";
-import type { SetupSceneHost } from "@zeta/pi-coding-agent/modes/setup-wizard/scenes/types";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import * as clipboard from "@zeta/pi-coding-agent/utils/clipboard";
-import type { Component } from "@zeta/pi-tui";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import type { OAuthLoginCallbacks, OAuthProviderId } from "@linxiraos/pi-ai/oauth/types";
+import type { Component } from "@linxiraos/pi-tui";
+import { SignInTab } from "@linxiraos/zeta/modes/setup-wizard/scenes/sign-in";
+import type { SetupSceneHost } from "@linxiraos/zeta/modes/setup-wizard/scenes/types";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
 
 beforeAll(async () => {
 	await initTheme();

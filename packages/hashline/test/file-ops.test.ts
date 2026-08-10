@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { computeFileHash, InMemoryFilesystem, InMemorySnapshotStore, Patch, Patcher, parsePatch } from "@zeta/hashline";
+import {
+	computeFileHash,
+	InMemoryFilesystem,
+	InMemorySnapshotStore,
+	Patch,
+	Patcher,
+	parsePatch,
+} from "@linxiraos/pi-hashline";
 
 const PATH = "src/old.ts";
 const DEST = "src/new.ts";

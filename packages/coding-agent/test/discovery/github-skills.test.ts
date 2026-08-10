@@ -13,12 +13,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@zeta/pi-coding-agent/capability";
-import { clearCache } from "@zeta/pi-coding-agent/capability/fs";
-import type { Skill } from "@zeta/pi-coding-agent/capability/skill";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
-import "@zeta/pi-coding-agent/capability/skill";
-import "@zeta/pi-coding-agent/discovery/github";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { loadCapability } from "@linxiraos/zeta/capability";
+import { clearCache } from "@linxiraos/zeta/capability/fs";
+import type { Skill } from "@linxiraos/zeta/capability/skill";
+import "@linxiraos/zeta/capability/skill";
+import "@linxiraos/zeta/discovery/github";
 
 function writeSkill(root: string, name: string, description: string | null): void {
 	const skillDir = path.join(root, name);

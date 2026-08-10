@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { demoteInterruptedThinking } from "@zeta/pi-coding-agent/session/messages";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { demoteInterruptedThinking } from "@linxiraos/zeta/session/messages";
 
 function demoteContent(content: AssistantMessage["content"]) {
 	return demoteInterruptedThinking({ content });

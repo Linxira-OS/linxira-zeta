@@ -1,4 +1,4 @@
-import { Text } from "@zeta/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
 import { theme } from "../../modes/theme/theme";
 
 /**

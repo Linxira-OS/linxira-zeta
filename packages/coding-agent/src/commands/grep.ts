@@ -2,8 +2,8 @@
  * Test grep tool.
  */
 
-import { GrepOutputMode } from "@zeta/pi-natives";
-import { Args, Command, Flags } from "@zeta/pi-utils/cli";
+import { GrepOutputMode } from "@linxiraos/pi-natives";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { grepHelp as commandHelp } from "../cli/command-help";
 import { type GrepCommandArgs, runGrepCommand } from "../cli/grep-cli";
 import { initTheme } from "../modes/theme/theme";

@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { $flag, $which, logger } from "@zeta/pi-utils";
+import { $flag, $which, logger } from "@linxiraos/pi-utils";
 import { TOML } from "bun";
 
 /**

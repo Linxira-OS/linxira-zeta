@@ -1,8 +1,8 @@
-import type { AgentToolContext, ToolCallContext } from "@zeta/pi-agent-core";
+import type { AgentToolContext, ToolCallContext } from "@linxiraos/pi-agent-core";
 import type { CustomToolContext } from "../extensibility/custom-tools/types";
 import type { ExtensionUIContext } from "../extensibility/extensions/types";
 
-declare module "@zeta/pi-agent-core" {
+declare module "@linxiraos/pi-agent-core" {
 	interface AgentToolContext extends CustomToolContext {
 		ui?: ExtensionUIContext;
 		hasUI?: boolean;

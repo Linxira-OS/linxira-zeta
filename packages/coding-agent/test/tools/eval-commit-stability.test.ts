@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { EvalStatusEvent, EvalToolDetails } from "@zeta/pi-coding-agent/eval/types";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { TUI } from "@zeta/pi-tui";
+import type { TUI } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalStatusEvent, EvalToolDetails } from "@linxiraos/zeta/eval/types";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 const uiStub = { requestRender() {}, requestComponentRender() {} } as unknown as TUI;
 

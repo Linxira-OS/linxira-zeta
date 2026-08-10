@@ -1,6 +1,7 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { buildSessionContext } from "@zeta/pi-coding-agent/session/session-context";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { buildSessionContext } from "@linxiraos/zeta/session/session-context";
 import type {
 	BranchSummaryEntry,
 	CompactionEntry,
@@ -8,8 +9,7 @@ import type {
 	SessionEntry,
 	SessionMessageEntry,
 	ThinkingLevelChangeEntry,
-} from "@zeta/pi-coding-agent/session/session-entries";
-import * as snapcompact from "@zeta/snapcompact";
+} from "@linxiraos/zeta/session/session-entries";
 
 function msg(id: string, parentId: string | null, role: "user" | "assistant", text: string): SessionMessageEntry {
 	const base = { type: "message" as const, id, parentId, timestamp: "2025-01-01T00:00:00Z" };

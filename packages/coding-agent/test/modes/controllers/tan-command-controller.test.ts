@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage, Model } from "@zeta/pi-ai";
-import type { AsyncJobRegisterOptions } from "@zeta/pi-coding-agent/async/job-manager";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { resolveLocalRoot } from "@zeta/pi-coding-agent/internal-urls/local-protocol";
-import { TanCommandController } from "@zeta/pi-coding-agent/modes/controllers/tan-command-controller";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { AgentRegistry, MAIN_AGENT_ID } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import type { AsyncJobRegisterOptions } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resolveLocalRoot } from "@linxiraos/zeta/internal-urls/local-protocol";
+import { TanCommandController } from "@linxiraos/zeta/modes/controllers/tan-command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 interface CapturedJobRunContext {
 	jobId: string;

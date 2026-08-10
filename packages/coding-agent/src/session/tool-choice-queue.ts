@@ -1,4 +1,4 @@
-import type { ToolChoice } from "@zeta/pi-ai";
+import type { ToolChoice } from "@linxiraos/pi-ai";
 
 // ── Callback types ──────────────────────────────────────────────────────────
 

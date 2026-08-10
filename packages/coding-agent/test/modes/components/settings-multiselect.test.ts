@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@zeta/pi-coding-agent/config/settings";
-import { SettingsSelectorComponent } from "@zeta/pi-coding-agent/modes/components/settings-selector";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { SEARCH_PROVIDER_CHOICES } from "@zeta/pi-coding-agent/web/search/types";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { SettingsSelectorComponent } from "@linxiraos/zeta/modes/components/settings-selector";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { SEARCH_PROVIDER_CHOICES } from "@linxiraos/zeta/web/search/types";
 
 beforeAll(async () => {
 	await initTheme();

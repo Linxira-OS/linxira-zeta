@@ -10,17 +10,17 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache, readFile } from "@zeta/pi-coding-agent/capability/fs";
-import type { Rule } from "@zeta/pi-coding-agent/capability/rule";
-import type { LoadContext } from "@zeta/pi-coding-agent/capability/types";
-import { getProjectPathCandidates } from "@zeta/pi-coding-agent/discovery/agents";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { clearCache, readFile } from "@linxiraos/zeta/capability/fs";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import type { LoadContext } from "@linxiraos/zeta/capability/types";
+import { getProjectPathCandidates } from "@linxiraos/zeta/discovery/agents";
 import {
 	buildRuleFromMarkdown,
 	calculateDepth,
 	loadFilesFromDir,
 	scanSkillsFromDir,
-} from "@zeta/pi-coding-agent/discovery/helpers";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/discovery/helpers";
 
 const PROVIDER_ID = "agents";
 

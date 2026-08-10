@@ -18,12 +18,12 @@
  * - isKittyProtocolActive() - Query global Kitty protocol state
  */
 
-import type { KeyEventType } from "@zeta/pi-natives";
+import type { KeyEventType } from "@linxiraos/pi-natives";
 import {
 	matchesKey as matchesKeyNative,
 	parseKey as parseKeyNative,
 	parseKittySequence as parseKittySequenceNative,
-} from "@zeta/pi-natives";
+} from "@linxiraos/pi-natives";
 import { isInsideTerminalMultiplexer } from "./terminal-capabilities";
 
 // =============================================================================

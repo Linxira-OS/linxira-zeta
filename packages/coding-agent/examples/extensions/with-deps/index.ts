@@ -4,7 +4,7 @@
  *
  * Requires: npm install in this directory
  */
-import type { ExtensionAPI } from "@zeta/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 import ms from "ms";
 
 export default function (pi: ExtensionAPI) {

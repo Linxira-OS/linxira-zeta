@@ -1,17 +1,17 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, AgentBusyError } from "@zeta/pi-agent-core";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { GoalTool } from "@zeta/pi-coding-agent/goals/tools/goal-tool";
-import { InteractiveMode } from "@zeta/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { createTools, type Tool, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, AgentBusyError } from "@linxiraos/pi-agent-core";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { GoalTool } from "@linxiraos/zeta/goals/tools/goal-tool";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createTools, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
 
 function createToolSession(cwd: string, settings: Settings, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

@@ -2,7 +2,7 @@ import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { APP_NAME } from "@zeta/pi-utils";
+import { APP_NAME } from "@linxiraos/pi-utils";
 import { buildSystemPrompt } from "../src/system-prompt";
 
 interface ProbeRunResult {

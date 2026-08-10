@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { isEnoent } from "@zeta/pi-utils";
+import { isEnoent } from "@linxiraos/pi-utils";
 
 export type NotebookCellType = "code" | "markdown" | "raw";
 

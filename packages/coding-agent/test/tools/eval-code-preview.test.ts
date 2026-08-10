@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { EvalToolDetails } from "@zeta/pi-coding-agent/eval/types";
-import { getThemeByName, setThemeInstance, type Theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { evalToolRenderer } from "@zeta/pi-coding-agent/tools/eval";
-import { previewWindowRows } from "@zeta/pi-coding-agent/tools/render-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalToolDetails } from "@linxiraos/zeta/eval/types";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { evalToolRenderer } from "@linxiraos/zeta/tools/eval";
+import { previewWindowRows } from "@linxiraos/zeta/tools/render-utils";
 
 /**
  * Defends the bounded code-window contract for eval cells: collapsed views cap

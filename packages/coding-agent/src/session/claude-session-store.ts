@@ -11,8 +11,8 @@ import type {
 	ToolResultMessage,
 	Usage,
 	UserMessage,
-} from "@zeta/pi-ai";
-import { isRecord } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { isRecord } from "@linxiraos/pi-utils";
 import { collectForeignJsonRecords, type ForeignJsonRecord, readForeignJsonRecords } from "./foreign-session-jsonl";
 import type { ForeignSessionInfo, ForeignSessionStore } from "./foreign-session-store";
 import type { ModelChangeEntry, SessionMessageEntry } from "./session-entries";

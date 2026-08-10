@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { Effort, type FetchImpl } from "@zeta/pi-ai";
-import { streamSimple } from "@zeta/pi-ai/stream";
-import type { Context, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
+import { Effort, type FetchImpl } from "@linxiraos/pi-ai";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 interface CapturedRequestBody {
 	model?: string;

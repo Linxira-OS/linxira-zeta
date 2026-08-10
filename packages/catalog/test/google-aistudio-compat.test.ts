@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildOpenAICompat } from "@zeta/pi-catalog/compat/openai";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
+import { buildOpenAICompat } from "@linxiraos/pi-catalog/compat/openai";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 /**
  * Google AI Studio's OpenAI-compatible endpoint

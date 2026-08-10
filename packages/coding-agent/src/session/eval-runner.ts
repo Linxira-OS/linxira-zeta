@@ -1,5 +1,5 @@
-import type { Agent } from "@zeta/pi-agent-core";
-import { logger } from "@zeta/pi-utils";
+import type { Agent } from "@linxiraos/pi-agent-core";
+import { logger } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { disposeJuliaKernelSessionsByOwner } from "../eval/jl/executor";
 import { disposeVmContextsByOwner } from "../eval/js/context-manager";

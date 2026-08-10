@@ -4,11 +4,11 @@ import {
 	parseGalleryStates,
 	renderGalleryState,
 	resolveFixture,
-} from "@zeta/pi-coding-agent/cli/gallery-cli";
-import type { GalleryFixture } from "@zeta/pi-coding-agent/cli/gallery-fixtures";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { toolRenderers } from "@zeta/pi-coding-agent/tools/renderers";
+} from "@linxiraos/zeta/cli/gallery-cli";
+import type { GalleryFixture } from "@linxiraos/zeta/cli/gallery-fixtures";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
 
 beforeAll(async () => {
 	resetSettingsForTest();

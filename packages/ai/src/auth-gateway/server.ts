@@ -18,8 +18,8 @@
  *   POST /v1/responses                     → OpenAI Responses in/out
  */
 
-import { Effort } from "@zeta/pi-catalog/effort";
-import { extractHttpStatusFromError, extractRetryHint, logger } from "@zeta/pi-utils";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { extractHttpStatusFromError, extractRetryHint, logger } from "@linxiraos/pi-utils";
 import type { ApiKeyResolver } from "../auth-retry";
 import type { AuthStorage } from "../auth-storage";
 import * as AIError from "../error";

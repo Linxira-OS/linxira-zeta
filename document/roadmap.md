@@ -1,7 +1,7 @@
 # Zeta Development Roadmap
 
 Zeta is an OMP downstream distribution: the runtime tree, package layout, Bun
-workflow, and internal `@zeta/*` names intentionally follow OMP so upstream
+workflow, and internal `@linxiraos/*` names intentionally follow OMP so upstream
 releases remain mergeable. This roadmap covers **Zeta-owned product surface
 only** — capabilities built on top of the OMP runtime, never changes to the
 sync tree itself.

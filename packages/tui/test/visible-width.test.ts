@@ -11,7 +11,7 @@
  * `Bun.stringWidth` width-table drift across Bun upgrades.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { visibleWidth as nativeVisibleWidth } from "@zeta/pi-natives";
+import { visibleWidth as nativeVisibleWidth } from "@linxiraos/pi-natives";
 import {
 	DEFAULT_TAB_WIDTH,
 	Ellipsis,
@@ -20,7 +20,7 @@ import {
 	sliceWithWidth,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui/utils";
+} from "@linxiraos/pi-tui/utils";
 
 const ESC = "\x1b";
 const ST = "\x1b\\";

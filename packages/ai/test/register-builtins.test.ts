@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import * as AIError from "@zeta/pi-ai/error";
-import { setBedrockProviderModule, streamBedrock } from "@zeta/pi-ai/providers/register-builtins";
-import type { AssistantMessage, Context, Model } from "@zeta/pi-ai/types";
-import type { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { buildModel } from "@zeta/pi-catalog/build";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { setBedrockProviderModule, streamBedrock } from "@linxiraos/pi-ai/providers/register-builtins";
+import type { AssistantMessage, Context, Model } from "@linxiraos/pi-ai/types";
+import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 async function drainMicrotasksUntil(predicate: () => boolean, errorMessage: string): Promise<void> {
 	for (let i = 0; i < 1000; i++) {

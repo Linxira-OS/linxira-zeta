@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import * as evalIndex from "@zeta/pi-coding-agent/eval";
-import * as pyKernel from "@zeta/pi-coding-agent/eval/py/kernel";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { EvalTool } from "@zeta/pi-coding-agent/tools/eval";
-import { resolveEvalBackends } from "@zeta/pi-coding-agent/tools/eval-backends";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as evalIndex from "@linxiraos/zeta/eval";
+import * as pyKernel from "@linxiraos/zeta/eval/py/kernel";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import { resolveEvalBackends } from "@linxiraos/zeta/tools/eval-backends";
 
 let originalPiPy: string | undefined;
 let originalPiJs: string | undefined;

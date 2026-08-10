@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { applyProviderGlobalsFromSettings } from "@zeta/pi-coding-agent/config/provider-globals";
-import * as imageGen from "@zeta/pi-coding-agent/tools/image-gen";
-import * as webSearch from "@zeta/pi-coding-agent/web/search";
+import { applyProviderGlobalsFromSettings } from "@linxiraos/zeta/config/provider-globals";
+import * as imageGen from "@linxiraos/zeta/tools/image-gen";
+import * as webSearch from "@linxiraos/zeta/web/search";
 
 describe("applyProviderGlobalsFromSettings", () => {
 	afterEach(() => {

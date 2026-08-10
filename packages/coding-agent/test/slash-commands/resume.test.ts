@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { resolveResumableSession } from "@zeta/pi-coding-agent/session/session-listing";
-import { computeDefaultSessionDir } from "@zeta/pi-coding-agent/session/session-paths";
-import { FileSessionStorage } from "@zeta/pi-coding-agent/session/session-storage";
-import { executeBuiltinSlashCommand } from "@zeta/pi-coding-agent/slash-commands/builtin-registry";
-import { getConfigRootDir, setAgentDir } from "@zeta/pi-utils";
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { resolveResumableSession } from "@linxiraos/zeta/session/session-listing";
+import { computeDefaultSessionDir } from "@linxiraos/zeta/session/session-paths";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 let tempDir: string;
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

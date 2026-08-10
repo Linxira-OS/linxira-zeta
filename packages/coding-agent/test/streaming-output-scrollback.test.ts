@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { TranscriptContainer } from "@zeta/pi-coding-agent/modes/components/transcript-container";
-import { theme as activeTheme, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { AgentProgress, TaskToolDetails } from "@zeta/pi-coding-agent/task/types";
-import { evalToolRenderer } from "@zeta/pi-coding-agent/tools/eval-render";
-import { previewWindowRows } from "@zeta/pi-coding-agent/tools/render-utils";
-import { type Component, TUI } from "@zeta/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { type Component, TUI } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { theme as activeTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentProgress, TaskToolDetails } from "@linxiraos/zeta/task/types";
+import { evalToolRenderer } from "@linxiraos/zeta/tools/eval-render";
+import { previewWindowRows } from "@linxiraos/zeta/tools/render-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 // Long, path-like output that wraps at the box's inner width — the case that

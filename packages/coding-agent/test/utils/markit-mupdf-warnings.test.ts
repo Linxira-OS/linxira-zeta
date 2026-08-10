@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { convertBufferWithMarkit } from "@zeta/pi-coding-agent/utils/markit";
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
+import { convertBufferWithMarkit } from "@linxiraos/zeta/utils/markit";
 
 function warningPdf(): Uint8Array {
 	const objects: string[] = [];

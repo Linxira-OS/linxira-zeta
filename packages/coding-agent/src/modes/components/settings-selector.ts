@@ -1,5 +1,6 @@
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Effort } from "@zeta/pi-ai";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Effort } from "@linxiraos/pi-ai";
+import type { ShapeTarget } from "@linxiraos/pi-snapcompact";
 import {
 	type Component,
 	Container,
@@ -24,8 +25,7 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
-import type { ShapeTarget } from "@zeta/snapcompact";
+} from "@linxiraos/pi-tui";
 import {
 	getDefault,
 	getType,

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@zeta/pi-coding-agent/slash-commands/builtin-registry";
-import * as clipboard from "@zeta/pi-coding-agent/utils/clipboard";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
 
 function assistantText(text: string): AgentMessage {
 	return { role: "assistant", content: [{ type: "text", text }] } as unknown as AgentMessage;

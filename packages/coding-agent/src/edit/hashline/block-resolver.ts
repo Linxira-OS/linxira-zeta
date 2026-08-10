@@ -1,12 +1,12 @@
 /**
  * Tree-sitter-backed {@link BlockResolver} for the hashline `N*` locator.
  * Bridges the pure hashline seam to the native `blockRangeAt` primitive in
- * `@zeta/pi-natives`, which infers the language from the file path and
+ * `@linxiraos/pi-natives`, which infers the language from the file path and
  * returns the 1-indexed line span of the syntactic block beginning on the
  * requested line (or `null` when none can be resolved).
  */
-import type { BlockResolver } from "@zeta/hashline";
-import { blockRangeAt } from "@zeta/pi-natives";
+import type { BlockResolver } from "@linxiraos/pi-hashline";
+import { blockRangeAt } from "@linxiraos/pi-natives";
 
 /**
  * `blockRangeAt` runs a full synchronous tree-sitter parse of `text` per

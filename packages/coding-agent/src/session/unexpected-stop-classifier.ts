@@ -1,5 +1,5 @@
-import { type AssistantMessage, completeSimple } from "@zeta/pi-ai";
-import { logger, prompt } from "@zeta/pi-utils";
+import { type AssistantMessage, completeSimple } from "@linxiraos/pi-ai";
+import { logger, prompt } from "@linxiraos/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { resolveRoleSelection } from "../config/model-resolver";

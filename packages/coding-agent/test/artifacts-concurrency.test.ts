@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ArtifactManager } from "@zeta/pi-coding-agent/session/artifacts";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { ArtifactManager } from "@linxiraos/zeta/session/artifacts";
 
 describe("ArtifactManager concurrent first-use", () => {
 	const dirs: string[] = [];

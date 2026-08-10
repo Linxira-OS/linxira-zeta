@@ -1,4 +1,4 @@
-import type { ImageContent } from "@zeta/pi-ai";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import type { Args } from "./args";
 
 export interface InitialMessageInput {

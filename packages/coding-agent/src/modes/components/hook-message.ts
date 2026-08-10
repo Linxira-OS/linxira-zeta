@@ -1,5 +1,5 @@
-import type { Component } from "@zeta/pi-tui";
-import { Box, Container } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
+import { Box, Container } from "@linxiraos/pi-tui";
 import type { HookMessageRenderer } from "../../extensibility/hooks/types";
 import { theme } from "../../modes/theme/theme";
 import type { HookMessage } from "../../session/messages";

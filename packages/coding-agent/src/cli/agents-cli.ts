@@ -5,8 +5,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, getAgentDir, getProjectDir, isEnoent } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import { CONFIG_DIR_NAME, getAgentDir, getProjectDir, isEnoent } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { YAML } from "bun";
 import { theme } from "../modes/theme/theme";
 import { loadBundledAgents } from "../task/agents";

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import {
 	BUILTIN_SLASH_COMMAND_DEFS,
 	executeBuiltinSlashCommand,
-} from "@zeta/pi-coding-agent/slash-commands/builtin-registry";
+} from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 function createRuntime() {
 	const showProviderSetup = vi.fn(async () => {});

@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ArtifactProtocolHandler } from "@zeta/pi-coding-agent/internal-urls/artifact-protocol";
-import { parseInternalUrl } from "@zeta/pi-coding-agent/internal-urls/parse";
+import { ArtifactProtocolHandler } from "@linxiraos/zeta/internal-urls/artifact-protocol";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
 import {
 	registerArtifactsDir,
 	resetRegisteredArtifactDirsForTests,
-} from "@zeta/pi-coding-agent/internal-urls/registry-helpers";
-import { InternalUrlRouter } from "@zeta/pi-coding-agent/internal-urls/router";
-import { resolveToolSearchScope } from "@zeta/pi-coding-agent/tools/path-utils";
+} from "@linxiraos/zeta/internal-urls/registry-helpers";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
+import { resolveToolSearchScope } from "@linxiraos/zeta/tools/path-utils";
 
 /**
  * Path-only callers (search/grep, bash URL expansion) only need the artifact's

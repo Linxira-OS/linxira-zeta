@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { QrCode, type QrEcLevel, renderQrHalfBlocks } from "@zeta/pi-coding-agent/utils/qrcode";
+import { QrCode, type QrEcLevel, renderQrHalfBlocks } from "@linxiraos/zeta/utils/qrcode";
 
 function matrixFingerprint(qr: QrCode): string {
 	let bits = "";

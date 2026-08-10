@@ -8,7 +8,7 @@
  * @see https://datatracker.ietf.org/doc/html/rfc8927
  */
 
-import { isRecord } from "@zeta/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import type { JTDPrimitive } from "./jtd-utils.js";
 import {
 	isJTDDiscriminator,

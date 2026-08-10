@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { TraversalError, type Type, type } from "@zeta/pi-omptype/ark";
+import { TraversalError, type Type, type } from "@linxiraos/pi-omptype/ark";
 
 import assert = require("node:assert/strict");
 

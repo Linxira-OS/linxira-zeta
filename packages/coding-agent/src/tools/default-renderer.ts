@@ -1,5 +1,5 @@
-import type { Component } from "@zeta/pi-tui";
-import { isRecord } from "@zeta/pi-utils";
+import type { Component } from "@linxiraos/pi-tui";
+import { isRecord } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { Theme } from "../modes/theme/theme";
 import { renderStatusLine, WidthAwareText } from "../tui";

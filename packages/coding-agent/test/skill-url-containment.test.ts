@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Skill } from "@zeta/pi-coding-agent/extensibility/skills";
-import { parseInternalUrl } from "@zeta/pi-coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@zeta/pi-coding-agent/internal-urls/skill-protocol";
-import { resolveSkillUrlToPath } from "@zeta/pi-coding-agent/tools/bash-skill-urls";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { SkillProtocolHandler } from "@linxiraos/zeta/internal-urls/skill-protocol";
+import { resolveSkillUrlToPath } from "@linxiraos/zeta/tools/bash-skill-urls";
 
 let tempDir: string;
 let pluginRoot: string;

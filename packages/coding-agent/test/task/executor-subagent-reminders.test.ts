@@ -1,20 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@zeta/pi-agent-core";
-import { type AssistantMessage, Effort } from "@zeta/pi-ai";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ExtensionActions, LoadExtensionsResult } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@zeta/pi-coding-agent/session/agent-session";
-import type { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import {
-	finalizeSubprocessOutput,
-	runSubprocess,
-	SUBAGENT_WARNING_MISSING_YIELD,
-} from "@zeta/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@zeta/pi-coding-agent/task/types";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import { logger } from "@zeta/pi-utils";
+import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@linxiraos/pi-agent-core";
+import { type AssistantMessage, Effort } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionActions, LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { finalizeSubprocessOutput, runSubprocess, SUBAGENT_WARNING_MISSING_YIELD } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 function createAssistantStopMessage(text: string): AssistantMessage {
 	return {
@@ -119,7 +115,7 @@ describe("runSubprocess yield reminders", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@zeta/pi-coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry,
 		enableLsp: false,
 	};
 
@@ -194,7 +190,7 @@ describe("runSubprocess yield reminders", () => {
 		const createAgentSessionSpy = mockCreateAgentSession(session);
 		const modelRegistry = {
 			refresh: async () => {},
-		} as unknown as import("@zeta/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry;
 		const refreshSpy = vi.spyOn(modelRegistry, "refresh");
 
 		await runSubprocess({ ...baseOptions, id: "subagent-skip-refresh", modelRegistry });
@@ -586,7 +582,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			refresh: async () => {},
 			getAvailable: () => [{ provider: "openai", id: "gpt-4o", name: "GPT-4o" }],
-		} as unknown as import("@zeta/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry;
 
 		await runSubprocess({
 			...baseOptions,
@@ -709,7 +705,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: fakeAuthStorage,
 			refresh: async () => {},
-		} as unknown as import("@zeta/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry;
 
 		await runSubprocess({ ...baseOptions, id: "subagent-registry-only", modelRegistry });
 
@@ -725,7 +721,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: registryStorage,
 			refresh: async () => {},
-		} as unknown as import("@zeta/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry;
 
 		const result = await runSubprocess({
 			...baseOptions,
@@ -797,7 +793,7 @@ describe("runSubprocess telemetry propagation", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@zeta/pi-coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry,
 		enableLsp: false,
 	};
 

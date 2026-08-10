@@ -1,5 +1,5 @@
-import { type ApiKey, type FetchImpl, withAuth } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
+import { type ApiKey, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
 
 import { getDiagnostics } from "./diagnostics";
 import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_TEMPLATE } from "./prompts";

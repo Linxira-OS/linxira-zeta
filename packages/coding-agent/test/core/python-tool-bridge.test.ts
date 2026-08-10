@@ -1,12 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
-import {
-	disposePyToolBridge,
-	ensurePyToolBridge,
-	registerPyToolBridge,
-} from "@zeta/pi-coding-agent/eval/py/tool-bridge";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
+import { disposePyToolBridge, ensurePyToolBridge, registerPyToolBridge } from "@linxiraos/zeta/eval/py/tool-bridge";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 interface FakeCall {
 	id: string;

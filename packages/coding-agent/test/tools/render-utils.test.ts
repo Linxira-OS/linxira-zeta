@@ -1,8 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { KeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import { getThemeByName, initTheme, type Theme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@linxiraos/pi-tui";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { getThemeByName, initTheme, type Theme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import {
 	dedupeParseErrors,
 	expandKeyHint,
@@ -14,8 +15,7 @@ import {
 	formatScreenshot,
 	shortenPath,
 	truncateDiffByHunk,
-} from "@zeta/pi-coding-agent/tools/render-utils";
-import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@zeta/pi-tui";
+} from "@linxiraos/zeta/tools/render-utils";
 
 describe("parse error formatting", () => {
 	it("deduplicates parse errors while preserving order", () => {

@@ -1,5 +1,5 @@
-import { scope } from "@zeta/pi-omptype";
-import { once } from "@zeta/pi-utils";
+import { scope } from "@linxiraos/pi-omptype";
+import { once } from "@linxiraos/pi-utils";
 
 export const getModelsConfigSchemaBundle = once(() => {
 	// Config schemas validate at most a handful of times per process (on config

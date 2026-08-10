@@ -1,4 +1,4 @@
-import { invalidateFsScanCache } from "@zeta/pi-natives";
+import { invalidateFsScanCache } from "@linxiraos/pi-natives";
 
 /**
  * Invalidate shared filesystem scan caches after a content write/update.

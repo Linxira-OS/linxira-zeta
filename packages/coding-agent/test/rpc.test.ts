@@ -2,17 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentEvent, AgentMessage } from "@zeta/pi-agent-core";
-import { type AssistantMessage, Effort, type TextContent } from "@zeta/pi-ai";
-import {
-	type CompactionEntry,
-	type FileEntry,
-	parseSessionEntries,
-	type SessionMessageEntry,
-} from "@zeta/pi-coding-agent";
-import { RpcClient } from "@zeta/pi-coding-agent/modes/rpc/rpc-client";
-import type { BashExecutionMessage } from "@zeta/pi-coding-agent/session/messages";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+import type { AgentEvent, AgentMessage } from "@linxiraos/pi-agent-core";
+import { type AssistantMessage, Effort, type TextContent } from "@linxiraos/pi-ai";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { type CompactionEntry, type FileEntry, parseSessionEntries, type SessionMessageEntry } from "@linxiraos/zeta";
+import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
+import type { BashExecutionMessage } from "@linxiraos/zeta/session/messages";
 import { e2eApiKey } from "./utilities";
 
 type MessageEndEvent = Extract<AgentEvent, { type: "message_end" }>;

@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import path from "node:path";
-import { type } from "@zeta/pi-omptype";
-import type { AgentSideConnection, SessionNotification } from "@zeta/pi-utils/acp";
+import { type } from "@linxiraos/pi-omptype";
+import type { AgentSideConnection, SessionNotification } from "@linxiraos/pi-utils/acp";
 
 const arkSessionNotification = type({
 	sessionId: "string",
@@ -13,16 +13,16 @@ const arkSessionNotification = type({
 	},
 });
 
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { AcpAgent } from "@zeta/pi-coding-agent/modes/acp/acp-agent";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { AcpAgent } from "@linxiraos/zeta/modes/acp/acp-agent";
 import {
 	buildToolCallStartUpdate,
 	mapAgentSessionEventToAcpSessionUpdates,
 	normalizeReplayToolArguments,
-} from "@zeta/pi-coding-agent/modes/acp/acp-event-mapper";
-import type { AgentSession, AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+} from "@linxiraos/zeta/modes/acp/acp-event-mapper";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { expectAcpStructure, expectAcpStructureRejects } from "./helpers/acp-schema";
 
 function makeAssistantMessage(text: string) {

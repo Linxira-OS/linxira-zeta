@@ -2,7 +2,7 @@
  * Antigravity OAuth flow (Gemini 3, Claude, GPT-OSS via Google Cloud)
  * Uses different OAuth credentials than google-gemini-cli for access to additional models.
  */
-import { getAntigravityUserAgent } from "@zeta/pi-catalog/wire/gemini-headers";
+import { getAntigravityUserAgent } from "@linxiraos/pi-catalog/wire/gemini-headers";
 import * as AIError from "../../error";
 import { oauthFetch, runGoogleOAuthLogin, throwIfLoginCancelled } from "./google-oauth-shared";
 import type { OAuthController, OAuthCredentials } from "./types";

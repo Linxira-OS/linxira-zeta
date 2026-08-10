@@ -1,5 +1,5 @@
-import type { Component } from "@zeta/pi-tui";
-import { Box, Container } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
+import { Box, Container } from "@linxiraos/pi-tui";
 import type { MessageRenderer } from "../../extensibility/extensions/types";
 import { theme } from "../../modes/theme/theme";
 import { type CustomMessage, LIVE_DELEGATION_MESSAGE_TYPE } from "../../session/messages";

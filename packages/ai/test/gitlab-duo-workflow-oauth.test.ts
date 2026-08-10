@@ -4,9 +4,9 @@ import {
 	GITLAB_DUO_WORKFLOW_OAUTH_REDIRECT_URI,
 	loginGitLabDuoWorkflow,
 	refreshGitLabDuoWorkflowToken,
-} from "@zeta/pi-ai/registry/oauth/gitlab-duo-workflow";
-import type { OAuthLoginCallbacks } from "@zeta/pi-ai/registry/oauth/types";
-import type { FetchImpl } from "@zeta/pi-ai/types";
+} from "@linxiraos/pi-ai/registry/oauth/gitlab-duo-workflow";
+import type { OAuthLoginCallbacks } from "@linxiraos/pi-ai/registry/oauth/types";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 
 function makeTokenResponse(payload?: Record<string, unknown>): Response {
 	return new Response(

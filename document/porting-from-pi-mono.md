@@ -43,15 +43,15 @@ Upstream uses different package scopes. Replace them consistently.
 
 - Replace old scopes with the local scope used here.
 - Examples (adjust to match the actual packages you are porting):
-  - `@mariozechner/pi-coding-agent` → `@zeta/pi-coding-agent`
-  - `@mariozechner/pi-agent-core` → `@zeta/pi-agent-core`
-  - `@mariozechner/pi-tui` → `@zeta/pi-tui`
-  - `@mariozechner/pi-ai` → `@zeta/pi-ai`
-  - `@mariozechner/pi-utils` → `@zeta/pi-utils`
-  - `@mariozechner/pi-catalog` → `@zeta/pi-catalog`
-  - `@mariozechner/pi-natives` → `@zeta/pi-natives`
-- Some upstream packages publish under the `@earendil-works/*` scope instead of `@mariozechner/*`. Map it the same way (`@earendil-works/pi-coding-agent` → `@zeta/pi-coding-agent`, and so on).
-- The bare `typebox` package is not an `@zeta/*` scope; do not rewrite it as one. See the Extensions divergence in section 15 for how tool-parameter schemas map.
+  - `@mariozechner/pi-coding-agent` → `@linxiraos/zeta`
+  - `@mariozechner/pi-agent-core` → `@linxiraos/pi-agent-core`
+  - `@mariozechner/pi-tui` → `@linxiraos/pi-tui`
+  - `@mariozechner/pi-ai` → `@linxiraos/pi-ai`
+  - `@mariozechner/pi-utils` → `@linxiraos/pi-utils`
+  - `@mariozechner/pi-catalog` → `@linxiraos/pi-catalog`
+  - `@mariozechner/pi-natives` → `@linxiraos/pi-natives`
+- Some upstream packages publish under the `@earendil-works/*` scope instead of `@mariozechner/*`. Map it the same way (`@earendil-works/pi-coding-agent` → `@linxiraos/zeta`, and so on).
+- The bare `typebox` package is not an `@linxiraos/*` scope; do not rewrite it as one. See the Extensions divergence in section 15 for how tool-parameter schemas map.
 
 ## 4) Use Bun APIs where they improve on Node
 
@@ -131,7 +131,7 @@ Treat `package.json` as a contract. Merge intentionally.
 - Do not introduce `any` unless required.
 - Avoid dynamic imports unless they are required for optional dependencies, startup cost, or runtime-only modules; prefer top-level imports otherwise.
 - Never build prompts in code; prompts are static `.md` files rendered with Handlebars.
-- In `packages/coding-agent`, use `logger` from `@zeta/pi-utils` for internal/runtime logging; CLI command files may use `console.*` for intentional user-facing output.
+- In `packages/coding-agent`, use `logger` from `@linxiraos/pi-utils` for internal/runtime logging; CLI command files may use `console.*` for intentional user-facing output.
 - Use `Promise.withResolvers()` instead of `new Promise((resolve, reject) => ...)`.
 - Prefer ES `#` private fields for new encapsulated state. Constructor parameter properties already exist in current code and are acceptable; do not churn unrelated access modifiers while porting.
 - Prefer existing helpers and utilities over new ad-hoc code.
@@ -141,7 +141,7 @@ Treat `package.json` as a contract. Merge intentionally.
   - Heavy Node APIs should not be introduced casually; current source still uses selected Node APIs (`node:crypto`, `node:readline`, synchronous `node:fs`, and `child_process`) where they fit provider, CLI, or process-control semantics.
   - Lightweight Node APIs (`os.homedir`, `os.tmpdir`, `fs.mkdtempSync`, `path.*`) are kept.
   - CLI shebangs use `bun` (not `node`, not `tsx`).
-  - TypeScript packages generally use source files directly; `@zeta/pi-natives` exports generated native bindings from `packages/natives/native`.
+  - TypeScript packages generally use source files directly; `@linxiraos/pi-natives` exports generated native bindings from `packages/natives/native`.
   - CI workflows run Bun for install/check/test.
 
 ## 8) Remove old compatibility layers
@@ -334,7 +334,7 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 
 | Upstream                                           | Our Fork                                                  | Reason                                        |
 | -------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------- |
-| `clipboard.ts` + `clipboard-image.ts` (tool files) | `src/utils/clipboard.ts` backed by `@zeta/pi-natives` | Native implementation with a small TS wrapper |
+| `clipboard.ts` + `clipboard-image.ts` (tool files) | `src/utils/clipboard.ts` backed by `@linxiraos/pi-natives` | Native implementation with a small TS wrapper |
 
 ### Test Framework
 
@@ -365,7 +365,7 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 | `jiti` for TypeScript loading                                          | Native Bun `import()`                                                                                                                                                                                                                                                                        |
 | `pkg.pi` manifest field                                                | `pkg.omp` preferred; fallback to `pkg.pi` remains                                                                                                                                                                                                                                            |
 | `StringEnum` from `pi-ai`                                              | `Type.Enum` from `pi.typebox`, or `pi.arktype.enumerated(...)`; `pi-ai` no longer exports `StringEnum`                                                                                                                                                                                       |
-| `formatSize` from `pi-coding-agent`                                    | `formatBytes` from `@zeta/pi-utils`                                                                                                                                                                                                                                                      |
+| `formatSize` from `pi-coding-agent`                                    | `formatBytes` from `@linxiraos/pi-utils`                                                                                                                                                                                                                                                      |
 | Upstream resource/package/settings managers as the native architecture | Capability-based discovery (`loadCapability(...)`), the `Settings` singleton, and `EventBus`; legacy extension imports of `DefaultResourceLoader`, `DefaultPackageManager`, and `SettingsManager` are compatibility shims in `legacy-pi-coding-agent-shim.ts`, not the native implementation |
 
 ### Skip These Upstream Features
@@ -373,7 +373,7 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 When porting, **skip** these files/features entirely:
 
 - `footer-data-provider.ts` — we use StatusLineComponent
-- `clipboard-image.ts` — image clipboard support is exposed through `src/utils/clipboard.ts` backed by `@zeta/pi-natives`
+- `clipboard-image.ts` — image clipboard support is exposed through `src/utils/clipboard.ts` backed by `@linxiraos/pi-natives`
 - GitHub workflow files — we have our own CI
 - `models.generated.ts` — auto-generated, regenerate locally (as models.json instead)
 

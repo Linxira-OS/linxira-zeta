@@ -9,13 +9,13 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getCapability } from "@zeta/pi-coding-agent/capability";
-import { clearCache } from "@zeta/pi-coding-agent/capability/fs";
-import { type Rule, ruleCapability } from "@zeta/pi-coding-agent/capability/rule";
-import type { LoadContext } from "@zeta/pi-coding-agent/capability/types";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { getCapability } from "@linxiraos/zeta/capability";
+import { clearCache } from "@linxiraos/zeta/capability/fs";
+import { type Rule, ruleCapability } from "@linxiraos/zeta/capability/rule";
+import type { LoadContext } from "@linxiraos/zeta/capability/types";
 // Importing discovery registers all providers as a side effect.
-import { loadCapability } from "@zeta/pi-coding-agent/discovery";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@zeta/pi-utils";
+import { loadCapability } from "@linxiraos/zeta/discovery";
 
 let tempDir: string;
 let home: string;

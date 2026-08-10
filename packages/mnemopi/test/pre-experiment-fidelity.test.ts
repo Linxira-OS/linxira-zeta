@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { BeamMemory } from "@zeta/pi-mnemopi/core/beam";
+import { BeamMemory } from "@linxiraos/pi-mnemopi/core/beam";
 
 const beams: BeamMemory[] = [];
 

@@ -19,8 +19,8 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Model } from "@zeta/pi-ai";
-import { getStatsDbPath, isEnoent, logger } from "@zeta/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { getStatsDbPath, isEnoent, logger } from "@linxiraos/pi-utils";
 
 export interface SnapcompactSavingsRecord {
 	/** Epoch milliseconds when the swap was applied. */

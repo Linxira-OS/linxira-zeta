@@ -1,5 +1,5 @@
 import { parentPort } from "node:worker_threads";
-import { consumeWorkerInbox } from "@zeta/pi-utils/worker-host";
+import { consumeWorkerInbox } from "@linxiraos/pi-utils/worker-host";
 import type { Transport, WorkerInbound, WorkerOutbound } from "./tab-protocol";
 import { WorkerCore } from "./tab-worker";
 

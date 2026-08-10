@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { UsageReport } from "@zeta/pi-ai";
-import { CommandController } from "@zeta/pi-coding-agent/modes/controllers/command-controller";
-import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 interface RenderableBlock {
 	render(width: number): string[];

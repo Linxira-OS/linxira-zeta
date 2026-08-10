@@ -39,10 +39,10 @@
     "release": "npm version patch --no-git-tag-version && npm run build && npm publish --access public"
   },
   "dependencies": {
-    "@zeta/pi-agent-core": "1.0.0",
-    "@zeta/pi-ai": "1.0.0",
-    "@zeta/pi-coding-agent": "1.0.0",
-    "@zeta/pi-tui": "1.0.0",
+    "@linxiraos/pi-agent-core": "1.0.0",
+    "@linxiraos/pi-ai": "1.0.0",
+    "@linxiraos/zeta": "1.0.0",
+    "@linxiraos/pi-tui": "1.0.0",
     "next": "16.2.9",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

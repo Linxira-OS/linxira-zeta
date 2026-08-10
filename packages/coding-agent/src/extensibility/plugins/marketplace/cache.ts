@@ -14,7 +14,7 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { isEnoent } from "@zeta/pi-utils";
+import { isEnoent } from "@linxiraos/pi-utils";
 
 import { isValidNameSegment } from "./types";
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { IrcMessage } from "@zeta/pi-coding-agent/irc/bus";
-import { getThemeByName } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { type CoordinationDetails, hubToolRenderer } from "@zeta/pi-coding-agent/tools/hub";
-import { sanitizeText } from "@zeta/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { IrcMessage } from "@linxiraos/zeta/irc/bus";
+import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+import { type CoordinationDetails, hubToolRenderer } from "@linxiraos/zeta/tools/hub";
 
 async function theme() {
 	const t = await getThemeByName("dark");

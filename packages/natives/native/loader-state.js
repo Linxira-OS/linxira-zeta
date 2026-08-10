@@ -8,7 +8,7 @@ import packageJson from "../package.json" with { type: "json" };
 import { embeddedAddon } from "./embedded-addon.js";
 
 /**
- * Native addon loader for `@zeta/pi-natives`.
+ * Native addon loader for `@linxiraos/pi-natives`.
  *
  * Owns every step between "Node imports `native/index.js`" and "the right
  * `pi_natives.<platform>-<arch>*.node` is required, validated, and returned":
@@ -59,7 +59,7 @@ function getNativesDir() {
 function resolveLeafPackageDir(platformTag) {
 	try {
 		const require_ = createRequire(import.meta.url);
-		return path.dirname(require_.resolve(`@zeta/pi-natives-${platformTag}/package.json`));
+		return path.dirname(require_.resolve(`@linxiraos/pi-natives-${platformTag}/package.json`));
 	} catch {
 		return null;
 	}
@@ -109,7 +109,7 @@ export function getAddonFilenames({ tag, arch, variant }) {
  *
  * Windows-only safety net for `bun install -g` updates: when a previous `omp`
  * process is running, bun cannot overwrite the locked `.node` inside
- * `node_modules/@zeta/pi-natives/native/`, leaving an old binary next to a
+ * `node_modules/@linxiraos/pi-natives/native/`, leaving an old binary next to a
  * newer `index.js` and producing `<sym> is not a function` crashes on the next
  * launch. Staging into the version-pinned cache:
  *   1. Gives every package version its own filesystem path, so concurrent omp
@@ -684,7 +684,7 @@ export function validateLoadedBindings(ctx, bindings, candidate) {
 	if (residentSentinel && diskHasExpectedSentinel) {
 		const residentVersion = residentSentinel.slice("__piNativesV".length).replace(/_/g, ".");
 		throw new Error(
-			`Loaded ${candidate}, which exposes the @zeta/pi-natives@${residentVersion} version ` +
+			`Loaded ${candidate}, which exposes the @linxiraos/pi-natives@${residentVersion} version ` +
 				`sentinel \`${residentSentinel}\` but not the @${ctx.packageVersion} sentinel ` +
 				`\`${ctx.versionSentinelExport}\` this loader expects. omp was upgraded to ` +
 				`${ctx.packageVersion} while this session was running; the ${residentVersion} addon is ` +
@@ -693,7 +693,7 @@ export function validateLoadedBindings(ctx, bindings, candidate) {
 		);
 	}
 	throw new Error(
-		`Loaded ${candidate} but it does not expose the @zeta/pi-natives@${ctx.packageVersion} ` +
+		`Loaded ${candidate} but it does not expose the @linxiraos/pi-natives@${ctx.packageVersion} ` +
 			`version sentinel \`${ctx.versionSentinelExport}\`. The .node file on disk is from a different ` +
 			"release than this loader — reinstall to re-sync.",
 	);
@@ -735,7 +735,7 @@ function buildHelpMessage(ctx) {
 		);
 	}
 	return (
-		"If installed via npm/bun, try reinstalling: bun install @zeta/pi-natives\n" +
+		"If installed via npm/bun, try reinstalling: bun install @linxiraos/pi-natives\n" +
 		"If developing locally, build with: bun --cwd=packages/natives run build\n" +
 		"Explicit targets: bun scripts/bazel-natives.ts <target> --dest packages/natives/native"
 	);

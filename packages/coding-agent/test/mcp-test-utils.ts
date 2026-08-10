@@ -1,4 +1,4 @@
-import type { MCPServerCapabilities, MCPServerConnection, MCPTransport } from "@zeta/pi-coding-agent/mcp/types";
+import type { MCPServerCapabilities, MCPServerConnection, MCPTransport } from "@linxiraos/zeta/mcp/types";
 
 export function createMockTransport(
 	responses: Map<string, unknown[]>,

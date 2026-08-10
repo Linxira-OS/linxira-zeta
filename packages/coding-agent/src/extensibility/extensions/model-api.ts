@@ -6,8 +6,8 @@
  * alias, and compare model families — without touching the mutable registry or
  * duplicating resolution/family heuristics.
  */
-import type { Api, Model } from "@zeta/pi-ai";
-import { modelFamilyToken } from "@zeta/pi-catalog/identity";
+import type { Api, Model } from "@linxiraos/pi-ai";
+import { modelFamilyToken } from "@linxiraos/pi-catalog/identity";
 import type { ModelRegistry } from "../../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../../config/model-resolver";
 import type { Settings } from "../../config/settings";

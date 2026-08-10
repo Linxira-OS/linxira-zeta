@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { InternalUrlRouter } from "@zeta/pi-coding-agent/internal-urls";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
 
 describe("OmpProtocolHandler", () => {
 	it("treats omp://docs as the documentation root", async () => {

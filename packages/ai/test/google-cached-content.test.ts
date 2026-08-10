@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@zeta/pi-ai/error";
-import { streamGoogle } from "@zeta/pi-ai/providers/google";
-import type { GoogleGeminiCliOptions } from "@zeta/pi-ai/providers/google-gemini-cli";
-import { buildGoogleGenerateContentParams } from "@zeta/pi-ai/providers/google-shared";
-import { streamGoogleVertex } from "@zeta/pi-ai/providers/google-vertex";
-import { parseRequest as parsePiNativeRequest } from "@zeta/pi-ai/providers/pi-native-server";
-import { streamSimple } from "@zeta/pi-ai/stream";
-import type { ApiOptionsMap, AssistantMessageEvent, Context, FetchImpl, Model, Tool } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { streamGoogle } from "@linxiraos/pi-ai/providers/google";
+import type { GoogleGeminiCliOptions } from "@linxiraos/pi-ai/providers/google-gemini-cli";
+import { buildGoogleGenerateContentParams } from "@linxiraos/pi-ai/providers/google-shared";
+import { streamGoogleVertex } from "@linxiraos/pi-ai/providers/google-vertex";
+import { parseRequest as parsePiNativeRequest } from "@linxiraos/pi-ai/providers/pi-native-server";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { ApiOptionsMap, AssistantMessageEvent, Context, FetchImpl, Model, Tool } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const CACHE_NAME = "cachedContents/caller-owned-corpus-abc";
 const VERTEX_CACHE_NAME = "projects/demo-project/locations/us-central1/cachedContents/caller-owned-corpus-abc";

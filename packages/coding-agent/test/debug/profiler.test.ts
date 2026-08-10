@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { startCpuProfile } from "@zeta/pi-coding-agent/debug/profiler";
+import { startCpuProfile } from "@linxiraos/zeta/debug/profiler";
 
 describe("startCpuProfile", () => {
 	// Regression: `node:v8` `setFlagsFromString` throws on Bun

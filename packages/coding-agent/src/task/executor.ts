@@ -5,10 +5,10 @@
  */
 
 import path from "node:path";
-import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@zeta/pi-agent-core";
-import { recordHandoff, resolveTelemetry } from "@zeta/pi-agent-core";
-import type { Api, Model, ServiceTierByFamily, Usage } from "@zeta/pi-ai";
-import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@zeta/pi-utils";
+import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@linxiraos/pi-agent-core";
+import { recordHandoff, resolveTelemetry } from "@linxiraos/pi-agent-core";
+import type { Api, Model, ServiceTierByFamily, Usage } from "@linxiraos/pi-ai";
+import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async";
 import type { Rule } from "../capability/rule";
 import { ModelRegistry } from "../config/model-registry";

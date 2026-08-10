@@ -21,11 +21,11 @@ import {
 	type ThinkingBudgets,
 	type ToolChoice,
 	type ToolResultMessage,
-} from "@zeta/pi-ai";
-import type { Dialect } from "@zeta/pi-ai/dialect";
-import type { HarmonyAuditEvent } from "@zeta/pi-ai/utils/harmony-leak";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import type { Dialect } from "@linxiraos/pi-ai/dialect";
+import type { HarmonyAuditEvent } from "@linxiraos/pi-ai/utils/harmony-leak";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { logger } from "@linxiraos/pi-utils";
 import {
 	abortReasonText,
 	agentLoop,

@@ -6,7 +6,7 @@ import {
 	clearAwsCredentialCache,
 	resolveAwsCredentials,
 	tokenizeCredentialProcessCommand,
-} from "@zeta/pi-ai/providers/aws-credentials";
+} from "@linxiraos/pi-ai/providers/aws-credentials";
 import { removeWithRetries } from "../../utils/src/temp";
 
 // `credential_process` integration coverage. Drives a real `Bun.spawn`

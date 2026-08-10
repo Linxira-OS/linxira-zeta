@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { Usage } from "@zeta/pi-ai/types";
+import type { Usage } from "@linxiraos/pi-ai/types";
 import {
 	CacheInvalidationMarkerComponent,
 	detectCacheInvalidation,
-} from "@zeta/pi-coding-agent/modes/components/cache-invalidation-marker";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/zeta/modes/components/cache-invalidation-marker";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 function usage(parts: { input?: number; cacheRead?: number; cacheWrite?: number; output?: number }): Usage {
 	const input = parts.input ?? 0;

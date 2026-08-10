@@ -64,7 +64,7 @@ CustomTool.execute(toolCallId, params, onUpdate, ctx, signal)
 A custom tool module must export a function (default export preferred):
 
 ```ts
-import type { CustomToolFactory } from "@zeta/pi-coding-agent";
+import type { CustomToolFactory } from "@linxiraos/zeta";
 
 const factory: CustomToolFactory = (pi) => ({
   name: "repo_stats",
@@ -128,7 +128,7 @@ From `types.ts` and `loader.ts`:
 - `logger`: shared file logger
 - `arktype`: injected omptype `type(...)` builder
 - `typebox`: compatibility shim for legacy TypeBox-style schemas
-- `pi`: injected `@zeta/pi-coding-agent` exports
+- `pi`: injected `@linxiraos/zeta` exports
 - `pushPendingAction(action)`: stage a preview action that is finalized by writing a plain-text reason to `xd://resolve` or `xd://reject`
 
 The loader starts with a no-op UI context and requires host code to call `setUIContext(...)` when real UI is ready. If the runtime did not provide a pending-action store, calling `pushPendingAction` throws `Pending action store unavailable for custom tools in this runtime.`

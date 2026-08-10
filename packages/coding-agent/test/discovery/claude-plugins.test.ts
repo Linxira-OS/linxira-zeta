@@ -2,20 +2,20 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@zeta/pi-coding-agent/capability";
-import { clearCache as clearFsCache } from "@zeta/pi-coding-agent/capability/fs";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { loadCapability } from "@linxiraos/zeta/capability";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
-} from "@zeta/pi-coding-agent/discovery/helpers";
-import { loadSlashCommands } from "@zeta/pi-coding-agent/extensibility/slash-commands";
-import { discoverAgents } from "@zeta/pi-coding-agent/task/discovery";
-import { removeWithRetries } from "@zeta/pi-utils";
-import "@zeta/pi-coding-agent/discovery/claude-plugins";
-import { type MCPServer, mcpCapability } from "@zeta/pi-coding-agent/capability/mcp";
-import type { Skill } from "@zeta/pi-coding-agent/capability/skill";
-import type { SlashCommand } from "@zeta/pi-coding-agent/capability/slash-command";
+} from "@linxiraos/zeta/discovery/helpers";
+import { loadSlashCommands } from "@linxiraos/zeta/extensibility/slash-commands";
+import { discoverAgents } from "@linxiraos/zeta/task/discovery";
+import "@linxiraos/zeta/discovery/claude-plugins";
+import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
+import type { Skill } from "@linxiraos/zeta/capability/skill";
+import type { SlashCommand } from "@linxiraos/zeta/capability/slash-command";
 
 describe("parseClaudePluginsRegistry", () => {
 	test("parses valid registry", () => {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { complete } from "@zeta/pi-ai/stream";
-import type { Api, AssistantMessage, Context, Message, Model, Tool, ToolResultMessage } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type } from "@zeta/pi-omptype";
+import { complete } from "@linxiraos/pi-ai/stream";
+import type { Api, AssistantMessage, Context, Message, Model, Tool, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 import { e2eApiKey } from "./oauth";
 
 // Tool for testing

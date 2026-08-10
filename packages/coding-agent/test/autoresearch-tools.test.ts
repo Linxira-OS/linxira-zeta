@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
-import { createSessionRuntime } from "@zeta/pi-coding-agent/autoresearch/state";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { createSessionRuntime } from "@linxiraos/zeta/autoresearch/state";
 import {
 	type AutoresearchStorage,
 	closeAllAutoresearchStorages,
 	openAutoresearchStorage,
 	type SessionRow,
-} from "@zeta/pi-coding-agent/autoresearch/storage";
-import { createInitExperimentTool } from "@zeta/pi-coding-agent/autoresearch/tools/init-experiment";
-import { createLogExperimentTool } from "@zeta/pi-coding-agent/autoresearch/tools/log-experiment";
-import { createRunExperimentTool } from "@zeta/pi-coding-agent/autoresearch/tools/run-experiment";
-import { createUpdateNotesTool } from "@zeta/pi-coding-agent/autoresearch/tools/update-notes";
-import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@zeta/pi-coding-agent/autoresearch/types";
-import type { ExtensionAPI, ExtensionContext } from "@zeta/pi-coding-agent/extensibility/extensions";
-import * as git from "@zeta/pi-coding-agent/utils/git";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/autoresearch/storage";
+import { createInitExperimentTool } from "@linxiraos/zeta/autoresearch/tools/init-experiment";
+import { createLogExperimentTool } from "@linxiraos/zeta/autoresearch/tools/log-experiment";
+import { createRunExperimentTool } from "@linxiraos/zeta/autoresearch/tools/run-experiment";
+import { createUpdateNotesTool } from "@linxiraos/zeta/autoresearch/tools/update-notes";
+import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@linxiraos/zeta/autoresearch/types";
+import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta/extensibility/extensions";
+import * as git from "@linxiraos/zeta/utils/git";
 import { $ } from "bun";
 
 afterEach(() => {

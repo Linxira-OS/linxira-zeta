@@ -5,10 +5,10 @@
  */
 
 import { isPromise } from "node:util/types";
-import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@zeta/pi-agent-core";
-import type { CompactionResult } from "@zeta/pi-agent-core/compaction";
-import type { ImageContent, Model } from "@zeta/pi-ai";
-import { isRecord, ptree, readJsonl } from "@zeta/pi-utils";
+import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
+import type { ImageContent, Model } from "@linxiraos/pi-ai";
+import { isRecord, ptree, readJsonl } from "@linxiraos/pi-utils";
 import type { FileSink } from "bun";
 import type { BashResult } from "../../exec/bash-executor";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";

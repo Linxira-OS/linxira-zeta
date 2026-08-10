@@ -3,11 +3,11 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SessionHeader } from "@zeta/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@zeta/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { getTerminalId } from "@zeta/pi-tui";
-import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@zeta/pi-utils";
+import { getTerminalId } from "@linxiraos/pi-tui";
+import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@linxiraos/pi-utils";
+import type { SessionHeader } from "@linxiraos/zeta/session/session-entries";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 import { makeAssistantMessage } from "./helpers";
 

@@ -1,5 +1,5 @@
-export * from "@zeta/pi-catalog/effort";
-export * from "@zeta/pi-catalog/types";
+export * from "@linxiraos/pi-catalog/effort";
+export * from "@linxiraos/pi-catalog/types";
 
 import type {
 	DeleteArgs,
@@ -31,11 +31,11 @@ import type {
 	ShellResult,
 	WriteArgs,
 	WriteResult,
-} from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
-import type { Effort } from "@zeta/pi-catalog/effort";
-import { isOpenAIModelId } from "@zeta/pi-catalog/identity/family";
-import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@zeta/pi-catalog/types";
-import type { Type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+import type { Effort } from "@linxiraos/pi-catalog/effort";
+import { isOpenAIModelId } from "@linxiraos/pi-catalog/identity/family";
+import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@linxiraos/pi-catalog/types";
+import type { Type } from "@linxiraos/pi-omptype";
 import type { ApiKey } from "./auth-retry";
 import type { BedrockOptions } from "./providers/amazon-bedrock";
 import type { AnthropicOptions } from "./providers/anthropic";

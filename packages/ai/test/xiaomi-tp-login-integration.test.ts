@@ -14,9 +14,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { loginXiaomi } from "@zeta/pi-ai/registry/oauth/xiaomi";
-import type { FetchImpl } from "@zeta/pi-ai/types";
-import { xiaomiModelManagerOptions } from "@zeta/pi-catalog/provider-models/openai-compat";
+import { loginXiaomi } from "@linxiraos/pi-ai/registry/oauth/xiaomi";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { xiaomiModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 // Realistic tp- key (same format as user's key, but a dummy value for testing)
 const TP_KEY = "tp-ci1p8t1w4e1sbxgyc8v65tnrjbzro287igmvyf25van9mt76";

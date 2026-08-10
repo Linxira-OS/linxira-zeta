@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
-import { searchZai, ZaiProvider } from "@zeta/pi-coding-agent/web/search/providers/zai";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { searchZai, ZaiProvider } from "@linxiraos/zeta/web/search/providers/zai";
 
 interface CapturedRequest {
 	method: string | undefined;

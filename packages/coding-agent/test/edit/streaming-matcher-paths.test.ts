@@ -11,7 +11,7 @@
  * `{ input: "<hashline payload>" }` and never inspected the section header.
  */
 import { describe, expect, it } from "bun:test";
-import { EDIT_MODE_STRATEGIES } from "@zeta/pi-coding-agent/edit/streaming";
+import { EDIT_MODE_STRATEGIES } from "@linxiraos/zeta/edit/streaming";
 
 describe("EDIT_MODE_STRATEGIES.matcherPaths", () => {
 	describe("replace + patch (top-level path)", () => {
@@ -174,12 +174,12 @@ describe("EDIT_MODE_STRATEGIES.matcherEntries", () => {
  * outputs feed `TtsrManager.checkSnapshot` the same way `AgentSession`'s
  * TTSR pipeline does after the fix.
  */
-import { getCapability } from "@zeta/pi-coding-agent/capability";
-import { BUILTIN_DEFAULTS_PROVIDER_ID, type Rule, ruleCapability } from "@zeta/pi-coding-agent/capability/rule";
-import type { LoadContext } from "@zeta/pi-coding-agent/capability/types";
+import { getCapability } from "@linxiraos/zeta/capability";
+import { BUILTIN_DEFAULTS_PROVIDER_ID, type Rule, ruleCapability } from "@linxiraos/zeta/capability/rule";
+import type { LoadContext } from "@linxiraos/zeta/capability/types";
 // Register all discovery providers as a side effect.
-import "@zeta/pi-coding-agent/discovery";
-import { TtsrManager } from "@zeta/pi-coding-agent/export/ttsr";
+import "@linxiraos/zeta/discovery";
+import { TtsrManager } from "@linxiraos/zeta/export/ttsr";
 
 async function loadBundledTsNoAnyRule(): Promise<Rule> {
 	const cap = getCapability(ruleCapability.id);

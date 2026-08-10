@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createMemoryRuntimeContext, resolveMemoryBackend } from "@zeta/pi-coding-agent/memory-backend";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { createMemoryRuntimeContext, resolveMemoryBackend } from "@linxiraos/zeta/memory-backend";
 
 describe("resolveMemoryBackend", () => {
 	beforeEach(() => {

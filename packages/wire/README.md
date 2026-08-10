@@ -1,14 +1,14 @@
-# @zeta/pi-wire
+# @linxiraos/pi-wire
 
 Shared TypeScript wire contracts for omp collab live sessions.
 
-The package contains only JSON-safe protocol shapes and constants. It has no runtime dependencies and is consumed by both the host CLI (`@zeta/pi-coding-agent`) and browser guest (`@zeta/collab-web`).
+The package contains only JSON-safe protocol shapes and constants. It has no runtime dependencies and is consumed by both the host CLI (`@linxiraos/zeta`) and browser guest (`@linxiraos/collab-web`).
 
 ## Exports
 
 ```ts
-import type { GuestFrame, HostFrame, SessionEntry } from "@zeta/pi-wire";
-import { COLLAB_PROTO, DEFAULT_RELAY_URL, ENVELOPE_HEADER_LENGTH } from "@zeta/pi-wire";
+import type { GuestFrame, HostFrame, SessionEntry } from "@linxiraos/pi-wire";
+import { COLLAB_PROTO, DEFAULT_RELAY_URL, ENVELOPE_HEADER_LENGTH } from "@linxiraos/pi-wire";
 ```
 
 Key groups:

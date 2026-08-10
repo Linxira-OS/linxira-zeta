@@ -6,7 +6,7 @@
  * endpoint, so beyond kind resolution the entire connected-browser machinery
  * (registry, tab supervisor, tab workers) applies unchanged.
  */
-import { parseFlag } from "@zeta/pi-utils";
+import { parseFlag } from "@linxiraos/pi-utils";
 
 /** Browser kind selecting the omp browser relay. */
 export interface RelayKind {

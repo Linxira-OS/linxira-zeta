@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { ShowImagesSelectorComponent } from "@zeta/pi-coding-agent/modes/components/show-images-selector";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { SgrMouseEvent } from "@zeta/pi-tui";
+import type { SgrMouseEvent } from "@linxiraos/pi-tui";
+import { ShowImagesSelectorComponent } from "@linxiraos/zeta/modes/components/show-images-selector";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();

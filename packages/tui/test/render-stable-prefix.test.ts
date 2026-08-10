@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, CURSOR_MARKER, type RenderStablePrefix, TUI } from "@zeta/pi-tui";
+import { type Component, CURSOR_MARKER, type RenderStablePrefix, TUI } from "@linxiraos/pi-tui";
 import { StressRenderScheduler } from "./render-stress-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 

@@ -4,13 +4,13 @@
  *   State Machine B: EndTurn → Compression
  */
 import { describe, expect, it } from "bun:test";
-import type { Agent } from "@zeta/pi-agent-core";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import type { Api, Usage } from "@zeta/pi-catalog/types";
-import type { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ContextUsage } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import type { CompactionCheckResult } from "@zeta/pi-coding-agent/session/session-maintenance";
-import { ZetaContextManager, type ZetaContextManagerHost } from "@zeta/pi-coding-agent/session/zeta-context-manager";
+import type { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import type { Api, Usage } from "@linxiraos/pi-catalog/types";
+import type { Settings } from "@linxiraos/zeta/config/settings";
+import type { ContextUsage } from "@linxiraos/zeta/extensibility/extensions/types";
+import type { CompactionCheckResult } from "@linxiraos/zeta/session/session-maintenance";
+import { ZetaContextManager, type ZetaContextManagerHost } from "@linxiraos/zeta/session/zeta-context-manager";
 
 // ---------------------------------------------------------------------------
 // Helpers

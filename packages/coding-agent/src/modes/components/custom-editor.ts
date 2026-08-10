@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import type { ImageContent } from "@zeta/pi-ai";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import {
 	addKeyAliases,
 	canonicalKeyId,
@@ -9,8 +9,8 @@ import {
 	parseKey,
 	parseKittySequence,
 	TUI,
-} from "@zeta/pi-tui";
-import { BracketedPasteHandler } from "@zeta/pi-tui/bracketed-paste";
+} from "@linxiraos/pi-tui";
+import { BracketedPasteHandler } from "@linxiraos/pi-tui/bracketed-paste";
 import type { AppKeybinding } from "../../config/keybindings";
 import { isSettingsInitialized, settings } from "../../config/settings";
 import { imageReferenceHyperlink, PLACEHOLDER_REGEX, renderPlaceholders } from "../image-references";

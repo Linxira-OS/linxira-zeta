@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
-import { configureCredentialRedaction } from "@zeta/pi-ai/providers/transform-messages";
-import type { Context, FetchImpl, Model, ModelSpec } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import { configureCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
+import type { Context, FetchImpl, Model, ModelSpec } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 beforeAll(() => configureCredentialRedaction(true));
 afterAll(() => configureCredentialRedaction(false));

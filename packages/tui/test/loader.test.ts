@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, setSystemTime, spyOn, vi } from "bun:test";
-import { Container, TUI } from "@zeta/pi-tui";
-import { Loader, type LoaderMessageColorFn } from "@zeta/pi-tui/components/loader";
-import { visibleWidth } from "@zeta/pi-tui/utils";
+import { Container, TUI } from "@linxiraos/pi-tui";
+import { Loader, type LoaderMessageColorFn } from "@linxiraos/pi-tui/components/loader";
+import { visibleWidth } from "@linxiraos/pi-tui/utils";
 import { VirtualTerminal } from "./virtual-terminal";
 
 describe("Loader component", () => {

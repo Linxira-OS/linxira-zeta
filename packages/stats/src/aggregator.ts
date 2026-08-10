@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
-import { workerHostEntry } from "@zeta/pi-utils";
+import { workerHostEntry } from "@linxiraos/pi-utils";
 import {
 	getRecentErrors as dbGetRecentErrors,
 	getRecentRequests as dbGetRecentRequests,
@@ -112,7 +112,7 @@ interface WorkerHandle {
  * self-dispatching CLI entry (omp in source, npm-bundle, or compiled form),
  * re-enter that entry with a worker argv selector; otherwise (standalone
  * omp-stats, bun test, SDK embedding) load the worker module directly, so this
- * package keeps zero runtime dependency on `@zeta/pi-coding-agent`.
+ * package keeps zero runtime dependency on `@linxiraos/zeta`.
  */
 function createSyncWorker(): Worker {
 	const hostEntry = workerHostEntry();

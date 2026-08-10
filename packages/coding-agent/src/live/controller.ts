@@ -1,8 +1,8 @@
 import * as os from "node:os";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { AudioCapture } from "@zeta/pi-natives";
-import { prompt } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { AudioCapture } from "@linxiraos/pi-natives";
+import { prompt } from "@linxiraos/pi-utils";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionEvent } from "../session/agent-session-events";
 import { LIVE_DELEGATION_MESSAGE_TYPE } from "../session/messages";

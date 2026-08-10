@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Context } from "@zeta/pi-ai";
-import { streamOllama } from "@zeta/pi-ai/providers/ollama";
-import { buildModel } from "@zeta/pi-catalog/build";
+import type { Context } from "@linxiraos/pi-ai";
+import { streamOllama } from "@linxiraos/pi-ai/providers/ollama";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 interface OllamaChatMessagePayload {
 	role?: unknown;

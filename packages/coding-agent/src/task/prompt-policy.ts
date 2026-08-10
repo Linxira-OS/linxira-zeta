@@ -1,4 +1,4 @@
-import { bareModelId, parseOpenAIModel, semverEqual } from "@zeta/pi-catalog/identity";
+import { bareModelId, parseOpenAIModel, semverEqual } from "@linxiraos/pi-catalog/identity";
 
 /** Whether task guidance should follow Codex's GPT-5.6-specific delegation policy. */
 export function usesCodexTaskPrompt(modelId: string | undefined): boolean {

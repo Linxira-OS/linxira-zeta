@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import {
 	CURRENT_SESSION_VERSION,
 	SESSION_TITLE_SLOT_BYTES,
 	type SessionHeader,
 	TITLE_CHANGE_ENTRY_TYPE,
-} from "@zeta/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@zeta/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { FileSessionStorage, type WriteTextAtomicOptions } from "@zeta/pi-coding-agent/session/session-storage";
-import type { SessionTitleUpdate } from "@zeta/pi-coding-agent/session/session-title-slot";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/session/session-entries";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta/session/session-storage";
+import type { SessionTitleUpdate } from "@linxiraos/zeta/session/session-title-slot";
 
 import { makeAssistantMessage } from "./helpers";
 

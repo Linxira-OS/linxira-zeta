@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import {
 	expandDefaultRetryFallbackChains,
 	findRetryFallbackCandidates,
 	type RetryFallbackResolutionContext,
 	resolveRetryFallbackChainKey,
-} from "@zeta/pi-coding-agent/session/retry-fallback-chains";
+} from "@linxiraos/zeta/session/retry-fallback-chains";
 
 function createContext(
 	chains: RetryFallbackResolutionContext["chains"],

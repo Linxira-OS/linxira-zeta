@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import {
 	containsWorkflow,
 	highlightWorkflow,
 	renderWorkflowNotice,
 	WORKFLOW_NOTICE,
-} from "@zeta/pi-coding-agent/modes/workflow";
+} from "@linxiraos/zeta/modes/workflow";
 
 beforeAll(() => {
 	// highlightWorkflow reads the global theme's color mode.

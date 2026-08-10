@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { M } from "../i18n/messages";
 import retainDescription from "../prompts/tools/retain.md" with { type: "text" };
 import type { ToolSession } from ".";

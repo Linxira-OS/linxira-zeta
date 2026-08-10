@@ -2,13 +2,13 @@ import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearClaudePluginRootsCache } from "@zeta/pi-coding-agent/discovery/helpers";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
 import {
 	__resetLegacyPiResolutionCache,
 	__rewriteLegacyExtensionSourceForTests,
-} from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { getEnabledPlugins } from "@zeta/pi-coding-agent/extensibility/plugins/loader";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { getEnabledPlugins } from "@linxiraos/zeta/extensibility/plugins/loader";
 
 const tempRoots: string[] = [];
 

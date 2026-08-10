@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
-import type { Usage } from "@zeta/pi-ai";
-import type { GeneratedProvider } from "@zeta/pi-catalog/models";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { getConfigRootDir, getStatsDbPath } from "@zeta/pi-utils";
+import type { Usage } from "@linxiraos/pi-ai";
+import type { GeneratedProvider } from "@linxiraos/pi-catalog/models";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getConfigRootDir, getStatsDbPath } from "@linxiraos/pi-utils";
 import { classifyAgentType } from "./parser";
 import type {
 	AgentType,
@@ -387,7 +387,7 @@ export function setFileOffset(sessionFile: string, offset: number, lastModified:
  * Insert message stats into the database.
  *
  * Forked / branched sessions (see `SessionManager.fork()` and
- * `createBranchedSession()` in `@zeta/pi-coding-agent`) deep-copy a parent
+ * `createBranchedSession()` in `@linxiraos/zeta`) deep-copy a parent
  * session's entries into a new JSONL — same `entry_id`, `timestamp`, `model`,
  * `provider`, token counts, and `responseId`. The `UNIQUE(session_file,
  * entry_id)` constraint alone keys each row by file, so without the guard

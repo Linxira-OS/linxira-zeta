@@ -1,9 +1,9 @@
-import { MismatchError as HashlineMismatchError } from "@zeta/hashline";
-import hashlineGrammar from "@zeta/hashline/grammar.lark" with { type: "text" };
-import hashlineDescription from "@zeta/hashline/prompt.md" with { type: "text" };
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import type { ToolExample } from "@zeta/pi-ai";
-import { isEnoent, isEnotdir, prompt } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
+import { MismatchError as HashlineMismatchError } from "@linxiraos/pi-hashline";
+import hashlineGrammar from "@linxiraos/pi-hashline/grammar.lark" with { type: "text" };
+import hashlineDescription from "@linxiraos/pi-hashline/prompt.md" with { type: "text" };
+import { isEnoent, isEnotdir, prompt } from "@linxiraos/pi-utils";
 import { createLspWritethrough, flushLspWritethroughBatch, type WritethroughCallback, writethroughNoop } from "../lsp";
 import { DeferredDiagnostics } from "../lsp/deferred-diagnostics";
 import { getDiagnosticsLedger } from "../lsp/diagnostics-ledger";
@@ -24,7 +24,7 @@ import { type EditToolDetails, type EditToolPerFileResult, getLspBatchRequest, t
 import { pruneOversizedEditSnapshots } from "./snapshot-details";
 import { EDIT_MODE_STRATEGIES } from "./streaming";
 
-export * from "@zeta/hashline";
+export * from "@linxiraos/pi-hashline";
 export { DEFAULT_EDIT_MODE, type EditMode, normalizeEditMode } from "../utils/edit-mode";
 export * from "./apply-patch";
 export * from "./diff";

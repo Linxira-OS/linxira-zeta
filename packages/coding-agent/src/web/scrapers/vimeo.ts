@@ -1,4 +1,4 @@
-import { tryParseJson } from "@zeta/pi-utils";
+import { tryParseJson } from "@linxiraos/pi-utils";
 import type { SpecialHandler } from "./types";
 import { buildResult, formatMediaDuration, loadPage } from "./types";
 

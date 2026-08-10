@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
-import type { ImageContent, Model } from "@zeta/pi-ai";
-import { formatBytes, readImageMetadata, SUPPORTED_IMAGE_MIME_TYPES } from "@zeta/pi-utils";
+import type { ImageContent, Model } from "@linxiraos/pi-ai";
+import { formatBytes, readImageMetadata, SUPPORTED_IMAGE_MIME_TYPES } from "@linxiraos/pi-utils";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, type ImageResizeOptions, resizeImage } from "./image-resize";
 

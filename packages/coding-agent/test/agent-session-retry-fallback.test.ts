@@ -1,32 +1,32 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent, type AgentTool } from "@zeta/pi-agent-core";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	type AssistantMessage,
 	Effort,
 	type Model,
 	type ModelUsageHealth,
 	type ProviderSessionState,
-} from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { writeModelCache } from "@zeta/pi-catalog/model-cache";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { parseModelPattern, parseModelString } from "@zeta/pi-coding-agent/config/model-resolver";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { IrcBus } from "@zeta/pi-coding-agent/irc/bus";
-import { AgentHubOverlayComponent } from "@zeta/pi-coding-agent/modes/components/agent-hub";
-import { SessionObserverRegistry } from "@zeta/pi-coding-agent/modes/session-observer-registry";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { type } from "@zeta/pi-omptype";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { parseModelPattern, parseModelString } from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentHubOverlayComponent } from "@linxiraos/zeta/modes/components/agent-hub";
+import { SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;

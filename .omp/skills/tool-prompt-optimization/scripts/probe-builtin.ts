@@ -18,9 +18,9 @@
  * The heavy coding-agent import lives here; probe.ts stays pi-ai-only.
  */
 import { parseArgs } from "node:util";
-import { toolWireSchema } from "@zeta/pi-ai";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { BUILTIN_TOOLS, GithubTool, HIDDEN_TOOLS, IrcTool, type Tool, type ToolFactory, type ToolSession } from "@zeta/pi-coding-agent/tools";
+import { toolWireSchema } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { BUILTIN_TOOLS, GithubTool, HIDDEN_TOOLS, IrcTool, type Tool, type ToolFactory, type ToolSession } from "@linxiraos/zeta/tools";
 import { probe } from "./probe.ts";
 
 const OPEN_TAG = /^<[a-z_][\w-]*>$/i;

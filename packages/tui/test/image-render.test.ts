@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Image, ImageBudget } from "@zeta/pi-tui/components/image";
-import { getKittyGraphics, setKittyGraphics } from "@zeta/pi-tui/kitty-graphics";
+import { Image, ImageBudget } from "@linxiraos/pi-tui/components/image";
+import { getKittyGraphics, setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
 import {
 	type CellDimensions,
 	getCellDimensions,
@@ -9,7 +9,7 @@ import {
 	renderImage,
 	setCellDimensions,
 	TERMINAL,
-} from "@zeta/pi-tui/terminal-capabilities";
+} from "@linxiraos/pi-tui/terminal-capabilities";
 
 type MutableTerminalInfo = {
 	imageProtocol: ImageProtocol | null;

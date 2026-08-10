@@ -23,9 +23,9 @@ import {
 	AuthStorage,
 	SqliteAuthCredentialStore,
 	type StoredAuthCredential,
-} from "@zeta/pi-ai/auth-storage";
-import type { UsageReport } from "@zeta/pi-ai/usage";
-import * as codexUsage from "@zeta/pi-ai/usage/openai-codex";
+} from "@linxiraos/pi-ai/auth-storage";
+import type { UsageReport } from "@linxiraos/pi-ai/usage";
+import * as codexUsage from "@linxiraos/pi-ai/usage/openai-codex";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const EMAIL = "shared@example.com";

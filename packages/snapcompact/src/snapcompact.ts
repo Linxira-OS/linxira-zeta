@@ -45,10 +45,10 @@
  * re-attached to the compaction summary message on every context rebuild.
  */
 
-import type { Api, ImageContent, Message, TextContent } from "@zeta/pi-ai";
-import { renderSnapcompactPng, snapcompactSupportedChars } from "@zeta/pi-natives";
-import { formatGroupedPaths, prompt } from "@zeta/pi-utils";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { Api, ImageContent, Message, TextContent } from "@linxiraos/pi-ai";
+import { renderSnapcompactPng, snapcompactSupportedChars } from "@linxiraos/pi-natives";
+import { formatGroupedPaths, prompt } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import fileOperationsTemplate from "./prompts/file-operations.md" with { type: "text" };
 import snapcompactSummaryPrompt from "./prompts/snapcompact-summary.md" with { type: "text" };
 

@@ -1,7 +1,7 @@
 /** Session memory backend lifecycle and transcript resets. */
 
-import type { Agent, AgentTool } from "@zeta/pi-agent-core";
-import { logger } from "@zeta/pi-utils";
+import type { Agent, AgentTool } from "@linxiraos/pi-agent-core";
+import { logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import type { HindsightSessionState } from "../hindsight/state";

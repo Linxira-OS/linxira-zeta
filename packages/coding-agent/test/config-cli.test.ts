@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { runConfigCommand } from "@zeta/pi-coding-agent/cli/config-cli";
-import { resetSettingsForTest } from "@zeta/pi-coding-agent/config/settings";
-import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import { getConfigRootDir, setAgentDir, TempDir } from "@zeta/pi-utils";
+import { getConfigRootDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { runConfigCommand } from "@linxiraos/zeta/cli/config-cli";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 
 let testAgentDir: TempDir | undefined;
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

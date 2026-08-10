@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { runCommitAgentSession } from "@zeta/pi-coding-agent/commit/agentic/agent";
-import * as toolsModule from "@zeta/pi-coding-agent/commit/agentic/tools";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import type { PromptOptions } from "@zeta/pi-coding-agent/session/agent-session";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { runCommitAgentSession } from "@linxiraos/zeta/commit/agentic/agent";
+import * as toolsModule from "@linxiraos/zeta/commit/agentic/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { PromptOptions } from "@linxiraos/zeta/session/agent-session";
 
 describe("commit agent prompt attribution", () => {
 	afterEach(() => {

@@ -1,4 +1,4 @@
-import { prompt } from "@zeta/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 import type { DaemonCompletionNotification } from "../launch/protocol";
 import launchCompletionTemplate from "../prompts/session/launch-completion.md" with { type: "text" };
 import type { CustomMessage } from "./messages";

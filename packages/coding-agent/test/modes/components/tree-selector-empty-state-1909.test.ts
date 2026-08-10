@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { TreeSelectorComponent } from "@zeta/pi-coding-agent/modes/components/tree-selector";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { SessionEntry, SessionTreeNode } from "@zeta/pi-coding-agent/session/session-entries";
+import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 
 beforeAll(async () => {
 	await initTheme(false, undefined, undefined, "dark", "light");

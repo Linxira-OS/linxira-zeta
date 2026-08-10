@@ -5,15 +5,15 @@
  */
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { runAgenticCommit } from "@zeta/pi-coding-agent/commit/agentic";
-import * as agentModule from "@zeta/pi-coding-agent/commit/agentic/agent";
-import * as modelSelection from "@zeta/pi-coding-agent/commit/model-selection";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import * as gitModule from "@zeta/pi-coding-agent/utils/git";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { runAgenticCommit } from "@linxiraos/zeta/commit/agentic";
+import * as agentModule from "@linxiraos/zeta/commit/agentic/agent";
+import * as modelSelection from "@linxiraos/zeta/commit/model-selection";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import * as gitModule from "@linxiraos/zeta/utils/git";
 
 const NUMSTAT = [{ path: "src/a.ts", additions: 1, deletions: 0 }];
 let authStorage: AuthStorage | undefined;

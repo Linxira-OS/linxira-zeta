@@ -1,5 +1,5 @@
-import type { ImageContent } from "@zeta/pi-ai";
-import { logger } from "@zeta/pi-utils";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import { type BlobPutResult, blobExtensionForImageMimeType } from "../session/blob-store";
 import { fileHyperlink } from "../tui/hyperlink";
 

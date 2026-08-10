@@ -5,7 +5,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isEnoent } from "@zeta/pi-utils";
+import { isEnoent } from "@linxiraos/pi-utils";
 
 export interface SSHHostConfig {
 	host: string;

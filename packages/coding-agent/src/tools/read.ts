@@ -2,19 +2,19 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { formatHashlineHeader, formatNumberedLine, formatNumberedLines } from "@zeta/hashline";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolTier,
-} from "@zeta/pi-agent-core";
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
-import { type SummaryResult, summarizeCode } from "@zeta/pi-natives";
-import { type } from "@zeta/pi-omptype";
-import type { Component } from "@zeta/pi-tui";
-import { Text } from "@zeta/pi-tui";
+} from "@linxiraos/pi-agent-core";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { formatHashlineHeader, formatNumberedLine, formatNumberedLines } from "@linxiraos/pi-hashline";
+import { type SummaryResult, summarizeCode } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
 import {
 	getRemoteDir,
 	type ImageMetadata,
@@ -25,8 +25,8 @@ import {
 	prompt,
 	readImageMetadata,
 	untilAborted,
-} from "@zeta/pi-utils";
-import { LRUCache } from "@zeta/pi-utils/lru";
+} from "@linxiraos/pi-utils";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import {
 	canonicalSnapshotKey,
 	getFileSnapshotStore,

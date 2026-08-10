@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
-import { type ExtensionModule, extensionModuleCapability } from "@zeta/pi-coding-agent/capability/extension-module";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { getCapability, initializeWithSettings } from "@zeta/pi-coding-agent/discovery";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { type ExtensionModule, extensionModuleCapability } from "@linxiraos/zeta/capability/extension-module";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getCapability, initializeWithSettings } from "@linxiraos/zeta/discovery";
 import {
 	discoverAndLoadExtensions,
 	discoverExtensionPaths,
 	loadExtensions,
-} from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { discoverSessionExtensionPaths } from "@zeta/pi-coding-agent/sdk";
-import { getProjectAgentDir, TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions/loader";
+import { discoverSessionExtensionPaths } from "@linxiraos/zeta/sdk";
 import { filterUserScoped } from "./utils/filter-user-extensions";
 
 describe("extensions discovery", () => {

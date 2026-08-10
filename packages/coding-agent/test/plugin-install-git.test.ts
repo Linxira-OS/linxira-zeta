@@ -1,7 +1,7 @@
 /**
  * Install-from-git tests for `PluginManager.install`.
  *
- * Strategy: spy on the six `@zeta/pi-utils` plugin-path getters so the
+ * Strategy: spy on the six `@linxiraos/pi-utils` plugin-path getters so the
  * manager points at a temp directory tree, then spy on `Bun.spawn` so we can
  * simulate `bun install <git-spec>`'s side effects (writing the dep into
  * `plugins/package.json` under its real name, and dropping a matching
@@ -18,9 +18,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { PluginManager } from "@zeta/pi-coding-agent/extensibility/plugins/manager";
-import * as piUtils from "@zeta/pi-utils";
-import { removeWithRetries } from "@zeta/pi-utils";
+import * as piUtils from "@linxiraos/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import type { Subprocess } from "bun";
 
 function textStream(text: string): ReadableStream<Uint8Array> {

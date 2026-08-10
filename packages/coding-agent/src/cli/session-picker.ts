@@ -1,5 +1,5 @@
-import { ProcessTerminal, TUI } from "@zeta/pi-tui";
-import { logger } from "@zeta/pi-utils";
+import { ProcessTerminal, TUI } from "@linxiraos/pi-tui";
+import { logger } from "@linxiraos/pi-utils";
 import { SessionSelectorComponent } from "../modes/components/session-selector";
 import { HistoryStorage } from "../session/history-storage";
 import type { SessionInfo } from "../session/session-listing";

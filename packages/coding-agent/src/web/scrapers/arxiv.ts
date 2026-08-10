@@ -30,7 +30,7 @@ export const handleArxiv: SpecialHandler = async (
 		if (!result.ok) return null;
 
 		// Parse the Atom feed response
-		const { parseHTML } = await import("@zeta/pi-utils/dom");
+		const { parseHTML } = await import("@linxiraos/pi-utils/dom");
 		const doc = parseHTML(result.content).document;
 		const entry = doc.querySelector("entry");
 

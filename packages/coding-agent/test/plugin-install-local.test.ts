@@ -16,12 +16,12 @@ import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { runPluginCommand } from "@zeta/pi-coding-agent/cli/plugin-cli";
-import { PluginManager } from "@zeta/pi-coding-agent/extensibility/plugins/manager";
-import { MarketplaceManager } from "@zeta/pi-coding-agent/extensibility/plugins/marketplace";
-import type { InstalledPlugin } from "@zeta/pi-coding-agent/extensibility/plugins/types";
-import * as piUtils from "@zeta/pi-utils";
-import { removeWithRetries } from "@zeta/pi-utils";
+import * as piUtils from "@linxiraos/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
+import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import type { InstalledPlugin } from "@linxiraos/zeta/extensibility/plugins/types";
 
 const FAKE_INSTALLED: InstalledPlugin = {
 	name: "kimi-datasource",

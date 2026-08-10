@@ -10,12 +10,8 @@
  * protobuf POST at /v1/traces.
  */
 
+import { flushTelemetryExport, initTelemetryExport, isTelemetryExportEnabled } from "@linxiraos/zeta/telemetry-export";
 import { trace } from "@opentelemetry/api";
-import {
-	flushTelemetryExport,
-	initTelemetryExport,
-	isTelemetryExportEnabled,
-} from "@zeta/pi-coding-agent/telemetry-export";
 
 let received = false;
 
@@ -47,7 +43,7 @@ if (!isTelemetryExportEnabled()) {
 	process.exit(2);
 }
 
-const span = trace.getTracer("@zeta/pi-agent-core").startSpan("agent.llm_call");
+const span = trace.getTracer("@linxiraos/pi-agent-core").startSpan("agent.llm_call");
 span.setAttribute("gen_ai.system", "probe");
 span.setAttribute("gen_ai.request.model", "claude-haiku-4-5");
 span.end();

@@ -4,9 +4,9 @@ import {
 	generateBranchSummary,
 	prepareBranchEntries,
 	type SessionEntry,
-} from "@zeta/pi-agent-core/compaction";
-import type { AssistantMessage, Model, Usage } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
+} from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, Model, Usage } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const MODEL: Model = buildModel({
 	id: "mock-model",

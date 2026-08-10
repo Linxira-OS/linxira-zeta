@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { listSessions } from "@zeta/pi-coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@zeta/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { MemorySessionStorage } from "@zeta/pi-coding-agent/session/session-storage";
-import * as snapcompact from "@zeta/snapcompact";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { listSessions } from "@linxiraos/zeta/session/session-listing";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 class CountingMemorySessionStorage extends MemorySessionStorage {
 	writeTextSyncCalls = 0;

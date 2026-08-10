@@ -2,10 +2,10 @@
  * Shared utilities for compaction and branch summarization.
  */
 
-import type { Message, ToolCall } from "@zeta/pi-ai";
-import { type Dialect, getDialectDefinition } from "@zeta/pi-ai/dialect";
-import { escapeHarmonyControlTokens } from "@zeta/pi-ai/utils/harmony-leak";
-import { formatGroupedPaths, prompt, stringifyJson } from "@zeta/pi-utils";
+import type { Message, ToolCall } from "@linxiraos/pi-ai";
+import { type Dialect, getDialectDefinition } from "@linxiraos/pi-ai/dialect";
+import { escapeHarmonyControlTokens } from "@linxiraos/pi-ai/utils/harmony-leak";
+import { formatGroupedPaths, prompt, stringifyJson } from "@linxiraos/pi-utils";
 import type { AgentMessage } from "../types";
 import fileOperationsTemplate from "./prompts/file-operations.md" with { type: "text" };
 import summarizationSystemPrompt from "./prompts/summarization-system.md" with { type: "text" };

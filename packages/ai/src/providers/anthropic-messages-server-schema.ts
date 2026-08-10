@@ -4,7 +4,7 @@
  * and options.
  */
 
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	ContentBlockParam,
 	ImageBlockParam,

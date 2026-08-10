@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearWorktrees } from "@zeta/pi-coding-agent/cli/worktree-cli";
-import { ISOLATION_OWNER_FILE, writeIsolationOwner } from "@zeta/pi-coding-agent/task/isolation-ownership";
-import { setWorktreesDir } from "@zeta/pi-utils";
+import { setWorktreesDir } from "@linxiraos/pi-utils";
+import { clearWorktrees } from "@linxiraos/zeta/cli/worktree-cli";
+import { ISOLATION_OWNER_FILE, writeIsolationOwner } from "@linxiraos/zeta/task/isolation-ownership";
 
 /**
  * Regression for #6761: `omp worktree clear` (no `--all`) must delete only

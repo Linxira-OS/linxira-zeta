@@ -1,4 +1,4 @@
-import { $env, logger } from "@zeta/pi-utils";
+import { $env, logger } from "@linxiraos/pi-utils";
 import { settings } from "../config/settings";
 import {
 	createUnavailableWorker,

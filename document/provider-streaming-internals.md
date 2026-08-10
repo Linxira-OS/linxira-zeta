@@ -1,6 +1,6 @@
 # Provider streaming internals
 
-This document explains how token/tool streaming is normalized in `@zeta/pi-ai`, then propagated through `@zeta/pi-agent-core` and `coding-agent` session events.
+This document explains how token/tool streaming is normalized in `@linxiraos/pi-ai`, then propagated through `@linxiraos/pi-agent-core` and `coding-agent` session events.
 
 ## End-to-end flow
 
@@ -13,7 +13,7 @@ This document explains how token/tool streaming is normalized in `@zeta/pi-ai`, 
 5. `agentLoop` (`packages/agent/src/agent-loop.ts`) consumes those events, mutates in-flight assistant state, and emits `message_update` events carrying the raw `assistantMessageEvent`.
 6. `AgentSession` (`packages/coding-agent/src/session/agent-session.ts`) subscribes to agent events, persists messages, drives extension hooks, and applies session behaviors (retry, compaction, TTSR, streaming-edit abort checks).
 
-## Unified stream contract in `@zeta/pi-ai`
+## Unified stream contract in `@linxiraos/pi-ai`
 
 All providers emit the same shape (`AssistantMessageEvent` in `packages/ai/src/types.ts`):
 

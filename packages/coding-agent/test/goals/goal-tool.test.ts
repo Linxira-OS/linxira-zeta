@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import { completionBudgetReport, GoalRuntime } from "@zeta/pi-coding-agent/goals/runtime";
-import type { Goal, GoalModeState, GoalTokenUsage } from "@zeta/pi-coding-agent/goals/state";
-import { GoalTool } from "@zeta/pi-coding-agent/goals/tools/goal-tool";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { completionBudgetReport, GoalRuntime } from "@linxiraos/zeta/goals/runtime";
+import type { Goal, GoalModeState, GoalTokenUsage } from "@linxiraos/zeta/goals/state";
+import { GoalTool } from "@linxiraos/zeta/goals/tools/goal-tool";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return {

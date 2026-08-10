@@ -3,12 +3,12 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	__collectLegacyPiExtensionSourcesForTests,
 	__rewriteLegacyExtensionSourceForTests,
 	loadLegacyPiModule,
-} from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 
 // Issue #1674: legacy Pi extensions load browser-UI assets (HTML/CSS) at module
 // init via `readFileSync(join(__dirname, "ui.html"))`. The compat layer must run
@@ -105,7 +105,7 @@ describe("legacy-pi in-place module loading (issue #1674)", () => {
 			}),
 			"node_modules/direct/index.js": 'module.exports = require("@mariozechner/pi-ai").Type;\n',
 			"index.ts": [
-				'import { Type } from "@zeta/pi-ai";',
+				'import { Type } from "@linxiraos/pi-ai";',
 				'import requiredType from "direct";',
 				"export const sharesHostType = requiredType === Type;",
 				"export default function (pi) { void pi; }",

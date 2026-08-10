@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { getRoleInfo } from "@zeta/pi-coding-agent/config/model-roles";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { getRoleInfo } from "@linxiraos/zeta/config/model-roles";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 describe("getRoleInfo", () => {
 	test("returns built-in role info", () => {

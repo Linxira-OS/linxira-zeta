@@ -18,9 +18,9 @@ import {
 	stripClaudeToolPrefix,
 	withAuth,
 	wrapFetchForCch,
-} from "@zeta/pi-ai";
-import { hasOpus47ApiRestrictions } from "@zeta/pi-catalog/identity/family";
-import { $env } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { hasOpus47ApiRestrictions } from "@linxiraos/pi-catalog/identity/family";
+import { $env } from "@linxiraos/pi-utils";
 import type {
 	AnthropicApiResponse,
 	AnthropicCitation,

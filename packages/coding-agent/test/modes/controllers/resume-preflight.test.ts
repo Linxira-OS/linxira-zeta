@@ -2,12 +2,12 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as SessionSelector from "@zeta/pi-coding-agent/modes/components/session-selector";
-import { SelectorController } from "@zeta/pi-coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { SessionInfo } from "@zeta/pi-coding-agent/session/session-listing";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import * as SessionSelector from "@linxiraos/zeta/modes/components/session-selector";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 beforeAll(async () => {
 	await initTheme();

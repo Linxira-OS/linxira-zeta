@@ -5,8 +5,8 @@ import {
 	getCustomApi,
 	registerCustomApi,
 	unregisterCustomApis,
-} from "@zeta/pi-ai/api-registry";
-import type { AssistantMessageEventStream } from "@zeta/pi-ai/types";
+} from "@linxiraos/pi-ai/api-registry";
+import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/types";
 
 afterEach(() => {
 	clearCustomApis();

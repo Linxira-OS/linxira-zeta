@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { isEmptyErrorTurn, sanitizeAssistantForReparentedHistory } from "@zeta/pi-coding-agent/session/messages";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { isEmptyErrorTurn, sanitizeAssistantForReparentedHistory } from "@linxiraos/zeta/session/messages";
 
 type Turn = Pick<AssistantMessage, "stopReason" | "content">;
 

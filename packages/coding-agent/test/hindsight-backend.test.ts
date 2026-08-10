@@ -8,12 +8,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { hindsightBackend, reloadMentalModelsForSession } from "@zeta/pi-coding-agent/hindsight/backend";
-import { HindsightApi } from "@zeta/pi-coding-agent/hindsight/client";
-import type { HindsightSessionState } from "@zeta/pi-coding-agent/hindsight/state";
-import type { AgentSessionEventListener } from "@zeta/pi-coding-agent/session/agent-session";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { hindsightBackend, reloadMentalModelsForSession } from "@linxiraos/zeta/hindsight/backend";
+import { HindsightApi } from "@linxiraos/zeta/hindsight/client";
+import type { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
+import type { AgentSessionEventListener } from "@linxiraos/zeta/session/agent-session";
 
 interface FakeSessionDeps {
 	sessionId: string | null;

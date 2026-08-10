@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { ToolCallLoopGuard } from "@zeta/pi-ai/utils/tool-call-loop-guard";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { ToolCallLoopGuard } from "@linxiraos/pi-ai/utils/tool-call-loop-guard";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 const zeroUsage = {
 	input: 0,

@@ -1,4 +1,4 @@
-import type { AuthStorage } from "@zeta/pi-ai";
+import type { AuthStorage } from "@linxiraos/pi-ai";
 import { formatSearchProviderFailures, getSearchProvider, isSearchProviderExcluded } from "../provider";
 import type { SearchProviderId, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../types";

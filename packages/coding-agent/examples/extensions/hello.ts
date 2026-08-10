@@ -3,7 +3,7 @@
  *
  * Demonstrates using ExtensionAPI's logger and injected schema builder.
  */
-import type { ExtensionAPI } from "@zeta/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function (pi: ExtensionAPI) {
 	const z = pi.zod;

@@ -1,8 +1,8 @@
 /**
  * CustomToolAdapter wraps CustomTool instances into AgentTool for use with the agent.
  */
-import type { AgentTool, AgentToolUpdateCallback, ToolLoadMode } from "@zeta/pi-agent-core";
-import type { Static, TSchema } from "@zeta/pi-ai";
+import type { AgentTool, AgentToolUpdateCallback, ToolLoadMode } from "@linxiraos/pi-agent-core";
+import type { Static, TSchema } from "@linxiraos/pi-ai";
 import type { Theme } from "../../modes/theme/theme";
 import { defaultLoadModeForToolName } from "../../tools/essential-tools";
 import { applyToolProxy } from "../tool-proxy";

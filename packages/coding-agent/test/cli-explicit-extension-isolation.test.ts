@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { realpathSync } from "node:fs";
 import { symlink, unlink } from "node:fs/promises";
-import { AuthStorage } from "@zeta/pi-ai";
-import { parseArgs } from "@zeta/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { buildSessionOptions } from "@zeta/pi-coding-agent/main";
-import { loadSessionExtensions } from "@zeta/pi-coding-agent/sdk";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@zeta/pi-utils";
+import { AuthStorage } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { buildSessionOptions } from "@linxiraos/zeta/main";
+import { loadSessionExtensions } from "@linxiraos/zeta/sdk";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 let tempDir: TempDir;
 let authStorage: AuthStorage;

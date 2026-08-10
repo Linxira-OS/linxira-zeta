@@ -1,4 +1,4 @@
-import { padding, truncateToWidth, visibleWidth } from "@zeta/pi-tui";
+import { padding, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
 import { M } from "../../../i18n";
 import { gradientEscape, gradientLogo, type ShineConfig, ZETA_LOGO } from "../../components/welcome";
 import { theme } from "../../theme/theme";

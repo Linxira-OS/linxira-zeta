@@ -1,5 +1,5 @@
 import type { DataType } from "@huggingface/transformers";
-import { $env } from "@zeta/pi-utils";
+import { $env } from "@linxiraos/pi-utils";
 
 /** ONNX quantization / precision for local tiny models (transformers.js `dtype`). */
 export type TinyModelDtype = DataType;

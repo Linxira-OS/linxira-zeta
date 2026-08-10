@@ -1,5 +1,5 @@
 import { it } from "bun:test";
-import { scope, type } from "@zeta/pi-omptype/ark";
+import { scope, type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "./type-assert";
 
 it("ark", () => {

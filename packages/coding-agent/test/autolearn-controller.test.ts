@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { Agent, type AgentMessage, type AgentOptions, type AgentTool } from "@zeta/pi-agent-core";
-import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@zeta/pi-ai";
-import { streamGoogle } from "@zeta/pi-ai/providers/google";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { AutoLearnController, buildAutoLearnInstructions } from "@zeta/pi-coding-agent/autolearn/controller";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createAutoLearnCaptureRunner } from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
-import { type } from "@zeta/pi-omptype";
+import { Agent, type AgentMessage, type AgentOptions, type AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@linxiraos/pi-ai";
+import { streamGoogle } from "@linxiraos/pi-ai/providers/google";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { AutoLearnController, buildAutoLearnInstructions } from "@linxiraos/zeta/autolearn/controller";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAutoLearnCaptureRunner } from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
 
 class FakeSession {
 	readonly listeners: Array<(event: AgentSessionEvent) => void> = [];

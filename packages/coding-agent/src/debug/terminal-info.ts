@@ -13,7 +13,7 @@ import {
 	NotifyProtocol,
 	TERMINAL,
 	TERMINAL_ID,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 
 /** Live values the debug view reads off the running TUI, not the static capability table. */
 export interface TerminalRuntimeState {

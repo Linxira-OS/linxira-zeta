@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as ai from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { BlockAccumulator, SpeechEnhancer } from "@zeta/pi-coding-agent/tts/speech-enhancer";
+import * as ai from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { BlockAccumulator, SpeechEnhancer } from "@linxiraos/zeta/tts/speech-enhancer";
 
 afterEach(() => {
 	vi.restoreAllMocks();

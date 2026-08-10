@@ -16,7 +16,7 @@
 
 ### Changed
 
-- Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 ## [17.2.11] - 2026-08-07
 
 ### Added

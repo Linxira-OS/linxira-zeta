@@ -1,4 +1,4 @@
-import type { Component } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
 import { fgOrPlain, theme } from "../../modes/theme/theme";
 
 /**

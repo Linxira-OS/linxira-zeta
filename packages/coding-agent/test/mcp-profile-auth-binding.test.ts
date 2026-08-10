@@ -10,13 +10,13 @@
  */
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai";
-import { MCPManager } from "@zeta/pi-coding-agent/mcp/manager";
-import { removeManagedMcpOAuthCredential } from "@zeta/pi-coding-agent/mcp/oauth-credentials";
-import * as oauthFlow from "@zeta/pi-coding-agent/mcp/oauth-flow";
-import { mcpOAuthCredentialId } from "@zeta/pi-coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@zeta/pi-coding-agent/mcp/types";
-import { getActiveProfile, setProfile } from "@zeta/pi-utils/dirs";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { getActiveProfile, setProfile } from "@linxiraos/pi-utils/dirs";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { removeManagedMcpOAuthCredential } from "@linxiraos/zeta/mcp/oauth-credentials";
+import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
+import { mcpOAuthCredentialId } from "@linxiraos/zeta/mcp/oauth-flow";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
 
 const SERVER_URL = "https://mcp.example.com/mcp";
 const URL_KEY_ID = mcpOAuthCredentialId(SERVER_URL);

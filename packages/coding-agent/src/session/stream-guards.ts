@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
-import type { Agent, AgentEvent, AgentMessage, AgentTurnEndContext } from "@zeta/pi-agent-core";
-import type { AssistantMessage, AssistantMessageEvent, Model, ToolCall } from "@zeta/pi-ai";
-import { GeminiHeaderRunDetector, isGeminiThinkingModel } from "@zeta/pi-ai/utils/thinking-loop";
-import { type RepeatedToolCallDetection, ToolCallLoopGuard } from "@zeta/pi-ai/utils/tool-call-loop-guard";
-import { isEnoent, logger, prompt } from "@zeta/pi-utils";
+import type { Agent, AgentEvent, AgentMessage, AgentTurnEndContext } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, AssistantMessageEvent, Model, ToolCall } from "@linxiraos/pi-ai";
+import { GeminiHeaderRunDetector, isGeminiThinkingModel } from "@linxiraos/pi-ai/utils/thinking-loop";
+import { type RepeatedToolCallDetection, ToolCallLoopGuard } from "@linxiraos/pi-ai/utils/tool-call-loop-guard";
+import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { normalizeDiff, normalizeToLF, ParseError, previewPatch, stripBom } from "../edit";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";

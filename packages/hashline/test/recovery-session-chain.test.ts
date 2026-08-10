@@ -17,7 +17,7 @@ import {
 	RECOVERY_LINE_REMAP_WARNING,
 	RECOVERY_SESSION_CHAIN_WARNING,
 	Recovery,
-} from "@zeta/hashline";
+} from "@linxiraos/pi-hashline";
 
 const PATH = "/tmp/__hashline-recovery-session-chain__.ts";
 

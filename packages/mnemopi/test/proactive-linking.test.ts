@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import "./setup";
-import { configureRecallFeatures } from "@zeta/pi-mnemopi/config";
-import { BeamMemory } from "@zeta/pi-mnemopi/core/beam";
-import type { EpisodicGraph, RelatedMemory } from "@zeta/pi-mnemopi/core/episodic-graph";
-import { Mnemopi } from "@zeta/pi-mnemopi/core/memory";
+import { configureRecallFeatures } from "@linxiraos/pi-mnemopi/config";
+import { BeamMemory } from "@linxiraos/pi-mnemopi/core/beam";
+import type { EpisodicGraph, RelatedMemory } from "@linxiraos/pi-mnemopi/core/episodic-graph";
+import { Mnemopi } from "@linxiraos/pi-mnemopi/core/memory";
 
 const previousProactive = process.env.MNEMOPI_PROACTIVE_LINKING;
 

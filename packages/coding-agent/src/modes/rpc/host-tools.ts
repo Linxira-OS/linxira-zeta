@@ -1,6 +1,6 @@
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback, ToolLoadMode } from "@zeta/pi-agent-core";
-import type { Static, TSchema } from "@zeta/pi-ai";
-import { Snowflake } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback, ToolLoadMode } from "@linxiraos/pi-agent-core";
+import type { Static, TSchema } from "@linxiraos/pi-ai";
+import { Snowflake } from "@linxiraos/pi-utils";
 import { applyToolProxy } from "../../extensibility/tool-proxy";
 import type { Theme } from "../../modes/theme/theme";
 import { defaultLoadModeForToolName } from "../../tools/essential-tools";

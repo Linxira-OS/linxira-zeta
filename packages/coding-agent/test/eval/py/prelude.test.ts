@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { $which } from "@zeta/pi-utils";
+import { $which } from "@linxiraos/pi-utils";
 import { PYTHON_PRELUDE } from "../../../src/eval/py/prelude";
 
 const pythonPath = Bun.env.PYTHON ?? ($which("python3") ? "python3" : "python");

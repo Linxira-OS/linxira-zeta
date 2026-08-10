@@ -20,8 +20,8 @@ import {
 	sleep,
 	sleepAllSessions,
 	update,
-} from "@zeta/pi-mnemopi/core/memory";
-import { openDatabase } from "@zeta/pi-mnemopi/db";
+} from "@linxiraos/pi-mnemopi/core/memory";
+import { openDatabase } from "@linxiraos/pi-mnemopi/db";
 
 const roots: string[] = [];
 let previousDataDir: string | undefined;

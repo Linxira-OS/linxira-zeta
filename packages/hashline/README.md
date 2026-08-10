@@ -1,4 +1,4 @@
-# @zeta/hashline
+# @linxiraos/pi-hashline
 
 A compact, line-anchored patch language and applier.
 
@@ -16,7 +16,7 @@ import {
 	InMemorySnapshotStore,
 	Patcher,
 	Patch,
-} from "@zeta/hashline";
+} from "@linxiraos/pi-hashline";
 
 const fs = new InMemoryFilesystem();
 const snapshots = new InMemorySnapshotStore();

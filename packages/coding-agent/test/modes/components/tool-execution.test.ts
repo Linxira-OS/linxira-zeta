@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import type { AgentTool } from "@zeta/pi-agent-core";
-import { type Component, Text } from "@zeta/pi-tui";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { type Component, Text } from "@linxiraos/pi-tui";
 import { Settings, settings } from "../../../src/config/settings";
 import { renderMCPResult } from "../../../src/mcp/render";
 import type { MCPToolDetails } from "../../../src/mcp/tool-bridge";

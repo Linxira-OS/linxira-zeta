@@ -3,15 +3,15 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { isOfficialAnthropicApiUrl } from "@zeta/pi-catalog/compat/anthropic";
-import { buildOpenAICompat, buildOpenAIResponsesCompat } from "@zeta/pi-catalog/compat/openai";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { readModelCache, writeModelCache } from "@zeta/pi-catalog/model-cache";
-import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { openrouterModelManagerOptions } from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { Model, ModelSpec } from "@zeta/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import { buildOpenAICompat, buildOpenAIResponsesCompat } from "@linxiraos/pi-catalog/compat/openai";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { readModelCache, writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { openrouterModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { Model, ModelSpec } from "@linxiraos/pi-catalog/types";
 
 function completionsSpec(overrides: Partial<ModelSpec<"openai-completions">> = {}): ModelSpec<"openai-completions"> {
 	return {

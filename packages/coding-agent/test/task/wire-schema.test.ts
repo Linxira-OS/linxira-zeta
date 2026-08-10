@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { TaskTool, taskSchema } from "@zeta/pi-coding-agent/task";
-import * as discoveryModule from "@zeta/pi-coding-agent/task/discovery";
-import { getTaskSchema, oneLineLabel } from "@zeta/pi-coding-agent/task/types";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { TaskTool, taskSchema } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import { getTaskSchema, oneLineLabel } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 // Contract: the task tool's wire shape is flat `{ name?, agent?, task, isolated? }`
 // (batch: `{ context, tasks[] }` of the same items). `agent` defaults to the

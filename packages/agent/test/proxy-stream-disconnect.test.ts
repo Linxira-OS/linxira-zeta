@@ -7,11 +7,11 @@
  * event — it must NOT silently complete with default stopReason='stop'.
  */
 import { describe, expect, it } from "bun:test";
-import type { ProxyAssistantMessageEvent } from "@zeta/pi-agent-core/proxy";
-import { type ProxyMessageEventStream, streamProxy } from "@zeta/pi-agent-core/proxy";
-import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, ToolCall } from "@zeta/pi-ai";
-import { getStreamingPartialJson } from "@zeta/pi-ai/utils/block-symbols";
-import { buildModel } from "@zeta/pi-catalog/build";
+import type { ProxyAssistantMessageEvent } from "@linxiraos/pi-agent-core/proxy";
+import { type ProxyMessageEventStream, streamProxy } from "@linxiraos/pi-agent-core/proxy";
+import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, ToolCall } from "@linxiraos/pi-ai";
+import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const mockModel: Model = buildModel({
 	id: "test-model",

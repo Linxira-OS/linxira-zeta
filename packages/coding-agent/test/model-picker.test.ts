@@ -1,14 +1,14 @@
 import { beforeAll, describe, expect, type Mock, test, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { ModelPickerComponent, type ModelPickerOptions } from "@zeta/pi-coding-agent/modes/components/model-picker";
-import { resolveSegmentPalette } from "@zeta/pi-coding-agent/modes/components/segment-track";
-import { getThemeByName, setThemeInstance, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { ResolvedRoleModel } from "@zeta/pi-coding-agent/session/agent-session";
-import type { TUI } from "@zeta/pi-tui";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { TUI } from "@linxiraos/pi-tui";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ModelPickerComponent, type ModelPickerOptions } from "@linxiraos/zeta/modes/components/model-picker";
+import { resolveSegmentPalette } from "@linxiraos/zeta/modes/components/segment-track";
+import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
+import type { ResolvedRoleModel } from "@linxiraos/zeta/session/agent-session";
 
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();

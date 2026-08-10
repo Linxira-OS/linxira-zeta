@@ -9,9 +9,9 @@
  * drains pending messages; `list` shows every addressable peer.
  */
 
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { type Component, Text } from "@zeta/pi-tui";
-import { formatAge, formatDuration } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type Component, Text } from "@linxiraos/pi-tui";
+import { formatAge, formatDuration } from "@linxiraos/pi-utils";
 import type { Settings } from "../../config/settings";
 import type { RenderResultOptions } from "../../extensibility/custom-tools/types";
 import { IrcBus, type IrcDeliveryReceipt, type IrcMessage } from "../../irc/bus";

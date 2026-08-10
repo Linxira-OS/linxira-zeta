@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { normalizedRecallWeights } from "@zeta/pi-mnemopi/config";
-import { BeamMemory } from "@zeta/pi-mnemopi/core/beam";
+import { normalizedRecallWeights } from "@linxiraos/pi-mnemopi/config";
+import { BeamMemory } from "@linxiraos/pi-mnemopi/core/beam";
 
 const beams: BeamMemory[] = [];
 const ORIGINAL_ENV = {

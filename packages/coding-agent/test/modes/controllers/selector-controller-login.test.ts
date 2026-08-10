@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import { LoginDialogComponent } from "@zeta/pi-coding-agent/modes/components/login-dialog";
-import { SelectorController } from "@zeta/pi-coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import type { TUI } from "@zeta/pi-tui";
+import type { TUI } from "@linxiraos/pi-tui";
+import { LoginDialogComponent } from "@linxiraos/zeta/modes/components/login-dialog";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 interface RenderableBlock {
 	render(width: number): string[];

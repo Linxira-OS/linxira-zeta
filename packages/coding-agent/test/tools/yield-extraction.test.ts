@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import "@zeta/pi-coding-agent/tools/yield";
-import { subprocessToolRegistry } from "@zeta/pi-coding-agent/task/subprocess-tool-registry";
+import "@linxiraos/zeta/tools/yield";
+import { subprocessToolRegistry } from "@linxiraos/zeta/task/subprocess-tool-registry";
 
 describe("yield subprocess extraction", () => {
 	const handler = subprocessToolRegistry.getHandler("yield");

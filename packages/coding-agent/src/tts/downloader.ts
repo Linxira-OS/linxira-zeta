@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getTinyModelsCacheDir } from "@zeta/pi-utils";
+import { getTinyModelsCacheDir } from "@linxiraos/pi-utils";
 import { getTtsLocalModelSpec } from "./models";
 import { isTtsRuntimeCached } from "./runtime";
 import { ttsClient } from "./tts-client";

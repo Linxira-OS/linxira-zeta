@@ -6,9 +6,9 @@
  * dropped.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ImageContent } from "@zeta/pi-ai";
-import { InputController } from "@zeta/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 interface StubEditor {
 	setText: (text: string) => void;

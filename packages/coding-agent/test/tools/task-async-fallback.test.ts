@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { TaskTool } from "@zeta/pi-coding-agent/task";
-import * as discoveryModule from "@zeta/pi-coding-agent/task/discovery";
-import type { TaskParams } from "@zeta/pi-coding-agent/task/types";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import type { TaskParams } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 function createSession(overrides: Partial<Record<string, unknown>> = {}): ToolSession {
 	return {

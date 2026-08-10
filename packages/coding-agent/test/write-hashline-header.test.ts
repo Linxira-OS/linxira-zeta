@@ -2,14 +2,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Patch, Patcher } from "@zeta/hashline";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "@zeta/pi-coding-agent/edit/file-snapshot-store";
-import { HashlineFilesystem } from "@zeta/pi-coding-agent/edit/hashline/filesystem";
-import { writethroughNoop } from "@zeta/pi-coding-agent/lsp";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { WriteTool } from "@zeta/pi-coding-agent/tools/write";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { Patch, Patcher } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { canonicalSnapshotKey, getFileSnapshotStore } from "@linxiraos/zeta/edit/file-snapshot-store";
+import { HashlineFilesystem } from "@linxiraos/zeta/edit/hashline/filesystem";
+import { writethroughNoop } from "@linxiraos/zeta/lsp";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
 
 function createSession(cwd: string): ToolSession {
 	return {

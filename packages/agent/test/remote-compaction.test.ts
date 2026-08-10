@@ -7,7 +7,7 @@ import {
 	NativeCompactionError,
 	prepareCompaction,
 	type SessionEntry,
-} from "@zeta/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core/compaction";
 import {
 	buildCompactionV2Request,
 	buildOpenAiNativeHistory,
@@ -19,10 +19,10 @@ import {
 	shouldUseCompactionV2Streaming,
 	shouldUseOpenAiRemoteCompaction,
 	trimRemoteCompactionInputToContextWindow,
-} from "@zeta/pi-agent-core/compaction/openai";
-import * as ai from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { getOpenAICodexTransportDetails } from "@zeta/pi-ai/providers/openai-codex-responses";
+} from "@linxiraos/pi-agent-core/compaction/openai";
+import * as ai from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { getOpenAICodexTransportDetails } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -30,10 +30,10 @@ import type {
 	Model,
 	ProviderSessionState,
 	ToolResultMessage,
-} from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
-import * as piUtils from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
+import * as piUtils from "@linxiraos/pi-utils";
 
 const { isRecord } = piUtils;
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";

@@ -21,16 +21,16 @@ import {
 	type Tool,
 	type Usage,
 	withAuth,
-} from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { createOpenAICodexCompactionRequestContext } from "@zeta/pi-ai/providers/openai-codex-responses";
-import { convertTools } from "@zeta/pi-ai/providers/openai-responses";
-import { buildResponsesInput, resolveOpenAICompatPolicy } from "@zeta/pi-ai/providers/openai-shared";
-import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@zeta/pi-ai/utils";
-import { preferredDialect } from "@zeta/pi-catalog/identity";
-import { clampThinkingLevelForModel } from "@zeta/pi-catalog/model-thinking";
-import { isRecord, logger, prompt, stringifyJson } from "@zeta/pi-utils";
-import * as snapcompact from "@zeta/snapcompact";
+} from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { convertTools } from "@linxiraos/pi-ai/providers/openai-responses";
+import { buildResponsesInput, resolveOpenAICompatPolicy } from "@linxiraos/pi-ai/providers/openai-shared";
+import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@linxiraos/pi-ai/utils";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { isRecord, logger, prompt, stringifyJson } from "@linxiraos/pi-utils";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import { ThinkingLevel } from "../thinking";
 import { countTokens } from "../tokenizer";

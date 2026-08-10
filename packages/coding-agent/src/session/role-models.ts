@@ -1,5 +1,5 @@
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Model } from "@zeta/pi-ai";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
 import type { ModelRegistry } from "../config/model-registry";
 import {
 	extractExplicitThinkingSelector,

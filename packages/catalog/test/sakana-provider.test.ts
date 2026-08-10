@@ -2,14 +2,14 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getOAuthProviders } from "@zeta/pi-ai/registry/oauth";
-import { getEnvApiKey } from "@zeta/pi-ai/stream";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
-import { getBundledModels } from "@zeta/pi-catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@zeta/pi-catalog/provider-models/descriptors";
-import { sakanaModelManagerOptions } from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec, ResolvedOpenAIResponsesCompat } from "@zeta/pi-catalog/types";
+import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
+import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
+import { sakanaModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec, ResolvedOpenAIResponsesCompat } from "@linxiraos/pi-catalog/types";
 
 const ORIGINAL_ENV = {
 	SAKANA_API_KEY: Bun.env.SAKANA_API_KEY,

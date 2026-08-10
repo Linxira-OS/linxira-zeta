@@ -3,18 +3,18 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@zeta/pi-utils";
-import "@zeta/pi-coding-agent/tools/renderers";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { ReadTool } from "@zeta/pi-coding-agent/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import "@linxiraos/zeta/tools/renderers";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 import {
 	listTables,
 	parseSqlitePathCandidates,
 	parseSqliteSelector,
 	renderTable,
 	renderTableList,
-} from "@zeta/pi-coding-agent/tools/sqlite-reader";
-import { WriteTool } from "@zeta/pi-coding-agent/tools/write";
+} from "@linxiraos/zeta/tools/sqlite-reader";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
 
 type ToolTextResult = {
 	content: Array<{ type: string; text?: string }>;

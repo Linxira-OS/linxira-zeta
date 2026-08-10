@@ -7,8 +7,8 @@
  * `share.redactSecrets`.
  */
 
-import { getAgentDir } from "@zeta/pi-utils";
-import { Args, Command, Flags } from "@zeta/pi-utils/cli";
+import { getAgentDir } from "@linxiraos/pi-utils";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { shareHelp as commandHelp } from "../cli/command-help";
 import { Settings } from "../config/settings";
 import { shareSession } from "../export/share";

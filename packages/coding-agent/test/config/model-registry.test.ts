@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AuthStorage } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { ModelRegistry } from "../../src/config/model-registry";
 
 /** Stub auth storage for registry lifecycle and missing-credential coverage. */

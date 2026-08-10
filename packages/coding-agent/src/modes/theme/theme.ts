@@ -1,15 +1,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Effort } from "@zeta/pi-ai";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Effort } from "@linxiraos/pi-ai";
 import {
 	detectMacOSAppearance,
 	MacAppearanceObserver,
 	type HighlightColors as NativeHighlightColors,
 	highlightCode as nativeHighlightCode,
 	supportsLanguage as nativeSupportsLanguage,
-} from "@zeta/pi-natives";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	EditorTheme,
 	MarkdownTheme,
@@ -18,10 +18,10 @@ import type {
 	SymbolTheme,
 	Terminal,
 	TerminalAppearance,
-} from "@zeta/pi-tui";
-import { adjustHsv, colorLuma, getCustomThemesDir, isEnoent, logger, relativeLuminance } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
-import { LRUCache } from "@zeta/pi-utils/lru";
+} from "@linxiraos/pi-tui";
+import { adjustHsv, colorLuma, getCustomThemesDir, isEnoent, logger, relativeLuminance } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 // Embed theme JSON files at build time
 import darkThemeJson from "./dark.json" with { type: "json" };
 import { defaultThemes } from "./defaults";

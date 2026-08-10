@@ -7,7 +7,7 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@zeta/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import type {
 	CursorMcpCall,
 	CursorMcpResource,
@@ -16,7 +16,7 @@ import type {
 	CursorTodoSnapshot,
 	CursorExecHandlers as ICursorExecHandlers,
 	ToolResultMessage,
-} from "@zeta/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	piEscapeRegexLiteral,
 	piGrepSkip,
@@ -25,8 +25,8 @@ import {
 	piLsPath,
 	piReadPath,
 	piTimeout,
-} from "@zeta/pi-ai/providers/cursor/exec-modern";
-import { sanitizeText } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/providers/cursor/exec-modern";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { MCPResourceReadResult } from "./mcp/types";
 import type { ApprovalMode } from "./tools/approval";
 import { resolveApproval } from "./tools/approval";

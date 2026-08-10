@@ -12,11 +12,11 @@
  */
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@zeta/pi-coding-agent/cli/args";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { runRootCommand } from "@zeta/pi-coding-agent/main";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {

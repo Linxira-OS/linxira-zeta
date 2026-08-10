@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { sanitizeSkillName, writeManagedSkill } from "../autolearn/managed-skills";
 import { isNameClaimedByAuthoredSkill } from "../extensibility/skills";
 import { M } from "../i18n/messages";

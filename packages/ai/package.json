@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@zeta/pi-ai",
+  "name": "@linxiraos/pi-ai",
   "version": "1.0.0",
   "description": "Unified LLM API with automatic model discovery and provider configuration",
   "homepage": "https://linxira-os.github.io",
@@ -38,10 +38,10 @@
   },
   "dependencies": {
     "@bufbuild/protobuf": "catalog:",
-    "@zeta/pi-omptype": "catalog:",
-    "@zeta/pi-catalog": "catalog:",
-    "@zeta/pi-utils": "catalog:",
-    "@zeta/pi-wire": "catalog:"
+    "@linxiraos/pi-omptype": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
+    "@linxiraos/pi-wire": "catalog:"
   },
   "devDependencies": {
     "@bufbuild/protoc-gen-es": "catalog:",

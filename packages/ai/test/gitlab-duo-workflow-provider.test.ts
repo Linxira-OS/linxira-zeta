@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isContextOverflow } from "@zeta/pi-ai/error";
+import { isContextOverflow } from "@linxiraos/pi-ai/error";
 import {
 	buildGitLabDuoWorkflowApprovalStartRequest,
 	buildGitLabDuoWorkflowCreateBody,
@@ -26,8 +26,8 @@ import {
 	selectGitLabDuoWorkflowModelRef,
 	streamGitLabDuoWorkflow,
 	traceGitLabDuoWorkflow,
-} from "@zeta/pi-ai/providers/gitlab-duo-workflow";
-import { configureCredentialRedaction } from "@zeta/pi-ai/providers/transform-messages";
+} from "@linxiraos/pi-ai/providers/gitlab-duo-workflow";
+import { configureCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
 import type {
 	AssistantMessage,
 	Context,
@@ -37,11 +37,11 @@ import type {
 	ProviderSessionState,
 	Tool,
 	ToolResultMessage,
-} from "@zeta/pi-ai/types";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "@zeta/pi-omptype";
-import { extractHttpStatusFromError } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { extractHttpStatusFromError } from "@linxiraos/pi-utils";
 
 beforeAll(() => configureCredentialRedaction(true));
 afterAll(() => configureCredentialRedaction(false));

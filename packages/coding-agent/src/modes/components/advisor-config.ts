@@ -15,9 +15,9 @@
  * {@link WatchdogConfigDoc} and only touches disk + the live advisors via the host
  * `save` callback.
  */
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Model, UsageReport } from "@zeta/pi-ai";
-import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model, UsageReport } from "@linxiraos/pi-ai";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import {
 	type Component,
 	Input,
@@ -28,7 +28,7 @@ import {
 	type SgrMouseEvent,
 	type TUI,
 	truncateToWidth,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import {
 	ADVISOR_DEFAULT_TOOL_NAMES,
 	type AdvisorConfig,

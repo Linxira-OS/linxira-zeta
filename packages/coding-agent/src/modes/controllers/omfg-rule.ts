@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage } from "@zeta/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { compileRuleCondition, type Rule } from "../../capability/rule";
 import { buildRuleFromMarkdown, createSourceMeta } from "../../discovery/helpers";
 import { TtsrManager, type TtsrMatchContext } from "../../export/ttsr";

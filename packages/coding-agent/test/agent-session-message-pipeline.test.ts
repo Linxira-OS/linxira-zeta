@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage, type AgentTool, AppendOnlyContextManager, type StreamFn } from "@zeta/pi-agent-core";
+import {
+	Agent,
+	type AgentMessage,
+	type AgentTool,
+	AppendOnlyContextManager,
+	type StreamFn,
+} from "@linxiraos/pi-agent-core";
 import {
 	type Api,
 	type Context,
@@ -11,21 +17,21 @@ import {
 	registerCustomApi,
 	type SimpleStreamOptions,
 	type TextContent,
-} from "@zeta/pi-ai";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import * as memoryBackend from "@zeta/pi-coding-agent/memory-backend";
-import type { MemoryBackend } from "@zeta/pi-coding-agent/memory-backend/types";
-import { type MnemopiSessionState, setMnemopiSessionState } from "@zeta/pi-coding-agent/mnemopi/state";
-import { createAgentSession, type ExtensionContext, type ExtensionFactory } from "@zeta/pi-coding-agent/sdk";
-import { obfuscateProviderContext, SecretObfuscator } from "@zeta/pi-coding-agent/secrets";
-import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { convertToLlm, wrapSteeringForModel } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as memoryBackend from "@linxiraos/zeta/memory-backend";
+import type { MemoryBackend } from "@linxiraos/zeta/memory-backend/types";
+import { type MnemopiSessionState, setMnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
+import { createAgentSession, type ExtensionContext, type ExtensionFactory } from "@linxiraos/zeta/sdk";
+import { obfuscateProviderContext, SecretObfuscator } from "@linxiraos/zeta/secrets";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm, wrapSteeringForModel } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 function createAgent(): Agent {

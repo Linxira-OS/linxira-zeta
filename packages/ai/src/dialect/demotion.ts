@@ -1,4 +1,4 @@
-import { preferredDialect } from "@zeta/pi-catalog/identity";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { getDialectDefinition } from "./factory";
 
 /**

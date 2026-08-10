@@ -10,11 +10,11 @@ import type {
 	OAuthAccess,
 	OAuthAccessResolution,
 	SimpleStreamOptions,
-} from "@zeta/pi-ai";
-import { streamSimple } from "@zeta/pi-ai";
-import { replaceTabs, truncateToWidth } from "@zeta/pi-tui";
-import { formatDuration, getProjectDir } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+} from "@linxiraos/pi-ai";
+import { streamSimple } from "@linxiraos/pi-ai";
+import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
+import { formatDuration, getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import {
 	formatModelString,

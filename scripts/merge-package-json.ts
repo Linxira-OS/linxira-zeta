@@ -3,7 +3,7 @@
  *
  * Called by Git with three args: %A (current/target), %O (base), %B (other/source).
  * Zeta keeps its own identity fields (name, version, bin, homepage, repository,
- * bugs, @zeta/* scope in deps) but accepts upstream changes to dependencies,
+ * bugs, @linxiraos/* scope in deps) but accepts upstream changes to dependencies,
  * scripts, engines, exports, and other structural fields.
  *
  * Setup:
@@ -29,7 +29,7 @@ const ZETA_IDENTITY_FIELDS = new Set([
 	"keywords",
 ]);
 
-const ZETA_SCOPE = "@zeta/";
+const ZETA_SCOPE = "@linxiraos/";
 
 function loadJson(path: string): Record<string, unknown> | null {
 	try {

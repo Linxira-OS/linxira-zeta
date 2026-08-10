@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { Skill } from "@zeta/pi-coding-agent/extensibility/skills";
-import { type ResolveContext, resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
-import { expandInternalUrls, expandSkillUrls } from "@zeta/pi-coding-agent/tools/bash-skill-urls";
-import { ToolError } from "@zeta/pi-coding-agent/tools/tool-errors";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import { type ResolveContext, resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import { expandInternalUrls, expandSkillUrls } from "@linxiraos/zeta/tools/bash-skill-urls";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 
 function shellEscape(p: string): string {
 	return `'${p.replace(/'/g, "'\\''")}'`;

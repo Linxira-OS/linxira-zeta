@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getOAuthProviders } from "@zeta/pi-ai/oauth";
-import { type AutocompleteItem, Spacer } from "@zeta/pi-tui";
-import { APP_NAME, getMCPConfigPath, getProjectDir, logger, setProjectDir } from "@zeta/pi-utils";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { type AutocompleteItem, Spacer } from "@linxiraos/pi-tui";
+import { APP_NAME, getMCPConfigPath, getProjectDir, logger, setProjectDir } from "@linxiraos/pi-utils";
 import { reset as resetCapabilities } from "../capability";
 import { COLLAB_GUEST_ALLOWED_COMMANDS, CollabGuestLink } from "../collab/guest";
 import { CollabHost } from "../collab/host";

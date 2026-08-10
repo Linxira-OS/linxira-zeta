@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { serializeConversation, serializeConversationForSummary } from "@zeta/pi-agent-core/compaction";
-import type { AssistantMessage, Message, ToolResultMessage, Usage } from "@zeta/pi-ai";
+import { serializeConversation, serializeConversationForSummary } from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, Message, ToolResultMessage, Usage } from "@linxiraos/pi-ai";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

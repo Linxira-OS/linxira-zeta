@@ -10,9 +10,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { usageReportSchema } from "@zeta/pi-ai";
-import { usageResponseSchema } from "@zeta/pi-ai/auth-broker/wire-schemas";
-import { type } from "@zeta/pi-omptype";
+import { usageReportSchema } from "@linxiraos/pi-ai";
+import { usageResponseSchema } from "@linxiraos/pi-ai/auth-broker/wire-schemas";
+import { type } from "@linxiraos/pi-omptype";
 
 const DISCLAIMER = "OMP-observed spend only; OpenCode usage outside OMP is not included.";
 

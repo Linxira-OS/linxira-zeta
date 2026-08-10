@@ -21,7 +21,7 @@ import {
 	strictFactMatches,
 	temporalBoost,
 	workingMemoryVecSearch,
-} from "@zeta/pi-mnemopi/core/beam/helpers";
+} from "@linxiraos/pi-mnemopi/core/beam/helpers";
 
 describe("beam helper ids, weights, and metadata", () => {
 	it("generates unique timed ids and deterministic stable ids", () => {

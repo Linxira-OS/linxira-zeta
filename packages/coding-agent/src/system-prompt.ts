@@ -4,10 +4,10 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@zeta/pi-agent-core";
-import type { ToolExample, TSchema } from "@zeta/pi-ai";
-import { renderToolInventory } from "@zeta/pi-ai/dialect";
-import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@zeta/pi-utils";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { ToolExample, TSchema } from "@linxiraos/pi-ai";
+import { renderToolInventory } from "@linxiraos/pi-ai/dialect";
+import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";
 import { findConfigFile } from "./config";

@@ -1,6 +1,6 @@
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { BUILTIN_TOOLS, ComputerTool, createTools, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { type as arkType } from "@zeta/pi-omptype";
+import { type as arkType } from "@linxiraos/pi-omptype";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { BUILTIN_TOOLS, ComputerTool, createTools, type ToolSession } from "@linxiraos/zeta/tools";
 
 declare global {
 	var __computerSchemaConstructionCount: number;

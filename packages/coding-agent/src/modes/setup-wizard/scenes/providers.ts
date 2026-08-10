@@ -1,4 +1,4 @@
-import { type SgrMouseEvent, TabBar } from "@zeta/pi-tui";
+import { type SgrMouseEvent, TabBar } from "@linxiraos/pi-tui";
 import { M } from "../../../i18n";
 import { getTabBarTheme } from "../../shared";
 import { SignInTab } from "./sign-in";

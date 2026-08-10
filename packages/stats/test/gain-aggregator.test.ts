@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { initDb, insertMessageStats } from "@zeta/omp-stats/db";
-import { dedupeProjects, getGainDashboardStats, normalizeProjectPath } from "@zeta/omp-stats/gain-aggregator";
-import type { MessageStats } from "@zeta/omp-stats/types";
-import { getStatsDbPath } from "@zeta/pi-utils";
+import { initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
+import { dedupeProjects, getGainDashboardStats, normalizeProjectPath } from "@linxiraos/pi-stats/gain-aggregator";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
+import { getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-gain-");

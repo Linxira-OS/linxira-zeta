@@ -14,11 +14,11 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, test, vi } from
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai";
-import { MCPManager } from "@zeta/pi-coding-agent/mcp/manager";
-import * as oauthFlow from "@zeta/pi-coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@zeta/pi-coding-agent/mcp/types";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
 
 const CREDENTIAL_ID = "mcp_oauth_test_1908";
 const TOKEN_URL = "https://example.com/oauth/token";

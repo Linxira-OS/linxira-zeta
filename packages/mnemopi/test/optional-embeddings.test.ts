@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { getFastembedCacheDir } from "@zeta/pi-utils";
+import { getFastembedCacheDir } from "@linxiraos/pi-utils";
 import "./setup";
 import {
 	available,
@@ -9,9 +9,9 @@ import {
 	resetEmbeddingProviderForTests,
 	setEmbeddingProviderForTests,
 	setLocalModelInitializerForTests,
-} from "@zeta/pi-mnemopi/core/embeddings";
-import { Mnemopi } from "@zeta/pi-mnemopi/core/memory";
-import { withMnemopiRuntimeOptions } from "@zeta/pi-mnemopi/core/runtime-options";
+} from "@linxiraos/pi-mnemopi/core/embeddings";
+import { Mnemopi } from "@linxiraos/pi-mnemopi/core/memory";
+import { withMnemopiRuntimeOptions } from "@linxiraos/pi-mnemopi/core/runtime-options";
 import packageJson from "../package.json" with { type: "json" };
 
 const ENV_KEYS = [

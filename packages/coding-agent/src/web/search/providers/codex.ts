@@ -5,17 +5,24 @@
  * the official ChatGPT backend for OAuth logins.
  */
 import * as os from "node:os";
-import { type AuthStorage, type FetchImpl, type Model, type OAuthAccess, withAuth, withOAuthAccess } from "@zeta/pi-ai";
-import { resolveCodexResponsesUrl } from "@zeta/pi-ai/providers/openai-codex-responses";
-import { getBundledModels } from "@zeta/pi-catalog/models";
+import {
+	type AuthStorage,
+	type FetchImpl,
+	type Model,
+	type OAuthAccess,
+	withAuth,
+	withOAuthAccess,
+} from "@linxiraos/pi-ai";
+import { resolveCodexResponsesUrl } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
 import {
 	CODEX_BASE_URL,
 	CODEX_CLIENT_VERSION,
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@zeta/pi-catalog/wire/codex";
-import { $env, readSseJson } from "@zeta/pi-utils";
+} from "@linxiraos/pi-catalog/wire/codex";
+import { $env, readSseJson } from "@linxiraos/pi-utils";
 import packageJson from "../../../../package.json" with { type: "json" };
 import type { ModelRegistry } from "../../../config/model-registry";
 import type { SearchResponse, SearchSource } from "../../../web/search/types";

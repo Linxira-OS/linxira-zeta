@@ -7,7 +7,7 @@ import {
 	MnemopiPlugin,
 	PluginManager,
 	resetManager,
-} from "@zeta/pi-mnemopi/core/plugins";
+} from "@linxiraos/pi-mnemopi/core/plugins";
 
 class CountingPlugin extends MnemopiPlugin {
 	override name = "counting";

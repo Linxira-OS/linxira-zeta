@@ -15,9 +15,9 @@
 
 import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { UsageReport } from "@zeta/pi-ai";
-import { renderUsageReports } from "@zeta/pi-coding-agent/modes/controllers/command-controller";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import { renderUsageReports } from "@linxiraos/zeta/modes/controllers/command-controller";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 const HOUR = 3_600_000;
 

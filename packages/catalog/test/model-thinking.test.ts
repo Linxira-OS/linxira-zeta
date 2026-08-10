@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 import {
 	clampThinkingLevelForModel,
 	getSupportedEfforts,
@@ -8,8 +8,8 @@ import {
 	mapEffortToGoogleThinkingLevel,
 	minimumSupportedEffort,
 	requireSupportedEffort,
-} from "@zeta/pi-catalog/model-thinking";
-import type { Api, Model, ModelSpec, Provider } from "@zeta/pi-catalog/types";
+} from "@linxiraos/pi-catalog/model-thinking";
+import type { Api, Model, ModelSpec, Provider } from "@linxiraos/pi-catalog/types";
 
 function createModel<TApi extends Api>(overrides: {
 	id: string;

@@ -1,7 +1,7 @@
-import type { Clipboard, InMemorySnapshotStore } from "@zeta/hashline";
-import type { AgentOptions, AgentTelemetryConfig, AgentTool } from "@zeta/pi-agent-core";
-import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@zeta/pi-ai";
-import { logger } from "@zeta/pi-utils";
+import type { AgentOptions, AgentTelemetryConfig, AgentTool } from "@linxiraos/pi-agent-core";
+import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@linxiraos/pi-ai";
+import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
+import { logger } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
 import type { PromptTemplate } from "../config/prompt-templates";

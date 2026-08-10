@@ -3,9 +3,9 @@ import type {
 	ChatCompletionAssistantMessageParam,
 	ChatCompletionMessageParam,
 	ChatCompletionToolMessageParam,
-} from "@zeta/pi-ai/providers/openai-chat-wire";
-import { convertMessages } from "@zeta/pi-ai/providers/openai-completions";
-import { transformMessages } from "@zeta/pi-ai/providers/transform-messages";
+} from "@linxiraos/pi-ai/providers/openai-chat-wire";
+import { convertMessages } from "@linxiraos/pi-ai/providers/openai-completions";
+import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
 import type {
 	Api,
 	AssistantMessage,
@@ -16,8 +16,8 @@ import type {
 	ToolCall,
 	ToolResultMessage,
 	UserMessage,
-} from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+} from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 /**
  * Regression test for: "each tool_use must have a single result. Found multiple tool_result blocks with id"

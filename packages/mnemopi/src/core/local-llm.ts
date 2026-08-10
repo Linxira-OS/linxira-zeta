@@ -6,8 +6,8 @@ import {
 	type FetchImpl,
 	type Model,
 	withAuth,
-} from "@zeta/pi-ai";
-import { ProviderHttpError } from "@zeta/pi-ai/error";
+} from "@linxiraos/pi-ai";
+import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 import { type CompleteOptions, callHostLlm, getHostLlmBackend } from "./llm-backends";
 import {
 	getMnemopiRuntimeOptions,

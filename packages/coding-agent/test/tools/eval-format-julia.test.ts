@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatJuliaForDisplay } from "@zeta/pi-coding-agent/tools/eval-format/julia";
+import { formatJuliaForDisplay } from "@linxiraos/zeta/tools/eval-format/julia";
 
 describe("formatJuliaForDisplay", () => {
 	it("expands genuinely compact nested blocks", () => {

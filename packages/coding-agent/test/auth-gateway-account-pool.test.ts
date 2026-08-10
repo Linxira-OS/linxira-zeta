@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai";
-import { type AuthBrokerServerHandle, startAuthBroker } from "@zeta/pi-ai/auth-broker";
-import { runAuthGatewayCommand } from "@zeta/pi-coding-agent/cli/auth-gateway-cli";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { type AuthBrokerServerHandle, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { runAuthGatewayCommand } from "@linxiraos/zeta/cli/auth-gateway-cli";
 
 const BROKER_TOKEN = "gateway-account-pool-token";
 const ENV_KEYS = ["OMP_AUTH_BROKER_URL", "OMP_AUTH_BROKER_TOKEN", "OMP_AUTH_BROKER_ACCOUNT_POOL_FILE"] as const;

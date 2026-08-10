@@ -1,4 +1,4 @@
-import { compareVersions, tryParseJson } from "@zeta/pi-utils";
+import { compareVersions, tryParseJson } from "@linxiraos/pi-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, loadPage } from "./types";
 

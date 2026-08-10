@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import { instrumentedCompleteSimple, resolveTelemetry } from "@zeta/pi-agent-core";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
 import {
 	type Api,
 	type AssistantMessage,
@@ -7,9 +7,9 @@ import {
 	type ImageContent,
 	type Model,
 	type ToolExample,
-} from "@zeta/pi-ai";
-import { type } from "@zeta/pi-omptype";
-import { prompt } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { prompt } from "@linxiraos/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import {
 	expandRoleAlias,

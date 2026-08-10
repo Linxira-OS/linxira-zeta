@@ -5,9 +5,9 @@
  * Eliminates ~2-3s CLI startup overhead per task by creating sessions
  * in-process and sharing auth/model infrastructure across tasks.
  */
-import type { AgentEvent, AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Model, ToolExample } from "@zeta/pi-ai";
-import type { AgentSession, AgentSessionEvent, AuthStorage, SessionStats } from "@zeta/pi-coding-agent";
+import type { AgentEvent, AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model, ToolExample } from "@linxiraos/pi-ai";
+import type { AgentSession, AgentSessionEvent, AuthStorage, SessionStats } from "@linxiraos/zeta";
 import {
 	AgentRegistry,
 	type CreateAgentSessionResult,
@@ -16,7 +16,7 @@ import {
 	ModelRegistry,
 	SessionManager,
 	Settings,
-} from "@zeta/pi-coding-agent";
+} from "@linxiraos/zeta";
 
 export type InProcessEventListener = (event: AgentEvent) => void;
 

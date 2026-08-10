@@ -17,7 +17,7 @@
  * the persistence-ordering logic is unit-testable without standing up an
  * `AgentSession`.
  */
-import type { AgentMessage } from "@zeta/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 
 /**
  * Stable identity for messages that pass through {@link AgentSession}'s

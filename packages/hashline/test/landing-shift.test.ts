@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyEdits, type BlockResolver, type BlockSpan, Patch, parsePatch } from "@zeta/hashline";
+import { applyEdits, type BlockResolver, type BlockSpan, Patch, parsePatch } from "@linxiraos/pi-hashline";
 
 /**
  * After-insert landing correction: an `insert after N:` body indented

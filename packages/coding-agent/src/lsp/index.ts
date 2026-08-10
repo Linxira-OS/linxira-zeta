@@ -6,8 +6,8 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@zeta/pi-agent-core";
-import { isEnoent, logger, once, prompt, untilAborted } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { isEnoent, logger, once, prompt, untilAborted } from "@linxiraos/pi-utils";
 import type { BunFile } from "bun";
 import { type Theme, theme } from "../modes/theme/theme";
 import lspDescription from "../prompts/tools/lsp.md" with { type: "text" };

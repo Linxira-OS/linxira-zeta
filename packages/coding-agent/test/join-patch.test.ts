@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { patch } from "@zeta/pi-coding-agent/utils/git";
+import { patch } from "@linxiraos/zeta/utils/git";
 
 describe("joinPatch", () => {
 	test("preserves space character in empty context line at end of patch", () => {

@@ -16,10 +16,10 @@
  * transport (the proxy doesn't whitelist Anthropic beta features either).
  */
 import { describe, expect, it } from "bun:test";
-import { buildAnthropicClientOptions, streamAnthropic } from "@zeta/pi-ai/providers/anthropic";
-import type { Context, TJsonSchema, Tool } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import type { Model, ModelSpec } from "@zeta/pi-catalog/types";
+import { buildAnthropicClientOptions, streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
+import type { Context, TJsonSchema, Tool } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { Model, ModelSpec } from "@linxiraos/pi-catalog/types";
 
 const COPILOT_BEARER = JSON.stringify({ token: "ghc_test" });
 

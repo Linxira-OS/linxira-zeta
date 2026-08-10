@@ -1,18 +1,18 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@zeta/pi-coding-agent/modes/interactive-mode";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@zeta/pi-coding-agent/task";
-import type { TodoPhase } from "@zeta/pi-coding-agent/tools/todo";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import type { NativeScrollbackLiveRegion } from "@zeta/pi-tui";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { NativeScrollbackLiveRegion } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task";
+import type { TodoPhase } from "@linxiraos/zeta/tools/todo";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 function renderTodos(mode: InteractiveMode): string {
 	return Bun.stripANSI(mode.todoContainer.render(120).join("\n"));

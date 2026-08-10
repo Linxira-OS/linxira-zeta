@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import * as evalIndex from "@zeta/pi-coding-agent/eval";
-import type { EvalToolDetails } from "@zeta/pi-coding-agent/eval/types";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { EvalTool } from "@zeta/pi-coding-agent/tools/eval";
-import { formatOutputNotice } from "@zeta/pi-coding-agent/tools/output-meta";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as evalIndex from "@linxiraos/zeta/eval";
+import type { EvalToolDetails } from "@linxiraos/zeta/eval/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import { formatOutputNotice } from "@linxiraos/zeta/tools/output-meta";
 
 function makeSession(settings = Settings.isolated()): ToolSession {
 	return {

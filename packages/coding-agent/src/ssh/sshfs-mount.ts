@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which, getRemoteDir, postmortem } from "@zeta/pi-utils";
+import { $which, getRemoteDir, postmortem } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 import {
 	getControlDir,

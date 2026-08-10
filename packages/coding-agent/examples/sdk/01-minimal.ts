@@ -4,7 +4,7 @@
  * Uses all defaults: discovers skills, hooks, tools, context files
  * from cwd and ~/.omp/agent. Model chosen from settings or first available.
  */
-import { createAgentSession } from "@zeta/pi-coding-agent";
+import { createAgentSession } from "@linxiraos/zeta";
 
 const { session } = await createAgentSession();
 

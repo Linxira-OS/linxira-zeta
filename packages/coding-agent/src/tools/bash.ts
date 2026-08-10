@@ -5,11 +5,11 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import type { Component } from "@zeta/pi-tui";
-import { ImageProtocol, TERMINAL } from "@zeta/pi-tui";
-import { getProjectDir, isEnoent, logger, prompt } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import type { Component } from "@linxiraos/pi-tui";
+import { ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { getProjectDir, isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { applyDirenvPreflight, type BashResult, executeBash } from "../exec/bash-executor";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";

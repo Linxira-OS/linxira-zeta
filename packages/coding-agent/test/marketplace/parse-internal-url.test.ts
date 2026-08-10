@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseInternalUrl } from "@zeta/pi-coding-agent/internal-urls/parse";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
 
 // ── Basic parsing (URLs that new URL() handles fine) ─────────────────
 

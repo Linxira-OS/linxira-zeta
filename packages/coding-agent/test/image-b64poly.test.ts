@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 describe("Buffer.toBase64", async () => {
-	await import("@zeta/pi-coding-agent/utils/image-resize");
+	await import("@linxiraos/zeta/utils/image-resize");
 
 	it("should return a base64 string", () => {
 		const buffer = Buffer.from("Hello, world!");

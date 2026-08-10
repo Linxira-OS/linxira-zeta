@@ -1,5 +1,5 @@
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { logger } from "@zeta/pi-utils";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import { LiveSessionController, type LiveSessionControllerOptions, type LiveTranscript } from "../../live/controller";
 import { LIVE_MODEL } from "../../live/protocol";
 import { LiveVisualizer } from "../../live/visualizer";

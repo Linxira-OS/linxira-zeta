@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { TabBar, type TabBarTheme } from "@zeta/pi-tui/components/tab-bar";
-import { visibleWidth } from "@zeta/pi-tui/utils";
+import { TabBar, type TabBarTheme } from "@linxiraos/pi-tui/components/tab-bar";
+import { visibleWidth } from "@linxiraos/pi-tui/utils";
 
 const ansiTheme: TabBarTheme = {
 	label: text => text,

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@zeta/pi-ai/error";
-import { AnthropicMessagesClient } from "@zeta/pi-ai/providers/anthropic-client";
-import type { MessageCreateParamsStreaming } from "@zeta/pi-ai/providers/anthropic-wire";
-import type { FetchImpl } from "@zeta/pi-ai/types";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { AnthropicMessagesClient } from "@linxiraos/pi-ai/providers/anthropic-client";
+import type { MessageCreateParamsStreaming } from "@linxiraos/pi-ai/providers/anthropic-wire";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 
 const params: MessageCreateParamsStreaming = {
 	model: "claude-sonnet-4-5",

@@ -9,7 +9,7 @@ import {
 	resolveTelemetry,
 	type StreamFn,
 	type ThinkingLevel,
-} from "@zeta/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import {
 	AGGRESSIVE_SHAKE_CONFIG,
 	AUTO_HANDOFF_THRESHOLD_FOCUS,
@@ -38,20 +38,20 @@ import {
 	shouldCompact,
 	shouldUseOpenAiRemoteCompaction,
 	shouldUseProviderNativeCompaction,
-} from "@zeta/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core/compaction";
 import {
 	DEFAULT_PRUNE_CONFIG,
 	pruneSupersededToolResults,
 	pruneToolOutputs,
 	readToolSupersedeKey,
-} from "@zeta/pi-agent-core/compaction/pruning";
-import type { ProtectedToolMatcher } from "@zeta/pi-agent-core/compaction/tool-protection";
-import type { AssistantMessage, CodexCompactionContext, Message, Model, ProviderSessionState } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { preferredDialect } from "@zeta/pi-catalog/identity";
-import { modelsAreEqual } from "@zeta/pi-catalog/models";
-import { logger } from "@zeta/pi-utils";
-import * as snapcompact from "@zeta/snapcompact";
+} from "@linxiraos/pi-agent-core/compaction/pruning";
+import type { ProtectedToolMatcher } from "@linxiraos/pi-agent-core/compaction/tool-protection";
+import type { AssistantMessage, CodexCompactionContext, Message, Model, ProviderSessionState } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { MODEL_ROLE_IDS } from "../config/model-roles";
 import type { Settings } from "../config/settings";

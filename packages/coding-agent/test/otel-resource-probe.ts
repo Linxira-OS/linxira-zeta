@@ -10,12 +10,8 @@
  * entries and service.name resolves to OTEL_SERVICE_NAME.
  */
 
+import { flushTelemetryExport, initTelemetryExport, isTelemetryExportEnabled } from "@linxiraos/zeta/telemetry-export";
 import { trace } from "@opentelemetry/api";
-import {
-	flushTelemetryExport,
-	initTelemetryExport,
-	isTelemetryExportEnabled,
-} from "@zeta/pi-coding-agent/telemetry-export";
 
 let body: Buffer | undefined;
 const server = Bun.serve({
@@ -44,7 +40,7 @@ if (!isTelemetryExportEnabled()) {
 	process.exit(2);
 }
 
-const span = trace.getTracer("@zeta/pi-agent-core").startSpan("agent.llm_call");
+const span = trace.getTracer("@linxiraos/pi-agent-core").startSpan("agent.llm_call");
 span.setAttribute("gen_ai.request.model", "claude-haiku-4-5");
 span.end();
 

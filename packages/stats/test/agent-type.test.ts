@@ -2,11 +2,11 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getOverviewStats } from "@zeta/omp-stats/aggregator";
-import { getStatsByAgentType, initDb, insertMessageStats } from "@zeta/omp-stats/db";
-import { classifyAgentType } from "@zeta/omp-stats/parser";
-import type { AgentType, MessageStats } from "@zeta/omp-stats/types";
-import { getConfigRootDir, getSessionsDir, getStatsDbPath } from "@zeta/pi-utils";
+import { getOverviewStats } from "@linxiraos/pi-stats/aggregator";
+import { getStatsByAgentType, initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
+import { classifyAgentType } from "@linxiraos/pi-stats/parser";
+import type { AgentType, MessageStats } from "@linxiraos/pi-stats/types";
+import { getConfigRootDir, getSessionsDir, getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-agent-type-");

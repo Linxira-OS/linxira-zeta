@@ -1,14 +1,14 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import { AuthStorage } from "@zeta/pi-ai";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { ExtensionRuntime } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import type { CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { runSubprocess } from "@zeta/pi-coding-agent/task/executor";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@zeta/pi-utils";
+import { AuthStorage } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 const authStorages: AuthStorage[] = [];
 const tempDirs: TempDir[] = [];

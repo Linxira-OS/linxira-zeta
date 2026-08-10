@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { getSegmenter } from "@linxiraos/pi-tui";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import {
 	BlockUnitCounter,
 	buildDisplayMessage,
@@ -10,9 +11,8 @@ import {
 	STREAMING_REVEAL_FRAME_MS,
 	StreamingRevealController,
 	visibleUnits,
-} from "@zeta/pi-coding-agent/modes/controllers/streaming-reveal";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { getSegmenter } from "@zeta/pi-tui";
+} from "@linxiraos/zeta/modes/controllers/streaming-reveal";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme(false);

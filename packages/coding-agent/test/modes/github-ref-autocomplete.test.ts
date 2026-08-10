@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { KeybindingsManager as AppKeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import { getGithubRefContext, getGithubRefSuggestions } from "@zeta/pi-coding-agent/modes/github-ref-autocomplete";
-import { createPromptActionAutocompleteProvider } from "@zeta/pi-coding-agent/modes/prompt-action-autocomplete";
-import type { SlashCommand } from "@zeta/pi-tui";
+import type { SlashCommand } from "@linxiraos/pi-tui";
+import { KeybindingsManager as AppKeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { getGithubRefContext, getGithubRefSuggestions } from "@linxiraos/zeta/modes/github-ref-autocomplete";
+import { createPromptActionAutocompleteProvider } from "@linxiraos/zeta/modes/prompt-action-autocomplete";
 
 function makeProvider(commands: SlashCommand[] = []) {
 	return createPromptActionAutocompleteProvider({

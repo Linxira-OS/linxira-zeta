@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyEdits, Patch, parsePatch } from "@zeta/hashline";
+import { applyEdits, Patch, parsePatch } from "@linxiraos/pi-hashline";
 
 function applyPatch(text: string, diff: string): string {
 	return applyEdits(text, parsePatch(diff).edits).text;

@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
-import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@zeta/omp-stats/db";
-import type { MessageStats } from "@zeta/omp-stats/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { getStatsDbPath } from "@zeta/pi-utils";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
+import { getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-db-");

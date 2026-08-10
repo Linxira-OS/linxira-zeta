@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { loadSkills, resetActiveSkillsForTests, setActiveSkills } from "@zeta/pi-coding-agent/extensibility/skills";
-import { parseInternalUrl } from "@zeta/pi-coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@zeta/pi-coding-agent/internal-urls/skill-protocol";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { ReadTool } from "@zeta/pi-coding-agent/tools/read";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { loadSkills, resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { SkillProtocolHandler } from "@linxiraos/zeta/internal-urls/skill-protocol";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 function makeSkillMd(name: string, dir: string) {
 	return `---\nname: ${name}\ndescription: ${name} skill.\n---\n\n# ${name} from ${dir}\n`;

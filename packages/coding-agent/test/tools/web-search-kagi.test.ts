@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
-import { type KagiSearchRequest, searchWithKagi } from "@zeta/pi-coding-agent/web/kagi";
-import { KagiProvider, searchKagi } from "@zeta/pi-coding-agent/web/search/providers/kagi";
-import { SearchProviderError } from "@zeta/pi-coding-agent/web/search/types";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { type KagiSearchRequest, searchWithKagi } from "@linxiraos/zeta/web/kagi";
+import { KagiProvider, searchKagi } from "@linxiraos/zeta/web/search/providers/kagi";
+import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
 
 const fakeAuthStorage = {
 	async getApiKey() {

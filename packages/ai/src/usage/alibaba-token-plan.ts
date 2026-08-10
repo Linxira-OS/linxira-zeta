@@ -1,4 +1,4 @@
-import { parseAlibabaTokenPlanCredential } from "@zeta/pi-catalog/wire/alibaba-token-plan";
+import { parseAlibabaTokenPlanCredential } from "@linxiraos/pi-catalog/wire/alibaba-token-plan";
 import type {
 	CredentialRankingStrategy,
 	UsageFetchContext,

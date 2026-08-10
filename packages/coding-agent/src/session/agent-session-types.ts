@@ -1,4 +1,11 @@
-import type { Agent, AgentMessage, AgentTool, AgentToolContext, StreamFn, ThinkingLevel } from "@zeta/pi-agent-core";
+import type {
+	Agent,
+	AgentMessage,
+	AgentTool,
+	AgentToolContext,
+	StreamFn,
+	ThinkingLevel,
+} from "@linxiraos/pi-agent-core";
 import type {
 	Context,
 	Effort,
@@ -10,8 +17,8 @@ import type {
 	ServiceTierByFamily,
 	SimpleStreamOptions,
 	ToolChoice,
-} from "@zeta/pi-ai";
-import type { postmortem } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import type { postmortem } from "@linxiraos/pi-utils";
 import type { AdvisorConfig } from "../advisor";
 import type { AsyncJob, AsyncJobDeliveryState, AsyncJobManager } from "../async";
 import type { ModelRegistry } from "../config/model-registry";

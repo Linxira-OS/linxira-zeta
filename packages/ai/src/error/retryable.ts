@@ -1,4 +1,4 @@
-import { isRetryableError, isUnexpectedSocketCloseMessage } from "@zeta/pi-utils";
+import { isRetryableError, isUnexpectedSocketCloseMessage } from "@linxiraos/pi-utils";
 import {
 	isRetryableStreamEnvelopeError,
 	isTransientStreamParseError,

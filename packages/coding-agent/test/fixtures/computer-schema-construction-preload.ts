@@ -1,5 +1,5 @@
 import { spyOn } from "bun:test";
-import * as arktype from "@zeta/pi-omptype";
+import * as arktype from "@linxiraos/pi-omptype";
 
 declare global {
 	var __computerSchemaConstructionCount: number;

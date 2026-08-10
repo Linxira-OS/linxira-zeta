@@ -1,5 +1,5 @@
-import { deriveClaudeDeviceId } from "@zeta/pi-ai";
-import { getInstallId } from "@zeta/pi-utils";
+import { deriveClaudeDeviceId } from "@linxiraos/pi-ai";
+import { getInstallId } from "@linxiraos/pi-utils";
 import type { AuthStorage } from "./auth-storage";
 
 /**

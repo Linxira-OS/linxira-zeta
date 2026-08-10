@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { Component } from "@zeta/pi-tui";
-import { TERMINAL } from "@zeta/pi-tui/terminal-capabilities";
+import type { Component } from "@linxiraos/pi-tui";
+import { TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
 import {
 	createProcessTerminalRenderHarness,
 	type ProcessTerminalRenderHarness,

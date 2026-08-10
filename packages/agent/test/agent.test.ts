@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { Agent, AgentBusyError, type AgentEvent, type AgentTool, ThinkingLevel } from "@zeta/pi-agent-core";
-import type { SimpleStreamOptions, ToolResultMessage } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { kCursorExecResolved } from "@zeta/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { type } from "@zeta/pi-omptype";
+import { Agent, AgentBusyError, type AgentEvent, type AgentTool, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { SimpleStreamOptions, ToolResultMessage } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { type } from "@linxiraos/pi-omptype";
 import { createAssistantMessage } from "./helpers";
 
 describe("Agent", () => {

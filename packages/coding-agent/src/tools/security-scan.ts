@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolResult, ToolTier } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
+import type { AgentTool, AgentToolResult, ToolTier } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { M } from "../i18n/messages";
 import securityScanDescription from "../prompts/tools/security-scan.md" with { type: "text" };
 import { selectSecurityAccount } from "../security/auth";

@@ -15,8 +15,8 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { configureCredentialRedaction } from "@zeta/pi-ai/providers/transform-messages";
-import { configureProviderMaxInFlightRequests } from "@zeta/pi-ai/stream";
+import { configureCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
+import { configureProviderMaxInFlightRequests } from "@linxiraos/pi-ai/stream";
 import {
 	CONFIG_DIR_NAME,
 	getAgentDbPath,
@@ -30,7 +30,7 @@ import {
 	procmgr,
 	setWorktreesDir,
 	toError,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import { JSONC, YAML } from "bun";
 import { invalidate as invalidateCapabilityFsCache } from "../capability/fs";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";

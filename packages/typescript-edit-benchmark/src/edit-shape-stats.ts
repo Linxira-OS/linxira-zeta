@@ -32,8 +32,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { computeDefaultSessionDir } from "@zeta/pi-coding-agent/session/session-paths";
-import { FileSessionStorage } from "@zeta/pi-coding-agent/session/session-storage";
+import { computeDefaultSessionDir } from "@linxiraos/zeta/session/session-paths";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 const EDIT_TOOL_NAMES: Record<string, true> = { edit: true, apply_patch: true };
 const SIZE_BUCKETS: Array<[string, number]> = [

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { rewriteCopilotError } from "@zeta/pi-ai/utils/http-inspector";
+import { rewriteCopilotError } from "@linxiraos/pi-ai/utils/http-inspector";
 
 function errorWithStatus(
 	status: number,

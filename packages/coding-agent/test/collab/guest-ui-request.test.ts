@@ -12,24 +12,24 @@
  * frame is observable.
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { generateRoomKey, importRoomKey } from "@zeta/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@zeta/pi-coding-agent/collab/guest";
-import { CollabHost } from "@zeta/pi-coding-agent/collab/host";
+import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
 import {
 	COLLAB_PROTO,
 	type CollabFrame,
 	type CollabSessionState,
 	formatCollabLink,
 	parseCollabLink,
-} from "@zeta/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@zeta/pi-coding-agent/collab/relay-client";
+} from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
 import type {
 	ExtensionAskDialogQuestion,
 	ExtensionUIDialogOptions,
 	ExtensionUISelectItem,
-} from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import { ExtensionUiController } from "@zeta/pi-coding-agent/modes/controllers/extension-ui-controller";
-import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "@zeta/pi-coding-agent/modes/types";
+} from "@linxiraos/zeta/extensibility/extensions/types";
+import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
+import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "@linxiraos/zeta/modes/types";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // In-memory transport: shared FakeWebSocket + InMemoryRelay harness (see

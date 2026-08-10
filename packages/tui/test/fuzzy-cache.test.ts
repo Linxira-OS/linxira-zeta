@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { fuzzyMatch, fuzzyRank, resetFuzzyIndexCache } from "@zeta/pi-tui/fuzzy";
+import { fuzzyMatch, fuzzyRank, resetFuzzyIndexCache } from "@linxiraos/pi-tui/fuzzy";
 
 describe("fuzzy index cache", () => {
 	it("produces identical ordering whether the cache is cold or warm", () => {

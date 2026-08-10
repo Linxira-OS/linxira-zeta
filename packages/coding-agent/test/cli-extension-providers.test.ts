@@ -16,12 +16,12 @@
 
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
-import { AuthStorage } from "@zeta/pi-ai";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { getModelMatchPreferences, resolveCliModel } from "@zeta/pi-coding-agent/config/model-resolver";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { loadCliExtensionProviders } from "@zeta/pi-coding-agent/sdk";
-import { TempDir } from "@zeta/pi-utils";
+import { AuthStorage } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { getModelMatchPreferences, resolveCliModel } from "@linxiraos/zeta/config/model-resolver";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { loadCliExtensionProviders } from "@linxiraos/zeta/sdk";
 
 let tmp: TempDir;
 let extPath: string;

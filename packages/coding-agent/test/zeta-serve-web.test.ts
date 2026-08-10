@@ -3,8 +3,8 @@
  * for `zeta serve` and `zeta web`.
  */
 import { describe, expect, it } from "bun:test";
-import Serve from "@zeta/pi-coding-agent/commands/serve";
-import Web from "@zeta/pi-coding-agent/commands/web";
+import Serve from "@linxiraos/zeta/commands/serve";
+import Web from "@linxiraos/zeta/commands/web";
 
 describe("zeta serve command", () => {
 	it("has the expected description", () => {

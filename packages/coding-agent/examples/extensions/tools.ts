@@ -8,9 +8,10 @@
  * 1. Copy this file to ~/.omp/agent/extensions/ (legacy: ~/.pi/agent/extensions/) or your project's .omp/extensions/
  * 2. Use /tools to open the tool selector
  */
-import type { ExtensionAPI, ExtensionContext } from "@zeta/pi-coding-agent";
-import { getSettingsListTheme } from "@zeta/pi-coding-agent";
-import { Container, type SettingItem, SettingsList } from "@zeta/pi-tui";
+
+import { Container, type SettingItem, SettingsList } from "@linxiraos/pi-tui";
+import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta";
+import { getSettingsListTheme } from "@linxiraos/zeta";
 
 // State persisted to session
 interface ToolsState {

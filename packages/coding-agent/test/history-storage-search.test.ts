@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { HistoryStorage } from "@zeta/pi-coding-agent/session/history-storage";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 
 let tempDir: TempDir | null = null;
 

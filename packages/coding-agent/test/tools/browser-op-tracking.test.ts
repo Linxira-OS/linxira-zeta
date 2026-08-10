@@ -4,7 +4,7 @@ import {
 	describeScreenshot,
 	type InflightOp,
 	preparePageForScreenshot,
-} from "@zeta/pi-coding-agent/tools/browser/tab-worker";
+} from "@linxiraos/zeta/tools/browser/tab-worker";
 
 type ScreenshotPage = Parameters<typeof preparePageForScreenshot>[0];
 

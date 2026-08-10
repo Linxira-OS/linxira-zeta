@@ -1,5 +1,5 @@
-import type { Component } from "@zeta/pi-tui";
-import { Text } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { Theme } from "../modes/theme/theme";
 import { framedBlock, renderStatusLine } from "../tui";

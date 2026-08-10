@@ -2,12 +2,12 @@ import { HookEditorComponent, HookInputComponent, HookSelectorComponent } from "
 
 // Core session management
 
-export * as zod from "@zeta/pi-omptype/zod";
-export { z } from "@zeta/pi-omptype/zod";
+export * as zod from "@linxiraos/pi-omptype/zod";
+export { z } from "@linxiraos/pi-omptype/zod";
 // Re-export TUI components for custom tool rendering
-export { Container, Markdown, Spacer, Text } from "@zeta/pi-tui";
+export { Container, Markdown, Spacer, Text } from "@linxiraos/pi-tui";
 // Logging
-export { getAgentDir, logger, VERSION } from "@zeta/pi-utils";
+export { getAgentDir, logger, VERSION } from "@linxiraos/pi-utils";
 export * from "./config/keybindings";
 export * from "./config/model-registry";
 // Prompt templates

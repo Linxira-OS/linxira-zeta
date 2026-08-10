@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { Api, Model } from "@zeta/pi-ai";
-import * as ai from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { generateTaskLabel } from "@zeta/pi-coding-agent/task/label";
+import type { Api, Model } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { generateTaskLabel } from "@linxiraos/zeta/task/label";
 
 function getModelOrThrow(id: string): Model<Api> {
 	const model = getBundledModel("anthropic", id);

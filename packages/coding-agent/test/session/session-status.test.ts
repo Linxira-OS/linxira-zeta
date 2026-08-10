@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { SessionStatus } from "@zeta/pi-coding-agent/session/session-listing";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { MemorySessionStorage } from "@zeta/pi-coding-agent/session/session-storage";
+import type { SessionStatus } from "@linxiraos/zeta/session/session-listing";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 const SESSION_DIR = "/sessions/status-proj";
 

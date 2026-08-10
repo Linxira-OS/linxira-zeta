@@ -5,10 +5,10 @@
  * directories do not depend on workspace module resolution.
  */
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import * as zod from "@zeta/pi-omptype/zod";
-import { logger } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import * as zod from "@linxiraos/pi-omptype/zod";
+import { logger } from "@linxiraos/pi-utils";
 import { toolCapability } from "../../capability/tool";
 import { type CustomTool, loadCapability } from "../../discovery";
 import type { ExecOptions } from "../../exec/exec";

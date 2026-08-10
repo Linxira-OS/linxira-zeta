@@ -1,5 +1,5 @@
-import * as AIError from "@zeta/pi-ai/error";
-import { getMCPConfigPath, logger } from "@zeta/pi-utils";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { getMCPConfigPath, logger } from "@linxiraos/pi-utils";
 import { connectToServer, disconnectServer, listPrompts, listResources, listTools } from "../../mcp/client";
 import {
 	addMCPServer,

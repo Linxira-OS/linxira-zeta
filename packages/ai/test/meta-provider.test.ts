@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
-import { loginMeta } from "@zeta/pi-ai/registry/meta";
-import type { Context, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { META_MUSE_STATIC_MODELS } from "@zeta/pi-catalog/provider-models/openai-compat";
+import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import { loginMeta } from "@linxiraos/pi-ai/registry/meta";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { META_MUSE_STATIC_MODELS } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 const context: Context = {
 	messages: [{ role: "user", content: "hello", timestamp: Date.now() }],

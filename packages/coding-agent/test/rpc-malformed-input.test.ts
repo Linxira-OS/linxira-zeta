@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { isRecord, readJsonl } from "@zeta/pi-utils";
+import { isRecord, readJsonl } from "@linxiraos/pi-utils";
 
 /**
  * Regression test for issue #5194: a non-JSON stdin line crashed the whole RPC

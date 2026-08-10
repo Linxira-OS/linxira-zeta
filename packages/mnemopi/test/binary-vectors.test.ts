@@ -9,7 +9,7 @@ import {
 	informationTheoreticScore,
 	maximallyInformativeBinarization,
 	quantizeInt8,
-} from "@zeta/pi-mnemopi/core/binary-vectors";
+} from "@linxiraos/pi-mnemopi/core/binary-vectors";
 
 describe("binary vector helpers", () => {
 	it("packs positive signs into Moorcheh MIB bit vectors", () => {

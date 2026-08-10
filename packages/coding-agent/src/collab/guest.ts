@@ -16,9 +16,9 @@
  * transcript behavior are native by construction.
  */
 import * as path from "node:path";
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { ImageContent } from "@zeta/pi-ai";
-import { getConfigRootDir, logger } from "@zeta/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { getConfigRootDir, logger } from "@linxiraos/pi-utils";
 import type { AgentHubRemote, AgentHubRemoteTranscript } from "../modes/components/agent-hub";
 import type { InteractiveModeContext } from "../modes/types";
 import { AgentRegistry } from "../registry/agent-registry";

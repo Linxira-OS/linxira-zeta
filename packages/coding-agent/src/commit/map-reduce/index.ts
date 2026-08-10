@@ -1,6 +1,6 @@
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Api, ApiKey, Model } from "@zeta/pi-ai";
-import { $env } from "@zeta/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, ApiKey, Model } from "@linxiraos/pi-ai";
+import { $env } from "@linxiraos/pi-utils";
 import { parseFileDiffs } from "../../commit/git/diff";
 import type { ConventionalAnalysis } from "../../commit/types";
 import { isExcludedFile } from "../../commit/utils/exclusions";

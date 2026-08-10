@@ -11,19 +11,19 @@
  *      user), and either decision tool resets the counter.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Agent, type AgentMessage, type AgentTool, type StreamFn } from "@zeta/pi-agent-core";
-import { createMockModel, type MockModel, type MockResponse } from "@zeta/pi-ai/providers/mock";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
-import { IrcBus, type IrcMessage } from "@zeta/pi-coding-agent/irc/bus";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { type } from "@zeta/pi-omptype";
-import { Snowflake, TempDir } from "@zeta/pi-utils";
+import { Agent, type AgentMessage, type AgentTool, type StreamFn } from "@linxiraos/pi-agent-core";
+import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
+import { Snowflake, TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import { IrcBus, type IrcMessage } from "@linxiraos/zeta/irc/bus";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import planModeReminderPrompt from "../src/prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
 
 /** A stable, literal (non-templated) line of the reminder prompt, so the test

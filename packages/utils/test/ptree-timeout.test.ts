@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { spawn, TimeoutError } from "@zeta/pi-utils/ptree";
+import { spawn, TimeoutError } from "@linxiraos/pi-utils/ptree";
 
 describe("ptree timeout", () => {
 	it("contains the lifecycle rejection when the caller does not observe exited", async () => {

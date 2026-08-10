@@ -4,8 +4,8 @@
  * Implements JSON-RPC 2.0 over HTTP POST with optional SSE streaming.
  * Based on MCP spec 2025-03-26.
  */
-import * as AIError from "@zeta/pi-ai/error";
-import { logger, readSseJson } from "@zeta/pi-utils";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { logger, readSseJson } from "@linxiraos/pi-utils";
 import type {
 	JsonRpcError,
 	JsonRpcMessage,

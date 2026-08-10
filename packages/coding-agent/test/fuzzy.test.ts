@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fuzzyFilter, fuzzyMatch } from "@zeta/pi-tui";
+import { fuzzyFilter, fuzzyMatch } from "@linxiraos/pi-tui";
 
 describe("fuzzyMatch", () => {
 	test("empty query matches everything with score 0", () => {

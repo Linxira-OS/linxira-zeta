@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import { CopySelectorComponent } from "@zeta/pi-coding-agent/modes/components/copy-selector";
-import { getThemeByName, setThemeInstance, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { CopyTarget } from "@zeta/pi-coding-agent/modes/utils/copy-targets";
-import { setKeybindings } from "@zeta/pi-tui";
+import { setKeybindings } from "@linxiraos/pi-tui";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { CopySelectorComponent } from "@linxiraos/zeta/modes/components/copy-selector";
+import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
+import type { CopyTarget } from "@linxiraos/zeta/modes/utils/copy-targets";
 
 const UP = "\x1b[A";
 const DOWN = "\x1b[B";

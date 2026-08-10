@@ -1,4 +1,4 @@
-import { logger, postmortem, Snowflake, workerHostEntry } from "@zeta/pi-utils";
+import { logger, postmortem, Snowflake, workerHostEntry } from "@linxiraos/pi-utils";
 import {
 	createWorkerHandle,
 	createWorkerSubprocess,

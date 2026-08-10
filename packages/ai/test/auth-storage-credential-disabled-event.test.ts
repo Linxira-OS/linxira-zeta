@@ -5,8 +5,8 @@ import {
 	AuthStorage,
 	type CredentialDisabledEvent,
 	type StoredAuthCredential,
-} from "@zeta/pi-ai/auth-storage";
-import * as oauthUtils from "@zeta/pi-ai/registry/oauth";
+} from "@linxiraos/pi-ai/auth-storage";
+import * as oauthUtils from "@linxiraos/pi-ai/registry/oauth";
 
 // Env vars short-circuit AuthStorage.getApiKey before the OAuth refresh path runs; suppress
 // them for every test in this file so the credential-disable code path can be exercised.

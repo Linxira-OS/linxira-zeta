@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { Effort, type FetchImpl } from "@zeta/pi-ai";
-import { streamSimple } from "@zeta/pi-ai/stream";
-import type { Context, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { Effort, type FetchImpl } from "@linxiraos/pi-ai";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 interface GeminiCliThinkingConfig {
 	thinkingLevel?: string;

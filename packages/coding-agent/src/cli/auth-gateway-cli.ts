@@ -23,17 +23,17 @@ import {
 	type CredentialCompletionResult,
 	completeSimple,
 	type Model,
-} from "@zeta/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	AuthBrokerClient,
 	loadAuthBrokerAccountPool,
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
-} from "@zeta/pi-ai/auth-broker";
-import { DEFAULT_AUTH_GATEWAY_BIND, startAuthGateway } from "@zeta/pi-ai/auth-gateway";
-import { type GeneratedProvider, getBundledModels } from "@zeta/pi-catalog/models";
-import { getConfigRootDir, isEnoent, logger, VERSION } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+} from "@linxiraos/pi-ai/auth-broker";
+import { DEFAULT_AUTH_GATEWAY_BIND, startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
+import { type GeneratedProvider, getBundledModels } from "@linxiraos/pi-catalog/models";
+import { getConfigRootDir, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { type AuthBrokerClientConfig, resolveAuthBrokerConfig } from "../session/auth-broker-config";
 

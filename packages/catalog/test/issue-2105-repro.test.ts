@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { getEnvApiKey } from "@zeta/pi-ai/stream";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@zeta/pi-catalog/provider-models/descriptors";
-import { aimlApiModelManagerOptions, isLikelyAimlApiChatModelId } from "@zeta/pi-catalog/provider-models/openai-compat";
+import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
+import {
+	aimlApiModelManagerOptions,
+	isLikelyAimlApiChatModelId,
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 describe("AIML API built-in provider (issue #2105)", () => {
 	test("registers built-in runtime descriptor with AIMLAPI_API_KEY discovery", () => {

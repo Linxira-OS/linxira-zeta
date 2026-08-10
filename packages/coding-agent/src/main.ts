@@ -7,8 +7,8 @@
 import * as fsSync from "node:fs";
 import * as os from "node:os";
 import { createInterface } from "node:readline/promises";
-import { EventLoopKeepalive } from "@zeta/pi-agent-core";
-import type { ImageContent } from "@zeta/pi-ai";
+import { EventLoopKeepalive } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import {
 	$env,
 	directoryExists,
@@ -20,8 +20,8 @@ import {
 	setInteractiveHost,
 	setProjectDir,
 	VERSION,
-} from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+} from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { reset as resetCapabilities } from "./capability";
 import { type Args, reportUnrecognizedFlags } from "./cli/args";
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
@@ -114,7 +114,7 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 		return;
 	}
 	try {
-		const response = await fetch("https://registry.npmjs.org/@zeta/pi-coding-agent/latest", {
+		const response = await fetch("https://registry.npmjs.org/@linxiraos/zeta/latest", {
 			signal: withTimeoutSignal(5_000),
 		});
 		if (!response.ok) return undefined;

@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@zeta/pi-wire",
+  "name": "@linxiraos/pi-wire",
   "version": "1.0.0",
   "description": "Shared wire protocol types for Oh My Pi packages",
   "homepage": "https://linxira-os.github.io",

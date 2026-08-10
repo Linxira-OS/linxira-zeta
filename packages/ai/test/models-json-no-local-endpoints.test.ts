@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Model } from "@zeta/pi-ai/types";
-import MODELS_JSON from "@zeta/pi-catalog/models.json" with { type: "json" };
+import type { Model } from "@linxiraos/pi-ai/types";
+import MODELS_JSON from "@linxiraos/pi-catalog/models.json" with { type: "json" };
 
 // Pins the invariant: the committed `models.json` must never carry a
 // local/self-hosted provider's catalog. Those providers default to an endpoint

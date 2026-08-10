@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getDashboardStats } from "@zeta/omp-stats/aggregator";
-import { initDb, insertMessageStats } from "@zeta/omp-stats/db";
-import type { MessageStats } from "@zeta/omp-stats/types";
+import { getDashboardStats } from "@linxiraos/pi-stats/aggregator";
+import { initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-db-range-");
