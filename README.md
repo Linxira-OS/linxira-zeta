@@ -39,6 +39,23 @@ toolchain required by Rust.
 - A planned local web workbench and desktop distribution that use the same
   coding-agent runtime rather than a separate product stack.
 
+## Upstream Origins
+
+Zeta is a distribution derived from four upstream projects, each with a
+fixed role:
+
+| Project | Role in Zeta |
+|---|---|
+| [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | The runtime tree. Integrated only at complete, official release tags — never raw upstream commits |
+| [Pi](https://github.com/earendil-works/pi) | Semantic-port source for feature work, never a raw merge source |
+| [OMP Web](https://github.com/17380936778/omp-web) | Source of the `web-ui/` snapshot |
+| [Pi Web](https://github.com/agegr/pi-web) | Semantic-port source for web features |
+
+The merge policy is recorded in [document/upstream-sync.md](document/upstream-sync.md);
+the web workbench's own front door is [web-ui/README.md](web-ui/README.md).
+Predecessor contributions remain acknowledged in source history and package
+notices.
+
 ## Zeta-Originated Capabilities
 
 Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in

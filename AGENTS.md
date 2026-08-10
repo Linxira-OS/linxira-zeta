@@ -6,6 +6,15 @@ Zeta is an OMP downstream distribution. The runtime tree, package layout, Bun
 workflow, and internal `@zeta/*` package names intentionally follow OMP so
 that OMP updates remain mergeable.
 
+Zeta derives from four upstreams, each with a fixed role:
+
+- **OMP (oh-my-pi, `omp-upstream`)** — the runtime tree, integrated only at
+  official release tags (see OMP Release Sync Policy).
+- **Pi (`pi-upstream`)** — semantic-port source for feature work, never a raw
+  merge source.
+- **OMP Web (`omp-web-upstream`)** — source of the `web-ui/` snapshot.
+- **Pi Web (`pi-web-upstream`)** — semantic-port source for web features.
+
 - `main` is the Zeta product branch.
 - `sync/omp` tracks `omp-upstream/main` and must remain an unmodified OMP tree.
   Use short-lived `sync/omp-release/<release>` branches to integrate OMP
@@ -16,7 +25,10 @@ that OMP updates remain mergeable.
 - `web-ui/` is a standalone OMP Web snapshot. It has its own package manager,
   lockfiles, and development rules in `web-ui/AGENTS.md`; it is not a root Bun
   workspace package. Sync it from `omp-web-upstream`, and port Pi Web changes
-  through `port/pi-web/<scope>` branches.
+  through `port/pi-web/<scope>` branches. It must never carry its own GitHub
+  workflow — GitHub only executes workflows from the repository root, so all
+  web-ui checks live in the root `.github/workflows/ci.yml` (see CI and
+  Release below).
 - `temp/` holds local reference clones only. It is ignored and must never be
   committed.
 
@@ -47,6 +59,20 @@ hard release-boundary rule, not a suggestion.
   behavior through documented conflict decisions, then make any required Zeta
   brand, package, Bun, CI, or product adaptations in separate commits after
   the merge. Do not use later untagged upstream work to resolve conflicts.
+- **Tests must be merged as contract, not as ours-vs-theirs text.** When an
+  upstream commit changes implementation AND its tests (or docs) together,
+  accept the pair wholesale; keeping the Zeta-side old assertion next to the
+  merged upstream behavior tears the contract (`v17.2.11` lesson:
+  `38b61ae342` moved retry-after delay 30s → 200ms upstream while the merge
+  kept our old `delayMs: 30_000` assertion, red CI). For every incoming test
+  file touched by the merge, diff it against its `v<tag>` version and resolve
+  per-file.
+- **No `.omp` compatibility surface.** Zeta's config dir is `.zeta` and
+  `~/.zeta` only; we do not maintain legacy `.omp` path aliases — the
+  compatibility cost outweighs the value. Upstream tests or docs that carry
+  `.omp` paths must be adapted to `.zeta` during the merge and that decision
+  recorded in the ledger (e.g. `acp-agent.test.ts` wrote
+  `path.join(cwd, ".omp", "agents")`; zeta resolves `.zeta/agents`).
 - Treat the root `README.md`, Zeta logo assets, product name, homepage, install
   instructions, and public examples as Zeta-owned product surfaces. A release
   merge must never skip their upstream history; instead, follow the complete
@@ -87,6 +113,59 @@ Zeta keeps upstream references minimal so the repository stays lean:
 - Zeta product versions are Zeta-semver, decoupled from OMP version numbers.
   OMP tags are integration baselines recorded in `document/upstream-sync.md`;
   `bun run release` bumps Zeta package versions, not OMP-derived ones.
+- **Cloud backup of upstream refs.** `origin` keeps a `backup/` namespace so a
+  corrupted local clone can be rebuilt without re-fetching upstream history:
+  `backup/<remote>/main` mirrors each upstream `main`, and
+  `backup/omp-tag/<tag>` holds the peeled commit of each OMP release tag.
+  Refresh these after every sync (`git push origin
+  refs/remotes/<remote>/main:refs/heads/backup/<remote>/main` and the peeled
+  tag SHAs). `backup/*` never feeds product work; it exists only for
+  disaster recovery.
+
+## Documentation Layout
+
+Two documentation trees, plus product surfaces, with strict boundaries:
+
+- `docs/` — **runtime documentation, packaged with the product.** Embedded
+  into binaries and the npm bundle (`PI_DOCS_EMBED`) and served to agents over
+  `omp://docs/` (from a source checkout it reads the live tree). Covers tools,
+  tool-call conversion, skills, protocols, configuration, and Zeta features.
+- `document/` — **internal development and product-process documentation,
+  never packaged**: `roadmap.md`, `upstream-sync.md`, `porting-from-pi-mono.md`,
+  native/plumbing internals. Root `README.md` is the product front door and
+  links both trees; `web-ui/README.md` is the web-ui front door.
+- Moving a file from `docs/` to `document/` automatically removes it from the
+  packaged corpus — no build change needed (`generate-docs-index.ts` globs
+  only `docs/`). When moving, update every cross-reference (AGENTS.md,
+  README.md, DEVELOPMENT.md, in-repo doc links); released CHANGELOG entries
+  are immutable and keep their old links.
+
+## CI and Release
+
+- `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It
+  covers the Bun workspace, crates, desktop, install methods, and web-ui
+  checks. `web-ui/` must never add its own `.github/` workflow (subdirectory
+  workflows are never triggered); new web-ui checks go into the root CI.
+- The `check` job runs `bun run ci:check:full` plus the web build. Desktop
+  jobs install web-ui with `npm ci`, which resolves `@zeta/pi-*` from the npm
+  registry — so **the `@zeta` npm publish chain is a hard dependency of
+  desktop CI**.
+- **npm publishing uses trusted publishing (OIDC)**: `permissions:
+  id-token: write` in the workflow, cloud-hosted runners, npm CLI ≥ 11.5.1,
+  Node ≥ 22.14 (runners already force Node 24). The trusted-publisher entry on
+  npmjs.com must match the workflow filename exactly (`.github/workflows/ci.yml`)
+  and the repo (Linxira-OS/linxira-zeta). OIDC publishes automatically attach
+  provenance. Long-lived `NPM_TOKEN`/`NODE_AUTH_TOKEN` are a temporary
+  fallback only: npm now requires 2FA for all publishes, bypass-2FA granular
+  tokens lose direct publish in January 2027, and staged publishing (`npm
+  stage publish` + maintainer 2FA approval) is the recommended pairing for
+  CI-originated publishes. Every published package uses the `@zeta/*` name —
+  no `@oh-my-pi/*` or legacy names, and no `.omp` compatibility packages.
+- **The `@zeta` publish chain is not yet live** (no `@zeta/pi-*` has ever
+  been published; `web-ui` depends on `@zeta/pi-agent-core` etc. at
+  `1.0.0`, which 404s until the first release). Opening it is a strategic
+  prerequisite: first real release, then desktop CI and standalone web-ui
+  installs can resolve from the registry.
 
 ## Default Context
 
