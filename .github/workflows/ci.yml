@@ -324,6 +324,21 @@ jobs:
               cache-scope: release-${{ matrix.target_id }}
          - name: Pack native leaf without publishing
            run: bun scripts/ci-release-publish.ts --native-leaf "${{ matrix.target_id }}" --pack-only
+         - name: Create native leaf tarball
+           shell: bash
+           run: |
+              mkdir -p "$RUNNER_TEMP/native-leaf-tarballs"
+              (
+                cd "packages/natives/npm/${{ matrix.target_id }}"
+                bun pm pack --destination "$RUNNER_TEMP/native-leaf-tarballs" --quiet
+              )
+         - name: Upload native leaf tarball
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: native-leaf-tarball-${{ matrix.target_id }}
+              path: ${{ runner.temp }}/native-leaf-tarballs/*.tgz
+              if-no-files-found: error
+              retention-days: 1
 
    test_workspace:
       name: Test TS workspace fast
