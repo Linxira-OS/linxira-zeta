@@ -60,6 +60,10 @@ on:
             description: "Skip npm publish"
             type: boolean
             default: false
+         verify_native_leaves:
+            description: "Build and pack every native leaf without publishing"
+            type: boolean
+            default: false
 
 # Release runs publish a `v*` tag pushed atomically with main HEAD; sharing
 # the cheap branch-wide `CI-refs/heads/main` group meant a later main push
@@ -288,6 +292,38 @@ jobs:
               path: bazel-bin/natives-*/*.node
               if-no-files-found: error
               retention-days: 1
+
+   # Manually pack each published platform leaf from its real Bazel output
+   # before an npm release. Release runs build these same targets through
+   # their release matrices, so this remains an explicit preflight only.
+   native_leaf_pack:
+      name: "Pack native leaf: ${{ matrix.target_id }}"
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_native_leaves && needs.release_metadata.outputs.is-release != 'true' && !cancelled() }}
+      needs: [release_metadata]
+      strategy:
+         fail-fast: false
+         matrix:
+            include:
+               - {
+                    os: ubuntu-22.04,
+                    target_id: linux-x64,
+                    native_targets: linux-x64-baseline linux-x64-modern,
+                 }
+               - { os: ubuntu-22.04, target_id: linux-arm64, native_targets: linux-arm64 }
+               - { os: ubuntu-22.04, target_id: win32-x64, native_targets: win32-x64-baseline }
+               - { os: macos-15-intel, target_id: darwin-x64, native_targets: darwin-x64-baseline }
+               - { os: macos-14, target_id: darwin-arm64, native_targets: darwin-arm64 }
+      runs-on: ${{ matrix.os }}
+      steps:
+         - uses: actions/checkout@v4
+         - uses: ./.github/actions/bun-install
+         - name: Build native addon(s)
+           uses: ./.github/actions/bazel-natives
+           with:
+              targets: ${{ matrix.native_targets }}
+              cache-scope: release-${{ matrix.target_id }}
+         - name: Pack native leaf without publishing
+           run: bun scripts/ci-release-publish.ts --native-leaf "${{ matrix.target_id }}" --pack-only
 
    test_workspace:
       name: Test TS workspace fast

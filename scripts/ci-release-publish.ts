@@ -28,7 +28,9 @@
  *      `packAndPublish` for why npm and not `bun publish`.
  *
  * Intended for CI. Mutates `package.json` in place — if you run this
- * locally, expect a dirty working tree and `git restore` after.
+ * locally, expect a dirty working tree and `git restore` after. `--pack-only`
+ * exercises the same packing path without registry calls and restores each
+ * manifest after its tarball is checked.
  */
 
 import * as fs from "node:fs/promises";
@@ -80,6 +82,7 @@ interface PackageManifest {
 
 const repoRoot = path.join(import.meta.dir, "..");
 const isDryRun = process.argv.includes("--dry-run");
+const isPackOnly = process.argv.includes("--pack-only");
 
 function nativeLeafTagFromArgs(argv: readonly string[]): string | null {
 	for (let i = 0; i < argv.length; i++) {
@@ -297,7 +300,7 @@ async function packAndPublish(dir: string, name: string): Promise<void> {
 		console.log(`DRY RUN bun pm pack && npm publish --access public (${path.relative(repoRoot, dir)})`);
 		return;
 	}
-	console.log(`Publishing ${name}…`);
+	console.log(`${isPackOnly ? "Packing" : "Publishing"} ${name}…`);
 	const packDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-pack-"));
 	try {
 		const packed = await $`bun pm pack --quiet --destination ${packDir}`.cwd(dir).quiet().nothrow();
@@ -309,6 +312,10 @@ async function packAndPublish(dir: string, name: string): Promise<void> {
 		const tarball = (await fs.readdir(packDir)).find(entry => entry.endsWith(".tgz"));
 		if (!tarball) throw new Error(`bun pm pack produced no tarball for ${name} (${path.relative(repoRoot, dir)})`);
 		const packedTarball = await inspectPackedTarball(path.join(packDir, tarball));
+		if (isPackOnly) {
+			console.log(`Packed ${packedTarball.name}@${packedTarball.version}`);
+			return;
+		}
 		// Preflight the exact packed version so reruns skip deterministically.
 		// Fail open on lookup errors; only a confirmed published version may skip publishing.
 		const preflight = await $`npm view ${`${packedTarball.name}@${packedTarball.version}`} version`.quiet().nothrow();
@@ -329,6 +336,16 @@ async function packAndPublish(dir: string, name: string): Promise<void> {
 		}
 	} finally {
 		await fs.rm(packDir, { recursive: true, force: true });
+	}
+}
+
+async function restoreManifestAfterPack(manifestPath: string, task: () => Promise<void>): Promise<void> {
+	if (!isPackOnly) return task();
+	const original = await Bun.file(manifestPath).text();
+	try {
+		await task();
+	} finally {
+		await Bun.write(manifestPath, original);
 	}
 }
 
@@ -366,15 +383,17 @@ async function publishNativeLeafPackage(tag: string): Promise<void> {
 
 async function publishNativePackage(pkg: PublishPackage): Promise<void> {
 	const pkgDir = path.join(repoRoot, pkg.dir);
-	const manifest = await prepareNativeCorePackage(pkgDir, !isDryRun);
-	const name = manifest.name ?? path.basename(pkg.dir);
-	if (isDryRun) {
-		console.log(`DRY RUN native core manifest rewrite (${pkg.dir})`);
-		console.log(
-			JSON.stringify({ optionalDependencies: manifest.optionalDependencies, files: manifest.files }, null, "\t"),
-		);
-	}
-	await packAndPublish(pkgDir, name);
+	await restoreManifestAfterPack(path.join(pkgDir, "package.json"), async () => {
+		const manifest = await prepareNativeCorePackage(pkgDir, !isDryRun);
+		const name = manifest.name ?? path.basename(pkg.dir);
+		if (isDryRun) {
+			console.log(`DRY RUN native core manifest rewrite (${pkg.dir})`);
+			console.log(
+				JSON.stringify({ optionalDependencies: manifest.optionalDependencies, files: manifest.files }, null, "\t"),
+			);
+		}
+		await packAndPublish(pkgDir, name);
+	});
 }
 
 async function publishPackage(pkg: PublishPackage): Promise<void> {
@@ -383,13 +402,15 @@ async function publishPackage(pkg: PublishPackage): Promise<void> {
 		return;
 	}
 	const pkgDir = path.join(repoRoot, pkg.dir);
-	const manifest = await preparePackage(pkg);
-	const name = manifest.name ?? path.basename(pkg.dir);
-	if (manifest.private) {
-		console.log(`Skipping ${name} (private)`);
-		return;
-	}
-	await packAndPublish(pkgDir, name);
+	await restoreManifestAfterPack(path.join(pkgDir, "package.json"), async () => {
+		const manifest = await preparePackage(pkg);
+		const name = manifest.name ?? path.basename(pkg.dir);
+		if (manifest.private) {
+			console.log(`Skipping ${name} (private)`);
+			return;
+		}
+		await packAndPublish(pkgDir, name);
+	});
 }
 
 if (import.meta.main) {
