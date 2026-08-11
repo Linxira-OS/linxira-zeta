@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added the Web Gateway (`zeta serve`), an in-process Bun HTTP API that serves the web-ui session family (`/api/sessions*`: list, get, rename, delete, context, state, thinking, export) directly from the runtime instead of proxying through Next.js. A standalone 127.0.0.1 listener (`ZETA_WEB_GATEWAY_PORT`, default 30142) keeps `next dev`/`next start` on the same handler via `ZETA_WEB_GATEWAY_URL` rewrites.
+
 ### Fixed
 
 - Fixed normal CLI startup loading native computer-worker bindings before they are needed, which made lightweight commands fail when native addons were disabled.

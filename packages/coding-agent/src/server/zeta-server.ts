@@ -6,12 +6,14 @@
  *
  * 架构：
  *   Browser → :30141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:3847)
- *                                 └─ 其他所有请求 → Web UI Next.js (随机内部端口)
+ *                                 ├─ /api/*      → Web Gateway（同进程 Bun 处理器）
+ *                                 └─ 其余        → Web UI Next.js (随机内部端口)
  */
 
 import { logger } from "@linxiraos/pi-utils";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { openPath } from "../utils/open";
+import { startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,11 +30,15 @@ export interface ZetaServerOptions {
 	statsOnly?: boolean;
 	/** 仅启动 Web UI */
 	webOnly?: boolean;
+	/** Web Gateway 端口，默认 30142（仅 127.0.0.1） */
+	gatewayPort?: number;
 }
 
 export interface ZetaServerInstance {
 	url: string;
 	statsUrl: string;
+	/** Web Gateway URL（未启动时为 null） */
+	gatewayUrl: string | null;
 	/** 关闭服务器和所有子进程 */
 	shutdown: () => Promise<void>;
 }
@@ -43,19 +49,40 @@ export interface ZetaServerInstance {
 
 /** The classification result for an incoming request path. */
 export interface ZetaServerRoute {
-	type: "stats" | "webui" | "unavailable";
+	type: "stats" | "gateway" | "webui" | "unavailable";
 }
+
+/** `/api/*` prefixes that stay in Next.js (pure Node, no runtime imports). */
+const NEXT_OWNED_API_PREFIXES = [
+	"/api/fs/",
+	"/api/files/",
+	"/api/cwd/",
+	"/api/git/",
+	"/api/home",
+	"/api/default-cwd",
+	"/api/worktrees",
+	"/api/tracking",
+	"/api/file-index",
+];
 
 /**
  * Classify an incoming request based on its URL path.
  * Extracted as a standalone function so routing logic can be tested without
  * a running Bun.serve server.
  */
-export function classifyRequest(req: Request, webUiPort: number): ZetaServerRoute {
+export function classifyRequest(req: Request, webUiPort: number, gatewayRunning = false): ZetaServerRoute {
 	const path = new URL(req.url).pathname;
 
 	if (path.startsWith("/api/stats") || path === "/api/sync" || path.startsWith("/api/request/")) {
 		return { type: "stats" };
+	}
+
+	if (path.startsWith("/api/")) {
+		const staysInNext = NEXT_OWNED_API_PREFIXES.some(prefix => path.startsWith(prefix));
+		if (staysInNext) {
+			return webUiPort > 0 ? { type: "webui" } : { type: "unavailable" };
+		}
+		return gatewayRunning ? { type: "gateway" } : { type: "unavailable" };
 	}
 
 	if (webUiPort > 0) {
@@ -139,6 +166,7 @@ export class ZetaServer {
 	#server: ReturnType<typeof Bun.serve> | null = null;
 	#webUiChild: { kill: () => void } | null = null;
 	#statsServer: { stop: () => void } | null = null;
+	#gateway: WebGatewayInstance | null = null;
 	#webUiPort = 0;
 	#running = false;
 
@@ -150,6 +178,7 @@ export class ZetaServer {
 			noBrowser: options.noBrowser ?? true,
 			statsOnly: options.statsOnly ?? false,
 			webOnly: options.webOnly ?? false,
+			gatewayPort: options.gatewayPort ?? 30142,
 		};
 	}
 
@@ -164,6 +193,7 @@ export class ZetaServer {
 	/**
 	 * 启动服务器。
 	 * 按需启动 Stats Dashboard 和 Web UI 后端，然后启动 Bun.serve 主代理。
+	 * 任一步骤失败都会关闭已启动的子系统，避免端口泄漏。
 	 */
 	async start(): Promise<ZetaServerInstance> {
 		if (this.#running) {
@@ -171,26 +201,40 @@ export class ZetaServer {
 		}
 		this.#running = true;
 
-		const { statsPort, webOnly, statsOnly } = this.#options;
+		try {
+			const { statsPort, webOnly, statsOnly } = this.#options;
 
-		// 1. Start Stats Dashboard (if not webOnly)
-		if (!webOnly) {
-			await this.#startStats(statsPort);
+			// 1. Start Stats Dashboard (if not webOnly)
+			if (!webOnly) {
+				await this.#startStats(statsPort);
+			}
+
+			// 2. Start Web UI on a random internal port (if not statsOnly)
+			if (!statsOnly) {
+				await this.#startWebUi();
+			}
+
+			// 2b. Start the Web Gateway listener (dev-mode Next access). The main
+			// proxy dispatches in-process, so a busy port only disables the
+			// standalone listener — never the gateway itself.
+			if (!statsOnly) {
+				await this.#startGateway();
+			}
+
+			// 3. Start the main Bun.serve proxy
+			this.#server = this.#createMainServer();
+
+			return {
+				url: this.url,
+				statsUrl: this.statsUrl,
+				gatewayUrl: this.#gateway?.url ?? null,
+				shutdown: () => this.shutdown(),
+			};
+		} catch (err) {
+			this.#running = false;
+			await this.shutdown().catch(() => {});
+			throw err;
 		}
-
-		// 2. Start Web UI on a random internal port (if not statsOnly)
-		if (!statsOnly) {
-			await this.#startWebUi();
-		}
-
-		// 3. Start the main Bun.serve proxy
-		this.#server = this.#createMainServer();
-
-		return {
-			url: this.url,
-			statsUrl: this.statsUrl,
-			shutdown: () => this.shutdown(),
-		};
 	}
 
 	async shutdown(): Promise<void> {
@@ -204,6 +248,11 @@ export class ZetaServer {
 		if (this.#webUiChild) {
 			this.#webUiChild.kill();
 			this.#webUiChild = null;
+		}
+
+		if (this.#gateway) {
+			await this.#gateway.shutdown().catch(() => {});
+			this.#gateway = null;
 		}
 
 		if (this.#statsServer) {
@@ -246,11 +295,28 @@ export class ZetaServer {
 		}
 	}
 
+	async #startGateway(): Promise<void> {
+		try {
+			this.#gateway = await startWebGateway(this.#options.gatewayPort);
+			logger.info("Web Gateway started", { port: this.#gateway.port });
+		} catch (err) {
+			// In-process dispatch keeps working; only dev-mode rewrites lose
+			// their target.
+			logger.warn("Failed to start Web Gateway listener", {
+				port: this.#options.gatewayPort,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
+	}
+
 	#createMainServer(): ReturnType<typeof Bun.serve> {
 		const { port, statsPort } = this.#options;
 		const webUiPort = this.#webUiPort;
 		const webUiInternal = `http://127.0.0.1:${webUiPort}`;
 		const statsInternal = `http://127.0.0.1:${statsPort}`;
+		// The gateway dispatcher lives in-process; the standalone listener is
+		// only for dev-mode Next access.
+		const gatewayRunning = !this.#options.statsOnly;
 
 		const server = Bun.serve({
 			port,
@@ -258,11 +324,13 @@ export class ZetaServer {
 			// Agent streams are Server-Sent Events and may stay quiet between turns.
 			idleTimeout: 0,
 			async fetch(req) {
-				const route = classifyRequest(req, webUiPort);
+				const route = classifyRequest(req, webUiPort, gatewayRunning);
 
 				switch (route.type) {
 					case "stats":
 						return proxyRequest(req, statsInternal);
+					case "gateway":
+						return webGatewayFetch(req);
 					case "webui":
 						return proxyRequest(req, webUiInternal);
 					case "unavailable":

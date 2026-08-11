@@ -30,10 +30,10 @@ Lint: `npm run lint`
 ## Architecture
 
 ```
-Browser                Next.js Server              AgentSession (in-process)
+Browser                Next.js Server              Runtime Web Gateway (Bun)
   │                        │                               │
-  ├─ GET /api/sessions ────▶ reads ~/.zeta/agent/sessions/   │
-  ├─ GET /api/sessions/[id] reads .jsonl file directly     │
+  ├─ GET /api/sessions ────▶ (rewritten to gateway) ─────▶ reads ~/.zeta/agent/sessions/
+  ├─ GET /api/sessions/[id] via gateway → .jsonl through SessionManager
   ├─ GET /api/agent/running/events ───▶ running id SSE     │
   │                        │                               │
   ├─ send message ─────────▶ POST /api/agent/[id]          │
@@ -45,8 +45,16 @@ Browser                Next.js Server              AgentSession (in-process)
   │◀── data: {...} ─────────│                               │
 ```
 
-**Session browsing** (read-only): reads `.jsonl` files through SDK `SessionManager` helpers and `lib/session-reader.ts` — no AgentSession created.  
-**Sending a message**: `startRpcSession()` in `lib/rpc-manager.ts` creates an AgentSession in-process.
+**Gateway ownership** (`document/web-gateway.md`): the sessions family
+(`/api/sessions*`) is served by the runtime Web Gateway — in-process under
+`zeta serve` (ZetaServer), and in dev/standalone via `next.config` `beforeFiles`
+rewrites to `ZETA_WEB_GATEWAY_URL` (default `http://127.0.0.1:30142`). These
+routes have no Next route files; the DTO contract in `lib/types.ts` remains the
+source of truth for the JSON shape. Remaining families (`agent`, `auth`,
+`models`, `skills`, `plugins`) migrate batch by batch; `fs`/`files`/`cwd`/`git`
+stay in Next. **Session browsing** (read-only): reads `.jsonl` files through the
+gateway's `SessionManager` helpers — no AgentSession created.  
+**Sending a message**: `startRpcSession()` in `lib/rpc-manager.ts` creates an AgentSession in-process (until W2).
 
 ---
 
@@ -54,10 +62,7 @@ Browser                Next.js Server              AgentSession (in-process)
 
 ```
 app/api/
-  sessions/route.ts               GET  list all sessions
-  sessions/[id]/route.ts          GET/PATCH/DELETE session
-  sessions/[id]/context/route.ts  GET ?leafId= — context for a specific leaf
-  sessions/[id]/export/route.ts   GET exported HTML for a session
+  (sessions family is gateway-owned — no route files)
   agent/new/route.ts              POST { cwd, message, toolNames?, provider?, modelId? }
   agent/[id]/route.ts             GET state | POST any command
   agent/[id]/events/route.ts      GET SSE stream

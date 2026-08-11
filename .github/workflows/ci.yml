@@ -550,6 +550,9 @@ jobs:
            with:
               node-version: "24"
          - uses: ./.github/actions/bun-install
+         - name: Verify Bun is available to Windows desktop build
+           shell: pwsh
+           run: bun --version
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci

@@ -554,6 +554,14 @@ async function tryText(
 	return result.stdout;
 }
 
+/**
+ * Run a git query and return trimmed stdout, or throw `GitCommandError`.
+ * Read-only (no optional locks); uses the shared timeout and output caps.
+ */
+export async function runGitText(cwd: string, args: readonly string[]): Promise<string> {
+	return (await runText(cwd, args, { readOnly: true })).trim();
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Internal: per-repo write serialization
 // ════════════════════════════════════════════════════════════════════════════

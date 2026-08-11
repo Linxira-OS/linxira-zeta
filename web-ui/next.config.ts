@@ -33,6 +33,18 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Gateway-owned /api families are served by the runtime Web Gateway
+  // (in-process under `zeta serve`, standalone listener in dev). Keeping them
+  // here as beforeFiles rewrites means `next dev`/`next start` reach the same
+  // handler through ZETA_WEB_GATEWAY_URL. Ownership: document/web-gateway.md.
+  async rewrites() {
+    const gateway = process.env.ZETA_WEB_GATEWAY_URL ?? "http://127.0.0.1:30142";
+    return {
+      beforeFiles: [
+        { source: "/api/sessions/:path*", destination: `${gateway}/api/sessions/:path*` },
+      ],
+    };
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
     NEXT_PUBLIC_PI_VERSION: piVersion,
