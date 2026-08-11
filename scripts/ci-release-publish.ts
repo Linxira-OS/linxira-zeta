@@ -295,6 +295,15 @@ export async function inspectPackedTarball(tarballPath: string): Promise<PackedT
 	return { name: manifest.name, version: manifest.version, path: tarballPath };
 }
 
+function canPublishInteractively(): boolean {
+	return process.stdin.isTTY === true && process.stdout.isTTY === true && process.stderr.isTTY === true;
+}
+
+async function isPackedVersionPublished(tarball: PackedTarball): Promise<boolean> {
+	const result = await $`npm view ${`${tarball.name}@${tarball.version}`} version`.quiet().nothrow();
+	return result.exitCode === 0 && result.stdout.toString().trim().length > 0;
+}
+
 async function packAndPublish(dir: string, name: string): Promise<void> {
 	if (isDryRun) {
 		console.log(`DRY RUN bun pm pack && npm publish --access public (${path.relative(repoRoot, dir)})`);
@@ -318,21 +327,35 @@ async function packAndPublish(dir: string, name: string): Promise<void> {
 		}
 		// Preflight the exact packed version so reruns skip deterministically.
 		// Fail open on lookup errors; only a confirmed published version may skip publishing.
-		const preflight = await $`npm view ${`${packedTarball.name}@${packedTarball.version}`} version`.quiet().nothrow();
-		if (preflight.exitCode === 0 && preflight.stdout.toString().trim()) {
+		if (await isPackedVersionPublished(packedTarball)) {
 			console.log(`Skipping ${packedTarball.name} (version already published)`);
 			return;
 		}
-		const result = await $`npm publish ${packedTarball.path} --access public`.quiet().nothrow();
-		const output = `${result.stdout.toString()}${result.stderr.toString()}`.trim();
-		if (output) console.log(output);
-		if (result.exitCode !== 0) {
+
+		let exitCode: number;
+		let output = "";
+		if (canPublishInteractively()) {
+			// npm's web 2FA flow requires a real terminal; piping stdio forces EOTP.
+			const child = Bun.spawn(["npm", "publish", packedTarball.path, "--access", "public"], {
+				stdin: "inherit",
+				stdout: "inherit",
+				stderr: "inherit",
+			});
+			exitCode = await child.exited;
+		} else {
+			const result = await $`npm publish ${packedTarball.path} --access public`.quiet().nothrow();
+			exitCode = result.exitCode;
+			output = `${result.stdout.toString()}${result.stderr.toString()}`.trim();
+			if (output) console.log(output);
+		}
+
+		if (exitCode !== 0) {
 			// A concurrent publisher may win after the preflight.
-			if (isVersionAlreadyPublished(output)) {
+			if (isVersionAlreadyPublished(output) || (await isPackedVersionPublished(packedTarball))) {
 				console.log(`Skipping ${packedTarball.name} (version already published)`);
 				return;
 			}
-			process.exit(result.exitCode ?? 1);
+			process.exit(exitCode || 1);
 		}
 	} finally {
 		await fs.rm(packDir, { recursive: true, force: true });
