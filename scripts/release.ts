@@ -15,6 +15,31 @@ import { runChangelogFixer } from "./fix-changelogs";
 const changelogGlob = new Glob("packages/*/CHANGELOG.md");
 const packageJsonGlob = new Glob("packages/*/package.json");
 const cargoTomlGlob = new Glob("crates/*/Cargo.toml");
+
+/**
+ * Pick the newest Zeta product tag from `git tag --list` output, or null when
+ * there is none.
+ *
+ * OMP release baselines (v17.2.11, …) are annotated tags fetched from upstream
+ * and live in main history as sync markers — they are integration baselines,
+ * never Zeta versions (Zeta semver is decoupled from OMP's), so they must not
+ * gate a Zeta release. Zeta tags are the lightweight tags this script stamps
+ * on `chore: bump version to …` commits; filter on that peeled commit subject.
+ *
+ * The caller must sort with `--sort=-v:refname` so the first match is the
+ * newest.
+ */
+export function selectLatestZetaTag(tagListOutput: string): string | null {
+	for (const line of tagListOutput.split("\n")) {
+		if (!line) continue;
+		const separator = line.indexOf("%00");
+		if (separator === -1) continue;
+		const name = line.slice(0, separator);
+		const subject = line.slice(separator + 3);
+		if (/^chore: bump version to v?\d/.test(subject)) return name;
+	}
+	return null;
+}
 /**
  * Strict explicit-version guard: three numeric dot-segments with an optional
  * leading `v` and NO prerelease suffix. Prereleases are rejected because the
@@ -241,9 +266,18 @@ async function cmdRelease(versionOrBump: string): Promise<void> {
 	}
 	console.log("  Working directory clean");
 
-	const latestTag = (await git(["describe", "--tags", "--abbrev=0", "--match", "v*"]).text()).trim();
+	const latestTag =
+		selectLatestZetaTag(
+			(
+				await git(["tag", "--list", "--format", "%(refname:short)%00%(subject)", "--sort=-v:refname", "v*"]).text()
+			).trim(),
+		) ?? "";
 	let version = versionOrBump;
 	if (version === "major" || version === "minor" || version === "patch") {
+		if (!latestTag) {
+			console.error("Error: No Zeta release tag found; pass an explicit version for the first release.");
+			process.exit(1);
+		}
 		version = bumpVersion(latestTag, version);
 		console.log(`Bumping ${versionOrBump} version from ${latestTag} -> ${version}`);
 	}

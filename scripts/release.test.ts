@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { validateExplicitVersion } from "./release";
+import { selectLatestZetaTag, validateExplicitVersion } from "./release";
 
 describe("validateExplicitVersion", () => {
 	test("rejects malformed versions", () => {
@@ -41,5 +41,26 @@ describe("validateExplicitVersion", () => {
 	test("accepts leading v prefix and normalizes to the bare version", () => {
 		expect(validateExplicitVersion("v17.2.8")).toBe("17.2.8");
 		expect(validateExplicitVersion("V17.2.8")).toBe(null);
+	});
+});
+
+describe("selectLatestZetaTag", () => {
+	test("ignores annotated OMP baseline tags in main history", () => {
+		const output = ["v17.2.12%00OMP v17.2.12", "v17.2.11%00Release v17.2.11"].join("\n");
+		expect(selectLatestZetaTag(output)).toBe(null);
+	});
+
+	test("picks the newest Zeta tag over OMP baselines", () => {
+		const output = [
+			"v1.0.0%00chore: bump version to 1.0.0",
+			"v17.2.12%00OMP v17.2.12",
+			"v17.2.11%00Release v17.2.11",
+		].join("\n");
+		expect(selectLatestZetaTag(output)).toBe("v1.0.0");
+	});
+
+	test("returns null for empty or non-matching output", () => {
+		expect(selectLatestZetaTag("")).toBe(null);
+		expect(selectLatestZetaTag("v1.2.3%00Merge PR #1: something")).toBe(null);
 	});
 });
