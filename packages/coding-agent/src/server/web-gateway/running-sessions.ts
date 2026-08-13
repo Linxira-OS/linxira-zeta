@@ -7,10 +7,11 @@
  */
 
 const runningIds = new Set<string>();
-const subscribers = new Set<() => void>();
+const subscribers = new Set<(ids: string[]) => void>();
 
 function notify(): void {
-	for (const fn of subscribers) fn();
+	const ids = getRunningSessionIds();
+	for (const fn of subscribers) fn(ids);
 }
 
 export function getRunningSessionIds(): string[] {
@@ -28,7 +29,7 @@ export function removeRunningSession(sessionId: string): void {
 	if (runningIds.delete(sessionId)) notify();
 }
 
-export function subscribeRunningSessions(listener: () => void): () => void {
+export function subscribeRunningSessions(listener: (ids: string[]) => void): () => void {
 	subscribers.add(listener);
 	return () => {
 		subscribers.delete(listener);

@@ -20,6 +20,7 @@ import { listAllSessions as listRuntimeSessions } from "../../session/session-li
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
 import { serializeTitleSlot } from "../../session/session-title-slot";
+import { getRpcSession } from "./agents";
 import { type ProjectInfo, resolveProject } from "./projects";
 import { getRunningSessionIds, removeRunningSession } from "./running-sessions";
 import type {
@@ -57,7 +58,7 @@ export function invalidateSessionListCache(): void {
 	sessionListCache = null;
 }
 
-function cacheSessionPath(sessionId: string, filePath: string): void {
+export function cacheSessionPath(sessionId: string, filePath: string): void {
 	const normalized = path.normalize(filePath);
 	const key = sessionPathKey(normalized);
 	const previousPath = pathCache.get(sessionId);
@@ -685,17 +686,20 @@ export async function handleSessionContext(req: Request, sessionId: string): Pro
 
 export async function handleSessionState(sessionId: string): Promise<Response> {
 	try {
+		// Live agent session: surface the full AgentState (web-ui contract:
+		// `{ running: true, state }` while the rpc session is alive).
+		const wrapper = getRpcSession(sessionId);
+		if (wrapper?.isAlive()) {
+			const state = await wrapper.send({ type: "get_state" });
+			return json({ running: true, state });
+		}
+
 		const filePath = await resolveSessionPath(sessionId);
 		if (!filePath) {
 			return json({ error: "Session not found" }, 404);
 		}
 
-		if (!getRunningSessionIds().includes(sessionId)) {
-			return json({ running: false });
-		}
-
-		// W2: once the agent RPC batch lands, surface the live AgentState here.
-		return json({ running: true, state: null });
+		return json({ running: false });
 	} catch (error) {
 		logger.error("web-gateway: session state failed", { sessionId, error: String(error) });
 		return json({ error: String(error) }, 500);
