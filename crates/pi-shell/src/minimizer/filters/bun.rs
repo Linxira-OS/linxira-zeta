@@ -532,9 +532,9 @@ mod tests {
 			"$ bun run check:tools && bun run --workspaces --if-present check\n$ biome check . \
 			 --no-errors-on-unmatched\nChecked 1690 files in 371ms. No fixes \
 			 applied.\n@linxiraos/pi-utils check: Checked 40 files in 11ms. No fixes \
-			 applied.\n@linxiraos/pi-utils check: $ tsgo -p tsconfig.json --noEmit\n@linxiraos/pi-utils check: \
-			 Exited with code 0\n@linxiraos/zeta check: Checked 1178 files in 287ms. No fixes \
-			 applied.\n@linxiraos/zeta check: $ tsgo -p tsconfig.json \
+			 applied.\n@linxiraos/pi-utils check: $ tsgo -p tsconfig.json \
+			 --noEmit\n@linxiraos/pi-utils check: Exited with code 0\n@linxiraos/zeta check: Checked \
+			 1178 files in 287ms. No fixes applied.\n@linxiraos/zeta check: $ tsgo -p tsconfig.json \
 			 --noEmit\n@linxiraos/zeta check: Exited with code 0\n",
 			0,
 		);
@@ -554,8 +554,9 @@ mod tests {
 		let ctx = ctx("bun", Some("run"), "bun run check:ts", &cfg);
 		let out = filter(
 			&ctx,
-			"@linxiraos/pi-utils check: Checked 40 files in 11ms. No fixes applied.\n@linxiraos/pi-utils \
-			 check: Exited with code 0\n[Command timed out after 300 seconds]\n",
+			"@linxiraos/pi-utils check: Checked 40 files in 11ms. No fixes \
+			 applied.\n@linxiraos/pi-utils check: Exited with code 0\n[Command timed out after 300 \
+			 seconds]\n",
 			1,
 		);
 
