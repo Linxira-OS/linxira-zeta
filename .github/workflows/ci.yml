@@ -551,7 +551,8 @@ jobs:
    desktop_windows:
       name: Build and smoke desktop (Windows)
       runs-on: windows-2022
-      if: ${{ !cancelled() }}
+      needs: [native_addons]
+      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 35
       steps:
          - uses: actions/checkout@v4
