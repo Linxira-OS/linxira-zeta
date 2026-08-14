@@ -1,24 +1,3 @@
-Isolate zig's cache for compile-only invocations (ziglang/zig#18763).
-
-Concurrent `zig cc` processes sharing one cache dir corrupt it under load
-(cache manifests referencing evicted objects: "failed to open .../scanner.o:
-FileNotFound"). This repo drives ~60 cc-compiling cargo build scripts in
-parallel through the wrapper, which reproduces the corruption reliably on CI.
-
-Compile/preprocess steps gain nothing from the cache (~25ms cold vs warm,
-measured) — give each process a private throwaway cache under the system tmp
-dir. Link steps keep the shared cache: they are the ones that benefit
-(compiler-rt/crt, ~6s cold vs 25ms warm), zig's per-artifact locking is the
-battle-tested path for concurrent artifact builds, and after first warm they
-are pure readers.
-
-Also opt @zig_config into Bazel's repo contents cache (repo_metadata,
-bazel >= 8.3): the fetch is deterministic given the pinned zig archive and
-wrapper source, and re-running it cost ~20 s of wrapper compilation on every
-fresh output base — every job on ephemeral CI pods.
-
-Note: bazel's own patch parser (unlike GNU patch) requires the `diff --git`
-
 diff --git a/toolchain/zig-wrapper.zig b/toolchain/zig-wrapper.zig
 --- a/toolchain/zig-wrapper.zig
 +++ b/toolchain/zig-wrapper.zig
@@ -60,7 +39,7 @@ diff --git a/toolchain/defs.bzl b/toolchain/defs.bzl
 index 26513ee..2249b96 100644
 --- a/toolchain/defs.bzl
 +++ b/toolchain/defs.bzl
-@@ -153,11 +153,15 @@ def _zig_repository_impl(repository_ctx):
+@@ -152,11 +152,15 @@ def _zig_repository_impl(repository_ctx):
          "_ext": zig_ext,
          "version": repository_ctx.attr.version,
          "host_platform": host_platform,
@@ -76,7 +55,7 @@ index 26513ee..2249b96 100644
      }
  
      for dest, src in {
-@@ -179,7 +183,7 @@ def _zig_repository_impl(repository_ctx):
+@@ -182,7 +186,7 @@ def _zig_repository_impl(repository_ctx):
      repository_ctx.download_and_extract(
          auth = use_netrc(read_user_netrc(repository_ctx), urls, {}),
          url = urls,
@@ -85,7 +64,7 @@ index 26513ee..2249b96 100644
          sha256 = zig_sha256,
      )
  
-@@ -267,7 +271,7 @@ def _zig_repository_impl(repository_ctx):
+@@ -270,7 +274,7 @@ def _zig_repository_impl(repository_ctx):
      repository_ctx.download_and_extract(
          auth = use_netrc(read_user_netrc(repository_ctx), urls, {}),
          url = urls,
@@ -95,25 +74,21 @@ index 26513ee..2249b96 100644
      )
 
 diff --git a/toolchain/defs.bzl b/toolchain/defs.bzl
-index 26513ee..9c350f6 100644
 --- a/toolchain/defs.bzl
 +++ b/toolchain/defs.bzl
-@@ -153,11 +153,15 @@ def _zig_repository_impl(repository_ctx):
-         "_ext": zig_ext,
-         "version": repository_ctx.attr.version,
-         "host_platform": host_platform,
-+        "host_os": host_os,
-+        "host_arch": host_arch,
-     }
-     format_vars_exec = {
-         "_ext": repository_ctx.attr.host_platform_ext[exec_platform],
-         "version": repository_ctx.attr.version,
-         "host_platform": exec_platform,
-+        "host_os": exec_os,
-+        "host_arch": exec_arch,
-     }
+@@ -278,6 +278,12 @@
+         )
+         repository_ctx.symlink("tools/zig-wrapper{}".format(exe), tool_path)
  
-     for dest, src in {
++    # omp: opt into the repo contents cache — the fetch is deterministic
++    # given the pinned zig archive and the wrapper source above.
++    if hasattr(repository_ctx, "repo_metadata"):
++        return repository_ctx.repo_metadata(reproducible = True)
++    return None
++
+ zig_repository = repository_rule(
+     attrs = {
+         "version": attr.string(),
 
 diff --git a/toolchain/private/zig_sdk.bzl b/toolchain/private/zig_sdk.bzl
 index fc6a0c8..b47412f 100644
