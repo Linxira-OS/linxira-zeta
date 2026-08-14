@@ -258,13 +258,20 @@ jobs:
          # kata + cluster remote cache make this cheap; the disk-cache warm
          # workflow keeps GitHub-hosted runners seeded. All addon targets the
          # release matrices consume (gnu/musl/win32 cross) come from here.
-         - name: Build native addons (bazel)
+         # musl addons reuse the gnu filenames, so they must install into a
+         # separate --dest (bazel-natives.ts refuses same-name collisions).
+         - name: Build gnu and win32 native addons (bazel)
            if: github.event_name != 'pull_request'
            uses: ./.github/actions/bazel-natives
            with:
               targets: >-
-                 linux-x64-baseline linux-x64-modern linux-arm64
-                 linux-musl-x64-baseline linux-musl-arm64 win32-x64-baseline
+                 linux-x64-baseline linux-x64-modern linux-arm64 win32-x64-baseline
+         - name: Build musl native addons (bazel)
+           if: github.event_name != 'pull_request'
+           uses: ./.github/actions/bazel-natives
+           with:
+              targets: linux-musl-x64-baseline linux-musl-arm64
+              dest: packages/natives/native-musl
          - name: Smoke release addons
            if: github.event_name != 'pull_request'
            shell: bash
