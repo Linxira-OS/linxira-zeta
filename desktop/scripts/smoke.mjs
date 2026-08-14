@@ -7,6 +7,7 @@ import { spawn, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { desktopPlatformInfo } from "./platform.mjs";
 
 const platformInfo = desktopPlatformInfo(process.platform, process.arch);
@@ -16,7 +17,10 @@ function appPathFromArgs() {
 	const index = process.argv.indexOf("--app");
 	const value = index === -1 ? undefined : process.argv[index + 1];
 	if (!value) throw new Error("Usage: node scripts/smoke.mjs --app <desktop-app-directory>");
-	return path.resolve(value);
+	// Resolve against the desktop package dir, not the process cwd: npm --prefix
+	// runs scripts from the package directory, so cwd-relative paths would
+	// double up (desktop/temp/desktop/...).
+	return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", value);
 }
 
 async function sleep(ms) {

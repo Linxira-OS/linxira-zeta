@@ -559,6 +559,9 @@ jobs:
            with:
               node-version: "24"
          - uses: ./.github/actions/bun-install
+         - uses: ./.github/actions/native-artifacts
+           with:
+              targets: win32-x64-baseline
          - name: Verify Bun is available to Windows desktop build
            shell: pwsh
            run: bun --version
