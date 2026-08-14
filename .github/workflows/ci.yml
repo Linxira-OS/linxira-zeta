@@ -198,6 +198,7 @@ jobs:
    native_addons:
       name: Build native addons (bazel)
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
+      needs: [release_metadata]
       steps:
          - uses: actions/checkout@v4
          - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -254,20 +255,43 @@ jobs:
                 echo "::notice title=Native sources changed::PR CI tests against the latest release addons by design; native changes are validated post-merge on main and at release."
               fi
 
-         # ---- main path: build all Linux-hosted addons with bazel ----
-         # kata + cluster remote cache make this cheap; the disk-cache warm
-         # workflow keeps GitHub-hosted runners seeded. All addon targets the
-         # release matrices consume (gnu/musl/win32 cross) come from here.
-         # musl addons reuse the gnu filenames, so they must install into a
-         # separate --dest (bazel-natives.ts refuses same-name collisions).
-         - name: Build gnu and win32 native addons (bazel)
+         # ---- main path: fetch published gnu/win32 addons from npm ----
+         # The @linxiraos/pi-natives-* leaves ship the gnu/win32 addons, so a
+         # full bazel rebuild (an hour on hosted runners) is only needed for
+         # the musl targets, which reuse the gnu filenames and have no leaf.
+         # musl addons are therefore built on release runs only.
+         - name: Fetch release native addons (npm)
            if: github.event_name != 'pull_request'
-           uses: ./.github/actions/bazel-natives
-           with:
-              targets: >-
-                 linux-x64-baseline linux-x64-modern linux-arm64 win32-x64-baseline
+           shell: bash
+           run: |
+              set -euo pipefail
+              mkdir -p \
+                bazel-bin/natives-linux-x64-baseline \
+                bazel-bin/natives-linux-x64-modern \
+                bazel-bin/natives-linux-arm64 \
+                bazel-bin/natives-win32-x64-baseline
+              for pkg in linux-x64 linux-arm64 win32-x64; do
+                tarball="$(npm view "@linxiraos/pi-natives-$pkg@latest" dist.tarball)"
+                echo "Fetching $tarball"
+                curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
+                case "$pkg" in
+                  linux-x64)
+                    cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" bazel-bin/natives-linux-x64-baseline/
+                    cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" bazel-bin/natives-linux-x64-modern/
+                    ;;
+                  linux-arm64)
+                    cp "$RUNNER_TEMP/package/pi_natives.linux-arm64.node" bazel-bin/natives-linux-arm64/
+                    ;;
+                  win32-x64)
+                    cp "$RUNNER_TEMP/package/pi_natives.win32-x64-baseline.node" bazel-bin/natives-win32-x64-baseline/
+                    ;;
+                esac
+                rm -rf "$RUNNER_TEMP/package"
+              done
          - name: Build musl native addons (bazel)
-           if: github.event_name != 'pull_request'
+           if: >-
+              github.event_name != 'pull_request' &&
+              needs.release_metadata.outputs.is-release == 'true'
            uses: ./.github/actions/bazel-natives
            with:
               targets: linux-musl-x64-baseline linux-musl-arm64
