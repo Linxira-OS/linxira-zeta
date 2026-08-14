@@ -2,12 +2,6 @@
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-13
-
-### Changed
-
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
-
 ## [17.1.5] - 2026-07-27
 
 ### Fixed
@@ -200,3 +194,9 @@
 
 - Fixed frame rendering at archive chunk boundaries to reopen dim spans when a chunk ends inside a dimmed tool-result segment
 - Fixed message serialization to strip user- and assistant-provided dim markers so only renderer-generated dim spans can be applied
+
+## [1.0.0] - 2026-08-13
+
+### Changed
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.

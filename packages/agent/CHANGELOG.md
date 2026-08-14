@@ -2,12 +2,6 @@
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-13
-
-### Changed
-
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
-
 ## [17.2.10] - 2026-08-06
 
 ### Fixed
@@ -1201,6 +1195,12 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.0.0] - 2026-08-13
+
+### Changed
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 
 ## [0.38.0] - 2026-01-08
 

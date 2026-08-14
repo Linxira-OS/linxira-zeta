@@ -2,12 +2,6 @@
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-13
-
-### Changed
-
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
-
 ## [17.2.11] - 2026-08-07
 
 ### Fixed
@@ -249,3 +243,9 @@
 - Fixed `extract: true` fact extraction to continue safely when no LLM is configured by turning extraction failures into no-op background tasks
 - Fixed configured LLM fact extraction by using temperature 0 so re-ingesting the same text is deterministic and avoids near-duplicate extractions
 - Fixed `remember(..., { extract: true })` silently dropping the flag: it now schedules the LLM fact extractor (`extractFactsSafe`) over the stored content and persists the extracted facts so they become recallable. Previously the LLM extractor had no production callers and `extract` was dead.
+
+## [1.0.0] - 2026-08-13
+
+### Changed
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
