@@ -165,13 +165,6 @@ async function watchCI(): Promise<boolean> {
 	}
 }
 
-function hasUnreleasedContent(content: string): boolean {
-	const unreleasedMatch = content.match(/## \[Unreleased\]\s*\n([\s\S]*?)(?=## \[\d|$)/);
-	if (!unreleasedMatch) return false;
-	const sectionContent = unreleasedMatch[1].trim();
-	return sectionContent.length > 0;
-}
-
 function removeEmptyVersionEntries(content: string): string {
 	// Remove version entries that have no content (just whitespace until next ## [ or EOF)
 	return content.replace(/## \[\d+\.\d+\.\d+\] - \d{4}-\d{2}-\d{2}\s*\n(?=## \[|\s*$)/g, "");
@@ -188,14 +181,14 @@ async function updateChangelogsForRelease(version: string): Promise<void> {
 			continue;
 		}
 
-		// Only create version entry if [Unreleased] has content
-		if (hasUnreleasedContent(content)) {
-			content = content.replace("## [Unreleased]", `## [${version}] - ${date}`);
-			content = content.replace(/^(# Changelog\n\n)/, `$1## [Unreleased]\n\n`);
-		}
-
-		// Clean up any existing empty version entries
+		// Drop stale empty version entries first so the new entry below is the
+		// only fresh one; then always create the release entry — an empty
+		// [Unreleased] still means the package shipped this version, and the
+		// embedded changelog fallback (changelog-bundle-fallback-probe) asserts
+		// the latest entry matches the package version.
 		content = removeEmptyVersionEntries(content);
+		content = content.replace("## [Unreleased]", `## [${version}] - ${date}`);
+		content = content.replace(/^(# Changelog\n\n)/, `$1## [Unreleased]\n\n`);
 
 		await Bun.write(changelog, content);
 		console.log(`  Updated ${changelog}`);
