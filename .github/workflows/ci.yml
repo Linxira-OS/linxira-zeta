@@ -286,9 +286,14 @@ jobs:
                }
               }
               EOF
-              loader=node
-              if command -v bun >/dev/null 2>&1; then loader=bun; fi
-              "$loader" "$RUNNER_TEMP/smoke-addons.js" "$PWD"/bazel-bin/natives-*/*.node
+               loader=node
+               if command -v bun >/dev/null 2>&1; then loader=bun; fi
+               # bazel-bin outputs are symlinks to the cdylib; smoke the
+               # realpath-copied files in the dest dirs instead (bun resolves
+               # symlinks and would load them as plain .so libraries).
+               "$loader" "$RUNNER_TEMP/smoke-addons.js" \
+                 "$PWD"/packages/natives/native/*.node \
+                 "$PWD"/packages/natives/native-musl/*.node
 
          - name: Upload native addon artifacts
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
