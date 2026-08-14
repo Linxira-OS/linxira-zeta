@@ -288,12 +288,11 @@ jobs:
               EOF
                loader=node
                if command -v bun >/dev/null 2>&1; then loader=bun; fi
-               # bazel-bin outputs are symlinks to the cdylib; smoke the
-               # realpath-copied files in the dest dirs instead (bun resolves
-               # symlinks and would load them as plain .so libraries).
+               # Only smoke the host-arch addons: arm64/win32/musl addons
+               # cannot dlopen on this x64 glibc runner (expected).
                "$loader" "$RUNNER_TEMP/smoke-addons.js" \
-                 "$PWD"/packages/natives/native/*.node \
-                 "$PWD"/packages/natives/native-musl/*.node
+                 "$PWD"/packages/natives/native/pi_natives.linux-x64-baseline.node \
+                 "$PWD"/packages/natives/native/pi_natives.linux-x64-modern.node
 
          - name: Upload native addon artifacts
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
