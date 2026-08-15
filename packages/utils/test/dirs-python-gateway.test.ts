@@ -37,7 +37,7 @@ describe("python gateway directory", () => {
 	it("uses XDG state for the default agent profile", async () => {
 		if (process.platform === "win32") return;
 
-		process.env.PI_CONFIG_DIR = `.omp-test-${Snowflake.next()}`;
+		process.env.PI_CONFIG_DIR = `.zeta-test-${Snowflake.next()}`;
 		process.env.XDG_STATE_HOME = path.join(tempRoot, "state");
 		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "zeta"), { recursive: true });
 

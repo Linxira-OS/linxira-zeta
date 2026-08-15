@@ -20,6 +20,7 @@ import {
 	APP_NAME,
 	getActiveProfile,
 	MIN_BUN_VERSION,
+	migrateLegacyOmpConfigDir,
 	resolveProfileEnv,
 	setProfile,
 	VERSION,
@@ -44,6 +45,11 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 }
 
 setProcessName(APP_NAME);
+
+// One-time adoption of a pre-existing `~/.zeta` config root. Zeta keeps no
+// `.zeta` compatibility surface (see AGENTS.md), so this is the only place
+// the legacy name is honored.
+migrateLegacyOmpConfigDir();
 
 // `Bun.build`-API compiled Windows executables report `import.meta.main ===
 // false`: the standalone loader keys the entry module with native backslashes

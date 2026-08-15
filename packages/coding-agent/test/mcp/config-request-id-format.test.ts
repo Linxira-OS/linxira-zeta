@@ -8,7 +8,7 @@
  * transports read. A field missing from either step silently degrades to the
  * snowflake-string default, which is the hang the option exists to avoid.
  *
- * Both OMP-native loaders are covered: `.omp/mcp.json` (native provider) and a
+ * Both OMP-native loaders are covered: `.zeta/mcp.json` (native provider) and a
  * standalone project-root `.mcp.json` (mcp-json provider).
  *
  * Separately, `isSameMCPConnection` treats two differently-named entries with the
@@ -67,7 +67,7 @@ async function loadFrom(file: string, mcpServers: Record<string, unknown>) {
 	return configs;
 }
 
-test("requestIdFormat from .omp/mcp.json reaches the transport config", async () => {
+test("requestIdFormat from .zeta/mcp.json reaches the transport config", async () => {
 	const configs = await loadFrom(path.join(".zeta", "mcp.json"), {
 		xcode: { type: "stdio", command: "/usr/bin/xcrun", args: ["mcpbridge"], requestIdFormat: "number" },
 		plain: { type: "stdio", command: "/bin/echo" },

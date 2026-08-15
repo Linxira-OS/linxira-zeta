@@ -84,6 +84,6 @@ ${chalk.bold("Plugin Options:")}
   --plugin-dir <path>        Load plugin from directory (repeatable)
 
 ${chalk.bold("Useful Commands:")}
-  omp agents unpack           - Export bundled subagents to ~/.omp/agent/agents (default)
-  omp agents unpack --project - Export bundled subagents to ./.omp/agents`;
+  omp agents unpack           - Export bundled subagents to ~/.zeta/agent/agents (default)
+  omp agents unpack --project - Export bundled subagents to ./.zeta/agents`;
 }

@@ -330,7 +330,7 @@ export class Settings {
 	#global: RawSettings = {};
 	/** Project settings from .claude/settings.yml etc */
 	#project: RawSettings = {};
-	/** Last successfully loaded native .omp/config.yml contents. */
+	/** Last successfully loaded native .zeta/config.yml contents. */
 	#projectFileSettings: RawSettings = {};
 	/** Logical config paths whose malformed targets were moved aside. */
 	#quarantinedYamlTargets = new Map<string, string>();

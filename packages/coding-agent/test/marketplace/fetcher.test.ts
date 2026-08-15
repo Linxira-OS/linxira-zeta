@@ -183,13 +183,13 @@ describe("fetchMarketplace", () => {
 
 	it("loads catalog from .omp-plugin/marketplace.json when present", async () => {
 		const root = path.join(tmpDir, "omp-only");
-		fs.mkdirSync(path.join(root, ".omp-plugin"), { recursive: true });
+		fs.mkdirSync(path.join(root, ".zeta-plugin"), { recursive: true });
 		const catalog = {
 			name: "omp-only-marketplace",
 			owner: { name: "Test" },
 			plugins: [{ name: "omp-plugin", source: "./plugins/omp-plugin", description: "x" }],
 		};
-		fs.writeFileSync(path.join(root, ".omp-plugin", "marketplace.json"), JSON.stringify(catalog));
+		fs.writeFileSync(path.join(root, ".zeta-plugin", "marketplace.json"), JSON.stringify(catalog));
 
 		const result = await fetchMarketplace(root, tmpDir);
 		expect(result.catalog.name).toBe("omp-only-marketplace");
@@ -198,7 +198,7 @@ describe("fetchMarketplace", () => {
 
 	it("prefers .omp-plugin/marketplace.json over .claude-plugin/marketplace.json when both exist", async () => {
 		const root = path.join(tmpDir, "both-catalogs");
-		fs.mkdirSync(path.join(root, ".omp-plugin"), { recursive: true });
+		fs.mkdirSync(path.join(root, ".zeta-plugin"), { recursive: true });
 		fs.mkdirSync(path.join(root, ".claude-plugin"), { recursive: true });
 		const ompCatalog = {
 			name: "from-omp-plugin",
@@ -210,7 +210,7 @@ describe("fetchMarketplace", () => {
 			owner: { name: "Test" },
 			plugins: [{ name: "p", source: "./p", description: "x" }],
 		};
-		fs.writeFileSync(path.join(root, ".omp-plugin", "marketplace.json"), JSON.stringify(ompCatalog));
+		fs.writeFileSync(path.join(root, ".zeta-plugin", "marketplace.json"), JSON.stringify(ompCatalog));
 		fs.writeFileSync(path.join(root, ".claude-plugin", "marketplace.json"), JSON.stringify(claudeCatalog));
 
 		const result = await fetchMarketplace(root, tmpDir);

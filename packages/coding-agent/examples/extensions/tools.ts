@@ -5,7 +5,7 @@
  * Tool selection persists across session reloads and respects branch navigation.
  *
  * Usage:
- * 1. Copy this file to ~/.omp/agent/extensions/ (legacy: ~/.pi/agent/extensions/) or your project's .omp/extensions/
+ * 1. Copy this file to ~/.zeta/agent/extensions/ (legacy: ~/.pi/agent/extensions/) or your project's .zeta/extensions/
  * 2. Use /tools to open the tool selector
  */
 

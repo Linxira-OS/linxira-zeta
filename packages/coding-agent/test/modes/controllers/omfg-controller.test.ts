@@ -11,8 +11,8 @@ import { OmfgController } from "@linxiraos/zeta/modes/controllers/omfg-controlle
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
-const PROJECT_OPTION = "This project (.omp/rules)";
-const GLOBAL_OPTION = "Global — all projects (~/.omp/agent/rules)";
+const PROJECT_OPTION = "This project (.zeta/rules)";
+const GLOBAL_OPTION = "Global — all projects (~/.zeta/agent/rules)";
 const AMEND_OPTION = "Amend with feedback…";
 
 const usage: Usage = {

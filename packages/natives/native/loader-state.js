@@ -50,10 +50,10 @@ function startupMarker(text) {
 
 function getNativesDir() {
 	const xdgDataHome = process.env.XDG_DATA_HOME;
-	if (xdgDataHome && fs.existsSync(path.join(xdgDataHome, "omp"))) {
-		return path.join(xdgDataHome, "omp", "natives");
+	if (xdgDataHome && fs.existsSync(path.join(xdgDataHome, "zeta"))) {
+		return path.join(xdgDataHome, "zeta", "natives");
 	}
-	return path.join(os.homedir(), ".omp", "natives");
+	return path.join(os.homedir(), ".zeta", "natives");
 }
 
 function resolveLeafPackageDir(platformTag) {
@@ -105,7 +105,7 @@ export function getAddonFilenames({ tag, arch, variant }) {
 
 /**
  * Decide whether the loader should mirror the package's `native/<filename>.node`
- * into the per-version cache directory (`~/.omp/natives/<version>/`) before loading.
+ * into the per-version cache directory (`~/.zeta/natives/<version>/`) before loading.
  *
  * Windows-only safety net for `bun install -g` updates: when a previous `omp`
  * process is running, bun cannot overwrite the locked `.node` inside
@@ -703,12 +703,12 @@ export function validateLoadedBindings(ctx, bindings, candidate) {
  * Install the addon's bounded Tokio runtime now that `dlopen` has returned and
  * the dynamic-loader lock is released. The Rust `#[module_init]` deliberately
  * does NOT build the runtime — spawning worker threads under the loader lock
- * deadlocks on some hosts — so it exposes `__ompInstallTokioRuntime` for the
+ * deadlocks on some hosts — so it exposes `__zetaInstallTokioRuntime` for the
  * loader to call once, before any async native runs. Best-effort: older addons
  * predating this export simply fall back to napi-rs's default runtime.
  */
 function installNativeTokioRuntime(bindings) {
-	const install = bindings.__ompInstallTokioRuntime;
+	const install = bindings.__zetaInstallTokioRuntime;
 	if (typeof install !== "function") return;
 	try {
 		install();
@@ -760,7 +760,7 @@ export function initLoaderContext(overrides = {}) {
 	const versionedDir = path.join(nativesDir, packageVersion);
 	const userDataDir =
 		platform === "win32"
-			? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "omp")
+			? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "zeta")
 			: path.join(os.homedir(), ".local", "bin");
 
 	const isCompiledBinary =

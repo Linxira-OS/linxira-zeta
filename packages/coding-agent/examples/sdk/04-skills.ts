@@ -6,7 +6,7 @@
  */
 import { createAgentSession, discoverSkills, SessionManager, type Skill } from "@linxiraos/zeta";
 
-// Discover all skills from cwd/.omp/skills, ~/.omp/agent/skills, etc.
+// Discover all skills from cwd/.zeta/skills, ~/.zeta/agent/skills, etc.
 const { skills: allSkills } = await discoverSkills();
 console.log(
 	"Discovered skills:",

@@ -111,5 +111,5 @@ export const webHelp = {
 } satisfies CommandMetadata;
 
 export const worktreeHelp = {
-	description: "List or clear agent-managed git worktrees (~/.omp/wt)",
+	description: "List or clear agent-managed git worktrees (~/.zeta/wt)",
 } satisfies CommandMetadata;
