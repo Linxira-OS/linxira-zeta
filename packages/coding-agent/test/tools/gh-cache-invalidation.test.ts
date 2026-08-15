@@ -3,13 +3,14 @@
  * detector drops cache rows for state-mutating `gh issue|pr` ops while
  * leaving unrelated commands and read-only `gh` calls alone.
  */
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { invalidateGithubCacheForBashCommand } from "@linxiraos/zeta/tools/gh-cache-invalidation";
-import { getCached, putCached, resetForTests as resetCacheForTests } from "@linxiraos/zeta/tools/github-cache";
+import {
+	clearAll,
+	getCached,
+	putCached,
+	resetForTests as resetCacheForTests,
+} from "@linxiraos/zeta/tools/github-cache";
 
 const REPO = "owner/example";
 
@@ -72,24 +73,25 @@ function seedPr(number: number, repo = REPO): void {
 	});
 }
 
-let tempDir: string;
 let originalEnv: string | undefined;
 
-beforeEach(async () => {
+beforeAll(() => {
 	originalEnv = process.env.OMP_GITHUB_CACHE_DB;
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gh-cache-inv-"));
-	process.env.OMP_GITHUB_CACHE_DB = path.join(tempDir, "github-cache.db");
+	process.env.OMP_GITHUB_CACHE_DB = ":memory:";
 	resetCacheForTests();
 });
 
-afterEach(async () => {
+beforeEach(() => {
+	clearAll();
+});
+
+afterAll(() => {
 	resetCacheForTests();
 	if (originalEnv === undefined) {
 		delete process.env.OMP_GITHUB_CACHE_DB;
 	} else {
 		process.env.OMP_GITHUB_CACHE_DB = originalEnv;
 	}
-	await removeWithRetries(tempDir);
 });
 
 describe("invalidateGithubCacheForBashCommand", () => {

@@ -1,5 +1,6 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
+import { scheduler } from "node:timers/promises";
 import { Agent } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, Model, ProviderSessionState } from "@linxiraos/pi-ai";
@@ -9,6 +10,8 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+
+const originalSchedulerWait = scheduler.wait.bind(scheduler);
 
 describe("AgentSession context promotion", () => {
 	let tempDir: TempDir;
@@ -52,6 +55,12 @@ describe("AgentSession context promotion", () => {
 	afterAll(() => {
 		authStorage.close();
 		tempDir.removeSync();
+	});
+
+	beforeEach(() => {
+		// Promotion retries deliberately settle for 100ms in production. These
+		// tests assert the continuation and state transition, not elapsed time.
+		vi.spyOn(scheduler, "wait").mockImplementation((_delayMs, options) => originalSchedulerWait(0, options));
 	});
 
 	afterEach(async () => {

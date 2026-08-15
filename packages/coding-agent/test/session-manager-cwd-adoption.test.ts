@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { removeWithRetries, TempDir } from "@linxiraos/pi-utils";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 const tempDirs: TempDir[] = [];
 
@@ -100,7 +101,7 @@ describe("SessionManager cwd adoption on resume", () => {
 		const launch = makeTempDir("@pi-cwd-launch-");
 		const store = makeTempDir("@pi-cwd-store-");
 		const goneProject = makeTempDir("@pi-cwd-gone-");
-		// The session file survives in `store` (like ~/.zeta), but its header cwd
+		// The session file survives in `store` (like ~/.omp), but its header cwd
 		// points at a project directory that we then delete.
 		const file = await writeSession(goneProject, store);
 		await removeWithRetries(goneProject);
@@ -115,18 +116,28 @@ describe("SessionManager cwd adoption on resume", () => {
 		expect(manager.getSessionDir()).toBe(path.resolve(launchSessions));
 	});
 
-	it("falls back to the launch cwd when opening a session whose project directory is gone", async () => {
+	it("falls back to the launch cwd with one full read when the recorded project directory is gone", async () => {
 		const launch = makeTempDir("@pi-cwd-launch-");
 		const store = makeTempDir("@pi-cwd-store-");
 		const goneProject = makeTempDir("@pi-cwd-gone-");
 		const file = await writeSession(goneProject, store);
 		await removeWithRetries(goneProject);
+		class CountingFileSessionStorage extends FileSessionStorage {
+			fullReads = 0;
 
-		const manager = await SessionManager.open(file, undefined, undefined, { initialCwd: launch });
+			override readText(filePath: string): Promise<string> {
+				this.fullReads++;
+				return super.readText(filePath);
+			}
+		}
+		const storage = new CountingFileSessionStorage();
+
+		const manager = await SessionManager.open(file, undefined, storage, { initialCwd: launch });
 
 		expect(manager.getCwd()).toBe(path.resolve(launch));
 		// /new and /branch anchor to the launch cwd, not the deleted project's store.
 		expect(manager.getSessionDir()).toBe(SessionManager.getDefaultSessionDir(launch));
 		expect(manager.getSessionDir()).not.toBe(path.resolve(store));
+		expect(storage.fullReads).toBe(1);
 	});
 });

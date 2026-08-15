@@ -7,8 +7,9 @@ import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { type CreateAgentSessionOptions, createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const providerName = "restricted-session-provider";
 const modelId = "restricted-session-model";
@@ -21,10 +22,10 @@ describe("restricted sessions sharing extension providers", () => {
 	let modelRegistry: ModelRegistry;
 	let settings: Settings;
 
-	beforeEach(async () => {
+	beforeEach(() => {
 		tempDir = path.join(os.tmpdir(), `pi-sdk-restricted-provider-${Snowflake.next()}`);
 		fs.mkdirSync(tempDir, { recursive: true });
-		authStorage = await AuthStorage.create(path.join(tempDir, "auth.db"));
+		authStorage = createInMemoryAuthStorage();
 		modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
 		settings = Settings.isolated();
 		settings.setModelRole("default", `${providerName}/${modelId}`);
@@ -72,6 +73,9 @@ describe("restricted sessions sharing extension providers", () => {
 			enableMCP: false,
 			enableLsp: false,
 			skipPythonPreflight: true,
+			rules: [],
+			preloadedCustomToolPaths: [],
+			toolNames: ["read"],
 		};
 	}
 

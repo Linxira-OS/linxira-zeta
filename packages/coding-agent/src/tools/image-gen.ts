@@ -1,6 +1,13 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { type ApiKey, type FetchImpl, getEnvApiKey, type Model, withAuth } from "@linxiraos/pi-ai";
+import {
+	type ApiKey,
+	type FetchImpl,
+	getEnvApiKey,
+	getOpenRouterHeaders,
+	type Model,
+	withAuth,
+} from "@linxiraos/pi-ai";
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 import {
 	CODEX_BASE_URL,
@@ -19,14 +26,13 @@ import {
 	ptree,
 	readSseJson,
 	Snowflake,
+	USER_AGENT,
 	untilAborted,
 } from "@linxiraos/pi-utils";
-import packageJson from "../../package.json" with { type: "json" };
 import { isAuthenticated, type ModelRegistry } from "../config/model-registry";
 import { settings } from "../config/settings";
 import type { CustomTool } from "../extensibility/custom-tools/types";
-import { M } from "../i18n/messages";
-import { ohMyPiXAIUserAgent, resolveXAIHttpCredentials } from "../lib/xai-http";
+import { resolveXAIHttpCredentials } from "../lib/xai-http";
 import imageGenDescription from "../prompts/tools/image-gen.md" with { type: "text" };
 import { AUTO_IMAGE_PROVIDER_ORDER, type ImageProvider, isImageProviderId } from "./image-providers";
 import { resolveReadPath } from "./path-utils";
@@ -43,7 +49,8 @@ const OPENAI_IMAGE_MIME_TYPE = "image/webp";
 
 const DEFAULT_ANTIGRAVITY_ENDPOINT_PROD = "https://daily-cloudcode-pa.googleapis.com";
 const DEFAULT_ANTIGRAVITY_ENDPOINT_SANDBOX = "https://daily-cloudcode-pa.sandbox.googleapis.com";
-const IMAGE_SYSTEM_INSTRUCTION = M.igSysPrompt;
+const IMAGE_SYSTEM_INSTRUCTION =
+	"You are an AI image generator. Generate images based on user descriptions. Focus on creating high-quality, visually appealing images that match the user's request.";
 
 export type { ImageProvider } from "./image-providers";
 export type ImageProviderPreference = ImageProvider | "auto";
@@ -379,10 +386,10 @@ async function loadImageFromUrl(
 	if (imageUrl.startsWith("data:")) {
 		const normalized = normalizeDataUrl(imageUrl.trim());
 		if (!normalized.mimeType) {
-			throw new Error(M.igErrMimeType);
+			throw new Error("mime_type is required when providing raw base64 data.");
 		}
 		if (!normalized.data) {
-			throw new Error(M.igErrEmptyData);
+			throw new Error("Image data is empty.");
 		}
 		return { data: normalized.data, mimeType: normalized.mimeType };
 	}
@@ -390,11 +397,11 @@ async function loadImageFromUrl(
 	const response = await fetchImpl(imageUrl, { signal });
 	if (!response.ok) {
 		const rawText = await response.text();
-		throw new Error(M.igErrDownloadFmt.replace("%s", String(response.status)).replace("%s", rawText));
+		throw new Error(`Image download failed (${response.status}): ${rawText}`);
 	}
 	const contentType = response.headers.get("content-type")?.split(";")[0];
 	if (!contentType?.startsWith("image/")) {
-		throw new Error(M.igErrUnsupportedUrlFmt.replace("%s", imageUrl));
+		throw new Error(`Unsupported image type from URL: ${imageUrl}`);
 	}
 	const buffer = await response.bytes();
 	return { data: buffer.toBase64(), mimeType: contentType };
@@ -661,18 +668,18 @@ async function loadImageFromPath(imagePath: string, cwd: string): Promise<Inline
 	try {
 		const buffer = await Bun.file(resolved).bytes();
 		if (buffer.length > MAX_IMAGE_SIZE) {
-			throw new Error(M.igErrTooLargeFmt.replace("%s", imagePath));
+			throw new Error(`Image file too large: ${imagePath}`);
 		}
 
 		const metadata = parseImageMetadata(buffer);
 		const mimeType = metadata?.mimeType;
 		if (!mimeType) {
-			throw new Error(M.igErrUnsupportedTypeFmt.replace("%s", imagePath));
+			throw new Error(`Unsupported image type: ${imagePath}`);
 		}
 
 		return { data: buffer.toBase64(), mimeType };
 	} catch (err) {
-		if (isEnoent(err)) throw new Error(M.igErrNotFoundFmt.replace("%s", imagePath));
+		if (isEnoent(err)) throw new Error(`Image file not found: ${imagePath}`);
 		throw err;
 	}
 }
@@ -686,15 +693,15 @@ async function resolveInputImage(input: ImageInput, cwd: string): Promise<Inline
 		const normalized = normalizeDataUrl(input.data.trim());
 		const mimeType = normalized.mimeType ?? input.mime_type;
 		if (!mimeType) {
-			throw new Error(M.igErrMimeType);
+			throw new Error("mime_type is required when providing raw base64 data.");
 		}
 		if (!normalized.data) {
-			throw new Error(M.igErrEmptyData);
+			throw new Error("Image data is empty.");
 		}
 		return { data: normalized.data, mimeType };
 	}
 
-	throw new Error(M.igErrEntriesPathOrData);
+	throw new Error("input_images entries must include either path or data.");
 }
 
 function getExtensionForMime(mimeType: string): string {
@@ -897,7 +904,7 @@ function buildOpenAIImageHeaders(model: Model, apiKey: string, sessionId: string
 		}
 		headers.set(OPENAI_HEADERS.BETA, OPENAI_HEADER_VALUES.BETA_RESPONSES);
 		headers.set(OPENAI_HEADERS.ORIGINATOR, OPENAI_HEADER_VALUES.ORIGINATOR_CODEX);
-		headers.set("User-Agent", `pi/${packageJson.version} (${os.platform()} ${os.release()}; ${os.arch()})`);
+		headers.set("User-Agent", USER_AGENT);
 		if (sessionId) {
 			headers.set(OPENAI_HEADERS.CONVERSATION_ID, sessionId);
 			headers.set(OPENAI_HEADERS.SESSION_ID, sessionId);
@@ -909,7 +916,7 @@ function buildOpenAIImageHeaders(model: Model, apiKey: string, sessionId: string
 
 async function parseOpenAIHostedImageSse(response: Response, signal?: AbortSignal): Promise<OpenAIHostedImageResult> {
 	if (!response.body) {
-		throw new Error(M.igErrNoResponseBody);
+		throw new Error("No response body");
 	}
 
 	const fallbackOutput: OpenAIResponseOutput[] = [];
@@ -1059,7 +1066,7 @@ interface AntigravitySseResult {
 
 async function parseAntigravitySseForImage(response: Response, signal?: AbortSignal): Promise<AntigravitySseResult> {
 	if (!response.body) {
-		throw new Error(M.igErrNoResponseBody);
+		throw new Error("No response body");
 	}
 
 	const textParts: string[] = [];
@@ -1147,7 +1154,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 					}
 					if (provider === "openai" || provider === "openai-codex") {
 						if (!apiKey.model) {
-							throw new Error(M.igErrMissingGptModel);
+							throw new Error("Missing active GPT model for OpenAI image generation");
 						}
 
 						const hostedModel = apiKey.model;
@@ -1206,7 +1213,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 
 					if (provider === "antigravity") {
 						if (!apiKey.projectId) {
-							throw new Error(M.igErrMissingProjectId);
+							throw new Error("Missing projectId in antigravity credentials");
 						}
 
 						const prompt = assemblePrompt(params);
@@ -1298,7 +1305,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 								}
 
 								if (!resp?.ok) {
-									throw lastError ?? new Error(M.igErrAntigravityFailed);
+									throw lastError ?? new Error("Antigravity image generation failed");
 								}
 
 								return resp;
@@ -1343,7 +1350,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 
 					if (provider === "xai") {
 						if (!ctx.modelRegistry) {
-							throw new Error(M.igErrMissingModelRegistry);
+							throw new Error("Missing modelRegistry for xAI image generation");
 						}
 						const xaiCreds = await resolveXAIHttpCredentials(ctx.modelRegistry, resolvedModel);
 						if (!xaiCreds) {
@@ -1389,7 +1396,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 									headers: {
 										Authorization: `Bearer ${key}`,
 										"Content-Type": "application/json",
-										"User-Agent": ohMyPiXAIUserAgent(),
+										"User-Agent": USER_AGENT,
 									},
 									body: JSON.stringify(xaiBody),
 									signal: requestSignal,
@@ -1479,9 +1486,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 									headers: {
 										"Content-Type": "application/json",
 										Authorization: `Bearer ${key}`,
-										"HTTP-Referer": "https://linxira-os.github.io/",
-										"X-OpenRouter-Title": "Zeta",
-										"X-OpenRouter-Categories": "cli-agent",
+										...getOpenRouterHeaders(),
 									},
 									body: JSON.stringify(requestBody),
 									signal: requestSignal,

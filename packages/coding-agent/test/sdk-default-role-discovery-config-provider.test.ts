@@ -24,8 +24,9 @@ import { Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("issue #6162 fresh launch default role from models.yml discovery provider", () => {
 	let tempDir: string;
@@ -75,7 +76,7 @@ describe("issue #6162 fresh launch default role from models.yml discovery provid
 			].join("\n"),
 		);
 
-		const authStorage = await AuthStorage.create(path.join(tempDir, "auth.db"));
+		const authStorage = createInMemoryAuthStorage();
 		authStoragesToClose.push(authStorage);
 		// The configured provider's key resolves the role model; a competing
 		// bundled provider key would otherwise win the startup fallback via
@@ -107,6 +108,9 @@ describe("issue #6162 fresh launch default role from models.yml discovery provid
 			enableMCP: false,
 			enableLsp: false,
 			skipPythonPreflight: true,
+			rules: [],
+			preloadedCustomToolPaths: [],
+			toolNames: ["read"],
 		});
 
 		try {

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { Agent, type AgentMessage, type CompactionSummaryMessage, countTokens } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import { calculateContextTokens, estimateTokens, resolveThresholdTokens } from "@linxiraos/pi-agent-core/compaction";
@@ -10,8 +10,9 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { estimateToolSchemaTokens } from "@linxiraos/zeta/modes/utils/context-usage";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const CONTEXT_WINDOW = 372_000;
 const CACHE_READ_TOKENS = 371_200;
@@ -34,15 +35,18 @@ describe("AgentSession advisor context maintenance", () => {
 	let authStorage: AuthStorage;
 	let session: AgentSession;
 
-	beforeEach(async () => {
+	beforeAll(() => {
 		tempDir = TempDir.createSync("@pi-advisor-context-maintenance-");
-		authStorage = await AuthStorage.create(tempDir.join("auth.db"));
+		authStorage = createInMemoryAuthStorage();
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 	});
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
 		await session?.dispose();
+	});
+
+	afterAll(async () => {
 		authStorage.close();
 		await tempDir.remove();
 	});
@@ -237,8 +241,6 @@ describe("AgentSession advisor context maintenance", () => {
 		releaseCredential.resolve();
 		await credentialReturned.promise;
 		await prompt;
-		await Bun.sleep(0);
-
 		expect(credentialSignal?.aborted).toBe(true);
 		expect(session.getAdvisorAgent()?.state.model).toBe(advisorMock);
 	});

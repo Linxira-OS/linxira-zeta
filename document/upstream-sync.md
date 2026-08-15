@@ -174,6 +174,47 @@ merge. No version bump, no tag, no release.
   `check:rs` environment-blocked on this Windows host (no MSVC linker/SDK) —
   covered by CI. CI green required before the branch merges into `main`.
 
+### Pending: v17.3.3 (complete merge — in progress)
+
+- Prior baseline: `v17.2.12` at `45e12e5bb758198a920c6070e7e64cb33b21beac`.
+- Source: `refs/tags/v17.3.3` at `039728ad808395af4066783c6f4f6b079d8e5a78`
+  (verified with `git ls-remote --tags omp-upstream refs/tags/v17.3.3`).
+- Integration branch: `sync/omp-release/v17.3.3` from `main` after the
+  v17.2.12 intermediate merge (`5041f0477b`). This is the **complete merge**:
+  1.0.2 is released only after it reaches `main` green.
+- Merge-tree: 255 conflicts (246 content + 9 modify/delete). Resolutions:
+  - Zeta-owned surfaces kept: `README.md`, root `Cargo.toml` workspace
+    version `1.0.1`, native sentinel `__piNativesV1_0_1` (lib.rs + generated
+    `native/index.js|d.ts`), ci.yml release-gate fix + three disabled publish
+    jobs, `/language` (builtin-zeta.ts) and `/security` (builtin-modes.ts)
+    commands, settings-page entries (`language`, `security.enabled`,
+    `dev.autoqaPush.*` with default `https://qa.omp.sh/v1/grievances`),
+    `.zeta/*` paths, `@linxiraos/*` package identity.
+  - Upstream v17.3.3 pair accepted wholesale for the remaining 238 files;
+    Zeta overlay re-applied: `@oh-my-pi/*` → `@linxiraos/*` with name
+    mapping (`hashline`→`pi-hashline`, `omp-stats`→`pi-stats`,
+    `omptype`→`pi-omptype`, `pi-coding-agent`→`zeta`, `snapcompact`→
+    `pi-snapcompact`), `.omp/` path fragments → `.zeta/`, brand `π` → `ζ`
+    (terminal title), `V17_3_3` sentinel → `V1_0_1`.
+  - 9 upstream-deleted files (agent-dashboard etc.) accepted as deletions
+    (upstream origin, no Zeta-specific work).
+  - `job-manager.ts`: restored upstream v17.3.3 global `instance`/
+    `setInstance`/`resetForTests` accessors; `CreateAgentSessionOptions`
+    gained explicit `asyncJobManager` so Zeta's per-session sharing
+    (vibe/runtime → executor → createAgentSession) still compiles and wins
+    over the upstream auto-global fallback.
+  - Package graph: root `workspaces.catalog` rewritten to `@linxiraos/*`
+    @ `1.0.1` with name mapping; workspace `package.json` dep names
+    corrected (`pi-hashline`/`pi-stats`/`pi-snapcompact`) and driver
+    duplicate keys deduped; `bun.lock` regenerated with Bun 1.3.14;
+    `Cargo.lock` regenerated via `cargo metadata` (pi-* at 1.0.1).
+  - `typebox-shim.test.ts` (Zeta shim vs upstream tests): `ArkSchema`
+    gained a typed `toJsonSchema()` member; upstream test hunks use a typed
+    `toJsonDocument` helper.
+- Local checks: `bun run check:ts` green; `check:rs` environment-blocked on
+  this Windows host (no MSVC linker/SDK) — covered by CI. CI green required
+  before the branch merges into `main`; no version bump, no tag.
+
 ## Pi Runtime Ports
 
 Never run `git merge pi-upstream/main` into Zeta. Pi and OMP intentionally

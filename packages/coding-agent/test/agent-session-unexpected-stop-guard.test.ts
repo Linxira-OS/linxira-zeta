@@ -1,5 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as path from "node:path";
+import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { type } from "@linxiraos/pi-omptype";
@@ -7,21 +6,27 @@ import { logger, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import * as unexpectedStopClassifier from "@linxiraos/zeta/session/unexpected-stop-classifier";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const recordToolSchema = type({ value: type("string") });
 
 type Harness = {
 	session: AgentSession;
-	authStorage: AuthStorage;
 	tempDir: TempDir;
 };
 type SettingsOverrides = Partial<Record<SettingPath, unknown>>;
 
 const activeHarnesses: Harness[] = [];
+const sharedAuthStorage = createInMemoryAuthStorage();
+sharedAuthStorage.setRuntimeApiKey("mock", "test-key");
+const sharedModelRegistry = new ModelRegistry(sharedAuthStorage);
+
+afterAll(() => {
+	sharedAuthStorage.close();
+});
 
 const recordTool: AgentTool<typeof recordToolSchema, { value: string }> = {
 	name: "record",
@@ -62,11 +67,9 @@ async function createHarness(
 	settingsOverrides: SettingsOverrides = {},
 ): Promise<Harness & { mock: MockModel }> {
 	const tempDir = TempDir.createSync("@pi-unexpected-stop-guard-");
-	const authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
-	authStorage.setRuntimeApiKey("mock", "test-key");
 
 	const mock = createMockModel({ responses });
-	const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));
+	const modelRegistry = sharedModelRegistry;
 	const settings = Settings.isolated({
 		"compaction.enabled": false,
 		"retry.enabled": false,
@@ -98,7 +101,7 @@ async function createHarness(
 		modelRegistry,
 		toolRegistry: new Map(tools.map(tool => [tool.name, tool])),
 	});
-	const harness = { session, authStorage, tempDir };
+	const harness = { session, tempDir };
 	activeHarnesses.push(harness);
 	return { ...harness, mock };
 }
@@ -130,8 +133,7 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	for (const harness of activeHarnesses) {
 		await harness.session.dispose();
-		harness.authStorage.close();
-		harness.tempDir.remove();
+		harness.tempDir.removeSync();
 	}
 	activeHarnesses.length = 0;
 });

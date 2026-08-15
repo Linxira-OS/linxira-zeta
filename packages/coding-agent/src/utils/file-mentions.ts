@@ -9,7 +9,12 @@ import * as fs from "node:fs/promises";
 import path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { formatHashlineHeader, formatNumberedLines, type SnapshotStore } from "@linxiraos/pi-hashline";
+import {
+	formatHashlineHeader,
+	formatNumberedLines,
+	type SnapshotStore,
+	splitAddressableFileLines,
+} from "@linxiraos/pi-hashline";
 import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@linxiraos/pi-utils";
 import { canonicalSnapshotKey } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
@@ -270,7 +275,8 @@ export async function generateFileMentionMessages(
 			const content = await Bun.file(absolutePath).text();
 			const snapshotStore = options?.useHashLines ? options.snapshotStore : undefined;
 			const normalized = snapshotStore ? normalizeToLF(content) : content;
-			let { output, lineCount } = buildTextOutput(normalized);
+			const displayText = snapshotStore ? splitAddressableFileLines(normalized).join("\n") : normalized;
+			let { output, lineCount } = buildTextOutput(displayText);
 			if (snapshotStore) {
 				const tag = snapshotStore.record(canonicalSnapshotKey(absolutePath), normalized);
 				output = `${formatHashlineHeader(resolvedPath, tag)}\n${formatNumberedLines(output)}`;

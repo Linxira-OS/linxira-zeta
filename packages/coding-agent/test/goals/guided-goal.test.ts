@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent, AgentBusyError } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
@@ -106,12 +107,16 @@ describe("guided goal setup", () => {
 		const harness = await createHarness();
 		try {
 			const promptSpy = vi.spyOn(harness.session, "prompt").mockResolvedValue(true);
+			const images: ImageContent[] = [{ type: "image", data: "aW1hZ2U=", mimeType: "image/png" }];
 
-			await harness.mode.handleGuidedGoalCommand("automate flaky test triage");
+			await harness.mode.handleGuidedGoalCommand("automate flaky test triage", {
+				images,
+				imageLinks: ["file:///shot.png"],
+			});
 
 			expect(promptSpy).toHaveBeenCalledTimes(1);
 			const [text, promptOptions] = promptSpy.mock.calls[0]!;
-			expect(promptOptions).toEqual({ synthetic: true });
+			expect(promptOptions).toEqual({ synthetic: true, images });
 			// The rough objective rides inside the kickoff, and the kickoff tells the
 			// agent how to finish: `goal` tool, op create.
 			expect(text).toContain("automate flaky test triage");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import "./setup";
+
 import { BeamMemory } from "@linxiraos/pi-mnemopi/core/beam";
 import { PolyphonicRecallEngine } from "@linxiraos/pi-mnemopi/core/polyphonic-recall";
 

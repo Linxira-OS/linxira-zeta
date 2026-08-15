@@ -20,17 +20,18 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("createAgentSession preloadedExtensions isolation (issue #2190)", () => {
 	let sharedDir: string;
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
 
-	beforeAll(async () => {
+	beforeAll(() => {
 		sharedDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-preloaded-ext-"));
-		authStorage = await AuthStorage.create(path.join(sharedDir, "auth.db"));
+		authStorage = createInMemoryAuthStorage();
 		modelRegistry = new ModelRegistry(authStorage, path.join(sharedDir, "models.yml"));
 	});
 
@@ -53,7 +54,7 @@ describe("createAgentSession preloadedExtensions isolation (issue #2190)", () =>
 		const beforeLength = preloaded.extensions.length;
 		const beforeArrayRef = preloaded.extensions;
 
-		await createAgentSession({
+		const { session } = await createAgentSession({
 			cwd: sharedDir,
 			agentDir: sharedDir,
 			sessionManager: SessionManager.inMemory(),
@@ -69,11 +70,17 @@ describe("createAgentSession preloadedExtensions isolation (issue #2190)", () =>
 			preloadedCustomToolPaths: [],
 			contextFiles: [],
 			promptTemplates: [],
+			slashCommands: [],
+			toolNames: ["read"],
 		});
 
-		// The session's own `extensionsResult` carries inline wrappers, but the
-		// caller's array (and its identity) must be untouched.
-		expect(preloaded.extensions).toBe(beforeArrayRef);
-		expect(preloaded.extensions.length).toBe(beforeLength);
+		try {
+			// The session's own `extensionsResult` carries inline wrappers, but the
+			// caller's array (and its identity) must be untouched.
+			expect(preloaded.extensions).toBe(beforeArrayRef);
+			expect(preloaded.extensions.length).toBe(beforeLength);
+		} finally {
+			await session.dispose();
+		}
 	});
 });

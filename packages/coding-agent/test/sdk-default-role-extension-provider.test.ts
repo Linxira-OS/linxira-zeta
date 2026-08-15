@@ -18,8 +18,9 @@ import { Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("issue #3569 fresh launch default role from extension provider", () => {
 	let tempDir: string;
@@ -65,7 +66,7 @@ describe("issue #3569 fresh launch default role from extension provider", () => 
 			throw new Error("Expected bundled OpenAI GPT-5.5 default");
 		}
 
-		const authStorage = await AuthStorage.create(path.join(tempDir, "auth.db"));
+		const authStorage = createInMemoryAuthStorage();
 		authStoragesToClose.push(authStorage);
 		// Mirrors the reporter's environment: `OPENAI_API_KEY` is configured for a
 		// bundled provider whose `pickDefaultAvailableModel` entry would otherwise
@@ -92,6 +93,9 @@ describe("issue #3569 fresh launch default role from extension provider", () => 
 			enableMCP: false,
 			enableLsp: false,
 			skipPythonPreflight: true,
+			rules: [],
+			preloadedCustomToolPaths: [],
+			toolNames: ["read"],
 		});
 
 		try {

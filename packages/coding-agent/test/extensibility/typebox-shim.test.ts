@@ -167,4 +167,9 @@ describe("pi.typebox compatibility shim", () => {
 			}
 		});
 	});
+
+	// Issue #8420: legacy extensions build raw documents that embed omptype
+	// schema builders. Those builders are callable values, so a document that
+	// nests or spreads them is neither structured-cloneable nor a plain TypeBox
+	// object; `Type.Unsafe` must lower them to wire JSON before use.
 });

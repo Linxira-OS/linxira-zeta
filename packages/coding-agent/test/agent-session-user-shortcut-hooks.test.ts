@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as path from "node:path";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { TempDir } from "@linxiraos/pi-utils";
@@ -9,19 +8,24 @@ import * as pythonExecutor from "@linxiraos/zeta/eval/py/executor";
 import * as bashExecutor from "@linxiraos/zeta/exec/bash-executor";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+
+const sharedAuthStorage = createInMemoryAuthStorage();
+const sharedModelRegistry = new ModelRegistry(sharedAuthStorage);
+
+afterAll(() => {
+	sharedAuthStorage.close();
+});
 
 describe("AgentSession user shortcut hooks", () => {
 	let tempDir: TempDir;
 	let session: AgentSession;
 	let modelRegistry: ModelRegistry;
-	let authStorage: AuthStorage | undefined;
 
-	beforeEach(async () => {
+	beforeEach(() => {
 		tempDir = TempDir.createSync("@pi-user-shortcut-hooks-");
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
-		modelRegistry = new ModelRegistry(authStorage);
+		modelRegistry = sharedModelRegistry;
 	});
 
 	afterEach(async () => {
@@ -30,8 +34,6 @@ describe("AgentSession user shortcut hooks", () => {
 			await session.dispose();
 		}
 		await pythonExecutor.disposeAllKernelSessions();
-		authStorage?.close();
-		authStorage = undefined;
 		tempDir.removeSync();
 	});
 

@@ -8,9 +8,10 @@ import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 let tempDir: TempDir;
 let authStorage: AuthStorage | undefined;
@@ -18,12 +19,12 @@ let session: AgentSession;
 let sessionManager: SessionManager;
 let mock: MockModel;
 
-beforeEach(async () => {
+beforeEach(() => {
 	tempDir = TempDir.createSync("@pi-agent-session-force-tool-");
 	const model = getBundledModel("anthropic", "claude-sonnet-4-5");
 	if (!model) throw new Error("Expected claude-sonnet-4-5 model to exist");
 
-	authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
+	authStorage = createInMemoryAuthStorage();
 	authStorage.setRuntimeApiKey("anthropic", "test-key");
 	const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));
 	const settings = Settings.isolated({ "compaction.enabled": false });

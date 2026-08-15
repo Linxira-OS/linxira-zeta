@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { getAgentDir } from "@linxiraos/pi-utils";
 import type { LoadContext } from "@linxiraos/zeta/capability/types";
 import { getConfigDirs } from "@linxiraos/zeta/config";
+import { resolveClaudePaths } from "@linxiraos/zeta/config/claude-paths";
 import { getUserPath } from "@linxiraos/zeta/discovery/helpers";
 
 describe("PI_CONFIG_DIR", () => {
@@ -31,9 +32,47 @@ describe("PI_CONFIG_DIR", () => {
 	});
 
 	test("getConfigDirs respects PI_CONFIG_DIR for user base", () => {
-		process.env.PI_CONFIG_DIR = ".config/omp";
+		process.env.PI_CONFIG_DIR = ".config/zeta";
 		const result = getConfigDirs("commands", { project: false });
-		const expected = path.resolve(path.join(os.homedir(), ".config/omp", "agent", "commands"));
+		const expected = path.resolve(path.join(os.homedir(), ".config/zeta", "agent", "commands"));
 		expect(result[0]).toEqual({ path: expected, source: ".zeta", level: "user" });
+	});
+});
+
+describe("CLAUDE_CONFIG_DIR", () => {
+	const original = process.env.CLAUDE_CONFIG_DIR;
+	afterEach(() => {
+		if (original === undefined) {
+			delete process.env.CLAUDE_CONFIG_DIR;
+		} else {
+			process.env.CLAUDE_CONFIG_DIR = original;
+		}
+	});
+
+	test("relocates Claude user discovery and .claude.json together", () => {
+		process.env.CLAUDE_CONFIG_DIR = "./fixtures/claude-home";
+		const expectedRoot = path.resolve("./fixtures/claude-home");
+		const ctx: LoadContext = {
+			cwd: "/work/project",
+			home: "/home/tester",
+			repoRoot: null,
+		};
+
+		expect(resolveClaudePaths(ctx.home)).toEqual({
+			configDir: expectedRoot,
+			configFile: path.join(expectedRoot, ".claude.json"),
+		});
+		expect(getUserPath(ctx, "claude", "commands")).toBe(path.join(expectedRoot, "commands"));
+		expect(
+			getConfigDirs("commands", { user: true, project: false }).find(entry => entry.source === ".claude"),
+		).toEqual({ path: path.join(expectedRoot, "commands"), source: ".claude", level: "user" });
+	});
+
+	test("keeps the legacy split paths when the override is unset", () => {
+		delete process.env.CLAUDE_CONFIG_DIR;
+		expect(resolveClaudePaths("/home/tester")).toEqual({
+			configDir: path.join("/home/tester", ".claude"),
+			configFile: path.join("/home/tester", ".claude.json"),
+		});
 	});
 });

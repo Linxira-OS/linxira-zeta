@@ -1,18 +1,23 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import type { TUI } from "@linxiraos/pi-tui";
 import { visibleWidth } from "@linxiraos/pi-tui";
 import { BashExecutionComponent } from "@linxiraos/zeta/modes/components/bash-execution";
-import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta/modes/theme/theme";
 
 const MAX_DISPLAY_LINE_CHARS = 4000;
+let darkTheme: Theme;
+
+beforeAll(async () => {
+	const loaded = await getThemeByName("dark");
+	expect(loaded).toBeDefined();
+	darkTheme = loaded!;
+});
 
 describe("BashExecutionComponent #clampDisplayLine", () => {
 	const ui = { requestRender: () => {}, requestComponentRender: () => {} } as unknown as TUI;
 
-	beforeEach(async () => {
-		const theme = await getThemeByName("dark");
-		expect(theme).toBeDefined();
-		setThemeInstance(theme!);
+	beforeEach(() => {
+		setThemeInstance(darkTheme);
 	});
 
 	function createComponentWithOutput(output: string): BashExecutionComponent {

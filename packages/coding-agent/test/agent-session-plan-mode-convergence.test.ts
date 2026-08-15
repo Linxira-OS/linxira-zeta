@@ -10,12 +10,12 @@
  *      terminal settle, bounded by PLAN_MODE_REMINDER_MAX (then yields to the
  *      user), and either decision tool resets the counter.
  */
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { Agent, type AgentMessage, type AgentTool, type StreamFn } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { type } from "@linxiraos/pi-omptype";
-import { Snowflake, TempDir } from "@linxiraos/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
@@ -77,7 +77,21 @@ interface PlanHarness {
 describe("AgentSession plan-mode convergence", () => {
 	let tempDir: TempDir;
 	let session: AgentSession | undefined;
-	const authStorages: AuthStorage[] = [];
+	let authDir: TempDir;
+	let authStorage: AuthStorage;
+	let modelRegistry: ModelRegistry;
+
+	beforeAll(async () => {
+		authDir = TempDir.createSync("@pi-plan-converge-auth-");
+		authStorage = await AuthStorage.create(authDir.join("auth.db"));
+		authStorage.setRuntimeApiKey("anthropic", "test-key");
+		modelRegistry = new ModelRegistry(authStorage, authDir.join("models.yml"));
+	});
+
+	afterAll(() => {
+		authStorage.close();
+		authDir.removeSync();
+	});
 
 	beforeEach(() => {
 		tempDir = TempDir.createSync("@pi-plan-converge-");
@@ -88,7 +102,6 @@ describe("AgentSession plan-mode convergence", () => {
 			await session?.dispose();
 		} finally {
 			session = undefined;
-			for (const authStorage of authStorages.splice(0)) authStorage.close();
 			await tempDir?.remove();
 		}
 	});
@@ -122,11 +135,6 @@ describe("AgentSession plan-mode convergence", () => {
 			},
 			streamFn: mock.stream,
 		});
-
-		const authStorage = await AuthStorage.create(tempDir.join(`auth-${Snowflake.next()}.db`));
-		authStorages.push(authStorage);
-		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, tempDir.join(`models-${Snowflake.next()}.yml`));
 
 		let advisorMock: MockModel | undefined;
 		let advisorStreamFn: StreamFn | undefined;

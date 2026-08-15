@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, describe, expect, it } from "bun:test";
 import type { Model } from "@linxiraos/pi-ai";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { removeWithRetries, USER_AGENT } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { CustomToolContext } from "@linxiraos/zeta/extensibility/custom-tools";
 import type { ReadonlySessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -14,8 +14,11 @@ import {
 const originalOpenRouterKey = Bun.env.OPENROUTER_API_KEY;
 const generatedImagePaths: string[] = [];
 
-afterEach(async () => {
-	await Promise.all(generatedImagePaths.splice(0).map(imagePath => removeWithRetries(imagePath)));
+afterAll(async () => {
+	await Promise.all(generatedImagePaths.map(imagePath => removeWithRetries(imagePath)));
+});
+
+afterEach(() => {
 	if (originalOpenRouterKey === undefined) {
 		delete Bun.env.OPENROUTER_API_KEY;
 	} else {
@@ -618,7 +621,7 @@ describe("imageGenTool", () => {
 
 		expect(requestUrl).toBe("https://api.x.ai/v1/images/generations");
 		expect(captured.authorization).toBe("Bearer test-xai-token");
-		expect(captured.userAgent).toBe("zeta/xai");
+		expect(captured.userAgent).toBe(USER_AGENT);
 		expect(requestBody).toMatchObject({
 			model: "grok-imagine-image",
 			prompt: "a cat.",

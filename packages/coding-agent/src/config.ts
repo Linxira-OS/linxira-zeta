@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getConfigAgentDirName, getProjectDir } from "@linxiraos/pi-utils";
+import { resolveClaudePaths } from "./config/claude-paths";
 import { expandTilde } from "./tools/path-utils";
 
 export * from "./config/config-file";
@@ -76,12 +77,12 @@ export function getChangelogPath(): string | undefined {
 // =============================================================================
 
 /**
- * Config directory bases in priority order (highest first).
- * User-level: ~/.zeta/agent, ~/.claude, ~/.codex, ~/.gemini
- * Project-level: .zeta, .claude, .codex, .gemini
+ * User-level: ~/.zeta/agent, Claude's active config directory, ~/.codex, ~/.gemini
+ * Project-level: .omp, .claude, .codex, .gemini
  */
 const USER_CONFIG_BASES = priorityList.map(({ dir, globalAgentDir }) => ({
-	base: () => path.join(os.homedir(), globalAgentDir ? globalAgentDir() : dir),
+	base: () =>
+		dir === ".claude" ? resolveClaudePaths().configDir : path.join(os.homedir(), globalAgentDir?.() ?? dir),
 	name: dir,
 }));
 
@@ -92,7 +93,7 @@ const PROJECT_CONFIG_BASES = priorityList.map(({ dir }) => ({
 
 export interface ConfigDirEntry {
 	path: string;
-	source: string; // e.g., ".zeta", ".claude"
+	source: string; // e.g., ".omp", ".claude"
 	level: "user" | "project";
 }
 
@@ -117,7 +118,7 @@ export interface GetConfigDirsOptions {
  * @example
  * // Get all command directories
  * getConfigDirs("commands")
- * // → [{ path: "~/.zeta/agent/commands", source: ".zeta", level: "user" }, ...]
+ * // → [{ path: "~/.zeta/agent/commands", source: ".omp", level: "user" }, ...]
  *
  * @example
  * // Get only existing project skill directories
@@ -207,7 +208,7 @@ export function findConfigFileWithMeta(
 
 /**
  * Find all nearest config directories by walking up from cwd.
- * Returns one entry per config base (.zeta, .claude) - the nearest one found.
+ * Returns one entry per config base (.omp, .claude) - the nearest one found.
  * Results are in priority order (highest first).
  */
 export function findAllNearestProjectConfigDirs(subpath: string, cwd: string = getProjectDir()): ConfigDirEntry[] {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@linxiraos/pi-tui";
-import { KeybindingsManager as AppKeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { KeybindingsManager as AppKeybindingsManager, setKeyHintPlatform } from "@linxiraos/zeta/config/keybindings";
 import { createPromptActionAutocompleteProvider } from "@linxiraos/zeta/modes/prompt-action-autocomplete";
 
 describe("prompt action autocomplete", () => {
@@ -12,10 +12,12 @@ describe("prompt action autocomplete", () => {
 				"tui.editor.undo": { defaultKeys: "f8", description: "Undo" },
 			}),
 		);
+		setKeyHintPlatform("linux");
 	});
 
 	afterEach(() => {
 		setKeybindings(new KeybindingsManager(TUI_KEYBINDINGS));
+		setKeyHintPlatform(undefined);
 	});
 
 	it("shows prompt actions with configured shortcut hints", async () => {
