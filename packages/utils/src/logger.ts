@@ -1,7 +1,7 @@
 /**
- * Centralized logger for omp.
+ * Centralized logger for zeta.
  *
- * Default: rotating `~/.zeta/logs/omp.<DATE>.<PID>.log`, no console output (writing
+ * Default: rotating `~/.zeta/logs/zeta.<DATE>.<PID>.log`, no console output (writing
  * to stdout/stderr would corrupt the TUI). Long-running headless services
  * (the auth broker, etc.) call {@link setTransports} to swap in a console
  * transport so a process supervisor (pm2, journald, k8s) captures the logs.
@@ -53,7 +53,7 @@ function emitToSinks(level: LogLevel, message: string, context: Record<string, u
 	}
 }
 
-const PROCESS_LOG_PATTERN = /^omp\.(\d{4}-\d{2}-\d{2})\.(\d+)\.log(?:\.(\d+))?$/;
+const PROCESS_LOG_PATTERN = /^zeta\.(\d{4}-\d{2}-\d{2})\.(\d+)\.log(?:\.(\d+))?$/;
 const PROCESS_AUDIT_PATTERN = /^\.omp\.(\d+)-audit\.json$/;
 const RETAINED_STALE_LOGS_PER_PROCESS_DAY = 1;
 const RETAINED_STALE_AUDIT_FILES = 0;
@@ -236,11 +236,11 @@ function makeFileTransport(dir?: string): RotatingFileSink {
 	pruneStaleProcessLogs(logsDir);
 	return new RotatingFileSink({
 		directory: logsDir,
-		filenamePrefix: "omp",
+		filenamePrefix: "zeta",
 		filenameSuffix: String(process.pid),
 		maxBytes: 10 * 1024 * 1024,
 		maxFiles: 5,
-		auditFile: path.join(logsDir, `.omp.${process.pid}-audit.json`),
+		auditFile: path.join(logsDir, `.zeta.${process.pid}-audit.json`),
 	});
 }
 
