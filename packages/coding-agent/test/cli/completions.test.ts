@@ -48,7 +48,7 @@ describe("generateCompletion — bash", () => {
 	const out = generateCompletion("bash", spec);
 
 	it("registers the dispatcher and resolves alias arms to the canonical handler", () => {
-		expect(out).toContain("complete -F _zeta zeta");
+		expect(out).toContain("complete -F _omp zeta");
 		expect(out).toContain("_omp_cmd_commit");
 		// worktree + its alias dispatch to the same function
 		expect(out).toContain("worktree|wt)");
@@ -83,7 +83,7 @@ describe("generateCompletion — zsh", () => {
 	it("emits the compdef header and dual-mode (autoload + eval) tail", () => {
 		expect(out.startsWith("#compdef zeta")).toBe(true);
 		expect(out).toContain('if [ "$funcstack[1]" = "_omp" ]; then');
-		expect(out).toContain("compdef _omp omp");
+		expect(out).toContain("compdef _omp zeta");
 	});
 
 	it("maps value sources to the right _arguments actions", () => {

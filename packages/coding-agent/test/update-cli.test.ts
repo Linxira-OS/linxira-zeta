@@ -1113,7 +1113,7 @@ describe("update-cli script-shim takeover", () => {
 				fetchImpl: makeFetch(exe),
 				githubToken: "test-token",
 			}),
-		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous omp launcher/);
+		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous zeta launcher/);
 
 		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
 		for (const name in shims) {
@@ -1168,7 +1168,7 @@ describe("update-cli script-shim takeover", () => {
 					fetchImpl: makeFetch(exe),
 					githubToken: "test-token",
 				}),
-			).rejects.toThrow("restored previous omp launcher");
+			).rejects.toThrow("restored previous zeta launcher");
 		} finally {
 			renameSpy.mockRestore();
 		}
