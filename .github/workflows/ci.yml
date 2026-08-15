@@ -626,10 +626,12 @@ jobs:
            working-directory: desktop
            # The runner's junctioned profile dirs (C:\Users\runneradmin\
            # Application Data -> AppData\Roaming) raise EPERM when webpack
-           # walks them during next build. Point APPDATA at an empty dir so
-           # nothing traces through the junction.
+           # walks them during next build. Point the profile vars at empty
+           # dirs so nothing traces through the junctions.
            env:
-              APPDATA: ${{ runner.temp }}/desktop-appdata
+              APPDATA: ${{ runner.temp }}/desktop-profile
+              USERPROFILE: ${{ runner.temp }}/desktop-profile
+              HOME: ${{ runner.temp }}/desktop-profile
            run: |
               New-Item -ItemType Directory -Force "$env:APPDATA" | Out-Null
               npm run dist
