@@ -2,39 +2,6 @@ import type { NextConfig } from "next";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 
-// TEMP DIAGNOSIS: trace readdir calls that touch the user profile dirs.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const fsMod = require("node:fs");
-const origReaddir = fsMod.readdir;
-const origReaddirSync = fsMod.readdirSync;
-const TRACE_NS = (p: unknown): string => {
-  if (typeof p !== "string") return "";
-  const n = p.replace(/\\/g, "/").toLowerCase();
-  return n.includes("runneradmin") || n.includes("application data") || n.includes("appdata") ? n : "";
-};
-fsMod.readdir = function (this: unknown, p: unknown, ...rest: unknown[]) {
-  const hit = TRACE_NS(p);
-  if (hit) console.error("=== TRACE readdir:", hit, "\n", new Error("stack").stack?.split("\n").slice(2, 9).join("\n"));
-  return origReaddir.call(this, p, ...rest);
-};
-fsMod.readdirSync = function (this: unknown, p: unknown, ...rest: unknown[]) {
-  const hit = TRACE_NS(p);
-  if (hit) console.error("=== TRACE readdirSync:", hit, "\n", new Error("stack").stack?.split("\n").slice(2, 9).join("\n"));
-  return origReaddirSync.call(this, p, ...rest);
-};
-const origPromisesReaddir = fsMod.promises.readdir;
-fsMod.promises.readdir = function (this: unknown, p: unknown, ...rest: unknown[]) {
-  const hit = TRACE_NS(p);
-  if (hit) console.error("=== TRACE promises.readdir:", hit, "\n", new Error("stack").stack?.split("\n").slice(2, 9).join("\n"));
-  return origPromisesReaddir.call(this, p, ...rest);
-};
-const origOpendir = fsMod.opendir;
-fsMod.opendir = function (this: unknown, p: unknown, ...rest: unknown[]) {
-  const hit = TRACE_NS(p);
-  if (hit) console.error("=== TRACE opendir:", hit, "\n", new Error("stack").stack?.split("\n").slice(2, 9).join("\n"));
-  return origOpendir.call(this, p, ...rest);
-};
-
 const { version } = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8")) as { version: string };
 let piVersion = "unknown";
 try {
