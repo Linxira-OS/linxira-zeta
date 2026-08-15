@@ -577,10 +577,18 @@ jobs:
          - name: Build Linux desktop artifact
            working-directory: desktop
            run: npm run dist
+         - name: Diagnose packaged resources (temp)
+           shell: bash
+           run: |
+              echo "--- builder staging ---"
+              ls -la temp/desktop/electron-builder/staging/zeta/ 2>/dev/null || echo "builder staging missing"
+              echo "--- packaged resources ---"
+              find temp/desktop/release -maxdepth 3 -type d -path "*resources*" 2>/dev/null
+              ls -la temp/desktop/release/zeta-desktop-1.0.1-linux-x64/resources/zeta/ 2>/dev/null || echo "no packaged resources/zeta"
          - name: Smoke Linux desktop artifact
            shell: bash
            run: |
-               set -euo pipefail
+              set -euo pipefail
                app_dir="$(find temp/desktop/release -mindepth 1 -maxdepth 1 -type d -name 'zeta-desktop-*-linux-x64' -print -quit)"
                test -n "$app_dir"
                npm --prefix desktop run smoke -- --app "$app_dir"
@@ -619,6 +627,13 @@ jobs:
          - name: Install desktop dependencies
            working-directory: desktop
            run: npm ci
+         - name: Diagnose Windows junctions (temp)
+           shell: pwsh
+           run: |
+              Write-Output "--- web-ui node_modules links ---"
+              Get-ChildItem web-ui/node_modules -Force | Where-Object { $_.LinkType } | Select-Object Name, LinkType, @{n='Target';e={$_.Target}} | Format-Table -AutoSize
+              Write-Output "--- root node_modules links ---"
+              Get-ChildItem node_modules -Force -ErrorAction SilentlyContinue | Where-Object { $_.LinkType } | Select-Object Name, LinkType, @{n='Target';e={$_.Target}} | Format-Table -AutoSize
          - name: Test desktop platform contracts
            working-directory: desktop
            run: npm test
