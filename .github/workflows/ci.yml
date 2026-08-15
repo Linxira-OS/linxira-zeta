@@ -872,10 +872,9 @@ jobs:
    # packages/natives/native), so no per-platform runners are needed.
    release_native_leaves:
       name: Publish native leaf packages
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.release_gate.result == 'success' &&
-         needs.release_binary.result == 'success' &&
-         !inputs.skip_npm }}
+      # Disabled: npm auth (NPM_TOKEN / trusted publishing) not configured; releases
+      # are published manually from the local flow. Re-enable when CI auth is set up.
+      if: false
       needs: [release_metadata, release_gate, release_binary]
       runs-on: ubuntu-22.04
       # id-token lets npm mint the OIDC token for trusted publishing; the
@@ -922,11 +921,8 @@ jobs:
 
    release_github:
       name: Publish GitHub release
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.release_gate.result == 'success' &&
-         needs.release_binary.result == 'success' &&
-         needs.desktop_linux.result == 'success' &&
-         needs.desktop_windows.result == 'success' }}
+      # Disabled: releases are published manually for now (see release_native_leaves).
+      if: false
       needs: [release_metadata, release_gate, release_binary, desktop_linux, desktop_windows]
       runs-on: ubuntu-22.04
       permissions:
@@ -1016,10 +1012,9 @@ jobs:
 
    release_npm:
       name: Publish to npm
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.release_binary.result == 'success' &&
-         needs.release_native_leaves.result == 'success' &&
-         !inputs.skip_npm }}
+      # Disabled: npm auth (NPM_TOKEN / trusted publishing) not configured; releases
+      # are published manually from the local flow. Re-enable when CI auth is set up.
+      if: false
       # release_native_leaves must finish first: the core package lists the
       # leaf packages as lockstep-versioned optionalDependencies, so installs
       # resolve them the moment the core version is live.
