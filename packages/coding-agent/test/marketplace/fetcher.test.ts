@@ -181,7 +181,7 @@ describe("fetchMarketplace", () => {
 		await expect(fetchMarketplace(fakeSrc, tmpDir)).rejects.toThrow(/Marketplace catalog not found/);
 	});
 
-	it("loads catalog from .omp-plugin/marketplace.json when present", async () => {
+	it("loads catalog from .zeta-plugin/marketplace.json when present", async () => {
 		const root = path.join(tmpDir, "omp-only");
 		fs.mkdirSync(path.join(root, ".zeta-plugin"), { recursive: true });
 		const catalog = {
@@ -196,7 +196,7 @@ describe("fetchMarketplace", () => {
 		expect(result.catalog.plugins[0].name).toBe("omp-plugin");
 	});
 
-	it("prefers .omp-plugin/marketplace.json over .claude-plugin/marketplace.json when both exist", async () => {
+	it("prefers .zeta-plugin/marketplace.json over .claude-plugin/marketplace.json when both exist", async () => {
 		const root = path.join(tmpDir, "both-catalogs");
 		fs.mkdirSync(path.join(root, ".zeta-plugin"), { recursive: true });
 		fs.mkdirSync(path.join(root, ".claude-plugin"), { recursive: true });
@@ -217,7 +217,7 @@ describe("fetchMarketplace", () => {
 		expect(result.catalog.name).toBe("from-omp-plugin");
 	});
 
-	it("falls back to .claude-plugin/marketplace.json when .omp-plugin is absent", async () => {
+	it("falls back to .claude-plugin/marketplace.json when .zeta-plugin is absent", async () => {
 		// The shared fixture only ships .claude-plugin/marketplace.json — confirms
 		// the legacy path still loads unchanged.
 		const result = await fetchMarketplace(FIXTURE_DIR, tmpDir);
@@ -228,7 +228,7 @@ describe("fetchMarketplace", () => {
 		const empty = path.join(tmpDir, "empty-dir");
 		fs.mkdirSync(empty, { recursive: true });
 		await expect(fetchMarketplace(empty, tmpDir)).rejects.toThrow(
-			/\.omp-plugin[\\/]marketplace\.json.*\.claude-plugin[\\/]marketplace\.json/,
+			/\.zeta-plugin[\\/]marketplace\.json.*\.claude-plugin[\\/]marketplace\.json/,
 		);
 	});
 
