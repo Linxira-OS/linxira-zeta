@@ -740,7 +740,7 @@ describe("terminal title runtime", () => {
 			writes.length = 0;
 
 			setTerminalTitleState("working");
-			expect(emittedTitles()).toEqual(["π : wsl-project"]);
+			expect(emittedTitles()).toEqual(["ζ : wsl-project"]);
 
 			writes.length = 0;
 			vi.advanceTimersByTime(400);

@@ -218,12 +218,25 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tarball="$(npm view @linxiraos/pi-natives-linux-x64@latest dist.tarball)"
-              echo "Fetching $tarball"
-              curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
-              mkdir -p bazel-bin/natives-linux-x64-baseline bazel-bin/natives-linux-x64-modern
-              cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" bazel-bin/natives-linux-x64-baseline/
-              cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" bazel-bin/natives-linux-x64-modern/
+              mkdir -p \
+                bazel-bin/natives-linux-x64-baseline \
+                bazel-bin/natives-linux-x64-modern \
+                bazel-bin/natives-win32-x64-baseline
+              for pkg in linux-x64 win32-x64; do
+                tarball="$(npm view "@linxiraos/pi-natives-$pkg@latest" dist.tarball)"
+                echo "Fetching $tarball"
+                curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
+                case "$pkg" in
+                  linux-x64)
+                    cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" bazel-bin/natives-linux-x64-baseline/
+                    cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" bazel-bin/natives-linux-x64-modern/
+                    ;;
+                  win32-x64)
+                    cp "$RUNNER_TEMP/package/pi_natives.win32-x64-baseline.node" bazel-bin/natives-win32-x64-baseline/
+                    ;;
+                esac
+                rm -rf "$RUNNER_TEMP/package"
+              done
          # A corrupt download must fail here, not as a confusing dlopen error
          # in every downstream test shard.
          - name: Smoke release addons
