@@ -10,10 +10,12 @@ try {
 } catch { /* package not found, use default */ }
 
 const nextConfig: NextConfig = {
-  // 通过环境变量启用 standalone 输出模式（用于绿色版/便携版打包）
+  // ͨ�������������� standalone ���ģʽ��������ɫ��/��Я������
   output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
-  // 仅在 standalone 模式下设置，避免开发模式下的警告
-  ...(process.env.NEXT_OUTPUT_STANDALONE === "1" ? { outputFileTracingRoot: join(__dirname, "..") } : {}),
+  // Desktop packaging traces from this directory only: web-ui's npm deps
+  // live in web-ui/node_modules, and tracing the monorepo root walks the
+  // runner's junctioned profile dirs on Windows (EPERM scandir "Application
+  // Data", vercel/next.js#40760).
   serverExternalPackages: [
     "better-sqlite3",
     "undici",
