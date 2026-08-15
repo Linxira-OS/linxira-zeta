@@ -209,9 +209,9 @@ export function getConfigDirName(): string {
 }
 
 /**
- * One-time migration of a legacy `~/.zeta` config root to `~/.zeta`. Called
+ * One-time migration of a legacy `~/.omp` config root to `~/.zeta`. Called
  * from the CLI entrypoint before any user data is written; it only moves the
- * directory when `.zeta` does not exist yet. Zeta keeps no `.zeta`
+ * directory when `.zeta` does not exist yet. Zeta keeps no `.omp`
  * compatibility surface afterwards (see AGENTS.md), so this is the single
  * exception that honors pre-existing installs.
  */
@@ -221,7 +221,7 @@ export function migrateLegacyOmpConfigDir(): void {
 	try {
 		const zetaDir = path.join(home, ".zeta");
 		if (fs.existsSync(zetaDir)) return;
-		const ompDir = path.join(home, ".zeta");
+		const ompDir = path.join(home, ".omp");
 		if (!fs.existsSync(ompDir)) return;
 		fs.renameSync(ompDir, zetaDir);
 	} catch {

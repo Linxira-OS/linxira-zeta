@@ -67,7 +67,7 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
 - **Experiment measurement** — per-project local experiment tracking with
   metrics, directions, and baseline commits.
 - **TypeScript custom commands** — user-defined slash commands from
-  `~/.omp/commands/` and project command dirs, with `arktype`/`typebox`/`zod`
+  `~/.zeta/commands/` and project command dirs, with `arktype`/`typebox`/`zod`
   argument schemas and full access to the runtime API.
 - **Command marketplace** — install and share slash commands as Bun packages.
 - **ACP collaboration builtins** — Agent Client Protocol session support.
