@@ -624,7 +624,15 @@ jobs:
            run: npm test
          - name: Build Windows desktop artifact
            working-directory: desktop
-           run: npm run dist
+           # The runner's junctioned profile dirs (C:\Users\runneradmin\
+           # Application Data -> AppData\Roaming) raise EPERM when webpack
+           # walks them during next build. Point APPDATA at an empty dir so
+           # nothing traces through the junction.
+           env:
+              APPDATA: ${{ runner.temp }}/desktop-appdata
+           run: |
+              New-Item -ItemType Directory -Force "$env:APPDATA" | Out-Null
+              npm run dist
          - name: Smoke Windows desktop artifact
            shell: pwsh
            run: |
