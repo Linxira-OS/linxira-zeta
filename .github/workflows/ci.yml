@@ -654,8 +654,10 @@ jobs:
               retention-days: 1
    release_gate:
       name: Release validation gate
+      # rust_validate is disabled (if: false) and always reports "skipped";
+      # treat skipped as pass so the gate is not silently skipped with it.
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.rust_validate.result == 'success' &&
+         needs.rust_validate.result != 'failure' &&
          needs.native_addons.result == 'success' &&
          needs.test_workspace.result == 'success' &&
          needs.test_coding_agent_singleton.result == 'success' &&
