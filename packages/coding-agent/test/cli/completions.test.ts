@@ -1,10 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import * as path from "node:path";
 import type { CliConfig, CommandCtor } from "@linxiraos/pi-utils/cli";
 import { buildSpec, type CompletionSpec, generateCompletion } from "@linxiraos/zeta/cli/completion-gen";
-
-const repoRoot = path.resolve(import.meta.dir, "..", "..", "..", "..");
-const cliEntry = path.join(repoRoot, "packages", "coding-agent", "src", "cli.ts");
+import { generateLiveCompletion } from "@linxiraos/zeta/commands/completions";
 
 // A compact synthetic spec exercising every value-source kind and an aliased
 // subcommand. The generators are pure functions of this shape, so pinning their
@@ -188,20 +185,9 @@ describe("buildSpec", () => {
 	});
 });
 
-describe("zeta completions (integration / drift)", () => {
-	it("emits a zsh script reflecting the live command + flag surface", async () => {
-		const proc = Bun.spawn([process.execPath, cliEntry, "completions", "zsh"], {
-			cwd: repoRoot,
-			stdout: "pipe",
-			stderr: "pipe",
-			env: { ...process.env, NO_COLOR: "1", PI_NO_TITLE: "1" },
-		});
-		const [stdout, , exitCode] = await Promise.all([
-			new Response(proc.stdout).text(),
-			new Response(proc.stderr).text(),
-			proc.exited,
-		]);
-		expect(exitCode).toBe(0);
+describe("live completion surface", () => {
+	it("generates a zsh script reflecting the registered commands and flags", async () => {
+		const stdout = await generateLiveCompletion("zsh");
 
 		// Real top-level flags from launch's static `flags` table. Flags with a
 		// short char render as `{-r,--resume}`, so only assert the bracket form for
@@ -217,15 +203,12 @@ describe("zeta completions (integration / drift)", () => {
 		expect(stdout).toContain("_omp_cmd_commit");
 		expect(stdout).toContain("'completions:");
 		// zsh routes single-value dynamic flags through the _omp_call action, which
-		// itself shells out to `zeta __complete $kind`.
+		// itself shells out to `omp __complete $kind`.
 		expect(stdout).toContain("_omp_call models");
 		expect(stdout).toContain("_omp_call sessions");
-		expect(stdout).toContain("command zeta __complete $kind");
+		expect(stdout).toContain("command omp __complete $kind");
 		// Hidden/default commands must NOT surface as completable subcommands.
 		expect(stdout).not.toContain("_omp_cmd_launch");
 		expect(stdout).not.toContain("_omp_cmd___complete");
-		// Spawns the whole CLI entry graph, so the wall time is cold-transpile bound
-		// (~1s warm) rather than an assertion about latency. Bun's 5s default starves
-		// it when CI runs several test chunks in parallel on a shared runner.
 	}, 30_000);
 });

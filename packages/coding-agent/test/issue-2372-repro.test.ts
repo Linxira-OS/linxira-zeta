@@ -1,5 +1,4 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as path from "node:path";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -8,8 +7,9 @@ import { EventController } from "@linxiraos/zeta/modes/controllers/event-control
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /**
  * Regression for issue #2372 — pressing Ctrl+T (or any other rebuild path)
@@ -25,11 +25,8 @@ describe("issue #2372 pre-streaming chat rebuild preserves optimistic submission
 	let session: AgentSession;
 	let tempDir: TempDir;
 
-	beforeAll(() => {
+	beforeAll(async () => {
 		initTheme();
-	});
-
-	beforeEach(async () => {
 		vi.spyOn(process.stdout, "write").mockReturnValue(true);
 		vi.spyOn(process.stdin, "resume").mockReturnValue(process.stdin);
 		vi.spyOn(process.stdin, "pause").mockReturnValue(process.stdin);
@@ -41,7 +38,7 @@ describe("issue #2372 pre-streaming chat rebuild preserves optimistic submission
 		resetSettingsForTest();
 		tempDir = TempDir.createSync("@pi-issue-2372-");
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
+		authStorage = createInMemoryAuthStorage();
 		const modelRegistry = new ModelRegistry(authStorage);
 		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
 		if (!model) throw new Error("Expected claude-sonnet-4-5 test model");
@@ -56,12 +53,24 @@ describe("issue #2372 pre-streaming chat rebuild preserves optimistic submission
 		mode.ui.requestRender = vi.fn();
 	});
 
-	afterEach(async () => {
-		mode?.stop();
+	beforeEach(() => {
+		mode.clearOptimisticUserMessage();
+		mode.chatContainer.clear();
+		mode.locallySubmittedUserSignatures.clear();
+		mode.optimisticUserMessageSignature = undefined;
+		mode.isInitialized = false;
+	});
+
+	afterEach(() => {
 		vi.restoreAllMocks();
-		await session?.dispose();
-		authStorage?.close();
-		tempDir?.removeSync();
+	});
+
+	afterAll(async () => {
+		mode.stop();
+		await session.dispose();
+		authStorage.close();
+		tempDir.removeSync();
+		vi.restoreAllMocks();
 		resetSettingsForTest();
 	});
 

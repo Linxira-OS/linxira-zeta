@@ -99,7 +99,7 @@ function createHarness(initialStreaming: boolean) {
 			});
 		},
 	});
-	createdManagers.push(manager);
+	AsyncJobManager.setInstance(manager);
 	return {
 		manager,
 		queue,
@@ -112,20 +112,12 @@ function createHarness(initialStreaming: boolean) {
 	};
 }
 
-async function waitUntil(predicate: () => boolean, message: string): Promise<void> {
-	const deadline = Date.now() + 2_000;
-	while (!predicate()) {
-		if (Date.now() >= deadline) throw new Error(message);
-		await Bun.sleep(5);
-	}
-}
-
-const createdManagers: AsyncJobManager[] = [];
-
 afterEach(async () => {
-	for (const manager of createdManagers.splice(0)) {
+	const manager = AsyncJobManager.instance();
+	if (manager) {
 		await manager.dispose({ timeoutMs: 200 });
 	}
+	AsyncJobManager.resetForTests();
 });
 
 describe("async result yield queue delivery", () => {
@@ -134,7 +126,7 @@ describe("async result yield queue delivery", () => {
 		const jobId = harness.manager.register("bash", "race job", async () => "inline result");
 
 		await harness.manager.waitForAll();
-		await waitUntil(() => harness.queue.has("async-result"), "Timed out waiting for staged async result");
+		expect(await harness.manager.drainDeliveries({ timeoutMs: 2_000 })).toBe(true);
 
 		const tool = new HubTool(createToolSession(harness.manager));
 		const result = await tool.execute("tool-call", { op: "wait", ids: [jobId] });

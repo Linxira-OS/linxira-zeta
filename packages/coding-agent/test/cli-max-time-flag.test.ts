@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "bun:test";
-import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -72,14 +71,14 @@ describe("parseArgs — --max-time flag", () => {
 		const stderr = captured.join("");
 		expect(observedExitCode).toBe(2);
 		expect(stderr).toContain("Error: Invalid --max-time value");
-		expect(stderr).toContain("Run `zeta --help` for available flags.");
+		expect(stderr).toContain("Run `omp --help` for available flags.");
 		expect(stderr).not.toContain("parseMaxTimeSeconds");
 		expect(stderr).not.toContain("CliUsageError");
 	});
 
 	it("converts maxTime to an absolute session deadline", async () => {
 		using tempDir = TempDir.createSync("@omp-max-time-");
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
+		const authStorage = await AuthStorage.create(":memory:");
 		const settings = Settings.isolated({ "marketplace.autoUpdate": "off" });
 		let observedOptions: CreateAgentSessionOptions | undefined;
 		const parsed = parseArgs(["--max-time", "3", "--print", "hello"]);

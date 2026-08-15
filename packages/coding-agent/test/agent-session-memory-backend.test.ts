@@ -10,8 +10,9 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { getMnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function createTool(name: string): AgentTool {
 	return {
@@ -31,9 +32,9 @@ describe("AgentSession memory backend lifecycle", () => {
 	let settings: Settings;
 	let tempDir: TempDir;
 
-	beforeEach(async () => {
+	beforeEach(() => {
 		tempDir = TempDir.createSync("@memory-backend-lifecycle-");
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
+		authStorage = createInMemoryAuthStorage();
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		settings = Settings.isolated({
 			"compaction.enabled": false,

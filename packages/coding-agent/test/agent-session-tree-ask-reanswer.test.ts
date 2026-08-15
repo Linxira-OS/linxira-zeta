@@ -14,11 +14,68 @@
  * silently reporting a successful no-op navigation (review on #5895).
  */
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Agent, type AgentToolResult } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner, ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
 import { SecretObfuscator } from "@linxiraos/zeta/secrets/obfuscator";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { AskToolDetails } from "@linxiraos/zeta/tools/ask";
-import { assistantMsg, createTestSession, userMsg } from "./utilities";
+
+const TEST_MODEL = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+
+async function createTestSession(
+	options: { inMemory?: boolean; extensionRunner?: ExtensionRunner; obfuscator?: SecretObfuscator } = {},
+) {
+	const sessionManager = SessionManager.inMemory();
+	const settings = Settings.isolated();
+	const modelRegistry = {} as never;
+	const session = new AgentSession({
+		agent: new Agent({
+			getApiKey: () => "test-key",
+			initialState: {
+				model: TEST_MODEL,
+				systemPrompt: ["test"],
+				tools: [],
+			},
+		}),
+		sessionManager,
+		settings,
+		modelRegistry,
+		extensionRunner: options.extensionRunner,
+		obfuscator: options.obfuscator,
+	});
+	return {
+		session,
+		sessionManager,
+		cleanup: () => session.dispose(),
+	};
+}
+
+function userMsg(text: string) {
+	return { role: "user" as const, content: text, timestamp: Date.now() };
+}
+
+function assistantMsg(text: string) {
+	return {
+		role: "assistant" as const,
+		content: [{ type: "text" as const, text }],
+		api: "anthropic-messages" as const,
+		provider: "anthropic",
+		model: "test",
+		usage: {
+			input: 1,
+			output: 1,
+			cacheRead: 0,
+			cacheWrite: 0,
+			totalTokens: 2,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+		},
+		stopReason: "stop" as const,
+		timestamp: Date.now(),
+	};
+}
 
 const ORIGINAL_QUESTIONS = [
 	{

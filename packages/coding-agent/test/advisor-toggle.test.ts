@@ -15,19 +15,18 @@ import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("AgentSession advisor toggle", () => {
-	let sharedDir: TempDir;
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
 	let model: Model;
 	let replacementModel: Model;
 
-	beforeAll(async () => {
-		sharedDir = TempDir.createSync("@pi-advisor-toggle-shared-");
-		authStorage = await AuthStorage.create(path.join(sharedDir.path(), "testauth.db"));
+	beforeAll(() => {
+		authStorage = createInMemoryAuthStorage();
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		authStorage.setRuntimeApiKey("openai", "test-key");
 		authStorage.setRuntimeApiKey("openrouter", "test-key");
@@ -40,11 +39,8 @@ describe("AgentSession advisor toggle", () => {
 		replacementModel = replacement;
 	});
 
-	afterAll(async () => {
+	afterAll(() => {
 		authStorage.close();
-		try {
-			await sharedDir.remove();
-		} catch {}
 	});
 
 	let tempDir: TempDir;

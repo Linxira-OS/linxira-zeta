@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [17.3.3] - 2026-08-14
+
+### Fixed
+
+- Recovered dangling range separators in hunk headers (`PUT 244.=:`, `CUT 5.=`) as single-line ranges (`N.=N`) instead of rejecting the header as an orphan payload line.
+
+## [17.3.0] - 2026-08-13
+
+### Fixed
+
+- Repaired mis-set replacement ranges using exact outside-row matches, indentation, tree-sitter structure, and a narrow pure-closer shape: opening comment fences and other syntax-essential edges are retained only when a parse-valid candidate satisfies those constraints; ambiguous placements are rejected.
+
+## [17.2.15] - 2026-08-12
+
+### Added
+
+- Added a post-apply parse advisory warning that alerts users when an applied edit fails to parse (despite the pre-edit content parsing successfully), helping catch balance-neutral misplacements that previously failed silently.
+
+### Fixed
+
+- Fixed a bug where Rust lifetimes (e.g., `'static`) were incorrectly parsed as starting a string literal, which blinded the delimiter-balance scanner and could lead to silent signature deletions. Single-quote lexing on `.rs` files is now language-aware and correctly distinguishes lifetimes from character literals.
+- Fixed an issue where terminal newlines in files were incorrectly exposed as editable blank rows.
+
 ## [17.2.12] - 2026-08-08
 
 ### Breaking Changes
@@ -36,7 +59,7 @@
 
 ### Changed
 
-- Updated internal caching dependency to use `@oh-my-pi/pi-utils/lru`.
+- Updated internal caching dependency to use `@linxiraos/pi-utils/lru`.
 
 ## [17.2.2] - 2026-07-31
 
@@ -471,7 +494,7 @@ All notable changes to this package will be documented in this file.
 - Added automatic line-ending and BOM normalization on read, with original encoding shape restored on write
 - Added follow-up helpers `buildCompactDiffPreview` and `streamHashLines` for compact diff previews and chunked streaming of numbered lines
 - Added stale-file-hash recovery that replays edits against snapshots and merges results onto current file content when direct hash validation fails
-- Initial standalone release. Extracted from `@oh-my-pi/pi-coding-agent`.
+- Initial standalone release. Extracted from `@linxiraos/zeta`.
 
 ### Fixed
 

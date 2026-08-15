@@ -28,7 +28,7 @@ export const PtySession = nativeBindings.PtySession;
 export const Shell = nativeBindings.Shell;
 
 // functions
-export const __zetaInstallTokioRuntime = nativeBindings.__zetaInstallTokioRuntime;
+export const __ompInstallTokioRuntime = nativeBindings.__ompInstallTokioRuntime;
 export const __piNativesV1_0_1 = nativeBindings.__piNativesV1_0_1;
 export const astEdit = nativeBindings.astEdit;
 export const astGrep = nativeBindings.astGrep;

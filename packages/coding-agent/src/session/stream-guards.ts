@@ -1,8 +1,9 @@
 import * as fs from "node:fs";
 import type { Agent, AgentEvent, AgentMessage, AgentTurnEndContext } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, AssistantMessageEvent, Model, ToolCall } from "@linxiraos/pi-ai";
-import { GeminiHeaderRunDetector, isGeminiThinkingModel } from "@linxiraos/pi-ai/utils/thinking-loop";
+import { GeminiHeaderRunDetector } from "@linxiraos/pi-ai/utils/thinking-loop";
 import { type RepeatedToolCallDetection, ToolCallLoopGuard } from "@linxiraos/pi-ai/utils/tool-call-loop-guard";
+import { modelFamilyToken } from "@linxiraos/pi-catalog/identity";
 import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { normalizeDiff, normalizeToLF, ParseError, previewPatch, stripBom } from "../edit";
@@ -362,7 +363,7 @@ export class LoopGuards {
 			this.#host.settings.get("model.loopGuard.enabled") === true &&
 			this.#host.settings.get("model.loopGuard.toolCallReminder") === true &&
 			model !== undefined &&
-			isGeminiThinkingModel(model)
+			modelFamilyToken(model.id) === "gemini"
 		);
 	}
 

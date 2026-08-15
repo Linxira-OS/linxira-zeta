@@ -1,5 +1,4 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as path from "node:path";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -7,9 +6,10 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Issue #6462: the first submit used to spawn the local tiny-title worker
 // synchronously ahead of the first frame, and title generation started before
@@ -17,6 +17,7 @@ import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
 // submit handler paints the pending row before kicking off titling.
 describe("InteractiveMode tiny-title prewarm", () => {
 	let authStorage: AuthStorage;
+	let modelRegistry: ModelRegistry;
 	let mode: InteractiveMode;
 	let session: AgentSession;
 	let tempDir: TempDir;
@@ -26,6 +27,9 @@ describe("InteractiveMode tiny-title prewarm", () => {
 
 	beforeAll(() => {
 		initTheme();
+		tempDir = TempDir.createSync("@pi-interactive-mode-title-prewarm-");
+		authStorage = createInMemoryAuthStorage();
+		modelRegistry = new ModelRegistry(authStorage);
 	});
 
 	beforeEach(async () => {
@@ -43,10 +47,7 @@ describe("InteractiveMode tiny-title prewarm", () => {
 		delete Bun.env.PI_NO_TITLE;
 
 		resetSettingsForTest();
-		tempDir = TempDir.createSync("@pi-interactive-mode-title-prewarm-");
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
-		const modelRegistry = new ModelRegistry(authStorage);
 		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
 		if (!model) {
 			throw new Error("Expected claude-sonnet-4-5 to exist in registry");
@@ -75,11 +76,14 @@ describe("InteractiveMode tiny-title prewarm", () => {
 		mode?.stop();
 		vi.restoreAllMocks();
 		await session?.dispose();
-		authStorage?.close();
-		tempDir?.removeSync();
 		resetSettingsForTest();
 		if (previousNoTitle === undefined) delete Bun.env.PI_NO_TITLE;
 		else Bun.env.PI_NO_TITLE = previousNoTitle;
+	});
+
+	afterAll(() => {
+		authStorage.close();
+		tempDir.removeSync();
 	});
 
 	it("prewarms the configured local worker on startup for an unnamed session", async () => {
@@ -87,6 +91,14 @@ describe("InteractiveMode tiny-title prewarm", () => {
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
 
 		await mode.init();
+		// The prewarm call is deferred behind a setImmediate queued during
+		// init() (see interactive-mode.ts); init()'s own awaits are promise
+		// microtasks that can resolve without yielding to the immediate
+		// queue, so the prewarm may not have fired yet when init() settles.
+		// Flush one immediate tick before asserting.
+		const immediateFlushed = Promise.withResolvers<void>();
+		setImmediate(immediateFlushed.resolve);
+		await immediateFlushed.promise;
 
 		expect(prewarm).toHaveBeenCalledWith("lfm2-350m");
 	});

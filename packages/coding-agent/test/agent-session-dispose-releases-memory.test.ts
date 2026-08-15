@@ -5,15 +5,17 @@ import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { TempDir } from "@linxiraos/pi-utils";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Regression: a keep-alive subagent's AgentSession is disposed at park() but
 // stays reachable through the lifecycle adoption record's reviver closure
@@ -28,9 +30,9 @@ describe("AgentSession dispose releases retained memory", () => {
 	let authStorage: AuthStorage;
 	let session: AgentSession | undefined;
 
-	beforeEach(async () => {
+	beforeEach(() => {
 		tempDir = TempDir.createSync("@omp-dispose-release-");
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
+		authStorage = createInMemoryAuthStorage();
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 	});
 
@@ -39,6 +41,7 @@ describe("AgentSession dispose releases retained memory", () => {
 		session = undefined;
 		if (current) await current.dispose();
 		authStorage.close();
+		AsyncJobManager.resetForTests();
 		vi.restoreAllMocks();
 		tempDir.removeSync();
 	});

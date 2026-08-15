@@ -5,6 +5,72 @@
 ## [1.0.1] - 2026-08-14
 
 - Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [17.3.2] - 2026-08-13
+
+### Added
+
+- Added support for the `deepseek-v4-pro:preview` model
+- Added support for the `gemini-3.7-flash` model
+- Added dynamic Antigravity client-version discovery from the official update manifest (darwin/arm64 channel), so version-gated models appear without a code change; `PI_AI_ANTIGRAVITY_VERSION` remains available as an override.
+
+### Fixed
+
+- Fixed Antigravity discovery missing Gemini 3.7 Flash: Cloud Code Assist gates newer models on the client version in the `User-Agent`, and the pinned `antigravity/hub/2.1.4` was too old. The user-agent now matches the captured 2.8.0 client format (`antigravity/hub/2.8.0 (aidev_client; os_type=darwin; arch=arm64; cl=963137146)`); os_type/arch stay pinned to the darwin/arm64 reference client. Overridable via `PI_AI_ANTIGRAVITY_VERSION` / `PI_AI_ANTIGRAVITY_CL` / `PI_AI_ANTIGRAVITY_OS` / `PI_AI_ANTIGRAVITY_ARCH`.
+
+### Removed
+
+- Removed `ANTIGRAVITY_SYSTEM_INSTRUCTION` from `wire/gemini-headers`; the Antigravity transport and web search no longer inject a fake identity prompt.
+
+## [17.3.1] - 2026-08-13
+
+### Added
+
+- Added dynamic Antigravity and Gemini CLI discovery support for Gemini 3.7 Flash, with low/medium/high thinking-level routing.
+
+### Changed
+
+- Updated model metadata, context windows, pricing, and configurations in the catalog
+
+## [17.3.0] - 2026-08-13
+
+### Breaking Changes
+
+- Removed `OpenAICompat.enableGeminiThinkingLoopGuard`; thinking-loop eligibility is derived solely from the `model.id` family.
+
+### Added
+
+- Added first-party OpenAI Daybreak Blue, Daybreak Red, and GPT-5.6 Cyber models with full support for their documented API pricing (including long-context rates above 272K input), token limits, tools, and reasoning effort controls (off/low/medium/high/xhigh/max).
+- Added calculateUncachedInputCost() to calculate prompt pricing against active context-length tiers without prompt caching.
+
+### Fixed
+
+- Fixed Anthropic cache-write pricing to correctly honor mixed 5-minute and 1-hour TTL usage instead of incorrectly charging all writes at the 5-minute rate.
+- Fixed Ollama Cloud DeepSeek V4 Flash and older reasoners to correctly apply the DeepSeek effort contract (e.g., low/high/max) instead of the generic effort ladder.
+- Added a default request timeout to OpenAI-compatible model discovery to prevent stalled provider endpoints from hanging startup indefinitely.
+- Fixed Anthropic cache-write pricing to honor mixed 5-minute and 1-hour TTL usage instead of charging every write at the 5-minute rate.
+- Fixed Ollama Cloud DeepSeek V4 Flash (including dated/preview tags like `deepseek-v4-flash:0731`) exposing the generic `minimal`/`low`/`medium`/`high`/`xhigh` effort ladder without `max`; the `ollama-chat` transport now applies the DeepSeek effort contract (Flash → `low`/`high`/`max`, older reasoners → `high`/`max`), matching the direct API and every other host ([#8334](https://github.com/can1357/oh-my-pi/issues/8334)).
+- Exposed the `low` reasoning-effort tier for DeepSeek V4 Pro on the direct API and faithful aggregator routes, matching DeepSeek's updated API contract advertising `reasoning_effort` `low`/`high`/`max` for both V4 SKUs; OpenRouter's non-Flash route still exposes only `high`, and the older V3.x/R1 reasoners remain `high`/`max` ([#8405](https://github.com/can1357/oh-my-pi/issues/8405)).
+- Bounded OpenAI-compatible model discovery with a default request timeout so a stalled provider `/models` endpoint can no longer hang startup indefinitely in `resolveModelDiscoveryFallback` ([#8315](https://github.com/can1357/oh-my-pi/issues/8315)).
+- Fixed Codex-discovered `gpt-daybreak-*` aliases being treated as unknown models, restoring the GPT-5.6 `low`/`medium`/`high`/`xhigh`/`max` effort ladder and its 372K fallback only when the Codex registry omits `context_window`.
+- Fixed first-party OpenAI GPT-5.6 aliases to preserve wire-level `off` through generated pro aliases and to price requests above 272K input at each SKU's documented long-context rates.
+
+## [17.2.15] - 2026-08-12
+
+### Fixed
+
+- Fixed classification of model IDs with large minor versions (e.g., `claude-opus-5-11`) or three-part versions, ensuring they no longer fall back to stale default configurations.
+
+## [17.2.13] - 2026-08-11
+
+### Changed
+
+- Standardized catalog discovery User-Agent headers on `omp/<version>` via the shared `USER_AGENT` utility.
+
+### Fixed
+
+- Marked `meta/muse-spark-1.2` and `muse-spark-1.2-contributor` as image-capable (`input: ["text", "image"]`) with the same Responses reasoning, thinking, and cost metadata as `muse-spark-1.1` (contributor uses its discounted 0.1/0.2 pricing), so `omp models` no longer lists them as text-only.
+- Fixed GLM-5.2 thinking levels across Baseten, CoreWeave, HuggingFace, and other uppercase-ID resellers, which were getting the generic `xhigh` effort ladder instead of the GLM-5.2-specific tiers. Also added Baseten `zai-org/GLM-5.2-Fast` and Fireworks `glm-5.2-fast` as reasoning models ([#8200](https://github.com/can1357/oh-my-pi/pull/8200) by [@jcfrancisco](https://github.com/jcfrancisco)).
+
 ## [17.2.12] - 2026-08-08
 
 ### Fixed
@@ -823,8 +889,8 @@
 
 ### Added
 
-- Added the `ToolCallSyntax` union and `FALLBACK_TOOL_SYNTAX` constant to `@oh-my-pi/pi-catalog/identity` (re-exported from `@oh-my-pi/pi-ai/grammar`).
-- Added `preferredToolSyntax(modelId)` to `@oh-my-pi/pi-catalog/identity`, resolving a model's native tool-call syntax affinity from its family token (Claude→`anthropic`, GLM→`glm`, Kimi→`kimi`, Qwen→`qwen3`, DeepSeek→`deepseek`, OpenAI/gpt-oss→`harmony`, else the `xml` fallback).
+- Added the `ToolCallSyntax` union and `FALLBACK_TOOL_SYNTAX` constant to `@linxiraos/pi-catalog/identity` (re-exported from `@linxiraos/pi-ai/grammar`).
+- Added `preferredToolSyntax(modelId)` to `@linxiraos/pi-catalog/identity`, resolving a model's native tool-call syntax affinity from its family token (Claude→`anthropic`, GLM→`glm`, Kimi→`kimi`, Qwen→`qwen3`, DeepSeek→`deepseek`, OpenAI/gpt-oss→`harmony`, else the `xml` fallback).
 - Added `flux-1-schnell-fp8` to the Fireworks serverless model catalog
 - Added `gpt-oss-20b` to the Fireworks model catalog
 - Added `qwen3-embedding-8b` to the Fireworks model catalog
@@ -842,7 +908,7 @@
 
 ### Added
 
-- Added `modelFamilyToken(modelId)` to `@oh-my-pi/pi-catalog/identity`: a coarse vendor-lineage token (`anthropic`/`openai`/`gemini`/`kimi`/…) for "are two models the same family?" comparisons, backed by `parseKnownModel` canonical-id normalization. Opaque and comparison-only; kind/variant collapsed onto the vendor token ([#2406](https://github.com/can1357/oh-my-pi/issues/2406))
+- Added `modelFamilyToken(modelId)` to `@linxiraos/pi-catalog/identity`: a coarse vendor-lineage token (`anthropic`/`openai`/`gemini`/`kimi`/…) for "are two models the same family?" comparisons, backed by `parseKnownModel` canonical-id normalization. Opaque and comparison-only; kind/variant collapsed onto the vendor token ([#2406](https://github.com/can1357/oh-my-pi/issues/2406))
 
 ### Changed
 
@@ -978,7 +1044,7 @@
 - `buildModel(spec)` (`build.ts`) is now the single Model constructor: it materializes the fully-resolved compat record and canonical thinking metadata exactly once (compat first, thinking derived from identity + resolved compat), so `Model.compat` is a required, complete `CompatOf<TApi>` (`ResolvedOpenAICompat`/`ResolvedOpenAIResponsesCompat`/`ResolvedAnthropicCompat`) and request-path code reads fields with zero URL parsing and zero per-request allocation. Sparse user/config overrides live on the new `ModelSpec<TApi>` input shape and survive on `Model.compatConfig` for introspection.
 - Added `ResolvedAnthropicCompat.supportsSamplingParams` (Opus 4.7+/Fable/Mythos reject `temperature`/`top_p`/`top_k` with a 400), baked at build time from model identity so the request path stops re-parsing model ids.
 - Compat detection gained model-time flags so handlers stop sniffing baseUrl: completions `supportsReasoningParams`, `alwaysSendMaxTokens`, `isOpenRouterHost`, `isVercelGatewayHost`, `streamIdleTimeoutMs`, and a precomputed `whenThinking` alternate view (OpenCode `reasoning_content` gating, #1071/#1484); responses `strictResponsesPairing`, `supportsLongPromptCacheRetention`, `supportsReasoningEffort`; anthropic `officialEndpoint`, `requiresToolResultId`, `replayUnsignedThinking`.
-- New `@oh-my-pi/pi-catalog` package: the model catalog extracted from `@oh-my-pi/pi-ai`. Owns the bundled `models.json` and its generation pipeline (`scripts/generate-models.ts`), the core model data types (`Model`, `Api`, `ThinkingConfig`, `Effort`, `Usage`, compat interfaces), thinking metadata enrichment and generated policies (`model-thinking.ts`), the SQLite model cache and model manager, per-provider discovery factories (`provider-models/`), the discovery protocol clients (`discovery/`), and the new `CATALOG_PROVIDERS` table — the single source of truth for provider ids, default models, and discovery wiring (`KnownProvider`, `PROVIDER_DESCRIPTORS`, and `DEFAULT_MODEL_PER_PROVIDER` are derived from it).
+- New `@linxiraos/pi-catalog` package: the model catalog extracted from `@linxiraos/pi-ai`. Owns the bundled `models.json` and its generation pipeline (`scripts/generate-models.ts`), the core model data types (`Model`, `Api`, `ThinkingConfig`, `Effort`, `Usage`, compat interfaces), thinking metadata enrichment and generated policies (`model-thinking.ts`), the SQLite model cache and model manager, per-provider discovery factories (`provider-models/`), the discovery protocol clients (`discovery/`), and the new `CATALOG_PROVIDERS` table — the single source of truth for provider ids, default models, and discovery wiring (`KnownProvider`, `PROVIDER_DESCRIPTORS`, and `DEFAULT_MODEL_PER_PROVIDER` are derived from it).
 - New `identity/` module centralizing model-identity concerns that were previously duplicated across packages: family classification and version parsing (`identity/classify.ts`, extracted from pi-ai's `model-thinking` internals), canonical model equivalence with injected reference data (`identity/equivalence.ts`, from coding-agent's `model-equivalence`), proxy/reseller reference lookup (`identity/reference.ts`, from coding-agent's `model-registry`), bracket-affix and id-segment helpers (`identity/id.ts`), a single trailing-marker vocabulary with canonical vs reference flavors (`identity/markers.ts` — `search` stays reference-only so Perplexity's `sonar-pro-search` remains canonical-distinct), and provider priority ordering (`identity/priority.ts`).
 - Memoized bundled-reference accessors (`getBundledCanonicalReferenceData` / `getBundledModelReferenceIndex` in `identity/bundled.ts`): one lazy walk of the bundled catalog feeds both canonical equivalence and proxy-reference lookup, so consumers no longer hand-roll the glue.
 - `identity/selection.ts`: pure canonical-variant selection (`resolveCanonicalVariant`, `buildCanonicalModelOrder`, `CanonicalVariantPreferences`) extracted from the coding-agent registry — provider rank, then exact-id match, variant source, id length, and candidate order.
@@ -997,7 +1063,7 @@
 
 - Fixed Anthropic official-endpoint detection to require strict HTTPS hostname matching so non-official or lookalike URLs are no longer treated as official Anthropic hosts
 - Fixed Ollama Cloud dynamic discovery so same-id matches from other providers no longer supply context-window or max-output-token limits for discovered models.
-- Wired `@oh-my-pi/pi-catalog` into the release publish package list, tarball install smoke test, and root `bun generate-models` script.
+- Wired `@linxiraos/pi-catalog` into the release publish package list, tarball install smoke test, and root `bun generate-models` script.
 - Fixed `supportsAdaptiveThinkingDisplay` only matching dash-form version ids: dotted ids (`claude-opus-4.7`) now classify through `identity/classify` like every other anthropic predicate, so six bundled dotted Opus 4.7/4.8 entries (github-copilot, vercel-ai-gateway, zenmux) regain adaptive `display` support; bare dated ids (`claude-opus-4-20250514` = Opus 4.0) stay excluded.
 - Fixed the OpenRouter anthropic adaptive-effort map misclassifying bare dated Opus ids (`claude-opus-4-20250514` parsed as version 4.20 → wrongly adaptive); the map now derives from the shared classifier and the shared 4-/5-tier tables.
 

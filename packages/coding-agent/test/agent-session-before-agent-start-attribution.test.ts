@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as path from "node:path";
 import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
 import type { Message } from "@linxiraos/pi-ai";
 import { inferCopilotInitiator } from "@linxiraos/pi-ai/providers/github-copilot-headers";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
@@ -15,7 +13,6 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("AgentSession before_agent_start attribution fallback", () => {
-	let tempDir: TempDir;
 	let session: AgentSession;
 	let modelRegistry: ModelRegistry;
 	let authStorage: AuthStorage | undefined;
@@ -23,8 +20,7 @@ describe("AgentSession before_agent_start attribution fallback", () => {
 	const injectedText = "before-agent-start injected message";
 
 	beforeEach(async () => {
-		tempDir = TempDir.createSync("@pi-before-agent-start-attribution-");
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
+		authStorage = await AuthStorage.create(":memory:");
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
 	});
@@ -36,7 +32,6 @@ describe("AgentSession before_agent_start attribution fallback", () => {
 		}
 		authStorage?.close();
 		authStorage = undefined;
-		tempDir.removeSync();
 	});
 
 	function createSession() {

@@ -1,8 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Message, UserMessage } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -10,20 +8,17 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("AgentSession session stats", () => {
-	let tempDir: TempDir;
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
 	let session: AgentSession | undefined;
 
 	beforeAll(async () => {
-		tempDir = TempDir.createSync("@pi-session-stats-");
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
+		authStorage = await AuthStorage.create(":memory:");
 		modelRegistry = new ModelRegistry(authStorage);
 	});
 
 	afterAll(() => {
 		authStorage.close();
-		tempDir.removeSync();
 	});
 
 	afterEach(async () => {

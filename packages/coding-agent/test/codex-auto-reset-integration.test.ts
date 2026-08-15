@@ -23,15 +23,13 @@
  * sweep scheduling — is real. Each test injects its own coordinator, so the
  * process-wide default is never touched.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as path from "node:path";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { ResetCreditAccountStatus, ResetCreditTarget, UsageReport } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import * as aiStream from "@linxiraos/pi-ai/stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -107,17 +105,18 @@ function liveCreditStatus(availableCount: number, expiresInMs?: number): ResetCr
 }
 
 describe("codex saved-reset trigger integration", () => {
-	let tempDir: TempDir;
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
 	let sessions: AgentSession[];
 	let managers: SessionManager[];
 
-	beforeEach(async () => {
-		tempDir = TempDir.createSync("@pi-codex-reset-int-");
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
+	beforeAll(async () => {
+		authStorage = await AuthStorage.create(":memory:");
+		modelRegistry = new ModelRegistry(authStorage, undefined, { ignoreLocalModelConfig: true });
+	});
+
+	beforeEach(() => {
 		vi.spyOn(aiStream, "getEnvApiKey").mockReturnValue(undefined);
-		modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));
 		sessions = [];
 		managers = [];
 	});
@@ -129,9 +128,11 @@ describe("codex saved-reset trigger integration", () => {
 		for (const manager of managers.splice(0).reverse()) {
 			await manager.close();
 		}
-		authStorage.close();
-		tempDir.removeSync();
 		vi.restoreAllMocks();
+	});
+
+	afterAll(() => {
+		authStorage.close();
 	});
 
 	interface HarnessOpts {
@@ -185,7 +186,7 @@ describe("codex saved-reset trigger integration", () => {
 		});
 		settings.setModelRole("default", `${model.provider}/${model.id}`);
 
-		const sessionManager = SessionManager.create(tempDir.path(), path.join(tempDir.path(), "sessions"));
+		const sessionManager = SessionManager.inMemory();
 		managers.push(sessionManager);
 		const coordinator = createCodexAutoRedeemCoordinator();
 		const session = new AgentSession({

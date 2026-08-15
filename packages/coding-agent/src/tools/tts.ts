@@ -7,10 +7,10 @@ import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type ApiKey, withAuth } from "@linxiraos/pi-ai";
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 import { type } from "@linxiraos/pi-omptype";
+import { USER_AGENT } from "@linxiraos/pi-utils";
 import { settings } from "../config/settings";
 import type { CustomTool, CustomToolContext } from "../extensibility/custom-tools/types";
-import { M } from "../i18n/messages";
-import { ohMyPiXAIUserAgent, resolveXAIHttpCredentials } from "../lib/xai-http";
+import { resolveXAIHttpCredentials } from "../lib/xai-http";
 import { DEFAULT_TTS_LOCAL_MODEL_KEY, DEFAULT_TTS_VOICE, isTtsLocalModelKey, KOKORO_VOICES } from "../tts/models";
 import { ttsClient } from "../tts/tts-client";
 import { encodeWav } from "../tts/wav";
@@ -104,7 +104,7 @@ async function synthesizeXai(
 			content: [
 				{
 					type: "text",
-					text: M.ttErrNoXaiCreds,
+					text: "No xAI credentials. Run /login → xAI Grok OAuth (SuperGrok or X Premium+) or set XAI_API_KEY.",
 				},
 			],
 		};
@@ -151,7 +151,7 @@ async function synthesizeXai(
 					headers: {
 						Authorization: `Bearer ${key}`,
 						"Content-Type": "application/json",
-						"User-Agent": ohMyPiXAIUserAgent(),
+						"User-Agent": USER_AGENT,
 					},
 					body: JSON.stringify(payload),
 					signal: combinedSignal,
@@ -232,7 +232,7 @@ async function synthesizeLocal(
 
 export const ttsTool: CustomTool<typeof ttsSchema, TtsToolDetails> = {
 	name: "tts",
-	label: M.ttSpeechGeneration,
+	label: "Speech Generation",
 	strict: false,
 	approval: "write",
 	description:

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { Effort } from "@linxiraos/pi-ai";
@@ -15,9 +15,19 @@ import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("AgentSession role model thinking behavior", () => {
 	let tempDir: TempDir;
+	let fixtureDir: TempDir;
+	let authStorage: AuthStorage;
+	let modelRegistry: ModelRegistry;
 	let session: AgentSession;
 	let sessionSettings: Settings;
-	const authStorages: AuthStorage[] = [];
+
+	beforeAll(async () => {
+		fixtureDir = TempDir.createSync("@pi-role-thinking-fixture-");
+		authStorage = await AuthStorage.create(path.join(fixtureDir.path(), "testauth.db"));
+		authStorage.setRuntimeApiKey("anthropic", "test-key");
+		authStorage.setRuntimeApiKey("openai", "test-key");
+		modelRegistry = new ModelRegistry(authStorage, path.join(fixtureDir.path(), "models.yml"));
+	});
 
 	beforeEach(() => {
 		tempDir = TempDir.createSync("@pi-role-thinking-");
@@ -28,10 +38,12 @@ describe("AgentSession role model thinking behavior", () => {
 		if (session) {
 			await session.dispose();
 		}
-		for (const authStorage of authStorages.splice(0)) {
-			authStorage.close();
-		}
 		tempDir.removeSync();
+	});
+
+	afterAll(() => {
+		authStorage.close();
+		fixtureDir.removeSync();
 	});
 
 	function getAnthropicModelOrThrow(id: string) {
@@ -56,14 +68,11 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: options.initialThinkingLevel,
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		const runtimeApiKeys = options.runtimeApiKeys ?? {};
 		for (const provider in runtimeApiKeys) {
 			authStorage.setRuntimeApiKey(provider, runtimeApiKeys[provider]);
 		}
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));
 
 		sessionSettings = Settings.isolated();
 		for (const [role, modelRoleValue] of Object.entries(options.modelRoles)) {
@@ -216,10 +225,7 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: undefined,
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth-non-xhigh.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models-non-xhigh.yml"));
 
 		sessionSettings = Settings.isolated();
 		session = new AgentSession({
@@ -246,10 +252,7 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: undefined,
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth-max-clamp.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models-max-clamp.yml"));
 
 		sessionSettings = Settings.isolated();
 		session = new AgentSession({
@@ -276,10 +279,7 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: Effort.High,
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth-cycle-thinking.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models-cycle-thinking.yml"));
 
 		sessionSettings = Settings.isolated();
 		session = new AgentSession({
@@ -326,10 +326,7 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: Effort.XHigh,
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth-cycle-max.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models-cycle-max.yml"));
 
 		sessionSettings = Settings.isolated();
 		session = new AgentSession({
@@ -384,10 +381,7 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: resolveProvisionalAutoLevel(model),
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth-auto-resume.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models-auto-resume.yml"));
 		const sessionManager = SessionManager.create(tempDir.path(), tempDir.path());
 		sessionSettings = Settings.isolated();
 		sessionSettings.set("defaultThinkingLevel", AUTO_THINKING);
@@ -430,10 +424,7 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: resolveProvisionalAutoLevel(model),
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth-manual-resume.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models-manual-resume.yml"));
 		const sessionManager = SessionManager.create(tempDir.path(), tempDir.path());
 		sessionSettings = Settings.isolated();
 		sessionSettings.set("defaultThinkingLevel", AUTO_THINKING);
@@ -476,10 +467,7 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: resolveProvisionalAutoLevel(model),
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth-pin-eq.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models-pin-eq.yml"));
 		const sessionManager = SessionManager.create(tempDir.path(), tempDir.path());
 		sessionSettings = Settings.isolated();
 		sessionSettings.set("defaultThinkingLevel", AUTO_THINKING);
@@ -636,10 +624,7 @@ describe("AgentSession role model thinking behavior", () => {
 				thinkingLevel: undefined,
 			},
 		});
-		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth-non-reasoning-auto.db"));
-		authStorages.push(authStorage);
 		authStorage.setRuntimeApiKey("openai", "test-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models-non-reasoning-auto.yml"));
 		sessionSettings = Settings.isolated();
 		sessionSettings.set("defaultThinkingLevel", AUTO_THINKING);
 		session = new AgentSession({

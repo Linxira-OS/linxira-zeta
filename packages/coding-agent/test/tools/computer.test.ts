@@ -11,7 +11,8 @@ import type {
 } from "@linxiraos/pi-natives";
 import { type as arkType } from "@linxiraos/pi-omptype";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { ComputerTool, computerApproval, type ToolSession } from "@linxiraos/zeta/tools";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ComputerTool, computerApproval } from "@linxiraos/zeta/tools/computer";
 import type {
 	ComputerSessionSnapshot,
 	ComputerWorkerInbound,

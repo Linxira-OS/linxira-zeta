@@ -38,7 +38,7 @@ const OMP_SCOPE = "@oh-my-pi/";
 
 // Upstream names whose catalog/tail does not equal the Zeta package tail.
 const RENAME_BY_TAIL: Record<string, string> = {
-	// upstream packages/omptype is @oh-my-pi/omptype; Zeta names it pi-omptype
+	// upstream packages/omptype is @linxiraos/pi-omptype; Zeta names it pi-omptype
 	omptype: "pi-omptype",
 };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import "./setup";
+
 import { BeamMemory } from "@linxiraos/pi-mnemopi/core/beam";
 import { maximallyInformativeBinarization } from "@linxiraos/pi-mnemopi/core/binary-vectors";
 

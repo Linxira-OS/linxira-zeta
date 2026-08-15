@@ -11,7 +11,6 @@
  * and its explicit websocket preference.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import * as path from "node:path";
 import { Agent, type StreamFn } from "@linxiraos/pi-agent-core";
 import type { FetchImpl, Model, SimpleStreamOptions } from "@linxiraos/pi-ai";
 import { streamSimple } from "@linxiraos/pi-ai";
@@ -20,8 +19,9 @@ import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /** Provider-facing advisor session ids must be UUIDv7 (issue #5040): Codex writes
  *  them verbatim onto `conversation_id`/`session_id` headers, so `-advisor`
@@ -41,14 +41,12 @@ function metadataSessionId(options: SimpleStreamOptions | undefined): string {
 }
 
 describe("AgentSession advisor provider-options parity", () => {
-	let sharedDir: TempDir;
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
 	let model: Model;
 
-	beforeAll(async () => {
-		sharedDir = TempDir.createSync("@pi-advisor-parity-shared-");
-		authStorage = await AuthStorage.create(path.join(sharedDir.path(), "testauth.db"));
+	beforeAll(() => {
+		authStorage = createInMemoryAuthStorage();
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
 		const bundled = getBundledModel("anthropic", "claude-sonnet-4-5");
@@ -56,11 +54,8 @@ describe("AgentSession advisor provider-options parity", () => {
 		model = bundled;
 	});
 
-	afterAll(async () => {
+	afterAll(() => {
 		authStorage.close();
-		try {
-			await sharedDir.remove();
-		} catch {}
 	});
 
 	let tempDir: TempDir;
@@ -73,7 +68,7 @@ describe("AgentSession advisor provider-options parity", () => {
 			"model.loopGuard.enabled": true,
 		});
 
-	beforeEach(async () => {
+	beforeEach(() => {
 		tempDir = TempDir.createSync("@pi-advisor-parity-");
 		sessionManager = SessionManager.create(tempDir.path(), tempDir.path());
 	});

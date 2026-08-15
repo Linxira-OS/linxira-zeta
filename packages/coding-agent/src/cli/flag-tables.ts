@@ -31,7 +31,6 @@
  */
 
 import { isServiceTierOpenAISettingValue, SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
-import type { Messages } from "../i18n/messages";
 import type { ConfiguredThinkingLevel } from "../thinking";
 import type { Args } from "./args";
 import { CliUsageError } from "./usage-error";
@@ -47,9 +46,7 @@ import { CliUsageError } from "./usage-error";
  */
 export interface ParseDeps {
 	logger: { warn: (message: string, meta?: Record<string, unknown>) => void };
-	messages: Pick<Messages, "ftInvalidMaxTime" | "ftUnknownToolsFmt" | "ftPluralS">;
 	parseThinking: (value: string | null | undefined) => ConfiguredThinkingLevel | undefined;
-	builtinToolNames: readonly string[];
 	normalizeToolNames: (values: Iterable<string>) => string[];
 	thinkingEfforts: readonly string[];
 }
@@ -97,12 +94,14 @@ function maxTimeMultiplier(unit: string | undefined): number {
 	return 1;
 }
 
-function parseMaxTimeSeconds(value: string, deps: ParseDeps): number {
+function parseMaxTimeSeconds(value: string): number {
 	const trimmed = value.trim();
 	const duration = MAX_TIME_DURATION_RE.exec(trimmed);
 	const seconds = duration ? Number(duration[1]) * maxTimeMultiplier(duration[2]) : Number(trimmed);
 	if (Number.isFinite(seconds) && seconds > 0) return seconds;
-	throw new CliUsageError(deps.messages.ftInvalidMaxTime.replace("%s", JSON.stringify(value)));
+	throw new CliUsageError(
+		`Invalid --max-time value: ${JSON.stringify(value)}. Expected a positive number of seconds or duration like "5s", "10m", "1h".`,
+	);
 }
 
 /**
@@ -150,8 +149,8 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 	"--plan-yolo-into": (result, value) => {
 		result.planYoloInto = value;
 	},
-	"--max-time": (result, value, deps) => {
-		result.maxTime = parseMaxTimeSeconds(value, deps);
+	"--max-time": (result, value) => {
+		result.maxTime = parseMaxTimeSeconds(value);
 	},
 	"--service-tier": (result, value) => {
 		if (!isServiceTierOpenAISettingValue(value)) {
@@ -189,18 +188,8 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 				.map(s => s.trim())
 				.filter(Boolean),
 		);
-		// An unknown name silently narrowing the toolset is worse than a failed
-		// launch: scripts keep running believing the tool is available (e.g. a
-		// stale `--tools bash,ssh` after the ssh tool's removal).
-		const unknown = names.filter(name => !deps.builtinToolNames.includes(name));
-		if (unknown.length > 0) {
-			throw new CliUsageError(
-				deps.messages.ftUnknownToolsFmt
-					.replace("%s", unknown.length === 1 ? "" : deps.messages.ftPluralS)
-					.replace("%s", unknown.join(", "))
-					.replace("%s", deps.builtinToolNames.join(", ")),
-			);
-		}
+		// Validation runs after session tool discovery. At this point extension,
+		// custom, plugin-manifest, and MCP tools are not all known yet.
 		result.tools = names;
 	},
 	"--thinking": (result, value, deps) => {
@@ -314,6 +303,7 @@ export const VALUELESS_FLAGS: ReadonlySet<string> = new Set([
 	"--no-pty",
 	"--hide-thinking",
 	"--advisor",
+	"--external-thinking",
 	"--prewalk",
 	"--no-prewalk",
 	"--plan-yolo",

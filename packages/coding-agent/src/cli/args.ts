@@ -5,9 +5,8 @@ import * as path from "node:path";
 import { $env, APP_NAME, logger } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
-import { M } from "../i18n";
 import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "../thinking";
-import { BUILTIN_TOOL_NAMES, HIDDEN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";
+import { normalizeToolNames } from "../tools/builtin-names";
 import {
 	OPTIONAL_FLAGS,
 	OPTIONAL_VALUE_FLAGS,
@@ -49,6 +48,7 @@ export interface Args {
 	serviceTier?: ServiceTierOpenAISettingValue;
 	hideThinking?: boolean;
 	advisor?: boolean;
+	externalThinking?: boolean;
 	continue?: boolean;
 	resume?: string | true;
 	fromClaude?: boolean;
@@ -107,9 +107,7 @@ export interface Args {
  */
 const PARSE_DEPS: ParseDeps = {
 	logger,
-	messages: M,
 	parseThinking: parseCliThinkingLevel,
-	builtinToolNames: [...BUILTIN_TOOL_NAMES, ...HIDDEN_TOOL_NAMES],
 	normalizeToolNames,
 	thinkingEfforts: CLI_THINKING_LEVELS,
 };
@@ -149,6 +147,7 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 	// reparse in `runRootCommand` parses it a second time). Mutating the input
 	// would corrupt that later parse, so never touch the caller's array.
 	const args = [...inputArgs];
+	const parseDeps = PARSE_DEPS;
 	const result: Args = {
 		messages: [],
 		fileArgs: [],
@@ -215,7 +214,7 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			if (i + 1 < args.length && args[i + 1] !== PROFILE_BOOTSTRAP_BOUNDARY_ARG) {
 				const consumed = consumeBuiltInStringValue(arg, args, i + 1);
 				i = consumed.index;
-				STRING_SETTERS[arg](result, consumed.value, PARSE_DEPS);
+				STRING_SETTERS[arg](result, consumed.value, parseDeps);
 			}
 		} else if (OPTIONAL_VALUE_FLAGS.has(arg)) {
 			const config = OPTIONAL_FLAGS[arg];
@@ -257,6 +256,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.hideThinking = true;
 		} else if (arg === "--advisor") {
 			result.advisor = true;
+		} else if (arg === "--external-thinking") {
+			result.externalThinking = true;
 		} else if (arg === "--prewalk") {
 			result.prewalk = true;
 		} else if (arg === "--no-prewalk") {
@@ -329,6 +330,17 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 	}
 
 	return result;
+}
+
+/** Reject requested tool names absent from the fully discovered session registry. */
+export function validateToolNames(requested: readonly string[] | undefined, known: readonly string[]): void {
+	if (!requested) return;
+	const knownNames = new Set(known);
+	const unknown = requested.filter(name => !knownNames.has(name));
+	if (unknown.length === 0) return;
+	throw new CliUsageError(
+		`Unknown tool${unknown.length === 1 ? "" : "s"} in --tools: ${unknown.join(", ")}. Valid tools: ${known.join(", ")}.`,
+	);
 }
 
 /**

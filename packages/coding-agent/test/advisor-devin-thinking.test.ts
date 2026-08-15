@@ -1,14 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { Effort, type Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Regression for https://github.com/can1357/oh-my-pi/issues/4579.
 //
@@ -24,15 +23,13 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 // `auto-thinking-classifier.test.ts:145` for `clampAutoThinkingEffort`, at the
 // advisor descriptor boundary.
 describe("AgentSession advisor descriptor thinking level", () => {
-	let sharedDir: TempDir;
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
 	let anthropicModel: Model;
 	let devinModel: Model;
 
-	beforeAll(async () => {
-		sharedDir = TempDir.createSync("@pi-advisor-devin-thinking-shared-");
-		authStorage = await AuthStorage.create(path.join(sharedDir.path(), "testauth.db"));
+	beforeAll(() => {
+		authStorage = createInMemoryAuthStorage();
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
 		const anthropic = getBundledModel("anthropic", "claude-sonnet-4-5");
@@ -68,20 +65,15 @@ describe("AgentSession advisor descriptor thinking level", () => {
 		devinModel = devin;
 	});
 
-	afterAll(async () => {
+	afterAll(() => {
 		authStorage.close();
-		try {
-			await sharedDir.remove();
-		} catch {}
 	});
 
-	let tempDir: TempDir;
 	let session: AgentSession;
 	let sessionManager: SessionManager;
 
-	beforeEach(async () => {
-		tempDir = TempDir.createSync("@pi-advisor-devin-thinking-");
-		sessionManager = SessionManager.create(tempDir.path(), tempDir.path());
+	beforeEach(() => {
+		sessionManager = SessionManager.inMemory("/tmp/advisor-devin-thinking");
 		const agent = new Agent({
 			initialState: {
 				model: anthropicModel,
@@ -102,9 +94,6 @@ describe("AgentSession advisor descriptor thinking level", () => {
 
 	afterEach(async () => {
 		await session.dispose();
-		try {
-			await tempDir.remove();
-		} catch {}
 	});
 
 	it("Devin advisor with no configured thinking suffix boots without an unsupported-effort throw", () => {

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { containsOrchestrate, highlightOrchestrate, ORCHESTRATE_NOTICE } from "@linxiraos/zeta/modes/orchestrate";
+import { containsOrchestrate, highlightOrchestrate, renderOrchestrateNotice } from "@linxiraos/zeta/modes/orchestrate";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { containsUltrathink, highlightUltrathink } from "@linxiraos/zeta/modes/ultrathink";
 import { clearBundledCommandsCache, loadBundledCommands } from "@linxiraos/zeta/task/commands";
@@ -81,11 +81,37 @@ describe("orchestrate keyword highlighting", () => {
 
 describe("orchestrate notice", () => {
 	it("is a self-contained system notice carrying the orchestration contract", () => {
-		expect(ORCHESTRATE_NOTICE.startsWith("<system-notice>")).toBe(true);
-		expect(ORCHESTRATE_NOTICE.endsWith("</system-notice>")).toBe(true);
-		expect(ORCHESTRATE_NOTICE).toContain("orchestrator");
+		const notice = renderOrchestrateNotice({
+			tools: ["read", "task", "edit", "write", "lsp", "bash", "todo"],
+		});
+		expect(notice.startsWith("<system-notice>")).toBe(true);
+		expect(notice.endsWith("</system-notice>")).toBe(true);
+		expect(notice).toContain("orchestrator");
 		// The contract must not retain the slash-command input placeholder.
-		expect(ORCHESTRATE_NOTICE).not.toContain("$@");
+		expect(notice).not.toContain("$@");
+	});
+
+	it("omits tool-budget mentions for tools absent from the session", () => {
+		const notice = renderOrchestrateNotice({ tools: ["read"] });
+		expect(notice).not.toContain("`task` for dispatch");
+		expect(notice).not.toContain("`edit`");
+		expect(notice).not.toContain("`write`");
+		expect(notice).not.toContain("`lsp diagnostics`");
+		expect(notice).not.toContain("via `bash`");
+		expect(notice).not.toContain("`todo` for tracking");
+	});
+
+	it("does not name edit when only write is available", () => {
+		const writeOnly = renderOrchestrateNotice({ tools: ["read", "write"] });
+		expect(writeOnly).toContain("with `write`");
+		expect(writeOnly).not.toContain("`edit`/`write`");
+		expect(writeOnly).not.toContain("with `edit`");
+	});
+
+	it("does not name write when only edit is available", () => {
+		const editOnly = renderOrchestrateNotice({ tools: ["read", "edit"] });
+		expect(editOnly).toContain("with `edit`");
+		expect(editOnly).not.toContain("`edit`/`write`");
 	});
 });
 

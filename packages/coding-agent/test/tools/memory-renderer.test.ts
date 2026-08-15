@@ -3,8 +3,10 @@ import { sanitizeText } from "@linxiraos/pi-utils";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
 import { recallToolRenderer, reflectToolRenderer, retainToolRenderer } from "@linxiraos/zeta/tools/memory-render";
 
+const themePromise = getThemeByName("dark");
+
 async function theme() {
-	const t = await getThemeByName("dark");
+	const t = await themePromise;
 	expect(t).toBeDefined();
 	return t!;
 }

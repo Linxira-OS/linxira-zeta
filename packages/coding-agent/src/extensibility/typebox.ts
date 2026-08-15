@@ -87,6 +87,12 @@ interface ArkSchema {
 	__inner?: ArkSchema;
 	safeParse(input: unknown): SafeParseSuccess | SafeParseFailure;
 	toJSON(): Record<string, unknown>;
+	/** JSON Schema wire document (arktype `toJsonSchema` returns `unknown`; typed here). */
+	toJsonSchema(): {
+		required?: string[];
+		properties?: Record<string, unknown>;
+		[key: string]: unknown;
+	};
 	[key: string]: unknown;
 }
 

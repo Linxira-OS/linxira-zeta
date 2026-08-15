@@ -10,9 +10,9 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import * as bashExecutor from "@linxiraos/zeta/exec/bash-executor";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { createAssistantMessage } from "./helpers/agent-session-setup";
+import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const bashResult = {
 	output: "old-output",
@@ -31,9 +31,9 @@ describe("AgentSession bash session ownership", () => {
 	let session: AgentSession;
 	let additionalManagers: SessionManager[];
 
-	beforeEach(async () => {
+	beforeEach(() => {
 		tempDir = TempDir.createSync("@pi-bash-session-owner-");
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
+		authStorage = createInMemoryAuthStorage();
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		additionalManagers = [];
 	});

@@ -3,13 +3,13 @@ import { mergeDeps, zetaKeyFor } from "./merge-package-json";
 
 describe("zetaKeyFor", () => {
 	test("maps upstream scope keys to the Zeta scope", () => {
-		expect(zetaKeyFor("@oh-my-pi/pi-ai")).toBe("@linxiraos/pi-ai");
-		expect(zetaKeyFor("@oh-my-pi/hashline")).toBe("@linxiraos/hashline");
-		expect(zetaKeyFor("@oh-my-pi/pi-utils")).toBe("@linxiraos/pi-utils");
+		expect(zetaKeyFor("@linxiraos/pi-ai")).toBe("@linxiraos/pi-ai");
+		expect(zetaKeyFor("@linxiraos/pi-hashline")).toBe("@linxiraos/pi-hashline");
+		expect(zetaKeyFor("@linxiraos/pi-utils")).toBe("@linxiraos/pi-utils");
 	});
 
 	test("applies renames where upstream and Zeta tails differ", () => {
-		expect(zetaKeyFor("@oh-my-pi/omptype")).toBe("@linxiraos/pi-omptype");
+		expect(zetaKeyFor("@linxiraos/pi-omptype")).toBe("@linxiraos/pi-omptype");
 	});
 
 	test("returns null for third-party and Zeta-scoped keys", () => {
@@ -22,7 +22,7 @@ describe("zetaKeyFor", () => {
 describe("mergeDeps", () => {
 	test("adopts upstream workspace deps under Zeta names with current versions", () => {
 		const current = { "@linxiraos/pi-ai": "1.0.0", "@linxiraos/pi-utils": "1.0.0" };
-		const other = { "@oh-my-pi/pi-ai": "17.2.12", "@oh-my-pi/pi-utils": "17.2.12" };
+		const other = { "@linxiraos/pi-ai": "17.2.12", "@linxiraos/pi-utils": "17.2.12" };
 		const merged = mergeDeps(current, other);
 		expect(merged["@linxiraos/pi-ai"]).toBe("1.0.0");
 		expect(merged["@linxiraos/pi-utils"]).toBe("1.0.0");
