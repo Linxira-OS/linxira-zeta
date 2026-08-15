@@ -320,21 +320,24 @@ jobs:
                }
               }
               EOF
-               loader=node
-               if command -v bun >/dev/null 2>&1; then loader=bun; fi
-               # Only smoke the host-arch addons: arm64/win32/musl addons
-               # cannot dlopen on this x64 glibc runner (expected). Files are
-                # real copies under bazel-bin (npm-fetched or bazel-built).
-                # Bazel-built addons are symlinks into the execroot, which bun
-                # would load as plain .so; prefer the realpath-copied dest
-                # files when present.
+                loader=node
+                if command -v bun >/dev/null 2>&1; then loader=bun; fi
+                # Only smoke the host-arch addons: arm64/win32/musl addons
+                # cannot dlopen on this x64 glibc runner (expected).
+                # Dereference first: bazel outputs are symlinks into the
+                # execroot and bun resolves the realpath, loading a plain .so
+                # instead of a NAPI addon. Copying with -L yields a real .node
+                # file either way.
                 args=()
                 for f in \
                   packages/natives/native/pi_natives.linux-x64-baseline.node \
                   bazel-bin/natives-linux-x64-baseline/pi_natives.linux-x64-baseline.node \
                   packages/natives/native/pi_natives.linux-x64-modern.node \
                   bazel-bin/natives-linux-x64-modern/pi_natives.linux-x64-modern.node; do
-                  if [ -f "$f" ]; then args+=("$PWD/$f"); fi
+                  if [ -f "$f" ]; then
+                    cp -L "$f" "$RUNNER_TEMP/smoke-$(basename "$f")"
+                    args+=("$RUNNER_TEMP/smoke-$(basename "$f")")
+                  fi
                 done
                 "$loader" "$RUNNER_TEMP/smoke-addons.js" "${args[@]}"
 
