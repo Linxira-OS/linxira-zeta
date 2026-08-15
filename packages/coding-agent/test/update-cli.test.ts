@@ -1153,7 +1153,7 @@ describe("update-cli script-shim takeover", () => {
 		expect(await Bun.file(path.join(dir, "zeta.cmd")).exists()).toBe(false);
 		// PowerShell resolves .ps1 before .exe: the locked shim must now exec
 		// the new binary instead of keeping its old body.
-		expect(await Bun.file(path.join(dir, "omp.ps1")).text()).toContain('& "$PSScriptRoot\\omp.exe" @args');
+		expect(await Bun.file(path.join(dir, "omp.ps1")).text()).toContain('& "$PSScriptRoot\\zeta.exe" @args');
 	});
 
 	it("restores a forwarded shim's original body when verification fails", async () => {
