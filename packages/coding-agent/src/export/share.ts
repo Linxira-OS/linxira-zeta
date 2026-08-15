@@ -24,7 +24,8 @@ import type { AssistantMessage, ImageContent, TextContent } from "@linxiraos/pi-
 import { $which, logger } from "@linxiraos/pi-utils";
 import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import { $ } from "bun";
-import { obfuscateToolArguments, type SecretObfuscator } from "../secrets/obfuscator";
+import { obfuscateToolArguments } from "../secrets/message-transform";
+import type { SecretObfuscator } from "../secrets/obfuscator";
 import { type SessionEntry, type SessionHeader, TITLE_CHANGE_ENTRY_TYPE } from "../session/session-entries";
 import type { SessionManager } from "../session/session-manager";
 import type { OutputMeta } from "../tools/output-meta";

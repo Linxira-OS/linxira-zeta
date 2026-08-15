@@ -31,6 +31,23 @@ const ZETA_IDENTITY_FIELDS = new Set([
 
 const ZETA_SCOPE = "@linxiraos/";
 
+// Upstream workspace packages are named @oh-my-pi/*. Zeta renames that scope
+// to @linxiraos/* and keeps its own independent versions (1.0.0 product line), so
+// the driver must map upstream keys back to Zeta names before merging.
+const OMP_SCOPE = "@oh-my-pi/";
+
+// Upstream names whose catalog/tail does not equal the Zeta package tail.
+const RENAME_BY_TAIL: Record<string, string> = {
+	// upstream packages/omptype is @oh-my-pi/omptype; Zeta names it pi-omptype
+	omptype: "pi-omptype",
+};
+
+function zetaKeyFor(ompKey: string): string | null {
+	if (!ompKey.startsWith(OMP_SCOPE)) return null;
+	const tail = ompKey.slice(OMP_SCOPE.length);
+	return `${ZETA_SCOPE}${RENAME_BY_TAIL[tail] ?? tail}`;
+}
+
 function loadJson(path: string): Record<string, unknown> | null {
 	try {
 		const raw = fs.readFileSync(path, "utf-8");
@@ -47,12 +64,19 @@ function saveJson(path: string, obj: Record<string, unknown>): void {
 function mergeDeps(current: Record<string, string>, other: Record<string, string>): Record<string, string> {
 	const result: Record<string, string> = {};
 
-	// Keep Zeta-scoped deps from current, accept everything else from other
 	for (const [key, value] of Object.entries(other)) {
-		if (key.startsWith(ZETA_SCOPE)) {
-			// Keep Zeta's own version if it exists, otherwise use upstream's
+		const zetaKey = zetaKeyFor(key);
+		if (zetaKey) {
+			// Upstream workspace package: adopt the Zeta name, keep Zeta's own
+			// version pin. If Zeta does not have the package yet, keep the
+			// upstream entry so the merge is complete (brand it later).
+			result[zetaKey] = current[zetaKey] ?? value;
+		} else if (key.startsWith(ZETA_SCOPE)) {
+			// Already a Zeta-scoped key: keep Zeta's own version if it exists,
+			// otherwise use upstream's
 			result[key] = current[key] ?? value;
 		} else {
+			// Third-party dependency: accept upstream
 			result[key] = value;
 		}
 	}
@@ -105,8 +129,10 @@ function main() {
 			result[section] = mergeDeps(currentDeps, otherDeps);
 		} else if (otherDeps) {
 			result[section] = otherDeps;
+		} else if (currentDeps) {
+			// Only current has this section: keep it (Zeta identity content).
+			result[section] = currentDeps;
 		}
-		// If only current has deps, keep them (already handled by identity pass)
 	}
 
 	// Handle workspace catalog entries in root package.json
@@ -127,4 +153,8 @@ function main() {
 	process.exit(0);
 }
 
-main();
+export { mergeDeps, zetaKeyFor };
+
+if (import.meta.main) {
+	main();
+}

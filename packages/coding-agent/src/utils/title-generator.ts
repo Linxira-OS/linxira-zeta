@@ -6,6 +6,7 @@ import * as path from "node:path";
 
 import { type Api, type AssistantMessage, completeSimple, type Model } from "@linxiraos/pi-ai";
 import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
+import { isConPTYHosted } from "@linxiraos/pi-tui";
 import { isTerminalHeadless, logger, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 
@@ -496,13 +497,13 @@ const terminalTitleRuntime: {
 };
 
 /**
- * Compose the terminal title from the `π` brand, a state-carrying separator, and
+ * Compose the terminal title from the `ζ` brand, a state-carrying separator, and
  * the session label. Pure (no I/O) so the state→separator contract is testable:
- *   - `idle` (user's turn):  `π > label`;
- *   - `working`:             `π ⠋ label` (`π : label` on Windows);
- *   - `attention`:           `π ! label`;
- *   - disabled:              `π: label`.
- * Without a label the separator trails the brand (`π >`) so the state stays visible.
+ *   - `idle` (user's turn):  `ζ > label`;
+ *   - `working`:             `ζ ⠋ label` (`ζ : label` on Windows);
+ *   - `attention`:           `ζ ! label`;
+ *   - disabled:              `ζ: label`.
+ * Without a label the separator trails the brand (`ζ >`) so the state stays visible.
  */
 export function buildTerminalTitleWithState(
 	label: string | undefined,
@@ -533,6 +534,7 @@ function emitTerminalTitle(): void {
 			terminalTitleRuntime.state,
 			terminalTitleRuntime.frame,
 			terminalTitleRuntime.enabled,
+			isConPTYHosted() ? "win32" : process.platform,
 		);
 	setTerminalTitle(next);
 }
@@ -543,7 +545,7 @@ function stopTerminalTitleSpinner(): void {
 }
 
 function startTerminalTitleSpinner(): void {
-	if (process.platform === "win32" || terminalTitleRuntime.timer || !process.stdout.isTTY) return;
+	if (isConPTYHosted() || terminalTitleRuntime.timer || !process.stdout.isTTY) return;
 	terminalTitleRuntime.timer = setInterval(() => {
 		terminalTitleRuntime.frame = (terminalTitleRuntime.frame + 1) % TITLE_SPINNER_FRAMES.length;
 		emitTerminalTitle();

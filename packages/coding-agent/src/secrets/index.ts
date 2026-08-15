@@ -5,14 +5,10 @@ import { SENSITIVE_TOKEN_RE } from "@linxiraos/pi-ai/providers/transform-message
 import { getSecretPlaceholderKeyPath, isEnoent, logger } from "@linxiraos/pi-utils";
 import { CONFIG_DIR_NAME } from "@linxiraos/pi-utils/dirs";
 import { YAML } from "bun";
-import {
-	regexHasUnresolvableShortMatchFallback,
-	type SecretEntry,
-	SecretObfuscator,
-	sanitizeSecretFriendlyName,
-	secretEntriesNeedPlaceholderKey,
-} from "./obfuscator";
+import { type SecretEntry, SecretObfuscator } from "./obfuscator";
+import { sanitizeSecretFriendlyName, secretEntriesNeedPlaceholderKey } from "./placeholder";
 import { compileSecretRegex } from "./regex";
+import { regexHasUnresolvableShortMatchFallback } from "./replacement";
 
 const PLACEHOLDER_KEY_RE = /^[A-Za-z0-9_-]{43}$/;
 const cachedPlaceholderKeys = new Map<string, string>();
@@ -159,11 +155,9 @@ export {
 	deobfuscateToolArguments,
 	obfuscateMessages,
 	obfuscateProviderContext,
-	type SecretEntry,
-	SecretObfuscator,
-	secretEntriesNeedPlaceholderKey,
-	secretEntryNeedsPlaceholderKey,
-} from "./obfuscator";
+} from "./message-transform";
+export { type SecretEntry, SecretObfuscator } from "./obfuscator";
+export { secretEntriesNeedPlaceholderKey, secretEntryNeedsPlaceholderKey } from "./placeholder";
 
 /**
  * Load secrets from project-local and global secrets.yml files.

@@ -175,15 +175,22 @@ jobs:
          # Clippy scope mirrors `cargo clippy --workspace` (libraries only, no
          # test targets) plus the strict/default split: crates with
          # `[lints] workspace = true` get the workspace policy, the vendored
-         # brush fork is exempt (same as run-rs-task.ts's cargo excludes).
+         # brush-core fork is exempt (same as run-rs-task.ts's cargo excludes).
+         # pi-builtins allows every clippy group in its own manifest (ported
+         # brush/uutils/jaq code) but is still held to zero rustc warnings;
+         # cargo honors that via `[lints]`, bazel via the clippy-ported config.
          - name: Clippy (workspace lint policy on opted-in crates)
            run: |
               bazelisk query "kind('rust_library|rust_shared_library', //crates/pi-ast/... + //crates/pi-iso/... + //crates/pi-natives/... + //crates/pi-shell/... + //crates/pi-voice/... + //crates/pi-walker/...)" \
                 | xargs bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=clippy-strict --
          - name: Clippy (default lints elsewhere)
            run: |
-              bazelisk query "kind('rust_library|rust_shared_library', //crates/... - (//crates/pi-ast/... + //crates/pi-iso/... + //crates/pi-natives/... + //crates/pi-shell/... + //crates/pi-voice/... + //crates/pi-walker/...) - //crates/vendor/brush-core/... - //crates/vendor/brush-builtins/...)" \
+              bazelisk query "kind('rust_library|rust_shared_library', //crates/... - (//crates/pi-ast/... + //crates/pi-iso/... + //crates/pi-natives/... + //crates/pi-shell/... + //crates/pi-voice/... + //crates/pi-walker/...) - //crates/pi-builtins/... - //crates/vendor/brush-core/...)" \
                 | xargs bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=clippy --
+         - name: Clippy (manifest allows on ported pi-builtins)
+           run: |
+              bazelisk query "kind('rust_library|rust_shared_library', //crates/pi-builtins/...)" \
+                | xargs bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=clippy-ported --
          - name: Rustfmt
            run: bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=rustfmt //crates/...
 
@@ -211,12 +218,25 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tarball="$(npm view @linxiraos/pi-natives-linux-x64@latest dist.tarball)"
-              echo "Fetching $tarball"
-              curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
-              mkdir -p bazel-bin/natives-linux-x64-baseline bazel-bin/natives-linux-x64-modern
-              cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" bazel-bin/natives-linux-x64-baseline/
-              cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" bazel-bin/natives-linux-x64-modern/
+              mkdir -p \
+                bazel-bin/natives-linux-x64-baseline \
+                bazel-bin/natives-linux-x64-modern \
+                bazel-bin/natives-win32-x64-baseline
+              for pkg in linux-x64 win32-x64; do
+                tarball="$(npm view "@linxiraos/pi-natives-$pkg@latest" dist.tarball)"
+                echo "Fetching $tarball"
+                curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
+                case "$pkg" in
+                  linux-x64)
+                    cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" bazel-bin/natives-linux-x64-baseline/
+                    cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" bazel-bin/natives-linux-x64-modern/
+                    ;;
+                  win32-x64)
+                    cp "$RUNNER_TEMP/package/pi_natives.win32-x64-baseline.node" bazel-bin/natives-win32-x64-baseline/
+                    ;;
+                esac
+                rm -rf "$RUNNER_TEMP/package"
+              done
          # A corrupt download must fail here, not as a confusing dlopen error
          # in every downstream test shard.
          - name: Smoke release addons

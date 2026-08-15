@@ -24,13 +24,14 @@ import {
 	obfuscateMessages,
 	obfuscateProviderContext,
 	obfuscateToolArguments,
-	type SecretEntry,
-	SecretObfuscator,
+} from "@linxiraos/zeta/secrets/message-transform";
+import { type SecretEntry, SecretObfuscator } from "@linxiraos/zeta/secrets/obfuscator";
+import {
 	sanitizeSecretFriendlyName,
 	secretEntriesNeedPlaceholderKey,
 	secretEntryNeedsPlaceholderKey,
 	stripPendingSecretPlaceholderSuffix,
-} from "@linxiraos/zeta/secrets/obfuscator";
+} from "@linxiraos/zeta/secrets/placeholder";
 import { compileSecretRegex } from "@linxiraos/zeta/secrets/regex";
 
 describe("compileSecretRegex", () => {
