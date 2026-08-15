@@ -2,9 +2,8 @@
 
 ## [Unreleased]
 
-## [1.0.1] - 2026-08-14
+## [1.0.2] - 2026-08-15
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 ## [17.3.1] - 2026-08-13
 
 ### Fixed
@@ -1213,6 +1212,10 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
+
+## [1.0.1] - 2026-08-14
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 
 ## [1.0.0] - 2026-08-13
 

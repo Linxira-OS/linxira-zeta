@@ -2,9 +2,8 @@
 
 ## [Unreleased]
 
-## [1.0.1] - 2026-08-14
+## [1.0.2] - 2026-08-15
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 ## [17.3.3] - 2026-08-14
 
 ### Fixed
@@ -1987,6 +1986,10 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added `getText()` method to Text component for retrieving current text content
+
+## [1.0.1] - 2026-08-14
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 
 ## [1.0.0] - 2026-08-13
 

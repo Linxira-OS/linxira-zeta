@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 
-## [1.0.1] - 2026-08-14
+## [1.0.2] - 2026-08-15
+
 ## [17.3.1] - 2026-08-13
 
 ### Fixed
@@ -69,3 +70,4 @@
 - Fixed a TypeScript compiler error (TS2589: "type instantiation is excessively deep") when using generic fluent composition methods on nested schemas.
 - Fixed type.raw() results (BaseType) to correctly expose fluent composition methods like .array(), .or(), and .pipe().
 - Fixed an issue in the TypeBox adapter where keyword-carrying schemas (e.g., uniqueItems arrays) would throw an error during JSON Schema emission.
+
