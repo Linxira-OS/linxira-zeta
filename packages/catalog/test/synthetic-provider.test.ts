@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { createModelManager } from "@zeta/pi-catalog/model-manager";
-import { syntheticModelManagerOptions } from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@zeta/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { createModelManager } from "@linxiraos/pi-catalog/model-manager";
+import { syntheticModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@linxiraos/pi-catalog/types";
 
 /**
  * Entries mirror live `https://api.synthetic.new/openai/v1/models` payloads:

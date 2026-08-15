@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { ApiKeyResolveContext } from "@zeta/pi-ai";
-import { registerCustomApi, unregisterCustomApis } from "@zeta/pi-ai";
-import { ProviderHttpError } from "@zeta/pi-ai/error";
-import { classify } from "@zeta/pi-ai/error/flags";
-import { streamSimple } from "@zeta/pi-ai/stream";
-import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions, Usage } from "@zeta/pi-ai/types";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+import type { ApiKeyResolveContext } from "@linxiraos/pi-ai";
+import { registerCustomApi, unregisterCustomApis } from "@linxiraos/pi-ai";
+import { ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { classify } from "@linxiraos/pi-ai/error/flags";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions, Usage } from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 
 const SOURCE_ID = "stream-auth-retry-test";
 const API = "stream-auth-retry-test" as Api;

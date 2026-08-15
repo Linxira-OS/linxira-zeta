@@ -3,8 +3,8 @@
  *
  * Discovers agent definitions from:
  *   - Bundled agents (shipped with omp-coding-agent)
- *   - ~/.omp/agent/agents/*.md (user-level)
- *   - .omp/agents/*.md (project-level)
+ *   - ~/.zeta/agent/agents/*.md (user-level)
+ *   - .zeta/agents/*.md (project-level)
  *
  * Supports:
  *   - Single agent spawn per call (parallelism = parallel task calls)
@@ -14,9 +14,9 @@
  *   - Session artifacts for debugging
  */
 import path from "node:path";
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import type { Usage } from "@zeta/pi-ai";
-import { $env, logger, prompt } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { Usage } from "@linxiraos/pi-ai";
+import { $env, logger, prompt } from "@linxiraos/pi-utils";
 import type { ToolSession } from "..";
 import type { Theme } from "../modes/theme/theme";
 import subagentUserPromptTemplate from "../prompts/system/subagent-user-prompt.md" with { type: "text" };

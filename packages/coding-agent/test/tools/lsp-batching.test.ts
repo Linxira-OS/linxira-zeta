@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { createLspWritethrough } from "@zeta/pi-coding-agent/lsp";
-import * as lspConfig from "@zeta/pi-coding-agent/lsp/config";
-import type { LinterClient, ServerConfig } from "@zeta/pi-coding-agent/lsp/types";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { createLspWritethrough } from "@linxiraos/zeta/lsp";
+import * as lspConfig from "@linxiraos/zeta/lsp/config";
+import type { LinterClient, ServerConfig } from "@linxiraos/zeta/lsp/types";
 
 function createFormatter(format: (filePath: string, content: string) => Promise<string>): ServerConfig {
 	return {

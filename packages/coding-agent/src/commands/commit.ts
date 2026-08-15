@@ -2,8 +2,8 @@
  * Generate and optionally push a commit with changelog updates.
  */
 
-import { postmortem } from "@zeta/pi-utils";
-import { Command, Flags } from "@zeta/pi-utils/cli";
+import { postmortem } from "@linxiraos/pi-utils";
+import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import { commitHelp as commandHelp } from "../cli/command-help";
 import { CommitAbortedError, runCommitCommand } from "../commit";
 import type { CommitCommandArgs } from "../commit/types";

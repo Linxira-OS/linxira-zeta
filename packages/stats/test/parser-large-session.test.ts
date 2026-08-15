@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { parseSessionFile } from "@zeta/omp-stats/parser";
-import { getSessionsDir } from "@zeta/pi-utils";
+import { parseSessionFile } from "@linxiraos/pi-stats/parser";
+import { getSessionsDir } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-large-session-");

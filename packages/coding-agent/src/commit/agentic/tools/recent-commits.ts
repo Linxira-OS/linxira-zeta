@@ -1,4 +1,4 @@
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 import type { CustomTool } from "../../../extensibility/custom-tools/types";
 import * as git from "../../../utils/git";
 

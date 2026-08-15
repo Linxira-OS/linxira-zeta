@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import { createSubagentSettings } from "@zeta/pi-coding-agent/task/executor";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { createSubagentSettings } from "@linxiraos/zeta/task/executor";
 
 describe("AgentStorage model perf aggregates", () => {
 	let tempDir: TempDir;

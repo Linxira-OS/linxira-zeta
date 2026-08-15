@@ -1,4 +1,4 @@
-import { countTokens as countTokensNat } from "@zeta/pi-natives";
+import { countTokens as countTokensNat } from "@linxiraos/pi-natives";
 
 const accurate = process.env.PI_TOKENIZER_ACCURATE === "1" && Bun.env.NODE_ENV !== "test";
 

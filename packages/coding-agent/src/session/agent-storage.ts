@@ -7,8 +7,8 @@ import {
 	isSqliteBusyError,
 	SqliteAuthCredentialStore,
 	type StoredAuthCredential,
-} from "@zeta/pi-ai";
-import { AsyncDrain, getAgentDbPath, getDbBusyTimeoutMs, getStatsDbPath, isRecord, logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { AsyncDrain, getAgentDbPath, getDbBusyTimeoutMs, getStatsDbPath, isRecord, logger } from "@linxiraos/pi-utils";
 import type { RawSettings as Settings } from "../config/settings";
 
 /** Row shape for settings table queries */
@@ -124,7 +124,7 @@ const instances = new Map<string, AgentStorage>();
 
 /**
  * Unified SQLite storage for agent settings, model usage, and auth credentials.
- * Delegates auth credential operations to AuthCredentialStore from @zeta/pi-ai.
+ * Delegates auth credential operations to AuthCredentialStore from @linxiraos/pi-ai.
  * Uses singleton pattern per database path; access via AgentStorage.open().
  */
 export class AgentStorage {
@@ -524,7 +524,7 @@ FROM model_usage_legacy
 
 	/**
 	 * One-time, non-blocking import of historical request timings from the
-	 * `omp stats` database (`~/.omp/stats.db`) into model_perf. Fire-and-forget:
+	 * `omp stats` database (`~/.zeta/stats.db`) into model_perf. Fire-and-forget:
 	 * the walk runs in bounded chunks with event-loop yields between them
 	 * (bun:sqlite is synchronous — an unbounded scan here froze the TUI for
 	 * ~30s on multi-million-row stats databases), and the persistent meta

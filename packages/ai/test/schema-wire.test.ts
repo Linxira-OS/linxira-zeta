@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { Tool } from "@zeta/pi-ai/types";
+import type { Tool } from "@linxiraos/pi-ai/types";
 import {
 	adaptSchemaForStrict,
 	normalizeEmptySchemas,
 	stripSchemaDescriptions,
 	stripToolDescriptions,
 	toolWireSchema,
-} from "@zeta/pi-ai/utils/schema";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-ai/utils/schema";
+import { type } from "@linxiraos/pi-omptype";
 
 // ---------------------------------------------------------------------------
 // normalizeEmptySchemas — provider-agnostic post-pipeline normalization

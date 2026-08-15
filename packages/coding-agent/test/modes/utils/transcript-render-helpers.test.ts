@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Usage } from "@zeta/pi-ai";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 import { assistantUsageIsBilled } from "../../../src/modes/utils/transcript-render-helpers";
 
 function usage(overrides: Partial<Usage> = {}): Usage {

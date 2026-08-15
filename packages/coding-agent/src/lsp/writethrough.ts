@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { isEnoent, logger, once, untilAborted } from "@zeta/pi-utils";
+import { isEnoent, logger, once, untilAborted } from "@linxiraos/pi-utils";
 import type { BunFile } from "bun";
 import { FileChangeType, notifyWorkspaceWatchedFiles } from "./client";
 import { getServersForFile } from "./config";

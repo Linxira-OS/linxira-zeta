@@ -4,8 +4,8 @@
  * Handles `omp ssh <command>` subcommands for SSH host configuration management.
  */
 
-import { getSSHConfigPath } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import { getSSHConfigPath } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { addSSHHost, readSSHConfigFile, removeSSHHost, type SSHHostConfig } from "../ssh/config-writer";
 
 // =============================================================================
@@ -149,7 +149,7 @@ async function handleList(cmd: SSHCommandArgs): Promise<void> {
 	}
 
 	if (hasProject) {
-		process.stdout.write(chalk.bold("Project SSH Hosts (.omp/ssh.json):\n"));
+		process.stdout.write(chalk.bold("Project SSH Hosts (.zeta/ssh.json):\n"));
 		printHosts(projectHosts);
 	}
 
@@ -158,7 +158,7 @@ async function handleList(cmd: SSHCommandArgs): Promise<void> {
 	}
 
 	if (hasUser) {
-		process.stdout.write(chalk.bold("User SSH Hosts (~/.omp/agent/ssh.json):\n"));
+		process.stdout.write(chalk.bold("User SSH Hosts (~/.zeta/agent/ssh.json):\n"));
 		printHosts(userHosts);
 	}
 }

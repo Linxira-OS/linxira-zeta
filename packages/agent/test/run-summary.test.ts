@@ -7,6 +7,19 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { agentLoop, agentLoopDetailed } from "@linxiraos/pi-agent-core/agent-loop";
+import {
+	type AgentRunSummary,
+	aggregateAgentRunCoverage,
+	aggregateAgentRunSummaries,
+	emptyAgentRunCoverage,
+	emptyAgentRunSummary,
+} from "@linxiraos/pi-agent-core/run-collector";
+import { EXECUTE_TOOL_STATUS_ATTR, GenAIAttr, PiGenAIAggregateAttr } from "@linxiraos/pi-agent-core/telemetry";
+import type { AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@linxiraos/pi-agent-core/types";
+import type { AssistantMessage, Message } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	AttributeValue,
 	Context as OtelContext,
@@ -16,19 +29,6 @@ import type {
 	TimeInput,
 	Tracer,
 } from "@opentelemetry/api";
-import { agentLoop, agentLoopDetailed } from "@zeta/pi-agent-core/agent-loop";
-import {
-	type AgentRunSummary,
-	aggregateAgentRunCoverage,
-	aggregateAgentRunSummaries,
-	emptyAgentRunCoverage,
-	emptyAgentRunSummary,
-} from "@zeta/pi-agent-core/run-collector";
-import { EXECUTE_TOOL_STATUS_ATTR, GenAIAttr, PiGenAIAggregateAttr } from "@zeta/pi-agent-core/telemetry";
-import type { AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@zeta/pi-agent-core/types";
-import type { AssistantMessage, Message } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { type } from "@zeta/pi-omptype";
 import { createUserMessage } from "./helpers";
 
 interface RecordedSpan {

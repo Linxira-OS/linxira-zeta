@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import type { Api, Model, OAuthAccess } from "@zeta/pi-ai";
-import { type DryBalanceModelRegistry, runDryBalanceCommand } from "@zeta/pi-coding-agent/cli/dry-balance-cli";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { Api, Model, OAuthAccess } from "@linxiraos/pi-ai";
+import { type DryBalanceModelRegistry, runDryBalanceCommand } from "@linxiraos/zeta/cli/dry-balance-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 function fakeModel(provider: string, id: string): Model<Api> {
 	return {

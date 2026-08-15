@@ -33,10 +33,10 @@
  * own native format and would reject the extra key.
  */
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import type { AssistantMessage, Context, FetchImpl, Model, ModelSpec } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import type { AssistantMessage, Context, FetchImpl, Model, ModelSpec } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 function abortedSignal(): AbortSignal {
 	const controller = new AbortController();

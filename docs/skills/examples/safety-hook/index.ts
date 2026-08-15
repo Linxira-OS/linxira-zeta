@@ -1,5 +1,5 @@
-// @ts-nocheck — example file; install @zeta/pi-coding-agent before running
-import type { ExtensionAPI } from "@zeta/pi-coding-agent";
+// @ts-nocheck — example file; install @linxiraos/zeta before running
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 /**
  * Safety hook: blocks any bash tool call that contains "rm -rf /".

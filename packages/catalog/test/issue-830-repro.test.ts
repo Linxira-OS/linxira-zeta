@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { getOAuthProviders } from "@zeta/pi-ai/registry/oauth";
-import { getEnvApiKey } from "@zeta/pi-ai/stream";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@zeta/pi-catalog/provider-models/descriptors";
-import { MODELS_DEV_PROVIDER_DESCRIPTORS } from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { OpenAICompat } from "@zeta/pi-catalog/types";
+import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
+import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
+import { MODELS_DEV_PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { OpenAICompat } from "@linxiraos/pi-catalog/types";
 
 describe("deepseek built-in provider (issue #830)", () => {
 	test("registers built-in runtime descriptor with DEEPSEEK_API_KEY env discovery", () => {

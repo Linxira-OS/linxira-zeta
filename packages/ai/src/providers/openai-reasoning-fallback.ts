@@ -1,4 +1,4 @@
-import { extractHttpStatusFromError } from "@zeta/pi-utils";
+import { extractHttpStatusFromError } from "@linxiraos/pi-utils";
 import type { CapturedHttpErrorResponse } from "../utils/http-inspector";
 
 /** @internal */

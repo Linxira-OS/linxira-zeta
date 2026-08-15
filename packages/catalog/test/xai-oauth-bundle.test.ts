@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import MODELS_JSON from "@zeta/pi-catalog/models.json" with { type: "json" };
-import { buildXaiOAuthStaticSeed } from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
+import MODELS_JSON from "@linxiraos/pi-catalog/models.json" with { type: "json" };
+import { buildXaiOAuthStaticSeed } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 // Pins the invariant: bundled `models.json` carries every entry the runtime
 // curated catalog (XAI_OAUTH_CURATED_MODELS, surfaced via

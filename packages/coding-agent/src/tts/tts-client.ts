@@ -1,4 +1,4 @@
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import {
 	createUnavailableWorker,
 	createWorkerHandle,

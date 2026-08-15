@@ -2,14 +2,14 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
 import {
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	mapModelsDevToModels,
 	umansModelManagerOptions,
-} from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@zeta/pi-catalog/types";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@linxiraos/pi-catalog/types";
 import modelsJson from "../src/models.json";
 
 const bundledModels = modelsJson;

@@ -11,7 +11,7 @@
  * - Legacy .windsurfrules file
  */
 
-import { tryParseJson } from "@zeta/pi-utils";
+import { tryParseJson } from "@linxiraos/pi-utils";
 import { registerProvider } from "../capability";
 import { readFile } from "../capability/fs";
 import { type MCPServer, mcpCapability } from "../capability/mcp";

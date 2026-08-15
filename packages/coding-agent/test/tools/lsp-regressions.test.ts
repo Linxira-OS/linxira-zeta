@@ -2,16 +2,18 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult, RenderResultOptions } from "@zeta/pi-agent-core";
-import { arkToWireSchema } from "@zeta/pi-ai/utils/schema";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { preloadPluginRoots } from "@zeta/pi-coding-agent/discovery/helpers";
-import { LspTool } from "@zeta/pi-coding-agent/lsp";
-import * as lspClient from "@zeta/pi-coding-agent/lsp/client";
-import * as lspConfig from "@zeta/pi-coding-agent/lsp/config";
-import { getServersForFile, type LspConfig, loadConfig } from "@zeta/pi-coding-agent/lsp/config";
-import { applyTextEditsToString, applyWorkspaceEdit, sortAndValidateTextEdits } from "@zeta/pi-coding-agent/lsp/edits";
-import { renderCall, renderResult } from "@zeta/pi-coding-agent/lsp/render";
+import type { AgentToolResult, RenderResultOptions } from "@linxiraos/pi-agent-core";
+import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import * as piUtils from "@linxiraos/pi-utils";
+import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { preloadPluginRoots } from "@linxiraos/zeta/discovery/helpers";
+import { LspTool } from "@linxiraos/zeta/lsp";
+import * as lspClient from "@linxiraos/zeta/lsp/client";
+import * as lspConfig from "@linxiraos/zeta/lsp/config";
+import { getServersForFile, type LspConfig, loadConfig } from "@linxiraos/zeta/lsp/config";
+import { applyTextEditsToString, applyWorkspaceEdit, sortAndValidateTextEdits } from "@linxiraos/zeta/lsp/edits";
+import { renderCall, renderResult } from "@linxiraos/zeta/lsp/render";
 import {
 	type CodeAction,
 	type CreateFile,
@@ -25,7 +27,7 @@ import {
 	type SymbolInformation,
 	type TextDocumentEdit,
 	type WorkspaceEdit,
-} from "@zeta/pi-coding-agent/lsp/types";
+} from "@linxiraos/zeta/lsp/types";
 import {
 	applyCodeAction,
 	collectGlobMatches,
@@ -37,13 +39,11 @@ import {
 	resolveDiagnosticTargets,
 	resolveSymbolColumn,
 	uriToFile,
-} from "@zeta/pi-coding-agent/lsp/utils";
-import { getThemeByName } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { ToolAbortError } from "@zeta/pi-coding-agent/tools/tool-errors";
-import { clampTimeout } from "@zeta/pi-coding-agent/tools/tool-timeouts";
-import * as piUtils from "@zeta/pi-utils";
-import { sanitizeText, TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/lsp/utils";
+import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { clampTimeout } from "@linxiraos/zeta/tools/tool-timeouts";
 import type { Subprocess } from "bun";
 import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
 import { renderResult as renderLocalResult } from "../../src/lsp/render";
@@ -2790,9 +2790,9 @@ describe("lsp regressions", () => {
 		expect(output).toContain("typescript-language-server (ready)");
 	});
 
-	it("reload * invalidates the per-cwd config cache so newly written .omp/lsp.json is observed", async () => {
+	it("reload * invalidates the per-cwd config cache so newly written .zeta/lsp.json is observed", async () => {
 		// #3546: `getConfig` caches the first `loadConfig` result per cwd
-		// permanently. Creating `.omp/lsp.json` after the first LSP call left
+		// permanently. Creating `.zeta/lsp.json` after the first LSP call left
 		// the tool stuck on "No language servers configured" until the process
 		// restarted. `reload *` (the user's explicit refresh) must invalidate
 		// that cache so subsequent calls observe the fresh config from disk.

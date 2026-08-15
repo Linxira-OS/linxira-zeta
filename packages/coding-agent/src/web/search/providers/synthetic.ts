@@ -5,7 +5,7 @@
  * Endpoint: POST https://api.synthetic.new/v2/search
  */
 
-import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@zeta/pi-ai";
+import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
 import type { SearchResponse, SearchSource } from "../../../web/search/types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";

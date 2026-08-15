@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeProxiedResponse } from "@zeta/pi-coding-agent/server/zeta-server";
+import { normalizeProxiedResponse } from "@linxiraos/zeta/server/zeta-server";
 
 describe("ZetaServer proxy responses", () => {
 	it("removes stale compression metadata from Bun-decoded upstream bodies", async () => {

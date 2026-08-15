@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	__resolveTypeBoxShimPath,
 	__validateLegacyPiPackageRootOverrides,
-} from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 
 // Regression for issue #2168: in compiled-binary mode the package-root
 // override branch of `resolveCanonicalPiSpecifier` returned a bunfs path
@@ -22,8 +22,8 @@ import {
 describe("legacy pi compat package-root override validation (issue #2168)", () => {
 	it("keeps overrides whose filesystem targets exist", () => {
 		const candidates = {
-			"@zeta/pi-ai": "/tmp/exists-ai.js",
-			"@zeta/pi-utils": "/tmp/exists-utils.js",
+			"@linxiraos/pi-ai": "/tmp/exists-ai.js",
+			"@linxiraos/pi-utils": "/tmp/exists-utils.js",
 		};
 		const result = __validateLegacyPiPackageRootOverrides(candidates, () => true);
 		expect(result).toEqual(candidates);
@@ -31,29 +31,29 @@ describe("legacy pi compat package-root override validation (issue #2168)", () =
 
 	it("drops overrides whose filesystem targets are missing on disk", () => {
 		const candidates = {
-			"@zeta/pi-ai": "/tmp/exists-ai.js",
-			"@zeta/pi-coding-agent": "/tmp/exists-shim.js",
-			"@zeta/pi-utils": "/$bunfs/root/packages/utils/src/index.js",
-			"@zeta/pi-tui": "/$bunfs/root/packages/tui/src/index.js",
+			"@linxiraos/pi-ai": "/tmp/exists-ai.js",
+			"@linxiraos/zeta": "/tmp/exists-shim.js",
+			"@linxiraos/pi-utils": "/$bunfs/root/packages/utils/src/index.js",
+			"@linxiraos/pi-tui": "/$bunfs/root/packages/tui/src/index.js",
 		};
 		const missing = new Set(["/$bunfs/root/packages/utils/src/index.js", "/$bunfs/root/packages/tui/src/index.js"]);
 		const result = __validateLegacyPiPackageRootOverrides(candidates, p => !missing.has(p));
 		expect(result).toEqual({
-			"@zeta/pi-ai": "/tmp/exists-ai.js",
-			"@zeta/pi-coding-agent": "/tmp/exists-shim.js",
+			"@linxiraos/pi-ai": "/tmp/exists-ai.js",
+			"@linxiraos/zeta": "/tmp/exists-shim.js",
 		});
 		// `pi-utils` and `pi-tui` are absent so the resolver falls through to
 		// `getResolvedSpecifier` (which throws under bunfs), which triggers
 		// the catch in `rewriteLegacyPiImports` that leaves the specifier
 		// unchanged for native `node_modules` resolution.
-		expect(result).not.toHaveProperty("@zeta/pi-utils");
-		expect(result).not.toHaveProperty("@zeta/pi-tui");
+		expect(result).not.toHaveProperty("@linxiraos/pi-utils");
+		expect(result).not.toHaveProperty("@linxiraos/pi-tui");
 	});
 
 	it("drops every override when none of the filesystem targets exist", () => {
 		const candidates = {
-			"@zeta/pi-utils": "/$bunfs/root/packages/utils/src/index.js",
-			"@zeta/pi-tui": "/$bunfs/root/packages/tui/src/index.js",
+			"@linxiraos/pi-utils": "/$bunfs/root/packages/utils/src/index.js",
+			"@linxiraos/pi-tui": "/$bunfs/root/packages/tui/src/index.js",
 		};
 		const result = __validateLegacyPiPackageRootOverrides(candidates, () => false);
 		expect(result).toEqual({});
@@ -66,12 +66,12 @@ describe("legacy pi compat package-root override validation (issue #2168)", () =
 		// validator MUST short-circuit before any filesystem probe.
 		let probed = false;
 		const candidates = {
-			"@zeta/pi-ai": "omp-legacy-pi-bundled:@zeta/pi-ai",
-			"@zeta/pi-coding-agent": "omp-legacy-pi-bundled:@zeta/pi-coding-agent",
-			"@zeta/pi-agent-core": "omp-legacy-pi-bundled:@zeta/pi-agent-core",
-			"@zeta/pi-natives": "omp-legacy-pi-bundled:@zeta/pi-natives",
-			"@zeta/pi-tui": "omp-legacy-pi-bundled:@zeta/pi-tui",
-			"@zeta/pi-utils": "omp-legacy-pi-bundled:@zeta/pi-utils",
+			"@linxiraos/pi-ai": "omp-legacy-pi-bundled:@linxiraos/pi-ai",
+			"@linxiraos/zeta": "omp-legacy-pi-bundled:@linxiraos/zeta",
+			"@linxiraos/pi-agent-core": "omp-legacy-pi-bundled:@linxiraos/pi-agent-core",
+			"@linxiraos/pi-natives": "omp-legacy-pi-bundled:@linxiraos/pi-natives",
+			"@linxiraos/pi-tui": "omp-legacy-pi-bundled:@linxiraos/pi-tui",
+			"@linxiraos/pi-utils": "omp-legacy-pi-bundled:@linxiraos/pi-utils",
 		};
 		const result = __validateLegacyPiPackageRootOverrides(candidates, () => {
 			probed = true;
@@ -83,15 +83,15 @@ describe("legacy pi compat package-root override validation (issue #2168)", () =
 
 	it("mixes virtual and filesystem entries: virtuals always pass, filesystems gated", () => {
 		const candidates = {
-			"@zeta/pi-ai": "omp-legacy-pi-bundled:@zeta/pi-ai",
-			"@zeta/pi-coding-agent": "/dev/source/legacy-pi-coding-agent-shim.ts",
-			"@zeta/pi-tui": "/missing/path.ts",
+			"@linxiraos/pi-ai": "omp-legacy-pi-bundled:@linxiraos/pi-ai",
+			"@linxiraos/zeta": "/dev/source/legacy-pi-coding-agent-shim.ts",
+			"@linxiraos/pi-tui": "/missing/path.ts",
 		};
 		const missing = new Set(["/missing/path.ts"]);
 		const result = __validateLegacyPiPackageRootOverrides(candidates, p => !missing.has(p));
 		expect(result).toEqual({
-			"@zeta/pi-ai": "omp-legacy-pi-bundled:@zeta/pi-ai",
-			"@zeta/pi-coding-agent": "/dev/source/legacy-pi-coding-agent-shim.ts",
+			"@linxiraos/pi-ai": "omp-legacy-pi-bundled:@linxiraos/pi-ai",
+			"@linxiraos/zeta": "/dev/source/legacy-pi-coding-agent-shim.ts",
 		});
 	});
 });

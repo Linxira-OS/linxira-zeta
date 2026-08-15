@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamGoogle } from "@zeta/pi-ai/providers/google";
-import { streamGoogleVertex } from "@zeta/pi-ai/providers/google-vertex";
-import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { streamGoogle } from "@linxiraos/pi-ai/providers/google";
+import { streamGoogleVertex } from "@linxiraos/pi-ai/providers/google-vertex";
+import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const context: Context = { messages: [{ role: "user", content: "hi", timestamp: 1 }] };
 

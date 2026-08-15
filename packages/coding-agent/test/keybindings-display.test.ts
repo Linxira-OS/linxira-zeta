@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { getDefaultPasteImageKeys, KeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import { keyText } from "@zeta/pi-coding-agent/extensibility/legacy-pi-coding-agent-shim";
-import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@zeta/pi-tui";
+import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@linxiraos/pi-tui";
+import { getDefaultPasteImageKeys, KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { keyText } from "@linxiraos/zeta/extensibility/legacy-pi-coding-agent-shim";
 
 describe("KeybindingsManager.getDisplayString", () => {
 	it("formats a single binding as a human-readable key hint", () => {

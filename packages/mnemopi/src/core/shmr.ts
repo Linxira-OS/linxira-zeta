@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
-import { cosineSimilarityPairs } from "@zeta/pi-natives";
-import { logger } from "@zeta/pi-utils";
+import { cosineSimilarityPairs } from "@linxiraos/pi-natives";
+import { logger } from "@linxiraos/pi-utils";
 import * as embeddings from "./embeddings";
 import { cosineSimilarity } from "./vector-math";
 

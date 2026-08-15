@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@zeta/pi-agent-core";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { getMnemopiSessionState } from "@zeta/pi-coding-agent/mnemopi/state";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { resetMemoryForTests } from "@zeta/pi-mnemopi";
-import { type } from "@zeta/pi-omptype";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { resetMemoryForTests } from "@linxiraos/pi-mnemopi";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { getMnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 function createTool(name: string): AgentTool {
 	return {

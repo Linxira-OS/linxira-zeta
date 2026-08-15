@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { stream } from "@zeta/pi-ai/stream";
-import type { Context, Model } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { stream } from "@linxiraos/pi-ai/stream";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { e2eApiKey } from "./oauth";
 
 function makeContext(): Context {

@@ -3,13 +3,13 @@ import {
 	disposeAllKernelSessions,
 	disposeKernelSessionsByOwner,
 	executePython,
-} from "@zeta/pi-coding-agent/eval/py/executor";
+} from "@linxiraos/zeta/eval/py/executor";
 import {
 	type KernelExecuteOptions,
 	type KernelExecuteResult,
 	type KernelShutdownResult,
 	PythonKernel,
-} from "@zeta/pi-coding-agent/eval/py/kernel";
+} from "@linxiraos/zeta/eval/py/kernel";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 

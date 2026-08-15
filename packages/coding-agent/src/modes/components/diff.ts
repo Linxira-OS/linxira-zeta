@@ -1,5 +1,5 @@
-import { diffWords } from "@zeta/pi-natives";
-import { DEFAULT_TAB_WIDTH, sanitizeText } from "@zeta/pi-utils";
+import { diffWords } from "@linxiraos/pi-natives";
+import { DEFAULT_TAB_WIDTH, sanitizeText } from "@linxiraos/pi-utils";
 import { getLanguageFromPath, highlightCode, theme } from "../../modes/theme/theme";
 import { type CodeFrameMarker, formatCodeFrameLine, replaceTabs } from "../../tools/render-utils";
 

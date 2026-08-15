@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { adaptSchemaForStrict, toolWireSchema } from "@zeta/pi-ai/utils/schema";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { ToolChoiceQueue } from "@zeta/pi-coding-agent/session/tool-choice-queue";
-import { createTools, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { adaptSchemaForStrict, toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";
+import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
 
 type InvokedToolResult = {
 	content: Array<{ type: string; text?: string }>;

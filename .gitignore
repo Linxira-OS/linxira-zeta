@@ -16,6 +16,10 @@ target/
 # Environment
 .env
 
+# WSL-local toolchain (bun/bazel/rustup homes) for building natives without
+# VS Build Tools; never committed
+.wsl-env/
+
 # Editors
 .vscode/
 .zed/

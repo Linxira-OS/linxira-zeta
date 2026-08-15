@@ -1,4 +1,4 @@
-import { toNumber } from "@zeta/pi-catalog/utils";
+import { toNumber } from "@linxiraos/pi-catalog/utils";
 import type { UsageStatus } from "../usage";
 
 /** Milliseconds in one hour. */

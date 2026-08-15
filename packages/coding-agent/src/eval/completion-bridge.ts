@@ -11,10 +11,10 @@
  * The call is oneshot and toolless from the model's perspective — pure text
  * in, text (or, with `schema`, a structured object) out.
  */
-import { instrumentedCompleteSimple, resolveTelemetry } from "@zeta/pi-agent-core";
-import { type Api, Effort, type Model, type Tool } from "@zeta/pi-ai";
-import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
-import { type } from "@zeta/pi-omptype";
+import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
+import { type Api, Effort, type Model, type Tool } from "@linxiraos/pi-ai";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { type } from "@linxiraos/pi-omptype";
 import { extractTextContent, extractToolCall, parseJsonPayload } from "../commit/utils";
 
 import {

@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	type CompactionPreparation,
 	compact,
 	createFileOps,
 	DEFAULT_COMPACTION_SETTINGS,
 	generateHandoff,
-} from "@zeta/pi-agent-core/compaction";
-import { ThinkingLevel } from "@zeta/pi-agent-core/thinking";
-import type { AssistantMessage, Model } from "@zeta/pi-ai";
-import * as ai from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+} from "@linxiraos/pi-agent-core/compaction";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 // Pins fix #1 of the compaction effort-override bug. Before this fix,
 // `generateHandoff` (and the three other compaction summarizers) hardcoded

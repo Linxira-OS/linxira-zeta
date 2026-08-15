@@ -1,8 +1,15 @@
-import type { AuthStorage } from "@zeta/pi-ai";
-import { PASTE_CODE_LOGIN_PROVIDERS } from "@zeta/pi-ai";
-import type { OAuthProvider } from "@zeta/pi-ai/oauth/types";
-import { type Component, type Focusable, Input, matchesKey, type SgrMouseEvent, wrapTextWithAnsi } from "@zeta/pi-tui";
-import { getAgentDbPath } from "@zeta/pi-utils";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import { PASTE_CODE_LOGIN_PROVIDERS } from "@linxiraos/pi-ai";
+import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
+import {
+	type Component,
+	type Focusable,
+	Input,
+	matchesKey,
+	type SgrMouseEvent,
+	wrapTextWithAnsi,
+} from "@linxiraos/pi-tui";
+import { getAgentDbPath } from "@linxiraos/pi-utils";
 import { M } from "../../../i18n";
 import { copyToClipboard } from "../../../utils/clipboard";
 import { OAuthSelectorComponent } from "../../components/oauth-selector";

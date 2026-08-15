@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import type { Model } from "@zeta/pi-ai";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { buildSystemPrompt } from "@zeta/pi-coding-agent/system-prompt";
-import { usesCodexTaskPrompt } from "@zeta/pi-coding-agent/task/prompt-policy";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { buildSystemPrompt } from "@linxiraos/zeta/system-prompt";
+import { usesCodexTaskPrompt } from "@linxiraos/zeta/task/prompt-policy";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 const EMPTY_TREE = {

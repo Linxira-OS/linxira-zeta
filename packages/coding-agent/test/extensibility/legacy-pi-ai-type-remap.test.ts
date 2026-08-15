@@ -9,16 +9,16 @@ import {
 	getBundledModels,
 	getBundledProviders,
 	modelsAreEqual,
-} from "@zeta/pi-catalog/models";
-import { Type as TypeBoxShimType } from "@zeta/pi-coding-agent/extensibility/legacy-typebox";
+} from "@linxiraos/pi-catalog/models";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Type as TypeBoxShimType } from "@linxiraos/zeta/extensibility/legacy-typebox";
 import {
 	__resetLegacyPiResolutionCache,
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
-} from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 
-// pi-ai 15.1.0 removed the runtime `Type` export from `@zeta/pi-ai`'s
+// pi-ai 15.1.0 removed the runtime `Type` export from `@linxiraos/pi-ai`'s
 // package root. Legacy extensions (and their aliased-scope variants such as
 // `@earendil-works/pi-ai`) still author parameter schemas as
 // `import { Type } from "@earendil-works/pi-ai"` and then `Type.Object(...)`.
@@ -88,22 +88,22 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		expect(loaded.completeType).toBe("function");
 	});
 
-	it('redirects `import { Type } from "@zeta/pi-ai"` for plugins published against the canonical scope', async () => {
+	it('redirects `import { Type } from "@linxiraos/pi-ai"` for plugins published against the canonical scope', async () => {
 		const entry = await writeFixtureExtension(
-			['import { Type } from "@zeta/pi-ai";', "export const probe = Type;"].join("\n"),
+			['import { Type } from "@linxiraos/pi-ai";', "export const probe = Type;"].join("\n"),
 		);
 
 		const loaded = (await loadLegacyPiModule(entry)) as { probe: typeof TypeBoxShimType };
 		expect(loaded.probe).toBe(TypeBoxShimType);
 	});
 
-	it("does not redirect subpath imports such as @zeta/pi-ai/utils/schema", async () => {
+	it("does not redirect subpath imports such as @linxiraos/pi-ai/utils/schema", async () => {
 		const entry = await writeFixtureExtension(
 			[
 				// `arkToWireSchema` is only exported from the subpath, not the root,
 				// so a successful import proves the subpath still resolves directly
 				// against the bundled pi-ai package rather than the shim.
-				'import { arkToWireSchema } from "@zeta/pi-ai/utils/schema";',
+				'import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";',
 				"export const fn = arkToWireSchema;",
 			].join("\n"),
 		);
@@ -114,7 +114,9 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 
 	it("exports getModel as getBundledModel", async () => {
 		const loaded = (await loadLegacyPiModule(
-			await writeFixtureExtension('import { getModel } from "@zeta/pi-ai"; export const testGetModel = getModel;'),
+			await writeFixtureExtension(
+				'import { getModel } from "@linxiraos/pi-ai"; export const testGetModel = getModel;',
+			),
 		)) as { testGetModel: unknown };
 		expect(loaded.testGetModel).toBe(getBundledModel);
 	});
@@ -122,32 +124,32 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 	it("exports getModels as getBundledModels", async () => {
 		const loaded = (await loadLegacyPiModule(
 			await writeFixtureExtension(
-				'import { getModels } from "@zeta/pi-ai"; export const testGetModels = getModels;',
+				'import { getModels } from "@linxiraos/pi-ai"; export const testGetModels = getModels;',
 			),
 		)) as { testGetModels: unknown };
 		expect(loaded.testGetModels).toBe(getBundledModels);
 	});
 
-	it("re-exports calculateCost from @zeta/pi-catalog/models (issue #4584)", async () => {
-		// `calculateCost` was moved from the `@zeta/pi-ai` barrel to
-		// `@zeta/pi-catalog/models` in the catalog split. Legacy extensions
+	it("re-exports calculateCost from @linxiraos/pi-catalog/models (issue #4584)", async () => {
+		// `calculateCost` was moved from the `@linxiraos/pi-ai` barrel to
+		// `@linxiraos/pi-catalog/models` in the catalog split. Legacy extensions
 		// still import it from the pi-ai root, so the shim must bridge it back
 		// to the catalog implementation. The historical regression was a plain
 		// `SyntaxError: Export named 'calculateCost' not found in module
 		// '.../legacy-pi-ai-shim.ts'` at extension-validation time.
 		const loaded = (await loadLegacyPiModule(
 			await writeFixtureExtension(
-				'import { calculateCost } from "@zeta/pi-ai"; export const probe = calculateCost;',
+				'import { calculateCost } from "@linxiraos/pi-ai"; export const probe = calculateCost;',
 			),
 		)) as { probe: unknown };
 		expect(loaded.probe).toBe(calculateCost);
 	});
 
-	it("re-exports modelsAreEqual and getBundledProviders from @zeta/pi-catalog/models", async () => {
+	it("re-exports modelsAreEqual and getBundledProviders from @linxiraos/pi-catalog/models", async () => {
 		const loaded = (await loadLegacyPiModule(
 			await writeFixtureExtension(
 				[
-					'import { modelsAreEqual, getBundledProviders } from "@zeta/pi-ai";',
+					'import { modelsAreEqual, getBundledProviders } from "@linxiraos/pi-ai";',
 					"export const eq = modelsAreEqual;",
 					"export const providers = getBundledProviders;",
 				].join("\n"),
@@ -157,11 +159,11 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		expect(loaded.providers).toBe(getBundledProviders);
 	});
 
-	it("re-exports getBundledModel and getBundledModels from @zeta/pi-catalog/models", async () => {
+	it("re-exports getBundledModel and getBundledModels from @linxiraos/pi-catalog/models", async () => {
 		const loaded = (await loadLegacyPiModule(
 			await writeFixtureExtension(
 				[
-					'import { getBundledModel, getBundledModels } from "@zeta/pi-ai";',
+					'import { getBundledModel, getBundledModels } from "@linxiraos/pi-ai";',
 					"export const model = getBundledModel;",
 					"export const models = getBundledModels;",
 				].join("\n"),
@@ -189,7 +191,7 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		const loaded = (await loadLegacyPiModule(
 			await writeFixtureExtension(
 				[
-					'import { StringEnum } from "@zeta/pi-ai";',
+					'import { StringEnum } from "@linxiraos/pi-ai";',
 					'export const schema = StringEnum(["red", "green"] as const, { description: "primary colors" });',
 				].join("\n"),
 			),
@@ -228,7 +230,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("loads @earendil-works/pi-coding-agent root imports when host package resolution is unavailable", async () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@zeta/pi-coding-agent" && from.endsWith(path.join("src", "extensibility", "plugins"))) {
+			if (specifier === "@linxiraos/zeta" && from.endsWith(path.join("src", "extensibility", "plugins"))) {
 				throw new Error("compiled binary host package resolution unavailable");
 			}
 			return realResolveSync(specifier, from);
@@ -356,7 +358,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("falls back to legacy-scoped subpath peers for direct plugin imports", async () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@zeta/pi-ai/oauth") {
+			if (specifier === "@linxiraos/pi-ai/oauth") {
 				throw new Error(`canonical peer unavailable from ${from}`);
 			}
 			return realResolveSync(specifier, from);
@@ -388,7 +390,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("routes @earendil-works/pi-utils through canonical Bun.resolveSync in non-compiled mode", async () => {
 		// Regression: when omp runs from a node_modules install (not the monorepo
 		// and not a compiled binary), the bundled packages live at
-		// `node_modules/@zeta/pi-*`, not next to the source tree. Hardcoding
+		// `node_modules/@linxiraos/pi-*`, not next to the source tree. Hardcoding
 		// a sibling `packages/<pkg>/src/index.ts` path would miss them, so the
 		// non-compiled branch must delegate to `Bun.resolveSync` against the
 		// canonical specifier.
@@ -399,7 +401,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		let canonicalLookupSeen = false;
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@zeta/pi-utils") {
+			if (specifier === "@linxiraos/pi-utils") {
 				canonicalLookupSeen = true;
 			}
 			return realResolveSync(specifier, from);

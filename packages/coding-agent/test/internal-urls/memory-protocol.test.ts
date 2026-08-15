@@ -2,21 +2,21 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@zeta/pi-coding-agent/internal-urls";
-import { getMemoryRoot } from "@zeta/pi-coding-agent/memories";
+import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { getMemoryRoot } from "@linxiraos/zeta/memories";
 import {
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@zeta/pi-coding-agent/mnemopi/state";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { GlobTool } from "@zeta/pi-coding-agent/tools/glob";
-import { ReadTool } from "@zeta/pi-coding-agent/tools/read";
-import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/mnemopi/state";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { GlobTool } from "@linxiraos/zeta/tools/glob";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 // Mnemopi state is loaded lazily; preload so `new MnemopiSessionState(...)` can
 // resolve the module synchronously in the fixtures below.

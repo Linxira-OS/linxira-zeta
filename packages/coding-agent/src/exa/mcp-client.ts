@@ -1,5 +1,5 @@
-import type { TSchema } from "@zeta/pi-ai";
-import { $env, logger } from "@zeta/pi-utils";
+import type { TSchema } from "@linxiraos/pi-ai";
+import { $env, logger } from "@linxiraos/pi-utils";
 import type { CustomTool, CustomToolResult } from "../extensibility/custom-tools/types";
 import { type CallMcpOptions, callMCP } from "../mcp/json-rpc";
 import type { ExaSearchResponse, MCPCallResponse, MCPTool, MCPToolsResponse, MCPToolWrapperConfig } from "./types";

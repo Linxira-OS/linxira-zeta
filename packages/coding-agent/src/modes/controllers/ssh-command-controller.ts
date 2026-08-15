@@ -3,7 +3,7 @@
  *
  * Handles /ssh subcommands for managing SSH host configurations.
  */
-import { getProjectDir, getSSHConfigPath } from "@zeta/pi-utils";
+import { getProjectDir, getSSHConfigPath } from "@linxiraos/pi-utils";
 import { reset as resetCapabilities } from "../../capability";
 import { type SSHHost, sshCapability } from "../../capability/ssh";
 import { loadCapability } from "../../discovery";

@@ -4,7 +4,7 @@ import {
 	type RenderedHunk,
 	renderHunks,
 	solveRenderedHunks,
-} from "@zeta/typescript-edit-benchmark/hunks";
+} from "@linxiraos/typescript-edit-benchmark/hunks";
 
 /** Round-trip an input/expected pair through the prompt machinery. */
 function roundTrip(input: string, expected: string): { hunks: RenderedHunk[]; solved: string } {

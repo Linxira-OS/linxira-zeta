@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { getProjectDir, logger } from "@zeta/pi-utils";
+import { getProjectDir, logger } from "@linxiraos/pi-utils";
 import type { ToolSession } from "../../tools";
 import {
 	buildManagedKernelEnv,

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import * as terminalCapabilities from "@zeta/pi-tui/terminal-capabilities";
-import { VERSION } from "@zeta/pi-utils/dirs";
+import * as terminalCapabilities from "@linxiraos/pi-tui/terminal-capabilities";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import type {
 	AgentEndEvent,
 	AgentStartEvent,

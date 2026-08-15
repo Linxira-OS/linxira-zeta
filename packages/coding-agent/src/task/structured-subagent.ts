@@ -7,7 +7,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import { $env, prompt, Snowflake } from "@zeta/pi-utils";
+import { $env, prompt, Snowflake } from "@linxiraos/pi-utils";
 import { resolveAgentModelPatterns, resolveAgentModelSource, resolveExplicitModelRole } from "../config/model-resolver";
 import type { LocalProtocolOptions } from "../internal-urls";
 import { registerArtifactsDir } from "../internal-urls/registry-helpers";

@@ -9,9 +9,9 @@
  *      the mapping Fireworks 400s the request.
  */
 
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 const apiKey = process.env.FIREPASS_API_KEY;
 if (!apiKey) {

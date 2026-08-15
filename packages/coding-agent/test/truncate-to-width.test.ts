@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { truncateToWidth, visibleWidth } from "@zeta/pi-tui";
+import { truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
 
 /**
  * Tests for truncateToWidth behavior with Unicode characters.

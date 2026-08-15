@@ -1,4 +1,4 @@
-import { parseJsonWithRepair } from "@zeta/pi-utils";
+import { parseJsonWithRepair } from "@linxiraos/pi-utils";
 import type { Message, ToolCall } from "../types";
 import { asRecord, normalizeKimiFunctionName, partialSuffixOverlapAny } from "./coercion";
 import dialectPrompt from "./kimi.md" with { type: "text" };

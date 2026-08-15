@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import type { Component } from "@zeta/pi-tui";
-import { Text } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { getLanguageFromPath, type Theme } from "../modes/theme/theme";
 import { fileHyperlink, renderCodeCell, renderMarkdownCell, renderStatusLine, tryResolveInternalUrlSync } from "../tui";

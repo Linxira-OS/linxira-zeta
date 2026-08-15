@@ -17,11 +17,11 @@ import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type StoredAuthCredential,
-} from "@zeta/pi-ai/auth-storage";
-import type { UsageLimit, UsageReport } from "@zeta/pi-ai/usage";
-import { alibabaTokenPlanUsageProvider } from "@zeta/pi-ai/usage/alibaba-token-plan";
-import * as claudeUsage from "@zeta/pi-ai/usage/claude";
-import { serializeAlibabaTokenPlanCredential } from "@zeta/pi-catalog/wire/alibaba-token-plan";
+} from "@linxiraos/pi-ai/auth-storage";
+import type { UsageLimit, UsageReport } from "@linxiraos/pi-ai/usage";
+import { alibabaTokenPlanUsageProvider } from "@linxiraos/pi-ai/usage/alibaba-token-plan";
+import * as claudeUsage from "@linxiraos/pi-ai/usage/claude";
+import { serializeAlibabaTokenPlanCredential } from "@linxiraos/pi-catalog/wire/alibaba-token-plan";
 
 function anthropicReports(reports: UsageReport[] | null): UsageReport[] {
 	return (reports ?? []).filter(r => r.provider === "anthropic");

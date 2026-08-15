@@ -19,9 +19,9 @@ import type {
 	ToolResultMessage,
 	ToolResultProviderMetadata,
 	TSchema,
-} from "@zeta/pi-ai";
-import type { Dialect } from "@zeta/pi-ai/dialect";
-import type { HarmonyAuditEvent } from "@zeta/pi-ai/utils/harmony-leak";
+} from "@linxiraos/pi-ai";
+import type { Dialect } from "@linxiraos/pi-ai/dialect";
+import type { HarmonyAuditEvent } from "@linxiraos/pi-ai/utils/harmony-leak";
 import type { AppendOnlyContextManager } from "./append-only-context";
 import type { AgentRunCoverage, AgentRunSummary } from "./run-collector";
 import type { AgentTelemetryConfig } from "./telemetry";
@@ -640,7 +640,7 @@ export interface AfterToolCallContext {
  *
  * @example
  * ```typescript
- * declare module "@zeta/agent" {
+ * declare module "@linxiraos/pi-agent-core" {
  *   interface CustomAgentMessages {
  *     artifact: ArtifactMessage;
  *     notification: NotificationMessage;

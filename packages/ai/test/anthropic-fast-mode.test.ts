@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { isFastModeUnsupported } from "@zeta/pi-ai/error";
+import { isFastModeUnsupported } from "@linxiraos/pi-ai/error";
 import {
 	clearAnthropicFastModeFallback,
 	isAnthropicFastModeFallbackDisabled,
 	streamAnthropic,
-} from "@zeta/pi-ai/providers/anthropic";
-import type { Context, Model, ProviderSessionState, ServiceTier } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+} from "@linxiraos/pi-ai/providers/anthropic";
+import type { Context, Model, ProviderSessionState, ServiceTier } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 function makeAnthropicModel(id: string): Model<"anthropic-messages"> {
 	return buildModel({

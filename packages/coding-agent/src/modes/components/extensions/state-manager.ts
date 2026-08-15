@@ -3,8 +3,8 @@
  * Handles data loading, tree building, filtering, and toggle persistence.
  */
 import * as path from "node:path";
-import { fuzzyMatch } from "@zeta/pi-tui";
-import { getMCPConfigPath, logger } from "@zeta/pi-utils";
+import { fuzzyMatch } from "@linxiraos/pi-tui";
+import { getMCPConfigPath, logger } from "@linxiraos/pi-utils";
 import type { ContextFile } from "../../../capability/context-file";
 import type { ExtensionModule } from "../../../capability/extension-module";
 import type { Hook } from "../../../capability/hook";

@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import {
 	resolveCliModel,
 	resolveModelFromSettings,
 	resolveModelRoleValue,
-} from "@zeta/pi-coding-agent/config/model-resolver";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+} from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 function model(provider: string, id: string): Model<"anthropic-messages"> {
 	return buildModel({

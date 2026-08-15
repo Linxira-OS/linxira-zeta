@@ -14,14 +14,14 @@
  *    background ("running") finalizes and untracks it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { TranscriptContainer } from "@zeta/pi-coding-agent/modes/components/transcript-container";
-import { EventController } from "@zeta/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { TaskToolDetails } from "@zeta/pi-coding-agent/task/types";
-import type { BashToolDetails } from "@zeta/pi-coding-agent/tools/bash";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { TaskToolDetails } from "@linxiraos/zeta/task/types";
+import type { BashToolDetails } from "@linxiraos/zeta/tools/bash";
 
 function taskResult(asyncState: "running" | "completed" | "failed" | undefined, text: string) {
 	const details: TaskToolDetails = {

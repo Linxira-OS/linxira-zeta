@@ -1,5 +1,5 @@
-import type { TextContent } from "@zeta/pi-ai";
-import { Container, Markdown, Text } from "@zeta/pi-tui";
+import type { TextContent } from "@linxiraos/pi-ai";
+import { Container, Markdown, Text } from "@linxiraos/pi-tui";
 import type { CollabPromptDetails } from "../../collab/protocol";
 import type { CustomMessage } from "../../session/messages";
 import { getMarkdownTheme, theme } from "../theme/theme";

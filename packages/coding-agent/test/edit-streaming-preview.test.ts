@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { computeFileHash, formatHashlineHeader, InMemorySnapshotStore } from "@zeta/hashline";
-import { dropIncompleteLastEdit, EDIT_MODE_STRATEGIES } from "@zeta/pi-coding-agent/edit";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { computeFileHash, formatHashlineHeader, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { dropIncompleteLastEdit, EDIT_MODE_STRATEGIES } from "@linxiraos/zeta/edit";
 
 describe("dropIncompleteLastEdit", () => {
 	test("keeps all entries when partialJson is undefined", () => {

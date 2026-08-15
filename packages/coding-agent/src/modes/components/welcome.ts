@@ -6,8 +6,8 @@ import {
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@zeta/pi-tui";
-import { APP_NAME } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { APP_NAME } from "@linxiraos/pi-utils";
 import { currentLanguage, M } from "../../i18n";
 import { theme } from "../../modes/theme/theme";
 import tipsEnText from "./tips-en.txt" with { type: "text" };

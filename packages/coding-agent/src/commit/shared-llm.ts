@@ -1,5 +1,5 @@
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { type as t, validateToolCall } from "@zeta/pi-ai";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { type as t, validateToolCall } from "@linxiraos/pi-ai";
 import type { ChangelogCategory, ConventionalAnalysis } from "./types";
 import { extractTextContent, extractToolCall, normalizeAnalysis, parseJsonPayload } from "./utils";
 

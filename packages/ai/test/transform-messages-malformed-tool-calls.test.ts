@@ -7,9 +7,9 @@
 // `transformMessages` is the canonical sanitize boundary every provider passes
 // through, so the defensive filter lives there.
 import { describe, expect, it } from "bun:test";
-import { transformMessages } from "@zeta/pi-ai/providers/transform-messages";
-import type { AssistantMessage, Message, Model, ToolCall, ToolResultMessage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
+import type { AssistantMessage, Message, Model, ToolCall, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const model: Model<"anthropic-messages"> = buildModel({
 	api: "anthropic-messages",

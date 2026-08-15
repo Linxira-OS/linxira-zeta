@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	AssistantMessageComponent,
 	resetThinkingSpeedTracker,
-} from "@zeta/pi-coding-agent/modes/components/assistant-message";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { setTerminalImageProtocol, TERMINAL } from "@zeta/pi-tui";
+} from "@linxiraos/zeta/modes/components/assistant-message";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 

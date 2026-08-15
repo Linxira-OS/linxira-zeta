@@ -13,7 +13,7 @@
  *
  * Replaces the old SessionObserverOverlayComponent (ctrl+s observer).
  */
-import type { AgentTool } from "@zeta/pi-agent-core";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	Container,
 	matchesKey,
@@ -25,8 +25,8 @@ import {
 	type TUI,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@zeta/pi-tui";
-import { formatAge, formatNumber, getProjectDir, logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { formatAge, formatNumber, getProjectDir, logger } from "@linxiraos/pi-utils";
 import type { KeyId } from "../../config/keybindings";
 import type { Settings } from "../../config/settings";
 import type { MessageRenderer } from "../../extensibility/extensions/types";

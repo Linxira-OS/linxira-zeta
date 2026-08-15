@@ -7,8 +7,8 @@ import {
 	type SgrMouseEvent,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
-import { APP_NAME } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { APP_NAME } from "@linxiraos/pi-utils";
 import { M } from "../../i18n";
 import { gradientLogo, ZETA_LOGO } from "../components/welcome";
 import { theme } from "../theme/theme";

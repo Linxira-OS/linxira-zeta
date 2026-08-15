@@ -1,8 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getThemeByName } from "@zeta/pi-coding-agent/modes/theme/theme";
-
-import { getSessionAccentHex } from "@zeta/pi-coding-agent/utils/session-color";
-import { hexToHsv, relativeLuminance } from "@zeta/pi-utils";
+import { hexToHsv, relativeLuminance } from "@linxiraos/pi-utils";
+import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+import { getSessionAccentHex } from "@linxiraos/zeta/utils/session-color";
 
 const NO_THEME_COLORS: string[] = [];
 

@@ -4,9 +4,9 @@
  * running-agents roster for activity with no job entry.
  */
 
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import type { Component } from "@zeta/pi-tui";
-import { Text } from "@zeta/pi-tui";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
 import type { AsyncJob, AsyncJobManager } from "../../async";
 import { settings } from "../../config/settings";
 import type { RenderResultOptions } from "../../extensibility/custom-tools/types";

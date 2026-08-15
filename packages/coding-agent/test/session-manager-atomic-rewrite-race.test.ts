@@ -1,16 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import {
-	IndexedSessionStorage,
-	type SessionStorageBackend,
-} from "@zeta/pi-coding-agent/session/indexed-session-storage";
-import { SessionManager, SessionPersistenceIndeterminateError } from "@zeta/pi-coding-agent/session/session-manager";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { IndexedSessionStorage, type SessionStorageBackend } from "@linxiraos/zeta/session/indexed-session-storage";
+import { SessionManager, SessionPersistenceIndeterminateError } from "@linxiraos/zeta/session/session-manager";
 import {
 	MemorySessionStorage,
 	type SessionStorageWriter,
 	type WriteTextAtomicOptions,
-} from "@zeta/pi-coding-agent/session/session-storage";
-import type { SessionTitleUpdate } from "@zeta/pi-coding-agent/session/session-title-slot";
+} from "@linxiraos/zeta/session/session-storage";
+import type { SessionTitleUpdate } from "@linxiraos/zeta/session/session-title-slot";
 
 interface DetachableWriter extends SessionStorageWriter {
 	detach(): void;

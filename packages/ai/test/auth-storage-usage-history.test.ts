@@ -14,10 +14,10 @@
  */
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai/auth-storage";
-import type { UsageHistoryEntry, UsageReport } from "@zeta/pi-ai/usage";
-import * as claudeUsage from "@zeta/pi-ai/usage/claude";
-import * as opencodeGoUsage from "@zeta/pi-ai/usage/opencode-go";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import type { UsageHistoryEntry, UsageReport } from "@linxiraos/pi-ai/usage";
+import * as claudeUsage from "@linxiraos/pi-ai/usage/claude";
+import * as opencodeGoUsage from "@linxiraos/pi-ai/usage/opencode-go";
 
 const HOUR = 3_600_000;
 // Hour-aligned base so bucket boundaries in the tests are explicit.

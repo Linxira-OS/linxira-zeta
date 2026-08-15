@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { SegmentContext } from "@zeta/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@zeta/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { InternalUrlRouter } from "@zeta/pi-coding-agent/internal-urls";
-import { parseInternalUrl } from "@zeta/pi-coding-agent/internal-urls/parse";
-import { RpcHostUriBridge } from "@zeta/pi-coding-agent/modes/rpc/host-uris";
-import type { RpcHostUriCancelRequest, RpcHostUriRequest } from "@zeta/pi-coding-agent/modes/rpc/rpc-types";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { RpcHostUriBridge } from "@linxiraos/zeta/modes/rpc/host-uris";
+import type { RpcHostUriCancelRequest, RpcHostUriRequest } from "@linxiraos/zeta/modes/rpc/rpc-types";
 
 const router = InternalUrlRouter.instance();
 

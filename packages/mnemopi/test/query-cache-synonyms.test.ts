@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { isEnhancedRecallEnabled, isQueryCacheEnabled, QueryCache } from "@zeta/pi-mnemopi/core/query-cache";
-import { expandQuery, getSynonyms, normalizeQuery } from "@zeta/pi-mnemopi/core/synonyms";
+import { isEnhancedRecallEnabled, isQueryCacheEnabled, QueryCache } from "@linxiraos/pi-mnemopi/core/query-cache";
+import { expandQuery, getSynonyms, normalizeQuery } from "@linxiraos/pi-mnemopi/core/synonyms";
 
 const openCaches: QueryCache[] = [];
 

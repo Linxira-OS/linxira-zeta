@@ -10,10 +10,10 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { createModelManager } from "@zeta/pi-catalog/model-manager";
-import { githubCopilotModelManagerOptions } from "@zeta/pi-catalog/provider-models/openai-compat";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { createModelManager } from "@linxiraos/pi-catalog/model-manager";
+import { githubCopilotModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 /** `/models` entry shaped like Copilot under `X-GitHub-Api-Version: 2026-06-01`. */
 function tieredEntry(id: string, name: string) {

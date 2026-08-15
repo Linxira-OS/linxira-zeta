@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { convertCodexResponsesMessages } from "@zeta/pi-ai/providers/openai-codex-responses";
-import type { ResponseInput } from "@zeta/pi-ai/providers/openai-responses-wire";
-import { buildResponsesInput } from "@zeta/pi-ai/providers/openai-shared";
-import type { AssistantMessage, Context, ToolResultMessage, UserMessage } from "@zeta/pi-ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@zeta/pi-ai/utils";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { convertCodexResponsesMessages } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import type { ResponseInput } from "@linxiraos/pi-ai/providers/openai-responses-wire";
+import { buildResponsesInput } from "@linxiraos/pi-ai/providers/openai-shared";
+import type { AssistantMessage, Context, ToolResultMessage, UserMessage } from "@linxiraos/pi-ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@linxiraos/pi-ai/utils";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { createCodexModel } from "./helpers";
 
 // Literal Harmony analysis-channel marker. openai-codex/gpt-5.x reject any

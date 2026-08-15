@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import * as pythonExecutor from "@zeta/pi-coding-agent/eval/py/executor";
-import type { PythonKernel as PythonKernelInstance } from "@zeta/pi-coding-agent/eval/py/kernel";
-import * as pythonKernel from "@zeta/pi-coding-agent/eval/py/kernel";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@zeta/pi-coding-agent/sdk";
-import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { Snowflake, TempDir } from "@zeta/pi-utils";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Snowflake, TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as pythonExecutor from "@linxiraos/zeta/eval/py/executor";
+import type { PythonKernel as PythonKernelInstance } from "@linxiraos/zeta/eval/py/kernel";
+import * as pythonKernel from "@linxiraos/zeta/eval/py/kernel";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@linxiraos/zeta/sdk";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const OK_EXECUTION = { status: "ok", cancelled: false, timedOut: false, stdinRequested: false } as const;
 

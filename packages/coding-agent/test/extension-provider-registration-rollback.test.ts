@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { unregisterOAuthProvider } from "@zeta/pi-ai/oauth";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions/runner";
-import type { ProviderConfig } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@zeta/pi-utils";
+import { unregisterOAuthProvider } from "@linxiraos/pi-ai/oauth";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import type { ProviderConfig } from "@linxiraos/zeta/extensibility/extensions/types";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 const testProviderConfig: ProviderConfig = {
 	baseUrl: "https://example.invalid/v1",

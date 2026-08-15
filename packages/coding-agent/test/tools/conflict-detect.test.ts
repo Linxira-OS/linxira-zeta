@@ -8,8 +8,8 @@ import {
 	renderConflictRegion,
 	scanConflictLines,
 	spliceConflict,
-} from "@zeta/pi-coding-agent/tools/conflict-detect";
-import { ToolError } from "@zeta/pi-coding-agent/tools/tool-errors";
+} from "@linxiraos/zeta/tools/conflict-detect";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 
 describe("scanConflictLines", () => {
 	it("detects a 2-way conflict with correct line numbers and labels", () => {

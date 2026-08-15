@@ -6,10 +6,10 @@ import {
 	synthesizeCursorExecToolCall,
 	type ToolCallState,
 	type UsageState,
-} from "@zeta/pi-ai/providers/cursor";
-import type { AssistantMessage, AssistantMessageEvent } from "@zeta/pi-ai/types";
-import { getStreamingPartialJson, kCursorExecResolved } from "@zeta/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+} from "@linxiraos/pi-ai/providers/cursor";
+import type { AssistantMessage, AssistantMessageEvent } from "@linxiraos/pi-ai/types";
+import { getStreamingPartialJson, kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 
 interface Harness {
 	output: AssistantMessage;

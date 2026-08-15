@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@zeta/pi-omptype";
-import { isEnoent, logger } from "@zeta/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import { isEnoent, logger } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { expandAtImports } from "../discovery/at-imports";
 import { BUILTIN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";

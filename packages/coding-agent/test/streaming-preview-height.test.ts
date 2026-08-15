@@ -2,14 +2,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@zeta/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { EDIT_MODE_STRATEGIES } from "@zeta/pi-coding-agent/edit";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { theme as activeTheme, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { previewWindowRows } from "@zeta/pi-coding-agent/tools/render-utils";
-import { TUI, visibleWidth } from "@zeta/pi-tui";
-import { removeWithRetries } from "@zeta/pi-utils";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { TUI, visibleWidth } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EDIT_MODE_STRATEGIES } from "@linxiraos/zeta/edit";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { theme as activeTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { previewWindowRows } from "@linxiraos/zeta/tools/render-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 // The streaming edit preview is a fixed-height tail window ("cursor"): the last

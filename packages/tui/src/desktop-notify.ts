@@ -22,7 +22,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which } from "@zeta/pi-utils";
+import { $which } from "@linxiraos/pi-utils";
 import type { TerminalId, TerminalNotification } from "./terminal-capabilities";
 
 /** Application name surfaced as the notification source. */

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { matchesKey } from "@zeta/pi-tui/keys";
-import { ProcessTerminal } from "@zeta/pi-tui/terminal";
-import { type Component, TUI } from "@zeta/pi-tui/tui";
+import { matchesKey } from "@linxiraos/pi-tui/keys";
+import { ProcessTerminal } from "@linxiraos/pi-tui/terminal";
+import { type Component, TUI } from "@linxiraos/pi-tui/tui";
 
 /**
  * Simple key code logger component

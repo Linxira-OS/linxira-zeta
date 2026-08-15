@@ -9,7 +9,7 @@ import {
 	resolveTelemetry,
 	type StreamFn,
 	ThinkingLevel,
-} from "@zeta/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import {
 	type CompactionResult,
 	calculateContextTokens,
@@ -22,7 +22,7 @@ import {
 	type SessionMessageEntry,
 	shouldCompact,
 	shouldUseProviderNativeCompaction,
-} from "@zeta/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core/compaction";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -32,11 +32,11 @@ import type {
 	ProviderSessionState,
 	ServiceTier,
 	SimpleStreamOptions,
-} from "@zeta/pi-ai";
-import { isUsageLimitOutcome, resolveModelServiceTier, streamSimple } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { modelsAreEqual } from "@zeta/pi-catalog/models";
-import { extractHttpStatusFromError, extractRetryHint, logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { isUsageLimitOutcome, resolveModelServiceTier, streamSimple } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { extractHttpStatusFromError, extractRetryHint, logger } from "@linxiraos/pi-utils";
 import {
 	ADVISOR_DEFAULT_TOOL_NAMES,
 	AdviseTool,

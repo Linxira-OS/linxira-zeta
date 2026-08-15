@@ -1,4 +1,4 @@
-import { deviceCheckGenerateToken } from "@zeta/pi-natives";
+import { deviceCheckGenerateToken } from "@linxiraos/pi-natives";
 
 const CHATGPT_BUNDLE_ID = "com.openai.codex";
 const APP_SESSION_ID = crypto.randomUUID();

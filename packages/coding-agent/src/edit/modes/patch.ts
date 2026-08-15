@@ -7,9 +7,9 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import { isEnoent } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { isEnoent } from "@linxiraos/pi-utils";
 import {
 	type FileDiagnosticsResult,
 	flushLspWritethroughBatch,

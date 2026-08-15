@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as settingsModule from "@zeta/pi-coding-agent/config/settings";
-import { shimmerText } from "@zeta/pi-coding-agent/modes/theme/shimmer";
-import type { Theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import * as settingsModule from "@linxiraos/zeta/config/settings";
+import { shimmerText } from "@linxiraos/zeta/modes/theme/shimmer";
+import type { Theme } from "@linxiraos/zeta/modes/theme/theme";
 
 const testTheme = {
 	bold(text: string): string {

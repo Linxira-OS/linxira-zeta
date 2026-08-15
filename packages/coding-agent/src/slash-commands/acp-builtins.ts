@@ -1,4 +1,4 @@
-import type { AvailableCommand } from "@zeta/pi-utils/acp";
+import type { AvailableCommand } from "@linxiraos/pi-utils/acp";
 import { BUILTIN_SLASH_COMMANDS_INTERNAL, lookupBuiltinSlashCommand } from "./builtin-registry";
 import { parseSlashCommand } from "./helpers/parse";
 import type { AcpBuiltinSlashCommandResult, SlashCommandRuntime } from "./types";

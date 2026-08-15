@@ -5,8 +5,8 @@
  * Uses the settings schema as the source of truth for available settings.
  */
 
-import { APP_NAME, getAgentDir } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import { APP_NAME, getAgentDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import {
 	getDefault,
 	getEnumValues,

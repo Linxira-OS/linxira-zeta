@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { prompt } from "@zeta/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 
 describe("prompt.format renderPhase", () => {
 	test("pre-render preserves indentation on Handlebars block lines", () => {

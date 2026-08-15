@@ -1,7 +1,7 @@
 /**
  * Shared command execution utilities for hooks and custom tools.
  */
-import { ptree } from "@zeta/pi-utils";
+import { ptree } from "@linxiraos/pi-utils";
 
 /**
  * Options for executing shell commands.

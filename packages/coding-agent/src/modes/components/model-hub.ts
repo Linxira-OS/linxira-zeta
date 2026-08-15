@@ -9,11 +9,11 @@
  * Fully mouse-navigable (hover, wheel, click). Session-only switching lives
  * in the compact alt+p picker ({@link ./model-picker}).
  */
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Model } from "@zeta/pi-ai";
-import { getOAuthProviders } from "@zeta/pi-ai/oauth";
-import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
-import { getCatalogProviderEntry } from "@zeta/pi-catalog/provider-models";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { getCatalogProviderEntry } from "@linxiraos/pi-catalog/provider-models";
 import {
 	type Component,
 	extractPrintableText,
@@ -26,7 +26,7 @@ import {
 	type TUI,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import type { ModelRegistry } from "../../config/model-registry";
 import { type ModelRoleLookup, type ResolvedModelRoleValue, resolveModelRoleValue } from "../../config/model-resolver";
 import { getKnownRoleIds, getRoleInfo } from "../../config/model-roles";

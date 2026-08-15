@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { Container } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type {
 	ExtensionActions,
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionUIContext,
-} from "@zeta/pi-coding-agent/extensibility/extensions";
-import { ExtensionUiController } from "@zeta/pi-coding-agent/modes/controllers/extension-ui-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { UiHelpers } from "@zeta/pi-coding-agent/modes/utils/ui-helpers";
-import { buildSessionContext, type SessionContext } from "@zeta/pi-coding-agent/session/session-context";
-import type { CustomMessageEntry, SessionEntry } from "@zeta/pi-coding-agent/session/session-entries";
-import { Container } from "@zeta/pi-tui";
+} from "@linxiraos/zeta/extensibility/extensions";
+import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { buildSessionContext, type SessionContext } from "@linxiraos/zeta/session/session-context";
+import type { CustomMessageEntry, SessionEntry } from "@linxiraos/zeta/session/session-entries";
 
 /**
  * Issue #1955: `sendMessage` with `display: true` renders twice during

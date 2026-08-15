@@ -3,9 +3,9 @@ import type {
 	ChatCompletionAssistantMessageParam,
 	ChatCompletionMessageParam,
 	ChatCompletionToolMessageParam,
-} from "@zeta/pi-ai/providers/openai-chat-wire";
-import { convertMessages } from "@zeta/pi-ai/providers/openai-completions";
-import { transformMessages } from "@zeta/pi-ai/providers/transform-messages";
+} from "@linxiraos/pi-ai/providers/openai-chat-wire";
+import { convertMessages } from "@linxiraos/pi-ai/providers/openai-completions";
+import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
 import type {
 	Api,
 	AssistantMessage,
@@ -16,8 +16,8 @@ import type {
 	ToolCall,
 	ToolResultMessage,
 	UserMessage,
-} from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+} from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 /**
  * Regression test for: "each tool_use must have a single result. Found multiple tool_result blocks with id"
@@ -633,7 +633,7 @@ describe("Duplicate Tool Results Regression", () => {
  * `tool_result` blocks ... Each `tool_result` block must have a corresponding
  * `tool_use` block in the previous message."
  *
- * Reproduces the shape captured in `~/.omp/logs/http-400-requests/*.json` after
+ * Reproduces the shape captured in `~/.zeta/logs/http-400-requests/*.json` after
  * handoff/compaction folds an assistant `tool_use` into the handoff summary string
  * while leaving the matching user-side `tool_result` message untouched. The orphan
  * `tool_result` then sits next to the handoff-context user message, gets merged by

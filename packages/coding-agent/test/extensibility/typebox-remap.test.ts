@@ -2,12 +2,12 @@ import { afterAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Type as TypeBoxShimType } from "@zeta/pi-coding-agent/extensibility/legacy-typebox";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Type as TypeBoxShimType } from "@linxiraos/zeta/extensibility/legacy-typebox";
 import {
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
-} from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 
 // The remap installs a Bun.plugin onResolve hook plus an explicit
 // rewrite branch inside `rewriteBareImportsForLegacyExtension` that

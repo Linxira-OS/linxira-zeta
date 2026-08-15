@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { handleStackOverflow } from "@zeta/pi-coding-agent/web/scrapers/stackoverflow";
+import { handleStackOverflow } from "@linxiraos/zeta/web/scrapers/stackoverflow";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

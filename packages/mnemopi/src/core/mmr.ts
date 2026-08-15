@@ -1,4 +1,4 @@
-import { mmrRerankIndices } from "@zeta/pi-natives";
+import { mmrRerankIndices } from "@linxiraos/pi-natives";
 
 export interface MmrResult {
 	readonly content?: string;

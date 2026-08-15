@@ -5,19 +5,19 @@
  * They provide a unified system for extensions, custom tools, commands, and more.
  *
  * Extension files are discovered from:
- * - ~/.omp/agent/extensions/ (legacy: ~/.pi/agent/extensions/)
- * - <cwd>/.omp/extensions/ (legacy: <cwd>/.pi/extensions/)
+ * - ~/.zeta/agent/extensions/ (legacy: ~/.pi/agent/extensions/)
+ * - <cwd>/.zeta/extensions/ (legacy: <cwd>/.pi/extensions/)
  * - Paths specified in settings.json "extensions" array
  * - Paths passed via --extension CLI flag
  *
  * An extension is a TypeScript file that exports a default function:
  *   export default function (pi: ExtensionAPI) { ... }
  */
-import { createAgentSession, SessionManager } from "@zeta/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@linxiraos/zeta";
 
 // Extensions are loaded from disk, not passed inline to createAgentSession.
 // Use the discovery mechanism:
-//   1. Place extension files in ~/.omp/agent/extensions/ or .omp/extensions/
+//   1. Place extension files in ~/.zeta/agent/extensions/ or .zeta/extensions/
 //   2. Add paths to settings.json: { "extensions": ["./my-extension.ts"] }
 //   3. Use --extension flag: pi --extension ./my-extension.ts
 
@@ -38,7 +38,7 @@ console.log();
 
 // Example extension file (./my-logging-extension.ts):
 /*
-import type { ExtensionAPI } from "@zeta/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function (pi: ExtensionAPI) {
 	const z = pi.zod;

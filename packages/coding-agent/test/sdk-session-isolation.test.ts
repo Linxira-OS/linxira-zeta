@@ -2,21 +2,21 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn, vi } from 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import type { Rule } from "@zeta/pi-coding-agent/capability/rule";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { LocalProtocolHandler } from "@zeta/pi-coding-agent/internal-urls/local-protocol";
-import { AgentLifecycleManager } from "@zeta/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import * as secrets from "@zeta/pi-coding-agent/secrets";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { VibeSessionRegistry } from "@zeta/pi-coding-agent/vibe/runtime";
-import { getSessionsDir, removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
-import { getActiveProfile, getConfigRootDir, setProfile } from "@zeta/pi-utils/dirs";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getSessionsDir, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { getActiveProfile, getConfigRootDir, setProfile } from "@linxiraos/pi-utils/dirs";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { LocalProtocolHandler } from "@linxiraos/zeta/internal-urls/local-protocol";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import * as secrets from "@linxiraos/zeta/secrets";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
 
 function createTtsrRule(name: string): Rule {
 	return {
@@ -57,7 +57,7 @@ async function withTempConfigRoot<T>(run: () => Promise<T>): Promise<T> {
 	const originalProfile = getActiveProfile();
 	const originalConfigDir = process.env.PI_CONFIG_DIR;
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
-	const configDirName = `.omp-sdk-session-${Snowflake.next()}`;
+	const configDirName = `.zeta-sdk-session-${Snowflake.next()}`;
 	const configRoot = path.join(os.homedir(), configDirName);
 	try {
 		process.env.PI_CONFIG_DIR = configDirName;

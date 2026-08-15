@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Message, Usage } from "@zeta/pi-ai";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { AssistantMessage, Message, Usage } from "@linxiraos/pi-ai";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import * as snapcompact from "../src";
 
 // Small frames keep render time negligible. Legacy 5x8 shape: 320px → 64 cols

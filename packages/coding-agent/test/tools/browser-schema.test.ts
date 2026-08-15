@@ -1,17 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeTools } from "@zeta/pi-agent-core/agent-loop";
-import type { ToolCall, TSchema } from "@zeta/pi-ai";
+import { normalizeTools } from "@linxiraos/pi-agent-core/agent-loop";
+import type { ToolCall, TSchema } from "@linxiraos/pi-ai";
 import {
 	adaptSchemaForStrict,
 	toolWireSchema,
 	validateJsonSchemaValue,
 	validateStrictSchemaEnforcement,
-} from "@zeta/pi-ai/utils/schema";
-import { validateToolCall } from "@zeta/pi-ai/utils/validation";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ToolSession } from "@zeta/pi-coding-agent/sdk";
-import { type BrowserParams, BrowserTool } from "@zeta/pi-coding-agent/tools/browser";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+} from "@linxiraos/pi-ai/utils/schema";
+import { validateToolCall } from "@linxiraos/pi-ai/utils/validation";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import { type BrowserParams, BrowserTool } from "@linxiraos/zeta/tools/browser";
 
 function makeSession(): ToolSession {
 	return {

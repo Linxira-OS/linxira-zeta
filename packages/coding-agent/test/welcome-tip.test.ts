@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { renderWelcomeTip } from "@zeta/pi-coding-agent/modes/components/welcome";
-import { initTheme, setTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { visibleWidth } from "@zeta/pi-tui";
+import { visibleWidth } from "@linxiraos/pi-tui";
+import { renderWelcomeTip } from "@linxiraos/zeta/modes/components/welcome";
+import { initTheme, setTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 describe("renderWelcomeTip", () => {
 	beforeAll(async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { calculateContextTokens, calculatePromptTokens } from "@zeta/pi-agent-core/compaction";
-import type { Usage } from "@zeta/pi-ai";
+import { calculateContextTokens, calculatePromptTokens } from "@linxiraos/pi-agent-core/compaction";
+import type { Usage } from "@linxiraos/pi-ai";
 
 function usage(overrides: Partial<Usage>): Usage {
 	return {

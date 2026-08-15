@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { EventController } from "@zeta/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { PROPOSE_DEVICE_NAME } from "@zeta/pi-coding-agent/tools/resolve";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { PROPOSE_DEVICE_NAME } from "@linxiraos/zeta/tools/resolve";
 
 beforeAll(() => {
 	initTheme();

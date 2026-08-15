@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { RpcHostToolBridge } from "@zeta/pi-coding-agent/modes/rpc/host-tools";
+import { RpcHostToolBridge } from "@linxiraos/zeta/modes/rpc/host-tools";
 import {
 	dispatchRpcInputFrame,
 	type PendingExtensionRequest,
@@ -7,14 +7,14 @@ import {
 	type RpcInputFrameDeps,
 	RpcPendingExtensionRequests,
 	RpcShutdownCoordinator,
-} from "@zeta/pi-coding-agent/modes/rpc/rpc-mode";
+} from "@linxiraos/zeta/modes/rpc/rpc-mode";
 import type {
 	RpcCommand,
 	RpcExtensionUIResponse,
 	RpcHostToolCallRequest,
 	RpcHostToolCancelRequest,
 	RpcResponse,
-} from "@zeta/pi-coding-agent/modes/rpc/rpc-types";
+} from "@linxiraos/zeta/modes/rpc/rpc-types";
 
 type OutputFrame = RpcResponse | object;
 

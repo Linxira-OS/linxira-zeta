@@ -65,7 +65,7 @@ zeta web --port 8080
 ## Programmatic Equivalent
 
 ```typescript
-import { startZetaServer } from "@zeta/pi-coding-agent/server/zeta-server";
+import { startZetaServer } from "@linxiraos/zeta/server/zeta-server";
 
 // Equivalent to: zeta serve
 await startZetaServer();

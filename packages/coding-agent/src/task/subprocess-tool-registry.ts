@@ -6,7 +6,7 @@
  * - Trigger subprocess termination on completion
  * - Provide custom rendering for realtime/final display
  */
-import type { Component } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
 import type { Theme } from "../modes/theme/theme";
 
 /** Event from subprocess tool execution (parsed from JSONL) */

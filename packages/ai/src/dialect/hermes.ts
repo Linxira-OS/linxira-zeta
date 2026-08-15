@@ -1,4 +1,4 @@
-import { parseJsonWithRepair, parseStreamingJson } from "@zeta/pi-utils";
+import { parseJsonWithRepair, parseStreamingJson } from "@linxiraos/pi-utils";
 import type { Message, ToolCall } from "../types";
 import { asRecord, mintToolCallId, partialSuffixOverlapAny } from "./coercion";
 import dialectPrompt from "./hermes.md" with { type: "text" };

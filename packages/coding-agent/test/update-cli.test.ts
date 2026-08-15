@@ -4,8 +4,10 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as pluginCli from "@zeta/pi-coding-agent/cli/plugin-cli";
-import * as updateCli from "@zeta/pi-coding-agent/cli/update-cli";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { CliConfig } from "@linxiraos/pi-utils/cli";
+import * as pluginCli from "@linxiraos/zeta/cli/plugin-cli";
+import * as updateCli from "@linxiraos/zeta/cli/update-cli";
 import {
 	buildBunInstallArgs,
 	buildHomebrewUpdateArgs,
@@ -22,10 +24,8 @@ import {
 	resolveUpdateMethodForTest,
 	sweepStaleBackups,
 	updateViaBinaryAt,
-} from "@zeta/pi-coding-agent/cli/update-cli";
-import Update from "@zeta/pi-coding-agent/commands/update";
-import { removeWithRetries } from "@zeta/pi-utils";
-import type { CliConfig } from "@zeta/pi-utils/cli";
+} from "@linxiraos/zeta/cli/update-cli";
+import Update from "@linxiraos/zeta/commands/update";
 
 const tempDirs: string[] = [];
 
@@ -234,9 +234,9 @@ describe("update-cli package manager commands", () => {
 
 		expect(args.slice(0, 2)).toEqual(["install", "-g"]);
 		expect(args).toContain("--registry=https://registry.npmjs.org/");
-		expect(args).toContain("@zeta/pi-coding-agent@16.3.15");
-		expect(args).toContain("@zeta/pi-natives@16.3.15");
-		expect(args).toContain("@zeta/pi-natives-win32-x64@16.3.15");
+		expect(args).toContain("@linxiraos/zeta@16.3.15");
+		expect(args).toContain("@linxiraos/pi-natives@16.3.15");
+		expect(args).toContain("@linxiraos/pi-natives-win32-x64@16.3.15");
 	});
 });
 
@@ -256,21 +256,21 @@ describe("update-cli bun install command", () => {
 			"-g",
 			"--no-cache",
 			"--registry=https://registry.npmjs.org/",
-			"@zeta/pi-coding-agent@15.7.6",
+			"@linxiraos/zeta@15.7.6",
 		]);
 	});
 
 	it("pins the native addon core and the platform-specific leaf to the same version so the loader sentinel cannot drift on supported tags", () => {
 		// Regression: bun install -g <pkg>@<v> would update only the top-level
-		// package, leaving @zeta/pi-natives and @zeta/pi-natives-<tag>
+		// package, leaving @linxiraos/pi-natives and @linxiraos/pi-natives-<tag>
 		// at their previous version. The next launch then loaded a stale .node
 		// file and aborted at validateLoadedBindings with `The .node file on
 		// disk is from a different release than this loader`. See
 		// https://github.com/can1357/oh-my-pi/issues/1824.
 		for (const tag of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64", "win32-x64"]) {
 			const args = buildBunInstallArgs("15.9.0", tag);
-			expect(args).toContain("@zeta/pi-natives@15.9.0");
-			expect(args).toContain(`@zeta/pi-natives-${tag}@15.9.0`);
+			expect(args).toContain("@linxiraos/pi-natives@15.9.0");
+			expect(args).toContain(`@linxiraos/pi-natives-${tag}@15.9.0`);
 		}
 	});
 
@@ -281,8 +281,8 @@ describe("update-cli bun install command", () => {
 		// pipeline doesn't publish, otherwise bun aborts with EBADPLATFORM
 		// and hides the real diagnostic from `loadNative`'s aggregated error.
 		const args = buildBunInstallArgs("15.9.0", "linux-arm");
-		expect(args).toContain("@zeta/pi-natives@15.9.0");
-		expect(args.some(arg => arg.startsWith("@zeta/pi-natives-"))).toBe(false);
+		expect(args).toContain("@linxiraos/pi-natives@15.9.0");
+		expect(args.some(arg => arg.startsWith("@linxiraos/pi-natives-"))).toBe(false);
 	});
 
 	it("derives global node_modules from supported bun global locations", () => {
@@ -308,15 +308,15 @@ describe("update-cli bun cache pruning", () => {
 			path.join(dir, "react@19.2.6@@@1", "package.json"),
 			JSON.stringify({ name: "react", version: "19.2.6" }),
 		);
-		await Bun.write(path.join(dir, "@zeta", "pi-utils", "15.7.6@@@1"), "");
-		await Bun.write(path.join(dir, "@zeta", "pi-utils", "15.8.0@@@1"), "");
+		await Bun.write(path.join(dir, "@linxiraos", "pi-utils", "15.7.6@@@1"), "");
+		await Bun.write(path.join(dir, "@linxiraos", "pi-utils", "15.8.0@@@1"), "");
 		await Bun.write(
-			path.join(dir, "@zeta", "pi-utils@15.7.6@@@1", "package.json"),
-			JSON.stringify({ name: "@zeta/pi-utils", version: "15.7.6" }),
+			path.join(dir, "@linxiraos", "pi-utils@15.7.6@@@1", "package.json"),
+			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.7.6" }),
 		);
 		await Bun.write(
-			path.join(dir, "@zeta", "pi-utils@15.8.0@@@1", "package.json"),
-			JSON.stringify({ name: "@zeta/pi-utils", version: "15.8.0" }),
+			path.join(dir, "@linxiraos", "pi-utils@15.8.0@@@1", "package.json"),
+			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.8.0" }),
 		);
 		await Bun.write(path.join(dir, "chalk", "4.1.2@@@1"), "");
 		await Bun.write(path.join(dir, "chalk", "5.6.2@@@1"), "");
@@ -329,17 +329,17 @@ describe("update-cli bun cache pruning", () => {
 			JSON.stringify({ name: "chalk", version: "5.6.2" }),
 		);
 
-		const result = await pruneBunInstallCache(dir, new Set(["react", "@zeta/pi-utils"]));
+		const result = await pruneBunInstallCache(dir, new Set(["react", "@linxiraos/pi-utils"]));
 
 		expect(result).toEqual({ scannedPackages: 2, removedEntries: 4 });
 		expect(await Bun.file(path.join(dir, "react", "18.3.1@@@1")).exists()).toBe(false);
 		expect(await Bun.file(path.join(dir, "react@18.3.1@@@1", "package.json")).exists()).toBe(false);
 		expect(await Bun.file(path.join(dir, "react", "19.2.6@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "react@19.2.6@@@1", "package.json")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk", "4.1.2@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk@4.1.2@@@1", "package.json")).exists()).toBe(true);
 	});

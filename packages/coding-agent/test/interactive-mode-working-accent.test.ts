@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@zeta/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@zeta/pi-coding-agent/modes/interactive-mode";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import * as sessionColor from "@zeta/pi-coding-agent/utils/session-color";
-import type { Container, NativeScrollbackLiveRegion } from "@zeta/pi-tui";
-import { TempDir } from "@zeta/pi-utils";
+import type { Container, NativeScrollbackLiveRegion } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as sessionColor from "@linxiraos/zeta/utils/session-color";
 
 type Harness = {
 	mode: InteractiveMode;

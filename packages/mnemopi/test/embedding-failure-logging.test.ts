@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import "./setup";
 import {
 	embed,
 	resetEmbeddingProviderForTests,
 	setLocalModelInitializerForTests,
-} from "@zeta/pi-mnemopi/core/embeddings";
-import { withMnemopiRuntimeOptions } from "@zeta/pi-mnemopi/core/runtime-options";
+} from "@linxiraos/pi-mnemopi/core/embeddings";
+import { withMnemopiRuntimeOptions } from "@linxiraos/pi-mnemopi/core/runtime-options";
 
 const ENV_KEYS = [
 	"NODE_ENV",

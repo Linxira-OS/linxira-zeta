@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, Container, type Focusable, type OverlayFocusOwner, TUI } from "@zeta/pi-tui";
-import type { Terminal, TerminalAppearance } from "@zeta/pi-tui/terminal";
+import { type Component, Container, type Focusable, type OverlayFocusOwner, TUI } from "@linxiraos/pi-tui";
+import type { Terminal, TerminalAppearance } from "@linxiraos/pi-tui/terminal";
 
 class MinimalTerminal implements Terminal {
 	columns = 80;

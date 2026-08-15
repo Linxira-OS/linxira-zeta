@@ -1,15 +1,15 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AgentTool } from "@zeta/pi-agent-core";
-import type { TSchema } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { renderMCPResult } from "@zeta/pi-coding-agent/mcp/render";
-import { DeferredMCPTool, MCPTool, type MCPToolDetails } from "@zeta/pi-coding-agent/mcp/tool-bridge";
-import type { MCPServerConnection, MCPToolDefinition, MCPTransport } from "@zeta/pi-coding-agent/mcp/types";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { theme as activeTheme, getThemeByName, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { formatOutputNotice, type OutputMeta } from "@zeta/pi-coding-agent/tools/output-meta";
-import { formatStatusIcon } from "@zeta/pi-coding-agent/tools/render-utils";
-import { TUI } from "@zeta/pi-tui";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { TSchema } from "@linxiraos/pi-ai";
+import { TUI } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { renderMCPResult } from "@linxiraos/zeta/mcp/render";
+import { DeferredMCPTool, MCPTool, type MCPToolDetails } from "@linxiraos/zeta/mcp/tool-bridge";
+import type { MCPServerConnection, MCPToolDefinition, MCPTransport } from "@linxiraos/zeta/mcp/types";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { theme as activeTheme, getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { formatOutputNotice, type OutputMeta } from "@linxiraos/zeta/tools/output-meta";
+import { formatStatusIcon } from "@linxiraos/zeta/tools/render-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 beforeAll(async () => {

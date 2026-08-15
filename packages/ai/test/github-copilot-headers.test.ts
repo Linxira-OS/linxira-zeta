@@ -5,9 +5,9 @@ import {
 	getCopilotPremiumMultiplier,
 	hasCopilotVisionInput,
 	inferCopilotInitiator,
-} from "@zeta/pi-ai/providers/github-copilot-headers";
-import type { Message } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+} from "@linxiraos/pi-ai/providers/github-copilot-headers";
+import type { Message } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 describe("inferCopilotInitiator", () => {
 	it("returns 'user' when there are no messages", () => {

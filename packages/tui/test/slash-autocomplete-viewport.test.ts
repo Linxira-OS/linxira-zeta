@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Container, Editor, TUI } from "@zeta/pi-tui";
-import type { AutocompleteItem, AutocompleteProvider } from "@zeta/pi-tui/autocomplete";
+import { Container, Editor, TUI } from "@linxiraos/pi-tui";
+import type { AutocompleteItem, AutocompleteProvider } from "@linxiraos/pi-tui/autocomplete";
 import { defaultEditorTheme } from "./test-themes";
 import { VirtualTerminal } from "./virtual-terminal";
 

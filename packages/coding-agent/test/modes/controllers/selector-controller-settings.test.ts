@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { SelectorController } from "@zeta/pi-coding-agent/modes/controllers/selector-controller";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 describe("SelectorController prompt-affecting settings", () => {
 	it("refreshes the active prompt when xdev docs mode changes", async () => {

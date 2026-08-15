@@ -1,4 +1,4 @@
-import { getKeybindings, type KeyId, matchesKey } from "@zeta/pi-tui";
+import { getKeybindings, type KeyId, matchesKey } from "@linxiraos/pi-tui";
 
 /**
  * Match the coding-agent interrupt key.

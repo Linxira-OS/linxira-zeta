@@ -6,8 +6,8 @@ import type {
 	TextContent,
 	ToolResultMessage,
 	UserMessage,
-} from "@zeta/pi-ai";
-import { providerImageBudget } from "@zeta/snapcompact";
+} from "@linxiraos/pi-ai";
+import { providerImageBudget } from "@linxiraos/pi-snapcompact";
 
 const TOOL_RESULT_IMAGE_OMISSION: TextContent = {
 	type: "text",

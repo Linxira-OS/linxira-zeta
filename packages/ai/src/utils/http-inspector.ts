@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { getLogsDir, isBunTestRuntime } from "@zeta/pi-utils";
+import { getLogsDir, isBunTestRuntime } from "@linxiraos/pi-utils";
 import * as AIError from "../error/flags";
 import { isCopilotTransientModelError } from "./retry.js";
 import { formatErrorMessageWithRetryAfter } from "./retry-after.js";

@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { MnemopiOptions } from "@zeta/pi-mnemopi";
-import { getMemoriesDir, logger } from "@zeta/pi-utils";
+import type { MnemopiOptions } from "@linxiraos/pi-mnemopi";
+import { getMemoriesDir, logger } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 
 export type MnemopiLlmMode = "none" | "smol" | "remote";

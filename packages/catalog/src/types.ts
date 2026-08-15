@@ -1,8 +1,8 @@
 import type { Effort } from "./effort";
 
-// Re-exported from @zeta/pi-utils so the whole workspace shares one
+// Re-exported from @linxiraos/pi-utils so the whole workspace shares one
 // `fetch`-compatible signature (tls-fetch's wrappers produce/accept it).
-export type { FetchImpl } from "@zeta/pi-utils";
+export type { FetchImpl } from "@linxiraos/pi-utils";
 export type { KnownProvider } from "./provider-models/descriptors";
 
 export type KnownApi =

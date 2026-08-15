@@ -1,4 +1,4 @@
-import type { AssistantMessage, ToolCall } from "@zeta/pi-ai";
+import type { AssistantMessage, ToolCall } from "@linxiraos/pi-ai";
 import type { ChangelogCategory, ConventionalAnalysis, ConventionalDetail } from "./types";
 
 export function extractToolCall(message: AssistantMessage, name: string): ToolCall | undefined {

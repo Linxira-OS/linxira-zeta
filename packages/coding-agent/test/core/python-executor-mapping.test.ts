@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { executePythonWithKernel, type PythonKernelExecutor } from "@zeta/pi-coding-agent/eval/py/executor";
-import type { KernelExecuteOptions, KernelExecuteResult } from "@zeta/pi-coding-agent/eval/py/kernel";
+import { executePythonWithKernel, type PythonKernelExecutor } from "@linxiraos/zeta/eval/py/executor";
+import type { KernelExecuteOptions, KernelExecuteResult } from "@linxiraos/zeta/eval/py/kernel";
 
 class FakeKernel implements PythonKernelExecutor {
 	constructor(

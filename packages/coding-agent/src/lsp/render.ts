@@ -7,8 +7,8 @@
  * - Grouped references and symbols
  * - Collapsible/expandable views
  */
-import type { RenderResultOptions } from "@zeta/pi-agent-core";
-import { type Component, Text } from "@zeta/pi-tui";
+import type { RenderResultOptions } from "@linxiraos/pi-agent-core";
+import { type Component, Text } from "@linxiraos/pi-tui";
 import { getLanguageFromPath, highlightCode as highlightThemeCode, type Theme } from "../modes/theme/theme";
 import {
 	formatExpandHint,

@@ -2,17 +2,17 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	type ExecuteHashlineSingleOptions,
 	executeHashlineSingle,
 	formatHashlineHeader,
 	getFileSnapshotStore as getFileReadCache,
-} from "@zeta/pi-coding-agent/edit";
-import { NOOP_HARD_LIMIT } from "@zeta/pi-coding-agent/edit/hashline/noop-loop-guard";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { ToolError } from "@zeta/pi-coding-agent/tools/tool-errors";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/edit";
+import { NOOP_HARD_LIMIT } from "@linxiraos/zeta/edit/hashline/noop-loop-guard";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 
 beforeAll(async () => {
 	resetSettingsForTest();

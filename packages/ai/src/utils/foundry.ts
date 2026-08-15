@@ -1,4 +1,4 @@
-import { $env } from "@zeta/pi-utils";
+import { $env } from "@linxiraos/pi-utils";
 
 export function isFoundryEnabled(): boolean {
 	const value = $env.CLAUDE_CODE_USE_FOUNDRY;

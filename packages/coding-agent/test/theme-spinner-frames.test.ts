@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SPINNER_GLYPH_ADVANCE_MS, sharedSpinnerFrame } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { getThemeByName } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { getConfigRootDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@zeta/pi-utils";
+import { getConfigRootDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { SPINNER_GLYPH_ADVANCE_MS, sharedSpinnerFrame } from "@linxiraos/zeta/modes/components/tool-execution";
+import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
 
 // Path of the built-in dark theme JSON, used as a known-valid base we can
 // extend with custom `symbols.spinnerFrames` shapes.

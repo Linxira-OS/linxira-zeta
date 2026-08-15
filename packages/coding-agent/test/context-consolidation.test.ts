@@ -1,18 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@zeta/pi-agent-core";
-import { estimateTokens } from "@zeta/pi-agent-core/compaction/compaction";
-import type { AssistantMessage, Message, Model } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@zeta/pi-coding-agent/modes/components/status-line";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { computeContextBreakdown } from "@zeta/pi-coding-agent/modes/utils/context-usage";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
+import { estimateTokens } from "@linxiraos/pi-agent-core/compaction/compaction";
+import type { AssistantMessage, Message, Model } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { computeContextBreakdown } from "@linxiraos/zeta/modes/utils/context-usage";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("Context usage consolidation", () => {
 	let sharedDir: TempDir;

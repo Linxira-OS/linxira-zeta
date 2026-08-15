@@ -1,5 +1,5 @@
-// @ts-nocheck — example file; install @zeta/pi-coding-agent before running
-import type { ExtensionAPI } from "@zeta/pi-coding-agent";
+// @ts-nocheck — example file; install @linxiraos/zeta before running
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function helloExtension(pi: ExtensionAPI) {
   // Show a greeting whenever a session starts.

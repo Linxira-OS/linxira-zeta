@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { sanitizeText } from "@zeta/pi-utils/sanitize-text";
+import { sanitizeText } from "@linxiraos/pi-utils/sanitize-text";
 import {
 	parseJsonlLenient,
 	readJsonl,
@@ -7,7 +7,7 @@ import {
 	readSseEvents,
 	readSseJson,
 	type ServerSentEvent,
-} from "@zeta/pi-utils/stream";
+} from "@linxiraos/pi-utils/stream";
 
 const encoder = new TextEncoder();
 

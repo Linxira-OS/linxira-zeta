@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { untilAborted } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { untilAborted } from "@linxiraos/pi-utils";
 import * as git from "../utils/git";
 import type { ToolSession } from ".";
 import type { GhToolDetails } from "./gh";

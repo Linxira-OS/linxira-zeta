@@ -1,4 +1,4 @@
-import { getProjectDir, prompt } from "@zeta/pi-utils";
+import { getProjectDir, prompt } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../config/model-registry";
 import { formatModelString, resolveCliModel } from "../config/model-resolver";
 import { Settings } from "../config/settings";

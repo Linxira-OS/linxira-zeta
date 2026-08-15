@@ -7,11 +7,11 @@ import {
 	mathStartIndex,
 	renderInlineMarkdown,
 	urlTokenPossible,
-} from "@zeta/pi-tui/components/markdown";
-import { setTerminalTextSizing, TERMINAL } from "@zeta/pi-tui/terminal-capabilities";
-import { type Component, TUI } from "@zeta/pi-tui/tui";
-import { visibleWidth } from "@zeta/pi-tui/utils";
-import { Chalk } from "@zeta/pi-utils/chalk";
+} from "@linxiraos/pi-tui/components/markdown";
+import { setTerminalTextSizing, TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
+import { type Component, TUI } from "@linxiraos/pi-tui/tui";
+import { visibleWidth } from "@linxiraos/pi-tui/utils";
+import { Chalk } from "@linxiraos/pi-utils/chalk";
 import { defaultMarkdownTheme } from "./test-themes.js";
 import { VirtualTerminal } from "./virtual-terminal.js";
 

@@ -6,10 +6,10 @@
  * exposes the equivalent, broader `decodePrintableKey` helper. Keep the legacy
  * name available without reintroducing it into the canonical package surface.
  */
-import { ImageProtocol, TERMINAL } from "@zeta/pi-tui";
+import { ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 
-export * from "@zeta/pi-tui";
-export { decodePrintableKey as decodeKittyPrintable } from "@zeta/pi-tui";
+export * from "@linxiraos/pi-tui";
+export { decodePrintableKey as decodeKittyPrintable } from "@linxiraos/pi-tui";
 
 /** Report canonical terminal capabilities through the legacy Pi TUI shape. */
 export function getCapabilities(): {

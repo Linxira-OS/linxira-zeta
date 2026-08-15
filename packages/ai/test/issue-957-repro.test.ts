@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai/auth-storage";
-import * as kimiOauth from "@zeta/pi-ai/registry/oauth/kimi";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import * as kimiOauth from "@linxiraos/pi-ai/registry/oauth/kimi";
 import { removeWithRetries } from "../../utils/src/temp";
 
 afterEach(() => {

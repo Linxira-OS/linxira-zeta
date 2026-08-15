@@ -7,7 +7,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isEnoent, logger } from "@zeta/pi-utils";
+import { isEnoent, logger } from "@linxiraos/pi-utils";
 import * as git from "../../../utils/git";
 
 import type { MarketplaceCatalog, MarketplaceSourceType } from "./types";
@@ -196,7 +196,7 @@ export function parseMarketplaceCatalog(content: string, filePath: string): Mark
  * Catalog paths tried in priority order: omp-namespaced override first, then
  * the Claude Code-compatible fallback so existing marketplaces keep loading.
  */
-const CATALOG_RELATIVE_PATHS: readonly string[] = [".omp-plugin/marketplace.json", ".claude-plugin/marketplace.json"];
+const CATALOG_RELATIVE_PATHS: readonly string[] = [".zeta-plugin/marketplace.json", ".claude-plugin/marketplace.json"];
 
 async function readMarketplaceCatalog(
 	root: string,

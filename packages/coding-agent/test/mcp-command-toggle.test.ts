@@ -2,10 +2,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SourceMeta } from "@zeta/pi-coding-agent/capability/types";
-import type { MCPServerConfig } from "@zeta/pi-coding-agent/mcp/types";
-import { MCPCommandController } from "@zeta/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -13,7 +9,11 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
+import type { SourceMeta } from "@linxiraos/zeta/capability/types";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 const originalProjectDir = getProjectDir();
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

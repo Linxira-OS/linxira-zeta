@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { formatHashlineHeader, formatNumberedLine, formatNumberedLines } from "@zeta/hashline";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { formatHashlineHeader, formatNumberedLine, formatNumberedLines } from "@linxiraos/pi-hashline";
 import { canonicalSnapshotKey, getFileSnapshotStore, recordSeenLines } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
 import { isMarkdownPath } from "../modes/theme/theme";

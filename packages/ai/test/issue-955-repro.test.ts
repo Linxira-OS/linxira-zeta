@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import type { Context, Model } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 const context: Context = {
 	systemPrompt: ["stable instructions", "cacheable policy"],

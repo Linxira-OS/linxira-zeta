@@ -21,11 +21,8 @@ import {
 	createMnemopiEmbedSubprocess,
 	MnemopiEmbedClient,
 	type MnemopiEmbedWorkerHandle,
-} from "@zeta/pi-coding-agent/mnemopi/embed-client";
-import type {
-	MnemopiEmbedWorkerInbound,
-	MnemopiEmbedWorkerOutbound,
-} from "@zeta/pi-coding-agent/mnemopi/embed-protocol";
+} from "@linxiraos/zeta/mnemopi/embed-client";
+import type { MnemopiEmbedWorkerInbound, MnemopiEmbedWorkerOutbound } from "@linxiraos/zeta/mnemopi/embed-protocol";
 
 describe("issue #3031 — mnemopi embeddings live in an isolated subprocess", () => {
 	it("ping/pongs through the spawned worker subprocess and tears it down cleanly", async () => {
@@ -35,7 +32,7 @@ describe("issue #3031 — mnemopi embeddings live in an isolated subprocess", ()
 		// starve nested Bun subprocess IPC on some Bun builds.
 		const repoRoot = path.resolve(import.meta.dir, "../../..");
 		const script =
-			'const { smokeTestMnemopiEmbedWorker } = await import("@zeta/pi-coding-agent/mnemopi/embed-client"); await smokeTestMnemopiEmbedWorker({ timeoutMs: 15000 });';
+			'const { smokeTestMnemopiEmbedWorker } = await import("@linxiraos/zeta/mnemopi/embed-client"); await smokeTestMnemopiEmbedWorker({ timeoutMs: 15000 });';
 		const proc = Bun.spawn([process.execPath, "-e", script], {
 			cwd: repoRoot,
 			stdout: "pipe",

@@ -3,17 +3,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseCodexRateLimitHeaders } from "@zeta/pi-ai";
+import { parseCodexRateLimitHeaders } from "@linxiraos/pi-ai";
 import {
 	AuthBrokerClient,
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
 	startAuthBroker,
-} from "@zeta/pi-ai/auth-broker";
-import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai/auth-storage";
-import * as oauthUtils from "@zeta/pi-ai/registry/oauth";
-import type { OAuthCredentials } from "@zeta/pi-ai/registry/oauth/types";
-import type { UsageLimit, UsageProvider, UsageReport } from "@zeta/pi-ai/usage";
+} from "@linxiraos/pi-ai/auth-broker";
+import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import * as oauthUtils from "@linxiraos/pi-ai/registry/oauth";
+import type { OAuthCredentials } from "@linxiraos/pi-ai/registry/oauth/types";
+import type { UsageLimit, UsageProvider, UsageReport } from "@linxiraos/pi-ai/usage";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;

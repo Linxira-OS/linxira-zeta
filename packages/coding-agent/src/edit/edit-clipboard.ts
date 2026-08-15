@@ -6,7 +6,7 @@
  * files within one call). The executor works on a fork per batch and commits
  * it back only after every write lands — see `executeHashlineSingle`.
  */
-import type { Clipboard } from "@zeta/hashline";
+import type { Clipboard } from "@linxiraos/pi-hashline";
 
 interface EditClipboardOwner {
 	editClipboard?: Clipboard;

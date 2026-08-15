@@ -10,18 +10,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Context, Model, SimpleStreamOptions, StopReason } from "@zeta/pi-ai";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Context, Model, SimpleStreamOptions, StopReason } from "@linxiraos/pi-ai";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 // Mirrors the reporter's block-reason shape: multi-line prose with U+2717
 // glyphs, ~300–600 chars. Persisted as-is on each `session-stop-continuation`

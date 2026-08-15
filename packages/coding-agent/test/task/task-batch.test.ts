@@ -14,17 +14,17 @@
  *    runtime for internal callers.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { toolWireSchema } from "@zeta/pi-ai/utils/schema";
-import { AsyncJobManager } from "@zeta/pi-coding-agent/async/job-manager";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@zeta/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { TaskTool } from "@zeta/pi-coding-agent/task";
-import * as discoveryModule from "@zeta/pi-coding-agent/task/discovery";
-import * as executorModule from "@zeta/pi-coding-agent/task/executor";
-import type { AgentDefinition, SingleResult, TaskParams } from "@zeta/pi-coding-agent/task/types";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { isRecord } from "@zeta/pi-utils";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { isRecord } from "@linxiraos/pi-utils";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition, SingleResult, TaskParams } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const taskAgent: AgentDefinition = {
 	name: "task",

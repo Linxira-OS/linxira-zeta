@@ -1,6 +1,6 @@
-import type { Agent, AgentMessage, AgentTool } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Message, Model, TextContent, ToolChoice } from "@zeta/pi-ai";
-import { isRecord, logger, prompt, stringProperty } from "@zeta/pi-utils";
+import type { Agent, AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Message, Model, TextContent, ToolChoice } from "@linxiraos/pi-ai";
+import { isRecord, logger, prompt, stringProperty } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import eagerTaskPrompt from "../prompts/system/eager-task.md" with { type: "text" };
 import eagerTodoPrompt from "../prompts/system/eager-todo.md" with { type: "text" };

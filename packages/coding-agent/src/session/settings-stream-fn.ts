@@ -10,9 +10,9 @@
  * OpenRouter never saw `providers.openrouterVariant`, breaking sticky routing
  * and OpenRouter response-cache hits across advisor calls.
  */
-import type { StreamFn } from "@zeta/pi-agent-core";
-import { type SimpleStreamOptions, streamSimple } from "@zeta/pi-ai";
-import { isAnthropicFableOrMythosModel } from "@zeta/pi-catalog/identity";
+import type { StreamFn } from "@linxiraos/pi-agent-core";
+import { type SimpleStreamOptions, streamSimple } from "@linxiraos/pi-ai";
+import { isAnthropicFableOrMythosModel } from "@linxiraos/pi-catalog/identity";
 import { type Settings, validateProviderMaxInFlightRequests } from "../config/settings";
 
 function timeoutSecondsToMs(value: number): number | undefined {

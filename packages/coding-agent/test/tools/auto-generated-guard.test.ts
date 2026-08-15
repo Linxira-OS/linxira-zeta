@@ -2,10 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { assertEditableFile, assertEditableFileContent } from "@zeta/pi-coding-agent/tools/auto-generated-guard";
-import { resolveImageOptions } from "@zeta/pi-coding-agent/tools/render-utils";
-import { ToolError } from "@zeta/pi-coding-agent/tools/tool-errors";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { assertEditableFile, assertEditableFileContent } from "@linxiraos/zeta/tools/auto-generated-guard";
+import { resolveImageOptions } from "@linxiraos/zeta/tools/render-utils";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 
 let tempDir: string;
 let testSettings: Settings;

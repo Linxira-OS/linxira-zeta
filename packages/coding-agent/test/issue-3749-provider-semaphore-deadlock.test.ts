@@ -8,12 +8,12 @@
  * LLM HTTP request; this file exercises the new contract.
  */
 import { describe, expect, it } from "bun:test";
-import type { StreamFn } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Model } from "@zeta/pi-ai";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { wrapStreamFnWithProviderConcurrency } from "@zeta/pi-coding-agent/task/provider-concurrency";
+import type { StreamFn } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { wrapStreamFnWithProviderConcurrency } from "@linxiraos/zeta/task/provider-concurrency";
 
 interface Deferred {
 	promise: Promise<void>;

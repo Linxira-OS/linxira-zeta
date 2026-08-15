@@ -5,7 +5,7 @@
  * cleaned content.
  */
 
-import { type AuthStorage, type FetchImpl, getEnvApiKey } from "@zeta/pi-ai";
+import { type AuthStorage, type FetchImpl, getEnvApiKey } from "@linxiraos/pi-ai";
 import type { SearchResponse, SearchSource } from "../../../web/search/types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";

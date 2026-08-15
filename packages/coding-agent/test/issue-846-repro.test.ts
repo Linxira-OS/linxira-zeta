@@ -12,12 +12,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Model } from "@zeta/pi-ai";
-import * as ai from "@zeta/pi-ai";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { startMemoryStartupTask } from "@zeta/pi-coding-agent/memories";
-import * as memoryStorage from "@zeta/pi-coding-agent/memories/storage";
-import { getAgentDbPath, logger, Snowflake, TempDir } from "@zeta/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { getAgentDbPath, logger, Snowflake, TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { startMemoryStartupTask } from "@linxiraos/zeta/memories";
+import * as memoryStorage from "@linxiraos/zeta/memories/storage";
 
 interface SessionLike {
 	sessionManager: {

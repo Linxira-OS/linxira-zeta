@@ -1,6 +1,6 @@
-import type { Usage } from "@zeta/pi-ai";
-import { Container, Spacer, Text } from "@zeta/pi-tui";
-import { formatNumber } from "@zeta/pi-utils";
+import type { Usage } from "@linxiraos/pi-ai";
+import { Container, Spacer, Text } from "@linxiraos/pi-tui";
+import { formatNumber } from "@linxiraos/pi-utils";
 import { theme } from "../../modes/theme/theme";
 
 /** Below this the rate is nonsense (cached/instant responses yield absurd tok/s). */

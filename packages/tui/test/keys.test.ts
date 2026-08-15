@@ -6,7 +6,7 @@ import {
 	matchesRawBackspace,
 	parseKey,
 	setKittyProtocolActive,
-} from "@zeta/pi-tui/keys";
+} from "@linxiraos/pi-tui/keys";
 
 describe("matchesKey", () => {
 	it("matches ctrl+letter sequences", () => {

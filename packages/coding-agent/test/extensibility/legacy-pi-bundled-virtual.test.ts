@@ -1,25 +1,25 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	__getLegacyPiBundledModulesGlobal,
 	__synthesizeLegacyPiBundledSourceWithModules,
 	resolveBundledVirtualSpecifier,
-} from "@zeta/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 import type { BunPlugin } from "bun";
 
 // Regression for issue #3423: Bun 1.3.14 made `--compile` extras unreachable
 // via every filesystem-style API. The compat layer now routes canonical
-// `@zeta/pi-*` imports through virtual modules backed by live host module
+// `@linxiraos/pi-*` imports through virtual modules backed by live host module
 // references. The synthesizer must preserve every named/default export.
 describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 	const modules = {
-		"@zeta/pi-coding-agent": {
+		"@linxiraos/zeta": {
 			VERSION: "16.1.17",
 			defineTool: () => undefined,
 			Type: { Object: () => undefined },
 		},
-		"@zeta/pi-utils": {
+		"@linxiraos/pi-utils": {
 			isCompiledBinary: () => false,
 			default: () => "default-export",
 			VERSION: "16.1.17",
@@ -31,8 +31,8 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 	const globalKey = __getLegacyPiBundledModulesGlobal();
 
 	it("emits one ES named export per enumerable namespace key", () => {
-		const src = __synthesizeLegacyPiBundledSourceWithModules("@zeta/pi-coding-agent", modules);
-		expect(src).toContain(`const __omp_bundled = globalThis[${JSON.stringify(globalKey)}]["@zeta/pi-coding-agent"];`);
+		const src = __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/zeta", modules);
+		expect(src).toContain(`const __omp_bundled = globalThis[${JSON.stringify(globalKey)}]["@linxiraos/zeta"];`);
 		expect(src).toContain('export const VERSION = __omp_bundled["VERSION"];');
 		expect(src).toContain('export const defineTool = __omp_bundled["defineTool"];');
 		expect(src).toContain('export const Type = __omp_bundled["Type"];');
@@ -41,7 +41,7 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 	});
 
 	it("forwards `default` through `export default` so default imports survive", () => {
-		const src = __synthesizeLegacyPiBundledSourceWithModules("@zeta/pi-utils", modules);
+		const src = __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/pi-utils", modules);
 		expect(src).toContain("export default __omp_bundled.default;");
 		// Default and named exports coexist on the same module.
 		expect(src).toContain('export const VERSION = __omp_bundled["VERSION"];');
@@ -49,13 +49,13 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 	});
 
 	it("omits `default` line when the registered namespace has no default export", () => {
-		const src = __synthesizeLegacyPiBundledSourceWithModules("@zeta/pi-coding-agent", modules);
+		const src = __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/zeta", modules);
 		expect(src).not.toContain("export default");
 	});
 
 	it("throws when asked to synthesize a key the bundled modules do not cover", () => {
-		expect(() => __synthesizeLegacyPiBundledSourceWithModules("@zeta/pi-not-bundled", modules)).toThrow(
-			/no bundled module registered for @zeta\/pi-not-bundled/,
+		expect(() => __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/pi-not-bundled", modules)).toThrow(
+			/no bundled module registered for @linxiraos\/pi-not-bundled/,
 		);
 	});
 
@@ -75,7 +75,7 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 		// or skipped an enumerable export.
 		Reflect.set(globalThis, globalKey, modules);
 		try {
-			const src = __synthesizeLegacyPiBundledSourceWithModules("@zeta/pi-coding-agent", modules);
+			const src = __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/zeta", modules);
 			// Strip the ES export prefix and run the body as a plain script so
 			// we can read `__omp_bundled` from the returned closure.
 			const body = src
@@ -103,19 +103,19 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 		await Bun.write(
 			entryPath,
 			[
-				'import { legacyAnswer } from "omp-legacy-pi-bundled:@zeta/pi-utils";',
+				'import { legacyAnswer } from "omp-legacy-pi-bundled:@linxiraos/pi-utils";',
 				"process.stdout.write(legacyAnswer);",
 				"",
 			].join("\n"),
 		);
 
-		expect(resolveBundledVirtualSpecifier("@zeta/pi-utils")).toEqual({
+		expect(resolveBundledVirtualSpecifier("@linxiraos/pi-utils")).toEqual({
 			namespace: "omp-legacy-pi-bundled",
-			path: "@zeta/pi-utils",
+			path: "@linxiraos/pi-utils",
 		});
-		expect(resolveBundledVirtualSpecifier("omp-legacy-pi-bundled:@zeta/pi-utils")).toEqual({
+		expect(resolveBundledVirtualSpecifier("omp-legacy-pi-bundled:@linxiraos/pi-utils")).toEqual({
 			namespace: "omp-legacy-pi-bundled",
-			path: "@zeta/pi-utils",
+			path: "@linxiraos/pi-utils",
 		});
 
 		const onLoadPaths: string[] = [];
@@ -148,7 +148,7 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 		const buildLogs = buildResult.logs.map(log => log.message).join("\n");
 		expect(buildResult.success, buildLogs).toBe(true);
 		await Bun.write(bundlePath, await buildResult.outputs[0]!.text());
-		expect(onLoadPaths).toEqual(["@zeta/pi-utils"]);
+		expect(onLoadPaths).toEqual(["@linxiraos/pi-utils"]);
 
 		const proc = Bun.spawn([process.execPath, `./${path.basename(bundlePath)}`], {
 			cwd: path.dirname(bundlePath),
@@ -163,6 +163,6 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 
 		expect(exitCode, stderr).toBe(0);
 		expect(stderr).toBe("");
-		expect(stdout).toBe("served:@zeta/pi-utils");
+		expect(stdout).toBe("served:@linxiraos/pi-utils");
 	});
 });

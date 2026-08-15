@@ -1,6 +1,6 @@
 import process from "node:process";
 
-import { $env } from "@zeta/pi-utils";
+import { $env } from "@linxiraos/pi-utils";
 
 interface OmpCommand {
 	cmd: string;

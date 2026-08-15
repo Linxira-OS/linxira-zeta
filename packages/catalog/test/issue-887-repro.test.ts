@@ -13,7 +13,7 @@ import {
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	type ModelsDevModel,
 	opencodeGoModelManagerOptions,
-} from "@zeta/pi-catalog/provider-models/openai-compat";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 const OPENCODE_GO_BASE = "https://opencode.ai/zen/go/v1";
 

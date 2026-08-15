@@ -7,7 +7,7 @@ import {
 	type ActiveRepoContext,
 	resolveActiveRepoContext,
 	resolveActiveRepoContextSync,
-} from "@zeta/pi-coding-agent/utils/active-repo-context";
+} from "@linxiraos/zeta/utils/active-repo-context";
 
 const itWithSymlinkPrivilege = process.platform === "win32" ? it.skip : it;
 

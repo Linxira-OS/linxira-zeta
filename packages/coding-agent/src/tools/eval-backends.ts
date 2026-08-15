@@ -1,4 +1,4 @@
-import { $flag } from "@zeta/pi-utils";
+import { $flag } from "@linxiraos/pi-utils";
 import type { ToolSession } from ".";
 
 export interface EvalBackendsAllowance {

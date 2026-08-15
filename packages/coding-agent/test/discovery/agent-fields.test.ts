@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { Effort } from "@zeta/pi-ai";
-import { parseAgentFields } from "@zeta/pi-coding-agent/discovery/helpers";
-import { AUTO_THINKING } from "@zeta/pi-coding-agent/thinking";
+import { Effort } from "@linxiraos/pi-ai";
+import { parseAgentFields } from "@linxiraos/zeta/discovery/helpers";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 
 describe("parseAgentFields", () => {
 	test("parses blocking from boolean frontmatter", () => {

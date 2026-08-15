@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
-import type { Context, Model, OpenAICompat } from "@zeta/pi-ai/types";
-import { Effort } from "@zeta/pi-catalog/effort";
+import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import type { Context, Model, OpenAICompat } from "@linxiraos/pi-ai/types";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 
 const testContext: Context = {
 	messages: [{ role: "user", content: "hello", timestamp: 0 }],

@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { Message } from "@zeta/pi-ai";
-import { TranscriptContainer } from "@zeta/pi-coding-agent/modes/components/transcript-container";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { UiHelpers } from "@zeta/pi-coding-agent/modes/utils/ui-helpers";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Message } from "@linxiraos/pi-ai";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 
 function buildContext(): InteractiveModeContext {
 	const chatContainer = new TranscriptContainer();

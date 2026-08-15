@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getSecurityProjectDir, isEnoent } from "@zeta/pi-utils";
+import { getSecurityProjectDir, isEnoent } from "@linxiraos/pi-utils";
 import { withFileLock } from "../config/file-lock";
 import * as git from "../utils/git";
 import { compareSecurityLineage } from "./comparison";

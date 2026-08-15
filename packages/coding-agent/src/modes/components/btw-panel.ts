@@ -1,4 +1,4 @@
-import { type Component, Container, Markdown, Spacer, Text, type TUI } from "@zeta/pi-tui";
+import { type Component, Container, Markdown, Spacer, Text, type TUI } from "@linxiraos/pi-tui";
 import { replaceTabs } from "../../tools/render-utils";
 import { getMarkdownTheme, theme } from "../theme/theme";
 import { DynamicBorder } from "./dynamic-border";

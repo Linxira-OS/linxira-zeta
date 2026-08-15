@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
-import { stripImagesFromMessage } from "@zeta/pi-coding-agent/session/messages";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { stripImagesFromMessage } from "@linxiraos/zeta/session/messages";
 
 const png = (data: string = "iVBORw0KGgo"): ImageContent => ({ type: "image", data, mimeType: "image/png" });
 const text = (value: string): TextContent => ({ type: "text", text: value });

@@ -1,14 +1,14 @@
 {
   "type": "module",
-  "name": "@zeta/pi-utils",
-  "version": "1.0.0",
+  "name": "@linxiraos/pi-utils",
+  "version": "1.0.1",
   "description": "Shared utilities for pi packages",
   "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
     "directory": "packages/utils"
   },
   "bugs": {
@@ -31,7 +31,7 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@zeta/pi-natives": "catalog:"
+    "@linxiraos/pi-natives": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

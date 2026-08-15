@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { isRecord, sanitizeText } from "@zeta/pi-utils";
+import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
 import type { CleanseDiagnostic, CleanseSeverity } from "./types";
 
 /** Machine and fallback output formats understood by cleanse. */

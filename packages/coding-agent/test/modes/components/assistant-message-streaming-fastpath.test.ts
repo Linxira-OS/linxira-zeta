@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { type Component, Container, Markdown } from "@zeta/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { type Component, Container, Markdown } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 const W = 100;
 

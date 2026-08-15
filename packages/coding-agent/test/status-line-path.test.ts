@@ -2,10 +2,10 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SegmentContext } from "@zeta/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@zeta/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { getProjectDir, removeSyncWithRetries, setProjectDir } from "@zeta/pi-utils";
+import { getProjectDir, removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
+import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 const originalProjectDir = getProjectDir();
 beforeAll(async () => {

@@ -23,12 +23,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { CustomEditor } from "@zeta/pi-coding-agent/modes/components/custom-editor";
-import { InputController } from "@zeta/pi-coding-agent/modes/controllers/input-controller";
-import { getEditorTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { getEditorTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";

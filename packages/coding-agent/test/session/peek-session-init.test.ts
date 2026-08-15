@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const tempDirs: TempDir[] = [];
 

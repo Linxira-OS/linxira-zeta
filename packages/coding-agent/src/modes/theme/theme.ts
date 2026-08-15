@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { detectMacOSAppearance, MacAppearanceObserver } from "@zeta/pi-natives";
-import type { Terminal, TerminalAppearance } from "@zeta/pi-tui";
-import { colorLuma, getCustomThemesDir, logger } from "@zeta/pi-utils";
+import { detectMacOSAppearance, MacAppearanceObserver } from "@linxiraos/pi-natives";
+import type { Terminal, TerminalAppearance } from "@linxiraos/pi-tui";
+import { colorLuma, getCustomThemesDir, logger } from "@linxiraos/pi-utils";
 import { ansi256ToHex, resolveThemeColors, resolveVarRefs } from "./color";
 import { type CreateThemeOptions, getBuiltinThemes, loadTheme, loadThemeJson } from "./loader";
 import type { ThemeColor, ThemeJson } from "./schema";

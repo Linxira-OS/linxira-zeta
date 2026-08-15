@@ -1,6 +1,13 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent, Message, MessageAttribution, ServiceTierByFamily, TextContent, Usage } from "@zeta/pi-ai";
+import type {
+	ImageContent,
+	Message,
+	MessageAttribution,
+	ServiceTierByFamily,
+	TextContent,
+	Usage,
+} from "@linxiraos/pi-ai";
 import {
 	directoryExists,
 	getBlobsDir,
@@ -10,7 +17,7 @@ import {
 	logger,
 	stringifyJson,
 	toError,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import type { StructuredSubagentSchemaMode } from "../task/types";
 import { ArtifactManager } from "./artifacts";
 import { type BlobPutOptions, type BlobPutResult, BlobStore } from "./blob-store";

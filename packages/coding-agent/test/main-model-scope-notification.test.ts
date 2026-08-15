@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import { buildModel } from "@zeta/pi-catalog/build";
-import type { ScopedModel } from "@zeta/pi-coding-agent/config/model-resolver";
-import { buildModelScopeNotification } from "@zeta/pi-coding-agent/main";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ScopedModel } from "@linxiraos/zeta/config/model-resolver";
+import { buildModelScopeNotification } from "@linxiraos/zeta/main";
 
 function scopedModel(id: string): ScopedModel {
 	return {

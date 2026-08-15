@@ -8,7 +8,7 @@
  * here once.
  */
 
-import { buildModel } from "@zeta/pi-catalog/build";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { ANTHROPIC_THINKING, mapAnthropicToolChoice } from "../stream";
 import type { Context, Model, ModelSpec, SimpleStreamOptions, ThinkingControlMode } from "../types";
 import { AssistantMessageEventStream } from "../utils/event-stream";

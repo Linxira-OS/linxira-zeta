@@ -1,6 +1,6 @@
 import * as path from "node:path";
 
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import {
 	attachSessionOwner,
 	type CancelledErrorClass,

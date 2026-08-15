@@ -1,8 +1,8 @@
-import type { DesktopCapabilities } from "@zeta/pi-natives";
-import { withTimeout } from "@zeta/pi-utils/async";
-import * as logger from "@zeta/pi-utils/logger";
-import { Snowflake } from "@zeta/pi-utils/snowflake";
-import { workerHostEntry } from "@zeta/pi-utils/worker-host";
+import type { DesktopCapabilities } from "@linxiraos/pi-natives";
+import { withTimeout } from "@linxiraos/pi-utils/async";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
+import { workerHostEntry } from "@linxiraos/pi-utils/worker-host";
 import type { ToolSession } from "../index";
 import { ToolAbortError, ToolError } from "../tool-errors";
 import {

@@ -1,5 +1,5 @@
-import { coreWeaveProjectHeaders } from "@zeta/pi-catalog/wire/coreweave";
-import { $env } from "@zeta/pi-utils";
+import { coreWeaveProjectHeaders } from "@linxiraos/pi-catalog/wire/coreweave";
+import { $env } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import { createApiKeyLogin } from "./api-key-login";
 import type { OAuthLoginCallbacks } from "./oauth/types";

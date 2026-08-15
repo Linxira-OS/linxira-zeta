@@ -18,12 +18,13 @@
 ### Fixed
 
 - Rejected patches whose pasted `N:TEXT` read-output rows repeat a source line number. Each such row is recovered as a single-line `PUT N.=N:`, so a body written as consecutive lines under one number collapsed through the same-range coalescer, keeping only the last row and silently dropping the rest — in one incident replacing a block opener with `}` and deleting the following statement. The error now names the repeated line and teaches the explicit `PUT` form.
+## [1.0.1] - 2026-08-14
 
 ## [17.2.11] - 2026-08-07
 
 ### Changed
 
-- Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 - Pasting an empty named register (`PUT … @name` with no matching capture) no longer errors — it pastes nothing (a span target is still removed) and surfaces a warning naming the available registers
 - Pasting an empty named register (`PUT … @name` with no matching capture) now surfaces a warning listing available registers and removes the span target instead of throwing an error.
 

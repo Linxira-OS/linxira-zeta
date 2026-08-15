@@ -1,9 +1,9 @@
 import { spyOn } from "bun:test";
 import * as path from "node:path";
-import * as buildModule from "@zeta/pi-catalog/build";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { TempDir } from "@zeta/pi-utils";
+import * as buildModule from "@linxiraos/pi-catalog/build";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 const tempDir = TempDir.createSync("@model-registry-lazy-probe-");
 const authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));

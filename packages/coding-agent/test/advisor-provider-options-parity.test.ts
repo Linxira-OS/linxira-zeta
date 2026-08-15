@@ -12,16 +12,16 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type StreamFn } from "@zeta/pi-agent-core";
-import type { FetchImpl, Model, SimpleStreamOptions } from "@zeta/pi-ai";
-import { streamSimple } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, type StreamFn } from "@linxiraos/pi-agent-core";
+import type { FetchImpl, Model, SimpleStreamOptions } from "@linxiraos/pi-ai";
+import { streamSimple } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 /** Provider-facing advisor session ids must be UUIDv7 (issue #5040): Codex writes
  *  them verbatim onto `conversation_id`/`session_id` headers, so `-advisor`

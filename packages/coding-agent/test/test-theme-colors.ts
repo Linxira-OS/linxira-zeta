@@ -1,4 +1,4 @@
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 // Initialize with dark theme explicitly
 Bun.env.COLORTERM = "truecolor";

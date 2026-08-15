@@ -7,9 +7,9 @@ import type {
 	AssistantMessageEventStream,
 	Model,
 	SimpleStreamOptions,
-} from "@zeta/pi-ai";
-import { type BenchModelRegistry, type BenchSummary, runBenchCommand } from "@zeta/pi-coding-agent/cli/bench-cli";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+} from "@linxiraos/pi-ai";
+import { type BenchModelRegistry, type BenchSummary, runBenchCommand } from "@linxiraos/zeta/cli/bench-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 function fakeModel(provider: string, id: string): Model<Api> {
 	return {

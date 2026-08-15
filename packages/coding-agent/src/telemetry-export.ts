@@ -1,7 +1,7 @@
 /**
  * OTLP telemetry export bootstrap.
  *
- * OMP's agent core (`@zeta/pi-agent-core`) emits OpenTelemetry GenAI
+ * OMP's agent core (`@linxiraos/pi-agent-core`) emits OpenTelemetry GenAI
  * spans through the global `@opentelemetry/api` tracer, and exposes run-level
  * callbacks for metrics/log pipelines. This module registers the OTLP/proto
  * trace, log, and metric SDK providers when the standard `OTEL_*` endpoint env
@@ -15,6 +15,15 @@
  * `req.on("close")` handler fires after a successful export.
  */
 
+import type {
+	AgentRunCoverage,
+	AgentRunSummary,
+	AgentTelemetryConfig,
+	AgentTelemetryWarning,
+	ChatUsageEvent,
+	ToolStatus,
+} from "@linxiraos/pi-agent-core";
+import { logger, postmortem } from "@linxiraos/pi-utils";
 import {
 	type Attributes,
 	type AttributeValue,
@@ -34,15 +43,6 @@ import { BatchLogRecordProcessor, LoggerProvider } from "@opentelemetry/sdk-logs
 import { MeterProvider, PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import type {
-	AgentRunCoverage,
-	AgentRunSummary,
-	AgentTelemetryConfig,
-	AgentTelemetryWarning,
-	ChatUsageEvent,
-	ToolStatus,
-} from "@zeta/pi-agent-core";
-import { logger, postmortem } from "@zeta/pi-utils";
 
 /**
  * Periodic flush interval. A long-lived `omp` process (the ACP server is
@@ -171,7 +171,7 @@ async function registerProviders(signalConfig: SignalConfig): Promise<void> {
 			readers: [new PeriodicExportingMetricReader({ exporter })],
 		});
 		metrics.setGlobalMeterProvider(meterProvider);
-		metricRecorder = new AgentMetricRecorder(metrics.getMeter("@zeta/pi-coding-agent"));
+		metricRecorder = new AgentMetricRecorder(metrics.getMeter("@linxiraos/zeta"));
 	}
 
 	if (signalConfig.log) {
@@ -181,7 +181,7 @@ async function registerProviders(signalConfig: SignalConfig): Promise<void> {
 			processors: [new BatchLogRecordProcessor({ exporter })],
 		});
 		logs.setGlobalLoggerProvider(logProvider);
-		otelLogger = logProvider.getLogger("@zeta/pi-coding-agent");
+		otelLogger = logProvider.getLogger("@linxiraos/zeta");
 		unregisterLogSink = logger.registerLogSink(event => {
 			emitOtelLog(
 				event.level,

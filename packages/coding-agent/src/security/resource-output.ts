@@ -1,4 +1,4 @@
-import { sanitizeText } from "@zeta/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { InternalResource } from "../internal-urls";
 import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, truncateHead } from "../session/streaming-output";
 

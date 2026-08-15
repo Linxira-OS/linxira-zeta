@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Effort } from "@zeta/pi-ai";
-import { clearCustomApis } from "@zeta/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
-import { __providerInFlightForTesting, streamSimple } from "@zeta/pi-ai/stream";
-import type { Context } from "@zeta/pi-ai/types";
+import { Effort } from "@linxiraos/pi-ai";
+import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { __providerInFlightForTesting, streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context } from "@linxiraos/pi-ai/types";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
 import {
 	getDefault,
 	getEnumValues,
@@ -14,11 +15,10 @@ import {
 	resetSettingsForTest,
 	type SettingPath,
 	Settings,
-} from "@zeta/pi-coding-agent/config/settings";
-import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import { AUTO_IMAGE_PROVIDER_ORDER } from "@zeta/pi-coding-agent/tools/image-providers";
-import { SEARCH_PROVIDER_ORDER } from "@zeta/pi-coding-agent/web/search/types";
-import { getProjectAgentDir, TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { AUTO_IMAGE_PROVIDER_ORDER } from "@linxiraos/zeta/tools/image-providers";
+import { SEARCH_PROVIDER_ORDER } from "@linxiraos/zeta/web/search/types";
 import { YAML } from "bun";
 import * as fileLock from "../src/config/file-lock";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";

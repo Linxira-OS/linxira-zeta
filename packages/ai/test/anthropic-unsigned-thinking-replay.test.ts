@@ -1,8 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { renderDemotedThinking } from "@zeta/pi-ai/dialect";
-import { convertAnthropicMessages, streamAnthropic } from "@zeta/pi-ai/providers/anthropic";
-import type { AssistantMessage, Message, Model, ModelSpec, ToolResultMessage, UserMessage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { renderDemotedThinking } from "@linxiraos/pi-ai/dialect";
+import { convertAnthropicMessages, streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
+import type {
+	AssistantMessage,
+	Message,
+	Model,
+	ModelSpec,
+	ToolResultMessage,
+	UserMessage,
+} from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 /**
  * Regression: Anthropic-compatible reasoning endpoints often emit `thinking`

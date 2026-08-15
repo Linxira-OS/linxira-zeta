@@ -1,10 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import {
-	rankSessionSearchMatches,
-	SessionSelectorComponent,
-} from "@zeta/pi-coding-agent/modes/components/session-selector";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { SessionInfo } from "@zeta/pi-coding-agent/session/session-listing";
+import { rankSessionSearchMatches, SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 
 /**
  * Contracts of the session picker's incremental search engine: a keystroke

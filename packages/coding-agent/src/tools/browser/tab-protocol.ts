@@ -1,4 +1,4 @@
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 
 export type Transferable = Bun.Transferable;
 

@@ -8,7 +8,7 @@ import {
 	type TinyModelDevice,
 	tinyModelDeviceLoadOrder,
 	tinyModelDeviceSettingToEnv,
-} from "@zeta/pi-coding-agent/tiny/device";
+} from "@linxiraos/zeta/tiny/device";
 
 describe("tiny model device selection", () => {
 	it("defaults to CPU-only inference on every platform", () => {

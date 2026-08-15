@@ -15,8 +15,8 @@
  *   mechanical {@link SpeakableStream} cleanup — speech never blocks on the
  *   model.
  */
-import { type AssistantMessage, completeSimple } from "@zeta/pi-ai";
-import { logger, prompt } from "@zeta/pi-utils";
+import { type AssistantMessage, completeSimple } from "@linxiraos/pi-ai";
+import { logger, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";
 import type { Settings } from "../config/settings";

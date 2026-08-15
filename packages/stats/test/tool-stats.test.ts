@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getToolDashboardStats, syncAllSessions } from "@zeta/omp-stats/aggregator";
-import { getToolStats, getToolStatsByModel } from "@zeta/omp-stats/db";
-import type { ToolUsageStats } from "@zeta/omp-stats/types";
-import { getSessionsDir } from "@zeta/pi-utils";
+import { getToolDashboardStats, syncAllSessions } from "@linxiraos/pi-stats/aggregator";
+import { getToolStats, getToolStatsByModel } from "@linxiraos/pi-stats/db";
+import type { ToolUsageStats } from "@linxiraos/pi-stats/types";
+import { getSessionsDir } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-tool-stats-");

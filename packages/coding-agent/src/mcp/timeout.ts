@@ -1,4 +1,4 @@
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 
 const DEFAULT_MCP_TIMEOUT_MS = 30_000;
 const MCP_TIMEOUT_ENV = "OMP_MCP_TIMEOUT_MS";

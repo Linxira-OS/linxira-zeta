@@ -3,22 +3,22 @@ import {
 	buildTransformedCodexRequestBody,
 	convertOpenAICodexResponsesTools as convertCodexTools,
 	normalizeCodexToolChoice,
-} from "@zeta/pi-ai/providers/openai-codex-responses";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import {
 	buildParams,
 	convertTools,
 	mapOpenAIResponsesToolChoiceForTools,
 	supportsFreeformApplyPatch,
-} from "@zeta/pi-ai/providers/openai-responses";
-import type { ResponseStreamEvent } from "@zeta/pi-ai/providers/openai-responses-wire";
+} from "@linxiraos/pi-ai/providers/openai-responses";
+import type { ResponseStreamEvent } from "@linxiraos/pi-ai/providers/openai-responses-wire";
 import {
 	appendResponsesToolResultMessages,
 	convertResponsesAssistantMessage,
 	processResponsesStream,
-} from "@zeta/pi-ai/providers/openai-shared";
-import type { AssistantMessage, Model, ModelSpec, Tool, ToolResultMessage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import type { AssistantMessage, Model, ModelSpec, Tool, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
 
 const GRAMMAR = [
 	"// top-level comment",

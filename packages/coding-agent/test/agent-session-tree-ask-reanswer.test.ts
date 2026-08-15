@@ -14,10 +14,10 @@
  * silently reporting a successful no-op navigation (review on #5895).
  */
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import type { ExtensionRunner, ExtensionUIContext } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { SecretObfuscator } from "@zeta/pi-coding-agent/secrets/obfuscator";
-import type { AskToolDetails } from "@zeta/pi-coding-agent/tools/ask";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { ExtensionRunner, ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
+import { SecretObfuscator } from "@linxiraos/zeta/secrets/obfuscator";
+import type { AskToolDetails } from "@linxiraos/zeta/tools/ask";
 import { assistantMsg, createTestSession, userMsg } from "./utilities";
 
 const ORIGINAL_QUESTIONS = [

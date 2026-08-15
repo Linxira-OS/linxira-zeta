@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ProcessTerminal } from "@zeta/pi-tui/terminal";
-import { setTerminalHeadless } from "@zeta/pi-utils";
+import { ProcessTerminal } from "@linxiraos/pi-tui/terminal";
+import { setTerminalHeadless } from "@linxiraos/pi-utils";
 
 // ProcessTerminal dedupes cursor-visibility writes: hideCursor()/showCursor()
 // skip the ?25l/?25h escape when the terminal already holds that state. The

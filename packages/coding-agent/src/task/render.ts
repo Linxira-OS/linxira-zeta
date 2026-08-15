@@ -5,9 +5,9 @@
  * task execution in the terminal UI.
  */
 import path from "node:path";
-import type { Component } from "@zeta/pi-tui";
-import { Container, Markdown, Text } from "@zeta/pi-tui";
-import { formatNumber, sanitizeText } from "@zeta/pi-utils";
+import type { Component } from "@linxiraos/pi-tui";
+import { Container, Markdown, Text } from "@linxiraos/pi-tui";
+import { formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import { settings } from "../config/settings";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { formatContextUsage } from "../modes/components/status-line/context-thresholds";

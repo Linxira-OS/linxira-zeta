@@ -1,5 +1,11 @@
-import { type Agent, ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Model, ProviderSessionState, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@zeta/pi-ai";
+import { type Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type {
+	Model,
+	ProviderSessionState,
+	ServiceTier,
+	ServiceTierByFamily,
+	ServiceTierFamily,
+} from "@linxiraos/pi-ai";
 import {
 	clearAnthropicFastModeFallback,
 	Effort,
@@ -7,11 +13,11 @@ import {
 	realizesPriorityServiceTier,
 	resolveModelServiceTier,
 	serviceTierFamily,
-} from "@zeta/pi-ai";
-import { isFireworksFastModelId } from "@zeta/pi-catalog/fireworks-model-id";
-import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@zeta/pi-catalog/models";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { isFireworksFastModelId } from "@linxiraos/pi-catalog/fireworks-model-id";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { logger } from "@linxiraos/pi-utils";
 import { classifyDifficulty } from "../auto-thinking/classifier";
 import type { ModelRegistry } from "../config/model-registry";
 import {

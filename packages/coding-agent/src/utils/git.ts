@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, hasFsCode, isEisdir, isEnoent, isEnotdir, Snowflake } from "@zeta/pi-utils";
+import { $which, hasFsCode, isEisdir, isEnoent, isEnotdir, Snowflake } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import {
 	parseDiffHunks as parseCommitDiffHunks,
@@ -552,6 +552,14 @@ async function tryText(
 	const result = await git(cwd, args, options);
 	if (result.exitCode !== 0) return undefined;
 	return result.stdout;
+}
+
+/**
+ * Run a git query and return trimmed stdout, or throw `GitCommandError`.
+ * Read-only (no optional locks); uses the shared timeout and output caps.
+ */
+export async function runGitText(cwd: string, args: readonly string[]): Promise<string> {
+	return (await runText(cwd, args, { readOnly: true })).trim();
 }
 
 // ════════════════════════════════════════════════════════════════════════════

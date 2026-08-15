@@ -1,7 +1,7 @@
 {
   "type": "module",
   "private": true,
-  "name": "@zeta/typescript-edit-benchmark",
+  "name": "@linxiraos/typescript-edit-benchmark",
   "version": "0.0.1",
   "description": "Edit benchmark suite using TypeScript source code mutations",
   "homepage": "https://linxira-os.github.io",
@@ -9,7 +9,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
     "directory": "packages/typescript-edit-benchmark"
   },
   "exports": {
@@ -34,16 +34,16 @@
     "@babel/parser": "catalog:",
     "@babel/traverse": "catalog:",
     "@babel/types": "catalog:",
-    "@zeta/hashline": "catalog:",
-    "@zeta/pi-agent-core": "catalog:",
-    "@zeta/pi-coding-agent": "catalog:",
-    "@zeta/pi-utils": "catalog:",
+    "@linxiraos/pi-hashline": "catalog:",
+    "@linxiraos/pi-agent-core": "catalog:",
+    "@linxiraos/zeta": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
     "diff": "catalog:",
-    "@zeta/pi-natives": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
     "prettier": "catalog:",
     "regexp-tree": "catalog:",
-    "@zeta/pi-ai": "catalog:",
-    "@zeta/pi-tui": "catalog:"
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-tui": "catalog:"
   },
   "devDependencies": {
     "@types/babel__generator": "catalog:",

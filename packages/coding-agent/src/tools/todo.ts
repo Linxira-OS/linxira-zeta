@@ -1,10 +1,10 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import type { ToolExample } from "@zeta/pi-ai";
-import { type } from "@zeta/pi-omptype";
-import type { Component } from "@zeta/pi-tui";
-import { Text } from "@zeta/pi-tui";
-import { isRecord, prompt, sanitizeText } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
+import { isRecord, prompt, sanitizeText } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";

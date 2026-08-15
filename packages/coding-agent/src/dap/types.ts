@@ -1,4 +1,4 @@
-import type { ptree } from "@zeta/pi-utils";
+import type { ptree } from "@linxiraos/pi-utils";
 
 export type DapMessage = DapRequestMessage | DapResponseMessage | DapEventMessage;
 export type DapSessionStatus = "launching" | "configuring" | "stopped" | "running" | "terminated";

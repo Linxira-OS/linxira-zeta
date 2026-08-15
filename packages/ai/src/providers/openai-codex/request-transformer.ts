@@ -1,7 +1,7 @@
-import { Effort } from "@zeta/pi-catalog/effort";
-import { supportsAllTurnsReasoningContext, supportsCodexReasoningSummary } from "@zeta/pi-catalog/identity";
-import { requireSupportedEffort } from "@zeta/pi-catalog/model-thinking";
-import { $env } from "@zeta/pi-utils";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { supportsAllTurnsReasoningContext, supportsCodexReasoningSummary } from "@linxiraos/pi-catalog/identity";
+import { requireSupportedEffort } from "@linxiraos/pi-catalog/model-thinking";
+import { $env } from "@linxiraos/pi-utils";
 import type { Model } from "../../types";
 import { mapOpenAIReasoningEffort } from "../openai-shared";
 

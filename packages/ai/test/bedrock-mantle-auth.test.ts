@@ -2,12 +2,12 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearAwsCredentialCache } from "@zeta/pi-ai/providers/aws-credentials";
-import type { BedrockMantleOptions } from "@zeta/pi-ai/providers/bedrock-mantle";
-import { getProviderDefinition } from "@zeta/pi-ai/registry";
-import { stream, streamSimple } from "@zeta/pi-ai/stream";
-import type { Context, FetchImpl, Model, SimpleStreamOptions } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { clearAwsCredentialCache } from "@linxiraos/pi-ai/providers/aws-credentials";
+import type { BedrockMantleOptions } from "@linxiraos/pi-ai/providers/bedrock-mantle";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import { stream, streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context, FetchImpl, Model, SimpleStreamOptions } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 

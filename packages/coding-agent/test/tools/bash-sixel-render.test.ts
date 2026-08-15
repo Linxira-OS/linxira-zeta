@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { RenderResultOptions } from "@zeta/pi-agent-core";
-import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { bashToolRenderer } from "@zeta/pi-coding-agent/tools/bash";
-import { previewWindowRows } from "@zeta/pi-coding-agent/tools/render-utils";
-import { ImageProtocol, TERMINAL } from "@zeta/pi-tui";
-import { sanitizeText } from "@zeta/pi-utils";
+import type { RenderResultOptions } from "@linxiraos/pi-agent-core";
+import { ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { bashToolRenderer } from "@linxiraos/zeta/tools/bash";
+import { previewWindowRows } from "@linxiraos/zeta/tools/render-utils";
 
 type MutableTerminalInfo = {
 	imageProtocol: ImageProtocol | null;

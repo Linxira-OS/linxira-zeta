@@ -1,4 +1,4 @@
-import { getAntigravityUserAgent } from "@zeta/pi-catalog/wire/gemini-headers";
+import { getAntigravityUserAgent } from "@linxiraos/pi-catalog/wire/gemini-headers";
 import * as AIError from "../error";
 import type {
 	CredentialRankingContext,

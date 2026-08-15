@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { streamAzureOpenAIResponses } from "@zeta/pi-ai/providers/azure-openai-responses";
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
-import type { Context, FetchImpl, Model, ProviderSessionState } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
+import { streamAzureOpenAIResponses } from "@linxiraos/pi-ai/providers/azure-openai-responses";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import type { Context, FetchImpl, Model, ProviderSessionState } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 
 const testContext: Context = {
 	messages: [{ role: "user", content: "hello", timestamp: 0 }],

@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type MCPServer, mcpCapability } from "@zeta/pi-coding-agent/capability/mcp";
-import { loadCapability } from "@zeta/pi-coding-agent/discovery";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
+import { loadCapability } from "@linxiraos/zeta/discovery";
 
 async function loadStandaloneMcpConfig(cwd: string): Promise<MCPServer[]> {
 	const result = await loadCapability<MCPServer>(mcpCapability.id, {

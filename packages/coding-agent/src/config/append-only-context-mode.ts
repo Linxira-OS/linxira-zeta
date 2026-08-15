@@ -1,4 +1,4 @@
-import { hostMatchesUrl } from "@zeta/pi-catalog/hosts";
+import { hostMatchesUrl } from "@linxiraos/pi-catalog/hosts";
 
 /** Provider metadata needed to resolve append-only context mode. */
 export interface AppendOnlyContextModel {

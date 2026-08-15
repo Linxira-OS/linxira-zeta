@@ -3,7 +3,7 @@
  */
 
 import * as os from "node:os";
-import { formatBytes, getProjectDir, VERSION } from "@zeta/pi-utils";
+import { formatBytes, getProjectDir, VERSION } from "@linxiraos/pi-utils";
 
 export interface SystemInfo {
 	os: string;

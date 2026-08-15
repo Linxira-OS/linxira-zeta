@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("advisor watchdog prompt discovery", () => {
 	const tempDirs: TempDir[] = [];
@@ -285,7 +285,7 @@ describe("advisor watchdog prompt discovery", () => {
 			expect(dump).toContain(nativeWatchdogContent);
 			expect(dump).toContain(standaloneWatchdogContent);
 
-			// Check ordering: user-level should appear first, then native project level (.omp/WATCHDOG.md has depth 0),
+			// Check ordering: user-level should appear first, then native project level (.zeta/WATCHDOG.md has depth 0),
 			// then standalone project level (cwd/WATCHDOG.md has depth 0).
 			// Between native and standalone, they both have depth 0, so their relative order doesn't strictly matter
 			// as long as user-level comes before both of them.

@@ -10,7 +10,7 @@
  * Layering mirrors `pruning.ts`: no I/O here.
  */
 
-import type { TextContent, ToolResultMessage } from "@zeta/pi-ai";
+import type { TextContent, ToolResultMessage } from "@linxiraos/pi-ai";
 import { countTokens } from "../tokenizer";
 import type { AgentMessage } from "../types";
 import { estimateTokens } from "./compaction";
@@ -137,7 +137,7 @@ function entryTokens(entry: SessionEntry): number {
  *
  * Conservative: unterminated fences/tags yield no range, and XML detection is
  * suppressed inside fences. Mirrors the toggling logic in
- * `@zeta/pi-utils` `format()` so behavior stays aligned with prompt rendering.
+ * `@linxiraos/pi-utils` `format()` so behavior stays aligned with prompt rendering.
  */
 function scanTextForBlockRanges(text: string): Array<{ start: number; end: number }> {
 	const ranges: Array<{ start: number; end: number }> = [];

@@ -13,7 +13,7 @@ import {
 	resetHangulCompatibilityJamoWidthForTests,
 	setHangulCompatibilityJamoWidth,
 	visibleWidth,
-} from "@zeta/pi-tui/utils";
+} from "@linxiraos/pi-tui/utils";
 
 afterEach(() => {
 	resetHangulCompatibilityJamoWidthForTests();

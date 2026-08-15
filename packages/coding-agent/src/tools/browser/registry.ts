@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { isCompiledBinary, logger, withTimeout, workerHostEntry } from "@zeta/pi-utils";
+import { isCompiledBinary, logger, withTimeout, workerHostEntry } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import type { Browser, CDPSession } from "puppeteer-core";
 import { ToolAbortError, ToolError } from "../tool-errors";
@@ -411,7 +411,7 @@ async function openSharedHeadlessHandle(
 		});
 		if (!shared) {
 			throw new ToolError(
-				"Shared browser daemon unavailable (broker start or Chromium launch failed); check `hub ps` for omp.browser.* daemons and ~/.omp/logs for details",
+				"Shared browser daemon unavailable (broker start or Chromium launch failed); check `hub ps` for omp.browser.* daemons and ~/.zeta/logs for details",
 			);
 		}
 		const puppeteer = await loadPuppeteer();

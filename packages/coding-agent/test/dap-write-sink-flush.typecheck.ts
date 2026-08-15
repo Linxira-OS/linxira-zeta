@@ -1,4 +1,4 @@
-import type { DapClient } from "@zeta/pi-coding-agent/dap/client";
+import type { DapClient } from "@linxiraos/zeta/dap/client";
 
 // Type-only import forces standard TypeScript to check src/dap/client.ts,
 // including the socketToSink() implementation against DapWriteSink.flush().

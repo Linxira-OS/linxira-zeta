@@ -47,8 +47,8 @@ See [docs/custom-tools.md](../../docs/custom-tools.md) for full documentation.
 **Factory pattern:**
 
 ```typescript
-import { Text } from "@zeta/pi-tui";
-import type { CustomToolFactory } from "@zeta/pi-coding-agent";
+import { Text } from "@linxiraos/pi-tui";
+import type { CustomToolFactory } from "@linxiraos/zeta";
 
 const factory: CustomToolFactory = (pi) => ({
 	name: "my_tool",

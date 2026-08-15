@@ -4,7 +4,7 @@
  * defined in `aggregator.ts`.
  */
 
-import { format } from "@zeta/pi-utils/dates";
+import { format } from "@linxiraos/pi-utils/dates";
 import type { TimeRange } from "../types";
 
 const HOUR_MS = 60 * 60 * 1000;

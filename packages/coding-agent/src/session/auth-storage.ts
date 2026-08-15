@@ -1,5 +1,5 @@
 /**
- * Re-exports from @zeta/pi-ai.
+ * Re-exports from @linxiraos/pi-ai.
  * All credential storage types and the AuthStorage class now live in the ai package.
  */
 
@@ -20,6 +20,6 @@ export type {
 	ResetCreditTarget,
 	SerializedAuthStorage,
 	StoredAuthCredential,
-} from "@zeta/pi-ai";
-export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@zeta/pi-ai";
-export type { SnapshotResponse } from "@zeta/pi-ai/auth-broker/types";
+} from "@linxiraos/pi-ai";
+export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+export type { SnapshotResponse } from "@linxiraos/pi-ai/auth-broker/types";

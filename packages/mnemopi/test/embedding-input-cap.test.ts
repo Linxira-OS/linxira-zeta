@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import "./setup";
-import { embed, resetEmbeddingProviderForTests, setEmbeddingProviderForTests } from "@zeta/pi-mnemopi/core/embeddings";
-import { withMnemopiRuntimeOptions } from "@zeta/pi-mnemopi/core/runtime-options";
+import {
+	embed,
+	resetEmbeddingProviderForTests,
+	setEmbeddingProviderForTests,
+} from "@linxiraos/pi-mnemopi/core/embeddings";
+import { withMnemopiRuntimeOptions } from "@linxiraos/pi-mnemopi/core/runtime-options";
 
 /**
  * Regression coverage for issue #3126: `MnemopiSessionState.retainMessages`

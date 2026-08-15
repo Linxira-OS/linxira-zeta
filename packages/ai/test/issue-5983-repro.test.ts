@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import type { Context, FetchImpl } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import type { Context, FetchImpl } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 
 const model = buildModel({
 	id: "kimi-k3",

@@ -11,12 +11,14 @@ import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { HindsightApi } from "@zeta/pi-coding-agent/hindsight/client";
-import type { HindsightConfig } from "@zeta/pi-coding-agent/hindsight/config";
-import { HindsightSessionState } from "@zeta/pi-coding-agent/hindsight/state";
-import { mnemopiBackend } from "@zeta/pi-coding-agent/mnemopi/backend";
-import { loadMnemopiConfig, type MnemopiBackendConfig } from "@zeta/pi-coding-agent/mnemopi/config";
+import { resetMemoryForTests } from "@linxiraos/pi-mnemopi";
+import { TempDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { HindsightApi } from "@linxiraos/zeta/hindsight/client";
+import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
+import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
+import { loadMnemopiConfig, type MnemopiBackendConfig } from "@linxiraos/zeta/mnemopi/config";
 import {
 	getMnemopiScopedDbPaths,
 	getMnemopiSessionState,
@@ -24,15 +26,13 @@ import {
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@zeta/pi-coding-agent/mnemopi/state";
-import type { AgentSessionEventListener } from "@zeta/pi-coding-agent/session/agent-session";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools/index";
-import { MemoryEditTool } from "@zeta/pi-coding-agent/tools/memory-edit";
-import { MemoryRecallTool } from "@zeta/pi-coding-agent/tools/memory-recall";
-import { MemoryReflectTool } from "@zeta/pi-coding-agent/tools/memory-reflect";
-import { MemoryRetainTool } from "@zeta/pi-coding-agent/tools/memory-retain";
-import { resetMemoryForTests } from "@zeta/pi-mnemopi";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/mnemopi/state";
+import type { AgentSessionEventListener } from "@linxiraos/zeta/session/agent-session";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { MemoryEditTool } from "@linxiraos/zeta/tools/memory-edit";
+import { MemoryRecallTool } from "@linxiraos/zeta/tools/memory-recall";
+import { MemoryReflectTool } from "@linxiraos/zeta/tools/memory-reflect";
+import { MemoryRetainTool } from "@linxiraos/zeta/tools/memory-retain";
 
 // Mnemopi is lazy-loaded at runtime; preload it for synchronous state construction.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);

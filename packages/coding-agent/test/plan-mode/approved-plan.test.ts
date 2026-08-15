@@ -5,8 +5,8 @@ import {
 	planFileUrlForSlug,
 	resolveApprovedPlan,
 	resolvePlanTitle,
-} from "@zeta/pi-coding-agent/plan-mode/approved-plan";
-import { normalizeLocalScheme } from "@zeta/pi-coding-agent/tools/path-utils";
+} from "@linxiraos/zeta/plan-mode/approved-plan";
+import { normalizeLocalScheme } from "@linxiraos/zeta/tools/path-utils";
 
 describe("planFileUrlForSlug", () => {
 	it("maps a slug to its local plan URL", () => {

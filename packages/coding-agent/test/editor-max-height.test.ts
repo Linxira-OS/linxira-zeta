@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { computeEditorMaxHeight } from "@zeta/pi-coding-agent/modes/interactive-mode";
+import { computeEditorMaxHeight } from "@linxiraos/zeta/modes/interactive-mode";
 
 describe("computeEditorMaxHeight", () => {
 	it("caps the editor within the comfortable band on roomy terminals", () => {

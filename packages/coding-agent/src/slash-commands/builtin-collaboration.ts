@@ -1,5 +1,5 @@
-import { Spacer } from "@zeta/pi-tui";
-import { APP_NAME } from "@zeta/pi-utils";
+import { Spacer } from "@linxiraos/pi-tui";
+import { APP_NAME } from "@linxiraos/pi-utils";
 import { CollabGuestLink } from "../collab/guest";
 import { CollabHost } from "../collab/host";
 import type { SettingPath, SettingValue } from "../config/settings";

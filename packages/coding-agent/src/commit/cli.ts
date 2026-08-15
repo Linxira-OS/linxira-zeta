@@ -1,4 +1,4 @@
-import chalk from "@zeta/pi-utils/chalk";
+import chalk from "@linxiraos/pi-utils/chalk";
 import type { CommitCommandArgs } from "./types";
 
 const FLAG_ALIASES = new Map<string, string>([

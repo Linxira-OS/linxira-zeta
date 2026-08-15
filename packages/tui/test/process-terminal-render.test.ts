@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { postmortem } from "@zeta/pi-utils";
+import { postmortem } from "@linxiraos/pi-utils";
 import {
 	createProcessTerminalRenderHarness,
 	type ProcessTerminalRenderHarness,

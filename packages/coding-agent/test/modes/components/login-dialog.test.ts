@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@zeta/pi-coding-agent/config/settings";
-import { LoginDialogComponent } from "@zeta/pi-coding-agent/modes/components/login-dialog";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import * as openModule from "@zeta/pi-coding-agent/utils/open";
-import type { TUI } from "@zeta/pi-tui";
+import type { TUI } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { LoginDialogComponent } from "@linxiraos/zeta/modes/components/login-dialog";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import * as openModule from "@linxiraos/zeta/utils/open";
 
 beforeAll(async () => {
 	resetSettingsForTest();

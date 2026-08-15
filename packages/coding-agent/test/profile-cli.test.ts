@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	__resetProfileSnapshotForTests,
 	APP_NAME,
@@ -13,8 +13,8 @@ import {
 	setAgentDir,
 	setProfile,
 	VERSION,
-} from "@zeta/pi-utils/dirs";
-import { Snowflake } from "@zeta/pi-utils/snowflake";
+} from "@linxiraos/pi-utils/dirs";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { runCli } from "../src/cli";
 import * as profileAliasCli from "../src/cli/profile-alias";
 
@@ -53,7 +53,7 @@ describe("global --profile flag", () => {
 		originalOmpProfileEnv = process.env.OMP_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalConfigDir = process.env.PI_CONFIG_DIR;
-		configDir = `.omp-profile-cli-test-${Snowflake.next()}`;
+		configDir = `.zeta-profile-cli-test-${Snowflake.next()}`;
 		process.env.PI_CONFIG_DIR = configDir;
 		process.exitCode = 0;
 	});
@@ -222,7 +222,7 @@ describe("global --profile flag", () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-cli-env-"));
 		try {
 			const home = path.join(root, "home");
-			const configDir = ".omp-profile-cli-env";
+			const configDir = ".zeta-profile-cli-env";
 			const defaultAgentDir = path.join(home, configDir, "agent");
 			const profileAgentDir = path.join(home, configDir, "profiles", "work", "agent");
 			await fs.mkdir(defaultAgentDir, { recursive: true });
@@ -296,7 +296,7 @@ describe("global --profile flag", () => {
 			const childEnv: Record<string, string | undefined> = {
 				...process.env,
 				HOME: home,
-				PI_CONFIG_DIR: ".omp-profile-cli-env-bad",
+				PI_CONFIG_DIR: ".zeta-profile-cli-env-bad",
 				OMP_PROFILE: "..",
 				NO_COLOR: "1",
 			};

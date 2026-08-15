@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type Component, TUI } from "@zeta/pi-tui";
+import { type Component, TUI } from "@linxiraos/pi-tui";
 import { VirtualTerminal } from "./virtual-terminal";
 
 // Regression test for https://github.com/can1357/oh-my-pi/issues/2088

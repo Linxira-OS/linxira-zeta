@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import type { AssistantMessage, Usage } from "@zeta/pi-ai";
-import type { Component } from "@zeta/pi-tui";
-import { Container, Text } from "@zeta/pi-tui";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
+import type { Component } from "@linxiraos/pi-tui";
+import { Container, Text } from "@linxiraos/pi-tui";
 import { M } from "../../i18n";
 import { InternalUrlRouter, XD_URL_PREFIX } from "../../internal-urls";
 import { getLanguageFromPath, theme } from "../../modes/theme/theme";

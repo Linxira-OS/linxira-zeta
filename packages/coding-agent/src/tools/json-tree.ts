@@ -1,7 +1,7 @@
 /**
  * JSON tree rendering utilities shared across tool renderers.
  */
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type { Theme } from "../modes/theme/theme";
 import { truncateToWidth } from "./render-utils";
 

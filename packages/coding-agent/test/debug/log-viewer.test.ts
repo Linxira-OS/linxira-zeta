@@ -5,8 +5,8 @@ import {
 	DebugLogViewerModel,
 	LOAD_OLDER_LABEL,
 	SESSION_BOUNDARY_WARNING,
-} from "@zeta/pi-coding-agent/debug/log-viewer";
-import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/zeta/debug/log-viewer";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	const theme = await getThemeByName("dark");

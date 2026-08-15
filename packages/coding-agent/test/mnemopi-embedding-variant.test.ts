@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { loadMnemopiConfig } from "@zeta/pi-coding-agent/mnemopi/config";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { loadMnemopiConfig } from "@linxiraos/zeta/mnemopi/config";
 
 // `mnemopi.embeddingVariant` selects the concrete local embedding model, while an
 // explicit `mnemopi.embeddingModel` is an advanced override that wins. Scoping is

@@ -19,7 +19,7 @@ The runtime has two layers:
 
 If your extension/tool can run in non-interactive mode, guard with `ctx.hasUI` / `pi.hasUI`.
 
-## Core component contract (`@zeta/pi-tui`)
+## Core component contract (`@linxiraos/pi-tui`)
 
 `packages/tui/src/tui.ts` defines:
 
@@ -59,7 +59,7 @@ Your `render(width)` output must be terminal-safe:
 Minimal pattern:
 
 ```ts
-import { replaceTabs, truncateToWidth } from "@zeta/pi-tui";
+import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
 
 render(width: number): readonly string[] {
   return this.lines.map(line => truncateToWidth(replaceTabs(line), width));
@@ -204,17 +204,17 @@ return loader;
 ## Realistic custom component example (extension command)
 
 ```ts
-import type { Component } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
 import {
   SelectList,
   matchesKey,
   replaceTabs,
   truncateToWidth,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import {
   getSelectListTheme,
   type ExtensionAPI,
-} from "@zeta/pi-coding-agent";
+} from "@linxiraos/zeta";
 
 class Picker implements Component {
   list: SelectList;

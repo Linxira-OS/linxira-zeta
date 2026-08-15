@@ -1,18 +1,18 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import { type Api, type AssistantMessage, Effort, type Model } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { type CreateAgentSessionResult, createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { getRestorableSessionModels } from "@zeta/pi-coding-agent/session/session-context";
-import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@zeta/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { AUTO_THINKING } from "@zeta/pi-coding-agent/thinking";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { type Api, type AssistantMessage, Effort, type Model } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { type CreateAgentSessionResult, createAgentSession } from "@linxiraos/zeta/sdk";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-context";
+import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 
 describe("AgentSession model persistence", () => {
 	let tempDir: TempDir;

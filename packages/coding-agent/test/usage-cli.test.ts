@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { UsageReport } from "@zeta/pi-ai";
+import type { UsageReport } from "@linxiraos/pi-ai";
 import {
 	buildRedactionMap,
 	collectUnreportedAccounts,
@@ -8,7 +8,7 @@ import {
 	formatUsageBreakdown,
 	formatUsageHistory,
 	type UsageAccountIdentity,
-} from "@zeta/pi-coding-agent/cli/usage-cli";
+} from "@linxiraos/zeta/cli/usage-cli";
 
 const HOUR = 3_600_000;
 const FIVE_HOURS = 5 * HOUR;

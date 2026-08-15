@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { addKeyAliases, canonicalKeyId, KeybindingsManager, parseKey, TUI_KEYBINDINGS } from "@zeta/pi-tui";
+import { addKeyAliases, canonicalKeyId, KeybindingsManager, parseKey, TUI_KEYBINDINGS } from "@linxiraos/pi-tui";
 
 describe("KeybindingsManager", () => {
 	it("does not evict selector confirm when input submit is rebound", () => {

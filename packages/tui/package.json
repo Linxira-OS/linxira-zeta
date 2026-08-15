@@ -1,7 +1,7 @@
 {
   "type": "module",
-  "name": "@zeta/pi-tui",
-  "version": "1.0.0",
+  "name": "@linxiraos/pi-tui",
+  "version": "1.0.1",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
   "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
@@ -11,7 +11,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
     "directory": "packages/tui"
   },
   "bugs": {
@@ -37,8 +37,8 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-utils": "catalog:"
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:"
   },
   "devDependencies": {
     "ghostty-web": "catalog:"

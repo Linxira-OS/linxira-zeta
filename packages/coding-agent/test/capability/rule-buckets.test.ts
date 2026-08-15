@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { BUILTIN_DEFAULTS_PROVIDER_ID, type Rule } from "@zeta/pi-coding-agent/capability/rule";
-import { bucketRules } from "@zeta/pi-coding-agent/capability/rule-buckets";
-import { TtsrManager } from "@zeta/pi-coding-agent/export/ttsr";
+import { BUILTIN_DEFAULTS_PROVIDER_ID, type Rule } from "@linxiraos/zeta/capability/rule";
+import { bucketRules } from "@linxiraos/zeta/capability/rule-buckets";
+import { TtsrManager } from "@linxiraos/zeta/export/ttsr";
 
 function source(provider: string): Rule["_source"] {
 	return { provider, providerName: provider, path: "/tmp/rule.md", level: "user" };

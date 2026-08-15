@@ -1,17 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import type { Model, Usage } from "@zeta/pi-catalog/types";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { Model, Usage } from "@linxiraos/pi-catalog/types";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	type RecoveryCompactionResult,
 	TurnRecovery,
 	type TurnRecoveryHost,
-} from "@zeta/pi-coding-agent/session/turn-recovery";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/session/turn-recovery";
 import { createProviderErrorMessage } from "../../ai/src/providers/error-message";
 
 const USAGE: Usage = {

@@ -6,8 +6,8 @@ import {
 	sliceWithWidth,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
-import { sanitizeText } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { type ThemeColor, theme } from "../modes/theme/theme";
 
 /** Distinct states of a realtime call connection. */

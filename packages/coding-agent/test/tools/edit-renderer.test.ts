@@ -2,17 +2,17 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { InMemorySnapshotStore } from "@zeta/hashline";
-import type { AgentTool } from "@zeta/pi-agent-core";
-import { renderGalleryState, resolveFixture } from "@zeta/pi-coding-agent/cli/gallery-cli";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { editToolRenderer } from "@zeta/pi-coding-agent/edit/renderer";
-import { renderDiff } from "@zeta/pi-coding-agent/modes/components/diff";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import * as themeModule from "@zeta/pi-coding-agent/modes/theme/theme";
-import { Text, type TUI, visibleWidth } from "@zeta/pi-tui";
-import { removeWithRetries } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { InMemorySnapshotStore } from "@linxiraos/pi-hashline";
+import { Text, type TUI, visibleWidth } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { renderGalleryState, resolveFixture } from "@linxiraos/zeta/cli/gallery-cli";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { editToolRenderer } from "@linxiraos/zeta/edit/renderer";
+import { renderDiff } from "@linxiraos/zeta/modes/components/diff";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	resetSettingsForTest();

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as settingsModule from "@zeta/pi-coding-agent/config/settings";
-import type { Theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { renderAsciiBar } from "@zeta/pi-coding-agent/slash-commands/helpers/format";
+import * as settingsModule from "@linxiraos/zeta/config/settings";
+import type { Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { renderAsciiBar } from "@linxiraos/zeta/slash-commands/helpers/format";
 
 const testTheme = {
 	fg(color: Parameters<Theme["fg"]>[0], text: string): string {

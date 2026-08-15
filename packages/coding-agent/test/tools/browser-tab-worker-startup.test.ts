@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@zeta/pi-coding-agent/tools/browser/tab-protocol";
-import { initializeTabWorkerForTest } from "@zeta/pi-coding-agent/tools/browser/tab-supervisor";
+import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
+import { initializeTabWorkerForTest } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 
 class FakeStartupWorker {
 	#errorHandlers = new Set<(error: Error) => void>();

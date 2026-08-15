@@ -4,8 +4,8 @@
  * Automatically detects OAuth requirements from MCP server responses
  * and extracts authentication endpoints.
  */
-import * as AIError from "@zeta/pi-ai/error";
-import type { FetchImpl } from "@zeta/pi-ai/types";
+import * as AIError from "@linxiraos/pi-ai/error";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import { withTimeoutSignal } from "../utils/fetch-timeout";
 
 /** Per-request abort deadline for each OAuth discovery metadata fetch. */

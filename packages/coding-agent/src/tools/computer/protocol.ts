@@ -1,5 +1,5 @@
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
-import type { DesktopCapabilities } from "@zeta/pi-natives";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import type { DesktopCapabilities } from "@linxiraos/pi-natives";
 
 /** Hidden CLI selector that re-enters the computer worker host. */
 export const COMPUTER_WORKER_ARG = "__omp_worker_computer";

@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@zeta/pi-coding-agent/modes/components/status-line";
-import { renderSegment } from "@zeta/pi-coding-agent/modes/components/status-line/segments";
-import type { SegmentContext } from "@zeta/pi-coding-agent/modes/components/status-line/types";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
+import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/types";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	resetSettingsForTest();

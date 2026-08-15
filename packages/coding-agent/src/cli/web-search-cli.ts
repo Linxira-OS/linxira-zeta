@@ -4,8 +4,8 @@
  * Handles `omp q`/`omp web-search` subcommands for testing web search providers.
  */
 
-import { APP_NAME, getProjectDir } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import { APP_NAME, getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
 import { Settings } from "../config/settings";
 import { initTheme, theme } from "../modes/theme/theme";

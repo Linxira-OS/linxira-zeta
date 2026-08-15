@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { resolvePrimaryModel, resolveSmolModel } from "@zeta/pi-coding-agent/commit/model-selection";
+import { Effort } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { resolvePrimaryModel, resolveSmolModel } from "@linxiraos/zeta/commit/model-selection";
 
 function getModelOrThrow(id: string) {
 	const model = getBundledModel("anthropic", id);

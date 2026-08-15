@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { TranscriptContainer } from "@zeta/pi-coding-agent/modes/components/transcript-container";
-import { type Component, TUI } from "@zeta/pi-tui";
+import { type Component, TUI } from "@linxiraos/pi-tui";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { StressRenderScheduler } from "../../tui/test/render-stress-scheduler";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 

@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import { LogoutAccountSelectorComponent } from "@zeta/pi-coding-agent/modes/components/logout-account-selector";
-import { SelectorController } from "@zeta/pi-coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { AuthStorage, StoredAuthCredential } from "@zeta/pi-coding-agent/session/auth-storage";
+import { LogoutAccountSelectorComponent } from "@linxiraos/zeta/modes/components/logout-account-selector";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AuthStorage, StoredAuthCredential } from "@linxiraos/zeta/session/auth-storage";
 
 interface TestEditorContainer {
 	children: unknown[];

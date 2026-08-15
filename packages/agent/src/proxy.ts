@@ -13,15 +13,15 @@ import {
 	type SimpleStreamOptions,
 	type StopReason,
 	type ToolCall,
-} from "@zeta/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	clearStreamingPartialJson,
 	kStreamingPartialJson,
 	type StreamingPartialJsonCarrier,
 	setStreamingPartialJson,
-} from "@zeta/pi-ai/utils/block-symbols";
-import { calculateCost } from "@zeta/pi-catalog/models";
-import { parseStreamingJson, readSseJson } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/utils/block-symbols";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
+import { parseStreamingJson, readSseJson } from "@linxiraos/pi-utils";
 
 // Event stream adapter for proxy SSE events
 export class ProxyMessageEventStream extends EventStream<AssistantMessageEvent, AssistantMessage> {

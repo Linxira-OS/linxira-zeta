@@ -4,23 +4,23 @@ import {
 	convertCodexResponsesMessages,
 	convertOpenAICodexResponsesTools,
 	normalizeCodexToolChoice,
-} from "@zeta/pi-ai/providers/openai-codex-responses";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import {
 	buildParams,
 	convertTools,
 	mapOpenAIResponsesToolChoiceForTools,
-} from "@zeta/pi-ai/providers/openai-responses";
-import type { ResponseStreamEvent } from "@zeta/pi-ai/providers/openai-responses-wire";
+} from "@linxiraos/pi-ai/providers/openai-responses";
+import type { ResponseStreamEvent } from "@linxiraos/pi-ai/providers/openai-responses-wire";
 import {
 	appendResponsesToolResultMessages,
 	buildResponsesInput,
 	convertResponsesAssistantMessage,
 	processResponsesStream,
-} from "@zeta/pi-ai/providers/openai-shared";
-import type { AssistantMessage, Context, Model, ModelSpec, Tool, ToolResultMessage } from "@zeta/pi-ai/types";
-import { sanitizeOpenAIResponsesHistoryItemsForReplay } from "@zeta/pi-ai/utils";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import type { AssistantMessage, Context, Model, ModelSpec, Tool, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { sanitizeOpenAIResponsesHistoryItemsForReplay } from "@linxiraos/pi-ai/utils";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
 
 function model<TApi extends "openai-responses" | "openai-codex-responses">(
 	api: TApi,

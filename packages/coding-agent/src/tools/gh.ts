@@ -4,9 +4,9 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import { prompt, untilAborted } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { prompt, untilAborted } from "@linxiraos/pi-utils";
 import githubDescription from "../prompts/tools/github.md" with { type: "text" };
 import * as git from "../utils/git";
 import type { ToolSession } from ".";

@@ -1,4 +1,4 @@
-import type { AgentToolResult } from "@zeta/pi-agent-core";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { Settings } from "../config/settings";
 import * as git from "../utils/git";
 import type { ToolSession } from ".";

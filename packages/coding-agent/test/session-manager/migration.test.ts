@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { FileEntry } from "@zeta/pi-coding-agent/session/session-entries";
-import { migrateSessionEntries } from "@zeta/pi-coding-agent/session/session-migrations";
+import type { FileEntry } from "@linxiraos/zeta/session/session-entries";
+import { migrateSessionEntries } from "@linxiraos/zeta/session/session-migrations";
 
 describe("migrateSessionEntries", () => {
 	it("should add id/parentId to v1 entries", () => {

@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { buildOpenAIResponsesCompat } from "@zeta/pi-catalog/compat/openai";
-import { Effort } from "@zeta/pi-catalog/effort";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { buildOpenAIResponsesCompat } from "@linxiraos/pi-catalog/compat/openai";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 import {
 	DEFAULT_MODEL_PER_PROVIDER,
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	mapModelsDevToModels,
 	PROVIDER_DESCRIPTORS,
-} from "@zeta/pi-catalog/provider-models";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
+} from "@linxiraos/pi-catalog/provider-models";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 // A stencil.so "azure" payload: two OpenAI-family models (one reasoning), a
 // non-tool-capable instruct model, and a Foundry-hosted third party served via

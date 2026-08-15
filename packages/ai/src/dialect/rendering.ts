@@ -1,4 +1,4 @@
-import { stringifyJson as stringifyJsonValue } from "@zeta/pi-utils";
+import { stringifyJson as stringifyJsonValue } from "@linxiraos/pi-utils";
 import type { AssistantMessage, Message, ToolCall, ToolResultMessage } from "../types";
 import type { DialectRenderOptions, DialectToolResult } from "./types";
 

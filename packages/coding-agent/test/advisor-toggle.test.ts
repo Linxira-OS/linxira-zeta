@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@zeta/pi-agent-core";
-import * as compactionModule from "@zeta/pi-agent-core/compaction";
-import type { AssistantMessage, Model } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { loadAdvisorTranscriptCosts } from "@zeta/pi-coding-agent/advisor/transcript-recorder";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, TempDir } from "@zeta/pi-utils";
+import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
+import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { loadAdvisorTranscriptCosts } from "@linxiraos/zeta/advisor/transcript-recorder";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("AgentSession advisor toggle", () => {
 	let sharedDir: TempDir;

@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { getWorktreeDir, hashPath, isEnoent } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { getWorktreeDir, hashPath, isEnoent } from "@linxiraos/pi-utils";
 import * as git from "../utils/git";
 import type { ToolSession } from ".";
 import type { GhPrCheckoutSummary, GhToolDetails } from "./gh";

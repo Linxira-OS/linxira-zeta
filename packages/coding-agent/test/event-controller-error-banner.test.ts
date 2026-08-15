@@ -8,15 +8,15 @@
  * pin a banner.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
-import { ErrorBannerComponent } from "@zeta/pi-coding-agent/modes/components/error-banner";
-import { EventController } from "@zeta/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { ErrorBannerComponent } from "@linxiraos/zeta/modes/components/error-banner";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {

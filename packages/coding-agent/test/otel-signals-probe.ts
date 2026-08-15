@@ -6,20 +6,20 @@
  *
  * Stands up a loopback OTLP/proto receiver, points the standard env vars at it,
  * registers the providers, drives a log record through the bridged
- * `@zeta/pi-utils` logger and metric instruments through the agent
+ * `@linxiraos/pi-utils` logger and metric instruments through the agent
  * telemetry hooks, flushes, and exits 0 only if the receiver got a non-empty
  * protobuf POST at both /v1/logs and /v1/metrics.
  */
 
-import type { AgentRunCoverage, AgentRunSummary, ChatUsageEvent } from "@zeta/pi-agent-core";
-import { emptyAgentRunCoverage, emptyAgentRunSummary } from "@zeta/pi-agent-core";
+import type { AgentRunCoverage, AgentRunSummary, ChatUsageEvent } from "@linxiraos/pi-agent-core";
+import { emptyAgentRunCoverage, emptyAgentRunSummary } from "@linxiraos/pi-agent-core";
+import { logger } from "@linxiraos/pi-utils";
 import {
 	createTelemetryExportConfig,
 	flushTelemetryExport,
 	initTelemetryExport,
 	isTelemetryExportEnabled,
-} from "@zeta/pi-coding-agent/telemetry-export";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/telemetry-export";
 
 const seen = new Set<string>();
 const metricPayloads: Uint8Array[] = [];

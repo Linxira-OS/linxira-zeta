@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { LoadExtensionsResult } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@zeta/pi-coding-agent/session/agent-session";
-import { runSubprocess } from "@zeta/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@zeta/pi-coding-agent/task/types";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 /**
  * Contract: when `task.maxRuntimeMs` is set, a subagent whose inference call

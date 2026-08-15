@@ -2,22 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as capability from "@zeta/pi-coding-agent/capability";
-import type { CapabilityResult } from "@zeta/pi-coding-agent/capability/types";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { resetActiveSkillsForTests, setActiveSkills } from "@zeta/pi-coding-agent/extensibility/skills";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import * as capability from "@linxiraos/zeta/capability";
+import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
 import {
 	type InternalResource,
 	type InternalUrl,
 	InternalUrlRouter,
 	LocalProtocolHandler,
 	type ProtocolHandler,
-} from "@zeta/pi-coding-agent/internal-urls";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import * as sshFileTransfer from "@zeta/pi-coding-agent/ssh/file-transfer";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { ReadTool } from "@zeta/pi-coding-agent/tools/read";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/internal-urls";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import * as sshFileTransfer from "@linxiraos/zeta/ssh/file-transfer";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { GlobTool } from "../../src/tools/glob";
 import { GrepTool } from "../../src/tools/grep";
 

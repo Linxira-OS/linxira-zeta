@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl } from "@zeta/pi-ai";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 describe("AuthStorage MiniMax login", () => {
 	let tempDir: string;

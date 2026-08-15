@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@zeta/pi-ai/api-registry";
-import { startAuthGateway } from "@zeta/pi-ai/auth-gateway";
-import { AuthStorage } from "@zeta/pi-ai/auth-storage";
-import { createMockModel, type MockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
+import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
+import { AuthStorage } from "@linxiraos/pi-ai/auth-storage";
+import { createMockModel, type MockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
 
 interface GatewayHarness {
 	url: string;

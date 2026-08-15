@@ -1,9 +1,9 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { SENSITIVE_TOKEN_RE } from "@zeta/pi-ai/providers/transform-messages";
-import { getSecretPlaceholderKeyPath, isEnoent, logger } from "@zeta/pi-utils";
-import { CONFIG_DIR_NAME } from "@zeta/pi-utils/dirs";
+import { SENSITIVE_TOKEN_RE } from "@linxiraos/pi-ai/providers/transform-messages";
+import { getSecretPlaceholderKeyPath, isEnoent, logger } from "@linxiraos/pi-utils";
+import { CONFIG_DIR_NAME } from "@linxiraos/pi-utils/dirs";
 import { YAML } from "bun";
 import { type SecretEntry, SecretObfuscator } from "./obfuscator";
 import { sanitizeSecretFriendlyName, secretEntriesNeedPlaceholderKey } from "./placeholder";
@@ -18,7 +18,7 @@ const cachedPlaceholderKeys = new Map<string, string>();
  * and never sent to a provider, so model-visible placeholders cannot be reversed
  * by dictionary-hashing candidate secrets. Stable across sessions so persisted
  * transcripts deobfuscate consistently. Defaults to `getSecretPlaceholderKeyPath()`
- * — `$XDG_STATE_HOME/omp/secret-placeholder.key` (or `~/.omp/agent/secret-placeholder.key`
+ * — `$XDG_STATE_HOME/zeta/secret-placeholder.key` (or `~/.zeta/agent/secret-placeholder.key`
  * without XDG), per docs/secrets.md.
  */
 export async function getSecretPlaceholderKey(keyDir?: string): Promise<string> {

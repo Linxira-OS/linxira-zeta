@@ -11,9 +11,9 @@
  * - Extension UI: Extension UI requests are emitted, client responds with extension_ui_response
  */
 import { once } from "node:events";
-import { getOAuthProviders } from "@zeta/pi-ai/oauth";
-import { toolWireSchema } from "@zeta/pi-ai/utils/schema";
-import { $env, isRecord, readLines, Snowflake } from "@zeta/pi-utils";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { $env, isRecord, readLines, Snowflake } from "@linxiraos/pi-utils";
 import { reset as resetCapabilities } from "../../capability";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import {

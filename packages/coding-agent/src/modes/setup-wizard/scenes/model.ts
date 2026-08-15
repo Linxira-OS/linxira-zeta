@@ -1,5 +1,5 @@
-import type { Model } from "@zeta/pi-ai";
-import type { SgrMouseEvent } from "@zeta/pi-tui";
+import type { Model } from "@linxiraos/pi-ai";
+import type { SgrMouseEvent } from "@linxiraos/pi-tui";
 import { M } from "../../../i18n";
 import {
 	buildBrowserItems,

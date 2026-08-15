@@ -18,8 +18,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Filesystem, NotFoundError, type PreflightWriteOptions, type WriteResult } from "@zeta/hashline";
-import { isEnoent } from "@zeta/pi-utils";
+import { Filesystem, NotFoundError, type PreflightWriteOptions, type WriteResult } from "@linxiraos/pi-hashline";
+import { isEnoent } from "@linxiraos/pi-utils";
 import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../../lsp";
 import { FileChangeType, notifyWorkspaceWatchedFiles } from "../../lsp/client";
 import type { ToolSession } from "../../tools";

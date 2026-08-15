@@ -10,11 +10,11 @@
  * terminal), and wait/list draw the "TV wall" — one live screen per worker,
  * stacked, each showing its tool calls and streamed text as it works.
  */
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import type { Component } from "@zeta/pi-tui";
-import { Text } from "@zeta/pi-tui";
-import { prompt } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
+import { prompt } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n/messages";
 import { shimmerEnabled, shimmerText } from "../modes/theme/shimmer";

@@ -5,7 +5,7 @@
  *
  * @example
  * ```ts
- * import { isEnoent, isFsError } from "@zeta/pi-utils";
+ * import { isEnoent, isFsError } from "@linxiraos/pi-utils";
  *
  * try {
  *     return await Bun.file(path).text();

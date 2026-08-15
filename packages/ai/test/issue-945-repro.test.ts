@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import type { Context, Model, Tool } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type } from "@zeta/pi-omptype";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import type { Context, Model, Tool } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 
 const echoTool: Tool = {
 	name: "echo",

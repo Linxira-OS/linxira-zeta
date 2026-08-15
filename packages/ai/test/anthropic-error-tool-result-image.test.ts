@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@zeta/pi-ai/providers/anthropic";
-import type { AssistantMessage, Model, ModelSpec, ToolResultMessage, UserMessage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { convertAnthropicMessages } from "@linxiraos/pi-ai/providers/anthropic";
+import type { AssistantMessage, Model, ModelSpec, ToolResultMessage, UserMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 // Anthropic rejects images inside error tool results:
 //   "messages.N.content.0.tool_result: all content must be type `text` if `is_error` is true"

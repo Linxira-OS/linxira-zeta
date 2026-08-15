@@ -1,5 +1,5 @@
-import { getOAuthProviders } from "@zeta/pi-ai/oauth";
-import { Container, getKeybindings, Input, Spacer, Text, type TUI, wrapTextWithAnsi } from "@zeta/pi-tui";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { Container, getKeybindings, Input, Spacer, Text, type TUI, wrapTextWithAnsi } from "@linxiraos/pi-tui";
 import { theme } from "../../modes/theme/theme";
 import { urlHyperlinkAlways, WidthAwareText } from "../../tui";
 import { openPath } from "../../utils/open";

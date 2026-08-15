@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { MODELS_DEV_PROVIDER_DESCRIPTORS, mapModelsDevToModels } from "@zeta/pi-catalog/provider-models/openai-compat";
+import {
+	MODELS_DEV_PROVIDER_DESCRIPTORS,
+	mapModelsDevToModels,
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 // Z.AI GLM coding-plan token costs all showed as "Free" (issue #5598): the `zai`
 // provider descriptor sourced the stencil.so `zai-coding-plan` key, which reports

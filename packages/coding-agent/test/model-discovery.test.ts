@@ -3,23 +3,23 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort, type FetchImpl, type Model } from "@zeta/pi-ai";
-import type { OAuthCredentials } from "@zeta/pi-ai/oauth/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { writeModelCache } from "@zeta/pi-catalog/model-cache";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { resolveOllamaModelCacheProviderId } from "@zeta/pi-catalog/provider-models";
-import type { ModelSpec, OpenAICompat } from "@zeta/pi-catalog/types";
+import { Effort, type FetchImpl, type Model } from "@linxiraos/pi-ai";
+import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { resolveOllamaModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
+import type { ModelSpec, OpenAICompat } from "@linxiraos/pi-catalog/types";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import {
 	applyLlamaCppQwenThinking,
 	discoverOllamaModels,
 	discoveryProbeTimeoutMs,
-} from "@zeta/pi-coding-agent/config/model-discovery";
-import { kNoAuth, ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { ProviderDiscoverySchema } from "@zeta/pi-coding-agent/config/models-config-schema";
-import { resetSettingsForTest } from "@zeta/pi-coding-agent/config/settings";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/config/model-discovery";
+import { kNoAuth, ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { ProviderDiscoverySchema } from "@linxiraos/zeta/config/models-config-schema";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 describe("ModelRegistry runtime discovery", () => {
 	let tempDir: string;

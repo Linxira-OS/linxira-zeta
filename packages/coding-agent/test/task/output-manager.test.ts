@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentOutputManager } from "@zeta/pi-coding-agent/task/output-manager";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { AgentOutputManager } from "@linxiraos/zeta/task/output-manager";
 
 // Contract: subagent output ids are the requested name, used verbatim the first
 // time and suffixed (`-2`, `-3`, …) only when the same name recurs. A parent

@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { cmdRemember, cmdStats, memoryStats, runCli } from "@zeta/pi-mnemopi/cli";
-import { BeamMemory } from "@zeta/pi-mnemopi/core/beam";
-import { runDiagnostics } from "@zeta/pi-mnemopi/diagnose";
+import { cmdRemember, cmdStats, memoryStats, runCli } from "@linxiraos/pi-mnemopi/cli";
+import { BeamMemory } from "@linxiraos/pi-mnemopi/core/beam";
+import { runDiagnostics } from "@linxiraos/pi-mnemopi/diagnose";
 
 let root: string;
 

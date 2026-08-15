@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const repoRoot = path.resolve(import.meta.dir, "..", "..", "..");
 const cliEntry = path.join(repoRoot, "packages", "coding-agent", "src", "cli.ts");

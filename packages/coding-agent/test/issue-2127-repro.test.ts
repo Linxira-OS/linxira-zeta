@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { EnhancedPasteController } from "@zeta/pi-coding-agent/utils/enhanced-paste";
+import { EnhancedPasteController } from "@linxiraos/zeta/utils/enhanced-paste";
 
 /**
  * Regression for https://github.com/can1357/oh-my-pi/issues/2127

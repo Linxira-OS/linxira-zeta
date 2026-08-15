@@ -15,8 +15,8 @@
  *     (the earliest turn message whose later sibling is already persisted).
  */
 import { describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { planTurnPersistence, sessionMessagePersistenceKey } from "@zeta/pi-coding-agent/session/turn-persistence";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { planTurnPersistence, sessionMessagePersistenceKey } from "@linxiraos/zeta/session/turn-persistence";
 
 function assistant(overrides: Partial<Extract<AgentMessage, { role: "assistant" }>> = {}) {
 	return {

@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, RESCUE_SHAKE_CONFIG } from "@zeta/pi-agent-core";
-import * as compactionModule from "@zeta/pi-agent-core/compaction";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { loadExtensions } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import type { CompactionEntry } from "@zeta/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, TempDir } from "@zeta/pi-utils";
-import * as snapcompact from "@zeta/snapcompact";
+import { Agent, RESCUE_SHAKE_CONFIG } from "@linxiraos/pi-agent-core";
+import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 /**
  * Regression test for the snapcompact frame dead-end.

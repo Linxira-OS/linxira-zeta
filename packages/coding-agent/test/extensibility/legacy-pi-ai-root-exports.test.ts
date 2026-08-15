@@ -1,19 +1,19 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, FetchImpl } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
+import type { AssistantMessage, FetchImpl } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 import {
 	isContextOverflow,
 	parseJsonWithRepair,
 	parseStreamingJson,
 	repairJson,
 	streamSimpleOpenAIResponses,
-} from "@zeta/pi-coding-agent/extensibility/legacy-pi-ai-shim";
+} from "@linxiraos/zeta/extensibility/legacy-pi-ai-shim";
 
 // Issue #6859: pi extensions import runtime helpers from the `@earendil-works/pi-ai`
-// (aliased to `@zeta/pi-ai`) package root that omp's barrel no longer forwards.
-// `isContextOverflow` moved under `@zeta/pi-ai/error` and the JSON-repair
-// helpers moved to `@zeta/pi-utils`, so `export * from "@zeta/pi-ai"` left
+// (aliased to `@linxiraos/pi-ai`) package root that omp's barrel no longer forwards.
+// `isContextOverflow` moved under `@linxiraos/pi-ai/error` and the JSON-repair
+// helpers moved to `@linxiraos/pi-utils`, so `export * from "@linxiraos/pi-ai"` left
 // them off the shim surface and a named import tripped Bun's static
 // "No matching export" check during plugin validation (e.g.
 // `omp plugin install pi-blackhole`). This pins the bridged root surface so it

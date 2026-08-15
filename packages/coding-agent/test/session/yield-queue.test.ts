@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { YieldQueue } from "@zeta/pi-coding-agent/session/yield-queue";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { YieldQueue } from "@linxiraos/zeta/session/yield-queue";
 
 type Entry = {
 	id: string;

@@ -2,15 +2,11 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { formatHashlineHeader } from "@zeta/hashline";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import {
-	type ExecuteHashlineSingleOptions,
-	executeHashlineSingle,
-	getFileSnapshotStore,
-} from "@zeta/pi-coding-agent/edit";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { formatHashlineHeader } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { type ExecuteHashlineSingleOptions, executeHashlineSingle, getFileSnapshotStore } from "@linxiraos/zeta/edit";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 beforeAll(async () => {
 	resetSettingsForTest();

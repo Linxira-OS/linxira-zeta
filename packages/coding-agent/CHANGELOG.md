@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-### Fixed
+## [1.0.1] - 2026-08-14
 
 - Fixed normal CLI startup loading native computer-worker bindings before they are needed, which made lightweight commands fail when native addons were disabled.
 - Fixed async result delivery receipts never settling after their aside was committed or discarded.
@@ -16,7 +16,7 @@
 
 ### Changed
 
-- Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 ## [17.2.12] - 2026-08-08
 
 ### Fixed
@@ -12568,6 +12568,28 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 - Fixed Task tool progress display showing repeated nearly-identical lines during streaming
 - Fixed Task tool subprocess model selection ignoring agent's configured model and falling back to settings default. The `--model` flag now accepts `provider/model` format directly.
 - Fixed Task tool showing "done + succeeded" when aborted; now correctly displays "⊘ aborted" status
+
+## [1.0.0] - 2026-08-13
+
+### Added
+
+- Added the Web Gateway (`zeta serve`), an in-process Bun HTTP API that serves the web-ui session family (`/api/sessions*`: list, get, rename, delete, context, state, thinking, export) directly from the runtime instead of proxying through Next.js. A standalone 127.0.0.1 listener (`ZETA_WEB_GATEWAY_PORT`, default 30142) keeps `next dev`/`next start` on the same handler via `ZETA_WEB_GATEWAY_URL` rewrites.
+
+### Fixed
+
+- Fixed normal CLI startup loading native computer-worker bindings before they are needed, which made lightweight commands fail when native addons were disabled.
+- Fixed async result delivery receipts never settling after their aside was committed or discarded.
+- Fixed the setup theme picker hiding its final curated choice on 24-row terminals.
+- Fixed daemon completion notifications, acknowledgements, and owner subscriptions being lost across broker reconnects and restarts.
+- Fixed a new `/mcp reauth` command failing to supersede an unfinished MCP OAuth login.
+- Fixed `/memory stats` and `/memory diagnose` describing the disabled memory state as an "off backend".
+- Fixed bash approval rules rejecting literal shell metacharacters inside quoted arguments.
+
+## [1.0.0] - 2026-08-07
+
+### Changed
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
 
 ## [0.50.1] - 2026-01-26
 

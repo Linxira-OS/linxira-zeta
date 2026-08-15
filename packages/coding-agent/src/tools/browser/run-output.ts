@@ -1,4 +1,4 @@
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import type { JsDisplayOutput } from "../../eval/js/shared/types";
 
 /**

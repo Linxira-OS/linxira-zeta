@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@zeta/pi-ai/error";
-import type { AssistantMessage } from "@zeta/pi-ai/types";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+import * as AIError from "@linxiraos/pi-ai/error";
+import type { AssistantMessage } from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 
 function createPartial(text = ""): AssistantMessage {
 	return {

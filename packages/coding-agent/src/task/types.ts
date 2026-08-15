@@ -1,6 +1,6 @@
-import type { Usage } from "@zeta/pi-ai";
-import { type BaseType, type } from "@zeta/pi-omptype";
-import { $env } from "@zeta/pi-utils";
+import type { Usage } from "@linxiraos/pi-ai";
+import { type BaseType, type } from "@linxiraos/pi-omptype";
+import { $env } from "@linxiraos/pi-utils";
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { ConfiguredThinkingLevel, TaskEffort } from "../thinking";
 import type { NestedRepoPatch } from "./worktree";

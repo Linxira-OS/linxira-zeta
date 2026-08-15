@@ -1,7 +1,7 @@
 import * as net from "node:net";
-import { streamCursor } from "@zeta/pi-ai/providers/cursor";
-import type { Context, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { streamCursor } from "@linxiraos/pi-ai/providers/cursor";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const server = net.createServer(socket => socket.resetAndDestroy());
 const listening = Promise.withResolvers<void>();

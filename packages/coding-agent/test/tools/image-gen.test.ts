@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { Model } from "@zeta/pi-ai";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import type { CustomToolContext } from "@zeta/pi-coding-agent/extensibility/custom-tools";
-import type { ReadonlySessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import type { Model } from "@linxiraos/pi-ai";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { CustomToolContext } from "@linxiraos/zeta/extensibility/custom-tools";
+import type { ReadonlySessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
 	getImageGenTools,
 	getImageGenToolsWithRegistry,
 	imageGenTool,
 	setImageProviderOrder,
-} from "@zeta/pi-coding-agent/tools/image-gen";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/tools/image-gen";
 
 const originalOpenRouterKey = Bun.env.OPENROUTER_API_KEY;
 const generatedImagePaths: string[] = [];

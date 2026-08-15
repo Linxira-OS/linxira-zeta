@@ -1,5 +1,5 @@
-import * as AIError from "@zeta/pi-ai/error";
-import { logger, readSseEvents } from "@zeta/pi-utils";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { logger, readSseEvents } from "@linxiraos/pi-utils";
 import type {
 	JsonRpcError,
 	JsonRpcMessage,

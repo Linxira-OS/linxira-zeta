@@ -2,11 +2,11 @@
  * Text normalization utilities for the edit tool.
  *
  * Whitespace, Unicode, and indentation helpers. Line-ending and BOM
- * primitives live in `@zeta/hashline` and are re-exported here so
+ * primitives live in `@linxiraos/pi-hashline` and are re-exported here so
  * existing consumers see one stable surface.
  */
 
-import { padding } from "@zeta/pi-tui";
+import { padding } from "@linxiraos/pi-tui";
 
 export {
 	type BomResult,
@@ -15,7 +15,7 @@ export {
 	normalizeToLF,
 	restoreLineEndings,
 	stripBom,
-} from "@zeta/hashline";
+} from "@linxiraos/pi-hashline";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Whitespace Utilities

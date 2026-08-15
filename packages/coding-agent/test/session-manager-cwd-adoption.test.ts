@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { removeWithRetries, TempDir } from "@zeta/pi-utils";
+import { removeWithRetries, TempDir } from "@linxiraos/pi-utils";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const tempDirs: TempDir[] = [];
 
@@ -100,7 +100,7 @@ describe("SessionManager cwd adoption on resume", () => {
 		const launch = makeTempDir("@pi-cwd-launch-");
 		const store = makeTempDir("@pi-cwd-store-");
 		const goneProject = makeTempDir("@pi-cwd-gone-");
-		// The session file survives in `store` (like ~/.omp), but its header cwd
+		// The session file survives in `store` (like ~/.zeta), but its header cwd
 		// points at a project directory that we then delete.
 		const file = await writeSession(goneProject, store);
 		await removeWithRetries(goneProject);

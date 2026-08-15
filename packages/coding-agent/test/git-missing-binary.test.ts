@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as git from "@zeta/pi-coding-agent/utils/git";
+import * as git from "@linxiraos/zeta/utils/git";
 
 // Regression coverage for #6169: when `git` is not on PATH, `Bun.spawn`/
 // `Bun.spawnSync` throw synchronously with `code: "ENOENT"` (`uv_spawn 'git'`)

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { getThemeByName, setThemeInstance, type Theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { toolRenderers } from "@zeta/pi-coding-agent/tools/renderers";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
 
 describe("browser renderer: display-only streaming formatting", () => {
 	let theme: Theme;

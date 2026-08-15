@@ -1,5 +1,5 @@
 /**
- * Test helper for resolving API keys from ~/.omp/agent/testauth.db
+ * Test helper for resolving API keys from ~/.zeta/agent/testauth.db
  *
  * Supports both API key and OAuth credentials.
  * OAuth tokens are automatically refreshed if expired and saved back to testauth.db.
@@ -8,9 +8,9 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { getOAuthApiKey } from "@zeta/pi-ai/oauth";
-import type { OAuthCredentials, OAuthProvider } from "@zeta/pi-ai/oauth/types";
-import { $flag, getAgentDir, isEnoent } from "@zeta/pi-utils";
+import { getOAuthApiKey } from "@linxiraos/pi-ai/oauth";
+import type { OAuthCredentials, OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
+import { $flag, getAgentDir, isEnoent } from "@linxiraos/pi-utils";
 
 /**
  * E2E tests require explicit opt-in via E2E=1 environment variable.
@@ -58,7 +58,7 @@ async function saveAuthStorage(storage: AuthStorage): Promise<void> {
 }
 
 /**
- * Resolve API key for a provider from ~/.omp/agent/testauth.db
+ * Resolve API key for a provider from ~/.zeta/agent/testauth.db
  *
  * For API key credentials, returns the key directly.
  * For OAuth credentials, returns the access token (refreshing if expired and saving back).

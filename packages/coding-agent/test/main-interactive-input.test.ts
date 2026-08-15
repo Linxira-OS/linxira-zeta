@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { applyResolvedSystemPromptInputs, readPipedInput, submitInteractiveInput } from "@zeta/pi-coding-agent/main";
-import type { SubmittedUserInput } from "@zeta/pi-coding-agent/modes/types";
-import type { CreateAgentSessionOptions } from "@zeta/pi-coding-agent/sdk";
-import { discoverTitleSystemPromptFile } from "@zeta/pi-coding-agent/system-prompt";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { applyResolvedSystemPromptInputs, readPipedInput, submitInteractiveInput } from "@linxiraos/zeta/main";
+import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
+import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
+import { discoverTitleSystemPromptFile } from "@linxiraos/zeta/system-prompt";
 
 const cleanupDirs: string[] = [];
 

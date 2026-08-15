@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { editToolRenderer } from "@zeta/pi-coding-agent/edit/renderer";
-import { getThemeByName, initTheme, type Theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { readToolRenderer } from "@zeta/pi-coding-agent/tools/read";
-import { writeToolRenderer } from "@zeta/pi-coding-agent/tools/write";
-import type { Component } from "@zeta/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
+import { editToolRenderer } from "@linxiraos/zeta/edit/renderer";
+import { getThemeByName, initTheme, type Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { readToolRenderer } from "@linxiraos/zeta/tools/read";
+import { writeToolRenderer } from "@linxiraos/zeta/tools/write";
 
 interface InvalidPathCase {
 	readonly name: string;

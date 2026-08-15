@@ -2,11 +2,11 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import type { FetchImpl, ImageContent, TextContent } from "@zeta/pi-ai";
-import { htmlToMarkdown } from "@zeta/pi-natives";
-import { type Component, Text } from "@zeta/pi-tui";
-import { $which, ptree, truncate } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { FetchImpl, ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { htmlToMarkdown } from "@linxiraos/pi-natives";
+import { type Component, Text } from "@linxiraos/pi-tui";
+import { $which, ptree, truncate } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { readEditableNotebookText } from "../edit/notebook";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
@@ -517,7 +517,7 @@ function cleanFeedText(text: string): string {
  * Parse RSS/Atom feed to markdown
  */
 async function parseFeedToMarkdown(content: string, maxItems = 10): Promise<string> {
-	const { parseHTML } = await import("@zeta/pi-utils/dom");
+	const { parseHTML } = await import("@linxiraos/pi-utils/dom");
 	try {
 		const doc = parseHTML(content).document;
 

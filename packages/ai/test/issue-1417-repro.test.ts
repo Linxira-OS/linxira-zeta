@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ModelSpec } from "@zeta/pi-ai/types";
-import { readModelCache } from "@zeta/pi-catalog/model-cache";
-import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
+import type { ModelSpec } from "@linxiraos/pi-ai/types";
+import { readModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const TTL_MS = 24 * 60 * 60 * 1000;

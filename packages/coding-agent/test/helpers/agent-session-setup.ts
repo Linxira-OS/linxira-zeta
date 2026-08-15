@@ -1,4 +1,4 @@
-import type { AssistantMessage } from "@zeta/pi-ai";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 
 /**
  * Shared factory for building a minimal mock `AssistantMessage`

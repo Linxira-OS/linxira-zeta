@@ -1,4 +1,4 @@
-import { LRUCache } from "@zeta/pi-utils/lru";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import {
 	Lexer,
 	Marked,
@@ -6,7 +6,7 @@ import {
 	Tokenizer,
 	type TokenizerAndRendererExtension,
 	type Tokens,
-} from "@zeta/pi-utils/marked";
+} from "@linxiraos/pi-utils/marked";
 import { latexToBlock } from "../latex-block";
 import { inlineMathSpanEnd, isBareMathEnvironment, latexToUnicode } from "../latex-to-unicode";
 import type { SymbolTheme } from "../symbols";

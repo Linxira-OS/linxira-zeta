@@ -1,4 +1,4 @@
-import type { ResolvedThinkingLevel } from "@zeta/pi-agent-core";
+import type { ResolvedThinkingLevel } from "@linxiraos/pi-agent-core";
 import type {
 	Api,
 	ApiKeyResolver,
@@ -12,12 +12,12 @@ import type {
 	ServiceTier,
 	ServiceTierByFamily,
 	SimpleStreamOptions,
-} from "@zeta/pi-ai";
-import { resolveModelServiceTier, streamSimple } from "@zeta/pi-ai";
-import { buildModelProviderPriorityRank } from "@zeta/pi-catalog/identity";
-import { replaceTabs, truncateToWidth } from "@zeta/pi-tui";
-import { formatDuration, getProjectDir, prompt } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+} from "@linxiraos/pi-ai";
+import { resolveModelServiceTier, streamSimple } from "@linxiraos/pi-ai";
+import { buildModelProviderPriorityRank } from "@linxiraos/pi-catalog/identity";
+import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
+import { formatDuration, getProjectDir, prompt } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import type { ApiKeyResolverModel } from "../config/api-key-resolver";
 import { ModelRegistry } from "../config/model-registry";
 import {

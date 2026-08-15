@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { sanitizeText } from "@zeta/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { isSettingsInitialized, settings } from "../config/settings";
 import { getDefault } from "../config/settings-schema";
 import type { SecurityFinding } from "../security/contracts";

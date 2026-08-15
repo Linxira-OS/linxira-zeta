@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@zeta/pi-catalog/provider-models/descriptors";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
 import {
 	BEDROCK_MANTLE_STATIC_MODELS,
 	bedrockMantleModelManagerOptions,
-} from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@zeta/pi-catalog/types";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@linxiraos/pi-catalog/types";
 import { dropBedrockMantleOpenAIModels } from "../scripts/generated-policies";
 
 const MANTLE_MODEL_IDS = [

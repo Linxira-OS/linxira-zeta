@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import type { TextContent } from "@zeta/pi-ai";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { TextContent } from "@linxiraos/pi-ai";
 import type { ToolSession } from "../sdk";
 import { truncateHead } from "../session/streaming-output";
 import { type ArchiveReader, formatArchiveEntryLines, openArchive, parseArchivePathCandidates } from "../utils/zip";

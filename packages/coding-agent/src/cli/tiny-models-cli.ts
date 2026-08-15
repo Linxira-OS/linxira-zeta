@@ -1,5 +1,5 @@
-import { formatBytes } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import { formatBytes } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import {
 	DEFAULT_TINY_TITLE_LOCAL_MODEL_KEY,
 	getTinyLocalModelSpec,

@@ -1,11 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import {
-	RawSseDebugBuffer,
-	rawSseRecordLines,
-	resolveRawSseDebugBuffer,
-} from "@zeta/pi-coding-agent/debug/raw-sse-buffer";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { RawSseDebugBuffer, rawSseRecordLines, resolveRawSseDebugBuffer } from "@linxiraos/zeta/debug/raw-sse-buffer";
 
 const model: Model<"anthropic-messages"> = buildModel({
 	id: "claude-test",

@@ -4,12 +4,12 @@ import type {
 	CreateBankOptions,
 	RetainOptions,
 	RetainResponse,
-} from "@zeta/pi-coding-agent/hindsight/client";
-import { HindsightApi } from "@zeta/pi-coding-agent/hindsight/client";
-import type { HindsightConfig } from "@zeta/pi-coding-agent/hindsight/config";
-import type { HindsightMessage } from "@zeta/pi-coding-agent/hindsight/content";
-import { HindsightSessionState } from "@zeta/pi-coding-agent/hindsight/state";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+} from "@linxiraos/zeta/hindsight/client";
+import { HindsightApi } from "@linxiraos/zeta/hindsight/client";
+import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import type { HindsightMessage } from "@linxiraos/zeta/hindsight/content";
+import { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 const makeConfig = (overrides: Partial<HindsightConfig> = {}): HindsightConfig => ({
 	hindsightApiUrl: "http://localhost:8888",

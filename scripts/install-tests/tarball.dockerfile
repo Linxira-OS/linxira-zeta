@@ -39,7 +39,7 @@ uplinks:
   npmjs:
     url: https://registry.npmjs.org/
 packages:
-  '@zeta/*':
+  '@linxiraos/*':
     access: $all
     publish: $all
     unpublish: $all
@@ -101,7 +101,7 @@ for pkg in "${PACKAGES[@]}"; do
     
     # Show what we're publishing
     echo "Dependencies:"
-    jq '.dependencies | to_entries[] | select(.value | startswith("@zeta") or startswith("workspace"))' package.json 2>/dev/null || true
+    jq '.dependencies | to_entries[] | select(.value | startswith("@linxiraos") or startswith("workspace"))' package.json 2>/dev/null || true
     
     # Publish
     npm publish --registry "$REGISTRY"
@@ -127,7 +127,7 @@ RUN verdaccio --config /root/.config/verdaccio/config.yaml &>/dev/null & \
 WORKDIR /test
 RUN verdaccio --config /root/.config/verdaccio/config.yaml &>/dev/null & \
     sleep 3 && \
-    bun add @zeta/pi-coding-agent --registry http://localhost:4873 && \
+    bun add @linxiraos/zeta --registry http://localhost:4873 && \
     pkill -f verdaccio
 
 # Verify the installed package works

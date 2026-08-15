@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import type { ExtensionAskDialogQuestion } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import { AskDialogComponent } from "@zeta/pi-coding-agent/modes/components/ask-dialog";
-import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { setKeybindings } from "@zeta/pi-tui";
+import { setKeybindings } from "@linxiraos/pi-tui";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import type { ExtensionAskDialogQuestion } from "@linxiraos/zeta/extensibility/extensions/types";
+import { AskDialogComponent } from "@linxiraos/zeta/modes/components/ask-dialog";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 
 const DOWN = "\x1b[B";
 const UP = "\x1b[A";

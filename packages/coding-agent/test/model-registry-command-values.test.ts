@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Api, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+import type { Api, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 function stdoutCommand(value: string): string {
 	return `${JSON.stringify(process.execPath)} -e ${JSON.stringify(`process.stdout.write(${JSON.stringify(value)})`)}`;

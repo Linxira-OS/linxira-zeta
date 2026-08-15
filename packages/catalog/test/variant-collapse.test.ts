@@ -2,14 +2,17 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { ANTIGRAVITY_PRIMARY_ENDPOINT, fetchAntigravityDiscoveryModels } from "@zeta/pi-catalog/discovery/antigravity";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { stripThinkingVariantToken } from "@zeta/pi-catalog/identity/family";
-import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
-import { resolveWireModelId } from "@zeta/pi-catalog/model-thinking";
-import { googleGeminiCliModelManagerOptions } from "@zeta/pi-catalog/provider-models/google";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import {
+	ANTIGRAVITY_PRIMARY_ENDPOINT,
+	fetchAntigravityDiscoveryModels,
+} from "@linxiraos/pi-catalog/discovery/antigravity";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { stripThinkingVariantToken } from "@linxiraos/pi-catalog/identity/family";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { resolveWireModelId } from "@linxiraos/pi-catalog/model-thinking";
+import { googleGeminiCliModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/google";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 import {
 	ANTIGRAVITY_VARIANT_COLLAPSE_TABLE,
 	collapseEffortVariants,
@@ -21,7 +24,7 @@ import {
 	isVariantCollapsedSpec,
 	resolveBareVariantAlias,
 	resolveVariantAlias,
-} from "@zeta/pi-catalog/variant-collapse";
+} from "@linxiraos/pi-catalog/variant-collapse";
 
 function memberSpec(
 	id: string,

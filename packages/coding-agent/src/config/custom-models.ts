@@ -1,12 +1,12 @@
-import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import {
 	getBundledModelReferenceIndex,
 	inheritReferenceThinking,
 	resolveModelReference,
-} from "@zeta/pi-catalog/identity";
-import { getVariantAliasSources, resolveVariantAlias } from "@zeta/pi-catalog/variant-collapse";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-catalog/identity";
+import { getVariantAliasSources, resolveVariantAlias } from "@linxiraos/pi-catalog/variant-collapse";
+import { logger } from "@linxiraos/pi-utils";
 import { createLiveConfigHeaders, type HeaderSource } from "./model-config-values";
 import { type ModelPatch, mergeCompat, mergeRemoteCompactionConfig } from "./model-patch";
 import { parseModelString } from "./model-resolver";

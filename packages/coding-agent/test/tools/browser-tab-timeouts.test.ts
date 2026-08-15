@@ -4,8 +4,8 @@ import {
 	normalizeSelector,
 	resolveOpTimeouts,
 	resolveWaitTimeout,
-} from "@zeta/pi-coding-agent/tools/browser/tab-worker";
-import { resolvePredicateTimeout } from "@zeta/pi-coding-agent/tools/run-scope";
+} from "@linxiraos/zeta/tools/browser/tab-worker";
+import { resolvePredicateTimeout } from "@linxiraos/zeta/tools/run-scope";
 
 // Regression coverage for the "weird timeouts" failure mode: interactive `tab.*` helpers
 // used to run with the full cell budget as their internal puppeteer timeout, so a stalled

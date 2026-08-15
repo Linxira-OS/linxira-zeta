@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import { getProjectAgentDir, TempDir } from "@zeta/pi-utils";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

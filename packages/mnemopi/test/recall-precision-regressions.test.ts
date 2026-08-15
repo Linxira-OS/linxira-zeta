@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { BeamMemory } from "@zeta/pi-mnemopi/core/beam";
-import { storeFactStrings } from "@zeta/pi-mnemopi/core/beam/consolidate";
+import { BeamMemory } from "@linxiraos/pi-mnemopi/core/beam";
+import { storeFactStrings } from "@linxiraos/pi-mnemopi/core/beam/consolidate";
 
 type TestBeam = BeamMemory;
 

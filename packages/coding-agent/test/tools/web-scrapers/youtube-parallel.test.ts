@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import * as toolsManager from "@zeta/pi-coding-agent/utils/tools-manager";
-import * as parallelModule from "@zeta/pi-coding-agent/web/parallel";
-import { handleYouTube } from "@zeta/pi-coding-agent/web/scrapers/youtube";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import * as toolsManager from "@linxiraos/zeta/utils/tools-manager";
+import * as parallelModule from "@linxiraos/zeta/web/parallel";
+import { handleYouTube } from "@linxiraos/zeta/web/scrapers/youtube";
 
 describe("handleYouTube with Parallel extract", () => {
 	beforeEach(async () => {

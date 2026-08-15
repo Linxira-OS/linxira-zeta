@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type ContextFile, contextFileCapability } from "@zeta/pi-coding-agent/capability/context-file";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { initializeWithSettings, loadCapability } from "@zeta/pi-coding-agent/discovery";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@zeta/pi-utils";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { type ContextFile, contextFileCapability } from "@linxiraos/zeta/capability/context-file";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
 
 function restoreEnvValue(key: string, value: string | undefined): void {
 	if (value === undefined) {

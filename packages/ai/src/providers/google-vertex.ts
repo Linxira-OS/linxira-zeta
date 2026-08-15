@@ -1,5 +1,5 @@
-import { resolveVertexEndpointHost } from "@zeta/pi-catalog/hosts";
-import { $env } from "@zeta/pi-utils";
+import { resolveVertexEndpointHost } from "@linxiraos/pi-catalog/hosts";
+import { $env } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type { Context, Model, StreamFunction } from "../types";
 import type { AssistantMessageEventStream } from "../utils/event-stream";

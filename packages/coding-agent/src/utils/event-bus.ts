@@ -1,4 +1,4 @@
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 
 export class EventBus {
 	readonly #listeners = new Map<string, Set<(data: unknown) => void>>();

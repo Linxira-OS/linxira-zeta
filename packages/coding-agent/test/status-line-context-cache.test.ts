@@ -14,11 +14,11 @@
  * redraw — that per-event recompute is what previously froze large sessions.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ContextUsage } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import { StatusLineComponent } from "@zeta/pi-coding-agent/modes/components/status-line";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { ContextUsage } from "@linxiraos/zeta/extensibility/extensions/types";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 beforeAll(async () => {
 	resetSettingsForTest();

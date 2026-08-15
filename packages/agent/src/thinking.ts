@@ -1,4 +1,4 @@
-import { Effort } from "@zeta/pi-ai";
+import { Effort } from "@linxiraos/pi-ai";
 
 /**
  * Agent-local thinking selector.

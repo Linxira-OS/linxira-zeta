@@ -31,11 +31,11 @@ import {
 	PASTE_CODE_LOGIN_PROVIDERS,
 	PROVIDER_REGISTRY,
 	SqliteAuthCredentialStore,
-} from "@zeta/pi-ai";
-import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@zeta/pi-ai/auth-broker";
-import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
-import { setTransports as setLoggerTransports } from "@zeta/pi-utils/logger";
+} from "@linxiraos/pi-ai";
+import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
+import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { setTransports as setLoggerTransports } from "@linxiraos/pi-utils/logger";
 import { $ } from "bun";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";
 
@@ -122,7 +122,7 @@ async function ensureToken(): Promise<string> {
 async function runServe(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	// The broker is a long-running headless service: route structured logs to
 	// stdout so a process supervisor (pm2, journald, k8s) captures them, and
-	// skip the rotating ~/.omp/logs/ file the TUI default would have used.
+	// skip the rotating ~/.zeta/logs/ file the TUI default would have used.
 	setLoggerTransports({ console: true, file: false });
 
 	const bind = flags.bind ?? DEFAULT_AUTH_BROKER_BIND;

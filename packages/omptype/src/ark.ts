@@ -1,10 +1,10 @@
 /**
- * ArkType compatibility facade — `@zeta/pi-omptype/ark`.
+ * ArkType compatibility facade — `@linxiraos/pi-omptype/ark`.
  *
  * Lets code written against arktype keep its imports and names while running
  * on the omptype lazy-JIT runtime: swap `from "arktype"` for
- * `from "@zeta/pi-omptype/ark"` and nothing else changes. New code should
- * import `@zeta/pi-omptype` directly.
+ * `from "@linxiraos/pi-omptype/ark"` and nothing else changes. New code should
+ * import `@linxiraos/pi-omptype` directly.
  *
  * Compatibility affordance: `ArkError` / `ArkErrors` alias `OmpError` /
  * `OmpErrors`. All schema builders, including recursive `scope()`, are

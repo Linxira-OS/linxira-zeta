@@ -10,14 +10,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { $env, $which, APP_NAME, compareVersions, isEnoent, VERSION } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import { $env, $which, APP_NAME, compareVersions, isEnoent, VERSION } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { $ } from "bun";
 import { theme } from "../modes/theme/theme";
 import { isTimeoutError, withTimeoutSignal } from "../utils/fetch-timeout";
 
 const REPO = "can1357/oh-my-pi";
-const PACKAGE = "@zeta/pi-coding-agent";
+const PACKAGE = "@linxiraos/zeta";
 const HOMEBREW_FORMULA = "can1357/tap/omp";
 const MISE_TOOL = "github:can1357/oh-my-pi";
 /**
@@ -42,11 +42,11 @@ const BINARY_DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
  * disk; see {@link buildBunInstallArgs} for why this must be installed
  * explicitly rather than inherited as a transitive dependency.
  */
-const NATIVES_PACKAGE = "@zeta/pi-natives";
+const NATIVES_PACKAGE = "@linxiraos/pi-natives";
 
 /**
  * Platform tags the release pipeline publishes as
- * `@zeta/pi-natives-<tag>` leaves. Mirrors `SUPPORTED_PLATFORMS` in
+ * `@linxiraos/pi-natives-<tag>` leaves. Mirrors `SUPPORTED_PLATFORMS` in
  * `packages/natives/native/loader-state.js` and `LEAF_TARGETS` in
  * `packages/natives/scripts/gen-npm-packages.ts`; kept here as the local
  * source of truth so the update path stays free of cross-package imports.
@@ -948,11 +948,11 @@ function buildVersionedPackageInstallArgs(expectedVersion: string, nativeTag: st
  * lookup the version check just performed. See #1686.
  *
  * Also pins {@link NATIVES_PACKAGE} and the platform-specific
- * `@zeta/pi-natives-<tag>` leaf to `expectedVersion`. `bun install -g`
+ * `@linxiraos/pi-natives-<tag>` leaf to `expectedVersion`. `bun install -g`
  * does not reliably refresh transitive `optionalDependencies` when the
  * top-level package is the only one bumped, so the native addon and its
  * version sentinel can drift out of sync with the freshly installed
- * `@zeta/pi-coding-agent` and the loader aborts at
+ * `@linxiraos/zeta` and the loader aborts at
  * `validateLoadedBindings` on the next launch
  * (`The .node file on disk is from a different release than this loader`).
  * Listing the natives explicitly forces bun to replace them in lock-step.

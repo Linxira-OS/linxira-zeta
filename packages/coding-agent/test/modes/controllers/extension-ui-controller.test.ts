@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Container, setKeybindings } from "@zeta/pi-tui";
+import { Container, setKeybindings } from "@linxiraos/pi-tui";
 import { KeybindingsManager } from "../../../src/config/keybindings";
 import type { ExtensionAskDialogQuestion, ExtensionUIContext } from "../../../src/extensibility/extensions";
 import { AskDialogComponent } from "../../../src/modes/components/ask-dialog";

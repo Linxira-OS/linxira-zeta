@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AssistantMessageEventStream, clearCustomApis, getCustomApi } from "@zeta/pi-ai";
-import { getOAuthProvider } from "@zeta/pi-ai/oauth";
-import { ModelRegistry, type ProviderConfigInput } from "@zeta/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+import { type AssistantMessageEventStream, clearCustomApis, getCustomApi } from "@linxiraos/pi-ai";
+import { getOAuthProvider } from "@linxiraos/pi-ai/oauth";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 describe("ModelRegistry runtime source cleanup", () => {
 	let tempDir: string;

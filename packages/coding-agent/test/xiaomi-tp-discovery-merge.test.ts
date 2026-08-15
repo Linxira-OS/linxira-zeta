@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { mergeDiscoveredModel } from "@zeta/pi-coding-agent/config/model-registry";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { mergeDiscoveredModel } from "@linxiraos/zeta/config/model-registry";
 
 /**
  * Regression for v15.2.4 tp- key bug: when Xiaomi `tp-` token-plan keys hit

@@ -1,4 +1,4 @@
-import { Box, Container, Spacer, Text } from "@zeta/pi-tui";
+import { Box, Container, Spacer, Text } from "@linxiraos/pi-tui";
 import { theme } from "../../modes/theme/theme";
 import type { TodoItem } from "../../tools/todo";
 

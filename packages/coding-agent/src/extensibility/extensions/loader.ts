@@ -4,7 +4,7 @@
 import type * as fs1 from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type {
 	ImageContent,
 	Model,
@@ -13,11 +13,11 @@ import type {
 	ServiceTierFamily,
 	TextContent,
 	TSchema,
-} from "@zeta/pi-ai";
-import { type } from "@zeta/pi-omptype";
-import * as zod from "@zeta/pi-omptype/zod";
-import type { KeyId } from "@zeta/pi-tui";
-import { hasFsCode, isEacces, isEnoent, logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import * as zod from "@linxiraos/pi-omptype/zod";
+import type { KeyId } from "@linxiraos/pi-tui";
+import { hasFsCode, isEacces, isEnoent, logger } from "@linxiraos/pi-utils";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";
 import { type Hook, hookCapability } from "../../capability/hook";
 import { isServiceTierFamily, isServiceTierForFamily } from "../../config/service-tier";
@@ -597,7 +597,7 @@ async function discoverHooksInPackageRoot(root: string): Promise<string[]> {
 /**
  * Discover absolute paths of extensions to load, without importing or
  * binding factories. Hot path on session startup — the scan walks native
- * `.omp`/`.pi` extension capabilities, JS/TS hook factories, the
+ * `.zeta`/`.pi` extension capabilities, JS/TS hook factories, the
  * installed-plugin tree, and any configured paths.
  *
  * Subagents reuse the parent's collected paths via the SDK's
@@ -642,7 +642,7 @@ export async function discoverExtensionPaths(
 
 	const ambient = options.ambient !== false;
 	if (ambient) {
-		// 1. Discover extension modules via capability API (native .omp/.pi only).
+		// 1. Discover extension modules via capability API (native .zeta/.pi only).
 		// Scope the load to the native provider — the extension-module capability
 		// also has claude/codex/gemini/opencode providers, and their items were
 		// discarded here anyway (see #4198). The provider filter skips the walk

@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage, ImageContent } from "@zeta/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
 import type { RestoredQueuedMessage } from "./agent-session-types";
 import { type CustomMessage, readQueueChipText } from "./messages";
 

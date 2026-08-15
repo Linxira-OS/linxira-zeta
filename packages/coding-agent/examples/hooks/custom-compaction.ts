@@ -12,9 +12,9 @@
  * Usage:
  *   omp --hook examples/hooks/custom-compaction.ts
  */
-import { complete, getModel } from "@zeta/pi-ai";
-import type { HookAPI } from "@zeta/pi-coding-agent";
-import { convertToLlm, serializeConversation } from "@zeta/pi-coding-agent";
+import { complete, getModel } from "@linxiraos/pi-ai";
+import type { HookAPI } from "@linxiraos/zeta";
+import { convertToLlm, serializeConversation } from "@linxiraos/zeta";
 
 export default function (pi: HookAPI) {
 	pi.on("session_before_compact", async (event, ctx) => {

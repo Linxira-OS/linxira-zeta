@@ -5,7 +5,7 @@ import {
 	type CommandMetadata,
 	renderCommandHelp,
 	renderRootHelp,
-} from "@zeta/pi-utils/cli";
+} from "@linxiraos/pi-utils/cli";
 import { commands } from "../src/cli-commands";
 
 function captureStdout(render: () => void): string {

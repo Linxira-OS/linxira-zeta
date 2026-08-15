@@ -1,19 +1,19 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { InteractiveMode } from "@zeta/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { HistoryStorage } from "@zeta/pi-coding-agent/session/history-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 /**
  * Regression for issue #3656 — running `/shake` (or any mid-stream rebuild)

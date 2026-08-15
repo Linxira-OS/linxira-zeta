@@ -12,8 +12,8 @@
  */
 
 import { describe, expect, it, spyOn } from "bun:test";
-import * as attach from "@zeta/pi-coding-agent/tools/browser/attach";
-import { type BrowserHandle, releaseBrowser } from "@zeta/pi-coding-agent/tools/browser/registry";
+import * as attach from "@linxiraos/zeta/tools/browser/attach";
+import { type BrowserHandle, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
 
 /** Build a headless handle whose `browser.close()` never resolves. */
 function makeHangingHeadlessHandle(pid: number | undefined): {

@@ -1,6 +1,6 @@
-import type { AgentEvent, ThinkingLevel } from "@zeta/pi-agent-core";
-import type { CompactionResult } from "@zeta/pi-agent-core/compaction";
-import type { Effort } from "@zeta/pi-ai";
+import type { AgentEvent, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
+import type { Effort } from "@linxiraos/pi-ai";
 import type { Rule } from "../capability/rule";
 import type { RetryErrorUpdate } from "../extensibility/shared-events";
 import type { Goal, GoalModeState } from "../goals/state";

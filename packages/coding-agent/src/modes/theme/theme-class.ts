@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Effort } from "@zeta/pi-ai";
-import { colorLuma, logger, relativeLuminance } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Effort } from "@linxiraos/pi-ai";
+import { colorLuma, logger, relativeLuminance } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { bgAnsi, colorToAnsi, fgAnsi, resolveToHex } from "./color";
 import type { ColorMode, ThemeBg, ThemeColor } from "./schema";
 import {

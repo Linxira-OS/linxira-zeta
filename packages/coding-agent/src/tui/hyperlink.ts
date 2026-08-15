@@ -6,7 +6,7 @@
  * permits it. Falls back to plain text when disabled.
  */
 import * as url from "node:url";
-import { TERMINAL } from "@zeta/pi-tui";
+import { TERMINAL } from "@linxiraos/pi-tui";
 import { isSettingsInitialized, settings } from "../config/settings";
 import {
 	LocalProtocolHandler,

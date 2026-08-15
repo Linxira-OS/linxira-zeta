@@ -1,5 +1,5 @@
-import type { AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import { sanitizeText } from "@zeta/pi-utils";
+import type { AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { formatBytes } from "../tools/render-utils";
 import { sanitizeWithOptionalSixelPassthrough } from "../utils/sixel";
 

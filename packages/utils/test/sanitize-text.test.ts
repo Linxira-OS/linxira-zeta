@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeText } from "@zeta/pi-utils/sanitize-text";
+import { sanitizeText } from "@linxiraos/pi-utils/sanitize-text";
 
 describe("sanitizeText", () => {
 	it("strips ANSI CSI and removes C0/C1 control chars while keeping tab + LF", () => {

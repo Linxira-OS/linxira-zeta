@@ -2,13 +2,13 @@
  * Shared types and utilities for web-fetch handlers
  */
 import { scheduler } from "node:timers/promises";
-import { ptree } from "@zeta/pi-utils";
-import type TurndownService from "@zeta/pi-utils/turndown";
+import { ptree } from "@linxiraos/pi-utils";
+import type TurndownService from "@linxiraos/pi-utils/turndown";
 
 import type { AgentStorage } from "../../session/agent-storage";
 import { ToolAbortError } from "../../tools/tool-errors";
 
-export { formatNumber } from "@zeta/pi-utils";
+export { formatNumber } from "@linxiraos/pi-utils";
 
 export interface RenderResult {
 	url: string;

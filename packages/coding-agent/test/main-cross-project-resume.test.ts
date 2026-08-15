@@ -11,18 +11,18 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type Args, parseArgs } from "@zeta/pi-coding-agent/cli/args";
-import * as modelResolverModule from "@zeta/pi-coding-agent/config/model-resolver";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import * as pluginHelpers from "@zeta/pi-coding-agent/discovery/helpers";
-import { createSessionManager, runRootCommand } from "@zeta/pi-coding-agent/main";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import type { SessionHeader } from "@zeta/pi-coding-agent/session/session-entries";
-import type { SessionInfo } from "@zeta/pi-coding-agent/session/session-listing";
-import * as sessionListingModule from "@zeta/pi-coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@zeta/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { getProjectDir, normalizePathForComparison, setProjectDir } from "@zeta/pi-utils";
+import { getProjectDir, normalizePathForComparison, setProjectDir } from "@linxiraos/pi-utils";
+import { type Args, parseArgs } from "@linxiraos/zeta/cli/args";
+import * as modelResolverModule from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
+import { createSessionManager, runRootCommand } from "@linxiraos/zeta/main";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { SessionHeader } from "@linxiraos/zeta/session/session-entries";
+import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
+import * as sessionListingModule from "@linxiraos/zeta/session/session-listing";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 function buildArgs(resume: string, sessionDir?: string): Args {
 	return {

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { renderStatusLine } from "@zeta/pi-coding-agent/tui";
-import { sanitizeText } from "@zeta/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { renderStatusLine } from "@linxiraos/zeta/tui";
 
 beforeAll(async () => {
 	await initTheme();

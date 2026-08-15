@@ -2,9 +2,8 @@
 
 ## [Unreleased]
 
-### Changed
+## [1.0.1] - 2026-08-14
 
-- Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
 ## [17.2.11] - 2026-08-07
 
 ### Added
@@ -447,3 +446,9 @@
 ### Added
 
 - Added an XDG-aware tiny-title model cache directory helper for coding-agent local title models.
+
+## [1.0.0] - 2026-08-13
+
+### Changed
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.

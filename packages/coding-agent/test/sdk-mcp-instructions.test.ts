@@ -2,14 +2,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock,
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
-import { getAgentDir, setAgentDir } from "@zeta/pi-utils/dirs";
+import { AuthStorage } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
 	BOUNDED_GUIDANCE_MODE,
 	CONTEXT_MODE_NO_INSTRUCTIONS_MODE,

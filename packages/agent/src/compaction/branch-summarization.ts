@@ -5,9 +5,9 @@
  * a summary of the branch being left so context isn't lost.
  */
 
-import type { Api, ApiKey, AssistantMessage, Context, Model, SimpleStreamOptions } from "@zeta/pi-ai";
-import { preferredDialect } from "@zeta/pi-catalog/identity";
-import { prompt } from "@zeta/pi-utils";
+import type { Api, ApiKey, AssistantMessage, Context, Model, SimpleStreamOptions } from "@linxiraos/pi-ai";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
+import { prompt } from "@linxiraos/pi-utils";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import type { AgentMessage } from "../types";
 import { estimateTokens } from "./compaction";

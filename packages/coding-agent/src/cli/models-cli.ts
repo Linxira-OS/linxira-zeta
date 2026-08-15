@@ -5,16 +5,16 @@
  * - `ls` (default): list every available model grouped by provider.
  * - `find <substring>`: list models whose provider, id, or name contains the substring.
  * - `refresh`: force an online catalog re-fetch (ignoring the model cache TTL),
- *   then list. This is the supported replacement for `rm -rf ~/.omp/models.db`
+ *   then list. This is the supported replacement for `rm -rf ~/.zeta/models.db`
  *   when a provider ships a new model that the 24h cache has not picked up yet.
  *
  * `ls`/`find` use the cache when fresh (`online-if-uncached`); only `refresh`
  * forces the network (`online`).
  */
-import type { Api, Effort, Model } from "@zeta/pi-ai";
-import { getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
-import { formatNumber, getProjectDir } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import type { Api, Effort, Model } from "@linxiraos/pi-ai";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { formatNumber, getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAndLoadExtensions, ExtensionRunner, emitSessionShutdownEvent } from "../extensibility/extensions";

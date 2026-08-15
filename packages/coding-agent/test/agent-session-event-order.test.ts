@@ -15,18 +15,18 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import type { ToolCall } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TodoTool } from "@zeta/pi-coding-agent/tools";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { ToolCall } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TodoTool } from "@linxiraos/zeta/tools";
 
 describe("AgentSession subscriber event order", () => {
 	let tempDir: TempDir;

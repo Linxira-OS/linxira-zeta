@@ -1,4 +1,4 @@
-import { $env } from "@zeta/pi-utils";
+import { $env } from "@linxiraos/pi-utils";
 import type { ProviderDefinition } from "./types";
 
 export const amazonBedrockProvider = {

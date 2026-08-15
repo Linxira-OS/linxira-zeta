@@ -5,13 +5,16 @@
  * and provides a transformer to convert them to LLM-compatible messages.
  */
 
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { invalidateMessageCache, registerMessageCacheInvalidator } from "@zeta/pi-agent-core/compaction/message-cache";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import {
+	invalidateMessageCache,
+	registerMessageCacheInvalidator,
+} from "@linxiraos/pi-agent-core/compaction/message-cache";
 import {
 	type BranchSummaryMessage,
 	type CompactionSummaryMessage,
 	convertMessageToLlm,
-} from "@zeta/pi-agent-core/compaction/messages";
+} from "@linxiraos/pi-agent-core/compaction/messages";
 import type {
 	AssistantMessage,
 	ImageContent,
@@ -19,10 +22,10 @@ import type {
 	MessageAttribution,
 	TextContent,
 	UserMessage,
-} from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { isRecord, logger, prompt } from "@zeta/pi-utils";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@zeta/pi-wire";
+} from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
 
@@ -32,7 +35,7 @@ export {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "@zeta/pi-agent-core/compaction/messages";
+} from "@linxiraos/pi-agent-core/compaction/messages";
 
 import type { OutputMeta } from "../tools/output-meta";
 import { formatOutputNotice } from "../tools/output-meta";
@@ -926,7 +929,7 @@ export interface FileMentionMessage {
 
 // Extend CustomAgentMessages via declaration merging
 // Legacy hookMessage is kept for migration; new code should use custom.
-declare module "@zeta/pi-agent-core" {
+declare module "@linxiraos/pi-agent-core" {
 	interface CustomAgentMessages {
 		bashExecution: BashExecutionMessage;
 		pythonExecution: PythonExecutionMessage;

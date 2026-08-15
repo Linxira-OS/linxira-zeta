@@ -1,4 +1,4 @@
-import { Container, Spacer, Text } from "@zeta/pi-tui";
+import { Container, Spacer, Text } from "@linxiraos/pi-tui";
 import { getPreviewLines, TRUNCATE_LENGTHS } from "../../tools/render-utils";
 import { theme } from "../theme/theme";
 import { DynamicBorder } from "./dynamic-border";

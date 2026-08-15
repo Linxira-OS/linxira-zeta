@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@zeta/pi-agent-core";
-import { AuthStorage } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { CustomTool } from "@zeta/pi-coding-agent/extensibility/custom-tools/types";
-import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { type } from "@zeta/pi-omptype";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { AuthStorage } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 // Regression for issue #5305: image-gen is registered as a custom tool, and
 // custom tools are force-activated regardless of the `toolNames` filter. Before

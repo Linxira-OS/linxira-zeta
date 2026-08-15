@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { $which } from "@zeta/pi-utils";
+import { $which } from "@linxiraos/pi-utils";
 
 interface RunnerFrame {
 	type?: string;

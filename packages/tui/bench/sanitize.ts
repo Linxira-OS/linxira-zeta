@@ -1,4 +1,4 @@
-import { sanitizeText as currentSanitizeText } from "@zeta/pi-utils/sanitize-text";
+import { sanitizeText as currentSanitizeText } from "@linxiraos/pi-utils/sanitize-text";
 import { makeBench } from "./_harness";
 
 const STRIP_RE = new RegExp(

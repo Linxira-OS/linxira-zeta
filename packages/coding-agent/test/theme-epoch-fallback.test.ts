@@ -5,7 +5,7 @@ import {
 	setTheme,
 	setThemeInstance,
 	type Theme,
-} from "@zeta/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/zeta/modes/theme/theme";
 
 /**
  * Contract: every change to the *active* theme bumps the theme epoch — including

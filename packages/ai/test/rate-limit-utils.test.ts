@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ProviderHttpError } from "@zeta/pi-ai/error";
-import { classify, Flag, is, isUsageLimit, retriable } from "@zeta/pi-ai/error/flags";
+import { ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { classify, Flag, is, isUsageLimit, retriable } from "@linxiraos/pi-ai/error/flags";
 import {
 	calculateRateLimitBackoffMs,
 	isConcurrencyCapExclusion,
@@ -8,7 +8,7 @@ import {
 	isUsageLimitOutcome,
 	isUsageLimitStatus,
 	parseRateLimitReason,
-} from "@zeta/pi-ai/error/rate-limit";
+} from "@linxiraos/pi-ai/error/rate-limit";
 
 describe("parseRateLimitReason", () => {
 	it("classifies Google Quota exceeded as QUOTA_EXHAUSTED", () => {

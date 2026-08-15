@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyEdits, InMemorySnapshotStore, parsePatch, Recovery } from "@zeta/hashline";
+import { applyEdits, InMemorySnapshotStore, parsePatch, Recovery } from "@linxiraos/pi-hashline";
 
 /**
  * Applies with a code path, so the tree-sitter probe can judge whether an

@@ -7,25 +7,30 @@
  * compaction item as replacement history.
  */
 
-import type { Api, CodexCompactionContext, FetchImpl, Model, ProviderSessionState } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { applyCodexResponsesLiteShape } from "@zeta/pi-ai/providers/openai-codex/request-transformer";
+import type { Api, CodexCompactionContext, FetchImpl, Model, ProviderSessionState } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { applyCodexResponsesLiteShape } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import {
 	createOpenAICodexCompactionRequestContext,
 	createOpenAICodexCompatibilityMetadata,
 	type OpenAICodexCompactionBody,
 	type OpenAICodexCompatibilityMetadata,
 	openCodexCompactionEventStream,
-} from "@zeta/pi-ai/providers/openai-codex-responses";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import {
 	getOpenAIPromptCacheKey,
 	getOpenAIResponsesRoutingSessionId,
 	parseAzureDeploymentNameMap,
 	resolveOpenAIRequestSetup,
-} from "@zeta/pi-ai/providers/openai-shared";
-import { captureOpenAIHttpError } from "@zeta/pi-ai/utils/openai-http";
-import { CODEX_BASE_URL, getCodexAccountId, OPENAI_HEADER_VALUES, OPENAI_HEADERS } from "@zeta/pi-catalog/wire/codex";
-import { $env, logger, stringifyJson } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import { captureOpenAIHttpError } from "@linxiraos/pi-ai/utils/openai-http";
+import {
+	CODEX_BASE_URL,
+	getCodexAccountId,
+	OPENAI_HEADER_VALUES,
+	OPENAI_HEADERS,
+} from "@linxiraos/pi-catalog/wire/codex";
+import { $env, logger, stringifyJson } from "@linxiraos/pi-utils";
 
 // ============================================================================
 // Types & Configuration

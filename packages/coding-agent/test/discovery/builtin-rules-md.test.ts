@@ -2,20 +2,20 @@
  * Regression tests for top-level `RULES.md` sticky rules.
  *
  * `RULES.md` (singular, top-level) MUST be loaded as a sticky always-apply rule
- * from both `~/.omp/agent/RULES.md` (user) and the nearest `.omp/RULES.md`
+ * from both `~/.zeta/agent/RULES.md` (user) and the nearest `.zeta/RULES.md`
  * (project, walked up from cwd to repoRoot).
  */
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getCapability } from "@zeta/pi-coding-agent/capability";
-import { clearCache } from "@zeta/pi-coding-agent/capability/fs";
-import { type Rule, ruleCapability } from "@zeta/pi-coding-agent/capability/rule";
-import type { LoadContext } from "@zeta/pi-coding-agent/capability/types";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { getCapability } from "@linxiraos/zeta/capability";
+import { clearCache } from "@linxiraos/zeta/capability/fs";
+import { type Rule, ruleCapability } from "@linxiraos/zeta/capability/rule";
+import type { LoadContext } from "@linxiraos/zeta/capability/types";
 // Importing discovery registers all providers as a side effect.
-import { loadCapability } from "@zeta/pi-coding-agent/discovery";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@zeta/pi-utils";
+import { loadCapability } from "@linxiraos/zeta/discovery";
 
 let tempDir: string;
 let home: string;
@@ -65,7 +65,7 @@ afterEach(() => {
 	removeSyncWithRetries(tempDir);
 });
 
-test("user ~/.omp/agent/RULES.md becomes an alwaysApply rule", async () => {
+test("user ~/.zeta/agent/RULES.md becomes an alwaysApply rule", async () => {
 	writeFile(
 		path.join(home, ".zeta", "agent", "RULES.md"),
 		"**CRITICAL**: You _MUST_ use beads task tracker for any project\n",
@@ -79,7 +79,7 @@ test("user ~/.omp/agent/RULES.md becomes an alwaysApply rule", async () => {
 	expect(userRule?.content).toContain("beads task tracker");
 });
 
-test("project .omp/RULES.md becomes an alwaysApply rule", async () => {
+test("project .zeta/RULES.md becomes an alwaysApply rule", async () => {
 	writeFile(path.join(project, ".zeta", "RULES.md"), "# Project rule\nAlways say hi.\n");
 
 	const rules = await loadNativeRules({ cwd: project, home, repoRoot: project });
@@ -150,7 +150,7 @@ test("alwaysApply is forced even when frontmatter says false", async () => {
 });
 
 test("absent RULES.md does not produce a rule", async () => {
-	// No RULES.md anywhere — only a sibling .omp/rules/ to make sure the directory exists.
+	// No RULES.md anywhere — only a sibling .zeta/rules/ to make sure the directory exists.
 	writeFile(path.join(home, ".zeta", "agent", "rules", "other.md"), "# Unrelated rule\n");
 
 	const rules = await loadNativeRules({ cwd: project, home, repoRoot: project });

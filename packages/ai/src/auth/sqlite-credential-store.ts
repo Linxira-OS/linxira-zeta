@@ -7,8 +7,8 @@
 import { Database, type Statement } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { parseAlibabaTokenPlanCredential } from "@zeta/pi-catalog/wire/alibaba-token-plan";
-import { getAgentDbPath, getDbBusyTimeoutMs, logger } from "@zeta/pi-utils";
+import { parseAlibabaTokenPlanCredential } from "@linxiraos/pi-catalog/wire/alibaba-token-plan";
+import { getAgentDbPath, getDbBusyTimeoutMs, logger } from "@linxiraos/pi-utils";
 import type {
 	AuthCredential,
 	AuthCredentialStore,

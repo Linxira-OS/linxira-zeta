@@ -6,10 +6,10 @@
  * result pairs collapsed to single lines, thinking elided, custom messages
  * as one-liners. No system prompt, no tool catalog, no config sections.
  */
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@zeta/pi-ai";
-import { escapeXmlText } from "@zeta/pi-utils";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@linxiraos/pi-ai";
+import { escapeXmlText } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type {
 	BashExecutionMessage,
 	BranchSummaryMessage,

@@ -12,31 +12,31 @@ import {
 	formatHashlineHeader,
 	InMemorySnapshotStore,
 	Tokenizer as HashlineTokenizer,
-} from "@zeta/hashline";
-import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Model, ToolExample } from "@zeta/pi-ai";
-import { formatSessionDumpText, RpcClient } from "@zeta/pi-coding-agent";
-import { prompt } from "@zeta/pi-utils";
+} from "@linxiraos/pi-hashline";
+import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model, ToolExample } from "@linxiraos/pi-ai";
+import { formatSessionDumpText, RpcClient } from "@linxiraos/zeta";
+import { prompt } from "@linxiraos/pi-utils";
 import { diffLines } from "diff";
-import { formatDirectory } from "@zeta/typescript-edit-benchmark/formatter";
+import { formatDirectory } from "@linxiraos/typescript-edit-benchmark/formatter";
 import {
 	discoverSharedInfra,
 	InProcessClient,
 	type SharedInfra,
-} from "@zeta/typescript-edit-benchmark/in-process-client";
+} from "@linxiraos/typescript-edit-benchmark/in-process-client";
 import benchmarkRetryPrompt from "./prompts/benchmark-retry.md" with { type: "text" };
 import benchmarkSystemPrompt from "./prompts/benchmark-system.md" with { type: "text" };
 import benchmarkTaskPrompt from "./prompts/benchmark-task.md" with { type: "text" };
-import type { EditTask } from "@zeta/typescript-edit-benchmark/tasks";
+import type { EditTask } from "@linxiraos/typescript-edit-benchmark/tasks";
 import {
 	verifyExpectedFileSubset,
 	verifyExpectedFiles,
-} from "@zeta/typescript-edit-benchmark/verify";
+} from "@linxiraos/typescript-edit-benchmark/verify";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "..", "..", "..", "..");
 const RUNS_DIR = path.join(REPO_ROOT, "runs");
 const TMP = path.join(RUNS_DIR, `rb-${Math.random().toString(36).slice(2, 10)}`);
-const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@zeta/pi-coding-agent/cli"));
+const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@linxiraos/zeta/cli"));
 
 function formatLogPath(logFile: string): string {
 	const relativePath = path.relative(REPO_ROOT, logFile);

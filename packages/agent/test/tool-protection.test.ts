@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { SessionMessageEntry } from "@zeta/pi-agent-core/compaction/entries";
-import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@zeta/pi-agent-core/compaction/pruning";
-import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@zeta/pi-agent-core/compaction/shake";
-import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@zeta/pi-ai";
+import type { SessionMessageEntry } from "@linxiraos/pi-agent-core/compaction/entries";
+import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@linxiraos/pi-agent-core/compaction/pruning";
+import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@linxiraos/pi-agent-core/compaction/shake";
+import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@linxiraos/pi-ai";
 
 function usage(): Usage {
 	return {

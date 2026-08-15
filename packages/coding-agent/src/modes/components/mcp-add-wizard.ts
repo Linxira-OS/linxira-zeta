@@ -3,8 +3,17 @@
  *
  * Interactive multi-step wizard for adding MCP servers.
  */
-import { Container, Input, matchesKey, replaceTabs, Spacer, Text, TruncatedText, truncateToWidth } from "@zeta/pi-tui";
-import { getMCPConfigPath, getProjectDir } from "@zeta/pi-utils";
+import {
+	Container,
+	Input,
+	matchesKey,
+	replaceTabs,
+	Spacer,
+	Text,
+	TruncatedText,
+	truncateToWidth,
+} from "@linxiraos/pi-tui";
+import { getMCPConfigPath, getProjectDir } from "@linxiraos/pi-utils";
 import { M } from "../../i18n";
 import { validateServerName } from "../../mcp/config-writer";
 import { analyzeAuthError, discoverOAuthEndpoints, fetchResourceMetadataScopes } from "../../mcp/oauth-discovery";

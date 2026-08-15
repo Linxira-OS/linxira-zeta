@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isGitSpec, parseGitUrl } from "@zeta/pi-coding-agent/extensibility/plugins/git-url";
+import { isGitSpec, parseGitUrl } from "@linxiraos/zeta/extensibility/plugins/git-url";
 
 describe("parseGitUrl", () => {
 	describe("protocol URLs (accepted without git: prefix)", () => {

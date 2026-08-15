@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { scope, type } from "@zeta/pi-omptype/ark";
+import { scope, type } from "@linxiraos/pi-omptype/ark";
 
 it("divisible", () => {
 	const T = type("number%2");

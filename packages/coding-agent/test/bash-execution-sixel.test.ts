@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { BashExecutionComponent } from "@zeta/pi-coding-agent/modes/components/bash-execution";
-import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { sanitizeWithOptionalSixelPassthrough } from "@zeta/pi-coding-agent/utils/sixel";
-import type { TUI } from "@zeta/pi-tui";
-import { sanitizeText } from "@zeta/pi-utils";
+import type { TUI } from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { BashExecutionComponent } from "@linxiraos/zeta/modes/components/bash-execution";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { sanitizeWithOptionalSixelPassthrough } from "@linxiraos/zeta/utils/sixel";
 
 const SIXEL = "\x1bPqabc\x1b\\";
 

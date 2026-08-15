@@ -1,7 +1,7 @@
-import { type ResolvedThinkingLevel, ThinkingLevel } from "@zeta/pi-agent-core";
-import { Effort, type Model, THINKING_EFFORTS } from "@zeta/pi-ai";
-import { clampThinkingLevelForModel, getSupportedEfforts } from "@zeta/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@zeta/pi-catalog/models";
+import { type ResolvedThinkingLevel, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { Effort, type Model, THINKING_EFFORTS } from "@linxiraos/pi-ai";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 
 export { CLI_THINKING_LEVELS } from "./cli/thinking-levels";
 

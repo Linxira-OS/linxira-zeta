@@ -1,10 +1,10 @@
 import { afterEach, beforeEach } from "bun:test";
 
-import * as Beam from "@zeta/pi-mnemopi/core/beam";
-import * as Embeddings from "@zeta/pi-mnemopi/core/embeddings";
-import type { CompleteOptions, LlmBackend } from "@zeta/pi-mnemopi/core/llm-backends";
-import * as LlmBackends from "@zeta/pi-mnemopi/core/llm-backends";
-import * as Memory from "@zeta/pi-mnemopi/core/memory";
+import * as Beam from "@linxiraos/pi-mnemopi/core/beam";
+import * as Embeddings from "@linxiraos/pi-mnemopi/core/embeddings";
+import type { CompleteOptions, LlmBackend } from "@linxiraos/pi-mnemopi/core/llm-backends";
+import * as LlmBackends from "@linxiraos/pi-mnemopi/core/llm-backends";
+import * as Memory from "@linxiraos/pi-mnemopi/core/memory";
 
 type ResettableModule = Record<string, unknown>;
 

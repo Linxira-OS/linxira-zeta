@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@zeta/pi-ai/providers/openai-responses";
-import type { Context, FetchImpl, Model } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import type { Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 const openAIResponsesModel = getBundledModel("openai", "gpt-5-mini") as Model<"openai-responses">;
 const openAICompletionsModel = {

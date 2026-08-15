@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { parseFrontmatter } from "@zeta/pi-utils";
-import * as logger from "@zeta/pi-utils/logger";
+import { parseFrontmatter } from "@linxiraos/pi-utils";
+import * as logger from "@linxiraos/pi-utils/logger";
 
 describe("parseFrontmatter", () => {
 	afterEach(() => {

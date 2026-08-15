@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { renderDemotedThinking } from "@zeta/pi-ai/dialect";
+import { renderDemotedThinking } from "@linxiraos/pi-ai/dialect";
 import {
 	applyOpenRouterRoutingVariant,
 	convertMessages,
 	parseChunkUsage,
 	streamOpenAICompletions,
-} from "@zeta/pi-ai/providers/openai-completions";
+} from "@linxiraos/pi-ai/providers/openai-completions";
 import type {
 	AssistantMessage,
 	Context,
@@ -15,11 +15,11 @@ import type {
 	OpenAICompat,
 	Tool,
 	ToolResultMessage,
-} from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import type { ResolvedOpenAICompat } from "@zeta/pi-catalog/types";
+} from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { ResolvedOpenAICompat } from "@linxiraos/pi-catalog/types";
 
 const gpt4oMiniSpec: ModelSpec<"openai-completions"> = (() => {
 	const {

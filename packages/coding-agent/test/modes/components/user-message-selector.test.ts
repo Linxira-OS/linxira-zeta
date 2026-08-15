@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { UserMessageSelectorComponent } from "@zeta/pi-coding-agent/modes/components/user-message-selector";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { UserMessageSelectorComponent } from "@linxiraos/zeta/modes/components/user-message-selector";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();

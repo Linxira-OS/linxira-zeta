@@ -1,4 +1,4 @@
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 export interface TempHomeState {
 	tempDir: string;

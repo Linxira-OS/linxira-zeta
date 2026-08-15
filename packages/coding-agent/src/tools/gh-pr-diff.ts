@@ -1,4 +1,4 @@
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import * as git from "../utils/git";
 import { appendRepoFlag } from "./gh-common";

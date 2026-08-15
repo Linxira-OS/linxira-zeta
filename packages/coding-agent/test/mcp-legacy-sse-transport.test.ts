@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { connectToServer, listTools } from "@zeta/pi-coding-agent/mcp/client";
-import { isRetriableConnectionError } from "@zeta/pi-coding-agent/mcp/tool-bridge";
-import type { JsonRpcMessage } from "@zeta/pi-coding-agent/mcp/types";
+import { connectToServer, listTools } from "@linxiraos/zeta/mcp/client";
+import { isRetriableConnectionError } from "@linxiraos/zeta/mcp/tool-bridge";
+import type { JsonRpcMessage } from "@linxiraos/zeta/mcp/types";
 
 const encoder = new TextEncoder();
 let server: Bun.Server<undefined> | null = null;

@@ -1,4 +1,4 @@
-import { fetchWithRetry, parseStreamingJson, readJsonl } from "@zeta/pi-utils";
+import { fetchWithRetry, parseStreamingJson, readJsonl } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import { getEnvApiKey } from "../stream";
 import type {

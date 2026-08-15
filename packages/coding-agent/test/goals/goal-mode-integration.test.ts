@@ -1,19 +1,19 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import type { Model } from "@zeta/pi-ai";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { GoalTool } from "@zeta/pi-coding-agent/goals/tools/goal-tool";
-import { InteractiveMode } from "@zeta/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { normalizeCustomMessagePayload } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { createTools, type Tool, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import type { TodoPhase } from "@zeta/pi-coding-agent/tools/todo";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { GoalTool } from "@linxiraos/zeta/goals/tools/goal-tool";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { normalizeCustomMessagePayload } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createTools, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
+import type { TodoPhase } from "@linxiraos/zeta/tools/todo";
 
 function createToolSession(cwd: string, settings: Settings, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

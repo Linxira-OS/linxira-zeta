@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl } from "@zeta/pi-ai/types";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	buildExaRequestBody,
 	ExaProvider,
@@ -12,8 +13,7 @@ import {
 	resetExaSearchThrottleForTest,
 	searchExa,
 	synthesizeAnswer,
-} from "@zeta/pi-coding-agent/web/search/providers/exa";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/web/search/providers/exa";
 
 async function withLocalAuthStorage<T>(run: (authStorage: AuthStorage) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "web-search-exa-auth-"));

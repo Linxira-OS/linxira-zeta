@@ -1,4 +1,4 @@
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type { AssistantMessage, ToolCall, ToolResultMessage } from "../types";
 
 const LEGACY_INTENT_FIELD = "__intent";

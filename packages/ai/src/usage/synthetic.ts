@@ -1,4 +1,4 @@
-import { isRecord } from "@zeta/pi-utils/type-guards";
+import { isRecord } from "@linxiraos/pi-utils/type-guards";
 import type {
 	UsageAmount,
 	UsageFetchContext,

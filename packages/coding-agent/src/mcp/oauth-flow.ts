@@ -5,11 +5,11 @@
  * by providing authorization URL, token URL, and client credentials.
  */
 
-import type { OAuthCallbackFlowOptions } from "@zeta/pi-ai/oauth/callback-server";
-import { OAuthCallbackFlow } from "@zeta/pi-ai/oauth/callback-server";
-import type { OAuthController, OAuthCredentials } from "@zeta/pi-ai/oauth/types";
-import type { FetchImpl } from "@zeta/pi-ai/types";
-import { getActiveProfile } from "@zeta/pi-utils/dirs";
+import type { OAuthCallbackFlowOptions } from "@linxiraos/pi-ai/oauth/callback-server";
+import { OAuthCallbackFlow } from "@linxiraos/pi-ai/oauth/callback-server";
+import type { OAuthController, OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { getActiveProfile } from "@linxiraos/pi-utils/dirs";
 import type { OAuthCredential } from "../session/auth-storage";
 
 /** Credential-id prefix for OMP-managed MCP OAuth credentials keyed by profile and server URL. */

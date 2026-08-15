@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { renderSearchResult, type SearchRenderDetails } from "@zeta/pi-coding-agent/web/search/render";
-import type { SearchResponse } from "@zeta/pi-coding-agent/web/search/types";
-import { sanitizeText } from "@zeta/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { renderSearchResult, type SearchRenderDetails } from "@linxiraos/zeta/web/search/render";
+import type { SearchResponse } from "@linxiraos/zeta/web/search/types";
 
 const ANSWER = [
 	"## Overview Heading",

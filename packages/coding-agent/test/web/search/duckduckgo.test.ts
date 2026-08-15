@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
-import { localeToKl, searchDuckDuckGo } from "@zeta/pi-coding-agent/web/search/providers/duckduckgo";
-import { parseSearchQuery } from "@zeta/pi-coding-agent/web/search/query";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { localeToKl, searchDuckDuckGo } from "@linxiraos/zeta/web/search/providers/duckduckgo";
+import { parseSearchQuery } from "@linxiraos/zeta/web/search/query";
 
 describe("localeToKl", () => {
 	it("maps standard region-qualified locales to documented DDG codes", () => {

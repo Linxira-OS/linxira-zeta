@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Tool, ToolCall } from "@zeta/pi-ai/types";
-import { validateToolArguments } from "@zeta/pi-ai/utils/validation";
-import { type } from "@zeta/pi-omptype";
+import type { Tool, ToolCall } from "@linxiraos/pi-ai/types";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { type } from "@linxiraos/pi-omptype";
 
 describe("Tool argument coercion", () => {
 	it("coerces numeric strings when schema expects number", () => {

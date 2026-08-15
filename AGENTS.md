@@ -3,8 +3,17 @@
 ## Zeta Direction
 
 Zeta is an OMP downstream distribution. The runtime tree, package layout, Bun
-workflow, and internal `@zeta/*` package names intentionally follow OMP so
+workflow, and internal `@linxiraos/*` package names intentionally follow OMP so
 that OMP updates remain mergeable.
+
+Zeta derives from four upstreams, each with a fixed role:
+
+- **OMP (oh-my-pi, `omp-upstream`)** — the runtime tree, integrated only at
+  official release tags (see OMP Release Sync Policy).
+- **Pi (`pi-upstream`)** — semantic-port source for feature work, never a raw
+  merge source.
+- **OMP Web (`omp-web-upstream`)** — source of the `web-ui/` snapshot.
+- **Pi Web (`pi-web-upstream`)** — semantic-port source for web features.
 
 - `main` is the Zeta product branch.
 - `sync/omp` tracks `omp-upstream/main` and must remain an unmodified OMP tree.
@@ -16,7 +25,10 @@ that OMP updates remain mergeable.
 - `web-ui/` is a standalone OMP Web snapshot. It has its own package manager,
   lockfiles, and development rules in `web-ui/AGENTS.md`; it is not a root Bun
   workspace package. Sync it from `omp-web-upstream`, and port Pi Web changes
-  through `port/pi-web/<scope>` branches.
+  through `port/pi-web/<scope>` branches. It must never carry its own GitHub
+  workflow — GitHub only executes workflows from the repository root, so all
+  web-ui checks live in the root `.github/workflows/ci.yml` (see CI and
+  Release below).
 - `temp/` holds local reference clones only. It is ignored and must never be
   committed.
 
@@ -47,13 +59,27 @@ hard release-boundary rule, not a suggestion.
   behavior through documented conflict decisions, then make any required Zeta
   brand, package, Bun, CI, or product adaptations in separate commits after
   the merge. Do not use later untagged upstream work to resolve conflicts.
+- **Tests must be merged as contract, not as ours-vs-theirs text.** When an
+  upstream commit changes implementation AND its tests (or docs) together,
+  accept the pair wholesale; keeping the Zeta-side old assertion next to the
+  merged upstream behavior tears the contract (`v17.2.11` lesson:
+  `38b61ae342` moved retry-after delay 30s → 200ms upstream while the merge
+  kept our old `delayMs: 30_000` assertion, red CI). For every incoming test
+  file touched by the merge, diff it against its `v<tag>` version and resolve
+  per-file.
+- **No `.omp` compatibility surface.** Zeta's config dir is `.zeta` and
+  `~/.zeta` only; we do not maintain legacy `.omp` path aliases — the
+  compatibility cost outweighs the value. Upstream tests or docs that carry
+  `.omp` paths must be adapted to `.zeta` during the merge and that decision
+  recorded in the ledger (e.g. `acp-agent.test.ts` wrote
+  `path.join(cwd, ".omp", "agents")`; zeta resolves `.zeta/agents`).
 - Treat the root `README.md`, Zeta logo assets, product name, homepage, install
   instructions, and public examples as Zeta-owned product surfaces. A release
   merge must never skip their upstream history; instead, follow the complete
   merge with a separate, documented Zeta branding-overlay commit that restores
   the approved product presentation. Do not let upstream README text become
   the default Zeta front door.
-- Every release sync updates `docs/upstream-sync.md` with the prior baseline,
+- Every release sync updates `document/upstream-sync.md` with the prior baseline,
   source tag, source SHA, Zeta starting commit, conflict decisions, checks,
   and final merge commit. A release sync reaches `main` only after its focused
   checks and required CI pass.
@@ -62,8 +88,84 @@ hard release-boundary rule, not a suggestion.
   merge-tree/conflict report before changing a product branch.
 
 Current baseline references and the sync procedure live in
-`docs/upstream-sync.md`. Before starting an upstream port, read that file and
-the upstream OMP guide at `docs/porting-from-pi-mono.md`.
+`document/upstream-sync.md`. Before starting an upstream port, read that file and
+the upstream OMP guide at `document/porting-from-pi-mono.md`.
+
+## Upstream Reference Hygiene
+
+Zeta keeps upstream references minimal so the repository stays lean:
+
+- Each upstream remote tracks only its `main` branch
+  (`git remote set-branches <remote> main`): no upstream feature, farm, or CI
+  snapshot branches are fetched or kept.
+- Fetching never auto-follows tags (`remote.<name>.tagOpt = --no-tags` on all
+  upstream remotes). Verify integration tags with `git ls-remote` per the
+  sync policy, and fetch a specific tag explicitly only when a release sync
+  needs it: `git fetch omp-upstream tag v17.2.12`.
+- Local tags are curated: OMP tags only for the two most recent versions
+  (currently `v17.2.11`, `v17.2.12`), plus `baseline/*` markers and Zeta
+  product release tags. All other upstream history is preserved through the
+  SHAs recorded in `document/upstream-sync.md`, not through tag refs.
+- `origin` (the GitHub remote) is the product truth: the Zeta `main` branch,
+  the `sync/omp` mirror, and short-lived `sync/omp-release/<release>` or
+  `port/<scope>` integration branches. `temp/` reference clones and local
+  scratch branches never reach `origin`.
+- Zeta product versions are Zeta-semver, decoupled from OMP version numbers.
+  OMP tags are integration baselines recorded in `document/upstream-sync.md`;
+  `bun run release` bumps Zeta package versions, not OMP-derived ones.
+- **Cloud backup of upstream refs.** `origin` keeps a `backup/` namespace so a
+  corrupted local clone can be rebuilt without re-fetching upstream history:
+  `backup/<remote>/main` mirrors each upstream `main`, and
+  `backup/omp-tag/<tag>` holds the peeled commit of each OMP release tag.
+  Refresh these after every sync (`git push origin
+  refs/remotes/<remote>/main:refs/heads/backup/<remote>/main` and the peeled
+  tag SHAs). `backup/*` never feeds product work; it exists only for
+  disaster recovery.
+
+## Documentation Layout
+
+Two documentation trees, plus product surfaces, with strict boundaries:
+
+- `docs/` — **runtime documentation, packaged with the product.** Embedded
+  into binaries and the npm bundle (`PI_DOCS_EMBED`) and served to agents over
+  `omp://docs/` (from a source checkout it reads the live tree). Covers tools,
+  tool-call conversion, skills, protocols, configuration, and Zeta features.
+- `document/` — **internal development and product-process documentation,
+  never packaged**: `roadmap.md`, `upstream-sync.md`, `porting-from-pi-mono.md`,
+  native/plumbing internals. Root `README.md` is the product front door and
+  links both trees; `web-ui/README.md` is the web-ui front door.
+- Moving a file from `docs/` to `document/` automatically removes it from the
+  packaged corpus — no build change needed (`generate-docs-index.ts` globs
+  only `docs/`). When moving, update every cross-reference (AGENTS.md,
+  README.md, DEVELOPMENT.md, in-repo doc links); released CHANGELOG entries
+  are immutable and keep their old links.
+
+## CI and Release
+
+- `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It
+  covers the Bun workspace, crates, desktop, install methods, and web-ui
+  checks. `web-ui/` must never add its own `.github/` workflow (subdirectory
+  workflows are never triggered); new web-ui checks go into the root CI.
+- The `check` job runs `bun run ci:check:full` plus the web build. Desktop
+  jobs install web-ui with `npm ci`, which resolves `@linxiraos/pi-*` from the npm
+  registry — so **the `@linxiraos` npm publish chain is a hard dependency of
+  desktop CI**.
+- **npm publishing uses trusted publishing (OIDC)**: `permissions:
+  id-token: write` in the workflow, cloud-hosted runners, npm CLI ≥ 11.5.1,
+  Node ≥ 22.14 (runners already force Node 24). The trusted-publisher entry on
+  npmjs.com must match the workflow filename exactly (`.github/workflows/ci.yml`)
+  and the repo (Linxira-OS/linxira-zeta). OIDC publishes automatically attach
+  provenance. Long-lived `NPM_TOKEN`/`NODE_AUTH_TOKEN` are a temporary
+  fallback only: npm now requires 2FA for all publishes, bypass-2FA granular
+  tokens lose direct publish in January 2027, and staged publishing (`npm
+  stage publish` + maintainer 2FA approval) is the recommended pairing for
+  CI-originated publishes. Every published package uses the `@linxiraos/*` name —
+  no `@oh-my-pi/*` or legacy names, and no `.omp` compatibility packages.
+- **The `@linxiraos` publish chain is not yet live** (no `@linxiraos/pi-*` has ever
+  been published; `web-ui` depends on `@linxiraos/pi-agent-core` etc. at
+  `1.0.0`, which 404s until the first release). Opening it is a strategic
+  prerequisite: first real release, then desktop CI and standalone web-ui
+  installs can resolve from the registry.
 
 ## Default Context
 
@@ -86,7 +188,7 @@ This repo contains multiple packages, but **`packages/coding-agent/`** is the pr
 | `packages/utils`        | Shared utilities (logger, streams, temp files)                                          |
 | `crates/pi-natives`     | Rust crate for performance-critical text/grep ops                                       |
 
-**Catalog import convention**: code in this repo imports catalog _values_ (bundled models, model-thinking helpers, identity, descriptors, model manager/cache) from `@zeta/pi-catalog/<module>` — never via `@zeta/pi-ai`. The pi-ai barrel re-exports only the model/effort _types_ its own signatures use (`Model`, `Api`, `ThinkingConfig`, `Effort`, …); type-only imports of those from `@zeta/pi-ai` are fine.
+**Catalog import convention**: code in this repo imports catalog _values_ (bundled models, model-thinking helpers, identity, descriptors, model manager/cache) from `@linxiraos/pi-catalog/<module>` — never via `@linxiraos/pi-ai`. The pi-ai barrel re-exports only the model/effort _types_ its own signatures use (`Model`, `Api`, `ThinkingConfig`, `Effort`, …); type-only imports of those from `@linxiraos/pi-ai` are fine.
 
 ## GitHub
 
@@ -105,9 +207,9 @@ Unless user tells you exactly what to write:
 - **Class privacy**: use ES `#private` fields; leave externally accessible members bare. **No `private`/`protected`/`public` keyword on fields or methods**, except on **constructor parameter properties** where TypeScript requires it (e.g. `constructor(private readonly session: ToolSession)`).
 - **Promises**: use `Promise.withResolvers()` instead of `new Promise((resolve, reject) => ...)`.
 - **Prompts**: never build prompts in code (no inline strings, template literals, or concatenation). Prompts live in static `.md` files; use Handlebars for dynamic content. Import them via `import content from "./prompt.md" with { type: "text" }` — not `readFile`.
-- **Worker scripts**: workers re-enter the CLI entrypoint; never spawn separate worker entry modules. `cli.ts` declares itself as the worker host at startup (`declareWorkerHostEntry()` from `@zeta/pi-utils/env`) and dispatches hidden argv selectors (`__omp_worker_stats_sync`, `__omp_worker_tab`, `__omp_worker_js_eval`, `__omp_worker_tiny_inference`) before loading the command registry. Spawn sites use:
+- **Worker scripts**: workers re-enter the CLI entrypoint; never spawn separate worker entry modules. `cli.ts` declares itself as the worker host at startup (`declareWorkerHostEntry()` from `@linxiraos/pi-utils/env`) and dispatches hidden argv selectors (`__omp_worker_stats_sync`, `__omp_worker_tab`, `__omp_worker_js_eval`, `__omp_worker_tiny_inference`) before loading the command registry. Spawn sites use:
   ```ts
-  import { workerHostEntry } from "@zeta/pi-utils";
+  import { workerHostEntry } from "@linxiraos/pi-utils";
   const hostEntry = workerHostEntry();
   const worker = hostEntry
   	? new Worker(hostEntry, { type: "module", argv: ["__omp_worker_<name>"] })
@@ -119,7 +221,7 @@ Unless user tells you exactly what to write:
 
 ## Central Utilities
 
-Before writing a helper, check whether one already exists — `packages/coding-agent/src/utils/`, `@zeta/pi-utils`, `@zeta/pi-tui`, and the domain modules next to your callsite. This applies to **everything**: VCS wrappers, formatting/truncation/path-display helpers, image handling, clipboard, streams, temp files, caching. The central versions carry hardening a fresh copy always loses (timeouts, output caps, non-interactive env, lock avoidance, caching, TUI sanitization).
+Before writing a helper, check whether one already exists — `packages/coding-agent/src/utils/`, `@linxiraos/pi-utils`, `@linxiraos/pi-tui`, and the domain modules next to your callsite. This applies to **everything**: VCS wrappers, formatting/truncation/path-display helpers, image handling, clipboard, streams, temp files, caching. The central versions carry hardening a fresh copy always loses (timeouts, output caps, non-interactive env, lock avoidance, caching, TUI sanitization).
 
 - Search first: `grep` for the operation before implementing it. Two implementations of the same thing is a bug even when both work.
 - Examples of the pattern: `src/utils/git.ts` and `src/utils/jj.ts` are the only sanctioned way to run git/jj (`import * as git from "../utils/git"` — never hand-spawn via `$`/`Bun.spawn`); rendering goes through the helpers in TUI Sanitization below (`replaceTabs`, `truncateToWidth`, `shortenPath`, `PREVIEW_LIMITS`) rather than ad-hoc string math.
@@ -136,7 +238,7 @@ Use Bun APIs where they provide a cleaner alternative; fall back to `node:*` onl
 | File read/write | `Bun.file()`, `Bun.write()`               | `readFileSync`, `writeFileSync`    |
 | Spawn process   | `` $`cmd` ``, `Bun.spawn()`               | `child_process`                    |
 | Sleep           | `Bun.sleep(ms)`                           | `setTimeout` promise               |
-| Binary lookup   | `$which("git")` from `@zeta/pi-utils` | `spawnSync(["which", "git"])`      |
+| Binary lookup   | `$which("git")` from `@linxiraos/pi-utils` | `spawnSync(["which", "git"])`      |
 | HTTP server     | `Bun.serve()`                             | `http.createServer()`              |
 | SQLite          | `bun:sqlite`                              | `better-sqlite3`                   |
 | Hashing         | `Bun.hash()`, `Bun.password.*`, WebCrypto | `node:crypto`                      |
@@ -203,7 +305,7 @@ Use `node:fs/promises` for directory ops (`fs.mkdir`, `fs.rm`, `fs.readdir`) —
 - `mkdir(dirname(path), …)` before `Bun.write(path, …)` → redundant; `Bun.write` handles it.
 - `if (await file.exists()) { await file.json() }` → two syscalls plus race. Use try-catch with `isEnoent`:
   ```typescript
-  import { isEnoent } from "@zeta/pi-utils";
+  import { isEnoent } from "@linxiraos/pi-utils";
   try {
   	return await Bun.file(path).json();
   } catch (err) {
@@ -254,14 +356,14 @@ Regenerate with `bun run gen:models` and commit `models.json` alongside the sour
 Code that may run while the TUI, RPC, SDK, workers, or background runtimes are active MUST NOT use `console.log`/`error`/`warn`; it corrupts rendering or protocols. Use the centralized logger:
 
 ```typescript
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 
 logger.error("MCP request failed", { url, method });
 logger.warn("Theme file invalid, using fallback", { path });
 logger.debug("LSP fallback triggered", { reason });
 ```
 
-Logs go to `~/.omp/logs/omp.YYYY-MM-DD.log` with automatic rotation. Standalone CLI commands that exit without entering the TUI MAY use `console.*` or process streams for intentional user-facing output. Keep structured stdout clean. This exception is semantic, not filename-based; shared code must use `logger` or an explicit output sink.
+Logs go to `~/.zeta/logs/omp.YYYY-MM-DD.log` with automatic rotation. Standalone CLI commands that exit without entering the TUI MAY use `console.*` or process streams for intentional user-facing output. Keep structured stdout clean. This exception is semantic, not filename-based; shared code must use `logger` or an explicit output sink.
 
 ## TUI Sanitization
 
@@ -269,7 +371,7 @@ All text displayed in tool renderers must be sanitized. Raw content (file conten
 
 **Rules:**
 
-- **Tabs → spaces** via `replaceTabs()` (from `@zeta/pi-tui` or `../tools/render-utils`).
+- **Tabs → spaces** via `replaceTabs()` (from `@linxiraos/pi-tui` or `../tools/render-utils`).
 - **Truncate** lines with `truncateToWidth()` / `ui.truncate()`. Use `TRUNCATE_LENGTHS` constants.
 - **Shorten paths** with `shortenPath()` (replaces home with `~`).
 - **Preview limits** from `PREVIEW_LIMITS`. No ad-hoc numbers.

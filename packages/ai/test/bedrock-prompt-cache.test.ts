@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { streamBedrock } from "@zeta/pi-ai/providers/amazon-bedrock";
-import type { Context, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { withEnv } from "./helpers";
 
 interface CachePoint {

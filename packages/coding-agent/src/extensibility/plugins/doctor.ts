@@ -1,4 +1,4 @@
-import { $which } from "@zeta/pi-utils";
+import { $which } from "@linxiraos/pi-utils";
 import { theme } from "../../modes/theme/theme";
 import type { DoctorCheck } from "./types";
 

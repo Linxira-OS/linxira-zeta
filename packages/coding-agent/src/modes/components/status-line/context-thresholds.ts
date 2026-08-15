@@ -1,4 +1,4 @@
-import { formatNumber } from "@zeta/pi-utils";
+import { formatNumber } from "@linxiraos/pi-utils";
 import type { ThemeColor } from "../../../modes/theme/theme";
 
 export type ContextUsageLevel = "normal" | "warning" | "purple" | "error";

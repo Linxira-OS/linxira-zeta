@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { UsageLimit, UsageReport } from "@zeta/pi-ai/usage";
-import { parseClaudeRateLimitHeaders } from "@zeta/pi-ai/usage/claude";
+import type { UsageLimit, UsageReport } from "@linxiraos/pi-ai/usage";
+import { parseClaudeRateLimitHeaders } from "@linxiraos/pi-ai/usage/claude";
 
 const NOW = 1_780_400_000_000;
 const BROKER_OAUTH_HEADERS = {

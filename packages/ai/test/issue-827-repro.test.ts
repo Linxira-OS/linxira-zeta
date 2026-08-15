@@ -8,11 +8,11 @@
  * reasoning for that single turn rather than dropping `tool_choice` outright.
  */
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@zeta/pi-ai/providers/openai-completions";
-import type { Context, Model, ModelSpec, Tool } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type } from "@zeta/pi-omptype";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import type { Context, Model, ModelSpec, Tool } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 
 const echoTool: Tool = {
 	name: "echo",

@@ -4,10 +4,17 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
-import { withStatsSyncLock } from "@zeta/omp-stats/aggregator";
-import { type GcResult, runGcCommand } from "@zeta/pi-coding-agent/cli/gc-cli";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { getAgentDir, getBlobsDir, getHistoryDbPath, getSessionsDir, setAgentDir, setProjectDir } from "@zeta/pi-utils";
+import { withStatsSyncLock } from "@linxiraos/pi-stats/aggregator";
+import {
+	getAgentDir,
+	getBlobsDir,
+	getHistoryDbPath,
+	getSessionsDir,
+	setAgentDir,
+	setProjectDir,
+} from "@linxiraos/pi-utils";
+import { type GcResult, runGcCommand } from "@linxiraos/zeta/cli/gc-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { runCli } from "../src/cli";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

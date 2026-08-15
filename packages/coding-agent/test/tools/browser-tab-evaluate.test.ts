@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ToolSession } from "@zeta/pi-coding-agent/sdk";
-import { BrowserTool } from "@zeta/pi-coding-agent/tools/browser";
-import { getTabsMapForTest } from "@zeta/pi-coding-agent/tools/browser/tab-supervisor";
-import * as logger from "@zeta/pi-utils/logger";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import { BrowserTool } from "@linxiraos/zeta/tools/browser";
+import { getTabsMapForTest } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

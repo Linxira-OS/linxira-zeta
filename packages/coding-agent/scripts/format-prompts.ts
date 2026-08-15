@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { prompt } from "@zeta/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 /**
  * Format prompt files (mixed XML + Markdown + Handlebars).
  *

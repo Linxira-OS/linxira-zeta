@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@zeta/pi-omptype/ark";
+import { type } from "@linxiraos/pi-omptype/ark";
 
 describe("target option", () => {
 	it("omits the dialect until a target is requested", () => {

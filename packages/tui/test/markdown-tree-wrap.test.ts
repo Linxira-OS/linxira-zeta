@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { Markdown } from "@zeta/pi-tui/components/markdown";
-import { visibleWidth, wrapTextWithAnsi } from "@zeta/pi-tui/utils";
-import { Chalk } from "@zeta/pi-utils/chalk";
+import { Markdown } from "@linxiraos/pi-tui/components/markdown";
+import { visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui/utils";
+import { Chalk } from "@linxiraos/pi-utils/chalk";
 import { defaultMarkdownTheme } from "./test-themes.js";
 
 const WIDTH = 40;

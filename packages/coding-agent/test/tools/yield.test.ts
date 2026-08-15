@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { convertOpenAICodexResponsesTools } from "@zeta/pi-ai/providers/openai-codex-responses";
-import type { Model, Tool, ToolCall } from "@zeta/pi-ai/types";
-import { enforceStrictSchema } from "@zeta/pi-ai/utils/schema";
-import { validateToolArguments } from "@zeta/pi-ai/utils/validation";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { YieldTool } from "@zeta/pi-coding-agent/tools/yield";
+import { convertOpenAICodexResponsesTools } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import type { Model, Tool, ToolCall } from "@linxiraos/pi-ai/types";
+import { enforceStrictSchema } from "@linxiraos/pi-ai/utils/schema";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { YieldTool } from "@linxiraos/zeta/tools/yield";
 import { arrayValuedLabels } from "../../src/task/yield-assembly";
 
 function createSession(overrides: Partial<ToolSession> = {}): ToolSession {

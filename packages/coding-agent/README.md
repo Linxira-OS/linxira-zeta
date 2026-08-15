@@ -1,4 +1,4 @@
-# @zeta/pi-coding-agent
+# @linxiraos/zeta
 
 Core implementation package for the `omp` coding agent in the `oh-my-pi` monorepo.
 

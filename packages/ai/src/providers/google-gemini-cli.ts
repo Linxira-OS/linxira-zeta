@@ -5,15 +5,15 @@
  */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { scheduler } from "node:timers/promises";
-import { calculateCost } from "@zeta/pi-catalog/models";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import {
 	ANTIGRAVITY_SYSTEM_INSTRUCTION,
 	getAntigravityModelWireProfile,
 	getAntigravityUserAgent,
 	getGeminiCliHeaders,
-} from "@zeta/pi-catalog/wire/gemini-headers";
-import { type } from "@zeta/pi-omptype";
-import { extractHttpStatusFromError, fetchWithRetry, readSseJson } from "@zeta/pi-utils";
+} from "@linxiraos/pi-catalog/wire/gemini-headers";
+import { type } from "@linxiraos/pi-omptype";
+import { extractHttpStatusFromError, fetchWithRetry, readSseJson } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type {
 	Api,
@@ -320,7 +320,7 @@ export {
 	getAntigravityUserAgent,
 	getGeminiCliHeaders,
 	getGeminiCliUserAgent,
-} from "@zeta/pi-catalog/wire/gemini-headers";
+} from "@linxiraos/pi-catalog/wire/gemini-headers";
 
 // Retry configuration
 const MAX_RETRIES = 3;

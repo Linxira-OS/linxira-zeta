@@ -6,15 +6,7 @@
  * lifecycle hook dispatch.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { context, SpanStatusCode, trace } from "@opentelemetry/api";
-import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
-import {
-	BasicTracerProvider,
-	InMemorySpanExporter,
-	type ReadableSpan,
-	SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
-import { agentLoop } from "@zeta/pi-agent-core/agent-loop";
+import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import {
 	type AgentTelemetryConfig,
 	type ChatUsageEvent,
@@ -28,12 +20,26 @@ import {
 	recordManualChatTelemetry,
 	resolveTelemetry,
 	type TelemetryHookContext,
-} from "@zeta/pi-agent-core/telemetry";
-import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@zeta/pi-agent-core/types";
-import type { Message } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import type { EventStream } from "@zeta/pi-ai/utils/event-stream";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-agent-core/telemetry";
+import type {
+	AgentContext,
+	AgentEvent,
+	AgentLoopConfig,
+	AgentMessage,
+	AgentTool,
+} from "@linxiraos/pi-agent-core/types";
+import type { Message } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import type { EventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { type } from "@linxiraos/pi-omptype";
+import { context, SpanStatusCode, trace } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import {
+	BasicTracerProvider,
+	InMemorySpanExporter,
+	type ReadableSpan,
+	SimpleSpanProcessor,
+} from "@opentelemetry/sdk-trace-base";
 import { createUserMessage } from "./helpers";
 
 const MOCK_IDENT = { id: "mock-model", provider: "mock-provider" } as const;

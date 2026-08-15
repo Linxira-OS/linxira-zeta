@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseReadUrlTarget } from "@zeta/pi-coding-agent/tools/fetch";
+import { parseReadUrlTarget } from "@linxiraos/zeta/tools/fetch";
 
 describe("parseReadUrlTarget", () => {
 	it("returns null for non-URL paths", () => {

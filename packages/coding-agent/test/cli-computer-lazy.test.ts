@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 
 test("normal CLI startup keeps computer worker modules lazy", async () => {
 	using tempDir = TempDir.createSync("@omp-cli-computer-lazy-");

@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { renderResult } from "@zeta/pi-coding-agent/lsp/render";
-import * as themeModule from "@zeta/pi-coding-agent/modes/theme/theme";
+import { renderResult } from "@linxiraos/zeta/lsp/render";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await themeModule.initTheme(false, undefined, undefined, "dark", "light");

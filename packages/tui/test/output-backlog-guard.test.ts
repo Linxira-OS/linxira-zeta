@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { OutputBacklogGuard, ProcessTerminal } from "@zeta/pi-tui/terminal";
-import { setTerminalHeadless } from "@zeta/pi-utils";
+import { OutputBacklogGuard, ProcessTerminal } from "@linxiraos/pi-tui/terminal";
+import { setTerminalHeadless } from "@linxiraos/pi-utils";
 
 // Regression test for https://github.com/can1357/oh-my-pi/issues/6854
 //

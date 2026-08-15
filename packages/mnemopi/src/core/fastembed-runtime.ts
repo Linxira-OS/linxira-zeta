@@ -7,7 +7,7 @@ import {
 	logger,
 	type RuntimeInstallSpec,
 	resolveRuntimeModule,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import type * as Fastembed from "fastembed";
 import packageManifest from "../../package.json" with { type: "json" };
 

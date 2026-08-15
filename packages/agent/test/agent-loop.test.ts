@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { Agent } from "@zeta/pi-agent-core";
+import { Agent } from "@linxiraos/pi-agent-core";
 import {
 	agentLoop,
 	agentLoopContinue,
 	agentLoopDetailed,
 	TERMINAL_TOOL_RESULT_ABORT_REASON,
-} from "@zeta/pi-agent-core/agent-loop";
+} from "@linxiraos/pi-agent-core/agent-loop";
 import type {
 	AgentContext,
 	AgentEvent,
@@ -14,15 +14,15 @@ import type {
 	AgentTool,
 	AgentToolContext,
 	ToolCallContext,
-} from "@zeta/pi-agent-core/types";
-import type { AssistantMessage, AssistantMessageEvent, Context, Message, ToolResultMessage } from "@zeta/pi-ai";
-import { createMockModel, type MockResponse } from "@zeta/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { type } from "@zeta/pi-omptype";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+} from "@linxiraos/pi-agent-core/types";
+import type { AssistantMessage, AssistantMessageEvent, Context, Message, ToolResultMessage } from "@linxiraos/pi-ai";
+import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { type } from "@linxiraos/pi-omptype";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 
-declare module "@zeta/pi-agent-core/types" {
+declare module "@linxiraos/pi-agent-core/types" {
 	interface CustomAgentMessages {
 		advisor: {
 			role: "custom";
@@ -4710,7 +4710,7 @@ describe("agentLoop streaming snapshots", () => {
 
 describe("agentLoop kCursorExecResolved (issue #4348)", () => {
 	it("skips execute for a toolCall block marked as already run by Cursor's exec channel", async () => {
-		const { kCursorExecResolved } = await import("@zeta/pi-ai/utils/block-symbols");
+		const { kCursorExecResolved } = await import("@linxiraos/pi-ai/utils/block-symbols");
 
 		const toolSchema = type({ command: "string" });
 		let executeCalls = 0;
@@ -4801,7 +4801,7 @@ describe("agentLoop kCursorExecResolved (issue #4348)", () => {
 	it("still runs a normal, unmarked toolCall block in the same turn", async () => {
 		// Guards against the filter over-matching: a mixed turn where only
 		// SOME blocks are Cursor-resolved must still execute the unmarked one.
-		const { kCursorExecResolved } = await import("@zeta/pi-ai/utils/block-symbols");
+		const { kCursorExecResolved } = await import("@linxiraos/pi-ai/utils/block-symbols");
 
 		const toolSchema = type({ value: "string" });
 		const executed: string[] = [];

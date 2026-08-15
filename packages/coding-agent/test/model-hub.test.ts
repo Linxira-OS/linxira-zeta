@@ -3,21 +3,21 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { TUI } from "@linxiraos/pi-tui";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	type ModelHubCallbacks,
 	ModelHubComponent,
 	type ModelHubOptions,
 	resetProviderAutoRefreshGuard,
-} from "@zeta/pi-coding-agent/modes/components/model-hub";
-import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AUTO_THINKING } from "@zeta/pi-coding-agent/thinking";
-import type { TUI } from "@zeta/pi-tui";
+} from "@linxiraos/zeta/modes/components/model-hub";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();

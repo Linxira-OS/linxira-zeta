@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { Tool, ToolCall } from "@zeta/pi-ai/types";
+import type { Tool, ToolCall } from "@linxiraos/pi-ai/types";
 import {
 	adaptSchemaForStrict,
 	arkToWireSchema,
@@ -10,9 +10,9 @@ import {
 	sanitizeSchemaForStrictMode,
 	toolWireSchema,
 	tryEnforceStrictSchema,
-} from "@zeta/pi-ai/utils/schema";
-import { validateToolArguments } from "@zeta/pi-ai/utils/validation";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-ai/utils/schema";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { type } from "@linxiraos/pi-omptype";
 
 describe("sanitizeSchemaForStrictMode", () => {
 	it("infers object type, strips non-structural keywords, and converts const to enum", () => {

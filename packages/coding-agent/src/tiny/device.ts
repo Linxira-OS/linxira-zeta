@@ -1,5 +1,5 @@
 import type { DeviceType } from "@huggingface/transformers";
-import { $env } from "@zeta/pi-utils";
+import { $env } from "@linxiraos/pi-utils";
 
 export type TinyModelDevice = DeviceType;
 

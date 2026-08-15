@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildBrowserNavigationHeaders } from "@zeta/pi-coding-agent/web/search/providers/browser-headers";
+import { buildBrowserNavigationHeaders } from "@linxiraos/zeta/web/search/providers/browser-headers";
 
 const CHROME_FALLBACK_HEADERS: Record<string, string> = {
 	Accept:

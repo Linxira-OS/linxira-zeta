@@ -9,7 +9,7 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import { theme } from "../../modes/theme/theme";
 import {
 	matchesAppInterrupt,

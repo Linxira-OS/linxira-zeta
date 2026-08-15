@@ -14,10 +14,10 @@ import { afterEach, beforeEach, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { MCPServer } from "@zeta/pi-coding-agent/capability/mcp";
-import { mcpCapability } from "@zeta/pi-coding-agent/capability/mcp";
-import { loadCapability } from "@zeta/pi-coding-agent/discovery";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { MCPServer } from "@linxiraos/zeta/capability/mcp";
+import { mcpCapability } from "@linxiraos/zeta/capability/mcp";
+import { loadCapability } from "@linxiraos/zeta/discovery";
 
 let tempHome = "";
 let tempCwd = "";

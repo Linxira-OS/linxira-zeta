@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger } from "@zeta/pi-utils";
-import { getAgentDir } from "@zeta/pi-utils/dirs";
+import { isEnoent, logger } from "@linxiraos/pi-utils";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { withTimeoutSignal } from "../utils/fetch-timeout";
 
 const SMITHERY_AUTH_FILENAME = "smithery.json";

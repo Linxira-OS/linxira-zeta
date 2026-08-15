@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentToolContext, AgentToolResult } from "@zeta/pi-agent-core";
-import type { TUI } from "@zeta/pi-tui";
+import type { AgentToolContext, AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { TUI } from "@linxiraos/pi-tui";
 import type { ExtensionUIDialogOptions, ExtensionUISelectItem } from "../src/extensibility/extensions";
 import { HookSelectorComponent } from "../src/modes/components/hook-selector";
 import { getThemeByName, setThemeInstance } from "../src/modes/theme/theme";

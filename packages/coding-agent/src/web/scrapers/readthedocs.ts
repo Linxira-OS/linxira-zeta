@@ -1,7 +1,7 @@
 /**
  * Read the Docs handler for web-fetch
  */
-import type { Element } from "@zeta/pi-utils/dom";
+import type { Element } from "@linxiraos/pi-utils/dom";
 import { buildResult, htmlToBasicMarkdown, loadPage, type RenderResult, type SpecialHandler } from "./types";
 
 export const handleReadTheDocs: SpecialHandler = async (
@@ -39,7 +39,7 @@ export const handleReadTheDocs: SpecialHandler = async (
 	}
 
 	// Parse HTML
-	const { parseHTML } = await import("@zeta/pi-utils/dom");
+	const { parseHTML } = await import("@linxiraos/pi-utils/dom");
 	const root = parseHTML(result.content).document;
 
 	// Extract main content from common Read the Docs selectors

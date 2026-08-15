@@ -1,4 +1,4 @@
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 import { parseKnownModel, semverEqual } from "../identity/classify";
 import type { FetchImpl, ModelSpec } from "../types";
 import { discoveryFetch } from "../utils";

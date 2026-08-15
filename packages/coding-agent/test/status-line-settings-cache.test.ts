@@ -3,12 +3,12 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { StatusLineComponent, type StatusLineSettings } from "@zeta/pi-coding-agent/modes/components/status-line";
-import { STATUS_LINE_PRESETS } from "@zeta/pi-coding-agent/modes/components/status-line/presets";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import * as git from "@zeta/pi-coding-agent/utils/git";
-import { removeSyncWithRetries, setProjectDir } from "@zeta/pi-utils";
+import { removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent, type StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
+import { STATUS_LINE_PRESETS } from "@linxiraos/zeta/modes/components/status-line/presets";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import * as git from "@linxiraos/zeta/utils/git";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 let settingsState: SettingsTestState | undefined;

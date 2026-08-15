@@ -7,10 +7,10 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { formatHashlineHeader, formatNumberedLines, type SnapshotStore } from "@zeta/hashline";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { ImageContent } from "@zeta/pi-ai";
-import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { formatHashlineHeader, formatNumberedLines, type SnapshotStore } from "@linxiraos/pi-hashline";
+import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@linxiraos/pi-utils";
 import { canonicalSnapshotKey } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
 import type { FileMentionMessage } from "../session/messages";

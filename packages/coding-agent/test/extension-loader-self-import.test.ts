@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as PiCodingAgent from "@zeta/pi-coding-agent";
-import { loadCustomCommands } from "@zeta/pi-coding-agent/extensibility/custom-commands/loader";
-import { loadCustomTools } from "@zeta/pi-coding-agent/extensibility/custom-tools/loader";
-import { loadExtensions } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { loadHooks } from "@zeta/pi-coding-agent/extensibility/hooks/loader";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import * as PiCodingAgent from "@linxiraos/zeta";
+import { loadCustomCommands } from "@linxiraos/zeta/extensibility/custom-commands/loader";
+import { loadCustomTools } from "@linxiraos/zeta/extensibility/custom-tools/loader";
+import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { loadHooks } from "@linxiraos/zeta/extensibility/hooks/loader";
 
 declare global {
 	var __ompHostPiForLoaderIdentityTest: typeof PiCodingAgent | undefined;

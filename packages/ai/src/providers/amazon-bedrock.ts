@@ -7,10 +7,10 @@
  * Bun's native `HTTPS_PROXY` support.
  */
 
-import type { Effort } from "@zeta/pi-catalog/effort";
-import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@zeta/pi-catalog/model-thinking";
-import { calculateCost } from "@zeta/pi-catalog/models";
-import { $env, $flag, fetchWithRetry, parseStreamingJson, parseStreamingJsonThrottled } from "@zeta/pi-utils";
+import type { Effort } from "@linxiraos/pi-catalog/effort";
+import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@linxiraos/pi-catalog/model-thinking";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
+import { $env, $flag, fetchWithRetry, parseStreamingJson, parseStreamingJsonThrottled } from "@linxiraos/pi-utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";
 import type {

@@ -3,12 +3,12 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { fetchCodexModels } from "@zeta/pi-catalog/discovery/codex";
-import { writeModelCache } from "@zeta/pi-catalog/model-cache";
-import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
-import { openaiCodexModelManagerOptions } from "@zeta/pi-catalog/provider-models/special";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { fetchCodexModels } from "@linxiraos/pi-catalog/discovery/codex";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { openaiCodexModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/special";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 describe("Codex model discovery", () => {
 	it("marks discovered models for provider-native V2 compaction", async () => {

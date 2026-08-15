@@ -2,25 +2,25 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@zeta/pi-coding-agent/capability";
-import { clearCache as clearFsCache } from "@zeta/pi-coding-agent/capability/fs";
+import { getPluginsDir, removeWithRetries } from "@linxiraos/pi-utils";
+import { loadCapability } from "@linxiraos/zeta/capability";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import {
 	AGENT_PLUGIN_MANIFEST_SCHEMA,
 	AGENT_PLUGIN_MCP_SCHEMA,
 	clearAgentPluginRootCache,
 	parseAgentPluginManifest,
 	parseAgentPluginMcp,
-} from "@zeta/pi-coding-agent/discovery/agent-plugin-format";
+} from "@linxiraos/zeta/discovery/agent-plugin-format";
 import {
 	clearClaudePluginRootsCache,
 	injectPluginDirRoots,
 	listClaudePluginRoots,
-} from "@zeta/pi-coding-agent/discovery/helpers";
-import { getPluginsDir, removeWithRetries } from "@zeta/pi-utils";
-import "@zeta/pi-coding-agent/discovery/agent-plugins";
-import "@zeta/pi-coding-agent/discovery/claude-plugins";
-import type { MCPServer } from "@zeta/pi-coding-agent/capability/mcp";
-import type { Skill } from "@zeta/pi-coding-agent/capability/skill";
+} from "@linxiraos/zeta/discovery/helpers";
+import "@linxiraos/zeta/discovery/agent-plugins";
+import "@linxiraos/zeta/discovery/claude-plugins";
+import type { MCPServer } from "@linxiraos/zeta/capability/mcp";
+import type { Skill } from "@linxiraos/zeta/capability/skill";
 
 // Concatenation avoids the noTemplateCurlyInString lint on literal placeholder names.
 const PLUGIN_ROOT_VAR = "$" + "{PLUGIN_ROOT}";

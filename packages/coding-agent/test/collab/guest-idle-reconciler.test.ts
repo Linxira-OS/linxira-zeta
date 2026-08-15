@@ -18,9 +18,9 @@ import {
 	type GuestSnapshotActivityReconcilerCtx,
 	reconcileGuestIdleHostState,
 	reconcileGuestSnapshotHostState,
-} from "@zeta/pi-coding-agent/collab/guest";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@zeta/pi-coding-agent/modes/components/status-line";
+} from "@linxiraos/zeta/collab/guest";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
 
 beforeAll(async () => {
 	resetSettingsForTest();

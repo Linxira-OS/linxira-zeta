@@ -7,7 +7,7 @@
  * `stream_options.include_obfuscation`) — does not trip 400s on shapes we simply ignore.
  */
 
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	ChatCompletionContentPart,
 	ChatCompletionCreateParams,

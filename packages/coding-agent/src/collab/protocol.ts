@@ -7,7 +7,7 @@
  * control messages that carry no session data.
  */
 
-import type { ImageContent, Model } from "@zeta/pi-ai";
+import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import type {
 	BusChannel,
 	CollabUiRequest,
@@ -16,14 +16,14 @@ import type {
 	Participant,
 	SessionState,
 	AgentSnapshot as WireAgentSnapshot,
-} from "@zeta/pi-wire";
+} from "@linxiraos/pi-wire";
 import {
 	DEFAULT_RELAY_URL,
 	ENVELOPE_HEADER_LENGTH,
 	ROOM_ID_BYTES,
 	ROOM_KEY_BYTES,
 	WRITE_TOKEN_BYTES,
-} from "@zeta/pi-wire";
+} from "@linxiraos/pi-wire";
 import type { ContextUsage } from "../extensibility/extensions/types";
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { SessionEntry, SessionHeader } from "../session/session-entries";
@@ -38,8 +38,8 @@ export type {
 	RelayControlMessage,
 	RelayControlToGuest,
 	RelayControlToHost,
-} from "@zeta/pi-wire";
-export { COLLAB_PROMPT_MESSAGE_TYPE, COLLAB_PROTO } from "@zeta/pi-wire";
+} from "@linxiraos/pi-wire";
+export { COLLAB_PROMPT_MESSAGE_TYPE, COLLAB_PROTO } from "@linxiraos/pi-wire";
 export { DEFAULT_RELAY_URL, ENVELOPE_HEADER_LENGTH, ROOM_ID_BYTES };
 
 export type CollabParticipant = Participant;

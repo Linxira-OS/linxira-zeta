@@ -1,4 +1,4 @@
-import type { ImageContent, MessageAttribution, ServiceTierByFamily, TextContent } from "@zeta/pi-ai";
+import type { ImageContent, MessageAttribution, ServiceTierByFamily, TextContent } from "@linxiraos/pi-ai";
 import type { AgentMessage } from "../types";
 
 export interface SessionEntryBase {

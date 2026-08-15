@@ -8,13 +8,13 @@ import {
 	registerOAuthProvider,
 	SqliteAuthCredentialStore,
 	unregisterOAuthProviders,
-} from "@zeta/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
 	RemoteAuthCredentialStore,
 	startAuthBroker,
-} from "@zeta/pi-ai/auth-broker";
+} from "@linxiraos/pi-ai/auth-broker";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const DISABLE_CAUSE =

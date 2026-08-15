@@ -11,7 +11,7 @@ import {
 	parsePatch,
 	parsePatchStreaming,
 	resolveBlockEdits,
-} from "@zeta/hashline";
+} from "@linxiraos/pi-hashline";
 
 const PATH = "x.ts";
 

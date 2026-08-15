@@ -7,10 +7,10 @@
  * - format the generic approval prompt body.
  */
 
-import type { AgentTool, ToolApprovalDecision, ToolTier } from "@zeta/pi-agent-core";
+import type { AgentTool, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
 import { M } from "../i18n/messages";
 
-export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@zeta/pi-agent-core";
+export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
 
 export type ApprovalPolicy = "allow" | "deny" | "prompt";
 export type ApprovalMode = "always-ask" | "write" | "yolo";

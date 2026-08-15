@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { LoadContext } from "@zeta/pi-coding-agent/capability/types";
-import { getConfigDirs } from "@zeta/pi-coding-agent/config";
-import { getUserPath } from "@zeta/pi-coding-agent/discovery/helpers";
-import { getAgentDir } from "@zeta/pi-utils";
+import { getAgentDir } from "@linxiraos/pi-utils";
+import type { LoadContext } from "@linxiraos/zeta/capability/types";
+import { getConfigDirs } from "@linxiraos/zeta/config";
+import { getUserPath } from "@linxiraos/zeta/discovery/helpers";
 
 describe("PI_CONFIG_DIR", () => {
 	const original = process.env.PI_CONFIG_DIR;
@@ -24,7 +24,7 @@ describe("PI_CONFIG_DIR", () => {
 		};
 		// Native user config follows the active profile through getAgentDir(), not
 		// ctx.home, so it stays in sync with builtin.ts and getMCPConfigPath("user").
-		// The old behavior joined ctx.home + ".omp/agent" and leaked the default
+		// The old behavior joined ctx.home + ".zeta/agent" and leaked the default
 		// profile's config into every profile.
 		expect(getUserPath(ctx, "native", "commands")).toBe(path.join(getAgentDir(), "commands"));
 		expect(getUserPath(ctx, "native", "commands")).not.toContain(ctx.home);

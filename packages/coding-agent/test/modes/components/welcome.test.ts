@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { pickWeightedTip, WelcomeComponent } from "@zeta/pi-coding-agent/modes/components/welcome";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { pickWeightedTip, WelcomeComponent } from "@linxiraos/zeta/modes/components/welcome";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import { M } from "../../../src/i18n";
 
 describe("WelcomeComponent tips", () => {

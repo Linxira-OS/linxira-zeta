@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { EventController } from "@zeta/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 
 interface FakeWorkingLoader {
 	stop: Mock<() => void>;

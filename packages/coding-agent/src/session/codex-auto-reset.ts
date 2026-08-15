@@ -59,7 +59,7 @@ import type {
 	ResetCreditTarget,
 	UsageReport,
 	UsageResetCreditDetail,
-} from "@zeta/pi-ai";
+} from "@linxiraos/pi-ai";
 import type { CodexAutoRedeemMode } from "../config/settings-schema";
 import { reportMatchesActiveAccount } from "../slash-commands/helpers/active-oauth-account";
 

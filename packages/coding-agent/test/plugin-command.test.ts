@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import Plugin from "@zeta/pi-coding-agent/commands/plugin";
-import type { CliConfig } from "@zeta/pi-utils/cli";
+import type { CliConfig } from "@linxiraos/pi-utils/cli";
+import Plugin from "@linxiraos/zeta/commands/plugin";
 
 const TEST_CONFIG: CliConfig = {
 	bin: "omp",

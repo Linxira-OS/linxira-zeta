@@ -2,14 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@zeta/pi-agent-core";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import * as themeModule from "@zeta/pi-coding-agent/modes/theme/theme";
-import { ToolChoiceQueue } from "@zeta/pi-coding-agent/session/tool-choice-queue";
-import { createTools, type Tool, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { githubToolRenderer } from "@zeta/pi-coding-agent/tools/gh-renderer";
-import { ToolError } from "@zeta/pi-coding-agent/tools/tool-errors";
-import { WriteTool, writeToolRenderer } from "@zeta/pi-coding-agent/tools/write";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
+import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";
+import { createTools, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
+import { githubToolRenderer } from "@linxiraos/zeta/tools/gh-renderer";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { WriteTool, writeToolRenderer } from "@linxiraos/zeta/tools/write";
 import {
 	listXdevTools,
 	resolveMountedXdevTool,
@@ -20,9 +22,7 @@ import {
 	xdevDocs,
 	xdevDocsAll,
 	xdevEntries,
-} from "@zeta/pi-coding-agent/tools/xdev";
-import { type } from "@zeta/pi-omptype";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/tools/xdev";
 
 // xdev mounting is default-on: discoverable tools like ast_edit unmount into
 // xd://, and a plain `write xd://ast_edit` dispatches them. These guard the

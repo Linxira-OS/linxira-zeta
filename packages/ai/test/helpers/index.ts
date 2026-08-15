@@ -1,9 +1,9 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
-import { isEnoent } from "@zeta/pi-utils";
+import type { Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
+import { isEnoent } from "@linxiraos/pi-utils";
 
 export async function withEnv(
 	overrides: Record<string, string | undefined>,

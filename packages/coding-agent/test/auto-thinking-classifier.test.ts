@@ -1,18 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import * as ai from "@zeta/pi-ai";
-import { Effort, type Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import * as ai from "@linxiraos/pi-ai";
+import { Effort, type Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	classifyDifficulty,
 	parseDifficultyBucket,
 	parseDifficultyLevel,
-} from "@zeta/pi-coding-agent/auto-thinking/classifier";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
+} from "@linxiraos/zeta/auto-thinking/classifier";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	AUTO_THINKING,
 	clampAutoThinkingEffort,
@@ -22,10 +23,9 @@ import {
 	parseThinkingLevel,
 	resolveProvisionalAutoLevel,
 	resolveTaskEffortLevel,
-} from "@zeta/pi-coding-agent/thinking";
-import type { TinyMemoryLocalModelKey } from "@zeta/pi-coding-agent/tiny/models";
-import { tinyModelClient } from "@zeta/pi-coding-agent/tiny/title-client";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/thinking";
+import type { TinyMemoryLocalModelKey } from "@linxiraos/zeta/tiny/models";
+import { tinyModelClient } from "@linxiraos/zeta/tiny/title-client";
 
 describe("auto thinking classifier helpers", () => {
 	afterEach(() => {

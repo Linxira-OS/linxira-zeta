@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import { getOAuthProviders } from "@zeta/pi-ai/registry/oauth";
-import { getEnvApiKey } from "@zeta/pi-ai/stream";
-import { getBundledModelReferenceIndex } from "@zeta/pi-catalog/identity/bundled";
-import { resolveModelReference } from "@zeta/pi-catalog/identity/reference";
-import type { ProviderCatalogEntry } from "@zeta/pi-catalog/provider-models/descriptor-types";
+import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
+import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
+import { getBundledModelReferenceIndex } from "@linxiraos/pi-catalog/identity/bundled";
+import { resolveModelReference } from "@linxiraos/pi-catalog/identity/reference";
+import type { ProviderCatalogEntry } from "@linxiraos/pi-catalog/provider-models/descriptor-types";
 import {
 	CATALOG_PROVIDERS,
 	DEFAULT_MODEL_PER_PROVIDER,
 	PROVIDER_DESCRIPTORS,
-} from "@zeta/pi-catalog/provider-models/descriptors";
+} from "@linxiraos/pi-catalog/provider-models/descriptors";
 import {
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	siliconflowCnModelManagerOptions,
 	siliconflowModelManagerOptions,
-} from "@zeta/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@zeta/pi-catalog/types";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@linxiraos/pi-catalog/types";
 
 function withEnv(key: string, value: string, run: () => void): void {
 	const previous = Bun.env[key];

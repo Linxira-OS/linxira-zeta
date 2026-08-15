@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { runEvalAgent } from "@zeta/pi-coding-agent/eval/agent-bridge";
-import type { LocalProtocolOptions } from "@zeta/pi-coding-agent/internal-urls";
-import type { MCPManager } from "@zeta/pi-coding-agent/mcp";
-import * as taskDiscovery from "@zeta/pi-coding-agent/task/discovery";
-import * as taskExecutor from "@zeta/pi-coding-agent/task/executor";
-import type { AgentDefinition, SingleResult, StructuredSubagentOutput } from "@zeta/pi-coding-agent/task/types";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { runEvalAgent } from "@linxiraos/zeta/eval/agent-bridge";
+import type { LocalProtocolOptions } from "@linxiraos/zeta/internal-urls";
+import type { MCPManager } from "@linxiraos/zeta/mcp";
+import * as taskDiscovery from "@linxiraos/zeta/task/discovery";
+import * as taskExecutor from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition, SingleResult, StructuredSubagentOutput } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 function createResult(overrides: Partial<SingleResult> = {}): SingleResult {
 	return {

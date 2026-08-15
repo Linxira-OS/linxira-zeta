@@ -7,9 +7,9 @@ import {
 	type AgentEvent,
 	type AgentMessage,
 	createToolScopedAbortReason,
-} from "@zeta/pi-agent-core";
-import type { AssistantMessage, ToolCall } from "@zeta/pi-ai";
-import { isRecord, prompt, relativePathWithinRoot } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ToolCall } from "@linxiraos/pi-ai";
+import { isRecord, prompt, relativePathWithinRoot } from "@linxiraos/pi-utils";
 import type { Rule } from "../capability/rule";
 import type { Settings } from "../config/settings";
 import type { TtsrManager, TtsrMatchContext } from "../export/ttsr";

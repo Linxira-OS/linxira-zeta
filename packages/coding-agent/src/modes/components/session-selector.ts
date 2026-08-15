@@ -12,8 +12,8 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
-import { formatBytes } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { formatBytes } from "@linxiraos/pi-utils";
 import { M } from "../../i18n";
 import { theme } from "../../modes/theme/theme";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../../modes/utils/keybinding-matchers";

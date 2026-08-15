@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentMessage, AgentTelemetryConfig } from "@zeta/pi-agent-core";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { kCursorExecResolved } from "@zeta/pi-ai/utils/block-symbols";
-import { type } from "@zeta/pi-omptype";
-import type { TUI } from "@zeta/pi-tui";
+import type { AgentMessage, AgentTelemetryConfig } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { type } from "@linxiraos/pi-omptype";
+import type { TUI } from "@linxiraos/pi-tui";
 import {
 	ADVISOR_DEFAULT_TOOL_NAMES,
 	AdviseTool,

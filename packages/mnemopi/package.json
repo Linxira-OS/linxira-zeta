@@ -1,7 +1,7 @@
 {
   "type": "module",
-  "name": "@zeta/pi-mnemopi",
-  "version": "1.0.0",
+  "name": "@linxiraos/pi-mnemopi",
+  "version": "1.0.1",
   "description": "Local SQLite memory engine for Oh My Pi agents",
   "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
@@ -11,7 +11,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
     "directory": "packages/mnemopi"
   },
   "bugs": {
@@ -39,10 +39,10 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@zeta/pi-ai": "catalog:",
-    "@zeta/pi-catalog": "catalog:",
-    "@zeta/pi-natives": "catalog:",
-    "@zeta/pi-utils": "catalog:"
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:"
   },
   "peerDependencies": {
     "fastembed": "2.1.0",

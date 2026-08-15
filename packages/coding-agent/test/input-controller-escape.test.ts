@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { ImageContent } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { InputController } from "@zeta/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext, SubmittedUserInput } from "@zeta/pi-coding-agent/modes/types";
-import { USER_INTERRUPT_LABEL } from "@zeta/pi-coding-agent/session/messages";
-import { vocalizer } from "@zeta/pi-coding-agent/tts/vocalizer";
-import * as logger from "@zeta/pi-utils/logger";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext, SubmittedUserInput } from "@linxiraos/zeta/modes/types";
+import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import { vocalizer } from "@linxiraos/zeta/tts/vocalizer";
 
 type Spy = Mock<(...args: unknown[]) => unknown>;
 type StartPendingSubmissionSpy = Mock<InteractiveModeContext["startPendingSubmission"]>;

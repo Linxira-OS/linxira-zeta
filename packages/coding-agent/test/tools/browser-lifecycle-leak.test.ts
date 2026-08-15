@@ -17,16 +17,16 @@
  */
 
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { CmuxKind } from "@zeta/pi-coding-agent/tools/browser/cmux/rpc";
-import { CmuxSocketClient } from "@zeta/pi-coding-agent/tools/browser/cmux/socket-client";
-import { acquireBrowser, getBrowsersMapForTest } from "@zeta/pi-coding-agent/tools/browser/registry";
+import type { CmuxKind } from "@linxiraos/zeta/tools/browser/cmux/rpc";
+import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
+import { acquireBrowser, getBrowsersMapForTest } from "@linxiraos/zeta/tools/browser/registry";
 import {
 	acquireTab,
 	getTabsMapForTest,
 	releaseTab,
 	releaseTabsForOwner,
-} from "@zeta/pi-coding-agent/tools/browser/tab-supervisor";
-import { ToolAbortError } from "@zeta/pi-coding-agent/tools/tool-errors";
+} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 
 function makeKind(socketSuffix: string): CmuxKind {
 	return { kind: "cmux", socketPath: `/tmp/omp-test-${socketSuffix}.sock`, surface: `surface-${socketSuffix}` };

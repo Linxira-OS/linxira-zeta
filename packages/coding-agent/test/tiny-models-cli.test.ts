@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { resolveModels, runTinyModelsCommand } from "@zeta/pi-coding-agent/cli/tiny-models-cli";
-import { TINY_LOCAL_MODELS } from "@zeta/pi-coding-agent/tiny/models";
-import { tinyTitleClient } from "@zeta/pi-coding-agent/tiny/title-client";
+import { resolveModels, runTinyModelsCommand } from "@linxiraos/zeta/cli/tiny-models-cli";
+import { TINY_LOCAL_MODELS } from "@linxiraos/zeta/tiny/models";
+import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -83,7 +83,7 @@ describe("tiny-models download model resolution", () => {
 			"Error: Failed to load ONNX Runtime CUDA execution provider",
 			"ONNX Runtime CUDA diagnostics:",
 			"  PI_TINY_DEVICE=cuda requested CUDAExecutionProvider",
-			"  side runtime: /home/user/.omp/cache/tiny-title-runtime/transformers-test/node_modules",
+			"  side runtime: /home/user/.zeta/cache/tiny-title-runtime/transformers-test/node_modules",
 			"  cause: libcudnn.so.9: cannot open shared object file",
 		].join("\n");
 		Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: false });

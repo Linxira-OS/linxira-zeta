@@ -1,5 +1,5 @@
-import type { ExtensionFactory } from "@zeta/pi-coding-agent";
-import { Container, Text } from "@zeta/pi-tui";
+import { Container, Text } from "@linxiraos/pi-tui";
+import type { ExtensionFactory } from "@linxiraos/zeta";
 
 const extension: ExtensionFactory = pi => {
 	pi.setLabel("Thinking note");

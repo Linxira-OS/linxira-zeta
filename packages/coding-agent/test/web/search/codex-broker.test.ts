@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@zeta/pi-ai";
-import type { FetchImpl } from "@zeta/pi-ai/types";
-import { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import type { SearchParams } from "@zeta/pi-coding-agent/web/search/providers/base";
-import { searchCodex } from "@zeta/pi-coding-agent/web/search/providers/codex";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import { searchCodex } from "@linxiraos/zeta/web/search/providers/codex";
 
 function makeSseResponse(): string {
 	return [

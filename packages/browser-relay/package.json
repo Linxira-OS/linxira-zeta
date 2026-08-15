@@ -1,6 +1,6 @@
 {
 	"type": "module",
-	"name": "@zeta/browser-relay",
+	"name": "@linxiraos/browser-relay",
 	"version": "0.1.0",
 	"private": true,
 	"description": "Chrome extension that lets the omp browser tool drive your existing tabs (relay server lives in the omp CLI: `omp browser-relay`)",
@@ -9,7 +9,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/oh-my-pi.git",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/browser-relay"
 	},
 	"scripts": {

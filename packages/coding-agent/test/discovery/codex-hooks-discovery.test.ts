@@ -11,10 +11,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type Hook, hookCapability } from "@zeta/pi-coding-agent/capability/hook";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { initializeWithSettings, loadCapability } from "@zeta/pi-coding-agent/discovery";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { type Hook, hookCapability } from "@linxiraos/zeta/capability/hook";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
 
 describe("codex hook discovery", () => {
 	let tempHome = "";

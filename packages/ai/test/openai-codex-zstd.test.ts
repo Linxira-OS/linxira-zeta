@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { streamOpenAICodexResponses } from "@zeta/pi-ai/providers/openai-codex-responses";
-import type { Context, FetchImpl, Model } from "@zeta/pi-ai/types";
-import { __resetProxyCache } from "@zeta/pi-ai/utils/proxy";
-import { buildModel } from "@zeta/pi-catalog/build";
-import * as piUtils from "@zeta/pi-utils";
+import { streamOpenAICodexResponses } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import type { Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { __resetProxyCache } from "@linxiraos/pi-ai/utils/proxy";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import * as piUtils from "@linxiraos/pi-utils";
 import { withEnv } from "./helpers";
 
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";

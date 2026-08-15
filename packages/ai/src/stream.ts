@@ -3,19 +3,23 @@ import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { isOfficialAnthropicApiUrl } from "@zeta/pi-catalog/compat/anthropic";
-import type { Effort } from "@zeta/pi-catalog/effort";
-import { isVertexExpressOpenAIUrl, isVertexRawPredictUrl, resolveVertexEndpointHost } from "@zeta/pi-catalog/hosts";
+import { isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import type { Effort } from "@linxiraos/pi-catalog/effort";
+import {
+	isVertexExpressOpenAIUrl,
+	isVertexRawPredictUrl,
+	resolveVertexEndpointHost,
+} from "@linxiraos/pi-catalog/hosts";
 import {
 	mapEffortToAnthropicAdaptiveEffort,
 	mapEffortToGoogleThinkingLevel,
 	minimumSupportedEffort,
 	requireSupportedEffort,
 	resolveWireModelId,
-} from "@zeta/pi-catalog/model-thinking";
-import { CATALOG_PROVIDERS, type ProviderCatalogEntry } from "@zeta/pi-catalog/provider-models";
-import { CODEX_BASE_URL } from "@zeta/pi-catalog/wire/codex";
-import { $env, $pickenv, getProviderInFlightRoot, isEnoent, logger, withExtraCaFetch } from "@zeta/pi-utils";
+} from "@linxiraos/pi-catalog/model-thinking";
+import { CATALOG_PROVIDERS, type ProviderCatalogEntry } from "@linxiraos/pi-catalog/provider-models";
+import { CODEX_BASE_URL } from "@linxiraos/pi-catalog/wire/codex";
+import { $env, $pickenv, getProviderInFlightRoot, isEnoent, logger, withExtraCaFetch } from "@linxiraos/pi-utils";
 import { getCustomApi } from "./api-registry";
 import { createAuthRetryKeyState, isApiKeyResolver, resolveNextAuthRetryKey } from "./auth-retry";
 import * as AIError from "./error";

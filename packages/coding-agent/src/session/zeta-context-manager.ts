@@ -14,8 +14,8 @@
  * Integration: instantiated in AgentSession, registers hooks on the Agent.
  */
 
-import type { Agent, SoftToolRequirement } from "@zeta/pi-agent-core";
-import type { AssistantMessage } from "@zeta/pi-ai";
+import type { Agent, SoftToolRequirement } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 import type { Settings } from "../config/settings";
 import type { ContextUsage } from "../extensibility/extensions/types";
 import type { CompactionCheckResult } from "./session-maintenance";

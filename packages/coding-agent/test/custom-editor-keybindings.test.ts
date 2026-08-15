@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import { CustomEditor } from "@zeta/pi-coding-agent/modes/components/custom-editor";
-import { getEditorTheme, initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
+import { getEditorTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 describe("CustomEditor keybindings", () => {
 	beforeAll(async () => {

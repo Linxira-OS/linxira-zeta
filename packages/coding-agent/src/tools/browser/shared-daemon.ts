@@ -10,7 +10,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { daemonClientForProject } from "../../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../../launch/ensure";
 import { daemonRuntimeDir } from "../../launch/paths";

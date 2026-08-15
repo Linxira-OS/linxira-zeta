@@ -24,13 +24,13 @@
  *   ... --synth openrouter/openai/gpt-oss-120b
  *
  * Auth: provider API keys resolve through omp's auth storage
- * (~/.omp/agent/agent.db: stored key, OAuth, or env var fallback).
+ * (~/.zeta/agent/agent.db: stored key, OAuth, or env var fallback).
  */
 
 import { parseArgs } from "node:util";
-import { type Api, AuthStorage, completeSimple, type Model, SqliteAuthCredentialStore } from "@zeta/pi-ai";
-import { type GeneratedProvider, getBundledModel } from "@zeta/pi-catalog/models";
-import { getAgentDbPath } from "@zeta/pi-utils";
+import { type Api, AuthStorage, completeSimple, type Model, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getAgentDbPath } from "@linxiraos/pi-utils";
 
 const DEFAULT_TINY = "openrouter/inclusionai/ling-2.6-flash";
 const DEFAULT_SYNTH = "openrouter/openai/gpt-oss-120b";

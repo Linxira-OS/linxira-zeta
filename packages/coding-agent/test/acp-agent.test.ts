@@ -2,33 +2,9 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
-import {
-	ACP_BOOTSTRAP_RACE_GUARD_MS,
-	AcpAgent,
-	createAcpExtensionUiContext,
-} from "@zeta/pi-coding-agent/modes/acp/acp-agent";
-import type { PlanModeState } from "@zeta/pi-coding-agent/plan-mode/state";
-import type {
-	AgentSession,
-	AgentSessionEvent,
-	UsageFallbackConfirmation,
-} from "@zeta/pi-coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@zeta/pi-coding-agent/stt/models";
-import { TaskTool } from "@zeta/pi-coding-agent/task";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import {
-	DEFAULT_TTS_LOCAL_MODEL_KEY,
-	DEFAULT_TTS_VOICE,
-	TTS_LOCAL_MODELS,
-	TTS_LOCAL_VOICE_OPTIONS,
-} from "@zeta/pi-coding-agent/tts/models";
-import { getConfigRootDir, setAgentDir } from "@zeta/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import type {
 	AgentSideConnection,
 	ClientCapabilities,
@@ -37,14 +13,34 @@ import type {
 	PromptRequest,
 	SessionNotification,
 	Validator,
-} from "@zeta/pi-utils/acp";
+} from "@linxiraos/pi-utils/acp";
 import {
 	zForkSessionResponse,
 	zLoadSessionResponse,
 	zNewSessionResponse,
 	zPromptResponse,
 	zSessionNotification,
-} from "@zeta/pi-utils/acp";
+} from "@linxiraos/pi-utils/acp";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import {
+	ACP_BOOTSTRAP_RACE_GUARD_MS,
+	AcpAgent,
+	createAcpExtensionUiContext,
+} from "@linxiraos/zeta/modes/acp/acp-agent";
+import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
+import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@linxiraos/zeta/stt/models";
+import { TaskTool } from "@linxiraos/zeta/task";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import {
+	DEFAULT_TTS_LOCAL_MODEL_KEY,
+	DEFAULT_TTS_VOICE,
+	TTS_LOCAL_MODELS,
+	TTS_LOCAL_VOICE_OPTIONS,
+} from "@linxiraos/zeta/tts/models";
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */
@@ -1684,7 +1680,7 @@ describe("ACP agent", () => {
 
 	it("refreshes task agent descriptions on ACP /reload-plugins", async () => {
 		const harness = await createHarness();
-		const agentDir = path.join(harness.cwdA, ".omp", "agents");
+		const agentDir = path.join(harness.cwdA, ".zeta", "agents");
 		const agentFile = path.join(agentDir, "acp-reload-agent.md");
 		await fs.promises.mkdir(agentDir, { recursive: true });
 		await fs.promises.writeFile(

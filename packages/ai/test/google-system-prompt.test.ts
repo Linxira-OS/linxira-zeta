@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { renderDemotedThinking } from "@zeta/pi-ai/dialect";
-import { streamGoogle } from "@zeta/pi-ai/providers/google";
-import type { Context, FetchImpl, Model } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { renderDemotedThinking } from "@linxiraos/pi-ai/dialect";
+import { streamGoogle } from "@linxiraos/pi-ai/providers/google";
+import type { Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const model: Model<"google-generative-ai"> = buildModel({
 	id: "gemini-3-pro-preview",

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { loginKilo } from "@zeta/pi-ai/registry/kilo";
-import type { FetchImpl } from "@zeta/pi-ai/types";
+import { loginKilo } from "@linxiraos/pi-ai/registry/kilo";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 
 describe("kilo oauth login", () => {
 	it("returns OAuth credentials when device authorization is approved", async () => {

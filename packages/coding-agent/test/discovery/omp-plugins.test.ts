@@ -1,7 +1,7 @@
 /**
  * Regression tests for #1496.
  *
- * The native `omp` discovery provider only walks `.omp/` and `~/.omp/agent/`.
+ * The native `omp` discovery provider only walks `.zeta/` and `~/.zeta/agent/`.
  * Extension packages registered via `extensions:` in settings or
  * `--extension` on the CLI ship their own `skills/`, `hooks/`, `tools/`,
  * `commands/`, `rules/`, `prompts/`, and `.mcp.json`. The `omp-plugins`
@@ -16,26 +16,26 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getCapability } from "@zeta/pi-coding-agent/capability";
-import { clearCache } from "@zeta/pi-coding-agent/capability/fs";
-import { hookCapability } from "@zeta/pi-coding-agent/capability/hook";
-import { mcpCapability } from "@zeta/pi-coding-agent/capability/mcp";
-import { promptCapability } from "@zeta/pi-coding-agent/capability/prompt";
-import { ruleCapability } from "@zeta/pi-coding-agent/capability/rule";
-import { skillCapability } from "@zeta/pi-coding-agent/capability/skill";
-import { slashCommandCapability } from "@zeta/pi-coding-agent/capability/slash-command";
-import { toolCapability } from "@zeta/pi-coding-agent/capability/tool";
-import type { LoadContext, Provider } from "@zeta/pi-coding-agent/capability/types";
+import { getCapability } from "@linxiraos/zeta/capability";
+import { clearCache } from "@linxiraos/zeta/capability/fs";
+import { hookCapability } from "@linxiraos/zeta/capability/hook";
+import { mcpCapability } from "@linxiraos/zeta/capability/mcp";
+import { promptCapability } from "@linxiraos/zeta/capability/prompt";
+import { ruleCapability } from "@linxiraos/zeta/capability/rule";
+import { skillCapability } from "@linxiraos/zeta/capability/skill";
+import { slashCommandCapability } from "@linxiraos/zeta/capability/slash-command";
+import { toolCapability } from "@linxiraos/zeta/capability/tool";
+import type { LoadContext, Provider } from "@linxiraos/zeta/capability/types";
 // Register all discovery providers as a side effect.
-import "@zeta/pi-coding-agent/discovery";
+import "@linxiraos/zeta/discovery";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import {
 	clearOmpExtensionCliRoots,
 	injectOmpExtensionCliRoots,
 	listOmpExtensionRoots,
 	withOmpExtensionRootScope,
-} from "@zeta/pi-coding-agent/discovery/omp-extension-roots";
-import { discoverExtensionPaths } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { discoverExtensionPaths } from "@linxiraos/zeta/extensibility/extensions/loader";
 
 const PROVIDER_ID = "omp-plugins";
 
@@ -356,7 +356,7 @@ test("project-scoped installed plugins surface project-level sub-discovery", asy
 	fs.mkdirSync(installed, { recursive: true });
 	fs.cpSync(ext, installed, { recursive: true });
 	writeFile(
-		path.join(pluginsDir, "omp-plugins.lock.json"),
+		path.join(pluginsDir, "zeta-plugins.lock.json"),
 		JSON.stringify({
 			plugins: { "my-project-ext": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 			settings: {},
@@ -381,7 +381,7 @@ test("disabled installed plugins do not contribute sub-discovery", async () => {
 		JSON.stringify({ name: "omp-plugins", dependencies: { "my-disabled-ext": "1.0.0" } }),
 	);
 	writeFile(
-		path.join(pluginsDir, "omp-plugins.lock.json"),
+		path.join(pluginsDir, "zeta-plugins.lock.json"),
 		JSON.stringify({ plugins: { "my-disabled-ext": { enabled: false } }, settings: {} }),
 	);
 
@@ -404,7 +404,7 @@ test("linked plugins (only in lockfile, not in package.json#dependencies) are su
 	// Intentionally NO `<plugins>/package.json` — matches a fresh `plugin link`
 	// against a setup that has never run `plugin install`.
 	writeFile(
-		path.join(pluginsDir, "omp-plugins.lock.json"),
+		path.join(pluginsDir, "zeta-plugins.lock.json"),
 		JSON.stringify({
 			plugins: { "my-linked-ext": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 			settings: {},

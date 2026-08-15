@@ -6,9 +6,9 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@zeta/pi-omptype";
-import * as zod from "@zeta/pi-omptype/zod";
-import { getAgentDir, getProjectDir, isEnoent, logger } from "@zeta/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import * as zod from "@linxiraos/pi-omptype/zod";
+import { getAgentDir, getProjectDir, isEnoent, logger } from "@linxiraos/pi-utils";
 import { getConfigDirs } from "../../config";
 import { execCommand } from "../../exec/exec";
 // Runtime self-reference: dereference this namespace only inside loader functions to keep the index.ts cycle safe.

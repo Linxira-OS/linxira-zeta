@@ -2,12 +2,12 @@ import * as nodeCrypto from "node:crypto";
 import * as fs from "node:fs";
 import { scheduler } from "node:timers/promises";
 import * as tls from "node:tls";
-import { isAnthropicSigningProxyUrl, isOfficialAnthropicApiUrl } from "@zeta/pi-catalog/compat/anthropic";
-import { hostMatchesUrl, isVertexRawPredictUrl } from "@zeta/pi-catalog/hosts";
-import { mapEffortToAnthropicAdaptiveEffort } from "@zeta/pi-catalog/model-thinking";
-import { calculateCost, getBundledModel } from "@zeta/pi-catalog/models";
-import { isAnthropicOAuthToken } from "@zeta/pi-catalog/utils";
-import { parseGitHubCopilotApiKey } from "@zeta/pi-catalog/wire/github-copilot";
+import { isAnthropicSigningProxyUrl, isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import { hostMatchesUrl, isVertexRawPredictUrl } from "@linxiraos/pi-catalog/hosts";
+import { mapEffortToAnthropicAdaptiveEffort } from "@linxiraos/pi-catalog/model-thinking";
+import { calculateCost, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { isAnthropicOAuthToken } from "@linxiraos/pi-catalog/utils";
+import { parseGitHubCopilotApiKey } from "@linxiraos/pi-catalog/wire/github-copilot";
 import {
 	$env,
 	getInstallId,
@@ -16,7 +16,7 @@ import {
 	parseJsonWithRepair,
 	parseStreamingJsonThrottled,
 	readSseEvents,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";
 import { getEnvApiKey, OUTPUT_FALLBACK_BUFFER } from "../stream";

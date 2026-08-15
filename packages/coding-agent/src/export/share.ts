@@ -19,10 +19,10 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage, AgentState } from "@zeta/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent } from "@zeta/pi-ai";
-import { $which, logger } from "@zeta/pi-utils";
-import { DEFAULT_SHARE_URL } from "@zeta/pi-wire";
+import type { AgentMessage, AgentState } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { $which, logger } from "@linxiraos/pi-utils";
+import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import { $ } from "bun";
 import { obfuscateToolArguments } from "../secrets/message-transform";
 import type { SecretObfuscator } from "../secrets/obfuscator";

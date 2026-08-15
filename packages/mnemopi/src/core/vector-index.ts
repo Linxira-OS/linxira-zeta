@@ -1,4 +1,4 @@
-import { vectorIndexTopK } from "@zeta/pi-natives";
+import { vectorIndexTopK } from "@linxiraos/pi-natives";
 
 export interface ExactVectorSearchHit<TId> {
 	id: TId;

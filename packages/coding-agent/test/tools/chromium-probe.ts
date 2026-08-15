@@ -1,4 +1,4 @@
-import { ensureChromiumExecutable } from "@zeta/pi-coding-agent/tools/browser/launch";
+import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
 
 /**
  * Whether the Chromium puppeteer resolves can actually execute on this host.

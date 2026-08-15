@@ -1,9 +1,9 @@
-import { countTokens } from "@zeta/pi-agent-core";
-import type { CompactionSettings } from "@zeta/pi-agent-core/compaction";
-import { effectiveReserveTokens, estimateTokens, resolveThresholdTokens } from "@zeta/pi-agent-core/compaction";
-import type { Tool as AiTool, Model } from "@zeta/pi-ai";
-import { toolWireSchema } from "@zeta/pi-ai/utils/schema";
-import { formatNumber } from "@zeta/pi-utils";
+import { countTokens } from "@linxiraos/pi-agent-core";
+import type { CompactionSettings } from "@linxiraos/pi-agent-core/compaction";
+import { effectiveReserveTokens, estimateTokens, resolveThresholdTokens } from "@linxiraos/pi-agent-core/compaction";
+import type { Tool as AiTool, Model } from "@linxiraos/pi-ai";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { formatNumber } from "@linxiraos/pi-utils";
 import type { Skill } from "../../extensibility/skills";
 import type { AgentSession } from "../../session/agent-session";
 import { estimateInlineSavings, type SnapcompactSavingsEstimate } from "../../session/snapcompact-inline";

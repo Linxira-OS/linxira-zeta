@@ -5,10 +5,10 @@
  */
 
 import path from "node:path";
-import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@zeta/pi-agent-core";
-import { recordHandoff, resolveTelemetry } from "@zeta/pi-agent-core";
-import type { Api, Model, ServiceTierByFamily, Usage } from "@zeta/pi-ai";
-import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@zeta/pi-utils";
+import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@linxiraos/pi-agent-core";
+import { recordHandoff, resolveTelemetry } from "@linxiraos/pi-agent-core";
+import type { Api, Model, ServiceTierByFamily, Usage } from "@linxiraos/pi-ai";
+import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async";
 import type { Rule } from "../capability/rule";
 import { ModelRegistry } from "../config/model-registry";
@@ -435,7 +435,7 @@ export interface ExecutorOptions {
 	preloadedExtensionPaths?: string[];
 	/**
 	 * Parent's discovered custom-tool source paths. Forwarded to skip the
-	 * `.omp/tools/` FS scan in the subagent; the subagent then re-binds each
+	 * `.zeta/tools/` FS scan in the subagent; the subagent then re-binds each
 	 * tool against its own `CustomToolAPI` (cwd, exec, pushPendingAction, UI).
 	 */
 	preloadedCustomToolPaths?: ToolPathWithSource[];

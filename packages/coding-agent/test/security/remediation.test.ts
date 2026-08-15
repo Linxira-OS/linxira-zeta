@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { IsoBackendKind } from "@zeta/pi-natives";
+import { IsoBackendKind } from "@linxiraos/pi-natives";
 import { assertSecurityRemediationBaselineClean, prepareSecurityRemediationWorkspace } from "../../src/security";
 import type { IsolationContext } from "../../src/task/isolation-runner";
 import type { IsolationHandle, WorktreeBaseline } from "../../src/task/worktree";

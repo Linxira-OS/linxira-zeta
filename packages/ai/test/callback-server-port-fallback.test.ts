@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { ConfigurationError } from "@zeta/pi-ai/error";
-import { OAuthCallbackFlow } from "@zeta/pi-ai/registry/oauth/callback-server";
-import type { OAuthCredentials } from "@zeta/pi-ai/registry/oauth/types";
+import { ConfigurationError } from "@linxiraos/pi-ai/error";
+import { OAuthCallbackFlow } from "@linxiraos/pi-ai/registry/oauth/callback-server";
+import type { OAuthCredentials } from "@linxiraos/pi-ai/registry/oauth/types";
 
 /**
  * Minimal callback flow we can drive without a real authorization server.

@@ -1,4 +1,4 @@
-import { isRecord, ptree } from "@zeta/pi-utils";
+import { isRecord, ptree } from "@linxiraos/pi-utils";
 
 export { isRecord };
 

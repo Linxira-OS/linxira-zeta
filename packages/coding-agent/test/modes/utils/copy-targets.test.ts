@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	buildCopyTargets,
 	type CopySource,
@@ -7,7 +7,7 @@ import {
 	extractCodeBlocks,
 	extractLastCommand,
 	extractQuoteBlocks,
-} from "@zeta/pi-coding-agent/modes/utils/copy-targets";
+} from "@linxiraos/zeta/modes/utils/copy-targets";
 
 function source(overrides: Partial<CopySource>): CopySource {
 	return {

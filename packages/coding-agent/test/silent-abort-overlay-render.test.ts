@@ -11,15 +11,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as AIError from "@zeta/pi-ai/error";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentTranscriptViewer } from "@zeta/pi-coding-agent/modes/components/agent-transcript-viewer";
-import type { ObservableSession } from "@zeta/pi-coding-agent/modes/session-observer-registry";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { SILENT_ABORT_MARKER } from "@zeta/pi-coding-agent/session/messages";
-import type { TUI } from "@zeta/pi-tui";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+import * as AIError from "@linxiraos/pi-ai/error";
+import type { TUI } from "@linxiraos/pi-tui";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
+import type { ObservableSession } from "@linxiraos/zeta/modes/session-observer-registry";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
 
 const SESSION_ID = "test-session-1";
 
@@ -37,7 +37,7 @@ function makeSubagentRegistry(sessions: ObservableSession[]) {
 		onChange: () => () => {},
 		setMainSession: () => {},
 		getActiveSubagentCount: () => sessions.filter(s => s.status === "active").length,
-	} as unknown as import("@zeta/pi-coding-agent/modes/session-observer-registry").SessionObserverRegistry;
+	} as unknown as import("@linxiraos/zeta/modes/session-observer-registry").SessionObserverRegistry;
 }
 
 function makeViewer(sessionFile: string, observed: ObservableSession[]): AgentTranscriptViewer {

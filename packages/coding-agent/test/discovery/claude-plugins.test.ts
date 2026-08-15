@@ -2,20 +2,20 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@zeta/pi-coding-agent/capability";
-import { clearCache as clearFsCache } from "@zeta/pi-coding-agent/capability/fs";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { loadCapability } from "@linxiraos/zeta/capability";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
-} from "@zeta/pi-coding-agent/discovery/helpers";
-import { loadSlashCommands } from "@zeta/pi-coding-agent/extensibility/slash-commands";
-import { discoverAgents } from "@zeta/pi-coding-agent/task/discovery";
-import { removeWithRetries } from "@zeta/pi-utils";
-import "@zeta/pi-coding-agent/discovery/claude-plugins";
-import { type MCPServer, mcpCapability } from "@zeta/pi-coding-agent/capability/mcp";
-import type { Skill } from "@zeta/pi-coding-agent/capability/skill";
-import type { SlashCommand } from "@zeta/pi-coding-agent/capability/slash-command";
+} from "@linxiraos/zeta/discovery/helpers";
+import { loadSlashCommands } from "@linxiraos/zeta/extensibility/slash-commands";
+import { discoverAgents } from "@linxiraos/zeta/task/discovery";
+import "@linxiraos/zeta/discovery/claude-plugins";
+import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
+import type { Skill } from "@linxiraos/zeta/capability/skill";
+import type { SlashCommand } from "@linxiraos/zeta/capability/slash-command";
 
 describe("parseClaudePluginsRegistry", () => {
 	test("parses valid registry", () => {
@@ -497,7 +497,7 @@ describe("listClaudePluginRoots", () => {
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-pointer");
 		await fs.mkdir(pluginsDir, { recursive: true });
 		await Promise.all([
-			fs.mkdir(path.join(ompPluginPath, ".omp-plugin"), { recursive: true }),
+			fs.mkdir(path.join(ompPluginPath, ".zeta-plugin"), { recursive: true }),
 			fs.mkdir(path.join(ompPluginPath, ".claude-plugin"), { recursive: true }),
 			fs.mkdir(path.join(claudePluginPath, ".claude-plugin"), { recursive: true }),
 		]);
@@ -529,7 +529,7 @@ describe("listClaudePluginRoots", () => {
 		);
 		await Promise.all([
 			fs.writeFile(
-				path.join(ompPluginPath, ".omp-plugin", "plugin.json"),
+				path.join(ompPluginPath, ".zeta-plugin", "plugin.json"),
 				JSON.stringify({ mcpServers: "./mcp-omp.json" }),
 			),
 			fs.writeFile(
@@ -569,7 +569,7 @@ describe("listClaudePluginRoots", () => {
 		const pluginsDir = path.join(tempDir, ".claude", "plugins");
 		const pluginPath = path.join(tempDir, "plugins", "inline-mcp");
 		await fs.mkdir(pluginsDir, { recursive: true });
-		await fs.mkdir(path.join(pluginPath, ".omp-plugin"), { recursive: true });
+		await fs.mkdir(path.join(pluginPath, ".zeta-plugin"), { recursive: true });
 		await fs.writeFile(
 			path.join(pluginsDir, "installed_plugins.json"),
 			JSON.stringify({
@@ -590,7 +590,7 @@ describe("listClaudePluginRoots", () => {
 		// Inline object form: the manifest carries the server map directly, and no
 		// root .mcp.json exists, so the pre-fix fallback would register nothing.
 		await fs.writeFile(
-			path.join(pluginPath, ".omp-plugin", "plugin.json"),
+			path.join(pluginPath, ".zeta-plugin", "plugin.json"),
 			JSON.stringify({ mcpServers: { local: { command: "./bin/server", args: ["run"] } } }),
 		);
 
@@ -610,7 +610,7 @@ describe("listClaudePluginRoots", () => {
 		const pluginsDir = path.join(tempDir, ".claude", "plugins");
 		const pluginPath = path.join(tempDir, "plugins", "broken-pointer");
 		await fs.mkdir(pluginsDir, { recursive: true });
-		await fs.mkdir(path.join(pluginPath, ".omp-plugin"), { recursive: true });
+		await fs.mkdir(path.join(pluginPath, ".zeta-plugin"), { recursive: true });
 		await fs.writeFile(
 			path.join(pluginsDir, "installed_plugins.json"),
 			JSON.stringify({
@@ -631,7 +631,7 @@ describe("listClaudePluginRoots", () => {
 		// Pointer names a file the plugin never shipped: discovery must say so
 		// instead of silently registering nothing.
 		await fs.writeFile(
-			path.join(pluginPath, ".omp-plugin", "plugin.json"),
+			path.join(pluginPath, ".zeta-plugin", "plugin.json"),
 			JSON.stringify({ mcpServers: "./mcp-omp.json" }),
 		);
 		await fs.writeFile(path.join(pluginPath, ".mcp.json"), JSON.stringify({ "from-root": { command: "root" } }));

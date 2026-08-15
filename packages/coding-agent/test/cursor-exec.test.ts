@@ -3,11 +3,11 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { create, fromBinary } from "@bufbuild/protobuf";
-import type { AgentEvent, AgentTool, AgentToolContext } from "@zeta/pi-agent-core";
-import { type BlockState, handleServerMessage, type ToolCallState } from "@zeta/pi-ai/providers/cursor";
-import { buildPiLsResult, piTruncation } from "@zeta/pi-ai/providers/cursor/exec-modern";
-import type { AssistantMessage } from "@zeta/pi-ai/types";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+import type { AgentEvent, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
+import { type BlockState, handleServerMessage, type ToolCallState } from "@linxiraos/pi-ai/providers/cursor";
+import { buildPiLsResult, piTruncation } from "@linxiraos/pi-ai/providers/cursor/exec-modern";
+import type { AssistantMessage } from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import {
 	AgentClientMessageSchema,
 	AgentServerMessageSchema,
@@ -16,22 +16,18 @@ import {
 	McpArgsSchema,
 	ReadArgsSchema,
 	ShellArgsSchema,
-} from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { CursorExecHandlers } from "@zeta/pi-coding-agent/cursor";
-import {
-	bridgeToolMap,
-	createBridgeEditTool,
-	createBridgeGrepFactory,
-} from "@zeta/pi-coding-agent/cursor-bridge-tools";
-import { EditTool } from "@zeta/pi-coding-agent/edit";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { ExtensionToolWrapper } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { BashTool } from "@zeta/pi-coding-agent/tools/bash";
-import type { TruncationMeta } from "@zeta/pi-coding-agent/tools/output-meta";
-import { type } from "@zeta/pi-omptype";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+import { type } from "@linxiraos/pi-omptype";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { CursorExecHandlers } from "@linxiraos/zeta/cursor";
+import { bridgeToolMap, createBridgeEditTool, createBridgeGrepFactory } from "@linxiraos/zeta/cursor-bridge-tools";
+import { EditTool } from "@linxiraos/zeta/edit";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions";
+import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import type { TruncationMeta } from "@linxiraos/zeta/tools/output-meta";
 import { AdviseTool } from "../src/advisor/advise-tool";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {

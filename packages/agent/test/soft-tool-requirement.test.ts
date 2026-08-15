@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { agentLoop } from "@zeta/pi-agent-core/agent-loop";
+import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import type {
 	AgentContext,
 	AgentLoopConfig,
 	AgentMessage,
 	AgentTool,
 	SoftToolRequirement,
-} from "@zeta/pi-agent-core/types";
-import type { Message, ToolChoice } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { type } from "@zeta/pi-omptype";
+} from "@linxiraos/pi-agent-core/types";
+import type { Message, ToolChoice } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { type } from "@linxiraos/pi-omptype";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

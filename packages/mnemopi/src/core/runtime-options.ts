@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { Api, ApiKey, Model } from "@zeta/pi-ai";
+import type { Api, ApiKey, Model } from "@linxiraos/pi-ai";
 
 export interface MnemopiLlmCompleteOptions {
 	maxTokens?: number;

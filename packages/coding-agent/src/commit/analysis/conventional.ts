@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { Api, ApiKey, Model } from "@zeta/pi-ai";
-import { completeSimple } from "@zeta/pi-ai";
-import { prompt } from "@zeta/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, ApiKey, Model } from "@linxiraos/pi-ai";
+import { completeSimple } from "@linxiraos/pi-ai";
+import { prompt } from "@linxiraos/pi-utils";
 import analysisSystemPrompt from "../../commit/prompts/analysis-system.md" with { type: "text" };
 import analysisUserPrompt from "../../commit/prompts/analysis-user.md" with { type: "text" };
 import type { ConventionalAnalysis } from "../../commit/types";

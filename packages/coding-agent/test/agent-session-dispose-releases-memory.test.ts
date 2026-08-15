@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, AppendOnlyContextManager } from "@zeta/pi-agent-core";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { FileSessionStorage } from "@zeta/pi-coding-agent/session/session-storage";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, type AgentMessage, AppendOnlyContextManager } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 // Regression: a keep-alive subagent's AgentSession is disposed at park() but
 // stays reachable through the lifecycle adoption record's reviver closure

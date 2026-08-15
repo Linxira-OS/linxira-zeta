@@ -8,7 +8,7 @@ import {
 	installRuntimeModuleResolver,
 	isCompiledBinary,
 	resolveRuntimeModule,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import packageJson from "../../package.json" with { type: "json" };
 
 /**

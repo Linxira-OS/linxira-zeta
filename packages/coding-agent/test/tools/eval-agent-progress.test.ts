@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { EvalStatusEvent, EvalToolDetails } from "@zeta/pi-coding-agent/eval/types";
-import { getThemeByName, setThemeInstance, type Theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { evalToolRenderer } from "@zeta/pi-coding-agent/tools/eval";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalStatusEvent, EvalToolDetails } from "@linxiraos/zeta/eval/types";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { evalToolRenderer } from "@linxiraos/zeta/tools/eval";
 
 /**
  * Defends the contract that `agent()` calls inside an eval cell surface as a

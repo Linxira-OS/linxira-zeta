@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@zeta/pi-ai/types";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import {
 	analyzeAuthError,
 	discoverOAuthEndpoints,
 	extractMcpAuthServerUrl,
 	extractOAuthChallengeScopes,
 	fetchResourceMetadataScopes,
-} from "@zeta/pi-coding-agent/mcp/oauth-discovery";
+} from "@linxiraos/zeta/mcp/oauth-discovery";
 import { type FetchInput, mockFetch } from "./helpers/fetch-mock";
 
 describe("mcp oauth discovery", () => {

@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { AsyncJobManager } from "@zeta/pi-coding-agent/async";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir, withTimeout } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir, withTimeout } from "@linxiraos/pi-utils";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 /**
  * Regression coverage for the `#hasPendingAsyncWake()` gate shared by the

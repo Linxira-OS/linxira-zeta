@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { TUI } from "@zeta/pi-tui";
-import { Image, ImageBudget } from "@zeta/pi-tui/components/image";
-import { Text } from "@zeta/pi-tui/components/text";
+import { TUI } from "@linxiraos/pi-tui";
+import { Image, ImageBudget } from "@linxiraos/pi-tui/components/image";
+import { Text } from "@linxiraos/pi-tui/components/text";
 import {
 	encodeKittyVirtualPlacement,
 	getKittyGraphics,
 	KITTY_PLACEHOLDER,
 	setKittyGraphics,
-} from "@zeta/pi-tui/kitty-graphics";
+} from "@linxiraos/pi-tui/kitty-graphics";
 import {
 	type CellDimensions,
 	encodeKitty,
@@ -19,7 +19,7 @@ import {
 	setCellDimensions,
 	TERMINAL,
 	wrapTmuxPassthrough,
-} from "@zeta/pi-tui/terminal-capabilities";
+} from "@linxiraos/pi-tui/terminal-capabilities";
 import { VirtualTerminal } from "./virtual-terminal";
 
 type MutableTerminalInfo = { id: string; imageProtocol: ImageProtocol | null };

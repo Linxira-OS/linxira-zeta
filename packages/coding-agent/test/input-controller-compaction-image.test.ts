@@ -21,12 +21,12 @@
  */
 
 import { beforeAll, describe, expect, mock, test } from "bun:test";
-import type { ImageContent } from "@zeta/pi-ai";
-import { InputController } from "@zeta/pi-coding-agent/modes/controllers/input-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { CompactionQueuedMessage, InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { UiHelpers } from "@zeta/pi-coding-agent/modes/utils/ui-helpers";
-import type { RestoredQueuedMessage } from "@zeta/pi-coding-agent/session/agent-session";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { CompactionQueuedMessage, InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { RestoredQueuedMessage } from "@linxiraos/zeta/session/agent-session";
 
 beforeAll(() => {
 	initTheme();

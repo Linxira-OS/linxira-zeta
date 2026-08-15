@@ -1,4 +1,4 @@
-import { $env } from "@zeta/pi-utils/env";
+import { $env } from "@linxiraos/pi-utils/env";
 
 /** Minimal UI-capability fields needed to decide whether bash can use the local PTY overlay. */
 export interface BashPtyContext {

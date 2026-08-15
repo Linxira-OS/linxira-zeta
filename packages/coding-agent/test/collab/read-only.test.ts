@@ -9,13 +9,13 @@
  * in-memory transport, so the suite stays fast and time-independent.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { importRoomKey } from "@zeta/pi-coding-agent/collab/crypto";
-import { CollabHost } from "@zeta/pi-coding-agent/collab/host";
-import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@zeta/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@zeta/pi-coding-agent/collab/relay-client";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
+import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // In-memory transport: FakeWebSocket + InMemoryRelay (see ./helpers/in-memory-relay)

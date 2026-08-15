@@ -3,9 +3,9 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent } from "@zeta/pi-ai";
-import { getProjectDir, isEnoent, readImageMetadata } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { getProjectDir, isEnoent, readImageMetadata } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatBytes } from "../tools/render-utils";
 import { formatDimensionNote, resizeImage } from "../utils/image-resize";

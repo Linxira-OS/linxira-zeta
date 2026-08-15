@@ -12,19 +12,19 @@
  */
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage, ImageContent, Usage } from "@zeta/pi-ai";
-import { kStreamingPartialJson } from "@zeta/pi-ai/utils/block-symbols";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
-import { StrippedToolCallsPlaceholder } from "@zeta/pi-coding-agent/modes/components/stripped-tool-calls-placeholder";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { UiHelpers } from "@zeta/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext, StrippedToolCallsMarker } from "@zeta/pi-coding-agent/session/session-context";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@zeta/pi-tui";
-import { TempDir } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, Usage } from "@linxiraos/pi-ai";
+import { kStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { StrippedToolCallsPlaceholder } from "@linxiraos/zeta/modes/components/stripped-tool-calls-placeholder";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { SessionContext, StrippedToolCallsMarker } from "@linxiraos/zeta/session/session-context";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 beforeAll(() => {
 	initTheme();

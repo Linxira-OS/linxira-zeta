@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import { coerceServiceTierByFamily, type ProviderPayload, type ServiceTierByFamily } from "@zeta/pi-ai";
-import * as snapcompact from "@zeta/snapcompact";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { coerceServiceTierByFamily, type ProviderPayload, type ServiceTierByFamily } from "@linxiraos/pi-ai";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,

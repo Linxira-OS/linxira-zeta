@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { TranscriptContainer } from "@zeta/pi-coding-agent/modes/components/transcript-container";
-import { type Component, TUI } from "@zeta/pi-tui";
-import { Markdown, type MarkdownTheme } from "@zeta/pi-tui/components/markdown";
+import { type Component, TUI } from "@linxiraos/pi-tui";
+import { Markdown, type MarkdownTheme } from "@linxiraos/pi-tui/components/markdown";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { StressRenderScheduler } from "../../tui/test/render-stress-scheduler";
 import { defaultMarkdownTheme } from "../../tui/test/test-themes.js";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";

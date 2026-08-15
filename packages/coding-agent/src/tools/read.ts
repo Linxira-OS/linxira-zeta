@@ -6,10 +6,10 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolTier,
-} from "@zeta/pi-agent-core";
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
-import { type } from "@zeta/pi-omptype";
-import { type ImageMetadata, isProbablyBinary, logger, prompt, readImageMetadata } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { type ImageMetadata, isProbablyBinary, logger, prompt, readImageMetadata } from "@linxiraos/pi-utils";
 import {
 	canonicalSnapshotKey,
 	getFileSnapshotStore,

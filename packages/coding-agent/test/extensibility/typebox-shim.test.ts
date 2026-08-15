@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { Tool } from "@zeta/pi-ai/types";
-import { isValidJsonSchema, toolWireSchema } from "@zeta/pi-ai/utils/schema";
-import { validateToolArguments } from "@zeta/pi-ai/utils/validation";
-import { type TSchema, Type } from "@zeta/pi-coding-agent/extensibility/typebox";
+import type { Tool } from "@linxiraos/pi-ai/types";
+import { isValidJsonSchema, toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { type TSchema, Type } from "@linxiraos/zeta/extensibility/typebox";
 
 /**
  * The typebox shim's `Type.*` builders return arktype-backed validator wrappers

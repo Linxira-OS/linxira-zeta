@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { FileType, type GlobMatch, listWorkspace } from "@zeta/pi-natives";
-import { formatAge, formatBytes } from "@zeta/pi-utils";
+import { FileType, type GlobMatch, listWorkspace } from "@linxiraos/pi-natives";
+import { formatAge, formatBytes } from "@linxiraos/pi-utils";
 
 /** Defaults for the workspace tree shown in the system prompt. */
 const WORKSPACE_DEFAULTS = {

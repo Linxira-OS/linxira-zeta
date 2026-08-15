@@ -18,18 +18,18 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { discoverAndLoadExtensions } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
+import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { discoverAndLoadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	SESSION_SHUTDOWN_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
 	testSetSessionShutdownHandlerTimeoutMs,
-} from "@zeta/pi-coding-agent/extensibility/extensions/runner";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions/runner";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const HANG_EXTENSION_SRC = `
 	export default function(pi) {

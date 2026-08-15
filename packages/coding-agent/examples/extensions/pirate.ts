@@ -5,11 +5,11 @@
  * modify the system prompt based on extension state.
  *
  * Usage:
- * 1. Copy this file to ~/.omp/agent/extensions/ (legacy: ~/.pi/agent/extensions/) or your project's .omp/extensions/
+ * 1. Copy this file to ~/.zeta/agent/extensions/ (legacy: ~/.pi/agent/extensions/) or your project's .zeta/extensions/
  * 2. Use /pirate to toggle pirate mode
  * 3. When enabled, the agent will respond like a pirate
  */
-import type { ExtensionAPI } from "@zeta/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function pirateExtension(pi: ExtensionAPI) {
 	let pirateMode = false;

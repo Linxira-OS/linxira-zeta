@@ -8,8 +8,8 @@ import {
 	setKeybindings,
 	TUI_KEYBINDINGS,
 	KeybindingsManager as TuiKeybindingsManager,
-} from "@zeta/pi-tui";
-import { getActiveProfile, getAgentDir, getProfileRootDir, isEnoent, logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { getActiveProfile, getAgentDir, getProfileRootDir, isEnoent, logger } from "@linxiraos/pi-utils";
 import { JSONC, YAML } from "bun";
 
 /**
@@ -59,7 +59,7 @@ interface AppKeybindings {
 
 export type AppKeybinding = keyof AppKeybindings;
 
-declare module "@zeta/pi-tui" {
+declare module "@linxiraos/pi-tui" {
 	interface Keybindings extends AppKeybindings {}
 }
 

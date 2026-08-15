@@ -1,4 +1,4 @@
-import { tryParseJson } from "@zeta/pi-utils";
+import { tryParseJson } from "@linxiraos/pi-utils";
 import type { LocalizedText, RenderResult, SpecialHandler } from "./types";
 import { buildResult, getLocalizedText, loadPage } from "./types";
 

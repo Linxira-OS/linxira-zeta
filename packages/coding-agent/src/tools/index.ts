@@ -1,7 +1,7 @@
-import type { Clipboard, InMemorySnapshotStore } from "@zeta/hashline";
-import type { AgentOptions, AgentTelemetryConfig, AgentTool } from "@zeta/pi-agent-core";
-import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@zeta/pi-ai";
-import { logger } from "@zeta/pi-utils";
+import type { AgentOptions, AgentTelemetryConfig, AgentTool } from "@linxiraos/pi-agent-core";
+import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@linxiraos/pi-ai";
+import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
+import { logger } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
 import type { PromptTemplate } from "../config/prompt-templates";
@@ -193,7 +193,7 @@ export interface ToolSession {
 	 */
 	extensionPaths?: string[];
 	/**
-	 * Pre-discovered custom-tool source paths from `.omp/tools/`, `.claude/tools/`,
+	 * Pre-discovered custom-tool source paths from `.zeta/tools/`, `.claude/tools/`,
 	 * plugins, etc. Forwarded to subagents so they skip the FS scan but still
 	 * re-bind tools to their own session-scoped `CustomToolAPI`.
 	 */

@@ -11,8 +11,8 @@ import {
 	getProfileRootDir,
 	getSecretPlaceholderKeyPath,
 	setAgentDir,
-} from "@zeta/pi-utils/dirs";
-import { Snowflake } from "@zeta/pi-utils/snowflake";
+} from "@linxiraos/pi-utils/dirs";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {

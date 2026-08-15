@@ -6,18 +6,18 @@
  * sibling directories — `skills/`, `hooks/pre|post/`, `tools/`, `commands/`,
  * `rules/`, `prompts/`, and `.mcp.json` — are picked up by omp's standard
  * discovery surfaces. The native `omp` provider in `builtin.ts` only walks
- * `.omp/` and `~/.omp/agent/`, so without this provider those sub-trees are
+ * `.zeta/` and `~/.zeta/agent/`, so without this provider those sub-trees are
  * silently ignored.
  *
  * Provider priority is set below the native `omp` provider (100) so an
- * extension package never shadows the user's own `.omp/` configuration on
+ * extension package never shadows the user's own `.zeta/` configuration on
  * dedup.
  *
  * @see ./omp-extension-roots.ts
  * @see ../../docs/extension-loading.md
  */
 import * as path from "node:path";
-import { logger, parseFrontmatter, tryParseJson } from "@zeta/pi-utils";
+import { logger, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
 import { registerProvider } from "../capability";
 import { readDirEntries, readFile } from "../capability/fs";
 import { type Hook, hookCapability } from "../capability/hook";

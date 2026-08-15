@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import { Effort } from "@zeta/pi-ai";
-import { parseArgs } from "@zeta/pi-coding-agent/cli/args";
-import { AUTO_THINKING } from "@zeta/pi-coding-agent/thinking";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { Effort } from "@linxiraos/pi-ai";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 
 describe("parseArgs — --hide-thinking flag", () => {
 	it("parses --hide-thinking as a boolean flag", () => {

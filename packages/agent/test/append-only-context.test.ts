@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { AppendOnlyContextManager, AppendOnlyLog, StablePrefix } from "@zeta/pi-agent-core/append-only-context";
-import type { AgentContext, AgentTool } from "@zeta/pi-agent-core/types";
-import type { Message, Tool, ToolExample } from "@zeta/pi-ai";
-import { type } from "@zeta/pi-omptype";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import { AppendOnlyContextManager, AppendOnlyLog, StablePrefix } from "@linxiraos/pi-agent-core/append-only-context";
+import type { AgentContext, AgentTool } from "@linxiraos/pi-agent-core/types";
+import type { Message, Tool, ToolExample } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 // ---------------------------------------------------------------------------
 // Helpers

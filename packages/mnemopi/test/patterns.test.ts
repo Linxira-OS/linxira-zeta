@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { CompressionStats, DetectedPattern, MemoryCompressor, PatternDetector } from "@zeta/pi-mnemopi/core/patterns";
+import {
+	CompressionStats,
+	DetectedPattern,
+	MemoryCompressor,
+	PatternDetector,
+} from "@linxiraos/pi-mnemopi/core/patterns";
 
 describe("memory compression", () => {
 	it("reports savings and zero-size stats", () => {

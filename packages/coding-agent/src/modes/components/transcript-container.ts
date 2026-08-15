@@ -5,7 +5,7 @@ import {
 	type NativeScrollbackLiveRegion,
 	type RenderStablePrefix,
 	type ViewportTailProvider,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 
 /**
  * A transcript block that is still mutating (a foreground tool awaiting its

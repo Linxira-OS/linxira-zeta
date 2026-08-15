@@ -5,9 +5,9 @@
  * - `omp -p "prompt"` - text output
  * - `omp --mode json "prompt"` - JSON event stream
  */
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { ImageContent } from "@zeta/pi-ai";
-import { logger, sanitizeText } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { logger, sanitizeText } from "@linxiraos/pi-utils";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import { type AgentSession, type AgentSessionEvent, SHUTDOWN_CONSOLIDATE_BUDGET_MS } from "../session/agent-session";
 import { isSilentAbort } from "../session/messages";

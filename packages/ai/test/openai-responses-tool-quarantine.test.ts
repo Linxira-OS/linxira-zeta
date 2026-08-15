@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildParams, convertTools } from "@zeta/pi-ai/providers/openai-responses";
-import type { Context, Model, ModelSpec, Tool } from "@zeta/pi-ai/types";
-import { findStrictToolSchemaViolation } from "@zeta/pi-ai/utils/schema";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { type } from "@zeta/pi-omptype";
+import { buildParams, convertTools } from "@linxiraos/pi-ai/providers/openai-responses";
+import type { Context, Model, ModelSpec, Tool } from "@linxiraos/pi-ai/types";
+import { findStrictToolSchemaViolation } from "@linxiraos/pi-ai/utils/schema";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
 
 function makeModel(): Model<"openai-responses"> {
 	return buildModel({

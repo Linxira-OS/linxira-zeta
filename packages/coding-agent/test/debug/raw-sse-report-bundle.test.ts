@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { RawSseDebugBuffer } from "@zeta/pi-coding-agent/debug/raw-sse-buffer";
-import { createReportBundle } from "@zeta/pi-coding-agent/debug/report-bundle";
-import { getConfigRootDir, removeWithRetries, setAgentDir } from "@zeta/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { RawSseDebugBuffer } from "@linxiraos/zeta/debug/raw-sse-buffer";
+import { createReportBundle } from "@linxiraos/zeta/debug/report-bundle";
 
 const model: Model<"anthropic-messages"> = buildModel({
 	id: "claude-test",

@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai";
-import { type AuthBrokerServerHandle, startAuthBroker } from "@zeta/pi-ai/auth-broker";
-import { runAuthBrokerCommand } from "@zeta/pi-coding-agent/cli/auth-broker-cli";
-import { getAgentDbPath, removeWithRetries, setAgentDir } from "@zeta/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { type AuthBrokerServerHandle, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
+import { getAgentDbPath, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { runAuthBrokerCommand } from "@linxiraos/zeta/cli/auth-broker-cli";
 
 const TEAM_ORG = "org-team-1111";
 

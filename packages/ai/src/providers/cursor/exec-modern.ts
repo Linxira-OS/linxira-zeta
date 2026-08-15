@@ -64,7 +64,7 @@ import {
 	StopRequestResponseSchema,
 	SubagentStartRequestResponseSchema,
 	SubagentStopRequestResponseSchema,
-} from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
+} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
 import type { ToolResultMessage } from "../../types";
 
 /**

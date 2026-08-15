@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings, type ShellMinimizerSettings } from "@zeta/pi-coding-agent/config/settings";
+import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
+import * as piNatives from "@linxiraos/pi-natives";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings, type ShellMinimizerSettings } from "@linxiraos/zeta/config/settings";
 import {
 	applyDirenvPreflight,
 	buildMinimizerOptions,
 	executeBash,
 	isPersistentShellCdCommand,
-} from "@zeta/pi-coding-agent/exec/bash-executor";
-import * as direnvModule from "@zeta/pi-coding-agent/exec/direnv";
-import { DEFAULT_MAX_BYTES } from "@zeta/pi-coding-agent/session/streaming-output";
-import * as shellSnapshot from "@zeta/pi-coding-agent/utils/shell-snapshot";
-import type { Shell, ShellRunResult } from "@zeta/pi-natives";
-import * as piNatives from "@zeta/pi-natives";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/exec/bash-executor";
+import * as direnvModule from "@linxiraos/zeta/exec/direnv";
+import { DEFAULT_MAX_BYTES } from "@linxiraos/zeta/session/streaming-output";
+import * as shellSnapshot from "@linxiraos/zeta/utils/shell-snapshot";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.

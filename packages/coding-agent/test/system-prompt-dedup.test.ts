@@ -7,7 +7,7 @@ import {
 	loadProjectContextFiles,
 	loadSystemPromptFiles,
 	type SystemPromptToolMetadata,
-} from "@zeta/pi-coding-agent/system-prompt";
+} from "@linxiraos/zeta/system-prompt";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 function escapeRegExp(text: string): string {

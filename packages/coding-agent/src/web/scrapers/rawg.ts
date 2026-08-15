@@ -1,4 +1,4 @@
-import { tryParseJson } from "@zeta/pi-utils";
+import { tryParseJson } from "@linxiraos/pi-utils";
 import { buildResult, htmlToBasicMarkdown, loadPage, type RenderResult, type SpecialHandler } from "./types";
 
 interface RawgPlatformEntry {

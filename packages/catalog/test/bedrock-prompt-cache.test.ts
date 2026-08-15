@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { supportsAdaptiveThinkingDisplay } from "@zeta/pi-catalog/identity";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import type { ModelSpec } from "@zeta/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { supportsAdaptiveThinkingDisplay } from "@linxiraos/pi-catalog/identity";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 function bedrockSpec(
 	overrides: Partial<ModelSpec<"bedrock-converse-stream">> = {},

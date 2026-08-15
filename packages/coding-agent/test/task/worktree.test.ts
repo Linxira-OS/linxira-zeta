@@ -2,6 +2,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as natives from "@linxiraos/pi-natives";
+import { removeWithRetries, setWorktreesDir } from "@linxiraos/pi-utils";
 import {
 	applyNestedPatches,
 	captureBaseline,
@@ -13,11 +15,9 @@ import {
 	getRepoRoot,
 	mergeTaskBranches,
 	parseIsolationMode,
-} from "@zeta/pi-coding-agent/task/worktree";
-import * as git from "@zeta/pi-coding-agent/utils/git";
-import * as jj from "@zeta/pi-coding-agent/utils/jj";
-import * as natives from "@zeta/pi-natives";
-import { removeWithRetries, setWorktreesDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/task/worktree";
+import * as git from "@linxiraos/zeta/utils/git";
+import * as jj from "@linxiraos/zeta/utils/jj";
 
 const tempDirs: string[] = [];
 

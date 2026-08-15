@@ -7,11 +7,11 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ToolCallContext } from "@zeta/pi-agent-core";
-import type { Ellipsis } from "@zeta/pi-natives";
-import type { Component } from "@zeta/pi-tui";
-import { getKeybindings, replaceTabs, truncateToWidth } from "@zeta/pi-tui";
-import { pluralize } from "@zeta/pi-utils";
+import type { ToolCallContext } from "@linxiraos/pi-agent-core";
+import type { Ellipsis } from "@linxiraos/pi-natives";
+import type { Component } from "@linxiraos/pi-tui";
+import { getKeybindings, replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
+import { pluralize } from "@linxiraos/pi-utils";
 import { formatKeyHints, type KeyId } from "../config/keybindings";
 import { isSettingsInitialized, settings } from "../config/settings";
 import { getDefault } from "../config/settings-schema";
@@ -19,8 +19,8 @@ import type { Theme } from "../modes/theme/theme";
 import { Hasher } from "../tui/utils";
 import { formatDimensionNote, type ResizedImage } from "../utils/image-resize";
 
-export { Ellipsis } from "@zeta/pi-natives";
-export { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "@zeta/pi-tui";
+export { Ellipsis } from "@linxiraos/pi-natives";
+export { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
 
 // =============================================================================
 // Standardized Display Constants
@@ -142,7 +142,7 @@ export function getDomain(url: string): string {
 // Formatting Utilities
 // =============================================================================
 
-export { formatAge, formatBytes, formatCount, formatDuration, pluralize } from "@zeta/pi-utils";
+export { formatAge, formatBytes, formatCount, formatDuration, pluralize } from "@linxiraos/pi-utils";
 
 // =============================================================================
 // Theme Helper Utilities

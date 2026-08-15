@@ -2,12 +2,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SourceMeta } from "@zeta/pi-coding-agent/capability/types";
-import type { MCPServerConfig } from "@zeta/pi-coding-agent/mcp/types";
-import { collectMcpServerNames } from "@zeta/pi-coding-agent/modes/controllers/mcp-command-controller";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { buildTuiBuiltinSlashCommands } from "@zeta/pi-coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@zeta/pi-coding-agent/slash-commands/types";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -15,7 +9,13 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
+import type { SourceMeta } from "@linxiraos/zeta/capability/types";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { collectMcpServerNames } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { buildTuiBuiltinSlashCommands } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 
 const originalProjectDir = getProjectDir();
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

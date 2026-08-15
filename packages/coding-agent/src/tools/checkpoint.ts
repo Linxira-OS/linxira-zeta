@@ -1,6 +1,6 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import { prompt } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { prompt } from "@linxiraos/pi-utils";
 import { M } from "../i18n/messages";
 import checkpointDescription from "../prompts/tools/checkpoint.md" with { type: "text" };
 import rewindDescription from "../prompts/tools/rewind.md" with { type: "text" };

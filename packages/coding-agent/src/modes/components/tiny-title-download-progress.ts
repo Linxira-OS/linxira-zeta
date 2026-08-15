@@ -1,5 +1,5 @@
-import { type Component, truncateToWidth, visibleWidth } from "@zeta/pi-tui";
-import { formatBytes } from "@zeta/pi-utils";
+import { type Component, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
+import { formatBytes } from "@linxiraos/pi-utils";
 import { getTinyTitleModelSpec, type TinyTitleLocalModelKey } from "../../tiny/models";
 import type { TinyTitleProgressEvent } from "../../tiny/title-protocol";
 import { theme } from "../theme/theme";

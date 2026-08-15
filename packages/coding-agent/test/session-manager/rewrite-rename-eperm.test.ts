@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { recoverOrphanedBackups } from "@zeta/pi-coding-agent/session/session-listing";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { FileSessionStorage, MemorySessionStorage } from "@zeta/pi-coding-agent/session/session-storage";
+import { recoverOrphanedBackups } from "@linxiraos/zeta/session/session-listing";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage, MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 class FsCodeError extends Error {
 	code: string;

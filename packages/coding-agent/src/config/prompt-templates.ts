@@ -1,6 +1,13 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getProjectDir, getProjectPromptsDir, getPromptsDir, logger, parseFrontmatter, prompt } from "@zeta/pi-utils";
+import {
+	getProjectDir,
+	getProjectPromptsDir,
+	getPromptsDir,
+	logger,
+	parseFrontmatter,
+	prompt,
+} from "@linxiraos/pi-utils";
 import { jtdToTypeScript } from "../tools/jtd-to-typescript";
 import { parseCommandArgs, substituteArgs } from "../utils/command-args";
 
@@ -153,7 +160,7 @@ export interface LoadPromptTemplatesOptions {
 /**
  * Load all prompt templates from:
  * 1. Global: agentDir/prompts/
- * 2. Project: cwd/.omp/prompts/
+ * 2. Project: cwd/.zeta/prompts/
  */
 export async function loadPromptTemplates(options: LoadPromptTemplatesOptions = {}): Promise<PromptTemplate[]> {
 	const resolvedCwd = options.cwd ?? getProjectDir();
@@ -166,7 +173,7 @@ export async function loadPromptTemplates(options: LoadPromptTemplatesOptions = 
 	const globalPromptsDir = options.agentDir ? path.join(options.agentDir, "prompts") : resolvedAgentDir;
 	templates.push(...(await loadTemplatesFromDir(globalPromptsDir, "user")));
 
-	// 2. Load project templates from cwd/.omp/prompts/
+	// 2. Load project templates from cwd/.zeta/prompts/
 	const projectPromptsDir = getProjectPromptsDir(resolvedCwd);
 	templates.push(...(await loadTemplatesFromDir(projectPromptsDir, "project")));
 

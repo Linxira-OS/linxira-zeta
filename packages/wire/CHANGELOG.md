@@ -2,9 +2,7 @@
 
 ## [Unreleased]
 
-### Changed
-
-- Reset the version to 1.0.0 and republished under the `@zeta/*` scope, breaking from the `@oh-my-pi` version lineage.
+## [1.0.1] - 2026-08-14
 
 ## [16.3.0] - 2026-07-02
 
@@ -42,3 +40,9 @@
 ### Added
 
 - Added shared collab live-session wire contracts for the host CLI and browser guest client.
+
+## [1.0.0] - 2026-08-13
+
+### Changed
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.

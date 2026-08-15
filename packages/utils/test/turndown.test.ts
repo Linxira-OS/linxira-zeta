@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import TurndownService, { gfm, type TurndownNode } from "@zeta/pi-utils/turndown";
+import TurndownService, { gfm, type TurndownNode } from "@linxiraos/pi-utils/turndown";
 
 type ListParent = {
 	nodeName: string;

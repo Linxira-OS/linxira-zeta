@@ -11,9 +11,9 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { convertBufferWithMarkit, convertFileWithMarkit } from "@zeta/pi-coding-agent/utils/markit";
-import { zip } from "@zeta/pi-coding-agent/utils/zip";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { convertBufferWithMarkit, convertFileWithMarkit } from "@linxiraos/zeta/utils/markit";
+import { zip } from "@linxiraos/zeta/utils/zip";
 
 const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 const WML = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -179,8 +179,8 @@ describe("markit converters", () => {
 					USERPROFILE: homeDir,
 					NO_COLOR: "1",
 					OMP_PROFILE: "",
-					PI_CODING_AGENT_DIR: path.join(homeDir, ".omp", "agent"),
-					PI_CONFIG_DIR: ".omp",
+					PI_CODING_AGENT_DIR: path.join(homeDir, ".zeta", "agent"),
+					PI_CONFIG_DIR: ".zeta",
 					PI_NO_TITLE: "1",
 					PI_PROFILE: "",
 					XDG_CACHE_HOME: path.join(homeDir, ".cache"),

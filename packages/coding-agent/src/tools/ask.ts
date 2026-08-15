@@ -15,9 +15,9 @@
  *   - Questions may time out and auto-select the recommended option (configurable, disabled in plan mode)
  */
 
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import type { ToolExample } from "@zeta/pi-ai";
-import { type as arkType } from "@zeta/pi-omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
+import { type as arkType } from "@linxiraos/pi-omptype";
 import {
 	type Component,
 	Ellipsis,
@@ -29,8 +29,8 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
-import { prompt, untilAborted } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { prompt, untilAborted } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { ExtensionUISelectItem } from "../extensibility/extensions";
 import { M } from "../i18n/messages";

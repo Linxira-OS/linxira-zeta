@@ -1,4 +1,4 @@
-import { modelFamilyToken } from "@zeta/pi-catalog/identity";
+import { modelFamilyToken } from "@linxiraos/pi-catalog/identity";
 
 /**
  * Resolves whether full tool descriptors should be inlined into the system

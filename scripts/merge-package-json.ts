@@ -3,7 +3,7 @@
  *
  * Called by Git with three args: %A (current/target), %O (base), %B (other/source).
  * Zeta keeps its own identity fields (name, version, bin, homepage, repository,
- * bugs, @zeta/* scope in deps) but accepts upstream changes to dependencies,
+ * bugs, @linxiraos/* scope in deps) but accepts upstream changes to dependencies,
  * scripts, engines, exports, and other structural fields.
  *
  * Setup:
@@ -29,10 +29,10 @@ const ZETA_IDENTITY_FIELDS = new Set([
 	"keywords",
 ]);
 
-const ZETA_SCOPE = "@zeta/";
+const ZETA_SCOPE = "@linxiraos/";
 
 // Upstream workspace packages are named @oh-my-pi/*. Zeta renames that scope
-// to @zeta/* and keeps its own independent versions (1.0.0 product line), so
+// to @linxiraos/* and keeps its own independent versions (1.0.0 product line), so
 // the driver must map upstream keys back to Zeta names before merging.
 const OMP_SCOPE = "@oh-my-pi/";
 

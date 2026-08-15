@@ -21,7 +21,7 @@
  */
 
 import * as path from "node:path";
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import * as git from "../utils/git";
 import type { HindsightApi } from "./client";
 import type { HindsightConfig } from "./config";

@@ -10,10 +10,10 @@ import {
 	discoverModels,
 	ModelRegistry,
 	SessionManager,
-} from "@zeta/pi-coding-agent";
+} from "@linxiraos/zeta";
 
-// Default: discoverAuthStorage() uses ~/.omp/agent/agent.db
-// discoverModels() loads built-in + custom models from ~/.omp/agent/models.json
+// Default: discoverAuthStorage() uses ~/.zeta/agent/agent.db
+// discoverModels() loads built-in + custom models from ~/.zeta/agent/models.json
 const authStorage = await discoverAuthStorage();
 const modelRegistry = await discoverModels(authStorage);
 

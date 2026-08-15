@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent } from "@zeta/pi-agent-core";
+import { Agent } from "@linxiraos/pi-agent-core";
 import type {
 	Api,
 	AssistantMessage,
@@ -10,18 +10,18 @@ import type {
 	SimpleStreamOptions,
 	TextContent,
 	ThinkingContent,
-} from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { withGeminiThinkingLoopGuard } from "@zeta/pi-ai/utils/thinking-loop";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { type CustomMessage, convertToLlm } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { withGeminiThinkingLoopGuard } from "@linxiraos/pi-ai/utils/thinking-loop";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { type CustomMessage, convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const LOOP_PARAGRAPHS = [
 	"I am now verifying the test module to guarantee there are no compile errors and the code is completely safe.",

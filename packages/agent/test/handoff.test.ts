@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage, AgentTool } from "@zeta/pi-agent-core";
-import { generateHandoff, generateHandoffFromContext, renderHandoffPrompt } from "@zeta/pi-agent-core/compaction";
-import { ThinkingLevel } from "@zeta/pi-agent-core/thinking";
-import type { AssistantMessage, Model, ToolCall } from "@zeta/pi-ai";
-import * as ai from "@zeta/pi-ai";
-import { Effort } from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { type } from "@zeta/pi-omptype";
+import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
+import { generateHandoff, generateHandoffFromContext, renderHandoffPrompt } from "@linxiraos/pi-agent-core/compaction";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
+import type { AssistantMessage, Model, ToolCall } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { Effort } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 
 function createAssistantMessage(content: AssistantMessage["content"]): AssistantMessage {
 	return {

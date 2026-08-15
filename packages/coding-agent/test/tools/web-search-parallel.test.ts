@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
-import type { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import { searchWithParallel } from "@zeta/pi-coding-agent/web/parallel";
-import { searchParallel } from "@zeta/pi-coding-agent/web/search/providers/parallel";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import type { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { searchWithParallel } from "@linxiraos/zeta/web/parallel";
+import { searchParallel } from "@linxiraos/zeta/web/search/providers/parallel";
 
 describe("Parallel web search", () => {
 	const fakeStorage = {

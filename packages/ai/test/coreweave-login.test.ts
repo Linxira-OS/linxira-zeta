@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { loginCoreWeave } from "@zeta/pi-ai/registry/coreweave";
-import type { FetchImpl } from "@zeta/pi-ai/types";
+import { loginCoreWeave } from "@linxiraos/pi-ai/registry/coreweave";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 
 const COREWEAVE_ENV_KEYS = ["COREWEAVE_PROJECT", "WANDB_INFERENCE_PROJECT", "WANDB_ENTITY", "WANDB_PROJECT"] as const;
 const ORIGINAL_ENV = new Map(COREWEAVE_ENV_KEYS.map(key => [key, Bun.env[key]]));

@@ -1,13 +1,13 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { KeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import type { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { ModelHubComponent } from "@zeta/pi-coding-agent/modes/components/model-hub";
-import { SessionSelectorComponent } from "@zeta/pi-coding-agent/modes/components/session-selector";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { SessionInfo } from "@zeta/pi-coding-agent/session/session-listing";
-import { setKeybindings, type TUI } from "@zeta/pi-tui";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ModelHubComponent } from "@linxiraos/zeta/modes/components/model-hub";
+import { SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 
 beforeAll(() => {
 	initTheme();

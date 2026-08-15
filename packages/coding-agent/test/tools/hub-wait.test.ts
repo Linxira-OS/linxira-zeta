@@ -5,11 +5,11 @@
  * messaging/job suites.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { AsyncJobManager } from "@zeta/pi-coding-agent/async/job-manager";
-import { IrcBus } from "@zeta/pi-coding-agent/irc/bus";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { type CoordinationDetails, HubTool } from "@zeta/pi-coding-agent/tools/hub";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { type CoordinationDetails, HubTool } from "@linxiraos/zeta/tools/hub";
 
 const SELF_ID = "Main";
 

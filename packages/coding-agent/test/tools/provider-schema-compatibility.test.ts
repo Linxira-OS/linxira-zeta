@@ -8,10 +8,10 @@ import {
 	toolWireSchema,
 	validateSchemaCompatibility,
 	validateStrictSchemaEnforcement,
-} from "@zeta/pi-ai/utils/schema";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@zeta/pi-coding-agent/tools";
-import { createVibeTools } from "@zeta/pi-coding-agent/tools/vibe";
+} from "@linxiraos/pi-ai/utils/schema";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
+import { createVibeTools } from "@linxiraos/zeta/tools/vibe";
 
 interface ToolSchemaEntry {
 	name: string;

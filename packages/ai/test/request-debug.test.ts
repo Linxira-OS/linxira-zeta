@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis, registerCustomApi } from "@zeta/pi-ai/api-registry";
-import { stream } from "@zeta/pi-ai/stream";
-import type { AssistantMessage, FetchImpl, Model, ModelSpec } from "@zeta/pi-ai/types";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { wrapFetchForRequestDebug } from "@zeta/pi-ai/utils/request-debug";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { clearCustomApis, registerCustomApi } from "@linxiraos/pi-ai/api-registry";
+import { stream } from "@linxiraos/pi-ai/stream";
+import type { AssistantMessage, FetchImpl, Model, ModelSpec } from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { wrapFetchForRequestDebug } from "@linxiraos/pi-ai/utils/request-debug";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const enc = new TextEncoder();

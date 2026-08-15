@@ -1,4 +1,4 @@
-import { isAnthropicWebSearchHistoryBlock } from "@zeta/pi-ai/providers/anthropic-wire";
+import { isAnthropicWebSearchHistoryBlock } from "@linxiraos/pi-ai/providers/anthropic-wire";
 import {
 	type BlobStore,
 	externalizeImageDataSync,

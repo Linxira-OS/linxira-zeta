@@ -1,5 +1,5 @@
-import { VERSION } from "@zeta/pi-utils";
-import * as logger from "@zeta/pi-utils/logger";
+import { VERSION } from "@linxiraos/pi-utils";
+import * as logger from "@linxiraos/pi-utils/logger";
 import {
 	fetchOpenAICompatibleModels,
 	type OpenAICompatibleModelMapperContext,

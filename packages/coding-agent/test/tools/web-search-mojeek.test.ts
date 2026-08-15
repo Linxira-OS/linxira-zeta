@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
-import type { SearchParams } from "@zeta/pi-coding-agent/web/search/providers/base";
-import { searchMojeek } from "@zeta/pi-coding-agent/web/search/providers/mojeek";
-import { SearchProviderError } from "@zeta/pi-coding-agent/web/search/types";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import { searchMojeek } from "@linxiraos/zeta/web/search/providers/mojeek";
+import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
 
 const fakeAuthStorage = {
 	async getApiKey() {

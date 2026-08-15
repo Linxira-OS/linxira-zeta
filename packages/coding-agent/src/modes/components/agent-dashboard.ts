@@ -16,7 +16,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	type Component,
 	Container,
@@ -32,8 +32,8 @@ import {
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@zeta/pi-tui";
-import { isEnoent, prompt } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { isEnoent, prompt } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { getConfigDirs } from "../../config";
 import type { ModelRegistry } from "../../config/model-registry";

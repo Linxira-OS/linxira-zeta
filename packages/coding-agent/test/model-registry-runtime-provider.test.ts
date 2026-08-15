@@ -10,12 +10,12 @@ import {
 	type FetchImpl,
 	getCustomApi,
 	type Model,
-} from "@zeta/pi-ai";
-import { getOAuthProviders, unregisterOAuthProviders } from "@zeta/pi-ai/oauth";
-import type { OAuthCredentials } from "@zeta/pi-ai/oauth/types";
-import { ModelRegistry, type ProviderConfigInput } from "@zeta/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { logger, removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { getOAuthProviders, unregisterOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
+import { logger, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 describe("ModelRegistry runtime provider registration", () => {
 	let tempDir: string;

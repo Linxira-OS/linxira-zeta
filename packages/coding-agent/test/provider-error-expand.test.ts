@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme(false);

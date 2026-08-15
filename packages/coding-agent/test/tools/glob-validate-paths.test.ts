@@ -2,16 +2,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { RenderResultOptions } from "@zeta/pi-coding-agent/extensibility/custom-tools/types";
-import { getThemeByName, initTheme, type Theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import type { Component } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { RenderResultOptions } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import { getThemeByName, initTheme, type Theme } from "@linxiraos/zeta/modes/theme/theme";
 import {
 	expandDelimitedPathEntries,
 	parseFindPattern,
 	resolveToolSearchScope,
 	splitDelimitedPathEntry,
-} from "@zeta/pi-coding-agent/tools/path-utils";
-import type { Component } from "@zeta/pi-tui";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/tools/path-utils";
 import { globToolRenderer } from "../../src/tools/glob";
 
 let uiTheme: Theme;

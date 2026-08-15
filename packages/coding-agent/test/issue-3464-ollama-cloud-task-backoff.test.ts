@@ -1,18 +1,18 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type StreamFn } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Model } from "@zeta/pi-ai";
-import { createMockModel } from "@zeta/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { type GeneratedProvider, getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { Semaphore } from "@zeta/pi-coding-agent/task/parallel";
-import { wrapStreamFnWithProviderConcurrency } from "@zeta/pi-coding-agent/task/provider-concurrency";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, type StreamFn } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Semaphore } from "@linxiraos/zeta/task/parallel";
+import { wrapStreamFnWithProviderConcurrency } from "@linxiraos/zeta/task/provider-concurrency";
 
 interface Deferred {
 	promise: Promise<void>;

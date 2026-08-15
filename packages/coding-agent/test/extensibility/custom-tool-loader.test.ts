@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { toolWireSchema } from "@zeta/pi-ai/utils/schema";
-import { validateToolArguments } from "@zeta/pi-ai/utils/validation";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
 import { loadCustomTools, type ToolPathWithSource } from "../../src/extensibility/custom-tools/loader";
 
 let tempRoot: string | undefined;

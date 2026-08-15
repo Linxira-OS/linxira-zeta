@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import * as ai from "@zeta/pi-ai";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import {
 	classifyUnexpectedStop,
 	isUnexpectedStopCandidate,
 	parseUnexpectedStopClassification,
-} from "@zeta/pi-coding-agent/session/unexpected-stop-classifier";
+} from "@linxiraos/zeta/session/unexpected-stop-classifier";
 
 function makeAssistantMessage(options: {
 	stopReason: AssistantMessage["stopReason"];

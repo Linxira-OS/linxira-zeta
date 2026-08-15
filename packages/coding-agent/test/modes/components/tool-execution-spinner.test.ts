@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { TranscriptContainer } from "@zeta/pi-coding-agent/modes/components/transcript-container";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { TUI } from "@zeta/pi-tui";
+import type { TUI } from "@linxiraos/pi-tui";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 // Contract under test: live tool previews that render a pending/running status
 // must keep the spinner glyph tied to the shared tool-frame ticker. This covers

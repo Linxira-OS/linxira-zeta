@@ -1,6 +1,6 @@
 /**
  * Compatibility shim for legacy extensions importing the package root of
- * `@zeta/pi-coding-agent` (or one of its aliased scopes like
+ * `@linxiraos/zeta` (or one of its aliased scopes like
  * `@earendil-works/pi-coding-agent` or `@mariozechner/pi-coding-agent`).
  *
  * The coding-agent package's own barrel (`./src/index.ts`) cannot be listed
@@ -9,23 +9,23 @@
  * Routing legacy plugin imports through this sibling shim sidesteps that
  * conflict: bun bundles a distinct entry whose path differs from the CLI
  * entry, while still re-exporting the canonical surface so plugins observe
- * the same module identity as a direct `@zeta/pi-coding-agent` import.
+ * the same module identity as a direct `@linxiraos/zeta` import.
  */
 
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult, AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@zeta/pi-ai";
-import { piEscapeRegexLiteral, piJoinPath } from "@zeta/pi-ai/providers/cursor-pi-args";
-import { getKeybindings, type Keybinding, Text } from "@zeta/pi-tui";
+import type { AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@linxiraos/pi-ai";
+import { piEscapeRegexLiteral, piJoinPath } from "@linxiraos/pi-ai/providers/cursor-pi-args";
+import { getKeybindings, type Keybinding, Text } from "@linxiraos/pi-tui";
 import {
 	getAgentDbPath,
 	getAgentDir,
 	getProjectDir,
 	isCompiledBinary,
 	parseFrontmatter as parseOmpFrontmatter,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import { getPackageDir as getOmpPackageDir } from "../config";
 import { formatKeyHints } from "../config/keybindings";
 import type { PromptTemplate } from "../config/prompt-templates";
@@ -1415,10 +1415,10 @@ export function readStoredCredential(provider: string): AuthCredential | undefin
 }
 
 // Pi SDK path helpers. `export * from "../index"` above only forwards
-// `getAgentDir`; `getProjectDir` (a `@zeta/pi-utils` helper) and
+// `getAgentDir`; `getProjectDir` (a `@linxiraos/pi-utils` helper) and
 // `getPackageDir` are absent from that barrel, so legacy extensions importing
 // either fail Bun's static export check during validation (issue #5968).
-export { getProjectDir } from "@zeta/pi-utils";
+export { getProjectDir } from "@linxiraos/pi-utils";
 
 /**
  * Coding-agent package install directory, matching pi's string-valued
@@ -1441,17 +1441,17 @@ export function getPackageDir(): string {
 // Legacy pi's `@earendil-works/pi-coding-agent` re-exported `estimateTokens`,
 // `compact`, and `serializeConversation` from its package root (via
 // `./core/compaction/index.ts`). In omp they live in
-// `@zeta/pi-agent-core/compaction`, and the coding-agent barrel below does
+// `@linxiraos/pi-agent-core/compaction`, and the coding-agent barrel below does
 // not forward them, so legacy extensions importing them fail Bun's static
 // export check during validation (issues #6583, #7174, #7403).
-export { compact, estimateTokens, serializeConversation } from "@zeta/pi-agent-core/compaction";
+export { compact, estimateTokens, serializeConversation } from "@linxiraos/pi-agent-core/compaction";
 
 // Same barrel gap for two more legacy package-root exports: pi re-exported the
 // `CONFIG_DIR_NAME` constant and the CLI parser `parseArgs`. In omp
-// `CONFIG_DIR_NAME` lives in `@zeta/pi-utils` and `parseArgs` in
+// `CONFIG_DIR_NAME` lives in `@linxiraos/pi-utils` and `parseArgs` in
 // `../cli/args`, neither of which the barrel below forwards, so legacy
 // extensions importing either fail Bun's static export check during validation.
-export { CONFIG_DIR_NAME } from "@zeta/pi-utils";
+export { CONFIG_DIR_NAME } from "@linxiraos/pi-utils";
 export { parseArgs } from "../cli/args";
 
 export * from "../index";

@@ -1,4 +1,4 @@
-import { decodeJwt } from "@zeta/pi-ai/registry/oauth/openai-codex";
+import { decodeJwt } from "@linxiraos/pi-ai/registry/oauth/openai-codex";
 import type { AuthStorage } from "../session/auth-storage";
 import * as git from "../utils/git";
 import { resolveExactSecurityOAuthAccess } from "./auth";

@@ -1,4 +1,4 @@
-import { parseJsonWithRepair } from "@zeta/pi-utils";
+import { parseJsonWithRepair } from "@linxiraos/pi-utils";
 import type { Message, ToolCall } from "../types";
 import dialectPrompt from "./anthropic.md" with { type: "text" };
 import { buildArgShapes, buildStringArgsResolver, mintToolCallId, type ToolArgShape } from "./coercion";

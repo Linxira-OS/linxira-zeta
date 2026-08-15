@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { getDialectDefinition, renderDemotedThinking } from "@zeta/pi-ai/dialect";
-import { transformMessages } from "@zeta/pi-ai/providers/transform-messages";
-import type { Api, AssistantMessage, Message, Model, ModelSpec, UserMessage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { getDialectDefinition, renderDemotedThinking } from "@linxiraos/pi-ai/dialect";
+import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
+import type { Api, AssistantMessage, Message, Model, ModelSpec, UserMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 /**
  * Cross-provider model switches (e.g. Anthropic → Gemini mid-session) cannot

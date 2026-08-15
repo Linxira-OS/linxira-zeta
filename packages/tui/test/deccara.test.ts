@@ -12,7 +12,7 @@ import {
 	setTerminalDeccara,
 	TERMINAL,
 	TUI,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import { VirtualTerminal } from "./virtual-terminal";
 
 // Truecolor background open token used throughout the integration tests.

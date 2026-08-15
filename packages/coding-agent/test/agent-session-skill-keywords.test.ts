@@ -1,21 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@zeta/pi-agent-core";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { WORKFLOW_NOTICE } from "@zeta/pi-coding-agent/modes/workflow";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import {
-	convertToLlm,
-	SKILL_PROMPT_MESSAGE_TYPE,
-	type SkillPromptDetails,
-} from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { type } from "@zeta/pi-omptype";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { WORKFLOW_NOTICE } from "@linxiraos/zeta/modes/workflow";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm, SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 type ObservedSkillTurn = {

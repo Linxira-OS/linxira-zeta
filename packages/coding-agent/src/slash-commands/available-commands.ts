@@ -1,4 +1,4 @@
-import type { AvailableCommand } from "@zeta/pi-utils/acp";
+import type { AvailableCommand } from "@linxiraos/pi-utils/acp";
 import type { SkillsSettings } from "../config/settings";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { ExtensionRunner } from "../extensibility/extensions";

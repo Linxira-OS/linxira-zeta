@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { computeFileHash } from "@zeta/hashline";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@zeta/pi-coding-agent/internal-urls";
-import type { PlanModeState } from "@zeta/pi-coding-agent/plan-mode/state";
-import type { ClientBridge } from "@zeta/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { WriteTool } from "@zeta/pi-coding-agent/tools/write";
-import { removeWithRetries } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { computeFileHash } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
+import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
 
 const FILE_CONTENT = "bridge write content\n";
 

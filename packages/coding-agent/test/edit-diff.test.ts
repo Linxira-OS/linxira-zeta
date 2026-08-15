@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { forkClipboard, formatHashlineHeader, InMemorySnapshotStore, missingSnapshotTagMessage } from "@zeta/hashline";
+import {
+	forkClipboard,
+	formatHashlineHeader,
+	InMemorySnapshotStore,
+	missingSnapshotTagMessage,
+} from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	adjustIndentation,
 	computeEditDiff,
@@ -10,8 +16,7 @@ import {
 	DEFAULT_FUZZY_THRESHOLD,
 	findMatch,
 	replaceText,
-} from "@zeta/pi-coding-agent/edit";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/edit";
 
 describe("findMatch", () => {
 	describe("exact matching", () => {

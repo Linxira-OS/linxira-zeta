@@ -51,13 +51,13 @@ describe("published manifest topology", () => {
 			await fs.mkdir(packageDir);
 			await Bun.write(
 				path.join(packageDir, "package.json"),
-				JSON.stringify({ name: "@zeta/pi-test", version: "1.2.3" }),
+				JSON.stringify({ name: "@linxiraos/pi-test", version: "1.2.3" }),
 			);
 			const tarball = path.join(root, "test.tgz");
 			await $`tar -czf ${tarball} -C ${root} package`.quiet();
 
 			await expect(inspectPackedTarball(tarball)).resolves.toEqual({
-				name: "@zeta/pi-test",
+				name: "@linxiraos/pi-test",
 				version: "1.2.3",
 				path: tarball,
 			});
@@ -89,7 +89,7 @@ describe("published manifest topology", () => {
 		await Bun.write(
 			path.join(root, "package.json"),
 			JSON.stringify({
-				name: "@zeta/pi-natives",
+				name: "@linxiraos/pi-natives",
 				version: "1.2.3",
 				exports: {
 					"./desktop": { types: "./native/desktop.d.ts", import: "./native/desktop.js" },

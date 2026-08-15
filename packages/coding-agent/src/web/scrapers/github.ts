@@ -1,4 +1,4 @@
-import { $env, ptree } from "@zeta/pi-utils";
+import { $env, ptree } from "@linxiraos/pi-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatMediaDuration, loadPage } from "./types";
 

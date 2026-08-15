@@ -1,12 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { disposeAllKernelSessions, executePython } from "@zeta/pi-coding-agent/eval/py/executor";
-import type {
-	KernelExecuteOptions,
-	KernelExecuteResult,
-	KernelShutdownResult,
-} from "@zeta/pi-coding-agent/eval/py/kernel";
-import { PythonKernel } from "@zeta/pi-coding-agent/eval/py/kernel";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { KernelExecuteOptions, KernelExecuteResult, KernelShutdownResult } from "@linxiraos/zeta/eval/py/kernel";
+import { PythonKernel } from "@linxiraos/zeta/eval/py/kernel";
 
 class FakeKernel {
 	executeCalls = 0;

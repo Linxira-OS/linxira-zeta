@@ -6,7 +6,7 @@ import {
 	type SgrMouseEvent,
 	truncateToWidth,
 	visibleWidth,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import { M } from "../../../i18n";
 import {
 	enableAutoTheme,

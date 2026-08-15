@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@zeta/pi-coding-agent/internal-urls";
-import { MCPManager } from "@zeta/pi-coding-agent/mcp/manager";
-import type { MCPResource, MCPResourceReadResult, MCPResourceTemplate } from "@zeta/pi-coding-agent/mcp/types";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { ReadTool } from "@zeta/pi-coding-agent/tools/read";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPResource, MCPResourceReadResult, MCPResourceTemplate } from "@linxiraos/zeta/mcp/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 function createMockManager(opts: {
 	servers?: string[];

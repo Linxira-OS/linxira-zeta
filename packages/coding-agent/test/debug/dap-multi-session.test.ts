@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { DapClient } from "@zeta/pi-coding-agent/dap/client";
-import { DapSessionManager } from "@zeta/pi-coding-agent/dap/session";
+import { DapClient } from "@linxiraos/zeta/dap/client";
+import { DapSessionManager } from "@linxiraos/zeta/dap/session";
 import type {
 	DapCapabilities,
 	DapClientState,
 	DapEventMessage,
 	DapResolvedAdapter,
 	DapThread,
-} from "@zeta/pi-coding-agent/dap/types";
+} from "@linxiraos/zeta/dap/types";
 
 const TEST_ADAPTER: DapResolvedAdapter = {
 	name: "js-debug-adapter",

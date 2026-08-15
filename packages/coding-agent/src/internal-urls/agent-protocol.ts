@@ -17,7 +17,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent } from "@zeta/pi-utils";
+import { isEnoent } from "@linxiraos/pi-utils";
 import { applyQuery, pathToQuery } from "./json-query";
 import { artifactsDirsFromRegistry } from "./registry-helpers";
 import type { InternalResource, InternalUrl, ProtocolHandler, UrlCompletion } from "./types";

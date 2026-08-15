@@ -1,6 +1,6 @@
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import { Ellipsis, visibleWidth } from "@zeta/pi-tui";
-import { formatDuration, formatNumber, sanitizeText } from "@zeta/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { Ellipsis, visibleWidth } from "@linxiraos/pi-tui";
+import { formatDuration, formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import { getRoleInfo } from "../../config/model-roles";
 import type { Settings } from "../../config/settings";
 import { type AgentRef, MAIN_AGENT_ID } from "../../registry/agent-registry";

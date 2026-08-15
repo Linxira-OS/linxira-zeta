@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentRegistry, MAIN_AGENT_ID } from "@zeta/pi-coding-agent/registry/agent-registry";
-import { executeList } from "@zeta/pi-coding-agent/tools/hub/messaging";
-import { TempDir } from "@zeta/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import { executeList } from "@linxiraos/zeta/tools/hub/messaging";
 
 describe("hub list", () => {
 	it("restores persisted peers after the process registry is lost", async () => {

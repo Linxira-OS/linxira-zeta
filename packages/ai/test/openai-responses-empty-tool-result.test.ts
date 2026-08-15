@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildResponsesInput } from "@zeta/pi-ai/providers/openai-shared";
-import type { Context, ImageContent, ModelSpec, TextContent } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { buildResponsesInput } from "@linxiraos/pi-ai/providers/openai-shared";
+import type { Context, ImageContent, ModelSpec, TextContent } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const model = buildModel({
 	id: "test-vision",

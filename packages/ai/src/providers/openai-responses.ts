@@ -1,6 +1,6 @@
 import { scheduler } from "node:timers/promises";
-import { hostMatchesUrl } from "@zeta/pi-catalog/hosts";
-import { $flag, logger, structuredCloneJSON } from "@zeta/pi-utils";
+import { hostMatchesUrl } from "@linxiraos/pi-catalog/hosts";
+import { $flag, logger, structuredCloneJSON } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import { getEnvApiKey } from "../stream";
 import type {

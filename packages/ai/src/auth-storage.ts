@@ -8,7 +8,7 @@
  * - re-exported `SqliteAuthCredentialStore`: concrete SQLite-backed implementation
  */
 import { createHash } from "node:crypto";
-import { $env, $envExact, extractRetryHint, getAgentDbPath, logger } from "@zeta/pi-utils";
+import { $env, $envExact, extractRetryHint, getAgentDbPath, logger } from "@linxiraos/pi-utils";
 import {
 	isSqliteCorruptionError,
 	resolveCredentialIdentityKey,
@@ -625,7 +625,7 @@ export type AuthStorageOptions = {
 	 * so the TUI can show where a token came from (broker URL or local SQLite path).
 	 *
 	 * Examples:
-	 * - `"local ~/.omp/agent/agent.db"`
+	 * - `"local ~/.zeta/agent/agent.db"`
 	 * - `"broker http://omp.internal:8765"`
 	 */
 	sourceLabel?: string;
@@ -730,7 +730,7 @@ const OAUTH_REFRESH_OPERATION_TIMEOUT_MS = 10_000;
 const MAX_PENDING_DISABLED_EVENTS = 32;
 
 // Re-exported from the error module (its new home) to preserve the public
-// `@zeta/pi-ai` entrypoint and the in-module call sites below.
+// `@linxiraos/pi-ai` entrypoint and the in-module call sites below.
 export { isDefinitiveOAuthFailure } from "./error/auth-classify";
 
 /**

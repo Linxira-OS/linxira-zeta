@@ -6,8 +6,8 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@zeta/pi-agent-core";
-import { logger, prompt, untilAborted } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { logger, prompt, untilAborted } from "@linxiraos/pi-utils";
 import { type Theme, theme } from "../modes/theme/theme";
 import lspDescription from "../prompts/tools/lsp.md" with { type: "text" };
 import type { ToolSession } from "../tools";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { resolveWebUiRuntime } from "@zeta/pi-coding-agent/commands/web-ui-launcher";
+import { resolveWebUiRuntime } from "@linxiraos/zeta/commands/web-ui-launcher";
 
 describe("Web UI runtime resolution", () => {
 	it("uses the bundled runtime when the desktop shell provides one", () => {

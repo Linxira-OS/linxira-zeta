@@ -1,13 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createAcpConnection } from "@zeta/pi-coding-agent/modes/acp/acp-mode";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { TempDir } from "@zeta/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	type Client,
 	ClientSideConnection,
@@ -17,7 +12,12 @@ import {
 	type RequestPermissionRequest,
 	type RequestPermissionResponse,
 	type SessionNotification,
-} from "@zeta/pi-utils/acp";
+} from "@linxiraos/pi-utils/acp";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAcpConnection } from "@linxiraos/zeta/modes/acp/acp-mode";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const TEST_MODEL: Model = buildModel({
 	id: "claude-sonnet-4-20250514",
@@ -156,7 +156,7 @@ async function closeTransport(writable: WritableStream<unknown>): Promise<void> 
 
 describe("ACP lazy startup", () => {
 	it("applies schema defaults for ACP background jobs and preserves explicit overrides", async () => {
-		const { runRootCommand } = await import("@zeta/pi-coding-agent/main");
+		const { runRootCommand } = await import("@linxiraos/zeta/main");
 
 		type ObservedBackgroundSettings = {
 			asyncEnabled: boolean;
@@ -247,7 +247,7 @@ describe("ACP lazy startup", () => {
 		// configured value (caller, project, --config overlay, or global) with the
 		// schema default. The fix (re-)added an `isConfigured` guard so explicit
 		// configuration survives, and the schema default only fills holes.
-		const { runRootCommand } = await import("@zeta/pi-coding-agent/main");
+		const { runRootCommand } = await import("@linxiraos/zeta/main");
 
 		const explicit = {
 			"task.isolation.mode": "rcopy",
@@ -337,7 +337,7 @@ describe("ACP lazy startup", () => {
 	});
 
 	it("honors explicit todo settings for protocol hosts", async () => {
-		const { runRootCommand } = await import("@zeta/pi-coding-agent/main");
+		const { runRootCommand } = await import("@linxiraos/zeta/main");
 
 		type ObservedTodoSettings = {
 			enabled: boolean;
@@ -489,8 +489,8 @@ describe("ACP lazy startup", () => {
 		const authStorage = await AuthStorage.create(path.join(cwd, "auth.db"));
 		try {
 			const settings = Settings.isolated({ "marketplace.autoUpdate": "off" });
-			const { runRootCommand } = await import("@zeta/pi-coding-agent/main");
-			const { createAgentSession } = await import("@zeta/pi-coding-agent/sdk");
+			const { runRootCommand } = await import("@linxiraos/zeta/main");
+			const { createAgentSession } = await import("@linxiraos/zeta/sdk");
 			let session: AgentSession | undefined;
 			let sessionHasUI: boolean | undefined;
 			let deferredUsageReserveConfirmation: boolean | undefined;

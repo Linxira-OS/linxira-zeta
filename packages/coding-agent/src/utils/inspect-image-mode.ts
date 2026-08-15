@@ -11,7 +11,7 @@
  * of model capability. A session-scoped override (the `/vision` command)
  * takes precedence over the persisted setting for the current session only.
  */
-import type { Model } from "@zeta/pi-ai";
+import type { Model } from "@linxiraos/pi-ai";
 import type { Settings } from "../config/settings";
 
 export type InspectImageMode = "auto" | "on" | "off";

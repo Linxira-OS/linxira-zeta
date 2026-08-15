@@ -4,8 +4,8 @@
  * Provides both character-level and line-level fuzzy matching with progressive
  * fallback strategies for finding text in files.
  */
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../../lsp";
 import type { ToolSession } from "../../tools";
 import { routeWriteThroughBridge } from "../../tools/acp-bridge";

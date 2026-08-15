@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { RenderResultOptions } from "@zeta/pi-agent-core";
-import type { SettingPath, SettingValue } from "@zeta/pi-coding-agent/config/settings";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { getThemeByName, setThemeInstance } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { taskToolRenderer } from "@zeta/pi-coding-agent/task/renderer";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@zeta/pi-coding-agent/task/types";
+import type { RenderResultOptions } from "@linxiraos/pi-agent-core";
+import type { SettingPath, SettingValue } from "@linxiraos/zeta/config/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { taskToolRenderer } from "@linxiraos/zeta/task/renderer";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/zeta/task/types";
 
 function runningProgress(overrides: Partial<AgentProgress> = {}): AgentProgress {
 	return {

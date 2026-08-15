@@ -1,5 +1,5 @@
 // Adapted from markit-ai (MIT). See ../NOTICE.
-import { XMLParser } from "@zeta/pi-utils/xml";
+import { XMLParser } from "@linxiraos/pi-utils/xml";
 import { createTurndown, normalizeTablesHtml } from "../../utils/turndown";
 import { unzip, unzipText } from "../../utils/zip";
 import type { ConversionResult, Converter, StreamInfo } from "../types";

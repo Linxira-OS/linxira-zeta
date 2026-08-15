@@ -13,8 +13,8 @@ import {
 	type JsonSchemaValidationIssue,
 	type JsonSchemaValidationResult,
 	validateJsonSchemaValue,
-} from "@zeta/pi-ai/utils/schema";
-import { isRecord } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/utils/schema";
+import { isRecord } from "@linxiraos/pi-utils";
 import { jtdToJsonSchema, normalizeSchema } from "./jtd-to-json-schema";
 
 /** A validator bound to a specific output schema. */

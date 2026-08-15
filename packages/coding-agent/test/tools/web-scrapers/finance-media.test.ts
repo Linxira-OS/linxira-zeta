@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { handleArtifactHub } from "@zeta/pi-coding-agent/web/scrapers/artifacthub";
-import { handleCoinGecko } from "@zeta/pi-coding-agent/web/scrapers/coingecko";
-import { handleDiscogs } from "@zeta/pi-coding-agent/web/scrapers/discogs";
+import { handleArtifactHub } from "@linxiraos/zeta/web/scrapers/artifacthub";
+import { handleCoinGecko } from "@linxiraos/zeta/web/scrapers/coingecko";
+import { handleDiscogs } from "@linxiraos/zeta/web/scrapers/discogs";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

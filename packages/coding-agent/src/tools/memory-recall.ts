@@ -1,6 +1,6 @@
-import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import { logger, untilAborted } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { logger, untilAborted } from "@linxiraos/pi-utils";
 import { formatCurrentTime, formatMemories } from "../hindsight/content";
 import { M } from "../i18n/messages";
 import recallDescription from "../prompts/tools/recall.md" with { type: "text" };

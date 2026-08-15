@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as path from "node:path";
-import * as configModule from "@zeta/pi-coding-agent/config";
-import * as shim from "@zeta/pi-coding-agent/extensibility/legacy-pi-coding-agent-shim";
-import * as utils from "@zeta/pi-utils";
+import * as utils from "@linxiraos/pi-utils";
+import * as configModule from "@linxiraos/zeta/config";
+import * as shim from "@linxiraos/zeta/extensibility/legacy-pi-coding-agent-shim";
 
 // Issue #5968: pi extensions import the SDK path helpers (`getAgentDir`,
 // `getProjectDir`, `getPackageDir`) from `@earendil-works/pi-coding-agent`,

@@ -3,11 +3,11 @@
  *
  * Converts MCP tool definitions to CustomTool format for the agent.
  */
-import type { AgentToolUpdateCallback } from "@zeta/pi-agent-core";
-import type { TSchema } from "@zeta/pi-ai";
-import { normalizeSchemaForMCP } from "@zeta/pi-ai/utils/schema";
-import { logger, untilAborted } from "@zeta/pi-utils";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { TSchema } from "@linxiraos/pi-ai";
+import { normalizeSchemaForMCP } from "@linxiraos/pi-ai/utils/schema";
+import { logger, untilAborted } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type { SourceMeta } from "../capability/types";
 import type {
 	CustomTool,

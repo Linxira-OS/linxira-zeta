@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { IrcBus } from "@zeta/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@zeta/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { HubTool } from "@zeta/pi-coding-agent/tools/hub";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { HubTool } from "@linxiraos/zeta/tools/hub";
 
 // Contract: the work-aware roster (`irc list`) surfaces each peer's role
 // (via displayName) and current activity gist, and a peer with no activity

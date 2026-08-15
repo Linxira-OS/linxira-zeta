@@ -6,10 +6,10 @@
  * `## Assistant` (with `<thinking>` blocks and `### Tool Call: <name>` + YAML
  * args), `### Tool Result: <name>`, and the execution/summary sections.
  */
-import type { AgentMessage, ThinkingLevel } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Model, ToolExample, TSchema } from "@zeta/pi-ai";
-import { renderDelimitedThinking, renderToolInventory } from "@zeta/pi-ai/dialect";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { AgentMessage, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model, ToolExample, TSchema } from "@linxiraos/pi-ai";
+import { renderDelimitedThinking, renderToolInventory } from "@linxiraos/pi-ai/dialect";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { YAML } from "bun";
 import { canonicalizeMessage } from "../utils/thinking-display";
 import {

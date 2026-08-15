@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@zeta/pi-catalog/effort";
-import type { Api, ModelSpec, Provider } from "@zeta/pi-catalog/types";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import type { Api, ModelSpec, Provider } from "@linxiraos/pi-catalog/types";
 import {
 	applyAntigravityPricingFallback,
 	applyGeneratedModelPolicies,

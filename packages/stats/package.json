@@ -1,14 +1,14 @@
 {
   "type": "module",
-  "name": "@zeta/omp-stats",
-  "version": "1.0.0",
+  "name": "@linxiraos/pi-stats",
+  "version": "1.0.1",
   "description": "Local observability dashboard for pi AI usage statistics",
   "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
     "directory": "packages/stats"
   },
   "bugs": {
@@ -46,9 +46,9 @@
     "react-chartjs-2": "catalog:",
     "react-dom": "catalog:",
     "tailwindcss": "catalog:",
-    "@zeta/pi-ai": "catalog:",
-    "@zeta/pi-catalog": "catalog:",
-    "@zeta/pi-utils": "catalog:"
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-utils": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

@@ -12,10 +12,10 @@ import type {
 	DesktopSessionOptions,
 	DesktopWindow,
 	PointerOptions,
-} from "@zeta/pi-natives";
-import { createDesktopSession } from "@zeta/pi-natives/desktop";
-import * as postmortem from "@zeta/pi-utils/postmortem";
-import { Snowflake } from "@zeta/pi-utils/snowflake";
+} from "@linxiraos/pi-natives";
+import { createDesktopSession } from "@linxiraos/pi-natives/desktop";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { JsRuntime, type RuntimeHooks } from "../../eval/js/shared/runtime";
 import { copyToClipboard, readTextFromClipboard } from "../../utils/clipboard";
 import { cloneSafe, RunOutput } from "../browser/run-output";

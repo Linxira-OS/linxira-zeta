@@ -5,10 +5,10 @@ import {
 	processInteractionUpdate,
 	type ToolCallState,
 	type UsageState,
-} from "@zeta/pi-ai/providers/cursor";
-import type { AssistantMessage, CursorTodoSnapshot, ToolResultMessage } from "@zeta/pi-ai/types";
-import { kCursorExecResolved } from "@zeta/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
+} from "@linxiraos/pi-ai/providers/cursor";
+import type { AssistantMessage, CursorTodoSnapshot, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import {
 	AgentServerMessageSchema,
 	InteractionUpdateSchema,
@@ -29,7 +29,7 @@ import {
 	UpdateTodosResultSchema,
 	UpdateTodosSuccessSchema,
 	UpdateTodosToolCallSchema,
-} from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
+} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
 
 /** One `todoSync` invocation, recorded verbatim. */
 interface SyncCall {

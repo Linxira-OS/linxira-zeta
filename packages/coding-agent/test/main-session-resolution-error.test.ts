@@ -9,11 +9,11 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Args } from "@zeta/pi-coding-agent/cli/args";
-import type { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@zeta/pi-coding-agent/main";
-import * as sessionListingModule from "@zeta/pi-coding-agent/session/session-listing";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import type { Args } from "@linxiraos/zeta/cli/args";
+import type { Settings } from "@linxiraos/zeta/config/settings";
+import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@linxiraos/zeta/main";
+import * as sessionListingModule from "@linxiraos/zeta/session/session-listing";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 function buildResumeArgs(resume: string, sessionDir?: string): Args {
 	return {

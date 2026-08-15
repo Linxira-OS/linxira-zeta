@@ -1,4 +1,4 @@
-import type { CommandMetadata } from "@zeta/pi-utils/cli";
+import type { CommandMetadata } from "@linxiraos/pi-utils/cli";
 
 export const acpHelp = {
 	description: "Run Oh My Pi as an ACP (Agent Client Protocol) server over stdio",
@@ -111,5 +111,5 @@ export const webHelp = {
 } satisfies CommandMetadata;
 
 export const worktreeHelp = {
-	description: "List or clear agent-managed git worktrees (~/.omp/wt)",
+	description: "List or clear agent-managed git worktrees (~/.zeta/wt)",
 } satisfies CommandMetadata;

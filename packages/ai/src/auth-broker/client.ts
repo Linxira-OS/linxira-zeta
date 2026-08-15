@@ -6,8 +6,8 @@
  * `/v1/healthz` require a bearer token.
  */
 
-import { type } from "@zeta/pi-omptype";
-import { readSseEvents } from "@zeta/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import { readSseEvents } from "@linxiraos/pi-utils";
 import type { AuthCredential, DisabledCredentialSummary } from "../auth-storage";
 import type {
 	ClientUsageReportRequest,

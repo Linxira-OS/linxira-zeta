@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { AssistantMessageComponent } from "@zeta/pi-coding-agent/modes/components/assistant-message";
-import { InputController } from "@zeta/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 describe("InputController tool output expansion", () => {
 	it("expands children and forces a full display reset to bypass frozen snapshots", () => {

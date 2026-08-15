@@ -29,7 +29,7 @@ npx tsx examples/sdk/01-minimal.ts
 ## Quick Reference
 
 ```typescript
-import { getModel } from "@zeta/pi-ai";
+import { getModel } from "@linxiraos/pi-ai";
 import {
 	AuthStorage,
 	createAgentSession,
@@ -47,7 +47,7 @@ import {
 	BUILTIN_TOOLS,
 	HIDDEN_TOOLS,
 	createTools,
-} from "@zeta/pi-coding-agent";
+} from "@linxiraos/zeta";
 
 // Auth and models setup
 const authStorage = discoverAuthStorage();

@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAndLoadExtensions } from "@zeta/pi-coding-agent/extensibility/extensions/loader";
-import { getAgentDir, getPluginsDir, removeSyncWithRetries, setAgentDir, TempDir } from "@zeta/pi-utils";
+import { getAgentDir, getPluginsDir, removeSyncWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { discoverAndLoadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 
-const currentPiCodingAgentPath = Bun.resolveSync("@zeta/pi-coding-agent", import.meta.dir);
-const currentPiExtensionsPath = Bun.resolveSync("@zeta/pi-coding-agent/extensibility/extensions", import.meta.dir);
+const currentPiCodingAgentPath = Bun.resolveSync("@linxiraos/zeta", import.meta.dir);
+const currentPiExtensionsPath = Bun.resolveSync("@linxiraos/zeta/extensibility/extensions", import.meta.dir);
 
 describe("plugin extension discovery", () => {
 	let projectDir: TempDir;
@@ -18,10 +18,10 @@ describe("plugin extension discovery", () => {
 	beforeEach(() => {
 		projectDir = TempDir.createSync("@pi-plugin-ext-");
 		// Redirect the whole config root to an isolated temp home so plugin discovery
-		// resolves into `<tempHome>/.omp/plugins` on every platform. Two things are needed:
-		//  - mock os.homedir() so configRoot = `<tempHome>/.omp` (the previous
+		// resolves into `<tempHome>/.zeta/plugins` on every platform. Two things are needed:
+		//  - mock os.homedir() so configRoot = `<tempHome>/.zeta` (the previous
 		//    XDG_DATA_HOME redirect was a no-op on Windows, where these tests then wrote
-		//    into and rm'd the developer's real `~/.omp/plugins`);
+		//    into and rm'd the developer's real `~/.zeta/plugins`);
 		//  - clear the XDG_* vars, because on Linux/macOS the resolver prefers
 		//    `$XDG_DATA_HOME/omp` over the home config root when that dir exists, so an
 		//    XDG-migrated environment would otherwise still resolve the real plugins dir.
@@ -36,7 +36,7 @@ describe("plugin extension discovery", () => {
 		const pluginsDir = getPluginsDir();
 		// Safety gate: never write fixtures outside the temp home. This is the exact
 		// failure mode being fixed — a resolver/mock regression that resolves to the real
-		// ~/.omp must fail loudly here instead of clobbering the developer's plugins.
+		// ~/.zeta must fail loudly here instead of clobbering the developer's plugins.
 		if (!pluginsDir.startsWith(tempHome + path.sep)) {
 			throw new Error(`plugin isolation failed: getPluginsDir() resolved outside the temp home: ${pluginsDir}`);
 		}
@@ -462,7 +462,7 @@ describe("plugin extension discovery", () => {
 				// Side-effect imports — no `from`, no dynamic `import()`. The
 				// regex matchers must walk and rewrite both shapes so the legacy
 				// `@earendil-works` import inside `register.ts` resolves to the
-				// host `@zeta` package.
+				// host `@linxiraos` package.
 				'import "#src/register";',
 				'import "./marker";',
 				"",

@@ -5,9 +5,9 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import { escapeXmlAttribute, escapeXmlText } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { escapeXmlAttribute, escapeXmlText } from "@linxiraos/pi-utils";
 import adviseDescription from "../prompts/advisor/advise-tool.md" with { type: "text" };
 
 const adviseSchema = type({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, TUI } from "@zeta/pi-tui";
-import type { Terminal, TerminalAppearance } from "@zeta/pi-tui/terminal";
+import { type Component, TUI } from "@linxiraos/pi-tui";
+import type { Terminal, TerminalAppearance } from "@linxiraos/pi-tui/terminal";
 
 class CaptureTerminal implements Terminal {
 	writes: string[] = [];

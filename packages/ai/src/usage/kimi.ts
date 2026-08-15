@@ -1,5 +1,5 @@
-import { toNumber } from "@zeta/pi-catalog/utils";
-import { $env } from "@zeta/pi-utils";
+import { toNumber } from "@linxiraos/pi-catalog/utils";
+import { $env } from "@linxiraos/pi-utils";
 import { getKimiCommonHeaders } from "../registry/oauth/kimi";
 import type {
 	UsageAmount,

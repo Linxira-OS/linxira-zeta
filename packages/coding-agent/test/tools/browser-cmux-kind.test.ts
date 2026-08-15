@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { resolveCmuxKind } from "@zeta/pi-coding-agent/tools/browser";
+import { resolveCmuxKind } from "@linxiraos/zeta/tools/browser";
 
 describe("resolveCmuxKind", () => {
 	it("returns a cmux kind from environment socket settings", () => {

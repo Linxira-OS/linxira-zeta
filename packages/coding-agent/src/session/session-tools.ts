@@ -1,6 +1,6 @@
-import type { Agent, AgentTool } from "@zeta/pi-agent-core";
-import type { Model } from "@zeta/pi-ai";
-import { isRecord, logger, prompt, stringProperty } from "@zeta/pi-utils";
+import type { Agent, AgentTool } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { isRecord, logger, prompt, stringProperty } from "@linxiraos/pi-utils";
 import { reset as resetCapabilities } from "../capability";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";

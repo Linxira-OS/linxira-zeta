@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	parseMarketplaceInstallArgs,
 	parsePluginScopeArgs,
-} from "@zeta/pi-coding-agent/slash-commands/marketplace-install-parser";
+} from "@linxiraos/zeta/slash-commands/marketplace-install-parser";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

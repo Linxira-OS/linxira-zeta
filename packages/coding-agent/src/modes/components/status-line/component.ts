@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage, UsageLimit, UsageReport } from "@zeta/pi-ai";
-import { type Component, truncateToWidth, visibleWidth } from "@zeta/pi-tui";
-import { getProjectDir } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, UsageLimit, UsageReport } from "@linxiraos/pi-ai";
+import { type Component, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
+import { getProjectDir } from "@linxiraos/pi-utils";
 import { settings } from "../../../config/settings";
 import { M } from "../../../i18n/messages";
 import type { AgentSession } from "../../../session/agent-session";

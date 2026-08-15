@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeWindowsDriveAliasPath } from "@zeta/pi-coding-agent/tools/path-utils";
+import { normalizeWindowsDriveAliasPath } from "@linxiraos/zeta/tools/path-utils";
 
 describe("Windows drive alias paths", () => {
 	it("maps MSYS drive roots to native Windows paths", () => {

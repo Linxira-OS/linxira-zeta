@@ -8,7 +8,7 @@ import {
 	postmortem,
 	restoreTerminalStderr,
 	suppressTerminalStderr,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
 import { setKittyProtocolActive } from "./keys";
 import { StdinBuffer } from "./stdin-buffer";
 import {

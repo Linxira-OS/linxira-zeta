@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage, completeSimple, Model } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import type { AssistantMessage, completeSimple, Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	type DescribeAttachedImagesDeps,
 	describeAttachedImagesForTextModel,
-} from "@zeta/pi-coding-agent/utils/image-vision-fallback";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/utils/image-vision-fallback";
 
 // 1x1 transparent PNG.
 const TINY_PNG_BASE64 =

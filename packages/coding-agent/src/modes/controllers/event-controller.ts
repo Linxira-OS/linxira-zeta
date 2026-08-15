@@ -1,9 +1,9 @@
-import type { AssistantMessage, ImageContent } from "@zeta/pi-ai";
-import * as AIError from "@zeta/pi-ai/error";
-import { getStreamingPartialJson } from "@zeta/pi-ai/utils/block-symbols";
-import { type Component, Loader, TERMINAL } from "@zeta/pi-tui";
-import { logger, prompt, sanitizeText } from "@zeta/pi-utils";
-import { INTENT_FIELD } from "@zeta/pi-wire";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { type Component, Loader, TERMINAL } from "@linxiraos/pi-tui";
+import { logger, prompt, sanitizeText } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { extractTextContent } from "../../commit/utils";
 import { settings } from "../../config/settings";
 import { getEditClipboard } from "../../edit/edit-clipboard";

@@ -6,7 +6,7 @@ import {
 	readAuthBrokerSnapshotCache,
 	type SnapshotResponse,
 	writeAuthBrokerSnapshotCache,
-} from "@zeta/pi-ai/auth-broker";
+} from "@linxiraos/pi-ai/auth-broker";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const TOKEN = "broker-cache-token";

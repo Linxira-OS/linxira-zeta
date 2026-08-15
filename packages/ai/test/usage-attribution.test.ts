@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { applyAnthropicUsageExtras } from "@zeta/pi-ai/providers/anthropic";
-import { parseChunkUsage } from "@zeta/pi-ai/providers/openai-completions";
+import { applyAnthropicUsageExtras } from "@linxiraos/pi-ai/providers/anthropic";
+import { parseChunkUsage } from "@linxiraos/pi-ai/providers/openai-completions";
 import {
 	calculateOpenAIUsageAccounting,
 	populateResponsesUsageFromResponse,
-} from "@zeta/pi-ai/providers/openai-shared";
-import type { AssistantMessage, Model, Usage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import type { AssistantMessage, Model, Usage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const OPENAI_MODEL: Model<"openai-completions"> = buildModel({
 	id: "gpt-5",

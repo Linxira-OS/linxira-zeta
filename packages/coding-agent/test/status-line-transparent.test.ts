@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@zeta/pi-coding-agent/modes/components/status-line";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { getProjectDir, setProjectDir } from "@zeta/pi-utils";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 const originalProjectDir = getProjectDir();
 

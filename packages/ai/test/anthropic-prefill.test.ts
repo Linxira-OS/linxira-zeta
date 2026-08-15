@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@zeta/pi-ai/providers/anthropic";
-import { transformMessages } from "@zeta/pi-ai/providers/transform-messages";
-import type { AssistantMessage, Model, ModelSpec, UserMessage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { convertAnthropicMessages } from "@linxiraos/pi-ai/providers/anthropic";
+import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
+import type { AssistantMessage, Model, ModelSpec, UserMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 /**
  * Regression: some Anthropic-routed models reject "assistant prefill" requests

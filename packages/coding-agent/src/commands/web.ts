@@ -4,8 +4,8 @@
  * 使用 ZetaServer 统一 HTTP 反向代理启动 Web UI。作为 `zeta serve --web-only` 的快捷方式。
  */
 
-import { APP_NAME, logger } from "@zeta/pi-utils";
-import { Command, Flags } from "@zeta/pi-utils/cli";
+import { APP_NAME, logger } from "@linxiraos/pi-utils";
+import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
 import { startZetaServer } from "../server/zeta-server";
 

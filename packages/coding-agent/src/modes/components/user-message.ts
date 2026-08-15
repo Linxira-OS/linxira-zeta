@@ -1,5 +1,5 @@
-import { type Component, Container, Markdown } from "@zeta/pi-tui";
-import { formatBytes } from "@zeta/pi-utils";
+import { type Component, Container, Markdown } from "@linxiraos/pi-tui";
+import { formatBytes } from "@linxiraos/pi-utils";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import { imageReferenceHyperlink, renderPlaceholders } from "../image-references";
 import { highlightMagicKeywords } from "../magic-keywords";

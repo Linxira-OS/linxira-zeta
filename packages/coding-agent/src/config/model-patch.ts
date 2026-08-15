@@ -1,8 +1,8 @@
-import type { Api, Model, ModelSpec, RemoteCompactionConfig, ThinkingConfig } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { isVertexExpressOpenAIUrl } from "@zeta/pi-catalog/hosts";
-import { PROVIDER_DESCRIPTORS } from "@zeta/pi-catalog/provider-models";
-import { isRecord } from "@zeta/pi-utils";
+import type { Api, Model, ModelSpec, RemoteCompactionConfig, ThinkingConfig } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { isVertexExpressOpenAIUrl } from "@linxiraos/pi-catalog/hosts";
+import { PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models";
+import { isRecord } from "@linxiraos/pi-utils";
 import type { ModelOverride } from "./models-config-schema";
 /** Provider override config (baseUrl, headers, apiKey, compat, transport) without custom models */
 export interface ProviderOverride {

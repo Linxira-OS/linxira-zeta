@@ -7,15 +7,15 @@
  * the run rather than surface the stale payload as a clean success.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { AsyncJobManager } from "@zeta/pi-coding-agent/async/job-manager";
-import type { LoadExtensionsResult } from "@zeta/pi-coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
-import { runSubprocess } from "@zeta/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@zeta/pi-coding-agent/task/types";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 const baseAgent: AgentDefinition = { name: "task", description: "test", systemPrompt: "test", source: "bundled" };
 

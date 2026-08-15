@@ -1,4 +1,4 @@
-import { getActiveProfile } from "@zeta/pi-utils/dirs";
+import { getActiveProfile } from "@linxiraos/pi-utils/dirs";
 import { expandEnvVarsDeep } from "../discovery/helpers";
 import type { AuthStorage } from "../session/auth-storage";
 import {

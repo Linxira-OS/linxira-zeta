@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { JsRuntime, type RuntimeHooks } from "@zeta/pi-coding-agent/eval/js/shared/runtime";
-import type { JsDisplayOutput } from "@zeta/pi-coding-agent/eval/js/shared/types";
+import { JsRuntime, type RuntimeHooks } from "@linxiraos/zeta/eval/js/shared/runtime";
+import type { JsDisplayOutput } from "@linxiraos/zeta/eval/js/shared/types";
 
 function makeRuntime(): {
 	runtime: JsRuntime;

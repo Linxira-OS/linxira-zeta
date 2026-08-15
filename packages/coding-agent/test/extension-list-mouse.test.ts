@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { buildTabBarTabs } from "@zeta/pi-coding-agent/modes/components/extensions/extension-dashboard";
-import { ExtensionList } from "@zeta/pi-coding-agent/modes/components/extensions/extension-list";
-import type { Extension } from "@zeta/pi-coding-agent/modes/components/extensions/types";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { buildTabBarTabs } from "@linxiraos/zeta/modes/components/extensions/extension-dashboard";
+import { ExtensionList } from "@linxiraos/zeta/modes/components/extensions/extension-list";
+import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme(false);

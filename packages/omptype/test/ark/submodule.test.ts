@@ -7,7 +7,7 @@ import {
 	scope,
 	type Type,
 	type,
-} from "@zeta/pi-omptype/ark";
+} from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "./type-assert";
 
 describe("submodule", () => {

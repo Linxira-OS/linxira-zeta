@@ -18,7 +18,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, getAgentDir, isEnoent, logger, tryParseJson } from "@zeta/pi-utils";
+import { CONFIG_DIR_NAME, getAgentDir, isEnoent, logger, tryParseJson } from "@linxiraos/pi-utils";
 import { readDirEntries, readFile } from "../capability/fs";
 import type { LoadContext } from "../capability/types";
 import { getEnabledPlugins } from "../extensibility/plugins/loader";
@@ -173,8 +173,8 @@ async function isDirectory(p: string): Promise<boolean> {
  *
  * 1. Invocation-scoped SDK roots, when present; otherwise CLI roots injected
  *    via {@link injectOmpExtensionCliRoots}
- * 2. Project `<cwd>/.omp/settings.json#extensions`
- * 3. User `~/.omp/agent/settings.json#extensions`
+ * 2. Project `<cwd>/.zeta/settings.json#extensions`
+ * 3. User `~/.zeta/agent/settings.json#extensions`
  * 4. Enabled npm/link plugins installed under `<plugins>/node_modules/` (for
  *    `omp install <pkg>` / `omp plugin install` / `omp plugin link`). Marketplace
  *    installs are loaded by the `claude-plugins` provider and are excluded here.

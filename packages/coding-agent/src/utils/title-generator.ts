@@ -4,10 +4,10 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import * as path from "node:path";
 
-import { type Api, type AssistantMessage, completeSimple, type Model } from "@zeta/pi-ai";
-import { StreamMarkupHealing } from "@zeta/pi-ai/utils/stream-markup-healing";
-import { isConPTYHosted } from "@zeta/pi-tui";
-import { isTerminalHeadless, logger, prompt } from "@zeta/pi-utils";
+import { type Api, type AssistantMessage, completeSimple, type Model } from "@linxiraos/pi-ai";
+import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
+import { isConPTYHosted } from "@linxiraos/pi-tui";
+import { isTerminalHeadless, logger, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 
 import { resolveRoleSelection } from "../config/model-resolver";

@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import type { SegmentContext } from "@zeta/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@zeta/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();

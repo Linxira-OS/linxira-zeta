@@ -10,13 +10,16 @@ import {
 	resolveExecHandler,
 	streamCursor,
 	type ToolCallState,
-} from "@zeta/pi-ai/providers/cursor";
-import { streamCursor as lazyStreamCursor, setCursorProviderModule } from "@zeta/pi-ai/providers/register-builtins";
-import type { AssistantMessage, Context, CursorExecHandlers, Model, ToolResultMessage } from "@zeta/pi-ai/types";
-import { kCursorExecResolved } from "@zeta/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { buildModel } from "@zeta/pi-catalog/build";
-import type { McpResult, ReadResult } from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
+} from "@linxiraos/pi-ai/providers/cursor";
+import {
+	streamCursor as lazyStreamCursor,
+	setCursorProviderModule,
+} from "@linxiraos/pi-ai/providers/register-builtins";
+import type { AssistantMessage, Context, CursorExecHandlers, Model, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { McpResult, ReadResult } from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
 import {
 	type AgentRunRequest,
 	AgentServerMessageSchema,
@@ -31,8 +34,8 @@ import {
 	ReadRejectedSchema,
 	ReadResultSchema,
 	ReadSuccessSchema,
-} from "@zeta/pi-catalog/discovery/cursor-gen/agent_pb";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+import { logger } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

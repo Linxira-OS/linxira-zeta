@@ -2,7 +2,8 @@
 
 Zeta's browser interface is based on the OMP Web snapshot and keeps the
 existing runtime and configuration compatibility layer. See
-`../docs/upstream-sync.md` for the source baseline and porting policy.
+`../document/upstream-sync.md` for the source baseline and porting policy.
+Return to the project front door: [../README.md](../README.md).
 
 [English](./README.en.md)
 

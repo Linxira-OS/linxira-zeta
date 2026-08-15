@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { BeamMemory } from "@zeta/pi-mnemopi/core/beam";
+import { BeamMemory } from "@linxiraos/pi-mnemopi/core/beam";
 
 describe("BeamMemory hub", () => {
 	it("wires index methods to beam module implementations", async () => {

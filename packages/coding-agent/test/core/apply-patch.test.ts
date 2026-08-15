@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	ApplyPatchError,
 	applyCodexPatch,
@@ -12,9 +13,8 @@ import {
 	parseApplyPatch,
 	parseDiffHunks,
 	seekSequence,
-} from "@zeta/pi-coding-agent/edit";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/edit";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Test-local adapters over the production Codex envelope API.

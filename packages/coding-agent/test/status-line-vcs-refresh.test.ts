@@ -17,14 +17,14 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { StatusLineSettings } from "@zeta/pi-coding-agent/modes/components/status-line";
-import { StatusLineComponent } from "@zeta/pi-coding-agent/modes/components/status-line";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { GitHeadState, GitRefHead, GitRepository } from "@zeta/pi-coding-agent/utils/git";
-import * as git from "@zeta/pi-coding-agent/utils/git";
-import * as jj from "@zeta/pi-coding-agent/utils/jj";
-import { getProjectDir, setProjectDir } from "@zeta/pi-utils";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { GitHeadState, GitRefHead, GitRepository } from "@linxiraos/zeta/utils/git";
+import * as git from "@linxiraos/zeta/utils/git";
+import * as jj from "@linxiraos/zeta/utils/jj";
 
 type GitStatus = { staged: number; unstaged: number; untracked: number };
 

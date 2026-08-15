@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { SessionEntry, SessionMessageEntry, ShakeConfig } from "@zeta/pi-agent-core/compaction";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { SessionEntry, SessionMessageEntry, ShakeConfig } from "@linxiraos/pi-agent-core/compaction";
 import {
 	AGGRESSIVE_SHAKE_CONFIG,
 	applyShakeRegion,
@@ -8,8 +8,8 @@ import {
 	collectShakeRegions,
 	DEFAULT_SHAKE_CONFIG,
 	estimateTokens,
-} from "@zeta/pi-agent-core/compaction";
-import type { AssistantMessage, TextContent, ToolCall, ToolResultMessage } from "@zeta/pi-ai";
+} from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, TextContent, ToolCall, ToolResultMessage } from "@linxiraos/pi-ai";
 
 let idCounter = 0;
 function nextId(): string {

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@zeta/pi-ai";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { resolveAgentModelPatterns, resolveModelOverride } from "@zeta/pi-coding-agent/config/model-resolver";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { getBundledAgent } from "@zeta/pi-coding-agent/task/agents";
-import { AUTO_THINKING } from "@zeta/pi-coding-agent/thinking";
+import { Effort } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { resolveAgentModelPatterns, resolveModelOverride } from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { getBundledAgent } from "@linxiraos/zeta/task/agents";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 
 describe("bundled agent parsing", () => {
 	it("lets reviewer inherit thinking effort from its model role", () => {

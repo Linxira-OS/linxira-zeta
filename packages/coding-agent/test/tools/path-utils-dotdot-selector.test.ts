@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { parseLineRangeChunk, parseLineRanges, splitPathAndSel } from "@zeta/pi-coding-agent/tools/path-utils";
-import { ToolError } from "@zeta/pi-coding-agent/tools/tool-errors";
+import { parseLineRangeChunk, parseLineRanges, splitPathAndSel } from "@linxiraos/zeta/tools/path-utils";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 
 describe("`..` range selector alias", () => {
 	it("treats `N..M` as the inclusive range `N-M`", () => {

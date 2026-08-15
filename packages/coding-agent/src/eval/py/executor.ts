@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 
-import { getProjectDir, logger } from "@zeta/pi-utils";
+import { getProjectDir, logger } from "@linxiraos/pi-utils";
 import type { ToolSession } from "../../tools";
 import {
 	buildManagedKernelEnv,

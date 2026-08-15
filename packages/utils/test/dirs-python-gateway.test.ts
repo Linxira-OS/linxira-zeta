@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAgentDir, getConfigDirName, getPythonGatewayDir, setAgentDir } from "@zeta/pi-utils/dirs";
-import { Snowflake } from "@zeta/pi-utils/snowflake";
+import { getAgentDir, getConfigDirName, getPythonGatewayDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 
 describe("python gateway directory", () => {
 	let tempRoot = "";
@@ -37,7 +37,7 @@ describe("python gateway directory", () => {
 	it("uses XDG state for the default agent profile", async () => {
 		if (process.platform === "win32") return;
 
-		process.env.PI_CONFIG_DIR = `.omp-test-${Snowflake.next()}`;
+		process.env.PI_CONFIG_DIR = `.zeta-test-${Snowflake.next()}`;
 		process.env.XDG_STATE_HOME = path.join(tempRoot, "state");
 		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "zeta"), { recursive: true });
 

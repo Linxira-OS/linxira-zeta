@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeSchemaForGoogle } from "@zeta/pi-ai";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@zeta/pi-coding-agent/tools";
+import { normalizeSchemaForGoogle } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
 
 /**
  * Problematic JSON Schema features that cause issues with various providers.

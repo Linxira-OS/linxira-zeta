@@ -2,17 +2,17 @@ import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:t
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Usage } from "@zeta/pi-ai";
-import type { Rule } from "@zeta/pi-coding-agent/capability/rule";
-import { OmfgController } from "@zeta/pi-coding-agent/modes/controllers/omfg-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { Container, type TUI } from "@zeta/pi-tui";
-import { removeWithRetries } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
+import { Container, type TUI } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { OmfgController } from "@linxiraos/zeta/modes/controllers/omfg-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
-const PROJECT_OPTION = "This project (.omp/rules)";
-const GLOBAL_OPTION = "Global — all projects (~/.omp/agent/rules)";
+const PROJECT_OPTION = "This project (.zeta/rules)";
+const GLOBAL_OPTION = "Global — all projects (~/.zeta/agent/rules)";
 const AMEND_OPTION = "Amend with feedback…";
 
 const usage: Usage = {

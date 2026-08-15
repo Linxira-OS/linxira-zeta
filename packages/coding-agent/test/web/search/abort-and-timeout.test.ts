@@ -12,22 +12,18 @@
  * helper itself is exercised directly.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { AgentStorage } from "@zeta/pi-coding-agent/session/agent-storage";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import { ToolAbortError } from "@zeta/pi-coding-agent/tools/tool-errors";
-import { runSearchQuery, WebSearchTool } from "@zeta/pi-coding-agent/web/search";
-import * as provider from "@zeta/pi-coding-agent/web/search/provider";
-import { searchAnthropic } from "@zeta/pi-coding-agent/web/search/providers/anthropic";
-import type { SearchParams } from "@zeta/pi-coding-agent/web/search/providers/base";
-import { searchBrave } from "@zeta/pi-coding-agent/web/search/providers/brave";
-import { withHardTimeout } from "@zeta/pi-coding-agent/web/search/providers/utils";
-import {
-	SearchProviderError,
-	type SearchProviderId,
-	type SearchResponse,
-} from "@zeta/pi-coding-agent/web/search/types";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { runSearchQuery, WebSearchTool } from "@linxiraos/zeta/web/search";
+import * as provider from "@linxiraos/zeta/web/search/provider";
+import { searchAnthropic } from "@linxiraos/zeta/web/search/providers/anthropic";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import { searchBrave } from "@linxiraos/zeta/web/search/providers/brave";
+import { withHardTimeout } from "@linxiraos/zeta/web/search/providers/utils";
+import { SearchProviderError, type SearchProviderId, type SearchResponse } from "@linxiraos/zeta/web/search/types";
 
 const FAKE_SESSION = {} as ToolSession;
 const fakeStorage = {

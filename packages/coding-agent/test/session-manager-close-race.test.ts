@@ -24,15 +24,15 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
 	MemorySessionStorage,
 	type SessionStorage,
 	type SessionStorageWriter,
 	type WriteTextAtomicOptions,
-} from "@zeta/pi-coding-agent/session/session-storage";
-import type { SessionTitleUpdate } from "@zeta/pi-coding-agent/session/session-title-slot";
+} from "@linxiraos/zeta/session/session-storage";
+import type { SessionTitleUpdate } from "@linxiraos/zeta/session/session-title-slot";
 
 class CloseHoldingStorage implements SessionStorage {
 	readonly #inner = new MemorySessionStorage();

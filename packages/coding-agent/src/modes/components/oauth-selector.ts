@@ -1,5 +1,5 @@
-import { getOAuthProviders } from "@zeta/pi-ai/oauth";
-import type { OAuthProviderInfo } from "@zeta/pi-ai/oauth/types";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthProviderInfo } from "@linxiraos/pi-ai/oauth/types";
 import {
 	Container,
 	extractPrintableText,
@@ -9,7 +9,7 @@ import {
 	type SgrMouseEvent,
 	Spacer,
 	TruncatedText,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import { settings } from "../../config/settings";
 import { theme } from "../../modes/theme/theme";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../../modes/utils/keybinding-matchers";

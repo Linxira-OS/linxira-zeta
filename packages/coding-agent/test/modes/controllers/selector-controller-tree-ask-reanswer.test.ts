@@ -8,11 +8,11 @@
  * ask toolResults).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { SelectorController } from "@zeta/pi-coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { SessionEntry, SessionTreeNode } from "@zeta/pi-coding-agent/session/session-entries";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 
 beforeAll(async () => {
 	await initTheme();

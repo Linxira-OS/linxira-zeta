@@ -16,9 +16,9 @@ import {
 	type UsageLimit,
 	type UsageReport,
 	type UsageUnit,
-} from "@zeta/pi-ai";
-import { formatDuration, formatNumber, sanitizeText } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+} from "@linxiraos/pi-ai";
+import { formatDuration, formatNumber, sanitizeText } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { discoverAuthStorage } from "../sdk";
 

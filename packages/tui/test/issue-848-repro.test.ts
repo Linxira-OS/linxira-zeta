@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Ellipsis, truncateToWidth } from "@zeta/pi-tui/utils";
+import { Ellipsis, truncateToWidth } from "@linxiraos/pi-tui/utils";
 
 // Regression test for https://github.com/can1357/oh-my-pi/issues/848
 //

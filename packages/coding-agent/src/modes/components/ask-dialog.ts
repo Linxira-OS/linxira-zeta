@@ -13,7 +13,7 @@ import {
 	type TUI,
 	truncateToWidth,
 	wrapTextWithAnsi,
-} from "@zeta/pi-tui";
+} from "@linxiraos/pi-tui";
 import type {
 	ExtensionAskDialogOption,
 	ExtensionAskDialogQuestion,

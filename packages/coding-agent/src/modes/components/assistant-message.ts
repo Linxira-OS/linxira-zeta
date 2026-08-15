@@ -1,4 +1,4 @@
-import type { AssistantMessage, ImageContent } from "@zeta/pi-ai";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
 import {
 	Container,
 	Image,
@@ -9,9 +9,9 @@ import {
 	Spacer,
 	TERMINAL,
 	Text,
-} from "@zeta/pi-tui";
-import { formatNumber } from "@zeta/pi-utils";
-import chalk from "@zeta/pi-utils/chalk";
+} from "@linxiraos/pi-tui";
+import { formatNumber } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import type { AssistantThinkingRenderer } from "../../extensibility/extensions/types";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import { expandKeyHint, getPreviewLines, resolveImageOptions, TRUNCATE_LENGTHS } from "../../tools/render-utils";

@@ -4,7 +4,7 @@
  * intentional user-facing output.
  */
 import * as path from "node:path";
-import { getBrowserRelayDir } from "@zeta/pi-utils";
+import { getBrowserRelayDir } from "@linxiraos/pi-utils";
 import { probeRelayServer } from "../tools/browser/relay/daemon";
 import backgroundJs from "../tools/browser/relay/extension-assets/background.js.txt" with { type: "text" };
 import manifestJson from "../tools/browser/relay/extension-assets/manifest.json.txt" with { type: "text" };
@@ -20,7 +20,7 @@ export interface BrowserRelayCommandArgs {
 	action: BrowserRelayAction;
 	port: number;
 	token?: string;
-	/** Install target directory; defaults to ~/.omp/browser-relay/extension. */
+	/** Install target directory; defaults to ~/.zeta/browser-relay/extension. */
 	dir?: string;
 	/** Gather tabs the agent actively drives into an 'omp' Chrome tab group (default true). */
 	group?: boolean;

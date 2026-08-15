@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { streamSimple } from "@zeta/pi-ai";
+import { streamSimple } from "@linxiraos/pi-ai";
 import {
 	buildTransformedCodexRequestBody,
 	getOpenAICodexTransportDetails,
@@ -8,7 +8,7 @@ import {
 	prewarmOpenAICodexResponses,
 	resetOpenAICodexHistoryAfterCompaction,
 	streamOpenAICodexResponses,
-} from "@zeta/pi-ai/providers/openai-codex-responses";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import type {
 	CodexCompactionRequestContext,
 	Context,
@@ -16,11 +16,11 @@ import type {
 	Model,
 	ModelSpec,
 	ProviderSessionState,
-} from "@zeta/pi-ai/types";
-import { __resetProxyCache } from "@zeta/pi-ai/utils/proxy";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Effort } from "@zeta/pi-catalog/effort";
-import * as piUtils from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/types";
+import { __resetProxyCache } from "@linxiraos/pi-ai/utils/proxy";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import * as piUtils from "@linxiraos/pi-utils";
 import { withEnv } from "./helpers";
 
 const { getAgentDir, setAgentDir, TempDir } = piUtils;

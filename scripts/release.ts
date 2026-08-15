@@ -15,6 +15,31 @@ import { runChangelogFixer } from "./fix-changelogs";
 const changelogGlob = new Glob("packages/*/CHANGELOG.md");
 const packageJsonGlob = new Glob("packages/*/package.json");
 const cargoTomlGlob = new Glob("crates/*/Cargo.toml");
+
+/**
+ * Pick the newest Zeta product tag from `git tag --list` output, or null when
+ * there is none.
+ *
+ * OMP release baselines (v17.2.11, …) are annotated tags fetched from upstream
+ * and live in main history as sync markers — they are integration baselines,
+ * never Zeta versions (Zeta semver is decoupled from OMP's), so they must not
+ * gate a Zeta release. Zeta tags are the lightweight tags this script stamps
+ * on `chore: bump version to …` commits; filter on that peeled commit subject.
+ *
+ * The caller must sort with `--sort=-v:refname` so the first match is the
+ * newest.
+ */
+export function selectLatestZetaTag(tagListOutput: string): string | null {
+	for (const line of tagListOutput.split("\n")) {
+		if (!line) continue;
+		const separator = line.indexOf("%00");
+		if (separator === -1) continue;
+		const name = line.slice(0, separator);
+		const subject = line.slice(separator + 3);
+		if (/^chore: bump version to v?\d/.test(subject)) return name;
+	}
+	return null;
+}
 /**
  * Strict explicit-version guard: three numeric dot-segments with an optional
  * leading `v` and NO prerelease suffix. Prereleases are rejected because the
@@ -140,13 +165,6 @@ async function watchCI(): Promise<boolean> {
 	}
 }
 
-function hasUnreleasedContent(content: string): boolean {
-	const unreleasedMatch = content.match(/## \[Unreleased\]\s*\n([\s\S]*?)(?=## \[\d|$)/);
-	if (!unreleasedMatch) return false;
-	const sectionContent = unreleasedMatch[1].trim();
-	return sectionContent.length > 0;
-}
-
 function removeEmptyVersionEntries(content: string): string {
 	// Remove version entries that have no content (just whitespace until next ## [ or EOF)
 	return content.replace(/## \[\d+\.\d+\.\d+\] - \d{4}-\d{2}-\d{2}\s*\n(?=## \[|\s*$)/g, "");
@@ -163,14 +181,14 @@ async function updateChangelogsForRelease(version: string): Promise<void> {
 			continue;
 		}
 
-		// Only create version entry if [Unreleased] has content
-		if (hasUnreleasedContent(content)) {
-			content = content.replace("## [Unreleased]", `## [${version}] - ${date}`);
-			content = content.replace(/^(# Changelog\n\n)/, `$1## [Unreleased]\n\n`);
-		}
-
-		// Clean up any existing empty version entries
+		// Drop stale empty version entries first so the new entry below is the
+		// only fresh one; then always create the release entry — an empty
+		// [Unreleased] still means the package shipped this version, and the
+		// embedded changelog fallback (changelog-bundle-fallback-probe) asserts
+		// the latest entry matches the package version.
 		content = removeEmptyVersionEntries(content);
+		content = content.replace("## [Unreleased]", `## [${version}] - ${date}`);
+		content = content.replace(/^(# Changelog\n\n)/, `$1## [Unreleased]\n\n`);
 
 		await Bun.write(changelog, content);
 		console.log(`  Updated ${changelog}`);
@@ -241,9 +259,18 @@ async function cmdRelease(versionOrBump: string): Promise<void> {
 	}
 	console.log("  Working directory clean");
 
-	const latestTag = (await git(["describe", "--tags", "--abbrev=0", "--match", "v*"]).text()).trim();
+	const latestTag =
+		selectLatestZetaTag(
+			(
+				await git(["tag", "--list", "--format", "%(refname:short)%00%(subject)", "--sort=-v:refname", "v*"]).text()
+			).trim(),
+		) ?? "";
 	let version = versionOrBump;
 	if (version === "major" || version === "minor" || version === "patch") {
+		if (!latestTag) {
+			console.error("Error: No Zeta release tag found; pass an explicit version for the first release.");
+			process.exit(1);
+		}
 		version = bumpVersion(latestTag, version);
 		console.log(`Bumping ${versionOrBump} version from ${latestTag} -> ${version}`);
 	}
@@ -292,12 +319,12 @@ async function cmdRelease(versionOrBump: string): Promise<void> {
 	}
 	console.log();
 
-	// Update @zeta/* catalog entries in root package.json
+	// Update @linxiraos/* catalog entries in root package.json
 	console.log("Updating root catalog versions...");
 	let rootPkgRaw = await Bun.file("package.json").text();
-	rootPkgRaw = rootPkgRaw.replace(/("@zeta\/[^"]+":\s*)"[^"]+"/g, `$1"${version}"`);
+	rootPkgRaw = rootPkgRaw.replace(/("@linxiraos\/[^"]+":\s*)"[^"]+"/g, `$1"${version}"`);
 	await Bun.write("package.json", rootPkgRaw);
-	console.log("  Updated root catalog @zeta/* entries");
+	console.log("  Updated root catalog @linxiraos/* entries");
 
 	// 3. Update Rust workspace version
 	console.log(`Updating Rust workspace version to ${version}…`);

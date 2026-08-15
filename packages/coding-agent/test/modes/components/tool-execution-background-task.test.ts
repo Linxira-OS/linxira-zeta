@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { ToolExecutionComponent } from "@zeta/pi-coding-agent/modes/components/tool-execution";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@zeta/pi-coding-agent/task/types";
-import type { TUI } from "@zeta/pi-tui";
+import type { TUI } from "@linxiraos/pi-tui";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/zeta/task/types";
 
 function progressEntry(description: string): AgentProgress {
 	return {

@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type OAuthCredential, type UsageProvider, withAuth } from "@zeta/pi-ai";
-import * as oauth from "@zeta/pi-ai/oauth";
-import type { OAuthCredentials, OAuthProviderId } from "@zeta/pi-ai/oauth/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@zeta/pi-utils";
+import { type OAuthCredential, type UsageProvider, withAuth } from "@linxiraos/pi-ai";
+import * as oauth from "@linxiraos/pi-ai/oauth";
+import type { OAuthCredentials, OAuthProviderId } from "@linxiraos/pi-ai/oauth/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { createApiKeyResolver } from "../src/config/api-key-resolver";
 
 describe("AuthStorage account rotation", () => {

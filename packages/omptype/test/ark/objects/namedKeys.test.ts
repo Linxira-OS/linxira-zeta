@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { type Type, type } from "@zeta/pi-omptype/ark";
+import { type Type, type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "../type-assert";
 
 it("empty", () => {

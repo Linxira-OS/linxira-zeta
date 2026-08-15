@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { resolveOpenAIRequestSetup } from "@zeta/pi-ai/providers/openai-shared";
-import { loginMoonshot } from "@zeta/pi-ai/registry/moonshot";
-import type { FetchImpl } from "@zeta/pi-ai/types";
+import { resolveOpenAIRequestSetup } from "@linxiraos/pi-ai/providers/openai-shared";
+import { loginMoonshot } from "@linxiraos/pi-ai/registry/moonshot";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 
 const ORIGINAL_MOONSHOT_BASE_URL = Bun.env.MOONSHOT_BASE_URL;
 

@@ -3,12 +3,12 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { clearCustomApis } from "@zeta/pi-ai/api-registry";
-import { startAuthGateway } from "@zeta/pi-ai/auth-gateway";
-import { AuthStorage, SqliteAuthCredentialStore } from "@zeta/pi-ai/auth-storage";
-import { ProviderHttpError } from "@zeta/pi-ai/error";
-import { createMockModel, registerMockApi } from "@zeta/pi-ai/providers/mock";
-import { THINKING_LOOP_ERROR_MARKER } from "@zeta/pi-ai/utils/thinking-loop";
+import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import { ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { THINKING_LOOP_ERROR_MARKER } from "@linxiraos/pi-ai/utils/thinking-loop";
 
 /** A degenerate near-duplicate reasoning loop (the gemini-3.5-flash shape). */
 function loopThinking(): string {

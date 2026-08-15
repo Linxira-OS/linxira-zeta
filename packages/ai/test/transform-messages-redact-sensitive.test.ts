@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { configureCredentialRedaction, transformMessages } from "@zeta/pi-ai/providers/transform-messages";
-import type { AssistantMessage, Message, Model, ToolCall, ToolResultMessage } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
+import { configureCredentialRedaction, transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
+import type { AssistantMessage, Message, Model, ToolCall, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 function makeModel(): Model<"openai-responses"> {
 	return buildModel({

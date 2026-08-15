@@ -259,7 +259,7 @@ export declare class Shell {
  * current-thread-only global pool that cannot steal work from later native
  * calls. Idempotent.
  */
-export declare function __ompInstallTokioRuntime(): void
+export declare function __zetaInstallTokioRuntime(): void
 
 /**
  * Version sentinel — exists solely so the JS loader can prove at load time
@@ -279,7 +279,7 @@ export declare function __ompInstallTokioRuntime(): void
  * `packages/natives/native/index.js` (which derives the name from
  * `package.json#version`).
  */
-export declare function __piNativesV1_0_0(): void
+export declare function __piNativesV1_0_1(): void
 
 /**
  * Apply ast-grep rewrite rules to matching files; honors `dryRun` and returns

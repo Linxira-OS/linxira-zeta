@@ -4,7 +4,7 @@ import {
 	SUBAGENT_WARNING_MISSING_YIELD,
 	SUBAGENT_WARNING_NULL_YIELD,
 	SUBAGENT_WARNING_SCHEMA_OVERRIDDEN,
-} from "@zeta/pi-coding-agent/task/executor";
+} from "@linxiraos/zeta/task/executor";
 
 describe("subagent warning injection", () => {
 	it("injects null-data warning when yield is success without data", () => {

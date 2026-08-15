@@ -1,10 +1,10 @@
 import { dirname } from "node:path";
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type * as MnemopiNs from "@zeta/pi-mnemopi";
-import type { Mnemopi, RecallResult } from "@zeta/pi-mnemopi";
-import type * as MnemopiCoreNs from "@zeta/pi-mnemopi/core";
-import type { LocalModelInitializer } from "@zeta/pi-mnemopi/core";
-import { logger, toError } from "@zeta/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type * as MnemopiNs from "@linxiraos/pi-mnemopi";
+import type { Mnemopi, RecallResult } from "@linxiraos/pi-mnemopi";
+import type * as MnemopiCoreNs from "@linxiraos/pi-mnemopi/core";
+import type { LocalModelInitializer } from "@linxiraos/pi-mnemopi/core";
+import { logger, toError } from "@linxiraos/pi-utils";
 import {
 	composeRecallQuery,
 	formatCurrentTime,
@@ -41,7 +41,7 @@ function installLocalModelInitializer(setInitializer: (initializer: LocalModelIn
 }
 
 /**
- * Lazily load `@zeta/pi-mnemopi` (memoized) and route fastembed loads
+ * Lazily load `@linxiraos/pi-mnemopi` (memoized) and route fastembed loads
  * through the dedicated embeddings subprocess. The override is installed once
  * — before any consumer gets the chance to call `embed()` — so
  * `onnxruntime-node`'s NAPI constructor + finalizer never run inside the
@@ -51,16 +51,16 @@ function installLocalModelInitializer(setInitializer: (initializer: LocalModelIn
  */
 export async function loadMnemopi(): Promise<typeof MnemopiNs> {
 	if (!mnemopiMod) {
-		mnemopiMod = await import("@zeta/pi-mnemopi");
+		mnemopiMod = await import("@linxiraos/pi-mnemopi");
 		installLocalModelInitializer(mnemopiMod.setLocalModelInitializer);
 	}
 	return mnemopiMod;
 }
 
-/** Lazily load `@zeta/pi-mnemopi/core` (memoized). */
+/** Lazily load `@linxiraos/pi-mnemopi/core` (memoized). */
 export async function loadMnemopiCore(): Promise<typeof MnemopiCoreNs> {
 	if (!mnemopiCoreMod) {
-		mnemopiCoreMod = await import("@zeta/pi-mnemopi/core");
+		mnemopiCoreMod = await import("@linxiraos/pi-mnemopi/core");
 		installLocalModelInitializer(mnemopiCoreMod.setLocalModelInitializer);
 	}
 	return mnemopiCoreMod;

@@ -8,7 +8,7 @@
  */
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir, logger } from "@zeta/pi-utils";
+import { getProjectDir, logger } from "@linxiraos/pi-utils";
 
 import type { Settings } from "../config/settings";
 import { clearCache as clearFsCache, findRepoRoot, cacheStats as fsCacheStats, invalidate as invalidateFs } from "./fs";

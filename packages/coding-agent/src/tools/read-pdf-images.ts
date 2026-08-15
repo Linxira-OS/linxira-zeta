@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { isEexist, isEnotempty, readImageMetadata, untilAborted } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { isEexist, isEnotempty, readImageMetadata, untilAborted } from "@linxiraos/pi-utils";
 import type { ToolSession } from "../sdk";
 import { loadImageInput, MAX_IMAGE_INPUT_BYTES, webpExclusionForModel } from "../utils/image-loading";
 import { convertFileWithMarkit } from "../utils/markit";

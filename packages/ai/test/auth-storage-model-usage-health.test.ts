@@ -5,9 +5,9 @@ import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type StoredAuthCredential,
-} from "@zeta/pi-ai/auth-storage";
-import type { CredentialRankingStrategy, UsageLimit, UsageProvider, UsageReport } from "@zeta/pi-ai/usage";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/auth-storage";
+import type { CredentialRankingStrategy, UsageLimit, UsageProvider, UsageReport } from "@linxiraos/pi-ai/usage";
+import { logger } from "@linxiraos/pi-utils";
 
 interface CacheEntry {
 	value: string;

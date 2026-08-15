@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { MemorySessionStorage } from "@zeta/pi-coding-agent/session/session-storage";
-import { serializeTitleSlot } from "@zeta/pi-coding-agent/session/session-title-slot";
+import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { serializeTitleSlot } from "@linxiraos/zeta/session/session-title-slot";
 
 describe("MemorySessionStorage indexed mirror", () => {
 	test("append builds the same content as a single writeTextSync of the join", async () => {

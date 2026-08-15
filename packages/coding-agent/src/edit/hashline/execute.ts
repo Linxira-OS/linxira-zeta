@@ -10,6 +10,8 @@
  * batch's `flush` flag to true only for the final write so diagnostics
  * round-trip once.
  */
+
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import {
 	type BlockResolution,
 	buildCompactDiffPreview,
@@ -22,8 +24,7 @@ import {
 	type PatchSectionResult,
 	type PreparedSection,
 	startClipboardBatch,
-} from "@zeta/hashline";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
+} from "@linxiraos/pi-hashline";
 import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../../lsp";
 import type { ToolSession } from "../../tools";
 import { outputMeta } from "../../tools/output-meta";

@@ -1,6 +1,6 @@
 # SDK
 
-The SDK is the in-process integration surface for `@zeta/pi-coding-agent`.
+The SDK is the in-process integration surface for `@linxiraos/zeta`.
 Use it when you want direct access to agent state, event streaming, tool wiring, and session control from your own Bun/Node process.
 
 If you need cross-language/process isolation, use RPC mode instead.
@@ -8,12 +8,12 @@ If you need cross-language/process isolation, use RPC mode instead.
 ## Installation
 
 ```bash
-bun add @zeta/pi-coding-agent
+bun add @linxiraos/zeta
 ```
 
 ## Entry points
 
-`@zeta/pi-coding-agent` exports the SDK APIs from the package root (and also via `@zeta/pi-coding-agent/sdk`).
+`@linxiraos/zeta` exports the SDK APIs from the package root (and also via `@linxiraos/zeta/sdk`).
 
 Core exports for embedders:
 
@@ -29,7 +29,7 @@ Core exports for embedders:
 ## Quick start (auto-discovery defaults)
 
 ```ts
-import { createAgentSession } from "@zeta/pi-coding-agent";
+import { createAgentSession } from "@linxiraos/zeta";
 
 const { session, modelFallbackMessage } = await createAgentSession();
 
@@ -58,7 +58,7 @@ await session.dispose();
 If omitted, it resolves:
 
 - `cwd`: `getProjectDir()`
-- `agentDir`: `~/.omp/agent` (via `getAgentDir()`)
+- `agentDir`: `~/.zeta/agent` (via `getAgentDir()`)
 - `authStorage`: `discoverAuthStorage(agentDir)`
 - `modelRegistry`: `new ModelRegistry(authStorage)` + background `refreshInBackground()` when the registry is not provided
 - `settings`: `await Settings.init({ cwd, agentDir })`
@@ -87,7 +87,7 @@ Typically you must provide only what you want to control:
 ### File-backed (default)
 
 ```ts
-import { createAgentSession, SessionManager } from "@zeta/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@linxiraos/zeta";
 
 const { session } = await createAgentSession({
   sessionManager: SessionManager.create(process.cwd()),
@@ -103,7 +103,7 @@ console.log(session.sessionFile); // absolute .jsonl path
 ### In-memory
 
 ```ts
-import { createAgentSession, SessionManager } from "@zeta/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@linxiraos/zeta";
 
 const { session } = await createAgentSession({
   sessionManager: SessionManager.inMemory(),
@@ -119,7 +119,7 @@ console.log(session.sessionFile); // undefined
 ### Resume/open/list helpers
 
 ```ts
-import { SessionManager } from "@zeta/pi-coding-agent";
+import { SessionManager } from "@linxiraos/zeta";
 
 const recent = await SessionManager.continueRecent(process.cwd());
 const listed = await SessionManager.list(process.cwd());
@@ -138,7 +138,7 @@ import {
   discoverAuthStorage,
   ModelRegistry,
   SessionManager,
-} from "@zeta/pi-coding-agent";
+} from "@linxiraos/zeta";
 
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);
@@ -333,7 +333,7 @@ import {
   ModelRegistry,
   SessionManager,
   Settings,
-} from "@zeta/pi-coding-agent";
+} from "@linxiraos/zeta";
 
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);

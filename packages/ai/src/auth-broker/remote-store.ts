@@ -9,7 +9,7 @@
  */
 import * as os from "node:os";
 import { scheduler } from "node:timers/promises";
-import { getInstallId, logger } from "@zeta/pi-utils";
+import { getInstallId, logger } from "@linxiraos/pi-utils";
 import {
 	type AuthCredential,
 	type AuthCredentialSnapshotEntry,

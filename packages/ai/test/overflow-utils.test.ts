@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { isContextOverflow } from "@zeta/pi-ai/error";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { isContextOverflow } from "@linxiraos/pi-ai/error";
 
 function createErrorMessage(errorMessage: string): AssistantMessage {
 	return {

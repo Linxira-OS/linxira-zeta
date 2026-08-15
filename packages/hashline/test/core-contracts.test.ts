@@ -12,7 +12,7 @@ import {
 	parsePatch,
 	Recovery,
 	type SplitOptions,
-} from "@zeta/hashline";
+} from "@linxiraos/pi-hashline";
 
 const repl = (text: string): string => `+${text}`;
 

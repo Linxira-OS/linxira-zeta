@@ -9,12 +9,12 @@
  * transcript reads as cut off for the whole args stream.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@zeta/pi-ai";
-import { resetSettingsForTest, Settings, settings } from "@zeta/pi-coding-agent/config/settings";
-import { EventController } from "@zeta/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@zeta/pi-coding-agent/session/agent-session";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 
 beforeAll(async () => {
 	await initTheme();

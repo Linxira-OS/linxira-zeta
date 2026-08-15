@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { getTerminalId } from "@linxiraos/pi-tui";
+import { getAgentDir, getTerminalSessionsDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import {
 	CURRENT_SESSION_VERSION,
 	type SessionHeader,
 	type SessionMessageEntry,
-} from "@zeta/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@zeta/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { getTerminalId } from "@zeta/pi-tui";
-import { getAgentDir, getTerminalSessionsDir, removeWithRetries, setAgentDir, TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/session/session-entries";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 interface JsonlMessageEntry {
 	type: "message";

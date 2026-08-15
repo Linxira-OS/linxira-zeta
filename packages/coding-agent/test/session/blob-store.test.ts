@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	BlobStore,
 	blobExtensionForImageMimeType,
 	externalizeImageData,
 	parseBlobRef,
 	resolveImageData,
-} from "@zeta/pi-coding-agent/session/blob-store";
-import { TempDir } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/session/blob-store";
 
 describe("BlobStore image display paths", () => {
 	it("creates an extension-bearing sidecar for image blobs while keeping canonical refs extensionless", async () => {

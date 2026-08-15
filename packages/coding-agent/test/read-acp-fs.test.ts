@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@zeta/pi-agent-core";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ClientBridge } from "@zeta/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@zeta/pi-coding-agent/tools";
-import type { ReadToolDetails } from "@zeta/pi-coding-agent/tools/read";
-import { ReadTool } from "@zeta/pi-coding-agent/tools/read";
-import { removeWithRetries } from "@zeta/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import type { ReadToolDetails } from "@linxiraos/zeta/tools/read";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 const BRIDGE_CONTENT = "// content from editor buffer\nexport function greet() { return 'bridge'; }\n";
 

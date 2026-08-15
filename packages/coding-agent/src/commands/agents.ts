@@ -2,7 +2,7 @@
  * Manage bundled task agents.
  */
 
-import { Args, Command, Flags, renderCommandHelp } from "@zeta/pi-utils/cli";
+import { Args, Command, Flags, renderCommandHelp } from "@linxiraos/pi-utils/cli";
 import { type AgentsAction, type AgentsCommandArgs, runAgentsCommand } from "../cli/agents-cli";
 import { agentsHelp as commandHelp } from "../cli/command-help";
 import { initTheme } from "../modes/theme/theme";
@@ -23,8 +23,8 @@ export default class Agents extends Command {
 		force: Flags.boolean({ char: "f", description: "Overwrite existing agent files" }),
 		json: Flags.boolean({ description: "Output JSON" }),
 		dir: Flags.string({ description: "Output directory (overrides --user/--project)" }),
-		user: Flags.boolean({ description: "Write to ~/.omp/agent/agents (default)" }),
-		project: Flags.boolean({ description: "Write to ./.omp/agents" }),
+		user: Flags.boolean({ description: "Write to ~/.zeta/agent/agents (default)" }),
+		project: Flags.boolean({ description: "Write to ./.zeta/agents" }),
 	};
 
 	static examples = [

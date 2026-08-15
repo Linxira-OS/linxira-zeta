@@ -43,7 +43,7 @@ zeta serve --no-browser
 ### Programmatic API
 
 ```typescript
-import { startZetaServer } from "@zeta/pi-coding-agent/server/zeta-server";
+import { startZetaServer } from "@linxiraos/zeta/server/zeta-server";
 
 const instance = await startZetaServer({
   port: 30141,
@@ -79,7 +79,7 @@ await instance.shutdown();
 Source: `packages/coding-agent/src/server/zeta-server.ts`
 
 The `ZetaServer` class manages the full lifecycle:
-- Stats Dashboard is started via `@zeta/omp-stats`'s `startServer()`
+- Stats Dashboard is started via `@linxiraos/pi-stats`'s `startServer()`
 - Web UI is spawned as a child process via `spawnWebUi()` from `commands/web-ui-launcher`
 - The main `Bun.serve` proxy strips hop-by-hop headers and forwards requests to the appropriate backend
 - All servers bind to `127.0.0.1` (localhost only) for security

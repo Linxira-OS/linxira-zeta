@@ -18,8 +18,8 @@ import {
 	SettingsList,
 	Spacer,
 	Text,
-} from "@zeta/pi-tui";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-tui";
+import { logger } from "@linxiraos/pi-utils";
 import { clearPluginRootsAndCaches, resolveOrDefaultProjectRegistryPath } from "../../discovery/helpers";
 import { PluginManager } from "../../extensibility/plugins/manager";
 import type { InstalledPluginSummary } from "../../extensibility/plugins/marketplace";

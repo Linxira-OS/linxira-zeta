@@ -1,4 +1,4 @@
-import type { Effort } from "@zeta/pi-catalog/effort";
+import type { Effort } from "@linxiraos/pi-catalog/effort";
 import type {
 	AssistantMessage,
 	AssistantMessageEventStream,

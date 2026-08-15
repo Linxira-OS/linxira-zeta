@@ -2,16 +2,16 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { getActiveSkills } from "@zeta/pi-coding-agent/extensibility/skills";
-import type { Skill } from "@zeta/pi-coding-agent/sdk";
-import { createAgentSession } from "@zeta/pi-coding-agent/sdk";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries } from "@zeta/pi-utils";
-import { getAgentDir, setAgentDir } from "@zeta/pi-utils/dirs";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { getActiveSkills } from "@linxiraos/zeta/extensibility/skills";
+import type { Skill } from "@linxiraos/zeta/sdk";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 function createIsolatedSkillsSettings(): Settings {
@@ -65,7 +65,7 @@ describe("createAgentSession skills option", () => {
 
 	beforeEach(() => {
 		tempDir = path.join(os.tmpdir(), `pi-sdk-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-		// Create skill in .omp/skills/ for native project-level discovery
+		// Create skill in .zeta/skills/ for native project-level discovery
 		skillsDir = path.join(tempDir, ".zeta", "skills", "test-skill");
 		fs.mkdirSync(skillsDir, { recursive: true });
 		originalHome = process.env.HOME;

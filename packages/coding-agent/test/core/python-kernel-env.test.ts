@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as piUtils from "@linxiraos/pi-utils";
 import {
 	enumeratePythonRuntimes,
 	filterEnv,
 	resolveExplicitPythonRuntime,
 	resolvePythonRuntime,
-} from "@zeta/pi-coding-agent/eval/py/runtime";
-import * as piUtils from "@zeta/pi-utils";
+} from "@linxiraos/zeta/eval/py/runtime";
 
 describe("Python gateway environment filtering", () => {
 	it("filters sensitive and unknown variables from shell env", () => {

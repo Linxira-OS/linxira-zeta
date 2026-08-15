@@ -1,5 +1,5 @@
-import type { UsageLimit, UsageReport } from "@zeta/pi-ai";
-import { sanitizeText } from "@zeta/pi-utils";
+import type { UsageLimit, UsageReport } from "@linxiraos/pi-ai";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { OAuthAccountIdentity } from "../../session/auth-storage";
 import type { SlashCommandRuntime } from "../types";
 import { reportMatchesActiveAccount } from "./active-oauth-account";

@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resolveProviderModels } from "@zeta/pi-catalog/model-manager";
-import { PROVIDER_DESCRIPTORS } from "@zeta/pi-catalog/provider-models/descriptors";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
 import {
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	opencodeGoModelManagerOptions,
 	opencodeZenModelManagerOptions,
-} from "@zeta/pi-catalog/provider-models/openai-compat";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 const LIVE_FREE_MODEL_IDS = [
 	"deepseek-v4-flash-free",

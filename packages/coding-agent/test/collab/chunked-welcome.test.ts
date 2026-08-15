@@ -11,13 +11,13 @@
  * are stubbed.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { importRoomKey } from "@zeta/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@zeta/pi-coding-agent/collab/guest";
-import { CollabHost } from "@zeta/pi-coding-agent/collab/host";
-import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@zeta/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@zeta/pi-coding-agent/collab/relay-client";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import type { SessionEntry } from "@zeta/pi-coding-agent/session/session-entries";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
+import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // In-memory transport: shared FakeWebSocket + InMemoryRelay harness (see

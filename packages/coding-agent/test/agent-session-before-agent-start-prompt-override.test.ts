@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@zeta/pi-agent-core";
-import type { Model } from "@zeta/pi-ai";
-import { createMockModel, type MockResponseSource } from "@zeta/pi-ai/providers/mock";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@zeta/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { convertToLlm } from "@zeta/pi-coding-agent/session/messages";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { createMockModel, type MockResponseSource } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 // Contract: a per-turn system prompt returned by `before_agent_start`
 // ("Replace the system prompt for this turn") must reach the provider for the

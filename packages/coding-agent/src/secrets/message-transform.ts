@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@zeta/pi-agent-core";
-import type { AssistantMessage, Context, ImageContent, Message, TextContent } from "@zeta/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Context, ImageContent, Message, TextContent } from "@linxiraos/pi-ai";
 import type { SessionContext } from "../session/session-context";
 import type { JsonValue, SecretObfuscator } from "./obfuscator";
 import { collectJsonRegexSecretValues, mapJsonStrings } from "./placeholder-scan";

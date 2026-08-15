@@ -2,8 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { extractFileMentions, generateFileMentionMessages } from "@zeta/pi-coding-agent/utils/file-mentions";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { extractFileMentions, generateFileMentionMessages } from "@linxiraos/zeta/utils/file-mentions";
 
 const tempDirs: string[] = [];
 

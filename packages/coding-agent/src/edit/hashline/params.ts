@@ -3,7 +3,7 @@
  * deliberately permissive (allows extra keys) so providers can attach extra
  * keys without rejection; only `input` is required.
  */
-import { type } from "@zeta/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 
 export const hashlineEditParamsSchema = type({
 	input: "string",

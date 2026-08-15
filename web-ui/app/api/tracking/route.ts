@@ -27,7 +27,7 @@ interface TrackingData {
 function getTrackingDir(cwd: string): string {
   const zetaDir = path.join(cwd, ".zeta");
   if (fs.existsSync(zetaDir)) return path.join(zetaDir, "tracking");
-  const ompDir = path.join(cwd, ".omp");
+  const ompDir = path.join(cwd, ".zeta");
   if (fs.existsSync(ompDir)) return path.join(ompDir, "tracking");
   return path.join(zetaDir, "tracking");
 }

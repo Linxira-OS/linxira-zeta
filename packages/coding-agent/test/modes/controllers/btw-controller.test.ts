@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, Usage } from "@zeta/pi-ai";
-import { BtwPanelComponent } from "@zeta/pi-coding-agent/modes/components/btw-panel";
-import { BtwController } from "@zeta/pi-coding-agent/modes/controllers/btw-controller";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import * as clipboard from "@zeta/pi-coding-agent/utils/clipboard";
-import { Container, replaceTabs, type TUI } from "@zeta/pi-tui";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
+import { Container, replaceTabs, type TUI } from "@linxiraos/pi-tui";
+import { BtwPanelComponent } from "@linxiraos/zeta/modes/components/btw-panel";
+import { BtwController } from "@linxiraos/zeta/modes/controllers/btw-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
 
 const usage: Usage = {
 	input: 0,

@@ -6,15 +6,15 @@
  * agents that appear while the hub is open are appended at the end.
  */
 import { afterEach, beforeAll, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { ThinkingLevel } from "@zeta/pi-agent-core";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { IrcBus } from "@zeta/pi-coding-agent/irc/bus";
-import { type AgentHubDeps, AgentHubOverlayComponent } from "@zeta/pi-coding-agent/modes/components/agent-hub";
-import { SessionObserverRegistry } from "@zeta/pi-coding-agent/modes/session-observer-registry";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { visibleWidth } from "@zeta/pi-tui/utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { visibleWidth } from "@linxiraos/pi-tui/utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { type AgentHubDeps, AgentHubOverlayComponent } from "@linxiraos/zeta/modes/components/agent-hub";
+import { SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 interface GeometryStub {
 	setRows(n: number): void;

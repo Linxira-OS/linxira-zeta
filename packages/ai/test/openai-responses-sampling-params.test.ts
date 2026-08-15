@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamSimple } from "@zeta/pi-ai/stream";
-import type { Context, FetchImpl, Model } from "@zeta/pi-ai/types";
-import { getBundledModel } from "@zeta/pi-catalog/models";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 function mockSseFetch(): { fetchMock: FetchImpl; captured: Record<string, unknown> } {
 	const captured: Record<string, unknown> = {};

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mergeMCPHeaders, setGeneratedHeader } from "@zeta/pi-coding-agent/mcp/transports/header-policy";
-import { HttpTransport } from "@zeta/pi-coding-agent/mcp/transports/http";
+import { mergeMCPHeaders, setGeneratedHeader } from "@linxiraos/zeta/mcp/transports/header-policy";
+import { HttpTransport } from "@linxiraos/zeta/mcp/transports/http";
 
 const REQUEST_TIMEOUT_MS = 1_000;
 

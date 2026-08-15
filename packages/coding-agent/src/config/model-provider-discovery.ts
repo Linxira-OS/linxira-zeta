@@ -1,5 +1,5 @@
-import type { Api, Model } from "@zeta/pi-ai/types";
-import { type OpenAICodexAccount, PROVIDER_DESCRIPTORS } from "@zeta/pi-catalog/provider-models";
+import type { Api, Model } from "@linxiraos/pi-ai/types";
+import { type OpenAICodexAccount, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models";
 import type { AuthStorage, OAuthCredential } from "../session/auth-storage";
 
 const SPECIAL_MODEL_MANAGER_PROVIDER_IDS: readonly string[] = [

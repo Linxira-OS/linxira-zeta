@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import CommitCommand from "@zeta/pi-coding-agent/commands/commit";
-import * as commitModule from "@zeta/pi-coding-agent/commit";
-import * as themeModule from "@zeta/pi-coding-agent/modes/theme/theme";
-import { postmortem } from "@zeta/pi-utils";
+import { postmortem } from "@linxiraos/pi-utils";
+import CommitCommand from "@linxiraos/zeta/commands/commit";
+import * as commitModule from "@linxiraos/zeta/commit";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 
 describe("omp commit command lifecycle (issue #1041)", () => {
 	afterEach(() => {

@@ -10,9 +10,9 @@ import type {
 	AgentToolExecFn,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@zeta/pi-agent-core";
-import type { ImageContent, TextContent } from "@zeta/pi-ai";
-import { logger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import { getDefault, type Settings } from "../config/settings";
 import { formatGroupedDiagnosticMessages } from "../lsp/utils";
 import type { Theme } from "../modes/theme/theme";

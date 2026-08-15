@@ -35,14 +35,31 @@ toolchain required by Rust.
   discovery, session recovery, and controllable retry behavior.
 - Native text, image, terminal, browser, and desktop capabilities where the
   host platform supports them.
-- A Bun-first monorepo with internal packages under the `@zeta/*` namespace.
+- A Bun-first monorepo with internal packages under the `@linxiraos/*` namespace.
 - A planned local web workbench and desktop distribution that use the same
   coding-agent runtime rather than a separate product stack.
+
+## Upstream Origins
+
+Zeta is a distribution derived from four upstream projects, each with a
+fixed role:
+
+| Project | Role in Zeta |
+|---|---|
+| [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | The runtime tree. Integrated only at complete, official release tags — never raw upstream commits |
+| [Pi](https://github.com/earendil-works/pi) | Semantic-port source for feature work, never a raw merge source |
+| [OMP Web](https://github.com/17380936778/omp-web) | Source of the `web-ui/` snapshot |
+| [Pi Web](https://github.com/agegr/pi-web) | Semantic-port source for web features |
+
+The merge policy is recorded in [document/upstream-sync.md](document/upstream-sync.md);
+the web workbench's own front door is [web-ui/README.md](web-ui/README.md).
+Predecessor contributions remain acknowledged in source history and package
+notices.
 
 ## Zeta-Originated Capabilities
 
 Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
-[docs/roadmap.md](docs/roadmap.md)):
+[document/roadmap.md](document/roadmap.md)):
 
 - **Adaptive long-term tracking** — ongoing session observation with standing
   system guidance that keeps provider prefix caches stable across long
@@ -50,11 +67,25 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
 - **Experiment measurement** — per-project local experiment tracking with
   metrics, directions, and baseline commits.
 - **TypeScript custom commands** — user-defined slash commands from
-  `~/.omp/commands/` and project command dirs, with `arktype`/`typebox`/`zod`
+  `~/.zeta/commands/` and project command dirs, with `arktype`/`typebox`/`zod`
   argument schemas and full access to the runtime API.
 - **Command marketplace** — install and share slash commands as Bun packages.
 - **ACP collaboration builtins** — Agent Client Protocol session support.
 - **Local stats dashboard** — `omp stats` observability for the coding agent.
+
+## Documentation
+
+The repository keeps two documentation trees with different audiences:
+
+- [docs/](docs/) — **runtime documentation**, packaged with the product. Agents
+  read it at runtime through `omp://docs/` (embedded in binaries and the npm
+  bundle; from a source checkout it reads the live tree). Covers tools,
+  tool-call conversion, skills, protocols, configuration, and Zeta features.
+- [document/](document/) — **internal development and product-process
+  documentation**, never packaged. Includes the [development
+  roadmap](document/roadmap.md), the upstream [sync
+  ledger](document/upstream-sync.md), and the
+  [porting guide](document/porting-from-pi-mono.md).
 
 ## Development
 
@@ -79,7 +110,7 @@ Zeta follows OMP only through complete, official release tags. Each release is
 merged as real Git history on a temporary integration branch, then receives any
 required Zeta package, brand, Bun, CI, and product adaptations in separate
 commits. The exact source tag, SHA, conflict decisions, and checks are recorded
-in [docs/upstream-sync.md](docs/upstream-sync.md).
+in [document/upstream-sync.md](document/upstream-sync.md).
 
 Pi and Pi Web are semantic feature sources, not raw merge sources. See
 [AGENTS.md](AGENTS.md) for the repository rules.

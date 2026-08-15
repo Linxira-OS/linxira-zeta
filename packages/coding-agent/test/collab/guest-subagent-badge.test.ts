@@ -1,19 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { generateRoomKey, importRoomKey } from "@zeta/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@zeta/pi-coding-agent/collab/guest";
-import {
-	type AgentSnapshot,
-	COLLAB_PROTO,
-	type CollabFrame,
-	formatCollabLink,
-} from "@zeta/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@zeta/pi-coding-agent/collab/relay-client";
+import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { type AgentSnapshot, COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
 import {
 	countRunningSubagentBadgeAgents,
 	getRunningSubagentBadgeRegistry,
-} from "@zeta/pi-coding-agent/modes/running-subagent-badge";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@zeta/pi-coding-agent/registry/agent-registry";
+} from "@linxiraos/zeta/modes/running-subagent-badge";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // In-memory transport: shared FakeWebSocket + InMemoryRelay harness (see

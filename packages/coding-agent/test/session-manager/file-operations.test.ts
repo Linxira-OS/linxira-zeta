@@ -2,10 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FileEntry, SessionHeader } from "@zeta/pi-coding-agent/session/session-entries";
-import { findMostRecentSession, resolveResumableSession } from "@zeta/pi-coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@zeta/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
 import {
 	getConfigRootDir,
 	getSessionsDir,
@@ -13,7 +9,11 @@ import {
 	resolveEquivalentPath,
 	Snowflake,
 	setAgentDir,
-} from "@zeta/pi-utils";
+} from "@linxiraos/pi-utils";
+import type { FileEntry, SessionHeader } from "@linxiraos/zeta/session/session-entries";
+import { findMostRecentSession, resolveResumableSession } from "@linxiraos/zeta/session/session-listing";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("loadEntriesFromFile", () => {
 	let tempDir: string;

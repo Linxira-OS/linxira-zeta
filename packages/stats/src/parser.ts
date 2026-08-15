@@ -9,8 +9,8 @@ import {
 	type ToolCall,
 	type ToolResultMessage,
 	type Usage,
-} from "@zeta/pi-ai";
-import { getSessionsDir, isEnoent, readLines } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai";
+import { getSessionsDir, isEnoent, readLines } from "@linxiraos/pi-utils";
 import type {
 	AgentType,
 	MessageStats,

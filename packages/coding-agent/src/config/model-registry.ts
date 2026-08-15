@@ -1,10 +1,10 @@
 import * as path from "node:path";
-import type { ApiKeyResolver, FetchImpl } from "@zeta/pi-ai";
-import { registerCustomApi, unregisterCustomApis } from "@zeta/pi-ai/api-registry";
-import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@zeta/pi-ai/oauth";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@zeta/pi-ai/oauth/types";
-import { setCodexAttestationProvider } from "@zeta/pi-ai/providers/openai-codex-responses";
-import { getProviderDefinition } from "@zeta/pi-ai/registry";
+import type { ApiKeyResolver, FetchImpl } from "@linxiraos/pi-ai";
+import { registerCustomApi, unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
+import { setCodexAttestationProvider } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import type {
 	Api,
 	Context,
@@ -13,16 +13,16 @@ import type {
 	RemoteCompactionConfig,
 	SimpleStreamOptions,
 	ThinkingConfig,
-} from "@zeta/pi-ai/types";
-import type { AssistantMessageEventStream } from "@zeta/pi-ai/utils/event-stream";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { readModelCache } from "@zeta/pi-catalog/model-cache";
+} from "@linxiraos/pi-ai/types";
+import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { readModelCache } from "@linxiraos/pi-catalog/model-cache";
 import {
 	createModelManager,
 	type ModelManagerOptions,
 	type ModelRefreshStrategy,
-} from "@zeta/pi-catalog/model-manager";
-import { getBundledModels, getBundledProviders } from "@zeta/pi-catalog/models";
+} from "@linxiraos/pi-catalog/model-manager";
+import { getBundledModels, getBundledProviders } from "@linxiraos/pi-catalog/models";
 import {
 	googleAntigravityModelManagerOptions,
 	googleGeminiCliModelManagerOptions,
@@ -30,9 +30,9 @@ import {
 	PROVIDER_DESCRIPTORS,
 	resolveModelCacheProviderId,
 	resolveOllamaModelCacheProviderId,
-} from "@zeta/pi-catalog/provider-models";
-import { collapseBuiltModelVariants } from "@zeta/pi-catalog/variant-collapse";
-import { isBunTestRuntime, logger, wrapFetchForExtraCa } from "@zeta/pi-utils";
+} from "@linxiraos/pi-catalog/provider-models";
+import { collapseBuiltModelVariants } from "@linxiraos/pi-catalog/variant-collapse";
+import { isBunTestRuntime, logger, wrapFetchForExtraCa } from "@linxiraos/pi-utils";
 import { resolveProviderModelReference } from "../config/model-resolver";
 import { generateCodexAttestation } from "../live/attestation";
 import type { AuthStorage } from "../session/auth-storage";

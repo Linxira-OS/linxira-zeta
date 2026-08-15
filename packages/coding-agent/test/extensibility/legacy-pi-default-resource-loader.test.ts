@@ -2,16 +2,16 @@ import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	DefaultPackageManager,
 	DefaultResourceLoader,
 	createAgentSession as legacyCreateAgentSession,
-} from "@zeta/pi-coding-agent/extensibility/legacy-pi-coding-agent-shim";
-import type { Skill } from "@zeta/pi-coding-agent/extensibility/skills";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@zeta/pi-coding-agent/sdk";
-import * as sdkModule from "@zeta/pi-coding-agent/sdk";
-import { removeWithRetries } from "@zeta/pi-utils";
+} from "@linxiraos/zeta/extensibility/legacy-pi-coding-agent-shim";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
 
 // Issue #4567: every published version of pi-schedule-prompt (and every pi
 // extension spawning subagents) imports `DefaultResourceLoader` at module

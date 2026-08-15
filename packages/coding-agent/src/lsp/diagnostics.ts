@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import path from "node:path";
-import { logger } from "@zeta/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { formatPathRelativeToCwd } from "../tools/path-utils";
 import { throwIfAborted } from "../tools/tool-errors";
 import { getOrCreateClient, sendRequest, supportsDocumentDiagnostics, waitForProjectLoaded } from "./client";

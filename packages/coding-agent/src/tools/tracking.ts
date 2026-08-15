@@ -7,11 +7,11 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentTool, AgentToolResult } from "@zeta/pi-agent-core";
-import { type } from "@zeta/pi-omptype";
-import type { Component } from "@zeta/pi-tui";
-import { Text } from "@zeta/pi-tui";
-import { getProjectTrackingDir, getTrackingIndexPath, logger } from "@zeta/pi-utils";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
+import { getProjectTrackingDir, getTrackingIndexPath, logger } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import trackingDescription from "../prompts/tools/tracking.md" with { type: "text" };
 import type { ToolSession } from "../sdk";

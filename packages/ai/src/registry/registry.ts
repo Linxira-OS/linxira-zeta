@@ -1,4 +1,4 @@
-import type { KnownProvider } from "@zeta/pi-catalog";
+import type { KnownProvider } from "@linxiraos/pi-catalog";
 import { aiandProvider } from "./aiand";
 import { aimlApiProvider } from "./aimlapi";
 import { alibabaCodingPlanProvider } from "./alibaba-coding-plan";

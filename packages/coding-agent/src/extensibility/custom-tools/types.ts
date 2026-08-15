@@ -12,14 +12,14 @@ import type {
 	ToolApprovalDecision,
 	ToolLoadMode,
 	ToolTier,
-} from "@zeta/pi-agent-core";
-import type { CompactionResult } from "@zeta/pi-agent-core/compaction";
-import type { FetchImpl, Model, Static, TSchema } from "@zeta/pi-ai";
-import type { type as ArkType } from "@zeta/pi-omptype";
-import type * as TypeBox from "@zeta/pi-omptype/typebox";
-import type * as zod from "@zeta/pi-omptype/zod";
-import type { Component } from "@zeta/pi-tui";
-import type { logger as PiLogger } from "@zeta/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
+import type { FetchImpl, Model, Static, TSchema } from "@linxiraos/pi-ai";
+import type { type as ArkType } from "@linxiraos/pi-omptype";
+import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
+import type * as zod from "@linxiraos/pi-omptype/zod";
+import type { Component } from "@linxiraos/pi-tui";
+import type { logger as PiLogger } from "@linxiraos/pi-utils";
 import type { Rule } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { Settings } from "../../config/settings";

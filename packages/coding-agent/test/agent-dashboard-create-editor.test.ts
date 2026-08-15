@@ -2,11 +2,11 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@zeta/pi-coding-agent/config/settings";
-import { AgentDashboard } from "@zeta/pi-coding-agent/modes/components/agent-dashboard";
-import { initTheme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import * as discovery from "@zeta/pi-coding-agent/task/discovery";
-import { removeWithRetries } from "@zeta/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentDashboard } from "@linxiraos/zeta/modes/components/agent-dashboard";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import * as discovery from "@linxiraos/zeta/task/discovery";
 
 const ANSI_PATTERN = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const tempDirs: string[] = [];

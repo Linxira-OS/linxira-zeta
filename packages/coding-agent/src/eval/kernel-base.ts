@@ -1,4 +1,4 @@
-import { logger, Snowflake } from "@zeta/pi-utils";
+import { logger, Snowflake } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import { type KernelDisplayOutput, renderKernelDisplay } from "./py/display";
 

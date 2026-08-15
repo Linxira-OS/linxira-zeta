@@ -11,8 +11,8 @@ import type {
 	Context,
 	Model,
 	SimpleStreamOptions,
-} from "@zeta/pi-ai";
-import { type BenchModelRegistry, runBenchCommand } from "@zeta/pi-coding-agent/cli/bench-cli";
+} from "@linxiraos/pi-ai";
+import { type BenchModelRegistry, runBenchCommand } from "@linxiraos/zeta/cli/bench-cli";
 
 const model = {
 	provider: "openai",

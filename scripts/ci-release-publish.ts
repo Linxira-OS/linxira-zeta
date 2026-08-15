@@ -2,7 +2,7 @@
 /**
  * Publish workspace packages.
  *
- * The default mode publishes public JS packages and the `@zeta/pi-natives`
+ * The default mode publishes public JS packages and the `@linxiraos/pi-natives`
  * core package. Generated native leaf packages are published separately with
  * `--native-leaf <tag>` from the release_binary matrix after that matrix entry
  * downloads the matching `.node` artifacts.
@@ -28,7 +28,9 @@
  *      `packAndPublish` for why npm and not `bun publish`.
  *
  * Intended for CI. Mutates `package.json` in place — if you run this
- * locally, expect a dirty working tree and `git restore` after.
+ * locally, expect a dirty working tree and `git restore` after. `--pack-only`
+ * exercises the same packing path without registry calls and restores each
+ * manifest after its tarball is checked.
  */
 
 import * as fs from "node:fs/promises";
@@ -80,6 +82,7 @@ interface PackageManifest {
 
 const repoRoot = path.join(import.meta.dir, "..");
 const isDryRun = process.argv.includes("--dry-run");
+const isPackOnly = process.argv.includes("--pack-only");
 
 function nativeLeafTagFromArgs(argv: readonly string[]): string | null {
 	for (let i = 0; i < argv.length; i++) {
@@ -96,12 +99,12 @@ function nativeLeafTagFromArgs(argv: readonly string[]): string | null {
 
 const nativeLeafTag = nativeLeafTagFromArgs(process.argv.slice(2));
 export const packages: PublishPackage[] = [
+	{ dir: "packages/natives", kind: "native" },
 	{ dir: "packages/utils", kind: "typescript" },
 	{ dir: "packages/wire", kind: "typescript" },
 	{ dir: "packages/omptype", kind: "typescript", publishJs: true },
 	{ dir: "packages/catalog", kind: "typescript" },
 	{ dir: "packages/ai", kind: "typescript" },
-	{ dir: "packages/natives", kind: "native" },
 	{ dir: "packages/tui", kind: "typescript" },
 	{ dir: "packages/hashline", kind: "typescript" },
 	{ dir: "packages/mnemopi", kind: "typescript" },
@@ -230,7 +233,7 @@ export async function applyPublishBin(pkgRelDir: string, write: boolean): Promis
 function buildNativeOptionalDependencies(version: string): JsonObject {
 	const optionalDependencies: JsonObject = {};
 	for (const target of LEAF_TARGETS) {
-		optionalDependencies[`@zeta/pi-natives-${target.tag}`] = version;
+		optionalDependencies[`@linxiraos/pi-natives-${target.tag}`] = version;
 	}
 	return optionalDependencies;
 }
@@ -292,12 +295,21 @@ export async function inspectPackedTarball(tarballPath: string): Promise<PackedT
 	return { name: manifest.name, version: manifest.version, path: tarballPath };
 }
 
+function canPublishInteractively(): boolean {
+	return process.stdin.isTTY === true && process.stdout.isTTY === true && process.stderr.isTTY === true;
+}
+
+async function isPackedVersionPublished(tarball: PackedTarball): Promise<boolean> {
+	const result = await $`npm view ${`${tarball.name}@${tarball.version}`} version`.quiet().nothrow();
+	return result.exitCode === 0 && result.stdout.toString().trim().length > 0;
+}
+
 async function packAndPublish(dir: string, name: string): Promise<void> {
 	if (isDryRun) {
 		console.log(`DRY RUN bun pm pack && npm publish --access public (${path.relative(repoRoot, dir)})`);
 		return;
 	}
-	console.log(`Publishing ${name}…`);
+	console.log(`${isPackOnly ? "Packing" : "Publishing"} ${name}…`);
 	const packDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-pack-"));
 	try {
 		const packed = await $`bun pm pack --quiet --destination ${packDir}`.cwd(dir).quiet().nothrow();
@@ -309,26 +321,54 @@ async function packAndPublish(dir: string, name: string): Promise<void> {
 		const tarball = (await fs.readdir(packDir)).find(entry => entry.endsWith(".tgz"));
 		if (!tarball) throw new Error(`bun pm pack produced no tarball for ${name} (${path.relative(repoRoot, dir)})`);
 		const packedTarball = await inspectPackedTarball(path.join(packDir, tarball));
+		if (isPackOnly) {
+			console.log(`Packed ${packedTarball.name}@${packedTarball.version}`);
+			return;
+		}
 		// Preflight the exact packed version so reruns skip deterministically.
 		// Fail open on lookup errors; only a confirmed published version may skip publishing.
-		const preflight = await $`npm view ${`${packedTarball.name}@${packedTarball.version}`} version`.quiet().nothrow();
-		if (preflight.exitCode === 0 && preflight.stdout.toString().trim()) {
+		if (await isPackedVersionPublished(packedTarball)) {
 			console.log(`Skipping ${packedTarball.name} (version already published)`);
 			return;
 		}
-		const result = await $`npm publish ${packedTarball.path} --access public`.quiet().nothrow();
-		const output = `${result.stdout.toString()}${result.stderr.toString()}`.trim();
-		if (output) console.log(output);
-		if (result.exitCode !== 0) {
+
+		let exitCode: number;
+		let output = "";
+		if (canPublishInteractively()) {
+			// npm's web 2FA flow requires a real terminal; piping stdio forces EOTP.
+			const child = Bun.spawn(["npm", "publish", packedTarball.path, "--access", "public"], {
+				stdin: "inherit",
+				stdout: "inherit",
+				stderr: "inherit",
+			});
+			exitCode = await child.exited;
+		} else {
+			const result = await $`npm publish ${packedTarball.path} --access public`.quiet().nothrow();
+			exitCode = result.exitCode;
+			output = `${result.stdout.toString()}${result.stderr.toString()}`.trim();
+			if (output) console.log(output);
+		}
+
+		if (exitCode !== 0) {
 			// A concurrent publisher may win after the preflight.
-			if (isVersionAlreadyPublished(output)) {
+			if (isVersionAlreadyPublished(output) || (await isPackedVersionPublished(packedTarball))) {
 				console.log(`Skipping ${packedTarball.name} (version already published)`);
 				return;
 			}
-			process.exit(result.exitCode ?? 1);
+			process.exit(exitCode || 1);
 		}
 	} finally {
 		await fs.rm(packDir, { recursive: true, force: true });
+	}
+}
+
+async function restoreManifestAfterPack(manifestPath: string, task: () => Promise<void>): Promise<void> {
+	if (!isPackOnly) return task();
+	const original = await Bun.file(manifestPath).text();
+	try {
+		await task();
+	} finally {
+		await Bun.write(manifestPath, original);
 	}
 }
 
@@ -366,15 +406,17 @@ async function publishNativeLeafPackage(tag: string): Promise<void> {
 
 async function publishNativePackage(pkg: PublishPackage): Promise<void> {
 	const pkgDir = path.join(repoRoot, pkg.dir);
-	const manifest = await prepareNativeCorePackage(pkgDir, !isDryRun);
-	const name = manifest.name ?? path.basename(pkg.dir);
-	if (isDryRun) {
-		console.log(`DRY RUN native core manifest rewrite (${pkg.dir})`);
-		console.log(
-			JSON.stringify({ optionalDependencies: manifest.optionalDependencies, files: manifest.files }, null, "\t"),
-		);
-	}
-	await packAndPublish(pkgDir, name);
+	await restoreManifestAfterPack(path.join(pkgDir, "package.json"), async () => {
+		const manifest = await prepareNativeCorePackage(pkgDir, !isDryRun);
+		const name = manifest.name ?? path.basename(pkg.dir);
+		if (isDryRun) {
+			console.log(`DRY RUN native core manifest rewrite (${pkg.dir})`);
+			console.log(
+				JSON.stringify({ optionalDependencies: manifest.optionalDependencies, files: manifest.files }, null, "\t"),
+			);
+		}
+		await packAndPublish(pkgDir, name);
+	});
 }
 
 async function publishPackage(pkg: PublishPackage): Promise<void> {
@@ -383,13 +425,15 @@ async function publishPackage(pkg: PublishPackage): Promise<void> {
 		return;
 	}
 	const pkgDir = path.join(repoRoot, pkg.dir);
-	const manifest = await preparePackage(pkg);
-	const name = manifest.name ?? path.basename(pkg.dir);
-	if (manifest.private) {
-		console.log(`Skipping ${name} (private)`);
-		return;
-	}
-	await packAndPublish(pkgDir, name);
+	await restoreManifestAfterPack(path.join(pkgDir, "package.json"), async () => {
+		const manifest = await preparePackage(pkg);
+		const name = manifest.name ?? path.basename(pkg.dir);
+		if (manifest.private) {
+			console.log(`Skipping ${name} (private)`);
+			return;
+		}
+		await packAndPublish(pkgDir, name);
+	});
 }
 
 if (import.meta.main) {

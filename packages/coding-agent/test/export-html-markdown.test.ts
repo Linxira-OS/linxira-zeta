@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as vm from "node:vm";
-import { type Element, parseHTML } from "@zeta/pi-utils/dom";
-import { Marked } from "@zeta/pi-utils/marked";
+import { type Element, parseHTML } from "@linxiraos/pi-utils/dom";
+import { Marked } from "@linxiraos/pi-utils/marked";
 
 const [templateHtml, templateJs] = await Promise.all([
 	Bun.file(new URL("../src/export/html/template.html", import.meta.url)).text(),

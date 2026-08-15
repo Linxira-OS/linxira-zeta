@@ -1,4 +1,4 @@
-import { parseKey as nativeParseKey } from "@zeta/pi-natives";
+import { parseKey as nativeParseKey } from "@linxiraos/pi-natives";
 import * as native from "../src/keys";
 import { makeBench } from "./_harness";
 import * as js from "./_jskey";

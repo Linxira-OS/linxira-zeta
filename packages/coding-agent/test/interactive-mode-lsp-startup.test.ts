@@ -1,17 +1,17 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@zeta/pi-agent-core";
-import { ModelRegistry } from "@zeta/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@zeta/pi-coding-agent/config/settings";
-import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "@zeta/pi-coding-agent/lsp/startup-events";
-import { InteractiveMode } from "@zeta/pi-coding-agent/modes/interactive-mode";
-import { initTheme, theme } from "@zeta/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@zeta/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@zeta/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@zeta/pi-coding-agent/session/session-manager";
-import type { LspStartupServerInfo } from "@zeta/pi-coding-agent/tools";
-import { EventBus } from "@zeta/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@zeta/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "@linxiraos/zeta/lsp/startup-events";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { LspStartupServerInfo } from "@linxiraos/zeta/tools";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 describe("InteractiveMode LSP startup welcome banner", () => {
 	let authStorage: AuthStorage;

@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { convertAnthropicMessages, streamAnthropic } from "@zeta/pi-ai/providers/anthropic";
+import { convertAnthropicMessages, streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
 import {
 	AnthropicMessages,
 	type AnthropicMessagesClientLike,
 	type AnthropicRequestOptions,
-} from "@zeta/pi-ai/providers/anthropic-client";
-import type { WebSearchToolResultBlockParam } from "@zeta/pi-ai/providers/anthropic-wire";
-import type { AssistantMessageEvent, Context, Model, ModelSpec, ProviderSessionState } from "@zeta/pi-ai/types";
-import { buildModel } from "@zeta/pi-catalog/build";
-import { structuredCloneJSON } from "@zeta/pi-utils";
+} from "@linxiraos/pi-ai/providers/anthropic-client";
+import type { WebSearchToolResultBlockParam } from "@linxiraos/pi-ai/providers/anthropic-wire";
+import type { AssistantMessageEvent, Context, Model, ModelSpec, ProviderSessionState } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { structuredCloneJSON } from "@linxiraos/pi-utils";
 import { withEnv } from "./helpers";
 
 const model: Model<"anthropic-messages"> = buildModel({

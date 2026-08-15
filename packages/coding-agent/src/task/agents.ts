@@ -3,8 +3,8 @@
  *
  * Agents are embedded at build time via Bun's import with { type: "text" }.
  */
-import { Effort } from "@zeta/pi-ai";
-import { parseFrontmatter, prompt } from "@zeta/pi-utils";
+import { Effort } from "@linxiraos/pi-ai";
+import { parseFrontmatter, prompt } from "@linxiraos/pi-utils";
 import { parseAgentFields } from "../discovery/helpers";
 import designerMd from "../prompts/agents/designer.md" with { type: "text" };
 // Embed agent markdown files at build time

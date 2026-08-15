@@ -4,9 +4,9 @@ import type {
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionUIContext,
-} from "@zeta/pi-coding-agent/extensibility/extensions";
-import { ExtensionUiController } from "@zeta/pi-coding-agent/modes/controllers/extension-ui-controller";
-import type { InteractiveModeContext } from "@zeta/pi-coding-agent/modes/types";
+} from "@linxiraos/zeta/extensibility/extensions";
+import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 /**
  * Issue #1020: `ctx.shutdown()` is a no-op in interactive mode.

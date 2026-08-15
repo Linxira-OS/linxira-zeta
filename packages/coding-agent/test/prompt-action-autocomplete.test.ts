@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { KeybindingsManager as AppKeybindingsManager } from "@zeta/pi-coding-agent/config/keybindings";
-import { createPromptActionAutocompleteProvider } from "@zeta/pi-coding-agent/modes/prompt-action-autocomplete";
-import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@zeta/pi-tui";
+import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@linxiraos/pi-tui";
+import { KeybindingsManager as AppKeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { createPromptActionAutocompleteProvider } from "@linxiraos/zeta/modes/prompt-action-autocomplete";
 
 describe("prompt action autocomplete", () => {
 	beforeEach(() => {

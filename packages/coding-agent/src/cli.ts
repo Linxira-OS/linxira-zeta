@@ -15,18 +15,19 @@ try {
  * lightweight CLI runner from pi-utils.
  */
 import { parentPort } from "node:worker_threads";
-import type { CliConfig, CommandMetadata } from "@zeta/pi-utils/cli";
+import type { CliConfig, CommandMetadata } from "@linxiraos/pi-utils/cli";
 import {
 	APP_NAME,
 	getActiveProfile,
 	MIN_BUN_VERSION,
+	migrateLegacyOmpConfigDir,
 	resolveProfileEnv,
 	setProfile,
 	VERSION,
-} from "@zeta/pi-utils/dirs";
-import { interceptUnhandledRejections } from "@zeta/pi-utils/postmortem";
-import { setProcessName } from "@zeta/pi-utils/process-name";
-import { declareWorkerHostEntry, installWorkerInbox, isWorkerHostSelector } from "@zeta/pi-utils/worker-host";
+} from "@linxiraos/pi-utils/dirs";
+import { interceptUnhandledRejections } from "@linxiraos/pi-utils/postmortem";
+import { setProcessName } from "@linxiraos/pi-utils/process-name";
+import { declareWorkerHostEntry, installWorkerInbox, isWorkerHostSelector } from "@linxiraos/pi-utils/worker-host";
 import { installProfileAlias, resolveProfileAliasCommandFromProcess } from "./cli/profile-alias";
 import { extractProfileFlags } from "./cli/profile-bootstrap";
 import { startJsEvalProcess } from "./eval/js/process-entry";
@@ -45,6 +46,11 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 
 setProcessName(APP_NAME);
 
+// One-time adoption of a pre-existing `~/.zeta` config root. Zeta keeps no
+// `.zeta` compatibility surface (see AGENTS.md), so this is the only place
+// the legacy name is honored.
+migrateLegacyOmpConfigDir();
+
 // `Bun.build`-API compiled Windows executables report `import.meta.main ===
 // false`: the standalone loader keys the entry module with native backslashes
 // (`B:\~BUN\root\cli.js`) but registers the main path with forward slashes
@@ -56,14 +62,14 @@ const isProcessEntry = import.meta.main || process.env.PI_COMPILED === "true";
 // Worker-host entry declaration (Worker threads and worker subprocesses
 // re-enter `Bun.main` with a hidden argv selector instead of loading separate
 // worker entrypoints) happens inside `runCli` after profile bootstrap:
-// `@zeta/pi-utils/env` eagerly loads `.env` from the agent directory at
+// `@linxiraos/pi-utils/env` eagerly loads `.env` from the agent directory at
 // import time, so it must not be imported before `setProfile` runs.
 
 async function showHelp(config: CliConfig<CommandMetadata>): Promise<void> {
 	// Root help historically loads the selected profile's environment. The
 	// lazily loaded help module imports it statically after profile bootstrap.
 	const [{ renderRootHelp }, { getExtraHelpText }] = await Promise.all([
-		import("@zeta/pi-utils/cli"),
+		import("@linxiraos/pi-utils/cli"),
 		import("./cli/help-extra"),
 	]);
 	renderRootHelp(config);
@@ -84,7 +90,7 @@ async function showHelp(config: CliConfig<CommandMetadata>): Promise<void> {
  * tarball installs all exercise it on every CI run.
  */
 async function runSmokeTest(): Promise<void> {
-	const { smokeTestSyncWorker, startServer } = await import("@zeta/omp-stats");
+	const { smokeTestSyncWorker, startServer } = await import("@linxiraos/pi-stats");
 	const { smokeTestTinyTitleWorker } = await import("./tiny/title-client");
 	const { smokeTestSttWorker } = await import("./stt/asr-client");
 	const { smokeTestTtsWorker } = await import("./tts/tts-client");
@@ -150,7 +156,7 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 			pending.push(event);
 		};
 		scope.onmessage = buffer;
-		await import("@zeta/omp-stats/sync-worker");
+		await import("@linxiraos/pi-stats/sync-worker");
 		const handler = scope.onmessage;
 		if (handler && handler !== buffer) {
 			for (const event of pending) handler.call(scope, event);
@@ -384,7 +390,7 @@ export async function runCli(argv: string[]): Promise<void> {
 
 	// Declare this module as the worker-host entry now that the active profile
 	// is resolved. The worker-host module is side-effect-free; importing
-	// `@zeta/pi-utils/env` here would snapshot the wrong agent `.env`.
+	// `@linxiraos/pi-utils/env` here would snapshot the wrong agent `.env`.
 	// Gated on `isProcessEntry`: only the real CLI process entry is a valid
 	// worker host. Worker-thread re-entry already returned above at the
 	// `__omp_worker_` dispatch, and importers (`runCli` in profile-CLI tests,
@@ -398,7 +404,7 @@ export async function runCli(argv: string[]): Promise<void> {
 		return;
 	}
 	const [{ run }, { commands, resolveCliArgv }] = await Promise.all([
-		import("@zeta/pi-utils/cli"),
+		import("@linxiraos/pi-utils/cli"),
 		import("./cli-commands"),
 	]);
 	// --help and --version are handled by run() directly, don't rewrite those.
