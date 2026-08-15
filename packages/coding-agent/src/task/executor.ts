@@ -9,7 +9,7 @@ import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } fr
 import { EventLoopKeepalive, recordHandoff, resolveTelemetry } from "@linxiraos/pi-agent-core";
 import type { Api, Model, ServiceTierByFamily, Usage } from "@linxiraos/pi-ai";
 import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@linxiraos/pi-utils";
-import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, type AsyncJobManager } from "../async";
+import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobManager } from "../async";
 import type { Rule } from "../capability/rule";
 import { ModelRegistry } from "../config/model-registry";
 import {
@@ -3381,7 +3381,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				}
 				unsubscribe = null;
 			}
-			const jobManager = options.asyncJobManager;
+			const jobManager = options.asyncJobManager ?? AsyncJobManager.instance();
 			if (jobManager) {
 				const reap = await jobManager.cancelAndReapOwnerJobs(id, cleanupDeadlineAt);
 				if (!reap.settled) {

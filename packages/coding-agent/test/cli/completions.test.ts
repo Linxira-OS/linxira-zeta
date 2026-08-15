@@ -81,7 +81,7 @@ describe("generateCompletion — zsh", () => {
 	const out = generateCompletion("zsh", spec);
 
 	it("emits the compdef header and dual-mode (autoload + eval) tail", () => {
-		expect(out.startsWith("#compdef omp")).toBe(true);
+		expect(out.startsWith("#compdef zeta")).toBe(true);
 		expect(out).toContain('if [ "$funcstack[1]" = "_omp" ]; then');
 		expect(out).toContain("compdef _omp omp");
 	});
