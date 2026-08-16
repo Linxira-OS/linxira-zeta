@@ -144,14 +144,16 @@ jobs:
          - name: Verify tag matches packaged version
            if: steps.detect.outputs.is-release == 'true'
            shell: bash
+           env:
+              RELEASE_TAG: ${{ steps.detect.outputs.release-tag }}
            run: |
-              tag_ver="${release_tag#v}"
+              tag_ver="${RELEASE_TAG#v}"
               pkg_ver=$(node -p "require('./packages/coding-agent/package.json').version")
               if [ "$tag_ver" != "$pkg_ver" ]; then
-                echo "::error::Release tag $release_tag does not match packages/coding-agent/package.json version $pkg_ver. Run a version bump (bun scripts/release.ts <version> or manual) so package versions equal the tag, then push the tag again."
+                echo "::error::Release tag $RELEASE_TAG does not match packages/coding-agent/package.json version $pkg_ver. Run a version bump (bun scripts/release.ts <version> or manual) so package versions equal the tag, then push the tag again."
                 exit 1
               fi
-              echo "tag $release_tag matches packaged version $pkg_ver"
+              echo "tag $RELEASE_TAG matches packaged version $pkg_ver"
 
    check:
       name: Lint, type check & web build
