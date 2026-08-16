@@ -15,10 +15,10 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 } from "../extensibility/plugins/marketplace/index.js";
-import { theme } from "../modes/theme/theme";
+import { type Theme, theme } from "../modes/theme/theme";
 
 /** Symbol set used in CLI output; falls back to plain marks before initTheme. */
-function statusSymbols(): NonNullable<ReturnType<typeof theme.status>> {
+function statusSymbols(): Theme["status"] {
 	return (
 		theme?.status ?? {
 			success: "✓",
