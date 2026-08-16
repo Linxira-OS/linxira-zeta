@@ -344,6 +344,7 @@ jobs:
            with:
               targets: linux-musl-x64-baseline linux-musl-arm64
               dest: packages/natives/native-musl
+              cache-scope: natives-musl
          - name: Smoke release addons
            if: github.event_name != 'pull_request'
            shell: bash
