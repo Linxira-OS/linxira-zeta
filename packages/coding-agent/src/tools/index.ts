@@ -61,7 +61,6 @@ import { MemoryRetainTool } from "./memory-retain";
 import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
 import type { PlanProposalHandler } from "./resolve";
-import { SecurityScanTool } from "./security-scan";
 import { supportsExternalThinking, ThinkTool } from "./think";
 import { type TodoPhase, TodoTool } from "./todo";
 import { TrackingTool } from "./tracking";
@@ -415,7 +414,10 @@ export type ToolFactory = (session: ToolSession) => Tool | null | Promise<Tool |
  */
 export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	read: s => new ReadTool(s),
-	security_scan: s => new SecurityScanTool(s),
+	security_scan: async s => {
+		const { SecurityScanTool } = await import("./security-scan");
+		return new SecurityScanTool(s);
+	},
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
