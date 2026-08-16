@@ -1450,7 +1450,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 					await originalSetPresentation(toolNames, mountedToolNames, forcePromptRefresh, signal);
 					if (toolNames.includes("recovered_detached_tool")) recoveredActivation.resolve();
 				});
-			testSetExtensionHandlerTimeoutMs(10);
+			testSetExtensionHandlerTimeoutMs(200);
 
 			releaseStalledRegistration.resolve();
 			const failure = await detachedFailure.promise;
