@@ -19,17 +19,19 @@ import { theme } from "../modes/theme/theme";
 
 /** Symbol set used in CLI output; falls back to plain marks before initTheme. */
 function statusSymbols(): NonNullable<ReturnType<typeof theme.status>> {
-	return theme?.status ?? {
-		success: "✓",
-		error: "✘",
-		warning: "⚠",
-		info: "ℹ",
-		pending: "…",
-		disabled: "✗",
-		enabled: "✓",
-		running: "●",
-		shadowed: "·",
-	};
+	return (
+		theme?.status ?? {
+			success: "✓",
+			error: "✘",
+			warning: "⚠",
+			info: "ℹ",
+			pending: "…",
+			disabled: "✗",
+			enabled: "✓",
+			running: "●",
+			shadowed: "·",
+		}
+	);
 }
 
 // =============================================================================
