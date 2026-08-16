@@ -212,8 +212,36 @@ merge. No version bump, no tag, no release.
     gained a typed `toJsonSchema()` member; upstream test hunks use a typed
     `toJsonDocument` helper.
 - Local checks: `bun run check:ts` green; `check:rs` environment-blocked on
-  this Windows host (no MSVC linker/SDK) — covered by CI. CI green required
-  before the branch merges into `main`; no version bump, no tag.
+  this Windows host (no MSVC linker/SDK) — covered by CI. Merged into `main`
+  (`26608da0ab`) after PR #2 CI green; 1.0.2 released after (bump `9f49bff2` +
+  tag `v1.0.2`).
+
+### v17.3.4 (in progress — branch `sync/omp-release/v17.3.4`)
+
+- Prior baseline: `v17.3.3` at `039728ad808395af4066783c6f4f6b079d8e5a78`
+  (main `26608da0ab`).
+- Source: `refs/tags/v17.3.4` at `ffd53ff92a6f575d499730475a73460dd7cc2eea`
+  (verified with `git ls-remote`).
+- Merge-tree from `main`: 20 conflicts (18 content + 2 modify/delete).
+  Resolutions:
+  - Zeta-owned surfaces kept: native sentinel `__piNativesV1_0_2` (lib.rs +
+    generated `native/index.js|d.ts`), root `Cargo.toml` workspace version
+    `1.0.2`, `workspaces.catalog` `@linxiraos/*` @ `1.0.2` with name mapping
+    (`hashline`→`pi-hashline`, `omp-stats`→`pi-stats`, `omptype`→`pi-omptype`,
+    `pi-coding-agent`→`zeta`, `snapcompact`→`pi-snapcompact`), `mupdf`
+    external dep (bundle-dist), `logger` usage (markit).
+  - Upstream v17.3.4 accepted: `pdf` native module (`pdfToMarkdown` +
+    `read-pdf` tool + markit pdf converters + tests), `alibaba-token-plan`
+    usage provider, ai usage/auth fixes; upstream-deleted
+    `read-pdf-images` (+ test) accepted (replaced by pdf module).
+  - Package graph: workspace `package.json` dep names corrected
+    (`pi-snapcompact`/`pi-hashline`/`pi-stats`), duplicate keys deduped;
+    `bun.lock` regenerated with Bun 1.3.14; `Cargo.lock` regenerated via
+    `cargo metadata`; new upstream files package-scope `@oh-my-pi/*` →
+    `@linxiraos/*` re-applied.
+- Local checks: `bun run check:ts` green. **v17.3.5 intentionally deferred**
+  (upstream scheduled large updates next week; re-evaluate then). CI green
+  required before merging to `main`; no version bump, no tag.
 
 ## Pi Runtime Ports
 
