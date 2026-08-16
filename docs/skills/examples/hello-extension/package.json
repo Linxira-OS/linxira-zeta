@@ -1,9 +1,9 @@
 {
   "name": "hello-extension",
   "version": "1.0.0",
-  "description": "Minimal oh-my-pi extension example",
+  "description": "Minimal linxira-zeta extension example",
   "homepage": "https://linxira-os.github.io",
-  "omp": {
+  "zeta": {
     "extensions": ["./index.ts"]
   }
 }

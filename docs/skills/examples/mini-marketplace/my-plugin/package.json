@@ -2,7 +2,7 @@
   "name": "my-plugin",
   "version": "0.1.0",
   "homepage": "https://linxira-os.github.io",
-  "omp": {
+  "zeta": {
     "extensions": ["./index.ts"]
   }
 }

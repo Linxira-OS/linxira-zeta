@@ -8,7 +8,7 @@ sync tree itself.
 
 ## Upstream Position
 
-Verified against `omp-upstream` (can1357/oh-my-pi) and `pi-upstream`
+Verified against `omp-upstream` (can1357/linxira-zeta) and `pi-upstream`
 (earendil-works/pi): **neither upstream has a product roadmap document** (pi
 carries only a technical `tui-plan.md`). We track upstream release tags, not
 feature plans; re-check for roadmaps at each release sync and adjust if the
@@ -20,12 +20,12 @@ These exist today and are marked in the root `README.md`:
 
 | Capability | Where | Notes |
 | --- | --- | --- |
-| Adaptive long-term tracking (`autolearn`) | `packages/coding-agent/src/autolearn/` | Passive/active capture, standing system guidance kept prompt-cache stable |
+| Long-term tracking documents | `packages/coding-agent/src/tools/tracking.ts` | `tracking_update` tool writes `<project>/.zeta/tracking/`; Web UI TrackingPanel |
 | Experiment measurement (`autoresearch`) | `packages/coding-agent/src/autoresearch/` | Per-project SQLite experiments, metrics, baseline commits |
-| TypeScript custom commands | `packages/coding-agent/src/extensibility/custom-commands/` | User commands from `~/.omp/commands/` + project dirs, arktype/typebox/zod arg schemas, bundled `ci-green`/`review` |
+| TypeScript custom commands | `packages/coding-agent/src/extensibility/custom-commands/` | User commands from `~/.zeta/commands/` + project dirs, arktype/typebox/zod arg schemas, bundled `ci-green`/`review` |
 | Command marketplace (Bun-package distribution) | `slash-commands/builtin-marketplace.ts` | Install/uninstall commands as Bun packages |
 | ACP collaboration builtins | `slash-commands/acp-builtins.ts` | Agent Client Protocol session commands |
-| Local stats dashboard | `omp stats` (`packages/stats`) | Local observability |
+| Local stats dashboard | `zeta stats` (`packages/stats`) | Local observability |
 
 ## Priorities
 
@@ -44,7 +44,7 @@ service/agent split is not complete.
 
 ### P0 — Long-term tracking document + prompt-cache contract
 
-The rule (already encoded in `autolearn/controller.ts`): **before the provider
+The rule (encoded in `src/tools/tracking.ts` + `src/prompts/tools/tracking.md`): **before the provider
 caches the conversation, the model must have written current state into the
 long-term tracking document**. Anything that would mutate the cached prefix
 (hidden reminders, injected updates, tracking nudges) must go through the
