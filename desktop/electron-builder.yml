@@ -45,6 +45,11 @@ nsis:
 linux:
   icon: build/icon.png
   executableName: zeta-desktop
+  category: Development
+  desktop:
+    entry:
+      Name: Zeta
+      Comment: Zeta coding agent desktop
   target:
     - target: tar.gz
       arch:

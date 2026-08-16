@@ -179,8 +179,14 @@ async function sleep(ms: number): Promise<void> {
 
 async function serviceIsReady(): Promise<boolean> {
 	try {
-		const [webUi, stats] = await Promise.all([fetch(`${WEB_UI_URL}/api/sessions`), fetch(STATS_URL)]);
-		return webUi.ok && stats.ok;
+		// /api/sessions 走 in-process gateway（不依赖 web-ui 子进程），必须再
+		// 探测主页：主代理 / → 随机端口 web-ui 子进程，子进程未就绪时 502。
+		const [gateway, page, stats] = await Promise.all([
+			fetch(`${WEB_UI_URL}/api/sessions`),
+			fetch(`${WEB_UI_URL}/`),
+			fetch(STATS_URL),
+		]);
+		return gateway.ok && page.ok && stats.ok;
 	} catch {
 		return false;
 	}
@@ -298,13 +304,9 @@ function buildMenu(): void {
 // ---------------------------------------------------------------------------
 
 async function boot(): Promise<void> {
-	if (await serviceIsReady()) {
-		writeDesktopLog("Reusing an already-running local Zeta service.");
-		await ensureDefaultWorkspace();
-		buildMenu();
-		createWindow();
-		return;
-	}
+	// 总是启动自己的服务，绝不静默复用外部实例：外部 `zeta serve` 可能指向
+	// 不同的工作目录/版本，复用会挂载错误的会话与配置。若端口 30141 已被
+	// 其他 zeta 进程占用，服务绑定失败退出，错误提示见下方 exit 处理器。
 
 	const cmd = resolveServeCommand();
 	if (!cmd) {
@@ -342,7 +344,11 @@ async function boot(): Promise<void> {
 		serviceOwned = false;
 		closeServiceLog();
 		if (!quitting) {
-			showServiceFailure(`The Zeta service stopped unexpectedly (exit ${code}).`);
+			const hint =
+				code !== 0
+					? " The service may have failed to bind port 30141 (already in use by another zeta process). Close other zeta instances and retry."
+					: "";
+			showServiceFailure(`The Zeta service stopped unexpectedly (exit ${code}).${hint}`);
 		}
 	});
 
