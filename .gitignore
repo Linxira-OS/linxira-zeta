@@ -98,3 +98,6 @@ packages/coding-agent/bench/boot-baseline.json
 /bazel-pi
 /bazel-oh-my-pi
 /.bazelrc.user
+
+# Local-only session handoff notes (never commit)
+HANDOFF.md
