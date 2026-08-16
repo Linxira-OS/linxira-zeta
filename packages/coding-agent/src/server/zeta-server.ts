@@ -121,6 +121,11 @@ async function proxyRequest(req: Request, targetBase: string): Promise<Response>
 		headers.delete("upgrade");
 		headers.delete("proxy-authorization");
 		headers.delete("proxy-authenticate");
+		// Internal proxy: the browser origin (127.0.0.1:30141) never matches the
+		// web-ui child port (random ephemeral). web-ui/proxy.ts would 403 every
+		// /api/* call as "cross-origin"; drop the header so the child trusts the
+		// proxied request (same-origin from the browser's perspective anyway).
+		headers.delete("origin");
 
 		const proxyReq = new Request(targetUrl, {
 			method: req.method,
