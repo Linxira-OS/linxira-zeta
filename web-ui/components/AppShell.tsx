@@ -1080,7 +1080,7 @@ function AppShellContent() {
                       STARFIELD // CONSTELLATION FIELD
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "#d99b26", letterSpacing: "0.1em" }}>
-                      SYS.LOC // OMP-WEB-INTERFACE · MISSION AGENT ACTIVE
+                      SYS.LOC // ZETA-WEB-INTERFACE · MISSION AGENT ACTIVE
                     </div>
                     <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.8, background: "rgba(27,54,93,0.3)", border: "1px solid #1e2d45", borderLeft: "3px solid #d99b26", padding: "14px 20px", textAlign: "left", width: "100%" }}>
                       <span style={{ color: "#e05a2b", fontFamily: "var(--font-mono)", fontWeight: 700 }}>01.</span> {t("select-a-project-directory-from-the-sidebar")}<br />

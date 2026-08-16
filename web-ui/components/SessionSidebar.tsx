@@ -453,7 +453,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         return next;
       });
     }
-    if (completedInBackground.length > 0) {
+    // Refresh the session list whenever the running set changes: new sessions
+    // become visible without a manual refresh, including the just-selected one
+    // (previously excluded here, which left brand-new sessions invisible).
+    if (completedInBackground.length > 0 || newlyRunning.length > 0) {
       loadSessions(false);
     }
 
@@ -1914,6 +1917,20 @@ function SessionItem({
               </span>
             </div>
             <div style={{ marginTop: 2, display: "flex", alignItems: "center", gap: 8, color: "var(--text-dim)", fontSize: 11, minWidth: 0 }}>
+              {session.cwd && (
+                <span
+                  title={session.cwd}
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    maxWidth: "45%",
+                    color: "var(--text-dim)",
+                  }}
+                >
+                  {session.cwd.split(/[\\/]/).filter(Boolean).pop() || session.cwd}
+                </span>
+              )}
               {isRunning ? (
                 <RunningSessionIndicator />
               ) : isUnread ? (
