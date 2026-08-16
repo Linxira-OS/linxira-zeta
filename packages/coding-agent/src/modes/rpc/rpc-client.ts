@@ -354,6 +354,10 @@ export class RpcClient {
 			// workers are reaped here so pending requests cannot hang indefinitely.
 			if (!readySettled) {
 				readySettled = true;
+				// stderr may still be in flight when stdout EOFs (the child wrote
+				// its failure message and exited) — give the pipe a moment so the
+				// startup-failure text survives in the error.
+				await Bun.sleep(100);
 				readyReject(new Error(`Agent output stream ended before ready. Stderr: ${child.peekStderr()}`));
 				return;
 			}
