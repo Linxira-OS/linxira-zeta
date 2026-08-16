@@ -504,8 +504,8 @@ export class AcpAgent implements Agent {
 			authMethods.push({
 				type: "terminal",
 				id: "terminal",
-				name: "Set up Oh My Pi in terminal",
-				description: "Launch the omp TUI to add provider keys and select models.",
+				name: "Set up Zeta in terminal",
+				description: "Launch the zeta TUI to add provider keys and select models.",
 				args: [ACP_TERMINAL_AUTH_FLAG],
 			});
 		}

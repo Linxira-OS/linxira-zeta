@@ -527,7 +527,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Services",
 			label: "Max In-Flight Requests",
 			description:
-				'Maximum concurrent LLM requests per provider id (for example "openai" or "anthropic"), shared across local OMP processes with this config root. Omitted providers are unlimited.',
+				'Maximum concurrent LLM requests per provider id (for example "openai" or "anthropic"), shared across local zeta processes with this config root. Omitted providers are unlimited.',
 		},
 	},
 
@@ -1835,7 +1835,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "interaction",
 			group: "Startup & Updates",
 			label: "Check for Updates",
-			description: "Check for omp updates on startup",
+			description: "Check for zeta updates on startup",
 		},
 	},
 
@@ -4099,7 +4099,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Available Tools",
 			label: "Security",
 			description:
-				"Enable OMP-native security scan planning, execution, and the read-only security:// resource namespace",
+				"Enable Zeta-native security scan planning, execution, and the read-only security:// resource namespace",
 		},
 	},
 

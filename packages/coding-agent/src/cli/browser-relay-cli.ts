@@ -22,7 +22,7 @@ export interface BrowserRelayCommandArgs {
 	token?: string;
 	/** Install target directory; defaults to ~/.zeta/browser-relay/extension. */
 	dir?: string;
-	/** Gather tabs the agent actively drives into an 'omp' Chrome tab group (default true). */
+	/** Gather tabs the agent actively drives into a 'zeta' Chrome tab group (default true). */
 	group?: boolean;
 	verbose?: boolean;
 }
@@ -50,7 +50,7 @@ async function runInstall(dirOverride: string | undefined): Promise<void> {
 	for (const name in EXTENSION_FILES) {
 		await Bun.write(path.join(dir, name), EXTENSION_FILES[name]!);
 	}
-	console.log(`Installed the OMP Browser Relay extension to ${dir}`);
+	console.log(`Installed the Zeta Browser Relay extension to ${dir}`);
 	console.log("");
 	console.log("Finish setup in Chrome:");
 	console.log("  1. Open chrome://extensions and enable Developer mode.");
@@ -94,7 +94,7 @@ async function runServe(args: BrowserRelayCommandArgs): Promise<void> {
 			`  enable with         omp config set browser.relay true && omp config set browser.relayUrl http://127.0.0.1:${args.port}`,
 		);
 	}
-	console.log("Waiting for the OMP Browser Relay extension to connect (omp browser-relay install)...");
+	console.log("Waiting for the Zeta Browser Relay extension to connect (omp browser-relay install)...");
 
 	let announced = false;
 	const readiness = setInterval(() => {

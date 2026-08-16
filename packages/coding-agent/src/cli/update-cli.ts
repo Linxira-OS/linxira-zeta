@@ -17,10 +17,13 @@ import { $ } from "bun";
 import { theme } from "../modes/theme/theme";
 import { isTimeoutError, withTimeoutSignal } from "../utils/fetch-timeout";
 
-const REPO = "can1357/oh-my-pi";
+const REPO = "Linxira-OS/linxira-zeta";
 const PACKAGE = "@linxiraos/zeta";
-const HOMEBREW_FORMULA = "can1357/tap/omp";
-const MISE_TOOL = "github:can1357/oh-my-pi";
+// Zeta ships no Homebrew tap / mise tool. Empty values keep the detection
+// branches from ever resolving an OMP formula (can1357/tap/omp) so `zeta
+// update` can never update the upstream binary.
+const HOMEBREW_FORMULA = "";
+const MISE_TOOL = "zeta";
 const NIX_STORE_DIR = "/nix/store";
 /**
  * Official npm registry origin.
