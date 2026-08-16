@@ -1,3 +1,4 @@
+import { M } from "../i18n";
 import { runPauseScreen } from "../modes/components/pause-screen";
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
@@ -6,7 +7,7 @@ import type { SlashCommandSpec } from "./types";
 export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "force",
-		description: "Force next turn to use a specific tool",
+		description: M.cmdForce,
 		aliases: ["force:"],
 		inlineHint: "<tool-name> [prompt]",
 		allowArgs: true,
@@ -55,7 +56,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "live",
-		description: "Start Codex-backed realtime voice mode",
+		description: M.cmdLiveVoice,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleLiveCommand();
@@ -63,7 +64,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "pause",
-		description: "Freeze all agents (main, subagents, advisor) until resumed",
+		description: M.cmdPause,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runPauseScreen(runtime.ctx);
@@ -72,7 +73,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "quit",
 		aliases: ["q"],
-		description: "Quit the application",
+		description: M.cmdQuit,
 		handleTui: shutdownHandlerTui,
 	},
 ];

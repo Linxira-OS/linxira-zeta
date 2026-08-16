@@ -1,5 +1,6 @@
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import { settings } from "../config/settings";
+import { M } from "../i18n";
 import type { AgentSession } from "../session/agent-session";
 import type { SessionOAuthAccountList } from "../session/agent-session-types";
 import {
@@ -140,23 +141,23 @@ async function handleSessionPinCommand(
 export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "todo",
-		description: "View or modify the agent's todo list",
+		description: M.cmdTodo,
 		acpDescription: "Manage todos",
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "edit", description: "Open todos in $EDITOR (Markdown round-trip)" },
-			{ name: "copy", description: "Copy todos as Markdown to clipboard" },
-			{ name: "export", description: "Write todos as Markdown to a file (default: TODO.md)", usage: "[<path>]" },
-			{ name: "import", description: "Replace todos from a Markdown file (default: TODO.md)", usage: "[<path>]" },
+			{ name: "edit", description: M.cmdTodoEdit },
+			{ name: "copy", description: M.cmdTodoCopy },
+			{ name: "export", description: M.cmdTodoExport, usage: "[<path>]" },
+			{ name: "import", description: M.cmdTodoImport, usage: "[<path>]" },
 			{
 				name: "append",
-				description: "Append a task; phase fuzzy-matched or auto-created",
+				description: M.cmdTodoAppend,
 				usage: "[<phase>] <task...>",
 			},
-			{ name: "start", description: "Mark task in_progress (fuzzy-matched)", usage: "<task>" },
-			{ name: "done", description: "Mark task/phase/all completed (fuzzy-matched)", usage: "[<task|phase>]" },
-			{ name: "drop", description: "Mark task/phase/all abandoned (fuzzy-matched)", usage: "[<task|phase>]" },
-			{ name: "rm", description: "Remove task/phase/all (fuzzy-matched)", usage: "[<task|phase>]" },
+			{ name: "start", description: M.cmdTodoStart, usage: "<task>" },
+			{ name: "done", description: M.cmdTodoDone, usage: "[<task|phase>]" },
+			{ name: "drop", description: M.cmdTodoDrop, usage: "[<task|phase>]" },
+			{ name: "rm", description: M.cmdTodoRm, usage: "[<task|phase>]" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -175,15 +176,15 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "session",
-		description: "Session management commands",
+		description: M.cmdSession,
 		acpDescription: "Show or configure the current session",
 		acpInputHint: "[info|delete|pin [account]]",
 		subcommands: [
-			{ name: "info", description: "Show session info and stats" },
-			{ name: "delete", description: "Delete current session and return to selector" },
+			{ name: "info", description: M.cmdSessionInfo },
+			{ name: "delete", description: M.cmdSessionDelete },
 			{
 				name: "pin",
-				description: "Pin the current provider to a stored OAuth account",
+				description: M.cmdSessionPin,
 				usage: "[account]",
 			},
 		],
@@ -252,7 +253,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "jobs",
-		description: "Show async background jobs status",
+		description: M.cmdJobs,
 		acpDescription: "Show background jobs",
 		getTuiAutocompleteDescription: runtime => {
 			const snapshot = runtime.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });
@@ -293,12 +294,12 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "usage",
-		description: "Show provider usage and limits",
+		description: M.cmdUsage,
 		acpDescription: "Show token usage",
 		acpInputHint: "[show|reset [account|active]]",
 		subcommands: [
-			{ name: "show", description: "Show provider usage and limits" },
-			{ name: "reset", description: "Spend a saved Codex rate-limit reset", usage: "[account|active]" },
+			{ name: "show", description: M.cmdUsage },
+			{ name: "reset", description: M.cmdUsageReset, usage: "[account|active]" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -335,7 +336,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "stats",
-		description: "Launch the local stats dashboard",
+		description: M.cmdStats,
 		inlineHint: "[--port <port>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -354,10 +355,10 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "changelog",
-		description: "Show changelog entries",
+		description: M.cmdChangelog,
 		acpDescription: "Show changelog",
 		acpInputHint: "[full]",
-		subcommands: [{ name: "full", description: "Show complete changelog" }],
+		subcommands: [{ name: "full", description: M.cmdChangelogFull }],
 		allowArgs: true,
 		handle: async (command, runtime) => {
 			const changelogPath = getChangelogPath();
@@ -379,7 +380,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "hotkeys",
-		description: "Show all keyboard shortcuts",
+		description: M.cmdHotkeys,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.handleHotkeysCommand();
 			runtime.ctx.editor.setText("");
@@ -387,7 +388,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "tools",
-		description: "Show tools currently visible to the agent",
+		description: M.cmdTools,
 		acpDescription: "Show available tools",
 		getTuiAutocompleteDescription: runtime => {
 			const active = runtime.ctx.session.getActiveToolNames().length;
@@ -415,7 +416,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "context",
-		description: "Show estimated context usage breakdown",
+		description: M.cmdContext,
 		acpDescription: "Show context usage",
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
@@ -434,7 +435,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "extensions",
 		aliases: ["status"],
-		description: "Open Extension Control Center dashboard",
+		description: M.cmdExtensions,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showExtensionsDashboard();
 			runtime.ctx.editor.setText("");
@@ -442,7 +443,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "agents",
-		description: "Open the agents hub (per-agent model, prewalk, and advisor)",
+		description: M.cmdAgents,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showAgentsDashboard();
 			runtime.ctx.editor.setText("");
@@ -450,7 +451,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "branch",
-		description: "Create a new branch from a previous message",
+		description: M.cmdBranch,
 		handleTui: (_command, runtime) => {
 			if (settings.get("doubleEscapeAction") === "tree") {
 				runtime.ctx.showTreeSelector();
@@ -462,7 +463,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "fork",
-		description: "Create a new fork from a previous message",
+		description: M.cmdFork,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleForkCommand();
@@ -470,7 +471,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "tree",
-		description: "Navigate session tree (switch branches)",
+		description: M.cmdTree,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showTreeSelector();
 			runtime.ctx.editor.setText("");
@@ -478,7 +479,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "login",
-		description: "Login with OAuth provider",
+		description: M.cmdLogin,
 		inlineHint: "[provider|redirect URL]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -530,7 +531,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "logout",
-		description: "Logout from OAuth provider",
+		description: M.cmdLogout,
 		inlineHint: "[provider]",
 		allowArgs: true,
 		handleTui: (command, runtime) => {
@@ -552,35 +553,35 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "mcp",
-		description: "Manage MCP servers (add, list, remove, test)",
+		description: M.cmdMcp,
 		acpDescription: "Manage MCP servers",
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
 				name: "add",
-				description: "Add a new MCP server",
+				description: M.cmdMcpAdd,
 				usage: "<name> [--scope project|user] [--url <url>] [-- <command...>]",
 			},
-			{ name: "list", description: "List all configured MCP servers" },
-			{ name: "remove", description: "Remove an MCP server", usage: "<name> [--scope project|user]" },
-			{ name: "test", description: "Test connection to a server", usage: "<name>" },
-			{ name: "reauth", description: "Reauthorize OAuth for a server", usage: "<name>" },
-			{ name: "unauth", description: "Remove OAuth auth from a server", usage: "<name>" },
-			{ name: "enable", description: "Enable an MCP server", usage: "<name>" },
-			{ name: "disable", description: "Disable an MCP server", usage: "<name>" },
+			{ name: "list", description: M.cmdMcpList },
+			{ name: "remove", description: M.cmdMcpRemove, usage: "<name> [--scope project|user]" },
+			{ name: "test", description: M.cmdMcpTest, usage: "<name>" },
+			{ name: "reauth", description: M.cmdMcpReauth, usage: "<name>" },
+			{ name: "unauth", description: M.cmdMcpUnauth, usage: "<name>" },
+			{ name: "enable", description: M.cmdMcpEnable, usage: "<name>" },
+			{ name: "disable", description: M.cmdMcpDisable, usage: "<name>" },
 			{
 				name: "smithery-search",
-				description: "Search Smithery registry and deploy an MCP server",
+				description: M.cmdSmitherySearch,
 				usage: "<keyword> [--scope project|user] [--limit <1-100>] [--semantic]",
 			},
-			{ name: "smithery-login", description: "Login to Smithery and cache API key" },
-			{ name: "smithery-logout", description: "Remove cached Smithery API key" },
-			{ name: "reconnect", description: "Reconnect to a specific MCP server", usage: "<name>" },
-			{ name: "reload", description: "Force reload MCP runtime tools" },
-			{ name: "resources", description: "List available resources from connected servers" },
-			{ name: "prompts", description: "List available prompts from connected servers" },
-			{ name: "notifications", description: "Show notification capabilities and subscriptions" },
-			{ name: "help", description: "Show help message" },
+			{ name: "smithery-login", description: M.cmdSmitheryLogin },
+			{ name: "smithery-logout", description: M.cmdSmitheryLogout },
+			{ name: "reconnect", description: M.cmdMcpReconnect, usage: "<name>" },
+			{ name: "reload", description: M.cmdMcpReload },
+			{ name: "resources", description: M.cmdMcpResources },
+			{ name: "prompts", description: M.cmdMcpPrompts },
+			{ name: "notifications", description: M.cmdMcpNotifications },
+			{ name: "help", description: M.cmdMcpHelp },
 		],
 		allowArgs: true,
 		handle: handleMcpAcp,

@@ -13,6 +13,7 @@ import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { getProjectTrackingDir, getTrackingIndexPath, logger } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { M } from "../i18n";
 import trackingDescription from "../prompts/tools/tracking.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 
@@ -185,12 +186,12 @@ async function handleSyncPlan(cwd: string, params: TrackingSchema): Promise<stri
 
 export class TrackingTool implements AgentTool<typeof trackingSchema, TrackingToolDetails> {
 	readonly name = "tracking_update";
-	readonly label = "Tracking Update";
+	readonly label = M.toolTrackingLabel;
 	readonly description = trackingDescription;
 	readonly parameters = trackingSchema;
 	readonly approval = "read" as const;
 	readonly loadMode = "discoverable" as const;
-	readonly summary = "Update project tracking documents (status, index, actions, plans)";
+	readonly summary = M.toolTrackingSummary;
 
 	constructor(private readonly session: ToolSession) {}
 

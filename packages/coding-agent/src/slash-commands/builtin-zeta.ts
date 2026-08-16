@@ -1,7 +1,11 @@
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { getProjectTrackingDir } from "@linxiraos/pi-utils";
 import type { SettingPath, SettingValue } from "../config/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
+import type { TrackingStatus } from "../tools/tracking";
 import { commandConsumed, usage } from "./helpers/parse";
-import type { SlashCommandSpec } from "./types";
+import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
 
 /**
  * Zeta-originated slash commands.
@@ -72,4 +76,101 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			runtime.ctx.editor.setText("");
 		},
 	},
+	{
+		name: "tracking",
+		description: M.cmdTracking,
+		acpDescription: M.cmdTrackingAcp,
+		acpInputHint: "<status|plan|log|index|start>",
+		subcommands: [
+			{ name: "status", description: M.cmdTrackingStatus },
+			{ name: "plan", description: M.cmdTrackingPlan },
+			{ name: "log", description: M.cmdTrackingLog },
+			{ name: "index", description: M.cmdTrackingIndex },
+			{ name: "start", description: M.cmdTrackingStart },
+		],
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			await runtime.output(await buildTrackingReport(command, runtime.cwd));
+			return commandConsumed();
+		},
+		handleTui: async (command, runtime) => {
+			const cwd = runtime.ctx.sessionManager.getCwd();
+			runtime.ctx.showStatus(await buildTrackingReport(command, cwd));
+			runtime.ctx.editor.setText("");
+		},
+	},
 ];
+
+/**
+ * Read the project tracking documents (<project>/.zeta/tracking) and render a
+ * human-readable report. `start` prints the guidance that prompts the agent to
+ * begin maintaining the tracking documents via the `tracking_update` tool.
+ */
+async function buildTrackingReport(command: ParsedSlashCommand, cwd: string): Promise<string> {
+	const arg = command.args.trim().toLowerCase();
+	const dir = getProjectTrackingDir(cwd);
+	const statusPath = path.join(dir, "status.json");
+	const indexPath = path.join(dir, "INDEX.md");
+	const actionsPath = path.join(dir, "actions.jsonl");
+	const sessionsDir = path.join(dir, "sessions");
+	const emptyHint = `（无追踪数据。用 /tracking start 开始维护项目追踪文档。）`;
+
+	switch (arg) {
+		case "start":
+			return (
+				"开始维护项目追踪文档：我会在里程碑、重要决策与阻塞解除后调用 tracking_update 工具，\n" +
+				`把状态（status.json）、索引（INDEX.md）、操作日志（actions.jsonl）与计划（sessions/）写入 ${dir}。\n` +
+				"追踪文档独立于记忆机制，跨会话保留，可在 Web UI 追踪面板查看。"
+			);
+		case "status": {
+			try {
+				const parsed = JSON.parse(await Bun.file(statusPath).text()) as TrackingStatus;
+				return [
+					`阶段: ${parsed.phase || "（未设置）"}`,
+					`进度: ${parsed.progress || "（未设置）"}`,
+					`阻塞: ${parsed.blockers?.length ? parsed.blockers.join("；") : "无"}`,
+					`决策: ${parsed.decisions?.length ? parsed.decisions.join("；") : "无"}`,
+					`更新: ${parsed.lastUpdated || "—"}`,
+				].join("\n");
+			} catch {
+				return `状态文件不存在: ${statusPath}\n${emptyHint}`;
+			}
+		}
+		case "index": {
+			try {
+				return await Bun.file(indexPath).text();
+			} catch {
+				return `索引文件不存在: ${indexPath}\n${emptyHint}`;
+			}
+		}
+		case "log": {
+			try {
+				const lines = (await Bun.file(actionsPath).text()).trim().split("\n").filter(Boolean);
+				if (lines.length === 0) return `操作日志为空: ${actionsPath}`;
+				const rows = lines.slice(-10).map(line => {
+					try {
+						const entry = JSON.parse(line) as { timestamp?: string; action?: string; detail?: string };
+						return `${entry.timestamp ?? "—"}  ${entry.action ?? ""}${entry.detail ? `（${entry.detail}）` : ""}`;
+					} catch {
+						return line;
+					}
+				});
+				return `最近 ${rows.length} 条操作（共 ${lines.length} 条）:\n${rows.join("\n")}`;
+			} catch {
+				return `操作日志不存在: ${actionsPath}\n${emptyHint}`;
+			}
+		}
+		case "plan": {
+			try {
+				const entries = await fs.readdir(sessionsDir).catch(() => [] as string[]);
+				const plans = entries.filter((name: string) => name.endsWith(".md"));
+				if (plans.length === 0) return `暂无追踪计划（${sessionsDir}）`;
+				return `追踪计划（${plans.length}）:\n${plans.map((name: string) => `  - ${name}`).join("\n")}`;
+			} catch {
+				return `计划目录不存在: ${sessionsDir}\n${emptyHint}`;
+			}
+		}
+		default:
+			return `用法: /tracking <status|plan|log|index|start>`;
+	}
+}

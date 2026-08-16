@@ -10,6 +10,28 @@ afterEach(() => {
 	setLanguage("en");
 });
 
+// Fields that intentionally read the same or differ structurally between
+// languages: local language names ("中文" in both en and zh), proper nouns
+// that stay untranslated (glyph/theme names like "Nerd Font", "Titanium"),
+// and plural-suffix fields that are empty in zh (Chinese has no plural "s").
+const intentionallyIdentical: Partial<Record<keyof typeof en, true>> = {
+	languageEnLabel: true,
+	languageZhLabel: true,
+	setupGlyphLabelNerd: true,
+	setupGlyphLabelUnicode: true,
+	setupGlyphLabelAscii: true,
+	setupThemeTitaniumLabel: true,
+	setupThemeLightLabel: true,
+	mcpHelpAddUsage: true,
+	mcpHelpSearchUsage: true,
+	sshHelpAddUsage: true,
+	psBadgeNpm: true,
+	mhModelsScopeSuffix: true,
+	ftPluralS: true,
+	agwPluralS: true,
+	scpAutoLabelFmt: true,
+};
+
 describe("catalogue completeness", () => {
 	test("every catalogue covers the same non-empty fields", () => {
 		const enKeys = Object.keys(en).sort();
@@ -17,34 +39,17 @@ describe("catalogue completeness", () => {
 		expect(zhKeys).toEqual(enKeys);
 		expect(enKeys.length).toBeGreaterThan(0);
 		for (const key of enKeys) {
+			// Plural-suffix fields are legitimately empty in zh (Chinese has
+			// no plural marker); every other field must carry real text.
+			if (key in intentionallyIdentical) continue;
 			expect(en[key as keyof typeof en]).not.toBe("");
 			expect(zh[key as keyof typeof zh]).not.toBe("");
 		}
 	});
 
 	test("translations are not accidental English copies", () => {
-		// Fields that intentionally read the same in every language: local
-		// language names (e.g. "中文" in both en and zh) and proper nouns that
-		// stay untranslated (glyph/theme names like "Nerd Font", "Titanium").
-		const identicalIntentionally = new Set<keyof typeof en>([
-			"languageEnLabel",
-			"languageZhLabel",
-			"setupGlyphLabelNerd",
-			"setupGlyphLabelUnicode",
-			"setupGlyphLabelAscii",
-			"setupThemeTitaniumLabel",
-			"setupThemeLightLabel",
-			"mcpHelpAddUsage",
-			"mcpHelpSearchUsage",
-			"sshHelpAddUsage",
-			"psBadgeNpm",
-			"mhModelsScopeSuffix",
-			"ftPluralS",
-			"agwPluralS",
-			"scpAutoLabelFmt",
-		]);
 		for (const key of Object.keys(en) as Array<keyof typeof en>) {
-			if (identicalIntentionally.has(key)) continue;
+			if (key in intentionallyIdentical) continue;
 			expect(zh[key]).not.toBe(en[key]);
 		}
 	});

@@ -6,6 +6,7 @@ import type { SettingPath, SettingValue } from "../config/settings";
 import { settings } from "../config/settings";
 import { parseExportArgs } from "../export/html/args";
 import { shareSession } from "../export/share";
+import { M } from "../i18n";
 import { theme } from "../modes/theme/theme";
 import type { InteractiveModeContext } from "../modes/types";
 import { extractLastCodeBlock, extractLastCommand } from "../modes/utils/copy-targets";
@@ -56,15 +57,15 @@ function showCollabLink(ctx: InteractiveModeContext, host: CollabHost, heading: 
 export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "advisor",
-		description: "Toggle the advisor (a second model that reviews each turn and injects notes)",
+		description: M.cmdAdvisor,
 		acpDescription: "Toggle advisor",
 		acpInputHint: "[on|off|status|dump [raw]|configure]",
 		subcommands: [
-			{ name: "on", description: "Enable the advisor" },
-			{ name: "off", description: "Disable the advisor" },
-			{ name: "status", description: "Show advisor status" },
-			{ name: "dump", description: "Copy the advisor's transcript to clipboard", usage: "[raw]" },
-			{ name: "configure", description: "Open the advisor configuration editor (TUI)" },
+			{ name: "on", description: M.cmdAdvisorOn },
+			{ name: "off", description: M.cmdAdvisorOff },
+			{ name: "status", description: M.cmdAdvisorStatus },
+			{ name: "dump", description: M.cmdAdvisorDump, usage: "[raw]" },
+			{ name: "configure", description: M.cmdAdvisorConfigure },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -172,7 +173,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	},
 	{
 		name: "export",
-		description: "Export session to HTML file",
+		description: M.cmdExportHtml,
 		inlineHint: "[--themes] [path]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -195,7 +196,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	},
 	{
 		name: "dump",
-		description: "Copy session transcript to clipboard (and write LLM request JSON to tmp)",
+		description: M.cmdDumpTranscript,
 		acpDescription: "Return full transcript as plain text, with LLM request JSON path",
 		allowArgs: true,
 		handle: async (_command, runtime) => {
@@ -227,7 +228,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	},
 	{
 		name: "share",
-		description: "Share session via an encrypted link (share server or secret gist)",
+		description: M.cmdShare,
 		handle: async (_command, runtime) => {
 			try {
 				const result = await shareSession(runtime.sessionManager, {
@@ -252,12 +253,12 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	},
 	{
 		name: "collab",
-		description: "Share this session live via a relay",
+		description: M.cmdCollab,
 		inlineHint: "[start|view|stop|status] [relayUrl]",
 		subcommands: [
-			{ name: "view", description: "Share a read-only link (guests can watch, not prompt)" },
-			{ name: "status", description: "Show link + participants" },
-			{ name: "stop", description: "Stop sharing" },
+			{ name: "view", description: M.cmdCollabView },
+			{ name: "status", description: M.cmdCollabStatus },
+			{ name: "stop", description: M.cmdCollabStop },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -338,7 +339,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	},
 	{
 		name: "join",
-		description: "Join a shared collab session",
+		description: M.cmdCollabJoin,
 		inlineHint: "<link>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -366,7 +367,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	},
 	{
 		name: "leave",
-		description: "Leave the collab session",
+		description: M.cmdCollabLeave,
 		getTuiAutocompleteDescription: runtime => {
 			if (runtime.ctx.collabHost) return "Leave collab: hosting";
 			if (runtime.ctx.collabGuest) return "Leave collab: guest";
@@ -389,11 +390,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	},
 	{
 		name: "browser",
-		description: "Toggle browser headless vs visible mode",
+		description: M.cmdBrowserMode,
 		acpInputHint: "[headless|visible]",
 		subcommands: [
-			{ name: "headless", description: "Switch to headless mode" },
-			{ name: "visible", description: "Switch to visible mode" },
+			{ name: "headless", description: M.cmdBrowserHeadless },
+			{ name: "visible", description: M.cmdBrowserVisible },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -464,7 +465,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	},
 	{
 		name: "copy",
-		description: "Pick text or code from the conversation to copy",
+		description: M.cmdCopyPick,
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();

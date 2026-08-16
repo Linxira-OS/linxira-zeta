@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { setProjectDir } from "@linxiraos/pi-utils";
 import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
+import { M } from "../i18n";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-backend";
 import type { FreshSessionResult } from "../session/agent-session";
 import { COMPACT_MODES, parseCompactArgs } from "../session/compact-modes";
@@ -51,18 +52,18 @@ function formatWorkspaceDirectories(runtime: SlashCommandRuntime, note?: string)
 export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "ssh",
-		description: "Manage SSH hosts (add, list, remove)",
+		description: M.cmdSsh,
 		acpDescription: "Manage SSH connections",
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
 				name: "add",
-				description: "Add an SSH host",
+				description: M.cmdSshAdd,
 				usage: "<name> --host <host> [--user <user>] [--port <port>] [--key <keyPath>] [--scope project|user]",
 			},
-			{ name: "list", description: "List all configured SSH hosts" },
-			{ name: "remove", description: "Remove an SSH host", usage: "<name> [--scope project|user]" },
-			{ name: "help", description: "Show help message" },
+			{ name: "list", description: M.cmdSshList },
+			{ name: "remove", description: M.cmdSshRemove, usage: "<name> [--scope project|user]" },
+			{ name: "help", description: M.cmdSshHelp },
 		],
 		allowArgs: true,
 		handle: handleSshAcp,
@@ -73,7 +74,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "new",
-		description: "Start a new session",
+		description: M.cmdNew,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleClearCommand();
@@ -81,7 +82,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "fresh",
-		description: "Reset provider stream state without changing the local transcript",
+		description: M.cmdFresh,
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.session.isStreaming ? "Fresh: unavailable while streaming" : "Fresh: ready",
 		handle: async (_command, runtime) => {
@@ -102,7 +103,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "clear",
-		description: "Clear the conversation context in place, keeping the session",
+		description: M.cmdClear,
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.session.isStreaming ? "Clear: unavailable while streaming" : "Clear: drop context, keep session",
 		handleTui: async (_command, runtime) => {
@@ -112,7 +113,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "drop",
-		description: "Delete the current session and start a new one",
+		description: M.cmdDrop,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleDropCommand();
@@ -120,7 +121,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "compact",
-		description: "Manually compact the session context",
+		description: M.cmdCompact,
 		acpDescription: "Compact the conversation",
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
@@ -168,11 +169,11 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "shake",
-		description: "Drop heavy content from context (tool results, large blocks)",
+		description: M.cmdShake,
 		acpDescription: "Shake heavy content out of the conversation context",
 		subcommands: [
-			{ name: "elide", description: "Strip tool results + large blocks (default)" },
-			{ name: "images", description: "Strip image blocks" },
+			{ name: "elide", description: M.cmdCompactElide },
+			{ name: "images", description: M.cmdCompactImages },
 		],
 		acpInputHint: "[elide|images]",
 		allowArgs: true,
@@ -195,7 +196,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "handoff",
-		description: "Hand off session context to a new session",
+		description: M.cmdHandoff,
 		inlineHint: "[focus instructions]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -206,7 +207,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "resume",
-		description: "Resume a different session",
+		description: M.cmdResume,
 		inlineHint: "[session id|@claude|@codex]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -236,7 +237,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "btw",
-		description: "Ask an ephemeral side question using the current session context",
+		description: M.cmdBtw,
 		inlineHint: "<question>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -247,7 +248,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "tan",
-		description: "Run a full background agent on tangential work",
+		description: M.cmdTan,
 		inlineHint: "<work>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -258,7 +259,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "omfg",
-		description: "Forge a TTSR rule from a complaint to stop a recurring behavior",
+		description: M.cmdOmfg,
 		inlineHint: "<complaint>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -269,7 +270,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "retry",
-		description: "Retry the last failed agent turn",
+		description: M.cmdRetry,
 		handleTui: async (_command, runtime) => {
 			const didRetry = await runtime.ctx.session.retry();
 			if (!didRetry) {
@@ -280,7 +281,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "debug",
-		description: "Open debug tools selector",
+		description: M.cmdDebug,
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.showDebugSelector();
 			runtime.ctx.editor.setText("");
@@ -288,27 +289,27 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "memory",
-		description: "Inspect and operate memory maintenance",
+		description: M.cmdMemory,
 		acpDescription: "Manage memory",
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "view", description: "Show current memory injection payload" },
-			{ name: "stats", description: "Show memory backend statistics" },
-			{ name: "diagnose", description: "Run memory backend diagnostics" },
-			{ name: "clear", description: "Clear persisted memory data and artifacts" },
-			{ name: "reset", description: "Alias for clear" },
-			{ name: "enqueue", description: "Enqueue memory consolidation maintenance" },
-			{ name: "rebuild", description: "Alias for enqueue" },
-			{ name: "mm list", description: "List mental models on the active bank" },
-			{ name: "mm show", description: "Show one mental model (id required)" },
+			{ name: "view", description: M.cmdMemoryView },
+			{ name: "stats", description: M.cmdMemoryStats },
+			{ name: "diagnose", description: M.cmdMemoryDiagnose },
+			{ name: "clear", description: M.cmdMemoryClear },
+			{ name: "reset", description: M.cmdMemoryReset },
+			{ name: "enqueue", description: M.cmdMemoryEnqueue },
+			{ name: "rebuild", description: M.cmdMemoryRebuild },
+			{ name: "mm list", description: M.cmdMemoryMmList },
+			{ name: "mm show", description: M.cmdMemoryMmShow },
 			{
 				name: "mm refresh",
-				description: "Refresh auto-refresh models bank-wide, or one model by id",
+				description: M.cmdMemoryMmRefresh,
 			},
-			{ name: "mm history", description: "Diff the change history of a mental model" },
-			{ name: "mm seed", description: "Create any built-in mental models that are missing" },
-			{ name: "mm delete", description: "Delete a mental model from the bank (id required)" },
-			{ name: "mm reload", description: "Re-pull the cached <mental_models> block" },
+			{ name: "mm history", description: M.cmdMemoryMmHistory },
+			{ name: "mm seed", description: M.cmdMemoryMmSeed },
+			{ name: "mm delete", description: M.cmdMemoryMmDelete },
+			{ name: "mm reload", description: M.cmdMemoryMmReload },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -360,7 +361,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "rename",
-		description: "Rename the current session",
+		description: M.cmdRename,
 		inlineHint: "<title>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -387,7 +388,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "move",
-		description: "Move the current session to a different directory",
+		description: M.cmdMove,
 		acpDescription: "Move the current session to a different directory",
 		inlineHint: "[<path>]",
 		allowArgs: true,
@@ -432,7 +433,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "add-dir",
-		description: "Add a workspace directory to this session (multi-root)",
+		description: M.cmdAddDir,
 		acpDescription: "Add a workspace directory to this session",
 		inlineHint: "<path>",
 		allowArgs: true,
@@ -463,7 +464,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "remove-dir",
-		description: "Remove a workspace directory from this session",
+		description: M.cmdRemoveDir,
 		acpDescription: "Remove a workspace directory from this session",
 		inlineHint: "<path>",
 		allowArgs: true,
@@ -491,7 +492,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "dirs",
-		description: "List this session's workspace directories",
+		description: M.cmdDirs,
 		acpDescription: "List this session's workspace directories",
 		handle: async (_command, runtime) => {
 			await runtime.output(formatWorkspaceDirectories(runtime));
@@ -500,7 +501,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "exit",
-		description: "Exit the application",
+		description: M.cmdExit,
 		handleTui: shutdownHandlerTui,
 	},
 ];
