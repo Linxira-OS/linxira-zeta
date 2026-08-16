@@ -26,6 +26,7 @@ pathIgnorePatterns = [
   "python/robomp/data/**",
   ".wt/**",
   ".worktrees/**",
+  "temp/**",
 ]
 
 [run]
