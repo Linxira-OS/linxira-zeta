@@ -30,8 +30,14 @@ const legacyState = {
 };
 
 if (Bun.env.MOCK_RPC_EXIT_BEFORE_READY) {
-	process.stderr.write(Bun.env.MOCK_RPC_EXIT_STDERR ?? "");
-	process.exit(Number(Bun.env.MOCK_RPC_EXIT_BEFORE_READY));
+	// Flush stderr before exiting: exiting synchronously right after write()
+	// can drop the frame on the pipe (the client then reports an empty
+	// Stderr, breaking the "fixture startup failed" assertion under load).
+	process.stderr.write(Bun.env.MOCK_RPC_EXIT_STDERR ?? "", () => {
+		process.exit(Number(Bun.env.MOCK_RPC_EXIT_BEFORE_READY));
+	});
+	// Fallback if the callback is never invoked (write error etc.).
+	setTimeout(() => process.exit(Number(Bun.env.MOCK_RPC_EXIT_BEFORE_READY)), 500);
 }
 
 let protocolV2Enabled = false;
