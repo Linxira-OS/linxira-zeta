@@ -1004,6 +1004,13 @@ jobs:
                  packages/coding-agent/binaries/zeta-* \
                  packages/browser-relay/dist/omp-browser-relay-extension.zip \
                  desktop/release-assets/*
+         # Idempotent rerun: a partially-published run (or a cancelled npm
+         # job after a release was created) must be able to re-create the
+         # release; softprops errors when the tag already exists and cannot
+         # overwrite same-named assets.
+         - name: Delete existing release for tag
+           run: |
+              gh release delete "${{ needs.release_metadata.outputs.release-tag }}" --yes --repo "${{ github.repository }}" || echo "no existing release (fresh create)"
          - name: Create GitHub Release
            uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
            with:
