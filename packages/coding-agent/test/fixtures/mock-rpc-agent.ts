@@ -82,8 +82,9 @@ const stdinLines = (async function* () {
 		const { done, value } = await reader.read();
 		if (done) break;
 		buffer += decoder.decode(value, { stream: true });
-		let idx: number;
-		while ((idx = buffer.indexOf("\n")) >= 0) {
+		while (true) {
+			const idx = buffer.indexOf("\n");
+			if (idx < 0) break;
 			const line = buffer.slice(0, idx);
 			buffer = buffer.slice(idx + 1);
 			yield line;
