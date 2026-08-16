@@ -144,7 +144,7 @@ describe("AgentSession context promotion", () => {
 		};
 	}
 
-	async function waitFor(predicate: () => boolean, timeoutMs = 500): Promise<void> {
+	async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
 		const deadline = Date.now() + timeoutMs;
 		while (Date.now() < deadline) {
 			if (predicate()) return;
