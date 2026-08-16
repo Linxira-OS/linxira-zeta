@@ -321,14 +321,14 @@ describe("update-cli install target detection", () => {
 });
 
 describe("update-cli package manager commands", () => {
-	it("targets the Homebrew tap formula and switches to reinstall for forced updates", () => {
-		expect(buildHomebrewUpdateArgs(false)).toEqual(["upgrade", "can1357/tap/omp"]);
-		expect(buildHomebrewUpdateArgs(true)).toEqual(["reinstall", "can1357/tap/omp"]);
+	it("targets no Homebrew formula (Zeta ships no tap) and stays on upgrade", () => {
+		expect(buildHomebrewUpdateArgs(false)).toEqual(["upgrade", ""]);
+		expect(buildHomebrewUpdateArgs(true)).toEqual(["reinstall", ""]);
 	});
 
-	it("targets the mise GitHub backend tool and force-reinstalls the checked version when requested", () => {
-		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "github:can1357/oh-my-pi", "--bump"]);
-		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "github:can1357/oh-my-pi@15.10.5"]);
+	it("targets the mise zeta tool and force-reinstalls the checked version when requested", () => {
+		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "zeta", "--bump"]);
+		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "zeta@15.10.5"]);
 	});
 
 	it("pins npm package installs to the official registry and the checked native package versions", () => {
