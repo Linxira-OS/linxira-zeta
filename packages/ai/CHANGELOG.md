@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ## [1.0.2] - 2026-08-15
+## [17.3.4] - 2026-08-14
+
+### Fixed
+
+- Fixed `omp usage invalidate` to discard stale OAuth and API-key usage snapshots, then force a cache-bypassing, per-provider serialized refresh with a broker request budget sized for the full unfiltered account batch, so upgraded subscriptions do not silently retain pre-change quota data.
+- Fixed quota reporting and Cookie capture guidance for China (Beijing) Alibaba Token Plan credentials ([#8509](https://github.com/can1357/oh-my-pi/issues/8509)).
 
 ## [17.3.3] - 2026-08-14
 
@@ -4708,7 +4714,7 @@
 
 ### Changed
 
-- Forked to @oh-my-pi scope with unified versioning across all packages
+- Forked to @linxiraos scope with unified versioning across all packages
 
 ### Fixed
 
@@ -4716,17 +4722,17 @@
 
 ## [1.337.0] - 2026-01-02
 
-Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.0.1] - 2026-08-14
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
 
 ## [1.0.0] - 2026-08-13
 
 ### Changed
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
 
 ## [0.50.1] - 2026-01-26
 

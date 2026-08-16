@@ -41,6 +41,8 @@ pub mod html;
 pub mod iofs;
 pub mod keys;
 pub mod live;
+/// PDF inspection and Markdown conversion.
+pub mod pdf;
 pub mod sixel;
 pub mod snapcompact;
 pub use pi_ast::language;

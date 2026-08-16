@@ -340,7 +340,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("routes @earendil-works/pi-utils through canonical Bun.resolveSync in non-compiled mode", async () => {
 		// Regression: when omp runs from a node_modules install (not the monorepo
 		// and not a compiled binary), the bundled packages live at
-		// `node_modules/@oh-my-pi/pi-*`, not next to the source tree. Hardcoding
+		// `node_modules/@linxiraos/pi-*`, not next to the source tree. Hardcoding
 		// a sibling `packages/<pkg>/src/index.ts` path would miss them, so the
 		// non-compiled branch must delegate to `Bun.resolveSync` against the
 		// canonical specifier.

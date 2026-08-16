@@ -10,7 +10,7 @@ import type { BunPlugin } from "bun";
 
 // Regression for issue #3423: Bun 1.3.14 made `--compile` extras unreachable
 // via every filesystem-style API. The compat layer now routes canonical
-// `@oh-my-pi/pi-*` imports through virtual modules backed by live host module
+// `@linxiraos/pi-*` imports through virtual modules backed by live host module
 // references. The synthesizer must preserve every named/default export.
 describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 	const modules = {
@@ -54,8 +54,8 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 	});
 
 	it("throws when asked to synthesize a key the bundled modules do not cover", () => {
-		expect(() => __synthesizeLegacyPiBundledSourceWithModules("@oh-my-pi/pi-not-bundled", modules)).toThrow(
-			/no bundled module registered for @oh-my-pi\/pi-not-bundled/,
+		expect(() => __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/pi-not-bundled", modules)).toThrow(
+			/no bundled module registered for @linxiraos\/pi-not-bundled/,
 		);
 	});
 
