@@ -776,7 +776,7 @@ jobs:
                 set -euo pipefail
                 app_dir="$(find temp/desktop/release -mindepth 1 -maxdepth 1 -type d -name 'zeta-desktop-*-mac-*' -print -quit)"
                 test -n "$app_dir"
-                npm --prefix desktop run smoke -- --app "$(realpath "$app_dir")"
+                npm --prefix desktop run smoke -- --app "$PWD/$app_dir"
          # dmg/zip are release assets. if-no-files-found errors when
          # electron-builder failed to produce any of them.
          - name: Upload macOS desktop artifacts

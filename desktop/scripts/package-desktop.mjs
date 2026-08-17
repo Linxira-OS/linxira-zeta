@@ -55,7 +55,8 @@ if (!process.env.CI) {
 	env.ELECTRON_BUILDER_BINARIES_MIRROR ??= "https://npmmirror.com/mirrors/electron-builder-binaries/";
 }
 
-const result = spawnSync(process.execPath, [builderCli, platformInfo.builderTarget, "--publish", "never", "--config", path.join(tempRoot, "electron-builder.yml")], {
+const archFlag = process.arch === "arm64" ? "--arm64" : "--x64";
+const result = spawnSync(process.execPath, [builderCli, platformInfo.builderTarget, archFlag, "--publish", "never", "--config", path.join(tempRoot, "electron-builder.yml")], {
 	cwd: tempRoot,
 	env,
 	stdio: "inherit",

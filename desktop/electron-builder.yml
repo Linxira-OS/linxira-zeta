@@ -67,6 +67,10 @@ mac:
   hardenedRuntime: true
   gatekeeperAssess: false
   target:
+    - target: dir
+      arch:
+        - x64
+        - arm64
     - target: zip
       arch:
         - x64
