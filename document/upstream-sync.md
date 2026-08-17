@@ -114,7 +114,7 @@ Do not alter an existing ledger entry after it records an accepted release.
   coding-agent/ai/catalog/hashline/tui/natives src and test files; `README.md`;
   `docs/native-crates.md`.
 - Conflict decisions: package identity, `@zeta/*` scope, and the 1.0.0 version
-  line preserved everywhere (package.json merge driver + `@oh-my-pi` → `@zeta`
+  line preserved everywhere (package.json merge driver + `@linxiraos` → `@zeta`
   sweep). Native sentinel `__piNativesV1_0_0` retained over upstream's
   `V17_2_12` and re-synced into the generated `index.js`/`index.d.ts`. The
   nineteen source/test files resolved to theirs where zeta-side deltas were
@@ -122,9 +122,9 @@ Do not alter an existing ledger entry after it records an accepted release.
   Zeta product page (Zeta-owned surface; upstream marketing README not
   imported). `docs/native-crates.md` took the upstream `pi-builtins` restructure
   (v17.2.12 unified uu-*/brush-builtins/jaq into `crates/pi-builtins`) with
-  `@oh-my-pi` → `@zeta` branding.
+  `@linxiraos` → `@zeta` branding.
 - Post-merge findings: the package.json merge driver had `OMP_SCOPE` set to
-  `@zeta/` (upstream is `@oh-my-pi/`); corrected with regression tests. The
+  `@zeta/` (upstream is `@linxiraos/`); corrected with regression tests. The
   upstream dispose-release memory test referenced the global
   `AsyncJobManager.resetForTests()` which Zeta's per-session manager does not
   have; call removed.
@@ -191,7 +191,7 @@ merge. No version bump, no tag, no release.
     `dev.autoqaPush.*` with default `https://qa.omp.sh/v1/grievances`),
     `.zeta/*` paths, `@linxiraos/*` package identity.
   - Upstream v17.3.3 pair accepted wholesale for the remaining 238 files;
-    Zeta overlay re-applied: `@oh-my-pi/*` → `@linxiraos/*` with name
+    Zeta overlay re-applied: `@linxiraos/*` → `@linxiraos/*` with name
     mapping (`hashline`→`pi-hashline`, `omp-stats`→`pi-stats`,
     `omptype`→`pi-omptype`, `pi-coding-agent`→`zeta`, `snapcompact`→
     `pi-snapcompact`), `.omp/` path fragments → `.zeta/`, brand `π` → `ζ`

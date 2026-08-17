@@ -160,7 +160,7 @@ Two documentation trees, plus product surfaces, with strict boundaries:
   tokens lose direct publish in January 2027, and staged publishing (`npm
   stage publish` + maintainer 2FA approval) is the recommended pairing for
   CI-originated publishes. Every published package uses the `@linxiraos/*` name —
-  no `@oh-my-pi/*` or legacy names, and no `.omp` compatibility packages.
+  no `@linxiraos/*` or legacy names, and no `.omp` compatibility packages.
 - **The `@linxiraos` publish chain is not yet live** (no `@linxiraos/pi-*` has ever
   been published; `web-ui` depends on `@linxiraos/pi-agent-core` etc. at
   `1.0.0`, which 404s until the first release). Opening it is a strategic

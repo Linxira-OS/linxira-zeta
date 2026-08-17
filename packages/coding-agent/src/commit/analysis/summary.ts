@@ -1,6 +1,6 @@
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Api, ApiKey, AssistantMessage, Model } from "@linxiraos/pi-ai";
-import { completeSimple, validateToolCall } from "@linxiraos/pi-ai";
+import { completeSimple, retryTransientCompletion, validateToolCall } from "@linxiraos/pi-ai";
 import { type } from "@linxiraos/pi-omptype";
 import { prompt } from "@linxiraos/pi-utils";
 import summarySystemPrompt from "../../commit/prompts/summary-system.md" with { type: "text" };
@@ -52,15 +52,21 @@ export async function generateSummary({
 		stat,
 	});
 
-	const response = await completeSimple(
-		model,
-		{
-			systemPrompt: [systemPrompt],
-			messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }],
-			tools: [SummaryTool],
-		},
-		{ apiKey, maxTokens: 200, reasoning: toReasoningEffort(thinkingLevel) },
+	const response = await retryTransientCompletion(() =>
+		completeSimple(
+			model,
+			{
+				systemPrompt: [systemPrompt],
+				messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }],
+				tools: [SummaryTool],
+			},
+			{ apiKey, maxTokens: 200, reasoning: toReasoningEffort(thinkingLevel) },
+		),
 	);
+
+	if (response.stopReason === "error") {
+		throw new Error(response.errorMessage ?? "provider error");
+	}
 
 	return parseSummaryFromResponse(response, commitType, scope);
 }

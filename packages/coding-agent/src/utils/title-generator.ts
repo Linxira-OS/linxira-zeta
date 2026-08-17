@@ -4,7 +4,13 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import * as path from "node:path";
 
-import { type Api, type AssistantMessage, completeSimple, type Model } from "@linxiraos/pi-ai";
+import {
+	type Api,
+	type AssistantMessage,
+	completeSimple,
+	type Model,
+	retryTransientCompletion,
+} from "@linxiraos/pi-ai";
 import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
 import { isConPTYHosted } from "@linxiraos/pi-tui";
 import { isTerminalHeadless, logger, prompt } from "@linxiraos/pi-utils";
@@ -22,7 +28,7 @@ import { tinyTitleClient } from "../tiny/title-client";
 const TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
 const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 
-const DEFAULT_TERMINAL_TITLE = "ζ";
+const DEFAULT_TERMINAL_TITLE = "π";
 const TERMINAL_TITLE_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 interface WindowsConsoleTitleApi {
@@ -254,24 +260,28 @@ export async function generateTitleOnline(
 		const maxTokens = TITLE_MAX_TOKENS;
 		logger.debug("title-generator: request", { ...modelContext, maxTokens });
 
-		const response = await completeSimple(
-			model,
-			{
-				systemPrompt,
-				messages: [{ role: "user", content: userMessage, timestamp: Date.now() }],
-			},
-			{
-				apiKey: registry.resolver(model, sessionId),
-				maxTokens,
-				disableReasoning: true,
-				// Greedy decode: titling is extraction, not generation. Backends that
-				// default temperature high (e.g. Ollama's 0.8) otherwise garble names
-				// from the message ("hashline" → "HasHroshi"). Providers whose models
-				// reject sampling params drop this via `supportsSamplingParams`.
-				temperature: 0,
-				metadata,
-				signal,
-			},
+		const response = await retryTransientCompletion(
+			() =>
+				completeSimple(
+					model,
+					{
+						systemPrompt,
+						messages: [{ role: "user", content: userMessage, timestamp: Date.now() }],
+					},
+					{
+						apiKey: registry.resolver(model, sessionId),
+						maxTokens,
+						disableReasoning: true,
+						// Greedy decode: titling is extraction, not generation. Backends that
+						// default temperature high (e.g. Ollama's 0.8) otherwise garble names
+						// from the message ("hashline" → "HasHroshi"). Providers whose models
+						// reject sampling params drop this via `supportsSamplingParams`.
+						temperature: 0,
+						metadata,
+						signal,
+					},
+				),
+			{ signal },
 		);
 
 		if (response.stopReason === "error") {
@@ -502,13 +512,13 @@ const terminalTitleRuntime: {
 };
 
 /**
- * Compose the terminal title from the `ζ` brand, a state-carrying separator, and
+ * Compose the terminal title from the `π` brand, a state-carrying separator, and
  * the session label. Pure (no I/O) so the state→separator contract is testable:
- *   - `idle` (user's turn):  `ζ > label`;
- *   - `working`:             `ζ ⠋ label` (`ζ : label` on Windows);
- *   - `attention`:           `ζ ! label`;
- *   - disabled:              `ζ: label`.
- * Without a label the separator trails the brand (`ζ >`) so the state stays visible.
+ *   - `idle` (user's turn):  `π > label`;
+ *   - `working`:             `π ⠋ label` (`π : label` on Windows);
+ *   - `attention`:           `π ! label`;
+ *   - disabled:              `π: label`.
+ * Without a label the separator trails the brand (`π >`) so the state stays visible.
  */
 export function buildTerminalTitleWithState(
 	label: string | undefined,

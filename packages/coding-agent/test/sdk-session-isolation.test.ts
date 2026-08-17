@@ -14,6 +14,7 @@ import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle"
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import * as secrets from "@linxiraos/zeta/secrets";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
@@ -57,7 +58,7 @@ async function withTempConfigRoot<T>(run: () => Promise<T>): Promise<T> {
 	const originalProfile = getActiveProfile();
 	const originalConfigDir = process.env.PI_CONFIG_DIR;
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
-	const configDirName = `.zeta-sdk-session-${Snowflake.next()}`;
+	const configDirName = `.omp-sdk-session-${Snowflake.next()}`;
 	const configRoot = path.join(os.homedir(), configDirName);
 	try {
 		process.env.PI_CONFIG_DIR = configDirName;
@@ -233,6 +234,59 @@ describe("createAgentSession session storage isolation", () => {
 		expect(replacement).toMatchObject({ status: "idle", session: null });
 	});
 
+	it("reclaims an unrevivable parked generation before a fresh same-id spawn", async () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `pi-sdk-generation-corpse-${Snowflake.next()}-`));
+		tempDirs.push(tempDir);
+		const cwd = path.join(tempDir, "project");
+		fs.mkdirSync(cwd, { recursive: true });
+		AgentLifecycleManager.resetGlobalForTests();
+		AgentRegistry.resetGlobalForTests();
+		const lifecycle = AgentLifecycleManager.global();
+		const registry = AgentRegistry.global();
+		const corpse = registry.register({
+			id: "reused-worker",
+			displayName: "dead generation",
+			kind: "sub",
+			parentId: "Main",
+			session: null,
+			sessionFile: path.join(tempDir, "old-worker.jsonl"),
+			status: "parked",
+		});
+
+		let session: AgentSession | undefined;
+		try {
+			({ session } = await createAgentSession({
+				cwd,
+				agentDir: path.join(tempDir, "agent"),
+				modelRegistry: sharedModelRegistry,
+				settings: Settings.isolated(),
+				disableExtensionDiscovery: true,
+				skills: [],
+				contextFiles: [],
+				promptTemplates: [],
+				slashCommands: [],
+				enableMCP: false,
+				enableLsp: false,
+				agentRegistry: registry,
+				agentId: "reused-worker",
+				agentDisplayName: "fresh generation",
+				parentTaskPrefix: "reused-worker",
+				parentAgentId: "Main",
+				taskDepth: 1,
+				expectedAgentRef: null,
+			}));
+			const replacement = registry.get("reused-worker");
+			expect(replacement).toBeDefined();
+			expect(replacement).not.toBe(corpse);
+			expect(replacement?.session).toBe(session);
+		} finally {
+			await session?.dispose();
+			await lifecycle.dispose();
+			AgentLifecycleManager.resetGlobalForTests();
+			AgentRegistry.resetGlobalForTests();
+		}
+	});
+
 	it("reuses the exact parked ref authorized for revival", async () => {
 		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `pi-sdk-generation-revive-${Snowflake.next()}-`));
 		tempDirs.push(tempDir);
@@ -388,8 +442,8 @@ describe("createAgentSession session storage isolation", () => {
 				existingKeySpy.mockRestore();
 			}
 
-			fs.mkdirSync(path.join(cwd, ".zeta"), { recursive: true });
-			fs.writeFileSync(path.join(cwd, ".zeta", "secrets.yml"), `- type: plain\n  content: ${configuredSecret}\n`);
+			fs.mkdirSync(path.join(cwd, ".omp"), { recursive: true });
+			fs.writeFileSync(path.join(cwd, ".omp", "secrets.yml"), `- type: plain\n  content: ${configuredSecret}\n`);
 
 			const withSecrets = await createAgentSession(commonOptions);
 			try {
@@ -409,9 +463,9 @@ describe("createAgentSession session storage isolation", () => {
 				tempDirs.push(tempDir);
 				const cwd = path.join(tempDir, "project");
 				const agentDir = path.join(tempDir, "agent");
-				fs.mkdirSync(path.join(cwd, ".zeta"), { recursive: true });
+				fs.mkdirSync(path.join(cwd, ".omp"), { recursive: true });
 				fs.writeFileSync(
-					path.join(cwd, ".zeta", "secrets.yml"),
+					path.join(cwd, ".omp", "secrets.yml"),
 					"- type: plain\n  content: sdk-secret-token-123456\n",
 				);
 
@@ -483,7 +537,7 @@ describe("createAgentSession session storage isolation", () => {
 			tempDirs.push(tempDir);
 			const cwd = path.join(tempDir, "project");
 			const agentDir = path.join(tempDir, "agent");
-			fs.mkdirSync(path.join(cwd, ".zeta"), { recursive: true });
+			fs.mkdirSync(path.join(cwd, ".omp"), { recursive: true });
 
 			const commonOptions = {
 				cwd,
@@ -521,7 +575,7 @@ describe("createAgentSession session storage isolation", () => {
 				// Replace-mode secrets never build a reversible keyed placeholder, so
 				// startup must not create the key file; an existing key is still redacted.
 				fs.writeFileSync(
-					path.join(cwd, ".zeta", "secrets.yml"),
+					path.join(cwd, ".omp", "secrets.yml"),
 					"- type: plain\n  mode: replace\n  content: replace-only-secret-123456\n",
 				);
 				const replaceOnly = await createAgentSession(commonOptions);
@@ -540,7 +594,7 @@ describe("createAgentSession session storage isolation", () => {
 				keySpy.mockClear();
 				existingKeySpy.mockClear();
 				fs.writeFileSync(
-					path.join(cwd, ".zeta", "secrets.yml"),
+					path.join(cwd, ".omp", "secrets.yml"),
 					"- type: plain\n  content: obfuscate-secret-123456\n",
 				);
 				const withObfuscate = await createAgentSession(commonOptions);
@@ -563,11 +617,11 @@ describe("createAgentSession session storage isolation", () => {
 			tempDirs.push(tempDir);
 			const cwd = path.join(tempDir, "project");
 			const agentDir = path.join(tempDir, "agent");
-			fs.mkdirSync(path.join(cwd, ".zeta"), { recursive: true });
+			fs.mkdirSync(path.join(cwd, ".omp"), { recursive: true });
 			// Only an ignored short (<8 char) plain obfuscate secret: it never becomes an
 			// active secret, but a previously-created key file must still be redacted and
 			// no new key must be created.
-			fs.writeFileSync(path.join(cwd, ".zeta", "secrets.yml"), "- type: plain\n  content: abc\n");
+			fs.writeFileSync(path.join(cwd, ".omp", "secrets.yml"), "- type: plain\n  content: abc\n");
 
 			const keySpy = spyOn(secrets, "getSecretPlaceholderKey").mockImplementation(
 				async () => "test-placeholder-key",
@@ -613,9 +667,9 @@ describe("createAgentSession session storage isolation", () => {
 				tempDirs.push(tempDir);
 				const cwd = path.join(tempDir, "project");
 				const agentDir = path.join(tempDir, "agent");
-				fs.mkdirSync(path.join(cwd, ".zeta"), { recursive: true });
+				fs.mkdirSync(path.join(cwd, ".omp"), { recursive: true });
 				fs.writeFileSync(
-					path.join(cwd, ".zeta", "secrets.yml"),
+					path.join(cwd, ".omp", "secrets.yml"),
 					"- type: plain\n  content: agent-dir-secret-123456\n",
 				);
 

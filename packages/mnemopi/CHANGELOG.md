@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ## [1.0.2] - 2026-08-15
+## [17.3.5] - 2026-08-16
+
+### Fixed
+
+- Fixed an issue where transient provider failures (such as Anthropic overload or rate limit errors) were incorrectly treated as empty responses; these failures are now retried automatically before falling back.
+
 ## [17.3.4] - 2026-08-14
 
 ### Fixed
