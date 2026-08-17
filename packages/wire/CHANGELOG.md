@@ -2,8 +2,6 @@
 
 ## [Unreleased]
 
-## [1.0.2] - 2026-08-15
-
 ## [16.3.0] - 2026-07-02
 
 ### Breaking Changes
@@ -40,6 +38,8 @@
 ### Added
 
 - Added shared collab live-session wire contracts for the host CLI and browser guest client.
+
+## [1.0.2] - 2026-08-15
 
 ## [1.0.0] - 2026-08-13
 

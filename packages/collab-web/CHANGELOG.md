@@ -2,8 +2,6 @@
 
 ## [Unreleased]
 
-## [1.0.2] - 2026-08-15
-
 ## [17.2.10] - 2026-08-06
 
 ### Changed
@@ -228,6 +226,8 @@
 ### Security
 
 - Hardened transcript Markdown rendering by escaping embedded HTML and allowing only safe link schemes
+
+## [1.0.2] - 2026-08-15
 
 ## [1.0.0] - 2026-08-13
 
