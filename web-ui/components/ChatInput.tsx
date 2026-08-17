@@ -74,6 +74,10 @@ export interface ChatInputHandle {
   insertIfEmpty: (text: string) => void;
   prependText: (text: string) => void;
   addImages: (files: File[]) => void;
+  /** Focus the input textarea (used by global Ctrl+I shortcut). */
+  focus: () => void;
+  /** Submit the current draft (used by global Ctrl+Enter shortcut). */
+  submit: () => void;
 }
 
 const TOOL_PRESETS = ["off", "default", "full"] as const;
@@ -326,6 +330,21 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   attachedImagesRef.current = attachedImages;
 
   useImperativeHandle(ref, () => ({
+    focus() {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      ta.focus();
+      const end = ta.value.length;
+      ta.setSelectionRange(end, end);
+    },
+    submit() {
+      // Mirrors the Enter-key branch: steer/followup while streaming, else send.
+      if (isStreaming) {
+        if (onSteer || onFollowUp) sendQueued(onSteer ? "steer" : "followup");
+        return;
+      }
+      void handleSend();
+    },
     insertIfEmpty(text: string) {
       const ta = textareaRef.current;
       const current = ta ? ta.value : value;

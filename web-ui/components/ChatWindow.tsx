@@ -316,6 +316,59 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
   }, [messages]);
   const messageRefs = useMessageRefs(visibleMessages.length);
 
+  // ArrowUp/ArrowDown while focus is NOT inside the input navigates between
+  // user turns (jump the scroll container to the previous/next user message).
+  // Mirrors the TUI's message navigation. Deliberately skips editable targets
+  // (textarea/input/contenteditable) so typing arrows still moves the caret.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName;
+      if (tag === "TEXTAREA" || tag === "INPUT" || target.isContentEditable) return;
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      // Collect user-turn DOM nodes (messageRefs is keyed by visible index).
+      const userEls: HTMLElement[] = [];
+      let visibleIdx = 0;
+      for (const msg of visibleMessages) {
+        if (msg.role === "user") {
+          const el = messageRefs.current[visibleIdx];
+          if (el instanceof HTMLElement) userEls.push(el);
+        }
+        visibleIdx += 1;
+      }
+      if (userEls.length === 0) return;
+
+      const containerTop = container.getBoundingClientRect().top;
+      const threshold = 8;
+      if (e.key === "ArrowDown") {
+        // Jump to the first user message below the current viewport top.
+        const next = userEls.find((el) => el.getBoundingClientRect().top > containerTop + threshold);
+        if (next) {
+          e.preventDefault();
+          next.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      } else {
+        // Jump to the last user message at or above the current viewport top.
+        let prev: HTMLElement | null = null;
+        for (const el of userEls) {
+          if (el.getBoundingClientRect().top <= containerTop + threshold) prev = el;
+          else break;
+        }
+        if (prev) {
+          e.preventDefault();
+          prev.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [visibleMessages, messageRefs, scrollContainerRef]);
+
   const isEmptyNew = isNew && messages.length === 0 && !streamState.isStreaming && !sessionBusy;
   const messageCwd = session?.cwd ?? newSessionCwd ?? undefined;
 
@@ -805,11 +858,11 @@ function NoticeShelf({ notices, floating = false, align = "left" }: { notices: N
     >
       {notices.map((notice, index) => {
         const color = notice.type === "error"
-          ? "#ef4444"
+          ? "var(--status-error-foreground)"
           : notice.type === "warning"
-            ? "#d97706"
+            ? "var(--status-warning-foreground)"
             : notice.type === "success"
-              ? "#10b981"
+              ? "var(--status-success-foreground)"
               : "var(--accent)";
         return (
           <div

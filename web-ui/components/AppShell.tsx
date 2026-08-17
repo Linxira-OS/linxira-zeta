@@ -40,7 +40,7 @@ function AppShellContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [initialNavigation] = useState(() => getInitialNavigation(searchParams));
-  const { isStarfield } = useTheme();
+  const { isStarfield, cycleTheme } = useTheme();
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
@@ -275,10 +275,14 @@ function AppShellContent() {
     router.replace("/", { scroll: false });
   }, [router, isMobile]);
 
-  // Global keyboard shortcuts (handles Esc, Ctrl+Alt+N etc.)
+  // Global keyboard shortcuts (handles Esc, Ctrl+N/Ctrl+Alt+N, Ctrl+I,
+  // Ctrl+Enter, Ctrl+/ etc.)
   useGlobalKeyboardShortcuts({
     onNewSession: (cwd: string) => handleNewSession(`kb-${Date.now()}`, cwd),
     activeCwd,
+    onFocusInput: () => chatInputRef.current?.focus(),
+    onSubmitInput: () => chatInputRef.current?.submit(),
+    onCycleTheme: () => cycleTheme(),
   });
 
   // Client-built transient SessionInfo (new session / fork) lacks the
@@ -731,8 +735,8 @@ function AppShellContent() {
             let ctxStr: string | null = null;
             if (contextUsage?.contextWindow) {
               const pct = contextUsage.percent;
-              if (pct !== null && pct > 90) ctxColor = "#ef4444";
-              else if (pct !== null && pct > 70) ctxColor = "rgba(234,179,8,0.95)";
+              if (pct !== null && pct > 90) ctxColor = "var(--status-error-foreground)";
+              else if (pct !== null && pct > 70) ctxColor = "var(--status-warning-foreground)";
               ctxStr = pct !== null ? `${pct.toFixed(0)}% / ${fmt(contextUsage.contextWindow)}` : `? / ${fmt(contextUsage.contextWindow)}`;
             }
 
@@ -1052,7 +1056,7 @@ function AppShellContent() {
               role="alert"
               style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 24, color: "var(--text-muted)", textAlign: "center" }}
             >
-              <div style={{ fontSize: 14, color: "#dc2626" }}>Unable to open workspace</div>
+              <div style={{ fontSize: 14, color: "var(--status-error-foreground)" }}>Unable to open workspace</div>
               <div style={{ maxWidth: "min(720px, 100%)", overflowWrap: "anywhere", fontFamily: "var(--font-mono)", fontSize: 12 }}>
                 {initialNavigation.requestedCwd}
               </div>

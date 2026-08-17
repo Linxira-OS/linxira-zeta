@@ -670,7 +670,7 @@ function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
         <div
           style={{
             padding: "8px 10px",
-            color: error ? "#f87171" : "var(--text-muted)",
+            color: error ? "var(--status-error-foreground)" : "var(--text-muted)",
             fontSize: 12,
             lineHeight: 1.6,
             whiteSpace: "pre-wrap",
@@ -728,7 +728,7 @@ function ToolCallBlock({ block, result, duration }: { block: ToolCallContent; re
           minWidth: 0,
         }}
       >
-        <span style={{ color: isError ? "#f87171" : "#16a34a", fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 11, flexShrink: 0 }}>
+        <span style={{ color: isError ? "var(--status-error-foreground)" : "var(--status-success-foreground)", fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 11, flexShrink: 0 }}>
           {block.toolName}
         </span>
         <span style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
@@ -884,7 +884,7 @@ function SplitDiffCellView({ cell, side }: { cell: SplitDiffCell; side: "left" |
   const marker =
     cell.type === "added" ? "+" : cell.type === "removed" ? "-" : " ";
   const markerColor =
-    cell.type === "added" ? "#22c55e" : cell.type === "removed" ? "#f87171" : "var(--text-dim)";
+    cell.type === "added" ? "var(--status-success-foreground)" : cell.type === "removed" ? "var(--status-error-foreground)" : "var(--text-dim)";
 
   return (
     <div
@@ -954,8 +954,8 @@ function PatchTextView({ text }: { text: string }) {
           kind === "hunk" ? "rgba(96,165,250,0.12)" :
           "transparent";
         const color =
-          kind === "added" ? "#22c55e" :
-          kind === "removed" ? "#f87171" :
+          kind === "added" ? "var(--status-success-foreground)" :
+          kind === "removed" ? "var(--status-error-foreground)" :
           kind === "hunk" ? "var(--accent)" :
           "var(--text)";
 
@@ -966,9 +966,9 @@ function PatchTextView({ text }: { text: string }) {
               display: "flex",
               background: bg,
               borderLeft: kind === "added"
-                ? "3px solid #22c55e"
+                ? "3px solid var(--status-success-border)"
                 : kind === "removed"
-                ? "3px solid #f87171"
+                ? "3px solid var(--status-error-border)"
                 : kind === "hunk"
                 ? "3px solid var(--accent)"
                 : "3px solid transparent",
@@ -1041,7 +1041,7 @@ function PairedResult({ text, isEmpty, isError }: {
         style={{
           margin: 0,
           padding: "8px 10px",
-          color: isError ? "#f87171" : (isEmpty ? "var(--text-dim)" : "var(--text-muted)"),
+          color: isError ? "var(--status-error-foreground)" : (isEmpty ? "var(--text-dim)" : "var(--text-muted)"),
           fontSize: 12,
           lineHeight: 1.5,
           overflow: "auto",
