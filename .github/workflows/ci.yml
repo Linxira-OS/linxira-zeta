@@ -141,19 +141,66 @@ jobs:
          # version bump produces either a wrong-version publish or an npm
          # rejection ("previously published version is higher than the new
          # version") after ~an hour of builds. Guard here, before any build.
-         - name: Verify tag matches packaged version
+         - name: Verify tag matches packaged versions
            if: steps.detect.outputs.is-release == 'true'
            shell: bash
            env:
               RELEASE_TAG: ${{ steps.detect.outputs.release-tag }}
            run: |
+              set -euo pipefail
               tag_ver="${RELEASE_TAG#v}"
-              pkg_ver=$(node -p "require('./packages/coding-agent/package.json').version")
-              if [ "$tag_ver" != "$pkg_ver" ]; then
-                echo "::error::Release tag $RELEASE_TAG does not match packages/coding-agent/package.json version $pkg_ver. Run a version bump (bun scripts/release.ts <version> or manual) so package versions equal the tag, then push the tag again."
+              core_pkgs=(utils agent catalog ai tui hashline mnemopi snapcompact stats coding-agent)
+              leaf_pkgs=(natives omptype wire)
+              # 10 core packages must equal the tag.
+              for pkg in "${core_pkgs[@]}"; do
+                ver=$(node -p "require('./packages/$pkg/package.json').version")
+                if [ "$tag_ver" != "$ver" ]; then
+                  echo "::error::Release tag $RELEASE_TAG does not match packages/$pkg/package.json version $ver. Run a version bump (bun scripts/release-v2.ts $tag_ver) so package versions equal the tag, then push the tag again."
+                  exit 1
+                fi
+              done
+              # 3 native leaf packages stay pinned at 1.0.2.
+              for pkg in "${leaf_pkgs[@]}"; do
+                ver=$(node -p "require('./packages/$pkg/package.json').version")
+                if [ "$ver" != "1.0.2" ]; then
+                  echo "::error::Leaf package packages/$pkg/package.json version is $ver, expected 1.0.2 (native leaves never ride the release version)."
+                  exit 1
+                fi
+              done
+              # desktop (incl. lockfile root version) must equal the tag.
+              desktop_ver=$(node -p "require('./desktop/package.json').version")
+              desktop_lock_ver=$(node -p "require('./desktop/package-lock.json').version")
+              if [ "$tag_ver" != "$desktop_ver" ] || [ "$tag_ver" != "$desktop_lock_ver" ]; then
+                echo "::error::Release tag $RELEASE_TAG does not match desktop versions: package.json=$desktop_ver package-lock.json=$desktop_lock_ver. Run a version bump (bun scripts/release-v2.ts $tag_ver) so package versions equal the tag, then push the tag again."
                 exit 1
               fi
-              echo "tag $RELEASE_TAG matches packaged version $pkg_ver"
+              # Root catalog: exactly 13 @linxiraos/* keys — 10 core == tag, 3 leaf == 1.0.2.
+              node -e '
+                const catalog = require("./package.json").workspaces.catalog;
+                const keys = Object.keys(catalog).filter(k => k.startsWith("@linxiraos/"));
+                if (keys.length !== 13) {
+                  console.error(`catalog has ${keys.length} @linxiraos/* keys, expected exactly 13`); process.exit(1);
+                }
+                const tag = process.argv[1];
+                const core = keys.filter(k => !["@linxiraos/pi-natives", "@linxiraos/pi-omptype", "@linxiraos/pi-wire"].includes(k));
+                const leaf = keys.filter(k => ["@linxiraos/pi-natives", "@linxiraos/pi-omptype", "@linxiraos/pi-wire"].includes(k));
+                for (const k of core) if (catalog[k] !== tag) { console.error(`catalog ${k} = ${catalog[k]}, expected ${tag}`); process.exit(1); }
+                for (const k of leaf) if (catalog[k] !== "1.0.2") { console.error(`catalog ${k} = ${catalog[k]}, expected 1.0.2`); process.exit(1); }
+              ' "$tag_ver"
+              # Rust workspace + native sentinel stay locked at 1.0.2.
+              cargo_ver=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n1)
+              if [ "$cargo_ver" != "1.0.2" ]; then
+                echo "::error::Cargo.toml workspace version is $cargo_ver, expected 1.0.2 (native leaves never ride the release version)."
+                exit 1
+              fi
+              sentinel="__piNativesV1_0_2"
+              for f in crates/pi-natives/src/lib.rs packages/natives/native/index.d.ts packages/natives/native/index.js; do
+                if ! grep -q "$sentinel" "$f"; then
+                  echo "::error::$f is missing the $sentinel sentinel (native sentinel must stay on the 1.0.2 line)."
+                  exit 1
+                fi
+              done
+              echo "tag $RELEASE_TAG matches packaged versions (10 core == tag, 3 leaf == 1.0.2, desktop incl. lock == tag, catalog 13 keys, Cargo/sentinel == 1.0.2)"
 
    check:
       name: Lint, type check & web build

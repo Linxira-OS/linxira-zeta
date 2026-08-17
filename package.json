@@ -162,7 +162,7 @@
     "prepare": "bun run gen:tool-views",
     "publish": "bun run prepublishOnly && npm publish -ws --access public",
     "publish:dry": "bun run prepublishOnly && npm publish -ws --access public --dry-run",
-    "release": "bun scripts/release.ts",
+    "release": "bun scripts/release-v2.ts",
     "gen:models": "bun --cwd=packages/catalog run gen:models",
     "gen:stats": "bun --cwd=packages/stats run gen:stats",
     "gen:stats:reset": "bun --cwd=packages/stats run gen:stats:reset",

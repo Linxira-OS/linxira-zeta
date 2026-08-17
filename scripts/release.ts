@@ -32,11 +32,25 @@ const cargoTomlGlob = new Glob("crates/*/Cargo.toml");
 export function selectLatestZetaTag(tagListOutput: string): string | null {
 	for (const line of tagListOutput.split("\n")) {
 		if (!line) continue;
-		const separator = line.indexOf("%00");
+		// git's `%00` format emits a real NUL byte; tests also feed literal
+		// "%00" strings. Accept either so callers can't be tripped by the
+		// shell/git rendering difference.
+		const nulSep = line.indexOf("\0");
+		const literalSep = line.indexOf("%00");
+		const isNul = nulSep !== -1 && (literalSep === -1 || nulSep < literalSep);
+		const separator = isNul ? nulSep : literalSep;
 		if (separator === -1) continue;
 		const name = line.slice(0, separator);
-		const subject = line.slice(separator + 3);
-		if (/^chore: bump version to v?\d/.test(subject)) return name;
+		const rest = isNul ? line.slice(separator + 1) : line.slice(separator + 3);
+		// The line is `name%00subject` (lightweight tags) or
+		// `name%00subject%00peeledSubject` (annotated tags, where %(subject)
+		// is the tag annotation and %(*subject) is the peeled commit subject).
+		// A Zeta bump tag is recognized by its commit subject, so match
+		// either field.
+		const fields = isNul ? rest.split("\0") : rest.split("%00");
+		const subject = fields[0] ?? "";
+		const peeled = fields[1] ?? "";
+		if (/^chore: bump version to v?\d/.test(subject) || /^chore: bump version to v?\d/.test(peeled)) return name;
 	}
 	return null;
 }
@@ -67,7 +81,7 @@ function git(args: readonly string[]) {
 // Shared functions
 // =============================================================================
 
-async function watchCI(): Promise<boolean> {
+export async function watchCI(): Promise<boolean> {
 	const commitSha = (await git(["rev-parse", "HEAD"]).text()).trim();
 	console.log(`  Commit: ${commitSha.slice(0, 8)}`);
 
@@ -262,7 +276,14 @@ async function cmdRelease(versionOrBump: string): Promise<void> {
 	const latestTag =
 		selectLatestZetaTag(
 			(
-				await git(["tag", "--list", "--format", "%(refname:short)%00%(subject)", "--sort=-v:refname", "v*"]).text()
+				await git([
+					"tag",
+					"--list",
+					"--format",
+					"%(refname:short)%00%(subject)%00%(*subject)",
+					"--sort=-v:refname",
+					"v*",
+				]).text()
 			).trim(),
 		) ?? "";
 	let version = versionOrBump;
