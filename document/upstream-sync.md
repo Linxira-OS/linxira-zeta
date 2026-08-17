@@ -114,7 +114,7 @@ Do not alter an existing ledger entry after it records an accepted release.
   coding-agent/ai/catalog/hashline/tui/natives src and test files; `README.md`;
   `docs/native-crates.md`.
 - Conflict decisions: package identity, `@zeta/*` scope, and the 1.0.0 version
-  line preserved everywhere (package.json merge driver + `@linxiraos` → `@zeta`
+  line preserved everywhere (package.json merge driver + `@oh-my-pi` → `@zeta`
   sweep). Native sentinel `__piNativesV1_0_0` retained over upstream's
   `V17_2_12` and re-synced into the generated `index.js`/`index.d.ts`. The
   nineteen source/test files resolved to theirs where zeta-side deltas were
@@ -122,9 +122,9 @@ Do not alter an existing ledger entry after it records an accepted release.
   Zeta product page (Zeta-owned surface; upstream marketing README not
   imported). `docs/native-crates.md` took the upstream `pi-builtins` restructure
   (v17.2.12 unified uu-*/brush-builtins/jaq into `crates/pi-builtins`) with
-  `@linxiraos` → `@zeta` branding.
+  `@oh-my-pi` → `@zeta` branding.
 - Post-merge findings: the package.json merge driver had `OMP_SCOPE` set to
-  `@zeta/` (upstream is `@linxiraos/`); corrected with regression tests. The
+  `@zeta/` (upstream is `@oh-my-pi/`); corrected with regression tests. The
   upstream dispose-release memory test referenced the global
   `AsyncJobManager.resetForTests()` which Zeta's per-session manager does not
   have; call removed.
@@ -191,7 +191,7 @@ merge. No version bump, no tag, no release.
     `dev.autoqaPush.*` with default `https://qa.omp.sh/v1/grievances`),
     `.zeta/*` paths, `@linxiraos/*` package identity.
   - Upstream v17.3.3 pair accepted wholesale for the remaining 238 files;
-    Zeta overlay re-applied: `@linxiraos/*` → `@linxiraos/*` with name
+    Zeta overlay re-applied: `@oh-my-pi/*` → `@linxiraos/*` with name
     mapping (`hashline`→`pi-hashline`, `omp-stats`→`pi-stats`,
     `omptype`→`pi-omptype`, `pi-coding-agent`→`zeta`, `snapcompact`→
     `pi-snapcompact`), `.omp/` path fragments → `.zeta/`, brand `π` → `ζ`
@@ -212,8 +212,64 @@ merge. No version bump, no tag, no release.
     gained a typed `toJsonSchema()` member; upstream test hunks use a typed
     `toJsonDocument` helper.
 - Local checks: `bun run check:ts` green; `check:rs` environment-blocked on
-  this Windows host (no MSVC linker/SDK) — covered by CI. CI green required
-  before the branch merges into `main`; no version bump, no tag.
+  this Windows host (no MSVC linker/SDK) — covered by CI. Merged into `main`
+  (`26608da0ab`) after PR #2 CI green; 1.0.2 released after (bump `9f49bff2` +
+  tag `v1.0.2`).
+
+### v17.3.4 (superseded by v17.3.5)
+
+- Prior baseline: `v17.3.3` at `039728ad808395af4066783c6f4f6b079d8e5a78`
+  (main `26608da0ab`).
+- Source: `refs/tags/v17.3.4` at `ffd53ff92a6f575d499730475a73460dd7cc2eea`
+  (verified with `git ls-remote`).
+- Merge-tree from `main`: 20 conflicts (18 content + 2 modify/delete).
+  Resolutions:
+  - Zeta-owned surfaces kept: native sentinel `__piNativesV1_0_2` (lib.rs +
+    generated `native/index.js|d.ts`), root `Cargo.toml` workspace version
+    `1.0.2`, `workspaces.catalog` `@linxiraos/*` @ `1.0.2` with name mapping
+    (`hashline`→`pi-hashline`, `omp-stats`→`pi-stats`, `omptype`→`pi-omptype`,
+    `pi-coding-agent`→`zeta`, `snapcompact`→`pi-snapcompact`), `mupdf`
+    external dep (bundle-dist), `logger` usage (markit).
+  - Upstream v17.3.4 accepted: `pdf` native module (`pdfToMarkdown` +
+    `read-pdf` tool + markit pdf converters + tests), `alibaba-token-plan`
+    usage provider, ai usage/auth fixes; upstream-deleted
+    `read-pdf-images` (+ test) accepted (replaced by pdf module).
+  - Package graph: workspace `package.json` dep names corrected
+    (`pi-snapcompact`/`pi-hashline`/`pi-stats`), duplicate keys deduped;
+    `bun.lock` regenerated with Bun 1.3.14; `Cargo.lock` regenerated via
+    `cargo metadata`; new upstream files package-scope `@oh-my-pi/*` →
+    `@linxiraos/*` re-applied.
+- Status: merged into `main` as part of the v17.3.5 sync (v17.3.5 tag builds on
+  the same release line; the v17.3.4 worktree became the v17.3.5 branch).
+
+### v17.3.5 (complete — branch `sync/omp-release/v17.3.5`)
+
+- Prior baseline: `v17.3.4` at `ffd53ff92a6f575d499730475a73460dd7cc2eea`
+  (superseded above; worktree `zeta-omp-v17.3.4`).
+- Source: `refs/tags/v17.3.5` at `37eee71978951fccf66b21f7e3e2b74596ac9d74`
+  (verified with `git ls-remote`; upstream `main` == tag, no commits after).
+- Merge-tree from `main`: 53 conflicts resolved on the v17.3.4 worktree per the
+  v17.3.4 pattern, then the branch renamed to `sync/omp-release/v17.3.5`.
+  Resolutions:
+  - Zeta-owned surfaces kept (ours): sentinel/version group — root
+    `Cargo.toml` workspace `1.0.2`, `crates/pi-natives/src/lib.rs`
+    `__piNativesV1_0_2`, generated `packages/natives/native/index.js` +
+    `index.d.ts`; all `pi-*` crates `1.0.2`; `workspaces.catalog`
+    `pi-natives`/`pi-omptype`/`pi-wire` @ `1.0.2`; 10 core packages @ `1.0.5`
+    (aligned to main); catalog keys renamed/deduped (`pi-hashline`,
+    `pi-stats`, `pi-omptype`, `pi-snapcompact`); stale old-name deps removed
+    (agent `snapcompact`; coding-agent `hashline`/`omp-stats`/`snapcompact`).
+  - `bunfig.toml` hand-merged: Zeta `[test]` `pathIgnorePatterns` extended with
+    `"bazel-*/**"`, `"**/bazel-out/**"` (upstream bazel test paths).
+  - Upstream accepted: remaining 46 files theirs + worktree-wide
+    `@oh-my-pi` → `@linxiraos` sweep (73 files); `Cargo.lock` regenerated via
+    `cargo metadata` (crates stay `1.0.2`); `bun.lock` regenerated.
+  - Post-sweep fixes: `@linxiraos/omptype` → `@linxiraos/pi-omptype` in 10
+    files (batch-sweep missed the renamed package), Biome import ordering.
+- Local checks: `bun run check:ts` green; sentinels verified
+  (`__piNativesV1_0_2` = 1/1/1 in lib.rs/index.js/index.d.ts, `pdfToMarkdown`
+  export retained). Branch CI required before merging to `main`; no version
+  bump, no tag on the branch.
 
 ## Pi Runtime Ports
 
