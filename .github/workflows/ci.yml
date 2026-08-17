@@ -1066,8 +1066,11 @@ jobs:
          - name: Publish native leaf packages
            env:
               # Fallback auth: setup-node wrote an .npmrc referencing
-…
+              # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
+              # publisher for the package (or on a first publish).
               NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+           run: |
+              set -euo pipefail
               for tag in linux-x64 linux-arm64 win32-x64 darwin-x64 darwin-arm64; do
                 bun run ci:release:publish-native-leaf "$tag"
               done
