@@ -7,6 +7,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { parseCompactionSummary } from "@/lib/compaction-summary";
 import { isEmptyThinkingBlock } from "@/lib/message-display";
 import { parseUnifiedPatch, type SplitDiffCell } from "@/lib/patch";
+import { ToolIcon } from "@/lib/tool-icons";
 import type {
   AgentMessage,
   UserMessage,
@@ -82,6 +83,17 @@ function formatTime(ts?: number): string | null {
   if (isToday) return time;
   const date = d.toLocaleDateString([], { month: "short", day: "numeric", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
   return `${date} ${time}`;
+}
+
+function formatDuration(totalSeconds: number): string {
+  const secs = Math.max(0, Math.floor(totalSeconds));
+  if (secs < 60) return `${secs}s`;
+  const minutes = Math.floor(secs / 60);
+  const remSecs = secs % 60;
+  if (minutes < 60) return remSecs === 0 ? `${minutes}m` : `${minutes}m ${remSecs}s`;
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  return remMinutes === 0 ? `${hours}h` : `${hours}h ${remMinutes}m`;
 }
 
 function haveSameRelevantToolResults(
@@ -417,7 +429,7 @@ function AssistantMessageView({
   useEffect(() => {
     if (!isStreaming) {
       // Finalise any un-finished thinking block durations on stream end
-      const now = new Date().getTime();
+      const now = Date.now();
       setStreamingDurations((prev: Map<number, number>) => {
         const next = new Map(prev);
         for (const [idx, start] of blockStartTimesRef.current) {
@@ -593,7 +605,7 @@ function BlockView({ block, toolResults, isStreaming, streamingDuration, toolCal
     const tc = block as ToolCallContent;
     const result = toolResults?.get(tc.toolCallId);
     const duration = toolCallDurations?.get(tc.toolCallId);
-    return <ToolCallBlock block={tc} result={result} duration={duration} />;
+    return <ToolCallBlock block={tc} result={result} duration={duration} isStreaming={isStreaming} />;
   }
   return null;
 }
@@ -686,8 +698,22 @@ function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
 }
 
 
-function ToolCallBlock({ block, result, duration }: { block: ToolCallContent; result?: ToolResultMessage; duration?: number }) {
+function ToolCallBlock({ block, result, duration, isStreaming }: { block: ToolCallContent; result?: ToolResultMessage; duration?: number; isStreaming?: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const isRunning = isStreaming === true && result === undefined;
+  const startRef = useRef<number | null>(null);
+  const [liveElapsed, setLiveElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!isRunning) return undefined;
+    startRef.current = Date.now();
+    setLiveElapsed(0);
+    const id = setInterval(() => {
+      setLiveElapsed(Math.floor((Date.now() - (startRef.current ?? Date.now())) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isRunning]);
+
   const inputStr = JSON.stringify(block.input, null, 2);
   const isEditTool = isEditToolName(block.toolName);
   const resultDiff = result && !result.isError ? getResultDiff(result) : null;
@@ -728,14 +754,22 @@ function ToolCallBlock({ block, result, duration }: { block: ToolCallContent; re
           minWidth: 0,
         }}
       >
-        <span style={{ color: isError ? "var(--status-error-foreground)" : "var(--status-success-foreground)", fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 11, flexShrink: 0 }}>
-          {block.toolName}
+        <span style={{ color: isError ? "var(--status-error-foreground)" : "var(--status-success-foreground)", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+          <ToolIcon name={block.toolName} size={12} />
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 11 }}>{block.toolName}</span>
         </span>
         <span style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
           {getToolPreview(block)}
         </span>
-        {duration !== undefined && (
-          <span style={{ fontSize: 11, color: "var(--text-dim)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{duration}s</span>
+        {isRunning && (
+          <span style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--status-info-foreground)", fontSize: 11, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", flexShrink: 0 }} />
+            running
+            <span style={{ opacity: 0.85 }}>{formatDuration(liveElapsed)}</span>
+          </span>
+        )}
+        {!isRunning && duration !== undefined && (
+          <span style={{ fontSize: 11, color: "var(--text-dim)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{formatDuration(duration)}</span>
         )}
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--text-dim)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
           <polyline points="2 3.5 5 6.5 8 3.5" />

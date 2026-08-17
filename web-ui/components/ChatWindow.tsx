@@ -224,28 +224,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
   // Only render the last N messages initially. When the user scrolls to the
   // top, load another page while keeping the scroll position stable.
   const [visibleCount, setVisibleCount] = useState(VISIBLE_PAGE_SIZE);
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const prevScrollDistanceRef = useRef<number | null>(null);
-
-  // IntersectionObserver on the sentinel div at the top of the message list.
-  // When it becomes visible, load the next page of older messages.
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    const container = scrollContainerRef.current;
-    if (!sentinel || !container) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          // Save distance from top before prepending to restore scroll later
-          prevScrollDistanceRef.current = captureScrollDistance(container.scrollHeight, container.scrollTop);
-          setVisibleCount((prev) => getNextVisibleCount(prev));
-        }
-      },
-      { root: container, threshold: 0 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [visibleCount, messages.length, scrollContainerRef]);
 
   // After visibleCount increases (more messages prepended), restore the
   // scroll position so the viewport doesn't jump.
@@ -718,8 +697,45 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
               return (
                 <>
                   {hasMore && (
-                    <div ref={sentinelRef} className="py-3 text-center text-xs text-text-muted">
-                      Scroll up to load earlier messages ({startIndex} hidden)
+                    <div
+                      className="chat-load-fade"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                        padding: "10px 0 4px",
+                        background: "linear-gradient(to bottom, var(--bg) 40%, transparent)",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          prevScrollDistanceRef.current = captureScrollDistance(
+                            scrollContainerRef.current?.scrollHeight ?? 0,
+                            scrollContainerRef.current?.scrollTop ?? 0,
+                          );
+                          setVisibleCount((prev) => getNextVisibleCount(prev));
+                        }}
+                        title={`Load earlier messages (${startIndex} hidden)`}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          height: 26, padding: "0 12px",
+                          background: "var(--bg-panel)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 13,
+                          color: "var(--text-muted)",
+                          cursor: "pointer",
+                          fontSize: 11,
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.borderColor = "var(--accent)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                        Load earlier ({startIndex} hidden)
+                      </button>
                     </div>
                   )}
                   {rendered.slice(startIndex)}

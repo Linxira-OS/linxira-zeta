@@ -50,8 +50,8 @@ interface ThemeOption {
   label: string;
   sub: string;
   icon: React.ReactNode;
-  /** Color swatch — CSS value */
-  swatch: string;
+  /** Mini-preview swatch bands — theme background / accent / text bar */
+  preview: { bg: string; accent: string; text: string };
 }
 
 const SunIcon = () => (
@@ -80,21 +80,21 @@ const THEMES: ThemeOption[] = [
     label: "Light",
     sub: "Clean white",
     icon: <SunIcon />,
-    swatch: "linear-gradient(135deg, #ffffff 50%, #f0f0f0 50%)",
+    preview: { bg: "#ffffff", accent: "#2563eb", text: "#f0f0f0" },
   },
   {
     id: "dark",
     label: "Dark",
     sub: "Neutral dark",
     icon: <MoonIcon />,
-    swatch: "linear-gradient(135deg, #1a1a1a 50%, #2e2e2e 50%)",
+    preview: { bg: "#1a1a1a", accent: "#60a5fa", text: "#2e2e2e" },
   },
   {
     id: "starfield",
     label: "Starfield",
     sub: "NASA-punk HUD",
     icon: <StarIcon />,
-    swatch: "linear-gradient(135deg, #0b0e14 0%, #1b365d 50%, #d99b26 100%)",
+    preview: { bg: "#0b0e14", accent: "#d99b26", text: "#1b365d" },
   },
 ];
 
@@ -253,14 +253,19 @@ export function ThemePicker() {
                 onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
                 onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
               >
-                {/* Color swatch */}
+                {/* Mini-preview swatch: background + accent + text bands */}
                 <div style={{
-                  width: 26, height: 18, flexShrink: 0,
-                  background: opt.swatch,
+                  width: 28, height: 18, flexShrink: 0,
+                  display: "flex",
+                  overflow: "hidden",
                   border: "1px solid var(--border)",
                   borderRadius: opt.id === "starfield" ? 0 : 3,
                   boxShadow: isActive ? "0 0 0 1.5px var(--accent)" : "none",
-                }} />
+                }}>
+                  <div style={{ flex: 1.4, background: opt.preview.bg }} />
+                  <div style={{ flex: 1, background: opt.preview.accent }} />
+                  <div style={{ flex: 1, background: opt.preview.text }} />
+                </div>
 
                 {/* Icon + text */}
                 <div style={{

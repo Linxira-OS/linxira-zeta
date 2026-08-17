@@ -1604,3 +1604,17 @@ span.linenumber {
     padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* Sidebar bottom icon bar — class-driven hover/pressed states (A1) */
+.sidebar-icon-btn {
+  transition: background 0.12s, color 0.12s, transform 0.05s;
+}
+.sidebar-icon-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.sidebar-icon-btn:active:not(:disabled) {
+  background: var(--bg-selected);
+  color: var(--accent);
+  transform: scale(0.96);
+}

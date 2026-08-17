@@ -225,6 +225,31 @@ function QueuedMessageRow({ kind, text }: { kind: "steer" | "follow-up"; text: s
   );
 }
 
+/** Small keyboard-key chip for menu footer hints (I1). */
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 18,
+        height: 16,
+        padding: "0 4px",
+        background: "var(--bg-panel)",
+        border: "1px solid var(--border)",
+        borderRadius: 4,
+        color: "var(--text-muted)",
+        fontSize: 10,
+        fontFamily: "var(--font-mono)",
+        lineHeight: 1,
+      }}
+    >
+      {children}
+    </kbd>
+  );
+}
+
 export function ModelErrorBanner({ error }: { error?: string | null }) {
   if (!error) return null;
   return (
@@ -286,8 +311,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const [value, setValue] = useState(() => (draftKey ? getDraft(draftKey)?.value ?? "" : ""));
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [modelDropdownRect, setModelDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [modelActiveIndex, setModelActiveIndex] = useState(0);
   const [modelActiveFlash, setModelActiveFlash] = useState(false);
   const modelActiveFlashTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Flat model list for keyboard navigation; kept in a ref so the keydown
+  // handler (declared before the options are derived) can read it without TDZ.
+  const flatModelOptionsRef = useRef<ModelOption[]>([]);
   const [toolDropdownOpen, setToolDropdownOpen] = useState(false);
   const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
   const [controlsMenuOpen, setControlsMenuOpen] = useState(false);
@@ -828,6 +857,34 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         return;
       }
 
+      if (modelDropdownOpen) {
+        const flat = flatModelOptionsRef.current;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setModelActiveIndex((i) => Math.min(flat.length - 1, i + 1));
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setModelActiveIndex((i) => Math.max(0, i - 1));
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setModelDropdownOpen(false);
+          return;
+        }
+        if ((e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) && flat[modelActiveIndex]) {
+          e.preventDefault();
+          const opt = flat[modelActiveIndex];
+          setModelDropdownOpen(false);
+          if (opt.modelId !== model?.modelId || opt.provider !== model?.provider || isAutoModelSelection) {
+            onModelChange?.(opt.provider, opt.modelId);
+          }
+          return;
+        }
+      }
+
       if (historyMenuOpen && !isComposing) {
         if (e.key === "ArrowDown") {
           e.preventDefault();
@@ -935,7 +992,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         }
       }
     },
-    [isStreaming, onSteer, onFollowUp, onAbort, slashMenuOpen, slashQuery, filteredSlashCommands, slashActiveIndex, applySlashCommand, sendQueued, handleSend, getNextSlashIndex, atMenuOpen, atQuery, atMatches, atActiveIndex, applyAtCompletion, historyMenuOpen, inputHistory, historyActiveIndex, applyHistoryInput, value]
+    [isStreaming, onSteer, onFollowUp, onAbort, slashMenuOpen, slashQuery, filteredSlashCommands, slashActiveIndex, applySlashCommand, sendQueued, handleSend, getNextSlashIndex, atMenuOpen, atQuery, atMatches, atActiveIndex, applyAtCompletion, historyMenuOpen, inputHistory, historyActiveIndex, applyHistoryInput, value, modelDropdownOpen, modelActiveIndex, onModelChange, model, isAutoModelSelection]
   );
 
   const handleInput = useCallback(() => {
@@ -1005,6 +1062,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     if (group) group.options.push(opt);
     else modelsByProvider.push({ provider: opt.provider, options: [opt] });
   }
+  // Flat list for keyboard navigation (ArrowUp/Down + Enter/Tab while open).
+  const flatModelOptions: ModelOption[] = modelsByProvider.flatMap((g) => g.options);
+  flatModelOptionsRef.current = flatModelOptions;
 
   const displayModelName = model
     ? (modelOptions.find((o) => o.modelId === model.modelId && o.provider === model.provider)?.name ?? model.modelId)
@@ -1330,7 +1390,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 }}
               >
                 <span>{slashCommandsLoading ? "Loading commands..." : `Slash commands · ${slashCommandCountLabel}`}</span>
-                <span style={{ fontFamily: "var(--font-mono)" }}>Tab / Enter</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Kbd>↑↓</Kbd><span style={{ color: "var(--text-dim)" }}>选择</span>
+                  <Kbd>Tab</Kbd><span style={{ color: "var(--text-dim)" }}>补全</span>
+                  <Kbd>Esc</Kbd><span style={{ color: "var(--text-dim)" }}>关闭</span>
+                </span>
               </div>
               <div style={{ maxHeight: "calc(min(56vh, 460px) - 34px)", overflowY: "auto", padding: 10 }}>
                 {!slashCommandsLoading && filteredSlashCommands.length === 0 ? (
@@ -1471,7 +1535,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       ? "Loading files..."
                       : `Files · ${matchCountLabel}${truncatedHint}`}
                   </span>
-                  <span style={{ fontFamily: "var(--font-mono)" }}>Tab / Enter</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Kbd>↑↓</Kbd><span style={{ color: "var(--text-dim)" }}>选择</span>
+                    <Kbd>Tab</Kbd><span style={{ color: "var(--text-dim)" }}>补全</span>
+                    <Kbd>Esc</Kbd><span style={{ color: "var(--text-dim)" }}>关闭</span>
+                  </span>
                 </div>
                 <div style={{ maxHeight: "calc(min(48vh, 400px) - 34px)", overflowY: "auto", padding: 4 }}>
                   {!indexLoading && atMatches.length === 0 ? (
@@ -1727,7 +1795,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     onClick={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                       setModelDropdownRect({ top: rect.top, left: rect.left, width: rect.width });
-                      setModelDropdownOpen((v) => !v);
+                      setModelDropdownOpen((v) => {
+                        const next = !v;
+                        if (next) {
+                          // Start keyboard nav at the currently active model.
+                          const idx = flatModelOptions.findIndex(
+                            (o) => o.modelId === model?.modelId && o.provider === model?.provider,
+                          );
+                          setModelActiveIndex(idx >= 0 ? idx : 0);
+                        }
+                        return next;
+                      });
                     }}
                     disabled={isStreaming}
                     style={{
@@ -1835,9 +1913,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                           )}
                           {group.options.map((opt) => {
                             const isActive = opt.modelId === model?.modelId && opt.provider === model?.provider;
+                            const flatIdx = flatModelOptions.indexOf(opt);
+                            const isKbdActive = flatIdx === modelActiveIndex && modelDropdownOpen;
                             return (
                               <button
                                 key={`${opt.provider}:${opt.modelId}`}
+                                onMouseEnter={() => setModelActiveIndex(flatIdx)}
                                 onClick={() => {
                                   setModelDropdownOpen(false);
                                   if (isActive && !isAutoModelSelection) {
@@ -1854,15 +1935,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                 style={{
                                   display: "flex", alignItems: "center", gap: 8,
                                   width: "100%", padding: "7px 12px",
-                                  background: isActive ? "var(--bg-selected)" : "none",
+                                  background: isKbdActive ? "var(--bg-hover)" : isActive ? "var(--bg-selected)" : "none",
                                   border: "none",
                                   color: isActive ? "var(--text)" : "var(--text-muted)",
                                   cursor: "pointer", fontSize: 12, textAlign: "left",
                                   fontWeight: isActive ? 600 : 400,
                                   whiteSpace: "nowrap",
                                 }}
-                                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
                               >
                                 {isActive
                                   ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
