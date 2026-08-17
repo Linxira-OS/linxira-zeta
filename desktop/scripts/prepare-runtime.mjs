@@ -17,6 +17,7 @@ const agentDir = path.join(repoRoot, "packages", "coding-agent");
 const webUiDir = path.join(repoRoot, "web-ui");
 const stagingDir = path.join(repoRoot, "temp", "desktop", "staging", "zeta");
 const platformInfo = desktopPlatformInfo(process.platform, process.arch);
+const desktopVersion = JSON.parse(fs.readFileSync(path.join(desktopDir, "package.json"), "utf8")).version;
 
 function run(file, args, cwd, env = process.env) {
 	const result = spawnSync(file, args, { cwd, env, stdio: "inherit" });
@@ -32,6 +33,7 @@ if (!npmCli) {
 run(process.execPath, [npmCli, "run", "build"], webUiDir, {
 	...process.env,
 	NEXT_OUTPUT_STANDALONE: "1",
+	ZETA_APP_VERSION: desktopVersion,
 });
 
 const zetaBinary = path.join(agentDir, "dist", platformInfo.zetaBinaryName);

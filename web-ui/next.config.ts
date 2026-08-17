@@ -84,7 +84,10 @@ const nextConfig: NextConfig = {
     };
   },
   env: {
-    NEXT_PUBLIC_APP_VERSION: version,
+    // Desktop packaging (desktop/scripts/prepare-runtime.mjs) injects
+    // ZETA_APP_VERSION from desktop/package.json so the UI shows the release
+    // version instead of this snapshot's own (upstream-derived) version.
+    NEXT_PUBLIC_APP_VERSION: process.env.ZETA_APP_VERSION ?? version,
     NEXT_PUBLIC_PI_VERSION: piVersion,
   },
 };
