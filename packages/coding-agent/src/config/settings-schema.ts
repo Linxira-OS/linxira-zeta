@@ -3734,6 +3734,18 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// Project tracking tool (off by default; opt-in per AGENTS.md direction)
+	"tracking.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tools",
+			group: "Available Tools",
+			label: "Project Tracking",
+			description: "Enable the tracking_update tool so the agent maintains project tracking documents",
+		},
+	},
+
 	"todo.reminders": {
 		type: "boolean",
 		default: true,

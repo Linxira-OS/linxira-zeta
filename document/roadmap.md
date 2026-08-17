@@ -20,7 +20,7 @@ These exist today and are marked in the root `README.md`:
 
 | Capability | Where | Notes |
 | --- | --- | --- |
-| Long-term tracking documents | `packages/coding-agent/src/tools/tracking.ts` | `tracking_update` tool writes `<project>/.zeta/tracking/`; Web UI TrackingPanel |
+| Long-term tracking documents | `packages/coding-agent/src/tools/tracking.ts` | `tracking_update` tool writes `<project>/.zeta/tracking/`; Web UI TrackingPanel. **Default OFF** — gated by `tracking.enabled` (opt-in) since v1.0.6 |
 | Experiment measurement (`autoresearch`) | `packages/coding-agent/src/autoresearch/` | Per-project SQLite experiments, metrics, baseline commits |
 | TypeScript custom commands | `packages/coding-agent/src/extensibility/custom-commands/` | User commands from `~/.zeta/commands/` + project dirs, arktype/typebox/zod arg schemas, bundled `ci-green`/`review` |
 | Command marketplace (Bun-package distribution) | `slash-commands/builtin-marketplace.ts` | Install/uninstall commands as Bun packages |
@@ -247,6 +247,46 @@ other trigger rebuilds the prompt.
 Compacted summaries lose specifics that later turns need. Design distillation
 with the tracking document as the durable store, so compaction never
 singlesources context that must survive long sessions.
+
+### P2 — Mermaid rendering revival (`render_mermaid`)
+
+Upstream deleted the `render_mermaid` tool + `renderMermaid.enabled` setting
+(CHANGELOG #3299); Zeta revives it as a real chart-rendering tool (distinct
+from the TUI's ASCII fence renderer). Dependency: `@mermaid-js/mermaid`
+(canonical, TS-friendly). SVG render path TBD — evaluate linkedom/jsdom,
+puppeteer, or `@mermaid-js/mermaid-cli` (`mmdc`). Note: `xai-org/grok-build`'s
+Rust vendored mermaid stack is architecture reference only, not a reusable
+package. Before landing: grep `render_mermaid`/`renderMermaid` residue, locate
+the original tool implementation + rendering path, reuse the
+`renderMermaid.enabled` setting key.
+
+### P2 — Memory ↔ tracking boundary (prompt contract)
+
+`prompts/tools/tracking.md` gains a hard constraint: tracking = project-level
+working state (plan/progress/blockers/decisions) that travels with the project;
+memory = learned facts across projects. tracking must never store learned
+facts — cross-reference by topic into memory instead. `/tracking start` copy
+already points users at the Web UI panel; extend it to name the memory
+boundary and the `tracking.enabled` gate.
+
+### P2 — Stats read-only tracking snapshot (cross-package)
+
+`packages/stats` gets a read-only `/api/tracking` snapshot (status.json /
+INDEX.md / actions.jsonl / sessions/*.md under `<project>/.zeta/tracking/`),
+with a self-contained `TrackingSnapshot` type — stats must not import
+coding-agent types. Requires `getProjectTrackingDir` barrel export from
+`packages/utils`. (Web UI already has a TrackingPanel wired to the gateway;
+this is the stats-dashboard-side panel.)
+
+### P3 — Vim input mode extension
+
+`pi-vimmode` (github.com/pekochan069/pi-vimmode, npm `pi-vimmode`, install via
+`pi install npm:pi-vimmode`) provides vim keybindings for the prompt input box
+only (not file editing). Peer deps pin upstream `@earendil-works/pi-*@^0.77.0`;
+Zeta integration requires a coordinate migration to `@linxiraos/*` (or legacy
+shim). Deferred until the P0/P1 queue clears; other removed upstream features
+(ssh/Bing/calc/recipe) have no ready-made extension repos — build in-house if
+wanted.
 
 ## Notes
 

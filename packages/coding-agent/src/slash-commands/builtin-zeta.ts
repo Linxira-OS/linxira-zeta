@@ -90,10 +90,21 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
+			if (!runtime.settings.get("tracking.enabled")) {
+				await runtime.output(
+					"项目追踪默认关闭。用 /settings 打开 tools → Project Tracking（tracking.enabled）后，再用 /tracking 维护项目追踪文档。",
+				);
+				return commandConsumed();
+			}
 			await runtime.output(await buildTrackingReport(command, runtime.cwd));
 			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {
+			if (!runtime.ctx.settings.get("tracking.enabled")) {
+				runtime.ctx.showStatus("项目追踪默认关闭。请先开启 tracking.enabled（/settings → tools）。");
+				runtime.ctx.editor.setText("");
+				return;
+			}
 			const cwd = runtime.ctx.sessionManager.getCwd();
 			runtime.ctx.showStatus(await buildTrackingReport(command, cwd));
 			runtime.ctx.editor.setText("");

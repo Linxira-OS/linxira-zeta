@@ -17,11 +17,14 @@ function command(args: string): ParsedSlashCommand {
 	return { name: "tracking", args, text: `/tracking ${args}`.trim() };
 }
 
-function mockRuntime(cwd: string, capture: { text: string }): SlashCommandRuntime {
+function mockRuntime(cwd: string, capture: { text: string }, trackingEnabled = true): SlashCommandRuntime {
 	return {
 		cwd,
 		output: async (text: string) => {
 			capture.text = text;
+		},
+		settings: {
+			get: (path: string) => (path === "tracking.enabled" ? trackingEnabled : undefined),
 		},
 	} as unknown as SlashCommandRuntime;
 }
@@ -46,6 +49,17 @@ describe("/tracking slash command", () => {
 		expect(trackingCmd).toBeDefined();
 		expect(trackingCmd!.description).toBeTruthy();
 		expect(trackingCmd!.subcommands?.map(s => s.name)).toEqual(["status", "plan", "log", "index", "start"]);
+	});
+
+	it("refuses to run when tracking.enabled is off (default) and points at /settings", async () => {
+		const cwd = path.join(tempDir, "gated");
+		await fs.mkdir(cwd, { recursive: true });
+		const capture = { text: "" };
+		await trackingCmd!.handle!(command("start"), mockRuntime(cwd, capture, false));
+		expect(capture.text).toContain("默认关闭");
+		expect(capture.text).toContain("tracking.enabled");
+		// Nothing is written while the feature is disabled.
+		expect(await fs.readdir(cwd)).toEqual([]);
 	});
 
 	it("status on an empty project reports no data and points at start", async () => {

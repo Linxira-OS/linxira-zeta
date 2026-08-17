@@ -984,6 +984,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "待办",
 		description: "启用 todo 工具进行任务跟踪",
 	},
+	"tracking.enabled": {
+		label: "项目追踪文档",
+		description: "启用 tracking_update 工具，让 agent 维护项目追踪文档（默认关闭）",
+	},
 	"todo.reminders": {
 		label: "待办提醒",
 		description: "提醒智能体在停止前完成待办",

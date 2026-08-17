@@ -607,6 +607,7 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "debug") return session.settings.get("debug.enabled");
 		if (name === "todo")
 			return (!includeYield || session.prewalkArmed === true) && session.settings.get("todo.enabled");
+		if (name === "tracking_update") return session.settings.get("tracking.enabled");
 		if (name === "glob") return session.settings.get("glob.enabled");
 		if (name === "grep") return session.settings.get("grep.enabled");
 		if (name === "github") return session.settings.get("github.enabled");
