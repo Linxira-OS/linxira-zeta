@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `tracking_update` tool and `/tracking` are now off by default, gated by the
+  `tracking.enabled` setting (opt-in)
+
 ## [1.0.6] - 2026-08-17
 
 ## [17.3.5] - 2026-08-16

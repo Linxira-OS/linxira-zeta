@@ -41,6 +41,20 @@ fs.cpSync(path.join(desktopDir, "dist"), path.join(tempRoot, "dist"), { recursiv
 fs.cpSync(path.join(tempDesktopDir, "build"), path.join(tempRoot, "build"), { recursive: true });
 fs.cpSync(path.join(tempDesktopDir, "staging"), path.join(tempRoot, "staging"), { recursive: true });
 
+// The darwin build matrix runs one job per arch (macos-15-intel / macos-14).
+// electron-builder ignores CLI --x64/--arm64 when the config lists explicit
+// `arch:` entries and would build BOTH arches on each runner (doubling time
+// and cross-downloading the other Electron). Pin every arch list in the copied
+// config to the current runner arch. win/linux jobs run on x64 runners, so
+// their arch lists are unchanged; darwin runners each build their own arch.
+if (process.platform === "darwin") {
+	const builderConfigPath = path.join(tempRoot, "electron-builder.yml");
+	const builderConfig = fs
+		.readFileSync(builderConfigPath, "utf8")
+		.replace(/arch:\n(?:\s+- \w+\n)+/g, `arch:\n        - ${process.arch}\n`);
+	fs.writeFileSync(builderConfigPath, builderConfig);
+}
+
 const builderCli = require.resolve("electron-builder/out/cli/cli.js");
 if (!fs.existsSync(builderCli)) {
 	console.error("electron-builder not installed in desktop/node_modules");
@@ -76,7 +90,26 @@ for (const entry of fs.readdirSync(tempRelease, { withFileTypes: true })) {
 		fs.copyFileSync(path.join(tempRelease, entry.name), path.join(releaseOut, entry.name));
 	}
 }
-const unpackedSource = path.join(tempRelease, platformInfo.unpackedDirectory);
+// electron-builder mac dir target emits the bundle as `release/mac/Zeta.app`
+// (per-arch: `release/mac-arm64/...`, `release/mac-x64/...`), not a
+// `mac-unpacked` dir like win/linux. Locate the `.app` bundle dynamically so
+// the smoke test gets `zeta-desktop-<version>-mac-<arch>/Zeta.app/...`.
+let unpackedSource = path.join(tempRelease, platformInfo.unpackedDirectory);
+if (process.platform === "darwin") {
+	const appBundleDir = fs
+		.readdirSync(tempRelease, { withFileTypes: true })
+		.filter(entry => entry.isDirectory())
+		.map(entry => path.join(tempRelease, entry.name))
+		.find(dir => {
+			try {
+				return fs.readdirSync(dir).some(name => name.endsWith(".app"));
+			} catch {
+				return false;
+			}
+		});
+	if (!appBundleDir) throw new Error(`No .app bundle found under ${tempRelease}`);
+	unpackedSource = appBundleDir;
+}
 const unpackedOut = path.join(releaseOut, `zeta-desktop-${manifest.version}-${platformInfo.platformId}-${process.arch}`);
 fs.rmSync(unpackedOut, { recursive: true, force: true });
 fs.cpSync(unpackedSource, unpackedOut, { recursive: true });
