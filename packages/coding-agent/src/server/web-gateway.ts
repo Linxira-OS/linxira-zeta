@@ -39,6 +39,7 @@ import {
 	handleModelsConfigGet,
 	handleModelsConfigPut,
 	handleModelsConfigTest,
+	handleModelsDefaultPut,
 } from "./web-gateway/models";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import {
@@ -82,6 +83,7 @@ const AUTH_API_KEY_RE = new RegExp(`^/api/auth/api-key/(${PROVIDER_PART})$`);
 const AUTH_LOGIN_RE = new RegExp(`^/api/auth/login/(${PROVIDER_PART})$`);
 const AUTH_LOGOUT_RE = new RegExp(`^/api/auth/logout/(${PROVIDER_PART})$`);
 const MODELS_RE = /^\/api\/models$/;
+const MODELS_DEFAULT_RE = /^\/api\/models\/default$/;
 const MODELS_CONFIG_RE = /^\/api\/models-config$/;
 const MODELS_CONFIG_TEST_RE = /^\/api\/models-config\/test$/;
 const SKILLS_RE = /^\/api\/skills$/;
@@ -218,6 +220,11 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 
 	if (MODELS_RE.test(pathname)) {
 		if (req.method === "GET") return handleModels(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (MODELS_DEFAULT_RE.test(pathname)) {
+		if (req.method === "PUT") return handleModelsDefaultPut(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

@@ -286,6 +286,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const [value, setValue] = useState(() => (draftKey ? getDraft(draftKey)?.value ?? "" : ""));
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [modelDropdownRect, setModelDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [modelActiveFlash, setModelActiveFlash] = useState(false);
+  const modelActiveFlashTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [toolDropdownOpen, setToolDropdownOpen] = useState(false);
   const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
   const [controlsMenuOpen, setControlsMenuOpen] = useState(false);
@@ -1754,7 +1756,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       e.currentTarget.style.background = modelDropdownOpen ? "var(--bg-hover)" : "none";
                       e.currentTarget.style.color = "var(--text-muted)";
                     }}
-                    title={modelOptions.length > 0 ? "Change model" : "No available models"}
+                    title={
+                      isStreaming
+                        ? "Unavailable while the agent is running"
+                        : modelOptions.length > 0
+                          ? "Change model"
+                          : modelError
+                            ? "No models available (failed to load)"
+                            : "No available models"
+                    }
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -1768,6 +1778,27 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       {currentName ?? (modelOptions.length > 0 ? "Select model" : "No models")}
                     </span>
                   </button>
+                  {modelActiveFlash && (
+                    <span
+                      role="status"
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        top: "calc(100% + 4px)",
+                        padding: "2px 8px",
+                        background: "var(--bg-panel)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 5,
+                        color: "var(--text-muted)",
+                        fontSize: 11,
+                        whiteSpace: "nowrap",
+                        pointerEvents: "none",
+                        zIndex: 60,
+                      }}
+                    >
+                      Already active
+                    </span>
+                  )}
                   {modelDropdownOpen && modelDropdownRect && (() => {
                     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
                     const bottom = viewportHeight - modelDropdownRect.top + 6;
@@ -1787,8 +1818,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       overflow: "hidden", maxHeight: maxH, overflowY: "auto",
                       }}>
                       {modelsByProvider.length === 0 ? (
-                        <div style={{ padding: "8px 12px", color: "var(--text-dim)", fontSize: 12, whiteSpace: "nowrap" }}>
-                          No available models
+                        <div style={{ padding: "8px 12px", color: "var(--status-error-foreground)", fontSize: 12, whiteSpace: "nowrap" }}>
+                          {modelError ? "Failed to load models" : "No available models"}
                         </div>
                       ) : modelsByProvider.map((group, gi) => (
                         <div key={group.provider}>
@@ -1807,7 +1838,19 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                             return (
                               <button
                                 key={`${opt.provider}:${opt.modelId}`}
-                                onClick={() => { setModelDropdownOpen(false); if (!isActive || isAutoModelSelection) onModelChange(opt.provider, opt.modelId); }}
+                                onClick={() => {
+                                  setModelDropdownOpen(false);
+                                  if (isActive && !isAutoModelSelection) {
+                                    // Selecting the already-active model: brief
+                                    // visual "already active" feedback instead
+                                    // of a silent no-op.
+                                    setModelActiveFlash(true);
+                                    clearTimeout(modelActiveFlashTimerRef.current);
+                                    modelActiveFlashTimerRef.current = setTimeout(() => setModelActiveFlash(false), 1200);
+                                    return;
+                                  }
+                                  onModelChange(opt.provider, opt.modelId);
+                                }}
                                 style={{
                                   display: "flex", alignItems: "center", gap: 8,
                                   width: "100%", padding: "7px 12px",

@@ -19,6 +19,7 @@ import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { type AssistantMessage, completeSimple } from "@linxiraos/pi-ai";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { ModelRegistry } from "../../config/model-registry";
 import { ModelsConfigFile } from "../../config/models-config";
 import { Settings } from "../../config/settings";
@@ -218,6 +219,33 @@ export async function handleModelsConfigPut(req: Request): Promise<Response> {
 		return json({ success: true });
 	} catch (error) {
 		return json({ error: errorMessage(error) }, 500);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// PUT /api/models/default — persist `modelRoles.default` so the web-ui can
+// set the default (provider) model for new sessions. The selector's model
+// changes otherwise only affect the running session; `loadModels` derives
+// `defaultModel` from `roles.default`, which previously had no write path.
+// ---------------------------------------------------------------------------
+
+export async function handleModelsDefaultPut(req: Request): Promise<Response> {
+	try {
+		const body = (await req.json()) as { provider?: unknown; modelId?: unknown };
+		const provider = typeof body.provider === "string" ? body.provider.trim() : "";
+		const modelId = typeof body.modelId === "string" ? body.modelId.trim() : "";
+		if (!provider || !modelId) {
+			return json({ error: "provider and modelId are required" }, 400);
+		}
+		const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
+		const agentDir = getAgentDir();
+		const settings = await Settings.loadIsolated({ cwd, agentDir });
+		const roles = settings.get("modelRoles") ?? {};
+		settings.set("modelRoles", { ...roles, default: `${provider}/${modelId}` });
+		await settings.flush();
+		return json({ success: true, default: `${provider}/${modelId}` });
+	} catch (error) {
+		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
 	}
 }
 

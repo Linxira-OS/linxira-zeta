@@ -411,21 +411,33 @@ export class AgentSessionWrapper {
 				return { ok: true };
 			case "compact": {
 				// The runtime has no manual-compaction events; the web-ui
-				// contract drives its compacting modal off them.
+				// contract drives its compacting modal off them. Emit
+				// compaction_end on BOTH success and failure so the front-end
+				// isCompacting state can never pin to true (a start without a
+				// matching end leaves the button stuck on "Compacting…").
 				this.#emit({ type: "compaction_start" });
-				const result = await this.#inner.compact();
-				const contextUsage = this.#inner.getContextUsage();
-				const payload = {
-					tokensBefore: result.tokensBefore,
-					estimatedTokensAfter: contextUsage?.tokens ?? undefined,
-					reason: "manual",
-				};
-				this.#emit({
-					type: "compaction_end",
-					result: { tokensBefore: payload.tokensBefore, estimatedTokensAfter: payload.estimatedTokensAfter },
-					reason: "manual",
-				});
-				return payload;
+				try {
+					const result = await this.#inner.compact();
+					const contextUsage = this.#inner.getContextUsage();
+					const payload = {
+						tokensBefore: result.tokensBefore,
+						estimatedTokensAfter: contextUsage?.tokens ?? undefined,
+						reason: "manual",
+					};
+					this.#emit({
+						type: "compaction_end",
+						result: { tokensBefore: payload.tokensBefore, estimatedTokensAfter: payload.estimatedTokensAfter },
+						reason: "manual",
+					});
+					return payload;
+				} catch (err) {
+					this.#emit({
+						type: "compaction_end",
+						errorMessage: err instanceof Error ? err.message : String(err),
+						reason: "manual",
+					});
+					throw err;
+				}
 			}
 			case "set_session_name":
 				await this.#inner.setSessionName(command.name.trim(), "user");
@@ -465,6 +477,10 @@ export class AgentSessionWrapper {
 				return { ok: true };
 			case "abort_compaction":
 				this.#inner.abortCompaction();
+				// Pair the compaction_start emitted by the original compact
+				// command: without an end event the web-ui isCompacting flag
+				// sticks and the button stays on "Compacting…".
+				this.#emit({ type: "compaction_end", aborted: true, reason: "manual" });
 				return { ok: true };
 			case "extension_ui_response": {
 				const pending = this.#pendingUiRequests.get(command.id);

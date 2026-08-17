@@ -1249,6 +1249,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }, [loadContext]);
 
   const handleModelChange = useCallback(async (provider: string, modelId: string) => {
+    const fail = (e: unknown): void => {
+      const msg = e instanceof Error ? e.message : String(e);
+      addNotice({ type: "error", message: `Failed to set model: ${msg}` });
+    };
     if (isNew) {
       setNewSessionModel({ provider, modelId });
       setPendingModel({ provider, modelId });
@@ -1257,7 +1261,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       try {
         await sendAgentCommand(sid, { type: "set_model", provider, modelId });
       } catch (e) {
-        console.error("Failed to set model:", e);
+        fail(e);
       }
       return;
     }
@@ -1267,13 +1271,16 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       await sendAgentCommand(sid, { type: "set_model", provider, modelId });
       setCurrentModelOverride({ provider, modelId });
     } catch (e) {
-      console.error("Failed to set model:", e);
+      fail(e);
     }
-  }, [isNew, setNewSessionModel]);
+  }, [isNew, setNewSessionModel, addNotice]);
 
   const handleCompact = useCallback(async () => {
-    const sid = sessionIdRef.current;
-    if (!sid || isCompacting) return;
+    if (isCompacting) return;
+    // A brand-new session has no sid yet; create it first (mirrors
+    // handleSend/executeBash) so the button is never a silent no-op.
+    const sid = sessionIdRef.current ?? (isNew ? await ensureNewSession() : null);
+    if (!sid) return;
     setIsCompacting(true);
     setCompactError(null);
     setCompactResult(null);
@@ -1287,7 +1294,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     } finally {
       setIsCompacting(false);
     }
-  }, [isCompacting, loadSession]);
+  }, [isCompacting, isNew, ensureNewSession, loadSession]);
 
   const loadModels = useCallback(async (signal?: AbortSignal) => {
     const modelCwd = newSessionCwd ?? session?.cwd ?? "";
@@ -1572,6 +1579,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       await sendAgentCommand(sid, { type: "abort_compaction" });
     } catch (e) {
       console.error("Failed to abort compaction:", e);
+    } finally {
+      // The gateway may not emit a compaction_end for an aborted run (the
+      // abort can race the compaction error path); always clear the flag so
+      // the button can never stay stuck on "Compacting…".
+      setIsCompacting(false);
     }
   }, []);
 
