@@ -52,6 +52,7 @@ import {
 	handleSessionState,
 	handleThinking,
 } from "./web-gateway/sessions";
+import { handleSettingsGet, handleSettingsPut } from "./web-gateway/settings";
 import {
 	handleSkillsCheck,
 	handleSkillsGet,
@@ -92,6 +93,7 @@ const SKILLS_SEARCH_RE = /^\/api\/skills\/search$/;
 const SKILLS_CHECK_RE = /^\/api\/skills\/check$/;
 const SKILLS_UPDATE_RE = /^\/api\/skills\/update$/;
 const PLUGINS_RE = /^\/api\/plugins$/;
+const SETTINGS_RE = /^\/api\/settings$/;
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -268,6 +270,12 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 	if (PLUGINS_RE.test(pathname)) {
 		if (req.method === "GET") return handlePluginsGet(req);
 		if (req.method === "POST") return handlePluginsPost(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (SETTINGS_RE.test(pathname)) {
+		if (req.method === "GET") return handleSettingsGet(req);
+		if (req.method === "PUT") return handleSettingsPut(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

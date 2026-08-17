@@ -78,6 +78,7 @@ const nextConfig: NextConfig = {
         { source: "/api/auth/:path*", destination: `${gateway}/api/auth/:path*` },
         { source: "/api/models/:path*", destination: `${gateway}/api/models/:path*` },
         { source: "/api/models-config/:path*", destination: `${gateway}/api/models-config/:path*` },
+        { source: "/api/settings/:path*", destination: `${gateway}/api/settings/:path*` },
         { source: "/api/skills/:path*", destination: `${gateway}/api/skills/:path*` },
         { source: "/api/plugins/:path*", destination: `${gateway}/api/plugins/:path*` },
       ],
