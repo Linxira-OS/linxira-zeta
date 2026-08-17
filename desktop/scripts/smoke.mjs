@@ -97,7 +97,11 @@ function stopService(child) {
 
 async function main() {
 	const appDir = appPathFromArgs();
-	const serviceDir = path.join(appDir, "resources", "zeta");
+	// macOS bundles the shell in Zeta.app; extraResources land under
+	// Contents/Resources. Other platforms keep resources/ at the app root.
+	const serviceDir = process.platform === "darwin"
+		? path.join(appDir, "Zeta.app", "Contents", "Resources", "zeta")
+		: path.join(appDir, "resources", "zeta");
 	const zeta = path.join(serviceDir, platformInfo.zetaBinaryName);
 	const runtime = path.join(serviceDir, platformInfo.nodeBinaryName);
 	const standaloneServer = path.join(serviceDir, "web-ui", ".next", "standalone", "server.js");

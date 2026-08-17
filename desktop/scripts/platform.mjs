@@ -1,5 +1,7 @@
 export function desktopPlatformInfo(platform, arch) {
-	if (arch !== "x64") throw new Error(`Unsupported desktop architecture: ${arch}`);
+	if (arch !== "x64" && !(platform === "darwin" && arch === "arm64")) {
+		throw new Error(`Unsupported desktop architecture: ${arch}`);
+	}
 	switch (platform) {
 		case "win32":
 			return {
@@ -14,6 +16,14 @@ export function desktopPlatformInfo(platform, arch) {
 				platformId: "linux",
 				builderTarget: "--linux",
 				unpackedDirectory: "linux-unpacked",
+				zetaBinaryName: "zeta",
+				nodeBinaryName: "node",
+			};
+		case "darwin":
+			return {
+				platformId: "mac",
+				builderTarget: "--mac",
+				unpackedDirectory: "mac-unpacked",
 				zetaBinaryName: "zeta",
 				nodeBinaryName: "node",
 			};

@@ -23,7 +23,24 @@ test("maps Linux desktop artifacts to extensionless resource names", () => {
   });
 });
 
+test("maps macOS desktop artifacts to extensionless resource names", () => {
+  assert.deepEqual(desktopPlatformInfo("darwin", "x64"), {
+    platformId: "mac",
+    builderTarget: "--mac",
+    unpackedDirectory: "mac-unpacked",
+    zetaBinaryName: "zeta",
+    nodeBinaryName: "node",
+  });
+  assert.deepEqual(desktopPlatformInfo("darwin", "arm64"), {
+    platformId: "mac",
+    builderTarget: "--mac",
+    unpackedDirectory: "mac-unpacked",
+    zetaBinaryName: "zeta",
+    nodeBinaryName: "node",
+  });
+});
+
 test("rejects unsupported desktop targets", () => {
-  assert.throws(() => desktopPlatformInfo("darwin", "x64"), /unsupported desktop package platform/i);
+  assert.throws(() => desktopPlatformInfo("freebsd", "x64"), /unsupported desktop package platform/i);
   assert.throws(() => desktopPlatformInfo("linux", "arm64"), /unsupported desktop architecture/i);
 });
