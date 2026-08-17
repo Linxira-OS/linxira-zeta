@@ -10,6 +10,7 @@ import { TabBar, type Tab } from "./TabBar";
 import { ModelsConfig } from "./ModelsConfig";
 import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
+import { SettingsPanel } from "./SettingsPanel";
 import { BranchNavigator } from "./BranchNavigator";
 import { ThemePicker } from "./ThemePicker";
 import { LanguagePicker } from "./LanguagePicker";
@@ -57,6 +58,7 @@ function AppShellContent() {
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
   const [skillsConfigOpen, setSkillsConfigOpen] = useState(false);
   const [pluginsConfigOpen, setPluginsConfigOpen] = useState(false);
+  const [settingsConfigOpen, setSettingsConfigOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   // On mobile the sidebar is an overlay drawer; hide it by default so the chat
@@ -471,21 +473,30 @@ function AppShellContent() {
               </svg>
             ),
           },
+          {
+            label: "Settings",
+            onClick: () => setSettingsConfigOpen(true),
+            disabled: false,
+            icon: (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            ),
+          },
         ] as { label: string; onClick: () => void; disabled: boolean; icon: React.ReactNode }[]).map(({ label, onClick, disabled, icon }) => (
           <button
             key={label}
             onClick={onClick}
             disabled={disabled}
             title={label}
+            className="sidebar-icon-btn"
             style={{
               flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               height: 32, padding: 0, background: "none", border: "none",
               borderRadius: 9, color: "var(--text-muted)", cursor: disabled ? "default" : "pointer",
               fontSize: 12, opacity: disabled ? 0.35 : 1,
-              transition: "background 0.12s, color 0.12s",
             }}
-            onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.color = "var(--text)"; } }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-muted)"; }}
           >
             {icon}
             {label}
@@ -765,7 +776,7 @@ function AppShellContent() {
                   marginLeft: "auto",
                   display: "flex", alignItems: "center", gap: 10,
                   paddingLeft: 12,
-                  paddingRight: rightPanelOpen ? 12 : 48,
+                  paddingRight: 12,
                   height: "100%",
                   background: activeTopPanel === "session" ? "var(--bg-selected)" : "none",
                   border: "none",
@@ -823,6 +834,27 @@ function AppShellContent() {
               </button>
             );
           })()}
+          {/* Files panel toggle — replaces the old fixed float buttons */}
+          <button
+            onClick={() => { setRightPanelMode("files"); setRightPanelOpen((v) => !v); }}
+            title={rightPanelOpen && rightPanelMode === "files" ? "Hide file panel" : "Show file panel"}
+            aria-label={rightPanelOpen && rightPanelMode === "files" ? "Hide file panel" : "Show file panel"}
+            aria-pressed={rightPanelOpen && rightPanelMode === "files"}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 36, height: "100%", padding: 0,
+              background: "none", border: "none",
+              color: rightPanelOpen && rightPanelMode === "files" ? "var(--accent)" : "var(--text-muted)",
+              cursor: "pointer",
+              transition: "color 0.12s, background 0.12s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = rightPanelOpen && rightPanelMode === "files" ? "var(--accent)" : "var(--text-muted)"; }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
+          </button>
           {/* Top panel dropdown — shared, only one active at a time */}
           {activeTopPanel && topPanelPos && (
             <div style={{
@@ -1121,14 +1153,51 @@ function AppShellContent() {
           background: "var(--bg)",
         }}
       >
-        {/* Right panel tab bar */}
-        <div style={{ display: "flex", alignItems: "center", flexShrink: 0, background: "var(--bg-panel)", borderBottom: "1px solid var(--border)", height: 36 }}>
-          {rightPanelMode === "tracking" ? (
-            <div style={{ display: "flex", alignItems: "center", paddingLeft: 12, fontSize: 12, fontWeight: 600, color: "var(--text)" }}>
-              项目追踪
-            </div>
-          ) : (
-            <div style={{ flex: 1, overflow: "hidden" }}>
+        {/* Right panel tab bar — mode tabs (Files / Tracking) + close */}
+        <div className="right-panel-tabbar" style={{ display: "flex", alignItems: "center", flexShrink: 0, background: "var(--bg-panel)", borderBottom: "1px solid var(--border)", height: 36, paddingLeft: 8, gap: 2 }}>
+          <button
+            onClick={() => { setRightPanelMode("files"); setRightPanelOpen(true); }}
+            title="Files"
+            aria-label="Files"
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              height: 26, padding: "0 10px",
+              background: rightPanelMode === "files" ? "var(--bg-selected)" : "transparent",
+              border: "none", borderRadius: 6,
+              color: rightPanelMode === "files" ? "var(--text)" : "var(--text-muted)",
+              cursor: "pointer", fontSize: 12, fontWeight: 600,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
+            Files
+          </button>
+          <button
+            onClick={() => { setRightPanelMode("tracking"); setRightPanelOpen(true); }}
+            title="Tracking"
+            aria-label="Tracking"
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              height: 26, padding: "0 10px",
+              background: rightPanelMode === "tracking" ? "var(--bg-selected)" : "transparent",
+              border: "none", borderRadius: 6,
+              color: rightPanelMode === "tracking" ? "var(--text)" : "var(--text-muted)",
+              cursor: "pointer", fontSize: 12, fontWeight: 600,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            项目追踪
+          </button>
+          <div style={{ flex: 1 }} />
+          {rightPanelMode === "files" ? (
+            <div style={{ flex: 1, overflow: "hidden", display: "flex", alignItems: "center", maxWidth: "50%" }}>
               <TabBar
                 tabs={fileTabs}
                 activeTabId={activeFileTabId ?? ""}
@@ -1136,7 +1205,25 @@ function AppShellContent() {
                 onCloseTab={handleCloseFileTab}
               />
             </div>
-          )}
+          ) : null}
+          <button
+            onClick={() => {
+              if (rightPanelMode === "tracking") setRightPanelMode("files");
+              if (fileTabs.length === 0 || rightPanelMode === "tracking") setRightPanelOpen(false);
+            }}
+            title="Close panel"
+            aria-label="Close panel"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 26, height: 26, padding: 0, marginRight: 4,
+              background: "transparent", border: "none", borderRadius: 6,
+              color: "var(--text-muted)", cursor: "pointer",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
 
         {/* File content or Tracking panel */}
@@ -1164,64 +1251,13 @@ function AppShellContent() {
         </div>
       </div>
     </div>
-    {/* File panel toggle — always visible at top-right */}
-    <button
-      onClick={() => {
-        if (rightPanelMode === "tracking") setRightPanelMode("files");
-        setRightPanelOpen((v) => !v);
-      }}
-      title={rightPanelOpen && rightPanelMode === "files" ? "Hide file panel" : "Show file panel"}
-      aria-label={rightPanelOpen && rightPanelMode === "files" ? "Hide file panel" : "Show file panel"}
-      style={{
-        position: "fixed", top: 0, right: 0, zIndex: 300,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        width: 36, height: 36, padding: 0,
-        background: rightPanelOpen && rightPanelMode === "files" ? "var(--bg-selected)" : "var(--bg-panel)",
-        border: "none", borderLeft: "1px solid var(--border)", borderBottom: "1px solid var(--border)",
-        color: rightPanelOpen && rightPanelMode === "files" ? "var(--text)" : "var(--text-muted)",
-        cursor: "pointer", transition: "color 0.12s, background 0.12s",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = rightPanelOpen && rightPanelMode === "files" ? "var(--text)" : "var(--text-muted)"; }}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
-      </svg>
-    </button>
-    {/* Tracking panel toggle */}
-    <button
-      onClick={() => {
-        if (rightPanelMode !== "tracking") {
-          setRightPanelMode("tracking");
-          setRightPanelOpen(true);
-        } else {
-          setRightPanelMode("files");
-          if (fileTabs.length === 0) setRightPanelOpen(false);
-        }
-      }}
-      title={rightPanelMode === "tracking" ? "Switch to file panel" : "Show tracking panel"}
-      aria-label={rightPanelMode === "tracking" ? "Switch to file panel" : "Show tracking panel"}
-      style={{
-        position: "fixed", top: 0, right: 36, zIndex: 300,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        width: 36, height: 36, padding: 0,
-        background: rightPanelMode === "tracking" ? "var(--bg-selected)" : "var(--bg-panel)",
-        border: "none", borderLeft: "1px solid var(--border)", borderBottom: "1px solid var(--border)",
-        color: rightPanelMode === "tracking" ? "var(--text)" : "var(--text-muted)",
-        cursor: "pointer", transition: "color 0.12s, background 0.12s",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = rightPanelMode === "tracking" ? "var(--text)" : "var(--text-muted)"; }}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-        <polyline points="10 9 9 9 8 9" />
-      </svg>
-    </button>
     {modelsConfigOpen && <ModelsConfig onClose={() => { setModelsConfigOpen(false); setModelsRefreshKey((k) => k + 1); }} />}
+    {settingsConfigOpen && (
+      <SettingsPanel
+        onClose={() => setSettingsConfigOpen(false)}
+        onOpenModelsConfig={() => setModelsConfigOpen(true)}
+      />
+    )}
     {skillsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
       <SkillsConfig cwd={(activeCwd ?? selectedSession?.cwd ?? newSessionCwd)!} onClose={() => setSkillsConfigOpen(false)} />
     )}
