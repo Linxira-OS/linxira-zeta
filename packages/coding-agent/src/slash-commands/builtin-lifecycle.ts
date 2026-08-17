@@ -53,7 +53,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "ssh",
 		description: M.cmdSsh,
-		acpDescription: "Manage SSH connections",
+		acpDescription: M.cmdSshAcp,
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
@@ -84,7 +84,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "fresh",
 		description: M.cmdFresh,
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.session.isStreaming ? "Fresh: unavailable while streaming" : "Fresh: ready",
+			runtime.ctx.session.isStreaming ? M.acFreshUnavailable : M.acFreshReady,
 		handle: async (_command, runtime) => {
 			const result = runtime.session.freshSession();
 			if (!result) {
@@ -105,7 +105,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "clear",
 		description: M.cmdClear,
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.session.isStreaming ? "Clear: unavailable while streaming" : "Clear: drop context, keep session",
+			runtime.ctx.session.isStreaming ? M.acClearUnavailable : M.acClearDrop,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleResetContextCommand();
@@ -122,17 +122,22 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "compact",
 		description: M.cmdCompact,
-		acpDescription: "Compact the conversation",
+		acpDescription: M.cmdCompactAcp,
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
-			description: mode.description,
+			description:
+				mode.name === "soft"
+					? M.compactModeSoft
+					: mode.name === "remote"
+						? M.compactModeRemote
+						: M.compactModeSnapcompact,
 			usage: mode.rejectsFocus ? undefined : "[focus]",
 		})),
 		acpInputHint: `[${COMPACT_MODES.map(mode => mode.name).join("|")}] [focus]`,
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
-			return usage ? `Compact: context ${Math.round(usage.percent)}% used` : "Compact: context unavailable";
+			return usage ? M.acCompactUsedFmt.replace("%s", String(Math.round(usage.percent))) : M.acCompactUnavailable;
 		},
 		handle: async (command, runtime) => {
 			const parsed = parseCompactArgs(command.args);
@@ -170,7 +175,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "shake",
 		description: M.cmdShake,
-		acpDescription: "Shake heavy content out of the conversation context",
+		acpDescription: M.cmdShakeAcp,
 		subcommands: [
 			{ name: "elide", description: M.cmdCompactElide },
 			{ name: "images", description: M.cmdCompactImages },
@@ -290,7 +295,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "memory",
 		description: M.cmdMemory,
-		acpDescription: "Manage memory",
+		acpDescription: M.cmdMemoryAcp,
 		acpInputHint: "<subcommand>",
 		subcommands: [
 			{ name: "view", description: M.cmdMemoryView },
@@ -389,7 +394,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "move",
 		description: M.cmdMove,
-		acpDescription: "Move the current session to a different directory",
+		acpDescription: M.cmdMoveAcp,
 		inlineHint: "[<path>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -434,7 +439,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "add-dir",
 		description: M.cmdAddDir,
-		acpDescription: "Add a workspace directory to this session",
+		acpDescription: M.cmdAddDirAcp,
 		inlineHint: "<path>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -465,7 +470,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "remove-dir",
 		description: M.cmdRemoveDir,
-		acpDescription: "Remove a workspace directory from this session",
+		acpDescription: M.cmdRemoveDirAcp,
 		inlineHint: "<path>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -493,7 +498,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "dirs",
 		description: M.cmdDirs,
-		acpDescription: "List this session's workspace directories",
+		acpDescription: M.cmdDirsAcp,
 		handle: async (_command, runtime) => {
 			await runtime.output(formatWorkspaceDirectories(runtime));
 			return commandConsumed();

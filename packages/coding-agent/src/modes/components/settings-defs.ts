@@ -25,6 +25,8 @@ import {
 	type SubmenuOption,
 	TAB_GROUPS,
 } from "../../config/settings-schema";
+import { ZH_GROUP_LABELS, ZH_SETTING_TEXTS } from "../../config/settings-zh";
+import { currentLanguage, type ZetaLanguage } from "../../i18n";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // UI Definition Types
@@ -162,7 +164,20 @@ function pathToSettingDef(path: SettingPath): SettingDef | null {
 
 	const schemaType = getType(path);
 	const condition = ui.condition ? CONDITIONS[ui.condition] : undefined;
-	const base = { path, label: ui.label, description: ui.description, tab: ui.tab, group: ui.group, condition };
+	// zh localization: override label/description from ZH_SETTING_TEXTS and the
+	// group heading from ZH_GROUP_LABELS; fall back to schema values whenever a
+	// path/group is missing from the maps.
+	const zh = currentLanguage() === "zh";
+	const texts = zh ? ZH_SETTING_TEXTS[path] : undefined;
+	const group = zh && ui.group ? (ZH_GROUP_LABELS[ui.group] ?? ui.group) : ui.group;
+	const base = {
+		path,
+		label: texts?.label ?? ui.label,
+		description: texts?.description ?? ui.description,
+		tab: ui.tab,
+		group,
+		condition,
+	};
 
 	if (schemaType === "boolean") {
 		return { ...base, type: "boolean" };
@@ -219,12 +234,14 @@ function pathToSettingDef(path: SettingPath): SettingDef | null {
 // Public API
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Cache of generated definitions */
+/** Cache of generated definitions (per language, since labels localize) */
 let cachedDefs: SettingDef[] | null = null;
+let cachedDefsLanguage: ZetaLanguage | null = null;
 
 /** Get all setting definitions with UI */
 export function getAllSettingDefs(): SettingDef[] {
-	if (cachedDefs) return cachedDefs;
+	const language = currentLanguage();
+	if (cachedDefs && cachedDefsLanguage === language) return cachedDefs;
 
 	const defs: SettingDef[] = [];
 	for (const tab of SETTING_TABS) {
@@ -234,7 +251,17 @@ export function getAllSettingDefs(): SettingDef[] {
 		}
 	}
 	cachedDefs = defs;
+	cachedDefsLanguage = language;
 	return defs;
+}
+
+/**
+ * Localize a group heading for zh, returning the group unchanged otherwise.
+ * Consumers that render group headings outside `pathToSettingDef` (e.g. from
+ * TAB_GROUPS directly) use this to show the localized label.
+ */
+export function localizedGroupLabel(group: string): string {
+	return currentLanguage() === "zh" ? (ZH_GROUP_LABELS[group] ?? group) : group;
 }
 
 /**
@@ -246,8 +273,11 @@ export function getSettingsForTab(tab: SettingTab): SettingDef[] {
 	const defs = getAllSettingDefs().filter(def => def.tab === tab);
 	const order = TAB_GROUPS[tab];
 	const rank = (def: SettingDef): number => {
-		if (!def.group) return -1;
-		const index = order.indexOf(def.group);
+		// `def.group` carries the localized heading label; rank against the raw
+		// schema group id so ordering survives zh overrides.
+		const rawGroup = getUi(def.path)?.group;
+		if (!rawGroup) return -1;
+		const index = order.indexOf(rawGroup);
 		return index >= 0 ? index : order.length;
 	};
 	return defs.sort((a, b) => rank(a) - rank(b));

@@ -58,7 +58,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "advisor",
 		description: M.cmdAdvisor,
-		acpDescription: "Toggle advisor",
+		acpDescription: M.cmdAdvisorAcp,
 		acpInputHint: "[on|off|status|dump [raw]|configure]",
 		subcommands: [
 			{ name: "on", description: M.cmdAdvisorOn },
@@ -197,7 +197,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "dump",
 		description: M.cmdDumpTranscript,
-		acpDescription: "Return full transcript as plain text, with LLM request JSON path",
+		acpDescription: M.cmdDumpAcp,
 		allowArgs: true,
 		handle: async (_command, runtime) => {
 			const text = runtime.session.formatSessionAsText();
@@ -369,9 +369,9 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		name: "leave",
 		description: M.cmdCollabLeave,
 		getTuiAutocompleteDescription: runtime => {
-			if (runtime.ctx.collabHost) return "Leave collab: hosting";
-			if (runtime.ctx.collabGuest) return "Leave collab: guest";
-			return "Leave collab: not in collab";
+			if (runtime.ctx.collabHost) return M.acLeaveCollabHosting;
+			if (runtime.ctx.collabGuest) return M.acLeaveCollabGuest;
+			return M.acLeaveCollabNone;
 		},
 		handleTui: async (_command, runtime) => {
 			const ctx = runtime.ctx;

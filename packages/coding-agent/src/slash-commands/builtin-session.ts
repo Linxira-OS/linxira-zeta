@@ -142,7 +142,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "todo",
 		description: M.cmdTodo,
-		acpDescription: "Manage todos",
+		acpDescription: M.cmdTodoAcp,
 		acpInputHint: "<subcommand>",
 		subcommands: [
 			{ name: "edit", description: M.cmdTodoEdit },
@@ -177,7 +177,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "session",
 		description: M.cmdSession,
-		acpDescription: "Show or configure the current session",
+		acpDescription: M.cmdSessionAcp,
 		acpInputHint: "[info|delete|pin [account]]",
 		subcommands: [
 			{ name: "info", description: M.cmdSessionInfo },
@@ -254,11 +254,13 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "jobs",
 		description: M.cmdJobs,
-		acpDescription: "Show background jobs",
+		acpDescription: M.cmdJobsAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const snapshot = runtime.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });
-			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) return "Jobs: none";
-			return `Jobs: ${snapshot.running.length} running, ${snapshot.recent.length} recent`;
+			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) return M.acJobsNone;
+			return M.acJobsFmt
+				.replace("%s", String(snapshot.running.length))
+				.replace("%s", String(snapshot.recent.length));
 		},
 		handle: async (_command, runtime) => {
 			const snapshot = runtime.session.getAsyncJobSnapshot({ recentLimit: 5 });
@@ -295,7 +297,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "usage",
 		description: M.cmdUsage,
-		acpDescription: "Show token usage",
+		acpDescription: M.cmdUsageAcp,
 		acpInputHint: "[show|reset [account|active]]",
 		subcommands: [
 			{ name: "show", description: M.cmdUsage },
@@ -356,7 +358,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "changelog",
 		description: M.cmdChangelog,
-		acpDescription: "Show changelog",
+		acpDescription: M.cmdChangelogAcp,
 		acpInputHint: "[full]",
 		subcommands: [{ name: "full", description: M.cmdChangelogFull }],
 		allowArgs: true,
@@ -389,11 +391,11 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "tools",
 		description: M.cmdTools,
-		acpDescription: "Show available tools",
+		acpDescription: M.cmdToolsAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const active = runtime.ctx.session.getActiveToolNames().length;
 			const all = runtime.ctx.session.getAllToolNames().length;
-			return all === 0 ? "Tools: none available" : `Tools: ${active} active / ${all} available`;
+			return all === 0 ? M.acToolsNone : M.acToolsFmt.replace("%s", String(active)).replace("%s", String(all));
 		},
 		handle: async (_command, runtime) => {
 			const active = runtime.session.getActiveToolNames();
@@ -417,11 +419,14 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "context",
 		description: M.cmdContext,
-		acpDescription: "Show context usage",
+		acpDescription: M.cmdContextAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
-			if (!usage) return "Context: unavailable";
-			return `Context: ${Math.round(usage.percent)}% (${formatTokenCount(usage.tokens)}/${formatTokenCount(usage.contextWindow)})`;
+			if (!usage) return M.acContextUnavailable;
+			return M.acContextFmt
+				.replace("%s", String(Math.round(usage.percent)))
+				.replace("%s", formatTokenCount(usage.tokens))
+				.replace("%s", formatTokenCount(usage.contextWindow));
 		},
 		handle: async (_command, runtime) => {
 			await runtime.output(buildContextReportText(runtime));
@@ -554,7 +559,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "mcp",
 		description: M.cmdMcp,
-		acpDescription: "Manage MCP servers",
+		acpDescription: M.cmdMcpAcp,
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{

@@ -44,7 +44,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 	{
 		name: "marketplace",
 		description: M.cmdMarketplace,
-		acpDescription: "Manage plugins from marketplaces",
+		acpDescription: M.cmdMarketplaceAcp,
 		acpInputHint: "<subcommand>",
 		subcommands: [
 			{ name: "add", description: M.cmdMarketplaceAdd, usage: "<source>" },
@@ -423,7 +423,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 	{
 		name: "plugins",
 		description: M.cmdPlugins,
-		acpDescription: "Manage plugins",
+		acpDescription: M.cmdPluginsAcp,
 		acpInputHint: "[list|enable|disable]",
 		subcommands: [
 			{ name: "list", description: M.cmdPluginsList },
@@ -553,7 +553,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 	{
 		name: "reload-plugins",
 		description: M.cmdReloadPlugins,
-		acpDescription: "Reload all plugins",
+		acpDescription: M.cmdReloadPluginsAcp,
 		handle: async (_command, runtime) => {
 			await runtime.reloadPlugins();
 			await runtime.output("Plugins reloaded.");

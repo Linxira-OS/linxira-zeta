@@ -1996,6 +1996,105 @@ export interface Messages {
 	cmdMcpPrompts: string;
 	cmdMcpNotifications: string;
 	cmdMcpHelp: string;
+
+	// ── Slash-command ACP descriptions (English leftovers → M.*) ────────────
+	cmdLoop: string;
+	cmdSshAcp: string;
+	cmdCompactAcp: string;
+	cmdShakeAcp: string;
+	cmdMemoryAcp: string;
+	cmdMoveAcp: string;
+	cmdAddDirAcp: string;
+	cmdRemoveDirAcp: string;
+	cmdDirsAcp: string;
+	cmdMarketplaceAcp: string;
+	cmdPluginsAcp: string;
+	cmdReloadPluginsAcp: string;
+	cmdModelAcp: string;
+	cmdFastAcp: string;
+	cmdComputerAcp: string;
+	cmdVisionAcp: string;
+	cmdPrewalkAcp: string;
+	cmdTodoAcp: string;
+	cmdSessionAcp: string;
+	cmdJobsAcp: string;
+	cmdUsageAcp: string;
+	cmdChangelogAcp: string;
+	cmdToolsAcp: string;
+	cmdContextAcp: string;
+	cmdMcpAcp: string;
+	cmdAdvisorAcp: string;
+	cmdDumpAcp: string;
+
+	// ── Slash-command TUI autocomplete states ───────────────────────────────
+	acPlanDisabledInSettings: string; // "Plan: disabled in settings"
+	acPlanBlockedByGoalMode: string; // "Plan: blocked by goal mode"
+	acPlanOff: string; // "Plan: off"
+	acPlanOnFmt: string; // "Plan: on%s", %s = " (file)" when active
+	acPlanReviewAvailable: string; // "Plan review: available"
+	acPlanReviewInactive: string; // "Plan review: plan mode inactive"
+	acVibeOn: string; // "Vibe: on"
+	acVibeBlockedByPlanMode: string; // "Vibe: blocked by plan mode"
+	acVibeBlockedByGoalMode: string; // "Vibe: blocked by goal mode"
+	acVibeOff: string; // "Vibe: off"
+	acGoalDisabledInSettings: string; // "Goal: disabled in settings"
+	acGoalBlockedByPlanMode: string; // "Goal: blocked by plan mode"
+	acGoalOff: string; // "Goal: off"
+	acGoalOnFmt: string; // "Goal: %s (%s)", %s = status, %s = objective
+	acLoopOff: string; // "Loop: off"
+	acLoopPaused: string; // "Loop: paused"
+	acLoopOnLimitFmt: string; // "Loop: on (%s)"
+	acLoopOnRepeating: string; // "Loop: on (repeating prompt)"
+	acLoopOnWaiting: string; // "Loop: on (waiting for next prompt)"
+	acModelNone: string; // "Model: none selected"
+	acModelFmt: string; // "Model: %s/%s", %s = provider, %s = id
+	acFastFmt: string; // "Fast: %s"
+	acComputerFmt: string; // "Computer: %s"
+	acVisionFmt: string; // "Vision: %s"
+	acFreshUnavailable: string; // "Fresh: unavailable while streaming"
+	acFreshReady: string; // "Fresh: ready"
+	acClearUnavailable: string; // "Clear: unavailable while streaming"
+	acClearDrop: string; // "Clear: drop context, keep session"
+	acCompactUsedFmt: string; // "Compact: context %s%% used"
+	acCompactUnavailable: string; // "Compact: context unavailable"
+	acJobsNone: string; // "Jobs: none"
+	acJobsFmt: string; // "Jobs: %s running, %s recent"
+	acToolsNone: string; // "Tools: none available"
+	acToolsFmt: string; // "Tools: %s active / %s available"
+	acContextUnavailable: string; // "Context: unavailable"
+	acContextFmt: string; // "Context: %s%% (%s/%s)"
+	acLeaveCollabHosting: string; // "Leave collab: hosting"
+	acLeaveCollabGuest: string; // "Leave collab: guest"
+	acLeaveCollabNone: string; // "Leave collab: not in collab"
+
+	// ── /compact subcommand mode descriptions ───────────────────────────────
+	compactModeSoft: string;
+	compactModeRemote: string;
+	compactModeSnapcompact: string;
+
+	// ── Settings page chrome (settings-selector.ts) ─────────────────────────
+	setEnterSaveHint: string; // "Enter to save · Esc to cancel · Clear field to unset"
+	setPreviewLabel: string; // "Preview:"
+	setEnterSelectHint: string; // "Enter to select · Esc to go back"
+	setToggleHint: string; // "Enter/Space to toggle · Esc to go back"
+	setToggleOrderedHint: string; // "Enter/Space to toggle · ←/→ move · 1-9 place at position · Esc to go back"
+	setMaxInFlightTitle: string; // "Max In-Flight Requests"
+	setMaxInFlightDesc: string;
+	setUnlimitedLabel: string; // "Unlimited"
+	setLimitFmt: string; // "Limit: %s"
+	setClearAllLimits: string; // "Clear all limits"
+	setClearAllLimitsDesc: string; // "Make every provider unlimited"
+	setEnterEditProviderHint: string; // "Enter to edit provider · Esc to go back"
+	setMaxInFlightEditorTitleFmt: string; // "Max In-Flight Requests: %s"
+	setMaxInFlightEditorDesc: string;
+	setLimitPositiveError: string; // "Limit must be a positive number."
+	setFooterSearchHint: string; // "Enter to change · Tab to jump tabs · Esc to exit search"
+	setFooterPluginsHint: string; // "Tab to switch tabs · Esc to close"
+	setFooterSectionsHint: string; // "↑/↓ to jump sections · Tab/Enter to settings · ←/→ to switch tabs · Esc to close"
+	setNoMatchingSettings: string; // "No matching settings"
+	setPreviewNotAvailable: string; // "(preview not available)"
+	setTitleSettings: string; // "Settings" (top border)
+	setPluginsTab: string; // "Plugins" (extra tab)
 }
 
 export { M } from "./index";
