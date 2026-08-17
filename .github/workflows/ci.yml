@@ -673,6 +673,7 @@ jobs:
               path: |
                   temp/desktop/release/*.tar.gz
                   temp/desktop/release/*.deb
+                  temp/desktop/release/*.AppImage
               if-no-files-found: error
               retention-days: 1
    desktop_windows:
