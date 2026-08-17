@@ -1,7 +1,6 @@
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
 import { prompt } from "@linxiraos/pi-utils";
-import { M } from "../i18n/messages";
 import checkpointDescription from "../prompts/tools/checkpoint.md" with { type: "text" };
 import rewindDescription from "../prompts/tools/rewind.md" with { type: "text" };
 import type { ToolSession } from ".";
@@ -78,11 +77,11 @@ export class CheckpointTool implements AgentTool<typeof checkpointSchema, Checkp
 		_context?: AgentToolContext,
 	): Promise<AgentToolResult<CheckpointToolDetails>> {
 		if (this.session.getCheckpointState?.()) {
-			throw new ToolError(M.ckErrAlreadyActive);
+			throw new ToolError("Checkpoint already active.");
 		}
 		const startedAt = new Date().toISOString();
 		return toolResult<CheckpointToolDetails>({ goal: params.goal, startedAt })
-			.text([M.ckCreated, `Goal: ${params.goal}`, M.ckRewindHint].join("\n"))
+			.text([`Checkpoint: ${params.goal}`, "Finish exploration and formulate findings."].join("\n"))
 			.done();
 	}
 }
@@ -119,14 +118,14 @@ export class RewindTool implements AgentTool<typeof rewindSchema, RewindToolDeta
 					"Checkpoint already completed; continue from the retained rewind report instead of calling rewind again.",
 				);
 			}
-			throw new ToolError(M.ckErrNoActive);
+			throw new ToolError("No active checkpoint. Create a checkpoint before calling rewind.");
 		}
 		const report = params.report.trim();
 		if (report.length === 0) {
-			throw new ToolError(M.ckErrReportEmpty);
+			throw new ToolError("Report cannot be empty.");
 		}
 		return toolResult<RewindToolDetails>({ report, rewound: true })
-			.text([M.ckRewindRequested, M.ckReportCaptured].join("\n"))
+			.text(["Rewind requested.", "Report captured for context replacement."].join("\n"))
 			.done();
 	}
 }

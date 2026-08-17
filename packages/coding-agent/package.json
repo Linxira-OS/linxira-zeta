@@ -41,8 +41,6 @@
     "format-prompts": "bun scripts/format-prompts.ts",
     "gen:tool-views": "bun --cwd=../collab-web run gen:tool-views",
     "gen:bundle": "bun scripts/bundle-dist.ts",
-    "gen:mupdf": "bun scripts/embed-mupdf-wasm.ts --generate",
-    "gen:mupdf:reset": "bun scripts/embed-mupdf-wasm.ts --reset",
     "gen:native": "bun --cwd=../natives run gen:native",
     "gen:native:reset": "bun --cwd=../natives run gen:native:reset",
     "prepack": "bun run gen:tool-views && bun run gen:bundle",
@@ -50,8 +48,6 @@
   },
   "dependencies": {
     "@babel/parser": "catalog:",
-    "@linxiraos/pi-hashline": "catalog:",
-    "@linxiraos/pi-stats": "catalog:",
     "@linxiraos/pi-omptype": "catalog:",
     "@linxiraos/pi-agent-core": "catalog:",
     "@linxiraos/pi-ai": "catalog:",
@@ -61,7 +57,6 @@
     "@linxiraos/pi-tui": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
     "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/pi-snapcompact": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
@@ -73,8 +68,10 @@
     "@opentelemetry/sdk-metrics": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@opentelemetry/sdk-trace-node": "catalog:",
-    "mupdf": "catalog:",
-    "puppeteer-core": "catalog:"
+    "puppeteer-core": "catalog:",
+    "@linxiraos/pi-hashline": "catalog:",
+    "@linxiraos/pi-stats": "catalog:",
+    "@linxiraos/pi-snapcompact": "catalog:"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "catalog:",

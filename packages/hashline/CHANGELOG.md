@@ -10,6 +10,12 @@
 
 - Recovered dangling range separators in hunk headers (`PUT 244.=:`, `CUT 5.=`) as single-line ranges (`N.=N`) instead of rejecting the header as an orphan payload line.
 
+## [17.3.3] - 2026-08-14
+
+### Fixed
+
+- Recovered dangling range separators in hunk headers (`PUT 244.=:`, `CUT 5.=`) as single-line ranges (`N.=N`) instead of rejecting the header as an orphan payload line.
+
 ## [17.3.0] - 2026-08-13
 
 ### Fixed
@@ -48,7 +54,7 @@
 
 ### Changed
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
 - Pasting an empty named register (`PUT … @name` with no matching capture) no longer errors — it pastes nothing (a span target is still removed) and surfaces a warning naming the available registers
 - Pasting an empty named register (`PUT … @name` with no matching capture) now surfaces a warning listing available registers and removes the span target instead of throwing an error.
 

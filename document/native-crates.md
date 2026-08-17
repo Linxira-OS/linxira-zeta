@@ -4,7 +4,7 @@ Contributor-facing map of the Rust crates under `crates/`. These crates back
 `@linxiraos/pi-natives` and the embedded shell/PTY runtime. They are intentionally
 internal: end users see `@linxiraos/pi-natives` exports, not these crate APIs.
 
-The root `Cargo.toml` includes `crates/pi-*` and `crates/vendor/*` as workspace members. It also patches crates.io `brush-core` to the vendored copy.
+The root `Cargo.toml` lists every crate under `crates/` explicitly in `workspace.members` — add new crates there. It also patches crates.io `brush-core` to the vendored copy.
 
 For the consumer-side runtime contract see
 [`natives-architecture.md`](./natives-architecture.md). For inclusion policy

@@ -3,6 +3,11 @@
 ## [1.0.5] - 2026-08-16
 
 ## [1.0.2] - 2026-08-15
+## [17.3.5] - 2026-08-16
+
+### Fixed
+
+- Fixed the Markdown renderer incorrectly breaking into a raw code block when a 4-space-indented line (such as a box-drawing tree child under a └── branch) directly followed paragraph text; it now correctly stays part of the paragraph, matching standard Markdown behavior.
 
 ## [17.3.2] - 2026-08-13
 
@@ -481,4 +486,4 @@
 
 ### Changed
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.

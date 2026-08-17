@@ -216,7 +216,7 @@ merge. No version bump, no tag, no release.
   (`26608da0ab`) after PR #2 CI green; 1.0.2 released after (bump `9f49bff2` +
   tag `v1.0.2`).
 
-### v17.3.4 (in progress — branch `sync/omp-release/v17.3.4`)
+### v17.3.4 (superseded by v17.3.5)
 
 - Prior baseline: `v17.3.3` at `039728ad808395af4066783c6f4f6b079d8e5a78`
   (main `26608da0ab`).
@@ -239,9 +239,37 @@ merge. No version bump, no tag, no release.
     `bun.lock` regenerated with Bun 1.3.14; `Cargo.lock` regenerated via
     `cargo metadata`; new upstream files package-scope `@oh-my-pi/*` →
     `@linxiraos/*` re-applied.
-- Local checks: `bun run check:ts` green. **v17.3.5 intentionally deferred**
-  (upstream scheduled large updates next week; re-evaluate then). CI green
-  required before merging to `main`; no version bump, no tag.
+- Status: merged into `main` as part of the v17.3.5 sync (v17.3.5 tag builds on
+  the same release line; the v17.3.4 worktree became the v17.3.5 branch).
+
+### v17.3.5 (complete — branch `sync/omp-release/v17.3.5`)
+
+- Prior baseline: `v17.3.4` at `ffd53ff92a6f575d499730475a73460dd7cc2eea`
+  (superseded above; worktree `zeta-omp-v17.3.4`).
+- Source: `refs/tags/v17.3.5` at `37eee71978951fccf66b21f7e3e2b74596ac9d74`
+  (verified with `git ls-remote`; upstream `main` == tag, no commits after).
+- Merge-tree from `main`: 53 conflicts resolved on the v17.3.4 worktree per the
+  v17.3.4 pattern, then the branch renamed to `sync/omp-release/v17.3.5`.
+  Resolutions:
+  - Zeta-owned surfaces kept (ours): sentinel/version group — root
+    `Cargo.toml` workspace `1.0.2`, `crates/pi-natives/src/lib.rs`
+    `__piNativesV1_0_2`, generated `packages/natives/native/index.js` +
+    `index.d.ts`; all `pi-*` crates `1.0.2`; `workspaces.catalog`
+    `pi-natives`/`pi-omptype`/`pi-wire` @ `1.0.2`; 10 core packages @ `1.0.5`
+    (aligned to main); catalog keys renamed/deduped (`pi-hashline`,
+    `pi-stats`, `pi-omptype`, `pi-snapcompact`); stale old-name deps removed
+    (agent `snapcompact`; coding-agent `hashline`/`omp-stats`/`snapcompact`).
+  - `bunfig.toml` hand-merged: Zeta `[test]` `pathIgnorePatterns` extended with
+    `"bazel-*/**"`, `"**/bazel-out/**"` (upstream bazel test paths).
+  - Upstream accepted: remaining 46 files theirs + worktree-wide
+    `@oh-my-pi` → `@linxiraos` sweep (73 files); `Cargo.lock` regenerated via
+    `cargo metadata` (crates stay `1.0.2`); `bun.lock` regenerated.
+  - Post-sweep fixes: `@linxiraos/omptype` → `@linxiraos/pi-omptype` in 10
+    files (batch-sweep missed the renamed package), Biome import ordering.
+- Local checks: `bun run check:ts` green; sentinels verified
+  (`__piNativesV1_0_2` = 1/1/1 in lib.rs/index.js/index.d.ts, `pdfToMarkdown`
+  export retained). Branch CI required before merging to `main`; no version
+  bump, no tag on the branch.
 
 ## Pi Runtime Ports
 

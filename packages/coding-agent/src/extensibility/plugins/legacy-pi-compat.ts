@@ -658,7 +658,7 @@ export function __getLegacyPiBundledModulesGlobal(): string {
 
 // Canonical scope for in-process pi packages. Plugins published against any of
 // the aliased scopes below (mariozechner's original publish, earendil-works'
-// fork, the @oh-my-pi downstream, or the canonical @linxiraos scope itself; the
+// fork, the @linxiraos downstream, or the canonical @linxiraos scope itself; the
 // historical @zeta scope is kept as an alias) are remapped to this scope and
 // resolved against the bundled copy that ships inside the zeta binary. This
 // keeps plugins running against the exact runtime state of the host (single

@@ -3,6 +3,18 @@
 ## [1.0.5] - 2026-08-16
 
 ## [1.0.2] - 2026-08-15
+## [17.3.5] - 2026-08-16
+
+### Fixed
+
+- Fixed long CPU-bound event-loop stalls being misclassified as system sleep and omitted from loop-blocked diagnostics.
+- Fixed focused components with markers falling back to full-screen redraws instead of direct row updates, preserving cursor position and native scrollback across marker changes.
+
+## [17.3.4] - 2026-08-14
+
+### Fixed
+
+- Fixed a terminal Device-Attributes reply leaking into the composer as literal text (e.g. `1;22;…;52c`) when it arrived after the startup capability-probe sentinel FIFO drained, a race made observable by the added latency of an SSH/zmx PTY chain. DA1 replies (`CSI ? … c`) and split private-CSI responses are now consumed for the whole session lifetime, not only while a probe sentinel is outstanding ([#8542](https://github.com/can1357/oh-my-pi/issues/8542)).
 
 ## [17.3.3] - 2026-08-14
 
@@ -1969,7 +1981,7 @@
 
 ### Changed
 
-- Forked to @oh-my-pi scope with unified versioning across all packages
+- Forked to @linxiraos scope with unified versioning across all packages
 
 ### Fixed
 
@@ -1979,7 +1991,7 @@
 
 ## [1.337.0] - 2026-01-02
 
-Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.5.0] - 2026-01-03
 
@@ -1989,13 +2001,13 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 ## [1.0.1] - 2026-08-14
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
 
 ## [1.0.0] - 2026-08-13
 
 ### Changed
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
 
 ## [0.50.0] - 2026-01-26
 

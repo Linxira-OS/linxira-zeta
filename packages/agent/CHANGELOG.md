@@ -3,6 +3,21 @@
 ## [1.0.5] - 2026-08-16
 
 ## [1.0.2] - 2026-08-15
+## [17.3.5] - 2026-08-16
+
+### Added
+
+- Added automatic retry support for transient provider failures during one-shot completions, allowing callers such as compaction to opt in to resilient request handling.
+
+### Fixed
+
+- Fixed /handoff, branch summarization, and manual /compact failing outright on transient provider errors (e.g. Anthropic overloaded/429/529 responses); these operations now retry automatically instead of leaving the user's context full.
+
+## [17.3.4] - 2026-08-14
+
+### Fixed
+
+- Fixed Codex-compatible V2 remote compaction with an explicit `v2Endpoint` by sending the required feature-negotiation header ([#8524](https://github.com/can1357/oh-my-pi/issues/8524)).
 
 ## [17.3.0] - 2026-08-13
 
@@ -1204,17 +1219,17 @@
 
 ### Changed
 
-- Forked to @oh-my-pi scope with unified versioning across all packages
+- Forked to @linxiraos scope with unified versioning across all packages
 
 ## [1.337.0] - 2026-01-02
 
-Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.0.0] - 2026-08-13
 
 ### Changed
 
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@oh-my-pi` version lineage.
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
 
 ## [0.38.0] - 2026-01-08
 
@@ -1264,7 +1279,7 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 - **`AppMessage` renamed to `AgentMessage`**: All references to `AppMessage` have been renamed to `AgentMessage` for consistency.
 - **`CustomMessages` renamed to `CustomAgentMessages`**: The declaration merging interface has been renamed.
 - **`UserMessageWithAttachments` and `Attachment` types removed**: Attachment handling is now the responsibility of the `convertToLlm` function.
-- **Agent loop moved from `@linxiraos/pi-ai`**: The `agentLoop`, `agentLoopContinue`, and related types have moved to this package. Import from `@oh-my-pi/pi-agent` instead.
+- **Agent loop moved from `@linxiraos/pi-ai`**: The `agentLoop`, `agentLoopContinue`, and related types have moved to this package. Import from `@linxiraos/pi-agent` instead.
 
 ### Added
 

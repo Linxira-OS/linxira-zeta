@@ -353,6 +353,13 @@ export class RpcClient {
 			// failures are reaped by the readyPromise catch below; established
 			// workers are reaped here so pending requests cannot hang indefinitely.
 			if (!readySettled) {
+				// Stdout can close before the exit reaper finishes draining stderr.
+				// child.exited settles only after the stderr tail is complete (for
+				// nonzero exits), so give it a bounded head start: the exit watcher
+				// below was registered first and rejects with the real stderr text
+				// instead of an empty "Stderr:" (flaked under full-suite load).
+				await Promise.race([child.exited.catch(() => {}), Bun.sleep(250)]);
+				if (readySettled) return;
 				readySettled = true;
 				// stderr may still be in flight when stdout EOFs (the child wrote
 				// its failure message and exited) — give the pipe a moment so the

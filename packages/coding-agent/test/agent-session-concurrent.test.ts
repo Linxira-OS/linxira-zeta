@@ -844,8 +844,12 @@ describe("AgentSession concurrent prompt guard", () => {
 
 		const observedIsStreamingAtAgentEnd: boolean[] = [];
 		const reentrantPromptResults: Array<"resolved" | { error: string }> = [];
+		const observedIsStreamingAtRunIdle: boolean[] = [];
 		let reentrantPrompted = false;
 
+		session.subscribeRunState(state => {
+			if (state === "idle") observedIsStreamingAtRunIdle.push(session.isStreaming);
+		});
 		session.subscribe(event => {
 			if (event.type !== "agent_end") return;
 			observedIsStreamingAtAgentEnd.push(session.isStreaming);
@@ -862,6 +866,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		await session.waitForIdle();
 
 		expect(observedIsStreamingAtAgentEnd).not.toContain(true);
+		expect(observedIsStreamingAtRunIdle).toContain(true);
 		expect(reentrantPromptResults).toEqual(["resolved"]);
 	});
 

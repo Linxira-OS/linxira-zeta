@@ -1,7 +1,7 @@
 /**
  * Regression: plugin extensions must resolve `pi-*` imports across every scope
  * that has ever been used to publish or alias the internal packages —
- * `@mariozechner` (original), `@earendil-works` (fork), `@oh-my-pi`
+ * `@mariozechner` (original), `@earendil-works` (fork), `@linxiraos`
  * (downstream), `@zeta` (pre-rename), and `@linxiraos` (canonical). The shim
  * in `legacy-pi-compat.ts` remaps all of them to the same in-process bundled
  * copy so that plugins observe a single module registry regardless of which

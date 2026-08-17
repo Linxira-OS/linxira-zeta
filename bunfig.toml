@@ -27,6 +27,10 @@ pathIgnorePatterns = [
   ".wt/**",
   ".worktrees/**",
   "temp/**",
+  # `bazel-*` are Bazel's convenience symlinks; without this the scanner
+  # recurses through the workspace-root loop and exhausts file descriptors.
+  "bazel-*/**",
+  "**/bazel-out/**",
 ]
 
 [run]
