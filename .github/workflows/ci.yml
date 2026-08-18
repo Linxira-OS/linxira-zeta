@@ -180,7 +180,8 @@ jobs:
                 echo "::error::Release tag $RELEASE_TAG does not match desktop versions: package.json=$desktop_ver package-lock.json=$desktop_lock_ver. Run a version bump (bun scripts/release-v2.ts $tag_ver) so package versions equal the tag, then push the tag again."
                 exit 1
               fi
-              # Root catalog: exactly 13 @linxiraos/* keys — 10 core == tag, 3 leaf == 1.0.2.
+              # Root catalog: exactly 13 @linxiraos/* keys — 10 core == tag,
+              # omptype/wire == 1.0.2, pi-natives == 1.0.4.
               node -e '
                 const catalog = require("./package.json").workspaces.catalog;
                 const keys = Object.keys(catalog).filter(k => k.startsWith("@linxiraos/"));
@@ -189,9 +190,9 @@ jobs:
                 }
                 const tag = process.argv[1];
                 const core = keys.filter(k => !["@linxiraos/pi-natives", "@linxiraos/pi-omptype", "@linxiraos/pi-wire"].includes(k));
-                const leaf = keys.filter(k => ["@linxiraos/pi-natives", "@linxiraos/pi-omptype", "@linxiraos/pi-wire"].includes(k));
                 for (const k of core) if (catalog[k] !== tag) { console.error(`catalog ${k} = ${catalog[k]}, expected ${tag}`); process.exit(1); }
-                for (const k of leaf) if (catalog[k] !== "1.0.2") { console.error(`catalog ${k} = ${catalog[k]}, expected 1.0.2`); process.exit(1); }
+                if (catalog["@linxiraos/pi-natives"] !== "1.0.4") { console.error(`catalog pi-natives = ${catalog["@linxiraos/pi-natives"]}, expected 1.0.4`); process.exit(1); }
+                for (const k of ["@linxiraos/pi-omptype", "@linxiraos/pi-wire"]) if (catalog[k] !== "1.0.2") { console.error(`catalog ${k} = ${catalog[k]}, expected 1.0.2`); process.exit(1); }
               ' "$tag_ver"
               # Rust workspace + native sentinel stay locked at 1.0.4
               # (pi-natives rides 1.0.4 for the pdfToMarkdown export).
