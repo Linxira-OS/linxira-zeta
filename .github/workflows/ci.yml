@@ -150,7 +150,6 @@ jobs:
               set -euo pipefail
               tag_ver="${RELEASE_TAG#v}"
               core_pkgs=(utils agent catalog ai tui hashline mnemopi snapcompact stats coding-agent)
-              leaf_pkgs=(natives omptype wire)
               # 10 core packages must equal the tag.
               for pkg in "${core_pkgs[@]}"; do
                 ver=$(node -p "require('./packages/$pkg/package.json').version")
@@ -159,14 +158,21 @@ jobs:
                   exit 1
                 fi
               done
-              # 3 native leaf packages stay pinned at 1.0.2.
-              for pkg in "${leaf_pkgs[@]}"; do
+              # Native leaf packages stay pinned: omptype/wire at 1.0.2,
+              # pi-natives at 1.0.4 (the 1.0.2 npm publish predates the
+              # v17.3.5 pdfToMarkdown export, so natives rides 1.0.4).
+              for pkg in omptype wire; do
                 ver=$(node -p "require('./packages/$pkg/package.json').version")
                 if [ "$ver" != "1.0.2" ]; then
                   echo "::error::Leaf package packages/$pkg/package.json version is $ver, expected 1.0.2 (native leaves never ride the release version)."
                   exit 1
                 fi
               done
+              natives_ver=$(node -p "require('./packages/natives/package.json').version")
+              if [ "$natives_ver" != "1.0.4" ]; then
+                echo "::error::packages/natives/package.json version is $natives_ver, expected 1.0.4."
+                exit 1
+              fi
               # desktop (incl. lockfile root version) must equal the tag.
               desktop_ver=$(node -p "require('./desktop/package.json').version")
               desktop_lock_ver=$(node -p "require('./desktop/package-lock.json').version")
@@ -187,20 +193,21 @@ jobs:
                 for (const k of core) if (catalog[k] !== tag) { console.error(`catalog ${k} = ${catalog[k]}, expected ${tag}`); process.exit(1); }
                 for (const k of leaf) if (catalog[k] !== "1.0.2") { console.error(`catalog ${k} = ${catalog[k]}, expected 1.0.2`); process.exit(1); }
               ' "$tag_ver"
-              # Rust workspace + native sentinel stay locked at 1.0.2.
+              # Rust workspace + native sentinel stay locked at 1.0.4
+              # (pi-natives rides 1.0.4 for the pdfToMarkdown export).
               cargo_ver=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n1)
-              if [ "$cargo_ver" != "1.0.2" ]; then
-                echo "::error::Cargo.toml workspace version is $cargo_ver, expected 1.0.2 (native leaves never ride the release version)."
+              if [ "$cargo_ver" != "1.0.4" ]; then
+                echo "::error::Cargo.toml workspace version is $cargo_ver, expected 1.0.4 (natives rides 1.0.4)."
                 exit 1
               fi
-              sentinel="__piNativesV1_0_2"
+              sentinel="__piNativesV1_0_4"
               for f in crates/pi-natives/src/lib.rs packages/natives/native/index.d.ts packages/natives/native/index.js; do
                 if ! grep -q "$sentinel" "$f"; then
-                  echo "::error::$f is missing the $sentinel sentinel (native sentinel must stay on the 1.0.2 line)."
+                  echo "::error::$f is missing the $sentinel sentinel (native sentinel must stay on the 1.0.4 line)."
                   exit 1
                 fi
               done
-              echo "tag $RELEASE_TAG matches packaged versions (10 core == tag, 3 leaf == 1.0.2, desktop incl. lock == tag, catalog 13 keys, Cargo/sentinel == 1.0.2)"
+              echo "tag $RELEASE_TAG matches packaged versions (10 core == tag, omptype/wire == 1.0.2, natives == 1.0.4, desktop incl. lock == tag, catalog 13 keys, Cargo/sentinel == 1.0.4)"
 
    check:
       name: Lint, type check & web build

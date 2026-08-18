@@ -17,12 +17,14 @@
  * despite the leaves pinning 1.0.2. It also finalized CHANGELOGs for leaf
  * packages and skipped changelogs lacking a `## [Unreleased]` header. v2 uses
  * an explicit package manifest (10 core packages), asserts the 3 leaf packages
- * stay 1.0.2, maps the root catalog explicitly (10 keys → release version,
- * 3 leaf keys → 1.0.2, exactly 13 keys), leaves Cargo/sentinel untouched, and
- * finalizes CHANGELOGs only for the 10 core packages (creating the Unreleased
- * header when missing). The commit subject is fixed (`chore: bump version to
- * X.Y.Z`) so CI's release-run concurrency group and selectLatestZetaTag both
- * match.
+ * stay pinned (omptype/wire at 1.0.2, natives at 1.0.4 — the 1.0.2 npm
+ * publish predates the v17.3.5 pdfToMarkdown export, so natives rides
+ * 1.0.4), maps the root catalog explicitly (10 keys → release version,
+ * 3 leaf keys → 1.0.2/1.0.4, exactly 13 keys), leaves Cargo/sentinel
+ * untouched, and finalizes CHANGELOGs only for the 10 core packages
+ * (creating the Unreleased header when missing). The commit subject is fixed
+ * (`chore: bump version to X.Y.Z`) so CI's release-run concurrency group and
+ * selectLatestZetaTag both match.
  */
 import { $ } from "bun";
 import { compareVersions } from "../packages/utils/src/version.ts";
@@ -30,9 +32,11 @@ import { runChangelogFixer } from "./fix-changelogs";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
 // Explicit package manifest. The 10 core packages ride the release version;
-// the 3 native leaves are pinned at 1.0.2 (their package.json, root catalog
-// keys, Cargo.toml workspace version, and the __piNativesV1_0_2 sentinel are
-// all locked to that line).
+// the 3 native leaves are pinned: pi-natives at 1.0.4 (carries the
+// pdfToMarkdown export merged from v17.3.5 that the 1.0.2 npm publish lacked),
+// omptype/wire at 1.0.2. package.json, root catalog keys, Cargo.toml
+// workspace version, and the __piNativesV1_0_4 sentinel are all locked to
+// those lines.
 const CORE_PACKAGES = [
 	"utils",
 	"agent",
@@ -47,6 +51,8 @@ const CORE_PACKAGES = [
 ] as const;
 const LEAF_PACKAGES = ["natives", "omptype", "wire"] as const;
 const LEAF_VERSION = "1.0.2";
+/** pi-natives rides 1.0.4: the npm 1.0.2 publish predates the pdfToMarkdown export. */
+const NATIVES_VERSION = "1.0.4";
 
 // Root catalog key → package dir mapping. Exactly these 13 keys may carry a
 // `@linxiraos/*` workspace dependency; any other count is a drift error.
@@ -132,8 +138,9 @@ async function updateCatalog(version: string): Promise<void> {
 	}
 	for (const key of CATALOG_LEAF_KEYS) {
 		if (!(key in catalog)) throw new Error(`Missing leaf catalog key ${key}`);
-		if (catalog[key] !== LEAF_VERSION) {
-			throw new Error(`Leaf catalog key ${key} is ${catalog[key]}, expected ${LEAF_VERSION}`);
+		const expected = key === "@linxiraos/pi-natives" ? NATIVES_VERSION : LEAF_VERSION;
+		if (catalog[key] !== expected) {
+			throw new Error(`Leaf catalog key ${key} is ${catalog[key]}, expected ${expected}`);
 		}
 	}
 	// Exact-13 check (no other @linxiraos/* key may exist).
@@ -178,7 +185,8 @@ async function assertConsistency(version: string): Promise<void> {
 	}
 	for (const pkg of LEAF_PACKAGES) {
 		const pkgJson = await Bun.file(`packages/${pkg}/package.json`).json();
-		if (pkgJson.version !== LEAF_VERSION) problems.push(`packages/${pkg}: ${pkgJson.version} != ${LEAF_VERSION}`);
+		const expected = pkg === "natives" ? NATIVES_VERSION : LEAF_VERSION;
+		if (pkgJson.version !== expected) problems.push(`packages/${pkg}: ${pkgJson.version} != ${expected}`);
 	}
 	for (const manifestPath of ["desktop/package.json", "desktop/package-lock.json"]) {
 		const manifest = await Bun.file(manifestPath).json();
@@ -190,12 +198,13 @@ async function assertConsistency(version: string): Promise<void> {
 		if (catalog[key] !== version) problems.push(`catalog ${key}: ${catalog[key]} != ${version}`);
 	}
 	for (const key of CATALOG_LEAF_KEYS) {
-		if (catalog[key] !== LEAF_VERSION) problems.push(`catalog ${key}: ${catalog[key]} != ${LEAF_VERSION}`);
+		const expected = key === "@linxiraos/pi-natives" ? NATIVES_VERSION : LEAF_VERSION;
+		if (catalog[key] !== expected) problems.push(`catalog ${key}: ${catalog[key]} != ${expected}`);
 	}
 
 	const cargoToml = await Bun.file("Cargo.toml").text();
 	const cargoVersion = cargoToml.match(/^version = "([^"]+)"/m)?.[1];
-	if (cargoVersion !== LEAF_VERSION) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${LEAF_VERSION}`);
+	if (cargoVersion !== NATIVES_VERSION) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${NATIVES_VERSION}`);
 
 	for (const sentinelFile of [
 		"crates/pi-natives/src/lib.rs",
@@ -203,8 +212,8 @@ async function assertConsistency(version: string): Promise<void> {
 		"packages/natives/native/index.js",
 	]) {
 		const content = await Bun.file(sentinelFile).text();
-		if (!content.includes(`__piNativesV${LEAF_VERSION.replace(/\./g, "_")}`)) {
-			problems.push(`${sentinelFile}: missing __piNativesV${LEAF_VERSION.replace(/\./g, "_")} sentinel`);
+		if (!content.includes(`__piNativesV${NATIVES_VERSION.replace(/\./g, "_")}`)) {
+			problems.push(`${sentinelFile}: missing __piNativesV${NATIVES_VERSION.replace(/\./g, "_")} sentinel`);
 		}
 	}
 
@@ -220,7 +229,9 @@ async function assertConsistency(version: string): Promise<void> {
 		for (const p of problems) console.error(`  - ${p}`);
 		process.exit(1);
 	}
-	console.log("  Consistency: 10 core == version, 3 leaf == 1.0.2, desktop/catalog/Cargo/sentinel OK, tag absent");
+	console.log(
+		`  Consistency: 10 core == version, omptype/wire == 1.0.2, natives == ${NATIVES_VERSION}, desktop/catalog/Cargo/sentinel OK, tag absent`,
+	);
 }
 
 async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
@@ -277,11 +288,13 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 		const pkgPath = `packages/${pkg}/package.json`;
 		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${pkgPath}`;
 	}
-	// Step 2b: assert the 3 leaf packages stayed 1.0.2.
+	// Step 2b: assert the 3 leaf packages stayed pinned (natives 1.0.4,
+	// omptype/wire 1.0.2).
 	for (const pkg of LEAF_PACKAGES) {
 		const pkgJson = await Bun.file(`packages/${pkg}/package.json`).json();
-		if (pkgJson.version !== LEAF_VERSION) {
-			console.error(`Error: leaf package ${pkg} is ${pkgJson.version}, expected ${LEAF_VERSION}`);
+		const expected = pkg === "natives" ? NATIVES_VERSION : LEAF_VERSION;
+		if (pkgJson.version !== expected) {
+			console.error(`Error: leaf package ${pkg} is ${pkgJson.version}, expected ${expected}`);
 			process.exit(1);
 		}
 		console.log(`  ${pkg}: ${pkgJson.version} (leaf, unchanged)`);
