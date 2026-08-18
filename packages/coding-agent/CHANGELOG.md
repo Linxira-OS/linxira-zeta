@@ -2,12 +2,7 @@
 
 ## [Unreleased]
 
-## [1.0.7] - 2026-08-18
-
-### Changed
-
-- `tracking_update` tool and `/tracking` are now off by default, gated by the
-  `tracking.enabled` setting (opt-in)
+## [1.0.8] - 2026-08-18
 
 ## [17.3.5] - 2026-08-16
 
@@ -12798,6 +12793,13 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 - Fixed Task tool progress display showing repeated nearly-identical lines during streaming
 - Fixed Task tool subprocess model selection ignoring agent's configured model and falling back to settings default. The `--model` flag now accepts `provider/model` format directly.
 - Fixed Task tool showing "done + succeeded" when aborted; now correctly displays "⊘ aborted" status
+
+## [1.0.7] - 2026-08-18
+
+### Changed
+
+- `tracking_update` tool and `/tracking` are now off by default, gated by the
+  `tracking.enabled` setting (opt-in)
 
 ## [1.0.1] - 2026-08-14
 

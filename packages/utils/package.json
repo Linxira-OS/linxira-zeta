@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-utils",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Shared utilities for pi packages",
   "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",

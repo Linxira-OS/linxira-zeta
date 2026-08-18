@@ -278,6 +278,19 @@ coding-agent types. Requires `getProjectTrackingDir` barrel export from
 `packages/utils`. (Web UI already has a TrackingPanel wired to the gateway;
 this is the stats-dashboard-side panel.)
 
+### P2 — SSH remote command tool (extension recovery)
+
+Upstream removed the `ssh-executor` wrapper but retained the plumbing:
+`ssh/connection-manager.ts`, `internal-urls/ssh-protocol.ts`, `cli/ssh-cli.ts`,
+`commands/ssh.ts`. Revive as an extension via `ctx.registerTool` wrapping the
+retained connection manager — no new protocol work needed.
+
+### P2 — Bing search provider (core provider add, not an extension)
+
+`web/search/providers/` has duckduckgo/google/startpage/ecosia/mojeek/public but
+no `bing.ts`. Mirror `duckduckgo.ts` against the `cn.bing.com` endpoint and add
+`bing` to `SEARCH_PROVIDER_OPTIONS` (`web/search/types.ts`). The extension API has
+no `registerSearchProvider`, so this is a core change, not a plugin.
 ### P3 — Vim input mode extension
 
 `pi-vimmode` (github.com/pekochan069/pi-vimmode, npm `pi-vimmode`, install via
@@ -287,6 +300,14 @@ Zeta integration requires a coordinate migration to `@linxiraos/*` (or legacy
 shim). Deferred until the P0/P1 queue clears; other removed upstream features
 (ssh/Bing/calc/recipe) have no ready-made extension repos — build in-house if
 wanted.
+
+### P3 — Removed-feature backlog (build in-house if wanted)
+
+Other upstream-removed capabilities with no ready-made extension repo. Track as
+low-priority; build in-house on demand: calc / recipe tools, code_search, python
+tool, `/background`, `/shake` summary, oracle/plan subagents, `notebook.enabled`,
+git context, shimmer, `plan://`, `jobs://`. Each needs its own scoping pass
+before work starts.
 
 ## Notes
 
