@@ -54,15 +54,31 @@ export function setLanguage(tag: ZetaLanguage): ZetaLanguage {
  * Resolve and install the language catalogue.
  *
  * Priority: `override` (e.g. config `language`) > `ZETA_LANG` > `LC_ALL` >
- * `LC_MESSAGES` > `LANG` > `"en"`. The config override is resolved lazily
- * from the global settings singleton when no explicit override is passed.
+ * `LC_MESSAGES` > `LANG` > system locale (`Intl`) > `"en"`. The config
+ * override is resolved lazily from the global settings singleton when no
+ * explicit override is passed. The Intl fallback matters on Windows, where
+ * `LANG`/`LC_ALL` are typically absent (or set to the POSIX `C.UTF-8`
+ * sentinel by Git Bash/MSYS): `Intl.DateTimeFormat().resolvedOptions().locale`
+ * reflects the OS UI language with zero subprocess cost, so a Chinese-system
+ * Windows box gets `zh` without manual `/language` configuration.
  */
 export function detectLanguage(override?: string | null): ZetaLanguage {
 	for (const candidate of [override ?? resolveConfigOverride(), ...envCandidates()]) {
 		const tag = normalize(candidate);
 		if (tag) return setLanguage(tag);
+		// An explicit-but-unrecognized locale (e.g. `fr_FR`) is a real
+		// configuration and falls through to English — it must not leak into
+		// the system-locale fallback. POSIX sentinels (`C`, `C.UTF-8`,
+		// `POSIX`) are not real choices: Git Bash/MSYS set LANG=C.UTF-8 on
+		// Windows, so they are skipped so the Intl system locale can speak.
+		if (candidate && !isPosixSentinel(candidate)) return setLanguage("en");
 	}
 	return setLanguage("en");
+}
+
+function isPosixSentinel(candidate: string): boolean {
+	const s = candidate.trim().toLowerCase().replaceAll("_", "-");
+	return s === "c" || s === "c.utf-8" || s === "posix";
 }
 
 function ensureDetected(): void {
@@ -82,7 +98,14 @@ function resolveConfigOverride(): string | undefined {
 }
 
 function envCandidates(): Array<string | undefined> {
-	return [Bun.env.ZETA_LANG, Bun.env.LC_ALL, Bun.env.LC_MESSAGES, Bun.env.LANG];
+	const intl = (() => {
+		try {
+			return Intl.DateTimeFormat().resolvedOptions().locale;
+		} catch {
+			return undefined;
+		}
+	})();
+	return [Bun.env.ZETA_LANG, Bun.env.LC_ALL, Bun.env.LC_MESSAGES, Bun.env.LANG, intl];
 }
 
 /** Map a locale string (e.g. `zh_CN.UTF-8`, `zh-Hans-CN`) to a known tag. */

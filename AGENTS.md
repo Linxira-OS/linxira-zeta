@@ -140,6 +140,12 @@ Two documentation trees, plus product surfaces, with strict boundaries:
   README.md, DEVELOPMENT.md, in-repo doc links); released CHANGELOG entries
   are immutable and keep their old links.
 
+**Quick rule of thumb**: if a markdown file describes how the *code* works or
+how to *use* the product (survives in the shipped binary) it belongs in
+`docs/`; if it captures *why* decisions were made, dev process, release
+mechanics, or internal plans (never shipped) it belongs in `document/`.
+`roadmap.md` lives in `document/` — do not recreate it under `docs/`.
+
 ## CI and Release
 
 - `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It

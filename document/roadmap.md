@@ -309,6 +309,74 @@ tool, `/background`, `/shake` summary, oracle/plan subagents, `notebook.enabled`
 git context, shimmer, `plan://`, `jobs://`. Each needs its own scoping pass
 before work starts.
 
+### P1 — Web-ui quick model import (OpenAI-compatible `/models` discovery)
+
+ModelsConfig currently requires manual provider/model entry. Add
+`GET /api/models/import?base=<url>` to the web gateway: fetch
+`<base>/models` (OpenAI-compatible listing), parse `data[].id` (+ context
+window where present), merge into `ModelsConfigFile`
+(`~/.zeta/agent/models.yml`), and surface the discovered models in
+ModelsConfig.tsx with context-window + thinking-effort columns. Reuses
+`web-gateway/models.ts` infrastructure (`ModelRegistry`, `ModelsConfigFile`,
+`getSupportedEfforts`).
+
+### P1 — Web-ui open-in-app buttons (terminal / explorer / editor)
+
+Add `POST /api/open` gateway handler: resolve registered apps via `$which`
+(ported from `temp/openchamber`'s Electron logic — `wt.exe`/`pwsh`/`cmd`
+terminal fallback chain, `explorer`/`xdg-open`/`open` file managers, and
+`code`/`cursor`/`codium`/`windsurf`/`zed` editors), spawn against a
+path validated by `allowed-roots`. AppShell top bar gains an "Open" dropdown
+(terminal / file manager / detected editors) plus an "Update" entry that
+checks `getLatestRelease()` (update-cli.ts), downloads the npm/binary release,
+verifies SHA256, and prompts to restart for overwrite install.
+
+### P1 — Web-ui settings coverage + refresh button
+
+Some CLI settings are not yet mapped into SettingsPanel. Add a "Reload
+config" action (re-read settings file through the existing gateway
+`/api/settings` channel) and fill remaining schema groups by diffing
+`settings-schema.ts` against the panel's rendered fields.
+
+### P1 — Stats dashboard iframe bridge
+
+ZetaServer already reverse-proxies `/api/stats` to the stats dashboard but
+serves the dashboard's static SPA only on its direct port. Add a "Stats" tab
+to AppShell rendering `<iframe src={NEXT_PUBLIC_STATS_URL}>`; inject
+`NEXT_PUBLIC_STATS_URL` from ZetaServer via web-ui-launcher (same pattern as
+`ZETA_WEB_PORT`), and start stats unless `statsOnly` (not `webOnly`).
+
+### P2 — Trajectory view (own session trace UI)
+
+A "聊天 / 轨迹" toggle in the chat area re-layouts the existing
+`SessionContext.messages` into a trace view: turn grouping via parentId,
+step cells (user / assistant message with Think + token columns from
+`usage`, tool call/result folded by `toolCallId` with
+`result.timestamp - call.timestamp` duration), inspector panel with raw
+entry JSON and a reconstructed (labeled "重建") prompt view. Pure-function
+`deriveTrajectory` + React components, no DSH dependency.
+
+### P2 — Remote control: phone browser + first IM channels
+
+Phone browser access: ZetaServer already serves web-ui on one port — add
+`--host 0.0.0.0` option, firewall guidance, and token auth (reuse
+`omp-auth.ts` patterns) so a phone on the LAN can drive the PC. IM channels
+(reference `temp/openclaw-ref` adapter model + `temp/deepseek-reasonix`
+channel registry): abstract a minimal channel interface (send text/media,
+receive event, identity/room binding) behind the existing web gateway, then
+port channels in waves — first Feishu custom-bot webhook (official API, low
+risk) and Telegram bot token; later WhatsApp/QQ/WeChat (external plugins with
+QR pairing / risk review). WeChat specifically: openclaw uses Tencent iLink
+QR-login (private-chat only, external plugin); evaluate against account-risk
+policy before committing.
+
+### P3 — IM channel wave 2 (post first-wave)
+
+Discord, Slack, Matrix, Signal, SMS/Twilio, LINE, Teams, IRC, Mattermost —
+each is an adapter over the same minimal channel interface; add on demand,
+reference `temp/openclaw-ref` (checked out for this survey) for wire
+protocols and auth flows.
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after

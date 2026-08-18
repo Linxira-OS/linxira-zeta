@@ -23,7 +23,7 @@
 
 ### 内部文档（document/）
 - `macos-signing-notarization.md`：`omp` 二进制 → `zeta`、`omp.sh` → `linxira-os.github.io`。
-- `roadmap.md`：`omp stats` → `zeta stats`；tracking 归属 `autolearn/controller.ts` → `src/tools/tracking.ts`（规划与代码脱节修正，同时修正 docs/roadmap.md）。
+- `roadmap.md`：`omp stats` → `zeta stats`；tracking 归属 `autolearn/controller.ts` → `src/tools/tracking.ts`（规划与代码脱节修正，同时修正 document/roadmap.md）。
 
 ## 保留（合理引用，不清除）
 
