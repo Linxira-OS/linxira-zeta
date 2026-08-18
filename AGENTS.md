@@ -459,7 +459,40 @@ Location: `packages/*/CHANGELOG.md` (per package).
 
 ## Releasing
 
-1. Ensure all changes since last release are in each affected package's `[Unreleased]` section.
-2. Run `bun run release`.
+**Zeta uses one version line for everything.** All 13 published `@linxiraos/*`
+packages (the 10 core packages plus the 3 native leaves `natives`/`omptype`/`wire`)
+ride the same release version, and the root `workspaces.catalog` (13 keys),
+`Cargo.toml` workspace version, the `__piNativesVX_Y_Z` sentinel, and
+`desktop/package.json` + `desktop/package-lock.json` follow in lock-step. There
+is no separate leaf version — the 1.0.6/1.0.7 era shipped natives at
+1.0.2/1.0.4 while zeta rode 1.0.6/1.0.7, which broke `zeta update` with
+`ETARGET No matching version found for @linxiraos/pi-natives@1.0.7`. Never
+introduce a second version line: any version drift across the 13 packages,
+catalog, Cargo, or sentinel is a release-blocking bug.
 
-The script handles version bump, CHANGELOG finalization, commit, tag, publish, and adding new `[Unreleased]` sections.
+Version bumps are a script operation, never hand edits:
+
+1. Ensure all changes since last release are in each affected package's `[Unreleased]` section.
+2. Run `bun scripts/release-v2.ts <version> [--watch]` (e.g. `bun scripts/release-v2.ts 1.0.8`).
+
+The script bumps all 13 packages, Cargo.toml, and the pi-natives sentinel
+(`__piNativesVX_Y_Z` in `crates/pi-natives/src/lib.rs` + the committed
+bindings in `packages/natives/native/index.{js,d.ts}`), rewrites the 13 root
+catalog keys, regenerates `bun.lock`, finalizes all 13 CHANGELOGs, runs
+`check:ts`, then commits (`chore: bump version to <version>`), tags
+(`v<version>`), and pushes atomically. The pushed commit triggers CI, which
+runs the full gate and — because HEAD carries the tag — the release/publish
+jobs. If a fix lands after a failed release run, commit the fix, then re-push
+main **and** force-move the tag to the new HEAD in one command so
+`release_metadata` sees `is-release=true`:
+
+```
+git push --force origin refs/heads/main:refs/heads/main "$(git rev-parse HEAD):refs/tags/v<version>"
+```
+
+`bun run release` (the legacy script) is deprecated: it moves the leaves to
+the release version via blind regexes and is not the release path.
+
+Related rule: Redis session-storage keys use the `zeta:sessions:` prefix
+(see `packages/coding-agent/src/session/redis-session-storage.ts`). Do not
+reintroduce `omp:` prefixed keys or Lua-script comments.

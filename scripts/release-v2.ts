@@ -8,36 +8,26 @@
  *   bun scripts/release-v2.ts <version> --watch      Release, then watch CI
  *   bun scripts/release-v2.ts watch                  Watch CI for current commit
  *
- * Example: bun scripts/release-v2.ts 1.0.6
+ * Example: bun scripts/release-v2.ts 1.0.8
  *
- * v1 vs v2: the old release.ts bumped every public package, every
- * `@linxiraos/*` catalog key, the Rust workspace version, and the pi-natives
- * sentinel via blind regexes — which wrongly moved the three native leaves
- * (natives/omptype/wire), Cargo.toml, and the sentinel to the release version
- * despite the leaves pinning 1.0.2. It also finalized CHANGELOGs for leaf
- * packages and skipped changelogs lacking a `## [Unreleased]` header. v2 uses
- * an explicit package manifest (10 core packages), asserts the 3 leaf packages
- * stay pinned (omptype/wire at 1.0.2, natives at 1.0.4 — the 1.0.2 npm
- * publish predates the v17.3.5 pdfToMarkdown export, so natives rides
- * 1.0.4), maps the root catalog explicitly (10 keys → release version,
- * 3 leaf keys → 1.0.2/1.0.4, exactly 13 keys), leaves Cargo/sentinel
- * untouched, and finalizes CHANGELOGs only for the 10 core packages
- * (creating the Unreleased header when missing). The commit subject is fixed
- * (`chore: bump version to X.Y.Z`) so CI's release-run concurrency group and
- * selectLatestZetaTag both match.
+ * v2 (unified version line): every published @linxiraos/* package rides the
+ * release version — the 10 core packages plus the 3 native leaves
+ * (natives/omptype/wire) all become `X.Y.Z`. The root catalog (13 keys),
+ * Cargo.toml workspace version, and the `__piNativesVX_Y_Z` sentinel follow
+ * in lock-step, so npm installs never mix version lines (the 1.0.6/1.0.7
+ * releases shipped natives@1.0.2/1.0.4 while zeta rode 1.0.6/1.0.7, and
+ * `zeta update` failed with ETARGET because it pinned every package to the
+ * release version). The commit subject is fixed (`chore: bump version to
+ * X.Y.Z`) so CI's release-run concurrency group and selectLatestZetaTag both
+ * match.
  */
 import { $ } from "bun";
 import { compareVersions } from "../packages/utils/src/version.ts";
 import { runChangelogFixer } from "./fix-changelogs";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
-// Explicit package manifest. The 10 core packages ride the release version;
-// the 3 native leaves are pinned: pi-natives at 1.0.4 (carries the
-// pdfToMarkdown export merged from v17.3.5 that the 1.0.2 npm publish lacked),
-// omptype/wire at 1.0.2. package.json, root catalog keys, Cargo.toml
-// workspace version, and the __piNativesV1_0_4 sentinel are all locked to
-// those lines.
-const CORE_PACKAGES = [
+// All 13 published packages ride the release version in lock-step.
+const ALL_PACKAGES = [
 	"utils",
 	"agent",
 	"catalog",
@@ -48,15 +38,14 @@ const CORE_PACKAGES = [
 	"snapcompact",
 	"stats",
 	"coding-agent",
+	"natives",
+	"omptype",
+	"wire",
 ] as const;
-const LEAF_PACKAGES = ["natives", "omptype", "wire"] as const;
-const LEAF_VERSION = "1.0.2";
-/** pi-natives rides 1.0.4: the npm 1.0.2 publish predates the pdfToMarkdown export. */
-const NATIVES_VERSION = "1.0.4";
 
 // Root catalog key → package dir mapping. Exactly these 13 keys may carry a
 // `@linxiraos/*` workspace dependency; any other count is a drift error.
-const CATALOG_CORE_KEYS: ReadonlyArray<{ key: string; pkg: string }> = [
+const CATALOG_KEYS: ReadonlyArray<{ key: string; pkg: string }> = [
 	{ key: "@linxiraos/pi-utils", pkg: "utils" },
 	{ key: "@linxiraos/pi-agent-core", pkg: "agent" },
 	{ key: "@linxiraos/pi-catalog", pkg: "catalog" },
@@ -67,8 +56,17 @@ const CATALOG_CORE_KEYS: ReadonlyArray<{ key: string; pkg: string }> = [
 	{ key: "@linxiraos/pi-snapcompact", pkg: "snapcompact" },
 	{ key: "@linxiraos/pi-stats", pkg: "stats" },
 	{ key: "@linxiraos/zeta", pkg: "coding-agent" },
+	{ key: "@linxiraos/pi-natives", pkg: "natives" },
+	{ key: "@linxiraos/pi-omptype", pkg: "omptype" },
+	{ key: "@linxiraos/pi-wire", pkg: "wire" },
 ];
-const CATALOG_LEAF_KEYS = ["@linxiraos/pi-natives", "@linxiraos/pi-omptype", "@linxiraos/pi-wire"] as const;
+
+/** Files carrying the pi-natives version sentinel, kept in lock-step with the release version. */
+const SENTINEL_FILES = [
+	"crates/pi-natives/src/lib.rs",
+	"packages/natives/native/index.d.ts",
+	"packages/natives/native/index.js",
+] as const;
 
 function git(args: readonly string[]) {
 	return $`git -c core.fsmonitor=false -c core.untrackedCache=false -c fetch.pruneTags=false ${args}`;
@@ -84,8 +82,7 @@ function removeEmptyVersionEntries(content: string): string {
  * `## [Unreleased]` under the `# Changelog` header. Packages whose changelog
  * lacks the Unreleased header get one created first (a missing header meant
  * the old script silently skipped them, leaving the embedded-changelog
- * fallback asserting a stale latest version). Leaf packages are simply not
- * passed in — their changelogs are never touched.
+ * fallback asserting a stale latest version).
  */
 async function finalizeChangelogsForRelease(version: string, packageDirs: readonly string[]): Promise<void> {
 	const date = new Date().toISOString().split("T")[0];
@@ -123,8 +120,7 @@ async function readCatalog(): Promise<Record<string, string>> {
 }
 
 /**
- * Rewrite root package.json catalog values for the 10 core keys to `version`
- * and assert the 3 leaf keys are still `1.0.2`. Never touches any other key.
+ * Rewrite all 13 root catalog keys to `version`. Never touches any other key.
  * Rewrites via structured JSON edit so indentation/order survive; the catalog
  * block is reformatted to 2-space like the rest of the file.
  */
@@ -132,16 +128,9 @@ async function updateCatalog(version: string): Promise<void> {
 	const rootPkg = await Bun.file("package.json").json();
 	const catalog = rootPkg.workspaces.catalog;
 
-	for (const { key } of CATALOG_CORE_KEYS) {
-		if (!(key in catalog)) throw new Error(`Missing core catalog key ${key}`);
+	for (const { key } of CATALOG_KEYS) {
+		if (!(key in catalog)) throw new Error(`Missing catalog key ${key}`);
 		catalog[key] = version;
-	}
-	for (const key of CATALOG_LEAF_KEYS) {
-		if (!(key in catalog)) throw new Error(`Missing leaf catalog key ${key}`);
-		const expected = key === "@linxiraos/pi-natives" ? NATIVES_VERSION : LEAF_VERSION;
-		if (catalog[key] !== expected) {
-			throw new Error(`Leaf catalog key ${key} is ${catalog[key]}, expected ${expected}`);
-		}
 	}
 	// Exact-13 check (no other @linxiraos/* key may exist).
 	const linxiraosCount = Object.keys(catalog).filter((k: string) => k.startsWith("@linxiraos/")).length;
@@ -156,12 +145,7 @@ async function updateCatalog(version: string): Promise<void> {
 async function verifyLockfile(catalog: Record<string, string>): Promise<void> {
 	const lock = Bun.JSON5.parse(await Bun.file("bun.lock").text());
 	const pkgs = lock.workspaces ?? lock.packages ?? lock;
-	const packageDirs: ReadonlyArray<{ dir: string; key: string }> = [
-		...CATALOG_CORE_KEYS.map(({ key, pkg }) => ({ dir: `packages/${pkg}`, key })),
-		{ dir: "packages/natives", key: "@linxiraos/pi-natives" },
-		{ dir: "packages/omptype", key: "@linxiraos/pi-omptype" },
-		{ dir: "packages/wire", key: "@linxiraos/pi-wire" },
-	];
+	const packageDirs = CATALOG_KEYS.map(({ key, pkg }) => ({ dir: `packages/${pkg}`, key }));
 	for (const { dir, key } of packageDirs) {
 		const entry = pkgs[dir];
 		if (!entry) throw new Error(`bun.lock missing entry for ${dir}`);
@@ -179,14 +163,9 @@ async function verifyLockfile(catalog: Record<string, string>): Promise<void> {
 async function assertConsistency(version: string): Promise<void> {
 	const problems: string[] = [];
 
-	for (const pkg of CORE_PACKAGES) {
+	for (const pkg of ALL_PACKAGES) {
 		const pkgJson = await Bun.file(`packages/${pkg}/package.json`).json();
 		if (pkgJson.version !== version) problems.push(`packages/${pkg}: ${pkgJson.version} != ${version}`);
-	}
-	for (const pkg of LEAF_PACKAGES) {
-		const pkgJson = await Bun.file(`packages/${pkg}/package.json`).json();
-		const expected = pkg === "natives" ? NATIVES_VERSION : LEAF_VERSION;
-		if (pkgJson.version !== expected) problems.push(`packages/${pkg}: ${pkgJson.version} != ${expected}`);
 	}
 	for (const manifestPath of ["desktop/package.json", "desktop/package-lock.json"]) {
 		const manifest = await Bun.file(manifestPath).json();
@@ -194,26 +173,19 @@ async function assertConsistency(version: string): Promise<void> {
 	}
 
 	const catalog = await readCatalog();
-	for (const { key } of CATALOG_CORE_KEYS) {
+	for (const { key } of CATALOG_KEYS) {
 		if (catalog[key] !== version) problems.push(`catalog ${key}: ${catalog[key]} != ${version}`);
-	}
-	for (const key of CATALOG_LEAF_KEYS) {
-		const expected = key === "@linxiraos/pi-natives" ? NATIVES_VERSION : LEAF_VERSION;
-		if (catalog[key] !== expected) problems.push(`catalog ${key}: ${catalog[key]} != ${expected}`);
 	}
 
 	const cargoToml = await Bun.file("Cargo.toml").text();
 	const cargoVersion = cargoToml.match(/^version = "([^"]+)"/m)?.[1];
-	if (cargoVersion !== NATIVES_VERSION) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${NATIVES_VERSION}`);
+	if (cargoVersion !== version) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${version}`);
 
-	for (const sentinelFile of [
-		"crates/pi-natives/src/lib.rs",
-		"packages/natives/native/index.d.ts",
-		"packages/natives/native/index.js",
-	]) {
+	const sentinel = `__piNativesV${version.replace(/\./g, "_")}`;
+	for (const sentinelFile of SENTINEL_FILES) {
 		const content = await Bun.file(sentinelFile).text();
-		if (!content.includes(`__piNativesV${NATIVES_VERSION.replace(/\./g, "_")}`)) {
-			problems.push(`${sentinelFile}: missing __piNativesV${NATIVES_VERSION.replace(/\./g, "_")} sentinel`);
+		if (!content.includes(sentinel)) {
+			problems.push(`${sentinelFile}: missing ${sentinel} sentinel`);
 		}
 	}
 
@@ -229,9 +201,7 @@ async function assertConsistency(version: string): Promise<void> {
 		for (const p of problems) console.error(`  - ${p}`);
 		process.exit(1);
 	}
-	console.log(
-		`  Consistency: 10 core == version, omptype/wire == 1.0.2, natives == ${NATIVES_VERSION}, desktop/catalog/Cargo/sentinel OK, tag absent`,
-	);
+	console.log(`  Consistency: 13 packages == ${version}, desktop/catalog/Cargo/sentinel OK, tag absent`);
 }
 
 async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
@@ -282,23 +252,33 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	}
 	console.log(`  Version ${version} > ${latestTag}\n`);
 
-	// Step 2: bump the 10 core packages.
-	console.log(`Updating 10 core packages to ${version}…`);
-	for (const pkg of CORE_PACKAGES) {
+	// Step 2: bump all 13 published packages to the release version.
+	console.log(`Updating 13 packages to ${version}…`);
+	for (const pkg of ALL_PACKAGES) {
 		const pkgPath = `packages/${pkg}/package.json`;
 		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${pkgPath}`;
 	}
-	// Step 2b: assert the 3 leaf packages stayed pinned (natives 1.0.4,
-	// omptype/wire 1.0.2).
-	for (const pkg of LEAF_PACKAGES) {
-		const pkgJson = await Bun.file(`packages/${pkg}/package.json`).json();
-		const expected = pkg === "natives" ? NATIVES_VERSION : LEAF_VERSION;
-		if (pkgJson.version !== expected) {
-			console.error(`Error: leaf package ${pkg} is ${pkgJson.version}, expected ${expected}`);
-			process.exit(1);
-		}
-		console.log(`  ${pkg}: ${pkgJson.version} (leaf, unchanged)`);
+	// Step 2b: Cargo workspace version follows the release version.
+	console.log(`Updating Cargo.toml workspace to ${version}...`);
+	await $`sd '^version = "[^"]+"' ${`version = "${version}"`} Cargo.toml`;
+	// Step 2c: pi-natives version sentinel follows the release version
+	// (js_name in lib.rs plus the committed bindings in index.js/index.d.ts;
+	// gen-enums.ts regenerates the same names on the next napi build). The
+	// loader derives the expected sentinel from package.json at runtime, so
+	// the Rust symbol must move in lock-step or loaded .node files from other
+	// releases are rejected at validateLoadedBindings.
+	const sentinelJsId = version.replace(/[^A-Za-z0-9]/g, "_");
+	const sentinelName = `__piNativesV${sentinelJsId}`;
+	console.log(`Updating pi-natives version sentinel to ${sentinelName}...`);
+	await $`sd '__piNativesV[A-Za-z0-9_]+' ${sentinelName} ${SENTINEL_FILES}`;
+	const libRs = await Bun.file("crates/pi-natives/src/lib.rs").text();
+	if (!libRs.includes(`js_name = "${sentinelName}"`)) {
+		console.error(
+			`Error: pi-natives version sentinel did not move to ${sentinelName} in crates/pi-natives/src/lib.rs.`,
+		);
+		process.exit(1);
 	}
+	console.log(`  sentinel: ${sentinelName}`);
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 	console.log("Updating desktop version...");
@@ -317,7 +297,7 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	console.log("Updating root catalog...");
 	await updateCatalog(version);
 	await readCatalog(); // re-validates 13 keys
-	console.log(`  Root catalog: 10 core keys -> ${version}, 3 leaf keys == ${LEAF_VERSION}`);
+	console.log(`  Root catalog: 13 keys -> ${version}`);
 
 	// Step 5: regenerate lockfile and verify.
 	console.log("Regenerating lockfile...");
@@ -326,15 +306,15 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	await verifyLockfile(await readCatalog());
 	console.log();
 
-	// Step 6: changelogs for exactly the 10 core packages.
-	console.log("Updating CHANGELOGs (10 core packages)...");
+	// Step 6: changelogs for all 13 packages.
+	console.log("Updating CHANGELOGs (13 packages)...");
 	const fixResult = await runChangelogFixer({});
 	for (const fixed of fixResult.changedFiles) {
 		console.log(
 			`  Fixed ${fixed.path}: ${fixed.promotedItems} promoted, ${fixed.mergedDuplicateHeadings} duplicate heading(s) merged, ${fixed.removedEmptyHeadings} empty heading(s) removed`,
 		);
 	}
-	await finalizeChangelogsForRelease(version, [...CORE_PACKAGES]);
+	await finalizeChangelogsForRelease(version, [...ALL_PACKAGES]);
 	console.log();
 
 	// Step 7: pre-commit consistency gate.
