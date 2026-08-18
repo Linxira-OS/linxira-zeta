@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/zeta",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Coding agent CLI with read, bash, edit, write tools and session management",
   "homepage": "https://linxira-os.github.io",
   "author": "Can Boluk",
