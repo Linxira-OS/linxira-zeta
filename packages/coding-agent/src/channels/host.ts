@@ -20,9 +20,9 @@
 
 import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
+import type { IrcMessage } from "../irc/bus";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionEvent } from "../session/agent-session-events";
-import type { IrcMessage } from "../irc/bus";
 import type { ChannelId } from "./channel";
 
 /** Outbound sink: resolves a channel + peer to a `sendText` call. */
@@ -34,7 +34,7 @@ interface PendingReply {
 }
 
 function assistantText(message: AssistantMessage | undefined): string {
-	if (!message || message.role !== "assistant" || !Array.isArray(message.content)) return "";
+	if (message?.role !== "assistant" || !Array.isArray(message.content)) return "";
 	return message.content
 		.filter((content): content is TextContent => content.type === "text")
 		.map(content => content.text)
@@ -98,9 +98,7 @@ export class ChannelHost {
 			await this.#session.deliverIrcMessage(msg, { expectsReply: true });
 			this.#lastInbound = { channelId, peer };
 		} catch (error) {
-			this.#pending = this.#pending.filter(
-				p => !(p.channelId === channelId && p.peer === peer),
-			);
+			this.#pending = this.#pending.filter(p => !(p.channelId === channelId && p.peer === peer));
 			throw error;
 		}
 	}
@@ -119,7 +117,7 @@ export class ChannelHost {
 		});
 	}
 
-	#onAutoReply(msg: IrcMessage, replyText: string): void {
+	#onAutoReply(_msg: IrcMessage, replyText: string): void {
 		const pending = this.#pending.shift();
 		if (!pending) return;
 		const body = replyText.trim();

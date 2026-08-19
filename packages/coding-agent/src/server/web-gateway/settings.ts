@@ -17,7 +17,6 @@
  */
 
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
-import { WebConfig } from "../../config/web-config";
 import { Settings } from "../../config/settings";
 import {
 	getDefault,
@@ -36,6 +35,7 @@ import {
 	TAB_METADATA,
 } from "../../config/settings-schema";
 import { ZH_GROUP_LABELS, ZH_OPTION_TEXTS, ZH_SETTING_TEXTS, ZH_TAB_LABELS } from "../../config/settings-zh";
+import { WebConfig } from "../../config/web-config";
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });

@@ -3754,7 +3754,8 @@ export const SETTINGS_SCHEMA = {
 			tab: "tools",
 			group: "Available Tools",
 			label: "IM Channels",
-			description: "Enable channel_send / workspace_run so the agent can push progress to the remote IM user and delegate to other workspaces",
+			description:
+				"Enable channel_send / workspace_run so the agent can push progress to the remote IM user and delegate to other workspaces",
 		},
 	},
 

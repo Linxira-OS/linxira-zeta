@@ -36,11 +36,11 @@ export class TelegramChannel implements ChatChannel {
 	#abort: AbortController | null = null;
 	#loop: Promise<void> | null = null;
 
-constructor(options: TelegramChannelOptions) {
-  this.#botToken = options.botToken;
-  this.#onMessage = options.onMessage;
-  this.#fetch = options.customFetch ?? globalThis.fetch;
-}
+	constructor(options: TelegramChannelOptions) {
+		this.#botToken = options.botToken;
+		this.#onMessage = options.onMessage;
+		this.#fetch = options.customFetch ?? globalThis.fetch;
+	}
 
 	async start(): Promise<void> {
 		if (this.#started) return;

@@ -267,9 +267,7 @@ export async function handleModelsImport(req: Request): Promise<Response> {
 		return json({ error: "Invalid base URL", stage: "fetch" }, 400);
 	}
 
-	const endpoint = /\/models\/?$/.test(parsedBase.pathname)
-		? base
-		: `${base.replace(/\/+$/, "")}/models`;
+	const endpoint = /\/models\/?$/.test(parsedBase.pathname) ? base : `${base.replace(/\/+$/, "")}/models`;
 
 	let payload: unknown;
 	try {
@@ -308,7 +306,9 @@ export async function handleModelsImport(req: Request): Promise<Response> {
 	const existingModels = Array.isArray(existingProvider?.models) ? existingProvider.models : [];
 	const existingIds = new Set(
 		existingModels
-			.map(model => (typeof (model as Record<string, unknown>).id === "string" ? (model as Record<string, unknown>).id : null))
+			.map(model =>
+				typeof (model as Record<string, unknown>).id === "string" ? (model as Record<string, unknown>).id : null,
+			)
 			.filter((id): id is string => id !== null),
 	);
 

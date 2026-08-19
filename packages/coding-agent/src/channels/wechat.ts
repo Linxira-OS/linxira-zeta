@@ -55,7 +55,6 @@ export interface WeChatChannelOptions {
 const DEFAULT_BASE_URL = "https://ilinkai.weixin.qq.com";
 const CHANNEL_VERSION = "2.4.3";
 const QR_POLL_INTERVAL_MS = 2_000;
-const POLL_REQUEST_TIMEOUT_MS = 45_000;
 const RETRY_DELAY_MS = 3_000;
 
 function randomUin(): string {
@@ -75,18 +74,8 @@ async function aesEcbEncrypt(data: Uint8Array, key: Uint8Array): Promise<Uint8Ar
 	for (let i = data.length; i < paddedLength; i++) {
 		padded[i] = paddedLength - data.length;
 	}
-	const cryptoKey = await crypto.subtle.importKey(
-		"raw",
-		new Uint8Array(key),
-		{ name: "AES-CBC" },
-		false,
-		["encrypt"],
-	);
-	const encrypted = await crypto.subtle.encrypt(
-		{ name: "AES-CBC", iv: new Uint8Array(16) },
-		cryptoKey,
-		padded,
-	);
+	const cryptoKey = await crypto.subtle.importKey("raw", new Uint8Array(key), { name: "AES-CBC" }, false, ["encrypt"]);
+	const encrypted = await crypto.subtle.encrypt({ name: "AES-CBC", iv: new Uint8Array(16) }, cryptoKey, padded);
 	return new Uint8Array(encrypted);
 }
 
@@ -207,10 +196,9 @@ export class WeChatChannel implements ChatChannel {
 		// QR fetch: 2.x POST first, fall back to the 1.0.2 GET shape.
 		let data: Record<string, unknown> | null = null;
 		try {
-			data = await this.#apiPost(
-				"ilink/bot/get_bot_qrcode?bot_type=3",
-				{ local_token_list: this.#botToken ? [this.#botToken] : [] },
-			);
+			data = await this.#apiPost("ilink/bot/get_bot_qrcode?bot_type=3", {
+				local_token_list: this.#botToken ? [this.#botToken] : [],
+			});
 		} catch {
 			data = null;
 		}

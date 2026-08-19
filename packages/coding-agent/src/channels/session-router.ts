@@ -65,9 +65,7 @@ export class SessionRouter {
 	}
 
 	/** Open (or re-open) a directory as a workspace session; persists the path in web.yml. */
-	async open(
-		dir: string,
-	): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
+	async open(dir: string): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
 		const existing = this.#sessions.get(dir);
 		if (existing) return { ok: true, name: path.basename(dir) };
 		try {
@@ -210,15 +208,11 @@ export class SessionRouter {
 		const message = event.message;
 		const text =
 			message && message.role === "assistant" && Array.isArray(message.content)
-				? (message.content
-						.filter(
-							(
-								content,
-							): content is { type: "text"; text: string } => content.type === "text",
-						)
+				? message.content
+						.filter((content): content is { type: "text"; text: string } => content.type === "text")
 						.map(content => content.text)
 						.join("")
-						.trim())
+						.trim()
 				: "";
 		run.resolve(text || "(no text reply)");
 	}

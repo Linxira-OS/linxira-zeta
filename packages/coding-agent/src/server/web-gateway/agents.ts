@@ -22,7 +22,7 @@ import { approveRemotePlan } from "../../channels/plan-approval";
 import type { BashResult } from "../../exec/bash-executor";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { type ExtensionUIContext, getExtensionUISelectOptionLabel } from "../../extensibility/extensions/types";
-import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../../internal-urls";
+import type { LocalProtocolOptions } from "../../internal-urls";
 import { createAgentSession } from "../../sdk";
 import type { AgentSession } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";

@@ -11,12 +11,12 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
-import { registerWechatReconnect, setPendingWechatQr, startChannels, type ChannelRuntime } from "../channels";
+import { type ChannelRuntime, registerWechatReconnect, setPendingWechatQr, startChannels } from "../channels";
 import { SessionRouter } from "../channels/session-router";
-import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { WeChatChannel } from "../channels/wechat";
-import { WebConfig } from "../config/web-config";
+import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
+import { WebConfig } from "../config/web-config";
 import { openPath } from "../utils/open";
 import { startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
 import { startRpcSession } from "./web-gateway/agents";
@@ -344,34 +344,27 @@ export class ZetaServer {
 	async #maybeStartChannels(): Promise<void> {
 		const webConfig = await WebConfig.load();
 		const data = webConfig.getData();
-		const anyEnabled =
-			data.channels.wechat.enabled || data.channels.feishu.enabled || data.channels.telegram.enabled;
+		const anyEnabled = data.channels.wechat.enabled || data.channels.feishu.enabled || data.channels.telegram.enabled;
 		if (!this.#options.channels && !anyEnabled) return;
 
 		try {
 			// Deferred sink: the channel runtime resolves after startChannels.
 			let runtimeRef: ChannelRuntime | null = null;
-			const { session } = await startRpcSession(
-				"__zeta_serve_coordinator__",
-				"",
-				process.cwd(),
-				undefined,
-				{
-					channelSend: async opts => {
-						const runtime = runtimeRef;
-						const router = this.#router;
-						if (!runtime || !router) throw new Error("IM channels are not started");
-						const target = router.resolvePush(opts);
-						if (!target) throw new Error("No channel or peer bound to this session");
-						await runtime.sendText(target.channelId, target.to, opts.text);
-					},
-					workspaceRun: async opts => {
-						const router = this.#router;
-						if (!router) throw new Error("Workspace router is not started");
-						return router.run(opts.workspace, opts.task);
-					},
+			const { session } = await startRpcSession("__zeta_serve_coordinator__", "", process.cwd(), undefined, {
+				channelSend: async opts => {
+					const runtime = runtimeRef;
+					const router = this.#router;
+					if (!runtime || !router) throw new Error("IM channels are not started");
+					const target = router.resolvePush(opts);
+					if (!target) throw new Error("No channel or peer bound to this session");
+					await runtime.sendText(target.channelId, target.to, opts.text);
 				},
-			);
+				workspaceRun: async opts => {
+					const router = this.#router;
+					if (!router) throw new Error("Workspace router is not started");
+					return router.run(opts.workspace, opts.task);
+				},
+			});
 
 			const coordinator = session.getSession();
 			this.#router = new SessionRouter({

@@ -39,7 +39,6 @@ export class FeishuChannel implements ChatChannel {
 	readonly #onMessage: FeishuInboundHandler;
 	#client: Lark.Client | null = null;
 	#ws: Lark.WSClient | null = null;
-	#dispatcher: Lark.EventDispatcher | null = null;
 	#started = false;
 	#startPromise: Promise<void> | null = null;
 
@@ -71,7 +70,6 @@ export class FeishuChannel implements ChatChannel {
 		dispatcher.register({
 			"im.message.receive_v1": (data: FeishuTextEventData) => this.#onEvent(data),
 		});
-		this.#dispatcher = dispatcher;
 
 		const ws = new Lark.WSClient({
 			appId,
@@ -101,14 +99,13 @@ export class FeishuChannel implements ChatChannel {
 			});
 		}
 		this.#ws = null;
-		this.#dispatcher = null;
 		this.#client = null;
 		this.#startPromise = null;
 	}
 
 	#onEvent(data: FeishuTextEventData): void {
 		const message = data.message;
-		if (!message || message.message_type !== "text") return;
+		if (message?.message_type !== "text") return;
 		const chatId = message.chat_id;
 		let text = "";
 		try {

@@ -17,6 +17,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
+import { getPendingWechatQr, triggerWechatReconnect } from "../channels";
 import {
 	handleAgentCommand,
 	handleAgentEvents,
@@ -63,9 +64,8 @@ import {
 	handleSkillsSearch,
 	handleSkillsUpdate,
 } from "./web-gateway/skills";
-import { getPendingWechatQr, triggerWechatReconnect } from "../channels";
-import { handleWebConfigGet, handleWebConfigPut } from "./web-gateway/web-config";
 import { handleUpdateCheck, handleUpdateDownload, handleUpdateInstall } from "./web-gateway/update";
+import { handleWebConfigGet, handleWebConfigPut } from "./web-gateway/web-config";
 
 const DEFAULT_GATEWAY_PORT = 30142;
 

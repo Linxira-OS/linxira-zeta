@@ -990,7 +990,8 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"channels.enabled": {
 		label: "IM 渠道工具",
-		description: "启用 channel_send / workspace_run，让 agent 向远程 IM 用户推送进度并委派其他工作区任务（仅 web/桌面模式）",
+		description:
+			"启用 channel_send / workspace_run，让 agent 向远程 IM 用户推送进度并委派其他工作区任务（仅 web/桌面模式）",
 	},
 	"todo.reminders": {
 		label: "待办提醒",

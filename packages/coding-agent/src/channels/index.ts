@@ -14,13 +14,13 @@
 import { logger } from "@linxiraos/pi-utils";
 import type { WebConfig } from "../config/web-config";
 import type { AgentSession } from "../session/agent-session";
-import type { ChatChannel, ChannelId, ChatImage } from "./channel";
+import type { ChannelId, ChatChannel, ChatImage } from "./channel";
 import { FeishuChannel } from "./feishu";
 import { ChannelHost } from "./host";
 import { TelegramChannel } from "./telegram";
 import { WeChatChannel, type WeChatQrStatus } from "./wechat";
 
-export type { ChatChannel, ChannelId, ChatImage } from "./channel";
+export type { ChannelId, ChatChannel, ChatImage } from "./channel";
 export { ChannelHost } from "./host";
 export type { WeChatQrStatus } from "./wechat";
 
