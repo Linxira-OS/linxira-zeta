@@ -318,7 +318,7 @@ test(".mcp.json expands environment placeholders recursively", async () => {
 				},
 			}),
 		);
-		writeFile(path.join(project, ".omp", "settings.json"), JSON.stringify({ extensions: [ext] }));
+		writeFile(path.join(project, ".zeta", "settings.json"), JSON.stringify({ extensions: [ext] }));
 
 		const servers = await loadFromPlugin<{
 			name: string;

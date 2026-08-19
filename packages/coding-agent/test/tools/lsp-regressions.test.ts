@@ -282,7 +282,7 @@ function textResult(result: AgentToolResult<LspToolDetails>): string {
 }
 
 /**
- * `loadConfig` walks the user config directories (~/.omp/agent, ~/.pi/agent,
+ * `loadConfig` walks the user config directories (~/.zeta/agent, ~/.pi/agent,
  * ~/.claude), which resolve from os.homedir(). A developer with a real
  * lsp.json there flips loadConfig off its auto-detect path onto the override
  * path, where their rootMarkers replace the packaged ones — so these tests

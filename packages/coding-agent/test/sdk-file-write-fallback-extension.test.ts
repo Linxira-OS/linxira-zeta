@@ -20,20 +20,20 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type {
 	ExtensionActions,
 	ExtensionContextActions,
 	ExtensionFactory,
 	ExtensionRunner,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { FileWriteFallbackRequest } from "@oh-my-pi/pi-coding-agent/tools/file-write-fallback";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions";
+import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@linxiraos/zeta/sdk";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { FileWriteFallbackRequest } from "@linxiraos/zeta/tools/file-write-fallback";
 
 /**
  * Drives `ExtensionRunner.initialize` with no-op stubs, mirroring what a mode

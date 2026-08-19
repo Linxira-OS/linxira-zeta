@@ -3,7 +3,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
-import { type as arkType } from "@linxiraos/pi-omptype";
 import { Effort } from "@linxiraos/pi-ai";
 import {
 	applyClaudeToolPrefix,
@@ -31,6 +30,7 @@ import type {
 	Tool,
 } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type as arkType } from "@linxiraos/pi-omptype";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { withEnv, withOfficialAnthropicEndpoint } from "./helpers";
 

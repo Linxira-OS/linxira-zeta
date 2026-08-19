@@ -7,12 +7,7 @@ import {
 	isRetriableConnectionError,
 	MCPTool,
 } from "@linxiraos/zeta/mcp/tool-bridge";
-import type {
-	MCPImageContent,
-	MCPServerConnection,
-	MCPToolCallResult,
-	MCPTransport,
-} from "@linxiraos/zeta/mcp/types";
+import type { MCPImageContent, MCPServerConnection, MCPToolCallResult, MCPTransport } from "@linxiraos/zeta/mcp/types";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 
 // ---------------------------------------------------------------------------

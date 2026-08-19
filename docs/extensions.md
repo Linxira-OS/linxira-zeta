@@ -381,7 +381,7 @@ with a permission error (`EPERM`/`EACCES`/`EROFS` — every other error, such as
 via `pi.registerFileWriteFallback` before giving up:
 
 ```ts
-import type { FileWriteFallbackHandler } from "@oh-my-pi/pi-coding-agent";
+import type { FileWriteFallbackHandler } from "@linxiraos/zeta";
 
 const writeThroughBroker: FileWriteFallbackHandler = async (req, ctx) => {
   // req: { dst: string; content: string; cause: unknown }

@@ -10,17 +10,17 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Patch, Patcher } from "@oh-my-pi/hashline";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getFileSnapshotStore } from "@oh-my-pi/pi-coding-agent/edit/file-snapshot-store";
-import { HashlineFilesystem } from "@oh-my-pi/pi-coding-agent/edit/hashline/filesystem";
-import { writethroughNoop } from "@oh-my-pi/pi-coding-agent/lsp";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { formatBytes } from "@oh-my-pi/pi-coding-agent/tools/render-utils";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Patch, Patcher } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { getFileSnapshotStore } from "@linxiraos/zeta/edit/file-snapshot-store";
+import { HashlineFilesystem } from "@linxiraos/zeta/edit/hashline/filesystem";
+import { writethroughNoop } from "@linxiraos/zeta/lsp";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import type { ReadToolDetails } from "@linxiraos/zeta/tools/read";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { formatBytes } from "@linxiraos/zeta/tools/render-utils";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content

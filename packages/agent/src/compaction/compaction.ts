@@ -31,8 +31,8 @@ import { buildResponsesInput, resolveOpenAICompatPolicy } from "@linxiraos/pi-ai
 import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@linxiraos/pi-ai/utils";
 import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
-import { isRecord, logger, prompt, stringifyJson } from "@linxiraos/pi-utils";
 import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { isRecord, logger, prompt, stringifyJson } from "@linxiraos/pi-utils";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import { ThinkingLevel } from "../thinking";
 import { countTokens } from "../tokenizer";

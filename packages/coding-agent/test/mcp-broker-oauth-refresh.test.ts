@@ -19,18 +19,23 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, type OAuthCredential, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
+import {
+	AuthStorage,
+	type OAuthCredential,
+	REMOTE_REFRESH_SENTINEL,
+	SqliteAuthCredentialStore,
+} from "@linxiraos/pi-ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
 	RemoteAuthCredentialStore,
 	startAuthBroker,
-} from "@oh-my-pi/pi-ai/auth-broker";
-import { refreshBrokerOAuthCredential } from "@oh-my-pi/pi-coding-agent/cli/auth-broker-cli";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import { mcpOAuthCredentialId } from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/auth-broker";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { refreshBrokerOAuthCredential } from "@linxiraos/zeta/cli/auth-broker-cli";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { mcpOAuthCredentialId } from "@linxiraos/zeta/mcp/oauth-flow";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
 import type { Server } from "bun";
 
 const SERVER_URL = "https://mcp.granola.ai/mcp";
