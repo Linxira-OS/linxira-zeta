@@ -75,14 +75,14 @@ describe("update command plugin dispatch", () => {
 		const command = new Update(["--check", "--force"], TEST_CONFIG);
 		await command.run();
 
-		expect(updateSpy).toHaveBeenCalledWith({ force: true, check: true });
+		expect(updateSpy).toHaveBeenCalledWith({ force: true, check: true, yes: false });
 		expect(pluginSpy).not.toHaveBeenCalled();
 	});
 });
 
 describe("parseUpdateArgs", () => {
 	it("preserves the legacy plugin update shorthand", () => {
-		expect(parseUpdateArgs(["update", "-l"])).toEqual({ force: false, check: false, plugins: true });
+		expect(parseUpdateArgs(["update", "-l"])).toEqual({ force: false, check: false, yes: false, plugins: true });
 	});
 });
 

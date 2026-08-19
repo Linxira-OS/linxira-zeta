@@ -1408,6 +1408,16 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           return complete({ handled: true, message: "Compacted context" });
         }
 
+        case "plan": {
+          if (!sid) return complete({ handled: true, error: "No active session to start plan mode" });
+          await sendAgentCommand(sid, {
+            type: "enter_plan_mode",
+            ...(args ? { initialPrompt: args } : {}),
+          });
+          if (await loadSession(sid, true)) promoteNewSession();
+          return complete({ handled: true, message: "Plan mode enabled" });
+        }
+
         case "reload": {
           if (!sid) return complete({ handled: true, error: "No active session to reload" });
           await sendAgentCommand(sid, { type: "reload" });

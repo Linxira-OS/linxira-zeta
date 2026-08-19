@@ -31,6 +31,7 @@ export type { WeChatQrStatus } from "./wechat";
  */
 let pendingWechatQr: WeChatQrStatus | null = null;
 let reconnectWechat: (() => Promise<void>) | null = null;
+let unbindWechat: (() => Promise<void>) | null = null;
 
 export function setPendingWechatQr(payload: WeChatQrStatus | null): void {
 	pendingWechatQr = payload;
@@ -48,6 +49,16 @@ export function registerWechatReconnect(fn: (() => Promise<void>) | null): void 
 /** Trigger a fresh QR login on the running WeChat channel, if any. */
 export function triggerWechatReconnect(): Promise<void> | null {
 	return reconnectWechat?.() ?? null;
+}
+
+/** Register the running WeChat channel's unbind hook (zeta-server wires this). */
+export function registerWechatUnbind(fn: (() => Promise<void>) | null): void {
+	unbindWechat = fn;
+}
+
+/** Unbind the running WeChat channel (clears credentials + peer bindings). */
+export function triggerWechatUnbind(): Promise<void> | null {
+	return unbindWechat?.() ?? null;
 }
 
 export interface ChannelRuntime {
@@ -78,7 +89,11 @@ export async function startChannels(
 	wechatQrHandler?: (payload: WeChatQrStatus) => void,
 ): Promise<ChannelRuntime> {
 	const data = webConfig.getData();
-	const host = new ChannelHost(session, (channelId, to, text) => sendText(channelId, to, text));
+	const host = new ChannelHost(
+		session,
+		(channelId, to, text) => sendText(channelId, to, text),
+		data.channels.allowedPeers,
+	);
 	const channels = new Map<ChannelId, ChatChannel>();
 
 	const routeInbound: ChannelInboundHandler =
@@ -118,6 +133,8 @@ export async function startChannels(
 					ilinkBotId: data.channels.wechat.ilinkBotId,
 					ilinkUserId: data.channels.wechat.ilinkUserId,
 					baseUrl: data.channels.wechat.baseUrl,
+					endpoint: data.channels.wechat.endpoint,
+					peerTokens: data.channels.wechat.peerTokens,
 				},
 				webConfig,
 				onMessage: (peer, body, messageId) => routeInbound("wechat", peer, body, messageId),

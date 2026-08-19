@@ -17,7 +17,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
-import { getPendingWechatQr, triggerWechatReconnect } from "../channels";
+import { getPendingWechatQr, triggerWechatReconnect, triggerWechatUnbind } from "../channels";
 import {
 	handleAgentCommand,
 	handleAgentEvents,
@@ -111,6 +111,7 @@ const WEB_CONFIG_RE = /^\/api\/web-config$/;
 const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
 const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
+const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -328,7 +329,7 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 	}
 
 	if (WEB_CONFIG_RE.test(pathname)) {
-		if (req.method === "GET") return handleWebConfigGet();
+		if (req.method === "GET") return handleWebConfigGet(req);
 		if (req.method === "PUT") return handleWebConfigPut(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
@@ -352,6 +353,18 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 		if (!trigger) return json({ error: "WeChat channel is not running" }, 404);
 		try {
 			await trigger;
+			return json({ ok: true });
+		} catch (error) {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+		}
+	}
+
+	if (CHANNELS_WECHAT_UNBIND_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		const unbind = triggerWechatUnbind();
+		if (!unbind) return json({ error: "WeChat channel is not running" }, 404);
+		try {
+			await unbind;
 			return json({ ok: true });
 		} catch (error) {
 			return json({ error: error instanceof Error ? error.message : String(error) }, 500);

@@ -502,7 +502,16 @@ export const SETTINGS_SCHEMA = {
 			condition: "advisorEnabled",
 		},
 	},
-	shellPath: { type: "string", default: undefined },
+	shellPath: {
+		type: "string",
+		default: undefined,
+		ui: {
+			tab: "shell",
+			group: "Bash",
+			label: "Shell Path",
+			description: "Shell binary used by the bash tool (e.g. bash, zsh, pwsh, or an absolute path)",
+		},
+	},
 	"git.enabled": {
 		type: "boolean",
 		default: true,
@@ -1511,7 +1520,16 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Retries
-	"retry.enabled": { type: "boolean", default: true },
+	"retry.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "interaction",
+			group: "Retry & Fallback",
+			label: "Automatic Retry",
+			description: "Retry failed turns automatically before surfacing the error to you",
+		},
+	},
 
 	"retry.maxRetries": {
 		type: "number",
@@ -2111,6 +2129,12 @@ export const SETTINGS_SCHEMA = {
 	"stt.language": {
 		type: "string",
 		default: "en",
+		ui: {
+			tab: "interaction",
+			group: "Speech",
+			label: "Speech Language",
+			description: "Speech-to-text recognition language (e.g. en, zh-CN)",
+		},
 	},
 
 	"stt.modelName": {
@@ -2298,9 +2322,28 @@ export const SETTINGS_SCHEMA = {
 	// chose one, so small-window recovery may swap in the proportional reserve
 	// (see resolveBudgetReserveTokens). A materialized 16384 here would make
 	// every session look explicitly configured.
-	"compaction.reserveTokens": { type: "number", default: undefined },
+	"compaction.reserveTokens": {
+		type: "number",
+		default: undefined,
+		ui: {
+			tab: "context",
+			group: "Compaction",
+			label: "Reserved Tokens",
+			description:
+				"Token budget reserved for the summary when compacting; leave unset for the automatic proportional reserve",
+		},
+	},
 
-	"compaction.keepRecentTokens": { type: "number", default: 20000 },
+	"compaction.keepRecentTokens": {
+		type: "number",
+		default: 20000,
+		ui: {
+			tab: "context",
+			group: "Compaction",
+			label: "Keep Recent Tokens",
+			description: "Most recent tokens kept verbatim when compacting; older context is summarized",
+		},
+	},
 
 	"compaction.autoContinue": { type: "boolean", default: true },
 
@@ -4821,7 +4864,16 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Skills
-	"skills.enabled": { type: "boolean", default: true },
+	"skills.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tasks",
+			group: "Commands & Skills",
+			label: "Skills",
+			description: "Enable skill discovery and loading (SKILL.md workflows)",
+		},
+	},
 
 	"skills.enableSkillCommands": {
 		type: "boolean",
@@ -5506,6 +5558,12 @@ export const SETTINGS_SCHEMA = {
 	"searxng.categories": {
 		type: "string",
 		default: undefined,
+		ui: {
+			tab: "providers",
+			group: "Services",
+			label: "Search Categories",
+			description: "Comma-separated SearXNG categories (e.g. general, images, news)",
+		},
 	},
 
 	"searxng.engines": {
@@ -5516,11 +5574,23 @@ export const SETTINGS_SCHEMA = {
 	"searxng.language": {
 		type: "string",
 		default: undefined,
+		ui: {
+			tab: "providers",
+			group: "Services",
+			label: "Search Language",
+			description: "Search result language (e.g. en, zh-CN, or all)",
+		},
 	},
 
 	"searxng.safesearch": {
 		type: "number",
 		default: undefined,
+		ui: {
+			tab: "providers",
+			group: "Services",
+			label: "Safe Search",
+			description: "SearXNG safe-search level: 0 off, 1 moderate, 2 strict",
+		},
 	},
 
 	"commit.mapReduceEnabled": { type: "boolean", default: true },

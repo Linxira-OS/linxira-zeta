@@ -12,7 +12,13 @@
 
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger } from "@linxiraos/pi-utils";
-import { type ChannelRuntime, registerWechatReconnect, setPendingWechatQr, startChannels } from "../channels";
+import {
+	type ChannelRuntime,
+	registerWechatReconnect,
+	registerWechatUnbind,
+	setPendingWechatQr,
+	startChannels,
+} from "../channels";
 import type { ChannelId, ChatImage } from "../channels/channel";
 import { approveRemotePlan, type PlanApproveMode } from "../channels/plan-approval";
 import { renderPlanToPng } from "../channels/plan-image";
@@ -292,6 +298,7 @@ export class ZetaServer {
 			this.#channelRuntime = null;
 			setPendingWechatQr(null);
 			registerWechatReconnect(null);
+			registerWechatUnbind(null);
 		}
 
 		if (this.#router) {
@@ -453,6 +460,7 @@ export class ZetaServer {
 
 			const wechatChannel = this.#channelRuntime.channels.get("wechat");
 			registerWechatReconnect(wechatChannel instanceof WeChatChannel ? () => wechatChannel.reconnect() : null);
+			registerWechatUnbind(wechatChannel instanceof WeChatChannel ? () => wechatChannel.unbind() : null);
 
 			runtimeRef = this.#channelRuntime;
 			logger.info("IM channels started", { count: this.#channelRuntime.channels.size });

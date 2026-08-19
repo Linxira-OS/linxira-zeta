@@ -33,6 +33,15 @@ interface FeishuTextEventData {
 	};
 }
 
+/** `bot_p2p_chat_entered` v2 event payload (first contact in a private chat). */
+interface FeishuP2pEnteredData {
+	chat_id?: string;
+	event?: { chat_id?: string };
+}
+
+const P2P_ONBOARDING_TEXT =
+	"你好！我是 Zeta 助手。发送消息即可开始对话。\n\nHello! I'm the Zeta assistant. Send a message to start chatting.";
+
 export class FeishuChannel implements ChatChannel {
 	readonly id = "feishu" as const;
 	readonly #options: FeishuChannelOptions;
@@ -69,6 +78,7 @@ export class FeishuChannel implements ChatChannel {
 		const dispatcher = new Lark.EventDispatcher({});
 		dispatcher.register({
 			"im.message.receive_v1": (data: FeishuTextEventData) => this.#onEvent(data),
+			bot_p2p_chat_entered: (data: FeishuP2pEnteredData) => this.#onP2pEntered(data),
 		});
 
 		const ws = new Lark.WSClient({
@@ -117,6 +127,17 @@ export class FeishuChannel implements ChatChannel {
 		if (typeof chatId !== "string" || chatId === "" || text.trim() === "") return;
 		logger.debug("Feishu message received", { chatId, length: text.length });
 		this.#onMessage(chatId, text.trim(), message.message_id);
+	}
+
+	#onP2pEntered(data: FeishuP2pEnteredData): void {
+		const chatId = data.chat_id ?? data.event?.chat_id;
+		if (typeof chatId !== "string" || chatId === "") return;
+		logger.info("Feishu first p2p contact; sending onboarding", { chatId });
+		void this.sendText(chatId, P2P_ONBOARDING_TEXT).catch(error => {
+			logger.warn("Feishu onboarding reply failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		});
 	}
 
 	#requireClient(): Lark.Client {

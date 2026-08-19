@@ -251,6 +251,7 @@ function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 export function ModelErrorBanner({ error }: { error?: string | null }) {
+  const { t } = useI18n();
   if (!error) return null;
   return (
     <div
@@ -288,7 +289,7 @@ export function ModelErrorBanner({ error }: { error?: string | null }) {
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 600 }}>Model error</div>
+        <div style={{ fontWeight: 600 }}>{t("model-error")}</div>
         <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{error}</div>
       </div>
     </div>
@@ -2247,7 +2248,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
                       <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
-                    </svg>{(!isMobile || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>Compact</span>}</>
+                    </svg>{(!isMobile || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{t("compact")}</span>}</>
                   )}
                 </button>
               </div>

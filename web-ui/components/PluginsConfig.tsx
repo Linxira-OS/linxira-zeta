@@ -422,6 +422,7 @@ function PackageDetail({
   onAction: (action: PluginAction, pkg: PluginPackageInfo) => void;
   onReloadSession: () => void;
 }) {
+  const { t } = useI18n();
   const key = packageKey(pkg);
   const busy = busyKey?.endsWith(key) ?? false;
   const reloadBusy = busyKey === "reload";
@@ -512,17 +513,17 @@ function PackageDetail({
           lineHeight: 1.45,
         }}
       >
-        <div style={{ color: "var(--text-dim)" }}>Status</div>
+        <div style={{ color: "var(--text-dim)" }}>{t("status")}</div>
         <div style={{ color: statusColor(pkg.status), textTransform: "capitalize" }}>{pkg.status}</div>
-        <div style={{ color: "var(--text-dim)" }}>Version</div>
+        <div style={{ color: "var(--text-dim)" }}>{t("version")}</div>
         <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{versionSummary(pkg)}</div>
-        <div style={{ color: "var(--text-dim)" }}>Package</div>
+        <div style={{ color: "var(--text-dim)" }}>{t("package")}</div>
         <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>
           {pkg.packageName ?? "Unknown"}
         </div>
-        <div style={{ color: "var(--text-dim)" }}>Resources</div>
+        <div style={{ color: "var(--text-dim)" }}>{t("resources")}</div>
         <div style={{ color: "var(--text-muted)" }}>{resourceSummary(pkg)}</div>
-        <div style={{ color: "var(--text-dim)" }}>Installed path</div>
+        <div style={{ color: "var(--text-dim)" }}>{t("installed-path")}</div>
         <div
           style={{
             color: pkg.installedPath ? "var(--text-muted)" : "#ef4444",

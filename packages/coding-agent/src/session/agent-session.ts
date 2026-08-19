@@ -4870,6 +4870,30 @@ export class AgentSession {
 		}
 	}
 
+	/**
+	 * Enter plan mode (web-gateway path). Mirrors `InteractiveMode.#enterPlanMode`
+	 * minus TUI-only concerns (status line, model transition, journaling): arm
+	 * the plan-mode state, ensure the `write` tool is active so the agent can
+	 * draft the plan file, wire plan approval, then deliver the optional initial
+	 * prompt (or the plan-mode context when already streaming).
+	 */
+	async enterPlanMode(initialPrompt?: string): Promise<void> {
+		if (this.getPlanModeState()?.enabled) return;
+		const planFilePath = this.getPlanReferencePath() || "local://PLAN.md";
+		const previousTools = this.getEnabledToolNames();
+		const planAugmentations: string[] = [];
+		if (this.hasBuiltInTool("write")) planAugmentations.push("write");
+		const uniquePlanTools = [...new Set([...previousTools, ...planAugmentations])];
+		await this.setActiveToolsByName(uniquePlanTools);
+		this.setPlanModeState({ enabled: true, planFilePath, workflow: "parallel", reentry: false });
+		this.setPlanProposalHandler(title => this.preparePlanForReview(title));
+		if (initialPrompt && initialPrompt.trim() !== "") {
+			await this.steer(initialPrompt.trim());
+		} else if (this.isStreaming) {
+			await this.sendPlanModeContext({ deliverAs: "steer" });
+		}
+	}
+
 	getGoalModeState(): GoalModeState | undefined {
 		return this.#goalModeState;
 	}

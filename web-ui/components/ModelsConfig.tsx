@@ -291,6 +291,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete }: {
   name: string; provider: ProviderEntry;
   onChange: (p: ProviderEntry) => void; onRename: (n: string) => void; onDelete: () => void;
 }) {
+  const { t } = useI18n();
   const [editingName, setEditingName] = useState(name);
   useEffect(() => setEditingName(name), [name]);
   const set = <K extends keyof ProviderEntry>(k: K, v: ProviderEntry[K]) => onChange({ ...provider, [k]: v });
@@ -303,7 +304,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete }: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <SectionTitle>Provider</SectionTitle>
+        <SectionTitle>{t("provider")}</SectionTitle>
         <button onClick={onDelete}
           style={{ padding: "3px 8px", background: "none", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 4, color: "#ef4444", cursor: "pointer", fontSize: 11 }}>
           Delete
@@ -516,6 +517,7 @@ function ModelDetail({
   onChange: (m: ModelEntry) => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   const [testState, setTestState] = useState<ModelTestState>({ phase: "idle" });
   const set = <K extends keyof ModelEntry>(k: K, v: ModelEntry[K]) => onChange({ ...model, [k]: v });
   const costVal = (k: keyof NonNullable<ModelEntry["cost"]>) => model.cost?.[k] !== undefined ? String(model.cost[k]) : "";
@@ -662,7 +664,7 @@ function ModelDetail({
           />
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <SectionTitle>Thinking level map</SectionTitle>
+              <SectionTitle>{t("thinking-level-map")}</SectionTitle>
               {model.thinkingLevelMap && (
                 <button
                   onClick={() => set("thinkingLevelMap", undefined)}
@@ -708,6 +710,7 @@ function ModelDetail({
 // ── OAuth detail ──────────────────────────────────────────────────────────────
 
 function OAuthDetail({ provider, onRefresh }: { provider: OAuthProvider; onRefresh: () => void }) {
+  const { t } = useI18n();
   const [loginState, setLoginState] = useState<OAuthLoginState>({ phase: "idle" });
   const [inputValue, setInputValue] = useState("");
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -833,7 +836,7 @@ function OAuthDetail({ provider, onRefresh }: { provider: OAuthProvider; onRefre
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <SectionTitle>Subscription</SectionTitle>
+        <SectionTitle>{t("subscription")}</SectionTitle>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: provider.loggedIn ? "#4ade80" : "var(--border)", display: "inline-block" }} />
           <span style={{ fontSize: 11, color: provider.loggedIn ? "#4ade80" : "var(--text-dim)" }}>
@@ -1438,6 +1441,12 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
   const activeOAuth = oauthProviders.filter((p) => p.loggedIn);
   const activeApiKey = apiKeyProviders.filter((p) => p.configured);
 
+  // A provider configured through the CLI auth stores (OAuth/api-key) must not
+  // render twice — the models.yml entry for the same id is the duplicate. Keep
+  // the configured managed card, hide the custom copy.
+  const managedIds = new Set<string>([...activeOAuth.map((p) => p.id), ...activeApiKey.map((p) => p.id)]);
+  const customProviders = providers.filter(([pName]) => !managedIds.has(pName));
+
   // Resolve current detail
   const detailContent = (() => {
     if (!selection) return null;
@@ -1591,14 +1600,14 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
               })}
 
               {/* Divider before custom providers, only when there are active managed providers */}
-              {(activeOAuth.length > 0 || activeApiKey.length > 0) && providers.length > 0 && (
+              {(activeOAuth.length > 0 || activeApiKey.length > 0) && customProviders.length > 0 && (
                 <div style={{ margin: "4px 8px", borderTop: "1px solid var(--border)" }} />
               )}
 
               {/* Custom providers */}
               {loading ? (
                 <div style={{ padding: "10px 8px", fontSize: 12, color: "var(--text-muted)" }}>Loading…</div>
-              ) : providers.map(([pName, pData]) => {
+              ) : customProviders.map(([pName, pData]) => {
                 const isProviderSelected = selection?.type === "provider" && selection.name === pName;
                 const models = pData.models ?? [];
                 return (

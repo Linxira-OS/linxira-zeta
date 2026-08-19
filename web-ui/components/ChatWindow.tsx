@@ -15,6 +15,7 @@ import { sendAgentCommand } from "@/lib/agent-client";
 import { useAudio } from "@/hooks/useAudio";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useI18n } from "@/hooks/useI18n";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 import {
   captureScrollDistance,
@@ -181,6 +182,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messag
 }
 
 export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile }: Props) {
+  const { t } = useI18n();
   const { soundEnabled, onSoundToggle, playDoneSound, unlockAudio } = useAudio();
   const isMobile = useIsMobile();
   // Chat / trajectory toggle for the message area (trajectory is derived).
@@ -516,7 +518,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
             >
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, minWidth: 0, flex: 1, lineHeight: 1.4, overflow: "hidden" }}>
                 <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: 0, color: "var(--text)", flexShrink: 0, whiteSpace: "nowrap" }}>ζ</span>
-                <span style={{ fontSize: 22, color: "var(--text)", fontWeight: 700, letterSpacing: 0, flexShrink: 0, whiteSpace: "nowrap" }}>Zeta Web</span>
+                <span style={{ fontSize: 22, color: "var(--text)", fontWeight: 700, letterSpacing: 0, flexShrink: 0, whiteSpace: "nowrap" }}>{t("zeta-web")}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
                 <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -1192,6 +1194,7 @@ function ExtensionCustomPanel({
   request: ExtensionCustomRequest;
   onInput: (request: ExtensionCustomRequest, data: string) => void;
 }) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const displayLines = normalizeCustomPanelLines(request.lines);
@@ -1280,7 +1283,7 @@ function ExtensionCustomPanel({
           }}
         />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 12px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ color: "var(--text)", fontSize: 13, fontWeight: 650 }}>Extension panel</div>
+          <div style={{ color: "var(--text)", fontSize: 13, fontWeight: 650 }}>{t("extension-panel")}</div>
           <button
             onClick={() => onInput(request, "\x03")}
             style={{

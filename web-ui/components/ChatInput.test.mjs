@@ -9,12 +9,15 @@ const jiti = createJiti(import.meta.url, {
   tsconfigPaths: true,
 });
 const { ChatInput, ModelErrorBanner } = await jiti.import("./ChatInput.tsx");
+const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 
 test("renders the upstream model error", () => {
   const html = renderToStaticMarkup(
-    React.createElement(ModelErrorBanner, {
-      error: "Invalid models.json schema:\nproviders.custom.models.0.id must not be empty",
-    }),
+    React.createElement(I18nProvider, null,
+      React.createElement(ModelErrorBanner, {
+        error: "Invalid models.json schema:\nproviders.custom.models.0.id must not be empty",
+      }),
+    ),
   );
 
   assert.match(html, /role="alert"/);
@@ -23,22 +26,24 @@ test("renders the upstream model error", () => {
 });
 
 test("does not render an empty model error", () => {
-  assert.equal(renderToStaticMarkup(React.createElement(ModelErrorBanner, { error: null })), "");
+  assert.equal(renderToStaticMarkup(React.createElement(I18nProvider, null, React.createElement(ModelErrorBanner, { error: null }))), "");
 });
 
 test("keeps the model selector visible when a model error leaves no options", () => {
   const html = renderToStaticMarkup(
-    React.createElement(ChatInput, {
-      onSend() {},
-      onAbort() {},
-      onModelChange() {},
-      isStreaming: false,
-      modelError: "Invalid models.json schema",
-      modelList: [],
-      modelNames: {},
-    }),
+    React.createElement(I18nProvider, null,
+      React.createElement(ChatInput, {
+        onSend() {},
+        onAbort() {},
+        onModelChange() {},
+        isStreaming: false,
+        modelError: "Invalid models.json schema",
+        modelList: [],
+        modelNames: {},
+      }),
+    ),
   );
 
   assert.match(html, />No models</);
-  assert.match(html, /title="No available models"/);
+  assert.match(html, /title="No models available \(failed to load\)"/);
 });

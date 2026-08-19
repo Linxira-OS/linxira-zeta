@@ -23,6 +23,7 @@ let serviceLogFd: number | null = null;
 let serviceOwned = false;
 let quitting = false;
 let mainWindow: BrowserWindow | null = null;
+let statsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
 // ---------------------------------------------------------------------------
@@ -294,7 +295,26 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 interface TrayPrefs {
 	minimizeToTray: boolean;
 	autostart: boolean;
+	desktopLabels: DesktopLabels;
 }
+
+interface DesktopLabels {
+	showWindow: string;
+	statsDashboard: string;
+	openSettings: string;
+	quit: string;
+	webUi: string;
+	reload: string;
+}
+
+const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
+	showWindow: "Show Window",
+	statsDashboard: "Stats Dashboard",
+	openSettings: "Open Settings",
+	quit: "Quit",
+	webUi: "Web UI",
+	reload: "Reload",
+};
 
 /**
  * Read tray/autostart preferences from the gateway's /api/web-config over HTTP.
@@ -303,19 +323,49 @@ interface TrayPrefs {
  */
 async function readTrayPrefs(): Promise<TrayPrefs> {
 	try {
-		const response = await fetch(`${WEB_UI_URL}/api/web-config`);
+		const response = await fetch(`${WEB_UI_URL}/api/web-config`, {
+			headers: { "x-zeta-locale": app.getLocale() },
+		});
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		const data = (await response.json()) as {
 			tray?: { minimizeToTray?: boolean; autostart?: boolean };
+			desktopLabels?: Partial<DesktopLabels>;
 		};
 		return {
 			minimizeToTray: data.tray?.minimizeToTray ?? true,
 			autostart: data.tray?.autostart ?? false,
+			desktopLabels: { ...DEFAULT_DESKTOP_LABELS, ...data.desktopLabels },
 		};
 	} catch (err) {
 		writeDesktopLog(`Could not read tray preferences: ${err instanceof Error ? err.message : String(err)}`);
-		return { minimizeToTray: true, autostart: false };
+		return { minimizeToTray: true, autostart: false, desktopLabels: DEFAULT_DESKTOP_LABELS };
 	}
+}
+
+/**
+ * Open the stats dashboard in its own window. The main window always stays on
+ * the Web UI; navigating it to the stats SPA left no way back (the app menu
+ * is hidden in tray mode).
+ */
+function openStatsWindow(): void {
+	if (statsWindow && !statsWindow.isDestroyed()) {
+		if (statsWindow.isMinimized()) statsWindow.restore();
+		statsWindow.show();
+		statsWindow.focus();
+		return;
+	}
+	statsWindow = new BrowserWindow({
+		width: 1280,
+		height: 800,
+		autoHideMenuBar: true,
+		title: "Zeta Stats",
+	});
+	statsWindow.on("closed", () => {
+		statsWindow = null;
+	});
+	statsWindow.loadURL(STATS_URL).catch((err: unknown) => {
+		writeDesktopLog(`Could not load stats dashboard: ${err instanceof Error ? err.message : String(err)}`);
+	});
 }
 
 function trayIcon(): Electron.NativeImage {
@@ -327,12 +377,12 @@ function trayIcon(): Electron.NativeImage {
 	return nativeImage.createEmpty();
 }
 
-function createTray(): void {
+function createTray(labels: DesktopLabels): void {
 	if (tray) return;
 	tray = new Tray(trayIcon());
 	const contextMenu = Menu.buildFromTemplate([
 		{
-			label: "Show Window",
+			label: labels.showWindow,
 			click: () => {
 				if (!mainWindow) return;
 				if (mainWindow.isMinimized()) mainWindow.restore();
@@ -340,11 +390,11 @@ function createTray(): void {
 				mainWindow.focus();
 			},
 		},
-		{ label: "Stats Dashboard", click: () => mainWindow?.loadURL(STATS_URL) },
-		{ label: "Open Settings", click: () => mainWindow?.loadURL(`${WEB_UI_URL}/settings`) },
+		{ label: labels.statsDashboard, click: () => openStatsWindow() },
+		{ label: labels.openSettings, click: () => mainWindow?.loadURL(`${WEB_UI_URL}/settings`) },
 		{ type: "separator" },
 		{
-			label: "Quit",
+			label: labels.quit,
 			click: () => {
 				quitting = true;
 				app.quit();
@@ -375,17 +425,17 @@ function applyAutostart(enabled: boolean): void {
 	}
 }
 
-function buildMenu(): void {
+function buildMenu(labels: DesktopLabels): void {
 	const template: Electron.MenuItemConstructorOptions[] = [
 		{
 			label: "Zeta",
 			submenu: [
-				{ label: "Web UI", accelerator: "CmdOrCtrl+1", click: () => mainWindow?.loadURL(WEB_UI_URL) },
-				{ label: "Stats Dashboard", accelerator: "CmdOrCtrl+2", click: () => mainWindow?.loadURL(STATS_URL) },
+				{ label: labels.webUi, accelerator: "CmdOrCtrl+1", click: () => mainWindow?.loadURL(WEB_UI_URL) },
+				{ label: labels.statsDashboard, accelerator: "CmdOrCtrl+2", click: () => openStatsWindow() },
 				{ type: "separator" },
-				{ label: "Reload", accelerator: "CmdOrCtrl+R", click: () => mainWindow?.webContents.reload() },
+				{ label: labels.reload, accelerator: "CmdOrCtrl+R", click: () => mainWindow?.webContents.reload() },
 				{ type: "separator" },
-				{ label: "Quit", accelerator: "CmdOrCtrl+Q", click: () => app.quit() },
+				{ label: labels.quit, accelerator: "CmdOrCtrl+Q", click: () => app.quit() },
 			],
 		},
 	];
@@ -456,8 +506,8 @@ async function boot(): Promise<void> {
 
 	const prefs = await readTrayPrefs();
 	applyAutostart(prefs.autostart);
-	buildMenu();
-	createTray();
+	buildMenu(prefs.desktopLabels);
+	createTray(prefs.desktopLabels);
 	createWindow(prefs);
 }
 
@@ -471,6 +521,7 @@ if (!app.hasSingleInstanceLock()) {
 	app.on("second-instance", () => {
 		if (mainWindow) {
 			if (mainWindow.isMinimized()) mainWindow.restore();
+			mainWindow.show();
 			mainWindow.focus();
 		}
 	});

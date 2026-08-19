@@ -24,6 +24,7 @@ export const PI_CLI_BUILTIN_SLASH_COMMANDS: ReadonlyArray<PiCliSlashCommand> = [
   { name: "logout", description: "Remove provider authentication" },
   { name: "new", description: "Start a new session" },
   { name: "compact", description: "Manually compact the session context" },
+  { name: "plan", description: "Start plan mode", argumentHint: "<task>" },
   { name: "resume", description: "Resume a different session" },
   { name: "reload", description: "Reload keybindings, extensions, skills, prompts, themes, and context files" },
   { name: "quit", description: "Quit" },

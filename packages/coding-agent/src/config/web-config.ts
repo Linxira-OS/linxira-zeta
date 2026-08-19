@@ -26,6 +26,10 @@ export interface WeChatChannelConfig extends WebConfigChannelBase {
 	ilinkBotId?: string;
 	ilinkUserId?: string;
 	baseUrl?: string;
+	/** New `/api/v1/wechat` API host (defaults to the shared ilink host). */
+	endpoint?: string;
+	/** Persisted peer → context_token map so bindings survive restarts. */
+	peerTokens?: Record<string, string>;
 }
 
 export interface FeishuChannelConfig extends WebConfigChannelBase {
@@ -47,6 +51,9 @@ export interface WebConfigData {
 		wechat: WeChatChannelConfig;
 		feishu: FeishuChannelConfig;
 		telegram: TelegramChannelConfig;
+		/** Optional allowlist of peers (channel-agnostic ids) allowed to talk to
+		 *  the agent; empty = everyone (default, unchanged behavior). */
+		allowedPeers?: string[];
 	};
 	remote: {
 		host?: string;
@@ -69,12 +76,13 @@ const DEFAULT_DATA: WebConfigData = {
 /** Paths that must never be revealed through the gateway; masked as "••••". */
 const SECRET_PATHS: Record<string, true> = {
 	"channels.wechat.botToken": true,
+	"channels.wechat.peerTokens": true,
 	"channels.feishu.appSecret": true,
 	"channels.telegram.botToken": true,
 	"remote.token": true,
 };
 
-type LeafType = "boolean" | "string" | "domain" | "strings";
+type LeafType = "boolean" | "string" | "domain" | "strings" | "record";
 
 /** Known dot paths → expected leaf type (for PUT validation). */
 const KNOWN_PATHS: Record<string, LeafType> = {
@@ -85,6 +93,9 @@ const KNOWN_PATHS: Record<string, LeafType> = {
 	"channels.wechat.ilinkBotId": "string",
 	"channels.wechat.ilinkUserId": "string",
 	"channels.wechat.baseUrl": "string",
+	"channels.wechat.endpoint": "string",
+	"channels.wechat.peerTokens": "record",
+	"channels.allowedPeers": "strings",
 	"channels.feishu.enabled": "boolean",
 	"channels.feishu.appId": "string",
 	"channels.feishu.appSecret": "string",
@@ -114,6 +125,16 @@ function validateValue(leafType: LeafType, value: unknown): void {
 		case "strings":
 			if (!Array.isArray(value) || value.some(item => typeof item !== "string")) {
 				throw new Error("Expected an array of strings");
+			}
+			return;
+		case "record":
+			if (
+				typeof value !== "object" ||
+				value === null ||
+				Array.isArray(value) ||
+				Object.values(value).some(item => typeof item !== "string")
+			) {
+				throw new Error("Expected a record of strings");
 			}
 			return;
 	}
@@ -221,8 +242,16 @@ export class WebConfig {
 			}
 			if (reached) {
 				const leaf = segments[segments.length - 1];
-				if (typeof current[leaf] === "string" && current[leaf] !== "") {
+				const value = current[leaf];
+				if (typeof value === "string" && value !== "") {
 					current[leaf] = "••••";
+				} else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+					// Record leaves (e.g. wechat peerTokens) mask every value.
+					for (const key of Object.keys(value as Record<string, unknown>)) {
+						if (typeof (value as Record<string, unknown>)[key] === "string") {
+							(value as Record<string, unknown>)[key] = "••••";
+						}
+					}
 				}
 			}
 		}

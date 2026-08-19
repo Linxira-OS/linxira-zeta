@@ -6,6 +6,7 @@ import { vs } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { useTheme } from "@/hooks/useTheme";
 import { useCodeTheme } from "@/hooks/useCodeTheme";
+import { useI18n } from "@/hooks/useI18n";
 import { copyText } from "@/lib/clipboard";
 
 interface MermaidBlockProps {
@@ -24,6 +25,7 @@ type RenderState =
   | { key: string; status: "ready"; svg: string };
 
 export function MermaidBlock({ code, isStreaming, defaultPreview = false }: MermaidBlockProps) {
+  const { t } = useI18n();
   const { isDark } = useTheme();
   const [showPreview, setShowPreview] = useState(defaultPreview);
   const [renderState, setRenderState] = useState<RenderState | null>(null);
@@ -85,7 +87,7 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
   }
 
   const body = renderState?.key === currentKey && renderState.status === "error" ? (
-      <div className="mermaid-block mermaid-block-error">Invalid Mermaid diagram</div>
+      <div className="mermaid-block mermaid-block-error">{t("invalid-mermaid-diagram")}</div>
     ) : renderState?.key !== currentKey || renderState.status !== "ready" ? (
       <div className="mermaid-block mermaid-block-loading" aria-label="Rendering Mermaid diagram" />
     ) : (
@@ -116,6 +118,7 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
 }
 
 function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void }) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [zoom, setZoom] = useState(1);
 
@@ -150,7 +153,7 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
     >
       <div className="mermaid-zoom-layout">
         <div className="mermaid-zoom-toolbar">
-          <span className="mermaid-zoom-title">Mermaid diagram</span>
+          <span className="mermaid-zoom-title">{t("mermaid-diagram")}</span>
           <div className="mermaid-zoom-actions">
             <div className="mermaid-zoom-stepper">
               <button

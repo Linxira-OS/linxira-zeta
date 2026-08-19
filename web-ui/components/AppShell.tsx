@@ -79,6 +79,9 @@ function AppShellContent() {
     editors: string[];
   } | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateNotice, setUpdateNotice] = useState<string | null>(null);
+  const updateNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [updateInfo, setUpdateInfo] = useState<{
     current: string;
     latest: string;
@@ -167,13 +170,22 @@ function AppShellContent() {
 
   // "Update" button: check → confirm → download → install → prompt restart.
   const handleCheckUpdate = useCallback(async () => {
+    setCheckingUpdate(true);
     try {
       const response = await fetch("/api/update/check");
       if (!response.ok) return;
       setUpdateInfo((await response.json()) as { current: string; latest: string; available: boolean });
     } catch {
       // Gateway unavailable; leave the button silent.
+    } finally {
+      setCheckingUpdate(false);
     }
+  }, []);
+
+  const showUpdateNotice = useCallback((message: string) => {
+    setUpdateNotice(message);
+    if (updateNoticeTimerRef.current) clearTimeout(updateNoticeTimerRef.current);
+    updateNoticeTimerRef.current = setTimeout(() => setUpdateNotice(null), 2000);
   }, []);
 
   const handleRunUpdate = useCallback(async () => {
@@ -783,18 +795,26 @@ function AppShellContent() {
               </button>
               <button
                 onClick={() => {
+                  if (checkingUpdate) return;
                   if (updateInfo) {
                     if (updateInfo.available && window.confirm(`Update Zeta to ${updateInfo.latest}?`)) {
                       void handleRunUpdate();
                     } else {
+                      showUpdateNotice(t("you-are-up-to-date"));
                       setUpdateInfo(null);
                     }
                   } else {
                     void handleCheckUpdate();
                   }
                 }}
-                disabled={updating}
-                title={updateInfo && updateInfo.available ? `Update available: ${updateInfo.latest}` : "Check for updates"}
+                disabled={updating || checkingUpdate}
+                title={
+                  checkingUpdate
+                    ? "Checking for updates…"
+                    : updateInfo && updateInfo.available
+                      ? `Update available: ${updateInfo.latest}`
+                      : "Check for updates"
+                }
                 style={{
                   display: "flex", alignItems: "center", gap: 6,
                   height: "100%", padding: "0 12px",
@@ -802,17 +822,38 @@ function AppShellContent() {
                   border: "none",
                   borderTop: "2px solid transparent",
                   borderRight: "1px solid var(--border)",
-                  cursor: updating ? "default" : "pointer",
+                  cursor: updating || checkingUpdate ? "default" : "pointer",
                   color: updateInfo?.available ? "var(--accent)" : "var(--text-muted)",
                   fontSize: 11, whiteSpace: "nowrap",
-                  opacity: updating ? 0.5 : 1,
+                  opacity: updating || checkingUpdate ? 0.5 : 1,
                 }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 12a9 9 0 1 1-9-9" /><polyline points="21 3 21 9 15 9" />
                 </svg>
-                {!isMobile && <span>{updateInfo && updateInfo.available ? `v${updateInfo.latest}` : "Update"}</span>}
+                {!isMobile && (
+                  <span>{checkingUpdate ? t("checking-for-updates") : updateInfo && updateInfo.available ? `v${updateInfo.latest}` : "Update"}</span>
+                )}
               </button>
+              {updateNotice && (
+                <div
+                  style={{
+                    position: "fixed",
+                    top: 40,
+                    right: 16,
+                    zIndex: 400,
+                    background: "var(--bg-panel)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                    padding: "8px 12px",
+                    fontSize: 12,
+                    color: "var(--text)",
+                  }}
+                >
+                  {updateNotice}
+                </div>
+              )}
               {openMenuOpen && openOptions && (
                 <div
                   style={{
@@ -846,7 +887,7 @@ function AppShellContent() {
                     </button>
                   ))}
                   {!openOptions.terminal && !openOptions.explorer && openOptions.editors.length === 0 && (
-                    <div style={{ padding: "6px 10px", color: "var(--text-dim)", fontSize: 12 }}>No apps found</div>
+                    <div style={{ padding: "6px 10px", color: "var(--text-dim)", fontSize: 12 }}>{t("no-apps-found")}</div>
                   )}
                 </div>
               )}
@@ -940,7 +981,7 @@ function AppShellContent() {
                   <line x1="8" y1="13" x2="16" y2="13" />
                   <line x1="8" y1="17" x2="13" y2="17" />
                 </svg>
-                {!isMobile && <span>System</span>}
+                {!isMobile && <span>{t("system")}</span>}
               </button>
             </div>
           )}
@@ -1216,7 +1257,7 @@ function AppShellContent() {
                     };
                     const sessionInfoSection = (
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>Session Info</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>{t("session-info")}</div>
                         <div style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr) auto", columnGap: 12, rowGap: 8, alignItems: "start" }}>
                           {sessionRows.map((row) => (
                             <div key={`session-info:${row.label}`} style={{ display: "contents" }}>
@@ -1299,7 +1340,7 @@ function AppShellContent() {
               role="alert"
               style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 24, color: "var(--text-muted)", textAlign: "center" }}
             >
-              <div style={{ fontSize: 14, color: "var(--status-error-foreground)" }}>Unable to open workspace</div>
+              <div style={{ fontSize: 14, color: "var(--status-error-foreground)" }}>{t("unable-to-open-workspace")}</div>
               <div style={{ maxWidth: "min(720px, 100%)", overflowWrap: "anywhere", fontFamily: "var(--font-mono)", fontSize: 12 }}>
                 {initialNavigation.requestedCwd}
               </div>

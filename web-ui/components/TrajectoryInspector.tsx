@@ -1,6 +1,7 @@
 "use client";
 
 import type { AgentMessage } from "../lib/types";
+import { useI18n } from "@/hooks/useI18n";
 
 interface Props {
   /** Original session entry JSON for the selected message. */
@@ -16,6 +17,7 @@ interface Props {
  * view — the trajectory table is derived, not a verbatim transcript.
  */
 export function TrajectoryInspector({ entryJson, derived, onClose }: Props) {
+  const { t } = useI18n();
   let rawText: string;
   try {
     rawText = JSON.stringify(entryJson, null, 2);
@@ -53,7 +55,7 @@ export function TrajectoryInspector({ entryJson, derived, onClose }: Props) {
           color: "var(--text)",
         }}
       >
-        <span>Step inspector</span>
+        <span>{t("step-inspector")}</span>
         <button
           onClick={onClose}
           aria-label="Close inspector"

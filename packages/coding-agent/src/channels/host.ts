@@ -45,13 +45,15 @@ function assistantText(message: AssistantMessage | undefined): string {
 export class ChannelHost {
 	readonly #session: AgentSession;
 	readonly #send: ChannelSendFn;
+	readonly #allowedPeers: readonly string[];
 	#pending: PendingReply[] = [];
 	#unsubscribe: (() => void) | null = null;
 	#lastInbound: { channelId: ChannelId; peer: string } | null = null;
 
-	constructor(session: AgentSession, send: ChannelSendFn) {
+	constructor(session: AgentSession, send: ChannelSendFn, allowedPeers?: readonly string[]) {
 		this.#session = session;
 		this.#send = send;
+		this.#allowedPeers = allowedPeers ?? [];
 	}
 
 	get session(): AgentSession {
@@ -84,6 +86,12 @@ export class ChannelHost {
 	 * bind the sender so the turn's final reply returns to them.
 	 */
 	async deliver(channelId: ChannelId, peer: string, body: string): Promise<void> {
+		// Optional allowlist: when configured, only listed peers may reach the
+		// agent (empty allowlist = everyone, unchanged behavior).
+		if (this.#allowedPeers.length > 0 && !this.#allowedPeers.includes(peer)) {
+			logger.debug("Channel message from non-allowed peer dropped", { channel: channelId, peer });
+			return;
+		}
 		const agentId = this.#session.getAgentId();
 		if (!agentId) throw new Error("Session has no agent id");
 		const msg: IrcMessage = {

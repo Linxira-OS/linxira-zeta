@@ -180,6 +180,7 @@ function WebSettingsSection({
     status?: string;
   }>({ pending: false });
   const [reconnecting, setReconnecting] = useState(false);
+  const [unbinding, setUnbinding] = useState(false);
 
   useEffect(() => {
     if (!data.channels.wechat.enabled) {
@@ -203,6 +204,16 @@ function WebSettingsSection({
       await fetch("/api/channels/wechat/reconnect", { method: "POST" });
     } finally {
       setReconnecting(false);
+    }
+  }, []);
+
+  const handleUnbind = useCallback(async () => {
+    setUnbinding(true);
+    try {
+      await fetch("/api/channels/wechat/unbind", { method: "POST" });
+      setWechatQr({ pending: false });
+    } finally {
+      setUnbinding(false);
     }
   }, []);
 
@@ -301,8 +312,6 @@ function WebSettingsSection({
                 {channelId === "wechat" && (
                   <>
                     {secretInput(`channels.wechat.botToken`, "Bot Token")}
-                    {secretInput(`channels.wechat.ilinkBotId`, "iLink Bot ID")}
-                    {secretInput(`channels.wechat.ilinkUserId`, "iLink User ID")}
                     <WebPlainInput path="channels.wechat.baseUrl" value={channel.baseUrl} placeholder="https://ilinkai.weixin.qq.com" onCommit={onCommit} />
                     {wechatQr.pending && (
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -329,24 +338,44 @@ function WebSettingsSection({
                                   ? "QR expired — reconnect"
                                   : "Scan with WeChat to log in"}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => void handleReconnect()}
-                            disabled={reconnecting}
-                            style={{
-                              padding: "5px 9px",
-                              background: "none",
-                              border: "1px solid var(--border)",
-                              borderRadius: 5,
-                              color: "var(--text-muted)",
-                              cursor: reconnecting ? "default" : "pointer",
-                              fontSize: 11.5,
-                              opacity: reconnecting ? 0.5 : 1,
-                              width: "fit-content",
-                            }}
-                          >
-                            {reconnecting ? "Connecting…" : "Reconnect"}
-                          </button>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => void handleReconnect()}
+                              disabled={reconnecting}
+                              style={{
+                                padding: "5px 9px",
+                                background: "none",
+                                border: "1px solid var(--border)",
+                                borderRadius: 5,
+                                color: "var(--text-muted)",
+                                cursor: reconnecting ? "default" : "pointer",
+                                fontSize: 11.5,
+                                opacity: reconnecting ? 0.5 : 1,
+                                width: "fit-content",
+                              }}
+                            >
+                              {reconnecting ? "Connecting…" : "Reconnect"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleUnbind()}
+                              disabled={unbinding}
+                              style={{
+                                padding: "5px 9px",
+                                background: "none",
+                                border: "1px solid var(--border)",
+                                borderRadius: 5,
+                                color: "#f87171",
+                                cursor: unbinding ? "default" : "pointer",
+                                fontSize: 11.5,
+                                opacity: unbinding ? 0.5 : 1,
+                                width: "fit-content",
+                              }}
+                            >
+                              {unbinding ? "Unbinding…" : "Unbind"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -361,7 +390,7 @@ function WebSettingsSection({
                       onChange={(e) => onCommit("channels.feishu.domain", e.target.value)}
                       style={{ ...inputStyle, width: "auto", minWidth: 120 }}
                     >
-                      <option value="feishu">Feishu</option>
+                      <option value="feishu">{t("feishu")}</option>
                       <option value="lark">Lark</option>
                     </select>
                   </>
@@ -527,6 +556,7 @@ interface SettingRowProps {
 }
 
 function SettingRow({ entry, value, draft, error, pending, revealed, terminalNote, onCommit, onDraft, onReveal }: SettingRowProps) {
+  const { t } = useI18n();
   const wide = entry.type === "providerLimits" || entry.type === "multiselect";
 
   const renderControl = () => {
@@ -653,7 +683,7 @@ function SettingRow({ entry, value, draft, error, pending, revealed, terminalNot
       {entry.description && (
         <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.45 }}>{entry.description}</div>
       )}
-      {terminalNote && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>Takes effect in the terminal CLI</div>}
+      {terminalNote && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("takes-effect-in-the-terminal-cli")}</div>}
       {wide && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
           {pending && <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Saving…</span>}
@@ -848,7 +878,7 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Settings</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{t("settings")}</span>
             <code style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>~/.zeta/agent/config.yml</code>
           </div>
           <button

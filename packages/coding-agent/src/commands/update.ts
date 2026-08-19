@@ -13,12 +13,14 @@ export default class Update extends Command {
 	static flags = {
 		force: Flags.boolean({ char: "f", description: "Force update", default: false }),
 		check: Flags.boolean({ char: "c", description: "Check for updates without installing", default: false }),
+		yes: Flags.boolean({ char: "y", description: "Install updates without prompting", default: false }),
 		plugins: Flags.boolean({ char: "l", description: "Update installed plugins", default: false }),
 	};
 
 	static examples = [
 		"zeta update",
 		"zeta update --check",
+		"zeta update --yes",
 		"# If GitHub rate-limits release metadata, set GITHUB_TOKEN or GH_TOKEN\n  GITHUB_TOKEN=... zeta update",
 	];
 
@@ -28,7 +30,7 @@ export default class Update extends Command {
 		if (flags.plugins) {
 			await pluginCli.runPluginCommand({ action: "upgrade", args: [], flags: {} });
 		} else {
-			await updateCli.runUpdateCommand({ force: flags.force, check: flags.check });
+			await updateCli.runUpdateCommand({ force: flags.force, check: flags.check, yes: flags.yes });
 		}
 	}
 }

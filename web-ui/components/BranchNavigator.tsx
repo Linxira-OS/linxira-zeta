@@ -302,7 +302,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           aria-pressed={open}
         >
           {branchIcon}
-          {!compact && <span>Branches</span>}
+          {!compact && <span>{t("branches")}</span>}
         </button>
         {open && dropdownPos && (
           <div style={{
@@ -359,7 +359,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
         }}
       >
         {branchIcon}
-        <span style={{ color: "var(--text-muted)" }}>Branches</span>
+        <span style={{ color: "var(--text-muted)" }}>{t("branches")}</span>
         {chevron}
       </button>
 

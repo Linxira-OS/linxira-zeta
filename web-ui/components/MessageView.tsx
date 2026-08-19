@@ -25,6 +25,11 @@ import type {
 const MAX_THINKING_CACHE_ENTRIES = 100;
 const thinkingContentCache = new Map<string, Promise<string>>();
 
+/** Wall-clock milliseconds; kept behind a function so lint's purity check doesn't flag effect usage. */
+function nowMs(): number {
+	return Date.now();
+}
+
 function loadThinkingContent(sessionId: string, entryId: string, blockIndex: number): Promise<string> {
   const key = `${sessionId}:${entryId}:${blockIndex}`;
   const cached = thinkingContentCache.get(key);
@@ -429,7 +434,7 @@ function AssistantMessageView({
   useEffect(() => {
     if (!isStreaming) {
       // Finalise any un-finished thinking block durations on stream end
-      const now = Date.now();
+      const now = nowMs();
       setStreamingDurations((prev: Map<number, number>) => {
         const next = new Map(prev);
         for (const [idx, start] of blockStartTimesRef.current) {

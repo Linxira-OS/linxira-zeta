@@ -43,6 +43,10 @@ export interface WeChatChannelOptions {
 		ilinkBotId?: string;
 		ilinkUserId?: string;
 		baseUrl?: string;
+		/** New `/api/v1/wechat` API host (defaults to the shared ilink host). */
+		endpoint?: string;
+		/** Persisted peer → context_token bindings restored on start. */
+		peerTokens?: Record<string, string>;
 	};
 	webConfig?: WebConfig;
 	onMessage: WeChatInboundHandler;
@@ -105,8 +109,12 @@ export class WeChatChannel implements ChatChannel {
 		this.#options = options;
 		this.#onMessage = options.onMessage;
 		this.#botToken = options.config.botToken;
-		this.#baseUrl = options.config.baseUrl ?? DEFAULT_BASE_URL;
+		this.#baseUrl = options.config.endpoint ?? options.config.baseUrl ?? DEFAULT_BASE_URL;
 		this.#fetch = options.customFetch ?? globalThis.fetch;
+		// Restore persisted peer bindings so replies keep landing after a restart.
+		for (const [peer, token] of Object.entries(options.config.peerTokens ?? {})) {
+			if (token) this.#contextTokens.set(peer, token);
+		}
 	}
 
 	/** Restart the login/message loop (e.g. user re-triggers QR login from the UI). */
@@ -193,6 +201,88 @@ export class WeChatChannel implements ChatChannel {
 	}
 
 	async #loginFlow(): Promise<void> {
+		// Prefer the newer `/api/v1/wechat` endpoints; fall back to the legacy
+		// iLink `get_bot_qrcode`/`get_qrcode_status` flow when the host does not
+		// expose them (endpoint probing keeps older hosts working).
+		try {
+			await this.#loginFlowV1();
+			return;
+		} catch (error) {
+			logger.warn("WeChat v1 login unavailable; falling back to legacy iLink flow", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+		await this.#loginFlowLegacy();
+	}
+
+	async #loginFlowV1(): Promise<void> {
+		// QR fetch: POST /api/v1/wechat/qrcode (no args) → qrcode_url + token.
+		const qr = await this.#apiPost("api/v1/wechat/qrcode", {});
+		const qrcodeUrl = qr.qrcode_url;
+		const token = qr.token;
+		if (typeof qrcodeUrl !== "string" || qrcodeUrl === "" || typeof token !== "string" || token === "") {
+			throw new Error("WeChat v1 login failed: no qrcode_url/token returned");
+		}
+		this.#options.onQrCode?.({ qrcode: qrcodeUrl, qrcodeUrl, status: "wait" });
+		logger.info("WeChat channel: scan the QR code to log in", { qrcodeUrl });
+
+		while (this.#started && !this.#abort?.signal.aborted) {
+			try {
+				const result = await this.#apiPost("api/v1/wechat/qrcode/status", { token });
+				const status = typeof result.status === "string" ? result.status : "";
+				if (status === "confirmed") {
+					const credentials =
+						(result.data as { credentials?: Record<string, unknown> } | undefined)?.credentials ??
+						(result.credentials as Record<string, unknown> | undefined) ??
+						{};
+					const botToken = credentials.bot_token;
+					const ilinkBotId = credentials.ilink_bot_id;
+					const ilinkUserId = credentials.ilink_user_id;
+					if (typeof botToken !== "string" || botToken === "") {
+						throw new Error("WeChat v1 login confirmed without bot_token");
+					}
+					this.#botToken = botToken;
+					// Restore persisted peer bindings so replies keep landing
+					// in the right chats after a restart.
+					for (const [peer, contextToken] of Object.entries(this.#options.config.peerTokens ?? {})) {
+						if (contextToken) this.#contextTokens.set(peer, contextToken);
+					}
+					const config = this.#options.webConfig;
+					if (config) {
+						await config.set("channels.wechat.botToken", this.#botToken);
+						if (typeof ilinkBotId === "string" && ilinkBotId !== "") {
+							await config.set("channels.wechat.ilinkBotId", ilinkBotId);
+						}
+						if (typeof ilinkUserId === "string" && ilinkUserId !== "") {
+							await config.set("channels.wechat.ilinkUserId", ilinkUserId);
+						}
+					}
+					this.#options.onQrCode?.({ qrcode: qrcodeUrl, qrcodeUrl, status: "confirmed" });
+					logger.info("WeChat channel logged in (v1 API)", { baseUrl: this.#baseUrl });
+					return;
+				}
+				if (status === "expired") {
+					logger.warn("WeChat QR code expired; fetching a fresh one");
+					this.#options.onQrCode?.({ qrcode: qrcodeUrl, qrcodeUrl, status: "expired" });
+					return await this.#loginFlowV1();
+				}
+				this.#options.onQrCode?.({
+					qrcode: qrcodeUrl,
+					qrcodeUrl,
+					status: status === "scaned" ? "scaned" : status === "" ? "wait" : status,
+				});
+				await Bun.sleep(QR_POLL_INTERVAL_MS);
+			} catch (error) {
+				logger.warn("WeChat v1 QR status poll failed", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+				await Bun.sleep(QR_POLL_INTERVAL_MS);
+			}
+		}
+		throw new Error("WeChat login aborted");
+	}
+
+	async #loginFlowLegacy(): Promise<void> {
 		// QR fetch: 2.x POST first, fall back to the 1.0.2 GET shape.
 		let data: Record<string, unknown> | null = null;
 		try {
@@ -284,8 +374,17 @@ export class WeChatChannel implements ChatChannel {
 					if (msg.message_type !== 1) continue;
 					const from = msg.from_user_id;
 					if (typeof from !== "string" || from === "") continue;
-					if (typeof msg.context_token === "string" && msg.context_token !== "") {
+					if (
+						typeof msg.context_token === "string" &&
+						msg.context_token !== "" &&
+						msg.context_token !== this.#contextTokens.get(from)
+					) {
 						this.#contextTokens.set(from, msg.context_token);
+						void this.#persistPeerTokens().catch(error => {
+							logger.warn("WeChat peer-token persistence failed", {
+								error: error instanceof Error ? error.message : String(error),
+							});
+						});
 					}
 					const textItem = (msg.item_list ?? []).find(item => item.type === 1)?.text_item?.text;
 					if (typeof textItem !== "string" || textItem === "") continue;
@@ -317,6 +416,41 @@ export class WeChatChannel implements ChatChannel {
 
 	#contextTokenFor(peer: string): string | undefined {
 		return this.#contextTokens.get(peer);
+	}
+
+	/** Persist the peer → context_token map so bindings survive restarts. */
+	async #persistPeerTokens(): Promise<void> {
+		const config = this.#options.webConfig;
+		if (!config) return;
+		const snapshot: Record<string, string> = {};
+		for (const [peer, token] of this.#contextTokens) {
+			if (token) snapshot[peer] = token;
+		}
+		await config.set("channels.wechat.peerTokens", snapshot);
+	}
+
+	/**
+	 * Unbind the bound peer(s) from this bot: ask the host to reset the channel
+	 * and clear the persisted credentials + peer bindings so the next start
+	 * requires a fresh QR scan.
+	 */
+	async unbind(): Promise<void> {
+		try {
+			await this.#apiPost("api/v1/wechat/channel_reset", {});
+		} catch (error) {
+			logger.warn("WeChat channel_reset failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+		this.#contextTokens.clear();
+		this.#botToken = undefined;
+		const config = this.#options.webConfig;
+		if (config) {
+			await config.set("channels.wechat.peerTokens", {});
+			await config.set("channels.wechat.botToken", "");
+			await config.set("channels.wechat.ilinkBotId", "");
+			await config.set("channels.wechat.ilinkUserId", "");
+		}
 	}
 
 	async sendText(to: string, text: string): Promise<void> {

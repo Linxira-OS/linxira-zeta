@@ -87,6 +87,7 @@ export type AgentCommand =
 	| { type: "set_auto_retry"; enabled: boolean }
 	| { type: "bash"; command: string; excludeFromContext?: boolean }
 	| { type: "abort_bash" }
+	| { type: "enter_plan_mode"; initialPrompt?: string }
 	| { type: "plan_approve"; planFilePath: string; mode: "preserve" | "compact" | "fresh" | "cancel" };
 
 export type ExtensionUiRequest =
@@ -535,6 +536,9 @@ export class AgentSessionWrapper {
 			}
 			case "abort_bash":
 				this.#inner.abortBash();
+				return { ok: true };
+			case "enter_plan_mode":
+				await this.#inner.enterPlanMode(command.initialPrompt);
 				return { ok: true };
 			case "plan_approve": {
 				// Remote (web-ui PlanApproval / IM @plan) plan-approval execution.

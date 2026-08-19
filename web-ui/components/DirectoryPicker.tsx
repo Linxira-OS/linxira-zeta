@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "@/hooks/useI18n";
 
 interface DirectoryEntry {
   name: string;
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export function DirectoryPicker({ onCancel, onSelect, busy = false, error }: Props) {
+  const { t } = useI18n();
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const [currentPath, setCurrentPath] = useState("");
   const [parentDirectory, setParentDirectory] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export function DirectoryPicker({ onCancel, onSelect, busy = false, error }: Pro
       <div className="directory-picker-panel" style={{ width: 520, maxWidth: "calc(100vw - 16px)", height: "min(620px, calc(100dvh - 16px))", maxHeight: "calc(100dvh - 16px)", display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ color: "var(--text)", fontWeight: 700, fontSize: 15 }}>Select directory</div>
+            <div style={{ color: "var(--text)", fontWeight: 700, fontSize: 15 }}>{t("select-directory")}</div>
           </div>
           <button
             type="button"
@@ -163,13 +165,13 @@ export function DirectoryPicker({ onCancel, onSelect, busy = false, error }: Pro
               </button>
             ))
           ) : (
-            <div style={{ padding: 8, color: "var(--text-dim)", fontSize: 11 }}>No subdirectories</div>
+            <div style={{ padding: 8, color: "var(--text-dim)", fontSize: 11 }}>{t("no-subdirectories")}</div>
           )}
           {(loadError || error) && <div style={{ padding: "8px", color: "#dc2626", fontSize: 11 }}>{loadError ?? error}</div>}
         </div>
 
         <div className="directory-picker-footer" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, flexShrink: 0, padding: "10px 18px", borderTop: "1px solid var(--border)" }}>
-          <button className="directory-picker-action" type="button" onClick={onCancel} disabled={busy} style={{ padding: "6px 14px", border: "1px solid var(--border)", borderRadius: 6, background: "none", color: "var(--text-muted)", cursor: busy ? "default" : "pointer", fontSize: 13 }}>Cancel</button>
+          <button className="directory-picker-action" type="button" onClick={onCancel} disabled={busy} style={{ padding: "6px 14px", border: "1px solid var(--border)", borderRadius: 6, background: "none", color: "var(--text-muted)", cursor: busy ? "default" : "pointer", fontSize: 13 }}>{t("cancel")}</button>
           <button
             className="directory-picker-action"
             type="button"

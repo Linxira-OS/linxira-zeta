@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { createInterface } from "node:readline";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { $env, $which, APP_NAME, compareVersions, isEnoent, VERSION } from "@linxiraos/pi-utils";
@@ -353,7 +354,9 @@ export interface BinaryReplacementOptions {
  * Parse update subcommand arguments.
  * Returns undefined if not an update command.
  */
-export function parseUpdateArgs(args: string[]): { force: boolean; check: boolean; plugins: boolean } | undefined {
+export function parseUpdateArgs(
+	args: string[],
+): { force: boolean; check: boolean; yes: boolean; plugins: boolean } | undefined {
 	if (args.length === 0 || args[0] !== "update") {
 		return undefined;
 	}
@@ -361,6 +364,7 @@ export function parseUpdateArgs(args: string[]): { force: boolean; check: boolea
 	return {
 		force: args.includes("--force") || args.includes("-f"),
 		check: args.includes("--check") || args.includes("-c"),
+		yes: args.includes("--yes") || args.includes("-y"),
 		plugins: args.includes("--plugins") || args.includes("-l"),
 	};
 }
@@ -1663,7 +1667,30 @@ function installerHint(): string {
 /**
  * Run the update command.
  */
-export async function runUpdateCommand(opts: { force: boolean; check: boolean }): Promise<void> {
+/**
+ * Interactive yes/no before installing an available update. Non-TTY input
+ * (pipes, CI) defaults to "no" so unattended runs never install implicitly.
+ */
+async function confirmUpdateInstall(version: string): Promise<boolean> {
+	if (!process.stdin.isTTY) return false;
+	const rl = createInterface({ input: process.stdin, output: process.stdout });
+	const { promise, resolve } = Promise.withResolvers<boolean>();
+	let settled = false;
+	const settle = (result: boolean) => {
+		if (settled) return;
+		settled = true;
+		rl.close();
+		resolve(result);
+	};
+	rl.question(`Install update to ${version}? [y/N] `, answer => {
+		const normalized = answer.trim().toLowerCase();
+		settle(normalized === "y" || normalized === "yes");
+	});
+	rl.on("close", () => settle(false));
+	return promise;
+}
+
+export async function runUpdateCommand(opts: { force: boolean; check: boolean; yes: boolean }): Promise<void> {
 	console.log(chalk.dim(`Current version: ${VERSION}`));
 
 	// Check for updates
@@ -1693,6 +1720,14 @@ export async function runUpdateCommand(opts: { force: boolean; check: boolean })
 
 	if (opts.check) {
 		// Just check, don't install
+		return;
+	}
+
+	// A plain `zeta update` must not install without explicit consent: confirm
+	// interactively (default no) unless --yes was passed. Forced reinstalls of
+	// an already-current install (--force) keep going without a prompt.
+	if (comparison > 0 && !opts.yes && !(await confirmUpdateInstall(release.version))) {
+		console.log(chalk.dim("Update cancelled."));
 		return;
 	}
 
@@ -1759,6 +1794,7 @@ ${chalk.bold("Usage:")}
 ${chalk.bold("Options:")}
   -c, --check     Check for updates without installing
   -f, --force     Force reinstall even if up to date
+  -y, --yes       Install updates without prompting
   -l, --plugins   Update installed plugins
 
 ${chalk.bold("Examples:")}

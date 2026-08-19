@@ -373,4 +373,20 @@ describe("AgentSession plan-mode convergence", () => {
 		expect(harness.session.getPlanModeState()).toBeUndefined();
 		expect(harness.session.getActiveToolNames()).toEqual(["read"]);
 	});
+
+	it("T0: enterPlanMode arms plan mode, keeps write active, and wires plan approval", async () => {
+		const harness = await createPlanSession([]);
+		// The harness pre-arms plan mode; clear it so this test exercises the
+		// web-gateway entry path (`/plan` → enter_plan_mode → session.enterPlanMode).
+		harness.session.setPlanModeState(undefined);
+		expect(harness.session.getPlanModeState()?.enabled).not.toBe(true);
+
+		await harness.session.enterPlanMode();
+
+		const state = harness.session.getPlanModeState();
+		expect(state?.enabled).toBe(true);
+		expect(state?.planFilePath).toBeTruthy();
+		expect(harness.session.getActiveToolNames()).toContain("write");
+		expect(harness.session.peekPlanProposalHandler()).toBeDefined();
+	});
 });
