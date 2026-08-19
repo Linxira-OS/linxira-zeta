@@ -26,12 +26,29 @@ export interface WorkspaceRouterDeps {
 	sendText(text: string): Promise<void>;
 	/** Called when the message is NOT a workspace command. */
 	fallback(body: string, peer: string): Promise<void>;
+	/** Start a remote plan-mode request (`@plan <title>`) on the coordinator. */
+	planRequest(title: string): Promise<void>;
 }
 
 const PREFIX = "@workspace";
+const PLAN_PREFIX = "@plan";
 
 export async function routeWorkspaceCommand(body: string, peer: string, deps: WorkspaceRouterDeps): Promise<void> {
 	const trimmed = body.trim();
+	if (trimmed.toLowerCase().startsWith(PLAN_PREFIX)) {
+		const title = trimmed.slice(PLAN_PREFIX.length).trim();
+		if (!title) {
+			await deps.sendText("Usage: @plan <task title>");
+			return;
+		}
+		await deps.sendText("已开始制定计划…");
+		// Fire-and-forget: the coordinator's planning turn runs in the
+		// background and delivers the finished plan when it lands.
+		void deps.planRequest(title).catch(error => {
+			deps.sendText(`计划启动失败: ${error instanceof Error ? error.message : String(error)}`).catch(() => {});
+		});
+		return;
+	}
 	if (!trimmed.toLowerCase().startsWith(PREFIX)) {
 		return deps.fallback(body, peer);
 	}

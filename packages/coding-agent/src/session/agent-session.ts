@@ -956,6 +956,12 @@ export class AgentSession {
 		});
 	}
 
+	/** Public read access to a session-local plan file (used by the web gateway
+	 *  to surface plan content for the remote PlanApproval preview). */
+	async getPlanFileContent(planFilePath: string): Promise<string | null> {
+		return this.#readPlanFile(planFilePath);
+	}
+
 	/** `local://` URLs of plan files in the session-local root, newest first —
 	 *  a fallback for `resolveApprovedPlan` when the agent dropped `extra.title`. */
 	async #listPlanFiles(): Promise<string[]> {
