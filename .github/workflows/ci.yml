@@ -788,9 +788,14 @@ jobs:
       if: "${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.rust_validate.result != 'failure' &&
          needs.native_addons.result == 'success' &&
-         (github.event.inputs.skip_tests == 'true'
-            ? (needs.test_workspace.result != 'failure' && needs.test_coding_agent_singleton.result != 'failure' && needs.test_ts_native.result != 'failure' && needs.test_coding_agent_ui.result != 'failure' && needs.test_coding_agent_runtime.result != 'failure' && needs.test_coding_agent_native.result != 'failure' && needs.test_smoke.result != 'failure' && needs.install_methods.result != 'failure')
-            : (needs.test_workspace.result == 'success' && needs.test_coding_agent_singleton.result == 'success' && needs.test_ts_native.result == 'success' && needs.test_coding_agent_ui.result == 'success' && needs.test_coding_agent_runtime.result == 'success' && needs.test_coding_agent_native.result == 'success' && needs.test_smoke.result == 'success' && needs.install_methods.result == 'success')) &&
+         (needs.test_workspace.result == 'success' || needs.test_workspace.result == 'skipped') &&
+         (needs.test_coding_agent_singleton.result == 'success' || needs.test_coding_agent_singleton.result == 'skipped') &&
+         (needs.test_ts_native.result == 'success' || needs.test_ts_native.result == 'skipped') &&
+         (needs.test_coding_agent_ui.result == 'success' || needs.test_coding_agent_ui.result == 'skipped') &&
+         (needs.test_coding_agent_runtime.result == 'success' || needs.test_coding_agent_runtime.result == 'skipped') &&
+         (needs.test_coding_agent_native.result == 'success' || needs.test_coding_agent_native.result == 'skipped') &&
+         (needs.test_smoke.result == 'success' || needs.test_smoke.result == 'skipped') &&
+         (needs.install_methods.result == 'success' || needs.install_methods.result == 'skipped') &&
          needs.check.result == 'success' &&
          needs.desktop_linux.result == 'success' &&
          needs.desktop_windows.result == 'success' && needs.desktop_mac.result == 'success' }}"
