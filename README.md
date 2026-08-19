@@ -10,6 +10,10 @@ Zeta is a Bun-native coding agent distribution built on the OMP runtime. It
 keeps the terminal workflow fast and direct while owning its package namespace,
 product presentation, release policy, and future local web workspace.
 
+## Update Log
+
+Release history (v1.0.9 and earlier): [UPDATE-LOG.md](UPDATE-LOG.md)
+
 ## Start Here
 
 From a source checkout:
