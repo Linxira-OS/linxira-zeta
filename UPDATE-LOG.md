@@ -1,5 +1,17 @@
 # Zeta 更新日志
 
+## v1.1.10（未发布）
+
+### 同步基线
+
+- 当前基于 **OMP 17.3.8**（`858f7dd91f`）。
+- 完整合并 OMP 17.3.8 官方 tag（分支 `zeta/v1.1.10-17.3.8`，合并提交 `2bf455c9c3`，`git merge-base --is-ancestor` 已验证），59 个冲突按 AGENTS.md 政策表解决：
+  - 保留 Zeta 包名/版本（`@linxiraos/*` @ 1.0.9、workspace 1.0.9、native sentinel `__piNativesV1_0_9`）。
+  - 接受上游依赖图（`bun.lock` 以 `@linxiraos/*` 名重新生成、`Cargo.lock` 经 `cargo metadata` 对齐）。
+  - 上游实现 + Zeta 覆盖（i18n 键、`.zeta` 路径、`@linxiraos` 导入、Zeta 特性）逐文件保留；测试按 tests-as-contract 成对接受并适配 `.omp` → `.zeta`。
+  - `issue-887-repro.test.ts` 保留（上游删除），其 qwen3.7-max 断言随 17.3.8 `models.json` 路由更新。
+- 合并分支待 CI 通过后并入 `main`（随 v1.1.10 release 节奏）。
+
 ## v1.0.9（2026-08-19）
 
 ### 新增
