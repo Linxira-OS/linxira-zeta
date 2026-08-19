@@ -271,6 +271,64 @@ merge. No version bump, no tag, no release.
   export retained). Branch CI required before merging to `main`; no version
   bump, no tag on the branch.
 
+### Pending: v17.3.8 (branch `zeta/v1.1.10-17.3.8`)
+
+- Prior baseline: `v17.3.5` at `37eee71978951fccf66b21f7e3e2b74596ac9d74`
+  (worktree `temp/sync-v17.3.8`).
+- Source: `refs/tags/v17.3.8` at
+  `858f7dd91fff9b84cf8a2c6a6bb85aa0e6d03a55` (verified with `git ls-remote
+  --tags omp-upstream refs/tags/v17.3.8`; upstream `main` == tag HEAD).
+- Zeta start: `6980aa1a70`; integration branch: `zeta/v1.1.10-17.3.8`;
+  tag merge commit: `2bf455c9c3`; follow-up Zeta adaptation commits:
+  `99690bdd72` (brand/package overlay) and `1264454571` (issue-887 test
+  adaptation). `git merge-base --is-ancestor v17.3.8 HEAD` verified.
+- Merge-tree: 59 conflicts, all resolved per the AGENTS.md policy table:
+  - `bun.lock` / `Cargo.lock` / `Cargo.toml`: upstream dependency graph with
+    Zeta versions (`bun.lock` regenerated under `@linxiraos/*` names via
+    `bun install`; `Cargo.lock` reconciled via `cargo metadata` at 1.0.9;
+    `Cargo.toml` workspace `version = "1.0.9"` kept).
+  - Native sentinel: `__piNativesV1_0_9` kept in `lib.rs` + `index.js`;
+    `index.d.ts` rebuilt from upstream declarations (upstream content is a
+    superset: Zeta's file had the same declarations duplicated — a prior
+    generation artifact — deduplicated to upstream's single set + Zeta
+    sentinel).
+  - Root `package.json`: restored `@linxiraos/*` catalog keys @ 1.0.9
+    (auto-merge had taken upstream's `@oh-my-pi/*` @ 17.3.8).
+  - Workspace `package.json` files: 43 duplicate `@oh-my-pi/*` deps dropped
+    (each verified to have a `@linxiraos` twin); `@larksuiteoapi/node-sdk`
+    restored (Zeta feishu channel; upstream manifest dropped it).
+  - Source files (`packages/ai`, `agent`, `catalog`, `coding-agent`):
+    upstream implementation accepted; Zeta deltas preserved — i18n keys
+    (`M.*` in `mcp-command-controller` 198 keys, `builtin-session` 62,
+    `settings-selector` 24), `@linxiraos/*` imports, `.zeta` paths, Zeta
+    features (`serve`/`web` command entries, `#requestRender` defensive
+    renderer, `localizeOptions` zh localization).
+  - Tests-as-contract: upstream test bodies accepted with Zeta adaptations
+    (`.omp` → `.zeta`, `@oh-my-pi` → `@linxiraos`). `issue-887-repro.test.ts`
+    kept (upstream deleted it) with one assertion updated: upstream 17.3.8
+    regenerated `models.json` routing `qwen3.7-max`/`qwen3.7-plus`/
+    `qwen3.8-max` on opencode-go from `anthropic-messages` to
+    `openai-completions` (3-model consistent metadata change); the kept test
+    now asserts the merged routing while still protecting the minimax/qwen3.x
+    override map.
+  - `.omp` path adaptations recorded: `omp-plugins.test.ts` (`.omp/settings.json`
+    → `.zeta`), `lsp-regressions.test.ts` comment (`~/.omp/agent` →
+    `~/.zeta/agent`), `update-cli.test.ts` mock registry URL
+    (`@oh-my-pi/pi-coding-agent` → `@linxiraos/zeta`), `docs/extensions.md`
+    import example (`@oh-my-pi/pi-coding-agent` → `@linxiraos/zeta`).
+  - Tree-wide `@oh-my-pi/*` → `@linxiraos/*` sweep for 31 upstream-added or
+    auto-merged files (new upstream files carrying un-rebranded imports;
+    these resolved through main's node_modules and broke worktree type
+    checking).
+- Local checks: `bun run check:ts` green (all workspaces + biome lint);
+  `check:rs` environment-blocked on this Windows host (no MSVC linker/SDK) —
+  covered by CI. Affected conflict tests green; remaining failures
+  (agent.test.ts hang, tui component-render scrollback replay,
+  changelog-static-import, settings-manager symlink, rpc-client.restart)
+  reproduce identically on clean `main` (environmental). `ci:test:smoke`
+  passes (`smoke-test: ok`). Required CI pending before the branch reaches
+  `main`.
+
 ## Pi Runtime Ports
 
 Never run `git merge pi-upstream/main` into Zeta. Pi and OMP intentionally
