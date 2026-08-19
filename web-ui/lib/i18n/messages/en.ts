@@ -91,5 +91,12 @@ export const enLocale: LocalePlugin = {
     "web-channel-domain": "Domain",
     "web-config-saved": "Saved",
     "web-config-load-failed": "Failed to load web config: ",
+    "web-docs": "About / Usage",
+    "web-docs-title": "Documentation",
+    "web-docs-chapters": "Chapters",
+    "web-docs-manual": "User guide",
+    "web-docs-architecture": "Web UI architecture",
+    "web-docs-api": "Web UI API",
+    "web-docs-not-found": "Document not found.",
   },
 };

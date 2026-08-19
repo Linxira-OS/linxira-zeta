@@ -9,7 +9,9 @@ import { MessageView } from "./MessageView";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
 import { TrajectoryView } from "./TrajectoryView";
+import { PlanApproval } from "./PlanApproval";
 import { useAgentSession, type AgentPhase, type NoticeItem } from "@/hooks/useAgentSession";
+import { sendAgentCommand } from "@/lib/agent-client";
 import { useAudio } from "@/hooks/useAudio";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -84,6 +86,15 @@ function getUserInputText(message: AgentMessage): string | null {
     .join("\n")
     .trim();
   return text.length > 0 ? text : null;
+}
+
+/** Derive a display title from a plan file path (`local://<slug>-plan.md`). */
+function planTitleFromPath(planFilePath: string): string {
+  const lastSegment = planFilePath.split(/[/\\]/).pop() ?? "";
+  const stem = lastSegment.replace(/\.md$/i, "").replace(/-plan$/i, "");
+  const spaced = stem.replace(/[-_]+/g, " ").trim();
+  if (!spaced) return "Plan";
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 function countToolCalls(messages: AgentMessage[], indices: number[]): number {
@@ -204,6 +215,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     notices, extensionDialog, extensionCustomUi, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput,
     isAutoModelSelection,
     agentPhase,
+    planState,
     isNew,
     sessionIdRef, messagesEndRef, scrollContainerRef,
     lastUserMsgRef,
@@ -217,6 +229,16 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsPanelOpen,
   });
   const sessionBusy = agentRunning || bashRunning;
+
+  const handlePlanApprove = useCallback((mode: "preserve" | "compact" | "fresh" | "cancel") => {
+    const sid = sessionIdRef.current;
+    if (!sid || !planState.planFilePath) return;
+    // Blocks until the approved-execution turn finishes; agent_end then
+    // reconciles state and clears the card.
+    void sendAgentCommand(sid, { type: "plan_approve", planFilePath: planState.planFilePath, mode }).catch((e) => {
+      console.error("Failed to approve plan:", e);
+    });
+  }, [planState.planFilePath, sessionIdRef]);
 
   // Register the abort handler for the global Esc shortcut
   useEffect(() => {
@@ -561,6 +583,14 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
             <div style={{ maxWidth: 820, margin: "0 auto" }}>
               <ExtensionStatusBar statuses={extensionStatuses} />
               <ExtensionWidgets widgets={aboveEditorWidgets} />
+              {planState.enabled && planState.planFilePath && (
+                <PlanApproval
+                  planFilePath={planState.planFilePath}
+                  planTitle={planTitleFromPath(planState.planFilePath)}
+                  planMarkdown={planState.planContent ?? ""}
+                  onApprove={handlePlanApprove}
+                />
+              )}
 
             {(() => {
               const toolResultsMap = new Map<string, ToolResultMessage>();

@@ -77,7 +77,25 @@ type AgentStateResponse = {
   extensionStatuses?: ExtensionStatusItem[];
   extensionWidgets?: ExtensionWidgetItem[];
   queuedMessages?: { steering?: string[]; followUp?: string[] } | null;
+  planModeEnabled?: boolean;
+  planFilePath?: string | null;
+  planContent?: string | null;
 };
+
+export interface PlanState {
+  enabled: boolean;
+  planFilePath: string | null;
+  planContent: string | null;
+}
+
+function readPlanState(state: AgentStateResponse | undefined | null): PlanState {
+  if (!state) return { enabled: false, planFilePath: null, planContent: null };
+  return {
+    enabled: state.planModeEnabled === true,
+    planFilePath: state.planFilePath ?? null,
+    planContent: state.planContent ?? null,
+  };
+}
 
 export interface QueuedMessages {
   steering: string[];
@@ -367,6 +385,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [extensionStatuses, setExtensionStatuses] = useState<ExtensionStatusItem[]>([]);
   const [extensionWidgets, setExtensionWidgets] = useState<ExtensionWidgetItem[]>([]);
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessages>({ steering: [], followUp: [] });
+  const [planState, setPlanState] = useState<PlanState>({ enabled: false, planFilePath: null, planContent: null });
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const sessionIdRef = useRef<string | null>(session?.id ?? null);
@@ -514,8 +533,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           if (liveState.extensionStatuses !== undefined) setExtensionStatuses(liveState.extensionStatuses ?? []);
           if (liveState.extensionWidgets !== undefined) setExtensionWidgets(liveState.extensionWidgets ?? []);
           if (liveState.queuedMessages !== undefined) setQueuedMessages(normalizeQueuedMessages(liveState.queuedMessages));
+          setPlanState(readPlanState(liveState));
         } else if (!agentState.running) {
           setQueuedMessages({ steering: [], followUp: [] });
+          setPlanState({ enabled: false, planFilePath: null, planContent: null });
         }
         return agentState;
       } catch (e) {
@@ -942,6 +963,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
               // Aborted turns can leave messages queued in pi (delivered with the
               // next turn); dead wrapper (no state) means the queue is gone.
               setQueuedMessages(normalizeQueuedMessages(d.state?.queuedMessages));
+              setPlanState(readPlanState(d.state));
             })
             .catch(() => {});
         }
@@ -1724,6 +1746,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           if (agentState.state.extensionStatuses !== undefined) setExtensionStatuses(agentState.state.extensionStatuses ?? []);
           if (agentState.state.extensionWidgets !== undefined) setExtensionWidgets(agentState.state.extensionWidgets ?? []);
           if (agentState.state.queuedMessages !== undefined) setQueuedMessages(normalizeQueuedMessages(agentState.state.queuedMessages));
+          setPlanState(readPlanState(agentState.state));
         }
       });
     }
@@ -1834,6 +1857,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     notices: noticeState.visible, extensionDialog, extensionCustomUi, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput,
     isAutoModelSelection: isNew && newSessionModel === null,
     agentPhase,
+    planState,
     isNew,
     // Refs
     sessionIdRef, eventSourceRef, messagesEndRef, scrollContainerRef,

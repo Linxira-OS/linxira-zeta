@@ -91,5 +91,12 @@ export const zhCNLocale: LocalePlugin = {
     "web-channel-domain": "域名",
     "web-config-saved": "已保存",
     "web-config-load-failed": "加载 Web 配置失败：",
+    "web-docs": "关于 / 使用",
+    "web-docs-title": "文档",
+    "web-docs-chapters": "章节",
+    "web-docs-manual": "用户手册",
+    "web-docs-architecture": "Web UI 架构",
+    "web-docs-api": "Web UI API",
+    "web-docs-not-found": "文档不存在。",
   },
 };

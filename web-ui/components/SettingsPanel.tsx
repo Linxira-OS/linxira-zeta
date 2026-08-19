@@ -13,6 +13,7 @@ import {
   type SettingsResponse,
   type WebConfigData,
 } from "@/lib/settings-client";
+import { DocsPanel } from "./DocsPanel";
 
 // Tabs with full inline editing. The remaining tabs render read-only rows
 // (label + current value) with a CLI /settings hint until a later phase.
@@ -696,7 +697,7 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
       setValues(Object.fromEntries(next.settings.map((s): [string, unknown] => [s.path, s.value])));
       setDrafts({});
       setErrors({});
-      setActiveTab((cur) => (cur === "web" || next.tabs.some((tab) => tab.id === cur) ? cur : next.tabs[0]?.id ?? "appearance"));
+      setActiveTab((cur) => (cur === "web" || cur === "docs" || next.tabs.some((tab) => tab.id === cur) ? cur : next.tabs[0]?.id ?? "appearance"));
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err));
     }
@@ -903,12 +904,34 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
             >
               {t("web-bot")}
             </button>
+            <button
+              key="docs"
+              type="button"
+              onClick={() => setActiveTab("docs")}
+              aria-pressed={activeTab === "docs"}
+              style={{
+                padding: "5px 11px",
+                border: "none",
+                borderRadius: 7,
+                cursor: "pointer",
+                fontSize: 12,
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                marginLeft: 4,
+                background: activeTab === "docs" ? "var(--bg-selected)" : "transparent",
+                color: activeTab === "docs" ? "var(--text)" : "var(--text-muted)",
+              }}
+            >
+              {t("web-docs")}
+            </button>
           </div>
         )}
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
-          {activeTab === "web" ? (
+          {activeTab === "docs" ? (
+            <DocsPanel locale={locale} t={t} />
+          ) : activeTab === "web" ? (
             webData ? (
               <WebSettingsSection
                 data={webData}

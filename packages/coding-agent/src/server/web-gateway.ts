@@ -35,6 +35,7 @@ import {
 	handleLogout,
 	handleOAuthProviders,
 } from "./web-gateway/auth";
+import { handleDocsGet } from "./web-gateway/docs";
 import {
 	handleModels,
 	handleModelsConfigGet,
@@ -107,6 +108,7 @@ const PLUGINS_RE = /^\/api\/plugins$/;
 const SETTINGS_RE = /^\/api\/settings$/;
 const SETTINGS_RELOAD_RE = /^\/api\/settings\/reload$/;
 const WEB_CONFIG_RE = /^\/api\/web-config$/;
+const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
 const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
 
@@ -328,6 +330,12 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 	if (WEB_CONFIG_RE.test(pathname)) {
 		if (req.method === "GET") return handleWebConfigGet();
 		if (req.method === "PUT") return handleWebConfigPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const docs = capture(pathname, DOCS_RE);
+	if (docs) {
+		if (req.method === "GET") return handleDocsGet(req, docs[0]);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

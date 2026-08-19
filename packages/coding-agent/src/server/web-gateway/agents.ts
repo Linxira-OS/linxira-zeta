@@ -163,6 +163,8 @@ export interface AgentState {
 	queuedMessages: { steering: string[]; followUp: string[] };
 	planModeEnabled: boolean;
 	planFilePath: string | null;
+	/** Plan file body when plan mode is active (web-ui PlanApproval preview). */
+	planContent?: string;
 }
 
 export interface ToolEntry {
@@ -328,11 +330,18 @@ export class AgentSessionWrapper {
 	 * streams its own events: the runtime session's isStreaming flag tracks
 	 * provider streaming, which covers the web-ui's isPromptRunning intent.
 	 */
-	#getState(): AgentState {
+	async #getState(): Promise<AgentState> {
 		const inner = this.#inner;
 		const model = inner.model;
 		const state = inner.agent.state;
 		const queued = inner.getQueuedMessages();
+		const planState = inner.getPlanModeState();
+		const planEnabled = planState?.enabled === true;
+		const planFilePath = planState?.planFilePath ?? null;
+		let planContent: string | undefined;
+		if (planEnabled && planFilePath) {
+			planContent = (await inner.getPlanFileContent(planFilePath)) ?? undefined;
+		}
 		return {
 			sessionId: this.realSessionId,
 			sessionName: inner.sessionManager.getSessionName() ?? "",
@@ -350,8 +359,9 @@ export class AgentSessionWrapper {
 				placement: widget.placement,
 			})),
 			queuedMessages: { steering: [...queued.steering], followUp: [...queued.followUp] },
-			planModeEnabled: inner.getPlanModeState()?.enabled ?? false,
-			planFilePath: inner.getPlanModeState()?.planFilePath ?? null,
+			planModeEnabled: planEnabled,
+			planFilePath,
+			planContent,
 		};
 	}
 
