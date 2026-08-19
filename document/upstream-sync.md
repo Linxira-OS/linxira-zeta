@@ -271,7 +271,7 @@ merge. No version bump, no tag, no release.
   export retained). Branch CI required before merging to `main`; no version
   bump, no tag on the branch.
 
-### Pending: v17.3.8 (branch `zeta/v1.1.10-17.3.8`)
+### Merged: v17.3.8 (branch `zeta/v1.1.10-17.3.8`)
 
 - Prior baseline: `v17.3.5` at `37eee71978951fccf66b21f7e3e2b74596ac9d74`
   (worktree `temp/sync-v17.3.8`).
@@ -323,11 +323,13 @@ merge. No version bump, no tag, no release.
 - Local checks: `bun run check:ts` green (all workspaces + biome lint);
   `check:rs` environment-blocked on this Windows host (no MSVC linker/SDK) —
   covered by CI. Affected conflict tests green; remaining failures
-  (agent.test.ts hang, tui component-render scrollback replay,
+  `agent.test.ts` hang, tui component-render scrollback replay,
   changelog-static-import, settings-manager symlink, rpc-client.restart)
   reproduce identically on clean `main` (environmental). `ci:test:smoke`
-  passes (`smoke-test: ok`). Required CI pending before the branch reaches
-  `main`.
+  passes (`smoke-test: ok`).
+- Merged into `main` as `76588be094` (clean, no conflicts; follow-up fix
+  commit `82309f384d` lands on top with the 17.3.8 content). Ancestry
+  re-verified on `main`. Released as Zeta `v1.0.10`.
 
 ## Pi Runtime Ports
 
