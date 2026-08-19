@@ -28,7 +28,8 @@ on:
          - "bunfig.toml"
          - "package.json"
          - "patches/**"
-         - ".github/**"
+         # CI/workflow config changes are verified by workflow_dispatch only —
+         # never by a self-triggered full run. push stays a code quality gate.
    pull_request:
       branches: [main]
       paths:
@@ -53,7 +54,8 @@ on:
          - "bunfig.toml"
          - "package.json"
          - "patches/**"
-         - ".github/**"
+         # CI/workflow config changes are verified by workflow_dispatch only —
+         # never by a self-triggered full run. push stays a code quality gate.
    workflow_dispatch:
       inputs:
          skip_tests:

@@ -167,11 +167,45 @@ mechanics, or internal plans (never shipped) it belongs in `document/`.
   stage publish` + maintainer 2FA approval) is the recommended pairing for
   CI-originated publishes. Every published package uses the `@linxiraos/*` name —
   no `@linxiraos/*` or legacy names, and no `.omp` compatibility packages.
-- **The `@linxiraos` publish chain is not yet live** (no `@linxiraos/pi-*` has ever
-  been published; `web-ui` depends on `@linxiraos/pi-agent-core` etc. at
-  `1.0.0`, which 404s until the first release). Opening it is a strategic
-  prerequisite: first real release, then desktop CI and standalone web-ui
-  installs can resolve from the registry.
+- **The `@linxiraos` publish chain is live** (v1.0.9 published 2026-08-19 via
+  trusted publishing; `web-ui` depends on `@linxiraos/pi-agent-core` etc. at
+  `1.0.0`, which 404s until those are first published — align versions at
+  first web-ui release).
+
+### Trigger discipline (push is a quality gate, never a publish path)
+
+- `push` to `main` runs quality checks only (check + test suites); it never
+  publishes. Only a release run — a `v*` tag at HEAD detected by
+  `release_metadata` — enters the build/publish chain.
+- `.github/**` is deliberately **excluded** from the `on.push` /
+  `on.pull_request` path filters: CI/workflow config changes never self-trigger
+  a full run. They are verified by `workflow_dispatch` instead (using
+  `skip_tests` / `build_only` as needed). Before any dispatch, the change must
+  be functionally complete and locally validated — never dispatch half-done
+  work, and never trigger CI for a simple documentation/config push.
+- Release runs are entered only through two channels:
+  1. `bun scripts/release-v2.ts <version>` — atomic bump commit + `v*` tag push
+     on `main`; the push run detects the tag and runs the full gate
+     (tests + build + publish).
+  2. `gh workflow run ci.yml --ref main` with `skip_tests` / `build_only` —
+     release-only dispatches that skip the test suites and/or skip publishing.
+- Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
+  gated on `release_quality_gate` (tests, `skip_tests`-exempt) and
+  `release_build_gate` (all release artifacts present). `build_only=true`
+  builds artifacts without publishing.
+- Test-suite failures in a push run are environment flakes (e.g. singleton
+  `broker-idle-shutdown`, julia prelude kernel) unless proven otherwise; a
+  release run gates on its own test results, never on unrelated push runs.
+
+### Release tags require an update log
+
+- Every Zeta release tag (`v*`) MUST update the root `UPDATE-LOG.md` in the
+  same release: version, date, added/fixed/removed items, and the OMP sync
+  baseline (which OMP tag the release is based on, or "not synced"). This is a
+  release-blocking rule — do not tag a version without its `UPDATE-LOG.md`
+  entry, mirroring the per-package `CHANGELOG.md` requirement.
+- `UPDATE-LOG.md` entries are written at release time and committed with (or
+  before) the version bump.
 
 ## Default Context
 
