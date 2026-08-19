@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added remote `@plan <title>` support to IM channels: the coordinator enters plan mode, delivers the finished plan to the phone as an image (text fallback), and executes it on a numbered reply (1 preserve / 2 compact / 3 fresh / 4 cancel).
+- Added `GET /api/docs/<path>` gateway endpoint serving the packaged Markdown corpus, plus an "About / Usage" docs tab in the web-ui settings panel (user guide, web-ui architecture, gateway API; language follows the UI).
+- Surfaced plan content in the web gateway's `get_state` (`planContent`) so the web-ui renders the PlanApproval card and can approve via `plan_approve`.
+- Added web-ui architecture/API docs and bilingual user guides, packaged with the product (`docs/web-ui/`, `docs/user-guide*.md`).
+
+### Fixed
+
+- Hardened `setup-system-deps` against hung apt mirror fetches (canonical archive mirror, kill-after timeouts, bounded retries) and capped the `install_methods` job timeout.
+- Aligned the update-cli recovery hint with the Zeta install URL (`github.com/Linxira-OS/linxira-zeta`).
+
 ## [1.0.8] - 2026-08-18
 
 ## [17.3.5] - 2026-08-16
