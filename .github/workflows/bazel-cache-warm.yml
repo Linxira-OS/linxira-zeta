@@ -45,7 +45,6 @@ on:
          - "rust-toolchain.toml"
          - "rustfmt.toml"
          - "bun.lock"
-         - ".github/**"
    workflow_dispatch:
 
 permissions:
