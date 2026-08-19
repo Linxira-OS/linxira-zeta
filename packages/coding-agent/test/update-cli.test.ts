@@ -468,7 +468,9 @@ describe("migrateRenamedInstall transaction", () => {
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const { steps, calls } = scriptedSteps({ install: [0, 0], verify: [false, false] });
 
-		await expect(migrateRenamedInstall(release, steps)).rejects.toThrow("curl -fsSL https://omp.sh/install");
+		await expect(migrateRenamedInstall(release, steps)).rejects.toThrow(
+			"curl -fsSL https://github.com/Linxira-OS/linxira-zeta | sh",
+		);
 		expect(calls).toEqual(["install", "removeOld", "verify", "install", "verify"]);
 	});
 });

@@ -22,18 +22,23 @@ runs:
              echo "System deps already present (preloaded runner image); skipping apt."
              exit 0
            fi
-           # Azure-hosted runners list azure.archive.ubuntu.com first; when that
-           # mirror hangs (seen as repeated `Ign:` retries), a bare `apt-get
-           # update` stalls until the job's own timeout. Bound per-mirror waits,
-           # cap each attempt with a hard `timeout` so a wedged apt cannot block
-           # the job, and retry the whole fetch so transient mirror failures fail
-           # over to archive.ubuntu.com instead of blocking the job for minutes.
+           # GitHub-hosted runners prefer azure.archive.ubuntu.com, which
+           # intermittently stalls on large fetches (repeated `Ign:`/silent
+           # hangs). Point apt at the canonical archive mirror first so a
+           # healthy source is always used; the timeout/retry loop below is the
+           # fallback for genuinely unreachable network.
+           sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true
+           # Bound per-mirror waits, cap each attempt with a hard `timeout`
+           # (kill-after guarantees the SIGKILL if apt ignores SIGTERM), and
+           # retry the whole fetch so transient mirror failures fail over to
+           # archive.ubuntu.com instead of blocking the job for minutes.
            apt_opts=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=2)
            for attempt in 1 2 3; do
-             if timeout 300s sudo apt-get "${apt_opts[@]}" update; then break; fi
+             if timeout -k 30s 120s sudo apt-get "${apt_opts[@]}" update; then break; fi
              echo "apt-get update attempt $attempt failed; retrying in 10s..."
              sleep 10
            done
-           timeout 300s sudo apt-get "${apt_opts[@]}" install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev fd-find ripgrep imagemagick
+           timeout -k 30s 300s sudo apt-get "${apt_opts[@]}" install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev fd-find ripgrep imagemagick
            sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
            sudo ln -sf /usr/bin/convert /usr/local/bin/magick
