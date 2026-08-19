@@ -785,7 +785,7 @@ jobs:
       name: Release validation gate
       # rust_validate is disabled (if: false) and always reports "skipped";
       # treat skipped as pass so the gate is not silently skipped with it.
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+      if: "${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.rust_validate.result != 'failure' &&
          needs.native_addons.result == 'success' &&
          (github.event.inputs.skip_tests == 'true'
@@ -793,7 +793,7 @@ jobs:
             : (needs.test_workspace.result == 'success' && needs.test_coding_agent_singleton.result == 'success' && needs.test_ts_native.result == 'success' && needs.test_coding_agent_ui.result == 'success' && needs.test_coding_agent_runtime.result == 'success' && needs.test_coding_agent_native.result == 'success' && needs.test_smoke.result == 'success' && needs.install_methods.result == 'success')) &&
          needs.check.result == 'success' &&
          needs.desktop_linux.result == 'success' &&
-         needs.desktop_windows.result == 'success' && needs.desktop_mac.result == 'success' }}
+         needs.desktop_windows.result == 'success' && needs.desktop_mac.result == 'success' }}"
       needs: [release_metadata, check, rust_validate, native_addons, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods, desktop_linux, desktop_windows, desktop_mac]
       runs-on: ubuntu-22.04
       steps:
