@@ -606,6 +606,7 @@ jobs:
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      timeout-minutes: 20
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/setup-system-deps

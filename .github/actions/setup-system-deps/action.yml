@@ -12,25 +12,28 @@ runs:
         run: |
            # The preloaded omp-kata runner image bakes these in. Detect that
            # and skip the apt round-trip; otherwise install the exact same set so
-           # stock runners (and any future host) still work.
+           # stock runners (and any future host) still work. Accept either
+           # ImageMagick 7's `magick` or ImageMagick 6's `convert` — an image
+           # that ships only `convert` is still preloaded.
            if command -v fd >/dev/null 2>&1 \
               && command -v rg >/dev/null 2>&1 \
-              && command -v magick >/dev/null 2>&1 \
+              && { command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; } \
               && pkg-config --exists cairo pango 2>/dev/null; then
              echo "System deps already present (preloaded runner image); skipping apt."
              exit 0
            fi
            # Azure-hosted runners list azure.archive.ubuntu.com first; when that
            # mirror hangs (seen as repeated `Ign:` retries), a bare `apt-get
-           # update` stalls until the job's own timeout. Bound per-mirror waits
-           # and retry the whole fetch so transient mirror failures fail over to
-           # archive.ubuntu.com instead of blocking the job for 15 minutes.
-           apt_opts=(-o Acquire::http::Timeout=30 -o Acquire::Retries=3)
+           # update` stalls until the job's own timeout. Bound per-mirror waits,
+           # cap each attempt with a hard `timeout` so a wedged apt cannot block
+           # the job, and retry the whole fetch so transient mirror failures fail
+           # over to archive.ubuntu.com instead of blocking the job for minutes.
+           apt_opts=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=2)
            for attempt in 1 2 3; do
-             if sudo apt-get "${apt_opts[@]}" update; then break; fi
+             if timeout 300s sudo apt-get "${apt_opts[@]}" update; then break; fi
              echo "apt-get update attempt $attempt failed; retrying in 10s..."
              sleep 10
            done
-           sudo apt-get "${apt_opts[@]}" install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev fd-find ripgrep imagemagick
+           timeout 300s sudo apt-get "${apt_opts[@]}" install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev fd-find ripgrep imagemagick
            sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
            sudo ln -sf /usr/bin/convert /usr/local/bin/magick
