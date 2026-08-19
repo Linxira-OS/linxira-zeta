@@ -56,6 +56,10 @@ on:
          - ".github/**"
    workflow_dispatch:
       inputs:
+         skip_tests:
+            description: "Skip test jobs (build/release only)"
+            type: boolean
+            default: false
          skip_npm:
             description: "Skip npm publish"
             type: boolean
@@ -474,7 +478,7 @@ jobs:
       name: Test TS workspace fast
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 20
       steps:
          - uses: actions/checkout@v4
@@ -497,7 +501,7 @@ jobs:
       name: Test coding-agent singleton/global-state (TS)
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 20
       steps:
          - uses: actions/checkout@v4
@@ -515,7 +519,7 @@ jobs:
       name: Test TS native/integration packages
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
          - uses: actions/checkout@v4
@@ -533,7 +537,7 @@ jobs:
       name: Test coding-agent UI/TUI (TS)
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
          - uses: actions/checkout@v4
@@ -551,7 +555,7 @@ jobs:
       name: Test coding-agent runtime/session (TS)
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
          - uses: actions/checkout@v4
@@ -571,7 +575,7 @@ jobs:
       name: Test coding-agent native/unit (TS)
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
          - uses: actions/checkout@v4
@@ -589,7 +593,7 @@ jobs:
       name: Test CLI smoke (TS)
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 15
       steps:
          - uses: actions/checkout@v4
@@ -605,7 +609,7 @@ jobs:
       name: Install method smoke tests
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 20
       steps:
          - uses: actions/checkout@v4
@@ -784,14 +788,11 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.rust_validate.result != 'failure' &&
          needs.native_addons.result == 'success' &&
-         needs.test_workspace.result == 'success' &&
-         needs.test_coding_agent_singleton.result == 'success' &&
-         needs.test_ts_native.result == 'success' &&
-         needs.test_coding_agent_ui.result == 'success' &&
-         needs.test_coding_agent_runtime.result == 'success' &&
-         needs.test_coding_agent_native.result == 'success' &&
-         needs.test_smoke.result == 'success' && needs.check.result == 'success' &&
-         needs.install_methods.result == 'success' && needs.desktop_linux.result == 'success' &&
+         (github.event.inputs.skip_tests == 'true'
+            ? (needs.test_workspace.result != 'failure' && needs.test_coding_agent_singleton.result != 'failure' && needs.test_ts_native.result != 'failure' && needs.test_coding_agent_ui.result != 'failure' && needs.test_coding_agent_runtime.result != 'failure' && needs.test_coding_agent_native.result != 'failure' && needs.test_smoke.result != 'failure' && needs.install_methods.result != 'failure')
+            : (needs.test_workspace.result == 'success' && needs.test_coding_agent_singleton.result == 'success' && needs.test_ts_native.result == 'success' && needs.test_coding_agent_ui.result == 'success' && needs.test_coding_agent_runtime.result == 'success' && needs.test_coding_agent_native.result == 'success' && needs.test_smoke.result == 'success' && needs.install_methods.result == 'success')) &&
+         needs.check.result == 'success' &&
+         needs.desktop_linux.result == 'success' &&
          needs.desktop_windows.result == 'success' && needs.desktop_mac.result == 'success' }}
       needs: [release_metadata, check, rust_validate, native_addons, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods, desktop_linux, desktop_windows, desktop_mac]
       runs-on: ubuntu-22.04
