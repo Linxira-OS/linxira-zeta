@@ -20,11 +20,16 @@ const cargoTomlGlob = new Glob("crates/*/Cargo.toml");
  * Pick the newest Zeta product tag from `git tag --list` output, or null when
  * there is none.
  *
- * OMP release baselines (v17.2.11, …) are annotated tags fetched from upstream
- * and live in main history as sync markers — they are integration baselines,
- * never Zeta versions (Zeta semver is decoupled from OMP's), so they must not
+ * OMP release baselines (v17.2.11, …) live in main history as sync markers —
+ * they are integration baselines, never Zeta versions (Zeta semver is
+ * decoupled from OMP's, which currently rides the 17.x line), so they must not
  * gate a Zeta release. Zeta tags are the lightweight tags this script stamps
  * on `chore: bump version to …` commits; filter on that peeled commit subject.
+ *
+ * Raw OMP tags fetched for a sync keep upstream's own
+ * `chore: bump version to 17.3.x` subject, which matches the bump pattern, so
+ * candidates are also rejected by version: anything at major ≥ 10 is upstream's
+ * line, never a Zeta product tag.
  *
  * The caller must sort with `--sort=-v:refname` so the first match is the
  * newest.
@@ -50,7 +55,12 @@ export function selectLatestZetaTag(tagListOutput: string): string | null {
 		const fields = isNul ? rest.split("\0") : rest.split("%00");
 		const subject = fields[0] ?? "";
 		const peeled = fields[1] ?? "";
-		if (/^chore: bump version to v?\d/.test(subject) || /^chore: bump version to v?\d/.test(peeled)) return name;
+		if (/^chore: bump version to v?\d/.test(subject) || /^chore: bump version to v?\d/.test(peeled)) {
+			// Raw OMP tags fetched for a sync carry upstream's own bump subject;
+			// reject upstream's version line (major >= 10) so only Zeta tags match.
+			const major = Number(name.replace(/^v/, "").split(".")[0]);
+			if (Number.isFinite(major) && major < 10) return name;
+		}
 	}
 	return null;
 }

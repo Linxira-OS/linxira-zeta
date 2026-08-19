@@ -59,6 +59,21 @@ describe("selectLatestZetaTag", () => {
 		expect(selectLatestZetaTag(output)).toBe("v1.0.0");
 	});
 
+	test("ignores raw OMP tags whose bump subject matches (major >= 10)", () => {
+		const output = [
+			"v17.3.8%00test(export): re-pinned html template bytes",
+			"v17.3.7%00chore: bump version to 17.3.7",
+			"v17.3.5%00chore: bump version to 17.3.5",
+			"v1.0.9%00chore: bump version to 1.0.9",
+		].join("\n");
+		expect(selectLatestZetaTag(output)).toBe("v1.0.9");
+	});
+
+	test("returns null when only raw OMP bump tags exist", () => {
+		const output = ["v17.3.7%00chore: bump version to 17.3.7"].join("\n");
+		expect(selectLatestZetaTag(output)).toBe(null);
+	});
+
 	test("returns null for empty or non-matching output", () => {
 		expect(selectLatestZetaTag("")).toBe(null);
 		expect(selectLatestZetaTag("v1.2.3%00Merge PR #1: something")).toBe(null);
