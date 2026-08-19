@@ -60,6 +60,10 @@ on:
             description: "Skip test jobs (build/release only)"
             type: boolean
             default: false
+         build_only:
+            description: "Build release artifacts without publishing (no GitHub release / npm)"
+            type: boolean
+            default: false
          skip_npm:
             description: "Skip npm publish"
             type: boolean
@@ -781,10 +785,13 @@ jobs:
                   temp/desktop/release/*.zip
               if-no-files-found: error
               retention-days: 1
-   release_gate:
-      name: Release validation gate
+   release_quality_gate:
+      name: Release quality gate (tests)
       # rust_validate is disabled (if: false) and always reports "skipped";
       # treat skipped as pass so the gate is not silently skipped with it.
+      # Test jobs are skipped wholesale when `skip_tests` is set; treat
+      # "skipped" as pass exactly like rust_validate so a release-only
+      # dispatch can proceed to publish without re-running the suites.
       if: "${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.rust_validate.result != 'failure' &&
          needs.native_addons.result == 'success' &&
@@ -796,19 +803,34 @@ jobs:
          (needs.test_coding_agent_native.result == 'success' || needs.test_coding_agent_native.result == 'skipped') &&
          (needs.test_smoke.result == 'success' || needs.test_smoke.result == 'skipped') &&
          (needs.install_methods.result == 'success' || needs.install_methods.result == 'skipped') &&
-         needs.check.result == 'success' &&
-         needs.desktop_linux.result == 'success' &&
-         needs.desktop_windows.result == 'success' && needs.desktop_mac.result == 'success' }}"
-      needs: [release_metadata, check, rust_validate, native_addons, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods, desktop_linux, desktop_windows, desktop_mac]
+         needs.check.result == 'success' }}"
+      needs: [release_metadata, check, rust_validate, native_addons, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods]
       runs-on: ubuntu-22.04
       steps:
-         - run: echo "release validation green"
+         - run: echo "release quality green"
+
+   release_build_gate:
+      name: Release build gate (artifacts)
+      # All release artifacts must exist before the GitHub release is created:
+      # every binary matrix job, every desktop package, and the native addons
+      # they embed. Runs independently of the test suites.
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.native_addons.result == 'success' &&
+         needs.release_binary.result == 'success' &&
+         needs.release_binary_darwin.result == 'success' &&
+         needs.desktop_linux.result == 'success' &&
+         needs.desktop_windows.result == 'success' && needs.desktop_mac.result == 'success' }}
+      needs: [release_metadata, native_addons, release_binary, release_binary_darwin, desktop_linux, desktop_windows, desktop_mac]
+      runs-on: ubuntu-22.04
+      steps:
+         - run: echo "release build green"
 
    # Builds (does not publish) the Linux-hosted release binaries in parallel
    # with the test fan-out; the single need is native_addons, whose artifact
    # supplies their addons. Darwin builds live in release_binary_darwin so
    # they start at release_metadata time instead. Publishing (npm leaves,
-   # GitHub release, core npm) is gated on release_gate downstream.
+   # GitHub release, core npm) is gated on release_quality_gate +
+   # release_build_gate downstream.
    release_binary:
       name: "Release binary: ${{ matrix.target_id }}"
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
@@ -1006,8 +1028,8 @@ jobs:
       name: Publish native leaf packages
       # Explicit condition: a matrix template job (release_binary) reports
       # "skipped" as a job; an unconditional needs would propagate that skip.
-      if: ${{ needs.release_gate.result == 'success' && !cancelled() }}
-      needs: [release_metadata, release_gate, release_binary, release_binary_darwin]
+      if: ${{ github.event.inputs.build_only != 'true' && needs.release_quality_gate.result == 'success' && !cancelled() }}
+      needs: [release_metadata, release_quality_gate, release_binary, release_binary_darwin]
       runs-on: ubuntu-22.04
       # id-token lets npm mint the OIDC token for trusted publishing; the
       # NODE_AUTH_TOKEN below is the fallback for unconfigured packages.
@@ -1072,8 +1094,8 @@ jobs:
 
    release_github:
       name: Publish GitHub release
-      if: ${{ needs.release_gate.result == 'success' && !cancelled() }}
-      needs: [release_metadata, release_gate, release_binary, release_binary_darwin, desktop_linux, desktop_windows, desktop_mac]
+      if: ${{ github.event.inputs.build_only != 'true' && needs.release_quality_gate.result == 'success' && needs.release_build_gate.result == 'success' && !cancelled() }}
+      needs: [release_metadata, release_quality_gate, release_build_gate, release_binary, release_binary_darwin, desktop_linux, desktop_windows, desktop_mac]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -1172,7 +1194,7 @@ jobs:
       # release_native_leaves must finish first: the core package lists the
       # leaf packages as lockstep-versioned optionalDependencies, so installs
       # resolve them the moment the core version is live.
-      if: ${{ needs.release_native_leaves.result == 'success' && !cancelled() }}
+      if: ${{ github.event.inputs.build_only != 'true' && needs.release_native_leaves.result == 'success' && !cancelled() }}
       needs: [release_metadata, release_binary, release_native_leaves]
       runs-on: ubuntu-22.04
       # `id-token: write` lets npm mint the GitHub OIDC token it exchanges for a

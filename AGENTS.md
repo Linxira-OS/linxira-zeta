@@ -215,6 +215,38 @@ desktop/ (Electron)  ──HTTP──▶  zeta serve (zeta-server.ts)  ──▶
 web-ui/ (Next.js)    ──HTTP──▶  webGatewayFetch (/api/*)     ──▶  packages/coding-agent/src/server/web-gateway/
 ```
 
+**Desktop ↔ Web UI relationship (nested, not alternatives):** the desktop app is
+not a second UI — `desktop/` is an Electron shell that **embeds a standalone
+build of `web-ui/`** plus the compiled `zeta` runtime and a bundled Node. One
+package, three layers:
+
+```
+build (desktop/scripts/prepare-runtime.mjs)
+  web-ui: npm run build (NEXT_OUTPUT_STANDALONE=1) ─▶ .next/standalone + .next/static + public
+  zeta:   bun run build (packages/coding-agent)    ─▶ zeta binary + Node executable
+  ─▶ staged to temp/desktop/staging/zeta/, folded into the Electron app via extraResources
+
+runtime (desktop/src/main.ts)
+  spawns `zeta serve` (ZETA_DESKTOP=1) ─▶ serves the embedded web-ui
+  window.loadURL(WEB_UI_URL = http://127.0.0.1:30141) ─▶ web-ui /api/* ─▶ webGatewayFetch ─▶ gateway
+```
+
+- **One source, two outputs**: the web-ui the desktop embeds is the same source
+  and the same build as the browser UI (`NEXT_OUTPUT_STANDALONE=1` makes it a
+  self-contained deployment). There is no separate desktop UI codebase —
+  `desktop/` holds only the Electron shell.
+- **Build-time nesting** (`desktop/scripts/prepare-runtime.mjs`): runs the web-ui
+  build, then stages `.next/standalone` + `.next/static` + `public` next to the
+  compiled `zeta` binary and `process.execPath` as the bundled Node. The target
+  machine needs neither Bun nor Node.
+- **Runtime**: `desktop/src/main.ts` launches `zeta serve` and points the Electron
+  window at `WEB_UI_URL` (`http://127.0.0.1:30141`); the shell and the web-ui never
+  share code — only the HTTP loopback. Web-ui and desktop each depend on the
+  gateway side (`packages/coding-agent/src/**`) via HTTP, never via imports.
+- **CI** (`desktop_linux`/`desktop_windows`/`desktop_mac` jobs): `npm ci` (web-ui
+  + desktop deps) → `npm test` (platform contracts) → `npm run dist` (= build +
+  `prepare:runtime` + `package-desktop`) → smoke → upload `zeta-desktop-*` assets.
+
 **Hard rules:**
 - Electron/Tray/autostart code goes in `desktop/src/main.ts` — never in `web-ui/`, never in `packages/`, never in a new directory under `packages/coding-agent/desktop/` (that path does not exist).
 - React components/pages/hooks go in `web-ui/` — never in `packages/*`, never in `desktop/`.
