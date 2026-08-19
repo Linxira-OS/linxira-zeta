@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ## [1.0.9] - 2026-08-19
+## [17.3.8] - 2026-08-19
+
+### Added
+
+- Exported `BINARY_SNIFF_BYTES`, the header window `isProbablyBinary` sniffs, so a caller holding the whole file in memory can classify the identical prefix through `isProbablyBinaryHeader` instead of reopening the file.
 
 ## [17.3.5] - 2026-08-16
 

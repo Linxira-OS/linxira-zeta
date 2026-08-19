@@ -22,7 +22,11 @@ import {
 	createOpenAICodexCompatibilityMetadata,
 	getCodexAttestationHeader,
 } from "@linxiraos/pi-ai/providers/openai-codex-responses";
-import { parseAzureDeploymentNameMap, parseTextSignature } from "@linxiraos/pi-ai/providers/openai-shared";
+import {
+	hoistInterleavedResponsesToolBatchMessages,
+	parseAzureDeploymentNameMap,
+	parseTextSignature,
+} from "@linxiraos/pi-ai/providers/openai-shared";
 import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
 import type {
 	Api,
@@ -740,7 +744,7 @@ export function buildOpenAiNativeHistory(
 		msgIndex++;
 	}
 
-	return stripOpenAIResponsesOutputOnlyStatusesForReplay(input);
+	return stripOpenAIResponsesOutputOnlyStatusesForReplay(hoistInterleavedResponsesToolBatchMessages(input));
 }
 
 // ============================================================================

@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
+import { type as arkType } from "@linxiraos/pi-omptype";
 import { Effort } from "@linxiraos/pi-ai";
 import {
 	applyClaudeToolPrefix,
@@ -30,9 +31,8 @@ import type {
 	Tool,
 } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type as arkType } from "@linxiraos/pi-omptype";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
-import { withEnv } from "./helpers";
+import { withEnv, withOfficialAnthropicEndpoint } from "./helpers";
 
 const ANTHROPIC_MODEL_SPEC: ModelSpec<"anthropic-messages"> = {
 	id: "claude-sonnet-4-5",
@@ -151,6 +151,8 @@ function expectClaudeMetadataUserId(userId: string | undefined, expectedSessionI
 		}
 	}
 }
+
+withOfficialAnthropicEndpoint();
 
 describe("Anthropic request fingerprint alignment", () => {
 	it("maps Stainless arch values from explicit inputs", () => {
