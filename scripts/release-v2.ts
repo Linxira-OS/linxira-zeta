@@ -178,7 +178,7 @@ async function assertConsistency(version: string): Promise<void> {
 	}
 
 	const cargoToml = await Bun.file("Cargo.toml").text();
-	const cargoVersion = cargoToml.match(/^version = "([^"]+)"/m)?.[1];
+	const cargoVersion = cargoToml.match(/^\s*version = "([^"]+)"/m)?.[1];
 	if (cargoVersion !== version) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${version}`);
 
 	const sentinel = `__piNativesV${version.replace(/\./g, "_")}`;
@@ -258,9 +258,11 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 		const pkgPath = `packages/${pkg}/package.json`;
 		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${pkgPath}`;
 	}
-	// Step 2b: Cargo workspace version follows the release version.
+	// Step 2b: Cargo workspace version follows the release version. The
+	// version lives under `[workspace.package]` (indented per standard Cargo
+	// formatting), so allow leading whitespace.
 	console.log(`Updating Cargo.toml workspace to ${version}...`);
-	await $`sd '^version = "[^"]+"' ${`version = "${version}"`} Cargo.toml`;
+	await $`sd '^ *version = "[^"]+"' ${`version = "${version}"`} Cargo.toml`;
 	// Step 2c: pi-natives version sentinel follows the release version
 	// (js_name in lib.rs plus the committed bindings in index.js/index.d.ts;
 	// gen-enums.ts regenerates the same names on the next napi build). The
