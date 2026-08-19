@@ -6,7 +6,7 @@
  * The system browser is never opened and no terminal window appears.
  */
 
-import { app, BrowserWindow, Menu, dialog } from "electron";
+import { app, BrowserWindow, Menu, dialog, nativeImage, Tray } from "electron";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -23,6 +23,7 @@ let serviceLogFd: number | null = null;
 let serviceOwned = false;
 let quitting = false;
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 
 // ---------------------------------------------------------------------------
 // Service resolution
@@ -238,7 +239,7 @@ function loadFailurePage(win: BrowserWindow, detail: string): void {
 	void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch(() => {});
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(prefs: TrayPrefs): BrowserWindow {
 	const win = new BrowserWindow({
 		width: 1440,
 		height: 900,
@@ -255,7 +256,15 @@ function createWindow(): BrowserWindow {
 	});
 
 	void win.loadURL(WEB_UI_URL).catch(() => {});
-	win.on("close", () => {
+	win.on("close", (event) => {
+		// Minimize-to-tray (default): closing the window hides it and keeps the
+		// service + tray alive. Only a real quit (tray menu / Cmd+Q / app.quit)
+		// destroys the window.
+		if (prefs.minimizeToTray && tray !== null && !quitting) {
+			event.preventDefault();
+			win.hide();
+			return;
+		}
 		mainWindow = null;
 	});
 	mainWindow = win;
@@ -280,6 +289,90 @@ function createWindow(): BrowserWindow {
 		writeDesktopLog(`Renderer process gone: ${details.reason} (${details.exitCode})`);
 	});
 	return win;
+}
+
+interface TrayPrefs {
+	minimizeToTray: boolean;
+	autostart: boolean;
+}
+
+/**
+ * Read tray/autostart preferences from the gateway's /api/web-config over HTTP.
+ * The desktop shell never imports packages/* source; it talks to the backend
+ * only through the local gateway (see AGENTS.md "Code Location Rules").
+ */
+async function readTrayPrefs(): Promise<TrayPrefs> {
+	try {
+		const response = await fetch(`${WEB_UI_URL}/api/web-config`);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const data = (await response.json()) as {
+			tray?: { minimizeToTray?: boolean; autostart?: boolean };
+		};
+		return {
+			minimizeToTray: data.tray?.minimizeToTray ?? true,
+			autostart: data.tray?.autostart ?? false,
+		};
+	} catch (err) {
+		writeDesktopLog(`Could not read tray preferences: ${err instanceof Error ? err.message : String(err)}`);
+		return { minimizeToTray: true, autostart: false };
+	}
+}
+
+function trayIcon(): Electron.NativeImage {
+	const icon = iconPath();
+	if (icon) {
+		const img = nativeImage.createFromPath(icon);
+		if (!img.isEmpty()) return img.resize({ width: 16, height: 16 });
+	}
+	return nativeImage.createEmpty();
+}
+
+function createTray(): void {
+	if (tray) return;
+	tray = new Tray(trayIcon());
+	const contextMenu = Menu.buildFromTemplate([
+		{
+			label: "Show Window",
+			click: () => {
+				if (!mainWindow) return;
+				if (mainWindow.isMinimized()) mainWindow.restore();
+				mainWindow.show();
+				mainWindow.focus();
+			},
+		},
+		{ label: "Stats Dashboard", click: () => mainWindow?.loadURL(STATS_URL) },
+		{ label: "Open Settings", click: () => mainWindow?.loadURL(`${WEB_UI_URL}/settings`) },
+		{ type: "separator" },
+		{
+			label: "Quit",
+			click: () => {
+				quitting = true;
+				app.quit();
+			},
+		},
+	]);
+	tray.setToolTip("Zeta");
+	tray.setContextMenu(contextMenu);
+}
+
+/**
+ * Enable OS autostart (Windows/macOS login item, Linux ~/.config/autostart
+ * desktop entry). Creating/removing the Linux entry keeps it in sync with the
+ * web.yml toggle driven from the settings panel.
+ */
+function applyAutostart(enabled: boolean): void {
+	app.setLoginItemSettings({ openAtLogin: enabled });
+	if (process.platform === "linux") {
+		const autostartDir = path.join(app.getPath("home"), ".config", "autostart");
+		const entryPath = path.join(autostartDir, "zeta.desktop");
+		if (enabled) {
+			const execPath = app.isPackaged ? app.getPath("exe") : process.execPath;
+			fs.mkdirSync(autostartDir, { recursive: true });
+			fs.writeFileSync(entryPath, `[Desktop Entry]\nType=Application\nName=Zeta\nExec="${execPath}"\n`, "utf8");
+		} else if (fs.existsSync(entryPath)) {
+			fs.unlinkSync(entryPath);
+		}
+	}
 }
 
 function buildMenu(): void {
@@ -360,8 +453,12 @@ async function boot(): Promise<void> {
 
 	await ensureDefaultWorkspace();
 	writeDesktopLog("Service is ready.");
+
+	const prefs = await readTrayPrefs();
+	applyAutostart(prefs.autostart);
 	buildMenu();
-	createWindow();
+	createTray();
+	createWindow(prefs);
 }
 
 app.setName("Zeta");
@@ -388,6 +485,8 @@ if (!app.hasSingleInstanceLock()) {
 	});
 
 	app.on("window-all-closed", () => {
-		app.quit();
+		// Tray mode (default): closing the window must NOT quit the app; the
+		// tray keeps the service running until "Quit" from the tray/menu.
+		if (quitting || tray === null) app.quit();
 	});
 }

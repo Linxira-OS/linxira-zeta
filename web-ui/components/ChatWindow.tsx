@@ -8,6 +8,7 @@ import { countToolCallBlocks, getDisplayableAssistantBlocks, splitFinalAssistant
 import { MessageView } from "./MessageView";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
+import { TrajectoryView } from "./TrajectoryView";
 import { useAgentSession, type AgentPhase, type NoticeItem } from "@/hooks/useAgentSession";
 import { useAudio } from "@/hooks/useAudio";
 import { useDragDrop } from "@/hooks/useDragDrop";
@@ -171,6 +172,8 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messag
 export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile }: Props) {
   const { soundEnabled, onSoundToggle, playDoneSound, unlockAudio } = useAudio();
   const isMobile = useIsMobile();
+  // Chat / trajectory toggle for the message area (trajectory is derived).
+  const [viewMode, setViewMode] = useState<"chat" | "trajectory">("chat");
 
   // Wrap onAgentEnd to play the completion sound. This is more reliable than
   // wrapping handleAgentEventRef because useAgentSession overwrites that ref
@@ -505,6 +508,38 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
         </div>
       ) : (
       <>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          flexShrink: 0,
+          padding: "6px 16px 0",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        {(["chat", "trajectory"] as const).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            style={{
+              padding: "4px 12px",
+              border: "none",
+              borderBottom: viewMode === mode ? "2px solid var(--accent)" : "2px solid transparent",
+              background: "none",
+              color: viewMode === mode ? "var(--text)" : "var(--text-muted)",
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            {mode === "chat" ? "Chat" : "Trajectory"}
+          </button>
+        ))}
+      </div>
+      {viewMode === "trajectory" ? (
+        <TrajectoryView messages={messages} entryIds={entryIds} />
+      ) : (
+      <>
       <div className="relative flex flex-1 overflow-hidden">
         <div
           style={{
@@ -801,6 +836,8 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
         </div>
         {chatInputElement}
       </div>
+      </>
+      )}
       </>
       )}
     </div>

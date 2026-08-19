@@ -5,7 +5,7 @@
 # Extends `pi-base` (from /Dockerfile, default target zeta/pi:dev) and adds
 # the robomp Python package + a Vite-built SolidJS dashboard bundle. The pi
 # toolchain (python + bun + rustup launcher + pi-natives + omp_rpc wheel +
-# /usr/local/bin/omp shim) all comes from PI_BASE; this file only layers what's
+# /usr/local/bin/zeta shim) all comes from PI_BASE; this file only layers what's
 # robomp-specific.
 #
 # Build (from pi root):
@@ -61,10 +61,10 @@ RUN pip install --no-cache-dir \
 # Host agent config is mounted read-only under /srv/agent-home-stage with
 # host-controlled permissions. The entrypoint copies it into root-owned
 # world-readable files under /srv/agent-home; the agent subprocess runs with
-# HOME=/srv/agent-home, so ~/.omp and ~/.agent resolve there without exposing
+# HOME=/srv/agent-home, so ~/.zeta and ~/.agent resolve there without exposing
 # mutable host mounts.
-RUN mkdir -p /srv/agent-home/.agent /srv/agent-home/.omp/agent \
-    && mkdir -p /srv/agent-home-stage/.agent /srv/agent-home-stage/.omp/agent \
+RUN mkdir -p /srv/agent-home/.agent /srv/agent-home/.zeta/agent \
+    && mkdir -p /srv/agent-home-stage/.agent /srv/agent-home-stage/.zeta/agent \
     && printf '[install]\nbackend = "copyfile"\n' > /srv/agent-home/.bunfig.toml
 
 COPY python/robomp/entrypoint.sh /usr/local/bin/robomp-entrypoint

@@ -42,6 +42,10 @@ export default class Serve extends Command {
 			description: "Start only the Web UI (no Stats Dashboard)",
 			default: false,
 		}),
+		channels: Flags.boolean({
+			description: "Start IM channels (WeChat/Feishu/Telegram); also enabled when any channel is enabled in web.yml",
+			default: false,
+		}),
 	};
 
 	async run(): Promise<void> {
@@ -67,6 +71,7 @@ export default class Serve extends Command {
 				noBrowser,
 				statsOnly,
 				webOnly,
+				channels: flags.channels,
 			});
 
 			if (!webOnly && instance.statsUrl) {

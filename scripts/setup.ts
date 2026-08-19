@@ -43,7 +43,7 @@ const steps: Step[] = [
 	{ label: "bun install", cmd: ["bun", "install"] },
 	{ label: "build:native", cmd: ["bun", "run", "build:native", ...passthrough], env: nativeBackendEnv },
 	{ label: "coding-agent link", cmd: ["bun", "--cwd=packages/coding-agent", "link"] },
-	{ label: "link omp", cmd: ["sh", "scripts/link-omp.sh"] },
+	{ label: "link zeta", cmd: ["sh", "scripts/link-omp.sh"] },
 ];
 
 for (const step of steps) {

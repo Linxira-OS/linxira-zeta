@@ -1107,7 +1107,7 @@ jobs:
            run: |
                bun run ci:release:checksums SHA256SUMS.txt \
                  packages/coding-agent/binaries/zeta-* \
-                 packages/browser-relay/dist/omp-browser-relay-extension.zip \
+                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                  desktop/release-assets/*
          # Idempotent rerun: a partially-published run (or a cancelled npm
          # job after a release was created) must be able to re-create the
@@ -1122,7 +1122,7 @@ jobs:
                tag_name: ${{ needs.release_metadata.outputs.release-tag }}
                files: |
                   packages/coding-agent/binaries/zeta-*
-                  packages/browser-relay/dist/omp-browser-relay-extension.zip
+                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                   desktop/release-assets/*
                   SHA256SUMS.txt
                body_path: release-notes.md

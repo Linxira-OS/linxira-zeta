@@ -3746,6 +3746,18 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// IM channel tools (web/desktop only; CLI sessions reject them regardless)
+	"channels.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tools",
+			group: "Available Tools",
+			label: "IM Channels",
+			description: "Enable channel_send / workspace_run so the agent can push progress to the remote IM user and delegate to other workspaces",
+		},
+	},
+
 	"todo.reminders": {
 		type: "boolean",
 		default: true,
@@ -5548,12 +5560,12 @@ export const SETTINGS_SCHEMA = {
 
 	"dev.autoqaPush.endpoint": {
 		type: "string",
-		default: "https://qa.omp.sh/v1/grievances" as const,
+		default: "",
 		ui: {
 			tab: "tools",
 			group: "Developer",
 			label: "Auto QA Push Endpoint",
-			description: "Full URL receiving Auto QA JSON reports (default https://qa.omp.sh/v1/grievances)",
+			description: "Full URL receiving Auto QA JSON reports (leave empty to disable push)",
 		},
 	},
 

@@ -71,7 +71,8 @@
     "puppeteer-core": "catalog:",
     "@linxiraos/pi-hashline": "catalog:",
     "@linxiraos/pi-stats": "catalog:",
-    "@linxiraos/pi-snapcompact": "catalog:"
+    "@linxiraos/pi-snapcompact": "catalog:",
+    "@larksuiteoapi/node-sdk": "^1.71.1"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "catalog:",

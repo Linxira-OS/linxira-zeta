@@ -1069,7 +1069,7 @@ async function printVerification(expectedVersion: string): Promise<void> {
 		return;
 	}
 	console.log(chalk.yellow(`\nWarning: ${formatVerificationFailure(result, expectedVersion)}`));
-	console.log(chalk.yellow(`You may need to reinstall: curl -fsSL https://omp.sh/install | sh`));
+	console.log(chalk.yellow(`You may need to reinstall: curl -fsSL https://github.com/Linxira-OS/linxira-zeta | sh`));
 }
 
 async function unlinkIfExists(filePath: string): Promise<void> {
@@ -1372,7 +1372,7 @@ export async function migrateRenamedInstall(release: ReleaseInfo, steps: RenameM
 	}
 	if (!verification.ok) {
 		throw new Error(
-			`${formatVerificationFailure(verification, release.version)}; reinstall with: curl -fsSL https://omp.sh/install | sh`,
+			`${formatVerificationFailure(verification, release.version)}; reinstall with: curl -fsSL https://github.com/Linxira-OS/linxira-zeta | sh`,
 		);
 	}
 	printVerifiedVersion(release.version);
@@ -1656,8 +1656,8 @@ export async function updateViaShimTakeover(
  */
 function installerHint(): string {
 	return process.platform === "win32"
-		? "& ([scriptblock]::Create((irm https://omp.sh/install.ps1))) -Binary"
-		: "curl -fsSL https://omp.sh/install | sh -s -- --binary";
+		? "& ([scriptblock]::Create((irm https://github.com/Linxira-OS/linxira-zeta))) -Binary"
+		: "curl -fsSL https://github.com/Linxira-OS/linxira-zeta | sh -s -- --binary";
 }
 
 /**

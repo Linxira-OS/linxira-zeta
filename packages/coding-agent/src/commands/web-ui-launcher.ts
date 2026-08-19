@@ -28,22 +28,22 @@ function hideWebUiWindow(): boolean {
  * 启动 Web UI 服务器，返回子进程句柄。
  * @param port 监听端口，默认 30141
  */
-export async function spawnWebUi(port: number = 30141): Promise<WebUiChild> {
+export async function spawnWebUi(port: number = 30141, statsUrl?: string): Promise<WebUiChild> {
 	// 1. 编译后二进制：尝试从内嵌资源启动
 	if (process.env.PI_COMPILED === "true") {
-		return spawnEmbeddedWebUi(port);
+		return spawnEmbeddedWebUi(port, statsUrl);
 	}
 
 	// 2. 优先源码仓库中的 web-ui（开发/便携场景，避免依赖全局 npm 包或 npx）
 	const webUiDir = findSourceWebUiDir();
 	if (webUiDir) {
-		return spawnSourceWebUi(webUiDir, port);
+		return spawnSourceWebUi(webUiDir, port, statsUrl);
 	}
 
 	// 3. 回退：全局安装的 zeta-web
 	const zetaWebBin = await findZetaWebBin();
 	if (zetaWebBin) {
-		return spawnZetaWebBin(zetaWebBin, port);
+		return spawnZetaWebBin(zetaWebBin, port, statsUrl);
 	}
 
 	throw new Error("Web UI not found. Install with: npm install -g zeta-web, or run from the Zeta repository root.");
@@ -77,7 +77,7 @@ function findSourceWebUiDir(): string | null {
 	return null;
 }
 
-function spawnZetaWebBin(bin: string, port: number): WebUiChild {
+function spawnZetaWebBin(bin: string, port: number, statsUrl?: string): WebUiChild {
 	const args =
 		bin === "npx:zeta-web"
 			? ["npx", "zeta-web", "--port", String(port), "--hostname", "127.0.0.1"]
@@ -88,6 +88,7 @@ function spawnZetaWebBin(bin: string, port: number): WebUiChild {
 		ZETA_WEB_HOSTNAME: "127.0.0.1",
 		ZETA_WEB_PORT: String(port),
 		ZETA_WEB_NO_OPEN: "1", // zeta serve handles browser opening
+		...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
 	};
 
 	const child = Bun.spawn(args, {
@@ -104,7 +105,7 @@ function spawnZetaWebBin(bin: string, port: number): WebUiChild {
 	};
 }
 
-function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
+function spawnSourceWebUi(webUiDir: string, port: number, statsUrl?: string): WebUiChild {
 	const runtime = resolveWebUiRuntime();
 	// Check if web-ui has been built
 	const nextDir = path.join(webUiDir, ".next");
@@ -124,6 +125,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 				ZETA_WEB_HOSTNAME: "127.0.0.1",
 				ZETA_WEB_PORT: String(port),
 				ZETA_WEB_NO_OPEN: "1",
+				...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
 			},
 			stdout: "inherit",
 			stderr: "inherit",
@@ -150,6 +152,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
 			ZETA_WEB_HOSTNAME: "127.0.0.1",
 			ZETA_WEB_PORT: String(port),
 			ZETA_WEB_NO_OPEN: "1",
+			...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
 		},
 		stdout: "inherit",
 		stderr: "inherit",
@@ -171,7 +174,7 @@ function spawnSourceWebUi(webUiDir: string, port: number): WebUiChild {
  * 2. web-ui/.next/BUILD_ID + node_modules/next（普通构建）
  * 3. 全局安装的 zeta-web npm 包
  */
-function spawnEmbeddedWebUi(port: number): WebUiChild {
+function spawnEmbeddedWebUi(port: number, statsUrl?: string): WebUiChild {
 	const runtime = resolveWebUiRuntime();
 	// PI_COMPILED 模式下，二进制旁边就是 web-ui 目录（便携版布局）
 	const candidates = [
@@ -191,6 +194,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 					...process.env,
 					PORT: String(port),
 					HOSTNAME: "127.0.0.1",
+					...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
 				},
 				stdout: "inherit",
 				stderr: "inherit",
@@ -215,6 +219,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 					ZETA_WEB_HOSTNAME: "127.0.0.1",
 					ZETA_WEB_PORT: String(port),
 					ZETA_WEB_NO_OPEN: "1",
+					...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
 				},
 				stdout: "inherit",
 				stderr: "inherit",
@@ -238,6 +243,7 @@ function spawnEmbeddedWebUi(port: number): WebUiChild {
 				ZETA_WEB_HOSTNAME: "127.0.0.1",
 				ZETA_WEB_PORT: String(port),
 				ZETA_WEB_NO_OPEN: "1",
+				...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
 			},
 			stdout: "inherit",
 			stderr: "inherit",

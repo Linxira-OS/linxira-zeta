@@ -5,10 +5,13 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import {
   fetchSettings,
+  fetchWebConfig,
   settingsLang,
   updateSetting,
+  updateWebConfig,
   type SettingEntry,
   type SettingsResponse,
+  type WebConfigData,
 } from "@/lib/settings-client";
 
 // Tabs with full inline editing. The remaining tabs render read-only rows
@@ -91,6 +94,286 @@ function Toggle({ checked, disabled, label, onChange }: { checked: boolean; disa
         }}
       />
     </button>
+  );
+}
+
+/** Set one dot path inside a web-config copy; returns a new object. */
+function setAtPath<T>(obj: T, path: string, value: unknown): T {
+  const segments = path.split(".");
+  const next = structuredClone(obj) as Record<string, unknown>;
+  let current = next;
+  for (let i = 0; i < segments.length - 1; i++) {
+    const segment = segments[i];
+    if (typeof current[segment] !== "object" || current[segment] === null) {
+      current[segment] = {};
+    }
+    current = current[segment] as Record<string, unknown>;
+  }
+  current[segments[segments.length - 1]] = value;
+  return next as T;
+}
+
+/** Plain text input; commits on blur/Enter with local draft state. */
+function WebPlainInput({
+  path,
+  value,
+  placeholder,
+  onCommit,
+}: {
+  path: string;
+  value: string | undefined;
+  placeholder: string;
+  onCommit: (path: string, value: unknown) => void;
+}) {
+  const [draft, setDraft] = useState<string | undefined>(undefined);
+  return (
+    <input
+      type="text"
+      value={draft ?? value ?? ""}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={(e) => {
+        const next = e.target.value.trim();
+        setDraft(undefined);
+        if (next !== (value ?? "")) onCommit(path, next);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+      style={{ ...inputStyle, width: 170, fontFamily: "var(--font-mono)" }}
+    />
+  );
+}
+
+const CHANNEL_IDS = ["wechat", "feishu", "telegram"] as const;
+const CHANNEL_LABEL_KEY: Record<(typeof CHANNEL_IDS)[number], string> = {
+  wechat: "web-channel-wechat",
+  feishu: "web-channel-feishu",
+  telegram: "web-channel-telegram",
+};
+
+/**
+ * Web-layer config editor (`~/.zeta/agent/web.yml`): tray/autostart, remote
+ * access, and IM channel credentials. Data comes from `/api/web-config`, not
+ * the CLI settings schema, so it renders outside the settings tab list.
+ */
+function WebSettingsSection({
+  data,
+  pending,
+  error,
+  savedFlash,
+  t,
+  onCommit,
+}: {
+  data: WebConfigData;
+  pending: Record<string, boolean>;
+  error: string | null;
+  savedFlash: string | null;
+  t: (key: string) => string;
+  onCommit: (path: string, value: unknown) => void;
+}) {
+  // WeChat QR-login progress surfaced by the gateway (see /api/channels/wechat/qrcode).
+  const [wechatQr, setWechatQr] = useState<{
+    pending: boolean;
+    qrcodeUrl?: string;
+    status?: string;
+  }>({ pending: false });
+  const [reconnecting, setReconnecting] = useState(false);
+
+  useEffect(() => {
+    if (!data.channels.wechat.enabled) {
+      setWechatQr({ pending: false });
+      return;
+    }
+    const poll = () => {
+      fetch("/api/channels/wechat/qrcode")
+        .then((r) => r.json())
+        .then((qr: { pending: boolean; qrcodeUrl?: string; status?: string }) => setWechatQr(qr))
+        .catch(() => {});
+    };
+    poll();
+    const timer = setInterval(poll, 2000);
+    return () => clearInterval(timer);
+  }, [data.channels.wechat.enabled]);
+
+  const handleReconnect = useCallback(async () => {
+    setReconnecting(true);
+    try {
+      await fetch("/api/channels/wechat/reconnect", { method: "POST" });
+    } finally {
+      setReconnecting(false);
+    }
+  }, []);
+
+  const group = (title: string, children: React.ReactNode) => (
+    <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>
+        {title}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{children}</div>
+    </div>
+  );
+
+  const row = (label: string, description: string | undefined, control: React.ReactNode, path?: string) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>{label}</span>
+        {description && <span style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.4 }}>{description}</span>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        {path && pending[path] === true && <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Saving…</span>}
+        {control}
+      </div>
+    </div>
+  );
+
+  /** Credential input: value arrives masked; blur commits only a fresh non-empty value. */
+  const secretInput = (path: string, placeholder: string) => (
+    <input
+      type="password"
+      placeholder={placeholder}
+      onBlur={(e) => {
+        const next = e.target.value.trim();
+        if (next !== "") onCommit(path, next);
+        e.target.value = "";
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+      style={{ ...inputStyle, width: 170, fontFamily: "var(--font-mono)" }}
+    />
+  );
+
+
+
+  return (
+    <>
+      {error && (
+        <div style={{ padding: "10px 14px", fontSize: 12, color: "#f87171", background: "var(--bg-panel)", borderBottom: "1px solid var(--border)" }}>
+          {error}
+        </div>
+      )}
+      {savedFlash && (
+        <div style={{ padding: "10px 14px", fontSize: 12, color: "var(--text-muted)", background: "var(--bg-panel)", borderBottom: "1px solid var(--border)" }}>
+          {savedFlash}
+        </div>
+      )}
+
+      {group(t("web-tray"), (
+        <>
+          {row(t("web-minimize-to-tray"), t("web-minimize-to-tray-desc"), (
+            <Toggle checked={data.tray.minimizeToTray} label={t("web-minimize-to-tray")} onChange={(next) => onCommit("tray.minimizeToTray", next)} />
+          ), "tray.minimizeToTray")}
+          {row(t("web-autostart"), t("web-autostart-desc"), (
+            <Toggle checked={data.tray.autostart} label={t("web-autostart")} onChange={(next) => onCommit("tray.autostart", next)} />
+          ), "tray.autostart")}
+        </>
+      ))}
+
+      {group(t("web-remote"), (
+        <>
+          {row(t("web-remote-host"), undefined, <WebPlainInput path="remote.host" value={data.remote.host} placeholder="https://…" onCommit={onCommit} />, "remote.host")}
+          {row(t("web-remote-token"), t("web-remote-token-desc"), (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {secretInput("remote.token", "••••")}
+              <button
+                type="button"
+                onClick={() => onCommit("remote.token", "")}
+                style={{ padding: "5px 9px", background: "none", border: "1px solid var(--border)", borderRadius: 5, color: "var(--text-muted)", cursor: "pointer", fontSize: 11.5 }}
+              >
+                {t("web-remote-token-reset")}
+              </button>
+            </div>
+          ), "remote.token")}
+        </>
+      ))}
+
+      {group(t("web-channels"), (
+        <>
+          {CHANNEL_IDS.map((channelId) => {
+            const channel = data.channels[channelId];
+            return (
+              <div key={channelId} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "9px 11px", background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 7 }}>
+                {row(t(CHANNEL_LABEL_KEY[channelId]), undefined, (
+                  <Toggle checked={channel.enabled} label={t(CHANNEL_LABEL_KEY[channelId])} onChange={(next) => onCommit(`channels.${channelId}.enabled`, next)} />
+                ), `channels.${channelId}.enabled`)}
+                {channelId === "wechat" && (
+                  <>
+                    {secretInput(`channels.wechat.botToken`, "Bot Token")}
+                    {secretInput(`channels.wechat.ilinkBotId`, "iLink Bot ID")}
+                    {secretInput(`channels.wechat.ilinkUserId`, "iLink User ID")}
+                    <WebPlainInput path="channels.wechat.baseUrl" value={channel.baseUrl} placeholder="https://ilinkai.weixin.qq.com" onCommit={onCommit} />
+                    {wechatQr.pending && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        {wechatQr.qrcodeUrl && /^(data:|https?:)/.test(wechatQr.qrcodeUrl) ? (
+                          <img
+                            src={wechatQr.qrcodeUrl}
+                            alt="WeChat login QR"
+                            width={140}
+                            height={140}
+                            style={{ borderRadius: 6, border: "1px solid var(--border)", flexShrink: 0, background: "#fff" }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: 11.5, color: "var(--text-muted)", maxWidth: 220, overflowWrap: "anywhere", fontFamily: "var(--font-mono)" }}>
+                            {wechatQr.qrcodeUrl ?? "Waiting for QR code…"}
+                          </span>
+                        )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11.5, color: "var(--text-muted)" }}>
+                          <span>
+                            {wechatQr.status === "confirmed"
+                              ? "Logged in"
+                              : wechatQr.status === "scaned"
+                                ? "Scanned — confirm on your phone"
+                                : wechatQr.status === "expired"
+                                  ? "QR expired — reconnect"
+                                  : "Scan with WeChat to log in"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void handleReconnect()}
+                            disabled={reconnecting}
+                            style={{
+                              padding: "5px 9px",
+                              background: "none",
+                              border: "1px solid var(--border)",
+                              borderRadius: 5,
+                              color: "var(--text-muted)",
+                              cursor: reconnecting ? "default" : "pointer",
+                              fontSize: 11.5,
+                              opacity: reconnecting ? 0.5 : 1,
+                              width: "fit-content",
+                            }}
+                          >
+                            {reconnecting ? "Connecting…" : "Reconnect"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {channelId === "feishu" && (
+                  <>
+                    {secretInput(`channels.feishu.appId`, "App ID")}
+                    {secretInput(`channels.feishu.appSecret`, "App Secret")}
+                    <select
+                      value={channel.domain ?? "feishu"}
+                      onChange={(e) => onCommit("channels.feishu.domain", e.target.value)}
+                      style={{ ...inputStyle, width: "auto", minWidth: 120 }}
+                    >
+                      <option value="feishu">Feishu</option>
+                      <option value="lark">Lark</option>
+                    </select>
+                  </>
+                )}
+                {channelId === "telegram" && (
+                  <>{secretInput(`channels.telegram.botToken`, "Bot Token")}</>
+                )}
+              </div>
+            );
+          })}
+        </>
+      ))}
+    </>
   );
 }
 
@@ -398,6 +681,10 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const [webData, setWebData] = useState<WebConfigData | null>(null);
+  const [webError, setWebError] = useState<string | null>(null);
+  const [webPending, setWebPending] = useState<Record<string, boolean>>({});
+  const [webSavedFlash, setWebSavedFlash] = useState<string | null>(null);
 
   const lang = settingsLang(locale);
 
@@ -409,15 +696,48 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
       setValues(Object.fromEntries(next.settings.map((s): [string, unknown] => [s.path, s.value])));
       setDrafts({});
       setErrors({});
-      setActiveTab((cur) => (next.tabs.some((tab) => tab.id === cur) ? cur : next.tabs[0]?.id ?? "appearance"));
+      setActiveTab((cur) => (cur === "web" || next.tabs.some((tab) => tab.id === cur) ? cur : next.tabs[0]?.id ?? "appearance"));
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err));
     }
   }, []);
 
+  const loadWebConfig = useCallback(async () => {
+    setWebError(null);
+    try {
+      const next = await fetchWebConfig();
+      setWebData(next);
+    } catch (err) {
+      setWebError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
   useEffect(() => {
     void load(lang);
-  }, [lang, load]);
+    void loadWebConfig();
+  }, [lang, load, loadWebConfig]);
+
+  const webCommit = useCallback(
+    async (path: string, value: unknown) => {
+      setWebPending((p) => ({ ...p, [path]: true }));
+      setWebError(null);
+      setWebSavedFlash(null);
+      try {
+        await updateWebConfig(path, value);
+        setWebData((cur) => (cur ? setAtPath(cur, path, value) : cur));
+        setWebSavedFlash(t("web-config-saved"));
+      } catch (err) {
+        setWebError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setWebPending((p) => {
+          const next = { ...p };
+          delete next[path];
+          return next;
+        });
+      }
+    },
+    [t],
+  );
 
   // Escape closes the modal.
   useEffect(() => {
@@ -563,12 +883,63 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
                 {tab.label}
               </button>
             ))}
+            <button
+              key="web"
+              type="button"
+              onClick={() => setActiveTab("web")}
+              aria-pressed={activeTab === "web"}
+              style={{
+                padding: "5px 11px",
+                border: "none",
+                borderRadius: 7,
+                cursor: "pointer",
+                fontSize: 12,
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                marginLeft: 4,
+                background: activeTab === "web" ? "var(--bg-selected)" : "transparent",
+                color: activeTab === "web" ? "var(--text)" : "var(--text-muted)",
+              }}
+            >
+              {t("web-bot")}
+            </button>
           </div>
         )}
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
-          {loadError ? (
+          {activeTab === "web" ? (
+            webData ? (
+              <WebSettingsSection
+                data={webData}
+                pending={webPending}
+                error={webError}
+                savedFlash={webSavedFlash}
+                t={t}
+                onCommit={(path, value) => void webCommit(path, value)}
+              />
+            ) : (
+              <div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>
+                {webError ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
+                    <span style={{ color: "#f87171" }}>
+                      {t("web-config-load-failed")}
+                      {webError}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void loadWebConfig()}
+                      style={{ padding: "5px 12px", background: "none", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", cursor: "pointer", fontSize: 12 }}
+                    >
+                      {t("refresh")}
+                    </button>
+                  </div>
+                ) : (
+                  "Loading…"
+                )}
+              </div>
+            )
+          ) : loadError ? (
             <div style={{ padding: 24, fontSize: 12.5, color: "#f87171", display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
               <span>Failed to load settings: {loadError}</span>
               <button

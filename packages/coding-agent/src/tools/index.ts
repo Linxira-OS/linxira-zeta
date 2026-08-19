@@ -66,6 +66,8 @@ import { type TodoPhase, TodoTool } from "./todo";
 import { TrackingTool } from "./tracking";
 import { WriteTool } from "./write";
 import { isMountableUnderXdev, type XdevState } from "./xdev";
+import { ChannelSendTool } from "./channel-send";
+import { WorkspaceRunTool } from "./workspace-run";
 import { YieldTool } from "./yield";
 
 export * from "../edit";
@@ -170,6 +172,9 @@ export interface ToolSession {
 	suppressSpawnAdvisory?: boolean;
 	/** Optional fetch implementation injected into the URL read pipeline (tests, proxies). Defaults to global fetch. */
 	fetch?: FetchImpl;
+  /** Channel send sink (web/desktop sessions only; undefined in CLI mode). */
+  channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
+  workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
 	/** Provider credential resolver forwarded unchanged to restricted child sessions. */
 	getApiKey?: AgentOptions["getApiKey"];
 	/** Skip subprocess-kernel availability checks and warmup */
@@ -413,6 +418,14 @@ export type ToolFactory = (session: ToolSession) => Tool | null | Promise<Tool |
  * `BUILTIN_TOOLS[name](session)` to construct a tool directly.
  */
 export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
+  channel_send: (session) => {
+    if (!session.channelSend) return null;  // CLI mode
+    return new ChannelSendTool(session);
+  },
+  workspace_run: (session) => {
+    if (!session.workspaceRun) return null;  // CLI mode
+    return new WorkspaceRunTool(session);
+  },
 	read: s => new ReadTool(s),
 	security_scan: async s => {
 		const { SecurityScanTool } = await import("./security-scan");
@@ -608,6 +621,10 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "todo")
 			return (!includeYield || session.prewalkArmed === true) && session.settings.get("todo.enabled");
 		if (name === "tracking_update") return session.settings.get("tracking.enabled");
+		if (name === "channel_send")
+			return session.channelSend !== undefined && session.settings.get("channels.enabled") !== false;
+		if (name === "workspace_run")
+			return session.workspaceRun !== undefined && session.settings.get("channels.enabled") !== false;
 		if (name === "glob") return session.settings.get("glob.enabled");
 		if (name === "grep") return session.settings.get("grep.enabled");
 		if (name === "github") return session.settings.get("github.enabled");

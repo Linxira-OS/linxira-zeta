@@ -77,3 +77,56 @@ export async function updateSetting(path: string, value: unknown): Promise<void>
     throw new Error(message);
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Web config (`~/.zeta/agent/web.yml`, served at /api/web-config)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface WebConfigChannel {
+  enabled: boolean;
+  botToken?: string;
+  ilinkBotId?: string;
+  ilinkUserId?: string;
+  baseUrl?: string;
+  appId?: string;
+  appSecret?: string;
+  domain?: "feishu" | "lark";
+}
+
+export interface WebConfigData {
+  tray: { minimizeToTray: boolean; autostart: boolean };
+  channels: {
+    wechat: WebConfigChannel;
+    feishu: WebConfigChannel;
+    telegram: WebConfigChannel;
+  };
+  remote: { host?: string; token?: string; workspaces?: string[] };
+}
+
+/** Fetch the merged web-layer config (secrets arrive masked). */
+export async function fetchWebConfig(): Promise<WebConfigData> {
+  const res = await fetch("/api/web-config");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as WebConfigData;
+}
+
+/** Persist one web-config dot path; throws Error with the server message on failure. */
+export async function updateWebConfig(path: string, value: unknown): Promise<void> {
+  const res = await fetch("/api/web-config", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, value }),
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = (await res.json()) as { error?: string };
+      if (typeof body.error === "string" && body.error !== "") {
+        message = body.error;
+      }
+    } catch {
+      // non-JSON error body — keep the HTTP status message
+    }
+    throw new Error(message);
+  }
+}

@@ -17,6 +17,7 @@
  */
 
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import { WebConfig } from "../../config/web-config";
 import { Settings } from "../../config/settings";
 import {
 	getDefault,
@@ -335,6 +336,27 @@ export async function handleSettingsPut(req: Request): Promise<Response> {
 		const settings = await Settings.loadIsolated({ cwd, agentDir });
 		settings.set(settingPath, body.value as never);
 		await settings.flush();
+		return json({ ok: true });
+	} catch (error) {
+		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+}
+
+/**
+ * POST /api/settings/reload — force a fresh disk read of both the CLI
+ * settings layer and web.yml. The gateway handlers already load isolated
+ * instances per request, so this exists for the Settings panel's "reload"
+ * button: it re-reads the files and the client re-fetches /api/settings and
+ * /api/web-config afterwards.
+ */
+export async function handleSettingsReload(req: Request): Promise<Response> {
+	if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+	try {
+		const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
+		const agentDir = getAgentDir();
+		await Settings.loadIsolated({ cwd, agentDir });
+		const webConfig = await WebConfig.load();
+		await webConfig.reload();
 		return json({ ok: true });
 	} catch (error) {
 		return json({ error: error instanceof Error ? error.message : String(error) }, 500);

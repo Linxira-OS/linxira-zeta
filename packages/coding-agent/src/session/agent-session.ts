@@ -565,6 +565,8 @@ export class AgentSession {
 	#ircWakeTurnObserver:
 		| ((records: CustomMessage[]) => ((error?: unknown) => void | Promise<void>) | undefined)
 		| undefined;
+	/** Outbound listener for IRC auto-reply text (installed by IM channels). */
+	#ircAutoReplyListener: ((msg: IrcMessage, replyText: string) => void) | null = null;
 	// Agent identity (registry id) used for IRC routing and job ownership.
 	#agentId: string | undefined;
 	#agentKind: "main" | "sub" = "main";
@@ -1000,6 +1002,7 @@ export class AgentSession {
 			emitSessionEvent: event => this.#emitSessionEvent(event),
 			wakeForIrc: records => this.#wakeForIrc(records),
 			runEphemeralTurn: args => this.runEphemeralTurn(args),
+			onAutoReply: (msg, replyText) => this.#ircAutoReplyListener?.(msg, replyText),
 		};
 		this.#irc = new IrcBridge(ircHost);
 		const prewalkHost: PrewalkCoordinatorHost = {
@@ -7540,6 +7543,11 @@ export class AgentSession {
 	/** Delivers an IRC message into this recipient session. */
 	deliverIrcMessage(msg: IrcMessage, opts?: { expectsReply?: boolean }): Promise<"injected" | "woken"> {
 		return this.#irc.deliver(msg, opts);
+	}
+
+	/** Installs/clears the outbound listener for IRC auto-reply text (IM channels). */
+	setIrcAutoReplyListener(listener: ((msg: IrcMessage, replyText: string) => void) | null): void {
+		this.#ircAutoReplyListener = listener;
 	}
 
 	/** Installs task-executor monitoring around autonomous IRC wake turns. */

@@ -8,6 +8,7 @@ import { ChatWindow } from "./ChatWindow";
 import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
 import { ModelsConfig } from "./ModelsConfig";
+import { StatsDashboard } from "./StatsDashboard";
 import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import { SettingsPanel } from "./SettingsPanel";
@@ -28,6 +29,20 @@ import type { ChatInputHandle } from "./ChatInput";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 
 type SessionCopyField = "file" | "id";
+
+const openMenuItemStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  padding: "6px 10px",
+  border: "none",
+  background: "none",
+  borderRadius: 6,
+  color: "var(--text)",
+  fontSize: 12,
+  textAlign: "left",
+  cursor: "pointer",
+  textTransform: "capitalize",
+};
 
 export function AppShell() {
 	return (
@@ -56,6 +71,19 @@ function AppShellContent() {
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
   const [modelsConfigOpen, setModelsConfigOpen] = useState(false);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [openMenuOpen, setOpenMenuOpen] = useState(false);
+  const [openOptions, setOpenOptions] = useState<{
+    terminal: boolean;
+    explorer: boolean;
+    editors: string[];
+  } | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<{
+    current: string;
+    latest: string;
+    available: boolean;
+  } | null>(null);
   const [skillsConfigOpen, setSkillsConfigOpen] = useState(false);
   const [pluginsConfigOpen, setPluginsConfigOpen] = useState(false);
   const [settingsConfigOpen, setSettingsConfigOpen] = useState(false);
@@ -99,6 +127,75 @@ function AppShellContent() {
   const handleSessionStatsChange = useCallback((stats: SessionStatsInfo | null) => {
     setSessionStats(stats);
   }, []);
+
+  // "Open" dropdown: resolve local apps from the gateway, then spawn one.
+  const handleToggleOpenMenu = useCallback(async () => {
+    if (openMenuOpen) {
+      setOpenMenuOpen(false);
+      return;
+    }
+    try {
+      const response = await fetch("/api/open/options");
+      if (response.ok) {
+        const options = (await response.json()) as {
+          terminal: boolean;
+          explorer: boolean;
+          editors: string[];
+        };
+        setOpenOptions(options);
+      }
+    } catch {
+      setOpenOptions(null);
+    }
+    setOpenMenuOpen(true);
+  }, [openMenuOpen]);
+
+  const handleOpenTarget = useCallback(async (target: string, editor?: string) => {
+    setOpenMenuOpen(false);
+    try {
+      const body: Record<string, string> = { target };
+      if (editor) body.editor = editor;
+      await fetch("/api/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      // Non-fatal: the app simply does not open.
+    }
+  }, []);
+
+  // "Update" button: check → confirm → download → install → prompt restart.
+  const handleCheckUpdate = useCallback(async () => {
+    try {
+      const response = await fetch("/api/update/check");
+      if (!response.ok) return;
+      setUpdateInfo((await response.json()) as { current: string; latest: string; available: boolean });
+    } catch {
+      // Gateway unavailable; leave the button silent.
+    }
+  }, []);
+
+  const handleRunUpdate = useCallback(async () => {
+    if (!updateInfo) return;
+    setUpdating(true);
+    try {
+      const download = await fetch("/api/update/download", { method: "POST" });
+      if (!download.ok) {
+        window.alert(`Download failed: ${await download.text()}`);
+        return;
+      }
+      const install = await fetch("/api/update/install", { method: "POST" });
+      if (!install.ok) {
+        window.alert(`Install failed: ${await install.text()}`);
+        return;
+      }
+      window.alert(`Updated to ${updateInfo.latest}. Restart Zeta to use the new version.`);
+      setUpdateInfo(null);
+    } finally {
+      setUpdating(false);
+    }
+  }, [updateInfo]);
   const [copiedSessionField, setCopiedSessionField] = useState<SessionCopyField | null>(null);
   const sessionCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleCopySessionField = useCallback((field: SessionCopyField, value: string) => {
@@ -642,6 +739,118 @@ function AppShellContent() {
           {showChat && (
             <div style={{ display: "flex", alignItems: "stretch", height: "100%" }}>
               <button
+                onClick={() => setStatsOpen((v) => !v)}
+                title={statsOpen ? "Back to chat" : "Stats dashboard"}
+                aria-pressed={statsOpen}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  height: "100%", padding: "0 12px",
+                  background: statsOpen ? "var(--bg-selected)" : "none",
+                  border: "none",
+                  borderTop: statsOpen ? "2px solid var(--accent)" : "2px solid transparent",
+                  borderRight: "1px solid var(--border)",
+                  cursor: "pointer",
+                  color: statsOpen ? "var(--text)" : "var(--text-muted)",
+                  fontSize: 11, whiteSpace: "nowrap",
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+                {!isMobile && <span>Stats</span>}
+              </button>
+              <button
+                onClick={handleToggleOpenMenu}
+                title="Open in app"
+                aria-pressed={openMenuOpen}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  height: "100%", padding: "0 12px",
+                  background: openMenuOpen ? "var(--bg-selected)" : "none",
+                  border: "none",
+                  borderTop: openMenuOpen ? "2px solid var(--accent)" : "2px solid transparent",
+                  borderRight: "1px solid var(--border)",
+                  cursor: "pointer",
+                  color: openMenuOpen ? "var(--text)" : "var(--text-muted)",
+                  fontSize: 11, whiteSpace: "nowrap",
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                {!isMobile && <span>Open</span>}
+              </button>
+              <button
+                onClick={() => {
+                  if (updateInfo) {
+                    if (updateInfo.available && window.confirm(`Update Zeta to ${updateInfo.latest}?`)) {
+                      void handleRunUpdate();
+                    } else {
+                      setUpdateInfo(null);
+                    }
+                  } else {
+                    void handleCheckUpdate();
+                  }
+                }}
+                disabled={updating}
+                title={updateInfo && updateInfo.available ? `Update available: ${updateInfo.latest}` : "Check for updates"}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  height: "100%", padding: "0 12px",
+                  background: "none",
+                  border: "none",
+                  borderTop: "2px solid transparent",
+                  borderRight: "1px solid var(--border)",
+                  cursor: updating ? "default" : "pointer",
+                  color: updateInfo?.available ? "var(--accent)" : "var(--text-muted)",
+                  fontSize: 11, whiteSpace: "nowrap",
+                  opacity: updating ? 0.5 : 1,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 1 1-9-9" /><polyline points="21 3 21 9 15 9" />
+                </svg>
+                {!isMobile && <span>{updateInfo && updateInfo.available ? `v${updateInfo.latest}` : "Update"}</span>}
+              </button>
+              {openMenuOpen && openOptions && (
+                <div
+                  style={{
+                    position: "fixed",
+                    top: 40,
+                    right: 16,
+                    zIndex: 300,
+                    background: "var(--bg-panel)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                    padding: 6,
+                    minWidth: 180,
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  {openOptions.terminal && (
+                    <button onClick={() => void handleOpenTarget("terminal")} style={openMenuItemStyle}>
+                      Terminal
+                    </button>
+                  )}
+                  {openOptions.explorer && (
+                    <button onClick={() => void handleOpenTarget("explorer")} style={openMenuItemStyle}>
+                      Explorer
+                    </button>
+                  )}
+                  {openOptions.editors.map((editor) => (
+                    <button key={editor} onClick={() => void handleOpenTarget("editor", editor)} style={openMenuItemStyle}>
+                      {editor}
+                    </button>
+                  ))}
+                  {!openOptions.terminal && !openOptions.explorer && openOptions.editors.length === 0 && (
+                    <div style={{ padding: "6px 10px", color: "var(--text-dim)", fontSize: 12 }}>No apps found</div>
+                  )}
+                </div>
+              )}
+              <button
                 onClick={handleViewFullHistory}
                 disabled={!selectedSession}
                 title={selectedSession ? t("view-full-history") : t("full-history-is-available-after-the-session-is-s")}
@@ -1056,7 +1265,9 @@ function AppShellContent() {
 
         {/* Chat content */}
         <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-          {showChat ? (
+          {statsOpen ? (
+            <StatsDashboard />
+          ) : showChat ? (
             <ChatWindow
               key={sessionKey}
               session={selectedSession}

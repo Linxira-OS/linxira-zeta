@@ -504,6 +504,18 @@ export interface CreateAgentSessionOptions {
 	/** Limit the session to explicitly supplied tool names, without discovered extras. */
 	restrictToolNames?: boolean;
 	/**
+	 * IM channel send sink (web/desktop sessions only; undefined in CLI mode).
+	 * When set, `channel_send` is available and the session can push progress
+	 * to the remote IM user.
+	 */
+	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
+	/**
+	 * Workspace delegation sink (web/desktop sessions only; undefined in CLI
+	 * mode). When set, `workspace_run` is available and the coordinator can
+	 * delegate subtasks to other workspace sessions.
+	 */
+	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+	/**
 	 * Permit only caller-supplied SDK custom tools inside a restricted session.
 	 * They must still be named in {@link toolNames}; discovered extensions, MCP,
 	 * and ambient custom tools remain disabled. Default: false.
@@ -1672,6 +1684,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			toolRegistry,
 			hasUI: options.hasUI ?? false,
 			getApiKey: options.getApiKey,
+			channelSend: options.channelSend,
+			workspaceRun: options.workspaceRun,
 			get additionalDirectories() {
 				return sessionManager.getAdditionalDirectories();
 			},

@@ -250,6 +250,98 @@ export async function handleModelsDefaultPut(req: Request): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/models/import?base=<url> — import an OpenAI-compatible model list
+// into the runtime models config. Provider name is the base URL's hostname;
+// models already present (same id under that provider) are skipped.
+// ---------------------------------------------------------------------------
+
+export async function handleModelsImport(req: Request): Promise<Response> {
+	if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+	const base = new URL(req.url).searchParams.get("base")?.trim();
+	if (!base) return json({ error: "Missing base URL" }, 400);
+
+	let parsedBase: URL;
+	try {
+		parsedBase = new URL(base);
+	} catch {
+		return json({ error: "Invalid base URL", stage: "fetch" }, 400);
+	}
+
+	const endpoint = /\/models\/?$/.test(parsedBase.pathname)
+		? base
+		: `${base.replace(/\/+$/, "")}/models`;
+
+	let payload: unknown;
+	try {
+		const response = await fetch(endpoint);
+		if (!response.ok) return json({ error: `unreachable: HTTP ${response.status}`, stage: "fetch" }, 400);
+		payload = await response.json();
+	} catch (error) {
+		return json({ error: `unreachable: ${errorMessage(error)}`, stage: "fetch" }, 400);
+	}
+
+	let discovered: Array<{ id: string; contextWindow?: number }>;
+	try {
+		const list = (payload as { data?: unknown }).data;
+		if (!Array.isArray(list)) throw new Error("missing data[]");
+		discovered = list
+			.map(entry => {
+				const record = entry as Record<string, unknown>;
+				if (typeof record.id !== "string" || record.id.length === 0) return null;
+				const model: { id: string; contextWindow?: number } = { id: record.id };
+				if (typeof record.context_window === "number") model.contextWindow = record.context_window;
+				return model;
+			})
+			.filter((entry): entry is { id: string; contextWindow?: number } => entry !== null);
+	} catch {
+		return json({ error: "unreachable: malformed JSON", stage: "parse" }, 400);
+	}
+
+	const providerName = parsedBase.hostname;
+	if (!providerName) return json({ error: "Invalid base URL", stage: "fetch" }, 400);
+
+	const loaded = ModelsConfigFile.tryLoad();
+	const config = loaded.status === "ok" ? loaded.value : { providers: {} };
+	const providers = (config.providers ?? {}) as Record<string, Record<string, unknown>>;
+
+	const existingProvider = providers[providerName];
+	const existingModels = Array.isArray(existingProvider?.models) ? existingProvider.models : [];
+	const existingIds = new Set(
+		existingModels
+			.map(model => (typeof (model as Record<string, unknown>).id === "string" ? (model as Record<string, unknown>).id : null))
+			.filter((id): id is string => id !== null),
+	);
+
+	const fresh: Array<{ id: string; contextWindow?: number }> = [];
+	for (const model of discovered) {
+		if (existingIds.has(model.id)) continue;
+		fresh.push(model);
+	}
+
+	if (fresh.length > 0) {
+		if (existingProvider) {
+			existingProvider.models = [...existingModels, ...fresh];
+		} else {
+			providers[providerName] = {
+				baseUrl: base.replace(/\/+$/, ""),
+				api: "openai-completions" as const,
+				models: fresh,
+			};
+		}
+		await Bun.write(ModelsConfigFile.path(), JSON.stringify(config, null, 2));
+		ModelsConfigFile.invalidate();
+		await refreshSharedModelRegistry();
+	}
+
+	return json({
+		imported: fresh.length,
+		skipped: discovered.length - fresh.length,
+		models: fresh.map(model => model.id),
+		provider: providerName,
+	});
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/models-config/test — probe a configured provider/model
 // ---------------------------------------------------------------------------
 

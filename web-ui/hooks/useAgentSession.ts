@@ -1248,10 +1248,44 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     }
   }, [loadContext]);
 
+  // Persist a chosen model back into the runtime models config when its
+  // provider is already configured there — keeps the CLI and web-ui lists in
+  // sync. A brand-new provider stays session-only (the runtime selection is
+  // already applied); it is not force-written into models.yml.
+  const persistModelSelection = useCallback(async (provider: string, modelId: string) => {
+    try {
+      const response = await fetch("/api/models-config");
+      if (!response.ok) return;
+      const config = (await response.json()) as {
+        providers?: Record<string, { models?: Array<{ id: string }> }>;
+      };
+      const providerEntry = config.providers?.[provider];
+      if (!providerEntry) return;
+      const models = providerEntry.models ?? [];
+      if (models.some((m) => m.id === modelId)) return;
+      await fetch("/api/models-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...config,
+          providers: {
+            ...config.providers,
+            [provider]: { ...providerEntry, models: [...models, { id: modelId }] },
+          },
+        }),
+      });
+    } catch {
+      // Non-fatal: the runtime selection already applied.
+    }
+  }, []);
+
   const handleModelChange = useCallback(async (provider: string, modelId: string) => {
     const fail = (e: unknown): void => {
       const msg = e instanceof Error ? e.message : String(e);
-      addNotice({ type: "error", message: `Failed to set model: ${msg}` });
+      const detail = msg.includes("Model not found")
+        ? `${provider}/${modelId} is not configured — refresh the model list or add it in Models config first`
+        : msg;
+      addNotice({ type: "error", message: `Failed to set model: ${detail}` });
     };
     if (isNew) {
       setNewSessionModel({ provider, modelId });
@@ -1270,10 +1304,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     try {
       await sendAgentCommand(sid, { type: "set_model", provider, modelId });
       setCurrentModelOverride({ provider, modelId });
+      void persistModelSelection(provider, modelId);
     } catch (e) {
       fail(e);
     }
-  }, [isNew, setNewSessionModel, addNotice]);
+  }, [isNew, setNewSessionModel, addNotice, persistModelSelection]);
 
   const handleCompact = useCallback(async () => {
     if (isCompacting) return;

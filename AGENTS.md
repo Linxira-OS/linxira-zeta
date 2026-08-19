@@ -194,6 +194,33 @@ This repo contains multiple packages, but **`packages/coding-agent/`** is the pr
 | `packages/utils`        | Shared utilities (logger, streams, temp files)                                          |
 | `crates/pi-natives`     | Rust crate for performance-critical text/grep ops                                       |
 
+### Code Location Rules — desktop vs web-ui vs gateway
+
+Three top-level surfaces have **distinct homes**. Put code only where it belongs;
+never guess from a feature's name. When a task spans surfaces, split the change
+across the correct directories.
+
+| Surface | Location | Engineering rules |
+|---|---|---|
+| **Desktop shell** (Electron: tray, autostart, window lifecycle, serving the built web-ui + stats) | repo root `desktop/` | Standalone Electron project, **not** a Bun workspace package. Own `package.json`, `package-lock.json`, `electron-builder.yml`, `scripts/`, `src/main.ts`. Install with `npm`/`npm ci`, build with `electron-builder`. Code here talks to the backend only over HTTP (`http://127.0.0.1:30141` web-ui, `http://127.0.0.1:3847` stats). It must never import from `packages/*` or `web-ui/*` source — it launches the built runtime via `resolveServeCommand()`. |
+| **Web UI** (Next.js app: components, pages, client libraries) | repo root `web-ui/` | Standalone OMP Web snapshot, **not** a root Bun workspace package. Own package manager + lockfiles; read `web-ui/AGENTS.md` for its rules. All React components/pages/hooks/client helpers live here (`web-ui/components/`, `web-ui/lib/`, `web-ui/hooks/`). Talks to the backend only via `fetch` to the gateway `/api/*` on `http://127.0.0.1:30141`. Never place `.ts` server code or Electron code here. |
+| **Server-side gateway** (REST API handlers behind the web-ui runtime) | `packages/coding-agent/src/server/web-gateway/` (one handler module per resource, e.g. `settings.ts`, `models.ts`, `open.ts`, `web-config.ts`) | Bun runtime code. Route regexes live in `packages/coding-agent/src/server/web-gateway.ts` (`*_RE` constants + dispatch in `webGatewayFetch`). Handler modules import from `packages/coding-agent/src/**` only. |
+| **Channel / bot runtime** (WeChat/Feishu/Telegram, plan-image, workspace routing) | `packages/coding-agent/src/channels/` | Bun runtime, embedded in `zeta serve` (`packages/coding-agent/src/server/zeta-server.ts`). Channel tools (`channel_send`, `workspace_run`) live in `packages/coding-agent/src/tools/`. |
+| **Config layer** (web.yml: tray/autostart/channels/remote) | `packages/coding-agent/src/config/web-config.ts` | Bun runtime, read by both the gateway and (via `zeta serve` HTTP) the desktop shell. |
+
+**Dependency direction (never invert):**
+
+```
+desktop/ (Electron)  ──HTTP──▶  zeta serve (zeta-server.ts)  ──▶  packages/coding-agent/src/**
+web-ui/ (Next.js)    ──HTTP──▶  webGatewayFetch (/api/*)     ──▶  packages/coding-agent/src/server/web-gateway/
+```
+
+**Hard rules:**
+- Electron/Tray/autostart code goes in `desktop/src/main.ts` — never in `web-ui/`, never in `packages/`, never in a new directory under `packages/coding-agent/desktop/` (that path does not exist).
+- React components/pages/hooks go in `web-ui/` — never in `packages/*`, never in `desktop/`.
+- Gateway REST handlers go in `packages/coding-agent/src/server/web-gateway/` and are registered in `web-gateway.ts` — never inline in `web-ui/` or `desktop/`.
+- `desktop/src/main.ts` already owns `resolveServeCommand()`, `createWindow()`, `buildMenu()`, `boot()`, and the `WEB_UI_URL`/`STATS_URL` constants. Extend it in place; do not rewrite it wholesale.
+
 **Catalog import convention**: code in this repo imports catalog _values_ (bundled models, model-thinking helpers, identity, descriptors, model manager/cache) from `@linxiraos/pi-catalog/<module>` — never via `@linxiraos/pi-ai`. The pi-ai barrel re-exports only the model/effort _types_ its own signatures use (`Model`, `Api`, `ThinkingConfig`, `Effort`, …); type-only imports of those from `@linxiraos/pi-ai` are fine.
 
 ## GitHub

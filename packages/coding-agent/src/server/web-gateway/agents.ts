@@ -18,9 +18,11 @@ import { statSync } from "node:fs";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import { approveRemotePlan } from "../../channels/plan-approval";
 import type { BashResult } from "../../exec/bash-executor";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { type ExtensionUIContext, getExtensionUISelectOptionLabel } from "../../extensibility/extensions/types";
+import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../../internal-urls";
 import { createAgentSession } from "../../sdk";
 import type { AgentSession } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
@@ -84,7 +86,8 @@ export type AgentCommand =
 	| { type: "extension_ui_input"; id: string; data: string }
 	| { type: "set_auto_retry"; enabled: boolean }
 	| { type: "bash"; command: string; excludeFromContext?: boolean }
-	| { type: "abort_bash" };
+	| { type: "abort_bash" }
+	| { type: "plan_approve"; planFilePath: string; mode: "preserve" | "compact" | "fresh" | "cancel" };
 
 export type ExtensionUiRequest =
 	| {
@@ -158,6 +161,8 @@ export interface AgentState {
 	extensionStatuses: { key: string; text: string }[];
 	extensionWidgets: { key: string; lines: string[]; placement: "aboveEditor" | "belowEditor" }[];
 	queuedMessages: { steering: string[]; followUp: string[] };
+	planModeEnabled: boolean;
+	planFilePath: string | null;
 }
 
 export interface ToolEntry {
@@ -229,6 +234,11 @@ export class AgentSessionWrapper {
 
 	isAlive(): boolean {
 		return !this.#destroyed;
+	}
+
+	/** The underlying runtime session (channels/coordinators need the raw API). */
+	getSession(): AgentSession {
+		return this.#inner;
 	}
 
 	/** Streams events to a single SSE listener; returns an unsubscribe function. */
@@ -340,6 +350,8 @@ export class AgentSessionWrapper {
 				placement: widget.placement,
 			})),
 			queuedMessages: { steering: [...queued.steering], followUp: [...queued.followUp] },
+			planModeEnabled: inner.getPlanModeState()?.enabled ?? false,
+			planFilePath: inner.getPlanModeState()?.planFilePath ?? null,
 		};
 	}
 
@@ -514,6 +526,16 @@ export class AgentSessionWrapper {
 			case "abort_bash":
 				this.#inner.abortBash();
 				return { ok: true };
+			case "plan_approve": {
+				// Remote (web-ui PlanApproval / IM @plan) plan-approval execution.
+				// Mirrors interactive-mode's approvePlan branches without TUI state.
+				const localProtocolOptions: LocalProtocolOptions = {
+					getArtifactsDir: () => this.#inner.sessionManager.getArtifactsDir(),
+					getSessionId: () => this.#inner.sessionManager.getSessionId(),
+				};
+				const result = await approveRemotePlan(this.#inner, command, localProtocolOptions);
+				return result;
+			}
 			default:
 				throw new Error(`Unsupported command: ${(command as { type: string }).type}`);
 		}
@@ -770,12 +792,21 @@ async function openSessionManagerForAgent(filePath: string, cwd?: string): Promi
  * Get or start the live wrapper for a session. Mirrors web-ui
  * `startRpcSession`: concurrent callers sharing `key` coalesce onto one start
  * promise. `sessionFile` empty means a brand-new session rooted at `cwd`.
+ * `channelHooks` wire the IM channel tools (`channel_send` / `workspace_run`)
+ * into the session's ToolSession — only the coordinator session (web/desktop
+ * mode) supplies them.
  */
+export interface SessionChannelHooks {
+	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
+	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+}
+
 export async function startRpcSession(
 	key: string,
 	sessionFile: string,
 	cwd?: string,
 	toolNames?: string[],
+	channelHooks?: SessionChannelHooks,
 ): Promise<{ session: AgentSessionWrapper; realSessionId: string }> {
 	const existingLock = startLocks.get(key);
 	if (existingLock) return existingLock;
@@ -799,6 +830,8 @@ export async function startRpcSession(
 			cwd: manager.getCwd(),
 			agentDir,
 			sessionManager: manager,
+			channelSend: channelHooks?.channelSend,
+			workspaceRun: channelHooks?.workspaceRun,
 		});
 
 		const wrapper = new AgentSessionWrapper(session, realSessionId, sessionFile || manager.getSessionFile() || null);

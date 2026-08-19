@@ -1282,6 +1282,9 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
   const [oauthProviders, setOauthProviders] = useState<OAuthProvider[]>([]);
   const [apiKeyProviders, setApiKeyProviders] = useState<ApiKeyProvider[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   const loadOAuthProviders = useCallback(() => {
     fetch("/api/auth/providers")
@@ -1297,7 +1300,8 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
+  const reloadConfig = useCallback(() => {
+    setLoading(true);
     fetch("/api/models-config")
       .then((r) => r.json())
       .then((d: ModelsJson) => {
@@ -1308,9 +1312,34 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
       })
       .catch(() => setConfig({ providers: {} }))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    reloadConfig();
     loadOAuthProviders();
     loadApiKeyProviders();
-  }, [loadOAuthProviders, loadApiKeyProviders]);
+  }, [reloadConfig, loadOAuthProviders, loadApiKeyProviders]);
+
+  const handleImport = useCallback(async () => {
+    const url = importUrl.trim();
+    if (!url || importing) return;
+    setImporting(true);
+    setImportMessage(null);
+    try {
+      const response = await fetch(`/api/models/import?base=${encodeURIComponent(url)}`);
+      const data = (await response.json()) as { imported?: number; skipped?: number; error?: string };
+      if (!response.ok) {
+        setImportMessage(data.error ?? `Import failed (HTTP ${response.status})`);
+      } else {
+        setImportMessage(`Imported ${data.imported ?? 0} models (${data.skipped ?? 0} skipped).`);
+        reloadConfig();
+      }
+    } catch {
+      setImportMessage("Import failed: gateway unreachable");
+    } finally {
+      setImporting(false);
+    }
+  }, [importUrl, importing, reloadConfig]);
 
   const addCustomProvider = useCallback(() => {
     let finalName = "new-provider";
@@ -1458,12 +1487,61 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
       <div style={{ width: isMobile ? "calc(100vw - 16px)" : 860, maxWidth: "calc(100vw - 16px)", height: isMobile ? "calc(100dvh - 16px)" : "78vh", maxHeight: "calc(100dvh - 16px)", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, display: "flex", flexDirection: "column", boxShadow: "0 8px 32px rgba(0,0,0,0.18)", overflow: "hidden" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid var(--border)", flexShrink: 0, gap: 12, flexWrap: isMobile ? "wrap" : undefined }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{t("models")}</span>
             <code style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>~/.zeta/agent/config.yml & models.db</code>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "2px 6px" }}>×</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: isMobile ? "100%" : undefined }}>
+            <input
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              placeholder="Import models from URL (OpenAI-compatible)"
+              onKeyDown={(e) => { if (e.key === "Enter") void handleImport(); }}
+              style={{ ...inputStyle, width: isMobile ? "100%" : 240, fontFamily: "var(--font-mono)", fontSize: 11 }}
+            />
+            <button
+              onClick={() => void handleImport()}
+              disabled={importing || !importUrl.trim()}
+              style={{
+                padding: "6px 10px",
+                background: "var(--accent)",
+                border: "none",
+                borderRadius: 6,
+                color: "#fff",
+                fontSize: 12,
+                cursor: importing ? "default" : "pointer",
+                opacity: importing || !importUrl.trim() ? 0.5 : 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {importing ? "Importing…" : "Import"}
+            </button>
+            <button
+              onClick={reloadConfig}
+              disabled={loading}
+              title="Reload models from disk"
+              style={{
+                padding: "6px 10px",
+                background: "none",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                color: "var(--text-muted)",
+                fontSize: 12,
+                cursor: loading ? "default" : "pointer",
+                opacity: loading ? 0.5 : 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Reload
+            </button>
+            {importMessage && (
+              <span style={{ fontSize: 11, color: importMessage.startsWith("Imported") ? "var(--text-muted)" : "#f87171", maxWidth: 200, overflowWrap: "anywhere" }}>
+                {importMessage}
+              </span>
+            )}
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "2px 6px" }}>×</button>
+          </div>
         </div>
 
         {/* Body */}

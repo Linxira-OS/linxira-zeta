@@ -11,9 +11,15 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
+import { registerWechatReconnect, setPendingWechatQr, startChannels, type ChannelRuntime } from "../channels";
+import { SessionRouter } from "../channels/session-router";
+import { routeWorkspaceCommand } from "../channels/workspace-router";
+import { WeChatChannel } from "../channels/wechat";
+import { WebConfig } from "../config/web-config";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { openPath } from "../utils/open";
 import { startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
+import { startRpcSession } from "./web-gateway/agents";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,6 +38,12 @@ export interface ZetaServerOptions {
 	webOnly?: boolean;
 	/** Web Gateway 端口，默认 30142（仅 127.0.0.1） */
 	gatewayPort?: number;
+	/**
+	 * 启动 IM channels（WeChat/Feishu/Telegram）。默认 false；web.yml 中任一
+	 * channel 启用时也会自动开启。CLI TUI 模式永不创建 ZetaServer，因此
+	 * 纯 CLI 会话不会加载任何 channel 监听器。
+	 */
+	channels?: boolean;
 }
 
 export interface ZetaServerInstance {
@@ -172,6 +184,8 @@ export class ZetaServer {
 	#webUiChild: { kill: () => void } | null = null;
 	#statsServer: { stop: () => void } | null = null;
 	#gateway: WebGatewayInstance | null = null;
+	#channelRuntime: ChannelRuntime | null = null;
+	#router: SessionRouter | null = null;
 	#webUiPort = 0;
 	#running = false;
 
@@ -184,6 +198,7 @@ export class ZetaServer {
 			statsOnly: options.statsOnly ?? false,
 			webOnly: options.webOnly ?? false,
 			gatewayPort: options.gatewayPort ?? 30142,
+			channels: options.channels ?? false,
 		};
 	}
 
@@ -209,8 +224,9 @@ export class ZetaServer {
 		try {
 			const { statsPort, webOnly, statsOnly } = this.#options;
 
-			// 1. Start Stats Dashboard (if not webOnly)
-			if (!webOnly) {
+			// 1. Start Stats Dashboard (always when not statsOnly — zeta web
+			//    single-mode also serves it for the Stats iframe tab)
+			if (!statsOnly) {
 				await this.#startStats(statsPort);
 			}
 
@@ -224,6 +240,11 @@ export class ZetaServer {
 			// standalone listener — never the gateway itself.
 			if (!statsOnly) {
 				await this.#startGateway();
+			}
+
+			// 2c. Start IM channels when requested or any web.yml channel is enabled.
+			if (!statsOnly && !webOnly) {
+				await this.#maybeStartChannels();
 			}
 
 			// 3. Start the main Bun.serve proxy
@@ -244,6 +265,18 @@ export class ZetaServer {
 
 	async shutdown(): Promise<void> {
 		this.#running = false;
+
+		if (this.#channelRuntime) {
+			await this.#channelRuntime.stop().catch(() => {});
+			this.#channelRuntime = null;
+			setPendingWechatQr(null);
+			registerWechatReconnect(null);
+		}
+
+		if (this.#router) {
+			await this.#router.stopAll().catch(() => {});
+			this.#router = null;
+		}
 
 		if (this.#server) {
 			this.#server.stop();
@@ -290,13 +323,106 @@ export class ZetaServer {
 	async #startWebUi(): Promise<void> {
 		this.#webUiPort = getRandomPort();
 		try {
-			this.#webUiChild = await spawnWebUi(this.#webUiPort);
+			// NEXT_PUBLIC_STATS_URL lets the web-ui Stats iframe tab target the
+			// in-process stats dashboard.
+			this.#webUiChild = await spawnWebUi(this.#webUiPort, `http://127.0.0.1:${this.#options.statsPort}`);
 			logger.info("Web UI backend started", { internalPort: this.#webUiPort });
 		} catch (err) {
 			logger.warn("Failed to start Web UI backend", {
 				error: err instanceof Error ? err.message : String(err),
 			});
 			throw err;
+		}
+	}
+
+	/**
+	 * Start IM channels when the `channels` option is set or web.yml enables
+	 * any channel. The coordinator session (created through the same RPC
+	 * registry the web-ui uses) receives every inbound channel message, so
+	 * bot and web-ui see one shared conversation.
+	 */
+	async #maybeStartChannels(): Promise<void> {
+		const webConfig = await WebConfig.load();
+		const data = webConfig.getData();
+		const anyEnabled =
+			data.channels.wechat.enabled || data.channels.feishu.enabled || data.channels.telegram.enabled;
+		if (!this.#options.channels && !anyEnabled) return;
+
+		try {
+			// Deferred sink: the channel runtime resolves after startChannels.
+			let runtimeRef: ChannelRuntime | null = null;
+			const { session } = await startRpcSession(
+				"__zeta_serve_coordinator__",
+				"",
+				process.cwd(),
+				undefined,
+				{
+					channelSend: async opts => {
+						const runtime = runtimeRef;
+						const router = this.#router;
+						if (!runtime || !router) throw new Error("IM channels are not started");
+						const target = router.resolvePush(opts);
+						if (!target) throw new Error("No channel or peer bound to this session");
+						await runtime.sendText(target.channelId, target.to, opts.text);
+					},
+					workspaceRun: async opts => {
+						const router = this.#router;
+						if (!router) throw new Error("Workspace router is not started");
+						return router.run(opts.workspace, opts.task);
+					},
+				},
+			);
+
+			const coordinator = session.getSession();
+			this.#router = new SessionRouter({
+				coordinator,
+				webConfig,
+				getLastInbound: () => runtimeRef?.host.lastInbound ?? null,
+				sendText: (channelId, to, text) => {
+					const runtime = runtimeRef;
+					if (!runtime) throw new Error("IM channels are not started");
+					return runtime.sendText(channelId, to, text);
+				},
+			});
+
+			this.#channelRuntime = await startChannels(
+				coordinator,
+				webConfig,
+				(channelId, peer, body) => {
+					const runtime = runtimeRef;
+					if (!runtime) return;
+					void routeWorkspaceCommand(body, peer, {
+						listWorkspaces: () => this.#router?.list() ?? [],
+						registerWorkspace: () => {},
+						unregisterWorkspace: () => {},
+						openWorkspaceSession: async dir => {
+							await this.#router?.open(dir);
+						},
+						closeWorkspaceSession: async name => {
+							await this.#router?.close(name);
+						},
+						sendText: text => runtime.sendText(channelId, peer, text),
+						fallback: (fallbackBody, fromPeer) =>
+							runtime.host.deliver(channelId, fromPeer, fallbackBody).catch(error => {
+								logger.warn("Channel message injection failed", {
+									channel: channelId,
+									error: error instanceof Error ? error.message : String(error),
+								});
+							}),
+					});
+				},
+				payload => setPendingWechatQr(payload),
+			);
+
+			const wechatChannel = this.#channelRuntime.channels.get("wechat");
+			registerWechatReconnect(wechatChannel instanceof WeChatChannel ? () => wechatChannel.reconnect() : null);
+
+			runtimeRef = this.#channelRuntime;
+			logger.info("IM channels started", { count: this.#channelRuntime.channels.size });
+		} catch (error) {
+			logger.warn("Failed to start IM channels", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 		}
 	}
 

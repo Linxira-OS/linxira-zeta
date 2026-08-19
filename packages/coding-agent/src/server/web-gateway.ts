@@ -40,7 +40,9 @@ import {
 	handleModelsConfigPut,
 	handleModelsConfigTest,
 	handleModelsDefaultPut,
+	handleModelsImport,
 } from "./web-gateway/models";
+import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import {
 	handleDeleteSession,
@@ -52,7 +54,7 @@ import {
 	handleSessionState,
 	handleThinking,
 } from "./web-gateway/sessions";
-import { handleSettingsGet, handleSettingsPut } from "./web-gateway/settings";
+import { handleSettingsGet, handleSettingsPut, handleSettingsReload } from "./web-gateway/settings";
 import {
 	handleSkillsCheck,
 	handleSkillsGet,
@@ -61,6 +63,9 @@ import {
 	handleSkillsSearch,
 	handleSkillsUpdate,
 } from "./web-gateway/skills";
+import { getPendingWechatQr, triggerWechatReconnect } from "../channels";
+import { handleWebConfigGet, handleWebConfigPut } from "./web-gateway/web-config";
+import { handleUpdateCheck, handleUpdateDownload, handleUpdateInstall } from "./web-gateway/update";
 
 const DEFAULT_GATEWAY_PORT = 30142;
 
@@ -84,6 +89,7 @@ const AUTH_API_KEY_RE = new RegExp(`^/api/auth/api-key/(${PROVIDER_PART})$`);
 const AUTH_LOGIN_RE = new RegExp(`^/api/auth/login/(${PROVIDER_PART})$`);
 const AUTH_LOGOUT_RE = new RegExp(`^/api/auth/logout/(${PROVIDER_PART})$`);
 const MODELS_RE = /^\/api\/models$/;
+const MODELS_IMPORT_RE = /^\/api\/models\/import$/;
 const MODELS_DEFAULT_RE = /^\/api\/models\/default$/;
 const MODELS_CONFIG_RE = /^\/api\/models-config$/;
 const MODELS_CONFIG_TEST_RE = /^\/api\/models-config\/test$/;
@@ -92,8 +98,17 @@ const SKILLS_INSTALL_RE = /^\/api\/skills\/install$/;
 const SKILLS_SEARCH_RE = /^\/api\/skills\/search$/;
 const SKILLS_CHECK_RE = /^\/api\/skills\/check$/;
 const SKILLS_UPDATE_RE = /^\/api\/skills\/update$/;
+const OPEN_RE = /^\/api\/open$/;
+const OPEN_OPTIONS_RE = /^\/api\/open\/options$/;
+const UPDATE_CHECK_RE = /^\/api\/update\/check$/;
+const UPDATE_DOWNLOAD_RE = /^\/api\/update\/download$/;
+const UPDATE_INSTALL_RE = /^\/api\/update\/install$/;
 const PLUGINS_RE = /^\/api\/plugins$/;
 const SETTINGS_RE = /^\/api\/settings$/;
+const SETTINGS_RELOAD_RE = /^\/api\/settings\/reload$/;
+const WEB_CONFIG_RE = /^\/api\/web-config$/;
+const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
+const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -225,6 +240,10 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (MODELS_IMPORT_RE.test(pathname)) {
+		return handleModelsImport(req);
+	}
+
 	if (MODELS_DEFAULT_RE.test(pathname)) {
 		if (req.method === "PUT") return handleModelsDefaultPut(req);
 		return json({ error: "Method not allowed" }, 405);
@@ -267,16 +286,68 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (OPEN_OPTIONS_RE.test(pathname)) {
+		if (req.method === "GET") return handleOpenGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (OPEN_RE.test(pathname)) {
+		if (req.method === "OPTIONS") return new Response("", { status: 204, headers: { Allow: "POST, OPTIONS" } });
+		if (req.method === "POST") return handleOpenPost(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (UPDATE_CHECK_RE.test(pathname)) {
+		return handleUpdateCheck(req);
+	}
+
+	if (UPDATE_DOWNLOAD_RE.test(pathname)) {
+		return handleUpdateDownload(req);
+	}
+
+	if (UPDATE_INSTALL_RE.test(pathname)) {
+		return handleUpdateInstall(req);
+	}
+
 	if (PLUGINS_RE.test(pathname)) {
 		if (req.method === "GET") return handlePluginsGet(req);
 		if (req.method === "POST") return handlePluginsPost(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (SETTINGS_RELOAD_RE.test(pathname)) {
+		return handleSettingsReload(req);
+	}
+
 	if (SETTINGS_RE.test(pathname)) {
 		if (req.method === "GET") return handleSettingsGet(req);
 		if (req.method === "PUT") return handleSettingsPut(req);
 		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (WEB_CONFIG_RE.test(pathname)) {
+		if (req.method === "GET") return handleWebConfigGet();
+		if (req.method === "PUT") return handleWebConfigPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (CHANNELS_WECHAT_QR_RE.test(pathname)) {
+		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+		const qr = getPendingWechatQr();
+		if (!qr) return json({ pending: false });
+		return json({ pending: true, qrcodeUrl: qr.qrcodeUrl, status: qr.status });
+	}
+
+	if (CHANNELS_WECHAT_RECONNECT_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		const trigger = triggerWechatReconnect();
+		if (!trigger) return json({ error: "WeChat channel is not running" }, 404);
+		try {
+			await trigger;
+			return json({ ok: true });
+		} catch (error) {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+		}
 	}
 
 	if (pathname.startsWith("/api/")) {

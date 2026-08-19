@@ -988,6 +988,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "项目追踪文档",
 		description: "启用 tracking_update 工具，让 agent 维护项目追踪文档（默认关闭）",
 	},
+	"channels.enabled": {
+		label: "IM 渠道工具",
+		description: "启用 channel_send / workspace_run，让 agent 向远程 IM 用户推送进度并委派其他工作区任务（仅 web/桌面模式）",
+	},
 	"todo.reminders": {
 		label: "待办提醒",
 		description: "提醒智能体在停止前完成待办",
@@ -1504,7 +1508,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"dev.autoqaPush.endpoint": {
 		label: "自动 QA 推送端点",
-		description: "接收自动 QA JSON 报告的完整 URL（默认 https://qa.omp.sh/v1/grievances）",
+		description: "接收自动 QA JSON 报告的完整 URL（留空则禁用推送）",
 	},
 	"zeta.contextCache.enabled": {
 		label: "启用上下文缓存",
