@@ -400,6 +400,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"顾问模型的服务层级。None = 标准处理；Inherit = 与主智能体的实时分系列层级保持一致；选择一个值可将其应用于顾问模型所属系列。",
 	},
+	"retry.enabled": {
+		label: "自动重试",
+		description: "自动重试失败的轮次，而不是立即将错误呈现给你",
+	},
 	"retry.maxRetries": {
 		label: "重试次数",
 		description: "API 错误的最大重试次数",
@@ -569,6 +573,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "语音转文字",
 		description: "通过麦克风启用语音转文字输入",
 	},
+	"stt.language": {
+		label: "语音识别语言",
+		description: "语音转文字识别语言（例如 en、zh-CN）",
+	},
 	"stt.modelName": {
 		label: "语音模型",
 		description:
@@ -585,6 +593,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"compaction.enabled": {
 		label: "自动压缩",
 		description: "上下文过大时自动压缩",
+	},
+	"compaction.reserveTokens": {
+		label: "预留令牌",
+		description: "压缩时保留给摘要的令牌预算；留空以使用自动比例预留",
+	},
+	"compaction.keepRecentTokens": {
+		label: "保留近期令牌",
+		description: "压缩时原样保留的最近令牌数；更早的上下文会被摘要化",
 	},
 	"compaction.midTurnEnabled": {
 		label: "轮中压缩",
@@ -1311,6 +1327,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "显示已解析模型徽标",
 		description: "在任务组件状态栏中显示每个子代理实际使用的模型 ID",
 	},
+	"skills.enabled": {
+		label: "技能",
+		description: "启用技能发现与加载（SKILL.md 工作流）",
+	},
+	shellPath: {
+		label: "Shell 路径",
+		description: "bash 工具使用的 Shell 可执行文件（例如 bash、zsh、pwsh 或绝对路径）",
+	},
 	"skills.enableSkillCommands": {
 		label: "技能命令",
 		description: "将技能注册为 /skill:name 命令",
@@ -1445,6 +1469,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "OpenAI WebSocket 策略",
 		description: "OpenAI Codex 模型的 WebSocket 策略（auto 使用模型默认，on 强制，off 禁用）",
 	},
+	"providers.cacheRetention": {
+		label: "提示缓存保留",
+		description: "转发给支持的服务商（Anthropic、Bedrock、OpenRouter、OpenAI）的提示缓存保留策略",
+	},
 	"providers.streamFirstEventTimeoutSeconds": {
 		label: "流首事件超时",
 		description: "等待模型流的第一个事件的秒数；-1 使用服务商/环境默认值，0 禁用看门狗",
@@ -1497,6 +1525,18 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"searxng.endpoint": {
 		label: "SearXNG 端点",
 		description: "用于网络搜索的自托管 SearXNG 实例的基础 URL",
+	},
+	"searxng.categories": {
+		label: "搜索分类",
+		description: "逗号分隔的 SearXNG 分类（例如 general、images、news）",
+	},
+	"searxng.language": {
+		label: "搜索语言",
+		description: "搜索结果语言（例如 en、zh-CN 或 all）",
+	},
+	"searxng.safesearch": {
+		label: "安全搜索",
+		description: "SearXNG 安全搜索级别：0 关闭、1 适中、2 严格",
 	},
 	"extensionHandlers.toolCallTimeoutMs": {
 		label: "工具调用处理超时（毫秒）",
@@ -3707,6 +3747,22 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"providers.streamFirstEventTimeoutSeconds::1800": {
 		label: "30 分钟",
+	},
+	"providers.cacheRetention::auto": {
+		label: "自动",
+		description: "使用服务商默认值——Anthropic 使用 5 分钟条目并由空闲保活刷新保持热度；PI_CACHE_RETENTION 仍然生效",
+	},
+	"providers.cacheRetention::short": {
+		label: "短（5 分钟）",
+		description: "最便宜的缓存写入；Anthropic 在空闲时通过有界的保活刷新保持条目热度",
+	},
+	"providers.cacheRetention::long": {
+		label: "长（1 小时）",
+		description: "服务商支持时使用 1 小时 TTL；写入更贵，不发送保活刷新请求",
+	},
+	"providers.cacheRetention::none": {
+		label: "关闭",
+		description: "禁用提示缓存和缓存亲和路由",
 	},
 	"providers.streamIdleTimeoutSeconds::-1": {
 		label: "Auto",

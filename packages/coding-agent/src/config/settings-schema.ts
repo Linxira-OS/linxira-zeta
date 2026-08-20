@@ -1524,7 +1524,7 @@ export const SETTINGS_SCHEMA = {
 		type: "boolean",
 		default: true,
 		ui: {
-			tab: "interaction",
+			tab: "model",
 			group: "Retry & Fallback",
 			label: "Automatic Retry",
 			description: "Retry failed turns automatically before surfacing the error to you",

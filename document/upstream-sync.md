@@ -316,6 +316,10 @@ merge. No version bump, no tag, no release.
     `~/.zeta/agent`), `update-cli.test.ts` mock registry URL
     (`@oh-my-pi/pi-coding-agent` → `@linxiraos/zeta`), `docs/extensions.md`
     import example (`@oh-my-pi/pi-coding-agent` → `@linxiraos/zeta`).
+  - `structured-subagent.test.ts` (upstream 17.3.8-added "reloads model roles"
+    case): `.omp/config.yml` + `.omp/agents/hot-worker.md` writes adapted to
+    `.zeta` (caught by release CI — discovery is `.zeta`-only; recorded here
+    per policy).
   - Tree-wide `@oh-my-pi/*` → `@linxiraos/*` sweep for 31 upstream-added or
     auto-merged files (new upstream files carrying un-rebranded imports;
     these resolved through main's node_modules and broke worktree type
