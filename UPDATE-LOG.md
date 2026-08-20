@@ -1,6 +1,6 @@
 # Zeta 更新日志
 
-## v1.0.10（未发布）
+## v1.0.10（2026-08-20）
 
 ### 同步基线
 
@@ -12,6 +12,12 @@
   - `issue-887-repro.test.ts` 保留（上游删除），其 qwen3.7-max 断言随 17.3.8 `models.json` 路由更新。
 - 合并分支已并入 `main`（合并提交 `76588be094`，无冲突；跟随修复提交 `82309f384d` 在其上保留）。
 - 跟随修复（Phase 1-8，见各包 `CHANGELOG.md`）：stats 独立窗口导航、更新流程（checking 态 / 已是最新提示 / CLI 交互确认与 `--yes`）、微信 v1 API 登录与 peer 持久化及解绑、飞书首聊 onboarding、`allowedPeers` 白名单、web-ui `/plan` 进入计划模式、models 配置卡片去重、desktop 二次点击恢复、桌面菜单 i18n、设置面板新增可编辑项。
+
+### 发布与 CI
+
+- v1.0.10 已发布：13 个 `@linxiraos/*` 包全量 1.0.10（trusted publishing），GitHub Release `v1.0.10` 含 18 个二进制/桌面/checksum 资产。
+- 发布门新增修复（release-v2 工具）：`selectLatestZetaTag` 现在排除上游 OMP 17.x tag（其自带 `chore: bump version to 17.x` subject，会误判为 Zeta tag 阻断发布）；Cargo.toml `[workspace.package]` 缩进版本格式适配。
+- 发布 CI 首轮暴露并修复：`retry.enabled` 设置分组错放（interaction → model）、9 个新增 `ui:` 块补全 zh 文案（含 17.3.8 新增的 `providers.cacheRetention` 及选项）、`structured-subagent.test.ts` 的 `.omp` 路径适配 `.zeta`。
 
 ## v1.0.9（2026-08-19）
 
