@@ -335,6 +335,67 @@ merge. No version bump, no tag, no release.
   commit `82309f384d` lands on top with the 17.3.8 content). Ancestry
   re-verified on `main`. Released as Zeta `v1.0.10`.
 
+### Pending/In-progress: v17.4.0 (branch `sync/omp-release/v17.4.0`)
+
+- Prior baseline: `v17.3.8` at `858f7dd91fff9b84cf8a2c6a6bb85aa0e6d03a55`
+  (main `76588be094` + IM feature work up to `bd6a6ca95d`).
+- Source: `refs/tags/v17.4.0` at
+  `72000acfeb902e21816252699482887f34d1a5a4` (verified with `git ls-remote
+  --tags omp-upstream refs/tags/v17.4.0`; upstream `main` == tag HEAD).
+- Zeta start: `bd6a6ca95d` (IM command-language / default-space session /
+  model + language + plan-approval feature commit); integration branch:
+  `sync/omp-release/v17.4.0`; tag merge commit: `b90f69f69a`.
+  `git merge-base --is-ancestor v17.4.0 HEAD` verified.
+- Merge-tree: 111 conflicts, resolved per the AGENTS.md policy table:
+  - Zeta-owned surfaces kept (ours): native sentinel `__piNativesV1_0_10`
+    (lib.rs + generated `native/index.js|d.ts`, plus upstream `nodeChainAt`
+    export); root `Cargo.toml` workspace `1.0.10`; `workspaces.catalog`
+    `@linxiraos/*` @ `1.0.10` with name mapping
+    (`hashline`→`pi-hashline`, `omp-stats`→`pi-stats`, `omptype`→
+    `pi-omptype`, `pi-coding-agent`→`zeta`, `snapcompact`→`pi-snapcompact`);
+    `@bufbuild/*` catalog entries restored; `@larksuiteoapi/node-sdk` dep
+    restored (feishu channel); `.zeta/*` paths; `~/.zeta/agent/last-changelog-version`
+    marker; ci.yml `release_quality_gate` clippy-check adopted (upstream)
+    with Zeta `release_build_gate` job + three disabled publish jobs kept;
+    `/security` command (builtin-modes.ts, all subcommands, `M.cmdSecurity*`
+    i18n) and `/language` (builtin-zeta.ts); Zeta i18n `M.*`/`ZH_*` usages
+    re-applied across TUI components; `compaction.methodOrder` schema +
+    `settings-zh.ts` zh entries updated to the upstream refactor
+    (`compaction.strategy`/`compaction.remoteEnabled` removed).
+  - `scripts/merge-package-json.ts` driver bug fixed: `OMP_SCOPE` corrected
+    from `@linxiraos/` to `@oh-my-pi/` with full `RENAME_BY_TAIL`
+    (hashline/omp-stats/omptype/pi-coding-agent/snapcompact) — the previous
+    value made upstream `@oh-my-pi/*` deps land as new entries instead of
+    mapping onto Zeta's `@linxiraos/*` deps (duplicate keys).
+  - `@types/bun` pinned `1.3.14` in the root catalog (upstream's lock
+    resolution picked 1.4.0 whose `process.once` typing broke
+    `input-controller-suspend.test.ts`); regenerated `bun.lock` with Bun
+    1.3.14 and `Cargo.lock` via `cargo generate-lockfile` (pi-* crates at
+    1.0.10).
+  - Upstream v17.4.0 accepted wholesale for the remaining files: tokenizer →
+    `Tokenizer` class refactor, `compaction.methodOrder` +
+    remote-compaction, `generateModels`/cursor-proto refactors, cleanse/
+    ps-cli additions, `OverlayPanel` TUI component refactor, extension
+    parse-cache (`getLegacyPiExtensionCacheDbPath`), daemon runtime root
+    helpers (`getDaemonRuntimeRoot`/`getGlobalDaemonRuntimeRoot`),
+    `telemetry-export-otlp` lazy-load, `gen-clippy-bazelrc` release step,
+    `release.ts` nix-bun deps generation.
+  - Tree-wide `@oh-my-pi/*` → `@linxiraos/*` sweep for 77 pure-rename
+    conflict files (resolved to upstream content + scope sweep) and
+    upstream-added files; `.omp/` → `.zeta/` path adaptations
+    (`docs/settings.md`, `docs/extensions.md` import examples,
+    `dirs.ts`/`changelog.ts` comments). `update-cli.test.ts` intentionally
+    keeps the `@oh-my-pi/pi-coding-agent/omp` managed-path fixture (the
+    resolver detects the upstream-managed pattern).
+- Local checks: `bun run check:types` green in all 11 workspace packages;
+  biome check green (25 files auto-fixed). Channel tests 60 pass (IM
+  feature intact, wechat network flake except), web-gateway 21 pass,
+  compaction + model-registry 148 pass; agent tokenizer tests 72 pass
+  (2 failures are a stale local native addon lacking upstream's `ClaudeV47`
+  `Encoding` variant — `check:rs` blocked on this Windows host, covered by
+  CI). `check:rs` environment-blocked as before.
+- Status: pending merge into `main` + CI before acceptance.
+
 ## Pi Runtime Ports
 
 Never run `git merge pi-upstream/main` into Zeta. Pi and OMP intentionally
