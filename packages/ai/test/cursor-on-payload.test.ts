@@ -5,11 +5,11 @@
 // buildGrpcRequest is exercised directly (the transport is HTTP/2), and the
 // serialized run request is decoded back from the wire bytes.
 import { describe, expect, it } from "bun:test";
-import { fromBinary } from "@bufbuild/protobuf";
 import { buildGrpcRequest } from "@linxiraos/pi-ai/providers/cursor";
 import type { Context, Model } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { AgentClientMessageSchema } from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+import { AgentClientMessageSchema } from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { fromBinary } from "@linxiraos/pi-catalog/discovery/protobuf";
 
 const model: Model<"cursor-agent"> = buildModel({
 	id: "cursor-composer-2.5",

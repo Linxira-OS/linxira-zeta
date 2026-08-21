@@ -37,14 +37,12 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@bufbuild/protobuf": "catalog:",
     "@linxiraos/pi-omptype": "catalog:",
     "@linxiraos/pi-catalog": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
     "@linxiraos/pi-wire": "catalog:"
   },
   "devDependencies": {
-    "@bufbuild/protoc-gen-es": "catalog:",
     "@types/bun": "catalog:"
   },
   "engines": {

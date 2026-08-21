@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { create } from "@bufbuild/protobuf";
 import {
 	type BlockState,
 	buildCursorHistoryForTest,
@@ -19,7 +18,7 @@ import type { AssistantMessage, Context, CursorExecHandlers, Model, ToolResultMe
 import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import type { McpResult, ReadResult } from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+import type { McpResult, ReadResult } from "@linxiraos/pi-catalog/discovery/cursor-proto";
 import {
 	type AgentRunRequest,
 	AgentServerMessageSchema,
@@ -34,7 +33,8 @@ import {
 	ReadRejectedSchema,
 	ReadResultSchema,
 	ReadSuccessSchema,
-} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { create } from "@linxiraos/pi-catalog/discovery/protobuf";
 import { logger } from "@linxiraos/pi-utils";
 
 afterEach(() => {

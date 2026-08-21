@@ -31,7 +31,7 @@ import type {
 	ShellResult,
 	WriteArgs,
 	WriteResult,
-} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
 import type { Effort } from "@linxiraos/pi-catalog/effort";
 import { isOpenAIModelId } from "@linxiraos/pi-catalog/identity/family";
 import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@linxiraos/pi-catalog/types";

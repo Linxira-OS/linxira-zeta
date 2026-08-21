@@ -7,6 +7,7 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { type Component, Text } from "@linxiraos/pi-tui";
 import { formatBytes, formatDuration } from "@linxiraos/pi-utils";
+import type { AsyncJobType } from "../../async";
 import {
 	type CustomMessage,
 	type FileMentionMessage,
@@ -32,10 +33,10 @@ export function buildAsyncResultBlock(message: CustomOrHookMessage): ToolActivit
 	const details = (
 		message as CustomMessage<{
 			jobId?: string;
-			type?: "bash" | "task";
+			type?: AsyncJobType;
 			label?: string;
 			durationMs?: number;
-			jobs?: Array<{ jobId?: string; type?: "bash" | "task"; label?: string; durationMs?: number }>;
+			jobs?: Array<{ jobId?: string; type?: AsyncJobType; label?: string; durationMs?: number }>;
 		}>
 	).details;
 	const jobs =

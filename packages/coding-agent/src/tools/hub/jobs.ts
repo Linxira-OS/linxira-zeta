@@ -7,7 +7,7 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
-import type { AsyncJob, AsyncJobManager } from "../../async";
+import type { AsyncJob, AsyncJobManager, AsyncJobType } from "../../async";
 import { settings } from "../../config/settings";
 import type { RenderResultOptions } from "../../extensibility/custom-tools/types";
 import { shimmerEnabled, shimmerText } from "../../modes/theme/shimmer";
@@ -145,7 +145,7 @@ function describeAgents(agents: AgentActivitySnapshot[]): string[] {
 
 interface TrackedJobLike {
 	id: string;
-	type: "bash" | "task";
+	type: AsyncJobType;
 	status: string;
 	label: string;
 	startTime: number;

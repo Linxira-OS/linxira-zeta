@@ -1,5 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { create, fromBinary } from "@bufbuild/protobuf";
 import { type BlockState, handleServerMessage, type ToolCallState } from "@linxiraos/pi-ai/providers/cursor";
 import type { AssistantMessage } from "@linxiraos/pi-ai/types";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
@@ -16,7 +15,8 @@ import {
 	SetupVmEnvironmentArgsSchema,
 	SwitchModeRequestQuerySchema,
 	WebSearchRequestQuerySchema,
-} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { create, fromBinary } from "@linxiraos/pi-catalog/discovery/protobuf";
 
 type ProtoUnknownField = { no: number; wireType: number; data: Uint8Array };
 type ProtoUnknownBag = { $unknown?: ProtoUnknownField[] };

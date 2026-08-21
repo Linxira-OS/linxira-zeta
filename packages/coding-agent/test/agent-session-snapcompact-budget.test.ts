@@ -20,7 +20,7 @@
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
-import { effectiveReserveTokens, estimateTokens, prepareCompaction } from "@linxiraos/pi-agent-core/compaction";
+import { effectiveReserveTokens, prepareCompaction } from "@linxiraos/pi-agent-core/compaction";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -91,7 +91,7 @@ describe("AgentSession snapcompact frame-budget sizing", () => {
 			agent,
 			sessionManager,
 			settings: Settings.isolated({
-				"compaction.strategy": "snapcompact",
+				"compaction.methodOrder": ["snapcompact", "soft"],
 				"compaction.autoContinue": false,
 				// Force a small kept-recent window so the seeded conversation
 				// definitely splits into discard + kept and prepareCompaction()
@@ -170,10 +170,8 @@ describe("AgentSession snapcompact frame-budget sizing", () => {
 		// numFrames × FRAME_TOKEN_ESTIMATE + non-message + kept-recent.
 		const preparation = prepareCompaction(branchEntries, settings);
 		if (!preparation) throw new Error("Expected non-empty preparation");
-		let baseTokens = computeNonMessageTokens(session);
-		for (const message of preparation.recentMessages) {
-			baseTokens += estimateTokens(message);
-		}
+		let baseTokens = computeNonMessageTokens(session, session.agent.tokenizer);
+		baseTokens += session.agent.tokenizer.countMessages(preparation.recentMessages);
 		const shape = snapcompact.resolveShape(model);
 		const edgeCap = snapcompact.geometry(shape).capacity;
 		// Worst-case `textHead + textTail` tokenized at the cl100k 4-chars/token

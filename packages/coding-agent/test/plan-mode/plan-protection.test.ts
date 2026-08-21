@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentToolCall } from "@linxiraos/pi-agent-core";
+import { type AgentToolCall, Tokenizer } from "@linxiraos/pi-agent-core";
 import type { SessionMessageEntry } from "@linxiraos/pi-agent-core/compaction/entries";
 import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@linxiraos/pi-agent-core/compaction/pruning";
 import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@linxiraos/pi-agent-core/compaction/shake";
 import type { ProtectedToolContext } from "@linxiraos/pi-agent-core/compaction/tool-protection";
 import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@linxiraos/pi-ai";
 import { createPlanReadMatcher } from "@linxiraos/zeta/plan-mode/plan-protection";
+
+const tokenizer = new Tokenizer();
 
 function context(opts: { toolName?: string; callName?: string | undefined; path?: string }): ProtectedToolContext {
 	const toolResult = {
@@ -131,7 +133,7 @@ describe("plan-read protection in compaction", () => {
 			fileResult,
 		];
 
-		const result = pruneToolOutputs(entries, {
+		const result = pruneToolOutputs(entries, tokenizer, {
 			...DEFAULT_PRUNE_CONFIG,
 			protectTokens: 0,
 			minimumSavings: 0,
@@ -153,7 +155,7 @@ describe("plan-read protection in compaction", () => {
 			fileResult,
 		];
 
-		const regions = collectShakeRegions(entries, {
+		const regions = collectShakeRegions(entries, tokenizer, {
 			...AGGRESSIVE_SHAKE_CONFIG,
 			protectTokens: 0,
 			protectedTools: [...AGGRESSIVE_SHAKE_CONFIG.protectedTools, matcher],

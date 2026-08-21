@@ -5,7 +5,7 @@ import {
 	ASIDE_MESSAGE_DISCARD,
 	type CommittableAsideMessage,
 } from "@linxiraos/pi-agent-core";
-import { type AsyncJob, AsyncJobManager } from "@linxiraos/zeta/async";
+import { type AsyncJob, AsyncJobManager, type AsyncJobType } from "@linxiraos/zeta/async";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { YieldQueue } from "@linxiraos/zeta/session/yield-queue";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -21,7 +21,7 @@ type AsyncEntry = {
 type AsyncDetails = {
 	jobs: Array<{
 		jobId: string;
-		type?: "bash" | "task";
+		type?: AsyncJobType;
 		label?: string;
 		durationMs?: number;
 	}>;

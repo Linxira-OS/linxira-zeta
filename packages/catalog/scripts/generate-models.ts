@@ -14,7 +14,9 @@ import { discoverAuthStorage } from "@linxiraos/pi-ai/auth-broker/discover";
 import type { OAuthAccess } from "@linxiraos/pi-ai/auth-storage";
 import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
 import { getGitLabDuoModels } from "@linxiraos/pi-ai/providers/gitlab-duo";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import { $env } from "@linxiraos/pi-utils";
+import { buildModel } from "../src/build";
 import { ANTIGRAVITY_PRIMARY_ENDPOINT, fetchAntigravityDiscoveryModels } from "../src/discovery/antigravity";
 import { buildGitLabDuoWorkflowFallbackModel } from "../src/discovery/gitlab-duo-workflow";
 import { createModelManager } from "../src/model-manager";
@@ -32,6 +34,7 @@ import {
 	AIAND_STATIC_MODELS,
 	ALIBABA_TOKEN_PLAN_STATIC_MODELS,
 	ANTHROPIC_CURATED_FALLBACK_MODELS,
+	BEDROCK_MANTLE_STATIC_MODELS,
 	buildFireworksFastSeed,
 	buildXaiOAuthStaticSeed,
 	clampFireworksKimiMaxTokens,
@@ -50,7 +53,7 @@ import {
 	stripFireworksDeepSeekThinkingToggle,
 } from "../src/provider-models/openai-compat";
 import { type OpenAICodexAccount, openaiCodexModelManagerOptions } from "../src/provider-models/special";
-import type { Api, ModelSpec } from "../src/types";
+import type { Api, Model, ModelSpec } from "../src/types";
 import { cleanModelName } from "../src/utils";
 import { collapseEffortVariantsAcrossProviders } from "../src/variant-collapse";
 import {
@@ -59,6 +62,7 @@ import {
 	applyGeneratedModelPolicies,
 	applyOllamaCloudOutputCap,
 	CLOUDFLARE_FALLBACK_MODEL,
+	dropBedrockMantleOpenAIModels,
 	dropUnsupportedBedrockGeoIds,
 	hasBillableCost,
 	linkOpenAIPromotionTargets,
@@ -128,7 +132,10 @@ async function fetchProviderModelsFromCatalog(
 
 	try {
 		console.log(`Fetching models from ${descriptor.catalogDiscovery.label} model manager...`);
-		const managerOptions = descriptor.createModelManagerOptions({ apiKey });
+		const discoveryConfig = { apiKey };
+		const preparedConfig =
+			getProviderDefinition(descriptor.providerId)?.prepareModelDiscovery?.(discoveryConfig) ?? discoveryConfig;
+		const managerOptions = descriptor.createModelManagerOptions(preparedConfig);
 		const manager = createModelManager(managerOptions);
 		const result = await manager.refresh("online");
 		// `stale: true` means the dynamic fetch failed and the manager fell back
@@ -150,7 +157,7 @@ async function fetchProviderModelsFromCatalog(
 			return { models: [], succeeded: true };
 		}
 		console.log(`Fetched ${models.length} models from ${descriptor.catalogDiscovery.label} model manager`);
-		// The manager returns built models; models.json stores specs (sparse compat).
+		// Keep discovery rows as specs until policies finish; the final bundle is fully materialized below.
 		return { models: models.map(model => toModelSpec(model)), succeeded: true };
 	} catch (error) {
 		console.error(`Failed to fetch ${descriptor.catalogDiscovery.label} models:`, error);
@@ -571,6 +578,9 @@ async function generateModels() {
 	// Seed Meta's documented Muse model so first-run selection does not depend on
 	// credentials or live discovery.
 	allModels.push(...META_MUSE_STATIC_MODELS);
+	// Mantle's catalog endpoint is account/API-key scoped. Keep the generated
+	// bundle deterministic; authenticated runtime discovery may replace this seed.
+	allModels.push(...BEDROCK_MANTLE_STATIC_MODELS);
 	// Seed Sakana's documented Fugu models so the provider is usable when
 	// catalog generation has no live API key. If live `/v1/models` succeeds,
 	// Sakana is authoritative and stale seed IDs must stay out.
@@ -648,8 +658,9 @@ async function generateModels() {
 	// Previous-snapshot entries may carry an older ThinkingConfig vocabulary;
 	// applyGeneratedModelPolicies re-bakes `thinking` for every model, so the
 	// inbound shape is irrelevant beyond identity/pricing/compat fields.
-	for (const models of Object.values(prevModelsJson as unknown as Record<string, Record<string, ModelSpec>>)) {
-		for (const model of Object.values(models)) {
+	for (const models of Object.values(prevModelsJson as unknown as Record<string, Record<string, Model<Api>>>)) {
+		for (const bundledModel of Object.values(models)) {
+			const model = toModelSpec(bundledModel);
 			if (
 				!fetchedKeys.has(`${model.provider}/${model.id}`) &&
 				!DISCOVERY_ONLY_PROVIDERS.has(model.provider) &&
@@ -682,6 +693,7 @@ async function generateModels() {
 	allModels = dropUnusableZaiContextTierIds(allModels);
 	allModels = dropXiaomiAudioOnlyIds(allModels);
 	allModels = dropUnsupportedBedrockGeoIds(allModels);
+	allModels = dropBedrockMantleOpenAIModels(allModels);
 	allModels = normalizeAntigravityEndpoint(allModels);
 	// Normalize display names: gateway author prefixes ("OpenAI: …"), alias
 	// markers ("(latest)"), provider attribution ("(Antigravity)"), and
@@ -734,9 +746,12 @@ async function generateModels() {
 		);
 	};
 
-	const MODELS: Record<string, Record<string, ModelSpec>> = sortObj(providers);
-	for (const key in MODELS) {
-		MODELS[key] = sortObj(MODELS[key]);
+	const modelSpecs: Record<string, Record<string, ModelSpec>> = sortObj(providers);
+	const MODELS: Record<string, Record<string, Model<Api>>> = {};
+	for (const [provider, models] of Object.entries(modelSpecs)) {
+		MODELS[provider] = Object.fromEntries(
+			Object.entries(sortObj(models)).map(([id, model]) => [id, buildModel(model)]),
+		);
 	}
 
 	// Generate JSON file

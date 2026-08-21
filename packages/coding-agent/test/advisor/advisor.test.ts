@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentMessage, AgentTelemetryConfig } from "@linxiraos/pi-agent-core";
+import { type AgentMessage, type AgentTelemetryConfig, Tokenizer } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
@@ -2436,8 +2436,11 @@ describe("advisor", () => {
 			const host: AdvisorRuntimeHost = {
 				snapshotMessages: () => messages,
 				enqueueAdvice: () => {},
-				maintainContext: async tokens => {
-					expect(tokens).toBeGreaterThan(0);
+				maintainContext: async incoming => {
+					// The host receives the pending update itself and sizes it with its
+					// own model's tokenizer, so it must arrive as a non-empty message.
+					expect(incoming.role).toBe("user");
+					expect(promptText([incoming]).length).toBeGreaterThan(0);
 					return shouldResetContext;
 				},
 			};
@@ -2674,8 +2677,8 @@ describe("advisor", () => {
 				{
 					snapshotMessages: () => messages,
 					enqueueAdvice: () => {},
-					maintainContext: async incomingTokens => {
-						maintenanceTokens.push(incomingTokens);
+					maintainContext: async incoming => {
+						maintenanceTokens.push(new Tokenizer().countMessage(incoming));
 						if (maintenanceTokens.length === 4) fourthMaintenance.resolve();
 						return false;
 					},
@@ -5126,7 +5129,7 @@ describe("advisor", () => {
 			const host: AdvisorRuntimeHost = {
 				snapshotMessages: () => [],
 				enqueueAdvice: () => {},
-				maintainContext: async (_incomingTokens, signal) => {
+				maintainContext: async (_incoming, signal) => {
 					maintenanceSignals.push(signal);
 					return false;
 				},

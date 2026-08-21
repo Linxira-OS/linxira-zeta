@@ -2,10 +2,10 @@ import * as fs from "node:fs/promises";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getGlobalDaemonRuntimeDir, isEexist, isEisdir, isEnoent, logger, postmortem } from "@linxiraos/pi-utils";
+import { getGlobalDaemonRuntimeDir, isEexist, isEnoent, logger, postmortem } from "@linxiraos/pi-utils";
 import { hostHasInheritableConsole } from "../eval/py/spawn-options";
 import { resolveWorkerSpawnCmd, workerEnvFromParent } from "../subprocess/worker-client";
-import { daemonBrokerEndpoint, daemonRuntimeDir } from "./paths";
+import { canonicalProjectDir, daemonBrokerEndpoint, daemonRuntimeDir } from "./paths";
 import {
 	DAEMON_BROKER_WORKER_ARG,
 	DAEMON_IDLE_GRACE_ENV,
@@ -44,40 +44,25 @@ export interface DaemonBrokerClientOptions {
 	idleGraceMs?: number;
 }
 
-/** Error thrown when the daemon broker rejects a request (e.g., overlapping daemon start). */
-export class DaemonBrokerRejectedError extends Error {}
-
-/** Options passed to the unregister callback returned by {@link DaemonBrokerClient.onCompletion}. */
 export interface DaemonCompletionUnregisterOptions {
-	/** If true, preserve pending completions so they are delivered to the next registration. */
+	/** Detach this process without deleting broker-persisted pending notifications. */
 	preservePending?: boolean;
 }
 
 /** Persistent per-process connection to one project or global daemon broker. */
 export interface DaemonBrokerClient {
-	/** Canonical project directory or synthetic directory identifying a global scope. */
-	readonly projectDir: string;
-	request(operation: DaemonOperation, signal?: AbortSignal): Promise<DaemonRpcResult>;
-	/**
-	 * Register a callback for unsolicited daemon-completion notifications for
-	 * the given owner. Returns an unregister function.
-	 */
 	onCompletion(
 		owner: string,
 		sink: (notification: DaemonCompletionNotification) => Promise<void> | void,
 	): (options?: DaemonCompletionUnregisterOptions) => void;
+	/** Canonical project directory or synthetic directory identifying a global scope. */
+	readonly projectDir: string;
+	request(operation: DaemonOperation, signal?: AbortSignal): Promise<DaemonRpcResult>;
 	close(): void;
 }
 
-async function canonicalProjectDir(projectDir: string): Promise<string> {
-	const resolved = path.resolve(projectDir);
-	try {
-		return await fs.realpath(resolved);
-	} catch (error) {
-		if (isEnoent(error) || isEisdir(error)) return resolved;
-		throw error;
-	}
-}
+/** A request reached the broker and the broker rejected the operation. */
+export class DaemonBrokerRejectedError extends Error {}
 
 async function readOrCreateToken(runtimeDir: string): Promise<string> {
 	await fs.mkdir(runtimeDir, { recursive: true, mode: 0o700 });
@@ -248,7 +233,7 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		if (this.#preservedCompletionOwners.delete(owner)) this.#completionReplays.add(owner);
 		this.#completionSinks.set(owner, sink);
 		this.#publishCompletionOwners();
-		return (options?: DaemonCompletionUnregisterOptions) => {
+		return options => {
 			if (this.#completionSinks.get(owner) !== sink) return;
 			this.#completionSinks.delete(owner);
 			if (options?.preservePending) {

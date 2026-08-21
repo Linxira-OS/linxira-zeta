@@ -607,10 +607,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "轮中压缩",
 		description: "在下一次服务商请求之前，在安全的轮中工具循环边界检查阈值",
 	},
-	"compaction.strategy": {
-		label: "压缩策略",
+	"compaction.methodOrder": {
+		label: "压缩方法顺序",
 		description:
-			"选择就地完整上下文维护、自动交接、外科式抖动（丢弃重内容）、snapcompact（将历史归档为密集图片）或禁用自动维护（off）",
+			"自动上下文维护的首选回退顺序；不可用或失败的方法会前进到下一个选择（remote、snapcompact、handoff、shake、soft）",
 	},
 	"compaction.thresholdPercent": {
 		label: "压缩阈值",
@@ -623,10 +623,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"compaction.handoffSaveToDisk": {
 		label: "保存交接文档",
 		description: "将生成的交接文档保存为 markdown 文件，用于自动交接流程",
-	},
-	"compaction.remoteEnabled": {
-		label: "远程压缩",
-		description: "可用时使用远程压缩端点而非本地摘要",
 	},
 	"compaction.remoteStreamingV2Enabled": {
 		label: "远程压缩 V2",

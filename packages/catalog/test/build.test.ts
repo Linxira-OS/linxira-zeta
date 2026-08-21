@@ -11,7 +11,7 @@ import { readModelCache, writeModelCache } from "@linxiraos/pi-catalog/model-cac
 import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { openrouterModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
-import type { Model, ModelSpec } from "@linxiraos/pi-catalog/types";
+import type { Api, Model, ModelSpec } from "@linxiraos/pi-catalog/types";
 
 function completionsSpec(overrides: Partial<ModelSpec<"openai-completions">> = {}): ModelSpec<"openai-completions"> {
 	return {
@@ -56,6 +56,16 @@ describe("buildModel", () => {
 		expect(typeof model.compat.isOpenRouterHost).toBe("boolean");
 		expect(model.compat.isOpenRouterHost).toBe(false);
 		expect(model.compatConfig).toBeUndefined();
+	});
+
+	it("built models survive a JSON roundtrip, so generator-materialized rows need no rebuild", () => {
+		// models.ts consumes models.json rows verbatim as complete Models; this
+		// holds only if buildModel output is pure JSON (no functions, no
+		// undefined-valued fields that JSON would drop).
+		const generated = [buildModel(completionsSpec({ reasoning: true })), buildModel(openrouterSpec())];
+		for (const model of generated) {
+			expect(JSON.parse(JSON.stringify(model)) as Model<Api>).toEqual(model);
+		}
 	});
 
 	it("lets sparse overrides win over detection and keeps the verbatim config", () => {

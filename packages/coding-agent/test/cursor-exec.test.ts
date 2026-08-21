@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { create, fromBinary } from "@bufbuild/protobuf";
 import type { AgentEvent, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import { type BlockState, handleServerMessage, type ToolCallState } from "@linxiraos/pi-ai/providers/cursor";
 import { buildPiLsResult, piTruncation } from "@linxiraos/pi-ai/providers/cursor/exec-modern";
@@ -16,7 +15,8 @@ import {
 	McpArgsSchema,
 	ReadArgsSchema,
 	ShellArgsSchema,
-} from "@linxiraos/pi-catalog/discovery/cursor-gen/agent_pb";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { create, fromBinary } from "@linxiraos/pi-catalog/discovery/protobuf";
 import { type } from "@linxiraos/pi-omptype";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
