@@ -98,6 +98,31 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "自动恢复",
 		description: "自动恢复当前目录中的最近会话",
 	},
+	"composer.shape": {
+		label: "编辑器形状",
+		description: "输入编辑器和状态行的视觉布局",
+	},
+	"statusLine.contextLine": {
+		label: "上下文响应行",
+		description: "左右分段之间的行如何反映上下文使用情况（仅限 box 编辑器形状）",
+	},
+	modelRoles: {
+		label: "模型角色",
+		description: "角色 → 提供商/模型[:思考级别] 的分配（例如 'anthropic/claude-sonnet-4-5:high'）。空值移除该角色。",
+	},
+	extendedContext: {
+		label: "扩展上下文",
+		description:
+			"对超过阈值时额外计费的模型使用高级长上下文窗口（例如 GPT-5.6 1M 在 272K 以上对输入加倍收费）；关闭则以标准定价窗口为上限",
+	},
+	"compaction.asyncEnabled": {
+		label: "异步压缩",
+		description: "在上下文接近压缩阈值时后台推测性摘要，然后在越过阈值时拼接就绪结果",
+	},
+	"eval.autoBackground.enabled": {
+		label: "Eval 自动后台",
+		description: "自动将长时间运行的 eval 单元放到后台执行，稍后交付结果",
+	},
 	"power.sleepPrevention": {
 		label: "防睡眠",
 		description: "在活跃会话期间阻止 macOS 睡眠。每个级别是累加的——它包含所有更低级别的标志。",

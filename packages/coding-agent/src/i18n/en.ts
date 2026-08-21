@@ -698,7 +698,7 @@ export const en = {
 	csCompactedFromFmt: "**Compacted from %s tokens**",
 	csFramesAttachedFmt: "_%s snapcompact frame%s attached_",
 	csWarningFmt: "**Warning:** %s",
-	csLabelHandoff: "handoff",
+	csLabelHandoff: "handed-off",
 	csHandoffContext: "**Handoff context**",
 	csNoHandoffContent: "_No handoff content._",
 	csLabelBranch: "branch",

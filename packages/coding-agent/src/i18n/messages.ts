@@ -717,7 +717,7 @@ export interface Messages {
 	csCompactedFromFmt: string; // **Compacted from %s tokens**
 	csFramesAttachedFmt: string; // _%s snapcompact frame%s attached_
 	csWarningFmt: string; // **Warning:** %s
-	csLabelHandoff: string; // handoff
+	csLabelHandoff: string; // handed-off
 	csHandoffContext: string; // **Handoff context**
 	csNoHandoffContent: string; // _No handoff content._
 	csLabelBranch: string; // branch

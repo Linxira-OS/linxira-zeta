@@ -683,7 +683,7 @@ export const zh = {
 	csCompactedFromFmt: "**已从 %s tokens 压缩**",
 	csFramesAttachedFmt: "_附带 %s 张 snapcompact 快照_",
 	csWarningFmt: "**警告：** %s",
-	csLabelHandoff: "交接",
+	csLabelHandoff: "已交接",
 	csHandoffContext: "**交接上下文**",
 	csNoHandoffContent: "_无交接内容。_",
 	csLabelBranch: "分支",

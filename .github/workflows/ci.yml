@@ -339,48 +339,18 @@ jobs:
               fi
 
          # ---- main path: addons for tests vs release ----
-         # Release runs must embed addons built from the same source tree
-         # (the version sentinel must match the binary being released), so
-         # they bazel-build all six targets. Daily pushes only need addons
-         # for the test suites and fetch the published leaves instead.
+         # Every main push (release or not) bazel-builds the tested addon
+         # targets from the merged source. Fetching published leaves for
+         # non-release pushes made merged TS code that depends on changed
+         # native behavior (e.g. new tokenizer encodings, hashline apply
+         # fixes) fail against stale published addons until the next release.
+         # The warm bazel disk cache keeps this cheap (~tens of seconds).
          - name: Build gnu and win32 native addons (bazel)
-           if: >-
-              github.event_name != 'pull_request' &&
-              needs.release_metadata.outputs.is-release == 'true'
+           if: github.event_name != 'pull_request'
            uses: ./.github/actions/bazel-natives
            with:
               targets: >-
                  linux-x64-baseline linux-x64-modern linux-arm64 win32-x64-baseline
-         - name: Fetch release native addons (npm)
-           if: >-
-              github.event_name != 'pull_request' &&
-              needs.release_metadata.outputs.is-release != 'true'
-           shell: bash
-           run: |
-              set -euo pipefail
-              mkdir -p \
-                bazel-bin/natives-linux-x64-baseline \
-                bazel-bin/natives-linux-x64-modern \
-                bazel-bin/natives-linux-arm64 \
-                bazel-bin/natives-win32-x64-baseline
-              for pkg in linux-x64 linux-arm64 win32-x64; do
-                tarball="$(npm view "@linxiraos/pi-natives-$pkg@latest" dist.tarball)"
-                echo "Fetching $tarball"
-                curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
-                case "$pkg" in
-                  linux-x64)
-                    cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" bazel-bin/natives-linux-x64-baseline/
-                    cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" bazel-bin/natives-linux-x64-modern/
-                    ;;
-                  linux-arm64)
-                    cp "$RUNNER_TEMP/package/pi_natives.linux-arm64.node" bazel-bin/natives-linux-arm64/
-                    ;;
-                  win32-x64)
-                    cp "$RUNNER_TEMP/package/pi_natives.win32-x64-baseline.node" bazel-bin/natives-win32-x64-baseline/
-                    ;;
-                esac
-                rm -rf "$RUNNER_TEMP/package"
-              done
          - name: Build musl native addons (bazel)
            if: >-
               github.event_name != 'pull_request' &&
