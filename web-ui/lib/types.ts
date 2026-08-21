@@ -298,6 +298,8 @@ export interface SessionInfo {
   projectRoot?: string;
   /** Branch name when cwd is a linked git worktree (not the main checkout) */
   worktreeBranch?: string;
+  /** Default-space bot session tag ("relay" | "bot" | "draft"); absent for ordinary sessions. */
+  tag?: string;
 }
 
 export interface SessionContext {

@@ -126,7 +126,7 @@ export const TAB_METADATA: Record<SettingTab, { label: string; icon: `tab.${stri
  */
 export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 	appearance: ["General", "Theme", "Status Line", "Display", "Images"],
-	model: ["Thinking", "Sampling", "Prompt", "Retry & Fallback", "Advisor", "Prewalk", "Vision"],
+	model: ["Thinking", "Sampling", "Prompt", "Retry & Fallback", "Advisor", "Prewalk", "Vision", "Roles"],
 	interaction: [
 		"Input",
 		"Approvals",
@@ -567,7 +567,17 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	modelRoles: { type: "record", default: EMPTY_STRING_RECORD },
+	modelRoles: {
+		type: "record",
+		default: EMPTY_STRING_RECORD,
+		ui: {
+			tab: "model",
+			group: "Roles",
+			label: "Model Roles",
+			description:
+				'Role → "provider/model[:thinking-level]" assignments (for example "anthropic/claude-sonnet-4-5:high"). Empty value removes the role.',
+		},
+	},
 
 	modelTags: { type: "record", default: EMPTY_MODEL_TAGS_RECORD },
 

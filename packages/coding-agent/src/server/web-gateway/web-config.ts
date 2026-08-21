@@ -4,6 +4,8 @@
  * pattern; secrets are masked on GET and never revealed.
  */
 
+import { logger } from "@linxiraos/pi-utils";
+import { triggerRestartChannels } from "../../channels";
 import { isKnownWebConfigPath, WebConfig } from "../../config/web-config";
 
 function json(data: unknown, status = 200): Response {
@@ -65,6 +67,17 @@ export async function handleWebConfigPut(req: Request): Promise<Response> {
 			await config.set(body.path, body.value);
 		} catch (error) {
 			return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+		}
+		// A channel toggle/credential change must take effect on the running
+		// serve process immediately (QR login included), not after a restart.
+		// The zeta-server registers this hook in #maybeStartChannels; if no
+		// ZetaServer is running the hook is null and the change is a no-op.
+		if (typeof body.path === "string" && body.path.startsWith("channels.")) {
+			void triggerRestartChannels()?.catch(error => {
+				logger.warn("Channel restart after config change failed", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			});
 		}
 		return json({ ok: true });
 	} catch (error) {

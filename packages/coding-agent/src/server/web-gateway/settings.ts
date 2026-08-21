@@ -59,7 +59,14 @@ function isKnownSettingPath(value: unknown): value is SettingPath {
 // Response DTOs
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type SettingsControlType = "boolean" | "enum" | "submenu" | "text" | "providerLimits" | "multiselect";
+export type SettingsControlType =
+	| "boolean"
+	| "enum"
+	| "submenu"
+	| "text"
+	| "providerLimits"
+	| "modelRoles"
+	| "multiselect";
 
 export interface SettingsTabDto {
 	id: SettingTab;
@@ -254,6 +261,10 @@ function pathToEntry(path: SettingPath, settings: Settings, zh: boolean): Settin
 
 	if (path === "providers.maxInFlightRequests") {
 		return { ...base, type: "providerLimits", value: settings.get(path), default: getDefault(path) };
+	}
+
+	if (path === "modelRoles") {
+		return { ...base, type: "modelRoles", value: settings.get(path), default: getDefault(path) };
 	}
 
 	return { ...base, type: "text", secret: false, value: settings.get(path), default: getDefault(path) };

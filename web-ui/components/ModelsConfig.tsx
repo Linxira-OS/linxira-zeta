@@ -115,13 +115,33 @@ interface ModelEntry {
   id: string;
   name?: string;
   api?: string;
+  baseUrl?: string;
   reasoning?: boolean;
+  thinking?: ThinkingEntry;
   thinkingLevelMap?: Record<string, string | null>;
   input?: string[];
+  imageInputDecoder?: "stb";
+  supportsTools?: boolean;
   contextWindow?: number;
   maxTokens?: number;
+  omitMaxOutputTokens?: boolean;
+  premiumMultiplier?: number;
+  headers?: Record<string, string>;
   cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
   compat?: Record<string, unknown>;
+  contextPromotionTarget?: string;
+  compactionModel?: string;
+}
+
+/** `thinking` block from the models.yml schema (see ModelThinkingSchema). */
+interface ThinkingEntry {
+  mode: "effort" | "budget" | "google-level" | "anthropic-adaptive" | "anthropic-budget-effort";
+  efforts?: string[];
+  levels?: string[];
+  minLevel?: string;
+  maxLevel?: string;
+  defaultLevel?: string;
+  effortMap?: Record<string, string>;
 }
 
 interface ProviderEntry {
@@ -337,6 +357,16 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete }: {
       <Field label="API">
         <Select value={provider.api ?? "openai-completions"} onChange={(v) => set("api", v)} options={API_OPTIONS} required />
       </Field>
+
+      <div>
+        <SectionTitle>Headers</SectionTitle>
+        <HeadersEditor value={provider.headers} onChange={(v) => set("headers", v)} />
+      </div>
+
+      <div>
+        <SectionTitle>compat</SectionTitle>
+        <CompatEditor value={provider.compat} onChange={(v) => set("compat", v)} />
+      </div>
     </div>
   );
 }
@@ -478,6 +508,210 @@ function ThinkingLevelMapEditor({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Thinking config editor ───────────────────────────────────────────────────
+
+const THINKING_MODES = ["effort", "budget", "google-level", "anthropic-adaptive", "anthropic-budget-effort"] as const;
+
+function ThinkingConfigEditor({
+  value,
+  onChange,
+}: {
+  value: ThinkingEntry | undefined;
+  onChange: (v: ThinkingEntry | undefined) => void;
+}) {
+  const set = (patch: Partial<ThinkingEntry>) => {
+    const next = { ...(value ?? { mode: "effort" }), ...patch };
+    // Drop legacy fields that are superseded by `efforts` when it is set.
+    if (next.efforts && next.efforts.length > 0) {
+      delete next.levels;
+      delete next.minLevel;
+      delete next.maxLevel;
+    }
+    onChange(next);
+  };
+
+  const toggleEffort = (effort: string) => {
+    const current = value?.efforts ?? [];
+    const next = current.includes(effort) ? current.filter((e) => e !== effort) : [...current, effort];
+    set({ efforts: next.length ? next : undefined });
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <Field label="Mode">
+        <Select
+          value={value?.mode ?? "effort"}
+          onChange={(v) => set({ mode: v as ThinkingEntry["mode"] })}
+          options={THINKING_MODES}
+          required
+        />
+      </Field>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <SectionTitle>Supported efforts</SectionTitle>
+          {value?.efforts && value.efforts.length > 0 && (
+            <button
+              onClick={() => set({ efforts: undefined })}
+              style={{ fontSize: 10, padding: "2px 7px", background: "none", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-dim)", cursor: "pointer" }}
+            >
+              clear all
+            </button>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {THINKING_LEVELS.map((effort) => {
+            const active = value?.efforts?.includes(effort) ?? false;
+            return (
+              <button
+                key={effort}
+                type="button"
+                onClick={() => toggleEffort(effort)}
+                style={{
+                  padding: "3px 9px",
+                  fontSize: 10.5,
+                  fontFamily: "var(--font-mono)",
+                  borderRadius: 4,
+                  border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                  background: active ? "var(--accent)" : "var(--bg-panel)",
+                  color: active ? "#fff" : "var(--text-muted)",
+                  cursor: "pointer",
+                }}
+              >
+                {effort}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <Field label="Default level">
+        <Select
+          value={value?.defaultLevel ?? ""}
+          onChange={(v) => set({ defaultLevel: v || undefined })}
+          options={THINKING_LEVELS.filter((l) => value?.efforts?.includes(l) ?? true)}
+        />
+      </Field>
+    </div>
+  );
+}
+
+// ── Headers editor ────────────────────────────────────────────────────────────
+
+function HeadersEditor({
+  value,
+  onChange,
+}: {
+  value: Record<string, string> | undefined;
+  onChange: (v: Record<string, string> | undefined) => void;
+}) {
+  const [drafts, setDrafts] = useState<Record<string, string>>(value ?? {});
+  const entries = Object.entries(drafts);
+  const setHeader = (key: string, val: string) => {
+    const next = { ...drafts, [key]: val };
+    if (key.trim()) setDrafts(next);
+  };
+  const removeHeader = (key: string) => {
+    const next = { ...drafts };
+    delete next[key];
+    setDrafts(next);
+  };
+  const commit = () => {
+    const cleaned: Record<string, string> = {};
+    for (const [k, v] of Object.entries(drafts)) {
+      if (k.trim() && v.trim()) cleaned[k.trim()] = v.trim();
+    }
+    onChange(Object.keys(cleaned).length ? cleaned : undefined);
+  };
+  const addHeader = () => {
+    let key = "X-Custom";
+    let n = 1;
+    while (key in drafts) key = `X-Custom-${n++}`;
+    setDrafts({ ...drafts, [key]: "" });
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      {entries.map(([key, val]) => (
+        <div key={key} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input
+            value={key}
+            onChange={(e) => {
+              const next = { ...drafts };
+              delete next[key];
+              next[e.target.value] = val;
+              setDrafts(next);
+            }}
+            onBlur={commit}
+            placeholder="Header name"
+            style={{ ...inputStyle, fontFamily: "var(--font-mono)", width: "38%" }}
+          />
+          <input
+            value={val}
+            onChange={(e) => setHeader(key, e.target.value)}
+            onBlur={commit}
+            placeholder="Value"
+            style={{ ...inputStyle, fontFamily: "var(--font-mono)", width: "52%" }}
+          />
+          <button
+            onClick={() => { removeHeader(key); commit(); }}
+            style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontSize: 13, padding: "2px 4px" }}
+            aria-label={`Remove header ${key}`}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={addHeader}
+        style={{
+          alignSelf: "flex-start", padding: "3px 9px", background: "none",
+          border: "1px dashed var(--border)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer", fontSize: 11,
+        }}
+      >
+        + header
+      </button>
+    </div>
+  );
+}
+
+// ── JSON compat editor ────────────────────────────────────────────────────────
+
+function CompatEditor({
+  value,
+  onChange,
+}: {
+  value: Record<string, unknown> | undefined;
+  onChange: (v: Record<string, unknown> | undefined) => void;
+}) {
+  const [text, setText] = useState(JSON.stringify(value ?? {}, null, 2));
+  const [error, setError] = useState<string | null>(null);
+  const commit = () => {
+    try {
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      if (Array.isArray(parsed) || parsed === null || typeof parsed !== "object") {
+        setError("compat must be a JSON object");
+        return;
+      }
+      setError(null);
+      onChange(Object.keys(parsed).length ? parsed : undefined);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Invalid JSON");
+    }
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        rows={4}
+        spellCheck={false}
+        style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: 11, resize: "vertical" }}
+      />
+      {error && <span style={{ fontSize: 10.5, color: "#f87171" }}>{error}</span>}
     </div>
   );
 }
@@ -645,6 +879,11 @@ function ModelDetail({
         <Field label="Name"><TextInput value={model.name ?? ""} onChange={(v) => set("name", v || undefined)} placeholder="Display name" /></Field>
       </div>
 
+      <Field label="Base URL (per-model override)">
+        <TextInput value={model.baseUrl ?? ""} onChange={(v) => set("baseUrl", v || undefined)}
+          placeholder="https://api.example.com/v1" mono />
+      </Field>
+
       <Field label="API override">
         <Select value={model.api ?? ""} onChange={(v) => set("api", v || undefined)} options={API_OPTIONS} />
       </Field>
@@ -662,6 +901,23 @@ function ModelDetail({
             checked={hasDeepseekCompat(model)}
             onChange={(v) => onChange(setDeepseekCompat(model, v))}
           />
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <SectionTitle>Thinking config</SectionTitle>
+              {model.thinking && (
+                <button
+                  onClick={() => set("thinking", undefined)}
+                  style={{ fontSize: 10, padding: "2px 7px", background: "none", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-dim)", cursor: "pointer" }}
+                >
+                  clear
+                </button>
+              )}
+            </div>
+            <ThinkingConfigEditor
+              value={model.thinking}
+              onChange={(v) => set("thinking", v)}
+            />
+          </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <SectionTitle>{t("thinking-level-map")}</SectionTitle>
@@ -702,6 +958,26 @@ function ModelDetail({
             </Field>
           ))}
         </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+        <Check label="Supports tools" checked={model.supportsTools ?? false} onChange={(v) => set("supportsTools", v || undefined)} />
+        <Check label="Omit max output tokens" checked={model.omitMaxOutputTokens ?? false} onChange={(v) => set("omitMaxOutputTokens", v || undefined)} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Premium multiplier</label>
+          <NumInput value={model.premiumMultiplier !== undefined ? String(model.premiumMultiplier) : ""}
+            onChange={(v) => set("premiumMultiplier", v ? parseFloat(v) : undefined)} placeholder="1" />
+        </div>
+      </div>
+
+      <div>
+        <SectionTitle>Headers (per-model)</SectionTitle>
+        <HeadersEditor value={model.headers} onChange={(v) => set("headers", v)} />
+      </div>
+
+      <div>
+        <SectionTitle>compat</SectionTitle>
+        <CompatEditor value={model.compat} onChange={(v) => set("compat", v)} />
       </div>
     </div>
   );
@@ -1438,14 +1714,17 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
   }, [config]);
 
   const providers = Object.entries(config.providers ?? {});
-  const activeOAuth = oauthProviders.filter((p) => p.loggedIn);
-  const activeApiKey = apiKeyProviders.filter((p) => p.configured);
-
-  // A provider configured through the CLI auth stores (OAuth/api-key) must not
-  // render twice — the models.yml entry for the same id is the duplicate. Keep
-  // the configured managed card, hide the custom copy.
-  const managedIds = new Set<string>([...activeOAuth.map((p) => p.id), ...activeApiKey.map((p) => p.id)]);
-  const customProviders = providers.filter(([pName]) => !managedIds.has(pName));
+  const customIds = new Set(providers.map(([pName]) => pName));
+  // models.yml is the authoritative CLI provider source and its full editor
+  // already covers credentials (apiKey), endpoint, headers and per-model
+  // detail — so a provider defined there must always render its custom card.
+  // The managed OAuth/api-key cards only appear for providers NOT defined in
+  // models.yml; a same-id duplicate would otherwise hide the custom editor
+  // (a models.yml `apiKey` entry makes `hasAuth` true via the config-key
+  // fallback resolver, which previously mis-classified it as auth-managed).
+  const activeOAuth = oauthProviders.filter((p) => p.loggedIn && !customIds.has(p.id));
+  const activeApiKey = apiKeyProviders.filter((p) => p.configured && !customIds.has(p.id));
+  const customProviders = providers;
 
   // Resolve current detail
   const detailContent = (() => {
@@ -1722,8 +2001,8 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
     </div>
     {pickerOpen && (
       <AddProviderPicker
-        oauthProviders={oauthProviders}
-        apiKeyProviders={apiKeyProviders}
+        oauthProviders={oauthProviders.filter((p) => !customIds.has(p.id))}
+        apiKeyProviders={apiKeyProviders.filter((p) => !customIds.has(p.id))}
         onSelectOAuth={(id) => setSelection({ type: "oauth", providerId: id })}
         onSelectApiKey={(id) => setSelection({ type: "apikey", providerId: id })}
         onAddCustom={addCustomProvider}

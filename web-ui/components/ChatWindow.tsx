@@ -28,6 +28,8 @@ import {
 interface Props {
   session: SessionInfo | null;
   newSessionCwd: string | null;
+  /** True when the "New" action created this chat (independent session). */
+  explicitNew?: boolean;
   onAgentEnd?: () => void;
   onSessionCreated?: (session: SessionInfo) => void;
   onSessionForked?: (newSessionId: string) => void;
@@ -138,6 +140,64 @@ function withAssistantBlocks(
   return next;
 }
 
+/**
+ * Persistent mode-status banner (plan / goal / vibe). Rendered from the
+ * session's `modes` snapshot and driven by the generic mode protocol.
+ */
+function ModeBanner({
+  mode,
+  title,
+  subtitle,
+  actions,
+}: {
+  mode: "plan" | "goal" | "vibe";
+  title: string;
+  subtitle?: string;
+  actions: { label: string; onClick: () => void; tone?: "default" | "danger" }[];
+}) {
+  const accent =
+    mode === "plan" ? "var(--accent)" : mode === "goal" ? "#f59e0b" : "#8b5cf6";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "7px 12px",
+        marginBottom: 12,
+        background: "var(--bg-panel)",
+        border: `1px solid ${accent}55`,
+        borderLeft: `3px solid ${accent}`,
+        borderRadius: 7,
+        fontSize: 12.5,
+      }}
+    >
+      <span style={{ color: "var(--text)", fontWeight: 600 }}>{title}</span>
+      {subtitle && <span style={{ color: "var(--text-muted)", overflowWrap: "anywhere" }}>{subtitle}</span>}
+      <span style={{ flex: 1 }} />
+      {actions.map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          onClick={action.onClick}
+          style={{
+            padding: "4px 10px",
+            border: "1px solid var(--border)",
+            borderRadius: 5,
+            background: "none",
+            color: action.tone === "danger" ? "#f87171" : "var(--text-muted)",
+            cursor: "pointer",
+            fontSize: 11.5,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messageCount: number; toolCallCount: number; children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const parts = ["Process details", `${messageCount} ${messageCount === 1 ? "message" : "messages"}`];
@@ -181,7 +241,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messag
   );
 }
 
-export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile }: Props) {
+export function ChatWindow({ session, newSessionCwd, explicitNew, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile }: Props) {
   const { t } = useI18n();
   const { soundEnabled, onSoundToggle, playDoneSound, unlockAudio } = useAudio();
   const isMobile = useIsMobile();
@@ -218,6 +278,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     isAutoModelSelection,
     agentPhase,
     planState,
+    modes,
     isNew,
     sessionIdRef, messagesEndRef, scrollContainerRef,
     lastUserMsgRef,
@@ -227,7 +288,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     handleBuiltinSlashCommand,
     handleToolPresetChange, handleThinkingLevelChange, loadSlashCommands,
   } = useAgentSession({
-    session, newSessionCwd, onAgentEnd: wrappedOnAgentEnd, onSessionCreated, onSessionForked,
+    session, newSessionCwd, explicitNew, onAgentEnd: wrappedOnAgentEnd, onSessionCreated, onSessionForked,
     modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsPanelOpen,
   });
   const sessionBusy = agentRunning || bashRunning;
@@ -241,6 +302,19 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
       console.error("Failed to approve plan:", e);
     });
   }, [planState.planFilePath, sessionIdRef]);
+
+  // Shared mode-control: exit (or complete/drop a goal) through the generic
+  // gateway protocol. The SSE `mode_changed` stream updates the banner live.
+  const handleModeExit = useCallback(
+    (mode: "plan" | "goal" | "vibe", options?: Record<string, unknown>) => {
+      const sid = sessionIdRef.current;
+      if (!sid) return;
+      void sendAgentCommand(sid, { type: "mode_exit", mode, ...(options ? { options } : {}) }).catch((e) => {
+        console.error(`Failed to exit ${mode} mode:`, e);
+      });
+    },
+    [sessionIdRef],
+  );
 
   // Register the abort handler for the global Esc shortcut
   useEffect(() => {
@@ -585,6 +659,38 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
             <div style={{ maxWidth: 820, margin: "0 auto" }}>
               <ExtensionStatusBar statuses={extensionStatuses} />
               <ExtensionWidgets widgets={aboveEditorWidgets} />
+              {modes.plan?.enabled && (
+                <ModeBanner
+                  mode="plan"
+                  title={t("plan-mode-active-fmt", { path: modes.plan.planFilePath })}
+                  actions={[{ label: t("plan-mode-exit"), onClick: () => handleModeExit("plan") }]}
+                />
+              )}
+              {modes.goal?.enabled && (
+                <ModeBanner
+                  mode="goal"
+                  title={t("goal-mode-active")}
+                  subtitle={modes.goal.goal?.objective}
+                  actions={[
+                    {
+                      label: t("goal-mode-complete"),
+                      onClick: () => handleModeExit("goal", { reason: "completed" }),
+                    },
+                    {
+                      label: t("goal-mode-drop"),
+                      onClick: () => handleModeExit("goal", { reason: "dropped" }),
+                      tone: "danger",
+                    },
+                  ]}
+                />
+              )}
+              {modes.vibe?.enabled && (
+                <ModeBanner
+                  mode="vibe"
+                  title={t("vibe-mode-active")}
+                  actions={[{ label: t("mode-exit"), onClick: () => handleModeExit("vibe") }]}
+                />
+              )}
               {planState.enabled && planState.planFilePath && (
                 <PlanApproval
                   planFilePath={planState.planFilePath}

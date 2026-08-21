@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { setRemoteToken } from "@/lib/remote-token";
 import {
   fetchSettings,
   fetchWebConfig,
@@ -17,7 +18,16 @@ import { DocsPanel } from "./DocsPanel";
 
 // Tabs with full inline editing. The remaining tabs render read-only rows
 // (label + current value) with a CLI /settings hint until a later phase.
-const EDITABLE_TABS: ReadonlySet<string> = new Set(["appearance", "model", "tools"]);
+const EDITABLE_TABS: ReadonlySet<string> = new Set([
+  "appearance",
+  "model",
+  "tools",
+  "context",
+  "shell",
+  "providers",
+  "memory",
+  "tasks",
+]);
 
 // Settings whose effect lands in the terminal CLI rather than the web UI.
 function isTerminalEffect(path: string): boolean {
@@ -146,6 +156,61 @@ function WebPlainInput({
   );
 }
 
+/**
+ * Credential input backed by the persisted value: shows the saved value
+ * (masked for secrets) and never silently discards what the user typed — a
+ * failed commit keeps the draft so it can be retried.
+ */
+const MASK_SENTINEL = "••••";
+const MASK_DISPLAY = "••••••••";
+
+function SecretInput({
+  path,
+  value,
+  placeholder,
+  mask = true,
+  onCommit,
+}: {
+  path: string;
+  value: string | undefined;
+  placeholder: string;
+  mask?: boolean;
+  onCommit: (path: string, value: unknown) => Promise<boolean>;
+}) {
+  const [draft, setDraft] = useState<string | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  // A stored secret arrives masked ("••••") from the gateway — that sentinel
+  // means a secret IS set, so render the masked dots; only undefined/empty
+  // means nothing is stored. Never re-commit the placeholder dots on blur.
+  const hasStored = value !== undefined && value !== "";
+  const display = draft ?? (hasStored ? (mask ? MASK_DISPLAY : value === MASK_SENTINEL ? "" : value) : "");
+  return (
+    <input
+      type="password"
+      value={display}
+      placeholder={placeholder}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        setFailed(false);
+      }}
+      onBlur={async (e) => {
+        const next = e.target.value.trim();
+        if (next === "" || next === value || next === MASK_SENTINEL || next === MASK_DISPLAY) {
+          setDraft(undefined);
+          return;
+        }
+        const ok = await onCommit(path, next);
+        setFailed(!ok);
+        if (ok) setDraft(undefined);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+      style={{ ...inputStyle, width: 170, fontFamily: "var(--font-mono)", borderColor: failed ? "#f87171" : undefined }}
+    />
+  );
+}
+
 const CHANNEL_IDS = ["wechat", "feishu", "telegram"] as const;
 const CHANNEL_LABEL_KEY: Record<(typeof CHANNEL_IDS)[number], string> = {
   wechat: "web-channel-wechat",
@@ -158,8 +223,161 @@ const CHANNEL_LABEL_KEY: Record<(typeof CHANNEL_IDS)[number], string> = {
  * access, and IM channel credentials. Data comes from `/api/web-config`, not
  * the CLI settings schema, so it renders outside the settings tab list.
  */
-function WebSettingsSection({
-  data,
+/**
+ * WeChat login QR. Some flows return a direct image URL (the v1 clawbot API,
+ * `data:` / `.png`), while the legacy iLink flow returns a page URL
+ * (`liteapp.weixin.qq.com/...`, HTML) that an `<img>` cannot render. When the
+ * URL is not a direct image — or the load fails — fall back to rendering a QR
+ * code of that URL, so scanning still opens the WeChat login page.
+ */
+function WeChatQrImage({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+  const looksLikePage = !/^(data:|https?:.*\.(png|jpe?g|gif|webp|svg)(\?|$))/i.test(url);
+  const effective =
+    failed || looksLikePage
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`
+      : url;
+  return (
+    <img
+      src={effective}
+      alt="WeChat login QR"
+      width={140}
+      height={140}
+      onError={() => setFailed(true)}
+      style={{ borderRadius: 6, border: "1px solid var(--border)", flexShrink: 0, background: "#fff" }}
+    />
+  );
+}
+
+/**
+ * Channel credential form with an explicit Save button: edits are held in
+ * local draft state and only committed on Save, so the user gets visible
+ * feedback (saving… / saved ✓ / error) instead of silent blur-commits.
+ */
+function ChannelCredentialsForm({
+  channelId,
+  channel,
+  onCommit,
+  t,
+}: {
+  channelId: "feishu" | "telegram";
+  channel: { appId?: string; appSecret?: string; botToken?: string; domain?: string };
+  onCommit: (path: string, value: unknown) => Promise<boolean>;
+  t: (key: string) => string;
+}) {
+  const isFeishu = channelId === "feishu";
+  const [appId, setAppId] = useState(channel.appId ?? "");
+  const [appSecret, setAppSecret] = useState("");
+  const [botToken, setBotToken] = useState("");
+  const [domain, setDomain] = useState(channel.domain ?? "feishu");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const hasStoredSecret =
+    (isFeishu && (channel.appSecret ?? "") !== "" && channel.appSecret !== "••••") || (isFeishu && channel.appSecret === "••••");
+  const dirty = isFeishu
+    ? appId !== (channel.appId ?? "") || appSecret !== "" || domain !== (channel.domain ?? "feishu")
+    : botToken !== "";
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      if (isFeishu) {
+        if (appId.trim() !== (channel.appId ?? "")) {
+          const ok = await onCommit("channels.feishu.appId", appId.trim());
+          if (!ok) return;
+        }
+        if (appSecret.trim() !== "") {
+          const ok = await onCommit("channels.feishu.appSecret", appSecret.trim());
+          if (!ok) return;
+        }
+        if (domain !== (channel.domain ?? "feishu")) {
+          await onCommit("channels.feishu.domain", domain);
+        }
+      } else {
+        if (botToken.trim() !== "") {
+          const ok = await onCommit("channels.telegram.botToken", botToken.trim());
+          if (!ok) return;
+        }
+      }
+      setAppSecret("");
+      setBotToken("");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {isFeishu ? (
+        <>
+          <input
+            value={appId}
+            onChange={(e) => setAppId(e.target.value)}
+            placeholder="App ID"
+            style={{ ...inputStyle, fontFamily: "var(--font-mono)" }}
+          />
+          <input
+            type="password"
+            value={appSecret}
+            onChange={(e) => setAppSecret(e.target.value)}
+            placeholder={hasStoredSecret ? "App Secret (已保存，留空保持不变)" : "App Secret"}
+            style={{ ...inputStyle, fontFamily: "var(--font-mono)" }}
+          />
+          <select
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            style={{ ...inputStyle, width: "auto", minWidth: 120 }}
+          >
+            <option value="feishu">{t("feishu")}</option>
+            <option value="lark">Lark</option>
+          </select>
+        </>
+      ) : (
+        <input
+          type="password"
+          value={botToken}
+          onChange={(e) => setBotToken(e.target.value)}
+          placeholder={channel.botToken === "••••" ? "Bot Token (已保存，留空保持不变)" : "Bot Token"}
+          style={{ ...inputStyle, fontFamily: "var(--font-mono)" }}
+        />
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={saving || !dirty}
+          style={{
+            padding: "5px 12px",
+            background: saved ? "#16a34a" : dirty && !saving ? "var(--accent)" : "var(--bg-panel)",
+            border: "none",
+            borderRadius: 5,
+            color: (dirty && !saving) || saved ? "#fff" : "var(--text-dim)",
+            cursor: dirty && !saving ? "pointer" : "not-allowed",
+            fontSize: 11.5,
+            fontWeight: 600,
+            width: "fit-content",
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+          }}
+        >
+          {saved ? "已保存 ✓" : saving ? "保存中…" : "保存"}
+        </button>
+        {error && <span style={{ fontSize: 11, color: "#f87171" }}>{error}</span>}
+      </div>
+    </div>
+  );
+}
+
+function WebSettingsSection({  data,
   pending,
   error,
   savedFlash,
@@ -171,7 +389,7 @@ function WebSettingsSection({
   error: string | null;
   savedFlash: string | null;
   t: (key: string) => string;
-  onCommit: (path: string, value: unknown) => void;
+  onCommit: (path: string, value: unknown) => Promise<boolean>;
 }) {
   // WeChat QR-login progress surfaced by the gateway (see /api/channels/wechat/qrcode).
   const [wechatQr, setWechatQr] = useState<{
@@ -239,25 +457,6 @@ function WebSettingsSection({
     </div>
   );
 
-  /** Credential input: value arrives masked; blur commits only a fresh non-empty value. */
-  const secretInput = (path: string, placeholder: string) => (
-    <input
-      type="password"
-      placeholder={placeholder}
-      onBlur={(e) => {
-        const next = e.target.value.trim();
-        if (next !== "") onCommit(path, next);
-        e.target.value = "";
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") e.currentTarget.blur();
-      }}
-      style={{ ...inputStyle, width: 170, fontFamily: "var(--font-mono)" }}
-    />
-  );
-
-
-
   return (
     <>
       {error && (
@@ -287,16 +486,23 @@ function WebSettingsSection({
           {row(t("web-remote-host"), undefined, <WebPlainInput path="remote.host" value={data.remote.host} placeholder="https://…" onCommit={onCommit} />, "remote.host")}
           {row(t("web-remote-token"), t("web-remote-token-desc"), (
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {secretInput("remote.token", "••••")}
+              <SecretInput path="remote.token" value={data.remote.token} placeholder="••••" onCommit={onCommit} />
               <button
                 type="button"
-                onClick={() => onCommit("remote.token", "")}
+                onClick={() => void onCommit("remote.token", "")}
                 style={{ padding: "5px 9px", background: "none", border: "1px solid var(--border)", borderRadius: 5, color: "var(--text-muted)", cursor: "pointer", fontSize: 11.5 }}
               >
                 {t("web-remote-token-reset")}
               </button>
             </div>
           ), "remote.token")}
+          {row(t("web-show-bot-sessions"), t("web-show-bot-sessions-desc"), (
+            <Toggle
+              checked={data.remote.showBotSessions === true}
+              label={t("web-show-bot-sessions")}
+              onChange={(next) => void onCommit("remote.showBotSessions", next)}
+            />
+          ), "remote.showBotSessions")}
         </>
       ))}
 
@@ -307,96 +513,89 @@ function WebSettingsSection({
             return (
               <div key={channelId} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "9px 11px", background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 7 }}>
                 {row(t(CHANNEL_LABEL_KEY[channelId]), undefined, (
-                  <Toggle checked={channel.enabled} label={t(CHANNEL_LABEL_KEY[channelId])} onChange={(next) => onCommit(`channels.${channelId}.enabled`, next)} />
+                  <Toggle checked={channel.enabled} label={t(CHANNEL_LABEL_KEY[channelId])} onChange={(next) => void onCommit(`channels.${channelId}.enabled`, next)} />
                 ), `channels.${channelId}.enabled`)}
                 {channelId === "wechat" && (
                   <>
-                    {secretInput(`channels.wechat.botToken`, "Bot Token")}
-                    <WebPlainInput path="channels.wechat.baseUrl" value={channel.baseUrl} placeholder="https://ilinkai.weixin.qq.com" onCommit={onCommit} />
-                    {wechatQr.pending && (
+                    {wechatQr.pending && wechatQr.qrcodeUrl && (
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        {wechatQr.qrcodeUrl && /^(data:|https?:)/.test(wechatQr.qrcodeUrl) ? (
-                          <img
-                            src={wechatQr.qrcodeUrl}
-                            alt="WeChat login QR"
-                            width={140}
-                            height={140}
-                            style={{ borderRadius: 6, border: "1px solid var(--border)", flexShrink: 0, background: "#fff" }}
-                          />
+                        {/^(data:|https?:)/.test(wechatQr.qrcodeUrl) ? (
+                          <WeChatQrImage url={wechatQr.qrcodeUrl} />
                         ) : (
                           <span style={{ fontSize: 11.5, color: "var(--text-muted)", maxWidth: 220, overflowWrap: "anywhere", fontFamily: "var(--font-mono)" }}>
-                            {wechatQr.qrcodeUrl ?? "Waiting for QR code…"}
+                            {wechatQr.qrcodeUrl}
                           </span>
                         )}
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11.5, color: "var(--text-muted)" }}>
                           <span>
                             {wechatQr.status === "confirmed"
-                              ? "Logged in"
+                              ? t("wechat-status-confirmed")
                               : wechatQr.status === "scaned"
-                                ? "Scanned — confirm on your phone"
+                                ? t("wechat-status-scaned")
                                 : wechatQr.status === "expired"
-                                  ? "QR expired — reconnect"
-                                  : "Scan with WeChat to log in"}
+                                  ? t("wechat-status-expired")
+                                  : t("wechat-status-wait")}
                           </span>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <button
-                              type="button"
-                              onClick={() => void handleReconnect()}
-                              disabled={reconnecting}
-                              style={{
-                                padding: "5px 9px",
-                                background: "none",
-                                border: "1px solid var(--border)",
-                                borderRadius: 5,
-                                color: "var(--text-muted)",
-                                cursor: reconnecting ? "default" : "pointer",
-                                fontSize: 11.5,
-                                opacity: reconnecting ? 0.5 : 1,
-                                width: "fit-content",
-                              }}
-                            >
-                              {reconnecting ? "Connecting…" : "Reconnect"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleUnbind()}
-                              disabled={unbinding}
-                              style={{
-                                padding: "5px 9px",
-                                background: "none",
-                                border: "1px solid var(--border)",
-                                borderRadius: 5,
-                                color: "#f87171",
-                                cursor: unbinding ? "default" : "pointer",
-                                fontSize: 11.5,
-                                opacity: unbinding ? 0.5 : 1,
-                                width: "fit-content",
-                              }}
-                            >
-                              {unbinding ? "Unbinding…" : "Unbind"}
-                            </button>
-                          </div>
                         </div>
                       </div>
                     )}
+                    {wechatQr.pending && !wechatQr.qrcodeUrl && (
+                      <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{t("wechat-waiting-qr")}</div>
+                    )}
+                    {!wechatQr.pending && (
+                      <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                        {channel.botToken
+                          ? t("wechat-connected")
+                          : channel.enabled
+                            ? t("wechat-not-logged-in")
+                            : t("wechat-disabled-hint")}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => void handleReconnect()}
+                        disabled={reconnecting}
+                        style={{
+                          padding: "5px 9px",
+                          background: "none",
+                          border: "1px solid var(--border)",
+                          borderRadius: 5,
+                          color: "var(--text-muted)",
+                          cursor: reconnecting ? "default" : "pointer",
+                          fontSize: 11.5,
+                          opacity: reconnecting ? 0.5 : 1,
+                          width: "fit-content",
+                        }}
+                      >
+                        {reconnecting ? t("wechat-reconnecting") : t("wechat-reconnect")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleUnbind()}
+                        disabled={unbinding}
+                        style={{
+                          padding: "5px 9px",
+                          background: "none",
+                          border: "1px solid var(--border)",
+                          borderRadius: 5,
+                          color: "#f87171",
+                          cursor: unbinding ? "default" : "pointer",
+                          fontSize: 11.5,
+                          opacity: unbinding ? 0.5 : 1,
+                          width: "fit-content",
+                        }}
+                      >
+                        {unbinding ? t("wechat-unbinding") : t("wechat-unbind")}
+                      </button>
+                    </div>
                   </>
                 )}
                 {channelId === "feishu" && (
-                  <>
-                    {secretInput(`channels.feishu.appId`, "App ID")}
-                    {secretInput(`channels.feishu.appSecret`, "App Secret")}
-                    <select
-                      value={channel.domain ?? "feishu"}
-                      onChange={(e) => onCommit("channels.feishu.domain", e.target.value)}
-                      style={{ ...inputStyle, width: "auto", minWidth: 120 }}
-                    >
-                      <option value="feishu">{t("feishu")}</option>
-                      <option value="lark">Lark</option>
-                    </select>
-                  </>
+                  <ChannelCredentialsForm channelId="feishu" channel={channel} onCommit={onCommit} t={t} />
                 )}
                 {channelId === "telegram" && (
-                  <>{secretInput(`channels.telegram.botToken`, "Bot Token")}</>
+                  <ChannelCredentialsForm channelId="telegram" channel={channel} onCommit={onCommit} t={t} />
                 )}
               </div>
             );
@@ -542,6 +741,105 @@ function ProviderLimitsEditor({ value, onCommit }: { value: Record<string, numbe
   );
 }
 
+/**
+ * `modelRoles` editor: one text input per role, value = "provider/model[:level]"
+ * (e.g. "anthropic/claude-sonnet-4-5:high"). Empty input removes the role.
+ * Mirrors the CLI's role-assignment rows; saving goes through `PUT /api/settings`.
+ */
+function ModelRolesEditor({ value, onCommit }: { value: Record<string, string>; onCommit: (next: Record<string, string>) => void }) {
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [newRole, setNewRole] = useState("");
+  const [newValue, setNewValue] = useState("");
+
+  const roles = useMemo(() => Object.keys(value).sort((a, b) => a.localeCompare(b)), [value]);
+
+  const commitRole = (role: string, raw: string) => {
+    const next = { ...value };
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      delete next[role];
+    } else {
+      next[role] = trimmed;
+    }
+    setDrafts((d) => {
+      const nd = { ...d };
+      delete nd[role];
+      return nd;
+    });
+    onCommit(next);
+  };
+
+  const addRole = () => {
+    const role = newRole.trim();
+    const model = newValue.trim();
+    if (role === "" || model === "") return;
+    onCommit({ ...value, [role]: model });
+    setNewRole("");
+    setNewValue("");
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+      {roles.length === 0 && (
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+          No role overrides set — the default role resolves from your model selection.
+        </div>
+      )}
+      {roles.map((role) => (
+        <div key={role} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <code style={{ flex: 1, fontSize: 11, color: "var(--text)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>{role}</code>
+          <input
+            value={drafts[role] ?? value[role] ?? ""}
+            onChange={(e) => setDrafts((d) => ({ ...d, [role]: e.target.value }))}
+            onBlur={(e) => commitRole(role, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            placeholder="provider/model[:level]"
+            aria-label={`${role} model assignment`}
+            style={{ ...inputStyle, width: 240, fontFamily: "var(--font-mono)", flexShrink: 0 }}
+          />
+        </div>
+      ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          value={newRole}
+          onChange={(e) => setNewRole(e.target.value)}
+          placeholder="role (e.g. plan)"
+          style={{ ...inputStyle, flex: 1, fontFamily: "var(--font-mono)" }}
+        />
+        <input
+          value={newValue}
+          onChange={(e) => setNewValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") addRole();
+          }}
+          placeholder="provider/model[:level]"
+          style={{ ...inputStyle, width: 240, fontFamily: "var(--font-mono)", flexShrink: 0 }}
+        />
+        <button
+          type="button"
+          onClick={addRole}
+          disabled={newRole.trim() === "" || newValue.trim() === ""}
+          style={{
+            padding: "6px 10px",
+            border: "1px solid var(--border)",
+            borderRadius: 5,
+            background: "none",
+            color: "var(--text-muted)",
+            cursor: newRole.trim() === "" || newValue.trim() === "" ? "default" : "pointer",
+            fontSize: 11.5,
+            opacity: newRole.trim() === "" || newValue.trim() === "" ? 0.5 : 1,
+            flexShrink: 0,
+          }}
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface SettingRowProps {
   entry: SettingEntry;
   value: unknown;
@@ -557,7 +855,7 @@ interface SettingRowProps {
 
 function SettingRow({ entry, value, draft, error, pending, revealed, terminalNote, onCommit, onDraft, onReveal }: SettingRowProps) {
   const { t } = useI18n();
-  const wide = entry.type === "providerLimits" || entry.type === "multiselect";
+  const wide = entry.type === "providerLimits" || entry.type === "modelRoles" || entry.type === "multiselect";
 
   const renderControl = () => {
     switch (entry.type) {
@@ -664,6 +962,8 @@ function SettingRow({ entry, value, draft, error, pending, revealed, terminalNot
       }
       case "providerLimits":
         return <ProviderLimitsEditor value={(value as Record<string, number> | undefined) ?? {}} onCommit={onCommit} />;
+      case "modelRoles":
+        return <ModelRolesEditor value={(value as Record<string, string> | undefined) ?? {}} onCommit={onCommit} />;
       case "multiselect":
         return <MultiSelectEditor entry={entry} value={(value as string[] | undefined) ?? []} onCommit={onCommit} />;
     }
@@ -749,16 +1049,23 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
   }, [lang, load, loadWebConfig]);
 
   const webCommit = useCallback(
-    async (path: string, value: unknown) => {
+    async (path: string, value: unknown): Promise<boolean> => {
       setWebPending((p) => ({ ...p, [path]: true }));
       setWebError(null);
       setWebSavedFlash(null);
       try {
         await updateWebConfig(path, value);
         setWebData((cur) => (cur ? setAtPath(cur, path, value) : cur));
+        // Keep the raw remote token client-side so non-loopback (LAN/tunnel)
+        // fetches can authenticate without re-entering it.
+        if (path === "remote.token") {
+          setRemoteToken(typeof value === "string" && value !== "" ? value : undefined);
+        }
         setWebSavedFlash(t("web-config-saved"));
+        return true;
       } catch (err) {
         setWebError(err instanceof Error ? err.message : String(err));
+        return false;
       } finally {
         setWebPending((p) => {
           const next = { ...p };
@@ -770,10 +1077,14 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
     [t],
   );
 
-  // Escape closes the modal.
+  // Escape closes the modal, unless the user is typing in a field (so Escape
+  // in an input/select doesn't accidentally dismiss the whole panel).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
+      onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -957,6 +1268,49 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
           </div>
         )}
 
+        {/* Config-scope banner: names the config UI (bot vs CLI), the actual
+            file, and the object being edited for the active tab. */}
+        {data && activeTab !== "docs" && (
+          <div
+            style={{
+              padding: "7px 14px",
+              borderBottom: "1px solid var(--border)",
+              background: "var(--bg-panel)",
+              fontSize: 11.5,
+              color: "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ fontWeight: 700, color: "var(--text)" }}>
+              {activeTab === "web" ? `⚠ ${t("editing-bot-config")}` : `⚠ ${t("editing-cli-config")}`}
+            </span>
+            <span>
+              {t("config-file")}:{" "}
+              <code style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
+                {activeTab === "web"
+                  ? "~/.zeta/agent/web.yml"
+                  : activeTab === "model"
+                    ? "~/.zeta/agent/models.json"
+                    : "~/.zeta/agent/config.yml"}
+              </code>
+            </span>
+            <span>
+              {t("config-object")}:{" "}
+              <code style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>
+                {activeTab === "web"
+                  ? "remote.* / channels.* / tray.*"
+                  : activeTab === "model"
+                    ? "modelRoles / enabledModels"
+                    : `settings.${activeTab}`}
+              </code>
+            </span>
+          </div>
+        )}
+
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
           {activeTab === "docs" ? (
@@ -969,7 +1323,7 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
                 error={webError}
                 savedFlash={webSavedFlash}
                 t={t}
-                onCommit={(path, value) => void webCommit(path, value)}
+                onCommit={(path, value) => webCommit(path, value)}
               />
             ) : (
               <div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>

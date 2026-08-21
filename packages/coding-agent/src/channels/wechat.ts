@@ -216,23 +216,32 @@ export class WeChatChannel implements ChatChannel {
 	}
 
 	async #loginFlowV1(): Promise<void> {
-		// QR fetch: POST /api/v1/wechat/qrcode (no args) → qrcode_url + token.
+		// QR fetch: POST /api/v1/wechat/qrcode (no args). Official response nests
+		// `qrcode_url` + `qrcode` (the status token) under `data`; accept the
+		// flat `qrcode_url`/`token` shape too for hosts that don't nest.
 		const qr = await this.#apiPost("api/v1/wechat/qrcode", {});
-		const qrcodeUrl = qr.qrcode_url;
-		const token = qr.token;
-		if (typeof qrcodeUrl !== "string" || qrcodeUrl === "" || typeof token !== "string" || token === "") {
+		const qrData = (qr.data as Record<string, unknown> | undefined) ?? qr;
+		const qrcodeUrl = typeof qrData.qrcode_url === "string" ? qrData.qrcode_url : "";
+		const token =
+			typeof qrData.qrcode === "string" && qrData.qrcode !== ""
+				? qrData.qrcode
+				: typeof qr.token === "string"
+					? qr.token
+					: "";
+		if (qrcodeUrl === "" || token === "") {
 			throw new Error("WeChat v1 login failed: no qrcode_url/token returned");
 		}
-		this.#options.onQrCode?.({ qrcode: qrcodeUrl, qrcodeUrl, status: "wait" });
+		this.#options.onQrCode?.({ qrcode: token, qrcodeUrl, status: "wait" });
 		logger.info("WeChat channel: scan the QR code to log in", { qrcodeUrl });
 
 		while (this.#started && !this.#abort?.signal.aborted) {
 			try {
-				const result = await this.#apiPost("api/v1/wechat/qrcode/status", { token });
-				const status = typeof result.status === "string" ? result.status : "";
+				const result = await this.#apiPost("api/v1/wechat/qrcode/status", { qrcode: token });
+				const body = (result.data as Record<string, unknown> | undefined) ?? result;
+				const status = typeof body.status === "string" ? body.status : "";
 				if (status === "confirmed") {
 					const credentials =
-						(result.data as { credentials?: Record<string, unknown> } | undefined)?.credentials ??
+						(body.credentials as Record<string, unknown> | undefined) ??
 						(result.credentials as Record<string, unknown> | undefined) ??
 						{};
 					const botToken = credentials.bot_token;
@@ -242,6 +251,11 @@ export class WeChatChannel implements ChatChannel {
 						throw new Error("WeChat v1 login confirmed without bot_token");
 					}
 					this.#botToken = botToken;
+					// The response may carry a host override for the message API.
+					const baseUrl = typeof body.baseurl === "string" && body.baseurl !== "" ? body.baseurl : "";
+					if (baseUrl !== "" && baseUrl !== this.#baseUrl) {
+						this.#baseUrl = baseUrl;
+					}
 					// Restore persisted peer bindings so replies keep landing
 					// in the right chats after a restart.
 					for (const [peer, contextToken] of Object.entries(this.#options.config.peerTokens ?? {})) {
@@ -250,6 +264,9 @@ export class WeChatChannel implements ChatChannel {
 					const config = this.#options.webConfig;
 					if (config) {
 						await config.set("channels.wechat.botToken", this.#botToken);
+						if (baseUrl !== "") {
+							await config.set("channels.wechat.baseUrl", baseUrl);
+						}
 						if (typeof ilinkBotId === "string" && ilinkBotId !== "") {
 							await config.set("channels.wechat.ilinkBotId", ilinkBotId);
 						}
@@ -257,17 +274,17 @@ export class WeChatChannel implements ChatChannel {
 							await config.set("channels.wechat.ilinkUserId", ilinkUserId);
 						}
 					}
-					this.#options.onQrCode?.({ qrcode: qrcodeUrl, qrcodeUrl, status: "confirmed" });
+					this.#options.onQrCode?.({ qrcode: token, qrcodeUrl, status: "confirmed" });
 					logger.info("WeChat channel logged in (v1 API)", { baseUrl: this.#baseUrl });
 					return;
 				}
 				if (status === "expired") {
 					logger.warn("WeChat QR code expired; fetching a fresh one");
-					this.#options.onQrCode?.({ qrcode: qrcodeUrl, qrcodeUrl, status: "expired" });
+					this.#options.onQrCode?.({ qrcode: token, qrcodeUrl, status: "expired" });
 					return await this.#loginFlowV1();
 				}
 				this.#options.onQrCode?.({
-					qrcode: qrcodeUrl,
+					qrcode: token,
 					qrcodeUrl,
 					status: status === "scaned" ? "scaned" : status === "" ? "wait" : status,
 				});

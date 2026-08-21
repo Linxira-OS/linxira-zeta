@@ -32,6 +32,23 @@ export type { WeChatQrStatus } from "./wechat";
 let pendingWechatQr: WeChatQrStatus | null = null;
 let reconnectWechat: (() => Promise<void>) | null = null;
 let unbindWechat: (() => Promise<void>) | null = null;
+let restartChannels: (() => Promise<void>) | null = null;
+let mainSessionId: string | null = null;
+let channelStatus: (() => ChannelStatus[]) | null = null;
+
+/** One channel's runtime state, surfaced to the gateway (`/api/channels/status`). */
+export interface ChannelStatus {
+	id: ChannelId;
+	running: boolean;
+}
+
+export function registerChannelStatus(fn: (() => ChannelStatus[]) | null): void {
+	channelStatus = fn;
+}
+
+export function getChannelStatus(): ChannelStatus[] {
+	return channelStatus?.() ?? [];
+}
 
 export function setPendingWechatQr(payload: WeChatQrStatus | null): void {
 	pendingWechatQr = payload;
@@ -39,6 +56,20 @@ export function setPendingWechatQr(payload: WeChatQrStatus | null): void {
 
 export function getPendingWechatQr(): WeChatQrStatus | null {
 	return pendingWechatQr;
+}
+
+/**
+ * Register the serve process's shared coordinator session id (zeta-server
+ * wires this). External clients (web-ui default chat, `zeta attach`) resolve
+ * the shared session through `GET /api/agent/current`, which reads this.
+ */
+export function registerMainSessionId(id: string | null): void {
+	mainSessionId = id;
+}
+
+/** The persistent id of the serve process's shared coordinator session, if any. */
+export function getMainSessionId(): string | null {
+	return mainSessionId;
 }
 
 /** Register the running WeChat channel's reconnect hook (zeta-server wires this). */
@@ -59,6 +90,21 @@ export function registerWechatUnbind(fn: (() => Promise<void>) | null): void {
 /** Unbind the running WeChat channel (clears credentials + peer bindings). */
 export function triggerWechatUnbind(): Promise<void> | null {
 	return unbindWechat?.() ?? null;
+}
+
+/** Register the live channel (re)start hook (zeta-server wires this). */
+export function registerRestartChannels(fn: (() => Promise<void>) | null): void {
+	restartChannels = fn;
+}
+
+/**
+ * Re-apply the channel config against the running serve process: stop the
+ * current runtime and start whichever channels web.yml now enables. The web
+ * gateway calls this after a `channels.*` PUT so toggling a channel in the UI
+ * takes effect immediately (QR login included) without a serve restart.
+ */
+export function triggerRestartChannels(): Promise<void> | null {
+	return restartChannels?.() ?? null;
 }
 
 export interface ChannelRuntime {

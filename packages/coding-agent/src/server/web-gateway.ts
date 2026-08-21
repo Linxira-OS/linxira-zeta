@@ -17,7 +17,14 @@
 import * as os from "node:os";
 import * as path from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
-import { getPendingWechatQr, triggerWechatReconnect, triggerWechatUnbind } from "../channels";
+import {
+	getChannelStatus,
+	getMainSessionId,
+	getPendingWechatQr,
+	triggerWechatReconnect,
+	triggerWechatUnbind,
+} from "../channels";
+import { WebConfig } from "../config/web-config";
 import {
 	handleAgentCommand,
 	handleAgentEvents,
@@ -112,6 +119,7 @@ const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
 const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
 const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
+const CHANNELS_STATUS_RE = /^\/api\/channels\/status$/;
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -140,10 +148,68 @@ export function ensureAgentDirEnv(): void {
 	refreshDirsFromEnv();
 }
 
+/**
+ * CSRF guard for browser clients: cross-site requests carry an `Origin`
+ * header (even on simple POSTs), so reject any Origin that is not a local
+ * loopback origin. Non-browser clients (curl, the desktop shell, the IM
+ * channels) send no Origin and are unaffected. Only enforced for
+ * unauthenticated loopback callers — a valid remote token already
+ * authenticates the request (see {@link authorizedForAccess}).
+ */
+function isAllowedOrigin(origin: string | null): boolean {
+	if (!origin) return true;
+	try {
+		const url = new URL(origin);
+		const host = url.hostname;
+		return host === "127.0.0.1" || host === "localhost" || host === "::1";
+	} catch {
+		return false;
+	}
+}
+/** Whether the request originates from a loopback socket address (local UI /
+ *  desktop shell). Uses the SOCKET peer address — never the client-controlled
+ *  `Host` header, which a remote attacker can spoof to pose as loopback. */
+export function hostIsLoopback(_req: Request, remoteAddr?: string): boolean {
+	const addr = (remoteAddr ?? "").replace(/^\[|\]$/g, "").toLowerCase();
+	if (addr === "") return false;
+	return addr === "127.0.0.1" || addr === "::1" || addr === "localhost";
+}
+
+/**
+ * Access control: loopback requests (the local web UI, desktop shell, dev
+ * proxy) pass without a token; any request that arrives from a non-loopback
+ * socket (LAN IP, tunnel, reverse proxy, 0.0.0.0 bind) must present the
+ * configured `remote.token`. With no token configured, non-loopback access
+ * is denied outright — so exposing the port cannot yield an unauthenticated
+ * control plane.
+ */
+export async function authorizedForAccess(req: Request, remoteAddr?: string): Promise<boolean> {
+	if (hostIsLoopback(req, remoteAddr)) return true;
+	const config = await WebConfig.load();
+	const token = config.getData().remote.token;
+	if (!token || token === "••••") return false;
+	const provided =
+		req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? req.headers.get("x-zeta-token") ?? "";
+	return provided === token;
+}
+
 /** In-process fetch handler; ZetaServer dispatches to this directly. */
-export async function webGatewayFetch(req: Request): Promise<Response> {
+export async function webGatewayFetch(req: Request, remoteAddr?: string): Promise<Response> {
 	ensureAgentDirEnv();
 
+	// Access control: non-loopback clients need the remote token.
+	const loopback = hostIsLoopback(req, remoteAddr);
+	if (!loopback && !(await authorizedForAccess(req, remoteAddr))) {
+		return json({ error: "Forbidden: remote access requires the configured remote token" }, 403);
+	}
+
+	// CSRF: reject cross-site browser requests before any side effect. A valid
+	// remote token already authenticates the caller (an attacker's page cannot
+	// read or send it), so the Origin guard only guards unauthenticated
+	// loopback browsers.
+	if (loopback && !isAllowedOrigin(req.headers.get("origin"))) {
+		return json({ error: "Forbidden origin" }, 403);
+	}
 	const pathname = new URL(req.url).pathname;
 
 	if (SESSION_LIST_RE.test(pathname)) {
@@ -181,6 +247,18 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 	const exp = capture(pathname, SESSION_EXPORT_RE);
 	if (exp) {
 		if (req.method === "GET") return handleExportSession(req, exp[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/agent/current") {
+		// The serve process's shared coordinator session (web-ui default chat,
+		// CLI attach). Resolved through the module-level bridge so external
+		// clients don't need to know the persistent session id ahead of time.
+		if (req.method === "GET") {
+			const sessionId = getMainSessionId();
+			if (!sessionId) return json({ error: "no shared session; start zeta serve" }, 404);
+			return json({ sessionId });
+		}
 		return json({ error: "Method not allowed" }, 405);
 	}
 
@@ -340,6 +418,11 @@ export async function webGatewayFetch(req: Request): Promise<Response> {
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (CHANNELS_STATUS_RE.test(pathname)) {
+		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+		return json({ channels: getChannelStatus() });
+	}
+
 	if (CHANNELS_WECHAT_QR_RE.test(pathname)) {
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 		const qr = getPendingWechatQr();
@@ -401,7 +484,7 @@ export async function startWebGateway(port?: number): Promise<WebGatewayInstance
 		hostname: "127.0.0.1",
 		port: gatewayPort,
 		idleTimeout: 0,
-		fetch: webGatewayFetch,
+		fetch: (req, srv) => webGatewayFetch(req, srv?.requestIP(req)?.address),
 	});
 
 	return {

@@ -294,6 +294,86 @@ describe("WeChatChannel v1 API", () => {
 		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.ilinkUserId", "user-v1");
 	});
 
+	test("logs in through the documented /api/v1/wechat data shape and polls with { qrcode }", async () => {
+		// Official WeChat openapi doc nests everything under `data` and names
+		// the status token `qrcode` (not `token`); the status poll request body
+		// is `{ qrcode }`.
+		const requests: Array<{ url: string; body?: string }> = [];
+		let statusCalls = 0;
+		const impl = async (input: unknown, init?: unknown): Promise<Response> => {
+			const initObj = init as RequestInit | undefined;
+			const signal = initObj?.signal as AbortSignal | undefined;
+			const url = typeof input === "string" ? input : (input as Request).url;
+			const body = typeof initObj?.body === "string" ? initObj.body : undefined;
+			requests.push({ url, body });
+
+			if (url.includes("/api/v1/wechat/qrcode/status")) {
+				statusCalls++;
+				if (statusCalls === 1) {
+					expect(JSON.parse(body ?? "{}")).toEqual({ qrcode: "qr-doc-token" });
+				}
+				return j({
+					success: true,
+					data: {
+						status: "confirmed",
+						credentials: {
+							bot_token: "tok-doc",
+							ilink_bot_id: "bot-doc",
+							ilink_user_id: "user-doc",
+						},
+						baseurl: "https://ilinkai.weixin.qq.com",
+					},
+				});
+			}
+			if (url.includes("/api/v1/wechat/qrcode")) {
+				return j({
+					success: true,
+					data: {
+						qrcode_url: "https://api.qrserver.com/v1/create-qr-code/?data=scanme",
+						qrcode: "qr-doc-token",
+					},
+				});
+			}
+			if (url.includes("/getupdates")) {
+				if (statusCalls >= 1 && requests.filter(r => r.url.includes("/getupdates")).length === 1) {
+					return j({ ret: 0, msgs: [], get_updates_buf: "c1" });
+				}
+				await new Promise<void>((_, reject) => {
+					if (signal?.aborted) reject(new DOMException("Aborted", "AbortError"));
+					signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
+						once: true,
+					});
+				});
+				throw new Error("unreachable");
+			}
+			return j({ ret: 0 });
+		};
+
+		let resolveLogin!: () => void;
+		const loginDone = new Promise<void>(resolve => {
+			resolveLogin = resolve;
+		});
+		const set = vi.fn(async (path: string) => {
+			if (path === "channels.wechat.ilinkUserId") resolveLogin();
+		});
+		const ch = new WeChatChannel({
+			config: { baseUrl: "https://ilinkai.weixin.qq.com" },
+			webConfig: { set } as unknown as WebConfig,
+			customFetch: impl as unknown as typeof globalThis.fetch,
+			onMessage: () => {},
+		});
+		await ch.start();
+		await loginDone;
+		await ch.stop();
+
+		// The QR the UI renders comes from the documented `data.qrcode_url`.
+		expect(requests.some(r => r.url.includes("/api/v1/wechat/qrcode"))).toBe(true);
+		expect(requests.some(r => r.url.includes("/get_bot_qrcode"))).toBe(false);
+		expect(set).toHaveBeenCalledWith("channels.wechat.botToken", "tok-doc");
+		expect(set).toHaveBeenCalledWith("channels.wechat.ilinkBotId", "bot-doc");
+		expect(set).toHaveBeenCalledWith("channels.wechat.ilinkUserId", "user-doc");
+	});
+
 	test("persists peer context tokens and restores them on a new instance", async () => {
 		const webConfig = { set: vi.fn(async () => {}) } as unknown as WebConfig;
 		const { impl } = buildMock();

@@ -16,18 +16,23 @@
 import { randomUUID } from "node:crypto";
 import { statSync } from "node:fs";
 import type { ImageContent } from "@linxiraos/pi-ai";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import type { ImControlParams, ImControlResult } from "../../channels/im-control";
 import { approveRemotePlan } from "../../channels/plan-approval";
 import type { BashResult } from "../../exec/bash-executor";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { type ExtensionUIContext, getExtensionUISelectOptionLabel } from "../../extensibility/extensions/types";
+import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
+import type { PlanModeState } from "../../plan-mode/state";
 import { createAgentSession } from "../../sdk";
-import type { AgentSession } from "../../session/agent-session";
+import type { AgentSession, ModeId } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import { SessionManager } from "../../session/session-manager";
 import type { ConfiguredThinkingLevel } from "../../thinking";
+import type { VibeModeState } from "../../vibe/state";
 import {
 	addRunningSession,
 	getRunningSessionIds,
@@ -88,7 +93,10 @@ export type AgentCommand =
 	| { type: "bash"; command: string; excludeFromContext?: boolean }
 	| { type: "abort_bash" }
 	| { type: "enter_plan_mode"; initialPrompt?: string }
-	| { type: "plan_approve"; planFilePath: string; mode: "preserve" | "compact" | "fresh" | "cancel" };
+	| { type: "plan_approve"; planFilePath: string; mode: "preserve" | "compact" | "fresh" | "cancel" }
+	| { type: "mode_enter"; mode: ModeId; options?: unknown }
+	| { type: "mode_exit"; mode: ModeId; options?: unknown }
+	| { type: "set_model_role"; role: string };
 
 export type ExtensionUiRequest =
 	| {
@@ -166,6 +174,19 @@ export interface AgentState {
 	planFilePath: string | null;
 	/** Plan file body when plan mode is active (web-ui PlanApproval preview). */
 	planContent?: string;
+	// --- AgentState v2 (shared session state bridge) ---
+	/** Active mode states, keyed by mode id (only present when active). */
+	modes: { plan?: PlanModeState; goal?: GoalModeState; vibe?: VibeModeState };
+	/** The session's current resolved model role (e.g. "default", "plan"), or null. */
+	modelRole: string | null;
+	/** Names of tools currently exposed at the top level. */
+	activeToolNames: string[];
+	/** Whether automatic compaction is enabled. */
+	autoCompactionEnabled: boolean;
+	/** Whether auto-retry is enabled. */
+	autoRetryEnabled: boolean;
+	/** Monotonic counter bumped whenever mode or model state changes. */
+	stateVersion: number;
 }
 
 export interface ToolEntry {
@@ -226,6 +247,8 @@ export class AgentSessionWrapper {
 	#toolsDisabled = false;
 	#extensionStatuses = new Map<string, string>();
 	#extensionWidgets = new Map<string, { lines: string[]; placement: "aboveEditor" | "belowEditor" }>();
+	/** Serialized last-seen mode states, used to emit `mode_changed` diffs. */
+	#lastModeStates: Record<ModeId, string> = { plan: "null", goal: "null", vibe: "null" };
 
 	constructor(inner: AgentSession, realSessionId: string, sessionFile: string | null) {
 		this.#inner = inner;
@@ -301,6 +324,21 @@ export class AgentSessionWrapper {
 			queueMicrotask(() => this.updateRunningState());
 			return;
 		}
+		if (event.type === "state_version_changed") {
+			// External-state bridge: re-derive mode diffs and broadcast the new
+			// version. Clients use `state_changed` to re-fetch get_state and
+			// `mode_changed` to update mode banners without a full poll.
+			for (const mode of ["plan", "goal", "vibe"] as const) {
+				const state = this.#inner.getModeState(mode);
+				const serialized = JSON.stringify(state ?? null);
+				if (serialized !== this.#lastModeStates[mode]) {
+					this.#lastModeStates[mode] = serialized;
+					this.#emit({ type: "mode_changed", mode, state: state ?? null });
+				}
+			}
+			this.#emit({ type: "state_changed", stateVersion: event.stateVersion });
+			return;
+		}
 		this.#emit(event as unknown as AgentEvent);
 		if (event.type === "agent_end") {
 			// The queue drains as turns unwind; surface the final state and the
@@ -343,6 +381,11 @@ export class AgentSessionWrapper {
 		if (planEnabled && planFilePath) {
 			planContent = (await inner.getPlanFileContent(planFilePath)) ?? undefined;
 		}
+		const modes = {
+			...(inner.getPlanModeState() ? { plan: inner.getPlanModeState() } : {}),
+			...(inner.getGoalModeState() ? { goal: inner.getGoalModeState() } : {}),
+			...(inner.getVibeModeState() ? { vibe: inner.getVibeModeState() } : {}),
+		};
 		return {
 			sessionId: this.realSessionId,
 			sessionName: inner.sessionManager.getSessionName() ?? "",
@@ -363,7 +406,29 @@ export class AgentSessionWrapper {
 			planModeEnabled: planEnabled,
 			planFilePath,
 			planContent,
+			modes,
+			modelRole: this.#currentModelRole(),
+			activeToolNames: inner.getActiveToolNames(),
+			autoCompactionEnabled: inner.autoCompactionEnabled,
+			autoRetryEnabled: inner.autoRetryEnabled,
+			stateVersion: inner.getStateVersion(),
 		};
+	}
+
+	/**
+	 * Resolve the session's current model role: the first configured role whose
+	 * resolved model matches the active model. Returns null when the active
+	 * model belongs to no configured role.
+	 */
+	#currentModelRole(): string | null {
+		const model = this.#inner.model;
+		if (!model) return null;
+		const roles = this.#inner.settings.getModelRoles();
+		for (const role of Object.keys(roles)) {
+			const resolved = this.#inner.resolveRoleModelWithThinking(role);
+			if (resolved.model && modelsAreEqual(model, resolved.model)) return role;
+		}
+		return null;
 	}
 
 	async send(command: AgentCommand): Promise<unknown> {
@@ -540,6 +605,24 @@ export class AgentSessionWrapper {
 			case "enter_plan_mode":
 				await this.#inner.enterPlanMode(command.initialPrompt);
 				return { ok: true };
+			case "mode_enter":
+				await this.#inner.enterMode(command.mode, command.options);
+				return { ok: true };
+			case "mode_exit":
+				await this.#inner.exitMode(command.mode, command.options);
+				return { ok: true };
+			case "set_model_role": {
+				// Reuse the CLI role-switch semantics: resolve the role's model
+				// (+ explicit thinking suffix) and apply it as a temporary model
+				// selection without persisting model settings.
+				const resolved = this.#inner.resolveRoleModelWithThinking(command.role);
+				if (!resolved.model) throw new Error(`No model resolved for role: ${command.role}`);
+				await this.#inner.setModelTemporary(
+					resolved.model,
+					resolved.explicitThinkingLevel ? resolved.thinkingLevel : undefined,
+				);
+				return { ok: true };
+			}
 			case "plan_approve": {
 				// Remote (web-ui PlanApproval / IM @plan) plan-approval execution.
 				// Mirrors interactive-mode's approvePlan branches without TUI state.
@@ -813,6 +896,8 @@ async function openSessionManagerForAgent(filePath: string, cwd?: string): Promi
 export interface SessionChannelHooks {
 	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
 	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+	/** Natural-language IM control (`im_control` tool) bound to this session. */
+	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 }
 
 export async function startRpcSession(
@@ -846,6 +931,7 @@ export async function startRpcSession(
 			sessionManager: manager,
 			channelSend: channelHooks?.channelSend,
 			workspaceRun: channelHooks?.workspaceRun,
+			imControl: channelHooks?.imControl,
 		});
 
 		const wrapper = new AgentSessionWrapper(session, realSessionId, sessionFile || manager.getSessionFile() || null);

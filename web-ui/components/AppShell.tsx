@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, Component, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { installRemoteTokenFetch } from "@/lib/remote-token";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import { FileViewer } from "./FileViewer";
@@ -44,6 +45,34 @@ const openMenuItemStyle: React.CSSProperties = {
   textTransform: "capitalize",
 };
 
+/**
+ * Keeps a render crash inside one modal (e.g. SettingsPanel) from unmounting
+ * the whole app — without this, React 18 drops the full tree and the UI seems
+ * "stuck closed" until a reload.
+ */
+class ModalBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+	state = { failed: false };
+	static getDerivedStateFromError(): { failed: boolean } {
+		return { failed: true };
+	}
+	override render() {
+		if (this.state.failed) {
+			return (
+				<div style={{ padding: 16, fontSize: 12.5, color: "#f87171", background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 8, margin: 12 }}>
+					Something went wrong rendering this panel.
+					<button
+						onClick={() => this.setState({ failed: false })}
+						style={{ marginLeft: 10, padding: "4px 10px", background: "none", border: "1px solid var(--border)", borderRadius: 5, color: "var(--text)", cursor: "pointer", fontSize: 12 }}
+					>
+						Retry
+					</button>
+				</div>
+			);
+		}
+		return this.props.children;
+	}
+}
+
 export function AppShell() {
 	return (
 		<I18nProvider>
@@ -53,6 +82,7 @@ export function AppShell() {
 }
 
 function AppShellContent() {
+  installRemoteTokenFetch();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [initialNavigation] = useState(() => getInitialNavigation(searchParams));
@@ -62,6 +92,8 @@ function AppShellContent() {
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
   // When user clicks +, we only store the cwd — no fake session id
   const [newSessionCwd, setNewSessionCwd] = useState<string | null>(null);
+  /** True once the user explicitly requested a new session (default chat shares the coordinator). */
+  const explicitNewRef = useRef(false);
   const [initialCwdStatus, setInitialCwdStatus] = useState<"idle" | "validating" | "ready" | "error">(
     () => initialNavigation.requestedCwd ? "validating" : "idle",
   );
@@ -375,6 +407,7 @@ function AppShellContent() {
   }, [router, isMobile]);
 
   const handleNewSession = useCallback((_sessionId: string, cwd: string) => {
+    explicitNewRef.current = true;
     setSelectedSession(null);
     setNewSessionCwd(cwd);
     setSessionKey((k) => k + 1);
@@ -1313,6 +1346,7 @@ function AppShellContent() {
               key={sessionKey}
               session={selectedSession}
               newSessionCwd={effectiveNewSessionCwd}
+              explicitNew={explicitNewRef.current}
               onAgentEnd={handleAgentEnd}
               onSessionCreated={handleSessionCreated}
               onSessionForked={handleSessionForked}
@@ -1505,10 +1539,12 @@ function AppShellContent() {
     </div>
     {modelsConfigOpen && <ModelsConfig onClose={() => { setModelsConfigOpen(false); setModelsRefreshKey((k) => k + 1); }} />}
     {settingsConfigOpen && (
-      <SettingsPanel
-        onClose={() => setSettingsConfigOpen(false)}
-        onOpenModelsConfig={() => setModelsConfigOpen(true)}
-      />
+      <ModalBoundary>
+        <SettingsPanel
+          onClose={() => setSettingsConfigOpen(false)}
+          onOpenModelsConfig={() => setModelsConfigOpen(true)}
+        />
+      </ModalBoundary>
     )}
     {skillsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
       <SkillsConfig cwd={(activeCwd ?? selectedSession?.cwd ?? newSessionCwd)!} onClose={() => setSkillsConfigOpen(false)} />

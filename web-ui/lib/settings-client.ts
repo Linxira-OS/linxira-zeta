@@ -7,7 +7,7 @@
  * module never builds its own translation table.
  */
 
-export type SettingsType = "boolean" | "enum" | "submenu" | "text" | "providerLimits" | "multiselect";
+export type SettingsType = "boolean" | "enum" | "submenu" | "text" | "providerLimits" | "modelRoles" | "multiselect";
 
 export interface SettingsOptionInfo {
   value: string;
@@ -100,7 +100,7 @@ export interface WebConfigData {
     feishu: WebConfigChannel;
     telegram: WebConfigChannel;
   };
-  remote: { host?: string; token?: string; workspaces?: string[] };
+  remote: { host?: string; token?: string; workspaces?: string[]; showBotSessions?: boolean };
 }
 
 /** Fetch the merged web-layer config (secrets arrive masked). */

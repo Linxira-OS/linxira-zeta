@@ -124,9 +124,19 @@ export class FeishuChannel implements ChatChannel {
 		} catch {
 			text = message.content ?? "";
 		}
-		if (typeof chatId !== "string" || chatId === "" || text.trim() === "") return;
+		if (typeof chatId !== "string" || chatId === "") return;
+		// Feishu renders `@` as mention placeholders (`@_user_1`); strip them so
+		// command text and prompts arrive clean (a bot @-mention in a group is
+		// not part of the user's actual message). Only collapse the mention
+		// gaps — preserve intentional newlines in multi-line prompts.
+		text = text
+			.replace(/@_user_\d+/g, " ")
+			.replace(/[ \t]{2,}/g, " ")
+			.replace(/\n{3,}/g, "\n\n")
+			.trim();
+		if (text === "") return;
 		logger.debug("Feishu message received", { chatId, length: text.length });
-		this.#onMessage(chatId, text.trim(), message.message_id);
+		this.#onMessage(chatId, text, message.message_id);
 	}
 
 	#onP2pEntered(data: FeishuP2pEnteredData): void {

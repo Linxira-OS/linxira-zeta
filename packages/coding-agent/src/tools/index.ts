@@ -4,6 +4,7 @@ import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
 import { logger } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
+import type { ImControlParams, ImControlResult } from "../channels/im-control";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
@@ -52,6 +53,7 @@ import { GithubTool } from "./gh";
 import { GlobTool } from "./glob";
 import { GrepTool } from "./grep";
 import { HubTool, isIrcEnabled } from "./hub";
+import { ImControlTool } from "./im-control";
 import { InspectImageTool } from "./inspect-image";
 import { LearnTool } from "./learn";
 import { ManageSkillTool } from "./manage-skill";
@@ -176,6 +178,8 @@ export interface ToolSession {
 	/** Channel send sink (web/desktop sessions only; undefined in CLI mode). */
 	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
 	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+	/** Natural-language IM control sink (web/desktop sessions only). */
+	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 	/** Provider credential resolver forwarded unchanged to restricted child sessions. */
 	getApiKey?: AgentOptions["getApiKey"];
 	/** Skip subprocess-kernel availability checks and warmup */
@@ -427,6 +431,10 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 		if (!session.workspaceRun) return null; // CLI mode
 		return new WorkspaceRunTool(session);
 	},
+	im_control: session => {
+		if (!session.imControl) return null; // CLI mode
+		return new ImControlTool(session);
+	},
 	read: s => new ReadTool(s),
 	security_scan: async s => {
 		const { SecurityScanTool } = await import("./security-scan");
@@ -626,6 +634,8 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 			return session.channelSend !== undefined && session.settings.get("channels.enabled") !== false;
 		if (name === "workspace_run")
 			return session.workspaceRun !== undefined && session.settings.get("channels.enabled") !== false;
+		if (name === "im_control")
+			return session.imControl !== undefined && session.settings.get("channels.enabled") !== false;
 		if (name === "glob") return session.settings.get("glob.enabled");
 		if (name === "grep") return session.settings.get("grep.enabled");
 		if (name === "github") return session.settings.get("github.enabled");

@@ -94,46 +94,29 @@ async function copyWebUi(_config: BuildConfig, outDir: string): Promise<void> {
 	if (!fs.existsSync(path.join(nextDir, "BUILD_ID"))) {
 		throw new Error("Web UI not built. Run 'cd web-ui && npm run build' first.");
 	}
+	const lockfilePath = path.join(WEB_UI_DIR, "package-lock.json");
+	if (!fs.existsSync(lockfilePath)) {
+		throw new Error("web-ui/package-lock.json missing. Run 'cd web-ui && npm install' first.");
+	}
 
 	const webUiOutDir = path.join(outDir, "web-ui");
 	await runStep("复制 Web UI 到分发包", async () => {
 		// Copy .next/ directory
 		copyDir(nextDir, path.join(webUiOutDir, ".next"));
-		// Copy package.json and next.config
+		// Copy package.json, the lockfile, and next.config so the staged dir
+		// can reproduce its own node_modules.
 		fs.copyFileSync(path.join(WEB_UI_DIR, "package.json"), path.join(webUiOutDir, "package.json"));
+		fs.copyFileSync(lockfilePath, path.join(webUiOutDir, "package-lock.json"));
 		fs.copyFileSync(path.join(WEB_UI_DIR, "next.config.ts"), path.join(webUiOutDir, "next.config.ts"));
-		// Copy node_modules (only runtime deps; skip dev deps to save space)
-		copyNodeModules(webUiOutDir);
-	});
-}
-
-function copyNodeModules(webUiOutDir: string): void {
-	// Read package.json to determine what to copy
-	const pkg = JSON.parse(fs.readFileSync(path.join(WEB_UI_DIR, "package.json"), "utf-8"));
-	const deps = { ...pkg.dependencies };
-
-	// Copy each dependency
-	const srcNm = path.join(WEB_UI_DIR, "node_modules");
-	const destNm = path.join(webUiOutDir, "node_modules");
-
-	if (!fs.existsSync(destNm)) {
-		fs.mkdirSync(destNm, { recursive: true });
-	}
-
-	for (const dep of Object.keys(deps)) {
-		const srcPath = path.join(srcNm, dep);
-		const destPath = path.join(destNm, dep);
-		if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
-			copyDir(srcPath, destPath);
+		// Install the runtime dependency closure from the lockfile. Copying the
+		// dev machine's node_modules misses `next`'s hoisted transitive deps
+		// (`@swc/helpers`, `@next/env`, …) and 1.6GB wholesale copies are not
+		// portable-build friendly.
+		const ci = await $`npm ci --omit=dev --ignore-scripts`.cwd(webUiOutDir).nothrow();
+		if (ci.exitCode !== 0) {
+			throw new Error(`npm ci failed in portable web-ui staging (exit ${ci.exitCode}): ${ci.stderr.toString()}`);
 		}
-	}
-
-	// Also copy .bin directory for next scripts
-	const binSrc = path.join(srcNm, ".bin");
-	const binDest = path.join(destNm, ".bin");
-	if (fs.existsSync(binSrc) && !fs.existsSync(binDest)) {
-		copyDir(binSrc, binDest);
-	}
+	});
 }
 
 async function createLauncher(config: BuildConfig, outDir: string): Promise<void> {

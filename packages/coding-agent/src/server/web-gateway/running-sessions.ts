@@ -35,3 +35,17 @@ export function subscribeRunningSessions(listener: (ids: string[]) => void): () 
 		subscribers.delete(listener);
 	};
 }
+
+/** Hook installed by the serve runtime so the gateway can dispose a deleted
+ *  bot session's live AgentSession (the router owns the runtime handle). */
+type BotSessionDispose = (id: string) => Promise<unknown> | unknown;
+let botSessionDispose: BotSessionDispose | null = null;
+
+export function setBotSessionDispose(fn: BotSessionDispose | null): void {
+	botSessionDispose = fn;
+}
+
+/** Fire the runtime-side dispose for a bot session deleted via the web UI. */
+export async function notifyBotSessionDeleted(id: string): Promise<void> {
+	await botSessionDispose?.(id);
+}

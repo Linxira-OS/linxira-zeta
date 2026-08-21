@@ -10,28 +10,37 @@
  *                                 └─ 其余        → Web UI Next.js (随机内部端口)
  */
 
+import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger } from "@linxiraos/pi-utils";
 import {
 	type ChannelRuntime,
+	getChannelStatus,
+	registerChannelStatus,
+	registerMainSessionId,
+	registerRestartChannels,
 	registerWechatReconnect,
 	registerWechatUnbind,
 	setPendingWechatQr,
 	startChannels,
 } from "../channels";
 import type { ChannelId, ChatImage } from "../channels/channel";
+import { type ImControlParams, type ImControlResult, runImControl } from "../channels/im-control";
 import { approveRemotePlan, type PlanApproveMode } from "../channels/plan-approval";
 import { renderPlanToPng } from "../channels/plan-image";
-import { SessionRouter } from "../channels/session-router";
+import { COORDINATOR_ALIAS, SessionRouter } from "../channels/session-router";
 import { WeChatChannel } from "../channels/wechat";
 import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { WebConfig } from "../config/web-config";
 import { humanizePlanTitle, planFileUrlForSlug, planSlugFromSupplied } from "../plan-mode/approved-plan";
 import type { AgentSession } from "../session/agent-session";
+import { SessionManager } from "../session/session-manager";
 import { openPath } from "../utils/open";
-import { startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
+import { authorizedForAccess, startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
 import { startRpcSession } from "./web-gateway/agents";
+import { getSharedModelRegistry } from "./web-gateway/auth";
+import { setBotSessionDispose } from "./web-gateway/running-sessions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,6 +134,15 @@ function getRandomPort(): number {
 	return Math.floor(Math.random() * 16384) + 49152;
 }
 
+/** Loopback bind hosts (IPv4/IPv6 literals + localhost). `0.0.0.0` is a
+ *  bind-all address, NOT loopback — binding it must trigger the token warning. */
+function isLoopbackHostname(hostname: string): boolean {
+	const normalized = hostname.trim().toLowerCase();
+	if (normalized === "localhost" || normalized === "::1" || normalized === "[::1]") {
+		return true;
+	}
+	return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized);
+}
 /**
  * 向目标 URL 代理转发请求。
  * 将原始请求的 method、headers、body 转发到目标，返回目标响应。
@@ -210,9 +228,18 @@ export class ZetaServer {
 	#statsServer: { stop: () => void } | null = null;
 	#gateway: WebGatewayInstance | null = null;
 	#channelRuntime: ChannelRuntime | null = null;
+	/** Live runtime read by the message closures (survives runtime restarts). */
+	#channelRuntimeRef: ChannelRuntime | null = null;
+	/** Coordinator session shared by the router and every channel runtime. */
+	#channelCoordinator: AgentSession | null = null;
 	#router: SessionRouter | null = null;
-	/** Remote plan-approval pending state, keyed by `${channelId}:${peer}`. */
-	#pendingPlanApproval = new Map<string, { planFilePath: string }>();
+	/** Remote plan-approval pending state, keyed by `${channelId}:${peer}`. The
+	 *  plan is approved against the session that produced it (relay coordinator
+	 *  or a bot session). */
+	#pendingPlanApproval = new Map<string, { planFilePath: string; expiresAt: number; session: AgentSession }>();
+
+	/** Upper bound a remote plan waits for an approval reply before expiring. */
+	static readonly PLAN_APPROVAL_TTL_MS = 30 * 60_000;
 	#webUiPort = 0;
 	#running = false;
 
@@ -269,7 +296,14 @@ export class ZetaServer {
 				await this.#startGateway();
 			}
 
-			// 2c. Start IM channels when requested or any web.yml channel is enabled.
+			// 2c. Start the shared coordinator session (web-ui default chat and
+			// CLI attach target). Always, regardless of channel config — the
+			// coordinator is the single shared session all clients consume.
+			if (!statsOnly) {
+				await this.#ensureMainSession();
+			}
+
+			// 2d. Start IM channels when requested or any web.yml channel is enabled.
 			if (!statsOnly && !webOnly) {
 				await this.#maybeStartChannels();
 			}
@@ -296,15 +330,20 @@ export class ZetaServer {
 		if (this.#channelRuntime) {
 			await this.#channelRuntime.stop().catch(() => {});
 			this.#channelRuntime = null;
+			this.#channelRuntimeRef = null;
 			setPendingWechatQr(null);
 			registerWechatReconnect(null);
 			registerWechatUnbind(null);
 		}
+		registerRestartChannels(null);
+		registerMainSessionId(null);
+		this.#channelCoordinator = null;
 
 		if (this.#router) {
 			await this.#router.stopAll().catch(() => {});
 			this.#router = null;
 		}
+		setBotSessionDispose(null);
 
 		if (this.#server) {
 			this.#server.stop();
@@ -364,23 +403,25 @@ export class ZetaServer {
 	}
 
 	/**
-	 * Start IM channels when the `channels` option is set or web.yml enables
-	 * any channel. The coordinator session (created through the same RPC
-	 * registry the web-ui uses) receives every inbound channel message, so
-	 * bot and web-ui see one shared conversation.
+	 * Ensure the shared coordinator session + router exist (always, even when
+	 * no channel is enabled): the web-ui default chat and CLI attach target
+	 * this session. Idempotent; created once per serve process.
 	 */
-	async #maybeStartChannels(): Promise<void> {
-		const webConfig = await WebConfig.load();
-		const data = webConfig.getData();
-		const anyEnabled = data.channels.wechat.enabled || data.channels.feishu.enabled || data.channels.telegram.enabled;
-		if (!this.#options.channels && !anyEnabled) return;
-
-		try {
-			// Deferred sink: the channel runtime resolves after startChannels.
-			let runtimeRef: ChannelRuntime | null = null;
-			const { session } = await startRpcSession("__zeta_serve_coordinator__", "", process.cwd(), undefined, {
+	async #ensureMainSession(webConfig?: WebConfig): Promise<void> {
+		if (this.#channelCoordinator) return;
+		const config = webConfig ?? (await WebConfig.load());
+		// The coordinator gets a stable, persisted session file in the default
+		// workspace's session dir so its conversation shows up in the web UI
+		// session list and survives restarts (file-less sessions are invisible).
+		const coordinatorFile = path.join(SessionManager.getDefaultSessionDir(process.cwd()), "zeta-bot.jsonl");
+		const { session, realSessionId } = await startRpcSession(
+			"__zeta_serve_coordinator__",
+			coordinatorFile,
+			process.cwd(),
+			undefined,
+			{
 				channelSend: async opts => {
-					const runtime = runtimeRef;
+					const runtime = this.#channelRuntimeRef;
 					const router = this.#router;
 					if (!runtime || !router) throw new Error("IM channels are not started");
 					const target = router.resolvePush(opts);
@@ -392,33 +433,147 @@ export class ZetaServer {
 					if (!router) throw new Error("Workspace router is not started");
 					return router.run(opts.workspace, opts.task);
 				},
+				imControl: params => this.#imControlHook("coordinator", params),
+			},
+		);
+		this.#channelCoordinator = session.getSession();
+		// Give the coordinator a recognizable name in the session list ("Zeta Bot"
+		// relay conversation), distinct from user/workspace sessions.
+		await this.#channelCoordinator.sessionManager.setSessionName("Zeta Bot (Relay)", "user").catch(() => {});
+		registerMainSessionId(realSessionId);
+		this.#router = new SessionRouter({
+			coordinator: this.#channelCoordinator,
+			webConfig: config,
+			getLastInbound: () => this.#channelRuntimeRef?.host.lastInbound ?? null,
+			sendText: (channelId, to, text) => {
+				const runtime = this.#channelRuntimeRef;
+				if (!runtime) throw new Error("IM channels are not started");
+				return runtime.sendText(channelId, to, text);
+			},
+			defaultCwd: process.cwd(),
+			channelSend: opts => this.#channelSendHook(opts),
+			workspaceRun: opts => this.#workspaceRunHook(opts),
+			imControl: (sessionKey, params) => this.#imControlHook(sessionKey, params),
+			// Bot sessions route through startRpcSession so they register in the
+			// web gateway (web-UI plan approval opens them by id) and never spawn
+			// a duplicate live session on the same transcript.
+			createBotSessionRuntime: async entry => {
+				const { session } = await startRpcSession(
+					`__zeta_serve_bot__${entry.id}`,
+					entry.sessionFile,
+					process.cwd(),
+					undefined,
+					{
+						channelSend: opts => this.#channelSendHook(opts),
+						workspaceRun: opts => this.#workspaceRunHook(opts),
+						imControl: params => this.#imControlHook(entry.id, params),
+					},
+				);
+				return session.getSession();
+			},
+		});
+		// Default-space session registry: the relay entry is the coordinator's
+		// transcript and can never be deleted.
+		await this.#router.ensureRelaySession(coordinatorFile);
+		// Web-UI bot-session deletion reaches the live runtime through this hook.
+		setBotSessionDispose(id => this.#router?.deleteBotSession(id));
+	}
+
+	/** channel_send tool sink shared by the coordinator and every bot session. */
+	#channelSendHook(opts: { text: string; to?: string; channel?: string }): Promise<void> {
+		const runtime = this.#channelRuntimeRef;
+		const router = this.#router;
+		if (!runtime || !router) throw new Error("IM channels are not started");
+		const target = router.resolvePush(opts);
+		if (!target) throw new Error("No channel or peer bound to this session");
+		return runtime.sendText(target.channelId, target.to, opts.text);
+	}
+
+	/** workspace_run tool sink shared by the coordinator and every bot session. */
+	#workspaceRunHook(opts: { workspace: string; task: string }): Promise<{ reply: string }> {
+		const router = this.#router;
+		if (!router) throw new Error("Workspace router is not started");
+		return router.run(opts.workspace, opts.task);
+	}
+
+	/**
+	 * im_control tool sink shared by the coordinator and every bot session.
+	 * `sessionKey` ("coordinator" or a bot-session id) lets the router resolve
+	 * the invoking chat without guessing.
+	 */
+	#imControlHook(sessionKey: string, params: ImControlParams): Promise<ImControlResult> {
+		return runImControl(this.#router, sessionKey, params, {
+			listModels: () => this.#listModels(),
+			setChatModel: (channelId, peer, provider, modelId) => this.#setChatModel(channelId, peer, provider, modelId),
+			getChatModel: (channelId, peer) => this.#getChatModel(channelId, peer),
+			getChannelStatus: () => getChannelStatus(),
+		});
+	}
+
+	/**
+	 * Start IM channels when the `channels` option is set or web.yml enables
+	 * any channel. The coordinator session (created through the same RPC
+	 * registry the web-ui uses) receives every inbound channel message, so
+	 * bot and web-ui see one shared conversation.
+	 */
+	async #maybeStartChannels(): Promise<void> {
+		// Register the live restart hook regardless of boot state: toggling a
+		// channel in the web UI must take effect immediately (QR login included)
+		// even when no channel was enabled at serve start.
+		registerRestartChannels(async () => this.#restartChannels());
+		try {
+			const webConfig = await WebConfig.load();
+			await this.#ensureMainSession(webConfig);
+			await this.#startChannelRuntime(webConfig);
+		} catch (error) {
+			logger.warn("Failed to start IM channels", {
+				error: error instanceof Error ? error.message : String(error),
 			});
+		}
+	}
 
-			const coordinator = session.getSession();
-			this.#router = new SessionRouter({
-				coordinator,
-				webConfig,
-				getLastInbound: () => runtimeRef?.host.lastInbound ?? null,
-				sendText: (channelId, to, text) => {
-					const runtime = runtimeRef;
-					if (!runtime) throw new Error("IM channels are not started");
-					return runtime.sendText(channelId, to, text);
-				},
-			});
+	/** Stop the current channel runtime (if any) and clear its registrations. */
+	async #stopChannelRuntime(): Promise<void> {
+		if (this.#channelRuntime) {
+			await this.#channelRuntime.stop().catch(() => {});
+			this.#channelRuntime = null;
+		}
+		this.#channelRuntimeRef = null;
+		setPendingWechatQr(null);
+		registerWechatReconnect(null);
+		registerWechatUnbind(null);
+		registerChannelStatus(null);
+	}
 
-			this.#channelRuntime = await startChannels(
-				coordinator,
-				webConfig,
-				(channelId, peer, body) => {
-					const runtime = runtimeRef;
-					if (!runtime) return;
+	/** Start the channel runtime when any channel is enabled (fresh copy). */
+	async #startChannelRuntime(webConfig: WebConfig): Promise<void> {
+		const data = webConfig.getData();
+		const anyEnabled = data.channels.wechat.enabled || data.channels.feishu.enabled || data.channels.telegram.enabled;
+		if (!this.#options.channels && !anyEnabled) {
+			await this.#stopChannelRuntime();
+			return;
+		}
+		const coordinator = this.#channelCoordinator;
+		if (!coordinator) throw new Error("IM coordinator is not started");
+		await this.#stopChannelRuntime();
+		this.#channelRuntime = await startChannels(
+			coordinator,
+			webConfig,
+			(channelId, peer, body) => {
+				const runtime = this.#channelRuntimeRef;
+				if (!runtime) return;
 
-					// Remote plan-approval replies: while a plan is awaiting
-					// approval on this peer, an exact "1"-"4" reply resolves it
-					// instead of reaching the session.
-					const pendingKey = `${channelId}:${peer}`;
-					const pendingPlan = this.#pendingPlanApproval.get(pendingKey);
-					if (pendingPlan) {
+				// Remote plan-approval replies: while a plan is awaiting
+				// approval on this peer, an exact "1"-"4" reply resolves it
+				// instead of reaching the session.
+				const pendingKey = `${channelId}:${peer}`;
+				const pendingPlan = this.#pendingPlanApproval.get(pendingKey);
+				if (pendingPlan) {
+					// Expired approvals no longer intercept replies — the plan
+					// may reference a stale file; treat the reply as a message.
+					if (Date.now() > pendingPlan.expiresAt) {
+						this.#pendingPlanApproval.delete(pendingKey);
+					} else {
 						const mode = parsePlanApprovalReply(body);
 						if (mode) {
 							this.#pendingPlanApproval.delete(pendingKey);
@@ -428,44 +583,51 @@ export class ZetaServer {
 								pendingPlan.planFilePath,
 								mode,
 								runtime,
-								coordinator,
+								pendingPlan.session,
 							);
 							return;
 						}
 					}
+				}
 
-					void routeWorkspaceCommand(body, peer, {
-						listWorkspaces: () => this.#router?.list() ?? [],
-						registerWorkspace: () => {},
-						unregisterWorkspace: () => {},
-						openWorkspaceSession: async dir => {
-							await this.#router?.open(dir);
-						},
-						closeWorkspaceSession: async name => {
-							await this.#router?.close(name);
-						},
-						sendText: text => runtime.sendText(channelId, peer, text),
-						planRequest: title => this.#startRemotePlanRequest(channelId, peer, title, coordinator, runtime),
-						fallback: (fallbackBody, fromPeer) =>
-							runtime.host.deliver(channelId, fromPeer, fallbackBody).catch(error => {
-								logger.warn("Channel message injection failed", {
-									channel: channelId,
-									error: error instanceof Error ? error.message : String(error),
-								});
-							}),
-					});
-				},
-				payload => setPendingWechatQr(payload),
-			);
+				void (async () => {
+					try {
+						await this.#routeInboundMessage(channelId as ChannelId, peer, body, runtime);
+					} catch (error) {
+						// Never drop a message silently: log the failure so a broken
+						// route (workspace session, bot session, relay) is visible in
+						// ~/.zeta/logs instead of the chat going quiet.
+						logger.error("Channel message routing failed", {
+							channel: channelId,
+							peer,
+							error: error instanceof Error ? error.message : String(error),
+						});
+					}
+				})();
+			},
+			payload => setPendingWechatQr(payload),
+		);
+		this.#channelRuntimeRef = this.#channelRuntime;
+		registerChannelStatus(() =>
+			["wechat", "feishu", "telegram"].map(id => ({
+				id: id as ChannelId,
+				running: this.#channelRuntimeRef?.channels.has(id as ChannelId) ?? false,
+			})),
+		);
+		const wechatChannel = this.#channelRuntime.channels.get("wechat");
+		registerWechatReconnect(wechatChannel instanceof WeChatChannel ? () => wechatChannel.reconnect() : null);
+		registerWechatUnbind(wechatChannel instanceof WeChatChannel ? () => wechatChannel.unbind() : null);
+		logger.info("IM channels started", { count: this.#channelRuntime.channels.size });
+	}
 
-			const wechatChannel = this.#channelRuntime.channels.get("wechat");
-			registerWechatReconnect(wechatChannel instanceof WeChatChannel ? () => wechatChannel.reconnect() : null);
-			registerWechatUnbind(wechatChannel instanceof WeChatChannel ? () => wechatChannel.unbind() : null);
-
-			runtimeRef = this.#channelRuntime;
-			logger.info("IM channels started", { count: this.#channelRuntime.channels.size });
+	/** Live channel config re-apply: stop + re-start per the fresh web.yml. */
+	async #restartChannels(): Promise<void> {
+		try {
+			const webConfig = await WebConfig.load();
+			await this.#ensureMainSession(webConfig);
+			await this.#startChannelRuntime(webConfig);
 		} catch (error) {
-			logger.warn("Failed to start IM channels", {
+			logger.warn("Failed to restart IM channels", {
 				error: error instanceof Error ? error.message : String(error),
 			});
 		}
@@ -473,26 +635,38 @@ export class ZetaServer {
 
 	/**
 	 * Start a remote plan-mode request (`@plan <title>`): enable plan mode on
-	 * the coordinator, install the plan-proposal handler that delivers the
+	 * the chat's target session (active bot session, else the relay
+	 * coordinator), install the plan-proposal handler that delivers the
 	 * finished plan to the user, then prompt for the plan.
 	 */
 	async #startRemotePlanRequest(
 		channelId: ChannelId,
 		peer: string,
 		title: string,
-		coordinator: AgentSession,
 		runtime: ChannelRuntime,
 	): Promise<void> {
+		const router = this.#router;
+		const coordinator = this.#channelCoordinator;
+		if (!router || !coordinator) {
+			await runtime.sendText(channelId, peer, "会话尚未就绪，请稍后再试。");
+			return;
+		}
+		const target = await router.resolveChatTargetSession(channelId, peer);
+		if (!target.ok) {
+			await runtime.sendText(channelId, peer, target.error);
+			return;
+		}
+		const session = target.session;
 		// planFilePath follows the existing plan-file rule
 		// (`local://<slug>-plan.md` via planFileUrlForSlug). The agent may still
 		// choose its own slug; resolveApprovedPlan re-locates the actual file
 		// when the plan is submitted, and the handler below syncs state.
 		const slug = planSlugFromSupplied(title) ?? "plan";
-		coordinator.setPlanModeState({ enabled: true, planFilePath: planFileUrlForSlug(slug), workflow: "parallel" });
-		coordinator.setPlanProposalHandler(proposedTitle =>
-			this.#handleRemotePlanProposal(channelId, peer, proposedTitle, coordinator, runtime),
+		session.setPlanModeState({ enabled: true, planFilePath: planFileUrlForSlug(slug), workflow: "parallel" });
+		session.setPlanProposalHandler(proposedTitle =>
+			this.#handleRemotePlanProposal(channelId, peer, proposedTitle, session, runtime),
 		);
-		await coordinator.prompt(`制定计划: ${title}…`);
+		await session.prompt(`制定计划: ${title}…`);
 	}
 
 	/**
@@ -505,19 +679,23 @@ export class ZetaServer {
 		channelId: ChannelId,
 		peer: string,
 		proposedTitle: string,
-		coordinator: AgentSession,
+		session: AgentSession,
 		runtime: ChannelRuntime,
 	): Promise<AgentToolResult<unknown>> {
-		const result = await coordinator.preparePlanForReview(proposedTitle);
-		const state = coordinator.getPlanModeState();
+		const result = await session.preparePlanForReview(proposedTitle);
+		const state = session.getPlanModeState();
 		const planFilePath = result.details?.planFilePath ?? state?.planFilePath ?? "local://PLAN.md";
 		const title = result.details?.title ?? proposedTitle;
 		if (state) {
-			coordinator.setPlanModeState({ ...state, planFilePath });
+			session.setPlanModeState({ ...state, planFilePath });
 		}
-		this.#pendingPlanApproval.set(`${channelId}:${peer}`, { planFilePath });
+		this.#pendingPlanApproval.set(`${channelId}:${peer}`, {
+			planFilePath,
+			expiresAt: Date.now() + ZetaServer.PLAN_APPROVAL_TTL_MS,
+			session,
+		});
 
-		const content = await coordinator.getPlanFileContent(planFilePath);
+		const content = await session.getPlanFileContent(planFilePath);
 		if (content) {
 			const planTitle = humanizePlanTitle(title);
 			const { pngData, markdown } = await renderPlanToPng(content);
@@ -536,26 +714,26 @@ export class ZetaServer {
 		return result;
 	}
 
-	/** Execute a remote plan-approval decision and report the outcome. */
+	/** Execute a remote plan-approval decision on the session that produced the plan. */
 	async #executePendingPlanApproval(
 		channelId: ChannelId,
 		peer: string,
 		planFilePath: string,
 		mode: PlanApproveMode,
 		runtime: ChannelRuntime,
-		coordinator: AgentSession,
+		session: AgentSession,
 	): Promise<void> {
 		try {
 			const result = await approveRemotePlan(
-				coordinator,
+				session,
 				{ planFilePath, mode },
 				{
-					getArtifactsDir: () => coordinator.sessionManager.getArtifactsDir(),
-					getSessionId: () => coordinator.sessionManager.getSessionId(),
+					getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+					getSessionId: () => session.sessionManager.getSessionId(),
 				},
 			);
 			if (result.approved) {
-				const text = coordinator.getLastAssistantText()?.trim() ?? "";
+				const text = session.getLastAssistantText()?.trim() ?? "";
 				await runtime.sendText(channelId, peer, text ? `计划执行完成：\n\n${text}` : "计划已开始执行。");
 			} else if (mode !== "cancel") {
 				await runtime.sendText(channelId, peer, `计划未执行：${result.error ?? "未知错误"}`);
@@ -572,6 +750,61 @@ export class ZetaServer {
 		}
 	}
 
+	/** Route one inbound channel message: commands → workspace direct → active bot
+	 *  session → relay coordinator (with the chat's reply-language prefix). */
+	async #routeInboundMessage(
+		channelId: ChannelId,
+		peer: string,
+		body: string,
+		runtime: ChannelRuntime,
+	): Promise<void> {
+		const router = this.#router;
+		const consumed = await routeWorkspaceCommand(body, peer, {
+			router,
+			channelId,
+			peer,
+			sendText: text => runtime.sendText(channelId, peer, text),
+			planRequest: title => this.#startRemotePlanRequest(channelId, peer, title, runtime),
+			fallback: async () => {},
+			channelStatus: () => getChannelStatus(),
+			listModels: () => this.#listModels(),
+			setChatModel: (provider, modelId) => this.#setChatModel(channelId, peer, provider, modelId),
+			getChatModel: () => this.#getChatModel(channelId, peer),
+		});
+		if (consumed) return;
+		// Direct-mode chats are bound to a workspace; everything else goes
+		// to the chat's active bot session, then the relay coordinator.
+		const binding = router ? await router.bindingFor(channelId, peer) : null;
+		if (binding && binding !== COORDINATOR_ALIAS && router) {
+			const result = await router.deliverDirect(binding, channelId, peer, body);
+			if (!result.ok) {
+				logger.warn("Direct-mode injection failed", {
+					channel: channelId,
+					error: result.error,
+				});
+				await runtime.host.deliver(channelId, peer, body);
+			}
+			return;
+		}
+		if (router) {
+			const activeId = await router.activeBotSessionIdFor(channelId, peer);
+			if (activeId && activeId !== "relay") {
+				const result = await router.deliverToBotSession(activeId, channelId, peer, body);
+				if (result.ok) return;
+				logger.warn("Bot session injection failed", {
+					channel: channelId,
+					error: result.error,
+				});
+			}
+		}
+		// Relay: prefix the chat's reply language so the shared coordinator
+		// session replies in the right language without per-chat system prompts
+		// (the prefix stays in the transcript as a one-line hint).
+		const lang = router ? await router.languageFor(channelId, peer) : undefined;
+		const relayBody = lang ? `[Language: ${lang === "zh" ? "zh-CN" : "en"}] ${body}` : body;
+		await runtime.host.deliver(channelId, peer, relayBody);
+	}
+
 	async #startGateway(): Promise<void> {
 		try {
 			this.#gateway = await startWebGateway(this.#options.gatewayPort);
@@ -586,6 +819,46 @@ export class ZetaServer {
 		}
 	}
 
+	/** Available models grouped by provider, alphabetical (stable `!model` numbering). */
+	async #listModels(): Promise<{ provider: string; models: string[] }[]> {
+		const registry = await getSharedModelRegistry();
+		const groups = new Map<string, string[]>();
+		for (const model of registry.getAvailable()) {
+			const list = groups.get(model.provider) ?? [];
+			list.push(model.id);
+			groups.set(model.provider, list);
+		}
+		return [...groups.entries()]
+			.map(([provider, models]) => ({ provider, models: [...models].sort() }))
+			.sort((a, b) => a.provider.localeCompare(b.provider));
+	}
+
+	/** `!model <provider> <id>` — switch the chat's target session (bot or relay). */
+	async #setChatModel(
+		channelId: ChannelId,
+		peer: string,
+		provider: string,
+		modelId: string,
+	): Promise<{ ok: true; provider: string; modelId: string } | { ok: false; error: string }> {
+		const router = this.#router;
+		const target = router ? await router.resolveChatTargetSession(channelId, peer) : null;
+		if (!target?.ok) return { ok: false, error: target?.error ?? "No target session" };
+		const registry = await getSharedModelRegistry();
+		const model = registry.getAvailable().find(m => m.provider === provider && m.id === modelId);
+		if (!model) return { ok: false, error: `Model ${provider}/${modelId} is not available` };
+		await target.session.setModel(model);
+		return { ok: true, provider, modelId };
+	}
+
+	/** Current model of the chat's target session (`!status`). */
+	async #getChatModel(channelId: ChannelId, peer: string): Promise<{ provider: string; modelId: string } | null> {
+		const router = this.#router;
+		const target = router ? await router.resolveChatTargetSession(channelId, peer) : null;
+		if (!target?.ok) return null;
+		const model = target.session.model;
+		return model ? { provider: model.provider, modelId: model.id } : null;
+	}
+
 	#createMainServer(): ReturnType<typeof Bun.serve> {
 		const { port, statsPort } = this.#options;
 		const webUiPort = this.#webUiPort;
@@ -594,25 +867,43 @@ export class ZetaServer {
 		// The gateway dispatcher lives in-process; the standalone listener is
 		// only for dev-mode Next access.
 		const gatewayRunning = !this.#options.statsOnly;
+		// Loopback by default; operators may explicitly expose the server to the
+		// LAN (or WAN) via env. A non-loopback bind MUST pair with a configured
+		// remote token or every API request is rejected by the access gate.
+		const hostname = process.env.ZETA_SERVE_HOSTNAME ?? "127.0.0.1";
+		if (!isLoopbackHostname(hostname)) {
+			logger.warn("正在非 loopback 地址监听 —— 必须配置 remote.token，否则所有 API 请求将被拒绝", {
+				hostname,
+			});
+		}
 
 		const server = Bun.serve({
 			port,
-			hostname: "127.0.0.1",
+			hostname,
 			// Agent streams are Server-Sent Events and may stay quiet between turns.
 			idleTimeout: 0,
-			async fetch(req) {
+			async fetch(req, srv) {
 				const route = classifyRequest(req, webUiPort, gatewayRunning);
+				const remoteAddr = srv?.requestIP(req)?.address;
 
 				switch (route.type) {
 					case "stats":
-						return proxyRequest(req, statsInternal);
+						return (await authorizedForAccess(req, remoteAddr))
+							? proxyRequest(req, statsInternal)
+							: new Response(
+									JSON.stringify({ error: "Forbidden: remote access requires the configured remote token" }),
+									{
+										status: 403,
+										headers: { "Content-Type": "application/json" },
+									},
+								);
 					case "gateway":
-						return webGatewayFetch(req);
+						return webGatewayFetch(req, remoteAddr);
 					case "webui":
 						return proxyRequest(req, webUiInternal);
-					case "unavailable":
-						return new Response("Web UI not available", { status: 503 });
 				}
+				// Exhaustive above; a fallback keeps the handler's return type `Response`.
+				return new Response("Not found", { status: 404 });
 			},
 		});
 

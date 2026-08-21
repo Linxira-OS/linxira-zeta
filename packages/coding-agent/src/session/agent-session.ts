@@ -102,6 +102,7 @@ import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, type AsyncJob, AsyncJobManager } fro
 import { shouldEnableAppendOnlyContext } from "../config/append-only-context-mode";
 import type { ModelRegistry } from "../config/model-registry";
 import type { ResolvedModelRoleValue } from "../config/model-resolver";
+import { formatModelString } from "../config/model-resolver";
 import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-templates";
 import { buildServiceTierByFamily } from "../config/service-tier";
 import type { Settings, SkillsSettings } from "../config/settings";
@@ -155,6 +156,7 @@ import { containsUltrathink, ULTRATHINK_NOTICE } from "../modes/ultrathink";
 import { computeNonMessageTokens } from "../modes/utils/context-usage";
 import { containsWorkflow, renderWorkflowNotice } from "../modes/workflow";
 import { type PlanApprovalDetails, resolveApprovedPlan } from "../plan-mode/approved-plan";
+import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import { listPlanFiles, readPlanFile } from "../plan-mode/plan-files";
 import type { PlanModeState } from "../plan-mode/state";
 import goalModeContextPrompt from "../prompts/goals/goal-mode-context.md" with { type: "text" };
@@ -211,6 +213,7 @@ import { normalizeModelContextImages } from "../utils/image-loading";
 import type { InspectImageMode } from "../utils/inspect-image-mode";
 import { generateSessionTitle } from "../utils/title-generator";
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
+import { type VibeOwnerScope, type VibeParentSession, VibeSessionRegistry } from "../vibe/runtime";
 import type { VibeModeState } from "../vibe/state";
 import type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
 import type {
@@ -346,6 +349,40 @@ import { YieldQueue } from "./yield-queue";
 export * from "./agent-session-events";
 export * from "./agent-session-types";
 export type { AdvisorStats, PerAdvisorStat } from "./session-advisors";
+
+/** Modes driveable through the shared ModeController API (CLI and external clients). */
+export type ModeId = "plan" | "goal" | "vibe";
+
+export interface PlanModeEntryOptions {
+	initialPrompt?: string;
+	planFilePath?: string;
+	workflow?: "parallel" | "iterative";
+	preserveRestoredModel?: boolean;
+	reentry?: boolean;
+}
+
+export interface PlanModeExitOptions {
+	silent?: boolean;
+	paused?: boolean;
+	deferModelRestore?: boolean;
+}
+
+export interface GoalModeEntryOptions {
+	objective?: string;
+	resume?: boolean;
+	silent?: boolean;
+}
+
+export interface GoalModeExitOptions {
+	silent?: boolean;
+	paused?: boolean;
+	reason?: "completed" | "paused" | "dropped";
+}
+
+export interface VibeModeEntryOptions {
+	persistModeChange?: boolean;
+	previousTools?: string[];
+}
 
 const SESSION_STOP_CONTINUATION_CAP = 8;
 
@@ -506,6 +543,22 @@ export class AgentSession {
 	#vibeModeState: VibeModeState | undefined;
 	#goalModeState: GoalModeState | undefined;
 	#goalRuntime: GoalRuntime;
+	/** Monotonic counter bumped whenever mode or model state changes (external-state contract). */
+	#stateVersion = 0;
+	/** Pre-plan-mode tool snapshot, restored on plan-mode exit. */
+	#planModePreviousTools: string[] | undefined;
+	/** Pre-plan-mode model snapshot, restored on plan-mode exit. */
+	#planModePreviousModelState: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined;
+	/** Deferred model switch queued while the session was mid-stream (plan-mode transitions). */
+	#pendingModelSwitch: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined;
+	/** Whether `#pendingModelSwitch` was queued by the live plan-role reconciler. */
+	#pendingPlanModelSwitch = false;
+	/** Pre-goal-mode tool snapshot, restored on goal-mode exit. */
+	#goalModePreviousTools: string[] | undefined;
+	/** Pre-vibe-mode tool snapshot, restored on vibe-mode exit. */
+	#vibeModePreviousTools: string[] | undefined;
+	/** Vibe worker owner scope for the current session (vibe-mode entry/exit and worker teardown). */
+	#vibeModeOwnerScope: VibeOwnerScope | undefined;
 	readonly #advisors: SessionAdvisors;
 	#goalTurnCounter = 0;
 	#planReferenceSent = false;
@@ -4733,6 +4786,7 @@ export class AgentSession {
 	/** Toggle automatic compaction. */
 	setAutoCompactionEnabled(enabled: boolean): void {
 		this.#maintenance.setAutoCompactionEnabled(enabled);
+		this.bumpStateVersion();
 	}
 
 	/** Whether automatic compaction is enabled. */
@@ -4856,6 +4910,62 @@ export class AgentSession {
 	}
 
 	/** Prompt templates */
+	/** Monotonic counter bumped whenever mode or model state changes (external-state contract). */
+	getStateVersion(): number {
+		return this.#stateVersion;
+	}
+
+	/** Bump the external-state version and notify subscribers. */
+	bumpStateVersion(): number {
+		this.#stateVersion++;
+		this.#emit({ type: "state_version_changed", stateVersion: this.#stateVersion });
+		return this.#stateVersion;
+	}
+
+	/** Current state snapshot for a mode, if active. */
+	getModeState(mode: ModeId): PlanModeState | GoalModeState | VibeModeState | undefined {
+		switch (mode) {
+			case "plan":
+				return this.getPlanModeState();
+			case "goal":
+				return this.getGoalModeState();
+			case "vibe":
+				return this.getVibeModeState();
+		}
+	}
+
+	/** Enter a mode through the shared ModeController API (CLI and external clients). */
+	async enterMode(mode: ModeId, options?: unknown): Promise<void> {
+		switch (mode) {
+			case "plan": {
+				const opts = (options ?? {}) as PlanModeEntryOptions;
+				await this.enterPlanMode(opts.initialPrompt, opts);
+				return;
+			}
+			case "goal":
+				await this.enterGoalMode((options ?? {}) as GoalModeEntryOptions);
+				return;
+			case "vibe":
+				await this.enterVibeMode((options ?? {}) as VibeModeEntryOptions);
+				return;
+		}
+	}
+
+	/** Exit a mode through the shared ModeController API (CLI and external clients). */
+	async exitMode(mode: ModeId, options?: unknown): Promise<void> {
+		switch (mode) {
+			case "plan":
+				await this.exitPlanMode((options ?? {}) as PlanModeExitOptions);
+				return;
+			case "goal":
+				await this.exitGoalMode((options ?? {}) as GoalModeExitOptions);
+				return;
+			case "vibe":
+				await this.exitVibeMode();
+				return;
+		}
+	}
+
 	getPlanModeState(): PlanModeState | undefined {
 		return this.#planModeState;
 	}
@@ -4877,29 +4987,229 @@ export class AgentSession {
 			// does not inherit a stale `required` tool choice.
 			this.#toolChoiceQueue.removeByLabel("plan-mode-decision");
 		}
+		this.bumpStateVersion();
 	}
 
 	/**
-	 * Enter plan mode (web-gateway path). Mirrors `InteractiveMode.#enterPlanMode`
-	 * minus TUI-only concerns (status line, model transition, journaling): arm
-	 * the plan-mode state, ensure the `write` tool is active so the agent can
-	 * draft the plan file, wire plan approval, then deliver the optional initial
-	 * prompt (or the plan-mode context when already streaming).
+	 * Enter plan mode — the shared plan-mode core for both the CLI and external
+	 * clients. Arms the plan-mode state, ensures the `write` tool is active so
+	 * the agent can draft the plan file, wires plan approval, applies the `plan`
+	 * role model transition, journals the mode change, then delivers the optional
+	 * initial prompt (or the plan-mode context when already streaming).
 	 */
-	async enterPlanMode(initialPrompt?: string): Promise<void> {
-		if (this.getPlanModeState()?.enabled) return;
-		const planFilePath = this.getPlanReferencePath() || "local://PLAN.md";
+	async enterPlanMode(initialPrompt?: string, options: PlanModeEntryOptions = {}): Promise<void> {
+		if (this.#planModeState?.enabled) return;
+		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
+		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
+
+		const planFilePath = options.planFilePath ?? (this.getPlanReferencePath() || "local://PLAN.md");
 		const previousTools = this.getEnabledToolNames();
 		const planAugmentations: string[] = [];
 		if (this.hasBuiltInTool("write")) planAugmentations.push("write");
 		const uniquePlanTools = [...new Set([...previousTools, ...planAugmentations])];
+		this.#planModePreviousTools = previousTools;
 		await this.setActiveToolsByName(uniquePlanTools);
-		this.setPlanModeState({ enabled: true, planFilePath, workflow: "parallel", reentry: false });
+		this.setPlanModeState({
+			enabled: true,
+			planFilePath,
+			workflow: options.workflow ?? "parallel",
+			reentry: options.reentry,
+		});
 		this.setPlanProposalHandler(title => this.preparePlanForReview(title));
+		if (this.isStreaming) {
+			await this.sendPlanModeContext({ deliverAs: "steer" });
+		}
+		if (!options.preserveRestoredModel) {
+			await this.#applyPlanModeModel();
+		}
+		this.sessionManager.appendModeChange("plan", { planFilePath });
 		if (initialPrompt && initialPrompt.trim() !== "") {
 			await this.steer(initialPrompt.trim());
+		}
+	}
+
+	/**
+	 * Exit plan mode — restores the pre-plan tool/model state, drops the plan
+	 * proposal handler, journals the transition, and rolls back on failure
+	 * (mirrors `InteractiveMode.#exitPlanMode` minus TUI concerns).
+	 */
+	async exitPlanMode(options: PlanModeExitOptions = {}): Promise<void> {
+		if (!this.#planModeState?.enabled) return;
+
+		const planModeState = this.#planModeState;
+		const planModeTools = this.getEnabledToolNames();
+		const planModeMountedTools = this.getMountedXdevToolNames();
+		const planModeModelState = this.model
+			? { model: this.model, thinkingLevel: this.configuredThinkingLevel() }
+			: undefined;
+		this.setPlanModeState(undefined);
+		try {
+			if (this.#planModePreviousTools !== undefined) {
+				await this.setActiveToolsByName(this.#planModePreviousTools);
+			}
+			if (this.#planModePreviousModelState && !options.deferModelRestore) {
+				await this.restorePlanPreviousModel(this.#planModePreviousModelState);
+			}
+			// If a deferred switch to the plan-role model was queued (streaming
+			// entry), drop it now: leaving plan mode means flushing it later would
+			// land the session on the plan-role model after exit (issue #816).
+			if (this.#planModePreviousModelState) this.#clearPendingPlanModelSwitch();
+		} catch (error) {
+			this.setPlanModeState(planModeState);
+			if (
+				planModeModelState &&
+				(!modelsAreEqual(this.model, planModeModelState.model) ||
+					this.configuredThinkingLevel() !== planModeModelState.thinkingLevel)
+			) {
+				try {
+					await this.restorePlanPreviousModel(planModeModelState);
+				} catch (rollbackError) {
+					logger.warn("Failed to restore plan model after plan exit failure", { error: String(rollbackError) });
+				}
+			}
+			const enabledTools = this.getEnabledToolNames();
+			const mountedTools = this.getMountedXdevToolNames();
+			if (
+				enabledTools.length !== planModeTools.length ||
+				enabledTools.some((name, index) => name !== planModeTools[index]) ||
+				mountedTools.length !== planModeMountedTools.length ||
+				mountedTools.some((name, index) => name !== planModeMountedTools[index])
+			) {
+				try {
+					await this.setActiveToolPresentation(planModeTools, planModeMountedTools);
+				} catch (rollbackError) {
+					logger.warn("Failed to restore plan tools after plan exit failure", { error: String(rollbackError) });
+				}
+			}
+			throw error;
+		}
+		this.setPlanProposalHandler?.(null);
+		this.#planModePreviousTools = undefined;
+		if (!options.deferModelRestore) this.#planModePreviousModelState = undefined;
+		this.sessionManager.appendModeChange(options.paused ? "plan_paused" : "none");
+	}
+
+	/** Pre-plan tool snapshot (used by the CLI approval/switch flows). */
+	getPlanModePreviousTools(): string[] | undefined {
+		return this.#planModePreviousTools;
+	}
+
+	setPlanModePreviousTools(tools: string[] | undefined): void {
+		this.#planModePreviousTools = tools;
+	}
+
+	/**
+	 * Drop all transient mode bookkeeping (pre-mode tool/model snapshots,
+	 * deferred model switches, vibe owner scope) without journaling. Used by the
+	 * CLI's session-switch reconciliation, where the previous mode's transient
+	 * state must not leak onto the restored session.
+	 */
+	resetModeTransientState(): void {
+		this.#planModePreviousTools = undefined;
+		this.#planModePreviousModelState = undefined;
+		this.#pendingModelSwitch = undefined;
+		this.#pendingPlanModelSwitch = false;
+		this.#goalModePreviousTools = undefined;
+		this.#vibeModePreviousTools = undefined;
+		this.#vibeModeOwnerScope = undefined;
+	}
+
+	/** Pre-plan model snapshot (used by the CLI approval flow). */
+	getPlanModePreviousModelState(): { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined {
+		return this.#planModePreviousModelState;
+	}
+
+	setPlanModePreviousModelState(state: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined): void {
+		this.#planModePreviousModelState = state;
+	}
+
+	async #applyPlanModeModel(): Promise<void> {
+		const resolved = this.resolveRoleModelWithThinking("plan");
+		if (!resolved.model) return;
+		const currentModel = this.model;
+		// Capture the pre-plan model so exit can restore it. Only the entry path
+		// records this — a mid-planning role change
+		// (reapplyPlanModeModelOnRoleChange) leaves the active model on the plan
+		// role, so overwriting here would restore the old plan model instead of
+		// the user's real pre-plan model.
+		this.#planModePreviousModelState = currentModel
+			? { model: currentModel, thinkingLevel: this.configuredThinkingLevel() }
+			: undefined;
+		await this.#applyPlanModelTransition(currentModel, resolved);
+	}
+
+	/** Re-resolve the `plan` role and move the active model onto it (role reassignment). */
+	async reapplyPlanModeModelOnRoleChange(): Promise<void> {
+		if (!this.#planModeState?.enabled) return;
+		const resolved = this.resolveRoleModelWithThinking("plan");
+		if (!resolved.model) {
+			this.#clearPendingPlanModelSwitch();
+			return;
+		}
+		await this.#applyPlanModelTransition(this.model, resolved);
+	}
+
+	#clearPendingPlanModelSwitch(): void {
+		if (!this.#pendingPlanModelSwitch) return;
+		this.#pendingModelSwitch = undefined;
+		this.#pendingPlanModelSwitch = false;
+	}
+
+	/** Apply (or defer) the model/thinking change implied by the resolved plan role. */
+	async #applyPlanModelTransition(currentModel: Model | undefined, resolved: ResolvedModelRoleValue): Promise<void> {
+		const transition = resolvePlanModelTransition(currentModel, resolved, this.isStreaming);
+		if (transition.kind !== "apply" || !transition.deferred) {
+			this.#clearPendingPlanModelSwitch();
+		}
+		switch (transition.kind) {
+			case "none":
+				return;
+			case "thinking":
+				this.setThinkingLevel(transition.thinkingLevel);
+				return;
+			case "apply":
+				if (transition.deferred) {
+					this.#pendingModelSwitch = { model: transition.model, thinkingLevel: transition.thinkingLevel };
+					this.#pendingPlanModelSwitch = true;
+					return;
+				}
+				try {
+					await this.setModelTemporary(transition.model, transition.thinkingLevel);
+				} catch (error) {
+					logger.warn(
+						`Failed to switch to plan model for plan mode: ${error instanceof Error ? error.message : String(error)}`,
+					);
+				}
+				return;
+		}
+	}
+
+	/** Apply any deferred model switch after the current stream ends. */
+	async flushPendingModelSwitch(): Promise<void> {
+		const pending = this.#pendingModelSwitch;
+		this.#pendingModelSwitch = undefined;
+		this.#pendingPlanModelSwitch = false;
+		if (!pending) return;
+		try {
+			await this.setModelTemporary(pending.model, pending.thinkingLevel);
+		} catch (error) {
+			logger.warn(
+				`Failed to switch model after streaming: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	}
+
+	/** Restore a captured pre-plan model state, deferring the switch when streaming. */
+	async restorePlanPreviousModel(prev: { model: Model; thinkingLevel?: ConfiguredThinkingLevel }): Promise<void> {
+		if (modelsAreEqual(this.model, prev.model)) {
+			// Same model — only thinking level may differ. Avoid setModelTemporary()
+			// which would reset provider-side sessions and break continuity.
+			this.setThinkingLevel(prev.thinkingLevel);
 		} else if (this.isStreaming) {
-			await this.sendPlanModeContext({ deliverAs: "steer" });
+			this.#pendingModelSwitch = { model: prev.model, thinkingLevel: prev.thinkingLevel };
+			this.#pendingPlanModelSwitch = false;
+		} else {
+			await this.setModelTemporary(prev.model, prev.thinkingLevel);
 		}
 	}
 
@@ -4909,6 +5219,77 @@ export class AgentSession {
 
 	setGoalModeState(state: GoalModeState | undefined): void {
 		this.#goalModeState = state;
+		this.bumpStateVersion();
+	}
+
+	/** Pre-goal-mode tool snapshot (used by the CLI interview/switch flows). */
+	getGoalModePreviousTools(): string[] | undefined {
+		return this.#goalModePreviousTools;
+	}
+
+	setGoalModePreviousTools(tools: string[] | undefined): void {
+		this.#goalModePreviousTools = tools;
+	}
+
+	/**
+	 * Enter goal mode — shared goal-mode core. Creates (or resumes) the goal via
+	 * the goal runtime, augments the active toolset with the `goal` tool, and
+	 * injects the goal-mode context when already streaming.
+	 */
+	async enterGoalMode(options: GoalModeEntryOptions = {}): Promise<void> {
+		if (this.#goalModeState?.enabled) return;
+		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
+
+		const previousTools = this.getEnabledToolNames().filter(name => name !== "goal");
+		const goalTools = [...new Set([...previousTools, "goal"])];
+		this.#goalModePreviousTools = previousTools;
+		const state = options.resume
+			? await this.goalRuntime.resumeGoal()
+			: await this.goalRuntime.createGoal({ objective: options.objective ?? "" });
+		await this.setActiveToolsByName(goalTools);
+		this.setGoalModeState(state);
+		if (this.isStreaming) {
+			await this.sendGoalModeContext({ deliverAs: "steer" });
+		}
+	}
+
+	/**
+	 * Exit goal mode — restores the pre-goal toolset and, for a completed goal,
+	 * clears the mode state and journals the transition. External clients exit
+	 * an active goal without pre-running the goal tool, so a reason-less exit
+	 * terminates the runtime cleanly (abandon, mirroring the goal tool's `drop`).
+	 */
+	async exitGoalMode(options: GoalModeExitOptions = {}): Promise<void> {
+		const previousTools = this.#goalModePreviousTools;
+		// `#goalModePreviousTools` is the "goal mode was entered" signal — it is
+		// cleared only on exit, so the restore runs even when the runtime already
+		// cleared the mode state (e.g. the goal `drop` op, which emits no
+		// goal_updated event and leaves `#goalModeState` undefined).
+		if (previousTools !== undefined) {
+			await this.setActiveToolsByName(previousTools);
+		}
+		const currentState = this.getGoalModeState();
+		if (
+			currentState?.enabled &&
+			currentState.goal?.status === "active" &&
+			(options.reason === undefined || options.reason === "dropped")
+		) {
+			await this.goalRuntime.dropGoal();
+			this.#goalModePreviousTools = undefined;
+			return;
+		}
+		if (options.reason === "completed") {
+			this.setGoalModeState(undefined);
+			this.sessionManager.appendModeChange("none");
+			this.sessionManager.appendCustomEntry("goal-completed", {
+				objective: currentState?.goal?.objective,
+				tokensUsed: currentState?.goal?.tokensUsed,
+				tokenBudget: currentState?.goal?.tokenBudget,
+				timeUsedSeconds: currentState?.goal?.timeUsedSeconds,
+			});
+		}
+		this.#goalModePreviousTools = undefined;
 	}
 
 	getVibeModeState(): VibeModeState | undefined {
@@ -4917,6 +5298,82 @@ export class AgentSession {
 
 	setVibeModeState(state: VibeModeState | undefined): void {
 		this.#vibeModeState = state;
+		this.bumpStateVersion();
+	}
+
+	/** Pre-vibe-mode tool snapshot (used by the CLI switch flows). */
+	getVibeModePreviousTools(): string[] | undefined {
+		return this.#vibeModePreviousTools;
+	}
+
+	setVibeModePreviousTools(tools: string[] | undefined): void {
+		this.#vibeModePreviousTools = tools;
+	}
+
+	/** Vibe worker owner scope for the current session (CLI switch/teardown flows). */
+	getVibeModeOwnerScope(): VibeOwnerScope | undefined {
+		return this.#vibeModeOwnerScope;
+	}
+
+	/** The session itself as a vibe parent (worker spawns + registry scoping). */
+	#vibeParentSession(): VibeParentSession {
+		return {
+			getAgentId: () => this.getAgentId() ?? null,
+			getSessionId: () => this.sessionManager.getSessionId(),
+			getSessionFile: () => this.sessionManager.getSessionFile() ?? null,
+			sessionManager: this.sessionManager,
+			asyncJobManager: this.asyncJobManager,
+			settings: this.settings,
+			getActiveModelString: () => (this.model ? formatModelString(this.model) : undefined),
+		};
+	}
+
+	/**
+	 * Enter vibe mode — shared vibe-mode core. Activates the ephemeral vibe
+	 * toolset (read + optional parent todo + vibe tools), opens the worker
+	 * spawn scope, journals the mode change, and injects the director context
+	 * when already streaming. Returns the owner scope for the caller.
+	 */
+	async enterVibeMode(options: VibeModeEntryOptions = {}): Promise<VibeOwnerScope> {
+		if (this.#vibeModeState?.enabled) return this.#vibeModeOwnerScope!;
+		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
+
+		const vibeRegistry = VibeSessionRegistry.global();
+		const ownerScope = vibeRegistry.ownerScope(this.#vibeParentSession());
+		vibeRegistry.activateScope(ownerScope);
+		const previousTools = options.previousTools ?? this.getEnabledToolNames();
+		const vibeBaseTools = ["read"];
+		if (this.hasBuiltInTool("todo")) vibeBaseTools.push("todo");
+		await this.activateVibeTools(vibeBaseTools);
+		this.#vibeModePreviousTools = previousTools;
+		this.#vibeModeOwnerScope = ownerScope;
+		this.setVibeModeState({ enabled: true });
+		if (this.isStreaming) {
+			await this.sendVibeModeContext({ deliverAs: "steer" });
+		}
+		if (options.persistModeChange !== false) this.sessionManager.appendModeChange("vibe", { previousTools });
+		return ownerScope;
+	}
+
+	/**
+	 * Exit vibe mode — tears down worker sessions, unregisters the vibe tools,
+	 * and clears the mode state. Returns the number of worker sessions killed.
+	 */
+	async exitVibeMode(): Promise<number> {
+		if (!this.#vibeModeState?.enabled) return 0;
+		let killed = 0;
+		await this.runModeExitTeardown(async () => {
+			if (this.isStreaming) {
+				await this.abort();
+			}
+			killed = await VibeSessionRegistry.global().killAll(this.#vibeParentSession(), this.#vibeModeOwnerScope!);
+			await this.deactivateVibeTools(this.#vibeModePreviousTools ?? []);
+			this.setVibeModeState(undefined);
+		});
+		this.#vibeModePreviousTools = undefined;
+		this.#vibeModeOwnerScope = undefined;
+		return killed;
 	}
 
 	#assertVibeSessionTransitionAllowed(action: string): void {
@@ -6982,16 +7439,19 @@ export class AgentSession {
 			persist?: boolean;
 		},
 	): Promise<{ switched: boolean }> {
-		return this.#models.setModel(model, role, options);
+		const result = await this.#models.setModel(model, role, options);
+		this.bumpStateVersion();
+		return result;
 	}
 
 	/** Selects a model for this session without updating persisted model settings. */
-	setModelTemporary(
+	async setModelTemporary(
 		model: Model,
 		thinkingLevel?: ConfiguredThinkingLevel,
 		options?: { ephemeral?: boolean },
 	): Promise<void> {
-		return this.#models.setModelTemporary(model, thinkingLevel, options);
+		await this.#models.setModelTemporary(model, thinkingLevel, options);
+		this.bumpStateVersion();
 	}
 
 	/** Cycles the scoped model set, or all available models when no scope exists. */
@@ -7503,6 +7963,7 @@ export class AgentSession {
 	/** Toggle the auto-retry setting. */
 	setAutoRetryEnabled(enabled: boolean): void {
 		this.#recovery.setAutoRetryEnabled(enabled);
+		this.bumpStateVersion();
 	}
 
 	/** Retry the last failed assistant turn when the session is idle. */

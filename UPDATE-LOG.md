@@ -1,6 +1,38 @@
 # Zeta 更新日志
 
-## v1.0.10（2026-08-20）
+## 下一版本（Unreleased）
+
+### 网络与安全
+
+- 网关访问控制：`zeta serve` 的 web 网关与 stats 现在**仅允许 loopback 访问**；通过非本机 IP/隧道/反代到达的请求必须携带配置的 `remote.token`（`X-Zeta-Token` 或 `Authorization: Bearer`），未配置令牌时一律 403 —— 端口即使被暴露也无法无鉴权操控。
+- CSRF 防护：网关拒绝非本机 Origin 的浏览器请求（跨站简单 POST 不再能删凭据/控通道）。
+- 点击劫持防护：web-ui 增加 `X-Frame-Options: DENY` 与 `frame-ancestors 'none'`。
+- `remote.token` 从死配置变为真实访问令牌：设置面板保存后写入浏览器本地存储，LAN/隧道访问自动携带。
+- Stats 仪表盘品牌修正（`OMP Stats` → `Zeta Stats`）。
+
+### 微信 / 飞书连接
+
+- 新增 IM 指令：`!workspace`（飞书可用，`@` 被飞书占用）、`!plan`、`!hello`（按平台回复验证绑定）、`*别名` 直达 / `*relay` 切回中转。
+- 修复消息路由 bug（此前入站消息被丢弃、无回复）：`!workspace`/普通消息现在正确投递到协调者。
+- 飞书消息清理 `@` 提及占位符（`@_user_N`）；裸 `@workspace`/`!workspace` 显示帮助而非报错。
+- 飞书渠道凭据改为显式"保存"按钮（保存中…/已保存 ✓/错误反馈）；微信状态文案汉化。
+- 微信二维码在 legacy iLink 返回页面 URL 时自动回退为二维码渲染。
+
+### 中转委派（多工作区）
+
+- 协调者（默认工作区）会话持久化并命名 **"Zeta Bot (Relay)"**，出现在会话列表、重启保留。
+- 工作区别名（`remote.workspaces: [{alias,path}]`）、每聊天持久绑定（`remote.sessionMappings`）、通道默认仓库（`channels.*.workspaceRoot`）、直达/中转双模式。
+- 远程计划审批增加 30 分钟超时。
+
+### 服务商
+
+- `models.yml` 定义的服务商在 Web 面板始终显示完整编辑卡片（不再被 auth 卡片隐藏）；模型编辑补全 `thinking`（思考强度）、headers、compat、per-model baseUrl 等字段。
+
+### 设置面板
+
+- Escape 在输入框内不再关闭整个面板；面板渲染崩溃时 ErrorBoundary 兜底（不再拖垮整个应用）。
+
+
 
 ### 同步基线
 

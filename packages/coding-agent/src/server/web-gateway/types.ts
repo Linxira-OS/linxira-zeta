@@ -205,6 +205,8 @@ export interface SessionInfo {
 	parentSessionId?: string;
 	projectRoot?: string;
 	worktreeBranch?: string;
+	/** Default-space bot session tag ("relay" | "bot" | "draft"); absent for ordinary sessions. */
+	tag?: string;
 }
 
 export interface SessionContext {

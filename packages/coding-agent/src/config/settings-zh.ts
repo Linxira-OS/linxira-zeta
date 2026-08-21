@@ -43,6 +43,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Advisor: "顾问",
 	Prewalk: "预遍历",
 	Vision: "视觉",
+	Roles: "角色",
 	Input: "输入",
 	Approvals: "审批",
 	Notifications: "通知",

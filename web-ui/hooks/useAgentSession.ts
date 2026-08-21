@@ -13,6 +13,7 @@ import { normalizeToolCalls } from "@/lib/normalize";
 import { sendAgentCommand } from "@/lib/agent-client";
 import { getToolNamesForPreset, type ToolEntry } from "@/lib/tool-presets";
 import type { SessionStatsInfo } from "@/lib/pi-types";
+import { useI18n } from "@/hooks/useI18n";
 
 export interface SessionData {
   sessionId: string;
@@ -80,12 +81,21 @@ type AgentStateResponse = {
   planModeEnabled?: boolean;
   planFilePath?: string | null;
   planContent?: string | null;
+  modes?: ModeStateSnapshot | null;
+  stateVersion?: number;
 };
 
 export interface PlanState {
   enabled: boolean;
   planFilePath: string | null;
   planContent: string | null;
+}
+
+/** Mode state snapshot exposed by the gateway (`AgentState.modes`). */
+export interface ModeStateSnapshot {
+  plan?: { enabled: boolean; planFilePath: string; workflow?: string };
+  goal?: { enabled: boolean; mode?: string; goal?: { objective: string; status: string } };
+  vibe?: { enabled: boolean };
 }
 
 function readPlanState(state: AgentStateResponse | undefined | null): PlanState {
@@ -95,6 +105,15 @@ function readPlanState(state: AgentStateResponse | undefined | null): PlanState 
     planFilePath: state.planFilePath ?? null,
     planContent: state.planContent ?? null,
   };
+}
+
+function readModes(state: AgentStateResponse | undefined | null): ModeStateSnapshot {
+  if (!state?.modes) return {};
+  const modes: ModeStateSnapshot = {};
+  if (state.modes.plan?.enabled) modes.plan = state.modes.plan;
+  if (state.modes.goal?.enabled) modes.goal = state.modes.goal;
+  if (state.modes.vibe?.enabled) modes.vibe = state.modes.vibe;
+  return modes;
 }
 
 export interface QueuedMessages {
@@ -159,6 +178,12 @@ export type BuiltinSlashCommandResult =
 export interface UseAgentSessionOptions {
   session: SessionInfo | null;
   newSessionCwd: string | null;
+  /**
+   * True when the "New" action created this chat (an independent session must
+   * be created). False for the initial default chat, which attaches to the
+   * serve process's shared coordinator session when one exists.
+   */
+  explicitNew?: boolean;
   onAgentEnd?: () => void;
   onSessionCreated?: (session: SessionInfo) => void;
   onSessionForked?: (newSessionId: string) => void;
@@ -346,6 +371,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   } = opts;
 
   const isNew = session === null && newSessionCwd !== null;
+  const { t } = useI18n();
 
   const [data, setData] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(!isNew);
@@ -386,6 +412,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [extensionWidgets, setExtensionWidgets] = useState<ExtensionWidgetItem[]>([]);
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessages>({ steering: [], followUp: [] });
   const [planState, setPlanState] = useState<PlanState>({ enabled: false, planFilePath: null, planContent: null });
+  const [modes, setModes] = useState<ModeStateSnapshot>({});
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const sessionIdRef = useRef<string | null>(session?.id ?? null);
@@ -404,6 +431,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const ensuringNewSessionRef = useRef<Promise<string | null> | null>(null);
   const newSessionPromotedRef = useRef(false);
+  /** True once the default chat attached to the shared coordinator session. */
+  const sharedAttachRef = useRef(false);
   const promptRunIdRef = useRef(0);
   const optimisticUserMessageKeyRef = useRef<string | null>(null);
 
@@ -534,9 +563,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           if (liveState.extensionWidgets !== undefined) setExtensionWidgets(liveState.extensionWidgets ?? []);
           if (liveState.queuedMessages !== undefined) setQueuedMessages(normalizeQueuedMessages(liveState.queuedMessages));
           setPlanState(readPlanState(liveState));
+          setModes(readModes(liveState));
         } else if (!agentState.running) {
           setQueuedMessages({ steering: [], followUp: [] });
           setPlanState({ enabled: false, planFilePath: null, planContent: null });
+          setModes({});
         }
         return agentState;
       } catch (e) {
@@ -600,6 +631,23 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     if (ensuringNewSessionRef.current) return ensuringNewSessionRef.current;
 
     const promise = (async () => {
+      // The initial default chat attaches to the serve process's shared
+      // coordinator session (web + IM channels share one conversation).
+      // Explicit "New" chats always create an independent session.
+      if (!opts.explicitNew) {
+        try {
+          const sharedRes = await fetch("/api/agent/current");
+          if (sharedRes.ok) {
+            const shared = (await sharedRes.json()) as { sessionId?: string };
+            if (shared.sessionId) {
+              sessionIdRef.current = shared.sessionId;
+              return shared.sessionId;
+            }
+          }
+        } catch {
+          // gateway unreachable — fall through to a fresh session
+        }
+      }
       const selectedModel = newSessionModel ?? newSessionDefaultModel;
       if (selectedModel) setPendingModel(selectedModel);
       const toolNames = getToolNamesForPreset(toolPreset);
@@ -627,7 +675,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     } finally {
       ensuringNewSessionRef.current = null;
     }
-  }, [isNew, newSessionCwd, newSessionModel, newSessionDefaultModel, toolPreset, thinkingLevel]);
+  }, [isNew, newSessionCwd, newSessionModel, newSessionDefaultModel, opts.explicitNew, toolPreset, thinkingLevel]);
 
   const loadSlashCommands = useCallback(async () => {
     const sid = sessionIdRef.current ?? await ensureNewSession();
@@ -749,6 +797,20 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       },
     });
   }, []);
+
+  /** Append a visible mode-change message to the transcript (transient local artifact). */
+  const appendModeMessage = useCallback((text: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "custom",
+        customType: "mode-change",
+        content: text,
+        display: true,
+        timestamp: Date.now(),
+      } as AgentMessage,
+    ]);
+  }, [setMessages]);
 
   const handleExtensionUiRequest = useCallback((request: ExtensionUiRequest) => {
     switch (request.method) {
@@ -964,6 +1026,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
               // next turn); dead wrapper (no state) means the queue is gone.
               setQueuedMessages(normalizeQueuedMessages(d.state?.queuedMessages));
               setPlanState(readPlanState(d.state));
+              setModes(readModes(d.state));
             })
             .catch(() => {});
         }
@@ -1055,6 +1118,20 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           followUp: [...((event.followUp as string[] | undefined) ?? [])],
         });
         break;
+      case "mode_changed": {
+        const mode = event.mode as "plan" | "goal" | "vibe";
+        const state = event.state as ModeStateSnapshot["plan"] | ModeStateSnapshot["goal"] | ModeStateSnapshot["vibe"] | null;
+        setModes((prev) => {
+          const next = { ...prev };
+          if (state?.enabled) {
+            next[mode] = state as never;
+          } else {
+            delete next[mode];
+          }
+          return next;
+        });
+        break;
+      }
       case "auto_retry_start":
         setRetryInfo({ attempt: event.attempt as number, maxAttempts: event.maxAttempts as number, errorMessage: event.errorMessage as string | undefined });
         break;
@@ -1411,11 +1488,57 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         case "plan": {
           if (!sid) return complete({ handled: true, error: "No active session to start plan mode" });
           await sendAgentCommand(sid, {
-            type: "enter_plan_mode",
-            ...(args ? { initialPrompt: args } : {}),
+            type: "mode_enter",
+            mode: "plan",
+            ...(args ? { options: { initialPrompt: args } } : {}),
           });
-          if (await loadSession(sid, true)) promoteNewSession();
+          const planAgentState = await loadSession(sid, true, true);
+          if (planAgentState) promoteNewSession();
+          const planFile =
+            (planAgentState as { state?: { planFilePath?: string | null } } | null)?.state?.planFilePath ?? "PLAN.md";
+          appendModeMessage(t("plan-mode-enabled-fmt", { path: planFile }));
           return complete({ handled: true, message: "Plan mode enabled" });
+        }
+
+        case "exit-plan": {
+          if (!sid) return complete({ handled: true, error: "No active session" });
+          await sendAgentCommand(sid, { type: "mode_exit", mode: "plan" });
+          if (await loadSession(sid, true)) promoteNewSession();
+          appendModeMessage(t("plan-mode-disabled"));
+          return complete({ handled: true, message: "Plan mode disabled" });
+        }
+
+        case "goal": {
+          if (!sid) return complete({ handled: true, error: "No active session to start goal mode" });
+          if (!args) return complete({ handled: true, error: "Usage: /goal <objective>" });
+          await sendAgentCommand(sid, { type: "mode_enter", mode: "goal", options: { objective: args } });
+          if (await loadSession(sid, true, true)) promoteNewSession();
+          appendModeMessage(t("goal-mode-enabled-fmt", { objective: args }));
+          return complete({ handled: true, message: "Goal mode enabled" });
+        }
+
+        case "exit-goal": {
+          if (!sid) return complete({ handled: true, error: "No active session" });
+          await sendAgentCommand(sid, { type: "mode_exit", mode: "goal" });
+          if (await loadSession(sid, true)) promoteNewSession();
+          appendModeMessage(t("goal-mode-disabled"));
+          return complete({ handled: true, message: "Goal mode disabled" });
+        }
+
+        case "vibe": {
+          if (!sid) return complete({ handled: true, error: "No active session to start vibe mode" });
+          await sendAgentCommand(sid, { type: "mode_enter", mode: "vibe" });
+          if (await loadSession(sid, true, true)) promoteNewSession();
+          appendModeMessage(t("vibe-mode-enabled"));
+          return complete({ handled: true, message: "Vibe mode enabled" });
+        }
+
+        case "exit-vibe": {
+          if (!sid) return complete({ handled: true, error: "No active session" });
+          await sendAgentCommand(sid, { type: "mode_exit", mode: "vibe" });
+          if (await loadSession(sid, true)) promoteNewSession();
+          appendModeMessage(t("vibe-mode-disabled"));
+          return complete({ handled: true, message: "Vibe mode disabled" });
         }
 
         case "reload": {
@@ -1583,7 +1706,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     } finally {
       if (commandName === "compact") setIsCompacting(false);
     }
-  }, [activeLeafId, addNotice, ensureNewSession, isCompacting, loadModels, loadSession, loadSlashCommands, loadTools, modelList, newSessionCwd, onSessionCreated, onSessionForked, onSessionStatsPanelOpen, promoteNewSession]);
+  }, [activeLeafId, addNotice, appendModeMessage, ensureNewSession, isCompacting, loadModels, loadSession, loadSlashCommands, loadTools, modelList, newSessionCwd, onSessionCreated, onSessionForked, onSessionStatsPanelOpen, promoteNewSession, t]);
 
   // Queued (undelivered) messages live in the queue panel only; the chat gets
   // the real user message when pi delivers it (user message_end event). An
@@ -1727,25 +1850,24 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   // Load session on mount
   useEffect(() => {
-    if (session) {
-      sessionIdRef.current = session.id;
-      loadSession(session.id, true, true).then((agentState) => {
+    const attachTo = (sid: string): void => {
+      loadSession(sid, true, true).then((agentState) => {
         if (agentState?.running) {
-          loadTools(session.id);
+          loadTools(sid);
           if (agentState.state?.isStreaming || agentState.state?.isPromptRunning) {
             agentRunningRef.current = true;
             setAgentRunning(true);
             setAgentPhase(agentState.state.isStreaming ? { kind: "waiting_model" } : { kind: "running_command" });
             dispatch({ type: "start" });
-            void connectEvents(session.id);
+            void connectEvents(sid);
             if (!agentState.state.isStreaming && agentState.state.isPromptRunning) {
-              void waitForPromptSettlement(session.id);
+              void waitForPromptSettlement(sid);
             }
           }
           if (agentState.state?.isBashRunning) {
             bashRunningRef.current = true;
             setBashRunning(true);
-            void waitForBashSettlement(session.id);
+            void waitForBashSettlement(sid);
           }
         }
         if (agentState?.state) {
@@ -1757,8 +1879,13 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           if (agentState.state.extensionWidgets !== undefined) setExtensionWidgets(agentState.state.extensionWidgets ?? []);
           if (agentState.state.queuedMessages !== undefined) setQueuedMessages(normalizeQueuedMessages(agentState.state.queuedMessages));
           setPlanState(readPlanState(agentState.state));
+          setModes(readModes(agentState.state));
         }
       });
+    };
+
+    if (session) {
+      attachTo(session.id);
     }
     return () => {
       bashRecoveryIdRef.current += 1;
@@ -1767,6 +1894,59 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Default chat: eagerly attach to the serve process's shared coordinator
+  // session (web + IM channels share one conversation) once the default-chat
+  // state is active. The coordinator is a live, file-less session — the
+  // file-based `/api/sessions/<id>` context 404s, so render from the live
+  // agent state (mode banners, model). Runs again when the workspace cwd
+  // finishes loading (isNew flips true after mount); guarded by
+  // `sessionIdRef` so a New/selection transition never re-attaches.
+  useEffect(() => {
+    if (session || !isNew || opts.explicitNew) return;
+    if (sharedAttachRef.current) return;
+    sharedAttachRef.current = true;
+    void ensureNewSession().then((sharedId) => {
+      if (!sharedId) return;
+      const applySharedState = (d: { state?: AgentStateResponse } | null): boolean => {
+        const st = d?.state as AgentStateResponse | undefined;
+        if (!st) return false;
+        if (st.contextUsage !== undefined) setContextUsage(st.contextUsage ?? null);
+        if (st.systemPrompt !== undefined) setSystemPrompt(st.systemPrompt ?? null);
+        if (st.thinkingLevel !== undefined) setThinkingLevel((st.thinkingLevel as ThinkingLevelOption) ?? "auto");
+        if (st.extensionStatuses !== undefined) setExtensionStatuses(st.extensionStatuses ?? []);
+        if (st.extensionWidgets !== undefined) setExtensionWidgets(st.extensionWidgets ?? []);
+        if (st.queuedMessages !== undefined) setQueuedMessages(normalizeQueuedMessages(st.queuedMessages));
+        setPlanState(readPlanState(st));
+        setModes(readModes(st));
+        return true;
+      };
+      // Bounded retry: the gateway can be slow right after page load (the
+      // initial request burst), so retry a few times before giving up. Each
+      // attempt is time-boxed so a hung connection can't stall the chain.
+      const attempts = [0, 2000, 4000];
+      let attemptIdx = 0;
+      const tryFetch = (): void => {
+        if (attemptIdx >= attempts.length) return;
+        const slot = attempts[attemptIdx++];
+        const delay = slot - (attemptIdx > 1 ? attempts[attemptIdx - 2] : 0);
+        const run = (): void => {
+          void fetch(`/api/agent/${encodeURIComponent(sharedId)}`, { signal: AbortSignal.timeout(5000) })
+            .then((res) => (res.ok ? (res.json() as Promise<{ state?: AgentStateResponse } | null>) : null))
+            .then((d) => {
+              if (!applySharedState(d)) tryFetch();
+            })
+            .catch(() => tryFetch());
+        };
+        if (delay > 0) {
+          setTimeout(run, delay);
+        } else {
+          run();
+        }
+      };
+      tryFetch();
+    });
+  }, [session, isNew, opts.explicitNew, ensureNewSession]);
 
   useEffect(() => {
     onSystemPromptChange?.(systemPrompt);
@@ -1868,6 +2048,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     isAutoModelSelection: isNew && newSessionModel === null,
     agentPhase,
     planState,
+    modes,
     isNew,
     // Refs
     sessionIdRef, eventSourceRef, messagesEndRef, scrollContainerRef,

@@ -52,15 +52,21 @@ Web UI 以会话（session）为单位组织：
 
 ## 模型配置
 
-模型凭据按提供商存储在 设置 → 模型 或 模型 面板中：
+模型凭据与定义都存放在 `~/.zeta/agent/models.yml`（与 CLI 读取的是同一
+个文件——在 Web UI 里改动会立即同时作用于 CLI 与 serve）。打开侧栏中的
+**模型**：
 
-1. 打开侧栏中的 **模型**。
-2. 选择提供商（OpenAI 兼容、Anthropic、DeepSeek、Gemini……）。
-3. 输入该提供商的 **API Key**。
-4. 选择模型并设为默认。
+1. **定义在 `models.yml` 中的提供商**显示完整编辑器：名称、Base URL、
+   API Key（环境变量名、`!shell-命令` 或直接填字面量 key）、headers、
+   `compat`。每个提供商下可以添加模型并配置详情——**思考强度**（模式 +
+   支持的档位 + 默认档位）、输入类型、成本、上下文/最大 token 等。
+2. **其他提供商**以受管卡片显示：OAuth 订阅登录（ChatGPT/Anthropic 等）
+   或简单的 API Key 卡片。其凭据存放在 auth 存储（`agent.db`），与
+   `models.yml` 分开。
+3. 选择模型并设为默认。
 
 如需从自定义端点导入模型，使用**导入**操作并填写提供商的 base URL。也
-可以直接编辑 `~/.zeta/agent/config.yml`——Web UI 读取的是同一个文件。
+可以直接编辑 `~/.zeta/agent/models.yml`。
 
 ## 连接 IM 渠道
 
@@ -87,13 +93,29 @@ Telegram、飞书或微信回复你的消息，并把 agent 的回答转发回�
    新二维码。
 
 渠道上线后，直接给机器人发消息即可。agent 会在同一会话内回复。也可以
-用命令驱动协调者：
+用命令驱动协调者（中文输入法的全角标点会自动归一化）：
 
-- `@workspace list` / `@workspace open <路径>` / `@workspace create <路径>` /
-  `@workspace close <名称>` — 管理已注册工作区（多仓库委派）。
-- `@plan <任务>` — 让协调者为任务制定计划；计划会以图片（或文本降级）
+- `!hello` — 验证机器人连接；`!help` — 完整参考；`!status` — 渠道 / 路由 /
+  工作区 / 语言 / 模型一览。
+- `!lang <zh|en>` — 设置本聊天的回复语言。
+- `!session list` / `new <名称>` / `use <id|编号>` / `rename` / `delete` —
+  管理额外的默认空间会话（每聊天独立上下文；relay 会话不可删除）。
+- `!model` / `!model <p>-<m>` — 按编号列出 / 切换模型。
+- `!workspace list` / `open <路径> [别名]` / `create <路径> [别名]` /
+  `close <别名>` — 管理已注册工作区（多仓库委派）。`*<别名>` 让当前聊天
+  直达某个工作区，`*relay`（或 `!workspace relay`）切回中转协调者。
+- `!workspace bind <别名>` — 持久化"当前聊天 → 工作区"绑定（直达模式）；
+  `!workspace unbind` 解除。`!workspace use <别名>` 是仅本次生效的直达切换。
+- `!work workspace:<别名> <任务>` — 在指定工作区直接执行任务；`!work <任务>`
+  — 在当前绑定工作区或 relay 执行。
+- `!plan <任务>` — 让协调者为任务制定计划；计划会以图片（或文本降级）
   发到手机，然后回复 **1** 执行、**2** 压缩后执行、**3** 在新会话中执行、
-  **4** 取消。
+  **4** 取消。同一计划也可在 Web 界面中审批。
+
+完整命令参考与路由模型见
+[`docs/remote-workspaces.md`](/docs/remote-workspaces.md)。
+
+完整命令参考与路由模型见 `docs/remote-workspaces.md`。
 
 ## 桌面托盘
 

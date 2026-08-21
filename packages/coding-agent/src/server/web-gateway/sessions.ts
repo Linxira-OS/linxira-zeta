@@ -14,6 +14,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { logger } from "@linxiraos/pi-utils";
+import { WebConfig } from "../../config/web-config";
 import { exportFromFile } from "../../export/html";
 import type { SessionEntry as RuntimeSessionEntry } from "../../session/session-entries";
 import { listAllSessions as listRuntimeSessions } from "../../session/session-listing";
@@ -22,7 +23,7 @@ import { SessionManager } from "../../session/session-manager";
 import { serializeTitleSlot } from "../../session/session-title-slot";
 import { getRpcSession } from "./agents";
 import { type ProjectInfo, resolveProject } from "./projects";
-import { getRunningSessionIds, removeRunningSession } from "./running-sessions";
+import { getRunningSessionIds, notifyBotSessionDeleted, removeRunningSession } from "./running-sessions";
 import type {
 	AgentMessage,
 	CompactionEntry,
@@ -147,6 +148,14 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 		pathToId.set(sessionPathKey(s.path), s.id);
 	}
 
+	// Default-space bot sessions (relay/bot/draft) carry a tag so the web UI can
+	// hide or label them; other sessions have no tag.
+	const webConfig = await WebConfig.load();
+	const tagByPath = new Map<string, string>();
+	for (const entry of webConfig.getBotSessions()) {
+		tagByPath.set(sessionPathKey(entry.sessionFile), entry.tag);
+	}
+
 	const uniqueCwds = [...new Set(runtimeSessions.map(s => s.cwd).filter(Boolean))];
 	const projectByCwd = new Map<string, ProjectInfo>();
 	await Promise.all(
@@ -158,6 +167,7 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 	return runtimeSessions.map(s => {
 		cacheSessionPath(s.id, s.path);
 		const project = s.cwd ? projectByCwd.get(s.cwd) : undefined;
+		const tag = tagByPath.get(sessionPathKey(s.path));
 		return {
 			path: s.path,
 			id: s.id,
@@ -170,6 +180,7 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 			parentSessionId: s.parentSessionPath ? pathToId.get(sessionPathKey(s.parentSessionPath)) : undefined,
 			projectRoot: project?.projectRoot ?? s.cwd,
 			...(project?.isWorktree && project.branch ? { worktreeBranch: project.branch } : {}),
+			...(tag ? { tag } : {}),
 		} satisfies SessionInfo;
 	});
 }
@@ -618,6 +629,23 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 		const filePath = await resolveSessionPath(sessionId);
 		if (!filePath) {
 			return json({ error: "Session not found" }, 404);
+		}
+
+		// Default-space bot sessions are registry-managed: the relay transcript is
+		// undeletable, and deleting a bot/draft session must drop its registry
+		// entry + chat pointers so `!session` and the sidebar stay consistent.
+		const webConfig = await WebConfig.load();
+		const fileKey = sessionPathKey(filePath);
+		const botEntry = webConfig.getBotSessions().find(entry => sessionPathKey(entry.sessionFile) === fileKey);
+		if (botEntry?.tag === "relay") {
+			return json({ error: "relay 会话不可删除" }, 400);
+		}
+		if (botEntry) {
+			await webConfig.removeBotSession(botEntry.id);
+			await webConfig.clearChatSessionReferences(botEntry.id);
+			// Dispose the live runtime session (the router owns the handle); the
+			// router's delete path is idempotent for the config/file parts.
+			await notifyBotSessionDeleted(botEntry.id);
 		}
 
 		// Read only the bounded header before deleting.

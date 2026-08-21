@@ -61,6 +61,10 @@ const nextConfig: NextConfig = {
         source: "/",
         headers: [
           { key: "Cache-Control", value: "private, no-cache, max-age=0, must-revalidate" },
+          // Clickjacking defense: the agent UI can approve plans / run bash, so
+          // it must never be embedded by a third-party page.
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
         ],
       },
     ];
@@ -81,6 +85,11 @@ const nextConfig: NextConfig = {
         { source: "/api/settings/:path*", destination: `${gateway}/api/settings/:path*` },
         { source: "/api/skills/:path*", destination: `${gateway}/api/skills/:path*` },
         { source: "/api/plugins/:path*", destination: `${gateway}/api/plugins/:path*` },
+        { source: "/api/web-config/:path*", destination: `${gateway}/api/web-config/:path*` },
+        { source: "/api/channels/:path*", destination: `${gateway}/api/channels/:path*` },
+        { source: "/api/open/:path*", destination: `${gateway}/api/open/:path*` },
+        { source: "/api/update/:path*", destination: `${gateway}/api/update/:path*` },
+        { source: "/api/docs/:path*", destination: `${gateway}/api/docs/:path*` },
       ],
     };
   },

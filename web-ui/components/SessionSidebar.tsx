@@ -400,6 +400,7 @@ export function SessionSidebar({
 }: Props) {
   const { t } = useI18n();
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
+  const [showBotSessions, setShowBotSessions] = useState(false);
   const [sessionSearch, setSessionSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -495,6 +496,14 @@ export function SessionSidebar({
     const isFirst = !initialLoadDone.current;
     initialLoadDone.current = true;
     loadSessions(isFirst);
+    // Whether the sidebar shows relay/bot default-space sessions (web.yml
+    // `remote.showBotSessions`; default false = hidden).
+    fetch("/api/web-config")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((config) => {
+        if (config?.remote?.showBotSessions === true) setShowBotSessions(true);
+      })
+      .catch(() => {});
   }, [loadSessions, refreshKey]);
 
   // Persist unread markers so they survive a browser refresh before the user
@@ -884,9 +893,12 @@ export function SessionSidebar({
 
   // Sessions of every worktree in the selected project are shown together
   const selectedProject = projectRootFor(selectedCwd);
+  const visibleSessions = showBotSessions
+    ? allSessions
+    : allSessions.filter((s) => s.tag !== "relay" && s.tag !== "bot");
   const filteredSessions = selectedProject
-    ? allSessions.filter((s) => (s.projectRoot ?? s.cwd) === selectedProject)
-    : allSessions;
+    ? visibleSessions.filter((s) => (s.projectRoot ?? s.cwd) === selectedProject)
+    : visibleSessions;
   const showWorktreeSwitcher = Boolean(
     worktreeState?.isGit &&
     worktreeState.isTopLevel &&
@@ -2726,6 +2738,23 @@ function SessionItem({
               >
                 {title}
               </span>
+              {session.tag && (
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 9,
+                    lineHeight: 1,
+                    padding: "2px 5px",
+                    borderRadius: 8,
+                    border: "1px solid var(--accent-dim, rgba(99,102,241,0.4))",
+                    color: "var(--accent, #6366f1)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                  }}
+                >
+                  {session.tag}
+                </span>
+              )}
             </div>
             <div
               style={{
