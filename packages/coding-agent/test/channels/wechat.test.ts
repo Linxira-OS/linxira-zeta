@@ -237,8 +237,9 @@ function buildV1LoginMock(): {
 				return j({ status: "wait" });
 			}
 			return j({
-				status: "confirmed",
+				success: true,
 				data: {
+					status: "confirmed",
 					credentials: {
 						bot_token: "tok-v1",
 						ilink_bot_id: "bot-v1",
@@ -282,7 +283,18 @@ describe("WeChatChannel v1 API", () => {
 			onMessage: () => {},
 		});
 		await ch.start();
-		await Bun.sleep(4_500);
+		// Wait for the v1 login to resolve (confirmed → credentials persisted)
+		// or the legacy fallback to fire, instead of a fixed sleep: the login
+		// cycle length depends on logger-init cost + QR_POLL_INTERVAL_MS (2s),
+		// so a fixed window is environment-flaky.
+		const deadline = Date.now() + 15_000;
+		while (Date.now() < deadline) {
+			const settled =
+				(webConfig.set as ReturnType<typeof vi.fn>).mock.calls.some(c => c[0] === "channels.wechat.botToken") ||
+				calls.some(c => c.url.includes("/get_bot_qrcode"));
+			if (settled) break;
+			await Bun.sleep(100);
+		}
 		await ch.stop();
 
 		expect(calls.some(c => c.url.includes("/api/v1/wechat/qrcode"))).toBe(true);
