@@ -1445,6 +1445,15 @@ span.linenumber {
   to { transform: rotate(360deg); }
 }
 
+/* Rainbow shimmer for magic keywords (ultrathink / orchestrate / workflowz).
+   Period matches the CLI's SHIMMER_PERIOD_MS (1800). */
+@keyframes sf-rainbow-hue {
+  to { filter: hue-rotate(360deg); }
+}
+.sf-rainbow-flicker {
+  animation: sf-rainbow-hue 1.8s linear infinite;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }

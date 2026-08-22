@@ -3,7 +3,7 @@
  * (no `any`, no `RequestInfo`/`RequestInit` dependency).
  */
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { TelegramChannel } from "../../src/channels/telegram";
+import { TelegramChannel } from "../../src/channels";
 
 function updatesResponse(updates: unknown[]): Response {
 	return new Response(JSON.stringify({ ok: true, result: updates }), {

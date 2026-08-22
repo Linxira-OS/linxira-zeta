@@ -13,6 +13,7 @@
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger } from "@linxiraos/pi-utils";
+import type { ChannelId, ChatImage } from "../channels";
 import {
 	type ChannelRuntime,
 	getChannelStatus,
@@ -23,13 +24,12 @@ import {
 	registerWechatUnbind,
 	setPendingWechatQr,
 	startChannels,
+	WeChatChannel,
 } from "../channels";
-import type { ChannelId, ChatImage } from "../channels/channel";
 import { type ImControlParams, type ImControlResult, runImControl } from "../channels/im-control";
 import { approveRemotePlan, type PlanApproveMode } from "../channels/plan-approval";
 import { renderPlanToPng } from "../channels/plan-image";
 import { COORDINATOR_ALIAS, SessionRouter } from "../channels/session-router";
-import { WeChatChannel } from "../channels/wechat";
 import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { WebConfig } from "../config/web-config";

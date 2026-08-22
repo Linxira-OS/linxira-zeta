@@ -51,6 +51,50 @@
 - 发布门新增修复（release-v2 工具）：`selectLatestZetaTag` 现在排除上游 OMP 17.x tag（其自带 `chore: bump version to 17.x` subject，会误判为 Zeta tag 阻断发布）；Cargo.toml `[workspace.package]` 缩进版本格式适配。
 - 发布 CI 首轮暴露并修复：`retry.enabled` 设置分组错放（interaction → model）、9 个新增 `ui:` 块补全 zh 文案（含 17.3.8 新增的 `providers.cacheRetention` 及选项）、`structured-subagent.test.ts` 的 `.omp` 路径适配 `.zeta`。
 
+### 版本准备（1.0.11）
+
+- 全部 14 个 `@linxiraos/*` 包、根 workspace catalog、`Cargo.toml` workspace、pi-natives sentinel（`__piNativesV1_0_11`，含提交的 native 绑定）、desktop `package.json`/`package-lock.json` 统一 1.0.10 → **1.0.11**；`bun.lock` 重新生成并通过一致性核对。
+- 安装测试（`run-ci.sh`、tarball 镜像）与 brew 公式更新脚本随 14 包清单同步。
+
+### 渠道包提取（新发布包 `@linxiraos/pi-channels`）
+
+- WeChat / 飞书 / Telegram 通道运行时自 `coding-agent/src/channels` 抽出为独立包 `packages/channels`（原 `channel.ts`、`feishu.ts`、`host.ts`、`telegram.ts`、`wechat.ts` 移出删除）；`im-control.ts`、`session-router.ts`、`channels/index.ts` 改引 `@linxiraos/pi-channels`。
+- `release-v2.ts` 的 `ALL_PACKAGES`/`CATALOG_KEYS` 与 CI 发布门从 13 包扩展到 **14 包**（catalog 键数校验改为按清单长度断言）。
+- IRC 总线（`irc/bus.ts`）精简为直接复用通道包导出。
+
+### 品牌与身份清理
+
+- GitLab Duo Workflow：inline agent/prompt 标识 `omp_agent`→`zeta_agent`、`omp_inline_prompt`→`zeta_inline_prompt`，MCP `serverName` omp→zeta（工具注册改用裸名，注释同步）；OpenAI 兼容 User-Agent 测试随动。
+- Z.ai OAuth 持久化键名 `oh-my-pi`→`zeta`（登录不再误写 ZCode 键）。
+- OpenRouter 请求头：`HTTP-Referer`/`X-OpenRouter-Title` 改为 Zeta 官方值。
+- 主题符号 `icon.pi`：unicode π→**ζ**、ascii `pi`→`zeta`；poimandres 双主题品牌色修正；web-ui favicon 更换。
+- 其余 `omp`→`zeta` 字符串清理：SARIF 输出、json-tree、`dirs.ts` 路径常量、`rewrite-system-prompt.ts`、zeta-server 日志等。
+
+### Web UI
+
+- 用户消息彩虹关键词：消息以独立散文包含 `ultrathink` / `orchestrate` / `workflowz` 时，关键词行按行渲染彩虹渐变（代码 span 内不触发），其余行保持 Markdown 渲染。
+- 全局样式补充（globals.css）。
+
+### TUI
+
+- `normalizeTerminalOutput` 折叠裸 `\r`（回车不换行）：进度条类输出不再把单行拆成多终端行导致重叠/粘连；新增回归测试（text-utils、issue-2115 复现用例加固）。
+
+### CLI 侧边栏、回合遥测与桌面入口（功能批次）
+
+- **read 工具目录列表文件图标**：非目录条目按当前符号预设的语言图标表（`lang.*`，与 glob 文件列表同源）加图标前缀；系统提示词工作区树保持无图标（KV 缓存字节稳定）。`theme-class.ts` 导出共享解析器 `resolveLangSymbolKey()`。
+- **回合遥测**：新状态栏片段 `turn_stats`（吞吐 ⚡、首 token 延迟 ⇄、时长 ⏱、输入/输出 token、费用），加入 full/nerd 预设；`statusLine.turnTelemetry` 设置（默认开）在每回合结束后于编辑器上方显示一行暗色遥测，下一回合开始自动清除。数据面统一在 `status-line/turn-stats.ts`。
+- **CLI 右侧边栏**：`tui.sidebar` 设置（默认关）+ `/sidebar` 命令 + `app.sidebar.toggle` 键位。启用后引擎主区按 `columns-36` 合成绘制，右侧 36 列由每帧重绘的 gutter 面板填充（Context 用量仪表 / Token 与费用 / Git 分支脏状态 / 当前模型，数据与状态栏同源）；gutter 不进入合成帧与 scrollback；<100 列或 overlay 可见时自动隐藏。引擎新增 `setMainWidth`/`setGutterComponent` API 与滚动路径的 gutter 擦除保护。
+- **桌面入口 `zeta-d` 与 `--desktop`**：桌面包新增 `resources/bin/zeta-d` shim（Windows `.cmd` / POSIX sh），NSIS 安装器把该目录写入用户 PATH（PowerShell 辅助脚本，卸载时移除），Linux 安装器 symlink 到 `~/.local/bin`。裸 `zeta` 永远属于 npm 安装；`zeta-d -d [cwd]` 打开桌面 GUI 并以指定目录启动服务；npm 侧 `zeta --desktop [cwd]` 探测桌面安装后打开 GUI，未找到列出探测路径退出。捆绑二进制拒绝独立自更新（防破坏捆绑布局）。
+- **原生目录选择器**：桌面壳新增 preload 桥 `window.piDesktop.selectDirectory()`（sandbox 兼容）与 `pi:select-directory` IPC handler；网关新增 `GET /api/desktop/info` 能力探测。web-ui 目录选择器在桌面壳内显示 Browse… 按钮直开 OS 对话框，纯浏览器保持手填 + File System Access API 回退。
+
+### Web UI 会话侧面板
+
+- 新增右侧会话面板（设置 → Display → "会话侧面板"开关，localStorage 持久化，<1024px 自动隐藏）：当前模型与思考级别、上下文用量（百分比 + 窗口）、token 进/出与缓存读写、累计费用；数据复用 AppShell 已有订阅，新增 ChatWindow 模型回调，无新增轮询端点。
+
+### 双端同览调查（设计）
+
+- 完成 pi / pi-web / opencode-v2 三方跨进程会话共享机制调查，设计文档落盘 `local://dual-plane-live-session-design.md`：采纳"TUI 富客户端化 + serve 托管会话"方向（opencode 形态），四阶段实施另立计划。
+
 ## v1.0.9（2026-08-19）
 
 ### 新增

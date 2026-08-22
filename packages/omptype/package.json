@@ -1,9 +1,9 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-omptype",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "ArkType-compatible runtime schema validation with lazy JIT compilation",
-  "homepage": "https://omp.sh",
+  "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",
   "license": "MIT",
   "repository": {
@@ -12,7 +12,7 @@
     "directory": "packages/omptype"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
     "schema",

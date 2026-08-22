@@ -22,7 +22,7 @@
 - 57 个文件：命令名 `omp` → `zeta`（含 `omp --`、反引号命令）；`oh-my-pi` → `linxira-zeta`；保留功能标识（`omp-upstream`、`omp://` scheme、`OMP_CODING_AGENT_DIR` env、`omp_rpc`、`omp_worker`）。
 
 ### 内部文档（document/）
-- `macos-signing-notarization.md`：`omp` 二进制 → `zeta`、`omp.sh` → `linxira-os.github.io`。
+- `macos-signing-notarization.md`：`omp` 二进制 → `zeta`、`omp.sh` → `linxira-os.github.io/zeta/`。
 - `roadmap.md`：`omp stats` → `zeta stats`；tracking 归属 `autolearn/controller.ts` → `src/tools/tracking.ts`（规划与代码脱节修正，同时修正 document/roadmap.md）。
 
 ## 保留（合理引用，不清除）

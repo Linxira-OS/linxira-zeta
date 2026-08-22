@@ -23,8 +23,8 @@
 
 import * as crypto from "node:crypto";
 import { logger } from "@linxiraos/pi-utils";
-import type { WebConfig } from "../config/web-config";
 import type { ChatChannel, ChatImage } from "./channel";
+import type { ChannelsWebConfig } from "./types";
 
 export type WeChatInboundHandler = (peer: string, body: string, messageId?: string) => void;
 
@@ -48,7 +48,7 @@ export interface WeChatChannelOptions {
 		/** Persisted peer → context_token bindings restored on start. */
 		peerTokens?: Record<string, string>;
 	};
-	webConfig?: WebConfig;
+	webConfig?: ChannelsWebConfig;
 	onMessage: WeChatInboundHandler;
 	/** Surfaced QR-login progress (the web-ui renders the QR for the user to scan). */
 	onQrCode?: (payload: WeChatQrStatus) => void;

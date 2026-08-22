@@ -17,14 +17,7 @@ import { StarfieldEmblem } from "./StarfieldEmblem";
 import { FolderPickerModal } from "./FolderPickerModal";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
-
-declare global {
-  interface Window {
-    piDesktop?: {
-      selectDirectory: () => Promise<string | null>;
-    };
-  }
-}
+import "@/lib/pi-desktop";
 
 interface Props {
   selectedSessionId: string | null;

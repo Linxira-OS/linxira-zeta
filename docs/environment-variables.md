@@ -521,6 +521,8 @@ These are read as runtime signals; they are usually set by the terminal/OS rathe
 
 `COPILOT_HOME` overrides the GitHub Copilot config home (default `~/.copilot`), and `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` supplies additional comma-separated instruction directories. `JS_DEBUG_DAP_SERVER` selects an existing JavaScript debug-adapter server; `XDG_DATA_HOME` also participates in bundled debugger discovery.
 
+`ZETA_DESKTOP` is set to `1` by the desktop shell on every process it spawns (the embedded `zeta serve` and its children). It is not meant to be set by hand; the web gateway exposes it to the embedded Web UI via `GET /api/desktop/info` (`{ "desktop": true }`), which the UI probes once at startup to gate desktop-only capabilities such as the native directory picker. `ZETA_DESKTOP_ENTRY` (value `1`) is set by the `zeta-d` shim so the bundled CLI can distinguish `zeta-d -d` (open the desktop GUI) from a plain bundled TUI launch — see [zeta-serve-web.md](./zeta-serve-web.md).
+
 ---
 
 ## 9) TUI runtime flags (shared package, affects coding-agent UX)

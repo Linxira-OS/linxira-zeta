@@ -126,6 +126,7 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
   - `lineCap = limit` when a line selector was present, else unlimited at this layer
 - `buildDirectoryTree()` sorts siblings by recency, shows file sizes and relative ages, and may mark `limits.resultLimit` when the tree truncates.
 - Empty directories render as `(empty directory)`.
+- Non-directory entries carry a file-type icon prefix from the active `symbolPreset`'s language-icon table (`lang.*` glyphs in `modes/theme/symbols.ts` — the same table glob's file lists use). The system-prompt workspace tree (`buildWorkspaceTree()`) never renders icons, keeping the cached prompt block byte-stable across sessions.
 
 ### Archives
 

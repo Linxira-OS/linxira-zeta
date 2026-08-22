@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/hooks/useI18n";
+import { hasNativeDirectoryDialog, selectNativeDirectory } from "@/lib/pi-desktop";
 
 interface DirectoryEntry {
   name: string;
@@ -136,6 +137,21 @@ export function DirectoryPicker({ onCancel, onSelect, busy = false, error }: Pro
             }}
             style={{ minWidth: 0, flex: 1, height: 36, padding: "0 10px", border: "1px solid var(--border)", borderRadius: 6, outline: "none", background: "var(--bg-panel)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: 12 }}
           />
+          {hasNativeDirectoryDialog() && (
+            <button
+              className="directory-picker-browse"
+              type="button"
+              disabled={loading}
+              title="Browse with the OS directory dialog"
+              onClick={async () => {
+                const picked = await selectNativeDirectory(currentPath || undefined);
+                if (picked) void navigateTo(picked);
+              }}
+              style={{ minWidth: 74, height: 36, padding: "0 12px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-hover)", color: "var(--text-muted)", cursor: loading ? "default" : "pointer", opacity: loading ? 0.6 : 1 }}
+            >
+              Browse…
+            </button>
+          )}
           <button
             className="directory-picker-action"
             type="submit"

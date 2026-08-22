@@ -104,6 +104,7 @@ export const packages: PublishPackage[] = [
 	{ dir: "packages/wire", kind: "typescript" },
 	{ dir: "packages/omptype", kind: "typescript", publishJs: true },
 	{ dir: "packages/catalog", kind: "typescript" },
+	{ dir: "packages/channels", kind: "typescript" },
 	{ dir: "packages/ai", kind: "typescript" },
 	{ dir: "packages/tui", kind: "typescript" },
 	{ dir: "packages/hashline", kind: "typescript" },

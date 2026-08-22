@@ -223,6 +223,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "显示钩子状态",
 		description: "在状态栏下方显示钩子状态消息",
 	},
+
+	"statusLine.turnTelemetry": {
+		label: "回合遥测",
+		description: "每回合结束后显示一行临时的 TPS/TTFT/耗时/费用信息",
+	},
 	"terminal.showImages": {
 		label: "显示内联图片",
 		description: "在终端内联渲染图片",
@@ -269,6 +274,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tui.tight": {
 		label: "紧凑布局",
 		description: "移除终端输出左右两侧的 1 字符水平内边距",
+	},
+
+	"tui.sidebar": {
+		label: "侧边栏",
+		description: "显示右侧边栏（上下文、用量、git、模型）",
 	},
 	"tui.scrollbackRebuild": {
 		label: "重写回滚",

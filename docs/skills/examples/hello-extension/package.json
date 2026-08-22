@@ -2,8 +2,10 @@
   "name": "hello-extension",
   "version": "1.0.0",
   "description": "Minimal linxira-zeta extension example",
-  "homepage": "https://linxira-os.github.io",
+  "homepage": "https://linxira-os.github.io/zeta/",
   "zeta": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   }
 }

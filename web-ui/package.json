@@ -12,6 +12,9 @@
   },
   "author": "17380936778",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=22.19.0"
   },
@@ -39,10 +42,10 @@
     "release": "npm version patch --no-git-tag-version && npm run build && npm publish --access public"
   },
   "dependencies": {
-    "@linxiraos/pi-agent-core": "1.0.0",
-    "@linxiraos/pi-ai": "1.0.0",
-    "@linxiraos/pi-tui": "1.0.0",
-    "@linxiraos/zeta": "1.0.0",
+    "@linxiraos/pi-agent-core": "^1.0.10",
+    "@linxiraos/pi-ai": "^1.0.10",
+    "@linxiraos/pi-tui": "^1.0.10",
+    "@linxiraos/zeta": "^1.0.10",
     "better-sqlite3": "^11.8.1",
     "next": "16.2.9",
     "react": "^19.2.4",

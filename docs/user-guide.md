@@ -135,6 +135,35 @@ The desktop build adds a system tray icon. Closing the window keeps Zeta
 running in the tray (Settings → Web / Bot → "Minimize to tray on close");
 use the tray menu to reopen the window or quit.
 
+
+## Desktop entry: `zeta-d` vs `zeta`
+
+The desktop install registers exactly one command on your PATH: `zeta-d`.
+
+- `zeta-d` — runs the bundled CLI/TUI (same experience as `zeta`).
+- `zeta-d -d` — opens the desktop GUI in the current directory; pass a path
+  (`zeta-d -d ~/projects/foo`) to open that workspace instead.
+
+Bare `zeta` always belongs to your npm/source install and is never provided by
+the desktop bundle, so both installs coexist without conflicts. From an npm
+install you can still open the desktop GUI with `zeta --desktop [cwd]`; it
+exits with an error listing the locations it probed when no desktop install is
+found. The desktop app updates itself; running `zeta update` from the bundled
+binary is refused on purpose.
+
+## CLI sidebar and turn telemetry
+
+Two display features live in the interactive TUI:
+
+- **Sidebar** (`/sidebar`, or the `tui.sidebar` setting): a right-hand panel
+  showing context usage, token totals and cost, git branch/dirty state, and
+  the current model. It needs at least 100 terminal columns and hides itself
+  on narrower terminals; scrolled-back history never contains sidebar text.
+- **Turn telemetry** (`statusLine.turnTelemetry`, on by default): a dim line
+  above the editor after each turn showing throughput (tokens/s), time to
+  first token, duration, tokens, and cost. Add the `turn_stats` status-line
+  segment to see the same numbers persistently.
+
 ## Updating
 
 Check for a newer version:

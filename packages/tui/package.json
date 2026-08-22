@@ -1,9 +1,9 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-tui",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
-  "homepage": "https://linxira-os.github.io",
+  "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",
   "contributors": [
     "Mario Zechner"
@@ -15,7 +15,7 @@
     "directory": "packages/tui"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
     "tui",

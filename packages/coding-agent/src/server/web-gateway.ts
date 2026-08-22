@@ -42,6 +42,7 @@ import {
 	handleLogout,
 	handleOAuthProviders,
 } from "./web-gateway/auth";
+import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
 import {
 	handleModels,
@@ -107,6 +108,7 @@ const SKILLS_SEARCH_RE = /^\/api\/skills\/search$/;
 const SKILLS_CHECK_RE = /^\/api\/skills\/check$/;
 const SKILLS_UPDATE_RE = /^\/api\/skills\/update$/;
 const OPEN_RE = /^\/api\/open$/;
+const DESKTOP_INFO_RE = /^\/api\/desktop\/info$/;
 const OPEN_OPTIONS_RE = /^\/api\/open\/options$/;
 const UPDATE_CHECK_RE = /^\/api\/update\/check$/;
 const UPDATE_DOWNLOAD_RE = /^\/api\/update\/download$/;
@@ -375,6 +377,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (OPEN_RE.test(pathname)) {
 		if (req.method === "OPTIONS") return new Response("", { status: 204, headers: { Allow: "POST, OPTIONS" } });
 		if (req.method === "POST") return handleOpenPost(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (DESKTOP_INFO_RE.test(pathname)) {
+		if (req.method === "GET") return handleDesktopInfoGet(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

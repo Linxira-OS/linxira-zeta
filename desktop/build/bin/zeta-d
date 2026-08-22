@@ -1,0 +1,5 @@
+#!/bin/sh
+# zeta-d — desktop bundle CLI/TUI entry. Re-enters the bundled zeta binary
+# with ZETA_DESKTOP_ENTRY=1; `zeta-d -d` opens the desktop GUI (handled by
+# src/cli/desktop-entry.ts). Bare `zeta` always belongs to the npm install.
+ZETA_DESKTOP_ENTRY=1 exec "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/../zeta/zeta" "$@"

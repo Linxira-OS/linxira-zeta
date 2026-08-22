@@ -10,7 +10,7 @@
  * the final answer.
  */
 
-import type { ChannelId } from "./channel";
+import type { ChannelId } from "@linxiraos/pi-channels";
 import { COORDINATOR_ALIAS, type SessionRouter } from "./session-router";
 import { resolveBotSession } from "./workspace-router";
 

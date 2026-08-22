@@ -275,6 +275,11 @@ export default function extension(pi: ExtensionAPI): void {
 }
 ```
 
+## Built-in interactive surfaces (interactive TUI only)
+
+- **Right-hand sidebar** (`tui.sidebar`, default off; `/sidebar` or the `app.sidebar.toggle` keybinding toggles it). When enabled, the engine composes and paints the main area at `terminal.columns - 36` and repaints the freed right margin every frame from a gutter component. Gutter cells are painted viewport-only with absolute cursor addressing inside each frame's synchronized block; they never enter the composed frame, the committed prefix, or native scrollback, so scrolled-back transcript rows contain no sidebar text. The engine ignores the reservation below 100 terminal columns (main-area floor: 64 columns) and whenever an overlay is visible. Implementation: `TUI.setMainWidth()` / `TUI.setGutterComponent()` in `packages/tui/src/tui.ts`; panels render from `StatusLineComponent.getSidebarContext()` (`packages/coding-agent/src/modes/components/sidebar.ts`).
+- **Turn telemetry**: after each completed turn, a dim transient line above the editor shows throughput, time-to-first-token, duration, tokens, and cost (`statusLine.turnTelemetry`). The same numbers are available persistently as the `turn_stats` status line segment. Data source: the trailing assistant message's `ttft`/`duration`/`usage` stamps (`packages/coding-agent/src/modes/components/status-line/turn-stats.ts`).
+
 ## Key implementation files
 
 - `packages/tui/src/tui.ts` — `Component`, `Focusable`, cursor marker, focus, overlay, input dispatch.

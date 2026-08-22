@@ -165,6 +165,7 @@ import type { HookEditorComponent } from "./components/hook-editor";
 import type { HookInputComponent } from "./components/hook-input";
 import type { HookSelectorComponent, HookSelectorSlider } from "./components/hook-selector";
 import { type PlanReviewAnnotationState, PlanReviewOverlay } from "./components/plan-review-overlay";
+import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
 import { StatusLineComponent } from "./components/status-line";
 import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "./components/tool-execution";
 import { TranscriptContainer } from "./components/transcript-container";
@@ -538,6 +539,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
+	sidebar: SidebarComponent;
 
 	isInitialized = false;
 	initialChatRendered = false;
@@ -872,6 +874,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		// spraying events no longer runs `getTopBorder` synchronously in the
 		// hot path where the render never gets to paint the result.
 		this.editor.setTopBorderProvider(availableWidth => this.statusLine.getTopBorder(availableWidth));
+		this.sidebar = new SidebarComponent(this.statusLine);
+		this.#applySidebar();
 
 		this.hideToolActivity = settings.get("display.hideToolActivity");
 		this.chatContainer.setToolActivityVisible(!this.hideToolActivity);
@@ -4786,6 +4790,25 @@ export class InteractiveMode implements InteractiveModeContext {
 			return;
 		}
 		await this.#liveCommandController.handleCommand();
+	}
+
+	/** Toggle the right-hand sidebar: flips the setting and re-wires the engine. */
+	handleSidebarToggle(): void {
+		const next = !settings.get("tui.sidebar");
+		settings.set("tui.sidebar", next);
+		this.#applySidebar();
+		this.ui.requestRender();
+	}
+
+	/** Apply the `tui.sidebar` setting to the engine's main-width override. */
+	#applySidebar(): void {
+		if (settings.get("tui.sidebar")) {
+			this.ui.setMainWidth(SIDEBAR_WIDTH);
+			this.ui.setGutterComponent(this.sidebar);
+		} else {
+			this.ui.setMainWidth(null);
+			this.ui.setGutterComponent(null);
+		}
 	}
 
 	#setMicCursor(color: { r: number; g: number; b: number }): void {

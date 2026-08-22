@@ -20,10 +20,8 @@
 
 import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
-import type { IrcMessage } from "../irc/bus";
-import type { AgentSession } from "../session/agent-session";
-import type { AgentSessionEvent } from "../session/agent-session-events";
 import type { ChannelId } from "./channel";
+import type { ChannelSession, ChannelSessionEvent, IrcMessage } from "./types";
 
 /** Outbound sink: resolves a channel + peer to a `sendText` call. */
 export type ChannelSendFn = (channelId: ChannelId, to: string, text: string) => Promise<void>;
@@ -43,20 +41,20 @@ function assistantText(message: AssistantMessage | undefined): string {
 }
 
 export class ChannelHost {
-	readonly #session: AgentSession;
+	readonly #session: ChannelSession;
 	readonly #send: ChannelSendFn;
 	readonly #allowedPeers: readonly string[];
 	#pending: PendingReply[] = [];
 	#unsubscribe: (() => void) | null = null;
 	#lastInbound: { channelId: ChannelId; peer: string } | null = null;
 
-	constructor(session: AgentSession, send: ChannelSendFn, allowedPeers?: readonly string[]) {
+	constructor(session: ChannelSession, send: ChannelSendFn, allowedPeers?: readonly string[]) {
 		this.#session = session;
 		this.#send = send;
 		this.#allowedPeers = allowedPeers ?? [];
 	}
 
-	get session(): AgentSession {
+	get session(): ChannelSession {
 		return this.#session;
 	}
 
@@ -111,7 +109,7 @@ export class ChannelHost {
 		}
 	}
 
-	#onSessionEvent(event: AgentSessionEvent): void {
+	#onSessionEvent(event: ChannelSessionEvent): void {
 		if (event.type !== "turn_end") return;
 		const pending = this.#pending.shift();
 		if (!pending) return;

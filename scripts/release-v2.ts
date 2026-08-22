@@ -11,10 +11,11 @@
  * Example: bun scripts/release-v2.ts 1.0.8
  *
  * v2 (unified version line): every published @linxiraos/* package rides the
- * release version — the 10 core packages plus the 3 native leaves
- * (natives/omptype/wire) all become `X.Y.Z`. The root catalog (13 keys),
- * Cargo.toml workspace version, and the `__piNativesVX_Y_Z` sentinel follow
- * in lock-step, so npm installs never mix version lines (the 1.0.6/1.0.7
+ * release version (see ALL_PACKAGES below — core packages plus the native
+ * leaves natives/omptype/wire all become `X.Y.Z`). The root catalog
+ * (CATALOG_KEYS), Cargo.toml workspace version, and the
+ * `__piNativesVX_Y_Z` sentinel follow in lock-step, so npm installs never
+ * mix version lines (the 1.0.6/1.0.7
  * releases shipped natives@1.0.2/1.0.4 while zeta rode 1.0.6/1.0.7, and
  * `zeta update` failed with ETARGET because it pinned every package to the
  * release version). The commit subject is fixed (`chore: bump version to
@@ -26,7 +27,7 @@ import { compareVersions } from "../packages/utils/src/version.ts";
 import { runChangelogFixer } from "./fix-changelogs";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
-// All 13 published packages ride the release version in lock-step.
+// All published packages ride the release version in lock-step.
 const ALL_PACKAGES = [
 	"utils",
 	"agent",
@@ -38,12 +39,13 @@ const ALL_PACKAGES = [
 	"snapcompact",
 	"stats",
 	"coding-agent",
+	"channels",
 	"natives",
 	"omptype",
 	"wire",
 ] as const;
 
-// Root catalog key → package dir mapping. Exactly these 13 keys may carry a
+// Root catalog key → package dir mapping. Exactly these keys may carry a
 // `@linxiraos/*` workspace dependency; any other count is a drift error.
 const CATALOG_KEYS: ReadonlyArray<{ key: string; pkg: string }> = [
 	{ key: "@linxiraos/pi-utils", pkg: "utils" },
@@ -56,6 +58,7 @@ const CATALOG_KEYS: ReadonlyArray<{ key: string; pkg: string }> = [
 	{ key: "@linxiraos/pi-snapcompact", pkg: "snapcompact" },
 	{ key: "@linxiraos/pi-stats", pkg: "stats" },
 	{ key: "@linxiraos/zeta", pkg: "coding-agent" },
+	{ key: "@linxiraos/pi-channels", pkg: "channels" },
 	{ key: "@linxiraos/pi-natives", pkg: "natives" },
 	{ key: "@linxiraos/pi-omptype", pkg: "omptype" },
 	{ key: "@linxiraos/pi-wire", pkg: "wire" },
@@ -111,16 +114,16 @@ async function readCatalog(): Promise<Record<string, string>> {
 	const catalog = rootPkg.workspaces?.catalog;
 	if (!catalog || typeof catalog !== "object") throw new Error("root package.json has no workspaces.catalog");
 	const linxiraos = Object.fromEntries(Object.entries(catalog).filter(([key]) => key.startsWith("@linxiraos/")));
-	if (Object.keys(linxiraos).length !== 13) {
+	if (Object.keys(linxiraos).length !== CATALOG_KEYS.length) {
 		throw new Error(
-			`Expected exactly 13 @linxiraos/* catalog keys, found ${Object.keys(linxiraos).length}: ${Object.keys(linxiraos).join(", ")}`,
+			`Expected exactly ${CATALOG_KEYS.length} @linxiraos/* catalog keys, found ${Object.keys(linxiraos).length}: ${Object.keys(linxiraos).join(", ")}`,
 		);
 	}
 	return linxiraos;
 }
 
 /**
- * Rewrite all 13 root catalog keys to `version`. Never touches any other key.
+ * Rewrite all root catalog keys to `version`. Never touches any other key.
  * Rewrites via structured JSON edit so indentation/order survive; the catalog
  * block is reformatted to 2-space like the rest of the file.
  */
@@ -132,16 +135,16 @@ async function updateCatalog(version: string): Promise<void> {
 		if (!(key in catalog)) throw new Error(`Missing catalog key ${key}`);
 		catalog[key] = version;
 	}
-	// Exact-13 check (no other @linxiraos/* key may exist).
+	// Exact-count check (no other @linxiraos/* key may exist).
 	const linxiraosCount = Object.keys(catalog).filter((k: string) => k.startsWith("@linxiraos/")).length;
-	if (linxiraosCount !== 13) {
-		throw new Error(`Catalog has ${linxiraosCount} @linxiraos/* keys, expected exactly 13`);
+	if (linxiraosCount !== CATALOG_KEYS.length) {
+		throw new Error(`Catalog has ${linxiraosCount} @linxiraos/* keys, expected exactly ${CATALOG_KEYS.length}`);
 	}
 
 	await Bun.write("package.json", `${JSON.stringify(rootPkg, null, 2)}\n`);
 }
 
-/** Verify bun.lock resolves all 13 @linxiraos/* packages to the catalog versions. */
+/** Verify bun.lock resolves all @linxiraos/* packages to the catalog versions. */
 async function verifyLockfile(catalog: Record<string, string>): Promise<void> {
 	const lock = Bun.JSON5.parse(await Bun.file("bun.lock").text());
 	const pkgs = lock.workspaces ?? lock.packages ?? lock;
@@ -153,7 +156,7 @@ async function verifyLockfile(catalog: Record<string, string>): Promise<void> {
 			throw new Error(`bun.lock ${dir} version ${entry.version} != catalog ${key} ${catalog[key]}`);
 		}
 	}
-	console.log("  bun.lock: 13 @linxiraos/* entries match catalog");
+	console.log(`  bun.lock: ${CATALOG_KEYS.length} @linxiraos/* entries match catalog`);
 }
 
 /**
@@ -201,7 +204,9 @@ async function assertConsistency(version: string): Promise<void> {
 		for (const p of problems) console.error(`  - ${p}`);
 		process.exit(1);
 	}
-	console.log(`  Consistency: 13 packages == ${version}, desktop/catalog/Cargo/sentinel OK, tag absent`);
+	console.log(
+		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/sentinel OK, tag absent`,
+	);
 }
 
 async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
@@ -252,8 +257,8 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	}
 	console.log(`  Version ${version} > ${latestTag}\n`);
 
-	// Step 2: bump all 13 published packages to the release version.
-	console.log(`Updating 13 packages to ${version}…`);
+	// Step 2: bump all published packages to the release version.
+	console.log(`Updating ${ALL_PACKAGES.length} packages to ${version}…`);
 	for (const pkg of ALL_PACKAGES) {
 		const pkgPath = `packages/${pkg}/package.json`;
 		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${pkgPath}`;
@@ -298,8 +303,8 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	// Step 4: root catalog explicit mapping.
 	console.log("Updating root catalog...");
 	await updateCatalog(version);
-	await readCatalog(); // re-validates 13 keys
-	console.log(`  Root catalog: 13 keys -> ${version}`);
+	await readCatalog(); // re-validates catalog key count
+	console.log(`  Root catalog: ${CATALOG_KEYS.length} keys -> ${version}`);
 
 	// Step 5: regenerate lockfile and verify.
 	console.log("Regenerating lockfile...");
@@ -308,8 +313,8 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	await verifyLockfile(await readCatalog());
 	console.log();
 
-	// Step 6: changelogs for all 13 packages.
-	console.log("Updating CHANGELOGs (13 packages)...");
+	// Step 6: changelogs for all published packages.
+	console.log(`Updating CHANGELOGs (${ALL_PACKAGES.length} packages)...`);
 	const fixResult = await runChangelogFixer({});
 	for (const fixed of fixResult.changedFiles) {
 		console.log(

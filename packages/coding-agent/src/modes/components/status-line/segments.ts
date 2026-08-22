@@ -9,6 +9,7 @@ import { fileHyperlink } from "../../../tui/hyperlink";
 import { getSessionAccentAnsi, getSessionAccentHex } from "../../../utils/session-color";
 import { sanitizeStatusText } from "../../shared";
 import { formatContextUsage, getContextUsageLevel, getContextUsageThemeColor } from "./context-thresholds";
+import { extractLastTurnStats, formatTurnStats } from "./turn-stats";
 import type { RenderedSegment, SegmentContext, StatusLineSegment, StatusLineSegmentId } from "./types";
 
 export type { SegmentContext } from "./types";
@@ -724,6 +725,15 @@ const usageSegment: StatusLineSegment = {
 	},
 };
 
+const turnStatsSegment: StatusLineSegment = {
+	id: "turn_stats",
+	render(ctx) {
+		const stats = extractLastTurnStats(ctx.session.state.messages);
+		if (!stats) return { content: "", visible: false };
+		return { content: theme.fg("muted", formatTurnStats(stats)), visible: true };
+	},
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Segment Registry
 // ═══════════════════════════════════════════════════════════════════════════
@@ -752,6 +762,7 @@ export const SEGMENTS: Record<StatusLineSegmentId, StatusLineSegment> = {
 	cache_hit: cacheHitSegment,
 	session_name: sessionNameSegment,
 	usage: usageSegment,
+	turn_stats: turnStatsSegment,
 	collab: collabSegment,
 };
 

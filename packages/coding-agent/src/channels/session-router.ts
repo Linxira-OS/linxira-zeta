@@ -23,6 +23,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { ChannelId } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
 import type { IrcMessage } from "../irc/bus";
@@ -30,7 +31,6 @@ import { createAgentSession } from "../sdk";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionEvent } from "../session/agent-session-events";
 import { SessionManager } from "../session/session-manager";
-import type { ChannelId } from "./channel";
 import type { ImControlParams, ImControlResult } from "./im-control";
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */

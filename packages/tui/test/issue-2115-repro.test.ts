@@ -129,7 +129,7 @@ describe("issue #2115: ConPTY large-session resume truncates at logical lines", 
 		}
 	});
 
-	it("keeps later tail appends on the cheap append path", async () => {
+	it("re-anchors the first append after truncation, then cheap-appends", async () => {
 		Object.defineProperty(process, "platform", { value: "win32", configurable: true });
 		const term = new VirtualTerminal(80, 24, 12_000);
 		const writes: string[] = [];
@@ -148,14 +148,29 @@ describe("issue #2115: ConPTY large-session resume truncates at logical lines", 
 			await scheduler.advanceBy(40, term);
 			writes.length = 0;
 
+			// The first append after a ConPTY truncation re-anchors with a
+			// bounded full-window rewrite: the terminal only holds the
+			// truncated tail, so scroll-append math against the full frame
+			// ledger would overflow and drop rows. The rewrite must stay
+			// bounded (never the whole transcript) and show the new row.
 			content.appendLine();
 			tui.requestRender();
 			await scheduler.advanceBy(200, term);
-
-			const postAppend = writes.join("");
-			expect(Buffer.byteLength(postAppend, "utf8")).toBeLessThan(2048);
+			let postAppend = writes.join("");
+			expect(Buffer.byteLength(postAppend, "utf8")).toBeLessThan(64 * 1024);
 			expect(postAppend).not.toContain("\x1b[H");
 			expect(postAppend).toContain("第09000行");
+
+			// After the re-anchor the ledger matches the terminal, so later
+			// streaming appends go back on the cheap append path.
+			writes.length = 0;
+			content.appendLine();
+			tui.requestRender();
+			await scheduler.advanceBy(200, term);
+			postAppend = writes.join("");
+			expect(Buffer.byteLength(postAppend, "utf8")).toBeLessThan(2048);
+			expect(postAppend).not.toContain("\x1b[H");
+			expect(postAppend).toContain("第09001行");
 		} finally {
 			tui.stop();
 		}

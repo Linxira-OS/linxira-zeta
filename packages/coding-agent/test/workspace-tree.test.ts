@@ -213,6 +213,34 @@ describe("buildWorkspaceTree", () => {
 		expect(first.rendered).not.toContain("ago");
 	});
 
+	it("renders preset-gated file-type icons for buildDirectoryTree (read tool listings)", async () => {
+		const cwd = await makeTempDir();
+		await Bun.write(path.join(cwd, "app.ts"), "export {};");
+		await Bun.write(path.join(cwd, "notes.txt"), "x");
+
+		const nerd = await buildDirectoryTree(cwd, { symbolPreset: "nerd" });
+		expect(nerd.rendered).toContain("\u{E628} app.ts");
+
+		const unicode = await buildDirectoryTree(cwd, { symbolPreset: "unicode" });
+		expect(unicode.rendered).toContain("\u{1F7E6} app.ts");
+
+		const ascii = await buildDirectoryTree(cwd, { symbolPreset: "ascii" });
+		expect(ascii.rendered).toMatch(/^\s*- ts app\.ts$/m);
+	});
+
+	it("omits icons when disabled and never iconifies buildWorkspaceTree (system prompt stays byte-stable)", async () => {
+		const cwd = await makeTempDir();
+		await Bun.write(path.join(cwd, "app.ts"), "export {};");
+
+		const plain = await buildDirectoryTree(cwd, { icons: false, symbolPreset: "nerd" });
+		expect(plain.rendered).not.toContain("\u{E628}");
+		expect(plain.rendered).toMatch(/^\s*- app\.ts$/m);
+
+		const workspace = await buildWorkspaceTree(cwd);
+		expect(workspace.rendered).not.toContain("\u{E628}");
+		expect(workspace.rendered).toMatch(/^\s*- app\.ts(?:\s|$)/m);
+	});
+
 	it("keeps relative ages for buildDirectoryTree (tool output, not cached)", async () => {
 		const cwd = await makeTempDir();
 		await writeFileWithMtime(path.join(cwd, "recent.txt"), "x", Date.now() - 5 * 60_000);

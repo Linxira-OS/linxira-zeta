@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { hasNativeDirectoryDialog, selectNativeDirectory } from "@/lib/pi-desktop";
 import { FolderIcon } from "./FileIcons";
 
 interface DirectoryItem {
@@ -80,8 +81,14 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
     }
   }, [open, initialPath, fetchDirectory]);
 
-  // Handle native browser folder picker if available
+  // Handle native folder picker: desktop shell bridge first (OS dialog with
+  // full filesystem access), then the browser File System Access API.
   const handleNativePicker = async () => {
+    if (hasNativeDirectoryDialog()) {
+      const picked = await selectNativeDirectory(currentPath || undefined);
+      if (picked) void fetchDirectory(picked);
+      return;
+    }
     if (typeof window !== "undefined" && "showDirectoryPicker" in window) {
       try {
         // @ts-expect-error - Web File System Access API
@@ -201,7 +208,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {typeof window !== "undefined" && "showDirectoryPicker" in window && (
+            {(hasNativeDirectoryDialog() || (typeof window !== "undefined" && "showDirectoryPicker" in window)) && (
               <button
                 onClick={handleNativePicker}
                 title="Open native OS folder dialog"

@@ -70,6 +70,16 @@ if [ -f "$DEST/chrome-sandbox" ]; then
 	echo "==> chrome-sandbox 权限已修复"
 fi
 
+# ---- zeta-d 命令（捆绑 CLI/TUI；`zeta-d -d` 打开桌面 GUI）----
+if [ -f "$DEST/resources/bin/zeta-d" ]; then
+	chmod +x "$DEST/resources/bin/zeta-d"
+	mkdir -p "$REAL_HOME/.local/bin"
+	ln -sfn "$DEST/resources/bin/zeta-d" "$REAL_HOME/.local/bin/zeta-d"
+	echo "==> 已注册命令: $REAL_HOME/.local/bin/zeta-d (确保 ~/.local/bin 在 PATH 中)"
+else
+	echo "警告: 未找到 resources/bin/zeta-d，跳过 zeta-d 注册"
+fi
+
 # ---- 应用菜单注册 ----
 APP_DIR="$REAL_HOME/.local/share/applications"
 ICON_SRC="$DEST/resources/icon.ico"

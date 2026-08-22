@@ -55,6 +55,7 @@ interface AppKeybindings {
 	"app.history.search": true;
 	"app.stt.toggle": true;
 	"app.live.toggle": true;
+	"app.sidebar.toggle": true;
 }
 
 export type AppKeybinding = keyof AppKeybindings;
@@ -233,6 +234,10 @@ export const KEYBINDINGS = {
 	"app.live.toggle": {
 		defaultKeys: "ctrl+l",
 		description: "Start or stop live voice mode (/live)",
+	},
+	"app.sidebar.toggle": {
+		defaultKeys: [],
+		description: "Toggle the right-hand sidebar (/sidebar)",
 	},
 } as const satisfies KeybindingDefinitions;
 

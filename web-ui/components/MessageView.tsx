@@ -1,7 +1,8 @@
 "use client";
 
-import { memo, useState, useRef, useEffect, useMemo } from "react";
+import { memo, useState, useRef, useEffect, useMemo, type ReactNode } from "react";
 import { MarkdownBody } from "./MarkdownBody";
+import { hasProseKeyword, rainbowMagicKeywords } from "@/lib/rainbow";
 import { copyText } from "@/lib/clipboard";
 import { useI18n } from "@/hooks/useI18n";
 import { parseCompactionSummary } from "@/lib/compaction-summary";
@@ -193,6 +194,8 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
     });
   };
 
+  const hasKeywords = hasProseKeyword(content);
+
   return (
     <div
       style={{ marginBottom: 16, display: "flex", flexDirection: "column", alignItems: "flex-end" }}
@@ -240,7 +243,11 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
               })}
             </div>
           )}
-          {content && <MarkdownBody className="markdown-user-message" cwd={cwd} onOpenFile={onOpenFile}>{content}</MarkdownBody>}
+          {content && (hasKeywords ? (
+            <UserMessageWithRainbow content={content} cwd={cwd} onOpenFile={onOpenFile} />
+          ) : (
+            <MarkdownBody className="markdown-user-message" cwd={cwd} onOpenFile={onOpenFile}>{content}</MarkdownBody>
+          ))}
         </div>
 
       </div>
@@ -354,6 +361,52 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
       )}
     </div>
   );
+}
+
+/**
+ * User bubble content when a magic keyword (ultrathink / orchestrate /
+ * workflowz) appears as standalone prose. Keyword lines render as plain text
+ * with the rainbow gradient spans (MarkdownBody cannot host inline colored
+ * nodes); every other line keeps the normal markdown rendering. Lines whose
+ * keyword occurrence sits inside a code span are left to MarkdownBody.
+ */
+function UserMessageWithRainbow({
+  content,
+  cwd,
+  onOpenFile,
+}: {
+  content: string;
+  cwd?: string;
+  onOpenFile?: (filePath: string) => void;
+}) {
+  const lines = content.split("\n");
+  const nodes: ReactNode[] = [];
+  let plain: string[] = [];
+  let key = 0;
+  const flushPlain = () => {
+    if (plain.length === 0) return;
+    nodes.push(
+      <MarkdownBody key={key++} className="markdown-user-message" cwd={cwd} onOpenFile={onOpenFile}>
+        {plain.join("\n")}
+      </MarkdownBody>,
+    );
+    plain = [];
+  };
+
+  for (const line of lines) {
+    if (hasProseKeyword(line)) {
+      flushPlain();
+      nodes.push(
+        <div key={key++} className="markdown-user-message" style={{ whiteSpace: "pre-wrap" }}>
+          {rainbowMagicKeywords(line)}
+        </div>,
+      );
+    } else {
+      plain.push(line);
+    }
+  }
+  flushPlain();
+  return <>{nodes}</>;
 }
 
 function AssistantMessageView({

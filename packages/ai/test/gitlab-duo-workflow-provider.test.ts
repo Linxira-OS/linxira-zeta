@@ -220,7 +220,7 @@ describe("GitLab Duo Workflow provider protocol", () => {
 		expect(mcpTools[0]).toMatchObject({
 			name: "read",
 			originalToolName: "read",
-			serverName: "omp",
+			serverName: "zeta",
 			isApproved: true,
 		});
 		expect(typeof mcpTools[0]?.inputSchema).toBe("string");

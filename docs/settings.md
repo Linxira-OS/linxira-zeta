@@ -673,12 +673,16 @@ tui:
 | `statusLine.sessionAccent`  | boolean | `true`           | Tint the editor border with the session color.                            |
 | `statusLine.transparent`    | boolean | `false`          | Use the terminal background for the status line.                          |
 | `statusLine.showHookStatus` | boolean | `true`           | Show hook status messages.                                                |
+| `statusLine.turnTelemetry`  | boolean | `true`           | Show a transient TPS/TTFT/duration/cost line above the editor after each turn. |
 | `terminal.showImages`       | boolean | `true`           | Render images inline (when the terminal supports it).                     |
 | `images.autoResize`         | boolean | `true`           | Resize large images for model compatibility.                              |
 | `images.blockImages`        | boolean | `false`          | Never send images to providers.                                           |
 | `tui.hyperlinks`            | enum    | `auto`           | `off`, `auto`, `always`.                                                  |
+| `tui.sidebar`               | boolean | `false`          | Show the right-hand sidebar (context, usage, git, model). Hidden below 100 terminal columns. Toggle with `/sidebar`. |
 
 For a custom status line, set `statusLine.preset: custom` and configure `statusLine.leftSegments`, `statusLine.rightSegments`, and `statusLine.segmentOptions`.
+
+Available segment ids: `pi`, `model`, `mode`, `path`, `git`, `pr`, `subagents`, `token_in`, `token_out`, `token_total`, `token_rate`, `cost`, `context_pct`, `context_total`, `time_spent`, `time`, `session`, `hostname`, `cache_read`, `cache_write`, `cache_hit`, `session_name`, `usage`, `turn_stats`, `collab`. The `turn_stats` segment renders the last completed turn's throughput (`⚡42.5/s`), time to first token (`⇄1.2s`), total duration (`⏱29.7s`), input/output tokens, and cost; it is invisible until a billed turn completes.
 
 ### Interaction
 

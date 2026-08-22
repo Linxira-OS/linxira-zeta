@@ -416,7 +416,7 @@ export function makeOpenRouterRewriter(opts: OpenRouterOptions): RewriteChunk {
 					headers: {
 						Authorization: `Bearer ${opts.apiKey}`,
 						"Content-Type": "application/json",
-						"HTTP-Referer": "https://linxira-os.github.io/",
+						"HTTP-Referer": "https://linxira-os.github.io/zeta/",
 						"X-Title": "zeta",
 					},
 					body,

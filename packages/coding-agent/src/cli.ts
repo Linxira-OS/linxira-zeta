@@ -28,6 +28,7 @@ import {
 import { interceptUnhandledRejections } from "@linxiraos/pi-utils/postmortem";
 import { setProcessName } from "@linxiraos/pi-utils/process-name";
 import { declareWorkerHostEntry, installWorkerInbox, isWorkerHostSelector } from "@linxiraos/pi-utils/worker-host";
+import { dispatchDesktopEntry } from "./cli/desktop-entry";
 import { installProfileAlias, resolveProfileAliasCommandFromProcess } from "./cli/profile-alias";
 import { extractProfileFlags } from "./cli/profile-bootstrap";
 import { startJsEvalProcess } from "./eval/js/process-entry";
@@ -333,6 +334,10 @@ async function runTinyWorker(): Promise<void> {
 
 /** Run the CLI with the given argv (no `process.argv` prefix). */
 export async function runCli(argv: string[]): Promise<void> {
+	// `zeta-d -d` / `zeta --desktop`: spawn the desktop GUI and exit. Runs
+	// before profile bootstrap so the GUI launch never touches profile state.
+	if (await dispatchDesktopEntry(argv)) return;
+
 	let resolvedArgv = argv;
 	try {
 		const extracted = extractProfileFlags(resolvedArgv);

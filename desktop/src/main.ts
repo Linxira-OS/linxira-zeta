@@ -6,7 +6,7 @@
  * The system browser is never opened and no terminal window appears.
  */
 
-import { app, BrowserWindow, Menu, dialog, nativeImage, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Tray } from "electron";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -22,6 +22,30 @@ let serveChild: ChildProcess | null = null;
 let serviceLogFd: number | null = null;
 let serviceOwned = false;
 let quitting = false;
+
+/**
+ * Working directory requested by `zeta-d -d <cwd>` / `zeta --desktop <cwd>`
+ * (forwarded by the CLI dispatcher as `--cwd=<path>`). The service process is
+ * started in this directory so the GUI opens the requested workspace.
+ */
+function parseRequestedCwd(): string | null {
+	for (const arg of process.argv) {
+		if (arg.startsWith("--cwd=")) {
+			const value = arg.slice("--cwd=".length);
+			if (value && fs.existsSync(value)) return path.resolve(value);
+		}
+	}
+	return null;
+}
+
+// Native directory picker for the embedded web-ui (`window.piDesktop`).
+ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promise<string | null> => {
+	const result = await dialog.showOpenDialog({
+		properties: ["openDirectory", "createDirectory"],
+		defaultPath: typeof startPath === "string" && startPath.length > 0 ? startPath : undefined,
+	});
+	return result.canceled ? null : (result.filePaths[0] ?? null);
+});
 let mainWindow: BrowserWindow | null = null;
 let statsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -253,6 +277,7 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		webPreferences: {
 			contextIsolation: true,
 			sandbox: true,
+			preload: path.join(__dirname, "preload.js"),
 		},
 	});
 
@@ -456,6 +481,9 @@ async function boot(): Promise<void> {
 		showServiceFailure("The bundled Zeta service is incomplete. Reinstall the desktop package.");
 		return;
 	}
+	// `zeta-d -d <cwd>` / `zeta --desktop <cwd>`: open the requested workspace.
+	const requestedCwd = parseRequestedCwd();
+	if (requestedCwd) cmd.cwd = requestedCwd;
 
 	try {
 		writeDesktopLog(`Starting service: ${cmd.file}`);

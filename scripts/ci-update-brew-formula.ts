@@ -12,7 +12,7 @@
 import { $ } from "bun";
 
 const REPO = process.env.OMP_REPO ?? "Linxira-OS/linxira-zeta";
-const HOMEPAGE = "https://linxira-os.github.io";
+const HOMEPAGE = "https://linxira-os.github.io/zeta/";
 const DESC = "Coding agent with the IDE wired in";
 
 interface ReleaseAsset {

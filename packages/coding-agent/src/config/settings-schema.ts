@@ -237,6 +237,7 @@ export type StatusLineSegmentId =
 	| "cache_hit"
 	| "session_name"
 	| "usage"
+	| "turn_stats"
 	| "collab";
 
 /** Submenu choice metadata. */
@@ -948,6 +949,28 @@ export const SETTINGS_SCHEMA = {
 			group: "Status Line",
 			label: "Show Hook Status",
 			description: "Display hook status messages below the status line",
+		},
+	},
+
+	"statusLine.turnTelemetry": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "appearance",
+			group: "Status Line",
+			label: "Turn Telemetry",
+			description: "Show a transient TPS/TTFT/duration/cost line after each turn",
+		},
+	},
+
+	"tui.sidebar": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "appearance",
+			group: "Display",
+			label: "Sidebar",
+			description: "Show the right-hand sidebar (context, usage, git, model)",
 		},
 	},
 

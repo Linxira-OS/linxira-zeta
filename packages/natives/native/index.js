@@ -29,7 +29,7 @@ export const Shell = nativeBindings.Shell;
 
 // functions
 export const __ompInstallTokioRuntime = nativeBindings.__ompInstallTokioRuntime;
-export const __piNativesV1_0_10 = nativeBindings.__piNativesV1_0_10;
+export const __piNativesV1_0_11 = nativeBindings.__piNativesV1_0_11;
 export const pdfToMarkdown = nativeBindings.pdfToMarkdown;
 export const astEdit = nativeBindings.astEdit;
 export const astGrep = nativeBindings.astGrep;

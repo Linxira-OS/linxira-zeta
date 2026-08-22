@@ -22,6 +22,7 @@ import {
 	unsupportedProxyMessage,
 	withTimeoutSignal,
 } from "../utils/fetch-timeout";
+import { isDesktopBundledRuntime } from "./desktop-entry";
 
 const REPO = "Linxira-OS/linxira-zeta";
 const PACKAGE = "@linxiraos/zeta";
@@ -1743,6 +1744,17 @@ async function confirmUpdateInstall(version: string): Promise<boolean> {
 }
 
 export async function runUpdateCommand(opts: { force: boolean; check: boolean; yes: boolean }): Promise<void> {
+	if (isDesktopBundledRuntime()) {
+		console.error(
+			chalk.red(
+				"This zeta binary is part of the Zeta desktop app bundle; updating it standalone would corrupt the bundle.",
+			),
+		);
+		console.error(
+			chalk.dim("Use the desktop app's built-in updater instead (it updates the whole bundle atomically)."),
+		);
+		process.exit(1);
+	}
 	console.log(chalk.dim(`Current version: ${VERSION}`));
 
 	// Check for updates

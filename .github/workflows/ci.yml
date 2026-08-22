@@ -159,8 +159,8 @@ jobs:
            run: |
               set -euo pipefail
               tag_ver="${RELEASE_TAG#v}"
-              # All 13 published packages ride the release version in lock-step.
-              pkgs=(utils agent catalog ai tui hashline mnemopi snapcompact stats coding-agent natives omptype wire)
+              # All lock-step packages ride the release version (list mirrors release-v2.ts ALL_PACKAGES).
+              pkgs=(utils agent catalog ai tui hashline mnemopi snapcompact stats coding-agent channels natives omptype wire)
               for pkg in "${pkgs[@]}"; do
                 ver=$(node -p "require('./packages/$pkg/package.json').version")
                 if [ "$tag_ver" != "$ver" ]; then
@@ -175,16 +175,17 @@ jobs:
                 echo "::error::Release tag $RELEASE_TAG does not match desktop versions: package.json=$desktop_ver package-lock.json=$desktop_lock_ver. Run a version bump (bun scripts/release-v2.ts $tag_ver) so package versions equal the tag, then push the tag again."
                 exit 1
               fi
-              # Root catalog: exactly 13 @linxiraos/* keys, all equal to the tag.
+              # Root catalog: exactly ${#pkgs[@]} @linxiraos/* keys, all equal to the tag.
               node -e '
                 const catalog = require("./package.json").workspaces.catalog;
                 const keys = Object.keys(catalog).filter(k => k.startsWith("@linxiraos/"));
-                if (keys.length !== 13) {
-                  console.error(`catalog has ${keys.length} @linxiraos/* keys, expected exactly 13`); process.exit(1);
+                const expected = Number(process.argv[2]);
+                if (keys.length !== expected) {
+                  console.error(`catalog has ${keys.length} @linxiraos/* keys, expected exactly ${expected}`); process.exit(1);
                 }
                 const tag = process.argv[1];
                 for (const k of keys) if (catalog[k] !== tag) { console.error(`catalog ${k} = ${catalog[k]}, expected ${tag}`); process.exit(1); }
-              ' "$tag_ver"
+              ' "$tag_ver" "${#pkgs[@]}"
               # Rust workspace + native sentinel ride the release version too.
               cargo_ver=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n1)
               if [ "$cargo_ver" != "$tag_ver" ]; then
@@ -198,7 +199,7 @@ jobs:
                   exit 1
                 fi
               done
-              echo "tag $RELEASE_TAG matches packaged versions (13 packages == tag, desktop incl. lock == tag, catalog 13 keys == tag, Cargo/sentinel == tag)"
+              echo "tag $RELEASE_TAG matches packaged versions (${#pkgs[@]} packages == tag, desktop incl. lock == tag, catalog ${#pkgs[@]} keys == tag, Cargo/sentinel == tag)"
 
    check:
       name: Lint, type check & web build
@@ -1215,6 +1216,44 @@ jobs:
               # publisher for the package (or on a first publish).
               NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
            run: bun run ci:release:publish
+
+   release_npm_zeta_web:
+      name: Publish zeta-web to npm
+      # zeta-web is its own version line (not part of ALL_PACKAGES): publish it
+      # on every release run. Gated on the quality gate like the other release
+      # jobs; `is-release` is explicit for defense in depth.
+      if: ${{ needs.release_quality_gate.result == 'success' && needs.release_metadata.outputs.is-release == 'true' && github.event.inputs.build_only != 'true' && !cancelled() }}
+      needs: [release_metadata, release_quality_gate]
+      runs-on: ubuntu-22.04
+      # id-token lets npm mint the OIDC token for trusted publishing; the
+      # NODE_AUTH_TOKEN below is the fallback for unconfigured packages.
+      permissions:
+         id-token: write
+         contents: read
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+              registry-url: "https://registry.npmjs.org"
+         # npm 12 requires a newer emulated Node version than setup-node
+         # provides for trusted publishing; pin npm like the other release jobs.
+         - name: Ensure npm supports trusted publishing
+           run: npm install -g npm@11.17.0
+         - name: Install web-ui dependencies
+           working-directory: web-ui
+           run: npm ci
+         - name: Build web-ui
+           working-directory: web-ui
+           run: npm run build
+         - name: Publish zeta-web to npm
+           working-directory: web-ui
+           env:
+              # Fallback auth: setup-node wrote an .npmrc referencing
+              # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
+              # publisher for the package (or on a first publish).
+              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+           run: npm publish --access public
 
    # Regenerate the Homebrew tap formula (can1357/homebrew-tap) from the freshly
    # published release assets and push it. Gated on release_github_verify so the

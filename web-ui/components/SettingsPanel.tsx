@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useSidebar } from "@/hooks/useSidebar";
 import { useI18n } from "@/hooks/useI18n";
 import { setRemoteToken } from "@/lib/remote-token";
 import {
@@ -377,6 +378,40 @@ function ChannelCredentialsForm({
   );
 }
 
+function WebDisplaySection({ t }: { t: (key: string) => string }) {
+  const { visible, toggle } = useSidebar();
+  return (
+    <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>
+        {t("web-display")}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>{t("web-sidebar")}</span>
+          <span style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.4 }}>{t("web-sidebar-desc")}</span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={visible}
+          aria-label={t("web-sidebar")}
+          onClick={toggle}
+          style={{
+            width: 36, height: 20, borderRadius: 10, border: "1px solid var(--border)",
+            background: visible ? "var(--accent)" : "var(--bg-panel)", cursor: "pointer", position: "relative", flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              position: "absolute", top: 2, left: visible ? 18 : 2, width: 14, height: 14, borderRadius: 7,
+              background: "#fff", transition: "left 0.15s ease",
+            }}
+          />
+        </button>
+      </div>
+    </div>
+  );
+}
 function WebSettingsSection({  data,
   pending,
   error,
@@ -391,6 +426,7 @@ function WebSettingsSection({  data,
   t: (key: string) => string;
   onCommit: (path: string, value: unknown) => Promise<boolean>;
 }) {
+
   // WeChat QR-login progress surfaced by the gateway (see /api/channels/wechat/qrcode).
   const [wechatQr, setWechatQr] = useState<{
     pending: boolean;
@@ -1317,14 +1353,17 @@ export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProp
             <DocsPanel locale={locale} t={t} />
           ) : activeTab === "web" ? (
             webData ? (
-              <WebSettingsSection
-                data={webData}
-                pending={webPending}
-                error={webError}
-                savedFlash={webSavedFlash}
-                t={t}
-                onCommit={(path, value) => webCommit(path, value)}
-              />
+              <>
+                <WebDisplaySection t={t} />
+                <WebSettingsSection
+                  data={webData}
+                  pending={webPending}
+                  error={webError}
+                  savedFlash={webSavedFlash}
+                  t={t}
+                  onCommit={(path, value) => webCommit(path, value)}
+                />
+              </>
             ) : (
               <div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>
                 {webError ? (

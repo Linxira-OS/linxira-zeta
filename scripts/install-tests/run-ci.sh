@@ -135,7 +135,7 @@ cp "$natives_pkg_backup" "$ROOT_DIR/packages/natives/package.json"
 # 3. Pack the remaining workspace packages (natives core and coding-agent
 #    handled separately). `collab-web` is private but still packed here so its
 #    prepack build and tarball file list stay release-safe.
-for pkg in utils wire omptype hashline catalog ai mnemopi snapcompact agent tui stats collab-web; do
+for pkg in utils wire omptype hashline catalog channels ai mnemopi snapcompact agent tui stats collab-web; do
    (
       cd "$ROOT_DIR/packages/$pkg"
       bun pm pack --destination "$TARBALL_DIR" --quiet >/dev/null

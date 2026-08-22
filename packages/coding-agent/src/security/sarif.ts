@@ -29,7 +29,7 @@ export function exportSecurityBundleToSarif(bundle: SecurityScanBundle): Record<
 					driver: {
 						name: bundle.scan.producer.name,
 						version: bundle.scan.producer.version,
-						informationUri: "https://linxira-os.github.io",
+						informationUri: "https://linxira-os.github.io/zeta/",
 						rules: [...rules.values()].map(finding => ({
 							id: finding.ruleId,
 							name: finding.ruleId,

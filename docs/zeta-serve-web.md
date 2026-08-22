@@ -89,3 +89,24 @@ Both commands use `ZetaServer` under the hood. The server:
 4. Optionally opens the browser to the unified URL
 
 See [zeta-server.md](./zeta-server.md) for the full server architecture.
+
+## Desktop entry: `zeta-d` and `--desktop`
+
+Command resolution contract — the two installs never collide on PATH:
+
+| Command | Owner | Behavior |
+|---|---|---|
+| `zeta` | npm/source install | Always the CLI/TUI; never the desktop bundle. |
+| `zeta-d` | Desktop install only | No args → the bundled CLI/TUI. |
+| `zeta-d -d [cwd]` | Desktop install only | Opens the desktop GUI at `cwd` (default: current directory). |
+| `zeta --desktop [cwd]` | npm/source install | Probes for a desktop install and opens its GUI; exits 1 listing probed paths when none is found. |
+
+Mechanics:
+
+- The desktop package ships a two-line shim (`resources/bin/zeta-d`, `.cmd` on Windows) that sets `ZETA_DESKTOP_ENTRY=1` and re-enters the bundled zeta binary. The NSIS installer adds `resources\bin` to the user PATH (`build/installer.nsh` + `add-to-path.ps1`); the Linux installer symlinks `~/.local/bin/zeta-d`.
+- Dispatch lives in `src/cli/desktop-entry.ts` (`dispatchDesktopEntry`), runs before profile bootstrap in `runCli`. In entry mode it resolves the GUI relative to the running binary (`<install>/resources/zeta` → `<install>` root); otherwise it probes `%LOCALAPPDATA%\Programs\Zeta`, `/opt/zeta-desktop`, `~/.local/lib/zeta-desktop`, and the macOS app locations. The GUI receives `--cwd=<dir>` and starts its service in that workspace.
+- The bundled binary refuses standalone self-updates (`isDesktopBundledRuntime()` guard in `update-cli.ts`) — desktop installs update through the desktop updater, which replaces the whole bundle atomically.
+
+## Native directory picker
+
+Inside the desktop shell the embedded Web UI exposes `window.piDesktop.selectDirectory(startPath?)` (preload bridge in `desktop/src/preload.ts`, IPC handler `pi:select-directory`). The directory pickers show a **Browse…** button that opens the OS dialog when this bridge exists; in a plain browser they fall back to manual path entry (and the File System Access API where available). `GET /api/desktop/info` reports `{ desktop: boolean }` so renderer code can distinguish the embedded shell from remote browsers.

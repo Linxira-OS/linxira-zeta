@@ -32,6 +32,7 @@ import { InternalUrlRouter, resolveLocalUrlToFile, resolveLocalUrlToPath } from 
 import { type ResolvedArtifactFile, resolveArtifactFile } from "../internal-urls/artifact-protocol";
 import { parseInternalUrl } from "../internal-urls/parse";
 import type { InternalUrl } from "../internal-urls/types";
+import { theme } from "../modes/theme/theme";
 import readDescription from "../prompts/tools/read.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import {
@@ -2226,6 +2227,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				maxDepth: READ_DIRECTORY_MAX_DEPTH,
 				perDirLimit: READ_DIRECTORY_CHILD_LIMIT,
 				rootLimit: null,
+				// Match glob's file-list icons; falls back to "unicode" when no
+				// theme is initialized (headless SDK use).
+				symbolPreset: typeof theme === "undefined" ? undefined : theme.getSymbolPreset(),
 				// `lineCap` truncates the rendered tree itself, so apply it only when the caller
 				// did not request an offset — otherwise we'd cap the first N lines before slicing.
 				lineCap: offset === undefined && limit !== undefined ? limit : null,

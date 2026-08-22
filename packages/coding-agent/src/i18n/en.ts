@@ -1898,6 +1898,7 @@ export const en = {
 	cmdCopyPick: "Pick text or code from the conversation to copy",
 	cmdForce: "Force next turn to use a specific tool",
 	cmdLiveVoice: "Start Codex-backed realtime voice mode",
+	cmdSidebar: "Toggle the right-hand sidebar (context, usage, git, model)",
 	cmdPause: "Freeze all agents (main, subagents, advisor) until resumed",
 	cmdQuit: "Quit the application",
 	cmdMemoryMmDelete: "Delete a mental model from the bank (id required)",

@@ -2,7 +2,7 @@
  * WeChat channel contracts — URL-aware mock, unknown params, cast at call site.
  */
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { WeChatChannel } from "../../src/channels/wechat";
+import { WeChatChannel } from "../../src/channels";
 import type { WebConfig } from "../../src/config/web-config";
 
 function j(body: unknown, status = 200): Response {

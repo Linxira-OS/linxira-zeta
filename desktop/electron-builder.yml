@@ -19,13 +19,16 @@ files:
 extraResources:
   - from: staging/zeta
     to: zeta
+  - from: build/bin
+    to: bin
   - from: build/icon.ico
     to: icon.ico
 
-artifactName: ${name}-${version}-${os}-${arch}.${ext}
-
-win:
-  icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
   target:
     - target: dir
       arch:
@@ -36,11 +39,6 @@ win:
     - target: nsis
       arch:
         - x64
-
-nsis:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
 
 linux:
   icon: build/icon.png

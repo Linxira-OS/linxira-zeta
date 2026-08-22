@@ -63,6 +63,14 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 	},
 	{
+		name: "sidebar",
+		description: M.cmdSidebar,
+		handleTui: async (_command, runtime) => {
+			runtime.ctx.editor.setText("");
+			runtime.ctx.handleSidebarToggle();
+		},
+	},
+	{
 		name: "pause",
 		description: M.cmdPause,
 		handleTui: async (_command, runtime) => {

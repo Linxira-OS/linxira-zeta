@@ -1,9 +1,9 @@
 {
   "name": "@linxiraos/pi-natives",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Native Rust bindings for PDF conversion, audio, WebRTC, grep, clipboard, image processing, syntax highlighting, PTY, and shell operations via N-API",
   "type": "module",
-  "homepage": "https://linxira-os.github.io",
+  "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",
   "license": "MIT",
   "repository": {
@@ -12,7 +12,7 @@
     "directory": "packages/natives"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
     "napi",

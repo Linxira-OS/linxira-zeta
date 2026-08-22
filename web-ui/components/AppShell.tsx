@@ -25,6 +25,9 @@ import { copyText } from "@/lib/clipboard";
 import { getFileName } from "@/lib/file-paths";
 import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText } from "@/lib/file-fuzzy";
 import { getInitialNavigation } from "@/lib/initial-navigation";
+import { SidePanel } from "./SidePanel";
+import { useSidebar } from "@/hooks/useSidebar";
+import { fetchDesktopInfo } from "@/lib/pi-desktop";
 import type { SessionInfo, SessionTreeNode } from "@/lib/types";
 import type { ChatInputHandle } from "./ChatInput";
 import type { SessionStatsInfo } from "@/lib/pi-types";
@@ -261,6 +264,30 @@ function AppShellContent() {
   const handleContextUsageChange = useCallback((usage: { percent: number | null; contextWindow: number; tokens: number | null } | null) => {
     setContextUsage(usage);
   }, []);
+
+	// One-shot /api/desktop/info probe: warms the shared cached promise so
+	// desktop-specific surfaces resolve instantly instead of re-fetching.
+	useEffect(() => {
+		void fetchDesktopInfo();
+	}, []);
+
+  // Current model + thinking level — populated by ChatWindow for the SidePanel
+  const [modelInfo, setModelInfo] = useState<{ model: { provider: string; modelId: string } | null; thinkingLevel: string }>({ model: null, thinkingLevel: "" });
+  const handleModelChange = useCallback((model: { provider: string; modelId: string } | null, thinkingLevel: string) => {
+    setModelInfo({ model, thinkingLevel });
+  }, []);
+  const { visible: sidePanelVisible, hide: hideSidePanel } = useSidebar();
+  // The panel auto-hides below 1024px regardless of the stored preference.
+  const [sidePanelNarrow, setSidePanelNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(max-width: 1023px)");
+    const onChange = () => setSidePanelNarrow(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  const showSidePanel = sidePanelVisible && !sidePanelNarrow;
 
   // Single active panel — only one dropdown open at a time
   const [activeTopPanel, setActiveTopPanel] = useState<"branches" | "system" | "session" | null>(null);
@@ -1357,6 +1384,7 @@ function AppShellContent() {
               onSessionStatsChange={handleSessionStatsChange}
               onSessionStatsPanelOpen={openSessionStatsPanel}
               onContextUsageChange={handleContextUsageChange}
+              onModelChange={handleModelChange}
               onOpenFile={handleOpenLinkedFile}
             />
           ) : initialCwdStatus === "validating" ? (
@@ -1536,6 +1564,15 @@ function AppShellContent() {
           )}
         </div>
       </div>
+      {showSidePanel && showChat && (
+        <SidePanel
+          stats={sessionStats}
+          contextUsage={contextUsage}
+          model={modelInfo.model}
+          thinkingLevel={modelInfo.thinkingLevel}
+          onClose={hideSidePanel}
+        />
+      )}
     </div>
     {modelsConfigOpen && <ModelsConfig onClose={() => { setModelsConfigOpen(false); setModelsRefreshKey((k) => k + 1); }} />}
     {settingsConfigOpen && (

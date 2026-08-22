@@ -21,7 +21,7 @@
     },
     "packages/agent": {
       "name": "@linxiraos/pi-agent-core",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
@@ -40,7 +40,7 @@
     },
     "packages/ai": {
       "name": "@linxiraos/pi-ai",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "dependencies": {
         "@linxiraos/pi-catalog": "catalog:",
         "@linxiraos/pi-omptype": "catalog:",
@@ -61,7 +61,7 @@
     },
     "packages/catalog": {
       "name": "@linxiraos/pi-catalog",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "dependencies": {
         "@linxiraos/pi-omptype": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
@@ -71,9 +71,24 @@
         "@types/bun": "catalog:",
       },
     },
+    "packages/channels": {
+      "name": "@linxiraos/pi-channels",
+      "version": "1.0.11",
+      "dependencies": {
+        "@larksuiteoapi/node-sdk": "^1.71.1",
+        "@linxiraos/pi-utils": "catalog:",
+      },
+      "devDependencies": {
+        "@linxiraos/pi-ai": "catalog:",
+        "@types/bun": "catalog:",
+      },
+      "peerDependencies": {
+        "@linxiraos/pi-ai": "catalog:",
+      },
+    },
     "packages/coding-agent": {
       "name": "@linxiraos/zeta",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "bin": {
         "zeta": "src/cli.ts",
       },
@@ -83,6 +98,7 @@
         "@linxiraos/pi-agent-core": "catalog:",
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
+        "@linxiraos/pi-channels": "catalog:",
         "@linxiraos/pi-hashline": "catalog:",
         "@linxiraos/pi-mnemopi": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
@@ -131,7 +147,7 @@
     },
     "packages/hashline": {
       "name": "@linxiraos/pi-hashline",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "dependencies": {
         "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
@@ -175,7 +191,7 @@
     },
     "packages/mnemopi": {
       "name": "@linxiraos/pi-mnemopi",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "bin": {
         "mnemopi": "src/cli.ts",
       },
@@ -201,7 +217,7 @@
     },
     "packages/natives": {
       "name": "@linxiraos/pi-natives",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "devDependencies": {
         "@napi-rs/cli": "catalog:",
         "@types/bun": "catalog:",
@@ -216,7 +232,7 @@
     },
     "packages/omptype": {
       "name": "@linxiraos/pi-omptype",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "devDependencies": {
         "@ark/attest": "0.56.3",
         "@ark/schema": "0.56.2",
@@ -229,7 +245,7 @@
     },
     "packages/snapcompact": {
       "name": "@linxiraos/pi-snapcompact",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
@@ -243,7 +259,7 @@
     },
     "packages/stats": {
       "name": "@linxiraos/pi-stats",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "bin": {
         "omp-stats": "./src/index.ts",
       },
@@ -268,7 +284,7 @@
     },
     "packages/tui": {
       "name": "@linxiraos/pi-tui",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "dependencies": {
         "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
@@ -304,7 +320,7 @@
     },
     "packages/utils": {
       "name": "@linxiraos/pi-utils",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "dependencies": {
         "@linxiraos/pi-natives": "catalog:",
       },
@@ -314,7 +330,7 @@
     },
     "packages/wire": {
       "name": "@linxiraos/pi-wire",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "devDependencies": {
         "@types/bun": "catalog:",
       },
@@ -351,19 +367,20 @@
     "@bufbuild/protobuf": "^2.12.1",
     "@bufbuild/protoc-gen-es": "^2.12.1",
     "@huggingface/transformers": "^4.2.0",
-    "@linxiraos/pi-agent-core": "1.0.10",
-    "@linxiraos/pi-ai": "1.0.10",
-    "@linxiraos/pi-catalog": "1.0.10",
-    "@linxiraos/pi-hashline": "1.0.10",
-    "@linxiraos/pi-mnemopi": "1.0.10",
-    "@linxiraos/pi-natives": "1.0.10",
-    "@linxiraos/pi-omptype": "1.0.10",
-    "@linxiraos/pi-snapcompact": "1.0.10",
-    "@linxiraos/pi-stats": "1.0.10",
-    "@linxiraos/pi-tui": "1.0.10",
-    "@linxiraos/pi-utils": "1.0.10",
-    "@linxiraos/pi-wire": "1.0.10",
-    "@linxiraos/zeta": "1.0.10",
+    "@linxiraos/pi-agent-core": "1.0.11",
+    "@linxiraos/pi-ai": "1.0.11",
+    "@linxiraos/pi-catalog": "1.0.11",
+    "@linxiraos/pi-channels": "1.0.11",
+    "@linxiraos/pi-hashline": "1.0.11",
+    "@linxiraos/pi-mnemopi": "1.0.11",
+    "@linxiraos/pi-natives": "1.0.11",
+    "@linxiraos/pi-omptype": "1.0.11",
+    "@linxiraos/pi-snapcompact": "1.0.11",
+    "@linxiraos/pi-stats": "1.0.11",
+    "@linxiraos/pi-tui": "1.0.11",
+    "@linxiraos/pi-utils": "1.0.11",
+    "@linxiraos/pi-wire": "1.0.11",
+    "@linxiraos/zeta": "1.0.11",
     "@napi-rs/cli": "3.7.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.220.0",
@@ -603,6 +620,8 @@
     "@linxiraos/pi-ai": ["@linxiraos/pi-ai@workspace:packages/ai"],
 
     "@linxiraos/pi-catalog": ["@linxiraos/pi-catalog@workspace:packages/catalog"],
+
+    "@linxiraos/pi-channels": ["@linxiraos/pi-channels@workspace:packages/channels"],
 
     "@linxiraos/pi-hashline": ["@linxiraos/pi-hashline@workspace:packages/hashline"],
 
@@ -1080,7 +1099,7 @@
 
     "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
 
-    "electron-to-chromium": ["electron-to-chromium@1.5.409", "", {}, "sha512-ChI4N44d0B4A6C8prnNjMOaGgE59fUyEVYcRYm2XEXIjMbbvF5i9UL1cblDbpGqiU0uS8FE8UcKxqZqTXdmzbQ=="],
+    "electron-to-chromium": ["electron-to-chromium@1.5.411", "", {}, "sha512-gglkxzokjHfawpGxq75XdBV2/l3BAPzrsMs70qgaZdTW5rpV1tC4MdgJVP9fN126bODA4ZJQkn1wryEzJyQXIg=="],
 
     "emnapi": ["emnapi@1.11.3", "", { "peerDependencies": { "node-addon-api": ">= 6.1.0" }, "optionalPeers": ["node-addon-api"] }, "sha512-+/ZS90YK/rYfVOHtGLHkGffVsnmD/MAKaBHio+Y4XAtg75RLr4cveV/w0jTkUdLM1CcAlaRgG76mpIemWAlk0A=="],
 
@@ -1236,7 +1255,7 @@
 
     "lru-cache": ["lru-cache@5.1.1", "", { "dependencies": { "yallist": "^3.0.2" } }, "sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w=="],
 
-    "lucide-react": ["lucide-react@1.31.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-G8u2eEtoHUnUa9f8lbvqDhCiORMnYLdUEo06EEG9MQvHQrInKcX3Pa2TH39MM5qyzRcWETxB0+aOwAPI1g1kEg=="],
+    "lucide-react": ["lucide-react@1.32.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-txX56hMFnRxPi1f9/nH69YN8uvAO6a7Y1KSWKjCDAtdD9+soEgmWuCt6iRm1pkxUZo2+YntSdsE1L6bIuKoY8Q=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
@@ -1473,6 +1492,8 @@
     "@babel/helper-compilation-targets/semver": ["semver@6.3.1", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA=="],
 
     "@huggingface/transformers/onnxruntime-node": ["onnxruntime-node@1.24.3", "", { "dependencies": { "adm-zip": "^0.5.16", "global-agent": "^3.0.0", "onnxruntime-common": "1.24.3" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-JH7+czbc8ALA819vlTgcV+Q214/+VjGeBHDjX81+ZCD0PCVCIFGFNtT0V4sXG/1JXypKPgScQcB3ij/hk3YnTg=="],
+
+    "@img/sharp-wasm32/@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 
     "@isaacs/fs-minipass/minipass": ["minipass@7.1.3", "", {}, "sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A=="],
 

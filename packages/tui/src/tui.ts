@@ -65,6 +65,8 @@ const ERASE_TO_END_OF_LINE = "\x1b[K";
 const LINE_FIT_MIN_SOURCE_CODE_UNITS = 4096;
 const LINE_FIT_MAX_SOURCE_CODE_UNITS = 65536;
 const LINE_FIT_SOURCE_WIDTH_MULTIPLIER = 64;
+/** Sidebar guard: the main area never drops below this many columns. */
+const MIN_MAIN_AREA_COLUMNS = 64;
 // Hide the hardware cursor before each paint/move write. Ghostty-style bar
 // cursors can otherwise leave visual afterimages while the TUI repaints the
 // row under a visible cursor. Paint writes also disable terminal autowrap:
@@ -1425,6 +1427,22 @@ export class TUI extends Container {
 	// Per-root-child segment ledger backing the stable-prefix computation.
 	#frameSegments: FrameSegment[] = [];
 	#composeWidth = -1;
+
+	// Sidebar support. When #mainWidthOverride is set (and the terminal is wide
+	// enough to keep MIN_MAIN_AREA_COLUMNS for the main area), every compose and
+	// paint runs at the overridden width; the freed right margin is repainted
+	// per frame from #gutterComponent via absolute-positioned writes that never
+	// enter the composed frame, committed prefix, or native scrollback.
+	#mainWidthOverride: number | null = null;
+	#gutterComponent: Component | null = null;
+	// Gutter rows painted by the most recent emitting frame — reference-compared
+	// against the component's fresh output (Component render contract: unchanged
+	// content returns the same array) to skip redundant gutter-only frames.
+	#paintedGutterRows: readonly string[] | null = null;
+	#paintedGutterWidth = 0;
+	// Per-frame gutter snapshot consumed by the emit paths (set in #doRender,
+	// cleared for alt-screen frames).
+	#frameGutter: { rows: readonly string[]; width: number } | null = null;
 	#rootWidthEpochBoundaries = new WeakMap<
 		object,
 		{
@@ -1951,6 +1969,96 @@ export class TUI extends Container {
 			this.#recordHardwareCursorHidden();
 		}
 		this.requestRender();
+	}
+
+	/**
+	 * Yield `width` columns from the right edge of the terminal as a sidebar
+	 * margin, repainted per frame from the gutter component (see
+	 * {@link setGutterComponent}). The main area composes and paints at
+	 * `terminal.columns - width`, which keeps every committed row — and
+	 * therefore native scrollback — free of gutter text. `null` restores
+	 * full-width rendering. Frames where that would drop the main area below
+	 * {@link MIN_MAIN_AREA_COLUMNS} (e.g. terminals narrower than 100 columns
+	 * with the 36-column sidebar), or where a fullscreen-capable overlay is
+	 * visible, ignore the reservation and paint at the physical width.
+	 */
+	setMainWidth(width: number | null): void {
+		const next = width !== null && Number.isInteger(width) && width > 0 ? width : null;
+		if (this.#mainWidthOverride === next) return;
+		this.#mainWidthOverride = next;
+		this.requestRender();
+	}
+
+	/**
+	 * Component rendered into the right-hand margin created by
+	 * {@link setMainWidth}. Its rows are painted viewport-only via absolute
+	 * cursor addressing inside each frame's synchronized block; they never enter
+	 * the composed frame or scrollback. `null` clears the margin.
+	 */
+	setGutterComponent(component: Component | null): void {
+		if (this.#gutterComponent === component) return;
+		this.#gutterComponent = component;
+		this.#paintedGutterRows = null;
+		this.requestRender();
+	}
+
+	/** Effective main-area width for this frame, honoring the sidebar guards. */
+	#effectiveMainWidth(rawWidth: number): number {
+		if (
+			this.#mainWidthOverride === null ||
+			rawWidth - this.#mainWidthOverride < MIN_MAIN_AREA_COLUMNS ||
+			this.overlayStack.length > 0
+		) {
+			return rawWidth;
+		}
+		return rawWidth - this.#mainWidthOverride;
+	}
+
+	/**
+	 * Absolute-positioned paint for one frame's gutter column. Writes every
+	 * viewport row's gutter cells at column `mainWidth + 1`, then restores the
+	 * hardware cursor to `restoreRow` col 1 so a following relative
+	 * cursor-control sequence keeps its existing math. Returns "" when there is
+	 * no gutter this frame.
+	 */
+	#gutterPaintSequence(
+		rows: readonly string[] | null,
+		gutterWidth: number,
+		mainWidth: number,
+		height: number,
+		restoreRow: number,
+	): string {
+		const col = mainWidth + 1; // 1-based first gutter column (main cells are 1..mainWidth)
+		let seq = "";
+		for (let row = 0; row < height; row++) {
+			if (rows === null || gutterWidth <= 0) return "";
+			let text = truncateToWidth(rows[row] ?? "", gutterWidth, Ellipsis.Omit);
+			const pad = gutterWidth - visibleWidth(text);
+			if (pad > 0) text += " ".repeat(pad);
+			seq += `\x1b[${row + 1};${col}H${text}`;
+		}
+		seq += `\x1b[${restoreRow + 1};1H`;
+		return seq;
+	}
+
+	/**
+	 * Clear the gutter column on the top `rows` viewport rows with EL. Paths
+	 * whose main-area writes scroll the screen (scroll-append, seam rewrite,
+	 * append-only baselines) call this BEFORE the scrolling writes so painted
+	 * gutter cells are dragged neither into native scrollback nor onto shifted
+	 * main-area rows; the frame's regular gutter repaint then redraws the whole
+	 * column at its final position.
+	 */
+	#gutterEraseSequence(gutterWidth: number, mainWidth: number, height: number, rows: number): string {
+		if (gutterWidth <= 0 || this.#frameGutter === null || rows <= 0) return "";
+		// DECSC/DECRC bracket so the surrounding path's relative cursor math
+		// never sees the absolute repositioning the EL sweeps require.
+		let seq = "\x1b7";
+		const col = mainWidth + 1;
+		for (let row = 0; row < Math.min(rows, height); row++) {
+			seq += `\x1b[${row + 1};${col}H\x1b[K`;
+		}
+		return `${seq}\x1b8`;
 	}
 
 	/**
@@ -2542,7 +2650,7 @@ export class TUI extends Container {
 			return;
 		}
 
-		const width = this.terminal.columns;
+		const width = this.#effectiveMainWidth(this.terminal.columns);
 		const height = this.terminal.rows;
 		if (!this.#hasEverRendered || this.#resizeEventPending) {
 			this.requestComponentRender(component);
@@ -3380,8 +3488,15 @@ export class TUI extends Container {
 	 */
 	#doRender(): void {
 		if (this.#stopped) return;
-		const width = this.terminal.columns;
+		const rawWidth = this.terminal.columns;
 		const height = this.terminal.rows;
+		// Sidebar mode: compose and paint the main area at the overridden width
+		// (guards in #effectiveMainWidth); alt-screen frames and overlay
+		// geometry always use the full physical width.
+		const width = this.#effectiveMainWidth(rawWidth);
+		const gutterWidth = rawWidth - width;
+		const gutterRows = gutterWidth > 0 && this.#gutterComponent ? this.#gutterComponent.render(gutterWidth) : null;
+		this.#frameGutter = gutterRows ? { rows: gutterRows, width: gutterWidth } : null;
 
 		// Consume the component-scoped accumulation: it describes the render
 		// requests made up to this frame, whichever path the frame takes.
@@ -3409,7 +3524,7 @@ export class TUI extends Container {
 			this.#altActive = true;
 			this.#altMouseTrackingActive = wantMouseTracking;
 			this.#altPreviousLines = [];
-			this.#altEnterWidth = width;
+			this.#altEnterWidth = rawWidth;
 			this.#altEnterHeight = height;
 			this.#altWidthEpochBoundary = this.captureNativeScrollbackWidthEpoch();
 		} else if (!wantAlt && this.#altActive) {
@@ -3438,9 +3553,9 @@ export class TUI extends Container {
 			// toggles — the Warp-class quirk. Latch the in-place resize path so
 			// this exit and the revert SIGWINCH repaint without an ED3 scrollback
 			// rewrap instead of flashing a destructive full paint (#6511).
-			if (width !== this.#altEnterWidth || height !== this.#altEnterHeight) {
+			if (rawWidth !== this.#altEnterWidth || height !== this.#altEnterHeight) {
 				this.#resizeEventPending = true;
-				if (width === this.#altEnterWidth) this.#altToggleResizesInPlace = true;
+				if (rawWidth === this.#altEnterWidth) this.#altToggleResizesInPlace = true;
 			}
 		} else if (wantMouseTracking !== this.#altMouseTrackingActive) {
 			this.terminal.write(wantMouseTracking ? MOUSE_TRACKING_ON : MOUSE_TRACKING_OFF);
@@ -3448,7 +3563,10 @@ export class TUI extends Container {
 		}
 		if (this.#altActive) {
 			this.#componentRenderTargets.clear();
-			this.#renderAltFrame(width, height);
+			// The alt buffer is a standalone fullscreen modal: no main-width
+			// override, no gutter column.
+			this.#frameGutter = null;
+			this.#renderAltFrame(rawWidth, height);
 			return;
 		}
 
@@ -4423,9 +4541,14 @@ export class TUI extends Container {
 		this.#previousFrameLength = lines.length;
 		this.#previousWindow = window;
 		this.#forceViewportRepaintOnNextRender = false;
+		// Every emitting paint path redraws the gutter column before committing;
+		// record what was painted so the no-change fast path can detect gutter
+		// content changes by reference.
+		this.#paintedGutterRows = this.#frameGutter?.rows ?? null;
+		this.#paintedGutterWidth = this.#frameGutter?.width ?? 0;
+		this.#recordHardwareCursorUpdate(hardwareCursor);
 		this.#previousWidth = width;
 		this.#previousHeight = height;
-		this.#recordHardwareCursorUpdate(hardwareCursor);
 	}
 
 	#targetHardwareCursorState(
@@ -4506,6 +4629,12 @@ export class TUI extends Container {
 		let buffer = this.#paintBeginSequence + purgeSequence + options.leadingSequence + imageTransmitBuffer;
 		if (options.commitTo > options.commitFrom) {
 			if (options.appendOnly) {
+				buffer += this.#gutterEraseSequence(
+					this.#frameGutter?.width ?? 0,
+					width,
+					height,
+					options.commitTo - options.commitFrom,
+				);
 				if (options.prepaintWindowTop !== undefined) {
 					for (let screenRow = 0; screenRow < height; screenRow++) {
 						const frameRow = options.prepaintWindowTop + screenRow;
@@ -4582,6 +4711,8 @@ export class TUI extends Container {
 		buffer += "\r";
 		const contentRows = Math.max(1, Math.min(height, frame.length - options.windowTop));
 		const contentBottomRow = options.windowTop + contentRows - 1;
+		const gutter = this.#frameGutter;
+		buffer += this.#gutterPaintSequence(gutter?.rows ?? null, gutter?.width ?? 0, width, height, contentRows - 1);
 		const target = this.#targetHardwareCursorState(cursorPos, options.cursorTrackingLineCount);
 		if (target) {
 			const screenRow = Math.max(0, Math.min(height - 1, target.row - options.windowTop));
@@ -4779,6 +4910,18 @@ export class TUI extends Container {
 		if (parkUp > 0) buffer += `\x1b[${parkUp}A`;
 		const contentBottomRow = windowTop + contentRows - 1;
 		const paintContentBottomRow = Math.max(0, paintLineCount - 1 - parkUp);
+		const frameGutter = this.#frameGutter;
+		// The restore row is a PHYSICAL viewport row (CUP clamps to the screen);
+		// paintContentBottomRow is paint-space and may exceed the viewport when
+		// history-bound rows replayed through it.
+		const gutterRestoreRow = Math.max(0, Math.min(paintLineCount, height) - 1 - parkUp);
+		buffer += this.#gutterPaintSequence(
+			frameGutter?.rows ?? null,
+			frameGutter?.width ?? 0,
+			width,
+			height,
+			gutterRestoreRow,
+		);
 		const cursorControl = this.#cursorControlSequence(paintCursorPos, paintLineCount, paintContentBottomRow);
 		buffer += cursorControl.seq;
 		buffer += this.#paintEndSequence;
@@ -4801,7 +4944,22 @@ export class TUI extends Container {
 
 		this.#committedRows = chunkTo;
 		this.#windowTopRow = windowTop;
-		this.#commit(frame, window, width, height, committedCursor);
+		if (paintLines !== null) {
+			// ConPTY-truncated replay: the terminal only ever received
+			// `paintLineCount` rows (marker + tail), not the full frame/window.
+			// Committing the full frame would make the next incremental update
+			// anchor on a ledger larger than the terminal's real content —
+			// absolute row positioning then overshoots, dropping rows / gluing
+			// content together. Commit the truncated state instead (visible
+			// window = the last `height` paint rows, byte-identical to what was
+			// sent) and force the next render to re-anchor via a full in-window
+			// rewrite rather than scroll-append math.
+			const commitWindow = paintLines.slice(Math.max(0, paintLineCount - height));
+			this.#commit(paintLines, commitWindow, width, height, committedCursor);
+			this.#forceViewportRepaintOnNextRender = true;
+		} else {
+			this.#commit(frame, window, width, height, committedCursor);
+		}
 	}
 
 	/**
@@ -5006,6 +5164,14 @@ export class TUI extends Container {
 		// the settle rebuild erases it.
 		const parkUp = height - Math.max(1, contentRows);
 		if (parkUp > 0) buffer += `\x1b[${parkUp}A`;
+		const gutter = this.#frameGutter;
+		buffer += this.#gutterPaintSequence(
+			gutter?.rows ?? null,
+			gutter?.width ?? 0,
+			width,
+			height,
+			Math.max(1, contentRows) - 1,
+		);
 		buffer += this.#paintEndSequence;
 		this.terminal.write(buffer);
 	}
@@ -5140,6 +5306,10 @@ export class TUI extends Container {
 			}
 			if (prefixIntact) {
 				let buffer = this.#paintBeginSequence + purgeSequence;
+				// The appends below \r\n through the bottom row, scrolling the
+				// screen: clear the gutter cells on the rows that will leave the
+				// viewport so they never enter native scrollback.
+				buffer += this.#gutterEraseSequence(this.#frameGutter?.width ?? 0, width, height, scroll);
 				const moveToBottom = height - 1 - currentScreenRow;
 				if (moveToBottom > 0) buffer += `\x1b[${moveToBottom}B`;
 				for (let r = height - scroll; r < height; r++) {
@@ -5171,6 +5341,14 @@ export class TUI extends Container {
 					}
 					cursorFromRow = windowTop + lastChanged;
 				}
+				const gutter = this.#frameGutter;
+				buffer += this.#gutterPaintSequence(
+					gutter?.rows ?? null,
+					gutter?.width ?? 0,
+					width,
+					height,
+					cursorFromRow - windowTop,
+				);
 				const cursorControl = this.#cursorControlSequence(cursorPos, cursorTrackingLineCount, cursorFromRow);
 				buffer += cursorControl.seq;
 				buffer += this.#paintEndSequence;
@@ -5205,6 +5383,24 @@ export class TUI extends Container {
 			}
 			if (firstChanged === -1) {
 				if (purgeSequence.length > 0) this.terminal.write(purgeSequence);
+				// Main-area cells are unchanged, but the sidebar component may have
+				// produced fresh rows (streaming stats, git refresh). Repaint just
+				// the gutter column in its own synchronized block, restoring the
+				// hardware cursor to its tracked row so the relative-move math in
+				// #writeCursorPosition stays valid.
+				const gutter = this.#frameGutter;
+				if (gutter && (gutter.rows !== this.#paintedGutterRows || gutter.width !== this.#paintedGutterWidth)) {
+					const seq = this.#gutterPaintSequence(
+						gutter.rows,
+						gutter.width,
+						width,
+						height,
+						Math.max(0, Math.min(this.#hardwareCursorRow, height - 1)),
+					);
+					this.terminal.write(`${this.#cursorBeginSequence}${seq}${this.#cursorEndSequence}`);
+					this.#paintedGutterRows = gutter.rows;
+					this.#paintedGutterWidth = gutter.width;
+				}
 				this.#writeCursorPosition(cursorPos, cursorTrackingLineCount);
 				this.#previousWidth = width;
 				this.#previousHeight = height;
@@ -5254,6 +5450,14 @@ export class TUI extends Container {
 				buffer += `\x1b[${lastChanged - contentBottomScreenRow}A`;
 				cursorFromRow = contentBottomRow;
 			}
+			const gutter = this.#frameGutter;
+			buffer += this.#gutterPaintSequence(
+				gutter?.rows ?? null,
+				gutter?.width ?? 0,
+				width,
+				height,
+				cursorFromRow - windowTop,
+			);
 			const cursorControl = this.#cursorControlSequence(cursorPos, cursorTrackingLineCount, cursorFromRow);
 			buffer += cursorControl.seq;
 			buffer += this.#paintEndSequence;
@@ -5269,6 +5473,9 @@ export class TUI extends Container {
 		// below them, so the rows entering scrollback are exactly the chunk.
 		this.#fullRedrawCount += 1;
 		let buffer = this.#paintBeginSequence + purgeSequence;
+		// Chunk rows scroll through the screen below; clear the gutter column on
+		// the rows that will leave the viewport first.
+		buffer += this.#gutterEraseSequence(this.#frameGutter?.width ?? 0, width, height, chunkLength);
 		if (currentScreenRow > 0) buffer += `\x1b[${currentScreenRow}A`;
 		buffer += "\r";
 		let wroteLine = false;
@@ -5298,6 +5505,14 @@ export class TUI extends Container {
 		}
 		const parkUp = height - 1 - (contentBottomRow - windowTop);
 		if (parkUp > 0) buffer += `\x1b[${parkUp}A`;
+		const gutter = this.#frameGutter;
+		buffer += this.#gutterPaintSequence(
+			gutter?.rows ?? null,
+			gutter?.width ?? 0,
+			width,
+			height,
+			contentBottomRow - windowTop,
+		);
 		const cursorControl = this.#cursorControlSequence(cursorPos, cursorTrackingLineCount, contentBottomRow);
 		buffer += cursorControl.seq;
 		buffer += this.#paintEndSequence;

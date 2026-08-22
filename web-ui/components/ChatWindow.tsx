@@ -40,6 +40,7 @@ interface Props {
   onSessionStatsChange?: (stats: SessionStatsInfo | null) => void;
   onSessionStatsPanelOpen?: () => void;
   onContextUsageChange?: (usage: { percent: number | null; contextWindow: number; tokens: number | null } | null) => void;
+  onModelChange?: (model: { provider: string; modelId: string } | null, thinkingLevel: string) => void;
   onOpenFile?: (filePath: string) => void;
 }
 
@@ -241,9 +242,9 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messag
   );
 }
 
-export function ChatWindow({ session, newSessionCwd, explicitNew, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile }: Props) {
-  const { t } = useI18n();
+export function ChatWindow({ session, newSessionCwd, explicitNew, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onModelChange, onOpenFile }: Props) {
   const { soundEnabled, onSoundToggle, playDoneSound, unlockAudio } = useAudio();
+  const { t } = useI18n();
   const isMobile = useIsMobile();
   // Chat / trajectory toggle for the message area (trajectory is derived).
   const [viewMode, setViewMode] = useState<"chat" | "trajectory">("chat");
@@ -372,6 +373,14 @@ export function ChatWindow({ session, newSessionCwd, explicitNew, onAgentEnd, on
   useEffect(() => {
     onContextUsageChange?.(contextUsageRef.current);
   }, [ctxKey, onContextUsageChange]);
+  const modelInfoKey = displayModelValue ? `${displayModelValue.provider}:${displayModelValue.modelId}:${thinkingLevel ?? ""}` : "";
+  const modelInfoRef = useRef<{ model: { provider: string; modelId: string } | null; thinkingLevel: string }>({ model: displayModelValue, thinkingLevel: thinkingLevel ?? "" });
+  modelInfoRef.current = { model: displayModelValue, thinkingLevel: thinkingLevel ?? "" };
+  useEffect(() => {
+    onModelChange?.(modelInfoRef.current.model, modelInfoRef.current.thinkingLevel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelInfoKey, onModelChange]);
+  useEffect(() => () => { onModelChange?.(null, ""); }, [onModelChange]);
   useEffect(() => () => { onContextUsageChange?.(null); }, [onContextUsageChange]);
 
   const onDrop = useCallback((files: File[]) => {
