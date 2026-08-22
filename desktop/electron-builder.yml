@@ -24,11 +24,8 @@ extraResources:
   - from: build/icon.ico
     to: icon.ico
 
-nsis:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
-  include: build/installer.nsh
+win:
+  icon: build/icon.ico
   target:
     - target: dir
       arch:
@@ -39,6 +36,12 @@ nsis:
     - target: nsis
       arch:
         - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
 
 linux:
   icon: build/icon.png

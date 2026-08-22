@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-08-22
+
 ### Added
 
 - Session ModeController: `AgentSession` now owns plan/goal/vibe mode mechanics (`enterMode`/`exitMode`/`getModeState`, `stateVersion`, pre-mode tool/model snapshots, deferred model switches) so the CLI and external clients drive identical mode behavior.

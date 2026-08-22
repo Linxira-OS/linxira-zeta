@@ -95,6 +95,16 @@
 
 - 完成 pi / pi-web / opencode-v2 三方跨进程会话共享机制调查，设计文档落盘 `local://dual-plane-live-session-design.md`：采纳"TUI 富客户端化 + serve 托管会话"方向（opencode 形态），四阶段实施另立计划。
 
+
+### Web UI 工作区列表无法删除（问题调查，修复另行安排）
+
+- **成因**：侧栏的"工作区/仓库"列表不是独立注册表，而是 `GET /api/sessions` 的派生结果——网关扫描 `~/.zeta/agent/sessions/<编码cwd>/*.jsonl`，每个会话携带 cwd，按 projectRoot 去重后得到项目列表。因此只要某个目录开过一次会话，它就会永久出现在选择器里，目前没有任何删除入口。
+- **现状量化**：本机 `~/.zeta/agent/sessions` 共 127 个按 cwd 编码的目录，其中 **120 个是 `-AppData-Local-Temp-*`**（advisor-toggle 探针、bot 草稿 cwd、自动化测试遗留）；真实仓库仅约 7 个。总量约 2.4 MB——问题不在磁盘占用，而在选择器被垃圾路径淹没。
+- **拟议方案（两级删除）**：
+  1. *隐藏*：纯前端 localStorage 隐藏清单（按 projectRoot），列表过滤展示；不删任何文件，重新打开该仓库即恢复连接。
+  2. *彻底删除*：新增网关 `DELETE` 工作区端点，级联清理该 cwd 名下全部状态——`~/.zeta/agent/sessions/<编码cwd>/` 整目录、`terminal-sessions/` 中引用这些会话的面包屑（否则 `--continue` 悬挂）、指向该 cwd 的 bot/draft 注册表绑定（`remote.sessionMappings`/`botSessions`）、运行中会话拒绝删除或先注销；未发现 per-workspace 锁文件，所谓"隐藏锁文件"实质就是 sessions 目录与面包屑残留。
+- 附带建议：对 `-AppData-Local-Temp-*` 这类短命临时目录的会话提供一键清扫（其会话价值为零）。
+
 ## v1.0.9（2026-08-19）
 
 ### 新增

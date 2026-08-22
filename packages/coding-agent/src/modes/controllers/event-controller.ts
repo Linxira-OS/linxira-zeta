@@ -1754,7 +1754,7 @@ export class EventController {
 		// the status container, so the next turn's `ensureLoadingAnimation`
 		// disposeChildren sweep and `clearTransientSessionUi` remove it for free.
 		if (settings.get("statusLine.turnTelemetry")) {
-			const stats = extractLastTurnStats(this.ctx.session.state.messages);
+			const stats = extractLastTurnStats(this.ctx.session?.state?.messages ?? []);
 			if (stats) {
 				this.ctx.statusContainer.addChild(new Text(theme.fg("dim", formatTurnStats(stats)), 0, 0));
 			}
