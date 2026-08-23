@@ -65,6 +65,7 @@ import {
 	handleSessionContext,
 	handleSessionState,
 	handleThinking,
+	handleUsageStats,
 } from "./web-gateway/sessions";
 import { handleSettingsGet, handleSettingsPut, handleSettingsReload } from "./web-gateway/settings";
 import {
@@ -224,6 +225,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (pathname === "/api/projects") {
 		if (req.method === "DELETE") return handleDeleteProject(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/usage") {
+		if (req.method === "GET") return handleUsageStats();
 		return json({ error: "Method not allowed" }, 405);
 	}
 

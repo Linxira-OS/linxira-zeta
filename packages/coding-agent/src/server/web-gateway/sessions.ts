@@ -695,6 +695,92 @@ function normalizeCwdForCompare(cwd: string): string {
 	return cwd.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
+// ---------------------------------------------------------------------------
+// Usage statistics (aggregate token burn across all sessions)
+// ---------------------------------------------------------------------------
+
+interface SessionUsageRow {
+	sessionId: string;
+	cwd: string;
+	title: string;
+	totalTokens: number;
+	input: number;
+	output: number;
+	cost: number;
+	lastActive: string;
+}
+
+let usageCache: { data: { totalTokens: number; input: number; output: number; cost: number; sessions: SessionUsageRow[] } | null; ts: number } = {
+	data: null,
+	ts: 0,
+};
+const USAGE_CACHE_TTL_MS = 30_000;
+
+function sessionUsageFromFile(filePath: string, info: SessionInfo): SessionUsageRow {
+	let totalTokens = 0;
+	let input = 0;
+	let output = 0;
+	let cost = 0;
+	try {
+		const parsed = parseSessionContent(fs.readFileSync(filePath, "utf8"));
+		for (const entry of parsed.entries) {
+			const message = entry.type === "message" ? entry.message : undefined;
+			if (!message || message.role !== "assistant") continue;
+			const usage = message.usage;
+			if (!usage) continue;
+			totalTokens += usage.totalTokens ?? 0;
+			input += usage.input ?? 0;
+			output += usage.output ?? 0;
+			cost += usage.cost?.total ?? 0;
+		}
+	} catch {
+		// malformed/unreadable file: report zeroed row
+	}
+	return {
+		sessionId: info.id,
+		cwd: info.cwd ?? "",
+		title: info.name ?? "",
+		totalTokens,
+		input,
+		output,
+		cost,
+		lastActive: info.modified ?? "",
+	};
+}
+
+export async function handleUsageStats(): Promise<Response> {
+	try {
+		const now = Date.now();
+		if (usageCache.data && now - usageCache.ts < USAGE_CACHE_TTL_MS) {
+			return json(usageCache.data);
+		}
+
+		const sessions = await listAllSessionsWeb();
+		const rows: SessionUsageRow[] = [];
+		let totalTokens = 0;
+		let input = 0;
+		let output = 0;
+		let cost = 0;
+		for (const info of sessions) {
+			const row = sessionUsageFromFile(info.path, info);
+			rows.push(row);
+			totalTokens += row.totalTokens;
+			input += row.input;
+			output += row.output;
+			cost += row.cost;
+		}
+
+		// Newest activity first.
+		rows.sort((a, b) => (a.lastActive < b.lastActive ? 1 : -1));
+		const data = { totalTokens, input, output, cost, sessions: rows };
+		usageCache = { data, ts: now };
+		return json(data);
+	} catch (error) {
+		logger.error("web-gateway: usage stats failed", { error: String(error) });
+		return json({ error: String(error) }, 500);
+	}
+}
+
 /**
  * DELETE /api/projects — cascade-delete every session whose working
  * directory matches the given project path (or, with `tempOnly`, every
