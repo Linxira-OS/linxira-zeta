@@ -281,7 +281,9 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		},
 	});
 
-	void win.loadURL(WEB_UI_URL).catch(() => {});
+	void resolveWebUiRoot().then((root) => {
+		if (!win.isDestroyed()) void win.loadURL(root).catch(() => {});
+	});
 	win.on("close", (event) => {
 		// Minimize-to-tray (default): closing the window hides it and keeps the
 		// service + tray alive. Only a real quit (tray menu / Cmd+Q / app.quit)
@@ -305,7 +307,11 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		if (!isMainFrame) return;
 		if (desc.includes("ERR_CONNECTION_REFUSED")) {
 			setTimeout(() => {
-				if (!win.isDestroyed()) void win.loadURL(WEB_UI_URL).catch(() => {});
+				if (!win.isDestroyed()) {
+					void resolveWebUiRoot().then((root) => {
+						if (!win.isDestroyed()) void win.loadURL(root).catch(() => {});
+					});
+				}
 			}, 1500);
 			return;
 		}
@@ -340,6 +346,25 @@ const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
 	webUi: "Web UI",
 	reload: "Reload",
 };
+
+/**
+ * Root URL for the embedded UI — /next/ when the gateway reports uiVersion=next,
+ * else / (web-ui). Same HTTP-only contract as readTrayPrefs.
+ */
+async function resolveWebUiRoot(): Promise<string> {
+	try {
+		const response = await fetch(`${WEB_UI_URL}/api/web-config`);
+		if (response.ok) {
+			const data = (await response.json()) as { uiVersion?: string };
+			if (data.uiVersion === "next") {
+				return `${WEB_UI_URL}/next/`;
+			}
+		}
+	} catch {
+		// fall through to the legacy UI
+	}
+	return WEB_UI_URL;
+}
 
 /**
  * Read tray/autostart preferences from the gateway's /api/web-config over HTTP.
