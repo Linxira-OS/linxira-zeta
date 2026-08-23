@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#151313" />
+    <title>Zeta — AI Coding Assistant</title>
+    <meta name="description" content="Web interface for the Zeta AI coding agent" />
+    <meta name="application-name" content="Zeta" />
+    <style>
+      /* Minimal boot splash; App fades out #initial-loading once mounted. */
+      html,
+      body {
+        margin: 0;
+        background: #151313;
+      }
+      #initial-loading {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8a8a8a;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 14px;
+        letter-spacing: 0.04em;
+      }
+    </style>
+  </head>
+  <body class="h-full bg-background text-foreground">
+    <div id="root" class="h-full">
+      <div id="initial-loading">Loading Zeta…</div>
+    </div>
+
+    <!-- Polyfill for process before loading React -->
+    <script>
+      if (typeof process === 'undefined') {
+        window.process = { env: {} };
+      }
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

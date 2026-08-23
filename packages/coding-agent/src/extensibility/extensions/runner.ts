@@ -466,6 +466,16 @@ export class ExtensionRunner {
 	 * {@link MAX_PENDING_CREDENTIAL_DISABLED}; oldest entries are dropped under pressure.
 	 */
 	#pendingCredentialDisabled: CredentialDisabledEvent[] = [];
+	/**
+	 * Rewire the UI backend after construction. Gateway/ACP modes build the
+	 * runner before their transport exists; `setToolUIContext` calls this so
+	 * approval gates (`runner.hasUI()` / `getUIContext()`) route through the
+	 * same backend the tools see.
+	 */
+	setUIContext(uiContext: ExtensionUIContext): void {
+		this.#uiContext = uiContext;
+	}
+
 
 	/**
 	 * Buffer for `mcp_notification` events received via {@link emitMcpNotification} before
