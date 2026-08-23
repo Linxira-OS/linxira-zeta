@@ -96,6 +96,12 @@ export interface BotSessionEntry {
 }
 
 export interface WebConfigData {
+	/**
+	 * Which UI bundle the serve process hosts at the web root:
+	 * "web" = legacy Next.js web-ui, "next" = web-ui-next (Vite). The other
+	 * bundle stays available under its own prefix (/next for web-ui-next).
+	 */
+	uiVersion?: "web" | "next";
 	tray: {
 		minimizeToTray: boolean;
 		autostart: boolean;
@@ -146,6 +152,7 @@ type LeafType = "boolean" | "string" | "domain" | "strings" | "record";
 
 /** Known dot paths → expected leaf type (for PUT validation). */
 const KNOWN_PATHS: Record<string, LeafType> = {
+	"uiVersion": "string",
 	"tray.minimizeToTray": "boolean",
 	"tray.autostart": "boolean",
 	"channels.wechat.enabled": "boolean",
