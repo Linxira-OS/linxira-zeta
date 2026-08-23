@@ -1,13 +1,15 @@
 import React from 'react';
 import { getChatsRootForHome, getChatsRootFromDirectory, isChatDirectoryForHome, isChatDirectoryPath } from '@/lib/chatDirectories';
+import { Icon } from '@/components/icon/Icon';
 import { mergeSidebarSessionSources } from './sidebar/sidebarSessionSources';
 import type { Session } from '@opencode-ai/sdk/v2';
 import { toast } from '@/components/ui';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, formatMessage, useI18nStore } from '@/lib/i18n';
 import { useDeviceInfo } from '@/lib/device';
 import { isDesktopShell } from '@/lib/desktop';
 import { sessionEvents } from '@/lib/sessionEvents';
 import { formatDirectoryName, cn } from '@/lib/utils';
+import { runtimeFetch } from '@/lib/runtime-fetch';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useChildStoreManager } from '@/sync/sync-context';
 import { getAllSyncSessionMap } from '@/sync/sync-refs';
@@ -384,8 +386,11 @@ const SessionSidebarComponent: React.FC<SessionSidebarProps> = ({
   const currentDirectory = useDirectoryStore((state) => state.currentDirectory);
 
   const projects = useProjectsStore((state) => state.projects);
+  const hiddenProjectIds = useProjectsStore((state) => state.hiddenProjectIds);
+  const unhideProject = useProjectsStore((state) => state.unhideProject);
   const activeProjectId = useProjectsStore((state) => state.activeProjectId);
   const removeProject = useProjectsStore((state) => state.removeProject);
+  const hideProject = useProjectsStore((state) => state.hideProject);
   const setActiveProjectIdOnly = useProjectsStore((state) => state.setActiveProjectIdOnly);
   const updateProjectMeta = useProjectsStore((state) => state.updateProjectMeta);
   const reorderProjects = useProjectsStore((state) => state.reorderProjects);
@@ -1022,12 +1027,13 @@ const SessionSidebarComponent: React.FC<SessionSidebarProps> = ({
   }, [isVSCode, resetProjectSessionLimits, safeStorage, scheduleCollapsedProjectsPersist]);
 
   const normalizedProjects = React.useMemo(() => {
+    const hidden = new Set(hiddenProjectIds);
     return projects
       .map((project) => ({
         ...project,
         normalizedPath: normalizePath(project.path),
       }))
-      .filter((project) => Boolean(project.normalizedPath)) as Array<{
+      .filter((project) => Boolean(project.normalizedPath) && !hidden.has(project.id)) as Array<{
         id: string;
         path: string;
         label?: string;
@@ -1040,7 +1046,7 @@ const SessionSidebarComponent: React.FC<SessionSidebarProps> = ({
         lastOpenedAt?: number;
         sidebarCollapsed?: boolean;
       }>;
-  }, [projects]);
+  }, [hiddenProjectIds, projects]);
 
   const normalizedProjectPaths = React.useMemo(
     () => normalizedProjects.map((project) => project.normalizedPath),
@@ -1857,6 +1863,27 @@ const SessionSidebarComponent: React.FC<SessionSidebarProps> = ({
     openMultiRunLauncher();
   }, [mobileVariant, openMultiRunLauncher, setActiveMainTab, setSessionSwitcherOpen]);
 
+  const handleTempWorkspaceSweep = React.useCallback(async () => {
+    const i18n = useI18nStore.getState();
+    const tr = (key: Parameters<typeof formatMessage>[1], params?: Record<string, unknown>) =>
+      formatMessage(i18n.dictionary, key, params as never);
+    if (!window.confirm(tr('sessions.sidebar.project.actions.sweepTempWorkspacesConfirm'))) {
+      return;
+    }
+    try {
+      const res = await runtimeFetch('/api/projects', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tempOnly: true }),
+      });
+      const data = await res.json().catch(() => ({}) as { deleted?: number });
+      const deleted = typeof data.deleted === 'number' ? data.deleted : 0;
+      toast.success(tr('sessions.sidebar.project.actions.sweepTempWorkspacesDone', { count: deleted }));
+    } catch {
+      toast.error(tr('sessions.sidebar.project.actions.sweepTempWorkspacesError'));
+    }
+  }, []);
+
   return (
     // One shared tooltip provider for the whole sidebar: session tooltips open
     // instantly, and moving between rows hands the tooltip over (grouping)
@@ -1965,6 +1992,7 @@ const SessionSidebarComponent: React.FC<SessionSidebarProps> = ({
         }}
         openProjectEditDialog={setEditingProjectDialogId}
         removeProject={removeProject}
+        hideProject={hideProject}
         projectHeaderSentinelRefs={projectHeaderSentinelRefs}
         reorderProjects={reorderProjects}
         projectSortOrder={projectSortOrder}
@@ -1975,6 +2003,34 @@ const SessionSidebarComponent: React.FC<SessionSidebarProps> = ({
         setOpenSidebarMenuKey={setOpenSidebarMenuKey}
         isInlineEditing={isInlineEditing}
       /> : null}
+
+      {isVisible && hiddenProjectIds.length > 0 ? (
+        <div className="border-t border-border/60 px-3 py-1.5">
+          <button
+            type="button"
+            className="typography-meta flex w-full items-center gap-1.5 rounded px-1 py-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            onClick={() => {
+              for (const id of hiddenProjectIds) unhideProject(id);
+            }}
+          >
+            <Icon name="eye" className="h-3.5 w-3.5" />
+            {t('sessions.sidebar.project.actions.showHiddenProjects', { count: hiddenProjectIds.length })}
+          </button>
+        </div>
+      ) : null}
+
+      {isVisible ? (
+        <div className="border-t border-border/60 px-3 py-1.5">
+          <button
+            type="button"
+            className="typography-meta flex w-full items-center gap-1.5 rounded px-1 py-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            onClick={() => void handleTempWorkspaceSweep()}
+          >
+            <Icon name="trash" className="h-3.5 w-3.5" />
+            {t('sessions.sidebar.project.actions.sweepTempWorkspaces')}
+          </button>
+        </div>
+      ) : null}
 
       {selectionModeEnabled && hasSelection ? (
         <BulkActionBar

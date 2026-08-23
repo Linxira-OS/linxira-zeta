@@ -98,6 +98,7 @@ type Props = {
   openWorktreesPage: (id: string) => void;
   openProjectEditDialog: (id: string) => void;
   removeProject: (id: string) => void;
+  hideProject: (id: string) => void;
   projectHeaderSentinelRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>;
   reorderProjects: (fromIndex: number, toIndex: number) => void;
   projectSortOrder: ProjectSortOrder;
@@ -376,6 +377,7 @@ function SidebarProjectsListComponent(props: Props): React.ReactNode {
                   }}
                   onManageWorktrees={() => props.openWorktreesPage(projectKey)}
                   onRenameStart={() => props.openProjectEditDialog(projectKey)}
+                  onHide={() => props.hideProject(projectKey)}
                   onClose={() => props.removeProject(projectKey)}
                   sentinelRef={(el) => { props.projectHeaderSentinelRefs.current.set(projectKey, el); }}
                   showCreateButtons

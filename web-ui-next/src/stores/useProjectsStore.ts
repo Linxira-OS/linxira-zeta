@@ -48,9 +48,14 @@ interface ProjectsStore {
   projects: ProjectEntry[];
   activeProjectId: string | null;
   manualProjectOrder: string[];
+  /** Project ids hidden from the sidebar; persisted to localStorage. */
+  hiddenProjectIds: string[];
 
   addProject: (path: string, options?: { label?: string; id?: string }) => ProjectEntry | null;
   removeProject: (id: string) => void;
+  hideProject: (id: string) => void;
+  unhideProject: (id: string) => void;
+  isProjectHidden: (id: string) => boolean;
   setActiveProject: (id: string) => void;
   setActiveProjectIdOnly: (id: string) => void;
   renameProject: (id: string, label: string) => void;
@@ -387,6 +392,29 @@ const persistManualProjectOrder = (manualOrder: string[]) => {
   }
 };
 
+const HIDDEN_PROJECTS_SUFFIX = ':hidden';
+
+const readPersistedHiddenProjects = (): string[] => {
+  try {
+    const raw = safeStorage.getItem(getProjectsStorageKey() + HIDDEN_PROJECTS_SUFFIX);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+const persistHiddenProjects = (hiddenProjectIds: string[]) => {
+  try {
+    safeStorage.setItem(getProjectsStorageKey() + HIDDEN_PROJECTS_SUFFIX, JSON.stringify(hiddenProjectIds));
+  } catch {
+    // ignored
+  }
+};
+
+const initialHiddenProjects = readPersistedHiddenProjects();
+
 const initialProjects = readPersistedProjects();
 const normalizeVSCodeWorkspaceFolders = (folders: VSCodeWorkspaceFolderConfig[]): VSCodeWorkspaceFolderConfig[] => {
   const result: VSCodeWorkspaceFolderConfig[] = [];
@@ -561,6 +589,21 @@ export const useProjectsStore = create<ProjectsStore>()(
     projects: effectiveInitialProjects,
     activeProjectId: initialActiveProjectId,
     manualProjectOrder: readPersistedManualOrder(),
+    hiddenProjectIds: initialHiddenProjects,
+
+    hideProject: (id: string) => {
+      const hidden = get().hiddenProjectIds;
+      if (hidden.includes(id)) return;
+      const next = [...hidden, id];
+      set({ hiddenProjectIds: next });
+      persistHiddenProjects(next);
+    },
+    unhideProject: (id: string) => {
+      const next = get().hiddenProjectIds.filter((x) => x !== id);
+      set({ hiddenProjectIds: next });
+      persistHiddenProjects(next);
+    },
+    isProjectHidden: (id: string) => get().hiddenProjectIds.includes(id),
 
     validateProjectPath: (path: string): ProjectPathValidationResult => {
       if (typeof path !== 'string' || path.trim().length === 0) {
@@ -630,8 +673,23 @@ export const useProjectsStore = create<ProjectsStore>()(
       }
 
       const nextManualOrder = get().manualProjectOrder.filter((oid) => oid !== id);
-      set({ projects: nextProjects, activeProjectId: nextActiveId, manualProjectOrder: nextManualOrder });
+      const nextHidden = get().hiddenProjectIds.filter((hid) => hid !== id);
+      set({ projects: nextProjects, activeProjectId: nextActiveId, manualProjectOrder: nextManualOrder, hiddenProjectIds: nextHidden });
       persistProjects(nextProjects, nextActiveId, nextManualOrder);
+      if (nextHidden.length !== get().hiddenProjectIds.length) {
+        persistHiddenProjects(nextHidden);
+      }
+
+      // Cascade-delete backend sessions for the removed project (zeta gateway).
+      if (project) {
+        void runtimeFetch('/api/projects', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: project.path }),
+        }).catch(() => {
+          // Session deletion is best-effort; the UI project removal stands.
+        });
+      }
 
       // Clean up worktree entries for the removed project
       if (project) {

@@ -691,6 +691,50 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 	}
 }
 
+function normalizeCwdForCompare(cwd: string): string {
+	return cwd.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+/**
+ * DELETE /api/projects — cascade-delete every session whose working
+ * directory matches the given project path (or, with `tempOnly`, every
+ * session under the system temp directory).
+ *
+ * Body: { path: string } | { tempOnly: boolean }
+ * Returns: { deleted: number; sessions: string[] }
+ */
+export async function handleDeleteProject(req: Request): Promise<Response> {
+	try {
+		const body = (await req.json().catch(() => ({}))) as { path?: string; tempOnly?: boolean };
+		const tempOnly = body.tempOnly === true;
+		if (!tempOnly && typeof body.path !== "string") {
+			return json({ error: "path is required (or tempOnly: true)" }, 400);
+		}
+
+		const sessions = await listAllSessionsWeb();
+		const tempPrefix = tempOnly ? normalizeCwdForCompare(os.tmpdir()) : null;
+		const target = !tempOnly && body.path ? normalizeCwdForCompare(path.resolve(body.path)) : null;
+
+		const matches = sessions.filter(info => {
+			const cwd = normalizeCwdForCompare(info.cwd ?? "");
+			if (tempOnly) return cwd === tempPrefix || cwd.startsWith(`${tempPrefix}/`);
+			return target !== null && (cwd === target || cwd.startsWith(`${target}/`));
+		});
+
+		const deleted: string[] = [];
+		for (const info of matches) {
+			const res = await handleDeleteSession(info.id);
+			if (res.status === 200) deleted.push(info.id);
+		}
+
+		invalidateSessionListCache();
+		return json({ deleted: deleted.length, sessions: deleted });
+	} catch (error) {
+		logger.error("web-gateway: delete project failed", { error: String(error) });
+		return json({ error: String(error) }, 500);
+	}
+}
+
 export async function handleSessionContext(req: Request, sessionId: string): Promise<Response> {
 	try {
 		const filePath = await resolveSessionPath(sessionId);

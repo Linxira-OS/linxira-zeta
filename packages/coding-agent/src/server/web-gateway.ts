@@ -56,6 +56,7 @@ import {
 import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import {
+	handleDeleteProject,
 	handleDeleteSession,
 	handleExportSession,
 	handleGetSession,
@@ -218,6 +219,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (SESSION_LIST_RE.test(pathname)) {
 		if (req.method === "GET") return handleListSessions();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/projects") {
+		if (req.method === "DELETE") return handleDeleteProject(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
