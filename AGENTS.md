@@ -296,6 +296,24 @@ Unless user tells you exactly what to write:
 - **Never comment on GitHub** (issues, PRs, discussions).
 - **Never create issues on GitHub**.
 
+## Feature Branch Workflow (mandatory)
+
+Any new-direction development (new features, new surfaces, refactors that are
+not pure fixes to `main`) MUST follow the offline-branch workflow:
+
+1. **Create a local offline branch first** — never develop new directions
+   directly on `main`. The branch name MUST be designed up front when the
+   feature plan is written (e.g. `feat/web-ui-next`, `feat/<scope>`); plans
+   MUST name their branch.
+2. Work and commit on that branch locally until functionally complete.
+3. Push the branch to `origin`, open a PR, and only merge after CI passes.
+4. Merge to `main` on the remote (cloud), then merge the same branch into
+   local `main` to keep them in sync.
+5. Delete the branch after the merge (both remote and local).
+
+`main` stays reserved for released/stable work; a new direction only lands on
+`main` via this merge path, never by committing directly to it.
+
 ## Code Quality
 
 - No `any` unless absolutely necessary.
