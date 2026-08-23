@@ -56,6 +56,8 @@ interface InterceptedSurface {
 	rejectQuestion(args: Record<string, unknown>): Promise<boolean>;
 	listPendingQuestions(directories: string[]): Promise<unknown[]>;
 	listPendingPermissions(directories: string[]): Promise<unknown[]>;
+	getSettings(): Promise<unknown>;
+	putSetting(path: string, value: unknown): Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -330,6 +332,17 @@ export class ZetaGatewayService implements InterceptedSurface {
 
 	async listPendingPermissions(_directories: string[]): Promise<unknown[]> {
 		return [];
+	}
+
+	async getSettings(): Promise<unknown> {
+		return gatewayFetch<unknown>("/api/settings");
+	}
+
+	async putSetting(path: string, value: unknown): Promise<unknown> {
+		return gatewayFetch<unknown>("/api/settings", {
+			method: "PUT",
+			body: JSON.stringify({ path, value }),
+		});
 	}
 
 

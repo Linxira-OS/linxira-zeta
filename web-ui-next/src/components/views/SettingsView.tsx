@@ -38,6 +38,7 @@ import { IntegrationsPage } from '@/components/sections/integrations/Integration
 import type { OpenChamberSection } from '@/components/sections/openchamber/types';
 import { OpenChamberPage } from '@/components/sections/openchamber/OpenChamberPage';
 import { AboutSettings } from '@/components/sections/openchamber/AboutSettings';
+import { CliSettingsPage } from '@/components/sections/openchamber/CliSettingsPage';
 import { SettingsPageLayout } from '@/components/sections/shared/SettingsPageLayout';
 import {
   SETTINGS_SECTION_TITLE_CLASS,
@@ -381,6 +382,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
         return t('settings.page.tunnel.title');
       case 'about':
         return t('settings.page.about.title');
+      case 'cli-settings':
+        return 'CLI Settings';
       case 'home':
       default:
         return t('settings.view.home.title');
@@ -658,6 +661,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
             <AboutSettings />
           </SettingsPageLayout>
         );
+      case 'cli-settings':
+        return <CliSettingsPage />;
       case 'magic-prompts':
         return <MagicPromptsPage />;
       case 'snippets':
