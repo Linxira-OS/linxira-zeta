@@ -156,7 +156,9 @@ const RECOMMENDED_SUFFIX = " (Recommended)";
 const TIMEOUT_DETECTION_TOLERANCE_MS = 1_000;
 
 function getDoneOptionLabel(): string {
-	return `${theme.status.success} Done selecting`;
+	// `theme` is unset outside TUI modes (web gateway, headless, tests); a raw
+	// access here crashes every ask. Mirror `fgOrPlain`'s guarded access.
+	return typeof theme === "undefined" ? "Done selecting" : `${theme.status.success} Done selecting`;
 }
 
 /** Add "(Recommended)" suffix to the option at the given index if not already present */

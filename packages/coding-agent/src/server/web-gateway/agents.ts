@@ -893,9 +893,12 @@ export function createGatewayUiContext(
 		setHeader() {},
 		addAutocompleteProvider() {},
 		setEditorComponent() {},
-		askDialog() {
-			return Promise.resolve(undefined);
-		},
+		// Intentionally no `askDialog`: its mere presence would route AskTool
+		// through the rich-dialog path, whose unresolved promise resolves to
+		// `undefined` and turns every ask into "cancelled by the user". Omitting
+		// it makes ask.ts fall back to `ui.select`, which emits
+		// `extension_ui_request(method=select)` over SSE and resolves through
+		// the gateway's `extension_ui_response` route (the QuestionCard path).
 		get theme(): never {
 			throw new Error("Theme access is not supported by the web gateway");
 		},
