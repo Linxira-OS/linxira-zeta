@@ -3,6 +3,7 @@ import { toast } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { SettingsPageLayout } from '@/components/sections/shared/SettingsPageLayout';
 import { opencodeClient } from '@/lib/opencode/client';
+import { WebConfigSection } from '@/components/sections/openchamber/WebConfigSection';
 
 interface CliSettingEntry {
   path: string;
@@ -142,6 +143,30 @@ export const CliSettingsPage: React.FC = () => {
     return <SettingsPageLayout title="CLI Settings" showSaveStatus={false}><div className="p-4 text-destructive">Failed to load settings.</div></SettingsPageLayout>;
   }
 
+  if (activeTab === "web") {
+    return (
+      <SettingsPageLayout title="CLI Settings" showSaveStatus={false}>
+        <div className="flex h-full flex-col">
+          <div className="flex flex-wrap gap-1 border-b border-border/70 px-3 py-2">
+            {[{ id: "web", label: "Web & Desktop" }, ...data.tabs].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded px-2.5 py-1 text-sm ${activeTab === tab.id ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-accent'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            <WebConfigSection />
+          </div>
+        </div>
+      </SettingsPageLayout>
+    );
+  }
+
   const tabSettings = data.settings.filter((s) => s.tab === activeTab && s.visible !== false);
   const groups = data.groups[activeTab] ?? [];
   const pendingCount = Object.keys(values).filter((k) => {
@@ -174,7 +199,7 @@ export const CliSettingsPage: React.FC = () => {
     <SettingsPageLayout title="CLI Settings" showSaveStatus={false}>
       <div className="flex h-full flex-col">
         <div className="flex flex-wrap gap-1 border-b border-border/70 px-3 py-2">
-          {data.tabs.map((tab) => (
+          {[{ id: "web", label: "Web & Desktop" }, ...data.tabs].map((tab) => (
             <button
               key={tab.id}
               type="button"

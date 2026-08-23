@@ -39,8 +39,10 @@ import mono_dark_Raw from './mono-dark.json';
 import mono_light_Raw from './mono-light.json';
 import vitesse_dark_dark_Raw from './vitesse-dark-dark.json';
 import vitesse_light_light_Raw from './vitesse-light-light.json';
+import starfield_dark_Raw from './starfield-dark.json';
 
 export const presetThemes: Theme[] = [
+  starfield_dark_Raw as Theme,
   fields_of_the_shire_dark_Raw as Theme,
   fields_of_the_shire_light_Raw as Theme,
   aura_dark_Raw as Theme,
