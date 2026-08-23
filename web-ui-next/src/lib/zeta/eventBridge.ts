@@ -129,6 +129,7 @@ export function createZetaEventPipeline(input: EventPipelineInput): EventPipelin
 		sessionId: string,
 		frame: ZetaEventFrame,
 		status: "pending" | "running" | "completed" | "error",
+		output: string,
 	): Event {
 		const callId = String(frame.toolCallId ?? "");
 		const messageID = currentAssistant.get(sessionId) ?? `z_assistant_pending_${sessionId}`;
@@ -143,7 +144,7 @@ export function createZetaEventPipeline(input: EventPipelineInput): EventPipelin
 			state: {
 				status,
 				input: (existing?.args ?? frame.args ?? {}) as Record<string, unknown>,
-				output: outputText,
+				output,
 				time: { start: Date.now() },
 			},
 		};
