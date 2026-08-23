@@ -488,6 +488,7 @@ export const Header: React.FC<HeaderProps> = ({
   streamPerfCount('ui.header.render');
   const { t } = useI18n();
   const setSessionSwitcherOpen = useUIStore((state) => state.setSessionSwitcherOpen);
+  const streamingTps = useUIStore((state) => state.streamingTps);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
   const openContextOverview = useUIStore((state) => state.openContextOverview);
@@ -2120,6 +2121,15 @@ export const Header: React.FC<HeaderProps> = ({
               valueClassName="typography-ui-label font-medium leading-none text-foreground"
               percentIconClassName="h-4.5 w-4.5"
             />
+          ) : null}
+
+          {streamingTps !== null ? (
+            <span
+              className="typography-ui-label mr-3.5 inline-flex items-center gap-1 rounded-md border border-border/70 bg-[var(--surface-muted)]/50 px-2 py-0.5 font-medium leading-none text-muted-foreground"
+              title={t('header.tpsTooltip')}
+            >
+              {streamingTps.toFixed(1)} tok/s
+            </span>
           ) : null}
 
           <HeaderIconActionButton

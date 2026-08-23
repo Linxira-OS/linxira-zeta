@@ -147,6 +147,10 @@ export function convertZetaMessage(
 	if ((options.forceRole ?? message.role) === "assistant") {
 		const usage = message.usage;
 		const [providerID = "", ...modelRest] = (message.model ?? "").split("/");
+		// Context-window fill mirrors zeta's calculatePromptTokens (input +
+		// cacheRead + cacheWrite); totalTokens includes output, which would
+		// overstate the fill and break parity with the runtime's own gauge.
+		const promptTokens = (usage?.input ?? 0) + (usage?.cacheRead ?? 0) + (usage?.cacheWrite ?? 0);
 		info = {
 			id: mid,
 			sessionID,
@@ -159,7 +163,7 @@ export function convertZetaMessage(
 			path: { cwd: "", root: "" },
 			cost: usage?.cost?.total ?? 0,
 			tokens: {
-				total: usage?.totalTokens ?? 0,
+				total: promptTokens > 0 ? promptTokens : (usage?.totalTokens ?? 0),
 				input: usage?.input ?? 0,
 				output: usage?.output ?? 0,
 				reasoning: 0,

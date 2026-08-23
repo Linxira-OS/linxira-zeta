@@ -153,6 +153,51 @@ export function createZetaEventPipeline(input: EventPipelineInput): EventPipelin
 
 	const pendingToolInputs = new Map<string, { args?: unknown; toolName?: string }>();
 
+	// TPS (tokens/sec) tracking from streamed deltas. A sliding 3s window of
+	// streamed characters is converted to tokens at the standard 4 chars/token
+	// approximation and emitted as `zeta.tps` once a second while the agent
+	// streams. The window resets when a turn settles (message_end / turn_end).
+	const TPS_WINDOW_MS = 3_000;
+	const TPS_EMIT_INTERVAL_MS = 1_000;
+	const CHARS_PER_TOKEN = 4;
+	let tpsWindow: Array<{ chars: number; at: number }> = [];
+	let tpsTimer: ReturnType<typeof setInterval> | undefined;
+	let tpsActiveSession: string | null = null;
+
+	function trackTpsChars(sessionId: string, chars: number): void {
+		if (chars <= 0) return;
+		tpsActiveSession = sessionId;
+		const now = Date.now();
+		tpsWindow.push({ chars, at: now });
+		const cutoff = now - TPS_WINDOW_MS;
+		if (tpsWindow.length > 200) tpsWindow = tpsWindow.filter(e => e.at >= cutoff);
+		if (tpsTimer) return;
+		tpsTimer = setInterval(() => {
+			const active = tpsActiveSession;
+			if (!active) return;
+			const n = Date.now();
+			tpsWindow = tpsWindow.filter(e => e.at >= n - TPS_WINDOW_MS);
+			const totalChars = tpsWindow.reduce((sum, e) => sum + e.chars, 0);
+			if (totalChars > 0) {
+				const tps = totalChars / (TPS_WINDOW_MS / 1000) / CHARS_PER_TOKEN;
+				emit(active, [{
+					type: "zeta.tps",
+					properties: { sessionID: active, tps: Math.round(tps * 10) / 10 },
+				} as unknown as Event]);
+			}
+		}, TPS_EMIT_INTERVAL_MS);
+	}
+
+	function stopTpsTracking(): void {
+		tpsWindow = [];
+		tpsActiveSession = null;
+		if (tpsTimer) {
+			clearInterval(tpsTimer);
+			tpsTimer = undefined;
+		}
+	}
+
+
 	function handleSessionFrame(sessionId: string, frame: ZetaEventFrame): void {
 		switch (frame.type) {
 			case "agent_start":
@@ -160,6 +205,7 @@ export function createZetaEventPipeline(input: EventPipelineInput): EventPipelin
 				break;
 			case "agent_end":
 				currentAssistant.delete(sessionId);
+				stopTpsTracking();
 				emit(sessionId, [{ type: "session.idle", properties: { sessionID: sessionId } } as unknown as Event]);
 				break;
 			case "auto_retry_start": {
@@ -180,9 +226,21 @@ export function createZetaEventPipeline(input: EventPipelineInput): EventPipelin
 				}
 				break;
 			case "message_start":
-			case "message_update":
+			case "message_update": {
+				const raw = frame.message
+					?? frame.partial
+					?? frame.assistantMessageEvent?.partial
+					?? frame.assistantMessageEvent?.message;
+				const delta = frame.assistantMessageEvent?.delta;
+				if (frame.type === "message_update" && typeof delta === "string" && delta.length > 0) {
+					trackTpsChars(sessionId, delta.length);
+				}
+				emit(sessionId, convertSnapshot(sessionId, raw));
+				break;
+			}
 			case "message_end":
 			case "turn_end": {
+				stopTpsTracking();
 				const raw = frame.message
 					?? frame.partial
 					?? frame.assistantMessageEvent?.partial

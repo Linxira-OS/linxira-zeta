@@ -675,6 +675,9 @@ interface UIStore {
   isAboutDialogOpen: boolean;
   isOpenCodeStatusDialogOpen: boolean;
   openCodeStatusText: string;
+  /** Streamed tokens/sec of the currently streaming turn; null when idle. */
+  streamingTps: number | null;
+  setStreamingTps: (tps: number | null) => void;
   isSessionCreateDialogOpen: boolean;
   isScheduledTasksDialogOpen: boolean;
   isArchivePageOpen: boolean;
@@ -1044,6 +1047,8 @@ export const useUIStore = create<UIStore>()(
         isAboutDialogOpen: false,
         isOpenCodeStatusDialogOpen: false,
         openCodeStatusText: '',
+        streamingTps: null,
+        setStreamingTps: (tps: number | null) => set({ streamingTps: tps }),
         isSessionCreateDialogOpen: false,
         isScheduledTasksDialogOpen: false,
         isArchivePageOpen: false,

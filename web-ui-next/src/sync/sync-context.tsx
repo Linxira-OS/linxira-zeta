@@ -48,6 +48,7 @@ import {
   processVSCodeReconciledPermissionAutoAccept,
 } from "./vscode-permission-auto-accept"
 import { useConfigStore } from "@/stores/useConfigStore"
+import { useUIStore } from "@/stores/useUIStore"
 import { useTodosPersistStore } from "@/stores/useTodosPersistStore"
 import { cleanupPersistedSessionState } from "./session-deletion-cleanup"
 import { toast } from "@/components/ui"
@@ -2270,6 +2271,11 @@ export function SyncProvider(props: {
               if (version) {
                 dispatchOpenCodeUpdateAvailable({ version })
               }
+            }
+            if (payload.type === "zeta.tps") {
+              const tps = (payload.properties as { tps?: unknown })?.tps
+              useUIStore.getState().setStreamingTps(typeof tps === "number" && tps > 0 ? tps : null)
+              continue
             }
             handleEvent(directory, payload, childStores, routingIndex, runtimeKey, false, currentDirectoryRef.current, batch)
           }

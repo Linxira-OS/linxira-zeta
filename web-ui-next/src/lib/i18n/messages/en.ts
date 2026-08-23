@@ -1661,6 +1661,7 @@ export const dict = {
   'inlineComment.actions.deleteComment': 'Delete comment',
   'inlineComment.toast.selectSessionToSave': 'Select a session to save comment',
   'header.github.connectedWithLogin': 'GitHub: {login}',
+  'header.tpsTooltip': 'Streaming speed (tokens per second)',
   'header.github.connected': 'GitHub connected',
   'header.github.avatarWithLogin': '{login} avatar',
   'header.github.avatar': 'GitHub avatar',
