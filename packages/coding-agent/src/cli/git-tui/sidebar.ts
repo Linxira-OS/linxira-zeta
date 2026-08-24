@@ -19,7 +19,7 @@ import {
 	TERMINAL,
 	truncateToWidth,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import { getEditorTheme, theme } from "../../modes/theme/theme";
 import { type AvatarLoader, identiconLines } from "./avatar";
 import { pill, selectionBgAnsi, softPill, tintChip, withBg } from "./colors";

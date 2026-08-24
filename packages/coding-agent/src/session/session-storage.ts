@@ -102,6 +102,7 @@ const writerRegistry = new FinalizationRegistry<number>(fd => {
 
 class FileSessionStorageWriter implements SessionStorageWriter {
 	#fd: number;
+	#path: string;
 	#closed = false;
 	#error: Error | undefined;
 	#onError: ((err: Error) => void) | undefined;
@@ -116,6 +117,7 @@ class FileSessionStorageWriter implements SessionStorageWriter {
 		}
 		// Open file once, keep fd for lifetime
 		this.#fd = fs.openSync(fpath, flags === "w" ? "w" : "a");
+		this.#path = fpath;
 		// Register for cleanup if abandoned without close()
 		writerRegistry.register(this, this.#fd, this);
 	}
@@ -143,10 +145,22 @@ class FileSessionStorageWriter implements SessionStorageWriter {
 			try {
 				fs.ftruncateSync(this.#fd, originalSize);
 			} catch (rollbackError) {
-				throw new AggregateError(
-					[toError(writeError), toError(rollbackError)],
-					"Session append failed and its partial bytes could not be rolled back",
-				);
+				// Windows append-mode handles cannot ftruncate (EPERM); retry the
+				// rollback through a separate read-write handle so the original
+				// write error (e.g. ENOSPC) surfaces instead of a masked aggregate.
+				try {
+					const rb = fs.openSync(this.#path, "r+");
+					try {
+						fs.ftruncateSync(rb, originalSize);
+					} finally {
+						fs.closeSync(rb);
+					}
+				} catch {
+					throw new AggregateError(
+						[toError(writeError), toError(rollbackError)],
+						"Session append failed and its partial bytes could not be rolled back",
+					);
+				}
 			}
 			throw writeError;
 		}

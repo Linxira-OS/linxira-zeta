@@ -13,8 +13,8 @@
  * the visible viewport brightened; clicking it seeks. Long lines either pan
  * horizontally (`←`/`→`) or soft-wrap when word wrap is enabled.
  */
-import { diffWords, structuredPatchHunks } from "@oh-my-pi/pi-natives";
-import { replaceTabs, sliceWithWidth, truncateToWidth, visibleWidth } from "@oh-my-pi/pi-tui";
+import { diffWords, structuredPatchHunks } from "@linxiraos/pi-natives";
+import { replaceTabs, sliceWithWidth, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
 import { getLanguageFromPath, highlightCode, theme } from "../../modes/theme/theme";
 import { bgAnsi, canvasHex, fgAnsi, mixHex, pill, selectionBgAnsi, textHex, withBg } from "./colors";
 

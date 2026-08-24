@@ -36,8 +36,8 @@ import {
 	ReadResultSchema,
 	ReadSuccessSchema,
 } from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
-import { create, encodeJsonValue } from "@oh-my-pi/pi-catalog/discovery/protobuf";
-import { logger } from "@oh-my-pi/pi-utils";
+import { create, encodeJsonValue } from "@linxiraos/pi-catalog/discovery/protobuf";
+import { logger } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

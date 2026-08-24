@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { HindsightApi } from "@oh-my-pi/pi-coding-agent/hindsight/client";
-import type { HindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
-import { HindsightSessionState } from "@oh-my-pi/pi-coding-agent/hindsight/state";
-import { extractMessages } from "@oh-my-pi/pi-coding-agent/hindsight/transcript";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { HindsightApi } from "@linxiraos/zeta/hindsight/client";
+import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
+import { extractMessages } from "@linxiraos/zeta/hindsight/transcript";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 
 function captureBodies(): unknown[] {
 	const bodies: unknown[] = [];

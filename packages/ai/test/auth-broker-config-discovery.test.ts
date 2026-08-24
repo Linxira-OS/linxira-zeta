@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAuthStorage, resolveAuthBrokerConfig } from "@oh-my-pi/pi-ai/auth-broker";
-import { writeAuthBrokerSnapshotCache } from "@oh-my-pi/pi-ai/auth-broker/snapshot-cache";
-import type { SnapshotResponse } from "@oh-my-pi/pi-ai/auth-broker/types";
+import { discoverAuthStorage, resolveAuthBrokerConfig } from "@linxiraos/pi-ai/auth-broker";
+import { writeAuthBrokerSnapshotCache } from "@linxiraos/pi-ai/auth-broker/snapshot-cache";
+import type { SnapshotResponse } from "@linxiraos/pi-ai/auth-broker/types";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 

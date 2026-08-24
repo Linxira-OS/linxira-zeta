@@ -10,9 +10,9 @@ import {
 	initDb,
 	insertMessageStats,
 } from "@oh-my-pi/omp-stats/db";
-import type { MessageStats } from "@oh-my-pi/omp-stats/types";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { getStatsDbPath } from "@oh-my-pi/pi-utils";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-db-");

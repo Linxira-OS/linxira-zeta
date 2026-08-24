@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { TranscriptContainer } from "@oh-my-pi/pi-coding-agent/modes/components/transcript-container";
-import { COMPOSER_DEFAULTS, Composer } from "@oh-my-pi/pi-coding-agent/modes/composer";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { type Component, type RenderScheduler, visibleWidth } from "@oh-my-pi/pi-tui";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { COMPOSER_DEFAULTS, Composer } from "@linxiraos/zeta/modes/composer";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { type Component, type RenderScheduler, visibleWidth } from "@linxiraos/pi-tui";
 import { VirtualRenderScheduler } from "../../tui/test/virtual-render-scheduler";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";

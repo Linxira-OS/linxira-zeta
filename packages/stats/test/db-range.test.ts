@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getDashboardStats, getFolderStats } from "@oh-my-pi/omp-stats/aggregator";
-import { initDb, insertMessageStats } from "@oh-my-pi/omp-stats/db";
-import type { FolderStats, MessageStats } from "@oh-my-pi/omp-stats/types";
+import { getDashboardStats, getFolderStats } from "@linxiraos/pi-stats/aggregator";
+import { initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
+import type { FolderStats, MessageStats } from "@linxiraos/pi-stats/types";
 import { handleApi } from "../src/server";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 

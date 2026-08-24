@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { encodeResponse, encodeStream, parseRequest } from "@oh-my-pi/pi-ai/providers/openai-chat-server";
+import { encodeResponse, encodeStream, parseRequest } from "@linxiraos/pi-ai/providers/openai-chat-server";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,

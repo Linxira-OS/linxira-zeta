@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, type Mock, mock, spyOn } from "bun:test";
-import { streamPiNative } from "@oh-my-pi/pi-ai/providers/pi-native-client";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
+import { streamPiNative } from "@linxiraos/pi-ai/providers/pi-native-client";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,

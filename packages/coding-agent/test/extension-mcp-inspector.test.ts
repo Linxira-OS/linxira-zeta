@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import type { MCPServer } from "@oh-my-pi/pi-coding-agent/capability/mcp";
-import type { MCPServerConnection, MCPTransport } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { ExtensionList } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/extension-list";
-import { InspectorPanel } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/inspector-panel";
-import type { MCPRuntimeSource } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/mcp-runtime";
-import type { Extension } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/types";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import type { MCPServer } from "@linxiraos/zeta/capability/mcp";
+import type { MCPServerConnection, MCPTransport } from "@linxiraos/zeta/mcp/types";
+import { ExtensionList } from "@linxiraos/zeta/modes/components/extensions/extension-list";
+import { InspectorPanel } from "@linxiraos/zeta/modes/components/extensions/inspector-panel";
+import type { MCPRuntimeSource } from "@linxiraos/zeta/modes/components/extensions/mcp-runtime";
+import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme(false);

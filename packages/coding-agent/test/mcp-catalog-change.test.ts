@@ -2,13 +2,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPStdioServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { ExtensionDashboard } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/extension-dashboard";
-import { snapshotMcpRuntime } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/mcp-runtime";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
+import { ExtensionDashboard } from "@linxiraos/zeta/modes/components/extensions/extension-dashboard";
+import { snapshotMcpRuntime } from "@linxiraos/zeta/modes/components/extensions/mcp-runtime";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { PROMPT_NAME, RESOURCE_NAME, RESOURCE_URI, TOOL_NAME } from "./fixtures/delayed-catalog-mcp";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "delayed-catalog-mcp.ts");

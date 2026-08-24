@@ -11,7 +11,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAvatarCacheDir, logger } from "@oh-my-pi/pi-utils";
+import { getAvatarCacheDir, logger } from "@linxiraos/pi-utils";
 import * as git from "../../utils/git";
 
 const AVATAR_PX = 64;
