@@ -283,6 +283,7 @@ export class EventController {
 				this.ctx.ui.requestRender(true);
 			},
 			goal_updated: async () => {},
+			state_version_changed: async () => {},
 		} satisfies AgentSessionEventHandlers;
 	}
 

@@ -1,6 +1,6 @@
 import { THINKING_EFFORTS } from "@linxiraos/pi-ai";
-import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import { SHAPE_VARIANT_NAMES } from "@linxiraos/pi-snapcompact";
+import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import {
 	type BlobDestinationId,
 	type BlobDestinationMetadata,
@@ -196,8 +196,8 @@ export const TAB_METADATA: Record<SettingTab, { label: string; icon: `tab.${stri
  * Ungrouped settings render first, before any section heading.
  */
 export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
-	appearance: ["Theme", "Composer", "Status Line", "Display", "Images"],
-	model: ["Thinking", "Sampling", "Prompt", "Retry & Fallback", "Advisor", "Prewalk", "Vision"],
+	appearance: ["General", "Theme", "Composer", "Status Line", "Display", "Images"],
+	model: ["Thinking", "Sampling", "Prompt", "Retry & Fallback", "Advisor", "Prewalk", "Vision", "Roles"],
 	interaction: [
 		"Input",
 		"Approvals",
@@ -210,7 +210,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Agent",
 		"Git",
 	],
-	context: ["General", "Compaction", "Rules (TTSR)", "Experimental"],
+	context: ["General", "Compaction", "Zeta Context Cache", "Rules (TTSR)", "Experimental"],
 	memory: ["General", "Auto-Learn", "Mnemopi", "Hindsight"],
 	files: ["Editing", "Reading", "Read Summaries", "LSP"],
 	shell: ["Bash", "Eval & Runtimes"],
@@ -255,6 +255,7 @@ export type StatusLineSegmentId =
 	| "cache_hit"
 	| "session_name"
 	| "usage"
+	| "turn_stats"
 	| "collab";
 
 /** Submenu choice metadata. */
@@ -579,7 +580,16 @@ export const SETTINGS_SCHEMA = {
 			condition: "advisorEnabled",
 		},
 	},
-	shellPath: { type: "string", default: undefined },
+	shellPath: {
+		type: "string",
+		default: undefined,
+		ui: {
+			tab: "shell",
+			group: "Bash",
+			label: "Shell Path",
+			description: "Shell binary used by the bash tool (e.g. bash, zsh, pwsh, or an absolute path)",
+		},
+	},
 	"git.enabled": {
 		type: "boolean",
 		default: true,
@@ -605,7 +615,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Services",
 			label: "Max In-Flight Requests",
 			description:
-				'Maximum concurrent LLM requests per provider id (for example "openai" or "anthropic"), shared across local OMP processes with this config root. Omitted providers are unlimited.',
+				'Maximum concurrent LLM requests per provider id (for example "openai" or "anthropic"), shared across local zeta processes with this config root. Omitted providers are unlimited.',
 		},
 	},
 
@@ -660,7 +670,17 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	modelRoles: { type: "record", default: EMPTY_STRING_RECORD },
+	modelRoles: {
+		type: "record",
+		default: EMPTY_STRING_RECORD,
+		ui: {
+			tab: "model",
+			group: "Roles",
+			label: "Model Roles",
+			description:
+				'Role → "provider/model[:thinking-level]" assignments (for example "anthropic/claude-sonnet-4-5:high"). Empty value removes the role.',
+		},
+	},
 
 	modelTags: { type: "record", default: EMPTY_MODEL_TAGS_RECORD },
 
@@ -668,10 +688,25 @@ export const SETTINGS_SCHEMA = {
 
 	cycleOrder: { type: "array", default: DEFAULT_CYCLE_ORDER },
 
+	language: {
+		type: "enum",
+		values: ["en", "zh"] as const,
+		default: "en",
+		ui: {
+			tab: "appearance",
+			group: "General",
+			label: "Language",
+			description: "CLI language for user-facing text (system prompts stay English)",
+			options: [
+				{ value: "en", label: "English", description: "English UI text (default)" },
+				{ value: "zh", label: "中文", description: "简体中文界面" },
+			],
+		},
+	},
+
 	// ────────────────────────────────────────────────────────────────────────
 	// Appearance
 	// ────────────────────────────────────────────────────────────────────────
-
 	// Theme
 	"theme.dark": {
 		type: "string",
@@ -957,6 +992,28 @@ export const SETTINGS_SCHEMA = {
 			group: "Status Line",
 			label: "Show Hook Status",
 			description: "Display hook status messages below the status line",
+		},
+	},
+
+	"statusLine.turnTelemetry": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "appearance",
+			group: "Status Line",
+			label: "Turn Telemetry",
+			description: "Show a transient TPS/TTFT/duration/cost line after each turn",
+		},
+	},
+
+	"tui.sidebar": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "appearance",
+			group: "Display",
+			label: "Sidebar",
+			description: "Show the right-hand sidebar (context, usage, git, model)",
 		},
 	},
 
@@ -1763,7 +1820,16 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Retries
-	"retry.enabled": { type: "boolean", default: true },
+	"retry.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "model",
+			group: "Retry & Fallback",
+			label: "Automatic Retry",
+			description: "Retry failed turns automatically before surfacing the error to you",
+		},
+	},
 
 	"retry.maxRetries": {
 		type: "number",
@@ -2124,7 +2190,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "interaction",
 			group: "Startup & Updates",
 			label: "Check for Updates",
-			description: "Check for omp updates on startup",
+			description: "Check for zeta updates on startup",
 		},
 	},
 	"update.channel": {
@@ -2414,6 +2480,12 @@ export const SETTINGS_SCHEMA = {
 	"stt.language": {
 		type: "string",
 		default: "en",
+		ui: {
+			tab: "interaction",
+			group: "Speech",
+			label: "Speech Language",
+			description: "Speech-to-text recognition language (e.g. en, zh-CN)",
+		},
 	},
 
 	"stt.modelName": {
@@ -2595,9 +2667,28 @@ export const SETTINGS_SCHEMA = {
 	// chose one, so small-window recovery may swap in the proportional reserve
 	// (see resolveBudgetReserveTokens). A materialized 16384 here would make
 	// every session look explicitly configured.
-	"compaction.reserveTokens": { type: "number", default: undefined },
+	"compaction.reserveTokens": {
+		type: "number",
+		default: undefined,
+		ui: {
+			tab: "context",
+			group: "Compaction",
+			label: "Reserved Tokens",
+			description:
+				"Token budget reserved for the summary when compacting; leave unset for the automatic proportional reserve",
+		},
+	},
 
-	"compaction.keepRecentTokens": { type: "number", default: 20000 },
+	"compaction.keepRecentTokens": {
+		type: "number",
+		default: 20000,
+		ui: {
+			tab: "context",
+			group: "Compaction",
+			label: "Keep Recent Tokens",
+			description: "Most recent tokens kept verbatim when compacting; older context is summarized",
+		},
+	},
 
 	"compaction.autoContinue": { type: "boolean", default: true },
 
@@ -4068,6 +4159,31 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// Project tracking tool (off by default; opt-in per AGENTS.md direction)
+	"tracking.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tools",
+			group: "Available Tools",
+			label: "Project Tracking",
+			description: "Enable the tracking_update tool so the agent maintains project tracking documents",
+		},
+	},
+
+	// IM channel tools (web/desktop only; CLI sessions reject them regardless)
+	"channels.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tools",
+			group: "Available Tools",
+			label: "IM Channels",
+			description:
+				"Enable channel_send / workspace_run so the agent can push progress to the remote IM user and delegate to other workspaces",
+		},
+	},
+
 	"todo.reminders": {
 		type: "boolean",
 		default: true,
@@ -4434,7 +4550,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Available Tools",
 			label: "Security",
 			description:
-				"Enable OMP-native security scan planning, execution, and the read-only security:// resource namespace",
+				"Enable Zeta-native security scan planning, execution, and the read-only security:// resource namespace",
 		},
 	},
 
@@ -5130,7 +5246,16 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Skills
-	"skills.enabled": { type: "boolean", default: true },
+	"skills.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tasks",
+			group: "Commands & Skills",
+			label: "Skills",
+			description: "Enable skill discovery and loading (SKILL.md workflows)",
+		},
+	},
 
 	"skills.enableSkillCommands": {
 		type: "boolean",
@@ -5862,6 +5987,12 @@ export const SETTINGS_SCHEMA = {
 	"searxng.categories": {
 		type: "string",
 		default: undefined,
+		ui: {
+			tab: "providers",
+			group: "Services",
+			label: "Search Categories",
+			description: "Comma-separated SearXNG categories (e.g. general, images, news)",
+		},
 	},
 
 	"searxng.engines": {
@@ -5872,11 +6003,23 @@ export const SETTINGS_SCHEMA = {
 	"searxng.language": {
 		type: "string",
 		default: undefined,
+		ui: {
+			tab: "providers",
+			group: "Services",
+			label: "Search Language",
+			description: "Search result language (e.g. en, zh-CN, or all)",
+		},
 	},
 
 	"searxng.safesearch": {
 		type: "number",
 		default: undefined,
+		ui: {
+			tab: "providers",
+			group: "Services",
+			label: "Safe Search",
+			description: "SearXNG safe-search level: 0 off, 1 moderate, 2 strict",
+		},
 	},
 
 	"commit.mapReduceEnabled": { type: "boolean", default: true },
@@ -5917,12 +6060,12 @@ export const SETTINGS_SCHEMA = {
 
 	"dev.autoqaPush.endpoint": {
 		type: "string",
-		default: "https://qa.omp.sh/v1/grievances" as const,
+		default: "",
 		ui: {
 			tab: "tools",
 			group: "Developer",
 			label: "Auto QA Push Endpoint",
-			description: "Full URL receiving Auto QA JSON reports (default https://qa.omp.sh/v1/grievances)",
+			description: "Full URL receiving Auto QA JSON reports (leave empty to disable push)",
 		},
 	},
 
@@ -5974,6 +6117,52 @@ export const SETTINGS_SCHEMA = {
 	"thinkingBudgets.xhigh": { type: "number", default: 32768 },
 
 	"thinkingBudgets.max": { type: "number", default: 32768 },
+
+	// Zeta Context Cache — dual state machine thresholds
+	"zeta.contextCache.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "context",
+			group: "Zeta Context Cache",
+			label: "Enable Context Cache",
+			description: "Enable the dual state machine for context-aware memory writing and endTurn compaction",
+		},
+	},
+
+	"zeta.contextCache.thresholdTokens": {
+		type: "number",
+		default: 400000,
+		ui: {
+			tab: "context",
+			group: "Zeta Context Cache",
+			label: "Memory Write Threshold",
+			description: "Context token threshold that triggers a soft memory_edit requirement (State Machine A)",
+		},
+	},
+
+	"zeta.contextCache.memoryWriteEnabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "context",
+			group: "Zeta Context Cache",
+			label: "Memory Write (State Machine A)",
+			description:
+				"When context exceeds the threshold, prompt the model to save important info to memory via memory_edit",
+		},
+	},
+
+	"zeta.contextCache.endTurnCompactionEnabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "context",
+			group: "Zeta Context Cache",
+			label: "EndTurn Compaction (State Machine B)",
+			description: "Trigger auto-compaction when the model emits an endTurn tag",
+		},
+	},
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════════════

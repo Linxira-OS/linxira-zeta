@@ -21,6 +21,7 @@ export interface IrcBridgeHost {
 	emitSessionEvent(event: AgentSessionEvent): Promise<void>;
 	wakeForIrc(records: CustomMessage[]): void;
 	runEphemeralTurn(args: { promptText: string }): Promise<{ replyText: string }>;
+	onAutoReply?(msg: IrcMessage, replyText: string): void;
 }
 
 /** Owns incoming IRC queues, injection, and side-channel auto-replies. */

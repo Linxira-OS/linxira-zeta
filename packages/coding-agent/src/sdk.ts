@@ -117,6 +117,7 @@ import {
 } from "./extensibility/skills";
 import { type FileSlashCommand, loadSlashCommands as loadSlashCommandsInternal } from "./extensibility/slash-commands";
 import type { HindsightSessionState } from "./hindsight/state";
+import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { LocalProtocolHandler, type LocalProtocolOptions } from "./internal-urls";
 import { setSharedLspEnabled } from "./lsp/client";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "./lsp/startup-events";
@@ -405,6 +406,24 @@ export interface CreateAgentSessionOptions {
 	prewalk?: Prewalk;
 	/** Force read-only plan mode at start, auto-approve on the model's first resolve call, then switch to execute. */
 	planYolo?: PlanYolo;
+	/**
+	 * IM channel send sink (web/desktop sessions only; undefined in CLI mode).
+	 * When set, `channel_send` is available and the session can push progress
+	 * to the remote IM user.
+	 */
+	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
+	/**
+	 * Workspace delegation sink (web/desktop sessions only; undefined in CLI
+	 * mode). When set, `workspace_run` is available and the coordinator can
+	 * delegate subtasks to other workspace sessions.
+	 */
+	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+	/**
+	 * Natural-language IM control sink (web/desktop sessions only; undefined in
+	 * CLI mode). When set, `im_control` is available and the session can
+	 * manage workspaces / sessions / language / model on the user's behalf.
+	 */
+	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 
 	/** Provider-facing system prompt override. Replaces the fully rendered default blocks. */
 	systemPrompt?: string | string[] | ((defaultPrompt: string[]) => string | string[]);

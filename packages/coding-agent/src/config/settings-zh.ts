@@ -280,11 +280,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "侧边栏",
 		description: "显示右侧边栏（上下文、用量、git、模型）",
 	},
-	"tui.scrollbackRebuild": {
-		label: "重写回滚",
-		description:
-			"当块的最终形式替换其实时预览时，擦除并重放终端回滚。关闭时（默认），过时的预览副本保留在历史记录中，最终内容追加在下方。",
-	},
 	"display.shimmer": {
 		label: "微光动画",
 		description: "工作/加载消息的动画样式",

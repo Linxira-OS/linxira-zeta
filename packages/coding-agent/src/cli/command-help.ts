@@ -1,10 +1,14 @@
 import type { CommandMetadata } from "@linxiraos/pi-utils/cli";
 
 export const acpHelp = {
-	description: "Run Oh My Pi as an ACP (Agent Client Protocol) server over stdio",
+	description: "Run Zeta as an ACP (Agent Client Protocol) server over stdio",
 } satisfies CommandMetadata;
 
 export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
+
+export const attachHelp = {
+	description: "Attach a REPL to the serve process's shared session (status + mode control)",
+} satisfies CommandMetadata;
 
 export const authBrokerHelp = {
 	description: "Manage the omp auth-broker (credential vault)",
@@ -116,6 +120,14 @@ export const updateHelp = { description: "Check for and install updates" } satis
 
 export const usageHelp = {
 	description: "Show provider usage limits for every authenticated account",
+} satisfies CommandMetadata;
+
+export const serveHelp = {
+	description: "Start the Stats Dashboard and Web UI services (no browser)",
+} satisfies CommandMetadata;
+
+export const webHelp = {
+	description: "Start the Web UI server (no browser)",
 } satisfies CommandMetadata;
 
 export const worktreeHelp = {
