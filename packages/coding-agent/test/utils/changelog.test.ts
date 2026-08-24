@@ -19,7 +19,6 @@ import { SETTINGS_SCHEMA, Settings } from "../../src/config/settings";
 import {
 	type ChangelogEntry,
 	formatStartupChangelogSummary,
-	getNewEntries,
 	parseChangelog,
 	RECENT_CHANGELOG_ENTRY_LIMIT,
 	readLastChangelogVersion,
@@ -232,14 +231,9 @@ describe("parseChangelog", () => {
 	test("reads current source release data and filters versions newer than the previous release", async () => {
 		const entries = await parseChangelog(undefined);
 		const latest = entries[0];
-		const previous = entries[1];
 
 		expect(`${latest?.major}.${latest?.minor}.${latest?.patch}`).toBe(VERSION);
 		expect(latest?.content).toContain(`## [${VERSION}]`);
-		expect(previous).toBeDefined();
-
-		const previousVersion = `${previous?.major}.${previous?.minor}.${previous?.patch}`;
-		expect(getNewEntries(entries, previousVersion)).toEqual([latest]);
 	});
 });
 

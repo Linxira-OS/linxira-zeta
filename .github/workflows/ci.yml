@@ -588,6 +588,8 @@ jobs:
          - uses: ./.github/actions/native-artifacts
            with:
               targets: linux-x64-baseline linux-x64-modern
+         - name: Warm Julia prelude kernel
+           run: julia -e "exit(0)" || true
          - name: Test coding-agent native/unit bucket
            env:
               OMP_TEST_CONCURRENCY: "4"

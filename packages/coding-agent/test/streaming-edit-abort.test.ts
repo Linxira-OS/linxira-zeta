@@ -648,7 +648,13 @@ it(
 		// performance.now() spans include runner-preemption time the ambient drift
 		// control also absorbs, so calibrate the guard-work ceiling against the
 		// measured jitter instead of trusting a fixed wall-clock bound alone.
-		expect(maxSyncSpanMs).toBeLessThan(Math.max(5, ambientDriftMs * 3));
+		// Zeta raises the absolute floor from 5ms to 15ms: the GitHub-hosted
+		// runner drives 4 bun chunks per host concurrently, and a GC pause or
+		// OS preemption inside a single measured sync span has been observed at
+		// ~5.4ms against a quiet ambient (~0.07ms). Upstream widened maxDriftMs
+		// to 30ms for the same class of CI jitter (4854db856c); unsliced sync
+		// blocking (>40ms) and inline-sync regressions stay well above 15ms.
+		expect(maxSyncSpanMs).toBeLessThan(Math.max(15, ambientDriftMs * 3));
 		// The guard run legitimately spends one tick decoding + LF-normalizing the
 		// 2MB target and then pays GC for that churn — single-digit ms locally,
 		// 12ms observed on a 2-core CI runner. The ambient control cannot absorb
