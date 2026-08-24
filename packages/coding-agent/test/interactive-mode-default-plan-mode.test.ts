@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
-import { TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import type { CustomTool } from "../src/extensibility/custom-tools/types";
 import { InteractiveMode, shouldEnterPlanModeOnStartup } from "../src/modes/interactive-mode";

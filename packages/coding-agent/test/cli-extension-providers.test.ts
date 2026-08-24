@@ -11,17 +11,17 @@
  * Contract under test: after `loadCliExtensionProviders` drains the extension's
  * provider registrations into the registry, a `provider/id` selector for that
  * extension provider resolves. Discovery is disabled and the extension path is
- * passed explicitly so the test never touches the developer's real `~/.zeta`.
+ * passed explicitly so the test never touches the developer's real `~/.omp`.
  */
 
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import { AuthStorage } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { getModelMatchPreferences, resolveCliModel } from "@linxiraos/zeta/config/model-resolver";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { loadCliExtensionProviders } from "@linxiraos/zeta/sdk";
+import { TempDir } from "@linxiraos/pi-utils";
 
 let tmp: TempDir;
 let extPath: string;

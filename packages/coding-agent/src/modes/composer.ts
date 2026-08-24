@@ -10,7 +10,7 @@ import {
 	TUI,
 	type TUIOptions,
 	type ViewportSize,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import { CustomEditor } from "./components/custom-editor";
 import { type AnimationFrame, TranscriptContainer } from "./components/transcript-container";
 import { type LspServerInfo, type RecentSession, WelcomeComponent } from "./components/welcome";

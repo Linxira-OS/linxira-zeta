@@ -8,22 +8,14 @@ import {
 	wrapTextWithAnsi,
 } from "@linxiraos/pi-tui";
 import { APP_NAME } from "@linxiraos/pi-utils";
-import { currentLanguage, M } from "../../i18n";
 import { theme } from "../../modes/theme/theme";
-import tipsEnText from "./tips-en.txt" with { type: "text" };
-import tipsZhText from "./tips-zh.txt" with { type: "text" };
+import tipsText from "./tips.txt" with { type: "text" };
 
 /** Tips embedded at build time, one per line; blanks dropped. */
-const TIPS: Readonly<Record<"en" | "zh", readonly string[]>> = {
-	en: tipsEnText
-		.split("\n")
-		.map(line => line.trim())
-		.filter(line => line.length > 0),
-	zh: tipsZhText
-		.split("\n")
-		.map(line => line.trim())
-		.filter(line => line.length > 0),
-};
+const TIPS: readonly string[] = tipsText
+	.split("\n")
+	.map(line => line.trim())
+	.filter(line => line.length > 0);
 
 /**
  * Fixed number of session rows in the welcome box so its height stays stable
@@ -42,11 +34,8 @@ export const WELCOME_LSP_SLOTS = 4;
  *  painted as a shimmering rainbow. Non-global so `.test` stays stateless. */
 const NEW_TIP_MARKER = /\s*\[NEW\]\s*$/;
 
-/** Visible text rendered in place of {@link NEW_TIP_MARKER}. Read at render
- *  time so a `/language` switch takes effect immediately. */
-function newTagText(): string {
-	return M.welcomeNewTag;
-}
+/** Visible text rendered in place of {@link NEW_TIP_MARKER}. */
+const NEW_TAG_TEXT = "NEW!";
 
 /** Milliseconds for one full hue rotation of the rainbow "NEW!" tag. */
 const NEW_GLOW_PERIOD_MS = 1500;
@@ -79,7 +68,7 @@ function renderNewTag(phase: number, encoding: ColorEncoding): string {
 	const bold = "\x1b[1m";
 	const reset = "\x1b[0m";
 	const wrapped = ((phase % 1) + 1) % 1;
-	const chars = [...newTagText()];
+	const chars = [...NEW_TAG_TEXT];
 	let out = bold;
 	let prev = "";
 	for (let i = 0; i < chars.length; i++) {
@@ -94,7 +83,7 @@ function renderNewTag(phase: number, encoding: ColorEncoding): string {
 	return out + reset;
 }
 export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): string[] {
-	const label = M.welcomeTipLabel;
+	const label = "Tip: ";
 	const labelWidth = visibleWidth(label);
 	const bodyBudget = boxWidth - 1 - labelWidth; // 1 = leading indent
 	if (bodyBudget < 8) return [];
@@ -123,7 +112,7 @@ export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): stri
 		// styled glyphs never overflow or reflow the wrapped body.
 		const encoding: ColorEncoding = TERMINAL.trueColor ? "ansi-16m" : "ansi-256";
 		const tag = renderNewTag(phase, encoding);
-		const tagWidth = 1 + visibleWidth(newTagText()); // 1 = space separator
+		const tagWidth = 1 + visibleWidth(NEW_TAG_TEXT); // 1 = space separator
 		const lastLine = lines[lines.length - 1];
 		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= boxWidth) {
 			lines[lines.length - 1] = `${lastLine} ${tag}`;
@@ -147,7 +136,7 @@ export interface LspServerInfo {
 }
 
 /**
- * Premium welcome screen with the block-based Zeta logo and two-column layout.
+ * Premium welcome screen with block-based OMP logo and two-column layout.
  */
 export class WelcomeComponent implements Component {
 	#animStart: number | null = null;
@@ -170,9 +159,9 @@ export class WelcomeComponent implements Component {
 	get tip(): string | undefined {
 		if (this.#selectedTip === undefined) {
 			if (theme.getSymbolPreset() === "unicode" && Math.random() < 0.1) {
-				this.#selectedTip = M.welcomeNerdFontJoke;
+				this.#selectedTip = "Please use nerdfont 😭.";
 			} else {
-				this.#selectedTip = pickWeightedTip(TIPS[currentLanguage()], Math.random());
+				this.#selectedTip = pickWeightedTip(TIPS, Math.random());
 			}
 		}
 		return this.#selectedTip || undefined;
@@ -305,7 +294,7 @@ export class WelcomeComponent implements Component {
 		// Left column - centered content
 		const leftLines = [
 			"",
-			this.#centerText(theme.bold(M.welcomeBack), leftCol),
+			this.#centerText(theme.bold("Welcome back!"), leftCol),
 			"",
 			...logoColored.map(l => this.#centerText(l, leftCol)),
 			"",
@@ -320,7 +309,7 @@ export class WelcomeComponent implements Component {
 		// Recent sessions content
 		const sessionLines: string[] = [];
 		if (this.recentSessions.length === 0) {
-			sessionLines.push(` ${theme.fg("dim", M.welcomeNoRecentSessions)}`);
+			sessionLines.push(` ${theme.fg("dim", "No recent sessions")}`);
 		} else {
 			// Reserve width for the bullet prefix (" • ") and the trailing " (timeAgo)"
 			// so the relative time is never the part that gets truncated. The name
@@ -346,7 +335,7 @@ export class WelcomeComponent implements Component {
 		// LSP servers content
 		const lspLines: string[] = [];
 		if (this.lspServers.length === 0) {
-			lspLines.push(` ${theme.fg("dim", M.welcomeNoLspServers)}`);
+			lspLines.push(` ${theme.fg("dim", "No LSP servers")}`);
 		} else {
 			for (const server of this.lspServers.slice(0, WELCOME_LSP_SLOTS)) {
 				const icon =
@@ -368,16 +357,16 @@ export class WelcomeComponent implements Component {
 
 		// Right column
 		const rightLines = [
-			` ${theme.bold(theme.fg("accent", M.welcomeTipsTitle))}`,
-			` ${theme.fg("dim", "#")}${theme.fg("muted", M.welcomePromptActionsHint)}`,
-			` ${theme.fg("dim", "/")}${theme.fg("muted", M.welcomeCommandsHint)}`,
-			` ${theme.fg("dim", "!")}${theme.fg("muted", M.welcomeRunBashHint)}`,
-			` ${theme.fg("dim", "$")}${theme.fg("muted", M.welcomeRunPythonHint)}`,
+			` ${theme.bold(theme.fg("accent", "Tips"))}`,
+			` ${theme.fg("dim", "#")}${theme.fg("muted", " for prompt actions")}`,
+			` ${theme.fg("dim", "/")}${theme.fg("muted", " for commands")}`,
+			` ${theme.fg("dim", "!")}${theme.fg("muted", " to run bash")}`,
+			` ${theme.fg("dim", "$")}${theme.fg("muted", " to run python")}`,
 			separator,
-			` ${theme.bold(theme.fg("accent", M.welcomeLspServersTitle))}`,
+			` ${theme.bold(theme.fg("accent", "LSP Servers"))}`,
 			...lspLines,
 			separator,
-			` ${theme.bold(theme.fg("accent", M.welcomeRecentSessionsTitle))}`,
+			` ${theme.bold(theme.fg("accent", "Recent sessions"))}`,
 			...sessionLines,
 			"",
 		];
@@ -491,7 +480,7 @@ export class WelcomeComponent implements Component {
 	}
 }
 
-export const ZETA_LOGO = ["███████╗", "╚════██║", "   ██╔═╝", " ██╔═╝ ", "███████╗", "╚══════╝"];
+export const PI_LOGO = ["▀██████████▀", " ╘██    ██  ", "  ██    ██  ", "  ██    ██  ", " ▄██▄  ▄██▄ "];
 
 /** Multi-stop palette for the diagonal gradient. */
 const GRADIENT_STOPS: ReadonlyArray<readonly [number, number, number]> = [
@@ -612,8 +601,8 @@ function introLogoFrame(progress: number): string[] {
 	const phase = ((((1 - eased) * INTRO_SWEEPS) % 1) + 1) % 1;
 	const shinePos = (((progress * INTRO_SHINE_TRAVERSALS) % 1) + 1) % 1;
 	const shineStrength = (1 - eased) ** 1.5;
-	return gradientLogo(ZETA_LOGO, phase, { strength: shineStrength, pos: shinePos });
+	return gradientLogo(PI_LOGO, phase, { strength: shineStrength, pos: shinePos });
 }
 
 /** Resting gradient frame, cached for re-renders outside of the intro. */
-const REST_FRAME = gradientLogo(ZETA_LOGO, 0);
+const REST_FRAME = gradientLogo(PI_LOGO, 0);

@@ -2,9 +2,12 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
-import { resolvePluginExtensionPaths, resolvePluginToolPaths } from "@linxiraos/zeta/extensibility/plugins/loader";
+import {
+	resolvePluginExtensionPaths,
+	resolvePluginToolPaths,
+} from "@linxiraos/zeta/extensibility/plugins/loader";
 import type { InstalledPlugin, PluginManifest } from "@linxiraos/zeta/extensibility/plugins/types";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 function makePlugin(pluginPath: string, manifest: PluginManifest): InstalledPlugin {
 	return {

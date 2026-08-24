@@ -6,16 +6,16 @@
  * internals, which massively overcounts.
  */
 import { describe, expect, it } from "bun:test";
+import { type } from "@linxiraos/pi-omptype";
 import { Tokenizer } from "@linxiraos/pi-agent-core";
 import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
-import { type } from "@linxiraos/pi-omptype";
 import {
 	type ContextBreakdown,
 	computeNonMessageBreakdown,
 	computeNonMessageTokens,
 	estimateToolSchemaTokens,
 	renderContextUsage,
-} from "@oh-my-pi/pi-coding-agent/modes/utils/context-usage";
+} from "@linxiraos/zeta/modes/utils/context-usage";
 import { applyToolProxy } from "../../src/extensibility/tool-proxy";
 
 const tokenizer = new Tokenizer();

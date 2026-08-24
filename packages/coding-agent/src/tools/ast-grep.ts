@@ -1,15 +1,14 @@
 import * as path from "node:path";
+import { formatHashlineHeader } from "@linxiraos/pi-hashline";
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
-import { formatHashlineHeader } from "@linxiraos/pi-hashline";
 import { type AstFindMatch, astGrep } from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { prompt, untilAborted } from "@linxiraos/pi-utils";
 import { recordFileSnapshot, recordSeenLinesFromBody } from "../edit/file-snapshot-store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import astGrepDescription from "../prompts/tools/ast-grep.md" with { type: "text" };
 import { isScoutSpawnable } from "../task/spawn-policy";
@@ -150,8 +149,8 @@ export interface AstGrepToolDetails {
 export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolDetails> {
 	readonly name = "ast_grep";
 	readonly approval = "read" as const;
-	readonly label = M.agrpLabel;
-	readonly summary = M.agrpSummary;
+	readonly label = "AST Grep";
+	readonly summary = "Search code with AST patterns (structural grep)";
 	get description(): string {
 		return prompt.render(astGrepDescription, {
 			scoutAvailable: isScoutSpawnable(
@@ -199,12 +198,12 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 		return untilAborted(signal, async () => {
 			const pattern = params.pat.trim();
 			if (pattern.length === 0) {
-				throw new ToolError(M.agrpErrNoPat);
+				throw new ToolError("`pat` must be a non-empty pattern");
 			}
 			const patterns = [pattern];
 			const skip = params.skip === undefined ? 0 : Math.floor(params.skip);
 			if (!Number.isFinite(skip) || skip < 0) {
-				throw new ToolError(M.agrpErrSkip);
+				throw new ToolError("skip must be a non-negative number");
 			}
 			const scopedPaths = toPathList(params.path);
 			const rawPaths = scopedPaths.length > 0 ? scopedPaths : ["."];
@@ -281,7 +280,9 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 			};
 
 			if (result.matches.length === 0) {
-				const noMatchMessage = cappedParseErrors.length ? M.agrpNoMatchesHelp : "No matches found";
+				const noMatchMessage = cappedParseErrors.length
+					? "No matches found. Parse issues mean the query may be mis-scoped; narrow `path` before concluding absence."
+					: "No matches found";
 				const parseMessage = cappedParseErrors.length
 					? `\n${formatParseErrors(cappedParseErrors, parseErrorsTotal).join("\n")}`
 					: "";
@@ -380,7 +381,7 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 				displayContent: displayLines.join("\n"),
 			};
 			if (result.limitReached) {
-				outputLines.push("", M.agrpLimitReached);
+				outputLines.push("", "Result limit reached; narrow path or increase limit.");
 			}
 			if (cappedParseErrors.length) {
 				outputLines.push("", ...formatParseErrors(cappedParseErrors, parseErrorsTotal));
@@ -438,23 +439,23 @@ export const astGrepToolRenderer = {
 
 		if (matchCount === 0) {
 			const description = args?.pat;
-			const meta = [M.agrpZeroMatches];
+			const meta = ["0 matches"];
 			if (details?.scopePath) meta.push(`in ${details.scopePath}`);
 			if (filesSearched > 0) meta.push(`searched ${filesSearched}`);
 			const header = renderStatusLine({ icon: "warning", title: "AST Grep", description, meta }, uiTheme);
-			const lines = [header, formatEmptyMessage(M.agrpNoMatches, uiTheme)];
+			const lines = [header, formatEmptyMessage("No matches found", uiTheme)];
 			if (details?.parseErrors?.length) {
-				lines.push(uiTheme.fg("warning", M.agrpMisScoped));
+				lines.push(uiTheme.fg("warning", "Query may be mis-scoped; narrow `path` before concluding absence"));
 				appendParseErrorsBulletList(lines, details.parseErrors, uiTheme, details.parseErrorsTotal);
 			}
 			return new Text(lines.join("\n"), 0, 0);
 		}
 
-		const summaryParts = [formatCount(M.agrpMatchNoun, matchCount), formatCount(M.agrpFileNoun, fileCount)];
+		const summaryParts = [formatCount("match", matchCount), formatCount("file", fileCount)];
 		const meta = [...summaryParts];
 		if (details?.scopePath) meta.push(`in ${details.scopePath}`);
 		meta.push(`searched ${filesSearched}`);
-		if (limitReached) meta.push(uiTheme.fg("warning", M.tLimitReached));
+		if (limitReached) meta.push(uiTheme.fg("warning", "limit reached"));
 		const description = args?.pat;
 		const header = renderStatusLine(
 			{
@@ -495,7 +496,7 @@ export const astGrepToolRenderer = {
 
 		const extraLines: string[] = [];
 		if (limitReached) {
-			extraLines.push(uiTheme.fg("warning", M.agrpLimitNarrowPath));
+			extraLines.push(uiTheme.fg("warning", "limit reached; narrow path or increase limit"));
 		}
 		if (details?.parseErrors?.length) {
 			extraLines.push(

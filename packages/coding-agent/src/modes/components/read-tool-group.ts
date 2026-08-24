@@ -2,7 +2,6 @@ import * as path from "node:path";
 import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 import type { Component } from "@linxiraos/pi-tui";
 import { Container, Text } from "@linxiraos/pi-tui";
-import { M } from "../../i18n";
 import { InternalUrlRouter, XD_URL_PREFIX } from "../../internal-urls";
 import { getLanguageFromPath, theme } from "../../modes/theme/theme";
 import { parseLineRanges, selectorLineRanges, splitPathAndSel } from "../../tools/path-utils";
@@ -780,7 +779,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 			pathDisplay += theme.fg("accent", selectorSuffix);
 		}
 		if (options.correctedFrom) {
-			pathDisplay += theme.fg("dim", M.rtgCorrectedFromFmt.replace("%s", shortenPath(options.correctedFrom)));
+			pathDisplay += theme.fg("dim", ` (corrected from ${shortenPath(options.correctedFrom)})`);
 		}
 		pathDisplay += this.#formatConflictBadge(options.conflictCount);
 		return pathDisplay;
@@ -789,7 +788,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 	#formatConflictBadge(conflictCount: number | undefined): string {
 		if (!conflictCount || conflictCount <= 0) return "";
 		const n = conflictCount;
-		return ` ${theme.fg("warning", M.rtgConflictsFmt.replace("%s", String(n)).replace("%s", n === 1 ? "" : "s"))}`;
+		return ` ${theme.fg("warning", `(⚠ ${n} conflict${n === 1 ? "" : "s"})`)}`;
 	}
 
 	/**
@@ -809,7 +808,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 					linkPath: readTargetLinkPath(split.path, entry.linkPath),
 				})
 			: "";
-		const title = pathDisplay ? M.rtgReadTitleFmt.replace("%s", pathDisplay) : M.rtgReadTitle;
+		const title = pathDisplay ? `Read ${pathDisplay}` : "Read";
 		let cachedWidth: number | undefined;
 		let cachedLines: string[] | undefined;
 		const expanded = this.#expanded;

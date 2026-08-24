@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	SEARCH_PROVIDER_ORDER,
 	setExcludedSearchProviders,
 	setSearchProviderOrder,
 } from "@linxiraos/zeta/web/search/provider";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { runSearchCommand } from "../../../src/cli/web-search-cli";
 
 const WEB_SEARCH_ENV_KEYS = [

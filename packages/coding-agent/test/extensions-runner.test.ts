@@ -5,11 +5,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, expectTypeOf, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { Type } from "@linxiraos/pi-omptype/typebox";
 import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { Type } from "@linxiraos/pi-omptype/typebox";
-import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRuntime, loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
@@ -31,6 +30,7 @@ import type {
 import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
 
 describe("ExtensionRunner", () => {
 	let tempDir: TempDir;

@@ -1,11 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentTool, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
@@ -16,6 +15,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /**

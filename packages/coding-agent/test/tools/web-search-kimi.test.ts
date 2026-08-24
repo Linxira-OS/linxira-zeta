@@ -3,9 +3,9 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { KimiProvider, searchKimi } from "@linxiraos/zeta/web/search/providers/kimi";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const originalMoonshotSearchApiKey = process.env.MOONSHOT_SEARCH_API_KEY;
 const originalKimiSearchApiKey = process.env.KIMI_SEARCH_API_KEY;

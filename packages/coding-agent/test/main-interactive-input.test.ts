@@ -2,11 +2,15 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { applyResolvedSystemPromptInputs, readPipedInput, submitInteractiveInput } from "@linxiraos/zeta/main";
+import {
+	applyResolvedSystemPromptInputs,
+	readPipedInput,
+	submitInteractiveInput,
+} from "@linxiraos/zeta/main";
 import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
 import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
 import { discoverTitleSystemPromptFile } from "@linxiraos/zeta/system-prompt";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const cleanupDirs: string[] = [];
 
@@ -29,7 +33,7 @@ describe("discoverTitleSystemPromptFile", () => {
 	it("discovers TITLE_SYSTEM.md from the project omp config directory", async () => {
 		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-title-system-"));
 		cleanupDirs.push(projectDir);
-		const configDir = path.join(projectDir, ".zeta");
+		const configDir = path.join(projectDir, ".omp");
 		await fs.mkdir(configDir, { recursive: true });
 		const promptPath = path.join(configDir, "TITLE_SYSTEM.md");
 		await fs.writeFile(promptPath, "custom title prompt");

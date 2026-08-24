@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
 import { loadCapability } from "@linxiraos/zeta/discovery";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 async function loadMcp(cwd: string, provider: string): Promise<MCPServer[]> {
 	const result = await loadCapability<MCPServer>(mcpCapability.id, {

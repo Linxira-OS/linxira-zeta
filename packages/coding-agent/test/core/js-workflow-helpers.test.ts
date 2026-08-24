@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it, setDefaultTimeout } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
 import { executeJs, type JsResult } from "@linxiraos/zeta/eval/js/executor";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { TempDir } from "@linxiraos/pi-utils";
 
 // JS eval cold-starts a Bun worker; under --isolate + high CI concurrency that startup
 // can exceed Bun's 5s default per-test timeout, flaking the suite. Give the worker-backed

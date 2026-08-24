@@ -566,17 +566,17 @@ export function parseSqliteSelector(subPath: string, queryString: string): Sqlit
 	if (rawQuery !== null) {
 		const otherKeys = [...params.keys()].filter(key => key !== "q");
 		if (normalizedSubPath || otherKeys.length > 0) {
-			throw new ToolError(M.slErrRawWithSelectors);
+			throw new ToolError("SQLite raw queries cannot be combined with table selectors or pagination");
 		}
 		if (!rawQuery.trim()) {
-			throw new ToolError(M.slErrQueryEmpty);
+			throw new ToolError("SQLite query parameter 'q' cannot be empty");
 		}
 		return { kind: "raw", sql: rawQuery };
 	}
 
 	if (!normalizedSubPath) {
 		if (params.size > 0) {
-			throw new ToolError(M.slErrQueryNeedsSelector);
+			throw new ToolError("SQLite query parameters require a table selector or q=SELECT...");
 		}
 		return { kind: "list" };
 	}
@@ -585,12 +585,12 @@ export function parseSqliteSelector(subPath: string, queryString: string): Sqlit
 	const table = separatorIndex === -1 ? normalizedSubPath : normalizedSubPath.slice(0, separatorIndex);
 	const key = separatorIndex === -1 ? undefined : normalizedSubPath.slice(separatorIndex + 1);
 	if (!table) {
-		throw new ToolError(M.slErrSelectorTable);
+		throw new ToolError("SQLite selectors must include a table name");
 	}
 
 	if (key !== undefined && key.length > 0) {
 		if (params.size > 0) {
-			throw new ToolError(M.slErrRowsWithParams);
+			throw new ToolError("SQLite row lookups cannot be combined with query parameters");
 		}
 		return { kind: "row", table, key };
 	}
@@ -766,7 +766,7 @@ export function executeReadQuery(
 ): { columns: string[]; rows: Record<string, unknown>[]; truncated: boolean } {
 	const statement = db.prepare<SqliteRow, []>(sql);
 	if (statement.paramsCount > 0) {
-		throw new ToolError(M.slErrRawNoParams);
+		throw new ToolError("SQLite raw queries do not support bound parameters");
 	}
 	const columns = [...statement.columnNames];
 	const rows: SqliteRow[] = [];
@@ -808,7 +808,7 @@ export function updateRowByKey(
 	getTableMasterRow(db, table);
 	const entries = validateWriteColumns(db, table, data);
 	if (entries.length === 0) {
-		throw new ToolError(M.slErrUpdateColumn);
+		throw new ToolError("SQLite updates require at least one column value");
 	}
 
 	const assignments = entries.map(([column]) => `${quoteSqliteIdentifier(column)} = ?`).join(", ");
@@ -824,7 +824,7 @@ export function updateRowByRowId(db: Database, table: string, key: string, data:
 	getTableMasterRow(db, table);
 	const entries = validateWriteColumns(db, table, data);
 	if (entries.length === 0) {
-		throw new ToolError(M.slErrUpdateColumn);
+		throw new ToolError("SQLite updates require at least one column value");
 	}
 
 	const assignments = entries.map(([column]) => `${quoteSqliteIdentifier(column)} = ?`).join(", ");

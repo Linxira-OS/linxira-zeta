@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { GrepOutputMode } from "@linxiraos/pi-natives";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { EditTool } from "@linxiraos/zeta/edit";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -15,6 +13,8 @@ import {
 	splitPathAndSelPreferringLiteral,
 } from "@linxiraos/zeta/tools/path-utils";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { GrepOutputMode } from "@linxiraos/pi-natives";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { runGrepCommand } from "../../src/cli/grep-cli";
 import { initTheme } from "../../src/modes/theme/theme";
 import { GrepTool } from "../../src/tools/grep";

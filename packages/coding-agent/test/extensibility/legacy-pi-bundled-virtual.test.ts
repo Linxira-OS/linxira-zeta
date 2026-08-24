@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import * as url from "node:url";
-import { TempDir } from "@linxiraos/pi-utils";
 import {
 	__getLegacyPiBundledModulesGlobal,
 	__synthesizeLegacyPiBundledSourceWithModules,
 	resolveBundledVirtualSpecifier,
 } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { TempDir } from "@linxiraos/pi-utils";
 import type { BunPlugin } from "bun";
 
 // Regression for issue #3423: Bun 1.3.14 made `--compile` extras unreachable
@@ -32,7 +32,9 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 
 	it("emits one ES named export per enumerable namespace key", () => {
 		const src = __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/zeta", modules);
-		expect(src).toContain(`const __omp_bundled = globalThis[${JSON.stringify(globalKey)}]["@linxiraos/zeta"];`);
+		expect(src).toContain(
+			`const __omp_bundled = globalThis[${JSON.stringify(globalKey)}]["@linxiraos/zeta"];`,
+		);
 		expect(src).toContain('export const VERSION = __omp_bundled["VERSION"];');
 		expect(src).toContain('export const defineTool = __omp_bundled["defineTool"];');
 		expect(src).toContain('export const Type = __omp_bundled["Type"];');
@@ -55,7 +57,7 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 
 	it("throws when asked to synthesize a key the bundled modules do not cover", () => {
 		expect(() => __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/pi-not-bundled", modules)).toThrow(
-			/no bundled module registered for @linxiraos\/pi-not-bundled/,
+			/no bundled module registered for @oh-my-pi\/pi-not-bundled/,
 		);
 	});
 

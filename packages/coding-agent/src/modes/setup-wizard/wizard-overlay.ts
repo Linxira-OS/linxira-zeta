@@ -9,8 +9,7 @@ import {
 	visibleWidth,
 } from "@linxiraos/pi-tui";
 import { APP_NAME } from "@linxiraos/pi-utils";
-import { M } from "../../i18n";
-import { gradientLogo, ZETA_LOGO } from "../components/welcome";
+import { gradientLogo, PI_LOGO } from "../components/welcome";
 import { theme } from "../theme/theme";
 import type { InteractiveModeContext } from "../types";
 import { renderSetupOutro, SETUP_OUTRO_MS } from "./scenes/outro";
@@ -198,21 +197,16 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 	}
 
 	#renderScene(width: number, height: number): string[] {
-		const title = this.#activeScene?.title ?? M.setupFallbackTitle;
+		const scene = this.scenes[this.#sceneIndex];
+		const title = this.#activeScene?.title ?? scene?.title ?? "Setup";
 		const subtitle = this.#activeScene?.subtitle;
 		const contentWidth = Math.max(MIN_CONTENT_WIDTH, width - SCENE_MARGIN_X * 2);
-		const logo = gradientLogo(ZETA_LOGO, 0);
+		const logo = gradientLogo(PI_LOGO, 0);
 		const header = [
 			"",
 			...logo.map(line => centerLine(line, width)),
 			centerLine(theme.bold(theme.fg("accent", APP_NAME)), width),
-			centerLine(
-				theme.fg(
-					"muted",
-					M.setupStepFmt.replace("%s", String(this.#sceneIndex + 1)).replace("%s", String(this.scenes.length)),
-				),
-				width,
-			),
+			centerLine(theme.fg("muted", `Setup step ${this.#sceneIndex + 1} of ${this.scenes.length}`), width),
 			"",
 			indentLine(theme.bold(title), width, SCENE_MARGIN_X),
 		];
@@ -220,16 +214,12 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 			header.push(indentLine(theme.fg("muted", subtitle), width, SCENE_MARGIN_X));
 		}
 		header.push("");
-		const footer = ["", centerLine(theme.fg("dim", M.setupFooterHint), width)];
-		// Decorative chrome yields to the scene on short terminals: drop the logo
-		// block (art + wordmark) when the fixed footer leaves the scene fewer rows
-		// than the theme picker needs (3 chrome rows + 6 curated rows + search status).
-		const MIN_SCENE_BODY_ROWS = 10;
-		if (height - header.length - footer.length < MIN_SCENE_BODY_ROWS) {
-			header.splice(1, logo.length + 1);
-		}
 		this.#bodyRowStart = header.length;
 
+		const footer = [
+			"",
+			centerLine(theme.fg("dim", "↑/↓ select · enter confirm · esc skip · ctrl+c exit setup"), width),
+		];
 		const maxBodyLines = Math.max(0, height - header.length - footer.length);
 		const body = this.#activeScene?.render(contentWidth, maxBodyLines).slice(0, maxBodyLines) ?? [];
 		const lines = [...header, ...body.map(line => indentLine(line, width, SCENE_MARGIN_X))];

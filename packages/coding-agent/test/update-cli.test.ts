@@ -4,8 +4,6 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import * as pluginCli from "@linxiraos/zeta/cli/plugin-cli";
 import * as updateCli from "@linxiraos/zeta/cli/update-cli";
 import {
@@ -38,6 +36,8 @@ import {
 	updateViaShimTakeover,
 } from "@linxiraos/zeta/cli/update-cli";
 import Update from "@linxiraos/zeta/commands/update";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import { getThemeByName, setThemeInstance } from "../src/modes/theme/theme";
 
 const tempDirs: string[] = [];
@@ -256,7 +256,7 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const npmPrefix = path.join(dir, ".npm-global");
 		const npmBinDir = path.join(npmPrefix, "bin");
-		const packagePath = path.join(npmPrefix, "lib", "node_modules", "@linxiraos", "pi-coding-agent");
+		const packagePath = path.join(npmPrefix, "lib", "node_modules", "@oh-my-pi", "pi-coding-agent");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
 		const aliasPath = path.join(npmBinDir, "omp");
@@ -343,7 +343,7 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const bunBinDir = path.join(dir, "bun-bin");
 		const bunGlobalDir = path.join(dir, "bun-global");
-		const packagePath = path.join(bunGlobalDir, "node_modules", "@linxiraos", "pi-coding-agent");
+		const packagePath = path.join(bunGlobalDir, "node_modules", "@oh-my-pi", "pi-coding-agent");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
 		const aliasPath = path.join(bunBinDir, "omp");
@@ -413,14 +413,14 @@ describe("update-cli install target detection", () => {
 });
 
 describe("update-cli package manager commands", () => {
-	it("targets no Homebrew formula (Zeta ships no tap) and stays on upgrade", () => {
-		expect(buildHomebrewUpdateArgs(false)).toEqual(["upgrade", ""]);
-		expect(buildHomebrewUpdateArgs(true)).toEqual(["reinstall", ""]);
+	it("targets the Homebrew tap formula and switches to reinstall for forced updates", () => {
+		expect(buildHomebrewUpdateArgs(false)).toEqual(["upgrade", "can1357/tap/omp"]);
+		expect(buildHomebrewUpdateArgs(true)).toEqual(["reinstall", "can1357/tap/omp"]);
 	});
 
-	it("targets the mise zeta tool and force-reinstalls the checked version when requested", () => {
-		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "zeta", "--bump"]);
-		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "zeta@15.10.5"]);
+	it("targets the mise GitHub backend tool and force-reinstalls the checked version when requested", () => {
+		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "github:can1357/oh-my-pi", "--bump"]);
+		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "github:can1357/oh-my-pi@15.10.5"]);
 	});
 
 	it("pins npm package installs to the official registry and the checked native package versions", () => {
@@ -475,7 +475,10 @@ describe("update-cli npm rename contract", () => {
 			"@linxiraos/pi-natives",
 			"@linxiraos/pi-natives-darwin-arm64",
 		]);
-		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta", "@linxiraos/pi-natives"]);
+		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual([
+			"@linxiraos/zeta",
+			"@linxiraos/pi-natives",
+		]);
 	});
 
 	it("keeps the natives packages on an agent-only rename so cleanup cannot strip the addon the new install pinned", () => {
@@ -560,9 +563,7 @@ describe("migrateRenamedInstall transaction", () => {
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const { steps, calls } = scriptedSteps({ install: [0, 0], verify: [false, false] });
 
-		await expect(migrateRenamedInstall(release, steps)).rejects.toThrow(
-			"curl -fsSL https://github.com/Linxira-OS/linxira-zeta | sh",
-		);
+		await expect(migrateRenamedInstall(release, steps)).rejects.toThrow("curl -fsSL https://omp.sh/install");
 		expect(calls).toEqual(["install", "removeOld", "verify", "install", "verify"]);
 	});
 });
@@ -645,14 +646,14 @@ describe("update-cli bun cache pruning", () => {
 			path.join(dir, "react@19.2.6@@@1", "package.json"),
 			JSON.stringify({ name: "react", version: "19.2.6" }),
 		);
-		await Bun.write(path.join(dir, "@linxiraos", "pi-utils", "15.7.6@@@1"), "");
-		await Bun.write(path.join(dir, "@linxiraos", "pi-utils", "15.8.0@@@1"), "");
+		await Bun.write(path.join(dir, "@oh-my-pi", "pi-utils", "15.7.6@@@1"), "");
+		await Bun.write(path.join(dir, "@oh-my-pi", "pi-utils", "15.8.0@@@1"), "");
 		await Bun.write(
-			path.join(dir, "@linxiraos", "pi-utils@15.7.6@@@1", "package.json"),
+			path.join(dir, "@oh-my-pi", "pi-utils@15.7.6@@@1", "package.json"),
 			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.7.6" }),
 		);
 		await Bun.write(
-			path.join(dir, "@linxiraos", "pi-utils@15.8.0@@@1", "package.json"),
+			path.join(dir, "@oh-my-pi", "pi-utils@15.8.0@@@1", "package.json"),
 			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.8.0" }),
 		);
 		await Bun.write(path.join(dir, "chalk", "4.1.2@@@1"), "");
@@ -673,10 +674,10 @@ describe("update-cli bun cache pruning", () => {
 		expect(await Bun.file(path.join(dir, "react@18.3.1@@@1", "package.json")).exists()).toBe(false);
 		expect(await Bun.file(path.join(dir, "react", "19.2.6@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "react@19.2.6@@@1", "package.json")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk", "4.1.2@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk@4.1.2@@@1", "package.json")).exists()).toBe(true);
 	});
@@ -745,8 +746,8 @@ describe("update-cli bun cache pruning", () => {
 
 describe("update-cli release binary integrity", () => {
 	const tag = "v17.1.2";
-	const binaryName = "zeta-linux-x64";
-	const url = `https://github.com/Linxira-OS/linxira-zeta/releases/download/${tag}/${binaryName}`;
+	const binaryName = "omp-linux-x64";
+	const url = `https://github.com/can1357/oh-my-pi/releases/download/${tag}/${binaryName}`;
 	const content = "verified binary";
 	const digest = `sha256:${createHash("sha256").update(content).digest("hex")}`;
 
@@ -971,7 +972,7 @@ describe("update-cli release binary integrity", () => {
 describe("update-cli binary replacement", () => {
 	it("restores the previous binary when the replacement fails verification", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta");
+		const targetPath = path.join(dir, "omp");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -985,7 +986,7 @@ describe("update-cli binary replacement", () => {
 				expectedVersion: "15.1.8",
 				verifyInstalledVersion: async () => ({ ok: false, path: targetPath }),
 			}),
-		).rejects.toThrow("restored previous zeta binary");
+		).rejects.toThrow("restored previous omp binary");
 
 		expect(await Bun.file(targetPath).text()).toBe("old binary");
 		expect(await Bun.file(tempPath).exists()).toBe(false);
@@ -994,7 +995,7 @@ describe("update-cli binary replacement", () => {
 
 	it("keeps the replacement only after it reports the expected version", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta");
+		const targetPath = path.join(dir, "omp");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1042,7 +1043,7 @@ describe("update-cli binary replacement on locked backups", () => {
 		// the running process image, so unlinking it throws EPERM. That cleanup
 		// failure must not turn a verified swap into "Update failed" (issue #845).
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta.exe");
+		const targetPath = path.join(dir, "omp.exe");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.1700000000000.4242.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1081,7 +1082,7 @@ describe("update-cli binary replacement on locked backups", () => {
 describe("update-cli stale update artifact sweep", () => {
 	it("reclaims timestamped and legacy backups and orphaned temps while sparing in-progress temps and unrelated files", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta.exe");
+		const targetPath = path.join(dir, "omp.exe");
 		await Bun.write(targetPath, "current binary");
 		await Bun.write(`${targetPath}.bak`, "legacy backup");
 		await Bun.write(`${targetPath}.1700000000000.4242.bak`, "timestamped backup");
@@ -1154,7 +1155,7 @@ describe("update-cli binary-only release gating", () => {
 describe("update-cli script-shim takeover", () => {
 	const version = "18.0.0";
 	const binaryName = "omp-windows-x64.exe";
-	const url = `https://github.com/Linxira-OS/linxira-zeta/releases/download/v${version}/${binaryName}`;
+	const url = `https://github.com/can1357/oh-my-pi/releases/download/v${version}/${binaryName}`;
 
 	function makeFetch(content: string): (input: string | URL | Request) => Promise<Response> {
 		const digest = `sha256:${createHash("sha256").update(content).digest("hex")}`;
@@ -1184,9 +1185,9 @@ describe("update-cli script-shim takeover", () => {
 	}
 
 	const shims: Record<string, string> = {
-		zeta: "#!/bin/sh\nnode zeta.js\n",
-		"zeta.cmd": "@node zeta.js %*\n",
-		"zeta.ps1": "node zeta.js @args\n",
+		omp: "#!/bin/sh\nnode omp.js\n",
+		"omp.cmd": "@node omp.js %*\n",
+		"omp.ps1": "node omp.js @args\n",
 	};
 
 	async function writeShims(dir: string): Promise<void> {
@@ -1195,21 +1196,21 @@ describe("update-cli script-shim takeover", () => {
 		}
 	}
 
-	it("installs zeta.exe beside the shims and retires them", async () => {
+	it("installs omp.exe beside the shims and retires them", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Real executable, no injected verifier: the takeover must verify the
 		// exe by explicit path — $which cached the shim path before it was
 		// renamed away, so a PATH re-resolution would fail here.
-		const exe = `#!/bin/sh\necho zeta/${version}\n`;
+		const exe = `#!/bin/sh\necho omp/${version}\n`;
 
-		await updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+		await updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 			binaryName,
 			fetchImpl: makeFetch(exe),
 			githubToken: "test-token",
 		});
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "omp.exe")).text()).toBe(exe);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).exists()).toBe(false);
 		}
@@ -1247,14 +1248,14 @@ describe("update-cli script-shim takeover", () => {
 		const exe = "#!/bin/sh\necho omp/17.2.12\n";
 
 		await expect(
-			updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+			updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe),
 				githubToken: "test-token",
 			}),
-		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous zeta launcher/);
+		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous omp launcher/);
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1265,7 +1266,7 @@ describe("update-cli script-shim takeover", () => {
 	function renameLockingPs1(): Mock<typeof nodeFs.promises.rename> {
 		const realRename = nodeFs.promises.rename;
 		return spyOn(nodeFs.promises, "rename").mockImplementation(async (from, to) => {
-			if (path.basename(String(from)) === "zeta.ps1") {
+			if (path.basename(String(from)) === "omp.ps1") {
 				throw Object.assign(new Error("EPERM: file is locked"), { code: "EPERM" });
 			}
 			return await realRename(from, to);
@@ -1275,10 +1276,10 @@ describe("update-cli script-shim takeover", () => {
 	it("rewrites an immovable precedence-winning shim as a forwarder to the exe", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = `#!/bin/sh\necho zeta/${version}\n`;
+		const exe = `#!/bin/sh\necho omp/${version}\n`;
 		const renameSpy = renameLockingPs1();
 		try {
-			await updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+			await updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe),
 				githubToken: "test-token",
@@ -1287,12 +1288,12 @@ describe("update-cli script-shim takeover", () => {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
-		expect(await Bun.file(path.join(dir, "zeta")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "zeta.cmd")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "omp")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.cmd")).exists()).toBe(false);
 		// PowerShell resolves .ps1 before .exe: the locked shim must now exec
 		// the new binary instead of keeping its old body.
-		expect(await Bun.file(path.join(dir, "zeta.ps1")).text()).toContain('& "$PSScriptRoot\\zeta.exe" @args');
+		expect(await Bun.file(path.join(dir, "omp.ps1")).text()).toContain('& "$PSScriptRoot\\omp.exe" @args');
 	});
 
 	it("restores a forwarded shim's original body when verification fails", async () => {
@@ -1302,17 +1303,17 @@ describe("update-cli script-shim takeover", () => {
 		const renameSpy = renameLockingPs1();
 		try {
 			await expect(
-				updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+				updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 					binaryName,
 					fetchImpl: makeFetch(exe),
 					githubToken: "test-token",
 				}),
-			).rejects.toThrow("restored previous zeta launcher");
+			).rejects.toThrow("restored previous omp launcher");
 		} finally {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1321,8 +1322,8 @@ describe("update-cli script-shim takeover", () => {
 
 describe("update-cli concurrent binary updates", () => {
 	const version = "999.0.0";
-	const binaryName = "zeta-linux-x64";
-	const url = `https://github.com/Linxira-OS/linxira-zeta/releases/download/v${version}/${binaryName}`;
+	const binaryName = "omp-linux-x64";
+	const url = `https://github.com/can1357/oh-my-pi/releases/download/v${version}/${binaryName}`;
 	const payload = Buffer.alloc(2048, 0x41);
 	const digest = `sha256:${createHash("sha256").update(payload).digest("hex")}`;
 
@@ -1350,7 +1351,7 @@ describe("update-cli concurrent binary updates", () => {
 		setThemeInstance(loadedTheme);
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta");
+		const targetPath = path.join(dir, "omp");
 		await Bun.write(targetPath, "old binary");
 		return { dir, targetPath };
 	}
@@ -1443,7 +1444,7 @@ describe("update-cli manager update recovery", () => {
 	const release: ReleaseInfo = {
 		tag: "v18.0.1",
 		version: "18.0.1",
-		packages: { pkg: "@oh-my-pi/pi-coding-agent", natives: "@oh-my-pi/pi-natives" },
+		packages: { pkg: "@linxiraos/zeta", natives: "@linxiraos/pi-natives" },
 	};
 	const launcherPath = "C:/Users/test/AppData/Roaming/npm/omp.cmd";
 

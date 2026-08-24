@@ -3,12 +3,12 @@ import { Agent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Regression: a steer can land on an idle session — the submit path checks

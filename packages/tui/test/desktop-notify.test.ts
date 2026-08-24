@@ -111,10 +111,10 @@ describe("buildDesktopNotifyCommand", () => {
 		expect(buildDesktopNotifyCommand(notifySend, "ping")).toEqual([
 			"/usr/bin/notify-send",
 			"--app-name",
-			"Zeta",
+			"Oh My Pi",
 			"--urgency=normal",
 			"--expire-time=5000",
-			"Zeta",
+			"Oh My Pi",
 			"ping",
 		]);
 	});
@@ -129,7 +129,7 @@ describe("buildDesktopNotifyCommand", () => {
 		).toEqual([
 			"/usr/bin/notify-send",
 			"--app-name",
-			"Zeta",
+			"Oh My Pi",
 			"--urgency=critical",
 			"--expire-time=5000",
 			"Session 12",
@@ -141,16 +141,16 @@ describe("buildDesktopNotifyCommand", () => {
 		expect(buildDesktopNotifyCommand(notifySend, { title: "   ", body: "Waiting for input" })).toEqual([
 			"/usr/bin/notify-send",
 			"--app-name",
-			"Zeta",
+			"Oh My Pi",
 			"--urgency=normal",
 			"--expire-time=5000",
-			"Zeta",
+			"Oh My Pi",
 			"Waiting for input",
 		]);
 	});
 
 	it("produces a freedesktop Notify call for gdbus including the urgency hint byte", () => {
-		expect(buildDesktopNotifyCommand(gdbus, { title: "Zeta", body: "ping", urgency: "low" })).toEqual([
+		expect(buildDesktopNotifyCommand(gdbus, { title: "Oh My Pi", body: "ping", urgency: "low" })).toEqual([
 			"/usr/bin/gdbus",
 			"call",
 			"--session",
@@ -160,10 +160,10 @@ describe("buildDesktopNotifyCommand", () => {
 			"/org/freedesktop/Notifications",
 			"--method",
 			"org.freedesktop.Notifications.Notify",
-			"Zeta",
+			"Oh My Pi",
 			"0",
 			"",
-			"Zeta",
+			"Oh My Pi",
 			"ping",
 			"[]",
 			'{"urgency": <byte 0>}',
@@ -199,7 +199,7 @@ describe("sendDesktopNotification", () => {
 		expect(opts.cmd).toEqual([
 			"/usr/bin/notify-send",
 			"--app-name",
-			"Zeta",
+			"Oh My Pi",
 			"--urgency=normal",
 			"--expire-time=5000",
 			"Session",

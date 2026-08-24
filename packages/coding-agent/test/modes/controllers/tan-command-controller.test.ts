@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
 import type { AsyncJobRegisterOptions } from "@linxiraos/zeta/async/job-manager";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { resolveLocalRoot } from "@linxiraos/zeta/internal-urls/local-protocol";
@@ -11,6 +10,7 @@ import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-reg
 import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import * as sdkModule from "@linxiraos/zeta/sdk";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 interface CapturedJobRunContext {
 	jobId: string;

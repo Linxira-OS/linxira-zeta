@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { TUI } from "@linxiraos/pi-tui";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
-import { decodeStreamedToolArgs, streamingStringKeysForTool } from "@linxiraos/zeta/modes/controllers/tool-args-reveal";
+import {
+	decodeStreamedToolArgs,
+	streamingStringKeysForTool,
+} from "@linxiraos/zeta/modes/controllers/tool-args-reveal";
 import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 import { writeToolRenderer } from "@linxiraos/zeta/tools/write";
+import type { TUI } from "@linxiraos/pi-tui";
 
 const stripAnsi = (s: string): string => s.replace(/\u001b\[[0-9;]*m/g, "");
 const hasLine = (lines: readonly string[], n: number): boolean =>

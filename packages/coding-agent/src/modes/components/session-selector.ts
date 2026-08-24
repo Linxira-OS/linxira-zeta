@@ -14,7 +14,6 @@ import {
 	visibleWidth,
 } from "@linxiraos/pi-tui";
 import { formatBytes } from "@linxiraos/pi-utils";
-import { M } from "../../i18n";
 import { theme } from "../../modes/theme/theme";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../../modes/utils/keybinding-matchers";
 import type { SessionInfo, SessionStatus } from "../../session/session-listing";
@@ -31,15 +30,15 @@ import { bottomBorder, OverlayPanel, row, topBorder } from "./overlay-box";
 function formatSessionStatus(status: SessionStatus | undefined): string | undefined {
 	switch (status) {
 		case "complete":
-			return theme.fg("success", `${theme.status.success} ${M.ssStatusDone}`);
+			return theme.fg("success", `${theme.status.success} done`);
 		case "interrupted":
-			return theme.fg("warning", `${theme.status.warning} ${M.ssStatusInterrupted}`);
+			return theme.fg("warning", `${theme.status.warning} interrupted`);
 		case "aborted":
-			return theme.fg("muted", `${theme.status.aborted} ${M.ssStatusAborted}`);
+			return theme.fg("muted", `${theme.status.aborted} aborted`);
 		case "error":
-			return theme.fg("error", `${theme.status.error} ${M.ssStatusError}`);
+			return theme.fg("error", `${theme.status.error} error`);
 		case "pending":
-			return theme.fg("accent", `${theme.status.pending} ${M.ssStatusPending}`);
+			return theme.fg("accent", `${theme.status.pending} pending`);
 		default:
 			return undefined;
 	}
@@ -537,11 +536,12 @@ class SessionList implements Component {
 
 		if (this.#filteredSessions.length === 0) {
 			if (this.#showCwd) {
-				// "All" scope - no sessions anywhere that match filter
-				lines.push(truncateToWidth(theme.fg("muted", M.ssNoSessionsFound), width));
+				lines.push(truncateToWidth(theme.fg("muted", "No sessions found"), width));
 			} else {
 				// "Current folder" scope - hint to try "all"
-				lines.push(truncateToWidth(theme.fg("muted", M.ssNoSessionsInFolder), width));
+				lines.push(
+					truncateToWidth(theme.fg("muted", "No sessions in current folder. Press Tab to view all."), width),
+				);
 			}
 			return lines;
 		}
@@ -554,13 +554,11 @@ class SessionList implements Component {
 			const diffHours = Math.floor(diffMs / 3600000);
 			const diffDays = Math.floor(diffMs / 86400000);
 
-			if (diffMins < 1) return M.ssJustNow;
-			if (diffMins < 60)
-				return M.ssMinuteAgoFmt.replace("%s", String(diffMins)).replace("%s", diffMins !== 1 ? "s" : "");
-			if (diffHours < 24)
-				return M.ssHourAgoFmt.replace("%s", String(diffHours)).replace("%s", diffHours !== 1 ? "s" : "");
-			if (diffDays === 1) return M.ssDayAgo;
-			if (diffDays < 7) return M.ssDaysAgoFmt.replace("%s", String(diffDays));
+			if (diffMins < 1) return "just now";
+			if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
+			if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+			if (diffDays === 1) return "1 day ago";
+			if (diffDays < 7) return `${diffDays} days ago`;
 
 			return date.toLocaleDateString();
 		};
@@ -643,7 +641,7 @@ class SessionList implements Component {
 				metadata += ` ${dot} ${status}`;
 			}
 			if (session.parentSessionPath) {
-				metadata += ` ${dot} ${dim(`${theme.icon.branch} ${M.ssForkLabel}`)}`;
+				metadata += ` ${dot} ${dim(`${theme.icon.branch} fork`)}`;
 			}
 			if (this.#showCwd && session.cwd) {
 				metadata += ` ${dot} ${dim(shortenPath(session.cwd))}`;
@@ -838,7 +836,7 @@ export class SessionSelectorComponent extends OverlayPanel {
 		this.#globalSessions = options.allSessions ?? null;
 		this.#getTerminalRows = options.getTerminalRows ?? (() => 24);
 		this.#fillHeight = options.fillHeight ?? false;
-		this.#title = options.title ?? M.ssTitleResume;
+		this.#title = options.title ?? "Resume Session";
 		this.#scopeLabel = options.scopeLabel;
 		this.title = this.#headerLabel();
 		// One spacer of breathing room; OverlayPanel supplies the two outer
@@ -884,9 +882,9 @@ export class SessionSelectorComponent extends OverlayPanel {
 	}
 
 	#headerLabel(): string {
-		if (this.#scopeLabel === false) return theme.bold(this.#title);
-		const scopeLabel = this.#scopeLabel ?? (this.#scope === "all" ? M.ssAllProjectsLabel : M.ssCurrentFolderLabel);
-		return `${theme.bold(this.#title)} ${theme.fg("muted", `(${scopeLabel})`)}`;
+		if (this.#scopeLabel === false) return this.#title;
+		const scopeLabel = this.#scopeLabel ?? (this.#scope === "all" ? "all projects" : "current folder");
+		return `${this.#title} (${scopeLabel})`;
 	}
 
 	/**
@@ -902,7 +900,7 @@ export class SessionSelectorComponent extends OverlayPanel {
 				if (!this.#loadAllSessions) return;
 				this.#toggling = true;
 				this.#messageContainer.clear();
-				this.#messageContainer.addChild(new Text(theme.fg("muted", M.ssLoadingAllProjects), 1, 0));
+				this.#messageContainer.addChild(new Text(theme.fg("muted", "Loading all projects…"), 0, 0));
 				this.#onRequestRender?.();
 				try {
 					global = await this.#loadAllSessions();
@@ -954,9 +952,7 @@ export class SessionSelectorComponent extends OverlayPanel {
 
 	#showError(message: string): void {
 		this.#messageContainer.clear();
-		this.#messageContainer.addChild(
-			new Text(theme.fg("error", M.ssErrorPrefixFmt.replace("%s", replaceTabs(message))), 1, 0),
-		);
+		this.#messageContainer.addChild(new Text(theme.fg("error", `Error: ${replaceTabs(message)}`), 0, 0));
 		this.#messageContainer.addChild(new Spacer(1));
 	}
 
@@ -972,10 +968,10 @@ export class SessionSelectorComponent extends OverlayPanel {
 			this.#onRequestRender?.();
 		};
 		this.#confirmationDialog = new HookSelectorComponent(
-			M.ssDeleteSessionFmt.replace("%s", displayName),
-			[M.ssConfirmYes, M.ssConfirmNo],
+			`Delete session?\n${displayName}`,
+			["Yes", "No"],
 			async (option: string) => {
-				if (option === M.ssConfirmYes && this.#onDelete) {
+				if (option === "Yes" && this.#onDelete) {
 					this.#clearError();
 					try {
 						const deleted = await this.#onDelete(session);
@@ -1026,8 +1022,8 @@ export class SessionSelectorComponent extends OverlayPanel {
 
 	/** Blank · keybinding hint · bottom border. Rendered by {@link render}. */
 	#footerLines(width: number): string[] {
-		const scopeHint = this.#scope === "all" ? M.ssCurrentFolderLabel : M.ssAllProjectsLabel;
-		const hint = theme.fg("muted", M.ssFooterHintFmt.replace("%s", scopeHint));
+		const scopeHint = this.#scope === "all" ? "current folder" : "all projects";
+		const hint = theme.fg("muted", `[Del/⌫ delete · Enter select · Tab ${scopeHint} · Esc cancel]`);
 		return [row("", width), row(hint, width), row("", width), bottomBorder(width)];
 	}
 

@@ -4,7 +4,6 @@
  * Extends the base AgentMessage type with coding-agent specific message types,
  * and provides a transformer to convert them to LLM-compatible messages.
  */
-
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	invalidateMessageCache,

@@ -3,7 +3,6 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { type Api, type AssistantMessage, Effort, type Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { type CreateAgentSessionResult, createAgentSession } from "@linxiraos/zeta/sdk";
@@ -13,6 +12,7 @@ import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-cont
 import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
+import { TempDir } from "@linxiraos/pi-utils";
 
 describe("AgentSession model persistence", () => {
 	let tempDir: TempDir;

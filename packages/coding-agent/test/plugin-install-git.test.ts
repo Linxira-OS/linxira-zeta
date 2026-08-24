@@ -18,9 +18,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import * as piUtils from "@linxiraos/pi-utils";
 import { removeWithRetries } from "@linxiraos/pi-utils";
-import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import type { Subprocess } from "bun";
 
 function textStream(text: string): ReadableStream<Uint8Array> {
@@ -73,7 +73,7 @@ describe("PluginManager.install with git sources", () => {
 		vi.spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		vi.spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(pluginsNodeModules);
 		vi.spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(pluginsPkgJson);
-		vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "zeta-plugins.lock.json"));
+		vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "omp-plugins.lock.json"));
 		vi.spyOn(piUtils, "getProjectDir").mockReturnValue(tmpRoot);
 		vi.spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(path.join(tmpRoot, "plugin-overrides.json"));
 	});

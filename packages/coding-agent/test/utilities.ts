@@ -6,7 +6,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
@@ -15,6 +14,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
+import { Snowflake } from "@linxiraos/pi-utils";
 import { e2eApiKey } from "../../ai/test/oauth";
 
 export { e2eApiKey };

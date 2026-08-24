@@ -22,7 +22,6 @@ import {
 	isProviderEnabled,
 	loadCapability,
 } from "../../../discovery";
-import { M } from "../../../i18n/messages";
 import { readDisabledServers, readEnabledServers } from "../../../mcp/config-writer";
 import type {
 	DashboardState,
@@ -303,7 +302,7 @@ export async function loadAllExtensions(cwd?: string, disabledIds?: string[]): P
 				kind: "context-file",
 				name,
 				displayName: name,
-				description: file.level === "user" ? M.smUserLevel : M.smProjectLevel,
+				description: file.level === "user" ? "User-level context" : "Project-level context",
 				trigger: file.level,
 				path: file.path,
 				source: sourceFromMeta(file._source),
@@ -439,7 +438,7 @@ export function applyFilter(extensions: Extension[], query: string): Extension[]
 function getKindDisplayName(kind: ExtensionKind): string {
 	switch (kind) {
 		case "extension-module":
-			return M.smExtensionModules;
+			return "Extension Modules";
 		case "skill":
 			return "Skills";
 		case "rule":
@@ -447,17 +446,17 @@ function getKindDisplayName(kind: ExtensionKind): string {
 		case "tool":
 			return "Tools";
 		case "mcp":
-			return M.smMcpServers;
+			return "MCP Servers";
 		case "prompt":
 			return "Prompts";
 		case "instruction":
 			return "Instructions";
 		case "context-file":
-			return M.smContextFiles;
+			return "Context Files";
 		case "hook":
 			return "Hooks";
 		case "slash-command":
-			return M.smSlashCommands;
+			return "Slash Commands";
 		default:
 			return kind;
 	}

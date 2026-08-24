@@ -17,11 +17,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { type Skill, skillCapability } from "@linxiraos/zeta/capability/skill";
 import { type SlashCommand, slashCommandCapability } from "@linxiraos/zeta/capability/slash-command";
 import { loadCapability } from "@linxiraos/zeta/discovery";
+import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
@@ -58,7 +58,7 @@ describe("native user-level config discovery follows the active profile", () => 
 		await writeSkill(path.join(profileAgentDir, "skills"), "profile-skill");
 
 		// Decoy: default profile's config at the literal-home path the old loader read.
-		const defaultAgentDir = path.join(tempHome, ".zeta", "agent");
+		const defaultAgentDir = path.join(tempHome, ".omp", "agent");
 		await writeFile(path.join(defaultAgentDir, "commands", "default-cmd.md"), "Default command.\n");
 		await writeSkill(path.join(defaultAgentDir, "skills"), "default-skill");
 	});

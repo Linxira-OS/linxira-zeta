@@ -12,7 +12,10 @@ import { CustomToolAdapter } from "@linxiraos/zeta/extensibility/custom-tools/wr
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { RegisteredToolAdapter } from "@linxiraos/zeta/extensibility/extensions/wrapper";
 import { BUILTIN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
-import { defaultLoadModeForToolName, ESSENTIAL_BUILTIN_TOOL_NAMES } from "@linxiraos/zeta/tools/essential-tools";
+import {
+	defaultLoadModeForToolName,
+	ESSENTIAL_BUILTIN_TOOL_NAMES,
+} from "@linxiraos/zeta/tools/essential-tools";
 import { isMountableUnderXdev } from "@linxiraos/zeta/tools/xdev";
 
 function makeSession(): ToolSession {

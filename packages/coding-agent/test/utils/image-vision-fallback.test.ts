@@ -4,12 +4,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AssistantMessage, completeSimple, Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	type DescribeAttachedImagesDeps,
 	describeAttachedImagesForTextModel,
 } from "@linxiraos/zeta/utils/image-vision-fallback";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // 1x1 transparent PNG.
 const TINY_PNG_BASE64 =

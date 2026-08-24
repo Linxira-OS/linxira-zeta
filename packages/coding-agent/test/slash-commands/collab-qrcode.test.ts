@@ -1,5 +1,4 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Spacer } from "@linxiraos/pi-tui";
 import { CollabHost } from "@linxiraos/zeta/collab/host";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
@@ -9,6 +8,7 @@ import {
 	executeBuiltinSlashCommand,
 } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import { CollabQrCodeComponent } from "@linxiraos/zeta/slash-commands/helpers/collab-qrcode";
+import { Spacer } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();

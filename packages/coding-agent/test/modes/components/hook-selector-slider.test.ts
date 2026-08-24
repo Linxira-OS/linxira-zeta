@@ -1,5 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { HookSelectorComponent, type HookSelectorSlider } from "@linxiraos/zeta/modes/components/hook-selector";
+import {
+	HookSelectorComponent,
+	type HookSelectorSlider,
+} from "@linxiraos/zeta/modes/components/hook-selector";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 const LEFT = "\x1b[D";

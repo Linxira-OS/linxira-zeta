@@ -21,32 +21,9 @@ describe("runUpdateCommand fetch cancellation", () => {
 		);
 		vi.spyOn(globalThis, "fetch").mockImplementation(fetchStub);
 
-		await runUpdateCommand({ force: false, check: true, yes: false });
+		await runUpdateCommand({ force: false, check: true });
 
 		expect(requestSignal).toBeInstanceOf(AbortSignal);
-	});
-
-	it("cancels without installing when an update is available and stdin is not a TTY", async () => {
-		const logs: string[] = [];
-		vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
-			logs.push(args.map(String).join(" "));
-		});
-		vi.spyOn(console, "error").mockImplementation(() => {});
-		const fetchStub = Object.assign(async () => Response.json({ version: "999.0.0" }), {
-			preconnect: globalThis.fetch.preconnect,
-		});
-		const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(fetchStub);
-
-		// Non-TTY stdin (pipes/CI) must default to "no".
-		Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
-
-		await runUpdateCommand({ force: false, check: false, yes: false });
-
-		expect(logs.some(line => line.includes("Update cancelled."))).toBe(true);
-		// No download/install endpoints were hit.
-		expect(
-			fetchSpy.mock.calls.map(c => String(c[0])).filter(u => u.includes("/download") || u.includes("/install")),
-		).toEqual([]);
 	});
 });
 
@@ -98,12 +75,12 @@ describe("getLatestRelease rename pointers", () => {
 	});
 	it("fetches the canary dist-tag when checking the canary channel", async () => {
 		const urls = stubRegistry({
-			"@oh-my-pi/pi-coding-agent": { version: "999.0.0-canary.1" },
+			"@linxiraos/zeta": { version: "999.0.0-canary.1" },
 		});
 
 		await getLatestRelease({ channel: "canary" });
 
-		expect(urls).toEqual(["https://registry.npmjs.org/@oh-my-pi/pi-coding-agent/canary"]);
+		expect(urls).toEqual(["https://registry.npmjs.org/@linxiraos/zeta/canary"]);
 	});
 
 	it("ignores a rename pointer that cycles back to an already-visited package", async () => {

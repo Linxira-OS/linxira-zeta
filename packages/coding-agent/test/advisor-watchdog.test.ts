@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { discoverWatchdogFiles } from "../src/advisor/watchdog";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
@@ -120,7 +120,7 @@ describe("advisor watchdog prompt discovery", () => {
 		const tempDir = TempDir.createSync("@pi-advisor-watchdog-");
 		tempDirs.push(tempDir);
 		const cwd = tempDir.join("project-root");
-		const ompDir = path.join(cwd, ".zeta");
+		const ompDir = path.join(cwd, ".omp");
 		const userAgentDir = tempDir.join("user-agent");
 		fs.mkdirSync(cwd, { recursive: true });
 		fs.mkdirSync(path.join(cwd, ".git"), { recursive: true });

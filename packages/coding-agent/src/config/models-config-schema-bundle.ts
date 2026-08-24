@@ -1,14 +1,7 @@
-import { scope } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/pi-omptype";
 import { once } from "@linxiraos/pi-utils";
 
 export const getModelsConfigSchemaBundle = once(() => {
-	// Config schemas validate at most a handful of times per process (on config
-	// load), so the eager JIT codegen ArkType runs at definition time is pure
-	// startup tax. A local jitless scope skips that codegen and falls back to
-	// interpreted traversal — ~65% cheaper to construct, validation correctness
-	// unchanged. (No `name`: duplicate module instances would collide.)
-	const { type } = scope({}, { jitless: true });
-
 	const OpenRouterRoutingSchema = type({
 		"only?": "string[]",
 		"order?": "string[]",

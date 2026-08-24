@@ -78,29 +78,8 @@ function writeFrame(frame: Record<string, unknown>): void {
 	}
 }
 
-// Read stdin line-by-line. `console` as an AsyncIterable is not reliable on
-// every platform (Windows line buffering), so read Bun.stdin directly and
-// split on newlines — the client writes one JSON frame per line.
-const stdinLines = (async function* () {
-	let buffer = "";
-	const reader = Bun.stdin.stream().getReader();
-	const decoder = new TextDecoder();
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		buffer += decoder.decode(value, { stream: true });
-		while (true) {
-			const idx = buffer.indexOf("\n");
-			if (idx < 0) break;
-			const line = buffer.slice(0, idx);
-			buffer = buffer.slice(idx + 1);
-			yield line;
-		}
-	}
-	if (buffer.length > 0) yield buffer;
-})();
-
-for await (const raw of stdinLines) {
+// Bun's `console` is an AsyncIterable over stdin lines.
+for await (const raw of console) {
 	if (!raw) continue;
 	try {
 		const frame = JSON.parse(raw) as Record<string, unknown>;

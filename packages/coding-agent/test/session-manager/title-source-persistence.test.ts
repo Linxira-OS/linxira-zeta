@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import {
 	CURRENT_SESSION_VERSION,
 	SESSION_TITLE_SLOT_BYTES,
@@ -13,6 +12,7 @@ import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta/session/session-storage";
 import type { SessionTitleUpdate } from "@linxiraos/zeta/session/session-title-slot";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 import { makeAssistantMessage } from "./helpers";
 

@@ -1,7 +1,7 @@
 import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
-import { type Component, Loader, TERMINAL, Text } from "@linxiraos/pi-tui";
+import { type Component, Loader, TERMINAL } from "@linxiraos/pi-tui";
 import { logger, prompt, sanitizeText } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { extractTextContent } from "../../commit/utils";
@@ -33,7 +33,6 @@ import { SpeechEnhancer } from "../../tts/speech-enhancer";
 import { vocalizer } from "../../tts/vocalizer";
 import { canonicalizeMessage } from "../../utils/thinking-display";
 import { setTerminalTitleState } from "../../utils/title-generator";
-import { extractLastTurnStats, formatTurnStats } from "../components/status-line/turn-stats";
 import { interruptHint } from "../shared";
 import { createAssistantMessageComponent } from "../utils/interactive-context-helpers";
 import {
@@ -284,7 +283,6 @@ export class EventController {
 				this.ctx.ui.requestRender(true);
 			},
 			goal_updated: async () => {},
-			state_version_changed: async () => {},
 		} satisfies AgentSessionEventHandlers;
 	}
 
@@ -1759,15 +1757,6 @@ export class EventController {
 			this.ctx.loadingAnimation = undefined;
 			this.ctx.statusContainer.disposeChildren();
 		}
-		// Transient post-turn telemetry line (dim, above the editor). It lives in
-		// the status container, so the next turn's `ensureLoadingAnimation`
-		// disposeChildren sweep and `clearTransientSessionUi` remove it for free.
-		if (settings.get("statusLine.turnTelemetry")) {
-			const stats = extractLastTurnStats(this.ctx.session?.state?.messages ?? []);
-			if (stats) {
-				this.ctx.statusContainer.addChild(new Text(theme.fg("dim", formatTurnStats(stats)), 0, 0));
-			}
-		}
 		if (this.ctx.streamingComponent) {
 			this.ctx.chatContainer.removeChild(this.ctx.streamingComponent);
 			this.ctx.streamingComponent = undefined;
@@ -2268,7 +2257,7 @@ export class EventController {
 
 		const sessionName = this.ctx.sessionManager.getSessionName();
 		TERMINAL.sendNotification({
-			title: sessionName || "Zeta",
+			title: sessionName || "Oh My Pi",
 			body: "Stopped with error",
 			type: "error",
 			actions: "focus",
@@ -2293,7 +2282,7 @@ export class EventController {
 
 		const sessionName = this.ctx.sessionManager.getSessionName();
 		TERMINAL.sendNotification({
-			title: sessionName || "Zeta",
+			title: sessionName || "Oh My Pi",
 			body: "Complete",
 			type: "completion",
 			actions: "focus",

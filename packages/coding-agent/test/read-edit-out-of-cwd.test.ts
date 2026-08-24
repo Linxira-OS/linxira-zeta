@@ -3,12 +3,12 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { EditTool, type ExecuteHashlineSingleOptions, executeHashlineSingle } from "@linxiraos/zeta/edit";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import type { ReadToolDetails } from "@linxiraos/zeta/tools/read";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content

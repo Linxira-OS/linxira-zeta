@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Message, ThinkingContent } from "@linxiraos/pi-ai";
 import {
@@ -8,8 +9,6 @@ import {
 	type MockModel,
 	type MockResponseSource,
 } from "@linxiraos/pi-ai/providers/mock";
-import { type } from "@linxiraos/pi-omptype";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
@@ -20,6 +19,7 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { CheckpointTool, RewindTool, type ToolSession } from "@linxiraos/zeta/tools";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const checkpointSchema = type({ goal: type("string") });
 const rewindSchema = type({ report: type("string") });

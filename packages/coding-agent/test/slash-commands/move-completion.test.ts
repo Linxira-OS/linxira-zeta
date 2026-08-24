@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as piUtils from "@linxiraos/pi-utils";
 import { BUILTIN_SLASH_COMMANDS } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import * as piUtils from "@linxiraos/pi-utils";
 
 describe("/move directory completion", () => {
 	let tempDir: string;

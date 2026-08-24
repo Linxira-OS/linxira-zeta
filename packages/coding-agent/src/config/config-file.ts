@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ArkErrors, type Type } from "@linxiraos/pi-omptype/ark";
+import { OmpErrors, type Type } from "@linxiraos/pi-omptype";
 import { getAgentDir, isEnoent, logger } from "@linxiraos/pi-utils";
 import { JSONC, YAML } from "bun";
 
@@ -252,7 +252,7 @@ export class ConfigFile<T> implements IConfigFile<T> {
 			}
 
 			const checked = this.schema(parsed);
-			if (checked instanceof ArkErrors) {
+			if (checked instanceof OmpErrors) {
 				const schemaErrors: ConfigSchemaError[] = checked.map(error => ({
 					instancePath: error.path.length === 0 ? "root" : error.path.join("."),
 					message: error.problem,

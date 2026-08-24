@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { AttachmentChipsBand } from "@oh-my-pi/pi-coding-agent/modes/components/attachment-chips";
-import { CustomEditor } from "@oh-my-pi/pi-coding-agent/modes/components/custom-editor";
-import { chipLabel } from "@oh-my-pi/pi-coding-agent/modes/composer-attachments";
-import { getEditorTheme, initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { ImageBudget } from "@oh-my-pi/pi-tui";
-import { setKittyGraphics } from "@oh-my-pi/pi-tui/kitty-graphics";
-import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@oh-my-pi/pi-tui/terminal-capabilities";
-import { visibleWidth } from "@oh-my-pi/pi-tui/utils";
+import { AttachmentChipsBand } from "@linxiraos/zeta/modes/components/attachment-chips";
+import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
+import { chipLabel } from "@linxiraos/zeta/modes/composer-attachments";
+import { getEditorTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { ImageBudget } from "@linxiraos/pi-tui";
+import { setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
+import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
+import { visibleWidth } from "@linxiraos/pi-tui/utils";
 
 // 2x2 red PNG — real header so the band's dimension probe decodes 2x2.
 const TINY_PNG =

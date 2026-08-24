@@ -10,13 +10,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Effort } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import type { TUI } from "@linxiraos/pi-tui";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentsHubComponent } from "@linxiraos/zeta/modes/components/agents-hub";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import * as discovery from "@linxiraos/zeta/task/discovery";
+import type { TUI } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const ANSI_PATTERN = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 let tempCwd: string;

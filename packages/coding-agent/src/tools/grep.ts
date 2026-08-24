@@ -1,6 +1,8 @@
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
+import { formatHashlineHeader } from "@linxiraos/pi-hashline";
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -20,7 +22,6 @@ import {
 } from "@linxiraos/pi-utils/ar";
 import { recordFileSnapshot, recordSeenLinesFromBody } from "../edit/file-snapshot-store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import { M } from "../i18n/messages";
 import type { LocalProtocolOptions } from "../internal-urls/local-protocol";
 import { InternalUrlRouter } from "../internal-urls/router";
 import type { InternalResource, ResolveContext } from "../internal-urls/types";
@@ -168,7 +169,9 @@ async function parsePathSpecs(rawEntries: readonly string[], cwd: string): Promi
 			// Reject selectors read's parseSel would reject (`:-10`, `:1-1:1-2`,
 			// `:conflicts:1-1`) instead of silently widening the search or dropping a chunk.
 			if (!isReadSelectorGrammar(internalSplit.sel)) {
-				throw new ToolError(M.gpErrInvalidSelector.replace("%s", entry).replace("%s", internalSplit.sel));
+				throw new ToolError(
+					`path entry "${entry}" has an invalid selector ":${internalSplit.sel}" — use ":N-M" line ranges, ":raw"/":conflicts", a range plus ":raw", or percent-encode a literal ":" as %3A`,
+				);
 			}
 			specs.push({ original: entry, clean: internalSplit.path, ranges: selectorLineRanges(internalSplit.sel) });
 			continue;
@@ -183,10 +186,12 @@ async function parsePathSpecs(rawEntries: readonly string[], cwd: string): Promi
 		if (!literalFilesystemMatch && split.sel) {
 			const parsed = parseLineRanges(split.sel);
 			if (!parsed) {
-				throw new ToolError(M.gpErrOnlyLineRanges.replace("%s", entry));
+				throw new ToolError(
+					`path entry "${entry}" — only line-range selectors like ":50-100" are supported (no ":raw"/":conflicts")`,
+				);
 			}
 			if (hasGlobPathChars(split.path)) {
-				throw new ToolError(M.gpErrLineRangeNeedsFile.replace("%s", entry));
+				throw new ToolError(`Line-range selector requires a single file, not a glob: ${entry}`);
 			}
 			clean = split.path;
 			ranges = parsed;
@@ -430,7 +435,7 @@ function jsMatchedLineIndexes(
 		regex = new RegExp(pattern, flags);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		throw new ToolError(M.gpErrInvalidRegex.replace("%s", message.replace(/^Invalid regular expression:\s*/i, "")));
+		throw new ToolError(`Invalid regex: ${message.replace(/^Invalid regular expression:\s*/i, "")}`);
 	}
 	if (!multiline) {
 		const out: number[] = [];
@@ -950,14 +955,14 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 			// Preserve the pattern verbatim — leading/trailing whitespace is
 			// meaningful in regexes (indentation anchors, trailing-space matches).
 			if (!pattern.trim()) {
-				throw new ToolError(M.gpErrEmptyPattern);
+				throw new ToolError("Pattern must not be empty");
 			}
 			const normalizedPattern = pattern;
 
 			const normalizedSkip =
 				skip === undefined || skip === null ? 0 : Number.isFinite(skip) ? Math.floor(skip) : Number.NaN;
 			if (normalizedSkip < 0 || !Number.isFinite(normalizedSkip)) {
-				throw new ToolError(M.gpErrNegativeSkip);
+				throw new ToolError("Skip must be a non-negative number");
 			}
 			const scopedPaths = toPathList(rawPath);
 			const effectivePaths = scopedPaths.length > 0 ? scopedPaths : ["."];
@@ -1033,7 +1038,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 						trackImmutableSources: true,
 						surfaceExactFilePaths: true,
 						fanOutFileTargets: true,
-						multipathStatHint: M.gpMultipathStatHint,
+						multipathStatHint: " (`path` list entries must each exist relative to cwd)",
 						settings: this.session.settings,
 						signal,
 						localProtocolOptions: this.session.localProtocolOptions,
@@ -1229,9 +1234,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 					}
 				} catch (err) {
 					if (err instanceof Error && /^regex(?: parse)? error/i.test(err.message)) {
-						throw new ToolError(
-							M.gpErrInvalidRegex.replace("%s", err.message.replace(/^regex(?: parse)? error:?\s*/i, "")),
-						);
+						throw new ToolError(err.message.replace(/^regex(?: parse)? error:?\s*/i, "Invalid regex: "));
 					}
 					if (err instanceof Error && err.message.includes("Aborted: Timeout")) {
 						throw new ToolError(
@@ -1257,7 +1260,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 						throw new ToolError(err.message.replace(/^regex(?: parse)? error:?\s*/i, "Invalid regex: "));
 					}
 					if (err instanceof SyntaxError) {
-						throw new ToolError(M.gpErrInvalidRegex.replace("%s", err.message));
+						throw new ToolError(`Invalid regex: ${err.message}`);
 					}
 					throw err;
 				}
@@ -1402,16 +1405,13 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 					);
 					if (oversized.length === 0) return undefined;
 					const limitMb = Math.floor(NATIVE_GREP_MAX_FILE_BYTES / (1024 * 1024));
-					return M.gpOversizedNoteFmt
-						.replace("%s", String(limitMb))
-						.replace("%s", String(limitMb))
-						.replace("%s", oversized.join(", "));
+					return `Searched only the first ${limitMb}MB of large files (matches past the ${limitMb}MB window are not shown; use \`read\` for the rest): ${oversized.join(", ")}`;
 				})();
 				// Directory/multi-target scopes: native counts files it could not map
 				// even a prefix of (rare mmap failures), but cannot name them.
 				const oversizedScanNote =
 					!oversizedNote && skippedOversizedCount > 0
-						? M.gpSkippedUnreadableFmt.replace("%s", String(skippedOversizedCount))
+						? `Skipped ${skippedOversizedCount} unreadable large file(s); target them directly with \`read\``
 						: undefined;
 				const archiveNote =
 					archiveUnreadable.length > 0
@@ -1440,8 +1440,8 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 					};
 					const skipPastEnd = canPaginate && normalizedSkip > 0 && totalFiles > 0 && skipFiles >= totalFiles;
 					const noMatchText = skipPastEnd
-						? M.gpNoMoreResultsFmt.replace("%s", totalFilesLabel).replace("%s", String(normalizedSkip))
-						: M.gpNoMatches;
+						? `No more results (${totalFilesLabel} files total; skip=${normalizedSkip} is past the end)`
+						: "No matches found";
 					const text = warningNote ? `${noMatchText}\n${warningNote}` : noMatchText;
 					// Zero matches is useless regardless of warnings: by the time
 					// compaction runs, the follow-up call has already corrected course.
@@ -1630,7 +1630,7 @@ const SEARCH_CODE_FRAME_LINE_RE = /^\s*\*?(\d+)│/;
 function searchScopeMeta(details: GrepToolDetails | undefined): string | undefined {
 	if (!details?.scopePath) return undefined;
 	const label = details.searchPath ? fileHyperlink(details.searchPath, details.scopePath) : details.scopePath;
-	return M.gpInLabelFmt.replace("%s", label);
+	return `in ${label}`;
 }
 
 function linkUrlLikeSearchHeader(raw: string, styled: string): { line: string; absPath?: string } {
@@ -1857,7 +1857,7 @@ export const grepToolRenderer = {
 		const missingPathsList = details?.missingPaths ?? [];
 		const missingNote =
 			missingPathsList.length > 0
-				? uiTheme.fg("warning", M.gpSkippedMissingFmt.replace("%s", missingPathsList.join(", ")))
+				? uiTheme.fg("warning", `skipped missing: ${missingPathsList.join(", ")}`)
 				: undefined;
 
 		if (matchCount === 0) {

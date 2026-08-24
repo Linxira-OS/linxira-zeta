@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
-import { buildRequestBody, searchTavily, type TavilySearchParams } from "@linxiraos/zeta/web/search/providers/tavily";
+import {
+	buildRequestBody,
+	searchTavily,
+	type TavilySearchParams,
+} from "@linxiraos/zeta/web/search/providers/tavily";
 
 describe("Tavily buildRequestBody", () => {
 	afterEach(() => {

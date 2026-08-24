@@ -1,7 +1,7 @@
 import { vi } from "bun:test";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 import { isTuiTight, setTuiTight } from "@linxiraos/pi-tui";
 import { getAgentDir, getProjectDir, setAgentDir, setProjectDir } from "@linxiraos/pi-utils";
-import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 
 export interface SettingsTestState {
 	agentDir: string;

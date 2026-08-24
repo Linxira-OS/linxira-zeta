@@ -15,9 +15,9 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("loadExtensions per-session binding (#2190 review fix)", () => {
 	let tmp: string;

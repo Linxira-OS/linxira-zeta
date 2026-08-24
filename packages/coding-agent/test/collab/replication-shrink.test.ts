@@ -30,7 +30,10 @@ import {
 	unpackEnvelope,
 } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
-import { MAX_REPLICATED_PAYLOAD_BYTES, shrinkForReplication } from "@linxiraos/zeta/collab/replication-shrink";
+import {
+	MAX_REPLICATED_PAYLOAD_BYTES,
+	shrinkForReplication,
+} from "@linxiraos/zeta/collab/replication-shrink";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 

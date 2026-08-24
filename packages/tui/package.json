@@ -1,21 +1,21 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-tui",
-  "version": "1.0.11",
+  "version": "18.0.3",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
-  "homepage": "https://linxira-os.github.io/zeta/",
-  "author": "Can Boluk",
+  "homepage": "https://omp.sh",
+  "author": "Stencil Labs, Inc.",
   "contributors": [
     "Mario Zechner"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+    "url": "git+https://github.com/can1357/oh-my-pi.git",
     "directory": "packages/tui"
   },
   "bugs": {
-    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+    "url": "https://github.com/can1357/oh-my-pi/issues"
   },
   "keywords": [
     "tui",
@@ -37,8 +37,6 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:"
   },

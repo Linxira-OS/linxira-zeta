@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getTinyModelsCacheDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { Settings, settings } from "@linxiraos/zeta/config/settings";
 import * as asrClient from "@linxiraos/zeta/stt/asr-client";
 import * as downloader from "@linxiraos/zeta/stt/downloader";
 import { STTController } from "@linxiraos/zeta/stt/stt-controller";
+import { getTinyModelsCacheDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 const WHISPER_BASE_REPO = "onnx-community/whisper-base";

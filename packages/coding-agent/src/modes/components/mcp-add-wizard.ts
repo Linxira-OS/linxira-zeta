@@ -5,7 +5,6 @@
  */
 import { Container, Input, matchesKey, replaceTabs, Spacer, Text, truncateToWidth } from "@linxiraos/pi-tui";
 import { getMCPConfigPath, getProjectDir } from "@linxiraos/pi-utils";
-import { M } from "../../i18n";
 import { validateServerName } from "../../mcp/config-writer";
 import { analyzeAuthError, discoverOAuthEndpoints, fetchResourceMetadataScopes } from "../../mcp/oauth-discovery";
 import type { MCPHttpServerConfig, MCPServerConfig, MCPSseServerConfig, MCPStdioServerConfig } from "../../mcp/types";
@@ -160,7 +159,7 @@ export class MCPAddWizard extends OverlayPanel {
 		onRender?: () => void,
 		initialName?: string,
 	) {
-		super(M.mcpWizardTitle);
+		super("Add MCP Server");
 		this.#onCompleteCallback = onComplete;
 		this.#onCancelCallback = onCancel;
 		this.#onOAuthCallback = onOAuth ?? null;
@@ -250,9 +249,9 @@ export class MCPAddWizard extends OverlayPanel {
 	}
 
 	#renderNameStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepNameTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step 1: Server Name")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterUniqueName, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter a unique name for this server:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
@@ -266,20 +265,22 @@ export class MCPAddWizard extends OverlayPanel {
 			this.#contentContainer.addChild(new Spacer(1));
 		}
 
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardNameChars), 0, 0));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscCancel), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("muted", "[Only letters, numbers, dash, underscore, dot, colon]"), 0, 0),
+		);
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to cancel]"), 0, 0));
 	}
 
 	#renderTransportStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepTransportTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step 2: Transport Type")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardSelectTransport, 0, 0));
+		this.#contentContainer.addChild(new Text("Select the transport type:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		const options = [
-			{ value: "stdio" as const, label: M.mcpTransportStdio },
-			{ value: "http" as const, label: M.mcpTransportHttp },
-			{ value: "sse" as const, label: M.mcpTransportSse },
+			{ value: "stdio" as const, label: "stdio (Local process)" },
+			{ value: "http" as const, label: "http (HTTP server)" },
+			{ value: "sse" as const, label: "sse (Server-Sent Events)" },
 		];
 
 		for (let i = 0; i < options.length; i++) {
@@ -291,39 +292,41 @@ export class MCPAddWizard extends OverlayPanel {
 		}
 
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardNavigateHint), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("muted", "[↑↓ to navigate, Enter to select, Esc to cancel]"), 0, 0),
+		);
 	}
 
 	#renderCommandStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepCommandTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step 3: Command")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterCommand, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter the command to run:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.command);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderArgsStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepArgsTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step 4: Arguments (Optional)")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterArgs, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter command arguments (space-separated):", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.args);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterSkipContinue), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Press Enter to skip or continue]"), 0, 0));
 	}
 
 	#renderUrlStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepUrlTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step 3: Server URL")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterUrl, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter the server URL:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
@@ -337,17 +340,17 @@ export class MCPAddWizard extends OverlayPanel {
 			this.#contentContainer.addChild(new Spacer(1));
 		}
 
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardUrlSchemeHint), 0, 0));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Must start with http:// or https://]"), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderAuthLocationStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepAuthLocationTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step: How to provide the key?")));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		const options = [
-			{ value: "env" as const, label: M.mcpAuthLocationEnv },
-			{ value: "header" as const, label: M.mcpAuthLocationHeader },
+			{ value: "env" as const, label: "Environment variable" },
+			{ value: "header" as const, label: "HTTP header" },
 		];
 
 		for (let i = 0; i < options.length; i++) {
@@ -359,37 +362,39 @@ export class MCPAddWizard extends OverlayPanel {
 		}
 
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardNavigateSelectBackHint), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("muted", "[↑↓ to navigate, Enter to select, Esc to go back]"), 0, 0),
+		);
 	}
 
 	#renderEnvVarNameStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepEnvVarTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step: Environment Variable Name")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterEnvVarName, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter the environment variable name:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.envVarName);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderHeaderNameStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepHeaderTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step: HTTP Header Name")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterHeaderName, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter the HTTP header name:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.headerName);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderScopeStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepScopeTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step: Configuration Scope")));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		const cwd = getProjectDir();
@@ -397,8 +402,8 @@ export class MCPAddWizard extends OverlayPanel {
 		const userPathLabel = shortenPath(getMCPConfigPath("user", cwd));
 		const projectPathLabel = shortenPath(getMCPConfigPath("project", cwd));
 		const options = [
-			{ value: "user" as const, label: M.mcpScopeUserLabelFmt.replace("%s", userPathLabel) },
-			{ value: "project" as const, label: M.mcpScopeProjectLabelFmt.replace("%s", projectPathLabel) },
+			{ value: "user" as const, label: `User level (${userPathLabel})` },
+			{ value: "project" as const, label: `Project level (${projectPathLabel})` },
 		];
 
 		for (let i = 0; i < options.length; i++) {
@@ -410,51 +415,49 @@ export class MCPAddWizard extends OverlayPanel {
 		}
 
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardNavigateSelectBackHint), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("muted", "[↑↓ to navigate, Enter to select, Esc to go back]"), 0, 0),
+		);
 	}
 
 	#renderConfirmStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpConfirmTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Review Configuration")));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		// Show summary
-		this.#contentContainer.addChild(new Text(M.mcpConfirmNameFmt.replace("%s", this.#state.name), 0, 0));
-		this.#contentContainer.addChild(new Text(M.mcpConfirmTypeFmt.replace("%s", this.#state.transport ?? ""), 0, 0));
+		this.#contentContainer.addChild(new Text(`Name: ${theme.fg("accent", this.#state.name)}`, 0, 0));
+		this.#contentContainer.addChild(new Text(`Type: ${this.#state.transport}`, 0, 0));
 
 		if (this.#state.transport === "stdio") {
-			this.#contentContainer.addChild(new Text(M.mcpConfirmCommandFmt.replace("%s", this.#state.command), 0, 0));
+			this.#contentContainer.addChild(new Text(`Command: ${this.#state.command}`, 0, 0));
 			if (this.#state.args) {
-				this.#contentContainer.addChild(new Text(M.mcpConfirmArgsFmt.replace("%s", this.#state.args), 0, 0));
+				this.#contentContainer.addChild(new Text(`Args: ${this.#state.args}`, 0, 0));
 			}
 		} else {
-			this.#contentContainer.addChild(new Text(M.mcpConfirmUrlFmt.replace("%s", sanitize(this.#state.url)), 0, 0));
+			this.#contentContainer.addChild(new Text(`URL: ${sanitize(this.#state.url)}`, 0, 0));
 		}
 
 		// Auth info
 		if (this.#state.authMethod === "none") {
-			this.#contentContainer.addChild(new Text(M.mcpConfirmAuthNone, 0, 0));
+			this.#contentContainer.addChild(new Text("Auth: None", 0, 0));
 		} else if (this.#state.authMethod === "oauth") {
-			this.#contentContainer.addChild(new Text(M.mcpConfirmAuthOAuth, 0, 0));
+			this.#contentContainer.addChild(new Text("Auth: OAuth (authenticated)", 0, 0));
 		} else if (this.#state.authMethod === "manual") {
 			if (this.#state.authLocation === "env") {
-				this.#contentContainer.addChild(
-					new Text(M.mcpConfirmAuthEnvKeyFmt.replace("%s", this.#state.envVarName), 0, 0),
-				);
+				this.#contentContainer.addChild(new Text(`Auth: API key via env (${this.#state.envVarName})`, 0, 0));
 			} else {
-				this.#contentContainer.addChild(
-					new Text(M.mcpConfirmAuthHeaderKeyFmt.replace("%s", this.#state.headerName), 0, 0),
-				);
+				this.#contentContainer.addChild(new Text(`Auth: API key via header (${this.#state.headerName})`, 0, 0));
 			}
 		}
 
-		const scopeLabel = this.#state.scope === "user" ? M.mcpUserLevel : M.mcpProjectLevel;
-		this.#contentContainer.addChild(new Text(M.mcpConfirmScopeFmt.replace("%s", scopeLabel), 0, 0));
+		const scopeLabel = this.#state.scope === "user" ? "User level" : "Project level";
+		this.#contentContainer.addChild(new Text(`Scope: ${scopeLabel}`, 0, 0));
 
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardSaveConfig, 0, 0));
+		this.#contentContainer.addChild(new Text("Save this configuration?", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
-		const options = [M.mcpWizardYes, M.mcpWizardNo];
+		const options = ["Yes", "No"];
 		for (let i = 0; i < options.length; i++) {
 			const isSelected = i === this.#selectedIndex;
 			const prefix = isSelected ? theme.fg("accent", `${theme.nav.cursor} `) : "  ";
@@ -463,7 +466,9 @@ export class MCPAddWizard extends OverlayPanel {
 		}
 
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardNavigateSelectBackHint), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("muted", "[↑↓ to navigate, Enter to select, Esc to go back]"), 0, 0),
+		);
 	}
 
 	handleInput(keyData: string): void {
@@ -559,7 +564,7 @@ export class MCPAddWizard extends OverlayPanel {
 			case "url": {
 				// Validate URL
 				if (!value) {
-					this.#validationError = M.mcpUrlIsRequired;
+					this.#validationError = "URL is required";
 					this.#renderStep();
 					return;
 				}
@@ -567,12 +572,12 @@ export class MCPAddWizard extends OverlayPanel {
 				try {
 					parsedUrl = new URL(value);
 				} catch {
-					this.#validationError = M.mcpInvalidUrlFormat;
+					this.#validationError = "Invalid URL format (must start with http:// or https://)";
 					this.#renderStep();
 					return;
 				}
 				if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-					this.#validationError = M.mcpUrlSchemeInvalid;
+					this.#validationError = "URL must use http:// or https:// scheme";
 					this.#renderStep();
 					return;
 				}
@@ -812,12 +817,12 @@ export class MCPAddWizard extends OverlayPanel {
 	}
 
 	#renderAuthMethodStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpStepAuthMethodTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "Step: Authentication Method")));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		const options = [
-			{ value: "oauth" as const, label: M.mcpAuthOAuth, desc: M.mcpAuthOAuthDesc },
-			{ value: "manual" as const, label: M.mcpAuthManual, desc: M.mcpAuthManualDesc },
+			{ value: "oauth" as const, label: "OAuth flow (web-based)", desc: "(opens browser)" },
+			{ value: "manual" as const, label: "Manual API key/token", desc: "(paste or use shell command)" },
 		];
 
 		for (let i = 0; i < options.length; i++) {
@@ -832,88 +837,92 @@ export class MCPAddWizard extends OverlayPanel {
 		}
 
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardNavigateSelectBackHint), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("muted", "[↑↓ to navigate, Enter to select, Esc to go back]"), 0, 0),
+		);
 	}
 
 	#renderOAuthAuthUrlStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpOAuthAuthUrlTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "OAuth: Authorization URL")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterOAuthAuthEndpoint, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter the OAuth authorization endpoint:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.oauthAuthUrl);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpExampleAuthUrl), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("muted", "e.g., https://auth.example.com/oauth/authorize"), 0, 0),
+		);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderOAuthTokenUrlStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpOAuthTokenUrlTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "OAuth: Token URL")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterOAuthTokenEndpoint, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter the OAuth token endpoint:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.oauthTokenUrl);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpExampleTokenUrl), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "e.g., https://auth.example.com/oauth/token"), 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderOAuthClientIdStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpOAuthClientIdTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "OAuth: Client ID")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterOAuthClientId, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter your OAuth client ID:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.oauthClientId);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderOAuthClientSecretStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpOAuthClientSecretTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "OAuth: Client Secret (Optional)")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterOAuthClientSecret, 0, 0));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardPkceHint), 0, 0));
+		this.#contentContainer.addChild(new Text("Enter your OAuth client secret:", 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "(Leave empty for PKCE-only flows)"), 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.oauthClientSecret);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderOAuthScopesStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpOAuthScopesTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "OAuth: Scopes (Optional)")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterOAuthScopes, 0, 0));
+		this.#contentContainer.addChild(new Text("Enter OAuth scopes (space-separated):", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.oauthScopes);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpExampleScopes), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "e.g., read write"), 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	#renderOAuthErrorStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("error", M.mcpOAuthAuthFailedTitle), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("error", "OAuth authentication failed"), 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardChooseNextAction, 0, 0));
+		this.#contentContainer.addChild(new Text("Choose next action:", 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
-		const options = [M.mcpWizardRetryOAuth, M.mcpWizardEditOAuthSettings];
+		const options = ["Retry OAuth authentication", "Edit OAuth settings"];
 		for (let i = 0; i < options.length; i++) {
 			const isSelected = i === this.#selectedIndex;
 			const prefix = isSelected ? theme.fg("accent", `${theme.nav.cursor} `) : "  ";
@@ -928,17 +937,17 @@ export class MCPAddWizard extends OverlayPanel {
 	}
 
 	#renderApiKeyStep(): void {
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpApiKeyTitle)));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "API Key Required")));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpWizardEnterApiKey, 0, 0));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardPwManagerHint), 0, 0));
+		this.#contentContainer.addChild(new Text("Enter your API key or token:", 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "(Supports !command for password manager)"), 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
 
 		this.#inputField = new Input();
 		this.#inputField.setValue(this.#state.apiKey);
 		this.#contentContainer.addChild(this.#inputField);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpWizardEnterContinueEscBack), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "[Enter to continue, Esc to go back]"), 0, 0));
 	}
 
 	/**
@@ -961,9 +970,9 @@ export class MCPAddWizard extends OverlayPanel {
 
 			// Success! No auth required
 			this.#contentContainer.clear();
-			this.#contentContainer.addChild(new Text(theme.fg("success", M.mcpConnSuccess), 0, 0));
+			this.#contentContainer.addChild(new Text(theme.fg("success", "✓ Connection successful!"), 0, 0));
 			this.#contentContainer.addChild(new Spacer(1));
-			this.#contentContainer.addChild(new Text(M.mcpNoAuthRequired, 0, 0));
+			this.#contentContainer.addChild(new Text("No authentication required", 0, 0));
 			this.#contentContainer.addChild(new Spacer(1));
 
 			setTimeout(() => {
@@ -1009,9 +1018,9 @@ export class MCPAddWizard extends OverlayPanel {
 					this.#state.authMethod = "oauth";
 
 					this.#contentContainer.clear();
-					this.#contentContainer.addChild(new Text(theme.fg("success", M.mcpOAuthDetected), 0, 0));
+					this.#contentContainer.addChild(new Text(theme.fg("success", "✓ OAuth detected"), 0, 0));
 					this.#contentContainer.addChild(new Spacer(1));
-					this.#contentContainer.addChild(new Text(M.mcpLaunchingBrowser, 0, 0));
+					this.#contentContainer.addChild(new Text("Launching browser for authorization...", 0, 0));
 					this.#contentContainer.addChild(new Spacer(1));
 
 					void this.#launchOAuthFlow();
@@ -1020,10 +1029,10 @@ export class MCPAddWizard extends OverlayPanel {
 
 				// OAuth metadata unavailable: fallback to manual API key.
 				this.#contentContainer.clear();
-				this.#contentContainer.addChild(new Text(theme.fg("warning", M.mcpAuthRequiredWarning), 0, 0));
+				this.#contentContainer.addChild(new Text(theme.fg("warning", "⚠ Authentication required"), 0, 0));
 				this.#contentContainer.addChild(new Spacer(1));
-				this.#contentContainer.addChild(new Text(M.mcpOAuthNotDiscovered, 0, 0));
-				this.#contentContainer.addChild(new Text(M.mcpProvideApiKeyManually, 0, 0));
+				this.#contentContainer.addChild(new Text("OAuth parameters could not be discovered.", 0, 0));
+				this.#contentContainer.addChild(new Text("Provide API key/token manually.", 0, 0));
 				this.#contentContainer.addChild(new Spacer(1));
 				this.#currentStep = "apikey";
 				this.#renderStep();
@@ -1031,11 +1040,11 @@ export class MCPAddWizard extends OverlayPanel {
 				// Not an auth error - just a connection failure
 				const errorMsg = sanitize(error instanceof Error ? error.message : String(error));
 				this.#contentContainer.clear();
-				this.#contentContainer.addChild(new Text(theme.fg("error", M.mcpConnFailed), 0, 0));
+				this.#contentContainer.addChild(new Text(theme.fg("error", "✗ Connection failed"), 0, 0));
 				this.#contentContainer.addChild(new Spacer(1));
 				this.#contentContainer.addChild(new Text(errorMsg, 0, 0));
 				this.#contentContainer.addChild(new Spacer(1));
-				this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpAddingServerAnyway), 0, 0));
+				this.#contentContainer.addChild(new Text(theme.fg("muted", "Adding server anyway..."), 0, 0));
 
 				setTimeout(() => {
 					this.#state.authMethod = "none";
@@ -1129,7 +1138,7 @@ export class MCPAddWizard extends OverlayPanel {
 	async #launchOAuthFlow(): Promise<void> {
 		if (!this.#onOAuthCallback) {
 			this.#contentContainer.clear();
-			this.#contentContainer.addChild(new Text(theme.fg("error", M.mcpOAuthFlowNotAvailable), 0, 0));
+			this.#contentContainer.addChild(new Text(theme.fg("error", "OAuth flow not available"), 0, 0));
 			this.#renderStep();
 			this.#requestRender();
 			return;
@@ -1138,25 +1147,27 @@ export class MCPAddWizard extends OverlayPanel {
 		// Validate OAuth configuration
 		if (!this.#state.oauthAuthUrl || !this.#state.oauthTokenUrl) {
 			this.#contentContainer.clear();
-			this.#contentContainer.addChild(new Text(theme.fg("error", M.mcpOAuthConfigIncomplete), 0, 0));
+			this.#contentContainer.addChild(new Text(theme.fg("error", "OAuth configuration incomplete"), 0, 0));
 			this.#contentContainer.addChild(new Spacer(1));
-			this.#contentContainer.addChild(new Text(M.mcpAuthTokenUrlsRequired, 0, 0));
+			this.#contentContainer.addChild(new Text("Authorization and Token URLs are required.", 0, 0));
 			this.#contentContainer.addChild(new Spacer(1));
-			this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpPressEscToGoBack), 0, 0));
+			this.#contentContainer.addChild(new Text(theme.fg("muted", "[Press Esc to go back]"), 0, 0));
 			this.#requestRender();
 			return;
 		}
 
 		// Show "Authenticating..." message
 		this.#contentContainer.clear();
-		this.#contentContainer.addChild(new Text(theme.fg("accent", M.mcpOAuthAuthentication), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("accent", "OAuth Authentication"), 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(M.mcpLaunchingOAuthFlow, 0, 0));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpBrowserWillOpen), 0, 0));
+		this.#contentContainer.addChild(new Text("Launching OAuth flow...", 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "Browser will open automatically."), 0, 0));
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("warning", M.mcpIfBrowserNotOpen), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("warning", "If browser doesn't open, copy the URL from chat."), 0, 0),
+		);
 		this.#contentContainer.addChild(new Spacer(1));
-		this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpPressEscToCancel), 0, 0));
+		this.#contentContainer.addChild(new Text(theme.fg("muted", "(Press Esc to cancel)"), 0, 0));
 		this.#requestRender();
 
 		this.#oauthAbort = new AbortController();
@@ -1185,25 +1196,18 @@ export class MCPAddWizard extends OverlayPanel {
 
 			// Show success message
 			this.#contentContainer.clear();
-			this.#contentContainer.addChild(new Text(theme.fg("success", M.mcpAuthSuccessful), 0, 0));
+			this.#contentContainer.addChild(new Text(theme.fg("success", "✓ Authentication successful!"), 0, 0));
 			this.#contentContainer.addChild(new Spacer(1));
-			this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpRunningHealthCheck), 0, 0));
+			this.#contentContainer.addChild(new Text(theme.fg("muted", "Running connection health check..."), 0, 0));
 			const spinnerFrames = theme.spinnerFrames;
 			const initialFrame = spinnerFrames[0] ?? "|";
-			const healthText = new Text(
-				theme.fg("muted", M.mcpCheckingServerConnectionFmt.replace("%s", initialFrame)),
-				0,
-				0,
-			);
+			const healthText = new Text(theme.fg("muted", `${initialFrame} Checking server connection...`), 0, 0);
 			this.#contentContainer.addChild(healthText);
 
 			let spinnerIndex = 0;
 			const spinner = setInterval(() => {
 				healthText.setText(
-					theme.fg(
-						"muted",
-						M.mcpCheckingServerConnectionFmt.replace("%s", spinnerFrames[spinnerIndex % spinnerFrames.length]),
-					),
+					theme.fg("muted", `${spinnerFrames[spinnerIndex % spinnerFrames.length]} Checking server connection...`),
 				);
 				spinnerIndex++;
 				this.#requestRender();
@@ -1214,7 +1218,10 @@ export class MCPAddWizard extends OverlayPanel {
 			if (this.#onTestConnectionCallback) {
 				try {
 					const { promise: timeoutPromise, reject: timeoutReject } = Promise.withResolvers<never>();
-					const timer = setTimeout(() => timeoutReject(new Error(M.mcpHealthCheckTimedOut)), 10_000);
+					const timer = setTimeout(
+						() => timeoutReject(new Error("Health check timed out after 10 seconds")),
+						10_000,
+					);
 					try {
 						await Promise.race([
 							this.#onTestConnectionCallback(this.#buildServerConfigWithAuth(true)),
@@ -1231,9 +1238,9 @@ export class MCPAddWizard extends OverlayPanel {
 
 			clearInterval(spinner);
 			if (healthPassed) {
-				healthText.setText(theme.fg("success", M.mcpHealthCheckPassed));
+				healthText.setText(theme.fg("success", "✓ Health check passed"));
 			} else {
-				healthText.setText(theme.fg("warning", M.mcpHealthCheckFailed));
+				healthText.setText(theme.fg("warning", "⚠ Health check failed (will still save config)"));
 				this.#contentContainer.addChild(new Spacer(1));
 				this.#contentContainer.addChild(new Text(theme.fg("muted", healthError), 0, 0));
 			}
@@ -1258,7 +1265,7 @@ export class MCPAddWizard extends OverlayPanel {
 			this.#contentContainer.clear();
 			this.#contentContainer.addChild(
 				new Text(
-					cancelled ? theme.fg("muted", M.mcpOAuthCancelledTitle) : theme.fg("error", M.mcpOAuthAuthFailedTitle),
+					cancelled ? theme.fg("muted", "○ OAuth cancelled") : theme.fg("error", "✗ OAuth authentication failed"),
 					0,
 					0,
 				),
@@ -1269,18 +1276,26 @@ export class MCPAddWizard extends OverlayPanel {
 
 			// Provide helpful tips based on error type
 			if (cancelled) {
-				this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpTipRetryLaunchBrowser), 0, 0));
-			} else if (errorMsg.includes("超时")) {
-				this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpTipCompleteFaster), 0, 0));
-			} else if (errorMsg.includes("OAuth URL 无效")) {
-				this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpTipCheckOAuthUrls), 0, 0));
+				this.#contentContainer.addChild(
+					new Text(theme.fg("muted", "Tip: Choose Retry to launch the browser again."), 0, 0),
+				);
+			} else if (errorMsg.includes("timeout") || errorMsg.includes("timed out")) {
+				this.#contentContainer.addChild(
+					new Text(theme.fg("muted", "Tip: Complete authorization faster next time"), 0, 0),
+				);
+			} else if (errorMsg.includes("Invalid OAuth URLs")) {
+				this.#contentContainer.addChild(
+					new Text(theme.fg("muted", "Tip: Check that the OAuth URLs are correct"), 0, 0),
+				);
 			} else if (errorMsg.includes("ECONNREFUSED")) {
-				this.#contentContainer.addChild(new Text(theme.fg("muted", M.mcpTipVerifyOAuthServer), 0, 0));
+				this.#contentContainer.addChild(
+					new Text(theme.fg("muted", "Tip: Verify the OAuth server is accessible"), 0, 0),
+				);
 			}
 
 			this.#contentContainer.addChild(new Spacer(1));
-			this.#contentContainer.addChild(new Text(`${theme.fg("accent", "→ ")}${M.mcpWizardRetry}`, 0, 0));
-			this.#contentContainer.addChild(new Text(`  ${M.mcpWizardEditOAuthSettings}`, 0, 0));
+			this.#contentContainer.addChild(new Text(`${theme.fg("accent", "→ ")}Retry`, 0, 0));
+			this.#contentContainer.addChild(new Text("  Edit OAuth settings", 0, 0));
 			this.#contentContainer.addChild(new Spacer(1));
 			this.#contentContainer.addChild(
 				new Text(theme.fg("muted", "[↑↓ to navigate, Enter to select, Esc to go back]"), 0, 0),

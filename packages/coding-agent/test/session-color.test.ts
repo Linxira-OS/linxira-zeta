@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { hexToHsv, relativeLuminance } from "@linxiraos/pi-utils";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+
 import { getSessionAccentHex } from "@linxiraos/zeta/utils/session-color";
+import { hexToHsv, relativeLuminance } from "@linxiraos/pi-utils";
 
 const NO_THEME_COLORS: string[] = [];
 

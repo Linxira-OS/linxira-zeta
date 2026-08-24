@@ -1,6 +1,5 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as piUtils from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import * as reportIssue from "@linxiraos/zeta/tools/report-tool-issue";
@@ -13,6 +12,7 @@ import {
 	isAutoQaEnabled,
 	reportIssueDeviceUsage,
 } from "@linxiraos/zeta/tools/report-tool-issue";
+import * as piUtils from "@linxiraos/pi-utils";
 import { mockFetch } from "../helpers/fetch-mock";
 
 function openTempDb(): Database {

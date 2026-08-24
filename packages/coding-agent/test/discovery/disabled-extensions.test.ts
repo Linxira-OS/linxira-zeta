@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { type ContextFile, contextFileCapability } from "@linxiraos/zeta/capability/context-file";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 function restoreEnvValue(key: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -34,10 +34,10 @@ describe("disabledExtensions runtime filtering", () => {
 		tempHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-ext-home-"));
 		process.env.HOME = tempHomeDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempHomeDir);
-		setAgentDir(path.join(tempHomeDir, ".zeta", "agent"));
+		setAgentDir(path.join(tempHomeDir, ".omp", "agent"));
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-ext-"));
-		await fs.mkdir(path.join(tempDir, ".zeta"), { recursive: true });
-		await fs.writeFile(path.join(tempDir, ".zeta", "AGENTS.md"), "# project instructions\n");
+		await fs.mkdir(path.join(tempDir, ".omp"), { recursive: true });
+		await fs.writeFile(path.join(tempDir, ".omp", "AGENTS.md"), "# project instructions\n");
 
 		const settings = await Settings.init({
 			inMemory: true,

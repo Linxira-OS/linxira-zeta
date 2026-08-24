@@ -3,7 +3,6 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { formatHashlineHeader } from "@linxiraos/pi-hashline";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	canonicalSnapshotKey,
@@ -19,6 +18,7 @@ import {
 } from "@linxiraos/zeta/edit";
 import { writethroughNoop } from "@linxiraos/zeta/lsp";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function makeSession(cwd: string): ToolSession {
 	return {

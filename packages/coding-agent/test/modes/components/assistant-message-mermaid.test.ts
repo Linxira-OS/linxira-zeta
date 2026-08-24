@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL, Text } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { AssistantThinkingRenderer } from "@linxiraos/zeta/extensibility/extensions";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import { clearMermaidCache } from "@linxiraos/zeta/modes/theme/mermaid-cache";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL, Text } from "@linxiraos/pi-tui";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 

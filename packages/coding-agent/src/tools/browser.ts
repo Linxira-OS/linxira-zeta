@@ -1,8 +1,7 @@
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
 import { prompt, untilAborted } from "@linxiraos/pi-utils";
-import { M } from "../i18n/messages";
 import browserDescription from "../prompts/tools/browser.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import { enforceInlineByteCap } from "../session/streaming-output";
@@ -142,14 +141,14 @@ export class BrowserTool implements AgentTool<typeof browserSchema, BrowserToolD
 	readonly approval = "exec" as const;
 	readonly formatApprovalDetails = (args: unknown): string[] => {
 		const params = args as Partial<BrowserParams>;
-		const lines = [M.brActionLabel.replace("%s", typeof params.action === "string" ? params.action : M.brMissing)];
+		const lines = [`Action: ${typeof params.action === "string" ? params.action : "(missing)"}`];
 		const tabName = typeof params.name === "string" ? params.name : DEFAULT_TAB_NAME;
-		lines.push(M.brTabLabel.replace("%s", truncateForPrompt(tabName)));
+		lines.push(`Tab: ${truncateForPrompt(tabName)}`);
 		if (typeof params.url === "string" && params.url.length > 0) {
-			lines.push(M.brUrlLabel.replace("%s", truncateForPrompt(params.url)));
+			lines.push(`URL: ${truncateForPrompt(params.url)}`);
 		}
 		if (typeof params.code === "string" && params.code.length > 0) {
-			lines.push(M.brCodeLabel.replace("%s", truncateForPrompt(params.code)));
+			lines.push(`Code:\n${truncateForPrompt(params.code)}`);
 		}
 		return lines;
 	};
@@ -379,7 +378,7 @@ export class BrowserTool implements AgentTool<typeof browserSchema, BrowserToolD
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<BrowserToolDetails>> {
 		if (!params.code?.trim()) {
-			throw new ToolError(M.brErrMissingCode);
+			throw new ToolError("Missing required parameter 'code' for action 'run'.");
 		}
 		const tab = getTab(name);
 		if (tab) {

@@ -5,7 +5,6 @@ import {
 	type SgrMouseEvent,
 	truncateToWidth,
 } from "@linxiraos/pi-tui";
-import { M } from "../../../i18n";
 import { getSearchProvider, setSearchProviderOrder } from "../../../web/search/provider";
 import {
 	isSearchProviderId,
@@ -35,7 +34,7 @@ type Availability = "checking" | boolean;
  */
 export class WebSearchTab implements SetupTab {
 	readonly id = "web-search";
-	readonly label = M.setupWebSearchLabel;
+	readonly label = "Web search";
 	readonly modal = false;
 
 	#list: SelectList;
@@ -83,7 +82,7 @@ export class WebSearchTab implements SetupTab {
 	}
 
 	render(width: number, maxLines?: number): readonly string[] {
-		const lines = [theme.fg("muted", M.setupWebSearchHint), ""];
+		const lines = [theme.fg("muted", "Choose the provider the web_search tool should prefer."), ""];
 		this.#listRowStart = lines.length;
 		if (maxLines !== undefined) {
 			// Above: hint + blank. Below: the list's own search-status row plus
@@ -132,23 +131,23 @@ export class WebSearchTab implements SetupTab {
 		this.host.ctx.settings.set("providers.webSearchOrder", order);
 		setSearchProviderOrder(order);
 		const label = WEB_SEARCH_ITEMS.find(item => item.value === value)?.label ?? value;
-		this.#status = [theme.fg("success", `${theme.status.success} ${M.setupWebSearchSetFmt.replace("%s", label)}`)];
+		this.#status = [theme.fg("success", `${theme.status.success} Web search set to ${label}`)];
 		if (value !== "auto" && this.#availability.get(value as SearchProviderId) === false) {
-			this.#status.push(theme.fg("dim", M.setupWebSearchNotConfigured));
+			this.#status.push(theme.fg("dim", "Not configured yet — add its API key or sign in to enable it."));
 		}
 		this.host.requestRender();
 	}
 
 	#readinessLines(value: string): string[] {
 		if (value === "auto") {
-			return [theme.fg("dim", M.setupWebSearchAuto)];
+			return [theme.fg("dim", "Automatically uses the first configured provider.")];
 		}
 		const state = this.#availability.get(value as SearchProviderId);
 		if (state === undefined || state === "checking") {
-			return [theme.fg("dim", M.setupWebSearchChecking)];
+			return [theme.fg("dim", "Checking availability…")];
 		}
 		return state
-			? [theme.fg("success", `${theme.status.success} ${M.setupWebSearchReady}`)]
-			: [theme.fg("warning", `${theme.status.pending} ${M.setupWebSearchNeedsCreds}`)];
+			? [theme.fg("success", `${theme.status.success} Ready to use`)]
+			: [theme.fg("warning", `${theme.status.pending} Needs credentials`)];
 	}
 }

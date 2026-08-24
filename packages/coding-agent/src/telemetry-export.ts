@@ -1,7 +1,7 @@
 /**
  * OTLP telemetry export bootstrap.
  *
- * OMP's agent core (`@linxiraos/pi-agent-core`) emits OpenTelemetry GenAI
+ * oh-my-pi's agent core (`@linxiraos/pi-agent-core`) emits OpenTelemetry GenAI
  * spans through the global `@opentelemetry/api` tracer, and exposes run-level
  * callbacks for metrics/log pipelines. This module resolves the standard
  * `OTEL_*` env contract (endpoint, exporter selection, protocol,

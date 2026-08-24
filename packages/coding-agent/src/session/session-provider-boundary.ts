@@ -2,16 +2,9 @@
 
 import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionPreparation } from "@linxiraos/pi-agent-core/compaction";
-import type {
-	AssistantMessage,
-	ImageContent,
-	Message,
-	Model,
-	SimpleStreamOptions,
-	TextContent,
-} from "@linxiraos/pi-ai";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import type { AssistantMessage, ImageContent, Message, Model, SimpleStreamOptions, TextContent } from "@linxiraos/pi-ai";
 import { isRecord, logger } from "@linxiraos/pi-utils";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import type { Settings } from "../config/settings";

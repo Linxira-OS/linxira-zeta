@@ -3,7 +3,6 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
@@ -17,6 +16,7 @@ import type { AgentDefinition, TaskParams } from "@linxiraos/zeta/task/types";
 import type { IsolationHandle, WorktreeBaseline } from "@linxiraos/zeta/task/worktree";
 import * as worktreeModule from "@linxiraos/zeta/task/worktree";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import "@linxiraos/zeta/tools/yield";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as path from "node:path";
-import { getProjectAgentDir, setAgentDir, setProjectDir, TempDir } from "@linxiraos/pi-utils";
 import { runCommitCommand } from "@linxiraos/zeta/commit";
+import { getProjectAgentDir, setAgentDir, setProjectDir, TempDir } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

@@ -1,14 +1,13 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
 import * as natives from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { formatGroupedPaths, hasFsCode, isEnoent, prompt, untilAborted } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import { M } from "../i18n/messages";
 import { InternalUrlRouter } from "../internal-urls";
 import { splitMemoryGlobPattern } from "../internal-urls/memory-protocol";
 import type { Theme } from "../modes/theme/theme";
@@ -135,15 +134,15 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 			call: { path: "src/**/*.ts" },
 		},
 		{
-			caption: M.glCaptionMultiTargets,
+			caption: "Multiple targets — semicolon-delimited list",
 			call: { path: "src/**/*.ts; test/**/*.ts" },
 		},
 		{
-			caption: M.glCaptionGitignored,
+			caption: "Glob gitignored files like .env",
 			call: { path: ".env*", gitignore: false },
 		},
 		{
-			caption: M.glCaptionDirs,
+			caption: "Glob directories matching a name (returns both files and dirs; directories are suffixed with `/`)",
 			call: { path: "**/tests" },
 		},
 	];
@@ -202,7 +201,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 				? rawPatterns.map(pattern => (/^\/+$/.test(pattern) ? "." : pattern))
 				: rawPatterns;
 			if (aliasResolvedPatterns.some(pattern => /^\/+$/.test(pattern))) {
-				throw new ToolError(M.glRootNotAllowed);
+				throw new ToolError("Searching from root directory '/' is not allowed");
 			}
 			const internalRouter = InternalUrlRouter.instance();
 			const normalizedPatterns: string[] = [];
@@ -251,7 +250,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 				normalizedPatterns.push(resource.sourcePath);
 			}
 			if (normalizedPatterns.some(pattern => pattern.length === 0)) {
-				throw new ToolError(M.glErrEmptyPath);
+				throw new ToolError("`path` must contain non-empty globs or paths");
 			}
 
 			// Tolerate missing entries in a multi-path call: skip ones whose base
@@ -291,13 +290,13 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 
 			for (const target of targets) {
 				if (target.searchPath === "/") {
-					throw new ToolError(M.glRootNotAllowed);
+					throw new ToolError("Searching from root directory '/' is not allowed");
 				}
 			}
 
 			const requestedLimit = limit ?? DEFAULT_LIMIT;
 			if (!Number.isFinite(requestedLimit) || requestedLimit <= 0) {
-				throw new ToolError(M.glErrLimitPositive);
+				throw new ToolError("Limit must be a positive number");
 			}
 			const effectiveLimit = Math.min(MAX_LIMIT, Math.max(1, Math.floor(requestedLimit)));
 			const includeHidden = hidden ?? true;
@@ -334,7 +333,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 					// A timed-out empty result is an incomplete scan, not a verified
 					// absence — never emit the definitive "No files found" claim next
 					// to a timeout notice (the two statements contradict each other).
-					const parts = opts?.timedOut ? [] : [M.glNoFilesFound];
+					const parts = opts?.timedOut ? [] : ["No files found matching pattern"];
 					if (notice) parts.push(notice);
 					if (missingPathsNote) parts.push(missingPathsNote);
 					// Zero results is useless regardless of notices: the follow-up
@@ -624,7 +623,7 @@ export const globToolRenderer = {
 		const details = result.details;
 
 		if (result.isError || details?.error) {
-			const errorText = details?.error || result.content?.find(c => c.type === "text")?.text || M.glUnknownError;
+			const errorText = details?.error || result.content?.find(c => c.type === "text")?.text || "Unknown error";
 			return new Text(formatErrorMessage(errorText, uiTheme), 1, 0);
 		}
 

@@ -7,10 +7,9 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Context, Message, TextContent } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
-import { getActiveProfile, getAgentDir, setProfile } from "@linxiraos/pi-utils/dirs";
 import {
 	builtinCredentialSecretEntries,
 	getExistingSecretPlaceholderKey,
@@ -33,6 +32,7 @@ import {
 	stripPendingSecretPlaceholderSuffix,
 } from "@linxiraos/zeta/secrets/placeholder";
 import { compileSecretRegex } from "@linxiraos/zeta/secrets/regex";
+import { getActiveProfile, getAgentDir, setProfile } from "@linxiraos/pi-utils/dirs";
 
 describe("compileSecretRegex", () => {
 	it("adds global flag when not provided", () => {
@@ -2955,10 +2955,10 @@ describe("SecretObfuscator friendlyName placeholders", () => {
 		try {
 			const project = path.join(root, "project");
 			const agentDir = path.join(root, "agent");
-			await fs.mkdir(path.join(project, ".zeta"), { recursive: true });
+			await fs.mkdir(path.join(project, ".omp"), { recursive: true });
 			await fs.mkdir(agentDir, { recursive: true });
 			await fs.writeFile(
-				path.join(project, ".zeta", "secrets.yml"),
+				path.join(project, ".omp", "secrets.yml"),
 				"- type: plain\n  content: invalid-friendly-secret\n  friendlyName: '***'\n",
 			);
 
@@ -2981,10 +2981,10 @@ describe("SecretObfuscator friendlyName placeholders", () => {
 		try {
 			const project = path.join(root, "project");
 			const agentDir = path.join(root, "agent");
-			await fs.mkdir(path.join(project, ".zeta"), { recursive: true });
+			await fs.mkdir(path.join(project, ".omp"), { recursive: true });
 			await fs.mkdir(agentDir, { recursive: true });
 			await fs.writeFile(
-				path.join(project, ".zeta", "secrets.yml"),
+				path.join(project, ".omp", "secrets.yml"),
 				"- type: plain\n  content: non-string-friendly-secret\n  friendlyName: 123\n",
 			);
 
@@ -3007,10 +3007,10 @@ describe("SecretObfuscator friendlyName placeholders", () => {
 		try {
 			const project = path.join(root, "project");
 			const agentDir = path.join(root, "agent");
-			await fs.mkdir(path.join(project, ".zeta"), { recursive: true });
+			await fs.mkdir(path.join(project, ".omp"), { recursive: true });
 			await fs.mkdir(agentDir, { recursive: true });
 			await fs.writeFile(
-				path.join(project, ".zeta", "secrets.yml"),
+				path.join(project, ".omp", "secrets.yml"),
 				'- type: regex\n  mode: replace\n  content: "."\n',
 			);
 
@@ -3036,10 +3036,10 @@ describe("SecretObfuscator friendlyName placeholders", () => {
 		try {
 			const project = path.join(root, "project");
 			const agentDir = path.join(root, "agent");
-			await fs.mkdir(path.join(project, ".zeta"), { recursive: true });
+			await fs.mkdir(path.join(project, ".omp"), { recursive: true });
 			await fs.mkdir(agentDir, { recursive: true });
 			await fs.writeFile(
-				path.join(project, ".zeta", "secrets.yml"),
+				path.join(project, ".omp", "secrets.yml"),
 				'- type: regex\n  content: "tok_[a-z0-9]+"\n  friendlyName: "tok_abc123"\n',
 			);
 

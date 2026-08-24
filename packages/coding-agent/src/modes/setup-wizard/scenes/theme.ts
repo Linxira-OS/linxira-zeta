@@ -7,7 +7,6 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "@linxiraos/pi-tui";
-import { M } from "../../../i18n";
 import {
 	enableAutoTheme,
 	getAvailableThemes,
@@ -24,17 +23,14 @@ import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 
 type ThemeMode = "curated" | "all";
 
-/** Curated theme choices; built per render so `/language` switches apply live. */
-function curatedItems(): readonly SelectItem[] {
-	return [
-		{ value: "auto", label: M.setupThemeAutoLabel, description: M.setupThemeAutoDesc },
-		{ value: "theme:titanium", label: M.setupThemeTitaniumLabel, description: M.setupThemeTitaniumDesc },
-		{ value: "theme:light", label: M.setupThemeLightLabel, description: M.setupThemeLightDesc },
-		{ value: "colorblind", label: M.setupThemeColorblindLabel, description: M.setupThemeColorblindDesc },
-		{ value: "ansi", label: M.setupThemeAnsiLabel, description: M.setupThemeAnsiDesc },
-		{ value: "browse", label: M.setupThemeBrowseLabel, description: M.setupThemeBrowseDesc },
-	];
-}
+const CURATED_ITEMS: readonly SelectItem[] = [
+	{ value: "auto", label: "Match terminal", description: "Titanium in dark terminals, Light in light terminals" },
+	{ value: "theme:titanium", label: "Titanium", description: "Default dark theme" },
+	{ value: "theme:light", label: "Light", description: "Default light theme" },
+	{ value: "colorblind", label: "Colorblind colors", description: "Adjust red/green contrast" },
+	{ value: "ansi", label: "ANSI-safe", description: "ASCII glyphs with the dark terminal theme" },
+	{ value: "browse", label: "Browse all…", description: "Show every built-in and custom theme" },
+];
 
 function fitLine(line: string, width: number): string {
 	const truncated = truncateToWidth(line, width);
@@ -69,8 +65,8 @@ function renderMockEditor(width: number): string[] {
 	const horizontal = box.horizontal.repeat(innerWidth);
 	const top = theme.fg("borderAccent", `${box.topLeft}${horizontal}${box.topRight}`);
 	const bottom = theme.fg("borderMuted", `${box.bottomLeft}${horizontal}${box.bottomRight}`);
-	const prompt = `${theme.fg("accent", ">")} ${theme.fg("text", M.setupThemeMockPrompt)}${theme.inverse(" ")}`;
-	const hint = theme.fg("dim", M.setupThemeMockHint);
+	const prompt = `${theme.fg("accent", ">")} ${theme.fg("text", "Ask anything, edit files, run tools")}${theme.inverse(" ")}`;
+	const hint = theme.fg("dim", "enter send · shift+enter newline · / commands");
 	return [
 		top,
 		`${theme.fg("borderAccent", box.vertical)}${fitLine(prompt, innerWidth)}${theme.fg("borderAccent", box.vertical)}`,
@@ -82,19 +78,19 @@ function renderMockEditor(width: number): string[] {
 function renderThemePreview(width: number): string[] {
 	const previewWidth = Math.max(24, Math.min(width, 88));
 	return [
-		theme.bold(M.setupThemePreviewTitle),
-		`${theme.fg("success", `${theme.status.success} ${M.setupThemeSwatchSuccess}`)}  ${theme.fg("warning", `${theme.status.warning} ${M.setupThemeSwatchWarning}`)}  ${theme.fg("error", `${theme.status.error} ${M.setupThemeSwatchError}`)}  ${theme.fg("accent", M.setupThemeSwatchAccent)}`,
+		theme.bold("Preview"),
+		`${theme.fg("success", `${theme.status.success} success`)}  ${theme.fg("warning", `${theme.status.warning} warning`)}  ${theme.fg("error", `${theme.status.error} error`)}  ${theme.fg("accent", "accent")}`,
 		"",
-		theme.fg("muted", M.setupThemeStatusLineLabel),
+		theme.fg("muted", "Status line"),
 		renderMockStatusLine(previewWidth),
-		theme.fg("muted", M.setupThemeEditorLabel),
+		theme.fg("muted", "Editor"),
 		...renderMockEditor(previewWidth),
 	];
 }
 
 class ThemeSceneController implements SetupSceneController {
-	title = M.setupThemeTitle;
-	subtitle = M.setupThemeSubtitle;
+	title = "Pick a theme";
+	subtitle = "Move through the list to preview; Enter saves the highlighted choice.";
 	#mode: ThemeMode = "curated";
 	#selectList: SelectList;
 	#loadingAllThemes = false;
@@ -110,7 +106,7 @@ class ThemeSceneController implements SetupSceneController {
 	constructor(private readonly host: SetupSceneHost) {
 		this.#originalSymbolPreset = host.ctx.settings.get("symbolPreset");
 		this.#originalColorBlindMode = host.ctx.settings.get("colorBlindMode");
-		this.#selectList = this.#createSelectList(curatedItems(), this.#currentCuratedIndex());
+		this.#selectList = this.#createSelectList(CURATED_ITEMS, this.#currentCuratedIndex());
 	}
 
 	dispose(): void {
@@ -143,8 +139,10 @@ class ThemeSceneController implements SetupSceneController {
 	render(width: number, maxLines?: number): readonly string[] {
 		const budget = maxLines ?? Number.POSITIVE_INFINITY;
 		const lines = [
-			theme.fg("muted", M.setupThemeLiveHint),
-			this.#mode === "all" ? theme.fg("dim", M.setupThemeBrowsing) : theme.fg("dim", M.setupThemeEscHint),
+			theme.fg("muted", "Theme changes preview live. Nothing is saved until you press Enter."),
+			this.#mode === "all"
+				? theme.fg("dim", "Browsing all themes · Esc returns to curated choices")
+				: theme.fg("dim", "Esc skips this step"),
 			"",
 		];
 		// The mock status-line/editor block is decorative — the wizard itself
@@ -152,12 +150,12 @@ class ThemeSceneController implements SetupSceneController {
 		// it would squeeze the window below the six curated rows (+1 for the
 		// list's own search-status row).
 		const preview = renderThemePreview(width);
-		if (budget - lines.length - (preview.length + 1) - 1 >= curatedItems().length) {
+		if (budget - lines.length - (preview.length + 1) - 1 >= CURATED_ITEMS.length) {
 			lines.push(...preview, "");
 		}
 		if (this.#loadingAllThemes) {
 			this.#listRowStart = -1;
-			lines.push(theme.fg("dim", M.setupThemeLoading));
+			lines.push(theme.fg("dim", "Loading themes…"));
 		} else {
 			this.#listRowStart = lines.length;
 			if (maxLines !== undefined) {
@@ -183,7 +181,7 @@ class ThemeSceneController implements SetupSceneController {
 		list.onCancel = () => {
 			if (this.#mode === "all") {
 				this.#mode = "curated";
-				this.#selectList = this.#createSelectList(curatedItems(), this.#currentCuratedIndex());
+				this.#selectList = this.#createSelectList(CURATED_ITEMS, this.#currentCuratedIndex());
 				this.host.requestRender();
 				return;
 			}
@@ -201,7 +199,7 @@ class ThemeSceneController implements SetupSceneController {
 	}
 
 	#previewByIndex(index: number): void {
-		const items = this.#mode === "curated" ? curatedItems() : undefined;
+		const items = this.#mode === "curated" ? CURATED_ITEMS : undefined;
 		const value = items?.[index]?.value;
 		if (value) void this.#preview(value);
 	}
@@ -226,14 +224,14 @@ class ThemeSceneController implements SetupSceneController {
 			const items = themes.map(name => ({
 				value: `theme:${name}`,
 				label: name,
-				description: name === this.#originalTheme ? M.setupThemeCurrentTag : undefined,
+				description: name === this.#originalTheme ? "current" : undefined,
 			}));
 			const selectedIndex = Math.max(0, themes.indexOf(this.#originalTheme ?? ""));
 			this.#mode = "all";
 			this.#selectList = this.#createSelectList(items, selectedIndex);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			this.#message = theme.fg("error", M.setupThemeLoadFailedFmt.replace("%s", message));
+			this.#message = theme.fg("error", `Failed to load themes: ${message}`);
 		} finally {
 			this.#loadingAllThemes = false;
 			this.host.requestRender();
@@ -297,7 +295,7 @@ class ThemeSceneController implements SetupSceneController {
 		}
 		if (request !== this.#previewRequest || this.#disposed) return;
 		if (!result.success) {
-			this.#message = theme.fg("error", result.error ?? M.setupThemePreviewFailed);
+			this.#message = theme.fg("error", result.error ?? "Theme preview failed");
 		}
 		this.host.ctx.ui.invalidate();
 		this.host.requestRender();
@@ -326,7 +324,7 @@ class ThemeSceneController implements SetupSceneController {
 
 export const themeSetupScene: SetupScene = {
 	id: "theme",
-	title: M.setupThemeTitle,
+	title: "Pick a theme",
 	minVersion: 1,
 	mount: host => new ThemeSceneController(host),
 };

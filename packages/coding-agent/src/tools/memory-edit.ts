@@ -1,6 +1,5 @@
-import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
-import { M } from "../i18n/messages";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import memoryEditDescription from "../prompts/tools/memory-edit.md" with { type: "text" };
 import type { ToolSession } from ".";
 
@@ -35,10 +34,10 @@ export class MemoryEditTool implements AgentTool<typeof memoryEditSchema> {
 	async execute(_id: string, params: MemoryEditParams): Promise<AgentToolResult> {
 		const state = this.session.getMnemopiSessionState?.();
 		if (!state) {
-			throw new Error(M.meErrMnemopiNotInit);
+			throw new Error("Mnemopi backend is not initialised for this session.");
 		}
 		if (params.op === "update" && params.content === undefined && params.importance === undefined) {
-			throw new Error(M.meErrUpdateRequires);
+			throw new Error("memory_edit update requires content or importance.");
 		}
 
 		const importance = params.importance === undefined ? undefined : Math.max(0, Math.min(1, params.importance));
@@ -47,16 +46,13 @@ export class MemoryEditTool implements AgentTool<typeof memoryEditSchema> {
 			importance,
 			replacementId: params.replacement_id,
 		});
-		const location = result.bank
-			? M.meInBankFmt.replace("%s", result.bank) +
-				(result.store ? M.meStoreSuffixFmt.replace("%s", result.store) : "")
-			: "";
+		const location = result.bank ? ` in bank ${result.bank}${result.store ? ` (${result.store})` : ""}` : "";
 		const text =
 			result.status === "not_found"
-				? M.meEditNotFoundFmt.replace("%s", params.id).replace("%s", location)
+				? `Memory ${params.id} was not found${location}.`
 				: result.status === "not_editable"
-					? M.meEditReadonlyFmt.replace("%s", params.id).replace("%s", location).replace("%s", params.id)
-					: M.meEditStatusFmt.replace("%s", params.id).replace("%s", result.status).replace("%s", location);
+					? `Memory ${params.id} is a read-only fact${location}; it cannot be edited. Read it with memory://${params.id}.`
+					: `Memory ${params.id} ${result.status}${location}.`;
 		return {
 			content: [{ type: "text", text }],
 			details: result,

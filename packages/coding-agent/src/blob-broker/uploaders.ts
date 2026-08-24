@@ -3,7 +3,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { type BlobDestinationId, type BlobDestinationMetadata, BUILTIN_BLOB_DESTINATIONS } from "./destinations";
 import type { BlobPublication, BlobUploader, BlobUploadRequest } from "./publication";
 import { type DestinationRuntimeConfig, DestinationUnavailableError, optionString } from "./uploader-runtime";

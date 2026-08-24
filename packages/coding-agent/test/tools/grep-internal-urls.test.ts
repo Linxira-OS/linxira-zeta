@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import * as capability from "@linxiraos/zeta/capability";
 import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -18,6 +17,7 @@ import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import * as sshFileTransfer from "@linxiraos/zeta/ssh/file-transfer";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { GlobTool } from "../../src/tools/glob";
 import { GrepTool } from "../../src/tools/grep";
 

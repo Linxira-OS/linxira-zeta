@@ -2,10 +2,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { computeBankScope, deriveBankId, ensureBankExists } from "@linxiraos/zeta/hindsight/bank";
 import { HindsightApi } from "@linxiraos/zeta/hindsight/client";
 import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // Isolate `git` invocations in this file from the host's global config —
 // `~/.gitconfig` commit signing or template hooks would otherwise turn the

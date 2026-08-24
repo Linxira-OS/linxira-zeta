@@ -12,11 +12,11 @@
  */
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {

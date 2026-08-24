@@ -3,9 +3,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 /**
  * Issue #1528: auto-discovered OpenAI-compatible models defaulted to

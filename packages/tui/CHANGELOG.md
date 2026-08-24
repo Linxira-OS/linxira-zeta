@@ -2,7 +2,6 @@
 
 ## [Unreleased]
 
-## [1.0.11] - 2026-08-22
 ## [18.0.3] - 2026-08-23
 
 ### Fixed
@@ -2085,7 +2084,7 @@
 
 ### Changed
 
-- Forked to @linxiraos scope with unified versioning across all packages
+- Forked to @oh-my-pi scope with unified versioning across all packages
 
 ### Fixed
 
@@ -2095,23 +2094,13 @@
 
 ## [1.337.0] - 2026-01-02
 
-Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.5.0] - 2026-01-03
 
 ### Added
 
 - Added `getText()` method to Text component for retrieving current text content
-
-## [1.0.1] - 2026-08-14
-
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
-
-## [1.0.0] - 2026-08-13
-
-### Changed
-
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
 
 ## [0.50.0] - 2026-01-26
 

@@ -15,6 +15,7 @@
  * when the agent has nothing else to do.
  */
 
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -23,7 +24,6 @@ import type {
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { prompt } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../../extensibility/custom-tools/types";

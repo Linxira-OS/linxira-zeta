@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeText } from "@linxiraos/pi-utils";
 import type { IrcMessage } from "@linxiraos/zeta/irc/bus";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
 import { type CoordinationDetails, hubToolRenderer } from "@linxiraos/zeta/tools/hub";
+import { sanitizeText } from "@linxiraos/pi-utils";
 
 async function theme() {
 	const t = await getThemeByName("dark");

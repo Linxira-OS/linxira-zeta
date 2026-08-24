@@ -11,12 +11,12 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
-import { getActiveProfile, setProfile } from "@linxiraos/pi-utils/dirs";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import { removeManagedMcpOAuthCredential } from "@linxiraos/zeta/mcp/oauth-credentials";
 import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
 import { mcpOAuthCredentialId } from "@linxiraos/zeta/mcp/oauth-flow";
 import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { getActiveProfile, setProfile } from "@linxiraos/pi-utils/dirs";
 
 const SERVER_URL = "https://mcp.example.com/mcp";
 const URL_KEY_ID = mcpOAuthCredentialId(SERVER_URL);

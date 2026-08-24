@@ -3,7 +3,6 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
@@ -14,6 +13,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Regression: a submission arriving while the main loop has no input waiter

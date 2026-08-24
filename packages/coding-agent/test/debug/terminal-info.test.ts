@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
+import {
+	collectTerminalState,
+	formatTerminalState,
+	type TerminalStateInfo,
+} from "@linxiraos/zeta/debug/terminal-info";
 import { TERMINAL } from "@linxiraos/pi-tui";
-import { collectTerminalState, formatTerminalState, type TerminalStateInfo } from "@linxiraos/zeta/debug/terminal-info";
 
 const sample: TerminalStateInfo = {
 	detectedId: "kitty",

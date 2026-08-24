@@ -3,7 +3,6 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { logger, TempDir } from "@linxiraos/pi-utils";
 import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobManager } from "@linxiraos/zeta/async";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -12,6 +11,7 @@ import { MnemopiSessionState, setMnemopiSessionState } from "@linxiraos/zeta/mne
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { logger, TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 async function flushMicrotasks(): Promise<void> {

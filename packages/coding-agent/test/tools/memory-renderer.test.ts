@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeText } from "@linxiraos/pi-utils";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
-import { recallToolRenderer, reflectToolRenderer, retainToolRenderer } from "@linxiraos/zeta/tools/memory-render";
+import {
+	recallToolRenderer,
+	reflectToolRenderer,
+	retainToolRenderer,
+} from "@linxiraos/zeta/tools/memory-render";
+import { sanitizeText } from "@linxiraos/pi-utils";
 
 const themePromise = getThemeByName("dark");
 

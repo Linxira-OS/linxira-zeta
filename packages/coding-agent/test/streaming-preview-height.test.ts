@@ -3,13 +3,13 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
-import { TUI, visibleWidth } from "@linxiraos/pi-tui";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { EDIT_MODE_STRATEGIES } from "@linxiraos/zeta/edit";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { theme as activeTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { previewWindowRows } from "@linxiraos/zeta/tools/render-utils";
+import { TUI, visibleWidth } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 

@@ -21,8 +21,6 @@ export interface IrcBridgeHost {
 	emitSessionEvent(event: AgentSessionEvent): Promise<void>;
 	wakeForIrc(records: CustomMessage[]): void;
 	runEphemeralTurn(args: { promptText: string }): Promise<{ replyText: string }>;
-	/** Optional outbound listener for auto-reply output (IM channels forward it). */
-	onAutoReply?: (msg: IrcMessage, replyText: string) => void;
 }
 
 /** Owns incoming IRC queues, injection, and side-channel auto-replies. */
@@ -188,7 +186,6 @@ export class IrcBridge {
 			});
 			const body = replyText.trim();
 			if (!body || this.#host.isDisposed()) return;
-			this.#host.onAutoReply?.(msg, body);
 			const record: CustomMessage = {
 				role: "custom",
 				customType: "irc:autoreply",

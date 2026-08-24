@@ -10,10 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetDirsFromEnvForTests, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
 import { Markit } from "@linxiraos/zeta/markit";
 import { convertBufferWithMarkit, convertFileWithMarkit } from "@linxiraos/zeta/utils/markit";
 import { pruneMarkitConversionCache } from "@linxiraos/zeta/utils/markit-cache";
+import { __resetDirsFromEnvForTests, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {

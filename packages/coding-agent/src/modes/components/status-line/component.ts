@@ -11,7 +11,6 @@ import {
 } from "@linxiraos/pi-tui";
 import { adjustHsv, formatNumber, getProjectDir } from "@linxiraos/pi-utils";
 import { settings } from "../../../config/settings";
-import { M } from "../../../i18n/messages";
 import type { AgentSession } from "../../../session/agent-session";
 import type { OAuthAccountIdentity } from "../../../session/auth-storage";
 import { limitMatchesActiveAccount } from "../../../slash-commands/helpers/active-oauth-account";
@@ -952,7 +951,7 @@ export class StatusLineComponent implements Component {
 			this.#cachedBranch = null;
 			return null;
 		}
-		this.#cachedBranch = head.kind === "ref" ? (head.branchName ?? head.ref) : M.slDetached;
+		this.#cachedBranch = head.kind === "ref" ? (head.branchName ?? head.ref) : "detached";
 		return this.#cachedBranch ?? null;
 	}
 
@@ -1760,16 +1759,6 @@ export class StatusLineComponent implements Component {
 		};
 	}
 
-	/**
-	 * Sidebar data source: the same segment context the bar renders from
-	 * (usage aggregates, cached context breakdown, git branch/status with all
-	 * caching and background fetches), so the gutter sidebar can never disagree
-	 * with the status line.
-	 */
-	getSidebarContext(width: number): SegmentContext {
-		return this.#buildSegmentContext(width, this.#resolveSettings().segmentOptions, false, true, true);
-	}
-
 	#resolveSettings(): EffectiveStatusLineSettings {
 		if (this.#effectiveSettings === undefined) {
 			this.#effectiveSettings = this.#computeEffectiveSettings();
@@ -1813,7 +1802,7 @@ export class StatusLineComponent implements Component {
 
 	#subagentBadgeText(): string | undefined {
 		if (this.#subagentCount === 0) return undefined;
-		const noun = this.#subagentCount === 1 ? M.slAgent : M.slAgents;
+		const noun = this.#subagentCount === 1 ? "agent" : "agents";
 		return theme.fg("statusLineSubagents", `${theme.icon.agents} ${this.#subagentCount} ${noun}`);
 	}
 

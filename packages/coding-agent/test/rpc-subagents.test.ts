@@ -3,7 +3,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 import {
 	handleRpcSessionChange,
@@ -23,6 +22,7 @@ import {
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
 } from "@linxiraos/zeta/task";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 const tempPaths: string[] = [];
 

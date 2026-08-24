@@ -10,6 +10,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { AgentHubRemote } from "@linxiraos/zeta/modes/components/agent-hub";
+import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 import {
 	getKittyGraphics,
 	ImageBudget,
@@ -20,12 +26,6 @@ import {
 	type TUI,
 } from "@linxiraos/pi-tui";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { AgentHubRemote } from "@linxiraos/zeta/modes/components/agent-hub";
-import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 
 const TS = new Date().toISOString();
 

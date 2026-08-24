@@ -3,13 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { buildSessionOptions } from "@linxiraos/zeta/main";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 // Regression for #6064: prewalk is an optional, off-by-default optimization.
 // A missing key (or unresolvable target) for the prewalk hand-off model must

@@ -1,7 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
@@ -10,6 +9,7 @@ import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 async function flushMicrotasks(): Promise<void> {
 	await Promise.resolve();

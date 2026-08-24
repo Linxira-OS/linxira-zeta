@@ -7,13 +7,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir, removeWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import { TaskTool } from "@linxiraos/zeta/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { getProjectDir, removeWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 
 const originalProjectDir = getProjectDir();
 
@@ -96,7 +96,7 @@ describe("/reload-plugins runtime refresh", () => {
 	});
 
 	test("republishes edited agents to an existing task tool", async () => {
-		const agentDir = path.join(projectDir, ".zeta", "agents");
+		const agentDir = path.join(projectDir, ".omp", "agents");
 		const agentFile = path.join(agentDir, "reload-agent.md");
 		await fs.mkdir(agentDir, { recursive: true });
 		await Bun.write(agentFile, agentDefinition("VERSION_ONE"));

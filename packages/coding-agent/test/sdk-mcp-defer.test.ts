@@ -2,14 +2,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { type CustomTool, createAgentSession } from "@linxiraos/zeta/sdk";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Contract for B1 (interactive MCP deferral): when `hasUI` is true, MCP

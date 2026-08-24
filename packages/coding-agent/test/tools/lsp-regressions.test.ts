@@ -5,8 +5,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult, RenderResultOptions } from "@linxiraos/pi-agent-core";
 import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
-import * as piUtils from "@linxiraos/pi-utils";
-import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { preloadPluginRoots } from "@linxiraos/zeta/discovery/helpers";
 import { LspTool } from "@linxiraos/zeta/lsp";
@@ -51,6 +49,8 @@ import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import { clampTimeout } from "@linxiraos/zeta/tools/tool-timeouts";
+import * as piUtils from "@linxiraos/pi-utils";
+import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
 import { renderResult as renderLocalResult } from "../../src/lsp/render";
@@ -341,14 +341,14 @@ describe("lsp regressions", () => {
 		const syncedFilePath = path.join(tempDir.path(), "unsaved.gd");
 		try {
 			await Bun.write(
-				path.join(tempDir.path(), ".zeta", "lsp.json"),
+				path.join(tempDir.path(), ".omp", "lsp.json"),
 				JSON.stringify({
 					servers: {
 						"fake-gd": {
 							command: process.execPath,
 							fileTypes: [".gd"],
 							languageId: "gdscript",
-							rootMarkers: [".zeta"],
+							rootMarkers: [".omp"],
 						},
 					},
 				}),

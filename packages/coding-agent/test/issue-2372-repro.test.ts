@@ -1,6 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
@@ -9,6 +8,7 @@ import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /**

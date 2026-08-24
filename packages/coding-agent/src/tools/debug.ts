@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -8,7 +9,6 @@ import type {
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
 import { type Component, Text } from "@linxiraos/pi-tui";
 import { isEnoent, prompt } from "@linxiraos/pi-utils";
 import {
@@ -38,7 +38,6 @@ import {
 	selectAttachAdapter,
 	selectLaunchAdapter,
 } from "../dap";
-import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import debugDescription from "../prompts/tools/debug.md" with { type: "text" };
 import { renderStatusLine } from "../tui";
@@ -204,7 +203,7 @@ function formatSessionSnapshot(snapshot: DapSessionSummary): string[] {
 	const location = formatLocation(snapshot);
 	if (location) lines.push(`Location: ${location}`);
 	if (snapshot.needsConfigurationDone) {
-		lines.push(M.dbgConfigPending);
+		lines.push("Configuration: pending configurationDone; set breakpoints, then continue.");
 	}
 	if (snapshot.exitCode !== undefined) lines.push(`Exit code: ${snapshot.exitCode}`);
 	return lines;
@@ -218,29 +217,21 @@ function formatBreakpoints(filePath: string, breakpoints: DapBreakpointRecord[])
 	}
 	for (const breakpoint of breakpoints) {
 		lines.push(
-			M.dbgLineFmt
-				.replace("%s", String(breakpoint.line))
-				.replace("%s", breakpoint.verified ? M.dbgVerified : M.dbgPending)
-				.replace("%s", breakpoint.condition ? M.dbgIfFmt.replace("%s", breakpoint.condition) : "")
-				.replace("%s", breakpoint.message ? M.dbgMsgFmt.replace("%s", breakpoint.message) : ""),
+			`- line ${breakpoint.line}: ${breakpoint.verified ? "verified" : "pending"}${breakpoint.condition ? ` if ${breakpoint.condition}` : ""}${breakpoint.message ? ` (${breakpoint.message})` : ""}`,
 		);
 	}
 	return lines.join("\n");
 }
 
 function formatFunctionBreakpoints(breakpoints: DapFunctionBreakpointRecord[]): string {
-	const lines = [M.dbgFunctionBreakpoints];
+	const lines = ["Function breakpoints:"];
 	if (breakpoints.length === 0) {
 		lines.push("(none)");
 		return lines.join("\n");
 	}
 	for (const breakpoint of breakpoints) {
 		lines.push(
-			M.dbgFuncFmt
-				.replace("%s", breakpoint.name)
-				.replace("%s", breakpoint.verified ? M.dbgVerified : M.dbgPending)
-				.replace("%s", breakpoint.condition ? M.dbgIfFmt.replace("%s", breakpoint.condition) : "")
-				.replace("%s", breakpoint.message ? M.dbgMsgFmt.replace("%s", breakpoint.message) : ""),
+			`- ${breakpoint.name}: ${breakpoint.verified ? "verified" : "pending"}${breakpoint.condition ? ` if ${breakpoint.condition}` : ""}${breakpoint.message ? ` (${breakpoint.message})` : ""}`,
 		);
 	}
 	return lines.join("\n");
@@ -281,11 +272,7 @@ function formatScopes(scopes: DapScope[]): string {
 	}
 	for (const scope of scopes) {
 		lines.push(
-			M.dbgScopeFmt
-				.replace("%s", scope.name)
-				.replace("%s", String(scope.variablesReference))
-				.replace("%s", scope.expensive ? M.dbgYes : M.dbgNo)
-				.replace("%s", scope.presentationHint ? M.dbgHintFmt.replace("%s", scope.presentationHint) : ""),
+			`- ${scope.name}: ref=${scope.variablesReference}, expensive=${scope.expensive ? "yes" : "no"}${scope.presentationHint ? `, hint=${scope.presentationHint}` : ""}`,
 		);
 	}
 	return lines.join("\n");
@@ -299,14 +286,7 @@ function formatVariables(variables: DapVariable[]): string {
 	}
 	for (const variable of variables) {
 		lines.push(
-			M.dbgVarFmt
-				.replace("%s", variable.name)
-				.replace("%s", variable.value)
-				.replace("%s", variable.type ? M.dbgTypeFmt.replace("%s", variable.type) : "")
-				.replace(
-					"%s",
-					variable.variablesReference > 0 ? M.dbgRefFmt.replace("%s", String(variable.variablesReference)) : "",
-				),
+			`- ${variable.name} = ${variable.value}${variable.type ? ` (${variable.type})` : ""}${variable.variablesReference > 0 ? ` [ref=${variable.variablesReference}]` : ""}`,
 		);
 	}
 	return lines.join("\n");
@@ -358,7 +338,7 @@ function formatMemoryRead(address: string, data: string | undefined, unreadableB
 	const lines = [`Memory at ${address}:`];
 	const buffer = data ? Buffer.from(data, "base64") : Buffer.alloc(0);
 	if (buffer.length === 0) {
-		lines.push(M.dbgNoReadableBytes);
+		lines.push("(no readable bytes)");
 	} else {
 		for (let offset = 0; offset < buffer.length; offset += 16) {
 			const chunk = buffer.subarray(offset, offset + 16);
@@ -575,7 +555,7 @@ interface DebugRenderArgs extends Partial<DebugParams> {}
 function getActiveSessionSnapshot(): DapSessionSummary {
 	const snapshot = dapSessionManager.getActiveSession();
 	if (!snapshot) {
-		throw new ToolError(M.dbgErrNoSession);
+		throw new ToolError("No active debug session. Launch or attach first.");
 	}
 	return snapshot;
 }
@@ -757,7 +737,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 		switch (params.action) {
 			case "launch": {
 				if (!params.program) {
-					throw new ToolError(M.dbgErrProgramRequired);
+					throw new ToolError("program is required for launch");
 				}
 				const commandCwd = params.cwd ? resolveToCwd(params.cwd, this.session.cwd) : this.session.cwd;
 				const program = resolveToCwd(params.program, commandCwd);
@@ -820,7 +800,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 					return result.text(formatFunctionBreakpoints(response.breakpoints)).done();
 				}
 				if (!params.file || params.line === undefined) {
-					throw new ToolError(M.dbgErrSetBpFileLine);
+					throw new ToolError("set_breakpoint requires file+line or function");
 				}
 				const file = resolveToCwd(params.file, this.session.cwd);
 				const response = await dapSessionManager.setBreakpoint(
@@ -846,7 +826,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 					return result.text(formatFunctionBreakpoints(response.breakpoints)).done();
 				}
 				if (!params.file || params.line === undefined) {
-					throw new ToolError(M.dbgErrRemoveBpFileLine);
+					throw new ToolError("remove_breakpoint requires file+line or function");
 				}
 				const file = resolveToCwd(params.file, this.session.cwd);
 				const response = await dapSessionManager.removeBreakpoint(
@@ -862,7 +842,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "set_instruction_breakpoint": {
 				requireCapability("supportsInstructionBreakpoints", "instruction breakpoints");
 				if (!params.instruction_reference) {
-					throw new ToolError(M.dbgErrSetInstBpRef);
+					throw new ToolError("instruction_reference is required for set_instruction_breakpoint");
 				}
 				const response = await dapSessionManager.setInstructionBreakpoint(
 					params.instruction_reference,
@@ -879,7 +859,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "remove_instruction_breakpoint": {
 				requireCapability("supportsInstructionBreakpoints", "instruction breakpoints");
 				if (!params.instruction_reference) {
-					throw new ToolError(M.dbgErrRemoveInstBpRef);
+					throw new ToolError("instruction_reference is required for remove_instruction_breakpoint");
 				}
 				const response = await dapSessionManager.removeInstructionBreakpoint(
 					params.instruction_reference,
@@ -894,7 +874,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "data_breakpoint_info": {
 				requireCapability("supportsDataBreakpoints", "data breakpoints");
 				if (!params.name) {
-					throw new ToolError(M.dbgErrDbInfoName);
+					throw new ToolError("name is required for data_breakpoint_info");
 				}
 				const response = await dapSessionManager.dataBreakpointInfo(
 					params.name,
@@ -910,7 +890,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "set_data_breakpoint": {
 				requireCapability("supportsDataBreakpoints", "data breakpoints");
 				if (!params.data_id) {
-					throw new ToolError(M.dbgErrSetDbDataId);
+					throw new ToolError("data_id is required for set_data_breakpoint");
 				}
 				const response = await dapSessionManager.setDataBreakpoint(
 					params.data_id,
@@ -927,7 +907,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "remove_data_breakpoint": {
 				requireCapability("supportsDataBreakpoints", "data breakpoints");
 				if (!params.data_id) {
-					throw new ToolError(M.dbgErrRemoveDbDataId);
+					throw new ToolError("data_id is required for remove_data_breakpoint");
 				}
 				const response = await dapSessionManager.removeDataBreakpoint(
 					params.data_id,
@@ -973,7 +953,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			}
 			case "evaluate": {
 				if (!params.expression) {
-					throw new ToolError(M.dbgErrEvalExpression);
+					throw new ToolError("expression is required for evaluate");
 				}
 				const evaluationContext = (params.context as DapEvaluateArguments["context"] | undefined) ?? "repl";
 				const response = await dapSessionManager.evaluate(
@@ -1008,7 +988,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "variables": {
 				const variableReference = params.variable_ref ?? params.scope_id;
 				if (variableReference === undefined) {
-					throw new ToolError(M.dbgErrVarsRef);
+					throw new ToolError("variables requires variable_ref or scope_id");
 				}
 				const response = await dapSessionManager.variables(variableReference, combinedSignal, timeoutSec * 1000);
 				details.snapshot = response.snapshot;
@@ -1018,7 +998,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "disassemble": {
 				requireCapability("supportsDisassembleRequest", "disassembly");
 				if (params.instruction_count === undefined) {
-					throw new ToolError(M.dbgErrDisasmCount);
+					throw new ToolError("instruction_count is required for disassemble");
 				}
 				const response = await dapSessionManager.disassemble(
 					resolveDisassemblyReference(params.memory_reference),
@@ -1036,10 +1016,10 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "read_memory": {
 				requireCapability("supportsReadMemoryRequest", "memory reads");
 				if (!params.memory_reference) {
-					throw new ToolError(M.dbgErrReadMemRef);
+					throw new ToolError("memory_reference is required for read_memory");
 				}
 				if (params.count === undefined) {
-					throw new ToolError(M.dbgErrReadMemCount);
+					throw new ToolError("count is required for read_memory");
 				}
 				const response = await dapSessionManager.readMemory(
 					params.memory_reference,
@@ -1057,10 +1037,10 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			case "write_memory": {
 				requireCapability("supportsWriteMemoryRequest", "memory writes");
 				if (!params.memory_reference) {
-					throw new ToolError(M.dbgErrWriteMemRef);
+					throw new ToolError("memory_reference is required for write_memory");
 				}
 				if (!params.data) {
-					throw new ToolError(M.dbgErrWriteMemData);
+					throw new ToolError("data is required for write_memory");
 				}
 				const response = await dapSessionManager.writeMemory(
 					params.memory_reference,
@@ -1103,7 +1083,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 			}
 			case "custom_request": {
 				if (!params.command) {
-					throw new ToolError(M.dbgErrCustomCommand);
+					throw new ToolError("command is required for custom_request");
 				}
 				const response = await dapSessionManager.customRequest(
 					params.command,

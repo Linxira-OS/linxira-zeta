@@ -111,7 +111,10 @@ describe("createTools", () => {
 
 	it("still exposes eval when python kernel is unavailable (dispatches to js)", async () => {
 		const session = createTestSession();
-		vi.spyOn(await import("@linxiraos/zeta/eval/py/kernel"), "checkPythonKernelAvailability").mockResolvedValue({
+		vi.spyOn(
+			await import("@linxiraos/zeta/eval/py/kernel"),
+			"checkPythonKernelAvailability",
+		).mockResolvedValue({
 			ok: false,
 			reason: "missing python",
 		});

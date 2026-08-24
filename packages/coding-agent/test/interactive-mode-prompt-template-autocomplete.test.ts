@@ -8,11 +8,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
-import type { AutocompleteProvider } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { PromptTemplate } from "@linxiraos/zeta/config/prompt-templates";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
@@ -21,6 +19,8 @@ import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { AutocompleteProvider } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function makeTool(name: string): AgentTool {
 	return {

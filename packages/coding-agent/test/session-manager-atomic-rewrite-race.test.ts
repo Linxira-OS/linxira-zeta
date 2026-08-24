@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { IndexedSessionStorage, type SessionStorageBackend } from "@linxiraos/zeta/session/indexed-session-storage";
-import { SessionManager, SessionPersistenceIndeterminateError } from "@linxiraos/zeta/session/session-manager";
+import {
+	IndexedSessionStorage,
+	type SessionStorageBackend,
+} from "@linxiraos/zeta/session/indexed-session-storage";
+import {
+	SessionManager,
+	SessionPersistenceIndeterminateError,
+} from "@linxiraos/zeta/session/session-manager";
 import {
 	MemorySessionStorage,
 	type SessionStorageWriter,

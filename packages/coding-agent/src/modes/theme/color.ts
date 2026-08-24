@@ -1,4 +1,4 @@
-import { detectTerminalId, getTerminalInfo } from "@oh-my-pi/pi-tui";
+import { detectTerminalId, getTerminalInfo } from "@linxiraos/pi-tui";
 import type { ColorMode, ColorValue } from "./schema";
 
 // ============================================================================

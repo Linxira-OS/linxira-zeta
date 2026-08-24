@@ -4,8 +4,6 @@ import * as path from "node:path";
 import { Agent, AgentBusyError, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
-import { type OverlayHandle, type OverlayOptions, setKeybindings, Text } from "@linxiraos/pi-tui";
-import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
@@ -15,18 +13,18 @@ import type { HookSelectorSlider } from "@linxiraos/zeta/modes/components/hook-s
 import {
 	type PlanReviewAnnotationState,
 	PlanReviewOverlay,
-} from "@oh-my-pi/pi-coding-agent/modes/components/plan-review-overlay";
-import { InteractiveMode, planSaveFileName } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { SubmittedUserInput } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking";
-import * as clipboard from "@oh-my-pi/pi-coding-agent/utils/clipboard";
-import { type OverlayHandle, type OverlayOptions, setKeybindings } from "@oh-my-pi/pi-tui";
-import { formatNumber, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/modes/components/plan-review-overlay";
+import { InteractiveMode, planSaveFileName } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
+import { type OverlayHandle, type OverlayOptions, setKeybindings } from "@linxiraos/pi-tui";
+import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Matches the plan-approved synthetic-prompt dispatch. `#approvePlan` calls

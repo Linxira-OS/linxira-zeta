@@ -7,26 +7,26 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ToolCall } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TtsrManager } from "@oh-my-pi/pi-coding-agent/export/ttsr";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { GoalRuntime } from "@oh-my-pi/pi-coding-agent/goals/runtime";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ToolCall } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { TtsrManager } from "@linxiraos/zeta/export/ttsr";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { GoalRuntime } from "@linxiraos/zeta/goals/runtime";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 // Mock stream that mimics AssistantMessageEventStream
 
@@ -80,6 +80,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			removeSyncWithRetries(tempDir);
 		}
 		vi.restoreAllMocks();
+		AsyncJobManager.resetForTests();
 	});
 
 	it("continues a main session from session_stop feedback before settling", async () => {
@@ -1200,7 +1201,7 @@ describe("AgentSession TTSR resume gate", () => {
 
 		const sessionManager = SessionManager.inMemory();
 		const cwd = sessionManager.getCwd();
-		const ruleAbsPath = path.join(cwd, ".zeta", "rules", "no-unwrap.md");
+		const ruleAbsPath = path.join(cwd, ".omp", "rules", "no-unwrap.md");
 		const expectedRel = path.relative(cwd, ruleAbsPath);
 		const rule: Rule = {
 			name: "no-unwrap",

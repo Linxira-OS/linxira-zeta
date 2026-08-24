@@ -1,8 +1,7 @@
-import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { sanitizeSkillName, writeManagedSkill } from "../autolearn/managed-skills";
 import { isNameClaimedByAuthoredSkill } from "../extensibility/skills";
-import { M } from "../i18n/messages";
 import { localBackend } from "../memory-backend/local-backend";
 import learnDescription from "../prompts/tools/learn.md" with { type: "text" };
 import type { ToolSession } from ".";
@@ -52,11 +51,11 @@ export class LearnTool implements AgentTool<typeof learnSchema> {
 	async execute(_id: string, params: LearnParams): Promise<AgentToolResult> {
 		// 1) Persist or queue the lesson to long-term memory (mirrors MemoryRetainTool).
 		const backend = this.session.settings.get("memory.backend");
-		let memoryMessage = M.lnLessonStored;
+		let memoryMessage = "Lesson stored";
 		if (backend === "mnemopi") {
 			const state = this.session.getMnemopiSessionState?.();
 			if (!state) {
-				throw new Error(M.lnErrMnemopiNotInit);
+				throw new Error("Mnemopi backend is not initialised for this session.");
 			}
 			const id = state.rememberScoped(params.memory, {
 				source: "coding-agent-learn",
@@ -77,7 +76,7 @@ export class LearnTool implements AgentTool<typeof learnSchema> {
 			// disk error); mirror mnemopiBackend.save and fail loudly rather than
 			// reporting (and minting a skill for) a lesson that was silently dropped.
 			if (!id) {
-				throw new Error(M.lnErrMnemopiNoId);
+				throw new Error("Mnemopi did not store the lesson (no memory id returned).");
 			}
 		} else if (backend === "local") {
 			const result = await localBackend.save?.(
@@ -85,15 +84,15 @@ export class LearnTool implements AgentTool<typeof learnSchema> {
 				{ content: params.memory, context: params.context, source: "coding-agent-learn", importance: 0.8 },
 			);
 			if (!result || result.stored === 0) {
-				throw new Error(M.lnErrEmptyLesson);
+				throw new Error("Lesson was empty after sanitization; nothing stored.");
 			}
 		} else {
 			const state = this.session.getHindsightSessionState?.();
 			if (!state) {
-				throw new Error(M.lnErrHindsightNotInit);
+				throw new Error("Hindsight backend is not initialised for this session.");
 			}
 			state.enqueueRetain(params.memory, params.context);
-			memoryMessage = M.lnLessonQueued;
+			memoryMessage = "Lesson queued for retention";
 		}
 
 		// 2) Optionally mint/enhance a managed skill. A failure here is surfaced
@@ -114,7 +113,7 @@ export class LearnTool implements AgentTool<typeof learnSchema> {
 					content: [
 						{
 							type: "text",
-							text: M.lnDidNotCreateSkillFmt.replace("%s", memoryMessage).replace("%s", params.skill.name),
+							text: `${memoryMessage}. Did not create managed skill "${params.skill.name}": an authored skill of that name already exists, and managed skills cannot override authored ones. Choose a different name.`,
 						},
 					],
 					isError: true,
@@ -129,15 +128,7 @@ export class LearnTool implements AgentTool<typeof learnSchema> {
 			}
 			const verb = params.skill.action === "create" ? "Created" : "Updated";
 			return {
-				content: [
-					{
-						type: "text",
-						text: M.lnManagedSkillFmt
-							.replace("%s", memoryMessage)
-							.replace("%s", verb)
-							.replace("%s", params.skill.name),
-					},
-				],
+				content: [{ type: "text", text: `${memoryMessage}. ${verb} managed skill "${params.skill.name}".` }],
 				details: { skill: params.skill.name },
 			};
 		}

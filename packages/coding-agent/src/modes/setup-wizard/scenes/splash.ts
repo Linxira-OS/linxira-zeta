@@ -1,13 +1,12 @@
 import { padding, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
-import { M } from "../../../i18n";
-import { gradientEscape, gradientLogo, type ShineConfig, ZETA_LOGO } from "../../components/welcome";
+import { gradientEscape, gradientLogo, PI_LOGO, type ShineConfig } from "../../components/welcome";
 import { theme } from "../../theme/theme";
 
 export const SETUP_SPLASH_MS = 2600;
 export const SETUP_TICK_MS = 33;
 
 /** Brand mark at 2x: every glyph doubled horizontally, every row doubled vertically. */
-const LARGE_LOGO = ZETA_LOGO.flatMap(line => {
+const LARGE_LOGO = PI_LOGO.flatMap(line => {
 	let wide = "";
 	for (const char of line) {
 		wide += char === " " ? "  " : `${char}${char}`;
@@ -21,6 +20,8 @@ const RESET = "\x1b[0m";
 /** Full scene needs comfortable room; below this we drop to a centered mark. */
 const MIN_SCENE_WIDTH = 56;
 const MIN_SCENE_HEIGHT = 22;
+
+const SKIP_HINT = "press enter to skip";
 
 /** Density ramp for the rippling water, lightest → heaviest. */
 const WATER_RAMP = [
@@ -116,7 +117,7 @@ function waterAmplitude(
 }
 
 /**
- * Animated setup splash, in the spirit of the omp landing page: the brand ζ
+ * Animated setup splash, in the spirit of the omp landing page: the brand π
  * mark rendered with the live diagonal gradient + shine sweep, rising out of a
  * rippling, gradient-lit water surface, under a faint twinkling starfield. The
  * mark and water share one continuous gradient so the sweep reads across the
@@ -175,27 +176,26 @@ export function renderSetupSplash(width: number, height: number, elapsedMs: numb
 		}
 	});
 	// 4. skip hint on a cleared strip at the bottom so it stays legible over the water
-	const hint = M.setupSkipHint;
-	const hintWidth = visibleWidth(hint);
+	const hintWidth = visibleWidth(SKIP_HINT);
 	const hintStart = Math.floor((w - hintWidth) / 2);
 	const hintRow = h - 1;
 	for (let x = hintStart - 1; x <= hintStart + hintWidth; x++) put(x, hintRow, " ");
 	let col = hintStart;
-	for (const ch of hint) put(col++, hintRow, ch === " " ? " " : theme.fg("dim", ch));
+	for (const ch of SKIP_HINT) put(col++, hintRow, ch === " " ? " " : theme.fg("dim", ch));
 
 	return cells.map(row => row.join(""));
 }
 
 /** Centered fallback for windows too small to hold the full scene. */
 function renderCompactSplash(width: number, height: number, phase: number, shine: ShineConfig): string[] {
-	const art = height >= 14 ? LARGE_LOGO : ZETA_LOGO;
-	const content = [...gradientLogo(art, phase, shine), "", theme.bold("Z e t a")];
+	const art = height >= 14 ? LARGE_LOGO : PI_LOGO;
+	const content = [...gradientLogo(art, phase, shine), "", theme.bold("O h   M y   P i")];
 	const start = Math.max(0, Math.floor((height - content.length) / 2));
 	const lines: string[] = [];
 	for (let y = 0; y < height; y++) {
 		const item = content[y - start];
 		lines.push(clampLine(item !== undefined ? centerLine(item, width) : "", width));
 	}
-	if (height > 2) lines[height - 2] = clampLine(centerLine(theme.fg("dim", M.setupSkipHint), width), width);
+	if (height > 2) lines[height - 2] = clampLine(centerLine(theme.fg("dim", SKIP_HINT), width), width);
 	return lines;
 }

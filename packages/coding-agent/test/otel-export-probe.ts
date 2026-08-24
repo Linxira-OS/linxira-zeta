@@ -10,7 +10,11 @@
  * protobuf POST at /v1/traces.
  */
 
-import { flushTelemetryExport, initTelemetryExport, isTelemetryExportEnabled } from "@linxiraos/zeta/telemetry-export";
+import {
+	flushTelemetryExport,
+	initTelemetryExport,
+	isTelemetryExportEnabled,
+} from "@linxiraos/zeta/telemetry-export";
 import { trace } from "@opentelemetry/api";
 
 let received = false;

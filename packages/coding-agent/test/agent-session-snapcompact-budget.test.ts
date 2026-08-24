@@ -22,7 +22,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { Agent } from "@linxiraos/pi-agent-core";
 import { effectiveReserveTokens, prepareCompaction } from "@linxiraos/pi-agent-core/compaction";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { encodeRpcFrame, MAX_RPC_FRAME_BYTES } from "@linxiraos/zeta/modes/rpc/rpc-frame";
@@ -30,6 +29,7 @@ import { computeNonMessageTokens } from "@linxiraos/zeta/modes/utils/context-usa
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 
 describe("AgentSession snapcompact frame-budget sizing", () => {
 	let session: AgentSession;

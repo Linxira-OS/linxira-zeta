@@ -5,13 +5,13 @@ import { calculateContextTokens, resolveThresholdTokens } from "@linxiraos/pi-ag
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { createMockModel, type MockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { estimateToolSchemaTokens } from "@linxiraos/zeta/modes/utils/context-usage";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const CONTEXT_WINDOW = 372_000;

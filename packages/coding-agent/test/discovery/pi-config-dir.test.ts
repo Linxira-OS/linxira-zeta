@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAgentDir } from "@linxiraos/pi-utils";
 import type { LoadContext } from "@linxiraos/zeta/capability/types";
 import { getConfigDirs } from "@linxiraos/zeta/config";
 import { resolveClaudePaths } from "@linxiraos/zeta/config/claude-paths";
 import { getUserPath } from "@linxiraos/zeta/discovery/helpers";
+import { getAgentDir } from "@linxiraos/pi-utils";
 
 describe("PI_CONFIG_DIR", () => {
 	const original = process.env.PI_CONFIG_DIR;
@@ -32,10 +32,10 @@ describe("PI_CONFIG_DIR", () => {
 	});
 
 	test("getConfigDirs respects PI_CONFIG_DIR for user base", () => {
-		process.env.PI_CONFIG_DIR = ".config/zeta";
+		process.env.PI_CONFIG_DIR = ".config/omp";
 		const result = getConfigDirs("commands", { project: false });
-		const expected = path.resolve(path.join(os.homedir(), ".config/zeta", "agent", "commands"));
-		expect(result[0]).toEqual({ path: expected, source: ".zeta", level: "user" });
+		const expected = path.resolve(path.join(os.homedir(), ".config/omp", "agent", "commands"));
+		expect(result[0]).toEqual({ path: expected, source: ".omp", level: "user" });
 	});
 });
 

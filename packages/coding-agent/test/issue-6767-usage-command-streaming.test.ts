@@ -2,8 +2,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { UsageReport } from "@linxiraos/pi-ai";
-import { Text } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
@@ -13,6 +11,8 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Text } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const usageReports: UsageReport[] = [
 	{

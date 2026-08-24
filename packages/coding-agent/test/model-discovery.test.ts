@@ -10,7 +10,6 @@ import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
 import type { ModelSpec, OpenAICompat } from "@linxiraos/pi-catalog/types";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import {
 	applyLlamaCppQwenThinking,
 	discoverOllamaModels,
@@ -20,6 +19,7 @@ import { kNoAuth, ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { ProviderDiscoverySchema } from "@linxiraos/zeta/config/models-config-schema";
 import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("ModelRegistry runtime discovery", () => {
 	let tempDir: string;

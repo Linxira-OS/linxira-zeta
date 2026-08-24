@@ -14,7 +14,6 @@ export default class Update extends Command {
 	static flags = {
 		force: Flags.boolean({ char: "f", description: "Force update", default: false }),
 		check: Flags.boolean({ char: "c", description: "Check for updates without installing", default: false }),
-		yes: Flags.boolean({ char: "y", description: "Install updates without prompting", default: false }),
 		plugins: Flags.boolean({ char: "l", description: "Update installed plugins", default: false }),
 		canary: Flags.boolean({ description: "Switch to the canary channel and update", default: false }),
 		stable: Flags.boolean({ description: "Switch back to the stable channel", default: false }),

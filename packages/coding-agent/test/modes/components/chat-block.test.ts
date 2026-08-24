@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { Component } from "@linxiraos/pi-tui";
 import { ChatBlock, type ChatBlockHost } from "@linxiraos/zeta/modes/components/chat-block";
+import type { Component } from "@linxiraos/pi-tui";
 
 /** Concrete subclass exposing the protected lifecycle seams for assertions. */
 class TestBlock extends ChatBlock {

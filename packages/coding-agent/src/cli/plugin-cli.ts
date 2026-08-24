@@ -218,9 +218,9 @@ async function handleMarketplace(args: string[], _flags: PluginCommandArgs["flag
 			}
 			try {
 				await manager.addMarketplace(source);
-				console.log(chalk.green(`${statusSymbols().success} Added marketplace: ${source}`));
+				console.log(chalk.green(`${theme.status.success} Added marketplace: ${source}`));
 			} catch (err) {
-				console.error(chalk.red(`${statusSymbols().error} Failed to add marketplace: ${err}`));
+				console.error(chalk.red(`${theme.status.error} Failed to add marketplace: ${err}`));
 				process.exit(1);
 			}
 			break;
@@ -234,9 +234,9 @@ async function handleMarketplace(args: string[], _flags: PluginCommandArgs["flag
 			}
 			try {
 				await manager.removeMarketplace(name);
-				console.log(chalk.green(`${statusSymbols().success} Removed marketplace: ${name}`));
+				console.log(chalk.green(`${theme.status.success} Removed marketplace: ${name}`));
 			} catch (err) {
-				console.error(chalk.red(`${statusSymbols().error} Failed to remove marketplace: ${err}`));
+				console.error(chalk.red(`${theme.status.error} Failed to remove marketplace: ${err}`));
 				process.exit(1);
 			}
 			break;
@@ -246,13 +246,13 @@ async function handleMarketplace(args: string[], _flags: PluginCommandArgs["flag
 				const name = args[1];
 				if (name) {
 					await manager.updateMarketplace(name);
-					console.log(chalk.green(`${statusSymbols().success} Updated marketplace: ${name}`));
+					console.log(chalk.green(`${theme.status.success} Updated marketplace: ${name}`));
 				} else {
 					const results = await manager.updateAllMarketplaces();
-					console.log(chalk.green(`${statusSymbols().success} Updated ${results.length} marketplace(s)`));
+					console.log(chalk.green(`${theme.status.success} Updated ${results.length} marketplace(s)`));
 				}
 			} catch (err) {
-				console.error(chalk.red(`${statusSymbols().error} Failed to update marketplace: ${err}`));
+				console.error(chalk.red(`${theme.status.error} Failed to update marketplace: ${err}`));
 				process.exit(1);
 			}
 			break;
@@ -275,7 +275,7 @@ async function handleMarketplace(args: string[], _flags: PluginCommandArgs["flag
 					console.log(`  ${chalk.cyan(mp.name)}  ${chalk.dim(mp.sourceUri)}`);
 				}
 			} catch (err) {
-				console.error(chalk.red(`${statusSymbols().error} Failed to list marketplaces: ${err}`));
+				console.error(chalk.red(`${theme.status.error} Failed to list marketplaces: ${err}`));
 				process.exit(1);
 			}
 			break;
@@ -302,7 +302,7 @@ async function handleDiscover(args: string[], _flags: PluginCommandArgs["flags"]
 			}
 		}
 	} catch (err) {
-		console.error(chalk.red(`${statusSymbols().error} Failed to discover plugins: ${err}`));
+		console.error(chalk.red(`${theme.status.error} Failed to discover plugins: ${err}`));
 		process.exit(1);
 	}
 }
@@ -375,11 +375,11 @@ async function handleInstall(
 				});
 				console.log(
 					chalk.green(
-						`${statusSymbols().success} Installed ${target.name} from ${target.marketplace} (${entry.version})`,
+						`${theme.status.success} Installed ${target.name} from ${target.marketplace} (${entry.version})`,
 					),
 				);
 			} catch (err) {
-				console.error(chalk.red(`${statusSymbols().error} Failed to install ${spec}: ${err}`));
+				console.error(chalk.red(`${theme.status.error} Failed to install ${spec}: ${err}`));
 				process.exit(1);
 			}
 			continue;
@@ -416,13 +416,13 @@ async function handleInstall(
 				if (flags.json) {
 					console.log(JSON.stringify(result, null, 2));
 				} else {
-					console.log(chalk.green(`${statusSymbols().success} Linked ${result.name} from ${spec}`));
+					console.log(chalk.green(`${theme.status.success} Linked ${result.name} from ${spec}`));
 					if (result.manifest.description) {
 						console.log(chalk.dim(`  ${result.manifest.description}`));
 					}
 				}
 			} catch (err) {
-				console.error(chalk.red(`${statusSymbols().error} Failed to install ${spec}: ${err}`));
+				console.error(chalk.red(`${theme.status.error} Failed to install ${spec}: ${err}`));
 				process.exit(1);
 			}
 			continue;
@@ -447,7 +447,7 @@ async function handleInstall(
 				if (flags.dryRun) {
 					console.log(chalk.dim(`[dry-run] Would install ${spec}`));
 				} else {
-					console.log(chalk.green(`${statusSymbols().success} Installed ${result.name}@${result.version}`));
+					console.log(chalk.green(`${theme.status.success} Installed ${result.name}@${result.version}`));
 					if (result.enabledFeatures && result.enabledFeatures.length > 0) {
 						console.log(chalk.dim(`  Features: ${result.enabledFeatures.join(", ")}`));
 					}
@@ -457,7 +457,7 @@ async function handleInstall(
 				}
 			}
 		} catch (err) {
-			console.error(chalk.red(`${statusSymbols().error} Failed to install ${spec}: ${err}`));
+			console.error(chalk.red(`${theme.status.error} Failed to install ${spec}: ${err}`));
 			process.exit(1);
 		}
 	}
@@ -486,7 +486,7 @@ async function handleUninstall(
 				try {
 					await mktMgr.uninstallPlugin(name, flags.scope, { dryRun: true });
 				} catch (err) {
-					console.error(chalk.red(`${statusSymbols().error} Failed to uninstall ${name}: ${err}`));
+					console.error(chalk.red(`${theme.status.error} Failed to uninstall ${name}: ${err}`));
 					process.exit(1);
 				}
 			}
@@ -511,9 +511,9 @@ async function handleUninstall(
 			// Exact match against installed marketplace plugin IDs (name@marketplace)
 			try {
 				await mktMgr.uninstallPlugin(name, flags.scope);
-				console.log(chalk.green(`${statusSymbols().success} Uninstalled ${name}`));
+				console.log(chalk.green(`${theme.status.success} Uninstalled ${name}`));
 			} catch (err) {
-				console.error(chalk.red(`${statusSymbols().error} Failed to uninstall ${name}: ${err}`));
+				console.error(chalk.red(`${theme.status.error} Failed to uninstall ${name}: ${err}`));
 				process.exit(1);
 			}
 			continue;
@@ -525,10 +525,10 @@ async function handleUninstall(
 			if (flags.json) {
 				console.log(JSON.stringify({ uninstalled: name }));
 			} else {
-				console.log(chalk.green(`${statusSymbols().success} Uninstalled ${name}`));
+				console.log(chalk.green(`${theme.status.success} Uninstalled ${name}`));
 			}
 		} catch (err) {
-			console.error(chalk.red(`${statusSymbols().error} Failed to uninstall ${name}: ${err}`));
+			console.error(chalk.red(`${theme.status.error} Failed to uninstall ${name}: ${err}`));
 			process.exit(1);
 		}
 	}
@@ -553,7 +553,7 @@ async function handleList(manager: PluginManager, flags: { json?: boolean }): Pr
 	if (npmPlugins.length > 0) {
 		console.log(chalk.bold("npm Plugins:\n"));
 		for (const plugin of npmPlugins) {
-			const status = plugin.enabled ? chalk.green(statusSymbols().enabled) : chalk.dim(statusSymbols().disabled);
+			const status = plugin.enabled ? chalk.green(theme.status.enabled) : chalk.dim(theme.status.disabled);
 			const nameVersion = `${plugin.name}@${plugin.version}`;
 			console.log(`${status} ${nameVersion}`);
 			if (plugin.manifest.description) {
@@ -600,10 +600,10 @@ async function handleLink(manager: PluginManager, paths: string[], flags: { json
 		if (flags.json) {
 			console.log(JSON.stringify(result, null, 2));
 		} else {
-			console.log(chalk.green(`${statusSymbols().success} Linked ${result.name} from ${paths[0]}`));
+			console.log(chalk.green(`${theme.status.success} Linked ${result.name} from ${paths[0]}`));
 		}
 	} catch (err) {
-		console.error(chalk.red(`${statusSymbols().error} Failed to link: ${err}`));
+		console.error(chalk.red(`${theme.status.error} Failed to link: ${err}`));
 		process.exit(1);
 	}
 }
@@ -621,10 +621,10 @@ async function handleDoctor(manager: PluginManager, flags: { json?: boolean; fix
 	for (const check of checks) {
 		const icon =
 			check.status === "ok"
-				? chalk.green(statusSymbols().success)
+				? chalk.green(theme.status.success)
 				: check.status === "warning"
-					? chalk.yellow(statusSymbols().warning)
-					: chalk.red(statusSymbols().error);
+					? chalk.yellow(theme.status.warning)
+					: chalk.red(theme.status.error);
 		console.log(`${icon} ${check.name}: ${check.message}`);
 		if (check.fixed) {
 			console.log(chalk.dim(`  ${theme.nav.cursor} Fixed`));
@@ -700,7 +700,7 @@ async function handleFeatures(
 		}
 
 		await manager.setEnabledFeatures(pluginName, [...currentFeatures]);
-		console.log(chalk.green(`${statusSymbols().success} Updated features for ${pluginName}`));
+		console.log(chalk.green(`${theme.status.success} Updated features for ${pluginName}`));
 	}
 
 	// Display current state
@@ -731,7 +731,7 @@ async function handleFeatures(
 	const enabledSet = new Set(updatedFeatures ?? []);
 	for (const [name, feat] of Object.entries(plugin.manifest.features)) {
 		const enabled = enabledSet.has(name);
-		const icon = enabled ? chalk.green(statusSymbols().enabled) : chalk.dim(statusSymbols().disabled);
+		const icon = enabled ? chalk.green(theme.status.enabled) : chalk.dim(theme.status.disabled);
 		const defaultLabel = feat.default ? chalk.dim(" (default)") : "";
 		console.log(`${icon} ${name}${defaultLabel}`);
 		if (feat.description) {
@@ -845,7 +845,7 @@ async function handleConfig(
 			}
 
 			await manager.setPluginSetting(pluginName, key, value);
-			console.log(chalk.green(`${statusSymbols().success} Set ${key}`));
+			console.log(chalk.green(`${theme.status.success} Set ${key}`));
 			break;
 		}
 
@@ -856,7 +856,7 @@ async function handleConfig(
 			}
 
 			await manager.deletePluginSetting(pluginName, key);
-			console.log(chalk.green(`${statusSymbols().success} Deleted ${key}`));
+			console.log(chalk.green(`${theme.status.success} Deleted ${key}`));
 			break;
 		}
 
@@ -916,10 +916,10 @@ async function handleConfigValidate(manager: PluginManager, flags: { json?: bool
 	}
 
 	if (results.length === 0) {
-		console.log(chalk.green(`${statusSymbols().success} All settings valid`));
+		console.log(chalk.green(`${theme.status.success} All settings valid`));
 	} else {
 		for (const { plugin, key, error } of results) {
-			console.log(chalk.red(`${statusSymbols().error} ${plugin}.${key}: ${error}`));
+			console.log(chalk.red(`${theme.status.error} ${plugin}.${key}: ${error}`));
 		}
 		process.exit(1);
 	}
@@ -966,10 +966,10 @@ async function handleSetEnabled(
 				if (flags.json) {
 					console.log(JSON.stringify({ [jsonKey]: name }));
 				} else {
-					console.log(chalk.green(`${statusSymbols().success} ${pastTense} ${name}`));
+					console.log(chalk.green(`${theme.status.success} ${pastTense} ${name}`));
 				}
 			} catch (err) {
-				console.error(chalk.red(`${statusSymbols().error} Failed to ${action} ${name}: ${err}`));
+				console.error(chalk.red(`${theme.status.error} Failed to ${action} ${name}: ${err}`));
 				process.exit(1);
 			}
 			continue;
@@ -980,10 +980,10 @@ async function handleSetEnabled(
 			if (flags.json) {
 				console.log(JSON.stringify({ [jsonKey]: name }));
 			} else {
-				console.log(chalk.green(`${statusSymbols().success} ${pastTense} ${name}`));
+				console.log(chalk.green(`${theme.status.success} ${pastTense} ${name}`));
 			}
 		} catch (err) {
-			console.error(chalk.red(`${statusSymbols().error} Failed to ${action} ${name}: ${err}`));
+			console.error(chalk.red(`${theme.status.error} Failed to ${action} ${name}: ${err}`));
 			process.exit(1);
 		}
 	}

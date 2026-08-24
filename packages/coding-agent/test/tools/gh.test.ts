@@ -5,8 +5,6 @@ import * as path from "node:path";
 import type { ToolCall } from "@linxiraos/pi-ai";
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import * as piUtils from "@linxiraos/pi-utils";
-import { $which, getAgentDir, hashPath, removeWithRetries, setAgentDir, WhichCachePolicy } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import {
@@ -18,6 +16,8 @@ import {
 	resolveDefaultRepoMemoized,
 } from "@linxiraos/zeta/tools/gh";
 import * as git from "@linxiraos/zeta/utils/git";
+import * as piUtils from "@linxiraos/pi-utils";
+import { $which, getAgentDir, hashPath, removeWithRetries, setAgentDir, WhichCachePolicy } from "@linxiraos/pi-utils";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
@@ -201,7 +201,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 	// we must rebuild the resolver after the spy + env scrub are in place.
 	// `setAgentDir` recreates it; we point it at the temp home's default agent dir.
 	const originalAgentDir = getAgentDir();
-	setAgentDir(path.join(home, ".zeta", "agent"));
+	setAgentDir(path.join(home, ".omp", "agent"));
 	return {
 		home,
 		cleanup: async () => {
@@ -225,7 +225,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 async function expectedWorktreePath(home: string, primaryRoot: string, localBranch: string): Promise<string> {
 	const prNumber = localBranch.replace(/^pr-/, "");
 	const segment = `${prNumber}-${hashPath(primaryRoot)}`;
-	return fs.realpath(path.join(home, ".zeta", "wt", segment));
+	return fs.realpath(path.join(home, ".omp", "wt", segment));
 }
 
 describe("parsePrUnifiedDiff", () => {

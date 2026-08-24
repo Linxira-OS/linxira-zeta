@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import type { UsageProvider, UsageReport } from "@oh-my-pi/pi-ai";
-import { unregisterOAuthProvider } from "@oh-my-pi/pi-ai/oauth";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import type { ProviderConfig } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { UsageProvider, UsageReport } from "@linxiraos/pi-ai";
+import { unregisterOAuthProvider } from "@linxiraos/pi-ai/oauth";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import type { ProviderConfig } from "@linxiraos/zeta/extensibility/extensions/types";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const testProviderConfig: ProviderConfig = {
 	baseUrl: "https://example.invalid/v1",

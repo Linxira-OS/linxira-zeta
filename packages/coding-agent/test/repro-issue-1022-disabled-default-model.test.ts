@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 
 /**

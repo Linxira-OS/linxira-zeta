@@ -3,7 +3,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { editToolRenderer } from "@linxiraos/zeta/edit/renderer";
 import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
@@ -11,6 +10,7 @@ import type { ToolSession } from "@linxiraos/zeta/tools";
 import { astGrepToolRenderer } from "@linxiraos/zeta/tools/ast-grep";
 import { ReadTool, readToolRenderer } from "@linxiraos/zeta/tools/read";
 import { WriteTool, writeToolRenderer } from "@linxiraos/zeta/tools/write";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { grepToolRenderer } from "../../src/tools/grep";
 
 // 1x1 PNG so the read tool takes its image branch.

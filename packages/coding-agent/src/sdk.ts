@@ -372,9 +372,6 @@ export interface CreateAgentSessionOptions {
 
 	/** Auth storage for credentials. Default: discoverAuthStorage(agentDir) */
 	authStorage?: AuthStorage;
-	/** Explicit async job manager to share with subagents (Zeta per-session design). */
-	asyncJobManager?: AsyncJobManager;
-
 	/** Model registry. Default: discoverModels(authStorage, agentDir) */
 	modelRegistry?: ModelRegistry;
 	/**
@@ -516,24 +513,6 @@ export interface CreateAgentSessionOptions {
 	toolNames?: string[];
 	/** Limit the session to explicitly supplied tool names, without discovered extras. */
 	restrictToolNames?: boolean;
-	/**
-	 * IM channel send sink (web/desktop sessions only; undefined in CLI mode).
-	 * When set, `channel_send` is available and the session can push progress
-	 * to the remote IM user.
-	 */
-	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
-	/**
-	 * Workspace delegation sink (web/desktop sessions only; undefined in CLI
-	 * mode). When set, `workspace_run` is available and the coordinator can
-	 * delegate subtasks to other workspace sessions.
-	 */
-	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
-	/**
-	 * Natural-language IM control sink (web/desktop sessions only; undefined in
-	 * CLI mode). When set, `im_control` is available and the session can
-	 * manage workspaces / sessions / language / model on the user's behalf.
-	 */
-	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 	/**
 	 * Permit only caller-supplied SDK custom tools inside a restricted session.
 	 * They must still be named in {@link toolNames}; discovered extensions, MCP,
@@ -1685,12 +1664,12 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	// Delivery is owner-routed: every AgentSession registers its own sink
 	// (see session/async-job-delivery.ts), so the manager takes no default
 	// onJobComplete here.
-	// Per-session design (Zeta): every top-level session owns its own manager;
-	// subagents inherit the parent's via the explicit `asyncJobManager` option
-	// (wired by the task executor). No process-global singleton.
-	const asyncJobManager = options.parentTaskPrefix ? undefined : new AsyncJobManager({ maxRunningJobs: asyncMaxJobs });
+	const asyncJobManager =
+		!options.parentTaskPrefix && !AsyncJobManager.instance()
+			? new AsyncJobManager({ maxRunningJobs: asyncMaxJobs })
+			: undefined;
 
-	const scopedAsyncJobManager = asyncJobManager ?? options.asyncJobManager;
+	const scopedAsyncJobManager = asyncJobManager ?? (options.parentTaskPrefix ? AsyncJobManager.instance() : undefined);
 
 	const agentRegistry = options.agentRegistry ?? AgentRegistry.global();
 	const resolvedAgentId = options.agentId ?? options.parentTaskPrefix ?? MAIN_AGENT_ID;
@@ -1747,9 +1726,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			hasUI: options.hasUI ?? false,
 			canPromptUser: options.interactivePrompts ?? options.hasUI ?? false,
 			getApiKey: options.getApiKey,
-			channelSend: options.channelSend,
-			workspaceRun: options.workspaceRun,
-			imControl: options.imControl,
 			get additionalDirectories() {
 				return sessionManager.getAdditionalDirectories();
 			},
@@ -1890,6 +1866,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// so without this a TTSR-only rule (e.g. a triggered builtin) is not
 			// addressable and `rule://` reports "Available: none".
 			setActiveRules([...rulebookRules, ...alwaysApplyRules, ...ttsrManager.getRules()]);
+			if (asyncJobManager) AsyncJobManager.setInstance(asyncJobManager);
 		}
 		const localProtocolOptions = options.localProtocolOptions ?? {
 			getArtifactsDir,
@@ -3290,12 +3267,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 
 		const setToolUIContext = (uiContext: ExtensionUIContext, hasUI: boolean) => {
 			toolContextStore.setUIContext(uiContext, hasUI);
-			// The approval gate reads the RUNNER's context (`runner.hasUI()` /
-			// `getUIContext()`), not the tool context store. Keep both backends
-			// in lockstep so gateway/ACP transports answer approval prompts.
-			if (hasUI) {
-				extensionRunner.setUIContext(uiContext);
-			}
 		};
 
 		const initialTools = initialToolNames
@@ -4107,6 +4078,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			} else {
 				if (hasRegistered) unregisterUnlessParked();
 				if (asyncJobManager) {
+					if (AsyncJobManager.instance() === asyncJobManager) {
+						AsyncJobManager.setInstance(undefined);
+					}
 					await asyncJobManager.dispose({ timeoutMs: 3_000 });
 				}
 				await releaseComputerSessionsForOwner(evalKernelOwnerId);

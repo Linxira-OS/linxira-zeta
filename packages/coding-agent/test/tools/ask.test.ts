@@ -1,18 +1,18 @@
 import { beforeAll, describe, expect, it, spyOn, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type {
 	ExtensionAskDialogQuestion,
 	ExtensionAskDialogResult,
 	ExtensionUISelectItem,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { getThemeByName, initTheme, type Theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { AskTool, askToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/ask";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { TERMINAL } from "@oh-my-pi/pi-tui";
+} from "@linxiraos/zeta/extensibility/extensions";
+import { getThemeByName, initTheme, type Theme } from "@linxiraos/zeta/modes/theme/theme";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { AskTool, askToolRenderer } from "@linxiraos/zeta/tools/ask";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { TERMINAL } from "@linxiraos/pi-tui";
 
 function createSession(overrides: Partial<ToolSession> = {}): ToolSession {
 	return {
@@ -418,7 +418,7 @@ describe("AskTool option descriptions", () => {
 		const select = vi.fn(async (_prompt: string, options: ExtensionUISelectItem[]) => {
 			expect(options[0]).toEqual({
 				label: "Use local credentials",
-				description: "Authenticate with provider keys already configured under ~/.zeta.",
+				description: "Authenticate with provider keys already configured under ~/.omp.",
 			});
 			expect(options[1]).toEqual({
 				label: "Set up in terminal",
@@ -439,7 +439,7 @@ describe("AskTool option descriptions", () => {
 						options: [
 							{
 								label: "Use local credentials",
-								description: "Authenticate with provider keys already configured under ~/.zeta.",
+								description: "Authenticate with provider keys already configured under ~/.omp.",
 							},
 							{
 								label: "Set up in terminal",
@@ -472,7 +472,7 @@ describe("AskTool option descriptions", () => {
 				options: [
 					{
 						label: "Use local credentials",
-						description: "Authenticate with provider keys already configured under ~/.zeta.",
+						description: "Authenticate with provider keys already configured under ~/.omp.",
 					},
 					{
 						label: "Set up in terminal",

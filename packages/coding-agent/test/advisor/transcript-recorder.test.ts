@@ -16,13 +16,13 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	ADVISOR_TRANSCRIPT_FILENAME,
 	AdvisorTranscriptRecorder,
 	advisorTranscriptFilename,
 	loadAdvisorTranscriptCosts,
 } from "@linxiraos/zeta/advisor/transcript-recorder";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 interface AdvisorEntry {
 	type?: string;

@@ -13,9 +13,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Patch, Patcher } from "@linxiraos/pi-hashline";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { canonicalSnapshotKey, getFileSnapshotStore } from "@linxiraos/zeta/edit/file-snapshot-store";
 import { HashlineFilesystem } from "@linxiraos/zeta/edit/hashline/filesystem";
@@ -23,6 +22,7 @@ import { writethroughNoop } from "@linxiraos/zeta/lsp";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import type { ReadToolDetails } from "@linxiraos/zeta/tools/read";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const HASHLINE_HEADER_LINE = /^\[([^#\r\n]+)#([0-9A-F]{4})\]$/m;
 const COLUMN_CAP = 64;

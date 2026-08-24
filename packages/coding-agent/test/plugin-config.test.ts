@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import * as piUtils from "@linxiraos/pi-utils";
 import { removeWithRetries } from "@linxiraos/pi-utils";
-import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 
 describe("plugin config", () => {
 	let tmpRoot: string;
@@ -14,7 +14,7 @@ describe("plugin config", () => {
 	beforeEach(async () => {
 		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-config-"));
 		pluginsDir = path.join(tmpRoot, "plugins");
-		lockfile = path.join(pluginsDir, "zeta-plugins.lock.json");
+		lockfile = path.join(pluginsDir, "omp-plugins.lock.json");
 
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(lockfile);

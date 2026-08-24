@@ -1,7 +1,7 @@
 /**
- * Builtin Provider (.zeta)
+ * Builtin Provider (.omp)
  *
- * Primary provider for Zeta native configs. Supports all capabilities.
+ * Primary provider for OMP native configs. Supports all capabilities.
  */
 import * as path from "node:path";
 import { getAgentDir, logger, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
@@ -37,8 +37,8 @@ import {
 } from "./helpers";
 
 const PROVIDER_ID = "native";
-const DISPLAY_NAME = "Zeta";
-const DESCRIPTION = "Native Zeta configuration from ~/.zeta and .zeta/";
+const DISPLAY_NAME = "OMP";
+const DESCRIPTION = "Native OMP configuration from ~/.omp and .zeta/";
 const PRIORITY = 100;
 
 const PATHS = SOURCE_PATHS.native;
@@ -385,7 +385,7 @@ async function loadRules(ctx: LoadContext): Promise<LoadResult<Rule>> {
 	}
 
 	// Top-level RULES.md is a sticky always-apply rule. Documented in
-	// https://github.com/Linxira-OS/linxira-zeta as the file that gets "re-injected near
+	// https://omp.sh/docs/context-files as the file that gets "re-injected near
 	// the current turn so they keep hold across long conversations".
 	// User scope:    ~/.zeta/agent/RULES.md
 	// Project scope: nearest .zeta/RULES.md walking up from cwd to repoRoot

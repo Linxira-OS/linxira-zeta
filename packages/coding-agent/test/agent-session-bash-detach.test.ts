@@ -44,7 +44,6 @@ import * as path from "node:path";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -52,6 +51,7 @@ import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { BashTool, type ToolSession } from "@linxiraos/zeta/tools";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /** Scripted assistant turn that issues a single `bash` tool call. */

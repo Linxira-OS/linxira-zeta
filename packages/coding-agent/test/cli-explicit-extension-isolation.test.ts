@@ -2,7 +2,6 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { realpathSync } from "node:fs";
 import { symlink, unlink } from "node:fs/promises";
 import type { AuthStorage } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -10,6 +9,7 @@ import { buildSessionOptions } from "@linxiraos/zeta/main";
 import { loadSessionExtensions } from "@linxiraos/zeta/sdk";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 let tempDir: TempDir;

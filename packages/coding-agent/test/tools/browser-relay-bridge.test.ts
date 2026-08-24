@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { RelayBridge, type RelaySocket } from "@linxiraos/zeta/tools/browser/relay/bridge";
-import type { RelayRpcRequest, RelayToExtMessage, TabSnapshot } from "@linxiraos/zeta/tools/browser/relay/protocol";
+import type {
+	RelayRpcRequest,
+	RelayToExtMessage,
+	TabSnapshot,
+} from "@linxiraos/zeta/tools/browser/relay/protocol";
 
 /** A relay→extension RPC narrowed to one op, tabIds/title/etc. included. */
 type ExtRpc<Op extends RelayRpcRequest["op"]> = { t: "rpc"; id: number } & Extract<RelayRpcRequest, { op: Op }>;

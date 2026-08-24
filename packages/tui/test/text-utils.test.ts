@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import {
 	encodeTextSized,
 	extractSegments,
-	normalizeTerminalOutput,
 	sliceWithWidth,
 	truncateToWidth,
 	visibleWidth,
@@ -141,17 +140,5 @@ describe("text utils", () => {
 		expect(result.after).toBe("H");
 		expect(result.afterWidth).toBe(1);
 		expect(result.after.includes("\x1b]66")).toBe(false);
-	});
-
-	it("drops inline carriage returns so one line stays one terminal line", () => {
-		// A lone `\r` survives the native `\n`-only line split and makes the
-		// terminal return to column 1, overlapping/gluing content. Stripping it
-		// keeps the single-line invariant (progress-bar style `a\rb` renders as
-		// `ab`, never as overlapping columns).
-		expect(normalizeTerminalOutput("progress 50%\rprogress 100%")).toBe("progress 50%progress 100%");
-		// CRLF line endings leave a trailing `\r` on each split line.
-		expect(normalizeTerminalOutput("foo\r")).toBe("foo");
-		// `\n` and Thai/Lao AM handling are untouched.
-		expect(normalizeTerminalOutput("a\nb")).toBe("a\nb");
 	});
 });

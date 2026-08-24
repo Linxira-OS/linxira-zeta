@@ -7,9 +7,9 @@ import {
 	requiresApproval,
 	resolveApproval,
 	truncateForPrompt,
-} from "@oh-my-pi/pi-coding-agent/tools/approval";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { DEBUG_READONLY_ACTIONS } from "@oh-my-pi/pi-coding-agent/tools/debug";
+} from "@linxiraos/zeta/tools/approval";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { DEBUG_READONLY_ACTIONS } from "@linxiraos/zeta/tools/debug";
 import { Settings } from "../../src/config/settings";
 import { EditTool } from "../../src/edit";
 import type { ToolSession } from "../../src/tools";

@@ -8,8 +8,8 @@ import type {
 	Context,
 	Model,
 	SimpleStreamOptions,
-} from "@oh-my-pi/pi-ai";
-import { type BenchModelRegistry, runBenchCommand } from "@oh-my-pi/pi-coding-agent/cli/bench-cli";
+} from "@linxiraos/pi-ai";
+import { type BenchModelRegistry, runBenchCommand } from "@linxiraos/zeta/cli/bench-cli";
 
 const model = {
 	provider: "acme",

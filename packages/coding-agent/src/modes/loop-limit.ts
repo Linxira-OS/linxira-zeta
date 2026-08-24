@@ -1,5 +1,3 @@
-import { M } from "../i18n";
-
 export type LoopLimitConfig =
 	| {
 			kind: "iterations";
@@ -168,28 +166,27 @@ export function isLoopDurationExpired(limit: LoopLimitRuntime | undefined, nowMs
 
 export function describeLoopLimit(config: LoopLimitConfig): string {
 	if (config.kind === "iterations") {
-		return `${config.iterations} ${config.iterations === 1 ? M.imLoopIterationOne : M.imLoopIterationMany}`;
+		return `${config.iterations} ${config.iterations === 1 ? "iteration" : "iterations"}`;
 	}
 	return formatDuration(config.durationMs);
 }
 
 export function describeLoopLimitRuntime(limit: LoopLimitRuntime): string {
 	if (limit.kind === "iterations") {
-		const fmt = limit.initial === 1 ? M.imLoopIterationsRemainingOneFmt : M.imLoopIterationsRemainingFmt;
-		return fmt.replace("%s", String(limit.remaining)).replace("%s", String(limit.initial));
+		return `${limit.remaining} of ${limit.initial} ${limit.initial === 1 ? "iteration" : "iterations"} remaining`;
 	}
-	return M.imLoopDurationLimitFmt.replace("%s", formatDuration(limit.durationMs));
+	return `${formatDuration(limit.durationMs)} limit`;
 }
 
 function formatDuration(durationMs: number): string {
 	if (durationMs % 3_600_000 === 0) {
 		const hours = durationMs / 3_600_000;
-		return `${hours} ${hours === 1 ? M.imLoopHourOne : M.imLoopHourMany}`;
+		return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 	}
 	if (durationMs % 60_000 === 0) {
 		const minutes = durationMs / 60_000;
-		return `${minutes} ${minutes === 1 ? M.imLoopMinuteOne : M.imLoopMinuteMany}`;
+		return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
 	}
 	const seconds = durationMs / 1_000;
-	return `${seconds} ${seconds === 1 ? M.imLoopSecondOne : M.imLoopSecondMany}`;
+	return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
 }

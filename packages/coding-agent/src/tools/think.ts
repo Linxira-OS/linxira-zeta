@@ -1,6 +1,6 @@
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
 import { type Component, Markdown } from "@linxiraos/pi-tui";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { getMarkdownTheme, type Theme } from "../modes/theme/theme";

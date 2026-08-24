@@ -3,12 +3,16 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import type { ReadToolDetails } from "@linxiraos/zeta/tools/read";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { demangleSymbol, parseSampleProfile, renderSampleProfile } from "@linxiraos/zeta/utils/sample-profile";
+import {
+	demangleSymbol,
+	parseSampleProfile,
+	renderSampleProfile,
+} from "@linxiraos/zeta/utils/sample-profile";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const BOX_MEASURE = "_RNvNtCsfMEenOU8j5j_11slab_kernel6layout11box_measure";
 

@@ -2,9 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";
@@ -24,6 +23,7 @@ import {
 	xdevDocsAll,
 	xdevEntries,
 } from "@linxiraos/zeta/tools/xdev";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // xdev mounting is default-on: discoverable tools like ast_edit unmount into
 // xd://, and a plain `write xd://ast_edit` dispatches them. These guard the

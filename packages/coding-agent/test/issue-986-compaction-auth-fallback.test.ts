@@ -5,12 +5,12 @@ import { Agent } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { assistantMsg, userMsg } from "./utilities";
 
 describe("issue #986 compaction auth fallback", () => {

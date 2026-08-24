@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { TERMINAL } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { TERMINAL } from "@linxiraos/pi-tui";
 
 /**
  * Models the loader lifecycle InteractiveMode owns: `agent_start` creates the

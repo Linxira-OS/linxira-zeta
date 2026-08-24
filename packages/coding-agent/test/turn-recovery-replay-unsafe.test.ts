@@ -5,7 +5,6 @@ import * as AIError from "@linxiraos/pi-ai/error";
 import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import type { Model, Usage } from "@linxiraos/pi-catalog/types";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -14,6 +13,7 @@ import {
 	TurnRecovery,
 	type TurnRecoveryHost,
 } from "@linxiraos/zeta/session/turn-recovery";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createProviderErrorMessage } from "../../ai/src/providers/error-message";
 
 const USAGE: Usage = {

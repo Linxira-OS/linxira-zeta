@@ -11,6 +11,7 @@
  *      user), and either decision tool resets the counter.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	Agent,
 	type AgentMessage,
@@ -21,8 +22,6 @@ import {
 } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
@@ -33,6 +32,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { XdevState } from "@linxiraos/zeta/tools/xdev";
+import { TempDir } from "@linxiraos/pi-utils";
 import planModeReminderPrompt from "../src/prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
 
 /** A stable, literal (non-templated) line of the reminder prompt, so the test
@@ -516,21 +516,5 @@ describe("AgentSession plan-mode convergence", () => {
 		await handler!("retry");
 		expect(harness.session.getPlanModeState()).toBeUndefined();
 		expect(harness.session.getActiveToolNames()).toEqual(["read"]);
-	});
-
-	it("T0: enterPlanMode arms plan mode, keeps write active, and wires plan approval", async () => {
-		const harness = await createPlanSession([]);
-		// The harness pre-arms plan mode; clear it so this test exercises the
-		// web-gateway entry path (`/plan` → enter_plan_mode → session.enterPlanMode).
-		harness.session.setPlanModeState(undefined);
-		expect(harness.session.getPlanModeState()?.enabled).not.toBe(true);
-
-		await harness.session.enterPlanMode();
-
-		const state = harness.session.getPlanModeState();
-		expect(state?.enabled).toBe(true);
-		expect(state?.planFilePath).toBeTruthy();
-		expect(harness.session.getActiveToolNames()).toContain("write");
-		expect(harness.session.peekPlanProposalHandler()).toBeDefined();
 	});
 });

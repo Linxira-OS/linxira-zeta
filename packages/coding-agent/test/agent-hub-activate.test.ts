@@ -6,7 +6,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentHubOverlayComponent } from "@linxiraos/zeta/modes/components/agent-hub";
@@ -19,6 +18,7 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { visitEntriesFromFileStream } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { getBundledAgent } from "@linxiraos/zeta/task/agents";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const AGENT_ID = "Worker";
 const TEST_CWD = path.resolve("agent-hub-cwd");

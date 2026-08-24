@@ -1,21 +1,21 @@
 import { describe, expect, test } from "bun:test";
-import type { Api, Context, Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import type { Api, Context, Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import {
 	hashProviderFileContent,
 	ProviderFileCache,
 	type ProviderFileClient,
 	type ProviderFileHandle,
-} from "@oh-my-pi/pi-coding-agent/blob-broker/provider-file-types";
+} from "@linxiraos/zeta/blob-broker/provider-file-types";
 import {
 	type ProviderFileClientFactory,
 	ProviderFileManager,
-} from "@oh-my-pi/pi-coding-agent/blob-broker/provider-files";
-import { createAnthropicFileClient } from "@oh-my-pi/pi-coding-agent/blob-broker/provider-files-anthropic";
-import { createGeminiProviderFileClient } from "@oh-my-pi/pi-coding-agent/blob-broker/provider-files-gemini";
-import { createOpenAIFileClient } from "@oh-my-pi/pi-coding-agent/blob-broker/provider-files-openai";
-import type { FetchImpl } from "@oh-my-pi/pi-coding-agent/blob-broker/uploader-runtime";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/blob-broker/provider-files";
+import { createAnthropicFileClient } from "@linxiraos/zeta/blob-broker/provider-files-anthropic";
+import { createGeminiProviderFileClient } from "@linxiraos/zeta/blob-broker/provider-files-gemini";
+import { createOpenAIFileClient } from "@linxiraos/zeta/blob-broker/provider-files-openai";
+import type { FetchImpl } from "@linxiraos/zeta/blob-broker/uploader-runtime";
+import { TempDir } from "@linxiraos/pi-utils";
 
 interface RecordedRequest {
 	readonly url: string;

@@ -12,7 +12,7 @@
  * Sixel, Kitty `a=p`) do not survive. Everything else falls back to the stats
  * line plus a dim notice.
  */
-
+import { type Component, type ImageBudget, renderImage, TERMINAL } from "@linxiraos/pi-tui";
 import {
 	DIM_OFF,
 	DIM_ON,
@@ -27,8 +27,6 @@ import {
 	type ShapeTarget,
 	type ShapeVariantName,
 } from "@linxiraos/pi-snapcompact";
-import { type Component, type ImageBudget, renderImage, TERMINAL } from "@linxiraos/pi-tui";
-import { M } from "../../i18n";
 import { theme } from "../theme/theme";
 import sampleDoc from "./snapcompact-shape-preview-doc.md" with { type: "text" };
 
@@ -82,31 +80,27 @@ export class SnapcompactShapePreview implements Component {
 		const shape = resolveShape(this.#model, this.#variant);
 		const name = resolvedVariantName(shape);
 		const geo = geometry(shape);
-		const label = this.#variant === "auto" ? M.scpAutoLabelFmt.replace("%s", name) : name;
+		const label = this.#variant === "auto" ? `auto → ${name}` : name;
 		const chars = geo.capacity >= 1000 ? `${(geo.capacity / 1000).toFixed(1)}k` : String(geo.capacity);
 		const tokens =
 			shape.frameTokenEstimate >= 1000
 				? `${(shape.frameTokenEstimate / 1000).toFixed(1)}k`
 				: String(shape.frameTokenEstimate);
-		const stats = M.scpStatsFmt
-			.replace("%s", String(geo.cols))
-			.replace("%s", String(geo.rows))
-			.replace("%s", chars)
-			.replace("%s", tokens);
-		const lines: string[] = [theme.fg("muted", M.scpHeaderFmt.replace("%s", label).replace("%s", stats)), ""];
+		const stats = `full frame ${geo.cols}×${geo.rows} cells ≈ ${chars} chars ≈ ${tokens} tokens`;
+		const lines: string[] = [theme.fg("muted", `  Sample (zoomed) · ${label} · ${stats}`), ""];
 
 		if (!this.#budget || !TERMINAL.imageProtocol) {
-			lines.push(theme.fg("dim", M.scpNeedsKitty));
+			lines.push(theme.fg("dim", "  (graphic sample needs a Kitty-graphics terminal)"));
 			return lines;
 		}
 
 		const entry = this.#ensureEntry(name, shape);
 		if (entry.state === "rendering") {
-			lines.push(theme.fg("dim", M.scpRendering));
+			lines.push(theme.fg("dim", "  rendering sample…"));
 			return lines;
 		}
 		if (entry.state === "failed") {
-			lines.push(theme.fg("dim", M.scpRenderFailed));
+			lines.push(theme.fg("dim", "  (sample render failed)"));
 			return lines;
 		}
 
@@ -123,7 +117,7 @@ export class SnapcompactShapePreview implements Component {
 		// Only the unicode-placeholder path returns text-cell `lines`; cursor-moving
 		// placements would corrupt the bordered settings frame, so skip them.
 		if (!result?.lines) {
-			lines.push(theme.fg("dim", M.scpNeedsKittyPlaceholder));
+			lines.push(theme.fg("dim", "  (graphic sample needs Kitty unicode-placeholder graphics)"));
 			return lines;
 		}
 		if (result.transmit) {

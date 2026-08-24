@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runEvalAgent } from "@oh-my-pi/pi-coding-agent/eval/agent-bridge";
-import type { LocalProtocolOptions } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as taskDiscovery from "@oh-my-pi/pi-coding-agent/task/discovery";
-import * as taskExecutor from "@oh-my-pi/pi-coding-agent/task/executor";
-import * as isolationRunner from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
-import { runStructuredSubagent } from "@oh-my-pi/pi-coding-agent/task/structured-subagent";
-import type { AgentDefinition, SingleResult, StructuredSubagentOutput } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { runEvalAgent } from "@linxiraos/zeta/eval/agent-bridge";
+import type { LocalProtocolOptions } from "@linxiraos/zeta/internal-urls";
+import type { MCPManager } from "@linxiraos/zeta/mcp";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as taskDiscovery from "@linxiraos/zeta/task/discovery";
+import * as taskExecutor from "@linxiraos/zeta/task/executor";
+import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
+import { runStructuredSubagent } from "@linxiraos/zeta/task/structured-subagent";
+import type { AgentDefinition, SingleResult, StructuredSubagentOutput } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 function createResult(overrides: Partial<SingleResult> = {}): SingleResult {
 	return {

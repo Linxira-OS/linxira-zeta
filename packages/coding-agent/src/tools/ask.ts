@@ -15,9 +15,9 @@
  *   - Questions may time out and auto-select the recommended option (configurable, disabled in plan mode)
  */
 
+import { type as arkType } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
-import { type as arkType } from "@linxiraos/pi-omptype";
 import {
 	type Component,
 	Ellipsis,
@@ -156,9 +156,7 @@ const RECOMMENDED_SUFFIX = " (Recommended)";
 const TIMEOUT_DETECTION_TOLERANCE_MS = 1_000;
 
 function getDoneOptionLabel(): string {
-	// `theme` is unset outside TUI modes (web gateway, headless, tests); a raw
-	// access here crashes every ask. Mirror `fgOrPlain`'s guarded access.
-	return typeof theme === "undefined" ? "Done selecting" : `${theme.status.success} Done selecting`;
+	return `${theme.status.success} Done selecting`;
 }
 
 /** Add "(Recommended)" suffix to the option at the given index if not already present */

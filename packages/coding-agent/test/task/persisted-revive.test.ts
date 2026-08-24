@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
@@ -16,6 +15,7 @@ import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createPersistedSubagentReviverFactory } from "@linxiraos/zeta/task/persisted-revive";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const tempDirs: TempDir[] = [];
 

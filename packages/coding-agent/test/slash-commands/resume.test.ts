@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { resolveResumableSession } from "@linxiraos/zeta/session/session-listing";
 import { computeDefaultSessionDir } from "@linxiraos/zeta/session/session-paths";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 
 let tempDir: string;
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

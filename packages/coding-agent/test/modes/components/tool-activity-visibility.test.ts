@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { Text } from "@linxiraos/pi-tui";
 import type { Rule } from "@linxiraos/zeta/capability/rule";
 import { TodoReminderComponent } from "@linxiraos/zeta/modes/components/todo-reminder";
 import { ToolActivityContainer } from "@linxiraos/zeta/modes/components/tool-activity";
 import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { TtsrNotificationComponent } from "@linxiraos/zeta/modes/components/ttsr-notification";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { Text } from "@linxiraos/pi-tui";
 
 const darkTheme = await getThemeByName("dark");
 

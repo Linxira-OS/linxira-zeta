@@ -30,6 +30,7 @@ import type {
 	ToolResultMessage,
 } from "../types";
 import { normalizeSystemPrompts, normalizeToolCallId, resolveCacheRetention } from "../utils";
+import { resolveAwsAmbientRegion } from "../utils/aws-profile";
 import {
 	clearStreamingPartialJson,
 	kStreamingBlockIndex,

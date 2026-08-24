@@ -4,9 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { getManagedSkillsDir } from "@linxiraos/zeta/autolearn/managed-skills";
 import "@linxiraos/zeta/discovery";
+import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
-import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
 
 async function writeSkill(dir: string, name: string, description: string): Promise<void> {
 	const file = path.join(dir, name, "SKILL.md");
@@ -29,7 +29,7 @@ describe("managed-skills discovery", () => {
 		tempCwd = path.join(tempHome, "work");
 		await fs.mkdir(tempCwd, { recursive: true });
 		spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".zeta", "agent"));
+		setAgentDir(path.join(tempHome, ".omp", "agent"));
 		managedDir = getManagedSkillsDir();
 		// Authored user skills live in the sibling `skills/` dir under .../agent.
 		authoredDir = path.join(path.dirname(managedDir), "skills");

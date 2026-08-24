@@ -4,7 +4,6 @@ import type { ImageContent } from "@linxiraos/pi-ai";
 import { type AutocompleteProvider, matchesKey, type SlashCommand } from "@linxiraos/pi-tui";
 import { isEnoent, logger, sanitizeText } from "@linxiraos/pi-utils";
 import { isSettingsInitialized, settings } from "../../config/settings";
-import { M } from "../../i18n";
 import { resolveLocalRoot } from "../../internal-urls";
 import { AssistantMessageComponent } from "../../modes/components/assistant-message";
 import { extractImagePathFromText } from "../../modes/components/custom-editor";
@@ -552,9 +551,6 @@ export class InputController {
 		for (const key of this.ctx.keybindings.getKeys("app.live.toggle")) {
 			this.ctx.editor.setCustomKeyHandler(key, () => void this.ctx.handleLiveCommand());
 		}
-		for (const key of this.ctx.keybindings.getKeys("app.sidebar.toggle")) {
-			this.ctx.editor.setCustomKeyHandler(key, () => this.ctx.handleSidebarToggle());
-		}
 		// Hold the space bar to push-to-talk: the editor recognizes the auto-repeat burst, tracks
 		// the spam back out, and toggles STT on hold start / release. Gated on `stt.enabled` so a
 		// disabled STT leaves the space bar typing normally.
@@ -671,7 +667,7 @@ export class InputController {
 				// focused, refuse rather than dump the binary blob in a hidden buffer.
 				const focused = this.ctx.ui.getFocused();
 				if (focused && focused !== this.ctx.editor && hasPasteText(focused)) {
-					this.ctx.showStatus(M.statusImagePasteIsNotSupportedInThisPrompt);
+					this.ctx.showStatus("Image paste is not supported in this prompt");
 					return;
 				}
 				await this.#normalizeAndInsertPastedImage(image, `Unsupported pasted image format: ${image.mimeType}`);
@@ -825,13 +821,13 @@ export class InputController {
 					return;
 				}
 				if (text.startsWith("!") || parsePythonCommandInput(text)) {
-					this.ctx.showStatus(M.statusLocalExecutionIsHostOnlyDuringACollabSession);
+					this.ctx.showStatus("Local execution is host-only during a collab session");
 					this.ctx.editor.setText("");
 					return;
 				}
 				if (this.ctx.collabGuest.readOnly) {
 					// Keep the typed text: the prompt was not consumed.
-					this.ctx.showStatus(M.statusThisCollabLinkIsReadOnlyPromptingIsDisabled);
+					this.ctx.showStatus("This collab link is read-only — prompting is disabled");
 					return;
 				}
 				const images = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;
@@ -863,7 +859,7 @@ export class InputController {
 				const command = isExcluded ? text.slice(2).trim() : text.slice(1).trim();
 				if (command) {
 					if (this.ctx.session.isBashRunning) {
-						this.ctx.showWarning(M.statusABashCommandIsAlreadyRunningPressEscToCancelItFirst);
+						this.ctx.showWarning("A bash command is already running. Press Esc to cancel it first.");
 						this.ctx.editor.setText(text);
 						return;
 					}
@@ -882,7 +878,7 @@ export class InputController {
 				const { code, isExcluded } = pythonCommand;
 				if (code) {
 					if (this.ctx.session.isEvalRunning) {
-						this.ctx.showWarning(M.statusAPythonExecutionIsAlreadyRunningPressEscToCancelItFirst);
+						this.ctx.showWarning("A Python execution is already running. Press Esc to cancel it first.");
 						this.ctx.editor.setText(text);
 						return;
 					}
@@ -1074,7 +1070,7 @@ export class InputController {
 			return;
 		}
 		if (text && (text.startsWith("/") || text.startsWith("!") || parsePythonCommandInput(text))) {
-			this.ctx.showStatus(M.statusCommandsRunInTheMainSessionPressToReturnFirst);
+			this.ctx.showStatus("Commands run in the main session — press ←← to return first");
 			return; // editor text not cleared: Editor does not auto-clear on submit
 		}
 		this.ctx.editor.clearDraft(text);
@@ -1144,7 +1140,7 @@ export class InputController {
 		// via an uncaught exception (issue #2036, originally for SIGTSTP — same
 		// shape for SIGSTOP). No-op on platforms that cannot suspend.
 		if (process.platform === "win32") {
-			this.ctx.showStatus(M.statusSuspendCtrlZIsNotSupportedOnThisPlatform);
+			this.ctx.showStatus("Suspend (Ctrl+Z) is not supported on this platform");
 			return;
 		}
 
@@ -1209,7 +1205,7 @@ export class InputController {
 	handleDequeue(): void {
 		const restored = this.restoreQueuedMessagesToEditor();
 		if (restored === 0) {
-			this.ctx.showStatus(M.statusNoQueuedMessagesToRestore);
+			this.ctx.showStatus("No queued messages to restore");
 		} else {
 			this.ctx.showStatus(`Restored ${restored} queued message${restored > 1 ? "s" : ""} to editor`);
 		}
@@ -1288,14 +1284,14 @@ export class InputController {
 
 	async handleRetry(): Promise<void> {
 		if (this.ctx.collabGuest) {
-			this.ctx.showStatus(M.statusRetryIsHostOnlyDuringACollabSession);
+			this.ctx.showStatus("/retry is host-only during a collab session");
 			return;
 		}
 		const didRetry = await this.ctx.viewSession.retry();
 		if (didRetry) {
 			this.ctx.editor.clearDraft();
 		} else {
-			this.ctx.showStatus(M.statusNothingToRetry);
+			this.ctx.showStatus("Nothing to retry");
 		}
 	}
 
@@ -1318,7 +1314,7 @@ export class InputController {
 		const splitMessages = splitQueuedMessages(text);
 		if (splitMessages.length === 0 && !options.images?.length) {
 			this.ctx.editor.clearDraft();
-			this.ctx.showWarning(M.statusUsageQueueMessageOrStartAPromptWith);
+			this.ctx.showWarning("Usage: /queue <message> (or start a prompt with -> / =>)");
 			return;
 		}
 
@@ -1669,7 +1665,7 @@ export class InputController {
 				if (await this.#tryPasteClipboardImage()) return;
 				this.ctx.editor.pasteText(path);
 				this.ctx.ui.requestRender();
-				this.ctx.showStatus(M.statusPastedPathIsNotASupportedImage);
+				this.ctx.showStatus("Pasted path is not a supported image");
 				return;
 			}
 			await this.#normalizeAndInsertPastedImage(
@@ -1714,7 +1710,7 @@ export class InputController {
 			if (await this.#tryPasteClipboardImage()) return;
 			this.ctx.editor.pasteText(path);
 			this.ctx.ui.requestRender();
-			this.ctx.showStatus(M.statusFailedToReadPastedImagePath);
+			this.ctx.showStatus("Failed to read pasted image path");
 		}
 	}
 
@@ -1762,7 +1758,7 @@ export class InputController {
 			const image = await this.clipboard.readImage();
 			if (image) {
 				if (promptTarget) {
-					this.ctx.showStatus(M.statusImagePasteIsNotSupportedInThisPrompt);
+					this.ctx.showStatus("Image paste is not supported in this prompt");
 					return false;
 				}
 				return await this.#normalizeAndInsertPastedImage(
@@ -1781,7 +1777,7 @@ export class InputController {
 			// this keypress, so a miss here must not dead-end.
 			const text = await this.clipboard.readText();
 			if (!text) {
-				this.ctx.showStatus(M.statusClipboardIsEmpty);
+				this.ctx.showStatus("Clipboard is empty");
 				return false;
 			}
 			// #3506: when the clipboard text is an explicit image file path,
@@ -1802,7 +1798,7 @@ export class InputController {
 			this.ctx.ui.requestRender();
 			return true;
 		} catch {
-			this.ctx.showStatus(M.statusFailedToReadClipboard);
+			this.ctx.showStatus("Failed to read clipboard");
 			return false;
 		}
 	}
@@ -1814,10 +1810,10 @@ export class InputController {
 				this.ctx.editor.insertText(text);
 				this.ctx.ui.requestRender();
 			} else {
-				this.ctx.showStatus(M.statusNoTextInClipboardToPasteRaw);
+				this.ctx.showStatus("No text in clipboard to paste raw");
 			}
 		} catch {
-			this.ctx.showStatus(M.statusFailedToPasteRawTextFromClipboard);
+			this.ctx.showStatus("Failed to paste raw text from clipboard");
 		}
 	}
 
@@ -1855,11 +1851,11 @@ export class InputController {
 			choice = await this.ctx.showHookSelector(
 				`Pasted ${lineCount} lines`,
 				[
-					{ label: WRAPPED_BLOCK, description: M.statusWrapTheTextInAttachmentTagsCollapsedToAMarker },
-					{ label: LOCAL_FILE, description: M.statusSaveTheTextToALocalPasteFile },
-					{ label: INLINE, description: M.statusCollapseTheTextToAnInlinePasteMarker },
+					{ label: WRAPPED_BLOCK, description: "Wrap the text in <attachment> tags, collapsed to a marker" },
+					{ label: LOCAL_FILE, description: "Save the text to a local://paste file" },
+					{ label: INLINE, description: "Collapse the text to an inline paste marker" },
 				],
-				{ helpText: M.statusEscToPasteInline },
+				{ helpText: "Esc to paste inline" },
 			);
 		} catch (error) {
 			logger.warn("large-paste menu failed", { error: error instanceof Error ? error.message : String(error) });
@@ -1965,7 +1961,7 @@ export class InputController {
 		const { line } = this.ctx.editor.getCursor();
 		const text = this.ctx.editor.getLines()[line] || "";
 		if (!text) {
-			this.ctx.showStatus(M.statusNothingToCopy);
+			this.ctx.showStatus("Nothing to copy");
 			return;
 		}
 		try {
@@ -1974,7 +1970,7 @@ export class InputController {
 			const preview = sanitized.length > 30 ? `${sanitized.slice(0, 30)}...` : sanitized;
 			this.ctx.showStatus(`Copied line: ${preview}`);
 		} catch {
-			this.ctx.showWarning(M.statusFailedToCopyToClipboard);
+			this.ctx.showWarning("Failed to copy to clipboard");
 		}
 	}
 
@@ -1982,7 +1978,7 @@ export class InputController {
 	handleCopyPrompt(): void {
 		const text = this.ctx.editor.getText();
 		if (!text) {
-			this.ctx.showStatus(M.statusNothingToCopy);
+			this.ctx.showStatus("Nothing to copy");
 			return;
 		}
 		try {
@@ -1991,18 +1987,18 @@ export class InputController {
 			const preview = sanitized.length > 30 ? `${sanitized.slice(0, 30)}...` : sanitized;
 			this.ctx.showStatus(`Copied: ${preview}`);
 		} catch {
-			this.ctx.showWarning(M.statusFailedToCopyToClipboard);
+			this.ctx.showWarning("Failed to copy to clipboard");
 		}
 	}
 
 	cycleThinkingLevel(): void {
 		if (this.ctx.focusedAgentId) {
-			this.ctx.showStatus(M.statusModelThinkingApplyToTheMainSessionPressToReturnFirst);
+			this.ctx.showStatus("Model/thinking apply to the main session — press ←← to return first");
 			return;
 		}
 		const newLevel = this.ctx.session.cycleThinkingLevel();
 		if (newLevel === undefined) {
-			this.ctx.showStatus(M.statusCurrentModelDoesNotSupportThinking);
+			this.ctx.showStatus("Current model does not support thinking");
 		} else {
 			this.ctx.statusLine.invalidate();
 			this.ctx.updateEditorBorderColor();
@@ -2011,14 +2007,14 @@ export class InputController {
 
 	async cycleRoleModel(direction: "forward" | "backward" = "forward"): Promise<void> {
 		if (this.ctx.focusedAgentId) {
-			this.ctx.showStatus(M.statusModelThinkingApplyToTheMainSessionPressToReturnFirst);
+			this.ctx.showStatus("Model/thinking apply to the main session — press ←← to return first");
 			return;
 		}
 		try {
 			const cycleOrder = settings.get("cycleOrder");
 			const result = await this.ctx.session.cycleRoleModels(cycleOrder, direction);
 			if (!result) {
-				this.ctx.showStatus(M.statusOnlyOneRoleModelAvailable);
+				this.ctx.showStatus("Only one role model available");
 				return;
 			}
 
@@ -2095,7 +2091,7 @@ export class InputController {
 		const thinkingOff =
 			((this.ctx.viewSession ?? this.ctx.session)?.thinkingLevel ?? ThinkingLevel.Off) === ThinkingLevel.Off;
 		if (thinkingOff && !this.ctx.hasDisplayableThinkingContent) {
-			this.ctx.showStatus(M.statusThinkingIsOffEnableThinkingToShowBlocks);
+			this.ctx.showStatus("Thinking is off — enable thinking to show blocks");
 			return;
 		}
 		this.ctx.hideThinkingBlock = !this.ctx.hideThinkingBlock;

@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { Api, AssistantMessage, Model, ThinkingContent } from "@oh-my-pi/pi-ai";
-import { type GeneratedProvider, getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { Api, AssistantMessage, Model, ThinkingContent } from "@linxiraos/pi-ai";
+import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	type CustomMessage,
 	convertToLlm,
@@ -18,6 +18,7 @@ import {
 import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const REASONING_TEXT = "I have partly reasoned through the implementation and should preserve this.";

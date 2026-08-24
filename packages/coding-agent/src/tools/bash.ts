@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -6,7 +7,6 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import { getProjectDir, isEnoent, logger, prompt } from "@linxiraos/pi-utils";
@@ -19,7 +19,6 @@ import {
 import type { Settings } from "../config/settings";
 import { applyDirenvPreflight, type BashResult, executeBash } from "../exec/bash-executor";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import { M } from "../i18n/messages";
 import { InternalUrlRouter } from "../internal-urls";
 import { truncateToVisualLines } from "../modes/components/visual-truncate";
 import { highlightCode, type Theme } from "../modes/theme/theme";
@@ -105,7 +104,10 @@ function hasBashApprovalShellControl(command: string): boolean {
 				quote = undefined;
 				continue;
 			}
+			// Expansion is active inside double quotes even in the original line.
 			if (ch === "`" || ch === "$") return true;
+			// Other control characters are literal here but become executable if a
+			// `-c`/`-e` option reinterprets the argument through another shell.
 			if (Object.hasOwn(BASH_APPROVAL_SHELL_CONTROL_CHARS, ch)) hasReinterpretableShellControl = true;
 			continue;
 		}
@@ -115,6 +117,8 @@ function hasBashApprovalShellControl(command: string): boolean {
 		}
 		if (Object.hasOwn(BASH_APPROVAL_SHELL_CONTROL_CHARS, ch)) return true;
 	}
+	// Options such as `git -c alias.x='!...'` and `sh -c "..."` reinterpret
+	// otherwise literal quoted or escaped arguments as executable code.
 	return hasReinterpretableShellControl && BASH_APPROVAL_REINTERPRETED_ARGUMENT_RE.test(command);
 }
 
@@ -384,7 +388,7 @@ function normalizeBashEnv(env: Record<string, string> | undefined): Record<strin
 	const normalized: Record<string, string> = {};
 	for (const [key, value] of Object.entries(env)) {
 		if (!BASH_ENV_NAME_PATTERN.test(key)) {
-			throw new ToolError(M.bsErrInvalidEnvNameFmt.replace("%s", key));
+			throw new ToolError(`Invalid bash env name: ${key}`);
 		}
 		normalized[key] = value;
 	}
@@ -489,12 +493,9 @@ function formatTimeoutClampNotice(
 	if (requestedTimeoutSec === effectiveTimeoutSec) return undefined;
 	const cappedByGlobal = maxTimeout > 0 && effectiveTimeoutSec === maxTimeout && maxTimeout < TOOL_TIMEOUTS.bash.max;
 	const limit = cappedByGlobal
-		? M.bsMaxTimeoutCeilingFmt.replace("%s", String(maxTimeout))
-		: M.bsAllowedRangeFmt.replace("%s", String(TOOL_TIMEOUTS.bash.min)).replace("%s", String(TOOL_TIMEOUTS.bash.max));
-	return M.bsTimeoutClampedFmt
-		.replace("%s", String(effectiveTimeoutSec))
-		.replace("%s", String(requestedTimeoutSec))
-		.replace("%s", limit);
+		? `global tools.maxTimeout ceiling ${maxTimeout}s`
+		: `allowed range ${TOOL_TIMEOUTS.bash.min}-${TOOL_TIMEOUTS.bash.max}s`;
+	return `Timeout clamped to ${effectiveTimeoutSec}s (requested ${requestedTimeoutSec}s; ${limit}).`;
 }
 
 function formatWallTimeSeconds(wallTimeMs: number): string {
@@ -502,11 +503,11 @@ function formatWallTimeSeconds(wallTimeMs: number): string {
 }
 
 function formatWallTimeNotice(wallTimeMs: number): string {
-	return M.bsWallTimeFmt.replace("%s", formatWallTimeSeconds(wallTimeMs));
+	return `Wall time: ${formatWallTimeSeconds(wallTimeMs)} seconds`;
 }
 
 function formatExitCodeNotice(exitCode: number): string {
-	return M.bsExitedCodeFmt.replace("%s", String(exitCode));
+	return `Command exited with code ${exitCode}`;
 }
 
 /**
@@ -559,11 +560,11 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 				tier: "exec",
 				override: true,
 				policy: "deny",
-				reason: M.bsBlockedByPatternFmt.replace("%s", patternRule.match),
+				reason: `Blocked by bash pattern: ${patternRule.match}`,
 			};
 		}
 		if (command !== "" && CRITICAL_BASH_PATTERNS.some(pattern => pattern.test(command))) {
-			return { tier: "exec", override: true, reason: M.bsCriticalPatternDetected };
+			return { tier: "exec", override: true, reason: "Critical pattern detected" };
 		}
 		if (patternRule?.approval === "allow") return { tier: "write", policy: "allow" };
 		if (patternRule?.approval === "prompt") {
@@ -571,15 +572,15 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 				tier: "exec",
 				override: true,
 				policy: "prompt",
-				reason: M.bsPromptRequiredByPatternFmt.replace("%s", patternRule.match),
+				reason: `Prompt required by bash pattern: ${patternRule.match}`,
 			};
 		}
 		return "exec";
 	};
 	readonly formatApprovalDetails = (args: unknown): string[] => {
 		const rawCommand = (args as Partial<BashToolInput>).command;
-		const command = typeof rawCommand === "string" ? rawCommand : M.bsMissingCommand;
-		return [M.bsCommandFmt.replace("%s", truncateForPrompt(command))];
+		const command = typeof rawCommand === "string" ? rawCommand : "(missing)";
+		return [`Command: ${truncateForPrompt(command)}`];
 	};
 	readonly label = "Bash";
 	readonly loadMode = "essential";
@@ -659,13 +660,11 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 		if (result.timedOut === true) {
 			const out = normalizeResultOutput(result);
 			const message =
-				timeoutSec === undefined
-					? M.bsCommandTimedOut
-					: M.bsCommandTimedOutAfterFmt.replace("%s", String(timeoutSec));
+				timeoutSec === undefined ? "Command timed out" : `Command timed out after ${timeoutSec} seconds`;
 			throw new ToolError(out ? `${out}\n\n[${message}]` : message);
 		}
 		if (result.exitCode === undefined) {
-			throw new ToolError(M.bsErrMissingExitStatusFmt.replace("%s", outputText));
+			throw new ToolError(`${outputText}\n\nCommand failed: missing exit status`);
 		}
 	}
 
@@ -814,7 +813,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 	}): ManagedBashJobHandle {
 		const manager = this.session.asyncJobManager;
 		if (!manager) {
-			throw new ToolError(M.bsErrJobManagerUnavailable);
+			throw new ToolError("Background job manager unavailable for this session.");
 		}
 
 		const label = options.command.length > 120 ? `${options.command.slice(0, 117)}...` : options.command;
@@ -927,7 +926,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			}
 		}
 		if (asyncRequested && !this.#asyncEnabled) {
-			throw new ToolError(M.bsErrAsyncDisabled);
+			throw new ToolError("Async bash execution is disabled. Enable async.enabled to use async mode.");
 		}
 
 		// Check both the original command and the cwd-normalized command so
@@ -939,7 +938,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			for (const commandToCheck of commandsToCheck) {
 				const interception = checkBashInterception(commandToCheck, ctx?.toolNames ?? [], rules, rawCommand);
 				if (interception.block) {
-					throw new ToolError(interception.message ?? M.bsErrCommandBlocked);
+					throw new ToolError(interception.message ?? "Command blocked");
 				}
 			}
 		}
@@ -987,12 +986,12 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			cwdStat = await fs.promises.stat(commandCwd);
 		} catch (err) {
 			if (isEnoent(err)) {
-				throw new ToolError(M.bsErrWorkdirMissingFmt.replace("%s", commandCwd));
+				throw new ToolError(`Working directory does not exist: ${commandCwd}`);
 			}
 			throw err;
 		}
 		if (!cwdStat.isDirectory()) {
-			throw new ToolError(M.bsErrWorkdirNotDirFmt.replace("%s", commandCwd));
+			throw new ToolError(`Working directory is not a directory: ${commandCwd}`);
 		}
 
 		// A timeout of 0 is an explicit long-running-command contract: the user
@@ -1010,7 +1009,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 
 		if (asyncRequested) {
 			if (!this.session.asyncJobManager) {
-				throw new ToolError(M.bsErrAsyncManagerUnavailable);
+				throw new ToolError("Async job manager unavailable for this session.");
 			}
 			const job = this.#startManagedBashJob({
 				command,
@@ -1086,13 +1085,16 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			}
 			if (waitResult.kind === "aborted") {
 				autoBgManager.cancel(job.jobId);
-				throw new ToolAbortError(job.getLatestText() || M.bsCommandAborted);
+				throw new ToolAbortError(job.getLatestText() || "Command aborted");
 			}
 			job.stopUpdates();
 			autoBgManager.resumeDeliveries([job.jobId]);
 			// "steer": a queued user/peer message arrived mid-wait — background
 			// the command (it keeps running) so the message injects promptly.
-			const notices = waitResult.kind === "steer" ? [...pendingNotices, M.bsBackgroundedEarly] : pendingNotices;
+			const notices =
+				waitResult.kind === "steer"
+					? [...pendingNotices, "Backgrounded early to handle an incoming message; the command keeps running."]
+					: pendingNotices;
 			return this.#buildBackgroundStartResult(job.jobId, job.getLatestText(), timeoutSec, {
 				requestedTimeoutSec,
 				notices,
@@ -1130,7 +1132,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 			// we need explicit kill-before-read ordering and distinct abort vs
 			// timeout result shapes. Per-route race retained for testability.
 			if (signal?.aborted) {
-				throw new ToolAbortError(M.bsCommandAborted);
+				throw new ToolAbortError("Command aborted");
 			}
 
 			const bridgeWallTimeStart = performance.now();
@@ -1219,7 +1221,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 						outputBytes: 0,
 					};
 					this.#throwIfUnfinished(timedOutResult, timeoutSec, this.#formatResultOutput(timedOutResult));
-					throw new ToolError(M.bsCommandTimedOut);
+					throw new ToolError("Command timed out");
 				}
 
 				handle = createRaced.handle;
@@ -1289,7 +1291,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 							outputBytes: current.output.length,
 						};
 						this.#throwIfUnfinished(timedOutResult, timeoutSec, this.#formatResultOutput(timedOutResult));
-						throw new ToolError(M.bshCommandTimedOut);
+						throw new ToolError("Command timed out");
 					}
 
 					if (raced.kind === "exit") {
@@ -1348,7 +1350,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 				};
 
 				const bridgeNotices: string[] = [];
-				if (finalOutput.truncated) bridgeNotices.push(M.bsOutputTruncated);
+				if (finalOutput.truncated) bridgeNotices.push("(output truncated)");
 				for (const notice of pendingNotices) bridgeNotices.push(notice);
 
 				return this.#buildCompletedResult(bridgeResult, timeoutSec, {
@@ -1382,7 +1384,7 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 
 		const interactiveUi = canUseInteractiveBashPty(pty, ctx) ? ctx?.ui : undefined;
 		if (pty && !interactiveUi) {
-			pendingNotices.push(M.bsPtyUnavailable);
+			pendingNotices.push("pty requested but unavailable in this environment; ran without a terminal");
 		}
 		const wallTimeStart = performance.now();
 		const result: BashResult | BashInteractiveResult = interactiveUi
@@ -1650,13 +1652,13 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 					const wallTimeMs = details?.wallTimeMs;
 					const statsParts: string[] = [];
 					if (details?.async?.state === "running") {
-						statsParts.push(M.bsBackgroundedFmt2.replace("%s", String(details.async.jobId)));
+						statsParts.push(`Backgrounded: ${details.async.jobId}`);
 					}
 					if (wallTimeMs !== undefined) {
-						statsParts.push(M.bsWallFmt.replace("%s", formatWallTimeSeconds(wallTimeMs)));
+						statsParts.push(`Wall: ${formatWallTimeSeconds(wallTimeMs)}s`);
 					}
 					if (timeoutDisabled) {
-						statsParts.push(M.bsTimeoutDisabled);
+						statsParts.push("Timeout: disabled");
 					}
 					if (typeof timeoutSeconds === "number") {
 						statsParts.push(

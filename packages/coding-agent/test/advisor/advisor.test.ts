@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
+import { type } from "@linxiraos/pi-omptype";
 import { type AgentMessage, type AgentTelemetryConfig, Tokenizer } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
-import { type } from "@linxiraos/pi-omptype";
 import type { TUI } from "@linxiraos/pi-tui";
 import {
 	AdviseTool,

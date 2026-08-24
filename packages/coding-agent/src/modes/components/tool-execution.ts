@@ -1,5 +1,5 @@
-import type { AgentTool } from "@linxiraos/pi-agent-core";
 import type { Clipboard, SnapshotStore } from "@linxiraos/pi-hashline";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	Box,
 	type Component,
@@ -837,7 +837,7 @@ export class ToolExecutionComponent extends Container {
 			}
 			// Component-scoped: strike animation only mutates this tool block's
 			// glyph, so the TUI reuses every other root subtree (issue #4377).
-			this.#requestRender();
+			this.#ui.requestComponentRender(this);
 		}, 65);
 	}
 
@@ -850,15 +850,6 @@ export class ToolExecutionComponent extends Container {
 			this.#spinnerFrame = undefined;
 			this.#renderState.spinnerFrame = undefined;
 		}
-	}
-
-	#requestRender(): void {
-		const requestComponentRender = this.#ui.requestComponentRender;
-		if (typeof requestComponentRender === "function") {
-			requestComponentRender.call(this.#ui, this);
-			return;
-		}
-		this.#ui.requestRender();
 	}
 
 	/**

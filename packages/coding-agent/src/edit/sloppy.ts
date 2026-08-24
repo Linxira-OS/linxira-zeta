@@ -1,7 +1,7 @@
 import * as nodePath from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { isEnoent } from "@linxiraos/pi-utils";
 import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../lsp";
 import type { ToolSession } from "../tools";
 import { routeWriteThroughBridge } from "../tools/acp-bridge";

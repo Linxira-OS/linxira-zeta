@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { sanitizeText } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { grepToolRenderer } from "../../src/tools/grep";
 
 function extractLinkUris(text: string): string[] {

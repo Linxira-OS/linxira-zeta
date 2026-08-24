@@ -2,7 +2,6 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { pickWeightedTip, WelcomeComponent } from "@linxiraos/zeta/modes/components/welcome";
 import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { M } from "../../../src/i18n";
 
 describe("WelcomeComponent", () => {
 	beforeAll(async () => {
@@ -18,7 +17,7 @@ describe("WelcomeComponent", () => {
 		vi.spyOn(theme, "getSymbolPreset").mockReturnValue("nerd");
 
 		const welcome = new WelcomeComponent("1.0.0", "model", "provider");
-		expect(welcome.tip).not.toBe(M.welcomeNerdFontJoke);
+		expect(welcome.tip).not.toBe("Please use nerdfont 😭.");
 		expect(welcome.tip).toBeDefined();
 	});
 
@@ -28,12 +27,12 @@ describe("WelcomeComponent", () => {
 		// 9% chance => selects special tip
 		vi.spyOn(Math, "random").mockReturnValue(0.09);
 		const welcomeSpecial = new WelcomeComponent("1.0.0", "model", "provider");
-		expect(welcomeSpecial.tip).toBe(M.welcomeNerdFontJoke);
+		expect(welcomeSpecial.tip).toBe("Please use nerdfont 😭.");
 
 		// 10% chance => selects regular tip
 		vi.spyOn(Math, "random").mockReturnValue(0.1);
 		const welcomeRegular = new WelcomeComponent("1.0.0", "model", "provider");
-		expect(welcomeRegular.tip).not.toBe(M.welcomeNerdFontJoke);
+		expect(welcomeRegular.tip).not.toBe("Please use nerdfont 😭.");
 		expect(welcomeRegular.tip).toBeDefined();
 	});
 

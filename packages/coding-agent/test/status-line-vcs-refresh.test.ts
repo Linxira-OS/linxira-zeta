@@ -16,7 +16,6 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
 import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
@@ -24,6 +23,7 @@ import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { GitHeadState, GitRefHead, GitRepository } from "@linxiraos/zeta/utils/git";
 import * as git from "@linxiraos/zeta/utils/git";
 import * as jj from "@linxiraos/zeta/utils/jj";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 
 type GitStatus = { staged: number; unstaged: number; untracked: number };
 

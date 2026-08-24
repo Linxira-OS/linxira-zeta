@@ -606,7 +606,7 @@ export class MCPOAuthFlow extends OAuthCallbackFlow {
 
 		try {
 			const registrationBody: Record<string, unknown> = {
-				client_name: "zeta",
+				client_name: "oh-my-pi",
 				redirect_uris: [redirectUri],
 				grant_types: ["authorization_code", "refresh_token"],
 				response_types: ["code"],

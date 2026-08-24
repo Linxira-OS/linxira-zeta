@@ -8,7 +8,6 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createInterface } from "node:readline";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { $env, $which, APP_NAME, compareVersions, isEnoent, VERSION } from "@linxiraos/pi-utils";
@@ -23,15 +22,11 @@ import {
 	unsupportedProxyMessage,
 	withTimeoutSignal,
 } from "../utils/fetch-timeout";
-import { isDesktopBundledRuntime } from "./desktop-entry";
 
-const REPO = "Linxira-OS/linxira-zeta";
+const REPO = "can1357/oh-my-pi";
 const PACKAGE = "@linxiraos/zeta";
-// Zeta ships no Homebrew tap / mise tool. Empty values keep the detection
-// branches from ever resolving an OMP formula (can1357/tap/omp) so `zeta
-// update` can never update the upstream binary.
-const HOMEBREW_FORMULA = "";
-const MISE_TOOL = "zeta";
+const HOMEBREW_FORMULA = "can1357/tap/omp";
+const MISE_TOOL = "github:can1357/oh-my-pi";
 const NIX_STORE_DIR = "/nix/store";
 /**
  * Official npm registry origin.
@@ -379,7 +374,6 @@ export function parseUpdateArgs(
 	return {
 		force: args.includes("--force") || args.includes("-f"),
 		check: args.includes("--check") || args.includes("-c"),
-		yes: args.includes("--yes") || args.includes("-y"),
 		plugins: args.includes("--plugins") || args.includes("-l"),
 		channel: canary ? "canary" : stable ? "stable" : undefined,
 	};
@@ -1487,7 +1481,7 @@ export async function migrateRenamedInstall(release: ReleaseInfo, steps: RenameM
 	}
 	if (!verification.ok) {
 		throw new Error(
-			`${formatVerificationFailure(verification, release.version)}; reinstall with: curl -fsSL https://github.com/Linxira-OS/linxira-zeta | sh`,
+			`${formatVerificationFailure(verification, release.version)}; reinstall with: curl -fsSL https://omp.sh/install | sh`,
 		);
 	}
 	printVerifiedVersion(release.version);
@@ -1879,8 +1873,8 @@ export async function updateViaShimTakeover(
  */
 function installerHint(): string {
 	return process.platform === "win32"
-		? "& ([scriptblock]::Create((irm https://github.com/Linxira-OS/linxira-zeta))) -Binary"
-		: "curl -fsSL https://github.com/Linxira-OS/linxira-zeta | sh -s -- --binary";
+		? "& ([scriptblock]::Create((irm https://omp.sh/install.ps1))) -Binary"
+		: "curl -fsSL https://omp.sh/install | sh -s -- --binary";
 }
 
 /** Persisted channel, or undefined when settings are unavailable (SDK/test embedding without `Settings.init()`). */
@@ -1952,14 +1946,6 @@ export async function runUpdateCommand(opts: {
 		return;
 	}
 
-	// A plain `zeta update` must not install without explicit consent: confirm
-	// interactively (default no) unless --yes was passed. Forced reinstalls of
-	// an already-current install (--force) keep going without a prompt.
-	if (comparison > 0 && !opts.yes && !(await confirmUpdateInstall(release.version))) {
-		console.log(chalk.dim("Update cancelled."));
-		return;
-	}
-
 	// Choose update method based on the prioritized omp binary in PATH. For
 	// binary-only releases the package managers are never consulted: a bun/npm
 	// symlink resolves to method "binary" and is replaced in place, keeping the
@@ -2027,7 +2013,6 @@ ${chalk.bold("Usage:")}
 ${chalk.bold("Options:")}
   -c, --check     Check for updates without installing
   -f, --force     Force reinstall even if up to date
-  -y, --yes       Install updates without prompting
   -l, --plugins   Update installed plugins
   --canary        Switch to the canary channel and update
   --stable        Switch back to the stable channel

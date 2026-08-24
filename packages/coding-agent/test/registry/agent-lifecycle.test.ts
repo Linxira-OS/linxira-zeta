@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
 import { registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { TempDir } from "@linxiraos/pi-utils";
 
 interface SessionStub {
 	session: AgentSession;

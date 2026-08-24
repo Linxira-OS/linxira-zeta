@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { setKittyProtocolActive } from "@linxiraos/pi-tui";
 import { handleInputOrEscape } from "@linxiraos/zeta/modes/components/plugin-settings";
+import { setKittyProtocolActive } from "@linxiraos/pi-tui";
 
 afterEach(() => {
 	setKittyProtocolActive(false);

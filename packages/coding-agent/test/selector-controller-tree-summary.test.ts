@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { setKittyProtocolActive } from "@linxiraos/pi-tui/keys";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
+import { setKittyProtocolActive } from "@linxiraos/pi-tui/keys";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 const SHIFT_ENTER = "\x1b[13;2u";

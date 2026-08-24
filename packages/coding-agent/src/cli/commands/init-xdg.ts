@@ -1,13 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { M } from "../../i18n/messages";
 
 const APP_NAME = "omp";
 
 export async function initXdg(): Promise<void> {
 	if (process.platform !== "linux" && process.platform !== "darwin") {
-		console.error(M.xdgUnsupported);
+		console.error("XDG directory setup is only supported on Linux and macOS.");
 		process.exit(1);
 	}
 
@@ -23,6 +22,6 @@ export async function initXdg(): Promise<void> {
 	}
 
 	console.log("\nXDG directories initialized.");
-	console.log(M.xdgEnsure);
-	console.log(M.xdgAreSet);
+	console.log("Ensure XDG_DATA_HOME, XDG_STATE_HOME, and XDG_CACHE_HOME");
+	console.log("are set in your shell profile for omp to use them.");
 }

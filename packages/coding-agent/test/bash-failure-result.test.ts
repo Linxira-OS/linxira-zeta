@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { Shell } from "@linxiraos/pi-natives";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { Shell } from "@linxiraos/pi-natives";
 
 afterEach(() => {
 	mock.restore();

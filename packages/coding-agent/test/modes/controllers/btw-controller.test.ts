@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
-import { Container, replaceTabs, type TUI } from "@linxiraos/pi-tui";
 import { BtwPanelComponent } from "@linxiraos/zeta/modes/components/btw-panel";
 import { BtwController } from "@linxiraos/zeta/modes/controllers/btw-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import * as clipboard from "@linxiraos/zeta/utils/clipboard";
+import { Container, replaceTabs, type TUI } from "@linxiraos/pi-tui";
 
 const usage: Usage = {
 	input: 0,

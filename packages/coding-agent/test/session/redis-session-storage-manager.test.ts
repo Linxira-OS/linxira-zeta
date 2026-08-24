@@ -10,7 +10,10 @@
 
 import { describe, expect, it } from "bun:test";
 import type { Usage } from "@linxiraos/pi-ai";
-import { RedisSessionStorage, type RedisSessionStorageClient } from "@linxiraos/zeta/session/redis-session-storage";
+import {
+	RedisSessionStorage,
+	type RedisSessionStorageClient,
+} from "@linxiraos/zeta/session/redis-session-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 interface FakeRedis extends RedisSessionStorageClient {
@@ -40,7 +43,7 @@ function createFakeRedis(): FakeRedis {
 			const keyCount = Number(args[1] ?? "0");
 			const keys = args.slice(2, 2 + keyCount);
 			const argv = args.slice(2 + keyCount);
-			if (script.includes("ZETA_WRITE_FULL")) {
+			if (script.includes("OMP_WRITE_FULL")) {
 				const [fileKey, metaKey, titleKey] = keys;
 				const [content, filePath, mtimeMs, hasTitle, title] = argv;
 				strings.set(fileKey, content);
@@ -49,7 +52,7 @@ function createFakeRedis(): FakeRedis {
 				else getHash(titleKey).delete(filePath);
 				return 1;
 			}
-			if (script.includes("ZETA_APPEND")) {
+			if (script.includes("OMP_APPEND")) {
 				const [fileKey, metaKey] = keys;
 				const [line, filePath, mtimeMs] = argv;
 				const next = (strings.get(fileKey) ?? "") + line;
@@ -57,7 +60,7 @@ function createFakeRedis(): FakeRedis {
 				getHash(metaKey).set(filePath, mtimeMs);
 				return Buffer.byteLength(next, "utf-8");
 			}
-			if (script.includes("ZETA_UPDATE_TITLE")) {
+			if (script.includes("OMP_UPDATE_TITLE")) {
 				const [metaKey, titleKey] = keys;
 				const [filePath, mtimeMs, title] = argv;
 				getHash(metaKey).set(filePath, mtimeMs);
@@ -179,7 +182,7 @@ describe("SessionManager + RedisSessionStorage", () => {
 		await manager.close();
 
 		// Redis now contains the JSONL — title slot + header + one message entry.
-		const stored = redis.strings.get(`zeta:sessions:file:${sessionFilePath}`);
+		const stored = redis.strings.get(`omp:sessions:file:${sessionFilePath}`);
 		expect(stored).toBeDefined();
 		const lines = (stored as string).trim().split("\n");
 		expect(lines.length).toBeGreaterThanOrEqual(3);

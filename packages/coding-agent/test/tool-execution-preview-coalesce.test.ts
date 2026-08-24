@@ -3,11 +3,11 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
-import type { TUI } from "@linxiraos/pi-tui";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { EDIT_MODE_STRATEGIES, type PerFileDiffPreview } from "@linxiraos/zeta/edit";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { TUI } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // The reveal controller pushes streamed args at ~30fps; a whole-file diff can
 // outlast a frame. The component must coalesce those ticks into one compute at a

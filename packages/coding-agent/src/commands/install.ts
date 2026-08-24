@@ -2,7 +2,7 @@
  * `omp install <target>` — top-level convenience over `omp plugin install` /
  * `omp plugin link`.
  *
- * The docs (github.com/Linxira-OS/linxira-zeta) advertise
+ * The docs (omp.sh/docs/extension-authoring) advertise
  *
  *   omp install ./my-extension
  *

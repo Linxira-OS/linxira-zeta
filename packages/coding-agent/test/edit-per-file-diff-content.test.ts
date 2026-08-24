@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	DEFAULT_FUZZY_THRESHOLD,
@@ -13,6 +12,7 @@ import {
 } from "@linxiraos/zeta/edit";
 import { writethroughNoop } from "@linxiraos/zeta/lsp";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // ─── Minimal ToolSession stub ────────────────────────────────────────────────
 

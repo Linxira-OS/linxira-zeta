@@ -3,7 +3,6 @@ import * as path from "node:path";
 import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
 import { logger, setProjectDir } from "@linxiraos/pi-utils";
 import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
-import { M } from "../i18n";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-backend";
 import type { FreshSessionResult, HandoffResult } from "../session/agent-session";
 import { COMPACT_MODES, parseCompactArgs } from "../session/compact-modes";
@@ -63,12 +62,12 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		subcommands: [
 			{
 				name: "add",
-				description: M.cmdSshAdd,
+				description: "Add an SSH host",
 				usage: "<name> --host <host> [--user <user>] [--port <port>] [--key <keyPath>] [--scope project|user]",
 			},
-			{ name: "list", description: M.cmdSshList },
-			{ name: "remove", description: M.cmdSshRemove, usage: "<name> [--scope project|user]" },
-			{ name: "help", description: M.cmdSshHelp },
+			{ name: "list", description: "List all configured SSH hosts" },
+			{ name: "remove", description: "Remove an SSH host", usage: "<name> [--scope project|user]" },
+			{ name: "help", description: "Show help message" },
 		],
 		allowArgs: true,
 		handle: handleSshAcp,
@@ -91,7 +90,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		icon: "restart",
 		description: "Reset provider stream state without changing the local transcript",
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.session.isStreaming ? M.acFreshUnavailable : M.acFreshReady,
+			runtime.ctx.session.isStreaming ? "Fresh: unavailable while streaming" : "Fresh: ready",
 		handle: async (_command, runtime) => {
 			const result = runtime.session.freshSession();
 			if (!result) {
@@ -113,7 +112,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		icon: "eraser",
 		description: "Clear the conversation context in place, keeping the session",
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.session.isStreaming ? M.acClearUnavailable : M.acClearDrop,
+			runtime.ctx.session.isStreaming ? "Clear: unavailable while streaming" : "Clear: drop context, keep session",
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleResetContextCommand();
@@ -135,19 +134,14 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		acpDescription: "Compact the conversation",
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
-			description:
-				mode.name === "soft"
-					? M.compactModeSoft
-					: mode.name === "remote"
-						? M.compactModeRemote
-						: M.compactModeSnapcompact,
+			description: mode.description,
 			usage: mode.rejectsFocus ? undefined : "[focus]",
 		})),
 		acpInputHint: `[${COMPACT_MODES.map(mode => mode.name).join("|")}] [focus]`,
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
-			return usage ? M.acCompactUsedFmt.replace("%s", String(Math.round(usage.percent))) : M.acCompactUnavailable;
+			return usage ? `Compact: context ${Math.round(usage.percent)}% used` : "Compact: context unavailable";
 		},
 		handle: async (command, runtime) => {
 			const parsed = parseCompactArgs(command.args);
@@ -456,23 +450,23 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		acpDescription: "Manage memory",
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "view", description: M.cmdMemoryView },
-			{ name: "stats", description: M.cmdMemoryStats },
-			{ name: "diagnose", description: M.cmdMemoryDiagnose },
-			{ name: "clear", description: M.cmdMemoryClear },
-			{ name: "reset", description: M.cmdMemoryReset },
-			{ name: "enqueue", description: M.cmdMemoryEnqueue },
-			{ name: "rebuild", description: M.cmdMemoryRebuild },
-			{ name: "mm list", description: M.cmdMemoryMmList },
-			{ name: "mm show", description: M.cmdMemoryMmShow },
+			{ name: "view", description: "Show current memory injection payload" },
+			{ name: "stats", description: "Show memory backend statistics" },
+			{ name: "diagnose", description: "Run memory backend diagnostics" },
+			{ name: "clear", description: "Clear persisted memory data and artifacts" },
+			{ name: "reset", description: "Alias for clear" },
+			{ name: "enqueue", description: "Enqueue memory consolidation maintenance" },
+			{ name: "rebuild", description: "Alias for enqueue" },
+			{ name: "mm list", description: "List mental models on the active bank" },
+			{ name: "mm show", description: "Show one mental model (id required)" },
 			{
 				name: "mm refresh",
-				description: M.cmdMemoryMmRefresh,
+				description: "Refresh auto-refresh models bank-wide, or one model by id",
 			},
-			{ name: "mm history", description: M.cmdMemoryMmHistory },
-			{ name: "mm seed", description: M.cmdMemoryMmSeed },
-			{ name: "mm delete", description: M.cmdMemoryMmDelete },
-			{ name: "mm reload", description: M.cmdMemoryMmReload },
+			{ name: "mm history", description: "Diff the change history of a mental model" },
+			{ name: "mm seed", description: "Create any built-in mental models that are missing" },
+			{ name: "mm delete", description: "Delete a mental model from the bank (id required)" },
+			{ name: "mm reload", description: "Re-pull the cached <mental_models> block" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -659,8 +653,8 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "dirs",
-		description: M.cmdDirs,
-		acpDescription: M.cmdDirsAcp,
+		description: "List this session's workspace directories",
+		acpDescription: "List this session's workspace directories",
 		handle: async (_command, runtime) => {
 			await runtime.output(formatWorkspaceDirectories(runtime));
 			return commandConsumed();
@@ -668,7 +662,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "exit",
-		description: M.cmdExit,
+		description: "Exit the application",
 		handleTui: shutdownHandlerTui,
 	},
 ];

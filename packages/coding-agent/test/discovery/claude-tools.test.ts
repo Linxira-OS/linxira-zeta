@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { type CustomTool, toolCapability } from "@linxiraos/zeta/capability/tool";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
 import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("Claude Code custom tool discovery", () => {
 	let root = "";

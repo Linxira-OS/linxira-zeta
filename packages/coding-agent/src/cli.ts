@@ -20,7 +20,6 @@ import {
 	APP_NAME,
 	getActiveProfile,
 	MIN_BUN_VERSION,
-	migrateLegacyOmpConfigDir,
 	resolveProfileEnv,
 	setProfile,
 	VERSION,
@@ -39,6 +38,8 @@ import { LSP_MUX_WORKER_ARG } from "./lsp/mux/protocol";
 import rootLicense from "./tools/browser/relay/extension-assets/LICENSE.txt" with { type: "text" };
 import thirdPartyNotices from "./tools/browser/relay/extension-assets/THIRD-PARTY-NOTICES.txt" with { type: "text" };
 import { COMPUTER_WORKER_ARG } from "./tools/computer/protocol";
+import { smokeTestComputerWorker } from "./tools/computer/supervisor";
+import { startComputerWorker } from "./tools/computer/worker-entry";
 
 if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 	process.stderr.write(
@@ -48,11 +49,6 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 }
 
 setProcessName(APP_NAME);
-
-// One-time adoption of a pre-existing `~/.zeta` config root. Zeta keeps no
-// `.zeta` compatibility surface (see AGENTS.md), so this is the only place
-// the legacy name is honored.
-migrateLegacyOmpConfigDir();
 
 // `Bun.build`-API compiled Windows executables report `import.meta.main ===
 // false`: the standalone loader keys the entry module with native backslashes
@@ -103,7 +99,6 @@ async function runSmokeTest(): Promise<void> {
 	const { smokeTestTtsWorker } = await import("./tts/tts-client");
 	const { smokeTestMnemopiEmbedWorker } = await import("./mnemopi/embed-client");
 	const { smokeTestJsEvalWorker } = await import("./eval/js/context-manager");
-	const { smokeTestComputerWorker } = await import("./tools/computer/supervisor");
 	// Other smoke dependencies stay lazy so normal CLI startup does not load their worker clients.
 	const { smokeTestDaemonBroker } = await import("./launch/client");
 	const { smokeTestLspMux } = await import("./lsp/mux/daemon");
@@ -184,7 +179,6 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 	}
 	if (arg === COMPUTER_WORKER_ARG) {
 		if (parentPort) installWorkerInbox(parentPort);
-		const { startComputerWorker } = await import("./tools/computer/worker-entry");
 		startComputerWorker();
 		return true;
 	}
@@ -347,10 +341,6 @@ async function runTinyWorker(): Promise<void> {
 
 /** Run the CLI with the given argv (no `process.argv` prefix). */
 export async function runCli(argv: string[]): Promise<void> {
-	// `zeta-d -d` / `zeta --desktop`: spawn the desktop GUI and exit. Runs
-	// before profile bootstrap so the GUI launch never touches profile state.
-	if (await dispatchDesktopEntry(argv)) return;
-
 	let resolvedArgv = argv;
 	try {
 		const extracted = extractProfileFlags(resolvedArgv);

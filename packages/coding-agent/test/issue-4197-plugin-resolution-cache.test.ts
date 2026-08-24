@@ -2,13 +2,13 @@ import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
 import {
 	__resetLegacyPiResolutionCache,
 	__rewriteLegacyExtensionSourceForTests,
 } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 import { getEnabledPlugins } from "@linxiraos/zeta/extensibility/plugins/loader";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const tempRoots: string[] = [];
 
@@ -30,12 +30,12 @@ test("getEnabledPlugins caches repeated discovery for the same cwd and home unti
 	tempRoots.push(root);
 	const home = path.join(root, "home");
 	const cwd = path.join(root, "project");
-	const pluginsDir = path.join(home, ".zeta", "plugins");
+	const pluginsDir = path.join(home, ".omp", "plugins");
 	const pluginPackageJson = path.join(pluginsDir, "node_modules", "omp-cache-repro", "package.json");
 	await fs.mkdir(path.dirname(pluginPackageJson), { recursive: true });
 	await fs.mkdir(cwd, { recursive: true });
 	await writeJson(path.join(pluginsDir, "package.json"), { dependencies: { "omp-cache-repro": "1.0.0" } });
-	await writeJson(path.join(pluginsDir, "zeta-plugins.lock.json"), {
+	await writeJson(path.join(pluginsDir, "omp-plugins.lock.json"), {
 		plugins: { "omp-cache-repro": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 		settings: {},
 	});

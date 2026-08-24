@@ -35,7 +35,7 @@ export function formatScalar(value: unknown, maxLen: number): string {
 	if (typeof value === "boolean") return String(value);
 	if (typeof value === "number") return String(value);
 	if (typeof value === "string") {
-		const escaped = value.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+		const escaped = value.replace(/\n/g, "\\n").replace(/\t/g, "\\t");
 		const truncated = truncateToWidth(escaped, maxLen);
 		return `"${truncated}"`;
 	}

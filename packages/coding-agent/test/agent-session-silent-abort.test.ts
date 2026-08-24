@@ -18,7 +18,6 @@ import { Agent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { SecretObfuscator } from "@linxiraos/zeta/secrets/obfuscator";
@@ -26,6 +25,7 @@ import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/ag
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function makeAbortedAssistantMessage(text = "partial draft"): AssistantMessage {
 	return {

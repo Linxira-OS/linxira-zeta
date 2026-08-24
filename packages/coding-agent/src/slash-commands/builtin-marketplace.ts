@@ -12,7 +12,6 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 } from "../extensibility/plugins/marketplace";
-import { M } from "../i18n";
 import { MCPCommandController } from "../modes/controllers/mcp-command-controller";
 import type { InteractiveModeContext } from "../modes/types";
 import { refreshAgentDiscovery } from "../task";
@@ -48,20 +47,20 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 		acpDescription: "Manage plugins from marketplaces",
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "add", description: M.cmdMarketplaceAdd, usage: "<source>" },
-			{ name: "remove", description: M.cmdMarketplaceRemove, usage: "<name>" },
-			{ name: "update", description: M.cmdMarketplaceUpdate, usage: "[name]" },
-			{ name: "list", description: M.cmdMarketplaceList },
-			{ name: "discover", description: M.cmdMarketplaceDiscover, usage: "[marketplace]" },
+			{ name: "add", description: "Add a marketplace source", usage: "<source>" },
+			{ name: "remove", description: "Remove a marketplace source", usage: "<name>" },
+			{ name: "update", description: "Update marketplace catalog(s)", usage: "[name]" },
+			{ name: "list", description: "List configured marketplaces" },
+			{ name: "discover", description: "Browse available plugins", usage: "[marketplace]" },
 			{
 				name: "install",
-				description: M.cmdMarketplaceInstall,
+				description: "Install a plugin (interactive browser if no args)",
 				usage: "[--force] [name@marketplace]",
 			},
-			{ name: "uninstall", description: M.cmdMarketplaceUninstall, usage: "[name@marketplace]" },
-			{ name: "installed", description: M.cmdMarketplaceInstalled },
-			{ name: "upgrade", description: M.cmdMarketplaceUpgrade, usage: "[name@marketplace]" },
-			{ name: "help", description: M.cmdMarketplaceHelp },
+			{ name: "uninstall", description: "Uninstall a plugin (selector if no args)", usage: "[name@marketplace]" },
+			{ name: "installed", description: "List installed marketplace plugins" },
+			{ name: "upgrade", description: "Upgrade outdated plugins", usage: "[name@marketplace]" },
+			{ name: "help", description: "Show usage guide" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -428,9 +427,9 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 		acpDescription: "Manage plugins",
 		acpInputHint: "[list|enable|disable]",
 		subcommands: [
-			{ name: "list", description: M.cmdPluginsList },
-			{ name: "enable", description: M.cmdPluginsEnable, usage: "<name@marketplace>" },
-			{ name: "disable", description: M.cmdPluginsDisable, usage: "<name@marketplace>" },
+			{ name: "list", description: "List all installed plugins (npm + marketplace)" },
+			{ name: "enable", description: "Enable a marketplace plugin", usage: "<name@marketplace>" },
+			{ name: "disable", description: "Disable a marketplace plugin", usage: "<name@marketplace>" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {

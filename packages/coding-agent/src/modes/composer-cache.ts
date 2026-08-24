@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir } from "@oh-my-pi/pi-utils/dirs";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import type { LspServerInfo, RecentSession } from "./components/welcome";
 import type { ComposerPreferences } from "./composer";
 import type { SymbolPreset } from "./theme/theme";

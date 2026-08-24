@@ -1,3 +1,4 @@
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
 import {
@@ -8,16 +9,15 @@ import {
 	type Model,
 	type ToolExample,
 } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
 import { prompt } from "@linxiraos/pi-utils";
 import { extractTextContent } from "../commit/utils";
+
 import {
 	expandRoleAlias,
 	extractExplicitThinkingSelector,
 	getModelMatchPreferences,
 	resolveModelFromString,
 } from "../config/model-resolver";
-import { M } from "../i18n/messages";
 import inspectImageDescription from "../prompts/tools/inspect-image.md" with { type: "text" };
 import inspectImageSystemPromptTemplate from "../prompts/tools/inspect-image-system.md" with { type: "text" };
 import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";
@@ -57,9 +57,7 @@ function parseImageAttachmentReference(path: string): ImageAttachmentReference |
 
 function formatAvailableImageAttachments(attachments: readonly { label: string; uri: string }[]): string {
 	if (attachments.length === 0) return "none";
-	return attachments
-		.map(attachment => M.iiAttachmentListFmt.replace("%s", attachment.label).replace("%s", attachment.uri))
-		.join(", ");
+	return attachments.map(attachment => `${attachment.label} -> ${attachment.uri}`).join(", ");
 }
 
 async function loadAttachmentReferenceInput(options: {
@@ -73,9 +71,13 @@ async function loadAttachmentReferenceInput(options: {
 	if (!attachment) {
 		const available = formatAvailableImageAttachments(options.attachments);
 		if (options.attachments.length === 0) {
-			throw new ToolError(M.iiErrNoAttachmentsFmt.replace("%s", options.path));
+			throw new ToolError(
+				`No image attachments are available in this turn. path="${options.path}" must be a readable file path or attachment URI.`,
+			);
 		}
-		throw new ToolError(M.iiErrResolveFmt.replace("%s", options.path).replace("%s", available));
+		throw new ToolError(
+			`Could not resolve image attachment '${options.path}'. Available image attachments: ${available}. Pass an attachment URI or a readable filesystem path.`,
+		);
 	}
 	return loadImageAttachmentInput({
 		image: attachment.image,

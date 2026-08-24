@@ -15,13 +15,22 @@
  * generates an ephemeral side-channel auto-reply.
  */
 
-import type { IrcMessage } from "@linxiraos/pi-channels";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { CustomMessage } from "../session/messages";
 
-export type { IrcMessage };
+export interface IrcMessage {
+	id: string;
+	/** Sender agent id. */
+	from: string;
+	/** Recipient agent id (resolved; "all" is expanded by the tool, not stored). */
+	to: string;
+	body: string;
+	ts: number;
+	/** Message id being answered. */
+	replyTo?: string;
+}
 
 export interface IrcDeliveryReceipt {
 	to: string;

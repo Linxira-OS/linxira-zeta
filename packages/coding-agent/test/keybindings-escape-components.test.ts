@@ -1,6 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -8,6 +7,7 @@ import { ModelHubComponent } from "@linxiraos/zeta/modes/components/model-hub";
 import { SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
+import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
 
 beforeAll(() => {
 	initTheme();

@@ -8,12 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetDirsFromEnvForTests, removeSyncWithRetries, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { Markit } from "@linxiraos/zeta/markit";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import * as markit from "@linxiraos/zeta/utils/markit";
+import { __resetDirsFromEnvForTests, removeSyncWithRetries, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {

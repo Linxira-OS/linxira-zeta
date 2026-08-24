@@ -18,9 +18,8 @@
  * 2. Use /plan to toggle plan mode on/off
  * 3. Or start in plan mode with --plan flag
  */
-
-import { Key } from "@linxiraos/pi-tui";
 import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta";
+import { Key } from "@linxiraos/pi-tui";
 
 // Read-only tools for plan mode
 const PLAN_MODE_TOOLS = ["read", "bash", "search", "find"];

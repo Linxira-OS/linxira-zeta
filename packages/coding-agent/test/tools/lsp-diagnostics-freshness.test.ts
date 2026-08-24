@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createLspWritethrough, type FileDiagnosticsResult, FileFormatResult } from "@oh-my-pi/pi-coding-agent/lsp";
-import * as lspClient from "@oh-my-pi/pi-coding-agent/lsp/client";
-import * as lspConfig from "@oh-my-pi/pi-coding-agent/lsp/config";
-import { formatContent } from "@oh-my-pi/pi-coding-agent/lsp/diagnostics";
-import type { Diagnostic, LinterClient, LspClient, ServerConfig } from "@oh-my-pi/pi-coding-agent/lsp/types";
-import { EquivalentUriMap, fileToUri } from "@oh-my-pi/pi-coding-agent/lsp/utils";
-import type { DeferredDiagnosticsEntry, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { type ptree, TempDir } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createLspWritethrough, type FileDiagnosticsResult, FileFormatResult } from "@linxiraos/zeta/lsp";
+import * as lspClient from "@linxiraos/zeta/lsp/client";
+import * as lspConfig from "@linxiraos/zeta/lsp/config";
+import { formatContent } from "@linxiraos/zeta/lsp/diagnostics";
+import type { Diagnostic, LinterClient, LspClient, ServerConfig } from "@linxiraos/zeta/lsp/types";
+import { EquivalentUriMap, fileToUri } from "@linxiraos/zeta/lsp/utils";
+import type { DeferredDiagnosticsEntry, ToolSession } from "@linxiraos/zeta/tools";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { type ptree, TempDir } from "@linxiraos/pi-utils";
 
 const TEST_SERVER: ServerConfig = {
 	command: "test-lsp",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type TerminalFramePlan, type TerminalFrameProvider, TUI, type ViewportSize } from "@oh-my-pi/pi-tui";
+import { type TerminalFramePlan, type TerminalFrameProvider, TUI, type ViewportSize } from "@linxiraos/pi-tui";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 

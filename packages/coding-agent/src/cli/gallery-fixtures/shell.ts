@@ -163,7 +163,7 @@ export const shellFixtures: Record<string, GalleryFixture> = {
 			content: [
 				{
 					type: "text",
-					text: ["@linxiraos/zeta v0.42.0", "37 dependencies"].join("\n"),
+					text: ["@linxiraos/coding-agent v0.42.0", "37 dependencies"].join("\n"),
 				},
 			],
 			details: {
@@ -185,7 +185,7 @@ export const shellFixtures: Record<string, GalleryFixture> = {
 							'print(f"{len(deps)} dependencies")',
 							"display(sorted(deps)[:3])",
 						].join("\n"),
-						output: ["@linxiraos/zeta v0.42.0", "37 dependencies"].join("\n"),
+						output: ["@linxiraos/coding-agent v0.42.0", "37 dependencies"].join("\n"),
 						status: "complete",
 						durationMs: 64,
 						exitCode: 0,

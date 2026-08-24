@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as piUtils from "@linxiraos/pi-utils";
 import {
 	enumeratePythonRuntimes,
 	filterEnv,
 	resolveExplicitPythonRuntime,
 	resolvePythonRuntime,
 } from "@linxiraos/zeta/eval/py/runtime";
+import * as piUtils from "@linxiraos/pi-utils";
 
 describe("Python gateway environment filtering", () => {
 	it("filters sensitive and unknown variables from shell env", () => {
@@ -57,7 +57,7 @@ describe("enumeratePythonRuntimes", () => {
 		vi.restoreAllMocks();
 	});
 
-	const managedDir = path.join(path.sep, "fake", ".zeta", "python-env");
+	const managedDir = path.join(path.sep, "fake", ".omp", "python-env");
 	const managedBin = path.join(managedDir, process.platform === "win32" ? "Scripts" : "bin");
 	const managedPy = path.join(managedBin, process.platform === "win32" ? "python.exe" : "python");
 	const systemPy = path.join(path.sep, "usr", "bin", "python3");

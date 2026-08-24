@@ -10,8 +10,6 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { Container } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { Skill } from "@linxiraos/zeta/extensibility/skills";
@@ -24,6 +22,8 @@ import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/ag
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Container } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
 
 type StubEditor = {
 	setText: (text: string) => void;

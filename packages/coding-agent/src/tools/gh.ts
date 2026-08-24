@@ -1,3 +1,4 @@
+import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -5,7 +6,6 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
 import {
 	BINARY_SNIFF_BYTES,
 	formatBytes,

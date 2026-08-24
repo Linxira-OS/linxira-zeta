@@ -14,7 +14,6 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
-import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
@@ -22,6 +21,7 @@ import { EventController } from "@linxiraos/zeta/modes/controllers/event-control
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	await initTheme(false, undefined, undefined, "dark", "light");

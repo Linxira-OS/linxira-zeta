@@ -2,6 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAcpConnection } from "@linxiraos/zeta/modes/acp/acp-mode";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
 import {
 	type Client,
@@ -13,11 +18,6 @@ import {
 	type RequestPermissionResponse,
 	type SessionNotification,
 } from "@linxiraos/pi-utils/acp";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { createAcpConnection } from "@linxiraos/zeta/modes/acp/acp-mode";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const TEST_MODEL: Model = buildModel({
@@ -362,7 +362,7 @@ describe("ACP lazy startup", () => {
 			expect(initializeResponse).toEqual(
 				expect.objectContaining({
 					protocolVersion: 1,
-					agentInfo: expect.objectContaining({ name: "zeta" }),
+					agentInfo: expect.objectContaining({ name: "oh-my-pi" }),
 				}),
 			);
 			expect(createCalls).toBe(0);

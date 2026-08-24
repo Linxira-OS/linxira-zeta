@@ -3,8 +3,6 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 import { getManagedSkillsDir } from "@linxiraos/zeta/autolearn/managed-skills";
 import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
 import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
@@ -13,6 +11,8 @@ import type { MnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
 import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
 import { LearnTool } from "@linxiraos/zeta/tools/learn";
 import { ManageSkillTool } from "@linxiraos/zeta/tools/manage-skill";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 
 function makeSession(
 	settingsOverrides: Partial<Record<SettingPath, unknown>> = {},
@@ -125,7 +125,7 @@ describe("manage_skill execute", () => {
 		originalAgentDir = getAgentDir();
 		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-manage-skill-"));
 		spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".zeta", "agent"));
+		setAgentDir(path.join(tempHome, ".omp", "agent"));
 	});
 
 	afterEach(async () => {
@@ -218,7 +218,7 @@ describe("learn execute", () => {
 		originalAgentDir = getAgentDir();
 		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-learn-"));
 		spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".zeta", "agent"));
+		setAgentDir(path.join(tempHome, ".omp", "agent"));
 		remembered = [];
 	});
 

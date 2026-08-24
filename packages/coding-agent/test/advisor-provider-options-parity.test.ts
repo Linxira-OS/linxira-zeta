@@ -15,12 +15,12 @@ import { Agent, type StreamFn } from "@linxiraos/pi-agent-core";
 import type { FetchImpl, Model, SimpleStreamOptions } from "@linxiraos/pi-ai";
 import { streamSimple } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /** Provider-facing advisor session ids must be UUIDv7 (issue #5040): Codex writes

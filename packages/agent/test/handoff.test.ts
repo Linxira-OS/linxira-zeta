@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentMessage, AgentTool } from "@oh-my-pi/pi-agent-core";
+import { type } from "@linxiraos/omptype";
+import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	createCompactionSummaryMessage,
 	defaultConvertToLlm,
 	generateHandoff,
 	generateHandoffFromContext,
 	renderHandoffPrompt,
-} from "@oh-my-pi/pi-agent-core/compaction";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
-import type { AssistantMessage, Model, ToolCall } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+} from "@linxiraos/pi-agent-core/compaction";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
+import type { AssistantMessage, Model, ToolCall } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { Effort } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 function createAssistantMessage(content: AssistantMessage["content"]): AssistantMessage {
 	return {

@@ -2,7 +2,6 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { resolveContainedPathSync } from "../discovery/contained-path";
 import type { Skill } from "../extensibility/skills";
-import { M } from "../i18n/messages";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import { validateRelativePath } from "../internal-urls/skill-protocol";
 import type { InternalResource, ResolveContext } from "../internal-urls/types";
@@ -102,7 +101,7 @@ export function resolveSkillUrlToPath(url: string, skills: readonly Skill[]): st
 	const resolvedPath = path.resolve(targetPath);
 	const resolvedBaseDir = path.resolve(skill.baseDir);
 	if (!resolvedPath.startsWith(resolvedBaseDir + path.sep) && resolvedPath !== resolvedBaseDir) {
-		throw new ToolError(M.buPathTraversal);
+		throw new ToolError("Path traversal is not allowed in skill:// URLs");
 	}
 	// Agent Plugin skills (§4.1): the resource must canonically resolve within
 	// the plugin root. Fail closed: a dangling or unresolvable path is rejected

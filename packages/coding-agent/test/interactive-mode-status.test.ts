@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, test, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { type Component, Container } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext, RenderSessionContextOptions } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { buildSessionContext, type SessionContext } from "@linxiraos/zeta/session/session-context";
+import { type Component, Container } from "@linxiraos/pi-tui";
 
 function renderLastLine(container: Container, width = 120): string {
 	const last = container.children[container.children.length - 1];

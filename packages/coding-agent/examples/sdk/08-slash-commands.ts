@@ -4,7 +4,12 @@
  * File-based commands that inject content when invoked with /commandname.
  * Note: File-based slash commands are now called "prompt templates".
  */
-import { createAgentSession, discoverPromptTemplates, type PromptTemplate, SessionManager } from "@linxiraos/zeta";
+import {
+	createAgentSession,
+	discoverPromptTemplates,
+	type PromptTemplate,
+	SessionManager,
+} from "@linxiraos/zeta";
 
 // Discover prompt templates from cwd/.pi/prompts/ and ~/.pi/agent/prompts/
 const discovered = await discoverPromptTemplates();

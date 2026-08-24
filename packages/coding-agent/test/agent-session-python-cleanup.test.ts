@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { Snowflake, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as pythonExecutor from "@linxiraos/zeta/eval/py/executor";
 import type { PythonKernel as PythonKernelInstance } from "@linxiraos/zeta/eval/py/kernel";
@@ -10,6 +9,7 @@ import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@linxiraos/zeta/sdk";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Snowflake, TempDir } from "@linxiraos/pi-utils";
 
 const OK_EXECUTION = { status: "ok", cancelled: false, timedOut: false, stdinRequested: false } as const;
 

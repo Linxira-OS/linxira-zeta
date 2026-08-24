@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "bun:test";
-import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { ShakeMode } from "@oh-my-pi/pi-coding-agent/session/shake-types";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { ShakeMode } from "@linxiraos/zeta/session/shake-types";
 import {
 	ACP_BUILTIN_SLASH_COMMANDS,
 	executeAcpBuiltinSlashCommand,
-} from "@oh-my-pi/pi-coding-agent/slash-commands/acp-builtins";
-import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import type { SlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/types";
+} from "@linxiraos/zeta/slash-commands/acp-builtins";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 
 function acpRuntime() {
 	const shake = vi.fn(async (mode: ShakeMode) => ({

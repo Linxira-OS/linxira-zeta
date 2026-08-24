@@ -1,9 +1,6 @@
 import * as path from "node:path";
 import { FileType, type GlobMatch, listWorkspace } from "@linxiraos/pi-natives";
 import { formatAge, formatBytes } from "@linxiraos/pi-utils";
-import { SYMBOL_PRESETS, type SymbolPreset } from "./modes/theme/symbols";
-import { resolveLangSymbolKey } from "./modes/theme/theme-class";
-import { getLanguageFromPath } from "./utils/lang-from-path";
 
 /** Defaults for the workspace tree shown in the system prompt. */
 const WORKSPACE_DEFAULTS = {
@@ -39,10 +36,6 @@ export interface BuildDirectoryTreeOptions {
 	rootLimit?: number | null;
 	/** Hard rendered line cap. `null` disables. Default: `null`. */
 	lineCap?: number | null;
-	/** Render per-file type icons (glyphs from `symbolPreset`). Default: `true`. */
-	icons?: boolean;
-	/** Symbol preset resolving icon glyphs. Default: `"unicode"`. */
-	symbolPreset?: SymbolPreset;
 }
 
 export interface BuildWorkspaceTreeOptions {
@@ -85,8 +78,6 @@ export async function buildDirectoryTree(cwd: string, options: BuildDirectoryTre
 		// Tool output (read tool directory listing), not a cached prefix —
 		// the human-friendly relative "ago" is appropriate here.
 		ageMode: "relative",
-		icons: options.icons ?? true,
-		symbolPreset: options.symbolPreset ?? "unicode",
 	});
 }
 
@@ -155,10 +146,6 @@ interface AssembleOptions {
 	 *   the system-prompt workspace tree). See {@link makeAgeFormatter}.
 	 */
 	ageMode: "relative" | "absolute";
-	/** When true, non-directory nodes are prefixed with their file-type icon. */
-	icons?: boolean;
-	/** Symbol preset resolving icon glyphs; defaults to `"unicode"` when omitted. */
-	symbolPreset?: SymbolPreset;
 }
 
 function assembleTree(rootPath: string, entries: readonly GlobMatch[], opts: AssembleOptions): DirectoryTree {
@@ -214,12 +201,7 @@ function assembleTree(rootPath: string, entries: readonly GlobMatch[], opts: Ass
 	}
 
 	const rawLines: RenderedLine[] = [];
-	renderNode(
-		root,
-		makeAgeFormatter(opts.ageMode),
-		rawLines,
-		opts.icons ? { preset: opts.symbolPreset ?? "unicode" } : undefined,
-	);
+	renderNode(root, makeAgeFormatter(opts.ageMode), rawLines);
 	const { lines, elidedCount } = applyLineCap(rawLines, opts.lineCap);
 
 	return {
@@ -260,32 +242,14 @@ function formatMtimeStable(mtimeMs: number): string {
 	return new Date(mtimeMs).toISOString().slice(0, 16).replace("T", " ");
 }
 
-/**
- * Icon prefix for a tree node label: `"<glyph> "` for files when icons are
- * enabled, `""` for directories, disabled rendering, and unknown extensions
- * under presets whose `lang.default` glyph is empty (nerd). Uses the same
- * language-icon table as glob's file listings (`Theme.getLangIcon`), so both
- * surfaces render identical glyphs for a given preset.
- */
-function fileIconPrefix(name: string, icons?: { preset: SymbolPreset }): string {
-	if (!icons) return "";
-	const glyph = SYMBOL_PRESETS[icons.preset][resolveLangSymbolKey(getLanguageFromPath(name))];
-	return glyph ? `${glyph} ` : "";
-}
-
-function renderNode(
-	node: Node,
-	formatNodeAge: (mtimeMs: number) => string,
-	out: RenderedLine[],
-	icons?: { preset: SymbolPreset },
-): void {
+function renderNode(node: Node, formatNodeAge: (mtimeMs: number) => string, out: RenderedLine[]): void {
 	if (node.depth === 0) {
 		out.push({ label: node.name, depth: 0, isRoot: true });
 	} else {
 		const indent = "  ".repeat(node.depth);
 		const suffix = node.isDir ? "/" : "";
 		out.push({
-			label: `${indent}- ${fileIconPrefix(node.name, icons)}${node.name}${suffix}`,
+			label: `${indent}- ${node.name}${suffix}`,
 			depth: node.depth,
 			isRoot: false,
 			size: node.isDir ? undefined : formatBytes(node.size),
@@ -294,21 +258,21 @@ function renderNode(
 	}
 
 	if (node.droppedCount === 0) {
-		for (const child of node.children) renderNode(child, formatNodeAge, out, icons);
+		for (const child of node.children) renderNode(child, formatNodeAge, out);
 		return;
 	}
 
 	// Layout: recent children, then "… N more" marker, then the oldest child.
 	const recent = node.children.slice(0, -1);
 	const oldest = node.children.at(-1);
-	for (const child of recent) renderNode(child, formatNodeAge, out, icons);
+	for (const child of recent) renderNode(child, formatNodeAge, out);
 	const childDepth = node.depth + 1;
 	out.push({
 		label: `${"  ".repeat(childDepth)}- … ${node.droppedCount} more`,
 		depth: childDepth,
 		isRoot: false,
 	});
-	if (oldest) renderNode(oldest, formatNodeAge, out, icons);
+	if (oldest) renderNode(oldest, formatNodeAge, out);
 }
 
 /**

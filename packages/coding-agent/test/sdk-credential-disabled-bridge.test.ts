@@ -4,7 +4,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { AuthStorage, type CredentialDisabledEvent } from "@linxiraos/pi-ai";
 import * as oauthUtils from "@linxiraos/pi-ai/oauth";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { Extension, ExtensionError, ExtensionFactory } from "@linxiraos/zeta/extensibility/extensions";
@@ -12,6 +11,7 @@ import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 interface SessionDirs {
 	cwd: string;
@@ -94,7 +94,7 @@ describe("createAgentSession credential_disabled subscription", () => {
 		agentDir: dirs.agentDir,
 		authStorage,
 		// Pin the model registry at a temp models.json. Without an explicit path, ModelRegistry
-		// loads the developer's real ~/.zeta models config on every construction (~100ms each,
+		// loads the developer's real ~/.omp models config on every construction (~100ms each,
 		// and non-isolated). Pointing it at the (absent) temp file keeps construction at ~2ms and
 		// avoids leaking host config into the test. Providing the registry also skips the
 		// fire-and-forget background model discovery, which is irrelevant to credential_disabled.

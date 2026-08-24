@@ -14,11 +14,11 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { Terminal, TerminalAppearance, TerminalAppearanceRequestToken } from "@oh-my-pi/pi-tui/terminal";
-import type { RenderScheduler } from "@oh-my-pi/pi-tui/tui";
-import { getProjectDir, isEnoent, logger, TempDir } from "@oh-my-pi/pi-utils";
-import { VERSION } from "@oh-my-pi/pi-utils/dirs";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { Terminal, TerminalAppearance, TerminalAppearanceRequestToken } from "@linxiraos/pi-tui/terminal";
+import type { RenderScheduler } from "@linxiraos/pi-tui/tui";
+import { getProjectDir, isEnoent, logger, TempDir } from "@linxiraos/pi-utils";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { Composer } from "../modes/composer";

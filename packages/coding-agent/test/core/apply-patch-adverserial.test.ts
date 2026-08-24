@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { ApplyPatchError, applyPatch } from "@linxiraos/zeta/edit";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 describe("applyPatch adversarial inputs", () => {
 	let tempDir: string;

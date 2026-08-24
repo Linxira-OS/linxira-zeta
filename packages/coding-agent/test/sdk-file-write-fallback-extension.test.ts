@@ -22,7 +22,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type {
@@ -34,6 +33,7 @@ import type {
 import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@linxiraos/zeta/sdk";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { FileWriteFallbackRequest } from "@linxiraos/zeta/tools/file-write-fallback";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 /**
  * Drives `ExtensionRunner.initialize` with no-op stubs, mirroring what a mode

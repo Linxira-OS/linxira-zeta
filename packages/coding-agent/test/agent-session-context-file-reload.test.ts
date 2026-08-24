@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Api, Model, ModelSpec } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { Api, Model, ModelSpec } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function buildLocalModel(api: string): Model<Api> {
 	return buildModel({

@@ -6,10 +6,10 @@ import * as path from "node:path";
 import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("ModelRegistry", () => {
 	let tempDir: string;

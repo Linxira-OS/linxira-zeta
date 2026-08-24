@@ -1,17 +1,14 @@
 import { routeSelectListMouse, type SelectItem, SelectList, type SgrMouseEvent } from "@linxiraos/pi-tui";
-import { M } from "../../../i18n";
 import { getSelectListTheme, type SymbolPreset, setSymbolPreset, theme } from "../../theme/theme";
 import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 
 const GLYPH_PRESETS = ["nerd", "unicode", "ascii"] as const satisfies readonly SymbolPreset[];
 
-function glyphLabel(preset: SymbolPreset): string {
-	return preset === "nerd"
-		? M.setupGlyphLabelNerd
-		: preset === "unicode"
-			? M.setupGlyphLabelUnicode
-			: M.setupGlyphLabelAscii;
-}
+const GLYPH_LABELS: Readonly<Record<SymbolPreset, string>> = {
+	nerd: "Nerd Font",
+	unicode: "Unicode",
+	ascii: "ASCII",
+};
 
 const GLYPH_SAMPLES: Readonly<Record<SymbolPreset, string>> = {
 	nerd: "      󰉋  ",
@@ -20,17 +17,15 @@ const GLYPH_SAMPLES: Readonly<Record<SymbolPreset, string>> = {
 };
 
 /** One picker row per preset; the description column shows live sample glyphs instead of prose. */
-function glyphItems(): readonly SelectItem[] {
-	return GLYPH_PRESETS.map((preset, index) => ({
-		value: preset,
-		label: `${index + 1}  ${glyphLabel(preset)}`,
-		description: preset === "nerd" ? `${GLYPH_SAMPLES.nerd}  ╭─╮  ├─  ◆  ✔  ✖` : GLYPH_SAMPLES[preset],
-	}));
-}
+const GLYPH_ITEMS: readonly SelectItem[] = GLYPH_PRESETS.map((preset, index) => ({
+	value: preset,
+	label: `${index + 1}  ${GLYPH_LABELS[preset]}`,
+	description: preset === "nerd" ? `${GLYPH_SAMPLES.nerd}  ╭─╮  ├─  ◆  ✔  ✖` : GLYPH_SAMPLES[preset],
+}));
 
 class GlyphSceneController implements SetupSceneController {
-	title = M.setupGlyphTitle;
-	subtitle = M.setupGlyphSubtitle;
+	title = "Choose glyph mode";
+	subtitle = "Pick the row that renders cleanly in your terminal.";
 	#selectList: SelectList;
 	#previewRequest = 0;
 	#committing = false;
@@ -38,7 +33,7 @@ class GlyphSceneController implements SetupSceneController {
 	#listRowStart = 0;
 
 	constructor(private readonly host: SetupSceneHost) {
-		this.#selectList = new SelectList(glyphItems(), GLYPH_PRESETS.length, getSelectListTheme());
+		this.#selectList = new SelectList(GLYPH_ITEMS, GLYPH_ITEMS.length, getSelectListTheme());
 		const current = theme.getSymbolPreset();
 		const currentIndex = GLYPH_PRESETS.indexOf(current);
 		this.#selectList.setSelectedIndex(currentIndex >= 0 ? currentIndex : 0);
@@ -74,7 +69,7 @@ class GlyphSceneController implements SetupSceneController {
 	}
 
 	render(width: number): readonly string[] {
-		const lines = [theme.fg("muted", M.setupGlyphHint), ""];
+		const lines = [theme.fg("muted", "If a row shows boxes, tofu, or misaligned icons, pick another."), ""];
 		this.#listRowStart = lines.length;
 		lines.push(...this.#selectList.render(width));
 		return lines;
@@ -102,7 +97,7 @@ class GlyphSceneController implements SetupSceneController {
 
 export const glyphSetupScene: SetupScene = {
 	id: "glyph-mode",
-	title: M.setupGlyphTitle,
+	title: "Choose glyph mode",
 	minVersion: 1,
 	mount: host => new GlyphSceneController(host),
 };

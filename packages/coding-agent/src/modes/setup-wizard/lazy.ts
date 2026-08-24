@@ -1,4 +1,3 @@
-import { M } from "../../i18n";
 import type { InteractiveModeContext } from "../types";
 
 export async function runProviderSetupWizard(ctx: InteractiveModeContext): Promise<void> {
@@ -7,7 +6,7 @@ export async function runProviderSetupWizard(ctx: InteractiveModeContext): Promi
 	const { ALL_SCENES, runSetupWizard } = await import("./index");
 	const providersScene = ALL_SCENES.find(scene => scene.id === "providers");
 	if (!providersScene) {
-		ctx.showError(M.setupProviderUnavailable);
+		ctx.showError("Provider setup is unavailable.");
 		return;
 	}
 	await runSetupWizard(ctx, [providersScene], {

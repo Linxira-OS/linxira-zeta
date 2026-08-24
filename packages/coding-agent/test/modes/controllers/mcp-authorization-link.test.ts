@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { visibleWidth } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { MCPAuthorizationLinkPrompt } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { visibleWidth } from "@linxiraos/pi-tui";
 
 const OSC = "\x1b]";
 const BEL = "\x07";

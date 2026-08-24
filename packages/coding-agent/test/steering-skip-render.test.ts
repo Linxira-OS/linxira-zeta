@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { formatStatusIcon } from "@linxiraos/zeta/tools/render-utils";
+import { TUI } from "@linxiraos/pi-tui";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 beforeAll(async () => {

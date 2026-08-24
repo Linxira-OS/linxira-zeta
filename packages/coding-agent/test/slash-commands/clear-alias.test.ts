@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import {
+	BUILTIN_SLASH_COMMANDS,
+	lookupBuiltinSlashCommand,
+} from "@linxiraos/zeta/slash-commands/builtin-registry";
 import { CombinedAutocompleteProvider } from "@linxiraos/pi-tui/autocomplete";
-import { BUILTIN_SLASH_COMMANDS, lookupBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 describe("/clear slash command", () => {
 	it("resolves /clear to the context reset command and removed /clear alias from /new", async () => {

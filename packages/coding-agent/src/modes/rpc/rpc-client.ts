@@ -361,10 +361,6 @@ export class RpcClient {
 				await Promise.race([child.exited.catch(() => {}), Bun.sleep(250)]);
 				if (readySettled) return;
 				readySettled = true;
-				// stderr may still be in flight when stdout EOFs (the child wrote
-				// its failure message and exited) — give the pipe a moment so the
-				// startup-failure text survives in the error.
-				await Bun.sleep(100);
 				readyReject(new Error(`Agent output stream ended before ready. Stderr: ${child.peekStderr()}`));
 				return;
 			}

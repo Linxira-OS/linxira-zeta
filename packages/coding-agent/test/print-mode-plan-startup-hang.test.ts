@@ -5,7 +5,6 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { Context } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { runPrintMode } from "@linxiraos/zeta/modes/print-mode";
@@ -13,6 +12,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
+import { Snowflake } from "@linxiraos/pi-utils";
 
 // Regression for #8272: with plan.defaultOnStartup:true, a headless `omp -p`
 // used to arm plan mode before the initial prompt. The only headless plan-exit

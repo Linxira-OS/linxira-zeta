@@ -5,12 +5,12 @@
  * LLM-facing `[name: state; cursor=N]` suffix, list caps collapsed rows).
  */
 import { describe, expect, it } from "bun:test";
-import { sanitizeText } from "@linxiraos/pi-utils";
 import type { DaemonSnapshot } from "@linxiraos/zeta/launch/protocol";
 import { renderTerminalOutput } from "@linxiraos/zeta/launch/terminal-output";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
 import { hubToolRenderer, type LaunchToolDetails } from "@linxiraos/zeta/tools/hub";
 import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
+import { sanitizeText } from "@linxiraos/pi-utils";
 
 async function theme() {
 	const t = await getThemeByName("dark");

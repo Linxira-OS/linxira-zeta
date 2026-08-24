@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import type { Api, Model } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
 import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
-import { logger, setTerminalHeadless } from "@linxiraos/pi-utils";
 import {
 	disposeTerminalTitleState,
 	generateSessionTitle,
@@ -11,6 +10,7 @@ import {
 	setTerminalTitle,
 	setTerminalTitleState,
 } from "@linxiraos/zeta/utils/title-generator";
+import { logger, setTerminalHeadless } from "@linxiraos/pi-utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 function getModelOrThrow(id: string): Model<Api> {
@@ -581,7 +581,7 @@ describe("title generator", () => {
 
 // The terminal title runtime is a module-global. `emitTerminalTitle()` composes
 // the emitted OSC title from three inputs — an extension override, a run-state
-// separator (spinner frame, static Windows `:`, `>`, or `!` between the `ζ`
+// separator (spinner frame, static Windows `:`, `>`, or `!` between the `π`
 // brand and the session label), and the session label — and writes it to
 // `process.stdout` as `ESC]0;<title>BEL`. These tests pin the observable
 // contract at that sink: what string actually reaches the terminal after a
@@ -720,7 +720,7 @@ describe("terminal title runtime", () => {
 			writes.length = 0;
 
 			setTerminalTitleState("working");
-			expect(emittedTitles()).toEqual(["ζ : windows-project"]);
+			expect(emittedTitles()).toEqual(["π : windows-project"]);
 
 			writes.length = 0;
 			vi.advanceTimersByTime(400);
@@ -740,7 +740,7 @@ describe("terminal title runtime", () => {
 			writes.length = 0;
 
 			setTerminalTitleState("working");
-			expect(emittedTitles()).toEqual(["ζ : wsl-project"]);
+			expect(emittedTitles()).toEqual(["π : wsl-project"]);
 
 			writes.length = 0;
 			vi.advanceTimersByTime(400);

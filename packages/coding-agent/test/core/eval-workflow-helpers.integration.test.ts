@@ -8,9 +8,9 @@
 
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { disposeAllKernelSessions, executePythonWithKernel } from "@linxiraos/zeta/eval/py/executor";
 import { PythonKernel } from "@linxiraos/zeta/eval/py/kernel";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const SHOULD_RUN = Bun.env.PI_PYTHON_INTEGRATION === "1";
 

@@ -1,7 +1,7 @@
+import { type } from "@linxiraos/pi-omptype";
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Api, ApiKey, AssistantMessage, Model } from "@linxiraos/pi-ai";
 import { completeSimple, retryTransientCompletion, validateToolCall } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
 import { prompt } from "@linxiraos/pi-utils";
 import changelogSystemPrompt from "../../commit/prompts/changelog-system.md" with { type: "text" };
 import changelogUserPrompt from "../../commit/prompts/changelog-user.md" with { type: "text" };

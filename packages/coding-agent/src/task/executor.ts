@@ -441,8 +441,6 @@ export interface ExecutorOptions {
 	 * extension against its own `ExtensionAPI` (cwd, eventBus, runtime).
 	 */
 	preloadedExtensionPaths?: string[];
-	/** Shared async job manager inherited from the parent session (Zeta per-session design). */
-	asyncJobManager?: AsyncJobManager;
 	/**
 	 * Parent's discovered custom-tool source paths. Forwarded to skip the
 	 * `.zeta/tools/` FS scan in the subagent; the subagent then re-binds each
@@ -3098,7 +3096,6 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				rules: options.rules,
 				preloadedExtensionPaths: restrictToolNames ? [] : options.preloadedExtensionPaths,
 				preloadedCustomToolPaths: restrictToolNames ? [] : options.preloadedCustomToolPaths,
-				asyncJobManager: options.asyncJobManager,
 				systemPrompt: defaultPrompt => {
 					const subagentPrompt = prompt.render(subagentSystemPromptTemplate, {
 						agent: agent.systemPrompt,
@@ -3389,7 +3386,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				}
 				unsubscribe = null;
 			}
-			const jobManager = options.asyncJobManager ?? AsyncJobManager.instance();
+			const jobManager = AsyncJobManager.instance();
 			if (jobManager) {
 				const reap = await jobManager.cancelAndReapOwnerJobs(id, cleanupDeadlineAt);
 				if (!reap.settled) {

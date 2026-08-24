@@ -12,7 +12,6 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { Component, TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
@@ -21,6 +20,7 @@ import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import type { Component, TUI } from "@linxiraos/pi-tui";
 
 const uiStub = { requestRender() {}, requestComponentRender() {} } as unknown as TUI;
 

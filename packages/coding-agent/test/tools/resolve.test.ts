@@ -1,5 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeText } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -18,6 +17,7 @@ import {
 	resolveRenderer,
 	writeDeviceDispatch,
 } from "@linxiraos/zeta/tools/resolve";
+import { sanitizeText } from "@linxiraos/pi-utils";
 
 function createSession(
 	options: {

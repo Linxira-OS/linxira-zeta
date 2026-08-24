@@ -39,7 +39,7 @@ registerPluginCacheInvalidator(clearEnabledPluginsCache);
 /**
  * Load plugin runtime config from lock file.
  *
- * `home` controls which `<plugins>/zeta-plugins.lock.json` is read — pass it
+ * `home` controls which `<plugins>/omp-plugins.lock.json` is read — pass it
  * through whenever the caller is loading plugins for a tempdir-rooted
  * scenario (tests, discovery sub-surfaces that need to mirror an alternate
  * `LoadContext.home`).
@@ -55,7 +55,7 @@ async function loadRuntimeConfig(home?: string): Promise<PluginRuntimeConfig> {
 }
 
 /**
- * Load project-local plugin overrides (checks .zeta and .pi directories).
+ * Load project-local plugin overrides (checks .omp and .pi directories).
  */
 async function loadProjectOverrides(cwd: string): Promise<ProjectPluginOverrides> {
 	for (const overridesPath of getConfigDirPaths("plugin-overrides.json", { user: false, cwd })) {
@@ -70,7 +70,7 @@ async function loadProjectOverrides(cwd: string): Promise<ProjectPluginOverrides
 }
 /**
  * Per-root enumeration of plugins from `<root>/node_modules`,
- * `<root>/package.json#dependencies`, and `<root>/zeta-plugins.lock.json#plugins`.
+ * `<root>/package.json#dependencies`, and `<root>/omp-plugins.lock.json#plugins`.
  * Honors `projectOverrides.disabled` and `projectOverrides.features`. Returns an
  * empty array when the root has no `node_modules` yet.
  */
@@ -93,7 +93,7 @@ async function collectPluginsAtRoot(
 		if (!isEnoent(err)) throw err;
 	}
 
-	const lockPath = path.join(root, "zeta-plugins.lock.json");
+	const lockPath = path.join(root, "omp-plugins.lock.json");
 	let runtimeConfig: PluginRuntimeConfig;
 	try {
 		runtimeConfig = normalizePluginRuntimeConfig(await Bun.file(lockPath).json());
@@ -165,7 +165,7 @@ async function collectPluginsAtRoot(
  * (`getPluginsDir(home)`) and, when a project anchor (`.zeta/` or `.git/`)
  * exists at or above `cwd`, the project root
  * (`<projectAnchor>/.zeta/plugins`). Each root contributes the union of its
- * `package.json#dependencies` and `zeta-plugins.lock.json#plugins`. Project
+ * `package.json#dependencies` and `omp-plugins.lock.json#plugins`. Project
  * entries shadow user entries with the same package name, matching the
  * shadow semantics of `MarketplaceManager.listInstalledPlugins`.
  *

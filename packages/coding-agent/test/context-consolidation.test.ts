@@ -3,7 +3,6 @@ import * as path from "node:path";
 import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Message, Model } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
@@ -12,6 +11,7 @@ import { computeContextBreakdown } from "@linxiraos/zeta/modes/utils/context-usa
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 describe("Context usage consolidation", () => {
 	let sharedDir: TempDir;

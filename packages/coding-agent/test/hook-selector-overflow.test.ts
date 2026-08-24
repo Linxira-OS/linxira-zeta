@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { visibleWidth } from "@linxiraos/pi-tui";
 import { HookSelectorComponent } from "@linxiraos/zeta/modes/components/hook-selector";
 import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { visibleWidth } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	const theme = await getThemeByName("dark");
@@ -74,10 +74,10 @@ describe("HookSelectorComponent", () => {
 			{
 				label: "Use existing local credentials",
 				description:
-					"Authenticate via the provider keys and OAuth state already configured under ~/.zeta without opening a new browser-based setup flow.",
+					"Authenticate via the provider keys and OAuth state already configured under ~/.omp without opening a new browser-based setup flow.",
 			},
 			{
-				label: "Set up Zeta in terminal",
+				label: "Set up Oh My Pi in terminal",
 				description:
 					"Launch the local terminal UI to add provider keys, select models, and keep the current editor session waiting for the configured credentials.",
 			},

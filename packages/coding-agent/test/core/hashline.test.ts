@@ -8,7 +8,6 @@ import {
 	MismatchError as HashlineMismatchError,
 } from "@linxiraos/pi-hashline";
 import { type Type, type } from "@linxiraos/pi-omptype";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	canonicalSnapshotKey,
@@ -20,6 +19,7 @@ import {
 } from "@linxiraos/zeta/edit";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 beforeAll(async () => {
 	resetSettingsForTest();

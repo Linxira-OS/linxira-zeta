@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "bun:test";
-import { TempDir } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 import { runCli } from "../src/cli";
 
 describe("parseArgs — --max-time flag", () => {
@@ -71,7 +71,7 @@ describe("parseArgs — --max-time flag", () => {
 		const stderr = captured.join("");
 		expect(observedExitCode).toBe(2);
 		expect(stderr).toContain("Error: Invalid --max-time value");
-		expect(stderr).toContain("Run `zeta --help` for available flags.");
+		expect(stderr).toContain("Run `omp --help` for available flags.");
 		expect(stderr).not.toContain("parseMaxTimeSeconds");
 		expect(stderr).not.toContain("CliUsageError");
 	});

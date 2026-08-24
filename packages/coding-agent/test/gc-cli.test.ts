@@ -5,6 +5,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { withStatsSyncLock } from "@linxiraos/pi-stats/aggregator";
+import { type GcResult, runGcCommand } from "@linxiraos/zeta/cli/gc-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	getAgentDir,
 	getBlobsDir,
@@ -13,8 +15,6 @@ import {
 	setAgentDir,
 	setProjectDir,
 } from "@linxiraos/pi-utils";
-import { type GcResult, runGcCommand } from "@linxiraos/zeta/cli/gc-cli";
-import { Settings } from "@linxiraos/zeta/config/settings";
 import { runCli } from "../src/cli";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
@@ -111,7 +111,7 @@ async function writeConfig(agentDir: string, body: string): Promise<void> {
 }
 
 async function writeProjectConfig(projectDir: string, body: string): Promise<void> {
-	const configDir = path.join(projectDir, ".zeta");
+	const configDir = path.join(projectDir, ".omp");
 	await fs.mkdir(configDir, { recursive: true });
 	await Bun.write(path.join(configDir, "config.yml"), body);
 }

@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import * as git from "@linxiraos/zeta/utils/git";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // Regression coverage for #8897: `omp commit` split-commit captured the staged
 // diff with `git diff --cached --binary`, whose stdout is hard-capped at

@@ -9,8 +9,8 @@
  * - No system prompt / tool catalog sections.
  */
 import { describe, expect, it } from "bun:test";
-import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { formatSessionHistoryMarkdown } from "@linxiraos/zeta/session/session-history-format";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 function buildMessages(): unknown[] {
 	return [

@@ -1,8 +1,7 @@
-import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger, untilAborted } from "@linxiraos/pi-utils";
 import { formatCurrentTime, formatMemories } from "../hindsight/content";
-import { M } from "../i18n/messages";
 import recallDescription from "../prompts/tools/recall.md" with { type: "text" };
 import type { ToolSession } from ".";
 
@@ -36,13 +35,13 @@ export class MemoryRecallTool implements AgentTool<typeof memoryRecallSchema> {
 			if (backend === "mnemopi") {
 				const state = this.session.getMnemopiSessionState?.();
 				if (!state) {
-					throw new Error(M.meErrMnemopiNotInit);
+					throw new Error("Mnemopi backend is not initialised for this session.");
 				}
 				try {
 					const results = await state.recallResultsScoped(params.query);
 					if (results.length === 0) {
 						return {
-							content: [{ type: "text", text: M.meNoMemoriesFound }],
+							content: [{ type: "text", text: "No relevant memories found." }],
 							details: {},
 							useless: true,
 						};
@@ -52,11 +51,7 @@ export class MemoryRecallTool implements AgentTool<typeof memoryRecallSchema> {
 						content: [
 							{
 								type: "text",
-								text: M.meRecallFmt
-									.replace("%s", String(results.length))
-									.replace("%s", results.length === 1 ? M.meMemoryNoun : M.meMemoriesNoun)
-									.replace("%s", formatCurrentTime())
-									.replace("%s", formatted),
+								text: `Found ${results.length} relevant ${results.length === 1 ? "memory" : "memories"} (as of ${formatCurrentTime()} UTC):\n\n${formatted}`,
 							},
 						],
 						details: {},
@@ -69,7 +64,7 @@ export class MemoryRecallTool implements AgentTool<typeof memoryRecallSchema> {
 
 			const state = this.session.getHindsightSessionState?.();
 			if (!state) {
-				throw new Error(M.meErrHindsightNotInit);
+				throw new Error("Hindsight backend is not initialised for this session.");
 			}
 
 			try {

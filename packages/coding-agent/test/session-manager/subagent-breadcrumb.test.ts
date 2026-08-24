@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getTerminalId } from "@linxiraos/pi-tui";
-import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@linxiraos/pi-utils";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { readTerminalBreadcrumbEntry } from "@linxiraos/zeta/session/session-paths";
+import { getTerminalId } from "@linxiraos/pi-tui";
+import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@linxiraos/pi-utils";
 
 import { makeAssistantMessage } from "./helpers";
 

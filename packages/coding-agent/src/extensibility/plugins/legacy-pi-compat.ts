@@ -817,32 +817,21 @@ export function __getLegacyPiBundledModulesGlobal(): string {
 
 // Canonical scope for in-process pi packages. Plugins published against any of
 // the aliased scopes below (mariozechner's original publish, earendil-works'
-// fork, the @linxiraos downstream, or the canonical @linxiraos scope itself; the
-// historical @zeta scope is kept as an alias) are remapped to this scope and
-// resolved against the bundled copy that ships inside the zeta binary. This
+// fork, or the canonical @oh-my-pi scope itself) are remapped to this scope and
+// resolved against the bundled copy that ships inside the omp binary. This
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
 // scope name they happened to declare in their peerDependencies.
-const CANONICAL_PI_SCOPE = "@linxiraos";
+const CANONICAL_PI_SCOPE = "@oh-my-pi";
 
 // Scopes that have historically been used to publish (or alias) the same set
-// of internal pi-* packages. `@linxiraos` is intentionally included so direct
+// of internal pi-* packages. `@oh-my-pi` is intentionally included so direct
 // canonical imports still pass through the same host-bundled package resolution
 // path instead of pulling a duplicate copy from plugin node_modules.
-const PI_SCOPE_ALIASES = ["linxiraos", "zeta", "oh-my-pi", "mariozechner", "earendil-works"] as const;
+const PI_SCOPE_ALIASES = ["oh-my-pi", "mariozechner", "earendil-works"] as const;
 
-// Internal pi-* package basenames bundled inside the zeta binary, including the
-// canonical host package basename (`zeta`) and the pre-rename `pi-coding-agent`
-// alias plugins may still declare.
-const PI_PACKAGE_NAMES = [
-	"pi-agent-core",
-	"pi-ai",
-	"pi-coding-agent",
-	"pi-natives",
-	"pi-tui",
-	"pi-utils",
-	"zeta",
-] as const;
+// Internal pi-* package basenames bundled inside the omp binary.
+const PI_PACKAGE_NAMES = ["pi-agent-core", "pi-ai", "pi-coding-agent", "pi-natives", "pi-tui", "pi-utils"] as const;
 
 const PI_SCOPE_ALTERNATION = PI_SCOPE_ALIASES.join("|");
 const PI_PACKAGE_ALTERNATION = PI_PACKAGE_NAMES.join("|");
@@ -1000,7 +989,7 @@ const LEGACY_PI_AI_SHIM_PATH = IS_COMPILED_BINARY
 // sibling source shim whose distinct file path avoids the #1474 collision
 // while still re-exporting the canonical package surface.
 const LEGACY_PI_CODING_AGENT_SHIM_PATH = IS_COMPILED_BINARY
-	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/zeta`)
+	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/pi-coding-agent`)
 	: sourceShimPath("legacy-pi-coding-agent-shim.ts");
 
 // Legacy pi-tui exported `decodeKittyPrintable` from its package root. The
@@ -1010,11 +999,11 @@ const LEGACY_PI_TUI_SHIM_PATH = IS_COMPILED_BINARY
 	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/pi-tui`)
 	: sourceShimPath("legacy-pi-tui-shim.ts");
 
-// Package-root overrides. Shim entries (`pi-ai`, `zeta`, `pi-tui`) always
-// replace the canonical surface so legacy helpers stay reachable. The other
-// bundled host packages (`pi-agent-core`, `pi-natives`, `pi-utils`) are added
-// only in compiled-binary mode to route extensions onto the in-process module
-// instance — in dev / source-link / installed-package mode the canonical
+// Package-root overrides. Shim entries (`pi-ai`, `pi-coding-agent`, `pi-tui`)
+// always replace the canonical surface so legacy helpers stay reachable. The
+// other bundled host packages (`pi-agent-core`, `pi-natives`, `pi-utils`) are
+// added only in compiled-binary mode to route extensions onto the in-process
+// module instance — in dev / source-link / installed-package mode the canonical
 // specifier resolves cleanly through `Bun.resolveSync` and hardcoding a
 // source-tree path would miss installs where bundled packages live at
 // `node_modules/@linxiraos/pi-*`.
@@ -1061,7 +1050,7 @@ export function __buildLegacyPiPackageRootOverrides(
 ): Record<string, string> {
 	const candidates: Record<string, string> = {
 		[`${CANONICAL_PI_SCOPE}/pi-ai`]: LEGACY_PI_AI_SHIM_PATH,
-		[`${CANONICAL_PI_SCOPE}/zeta`]: LEGACY_PI_CODING_AGENT_SHIM_PATH,
+		[`${CANONICAL_PI_SCOPE}/pi-coding-agent`]: LEGACY_PI_CODING_AGENT_SHIM_PATH,
 		[`${CANONICAL_PI_SCOPE}/pi-tui`]: LEGACY_PI_TUI_SHIM_PATH,
 	};
 	if (isCompiled) {
@@ -1104,12 +1093,7 @@ function remapLegacyPiSpecifier(specifier: string): string | null {
 	if (slashIdx === -1) {
 		return null;
 	}
-	let rest = specifier.slice(slashIdx + 1);
-	// `pi-coding-agent` ↦ `zeta`: the renamed host package keeps the legacy
-	// basename only as a historical alias plugins may still declare.
-	if (rest === "pi-coding-agent" || rest.startsWith("pi-coding-agent/")) {
-		rest = `zeta${rest.slice("pi-coding-agent".length)}`;
-	}
+	const rest = specifier.slice(slashIdx + 1);
 	const remappedSubpath = remapLegacyPiSubpath(rest);
 	return `${CANONICAL_PI_SCOPE}/${remappedSubpath}`;
 }
@@ -2834,7 +2818,7 @@ function resolveLegacyPiSpecifier(args: { path: string; importer: string }): Leg
 		// Fallback for compiled binary mode: the bundled packages live inside
 		// /$bunfs/root and aren't reachable by filesystem resolution. Prefer the
 		// canonical specifier against the importing file's directory when the
-		// plugin installed @linxiraos peer deps, then try the original legacy
+		// plugin installed @oh-my-pi peer deps, then try the original legacy
 		// specifier for plugins that still vendor only @mariozechner or
 		// @earendil-works peer deps.
 		const importerDir = path.dirname(args.importer);

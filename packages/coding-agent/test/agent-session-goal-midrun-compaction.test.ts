@@ -1,11 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
@@ -16,6 +15,7 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function activeGoalState(): GoalModeState {
 	const now = Date.now();

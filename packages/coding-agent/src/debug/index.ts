@@ -456,7 +456,7 @@ export class DebugSelectorComponent extends OverlayPanel {
 		if (!suppressed) {
 			const sessionName = this.ctx.sessionManager.getSessionName();
 			const notification: TerminalNotification = {
-				title: sessionName || "Zeta",
+				title: sessionName || "Oh My Pi",
 				body: "Terminal protocol test",
 				type: "test",
 				actions: "focus",

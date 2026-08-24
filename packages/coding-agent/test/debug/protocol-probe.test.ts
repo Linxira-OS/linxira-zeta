@@ -1,5 +1,4 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { getImageDimensions, ImageBudget, ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import {
 	buildLargeTextLines,
 	buildSampleImage,
@@ -7,6 +6,7 @@ import {
 	ProtocolProbeComponent,
 } from "@linxiraos/zeta/debug/protocol-probe";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { getImageDimensions, ImageBudget, ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	// buildLargeTextLines styles the OSC 66 span through the global theme singleton.

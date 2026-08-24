@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { disposeAllKernelSessions, executePythonWithKernel } from "@linxiraos/zeta/eval/py/executor";
 import { DEFAULT_MAX_BYTES } from "@linxiraos/zeta/session/streaming-output";
+import { TempDir } from "@linxiraos/pi-utils";
 import { FakeKernel } from "./helpers";
 
 describe("executePythonWithKernel", () => {

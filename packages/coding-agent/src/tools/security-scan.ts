@@ -1,6 +1,5 @@
-import type { AgentTool, AgentToolResult, ToolTier } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
-import { M } from "../i18n/messages";
+import type { AgentTool, AgentToolResult, ToolTier } from "@linxiraos/pi-agent-core";
 import securityScanDescription from "../prompts/tools/security-scan.md" with { type: "text" };
 import { selectSecurityAccount } from "../security/auth";
 import {
@@ -62,7 +61,7 @@ function targetFromParams(params: SecurityScanParams): SecurityTargetRequest {
 	switch (params.target_kind ?? "repository") {
 		case "scoped_path": {
 			if (!params.include_paths?.some(value => value.trim().length > 0)) {
-				throw new ToolError(M.ssErrScopedPathInclude);
+				throw new ToolError("scoped_path security scans require at least one include path");
 			}
 			return { kind: "scoped_path", includePaths: params.include_paths, excludePaths: params.exclude_paths };
 		}
@@ -70,7 +69,7 @@ function targetFromParams(params: SecurityScanParams): SecurityTargetRequest {
 			return { kind: "working_tree", ...common };
 		case "ref_diff":
 			if (!params.base_revision || !params.head_revision) {
-				throw new ToolError(M.ssErrRefDiffRevisions);
+				throw new ToolError("ref_diff preflight requires base_revision and head_revision");
 			}
 			return {
 				kind: "ref_diff",
@@ -84,12 +83,12 @@ function targetFromParams(params: SecurityScanParams): SecurityTargetRequest {
 }
 
 function requireValue(value: string | undefined, label: string): string {
-	if (!value?.trim()) throw new ToolError(M.ssErrRequiredFmt.replace("%s", label));
+	if (!value?.trim()) throw new ToolError(`${label} is required for this action`);
 	return value.trim();
 }
 
 function cloudClientForSession(session: ToolSession, credentialId?: number): CodexSecurityCloudClient {
-	if (!session.authStorage) throw new ToolError(M.ssErrNoAuthRegistry);
+	if (!session.authStorage) throw new ToolError("Codex Security cloud requires the authentication registry");
 	const account = selectSecurityAccount(
 		session.authStorage,
 		"openai-codex",
@@ -121,11 +120,11 @@ export class SecurityScanTool implements AgentTool<typeof securityScanSchema, Se
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<SecurityScanToolDetails>> {
 		if (!this.session.settings.get("security.enabled")) {
-			throw new ToolError(M.ssErrDisabled);
+			throw new ToolError("Security is disabled. Enable security.enabled before using security_scan.");
 		}
 		const coordinatorForSession = () => {
 			if (!this.session.modelRegistry || !this.session.authStorage) {
-				throw new ToolError(M.ssErrSessionModel);
+				throw new ToolError("Security scan requires the session model and authentication registries");
 			}
 			return getSecurityCoordinator({
 				cwd: this.session.cwd,
@@ -252,7 +251,7 @@ export class SecurityScanTool implements AgentTool<typeof securityScanSchema, Se
 				const scanId = requireValue(params.scan_id, "scan_id");
 				const findingId = requireValue(params.finding_id, "finding_id");
 				const status = params.validation_status;
-				if (!status) throw new ToolError(M.ssErrValidationStatus);
+				if (!status) throw new ToolError("validation_status is required for this action");
 				const summary = requireValue(params.validation_summary, "validation_summary");
 				const store = await SecurityStore.openForCwd(this.session.cwd, { signal });
 				const finding = await store.getFinding(scanId, findingId);

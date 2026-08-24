@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent } from "@oh-my-pi/pi-agent-core";
+import { Agent } from "@linxiraos/pi-agent-core";
 import type {
 	ApiKeyResolveContext,
 	AssistantMessage,
@@ -9,22 +9,22 @@ import type {
 	ThinkingContent,
 	ToolCall,
 	ToolResultMessage,
-} from "@oh-my-pi/pi-ai";
-import { unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { createMockModel, type MockResponse, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import * as aiStream from "@oh-my-pi/pi-ai/stream";
-import { kCursorExecResolved } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { Model } from "@oh-my-pi/pi-catalog/types";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { createMockModel, type MockResponse, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import * as aiStream from "@linxiraos/pi-ai/stream";
+import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { Model } from "@linxiraos/pi-catalog/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;
 type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;

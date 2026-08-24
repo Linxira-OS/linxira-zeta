@@ -143,7 +143,7 @@ describe("profile alias installer", () => {
 		});
 
 		const content = files.get("/Users/me/.config/fish/conf.d/omp-profiles.fish") ?? "";
-		expect(content).toContain("function omp-work --wraps zeta");
+		expect(content).toContain("function omp-work --wraps omp");
 		expect(content).toContain("command omp --profile=work $argv");
 	});
 
@@ -164,7 +164,7 @@ describe("profile alias installer", () => {
 		});
 
 		expect(result.configPath).toBe("/home/me/.dotfiles/config/fish/conf.d/omp-profiles.fish");
-		expect(files.get(result.configPath)).toContain("function omp-work --wraps zeta");
+		expect(files.get(result.configPath)).toContain("function omp-work --wraps omp");
 	});
 
 	it("writes a PowerShell function because aliases cannot carry arguments", async () => {

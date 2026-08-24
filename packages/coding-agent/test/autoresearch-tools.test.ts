@@ -2,7 +2,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
 import { createSessionRuntime } from "@linxiraos/zeta/autoresearch/state";
 import {
 	type AutoresearchStorage,
@@ -17,6 +16,7 @@ import { createUpdateNotesTool } from "@linxiraos/zeta/autoresearch/tools/update
 import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@linxiraos/zeta/autoresearch/types";
 import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta/extensibility/extensions";
 import * as git from "@linxiraos/zeta/utils/git";
+import { TempDir } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 
 afterEach(() => {

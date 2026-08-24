@@ -62,7 +62,7 @@ Top-level entry modules: `cli.ts`, `main.ts`, `sdk.ts`, `index.ts` (SDK barrel),
 |---|---|---|
 | `cli/`, `commands/`, `commit/`, `export/` | Command-line adapters and concrete subcommands | — |
 | `modes/` | Interactive TUI, print, and RPC runtimes | [rpc.md](../../docs/rpc.md), [sdk.md](../../docs/sdk.md) |
-| `session/` | `AgentSession`, JSONL session tree, storage, history | [session.md](../../docs/session.md), [session-tree-plan.md](../../document/session-tree-plan.md) |
+| `session/` | `AgentSession`, JSONL session tree, storage, history | [session.md](../../docs/session.md), [session-tree-plan.md](../../docs/session-tree-plan.md) |
 | `config/`, `registry/`, `secrets/` | Settings, model/provider registry, secret obfuscation | [settings.md](../../docs/settings.md), [config-usage.md](../../docs/config-usage.md), [models.md](../../docs/models.md), [secrets.md](../../docs/secrets.md) |
 | `tools/` | Built-in tool implementations + render/meta helpers | [custom-tools.md](../../docs/custom-tools.md), [`tools/`](../../docs/tools/) |
 | `exec/`, `eval/`, `ssh/`, `dap/`, `debug/` | Execution backends (shell, py/js kernels, ssh, debugger) | [bash-tool-runtime.md](../../docs/bash-tool-runtime.md), [python-repl.md](../../docs/python-repl.md) |
@@ -84,33 +84,28 @@ Top-level entry modules: `cli.ts`, `main.ts`, `sdk.ts`, `index.ts` (SDK barrel),
 
 ### Sessions, persistence, and turn lifecycle
 - [session.md](../../docs/session.md) — storage and entry model
-- [session-tree-plan.md](../../document/session-tree-plan.md) — branch/tree architecture
+- [session-tree-plan.md](../../docs/session-tree-plan.md) — branch/tree architecture
 - [session-switching-and-recent-listing.md](../../docs/session-switching-and-recent-listing.md)
 - [session-operations-export-share-fork-resume.md](../../docs/session-operations-export-share-fork-resume.md)
 - [compaction.md](../../docs/compaction.md) — compaction and branch summaries
-- [ttsr-injection-lifecycle.md](../../document/ttsr-injection-lifecycle.md)
+- [ttsr-injection-lifecycle.md](../../docs/ttsr-injection-lifecycle.md)
 - [non-compaction-retry-policy.md](../../docs/non-compaction-retry-policy.md)
-- [handoff-generation-pipeline.md](../../document/handoff-generation-pipeline.md)
+- [handoff-generation-pipeline.md](../../docs/handoff-generation-pipeline.md)
 
 ### Configuration, models, providers, auth
 - [settings.md](../../docs/settings.md), [config-usage.md](../../docs/config-usage.md)
 - [environment-variables.md](../../docs/environment-variables.md)
-- [models.md](../../docs/models.md), [providers.md](../../docs/providers.md), [adding-a-provider.md](../../document/adding-a-provider.md)
+- [models.md](../../docs/models.md), [providers.md](../../docs/providers.md), [adding-a-provider.md](../../docs/adding-a-provider.md)
 - [local-models.md](../../docs/local-models.md)
-<<<<<<< HEAD
-- [provider-streaming-internals.md](../../document/provider-streaming-internals.md), [ai-schema-normalize.md](../../document/ai-schema-normalize.md)
-- [toolconv/](../../docs/toolconv/) — per-family tool-call conversion (anthropic, harmony, qwen3, deepseek, glm-4.5, kimi-k2, gemini, gemma, pi-native); see also [ERRATA-GPT5-HARMONY.md](../../document/ERRATA-GPT5-HARMONY.md)
-=======
 - [provider-streaming-internals.md](../../docs/provider-streaming-internals.md), [ai-schema-normalize.md](../../docs/ai-schema-normalize.md)
 - [toolconv/](../../docs/toolconv/) — per-family tool-call conversion (anthropic, deepseek, gemini, gemma, glm-4.5, harmony, hermes, kimi-k2, minimax, pi-native, qwen3, xml); see also [ERRATA-GPT5-HARMONY.md](../../docs/ERRATA-GPT5-HARMONY.md)
->>>>>>> v18.0.3
 - [keybindings.md](../../docs/keybindings.md)
 - [secrets.md](../../docs/secrets.md), [auth-broker-gateway.md](../../docs/auth-broker-gateway.md), [install-id.md](../../docs/install-id.md)
 - [system-prompt-customization.md](../../docs/system-prompt-customization.md)
 
 ### Tools framework and built-in tools
 - Authoring + registry: [custom-tools.md](../../docs/custom-tools.md)
-- Output/artifacts: [blob-artifact-architecture.md](../../document/blob-artifact-architecture.md)
+- Output/artifacts: [blob-artifact-architecture.md](../../docs/blob-artifact-architecture.md)
 - Gating/approval: [approval-mode.md](../../docs/approval-mode.md), [resolve-tool-runtime.md](../../docs/resolve-tool-runtime.md)
 - Per-tool reference: [`docs/tools/`](../../docs/tools/) — `read`, `write`, `edit`, `ast-edit`, `ast-grep`, `grep`, `glob`, `bash`, `eval`, `hub`, `lsp`, `debug`, `task`, `web_search`, `browser`, `github`, `inspect_image`, `ask`, `todo`, `recall`, `retain`, `reflect`, `checkpoint`, `rewind`
 
@@ -135,21 +130,21 @@ Top-level entry modules: `cli.ts`, `main.ts`, `sdk.ts`, `index.ts` (SDK barrel),
 - Memory tools: [tools/recall.md](../../docs/tools/recall.md), [tools/retain.md](../../docs/tools/retain.md), [tools/reflect.md](../../docs/tools/reflect.md)
 
 ### Discovery, context, and rules
-- [context-files.md](../../docs/context-files.md), [rulebook-matching-pipeline.md](../../document/rulebook-matching-pipeline.md)
-- [advisor-watchdog.md](../../docs/advisor-watchdog.md), [fs-scan-cache-architecture.md](../../document/fs-scan-cache-architecture.md), [tree.md](../../docs/tree.md)
+- [context-files.md](../../docs/context-files.md), [rulebook-matching-pipeline.md](../../docs/rulebook-matching-pipeline.md)
+- [advisor-watchdog.md](../../docs/advisor-watchdog.md), [fs-scan-cache-architecture.md](../../docs/fs-scan-cache-architecture.md), [tree.md](../../docs/tree.md)
 
 ### TUI and theming
-- [tui.md](../../docs/tui.md), [tui-core-renderer.md](../../document/tui-core-renderer.md), [tui-runtime-internals.md](../../document/tui-runtime-internals.md)
+- [tui.md](../../docs/tui.md), [tui-core-renderer.md](../../docs/tui-core-renderer.md), [tui-runtime-internals.md](../../docs/tui-runtime-internals.md)
 - [theme.md](../../docs/theme.md)
 
 ### Natives (`crates/pi-natives`, `packages/natives`)
-- [natives-architecture.md](../../document/natives-architecture.md), [natives-addon-loader-runtime.md](../../document/natives-addon-loader-runtime.md), [natives-binding-contract.md](../../document/natives-binding-contract.md)
-- [natives-text-search-pipeline.md](../../document/natives-text-search-pipeline.md), [natives-shell-pty-process.md](../../document/natives-shell-pty-process.md), [natives-media-system-utils.md](../../document/natives-media-system-utils.md)
-- [natives-build-release-debugging.md](../../document/natives-build-release-debugging.md), [natives-rust-task-cancellation.md](../../document/natives-rust-task-cancellation.md), [porting-to-natives.md](../../document/porting-to-natives.md)
+- [natives-architecture.md](../../docs/natives-architecture.md), [natives-addon-loader-runtime.md](../../docs/natives-addon-loader-runtime.md), [natives-binding-contract.md](../../docs/natives-binding-contract.md)
+- [natives-text-search-pipeline.md](../../docs/natives-text-search-pipeline.md), [natives-shell-pty-process.md](../../docs/natives-shell-pty-process.md), [natives-media-system-utils.md](../../docs/natives-media-system-utils.md)
+- [natives-build-release-debugging.md](../../docs/natives-build-release-debugging.md), [natives-rust-task-cancellation.md](../../docs/natives-rust-task-cancellation.md), [porting-to-natives.md](../../docs/porting-to-natives.md)
 
 ### Build, release, and porting
-- [macos-signing-notarization.md](../../document/macos-signing-notarization.md)
-- [porting-from-pi-mono.md](../../document/porting-from-pi-mono.md)
+- [macos-signing-notarization.md](../../docs/macos-signing-notarization.md)
+- [porting-from-pi-mono.md](../../docs/porting-from-pi-mono.md)
 
 ## Extending omp
 
@@ -161,9 +156,9 @@ Top-level entry modules: `cli.ts`, `main.ts`, `sdk.ts`, `index.ts` (SDK barrel),
 | A slash command | [slash-command-internals.md](../../docs/slash-command-internals.md) |
 | An RPC command | `src/modes/rpc/rpc-types.ts` + [rpc.md](../../docs/rpc.md) |
 | A skill | [skills.md](../../docs/skills.md) |
-| A marketplace plugin | [marketplace.md](../../docs/marketplace.md), [plugin-manager-installer-plumbing.md](../../document/plugin-manager-installer-plumbing.md), [skills/authoring-marketplaces.md](../../docs/skills/authoring-marketplaces.md), [gemini-manifest-extensions.md](../../docs/gemini-manifest-extensions.md) |
+| A marketplace plugin | [marketplace.md](../../docs/marketplace.md), [plugin-manager-installer-plumbing.md](../../docs/plugin-manager-installer-plumbing.md), [skills/authoring-marketplaces.md](../../docs/skills/authoring-marketplaces.md), [gemini-manifest-extensions.md](../../docs/gemini-manifest-extensions.md) |
 | A custom MCP tool/server | [mcp-server-tool-authoring.md](../../docs/mcp-server-tool-authoring.md), [custom-tools.md](../../docs/custom-tools.md) |
-| A provider | [adding-a-provider.md](../../document/adding-a-provider.md) |
+| A provider | [adding-a-provider.md](../../docs/adding-a-provider.md) |
 | Programmatic/SDK use | [sdk.md](../../docs/sdk.md) |
 
 See also `AGENTS.md` at the repo root for repo-wide conventions (Bun-over-Node,

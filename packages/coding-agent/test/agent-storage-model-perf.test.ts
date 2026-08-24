@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { createSubagentSettings } from "@linxiraos/zeta/task/executor";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const MODEL_PERF_FLUSH_DELAY_MS = 100;
 

@@ -5,14 +5,14 @@ import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import type { TUI } from "@linxiraos/pi-tui";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import type { ModelRegistry, ProviderDiscoveryState } from "@linxiraos/zeta/config/model-registry";
 import { ModelRegistry as ModelRegistryImpl } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ModelHubComponent } from "@linxiraos/zeta/modes/components/model-hub";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { TUI } from "@linxiraos/pi-tui";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 function normalizeRenderedText(text: string): string {
 	return stripVTControlCharacters(text).replace(/\s+/g, " ").trim();

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { connectToServer } from "@oh-my-pi/pi-coding-agent/mcp/client";
-import { HttpTransport } from "@oh-my-pi/pi-coding-agent/mcp/transports/http";
+import { connectToServer } from "@linxiraos/zeta/mcp/client";
+import { HttpTransport } from "@linxiraos/zeta/mcp/transports/http";
 
 const encoder = new TextEncoder();
 const REQUEST_TIMEOUT_MS = 50;

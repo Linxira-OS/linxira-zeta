@@ -5,7 +5,6 @@ import * as url from "node:url";
 import { glob } from "@linxiraos/pi-natives";
 import { hasFsCode, isEnoent, isEnotdir, stripWindowsExtendedLengthPathPrefix } from "@linxiraos/pi-utils";
 import type { Skill } from "../extensibility/skills";
-import { M } from "../i18n/messages";
 import { InternalUrlRouter, type LocalProtocolOptions } from "../internal-urls";
 import { ToolAbortError, ToolError } from "./tool-errors";
 
@@ -215,7 +214,7 @@ export function parseLineRangeChunk(sel: string): LineRange | null {
 	if (!lineMatch) return null;
 	const rawStart = Number.parseInt(lineMatch[1]!, 10);
 	if (rawStart < 1) {
-		throw new ToolError(M.puErrLineSelectorZero);
+		throw new ToolError("Line selector 0 is invalid; lines are 1-indexed. Use :1.");
 	}
 	// `..` is a forgiving alias for `-` (e.g. `2724..2727` == `2724-2727`).
 	const sep = lineMatch[2] === ".." ? "-" : lineMatch[2];
@@ -1459,7 +1458,7 @@ export async function resolveToolSearchScope(opts: ToolScopeOptions): Promise<To
 	const { rawPaths: inputs, cwd, internalUrlAction } = opts;
 	const normalizedRawPaths = inputs.map(normalizePathLikeInput);
 	if (normalizedRawPaths.some(rawPath => rawPath.length === 0)) {
-		throw new ToolError(M.puErrScopeEmpty);
+		throw new ToolError("Search scope entries must be non-empty paths or globs");
 	}
 	const rawPaths = await expandDelimitedPathEntries(normalizedRawPaths, cwd);
 	if (rawPaths.some(rawPath => rawPath.length === 0)) {
@@ -1564,7 +1563,7 @@ export async function resolveToolSearchScope(opts: ToolScopeOptions): Promise<To
 			opts.fanOutFileTargets === true,
 		);
 		if (!multiSearchPath) {
-			throw new ToolError(M.puErrPathsRequired);
+			throw new ToolError("`paths` must contain at least one path or glob");
 		}
 		searchPath = multiSearchPath.basePath;
 		multiTargets = multiSearchPath.targets;

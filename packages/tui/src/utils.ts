@@ -412,13 +412,6 @@ const THAI_LAO_AM_GLOBAL_REGEX = /[\u0e33\u0eb3]/g;
  * width but avoid stale-cell artifacts in terminal renderers.
  */
 export function normalizeTerminalOutput(str: string): string {
-	// Inline carriage returns make one prepared line render as multiple
-	// terminal lines (return-to-column-1 → overlapping/glued content). The
-	// native wrapper only splits on `\n`, so lone `\r` (progress-bar output)
-	// and CRLF remnants survive into single lines. Terminal carriage-return
-	// semantics overwrite from line start, so dropping `\r` keeps the final
-	// (last-written) content — `a\rb` renders as `b`, matching the terminal.
-	if (str.includes("\r")) str = str.replace(/\r/g, "");
 	if (str.indexOf("\u0e33") === -1 && str.indexOf("\u0eb3") === -1) return str;
 	return str.replace(THAI_LAO_AM_GLOBAL_REGEX, char => (char === "\u0e33" ? "\u0e4d\u0e32" : "\u0ecd\u0eb2"));
 }

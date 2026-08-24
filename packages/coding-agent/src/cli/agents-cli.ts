@@ -1,11 +1,11 @@
 /**
  * Agents CLI command handlers.
  *
- * Handles `zeta agents unpack` for writing bundled agent definitions to disk.
+ * Handles `omp agents unpack` for writing bundled agent definitions to disk.
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, getAgentDir, getProjectDir, isEnoent } from "@linxiraos/pi-utils";
+import { getAgentDir, getProjectDir, isEnoent } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { YAML } from "bun";
 import { theme } from "../modes/theme/theme";
@@ -46,7 +46,7 @@ function resolveTargetDir(flags: AgentsCommandArgs["flags"]): string {
 	}
 
 	if (flags.project) {
-		return path.resolve(getProjectDir(), CONFIG_DIR_NAME, "agents");
+		return path.resolve(getProjectDir(), ".omp", "agents");
 	}
 
 	return path.join(getAgentDir(), "agents");

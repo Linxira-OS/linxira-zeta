@@ -3,12 +3,12 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	__collectLegacyPiExtensionSourcesForTests,
 	__rewriteLegacyExtensionSourceForTests,
 	loadLegacyPiModule,
 } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // Issue #1674: legacy Pi extensions load browser-UI assets (HTML/CSS) at module
 // init via `readFileSync(join(__dirname, "ui.html"))`. The compat layer must run

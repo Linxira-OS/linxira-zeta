@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { CliConfig, CommandCtor } from "@linxiraos/pi-utils/cli";
 import { buildSpec, type CompletionSpec, generateCompletion } from "@linxiraos/zeta/cli/completion-gen";
 import { generateLiveCompletion } from "@linxiraos/zeta/commands/completions";
+import type { CliConfig, CommandCtor } from "@linxiraos/pi-utils/cli";
 
 // A compact synthetic spec exercising every value-source kind and an aliased
 // subcommand. The generators are pure functions of this shape, so pinning their
 // output here defends the exact bytes each shell parses without booting the CLI.
 const spec: CompletionSpec = {
-	bin: "zeta",
+	bin: "omp",
 	root: {
 		flags: [
 			{ name: "model", description: "Model to use", value: { kind: "models", multiple: false }, repeatable: false },
@@ -48,7 +48,7 @@ describe("generateCompletion — bash", () => {
 	const out = generateCompletion("bash", spec);
 
 	it("registers the dispatcher and resolves alias arms to the canonical handler", () => {
-		expect(out).toContain("complete -F _omp zeta");
+		expect(out).toContain("complete -F _omp omp");
 		expect(out).toContain("_omp_cmd_commit");
 		// worktree + its alias dispatch to the same function
 		expect(out).toContain("worktree|wt)");
@@ -56,9 +56,9 @@ describe("generateCompletion — bash", () => {
 
 	it("completes enum, dynamic, and comma-list flag values by previous flag", () => {
 		expect(out).toContain('--thinking)\n\t\t\tCOMPREPLY=( $(compgen -W "low high"');
-		expect(out).toContain('--model)\n\t\t\tCOMPREPLY=( $(compgen -W "$(command zeta __complete models -- "$cur"');
+		expect(out).toContain('--model)\n\t\t\tCOMPREPLY=( $(compgen -W "$(command omp __complete models -- "$cur"');
 		expect(out).toContain("--resume|-r)");
-		expect(out).toContain("command zeta __complete sessions");
+		expect(out).toContain("command omp __complete sessions");
 		// static comma list routes through the comma-aware helper
 		expect(out).toContain('--tools)\n\t\t\t_omp_comma "read bash"');
 		// multiple-value models flag also uses the comma helper
@@ -81,9 +81,9 @@ describe("generateCompletion — zsh", () => {
 	const out = generateCompletion("zsh", spec);
 
 	it("emits the compdef header and dual-mode (autoload + eval) tail", () => {
-		expect(out.startsWith("#compdef zeta")).toBe(true);
+		expect(out.startsWith("#compdef omp")).toBe(true);
 		expect(out).toContain('if [ "$funcstack[1]" = "_omp" ]; then');
-		expect(out).toContain("compdef _omp zeta");
+		expect(out).toContain("compdef _omp omp");
 	});
 
 	it("maps value sources to the right _arguments actions", () => {
@@ -119,10 +119,10 @@ describe("generateCompletion — fish", () => {
 	});
 
 	it("maps value sources to fish completion args", () => {
-		expect(out).toContain("-l model -d 'Model to use' -x -a '(command zeta __complete models -- (commandline -ct))'");
+		expect(out).toContain("-l model -d 'Model to use' -x -a '(command omp __complete models -- (commandline -ct))'");
 		expect(out).toContain("-l thinking -d 'Effort' -x -a 'low high'");
 		expect(out).toContain("-l tools -d 'Tools' -x -a 'read bash'");
-		expect(out).toContain("-s r -l resume -d 'Resume' -x -a '(command zeta __complete sessions");
+		expect(out).toContain("-s r -l resume -d 'Resume' -x -a '(command omp __complete sessions");
 		// a bare boolean flag takes no value
 		expect(out).toContain("-s p -l print -d 'Print'");
 		expect(out).not.toContain("-l print -d 'Print' -x");
@@ -140,7 +140,7 @@ describe("buildSpec", () => {
 
 	it("lifts the root command's flags and excludes root + hidden from subcommands", () => {
 		const config: CliConfig = {
-			bin: "zeta",
+			bin: "omp",
 			version: "0",
 			commands: new Map<string, CommandCtor>([
 				["launch", fakeCmd({ hidden: true, flags: { model: { kind: "string" } }, args: {} })],
@@ -158,7 +158,7 @@ describe("buildSpec", () => {
 
 	it("classifies flag value sources from descriptor metadata", () => {
 		const config: CliConfig = {
-			bin: "zeta",
+			bin: "omp",
 			version: "0",
 			commands: new Map<string, CommandCtor>([
 				[
@@ -206,7 +206,7 @@ describe("live completion surface", () => {
 		// itself shells out to `omp __complete $kind`.
 		expect(stdout).toContain("_omp_call models");
 		expect(stdout).toContain("_omp_call sessions");
-		expect(stdout).toContain("command zeta __complete $kind");
+		expect(stdout).toContain("command omp __complete $kind");
 		// Hidden/default commands must NOT surface as completable subcommands.
 		expect(stdout).not.toContain("_omp_cmd_launch");
 		expect(stdout).not.toContain("_omp_cmd___complete");

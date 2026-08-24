@@ -2,9 +2,12 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { additionalWorkspaceDirectories, normalizeSessionWorkspace } from "@linxiraos/zeta/session/session-workspace";
+import {
+	additionalWorkspaceDirectories,
+	normalizeSessionWorkspace,
+} from "@linxiraos/zeta/session/session-workspace";
+import { TempDir } from "@linxiraos/pi-utils";
 import { makeAssistantMessage } from "./helpers";
 
 describe("normalizeSessionWorkspace", () => {

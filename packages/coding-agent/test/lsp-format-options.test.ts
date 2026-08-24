@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir, removeWithRetries, Snowflake, setProjectDir } from "@linxiraos/pi-utils";
 import { detectIndentFromContent, resolveFormatOptions } from "@linxiraos/zeta/lsp/format-options";
+import { getProjectDir, removeWithRetries, Snowflake, setProjectDir } from "@linxiraos/pi-utils";
 
 /**
  * Regression coverage for issue #2329 — the LSP format-on-write path used to

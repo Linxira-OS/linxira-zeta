@@ -1,6 +1,5 @@
 import { Box, type Component, Markdown } from "@linxiraos/pi-tui";
 import { formatNumber } from "@linxiraos/pi-utils";
-import { M } from "../../i18n";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import type { BranchSummaryMessage, CompactionSummaryMessage, CustomMessage } from "../../session/messages";
 
@@ -162,7 +161,7 @@ export class HandoffSummaryMessageComponent implements Component {
 
 	constructor(private readonly message: CustomMessage<unknown>) {
 		this.#divider = new SummaryDividerComponent({
-			label: () => `${theme.icon.context} ${M.csLabelHandoff}`,
+			label: () => `${theme.icon.context} handed-off`,
 			detailMarkdown: () => this.#detailMarkdown(),
 		});
 	}
@@ -181,7 +180,7 @@ export class HandoffSummaryMessageComponent implements Component {
 
 	#detailMarkdown(): string {
 		const document = extractHandoffDocument(getCustomMessageText(this.message));
-		return `${M.csHandoffContext}\n\n${document || M.csNoHandoffContent}`;
+		return `**Handoff context**\n\n${document || "_No handoff content._"}`;
 	}
 }
 
@@ -205,8 +204,8 @@ export class BranchSummaryMessageComponent implements Component {
 
 	constructor(private readonly message: BranchSummaryMessage) {
 		this.#divider = new SummaryDividerComponent({
-			label: () => `${theme.icon.branch} ${M.csLabelBranch}`,
-			detailMarkdown: () => `${M.csBranchSummary}\n\n${this.message.summary}`,
+			label: () => `${theme.icon.branch} branch`,
+			detailMarkdown: () => `**Branch summary**\n\n${this.message.summary}`,
 		});
 	}
 

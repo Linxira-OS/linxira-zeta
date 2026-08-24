@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resolveStdioSpawnCommand, StdioTransport, writeFrame } from "@linxiraos/zeta/mcp/transports/stdio";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("resolveStdioSpawnCommand", () => {
 	it("resolves bare Windows commands through PATHEXT and wraps .cmd shims with cmd.exe", async () => {

@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import type { TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { theme as activeTheme, getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { readToolRenderer } from "@linxiraos/zeta/tools/read";
+import type { TUI } from "@linxiraos/pi-tui";
 
 function extractLinkUris(text: string): string[] {
 	return [...text.matchAll(/\x1b\]8;[^;]*;([^\x1b]+)\x1b\\/g)].map(match => match[1]!);

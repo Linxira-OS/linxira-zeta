@@ -1,12 +1,11 @@
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { isRecord, prompt, sanitizeText } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import todoDescription from "../prompts/tools/todo.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
@@ -350,7 +349,7 @@ function resolveTaskOrError(
 	errors: string[],
 ): { task: TodoItem; phase: TodoPhase } | undefined {
 	if (!content) {
-		errors.push(M.tdErrMissingContent);
+		errors.push("Missing task content");
 		return undefined;
 	}
 	const hit = findTaskByContent(phases, content);
@@ -361,7 +360,7 @@ function resolveTaskOrError(
 			);
 		} else {
 			const totalTasks = phases.reduce((sum, phase) => sum + phase.tasks.length, 0);
-			const hint = totalTasks === 0 ? M.tdEmptyListHint : "";
+			const hint = totalTasks === 0 ? " (todo list is empty — was it replaced or not yet created?)" : "";
 			errors.push(`Task "${content}" not found${hint}`);
 		}
 	}
@@ -370,7 +369,7 @@ function resolveTaskOrError(
 
 function resolvePhaseOrError(phases: TodoPhase[], name: string | undefined, errors: string[]): TodoPhase | undefined {
 	if (!name) {
-		errors.push(M.tdErrMissingPhase);
+		errors.push("Missing phase name");
 		return undefined;
 	}
 	const phase = findPhaseByName(phases, name);
@@ -404,7 +403,7 @@ function initPhases(entry: TodoOpEntryValue, errors: string[]): TodoPhase[] {
 			? [{ phase: entry.phase ?? DEFAULT_INIT_PHASE, items: entry.items }]
 			: undefined);
 	if (!list) {
-		errors.push(M.tdErrMissingInitList);
+		errors.push("Missing list for init operation");
 		return [];
 	}
 	// Duplicate phase names / task contents would be permanently unaddressable
@@ -413,7 +412,7 @@ function initPhases(entry: TodoOpEntryValue, errors: string[]): TodoPhase[] {
 	const seenTasks = new Set<string>();
 	for (const listEntry of list) {
 		if (seenPhases.has(listEntry.phase)) {
-			errors.push(M.tdErrDuplicatePhaseFmt.replace("%s", listEntry.phase));
+			errors.push(`Duplicate phase "${listEntry.phase}" in init list`);
 		}
 		seenPhases.add(listEntry.phase);
 		for (const content of listEntry.items) {

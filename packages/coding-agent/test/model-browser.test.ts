@@ -2,7 +2,11 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { buildBrowserItems, ModelBrowser, sortModelItems } from "@linxiraos/zeta/modes/components/model-browser";
+import {
+	buildBrowserItems,
+	ModelBrowser,
+	sortModelItems,
+} from "@linxiraos/zeta/modes/components/model-browser";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 function makeModel(provider: string, id: string): Model {

@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseFrontmatter, removeWithRetries } from "@linxiraos/pi-utils";
-import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 import {
 	deleteManagedSkill,
 	getManagedSkillsDir,
@@ -12,6 +10,8 @@ import {
 	toSkillFrontmatter,
 	writeManagedSkill,
 } from "@linxiraos/zeta/autolearn/managed-skills";
+import { parseFrontmatter, removeWithRetries } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 
 describe("managed-skills primitives", () => {
 	let tempHome: string;
@@ -21,7 +21,7 @@ describe("managed-skills primitives", () => {
 		originalAgentDir = getAgentDir();
 		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-managed-skills-"));
 		spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".zeta", "agent"));
+		setAgentDir(path.join(tempHome, ".omp", "agent"));
 	});
 
 	afterEach(async () => {
@@ -124,7 +124,7 @@ describe("managed-skills primitives", () => {
 				writeManagedSkill({ action: "create", name: "../skills/evil", description: "d", body: "b" }),
 			).rejects.toThrow();
 			// Nothing leaked into an authored skills dir.
-			const authoredEvil = path.join(tempHome, ".zeta", "agent", "skills", "evil", "SKILL.md");
+			const authoredEvil = path.join(tempHome, ".omp", "agent", "skills", "evil", "SKILL.md");
 			expect(await Bun.file(authoredEvil).exists()).toBe(false);
 		});
 

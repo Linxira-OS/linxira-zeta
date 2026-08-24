@@ -561,7 +561,7 @@ export class UiHelpers {
 						content.name,
 						renderArgs,
 						{
-							useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool?.(content.name) ?? false,
+							useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool(content.name),
 							snapshots: getFileSnapshotStore(this.ctx.viewSession),
 							clipboard: getEditClipboard(this.ctx.viewSession),
 							showImages: settings.get("terminal.showImages"),
@@ -957,7 +957,7 @@ export class UiHelpers {
 		block.addChild(new DynamicBorder(text => theme.fg("warning", text)));
 		const title = "Update Available";
 		const prefix = `New version ${newVersion} is available. Run: `;
-		const command = "zeta update";
+		const command = "omp update";
 		block.addChild(
 			new Text(`${title}\n${prefix}${command}`, 1, 0).setStyleFn(
 				() =>

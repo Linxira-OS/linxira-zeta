@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
-import { Text, type TUI } from "@linxiraos/pi-tui";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { Text, type TUI } from "@linxiraos/pi-tui";
 
 /**
  * Contract under test (tool-result render memoization):

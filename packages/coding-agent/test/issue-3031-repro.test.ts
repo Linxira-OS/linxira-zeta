@@ -22,7 +22,10 @@ import {
 	MnemopiEmbedClient,
 	type MnemopiEmbedWorkerHandle,
 } from "@linxiraos/zeta/mnemopi/embed-client";
-import type { MnemopiEmbedWorkerInbound, MnemopiEmbedWorkerOutbound } from "@linxiraos/zeta/mnemopi/embed-protocol";
+import type {
+	MnemopiEmbedWorkerInbound,
+	MnemopiEmbedWorkerOutbound,
+} from "@linxiraos/zeta/mnemopi/embed-protocol";
 
 describe("issue #3031 — mnemopi embeddings live in an isolated subprocess", () => {
 	it("ping/pongs through the spawned worker subprocess and tears it down cleanly", async () => {

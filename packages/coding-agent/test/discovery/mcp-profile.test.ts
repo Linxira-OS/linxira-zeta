@@ -16,10 +16,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
 import { loadCapability } from "@linxiraos/zeta/discovery";
+import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
@@ -71,7 +71,7 @@ describe("native user-level MCP discovery follows the active profile", () => {
 
 		// Decoy: the default profile's user file at the literal-home path the old
 		// (buggy) loader read. It must NOT leak into the active profile.
-		await writeMcpJson(path.join(tempHome, ".zeta", "agent"), {
+		await writeMcpJson(path.join(tempHome, ".omp", "agent"), {
 			"default-only": { command: "default-cmd" },
 		});
 		await writeMcpJson(profileAgentDir, {
@@ -93,7 +93,7 @@ describe("native user-level MCP discovery follows the active profile", () => {
 	});
 
 	test("default profile loads the user server from ~/.zeta/agent", async () => {
-		const defaultAgentDir = path.join(tempHome, ".zeta", "agent");
+		const defaultAgentDir = path.join(tempHome, ".omp", "agent");
 		setAgentDir(defaultAgentDir);
 		await writeMcpJson(defaultAgentDir, {
 			"default-only": { command: "default-cmd" },

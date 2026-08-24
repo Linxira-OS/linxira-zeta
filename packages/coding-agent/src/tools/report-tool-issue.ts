@@ -22,8 +22,7 @@
  * the dialog for headless environments.
  *
  * When the user grants consent, push is automatically active against the
- * bundled endpoint (`dev.autoqaPush.endpoint`; empty by default — nothing is
- * pushed until an endpoint is configured). Each
+ * bundled endpoint (`dev.autoqaPush.endpoint`, default `qa.omp.sh`). Each
  * insert schedules a background flush that POSTs pending rows and deletes them
  * on HTTP 2xx. `PI_AUTO_QA_PUSH=1` forces push in non-interactive environments
  * where the consent dialog never fires. Device execution is never blocked on
@@ -38,7 +37,6 @@ import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { $env, $flag, getAutoQaDbPath, getInstallId, logger, VERSION } from "@linxiraos/pi-utils";
 import type { Settings } from "..";
-import { M } from "../i18n/messages";
 import type { Theme } from "../modes/theme/theme";
 import { renderStatusLine, truncateToWidth } from "../tui";
 import type { ToolSession } from "./index";
@@ -80,7 +78,7 @@ export function renderReportIssueDeviceCall(content: unknown, uiTheme: Theme): C
 function parseReportIssueBody(text: string): { tool: string; report: string } {
 	const body = text.trim();
 	if (!body) {
-		throw new ToolError(M.rtiErrEmptyFmt.replace("%s", reportIssueDeviceUsage()));
+		throw new ToolError(`Empty report. ${reportIssueDeviceUsage()}`);
 	}
 	const firstNewline = body.indexOf("\n");
 	if (firstNewline >= 0) {
@@ -94,7 +92,7 @@ function parseReportIssueBody(text: string): { tool: string; report: string } {
 		const report = body.slice(colon + 1).trim();
 		if (tool && report) return { tool, report };
 	}
-	throw new ToolError(M.rtiErrInvalidFmt.replace("%s", reportIssueDeviceUsage()));
+	throw new ToolError(`Invalid report format. ${reportIssueDeviceUsage()}`);
 }
 
 /**

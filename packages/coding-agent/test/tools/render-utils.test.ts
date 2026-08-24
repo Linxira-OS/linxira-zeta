@@ -1,7 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@linxiraos/pi-tui";
 import { KeybindingsManager, setKeyHintPlatform } from "@linxiraos/zeta/config/keybindings";
 import { getThemeByName, initTheme, type Theme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import {
@@ -16,6 +15,7 @@ import {
 	shortenPath,
 	truncateDiffByHunk,
 } from "@linxiraos/zeta/tools/render-utils";
+import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@linxiraos/pi-tui";
 
 describe("parse error formatting", () => {
 	it("deduplicates parse errors while preserving order", () => {

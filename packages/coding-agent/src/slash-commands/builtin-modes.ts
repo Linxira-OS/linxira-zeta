@@ -6,7 +6,6 @@ import {
 	resolveCliModel,
 } from "../config/model-resolver";
 import type { SettingPath, Settings } from "../config/settings";
-import { M } from "../i18n";
 import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
 import type { AgentSession } from "../session/agent-session";
@@ -184,17 +183,17 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		allowArgs: true,
 		acpInputHint: "<plan|scan|status|cancel|scans|show|import|export|validate|compare|disposition>",
 		subcommands: [
-			{ name: "plan", description: M.cmdSecurityPlan },
-			{ name: "scan", description: M.cmdSecurityScan },
-			{ name: "status", description: M.cmdSecurityStatus },
-			{ name: "cancel", description: M.cmdSecurityCancel },
-			{ name: "scans", description: M.cmdSecurityScans },
-			{ name: "show", description: M.cmdSecurityShow },
-			{ name: "import", description: M.cmdSecurityImport },
-			{ name: "export", description: M.cmdSecurityExport },
-			{ name: "validate", description: M.cmdSecurityValidate },
-			{ name: "compare", description: M.cmdSecurityCompare },
-			{ name: "disposition", description: M.cmdSecurityDisposition },
+			{ name: "plan", description: "Create an immutable security scan plan" },
+			{ name: "scan", description: "Start a planned or newly planned native scan" },
+			{ name: "status", description: "Show native scan operation status" },
+			{ name: "cancel", description: "Cancel a running native scan" },
+			{ name: "scans", description: "List stored project security scans" },
+			{ name: "show", description: "Render a scan or security:// resource" },
+			{ name: "import", description: "Import SARIF or a Codex Security bundle" },
+			{ name: "export", description: "Export a canonical bundle, SARIF, or report" },
+			{ name: "validate", description: "Validate one finding with OMP-native tools" },
+			{ name: "compare", description: "Compare finding lineage across two scans" },
+			{ name: "disposition", description: "Set a finding disposition with rationale" },
 		],
 		handle: handleSecurityCommand,
 	},
@@ -213,7 +212,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "gear",
 		description: "Open provider setup",
 		allowArgs: true,
-		subcommands: [{ name: "providers", description: M.cmdSetupProviders }],
+		subcommands: [{ name: "providers", description: "Configure sign-in and web search providers" }],
 		handleTui: async (command, runtime) => {
 			const args = command.args.trim().toLowerCase();
 			const opensProviders = args === "" || args === "providers";
@@ -232,13 +231,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.settings.get("plan.enabled" as SettingPath)) return M.acPlanDisabledInSettings;
+			if (!runtime.ctx.settings.get("plan.enabled" as SettingPath)) return "Plan: disabled in settings";
 			if (runtime.ctx.planModeEnabled) {
 				const planFile = runtime.ctx.planModePlanFilePath;
-				return M.acPlanOnFmt.replace("%s", planFile ? ` (${path.basename(planFile)})` : "");
+				return `Plan: on${planFile ? ` (${path.basename(planFile)})` : ""}`;
 			}
-			if (runtime.ctx.goalModeEnabled) return M.acPlanBlockedByGoalMode;
-			return M.acPlanOff;
+			if (runtime.ctx.goalModeEnabled) return "Plan: blocked by goal mode";
+			return "Plan: off";
 		},
 		handleTui: async (command, runtime) => {
 			await runWithDetachedModeDraft(command, runtime, () =>
@@ -251,7 +250,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "plan",
 		description: "Re-open the plan review for the latest plan (plan mode only)",
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.planModeEnabled ? M.acPlanReviewAvailable : M.acPlanReviewInactive,
+			runtime.ctx.planModeEnabled ? "Plan review: available" : "Plan review: plan mode inactive",
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.openPlanReview();
 			runtime.ctx.editor.setText("");
@@ -264,10 +263,10 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (runtime.ctx.vibeModeEnabled) return M.acVibeOn;
-			if (runtime.ctx.planModeEnabled) return M.acVibeBlockedByPlanMode;
-			if (runtime.ctx.goalModeEnabled) return M.acVibeBlockedByGoalMode;
-			return M.acVibeOff;
+			if (runtime.ctx.vibeModeEnabled) return "Vibe: on";
+			if (runtime.ctx.planModeEnabled) return "Vibe: blocked by plan mode";
+			if (runtime.ctx.goalModeEnabled) return "Vibe: blocked by goal mode";
+			return "Vibe: off";
 		},
 		handleTui: async (command, runtime) => {
 			await runWithDetachedModeDraft(command, runtime, () =>
@@ -280,22 +279,20 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "goal",
 		description: "Toggle goal mode (persistent autonomous objective for this session)",
 		subcommands: [
-			{ name: "set", description: M.cmdGoalSet, usage: "<objective>" },
-			{ name: "show", description: M.cmdGoalShow },
-			{ name: "pause", description: M.cmdGoalPause },
-			{ name: "resume", description: M.cmdGoalResume },
-			{ name: "drop", description: M.cmdGoalDrop },
-			{ name: "budget", description: M.cmdGoalBudget, usage: "<N|off>" },
+			{ name: "set", description: "Set or replace the goal", usage: "<objective>" },
+			{ name: "show", description: "Show current goal details" },
+			{ name: "pause", description: "Pause the current goal" },
+			{ name: "resume", description: "Resume a paused goal" },
+			{ name: "drop", description: "Drop the current goal" },
+			{ name: "budget", description: "Adjust the token budget", usage: "<N|off>" },
 		],
 		inlineHint: "[objective]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.settings.get("goal.enabled" as SettingPath)) return M.acGoalDisabledInSettings;
-			if (runtime.ctx.planModeEnabled) return M.acGoalBlockedByPlanMode;
+			if (!runtime.ctx.settings.get("goal.enabled" as SettingPath)) return "Goal: disabled in settings";
+			if (runtime.ctx.planModeEnabled) return "Goal: blocked by plan mode";
 			const state = runtime.ctx.session.getGoalModeState();
-			return state
-				? M.acGoalOnFmt.replace("%s", state.goal.status).replace("%s", shortDetail(state.goal.objective))
-				: M.acGoalOff;
+			return state ? `Goal: ${state.goal.status} (${shortDetail(state.goal.objective)})` : "Goal: off";
 		},
 		handleTui: async (command, runtime) => {
 			await runWithDetachedModeDraft(command, runtime, () =>
@@ -323,12 +320,11 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		inlineHint: "[count|duration] [prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.loopModeEnabled) return M.acLoopOff;
-			if (runtime.ctx.loopModePaused) return M.acLoopPaused;
-			if (runtime.ctx.loopLimit)
-				return M.acLoopOnLimitFmt.replace("%s", describeLoopLimitRuntime(runtime.ctx.loopLimit));
-			if (runtime.ctx.loopPrompt) return M.acLoopOnRepeating;
-			return M.acLoopOnWaiting;
+			if (!runtime.ctx.loopModeEnabled) return "Loop: off";
+			if (runtime.ctx.loopModePaused) return "Loop: paused";
+			if (runtime.ctx.loopLimit) return `Loop: on (${describeLoopLimitRuntime(runtime.ctx.loopLimit)})`;
+			if (runtime.ctx.loopPrompt) return "Loop: on (repeating prompt)";
+			return "Loop: on (waiting for next prompt)";
 		},
 		handleTui: async (command, runtime) => {
 			const prompt = await runtime.ctx.handleLoopCommand(command.args);
@@ -356,7 +352,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		acpDescription: "Show current model selection",
 		getTuiAutocompleteDescription: runtime => {
 			const model = runtime.ctx.session.model;
-			return model ? M.acModelFmt.replace("%s", model.provider).replace("%s", model.id) : M.acModelNone;
+			return model ? `Model: ${model.provider}/${model.id}` : "Model: none selected";
 		},
 		handle: async (command, runtime) => {
 			if (command.args) {
@@ -399,7 +395,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: "Switch model for this session (same as alt+p)",
 		getTuiAutocompleteDescription: runtime => {
 			const model = runtime.ctx.session.model;
-			return model ? M.acModelFmt.replace("%s", model.provider).replace("%s", model.id) : M.acModelNone;
+			return model ? `Model: ${model.provider}/${model.id}` : "Model: none selected";
 		},
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showModelSelector({ temporaryOnly: true });
@@ -413,12 +409,12 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		acpDescription: "Toggle fast mode",
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: M.cmdFastOn },
-			{ name: "off", description: M.cmdFastOff },
-			{ name: "status", description: M.cmdFastStatus },
+			{ name: "on", description: "Enable fast mode" },
+			{ name: "off", description: "Disable fast mode" },
+			{ name: "status", description: "Show fast mode status" },
 		],
 		allowArgs: true,
-		getTuiAutocompleteDescription: runtime => M.acFastFmt.replace("%s", formatFastModeStatus(runtime.ctx.session)),
+		getTuiAutocompleteDescription: runtime => `Fast: ${formatFastModeStatus(runtime.ctx.session)}`,
 		handle: async (command, runtime) => {
 			const arg = command.args.toLowerCase();
 			if (!arg || arg === "toggle") {
@@ -510,13 +506,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		acpDescription: "Toggle computer use",
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: M.cmdComputerOn },
-			{ name: "off", description: M.cmdComputerOff },
-			{ name: "status", description: M.cmdComputerStatus },
+			{ name: "on", description: "Enable computer use for this session" },
+			{ name: "off", description: "Disable computer use for this session" },
+			{ name: "status", description: "Show computer use status" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
-			M.acComputerFmt.replace("%s", runtime.ctx.session.settings.get("computer.enabled") ? "on" : "off"),
+			`Computer: ${runtime.ctx.session.settings.get("computer.enabled") ? "on" : "off"}`,
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg === "status") {
@@ -555,14 +551,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		acpDescription: "Toggle vision delegation",
 		acpInputHint: "[on|off|auto|status]",
 		subcommands: [
-			{ name: "on", description: M.cmdVisionOn },
-			{ name: "off", description: M.cmdVisionOff },
-			{ name: "auto", description: M.cmdVisionAuto },
-			{ name: "status", description: M.cmdVisionStatus },
+			{ name: "on", description: "Always expose inspect_image this session" },
+			{ name: "off", description: "Never expose inspect_image this session" },
+			{ name: "auto", description: "Follow inspect_image.mode (auto hides it for vision-capable models)" },
+			{ name: "status", description: "Show inspect_image status" },
 		],
 		allowArgs: true,
-		getTuiAutocompleteDescription: runtime =>
-			M.acVisionFmt.replace("%s", runtime.ctx.session.inspectImageState().mode),
+		getTuiAutocompleteDescription: runtime => `Vision: ${runtime.ctx.session.inspectImageState().mode}`,
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg === "status") {

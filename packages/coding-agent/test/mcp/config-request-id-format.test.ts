@@ -21,9 +21,9 @@ import { afterEach, beforeEach, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { loadAllMCPConfigs } from "@linxiraos/zeta/mcp/config";
+import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
@@ -68,7 +68,7 @@ async function loadFrom(file: string, mcpServers: Record<string, unknown>) {
 }
 
 test("requestIdFormat from .zeta/mcp.json reaches the transport config", async () => {
-	const configs = await loadFrom(path.join(".zeta", "mcp.json"), {
+	const configs = await loadFrom(path.join(".omp", "mcp.json"), {
 		xcode: { type: "stdio", command: "/usr/bin/xcrun", args: ["mcpbridge"], requestIdFormat: "number" },
 		plain: { type: "stdio", command: "/bin/echo" },
 	});
@@ -87,7 +87,7 @@ test("requestIdFormat from a standalone .mcp.json reaches the transport config",
 });
 
 test("an unrecognized requestIdFormat is dropped rather than passed through", async () => {
-	const configs = await loadFrom(path.join(".zeta", "mcp.json"), {
+	const configs = await loadFrom(path.join(".omp", "mcp.json"), {
 		bogus: { type: "stdio", command: "/bin/echo", requestIdFormat: "integer" },
 	});
 
@@ -96,7 +96,7 @@ test("an unrecognized requestIdFormat is dropped rather than passed through", as
 });
 
 test("differing requestIdFormat prevents equivalence dedup from collapsing two aliases", async () => {
-	const configs = await loadFrom(path.join(".zeta", "mcp.json"), {
+	const configs = await loadFrom(path.join(".omp", "mcp.json"), {
 		"xcode-string": { type: "stdio", command: "/usr/bin/xcrun", args: ["mcpbridge"], requestIdFormat: "string" },
 		"xcode-default": { type: "stdio", command: "/usr/bin/xcrun", args: ["mcpbridge"] },
 	});
@@ -112,7 +112,7 @@ test("differing requestIdFormat prevents equivalence dedup from collapsing two a
 });
 
 test('an explicit "number" is the default, so dedup collapses it with an unset alias', async () => {
-	const configs = await loadFrom(path.join(".zeta", "mcp.json"), {
+	const configs = await loadFrom(path.join(".omp", "mcp.json"), {
 		"xcode-numeric": { type: "stdio", command: "/usr/bin/xcrun", args: ["mcpbridge"], requestIdFormat: "number" },
 		"xcode-default": { type: "stdio", command: "/usr/bin/xcrun", args: ["mcpbridge"] },
 	});

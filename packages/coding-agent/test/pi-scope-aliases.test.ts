@@ -1,11 +1,10 @@
 /**
  * Regression: plugin extensions must resolve `pi-*` imports across every scope
  * that has ever been used to publish or alias the internal packages —
- * `@mariozechner` (original), `@earendil-works` (fork), `@linxiraos`
- * (downstream), `@zeta` (pre-rename), and `@linxiraos` (canonical). The shim
- * in `legacy-pi-compat.ts` remaps all of them to the same in-process bundled
- * copy so that plugins observe a single module registry regardless of which
- * scope name their peerDependencies happened to declare.
+ * `@mariozechner` (original), `@earendil-works` (fork), and `@oh-my-pi`
+ * (canonical). The shim in `legacy-pi-compat.ts` remaps all three to the same
+ * in-process bundled copy so that plugins observe a single module registry
+ * regardless of which scope name their peerDependencies happened to declare.
  *
  * Reported failures the test covers:
  *   - `@juicesharp/rpiv-ask-user-question` ⇒ `@earendil-works/pi-tui`
@@ -19,11 +18,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const canonicalCodingAgent = Bun.resolveSync("@linxiraos/zeta", import.meta.dir);
-const canonicalCodingAgentExtensions = Bun.resolveSync("@linxiraos/zeta/extensibility/extensions", import.meta.dir);
+const canonicalCodingAgentExtensions = Bun.resolveSync(
+	"@linxiraos/zeta/extensibility/extensions",
+	import.meta.dir,
+);
 const canonicalUtils = Bun.resolveSync("@linxiraos/pi-utils", import.meta.dir);
 const canonicalTui = Bun.resolveSync("@linxiraos/pi-tui", import.meta.dir);
 // Subpath: upstream `pi-ai/oauth` re-exported `utils/oauth/index`; our pi-ai now
@@ -46,7 +48,7 @@ const CASES: readonly AliasCase[] = [
 		canonicalPath: canonicalTui,
 		symbol: "visibleWidth",
 	},
-	// @linxiraos self-import — canonical scope must still flow through the shim
+	// @oh-my-pi self-import — canonical scope must still flow through the shim
 	// so a duplicate copy is never dragged in from a plugin's own node_modules.
 	{ id: "ohmypi-utils", aliasSpecifier: "@linxiraos/pi-utils", canonicalPath: canonicalUtils, symbol: "logger" },
 	{

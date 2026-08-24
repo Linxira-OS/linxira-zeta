@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as executorModule from "@linxiraos/zeta/task/executor";
 import {
 	applyEligibleNestedPatches,
 	mergeIsolatedChanges,
@@ -13,6 +13,7 @@ import {
 import type { SingleResult } from "@linxiraos/zeta/task/types";
 import * as worktreeModule from "@linxiraos/zeta/task/worktree";
 import * as gitModule from "@linxiraos/zeta/utils/git";
+import * as natives from "@linxiraos/pi-natives";
 import { $ } from "bun";
 
 function result(overrides: Partial<SingleResult> = {}): SingleResult {

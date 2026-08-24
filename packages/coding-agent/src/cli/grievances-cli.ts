@@ -195,7 +195,7 @@ function makeProgressBar(total: number, width = 30): ProgressBar {
  * ignoring the user-facing consent gate (manual push is the user's
  * explicit "yes ship these now" intent).
  *
- * Requires endpoint configuration (default `qa.github.com/Linxira-OS/linxira-zeta).
+ * Requires endpoint configuration (default `qa.omp.sh/v1/grievances`).
  */
 export async function pushGrievances(options: PushGrievancesOptions): Promise<void> {
 	const db = openAutoQaDb();

@@ -61,8 +61,6 @@ const ERASE_TO_END_OF_LINE = "\x1b[K";
 const LINE_FIT_MIN_SOURCE_CODE_UNITS = 4096;
 const LINE_FIT_MAX_SOURCE_CODE_UNITS = 65536;
 const LINE_FIT_SOURCE_WIDTH_MULTIPLIER = 64;
-/** Sidebar guard: the main area never drops below this many columns. */
-const MIN_MAIN_AREA_COLUMNS = 64;
 // Hide the hardware cursor before each paint/move write. Ghostty-style bar
 // cursors can otherwise leave visual afterimages while the TUI repaints the
 // row under a visible cursor. Paint writes also disable terminal autowrap:
@@ -841,96 +839,6 @@ export class TUI extends Container {
 			this.#recordHardwareCursorHidden();
 		}
 		this.requestRender();
-	}
-
-	/**
-	 * Yield `width` columns from the right edge of the terminal as a sidebar
-	 * margin, repainted per frame from the gutter component (see
-	 * {@link setGutterComponent}). The main area composes and paints at
-	 * `terminal.columns - width`, which keeps every committed row — and
-	 * therefore native scrollback — free of gutter text. `null` restores
-	 * full-width rendering. Frames where that would drop the main area below
-	 * {@link MIN_MAIN_AREA_COLUMNS} (e.g. terminals narrower than 100 columns
-	 * with the 36-column sidebar), or where a fullscreen-capable overlay is
-	 * visible, ignore the reservation and paint at the physical width.
-	 */
-	setMainWidth(width: number | null): void {
-		const next = width !== null && Number.isInteger(width) && width > 0 ? width : null;
-		if (this.#mainWidthOverride === next) return;
-		this.#mainWidthOverride = next;
-		this.requestRender();
-	}
-
-	/**
-	 * Component rendered into the right-hand margin created by
-	 * {@link setMainWidth}. Its rows are painted viewport-only via absolute
-	 * cursor addressing inside each frame's synchronized block; they never enter
-	 * the composed frame or scrollback. `null` clears the margin.
-	 */
-	setGutterComponent(component: Component | null): void {
-		if (this.#gutterComponent === component) return;
-		this.#gutterComponent = component;
-		this.#paintedGutterRows = null;
-		this.requestRender();
-	}
-
-	/** Effective main-area width for this frame, honoring the sidebar guards. */
-	#effectiveMainWidth(rawWidth: number): number {
-		if (
-			this.#mainWidthOverride === null ||
-			rawWidth - this.#mainWidthOverride < MIN_MAIN_AREA_COLUMNS ||
-			this.overlayStack.length > 0
-		) {
-			return rawWidth;
-		}
-		return rawWidth - this.#mainWidthOverride;
-	}
-
-	/**
-	 * Absolute-positioned paint for one frame's gutter column. Writes every
-	 * viewport row's gutter cells at column `mainWidth + 1`, then restores the
-	 * hardware cursor to `restoreRow` col 1 so a following relative
-	 * cursor-control sequence keeps its existing math. Returns "" when there is
-	 * no gutter this frame.
-	 */
-	#gutterPaintSequence(
-		rows: readonly string[] | null,
-		gutterWidth: number,
-		mainWidth: number,
-		height: number,
-		restoreRow: number,
-	): string {
-		const col = mainWidth + 1; // 1-based first gutter column (main cells are 1..mainWidth)
-		let seq = "";
-		for (let row = 0; row < height; row++) {
-			if (rows === null || gutterWidth <= 0) return "";
-			let text = truncateToWidth(rows[row] ?? "", gutterWidth, Ellipsis.Omit);
-			const pad = gutterWidth - visibleWidth(text);
-			if (pad > 0) text += " ".repeat(pad);
-			seq += `\x1b[${row + 1};${col}H${text}`;
-		}
-		seq += `\x1b[${restoreRow + 1};1H`;
-		return seq;
-	}
-
-	/**
-	 * Clear the gutter column on the top `rows` viewport rows with EL. Paths
-	 * whose main-area writes scroll the screen (scroll-append, seam rewrite,
-	 * append-only baselines) call this BEFORE the scrolling writes so painted
-	 * gutter cells are dragged neither into native scrollback nor onto shifted
-	 * main-area rows; the frame's regular gutter repaint then redraws the whole
-	 * column at its final position.
-	 */
-	#gutterEraseSequence(gutterWidth: number, mainWidth: number, height: number, rows: number): string {
-		if (gutterWidth <= 0 || this.#frameGutter === null || rows <= 0) return "";
-		// DECSC/DECRC bracket so the surrounding path's relative cursor math
-		// never sees the absolute repositioning the EL sweeps require.
-		let seq = "\x1b7";
-		const col = mainWidth + 1;
-		for (let row = 0; row < Math.min(rows, height); row++) {
-			seq += `\x1b[${row + 1};${col}H\x1b[K`;
-		}
-		return `${seq}\x1b8`;
 	}
 
 	/**
@@ -2245,7 +2153,7 @@ export class TUI extends Container {
 	/** Render one frame: alt-screen modal, provider plan, or children fallback. */
 	#doRender(): void {
 		if (this.#stopped) return;
-		const rawWidth = this.terminal.columns;
+		const width = this.terminal.columns;
 		const height = this.terminal.rows;
 		if (this.#resizeAltActive) {
 			this.#renderResizeAltFrame(width, height);
@@ -2277,7 +2185,7 @@ export class TUI extends Container {
 			this.#altActive = true;
 			this.#altMouseTrackingActive = wantMouseTracking;
 			this.#altPreviousLines = [];
-			this.#altEnterWidth = rawWidth;
+			this.#altEnterWidth = width;
 			this.#altEnterHeight = height;
 		} else if (!wantAlt && this.#altActive) {
 			const mouseExit = this.#altMouseTrackingActive ? MOUSE_TRACKING_OFF : "";

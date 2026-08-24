@@ -6,8 +6,8 @@
  *
  * Instead these tests validate the structural contract that listClaudePluginRoots
  * depends on:
- *   1. OMP registry lives at path.join(home, ".zeta", "plugins", "installed_plugins.json")
- *      (matches getConfigDirName() == ".zeta")
+ *   1. OMP registry lives at path.join(home, ".omp", "plugins", "installed_plugins.json")
+ *      (matches getConfigDirName() == ".omp")
  *   2. The registry format passes the same validator that parseClaudePluginsRegistry uses
  *   3. readInstalledPluginsRegistry / writeInstalledPluginsRegistry produce files that
  *      satisfy that validator
@@ -19,7 +19,6 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import type { InstalledPluginEntry } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
@@ -27,6 +26,7 @@ import {
 	readInstalledPluginsRegistry,
 	writeInstalledPluginsRegistry,
 } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // ── Inline validator ───────────────────────────────────────────────────────────
 //
@@ -53,9 +53,9 @@ function validateClaudeRegistryFormat(content: string): Record<string, unknown> 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 // Matches getConfigDirName() — single source of truth is in @linxiraos/pi-utils,
-// but we know the value is ".zeta" and hardcoding it here keeps tests free of
+// but we know the value is ".omp" and hardcoding it here keeps tests free of
 // native-addon transitive imports.
-const OMP_CONFIG_DIR = ".zeta";
+const OMP_CONFIG_DIR = ".omp";
 
 function makeEntry(installPath: string, version = "1.0.0"): InstalledPluginEntry {
 	return {
@@ -89,7 +89,7 @@ describe("OMP registry path contract", () => {
 	it("OMP registry lives at home/.zeta/plugins/installed_plugins.json", () => {
 		// This is the path that listClaudePluginRoots reads.
 		// Any change to this path must be reflected in helpers.ts.
-		const expected = path.join(tmpHome, ".zeta", "plugins", "installed_plugins.json");
+		const expected = path.join(tmpHome, ".omp", "plugins", "installed_plugins.json");
 		expect(ompRegistryPath).toBe(expected);
 	});
 });

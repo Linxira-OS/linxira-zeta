@@ -4,12 +4,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
-import { Container, type TUI } from "@linxiraos/pi-tui";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import type { Rule } from "@linxiraos/zeta/capability/rule";
 import { OmfgController } from "@linxiraos/zeta/modes/controllers/omfg-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { Container, type TUI } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const PROJECT_OPTION = "This project (.zeta/rules)";
 
@@ -171,6 +171,6 @@ describe("OmfgController", () => {
 		expect(harness.container.children).toHaveLength(0);
 		expect(signal?.aborted).toBe(true);
 		expect(controller.hasActiveRequest()).toBe(false);
-		expect(await Bun.file(path.join(harness.projectDir, ".zeta", "rules", "ts-no-any.md")).exists()).toBe(false);
+		expect(await Bun.file(path.join(harness.projectDir, ".omp", "rules", "ts-no-any.md")).exists()).toBe(false);
 	});
 });

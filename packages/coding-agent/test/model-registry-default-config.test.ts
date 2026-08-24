@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 const originalAgentDir = getAgentDir();
 const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;

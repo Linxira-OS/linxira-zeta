@@ -29,17 +29,11 @@
  * queued/planning until `tool_execution_start`, and only then delegate to the
  * wrapped tool's own renderer with the decoded inner args.
  */
-import type {
-	AgentToolContext,
-	AgentToolResult,
-	AgentToolUpdateCallback,
-	ToolLoadMode,
-} from "@linxiraos/pi-agent-core";
+import type { AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolLoadMode } from "@linxiraos/pi-agent-core";
 import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema, validateToolArguments } from "@linxiraos/pi-ai";
 import { type Component, Container, Text } from "@linxiraos/pi-tui";
 import { parseStreamingJson } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import { M } from "../i18n/messages";
 import { XD_URL_PREFIX } from "../internal-urls/xd-protocol";
 import { parseMCPToolName } from "../mcp/tool-bridge";
 import type { Theme } from "../modes/theme/theme";
@@ -131,7 +125,7 @@ function renderDocs(inst: Tool, heading = "#", descriptionCap?: number): string 
 	const schema = jsonSchemaToTypeScript(toolWireSchema(inst as AiTool));
 	let description = inst.description ?? "";
 	if (descriptionCap !== undefined && description.length > descriptionCap) {
-		description = `${description.slice(0, descriptionCap).trimEnd()}${M.xdDocsSuffixFmt.replace("%s", XD_URL_PREFIX + inst.name)}`;
+		description = `${description.slice(0, descriptionCap).trimEnd()}… (full docs: read ${XD_URL_PREFIX}${inst.name})`;
 	}
 	return [
 		`${heading} ${inst.name}${inst.label ? ` — ${inst.label}` : ""}`,
@@ -142,7 +136,7 @@ function renderDocs(inst: Tool, heading = "#", descriptionCap?: number): string 
 		"```ts",
 		`type Args = ${schema};`,
 		"```",
-		M.xdExecuteHintFmt.replace("%s", XD_URL_PREFIX + inst.name),
+		`Execute by writing JSON to ${XD_URL_PREFIX}${inst.name}.`,
 	].join("\n");
 }
 
@@ -184,12 +178,7 @@ function parseDeviceArgs(
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		throw new ToolError(
-			M.xdErrInvalidArgsFmt
-				.replace("%s", XD_URL_PREFIX + device.name)
-				.replace("%s", message)
-				.replace("%s", docs()),
-		);
+		throw new ToolError(`Invalid args for ${XD_URL_PREFIX}${device.name}: ${message}\n\n${docs()}`);
 	}
 }
 

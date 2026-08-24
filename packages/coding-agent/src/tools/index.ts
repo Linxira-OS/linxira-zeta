@@ -4,7 +4,6 @@ import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } 
 import { logger } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
-import type { ImControlParams, ImControlResult } from "../channels/im-control";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
@@ -43,7 +42,6 @@ import { AstGrepTool } from "./ast-grep";
 import { BashTool } from "./bash";
 import { BrowserTool } from "./browser";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
-import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
 import { ComputerTool } from "./computer";
 import { DebugTool } from "./debug";
@@ -53,7 +51,6 @@ import { GithubTool } from "./gh";
 import { GlobTool } from "./glob";
 import { GrepTool } from "./grep";
 import { HubTool, isIrcEnabled } from "./hub";
-import { ImControlTool } from "./im-control";
 import { InspectImageTool } from "./inspect-image";
 import { LearnTool } from "./learn";
 import { ManageSkillTool } from "./manage-skill";
@@ -64,10 +61,9 @@ import { MemoryRetainTool } from "./memory-retain";
 import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
 import type { PlanProposalHandler } from "./resolve";
+import { SecurityScanTool } from "./security-scan";
 import { supportsExternalThinking, ThinkTool } from "./think";
 import { type TodoPhase, TodoTool } from "./todo";
-import { TrackingTool } from "./tracking";
-import { WorkspaceRunTool } from "./workspace-run";
 import { WriteTool } from "./write";
 import { isMountableUnderXdev, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
@@ -110,7 +106,6 @@ export * from "./review";
 export * from "./security-scan";
 export * from "./think";
 export * from "./todo";
-export * from "./tracking";
 export * from "./tts";
 export * from "./vibe";
 export * from "./write";
@@ -179,11 +174,6 @@ export interface ToolSession {
 	suppressSpawnAdvisory?: boolean;
 	/** Optional fetch implementation injected into the URL read pipeline (tests, proxies). Defaults to global fetch. */
 	fetch?: FetchImpl;
-	/** Channel send sink (web/desktop sessions only; undefined in CLI mode). */
-	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
-	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
-	/** Natural-language IM control sink (web/desktop sessions only). */
-	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 	/** Provider credential resolver forwarded unchanged to restricted child sessions. */
 	getApiKey?: AgentOptions["getApiKey"];
 	/** Skip subprocess-kernel availability checks and warmup */
@@ -313,14 +303,16 @@ export interface ToolSession {
 	/**
 	 * Async job manager scoped to this session.
 	 *
-	 * - Top-level session: its own manager (every top-level session
-	 *   constructs one, issue #1923).
+	 * - Top-level session that constructed one: its own manager.
 	 * - Subagent (`parentTaskPrefix` set): the parent's manager, so background
 	 *   bash/task work and `onJobComplete` deliveries flow into the conversation
 	 *   that spawned it.
+	 * - Secondary in-process top-level session that found a singleton already
+	 *   installed (issue #1923): `undefined`. Tools refuse async work rather
+	 *   than silently route completions into the owning session's `yieldQueue`.
 	 *
-	 * Tools MUST use this instead of a process-global handle so one session's
-	 * async work never routes into another session's `yieldQueue`.
+	 * Tools MUST use this instead of `AsyncJobManager.instance()` so a secondary
+	 * session never borrows the owning session's manager by accident.
 	 */
 	asyncJobManager?: AsyncJobManager;
 	/** MCP manager visible to subagents without relying on the process-global singleton. */
@@ -435,23 +427,8 @@ export type ToolFactory = (session: ToolSession) => Tool | null | Promise<Tool |
  * `BUILTIN_TOOLS[name](session)` to construct a tool directly.
  */
 export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
-	channel_send: session => {
-		if (!session.channelSend) return null; // CLI mode
-		return new ChannelSendTool(session);
-	},
-	workspace_run: session => {
-		if (!session.workspaceRun) return null; // CLI mode
-		return new WorkspaceRunTool(session);
-	},
-	im_control: session => {
-		if (!session.imControl) return null; // CLI mode
-		return new ImControlTool(session);
-	},
 	read: s => new ReadTool(s),
-	security_scan: async s => {
-		const { SecurityScanTool } = await import("./security-scan");
-		return new SecurityScanTool(s);
-	},
+	security_scan: s => new SecurityScanTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
@@ -479,7 +456,6 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reflect: MemoryReflectTool.createIf,
 	learn: LearnTool.createIf,
 	manage_skill: ManageSkillTool.createIf,
-	tracking_update: s => new TrackingTool(s),
 };
 
 export const HIDDEN_TOOLS: Record<HiddenToolName, ToolFactory> = {
@@ -641,13 +617,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "debug") return session.settings.get("debug.enabled");
 		if (name === "todo")
 			return (!includeYield || session.prewalkArmed === true) && session.settings.get("todo.enabled");
-		if (name === "tracking_update") return session.settings.get("tracking.enabled");
-		if (name === "channel_send")
-			return session.channelSend !== undefined && session.settings.get("channels.enabled") !== false;
-		if (name === "workspace_run")
-			return session.workspaceRun !== undefined && session.settings.get("channels.enabled") !== false;
-		if (name === "im_control")
-			return session.imControl !== undefined && session.settings.get("channels.enabled") !== false;
 		if (name === "glob") return session.settings.get("glob.enabled");
 		if (name === "grep") return session.settings.get("grep.enabled");
 		if (name === "github") return session.settings.get("github.enabled");

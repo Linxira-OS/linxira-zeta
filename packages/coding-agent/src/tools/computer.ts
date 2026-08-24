@@ -1,3 +1,4 @@
+import { type Type, type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -8,10 +9,8 @@ import type {
 import type { Model } from "@linxiraos/pi-ai";
 import { isClaudeModelId } from "@linxiraos/pi-catalog/identity";
 import type { DesktopCapabilities } from "@linxiraos/pi-natives";
-import { type Type, type } from "@linxiraos/pi-omptype";
 import { once, prompt } from "@linxiraos/pi-utils";
 import { callSessionTool } from "../eval/js/tool-bridge";
-import { M } from "../i18n/messages";
 import computerDescription from "../prompts/tools/computer.md" with { type: "text" };
 import { enforceInlineByteCap } from "../session/streaming-output";
 import { truncateForPrompt } from "./approval";
@@ -133,7 +132,7 @@ export class ComputerTool implements AgentTool<ComputerSchema, ComputerToolDetai
 		_context?: AgentToolContext,
 	): Promise<AgentToolResult<ComputerToolDetails>> {
 		throwIfAborted(signal);
-		if (this.#closed) throw new ToolError(M.cmErrClosed);
+		if (this.#closed) throw new ToolError("Computer session is closed");
 
 		const timeoutSeconds = clampTimeout("computer", params.timeout, this.session.settings.get("tools.maxTimeout"));
 		const coordinateSafe = usesCoordinateSafeImageSizing(this.session.getActiveModel?.());

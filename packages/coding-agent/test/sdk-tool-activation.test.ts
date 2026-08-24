@@ -2,12 +2,11 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, StreamFn } from "@linxiraos/pi-agent-core";
 import type { Model, ToolResultMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
-import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CursorExecHandlers } from "@linxiraos/zeta/cursor";
@@ -27,6 +26,7 @@ import {
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
+import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 
 const toolActivationExtension: ExtensionFactory = pi => {
 	pi.registerTool({
@@ -1253,12 +1253,12 @@ describe("createAgentSession defaultInactive tool activation", () => {
 				// the genuine recovery registration too (flaked in full-suite runs).
 				testSetExtensionHandlerTimeoutMs(EXTENSION_HANDLER_TIMEOUT_MS);
 			});
-			testSetExtensionHandlerTimeoutMs(200);
+			testSetExtensionHandlerTimeoutMs(10);
 
 			await runner.emit({ type: "session_start" });
 			unsubscribe();
 
-			expect(errors).toContain("handler timed out after 200ms");
+			expect(errors).toContain("handler timed out after 10ms");
 			expect(session.getToolByName("stalled_registration_tool")).toBeUndefined();
 			expect(session.getToolByName("recovered_registration_tool")?.label).toBe("recovered_registration_tool");
 			expect(session.getEnabledToolNames()).toContain("recovered_registration_tool");
@@ -1455,7 +1455,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 					await originalSetPresentation(toolNames, mountedToolNames, forcePromptRefresh, signal);
 					if (toolNames.includes("recovered_detached_tool")) recoveredActivation.resolve();
 				});
-			testSetExtensionHandlerTimeoutMs(200);
+			testSetExtensionHandlerTimeoutMs(10);
 
 			releaseStalledRegistration.resolve();
 			const failure = await detachedFailure.promise;

@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobManager } from "@linxiraos/zeta/async";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -17,6 +16,7 @@ import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { resolveSoftRequestBudget, runSubprocess } from "@linxiraos/zeta/task/executor";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Contracts under test — the soft request budget must degrade gracefully

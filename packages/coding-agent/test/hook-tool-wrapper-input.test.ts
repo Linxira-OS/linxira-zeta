@@ -5,14 +5,14 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { Type } from "@linxiraos/pi-omptype/typebox";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { HookRunner, type LoadedHook } from "@linxiraos/zeta/extensibility/hooks";
 import { HookToolWrapper } from "@linxiraos/zeta/extensibility/hooks/tool-wrapper";
-import { Type } from "@linxiraos/zeta/extensibility/typebox";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 describe("HookToolWrapper tool_call input override", () => {
 	let sharedTempDir: TempDir;

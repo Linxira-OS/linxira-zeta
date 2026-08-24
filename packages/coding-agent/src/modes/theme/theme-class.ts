@@ -116,17 +116,6 @@ const langMap: Record<string, SymbolKey> = {
 };
 
 /**
- * Resolve a language name (as returned by `getLanguageFromPath`) to its
- * `lang.*` SymbolKey, falling back to `lang.default`. Shared by
- * {@link Theme.getLangIcon} and preset-only consumers that hold no Theme
- * instance (e.g. the workspace-tree renderer).
- */
-export function resolveLangSymbolKey(lang: string | undefined): SymbolKey {
-	if (!lang) return "lang.default";
-	return langMap[lang.toLowerCase()] ?? "lang.default";
-}
-
-/**
  * Brand colors for language icons, keyed by the resolved `lang.*` SymbolKey.
  * Used by {@link Theme.getLangIconStyled} so eval-kernel cell headers tint each
  * language with its recognizable hue (JS yellow, Ruby red, Julia purple, Python
@@ -699,7 +688,10 @@ export class Theme {
 	 * Maps common language names to their corresponding symbol keys.
 	 */
 	getLangIcon(lang: string | undefined): string {
-		return this.#symbols[resolveLangSymbolKey(lang)];
+		if (!lang) return this.#symbols["lang.default"];
+		const normalized = lang.toLowerCase();
+		const key = langMap[normalized];
+		return key ? this.#symbols[key] : this.#symbols["lang.default"];
 	}
 
 	/**
@@ -709,10 +701,10 @@ export class Theme {
 	 * icon when the active symbol preset has none.
 	 */
 	getLangIconStyled(lang: string | undefined): string {
-		const key = resolveLangSymbolKey(lang);
-		const icon = this.#symbols[key];
+		const icon = this.getLangIcon(lang);
 		if (!icon) return icon;
-		const hex = LANG_BRAND_COLORS[key];
+		const key = lang ? langMap[lang.toLowerCase()] : undefined;
+		const hex = key ? LANG_BRAND_COLORS[key] : undefined;
 		if (!hex) return this.fg("muted", icon);
 		return `${colorToAnsi(hex, this.mode)}${icon}\x1b[39m`;
 	}

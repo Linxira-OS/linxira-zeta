@@ -28,10 +28,10 @@ export default class Agents extends Command {
 	};
 
 	static examples = [
-		"# Export bundled agents into user config (default)\n  zeta agents unpack",
-		"# Export bundled agents into project config\n  zeta agents unpack --project",
-		"# Overwrite existing local agent files\n  zeta agents unpack --project --force",
-		"# Export into a custom directory\n  zeta agents unpack --dir ./tmp/agents --json",
+		"# Export bundled agents into user config (default)\n  omp agents unpack",
+		"# Export bundled agents into project config\n  omp agents unpack --project",
+		"# Overwrite existing local agent files\n  omp agents unpack --project --force",
+		"# Export into a custom directory\n  omp agents unpack --dir ./tmp/agents --json",
 	];
 
 	async run(): Promise<void> {

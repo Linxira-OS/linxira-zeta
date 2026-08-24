@@ -1,5 +1,4 @@
 import * as fs from "node:fs/promises";
-import { M } from "../../i18n/messages";
 import {
 	applyOpsToPhases,
 	getLatestTodoPhasesFromEntries,
@@ -15,17 +14,17 @@ import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import type { InteractiveModeContext } from "../types";
 
 const USAGE = [
-	M.tdUsageTitle,
-	M.tdHelpShow,
-	M.tdHelpEdit,
-	M.tdHelpCopy,
-	M.tdHelpExport,
-	M.tdHelpImport,
-	M.tdHelpAppend,
-	M.tdHelpStart,
-	M.tdHelpDone,
-	M.tdHelpDrop,
-	M.tdHelpRm,
+	"Usage: /todo <verb> [args]",
+	"  /todo                              Show current todos",
+	"  /todo edit                         Open todos in $EDITOR",
+	"  /todo copy                         Copy todos as Markdown to clipboard",
+	"  /todo export [<path>]              Write todos to file (default: TODO.md)",
+	"  /todo import [<path>]              Replace todos from file (default: TODO.md)",
+	"  /todo append [<phase>] <task...>   Append a task; phase fuzzy-matched or auto-created",
+	"  /todo start  <task>                Mark task in_progress (fuzzy content match)",
+	"  /todo done   [<task|phase>]        Mark task/phase/all completed",
+	"  /todo drop   [<task|phase>]        Mark task/phase/all abandoned",
+	"  /todo rm     [<task|phase>]        Remove task/phase/all",
 ].join("\n");
 
 // =============================================================================
@@ -195,7 +194,7 @@ export class TodoCommandController {
 	#showCurrent(): void {
 		const phases = this.#currentPhases();
 		if (phases.length === 0) {
-			this.ctx.showStatus(M.tdNoTodos);
+			this.ctx.showStatus("No todos. Use /todo append <task> to start one.");
 			return;
 		}
 		this.ctx.showStatus(phasesToMarkdown(phases).trimEnd());
@@ -204,12 +203,12 @@ export class TodoCommandController {
 	#copyMarkdown(): void {
 		const phases = this.#currentPhases();
 		if (phases.length === 0) {
-			this.ctx.showWarning(M.tdNoTodosCopy);
+			this.ctx.showWarning("No todos to copy.");
 			return;
 		}
 		try {
 			copyToClipboard(phasesToMarkdown(phases));
-			this.ctx.showStatus(M.tdCopied);
+			this.ctx.showStatus("Copied todos as Markdown to clipboard.");
 		} catch (error) {
 			this.ctx.showError(error instanceof Error ? error.message : String(error));
 		}
@@ -222,7 +221,7 @@ export class TodoCommandController {
 	async #exportToFile(rest: string): Promise<void> {
 		const phases = this.#currentPhases();
 		if (phases.length === 0) {
-			this.ctx.showWarning(M.tdNoTodosExport);
+			this.ctx.showWarning("No todos to export.");
 			return;
 		}
 		try {
@@ -259,7 +258,7 @@ export class TodoCommandController {
 	#append(rest: string): void {
 		const tokens = tokenize(rest);
 		if (tokens.length === 0) {
-			this.ctx.showError(M.tdAppendUsage);
+			this.ctx.showError("Usage: /todo append [<phase>] <task...>");
 			return;
 		}
 
@@ -304,7 +303,7 @@ export class TodoCommandController {
 
 	#start(rest: string): void {
 		if (!rest) {
-			this.ctx.showError(M.tdStartUsage);
+			this.ctx.showError("Usage: /todo start <task>");
 			return;
 		}
 		const current = this.#currentPhases();
@@ -369,8 +368,8 @@ export class TodoCommandController {
 		const current = this.#currentPhases();
 		const trimmed = rest.trim();
 		if (!trimmed) {
-			this.#commit([], M.tdRmAll, { removed: true });
-			this.ctx.showStatus(M.tdClearedAll);
+			this.#commit([], "/todo rm (all)", { removed: true });
+			this.ctx.showStatus("Cleared all todos.");
 			return;
 		}
 		const taskHit = findTaskFuzzy(current, trimmed);
@@ -403,7 +402,7 @@ export class TodoCommandController {
 	async #editInExternalEditor(): Promise<void> {
 		const editorCmd = getEditorCommand();
 		if (!editorCmd) {
-			this.ctx.showWarning(M.tdNoEditor);
+			this.ctx.showWarning("No editor configured. Set $VISUAL or $EDITOR environment variable.");
 			return;
 		}
 
@@ -415,7 +414,7 @@ export class TodoCommandController {
 		try {
 			const result = await openInEditor(editorCmd, initialMarkdown, { extension: ".todo.md" });
 			if (result === null) {
-				this.ctx.showWarning(M.tdEditorNoSave);
+				this.ctx.showWarning("Editor exited without saving; todos unchanged.");
 				return;
 			}
 			const { phases: parsed, errors } = markdownToPhases(result);

@@ -50,9 +50,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function bindingForSubpath(identifier: string, subpath: string): string {
-	// Normalize Windows backslashes to forward slashes
-	const normalized = subpath.replaceAll("\\", "/");
-	const segments = normalized
+	const segments = subpath
 		.split("/")
 		.filter(Boolean)
 		.map(segment =>
@@ -161,9 +159,7 @@ export async function collectBundledPiEntries(): Promise<BundledPiEntry[]> {
 				matches.sort();
 				for (const match of matches) {
 					if (!match.endsWith(pattern.sourceSuffix)) continue;
-					// Normalize Windows backslashes from glob results
-					const normalizedMatch = match.replaceAll("\\", "/");
-					const basename = normalizedMatch.slice(0, normalizedMatch.length - pattern.sourceSuffix.length);
+					const basename = match.slice(0, match.length - pattern.sourceSuffix.length);
 					const segments = basename.split("/");
 					// Every directory on the way has to be importable too: a private or
 					// hidden folder is no more exported than a private file.

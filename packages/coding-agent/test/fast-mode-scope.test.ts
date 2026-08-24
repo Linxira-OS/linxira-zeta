@@ -4,12 +4,12 @@ import { Agent } from "@linxiraos/pi-agent-core";
 import type { Api, Model, ProviderSessionState } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { withOfficialAnthropicEndpoint } from "./helpers/anthropic-endpoint";
 
 withOfficialAnthropicEndpoint();

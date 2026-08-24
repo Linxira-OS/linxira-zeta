@@ -94,6 +94,14 @@ export class YieldQueue {
 		return true;
 	}
 
+	has(kind?: string): boolean {
+		if (kind !== undefined) return (this.#entries.get(kind)?.length ?? 0) > 0;
+		for (const entries of this.#entries.values()) {
+			if (entries.length > 0) return true;
+		}
+		return false;
+	}
+
 	/** Arrange an idle flush for entries queued near the end of a streaming run. */
 	requestIdleFlush(): void {
 		for (const [kind, dispatcher] of this.#dispatchers) {
@@ -102,14 +110,6 @@ export class YieldQueue {
 				return;
 			}
 		}
-	}
-
-	has(kind?: string): boolean {
-		if (kind !== undefined) return (this.#entries.get(kind)?.length ?? 0) > 0;
-		for (const entries of this.#entries.values()) {
-			if (entries.length > 0) return true;
-		}
-		return false;
 	}
 
 	async flush(mode: YieldFlushMode): Promise<void> {

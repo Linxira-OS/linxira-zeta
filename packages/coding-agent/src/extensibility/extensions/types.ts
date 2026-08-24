@@ -8,6 +8,9 @@
  * - Interact with the user via UI primitives
  */
 
+import type { type as ArkType } from "@linxiraos/pi-omptype";
+import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
+import type * as zod from "@linxiraos/pi-omptype/zod";
 import type {
 	AgentMessage,
 	AgentToolResult,

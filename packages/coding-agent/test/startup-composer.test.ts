@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getDefault } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import { COMPOSER_DEFAULTS, Composer, type ComposerPreferences } from "@oh-my-pi/pi-coding-agent/modes/composer";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getDefault } from "@linxiraos/zeta/config/settings-schema";
+import { COMPOSER_DEFAULTS, Composer, type ComposerPreferences } from "@linxiraos/zeta/modes/composer";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	applyStartupComposerPreferences,
 	beginStartupComposer,
@@ -11,8 +11,8 @@ import {
 	setStartupComposerLspServers,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
-} from "@oh-my-pi/pi-coding-agent/modes/startup-composer";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/zeta/modes/startup-composer";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { createTestSession } from "./utilities";
 

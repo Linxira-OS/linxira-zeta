@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:t
 import { Agent, type AgentTool, type AsideMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, TextContent, ToolCall } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TodoTool, type ToolSession } from "@linxiraos/zeta/tools";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /**

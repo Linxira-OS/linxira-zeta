@@ -1,4 +1,3 @@
-import { M } from "../i18n";
 import { runPauseScreen } from "../modes/components/pause-screen";
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
@@ -62,14 +61,6 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleLiveCommand();
-		},
-	},
-	{
-		name: "sidebar",
-		description: M.cmdSidebar,
-		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
-			runtime.ctx.handleSidebarToggle();
 		},
 	},
 	{

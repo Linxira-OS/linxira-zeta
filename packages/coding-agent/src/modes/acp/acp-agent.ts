@@ -634,23 +634,23 @@ export class AcpAgent implements Agent {
 			{
 				id: "agent",
 				name: "Use existing local credentials",
-				description: "Authenticate via the provider keys/OAuth state already configured under ~/.zeta.",
+				description: "Authenticate via the provider keys/OAuth state already configured under ~/.omp.",
 			},
 		];
 		if (params.clientCapabilities?.auth?.terminal === true) {
 			authMethods.push({
 				type: "terminal",
 				id: "terminal",
-				name: "Set up Zeta in terminal",
-				description: "Launch the zeta TUI to add provider keys and select models.",
+				name: "Set up Oh My Pi in terminal",
+				description: "Launch the omp TUI to add provider keys and select models.",
 				args: [ACP_TERMINAL_AUTH_FLAG],
 			});
 		}
 		return {
 			protocolVersion: PROTOCOL_VERSION,
 			agentInfo: {
-				name: "zeta",
-				title: "Zeta",
+				name: "oh-my-pi",
+				title: "Oh My Pi",
 				version: VERSION,
 			},
 			authMethods,

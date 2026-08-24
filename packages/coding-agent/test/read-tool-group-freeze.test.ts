@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { Component } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
 import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
+import type { Component } from "@linxiraos/pi-tui";
 
 /** Minimal transcript block whose finalized state is fixed at construction. */
 class StubBlock implements Component {

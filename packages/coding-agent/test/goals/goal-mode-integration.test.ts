@@ -2,7 +2,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { GoalTool } from "@linxiraos/zeta/goals/tools/goal-tool";
@@ -16,6 +15,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import { createTools, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
 import type { TodoPhase } from "@linxiraos/zeta/tools/todo";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function createToolSession(cwd: string, settings: Settings, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

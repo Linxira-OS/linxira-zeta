@@ -14,7 +14,6 @@ import { Agent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Context, Model, SimpleStreamOptions, StopReason } from "@linxiraos/pi-ai";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
@@ -22,6 +21,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Snowflake } from "@linxiraos/pi-utils";
 
 // Mirrors the reporter's block-reason shape: multi-line prose with U+2717
 // glyphs, ~300–600 chars. Persisted as-is on each `session-stop-continuation`

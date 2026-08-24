@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeText } from "@linxiraos/pi-utils";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { globToolRenderer } from "../../src/tools/glob";
 
 describe("globToolRenderer", () => {

@@ -8,10 +8,10 @@ import {
 	validateStrictSchemaEnforcement,
 } from "@linxiraos/pi-ai/utils/schema";
 import { validateToolCall } from "@linxiraos/pi-ai/utils/validation";
-import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/sdk";
 import { type BrowserParams, BrowserTool } from "@linxiraos/zeta/tools/browser";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 function makeSession(): ToolSession {
 	return {

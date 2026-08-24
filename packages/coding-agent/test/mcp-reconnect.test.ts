@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "bun:test";
-import { logger } from "@linxiraos/pi-utils";
 import type { MCPReconnect } from "@linxiraos/zeta/mcp/tool-bridge";
 import {
 	createMCPToolName,
@@ -8,8 +7,14 @@ import {
 	isRetriableConnectionError,
 	MCPTool,
 } from "@linxiraos/zeta/mcp/tool-bridge";
-import type { MCPImageContent, MCPServerConnection, MCPToolCallResult, MCPTransport } from "@linxiraos/zeta/mcp/types";
+import type {
+	MCPImageContent,
+	MCPServerConnection,
+	MCPToolCallResult,
+	MCPTransport,
+} from "@linxiraos/zeta/mcp/types";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { logger } from "@linxiraos/pi-utils";
 
 // ---------------------------------------------------------------------------
 // Helpers

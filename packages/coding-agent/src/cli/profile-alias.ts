@@ -289,7 +289,7 @@ function renderAliasBlock(
 	switch (shell) {
 		case "fish":
 			body = [
-				`function ${aliasName} --wraps zeta --description 'Zeta profile ${profile}'`,
+				`function ${aliasName} --wraps omp --description 'OMP profile ${profile}'`,
 				`    command ${command.fish} --profile=${profile} $argv`,
 				"end",
 			].join("\n");

@@ -12,14 +12,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as AIError from "@linxiraos/pi-ai/error";
-import type { TUI } from "@linxiraos/pi-tui";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
 import type { ObservableSession } from "@linxiraos/zeta/modes/session-observer-registry";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
+import type { TUI } from "@linxiraos/pi-tui";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 const SESSION_ID = "test-session-1";
 

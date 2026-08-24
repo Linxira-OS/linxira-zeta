@@ -1,16 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CustomEditor } from "@oh-my-pi/pi-coding-agent/modes/components/custom-editor";
-import { UserMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/user-message";
-import { chipLabel } from "@oh-my-pi/pi-coding-agent/modes/composer-attachments";
-import { imageReferenceHyperlink } from "@oh-my-pi/pi-coding-agent/modes/image-references";
-import { getEditorTheme, initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { Container } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
+import { UserMessageComponent } from "@linxiraos/zeta/modes/components/user-message";
+import { chipLabel } from "@linxiraos/zeta/modes/composer-attachments";
+import { imageReferenceHyperlink } from "@linxiraos/zeta/modes/image-references";
+import { getEditorTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { Container } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();

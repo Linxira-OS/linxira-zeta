@@ -1,8 +1,7 @@
-import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger, untilAborted } from "@linxiraos/pi-utils";
 import { ensureBankExists } from "../hindsight/bank";
-import { M } from "../i18n/messages";
 import reflectDescription from "../prompts/tools/reflect.md" with { type: "text" };
 import type { ToolSession } from ".";
 
@@ -37,23 +36,23 @@ export class MemoryReflectTool implements AgentTool<typeof memoryReflectSchema> 
 			if (backend === "mnemopi") {
 				const state = this.session.getMnemopiSessionState?.();
 				if (!state) {
-					throw new Error(M.meErrMnemopiNotInit);
+					throw new Error("Mnemopi backend is not initialised for this session.");
 				}
 
 				try {
 					const query = params.context?.trim()
-						? `${params.query.trim()}\n\n${M.meAdditionalContext}\n${params.context.trim()}`
+						? `${params.query.trim()}\n\nAdditional context:\n${params.context.trim()}`
 						: params.query;
 					const results = await state.recallResultsScoped(query);
 					if (results.length === 0) {
 						return {
-							content: [{ type: "text", text: M.meNoInfoToReflect }],
+							content: [{ type: "text", text: "No relevant information found to reflect on." }],
 							details: {},
 						};
 					}
 					const summary = state.formatContextScoped(results);
 					return {
-						content: [{ type: "text", text: M.meReflectFmt.replace("%s", summary) }],
+						content: [{ type: "text", text: `Based on recalled memories:\n\n${summary}` }],
 						details: {},
 					};
 				} catch (err) {
@@ -64,7 +63,7 @@ export class MemoryReflectTool implements AgentTool<typeof memoryReflectSchema> 
 
 			const state = this.session.getHindsightSessionState?.();
 			if (!state) {
-				throw new Error(M.meErrHindsightNotInit);
+				throw new Error("Hindsight backend is not initialised for this session.");
 			}
 
 			try {
@@ -75,7 +74,7 @@ export class MemoryReflectTool implements AgentTool<typeof memoryReflectSchema> 
 					tags: state.recallTags,
 					tagsMatch: state.recallTagsMatch,
 				});
-				const text = response.text?.trim() || M.meNoInfoToReflect;
+				const text = response.text?.trim() || "No relevant information found to reflect on.";
 				return {
 					content: [{ type: "text", text }],
 					details: {},

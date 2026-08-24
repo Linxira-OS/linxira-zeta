@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { matchesAppFollowUp } from "@linxiraos/zeta/modes/utils/keybinding-matchers";
 import { type KeybindingsConfig, setKeybindings } from "@linxiraos/pi-tui";
 import {
 	__resetDirsFromEnvForTests,
@@ -10,8 +12,6 @@ import {
 	removeWithRetries,
 	setProfile,
 } from "@linxiraos/pi-utils";
-import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
-import { matchesAppFollowUp } from "@linxiraos/zeta/modes/utils/keybinding-matchers";
 import { YAML } from "bun";
 
 function ctrl(key: string): string {

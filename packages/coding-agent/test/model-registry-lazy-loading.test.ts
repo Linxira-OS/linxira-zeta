@@ -4,9 +4,9 @@ import type { Api, Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { litellmModelManagerOptions } from "@linxiraos/pi-catalog/provider-models";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const probePath = path.join(import.meta.dir, "fixtures", "model-registry-construction-build-probe.ts");
 

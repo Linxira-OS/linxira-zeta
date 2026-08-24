@@ -19,7 +19,6 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "@linxiraos/pi-tui";
-import { M } from "../../i18n";
 import { getMarkdownTheme, type ThemeColor, theme } from "../../modes/theme/theme";
 import {
 	matchesAppExternalEditor,
@@ -260,7 +259,7 @@ export class HookSelectorComponent extends OverlayPanel {
 			this.addChild(this.#listContainer);
 		}
 		this.addChild(new Spacer(1));
-		const controlsHint = opts?.helpText ?? M.hsHelpHint;
+		const controlsHint = opts?.helpText ?? "up/down navigate  enter select  esc cancel";
 		this.addChild(new Text(theme.fg("dim", controlsHint), 0, 0));
 		this.addChild(new Spacer(1));
 
@@ -535,7 +534,7 @@ export class HookSelectorComponent extends OverlayPanel {
 		}
 
 		if (total === 0) {
-			rows.push({ text: theme.fg("dim", M.hsNoMatchingOptions), highlight: false });
+			rows.push({ text: theme.fg("dim", "  No matching options"), highlight: false });
 		}
 
 		if (startIndex > 0 || endIndex < total || this.#shouldRenderSearchStatus(renderWidth, mdTheme)) {
@@ -601,7 +600,7 @@ export class HookSelectorComponent extends OverlayPanel {
 			this.#searchQuery.trim() && total !== this.#options.length
 				? `${selectedCount}/${total} of ${this.#options.length}`
 				: `${selectedCount}/${total}`;
-		const suffix = this.#searchQuery.trim() ? M.hsSearchFmt.replace("%s", this.#searchQuery) : M.hsTypeToSearch;
+		const suffix = this.#searchQuery.trim() ? `  Search: ${this.#searchQuery}` : "  Type to search";
 		return theme.fg("dim", `  (${count})${suffix}`);
 	}
 

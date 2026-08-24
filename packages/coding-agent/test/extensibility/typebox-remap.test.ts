@@ -3,12 +3,12 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Type as TypeBoxShimType } from "@linxiraos/zeta/extensibility/legacy-typebox";
 import {
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
 } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // The remap installs a Bun.plugin onResolve hook plus an explicit
 // rewrite branch inside `rewriteBareImportsForLegacyExtension` that

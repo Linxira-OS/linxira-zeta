@@ -8,20 +8,16 @@ describe("resolveDaemonSpawnOptions", () => {
 				platform: "win32",
 				hostHasInheritableConsole: false,
 			}),
-		).toEqual({ detached: true, windowsHide: true });
+		).toEqual({ detached: false, windowsHide: true });
 	});
 
-	it("keeps Windows daemons alive after their spawning process exits", () => {
-		// `detached: true` on win32 outlives the spawning process: with
-		// `detached: false` Bun joins the broker to the parent's job, so the
-		// broker (and every daemon it owns, e.g. the browser relay) dies with
-		// the first consumer that started it. A host with a console shares it.
+	it("inherits the Windows host console instead of detaching", () => {
 		expect(
 			resolveDaemonSpawnOptions({
 				platform: "win32",
 				hostHasInheritableConsole: true,
 			}),
-		).toEqual({ detached: true, windowsHide: false });
+		).toEqual({ detached: false, windowsHide: false });
 	});
 
 	it("keeps POSIX daemons in their own session", () => {

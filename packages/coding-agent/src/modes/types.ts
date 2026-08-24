@@ -35,7 +35,6 @@ import type { EvalExecutionComponent } from "./components/eval-execution";
 import type { HookEditorComponent } from "./components/hook-editor";
 import type { HookInputComponent } from "./components/hook-input";
 import type { HookSelectorComponent, HookSelectorOptions } from "./components/hook-selector";
-import type { SidebarComponent } from "./components/sidebar";
 import type { StatusLineComponent } from "./components/status-line";
 import type { ToolExecutionHandle } from "./components/tool-execution";
 import type { TranscriptContainer } from "./components/transcript-container";
@@ -124,7 +123,6 @@ export interface InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
-	sidebar: SidebarComponent;
 	syncComposerShape(): void;
 	syncEditorSpelling(): void;
 
@@ -404,8 +402,6 @@ export interface InteractiveModeContext {
 	handleSTTToggle(): Promise<void>;
 	/** Start or stop the Codex-backed realtime voice session. */
 	handleLiveCommand(): Promise<void>;
-	/** Toggle the right-hand sidebar (setting + live engine re-wire). */
-	handleSidebarToggle(): void;
 	executeCompaction(
 		customInstructionsOrOptions?: string | CompactOptions,
 		isAuto?: boolean,

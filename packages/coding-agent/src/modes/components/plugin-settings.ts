@@ -30,7 +30,6 @@ import {
 	parsePluginId,
 } from "../../extensibility/plugins/marketplace";
 import type { InstalledPlugin, PluginSettingSchema } from "../../extensibility/plugins/types";
-import { M } from "../../i18n/messages";
 import { getSelectListTheme, getSettingsListTheme, theme } from "../../modes/theme/theme";
 import { shortenPath } from "../../tools/render-utils";
 import { OverlayPanel } from "./overlay-box";
@@ -178,10 +177,12 @@ export class PluginListComponent extends OverlayPanel {
 		this.addChild(new Spacer(1));
 
 		if (entries.length === 0) {
-			this.addChild(new Text(theme.fg("muted", M.psNoPlugins), 0, 0));
+			this.addChild(new Text(theme.fg("muted", "No plugins installed"), 0, 0));
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("dim", M.psInstallNpmHint), 0, 0));
-			this.addChild(new Text(theme.fg("dim", M.psInstallMarketplaceHint), 0, 0));
+			this.addChild(new Text(theme.fg("dim", "Install npm plugins:        omp plugin install <package>"), 0, 0));
+			this.addChild(
+				new Text(theme.fg("dim", "Install marketplace plugins: omp plugin install <name>@<marketplace>"), 0, 0),
+			);
 			this.addChild(new Spacer(1));
 
 			// Empty list still handles Escape so the user can leave the panel.
@@ -211,11 +212,11 @@ export class PluginListComponent extends OverlayPanel {
 
 		this.addChild(this.#selectList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", M.psConfigHint), 0, 0));
+		this.addChild(new Text(theme.fg("dim", "Enter to configure · Esc to go back"), 0, 0));
 	}
 
 	#renderItem(entry: PluginListEntry): SelectItem {
-		const kindBadge = theme.fg("dim", entry.kind === "npm" ? M.psBadgeNpm : M.psBadgeMarketplace);
+		const kindBadge = theme.fg("dim", entry.kind === "npm" ? "[npm]" : "[marketplace]");
 
 		if (entry.kind === "npm") {
 			const p = entry.plugin;
@@ -309,7 +310,7 @@ export class PluginDetailComponent extends OverlayPanel {
 		items.push({
 			id: "__enabled__",
 			label: "Enabled",
-			description: M.psToggleDesc,
+			description: "Enable or disable this plugin",
 			currentValue: plugin.enabled ? "true" : "false",
 			values: ["true", "false"],
 		});
@@ -370,7 +371,7 @@ export class PluginDetailComponent extends OverlayPanel {
 
 		this.addChild(this.#settingsList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", M.psEditHint), 0, 0));
+		this.addChild(new Text(theme.fg("dim", "Enter to edit · Esc to go back"), 0, 0));
 	}
 
 	handleInput(data: string): void {
@@ -479,20 +480,13 @@ export class MarketplacePluginDetailComponent extends OverlayPanel {
 		this.addChild(new Text(theme.fg("dim", `scope         ${plugin.scope}`), 0, 0));
 		this.addChild(
 			new Text(
-				theme.fg(
-					"dim",
-					M.psInstallPathFmt.replace("%s", entry?.installPath ? shortenPath(entry.installPath) : M.psUnknown),
-				),
+				theme.fg("dim", `install path  ${entry?.installPath ? shortenPath(entry.installPath) : "(unknown)"}`),
 				0,
 				0,
 			),
 		);
-		this.addChild(
-			new Text(theme.fg("dim", M.psInstalledAtFmt.replace("%s", entry?.installedAt ?? M.psUnknown)), 0, 0),
-		);
-		this.addChild(
-			new Text(theme.fg("dim", M.psLastUpdatedFmt.replace("%s", entry?.lastUpdated ?? M.psUnknown)), 0, 0),
-		);
+		this.addChild(new Text(theme.fg("dim", `installed at  ${entry?.installedAt ?? "(unknown)"}`), 0, 0));
+		this.addChild(new Text(theme.fg("dim", `last updated  ${entry?.lastUpdated ?? "(unknown)"}`), 0, 0));
 		if (entry?.gitCommitSha) {
 			this.addChild(new Text(theme.fg("dim", `git sha       ${entry.gitCommitSha}`), 0, 0));
 		}
@@ -544,7 +538,7 @@ class ConfigEnumSubmenu extends OverlayPanel {
 
 		this.addChild(this.#selectList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", M.psSelectHint), 0, 0));
+		this.addChild(new Text(theme.fg("dim", "Enter to select · Esc to cancel"), 0, 0));
 	}
 
 	handleInput(data: string): void {
@@ -600,7 +594,7 @@ class ConfigInputSubmenu extends OverlayPanel {
 
 		this.addChild(this.#input);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", M.psSaveHint), 0, 0));
+		this.addChild(new Text(theme.fg("dim", "Enter to save · Esc to cancel"), 0, 0));
 	}
 
 	handleInput(data: string): void {

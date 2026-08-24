@@ -10,13 +10,13 @@ import {
 	getBundledProviders,
 	modelsAreEqual,
 } from "@linxiraos/pi-catalog/models";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Type as TypeBoxShimType } from "@linxiraos/zeta/extensibility/legacy-typebox";
 import {
 	__resetLegacyPiResolutionCache,
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
 } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 // pi-ai 15.1.0 removed the runtime `Type` export from `@linxiraos/pi-ai`'s
 // package root. Legacy extensions (and their aliased-scope variants such as

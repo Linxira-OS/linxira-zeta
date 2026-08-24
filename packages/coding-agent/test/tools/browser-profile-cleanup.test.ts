@@ -10,9 +10,9 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as piUtils from "@linxiraos/pi-utils";
 import { removeUserDataDir } from "@linxiraos/zeta/tools/browser/launch";
 import { type BrowserHandle, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import * as piUtils from "@linxiraos/pi-utils";
 
 async function makeProfileDir(): Promise<string> {
 	const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-chrome-profile-test-"));
