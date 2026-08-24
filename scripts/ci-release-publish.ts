@@ -84,6 +84,42 @@ interface PackageManifest {
 const repoRoot = path.join(import.meta.dir, "..");
 const isDryRun = process.argv.includes("--dry-run");
 const isPackOnly = process.argv.includes("--pack-only");
+const MIT_LICENSE = "LICENSE";
+const THIRD_PARTY_NOTICES = "THIRD-PARTY-NOTICES.txt";
+
+/** Selects the legal payload contract for a publishable first-party package. */
+export function legalPayloadFiles(license: string | undefined): string[] {
+	switch (license) {
+		case "MIT":
+			return [MIT_LICENSE, THIRD_PARTY_NOTICES];
+		default:
+			throw new Error(`Unsupported package license: ${license ?? "<missing>"}`);
+	}
+}
+
+/**
+ * Materialize the legal payload beside a package manifest before packing.
+ * Package-local license/notice files win; missing files fall back to the
+ * repository payload so generated and source packages follow one contract.
+ */
+export async function stageLegalPayloads(
+	pkgDir: string,
+	license: string | undefined,
+	write: boolean,
+	sourceRoot = repoRoot,
+): Promise<string[]> {
+	const files = legalPayloadFiles(license);
+	for (const file of files) {
+		const destination = path.join(pkgDir, file);
+		if (await Bun.file(destination).exists()) continue;
+		const source = path.join(sourceRoot, file);
+		if (!(await Bun.file(source).exists())) {
+			throw new Error(`Missing legal payload ${file} for ${path.relative(repoRoot, pkgDir)}`);
+		}
+		if (write) await fs.copyFile(source, destination);
+	}
+	return files;
+}
 
 function nativeLeafTagFromArgs(argv: readonly string[]): string | null {
 	for (let i = 0; i < argv.length; i++) {
