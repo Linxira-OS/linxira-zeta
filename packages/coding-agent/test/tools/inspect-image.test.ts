@@ -2,19 +2,19 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, type completeSimple, Effort, type ImageContent, type Model } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
-import { removeSyncWithRetries, sanitizeText } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
-import { createAgentSession } from "@linxiraos/zeta/sdk";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { InspectImageTool } from "@linxiraos/zeta/tools/inspect-image";
-import { inspectImageToolRenderer } from "@linxiraos/zeta/tools/inspect-image-renderer";
-import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
+import { type } from "@oh-my-pi/omptype";
+import { AuthStorage, type completeSimple, Effort, type ImageContent, type Model } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { getThemeByName } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { ImageAttachmentEntry, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { InspectImageTool } from "@oh-my-pi/pi-coding-agent/tools/inspect-image";
+import { inspectImageToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/inspect-image-renderer";
+import { toolRenderers } from "@oh-my-pi/pi-coding-agent/tools/renderers";
+import { removeSyncWithRetries, sanitizeText } from "@oh-my-pi/pi-utils";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
@@ -49,7 +49,7 @@ interface CreateSessionOptions {
 	availableModels?: Model<"openai-responses">[];
 	activeModel?: Model<"openai-responses">;
 	configureVisionRole?: boolean;
-	imageAttachments?: { label: string; uri: string; image: ImageContent }[];
+	imageAttachments?: ImageAttachmentEntry[];
 }
 
 interface CompleteSimpleStub {
@@ -226,7 +226,9 @@ describe("InspectImageTool", () => {
 		const missingCwd = path.join(testDir, "missing-cwd");
 		const tool = new InspectImageTool(
 			createSession(missingCwd, visionModel, "test-key", Settings.isolated({ "images.autoResize": false }), {
-				imageAttachments: [{ label: "Image #1", uri: "attachment://1", image }],
+				imageAttachments: [
+					{ label: "Image #1", uri: "attachment://1", image, sourcePath: path.join(testDir, "pasted-image.png") },
+				],
 			}),
 			stub.fn,
 		);
@@ -250,9 +252,9 @@ describe("InspectImageTool", () => {
 	it("resolves bracketed labels and attachment URIs deterministically", async () => {
 		const first: ImageContent = { type: "image", data: TINY_PNG_BASE64, mimeType: "image/png" };
 		const second: ImageContent = { type: "image", data: TINY_PNG_BASE64, mimeType: "image/png" };
-		const attachments = [
-			{ label: "Image #1", uri: "attachment://1", image: first },
-			{ label: "Image #2", uri: "attachment://2", image: second },
+		const attachments: ImageAttachmentEntry[] = [
+			{ label: "Image #1", uri: "attachment://1", image: first, sourcePath: path.join(testDir, "first.png") },
+			{ label: "Image #2", uri: "attachment://2", image: second, sourcePath: path.join(testDir, "second.png") },
 		];
 
 		const bracketStub = createCompleteSimpleSuccessStub("First");
@@ -284,7 +286,14 @@ describe("InspectImageTool", () => {
 		const stub = createCompleteSimpleForbiddenStub();
 		const tool = new InspectImageTool(
 			createSession(testDir, visionModel, "test-key", Settings.isolated(), {
-				imageAttachments: [{ label: "Image #1", uri: "attachment://1", image }],
+				imageAttachments: [
+					{
+						label: "Image #1",
+						uri: "attachment://1",
+						image,
+						sourcePath: path.join(testDir, "missing-label-source.png"),
+					},
+				],
 			}),
 			stub.fn,
 		);
@@ -329,9 +338,12 @@ describe("InspectImageTool", () => {
 				const tool = session.getToolByName("inspect_image");
 				expect(tool).toBeDefined();
 				const wiredToolSession = (tool as unknown as { session?: ToolSession }).session;
-				expect(wiredToolSession?.getImageAttachments?.()).toEqual([
-					{ label: "Image #1", uri: "attachment://1", image },
-				]);
+				const attachments = wiredToolSession?.getImageAttachments?.();
+				const sourcePath = attachments?.[0]?.sourcePath;
+				if (!sourcePath) {
+					throw new Error("Expected attachment sourcePath to be populated");
+				}
+				expect(attachments).toEqual([{ label: "Image #1", uri: "attachment://1", image, sourcePath }]);
 			} finally {
 				await session.dispose();
 			}

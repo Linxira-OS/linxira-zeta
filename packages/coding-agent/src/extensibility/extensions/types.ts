@@ -33,11 +33,9 @@ import type {
 	Static,
 	TextContent,
 	TSchema,
+	UsageProvider,
 } from "@linxiraos/pi-ai";
 import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
-import type { type as ArkType } from "@linxiraos/pi-omptype";
-import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
-import type * as zod from "@linxiraos/pi-omptype/zod";
 import type {
 	AutocompleteItem,
 	AutocompleteProvider,
@@ -521,6 +519,21 @@ export interface ExtensionContext {
 		params: Record<string, unknown>,
 		options?: { signal?: AbortSignal; onUpdate?: AgentToolUpdateCallback<TDetails> },
 	): Promise<AgentToolResult<TDetails>>;
+
+	/**
+	 * Whether project-local inputs for the current working directory (extensions, settings,
+	 * skills, resources) are trusted. Upstream `@earendil-works/pi-coding-agent` (>=0.79) asks the
+	 * user once per directory before loading project-local inputs and exposes the saved decision
+	 * here; extensions written against that API (e.g. Plannotator) feature-detect this method to
+	 * decide whether project-local config is safe to load, and warn when it is absent.
+	 *
+	 * OMP has no equivalent per-directory trust gate: `.zeta/extensions`, `.zeta/config.yml`, and
+	 * other project-local inputs are already discovered and loaded unconditionally (see
+	 * `docs/extension-loading.md`). This method exists for compatibility with that upstream surface
+	 * and always returns `true`, truthfully reflecting that OMP already trusts project-local inputs
+	 * by default -- it does not narrow or widen OMP's own security model.
+	 */
+	isProjectTrusted(): boolean;
 }
 
 /**
@@ -1520,6 +1533,8 @@ export interface ProviderConfig {
 	authHeader?: boolean;
 	/** Models to register. If provided, replaces all existing models for this provider. */
 	models?: ProviderModelConfig[];
+	/** Optional normalized usage fetcher used by AuthStorage for this provider. */
+	usage?: UsageProvider;
 	/** OAuth provider for /login support. */
 	oauth?: {
 		/** Display name in login UI. */

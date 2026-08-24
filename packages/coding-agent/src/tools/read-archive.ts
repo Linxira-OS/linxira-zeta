@@ -1,8 +1,13 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { TextContent } from "@linxiraos/pi-ai";
+import {
+	type ArchiveReader,
+	formatArchiveEntryLines,
+	openArchive,
+	parseArchivePathCandidates,
+} from "@linxiraos/pi-utils/ar";
 import type { ToolSession } from "../sdk";
 import { truncateHead } from "../session/streaming-output";
-import { type ArchiveReader, formatArchiveEntryLines, openArchive, parseArchivePathCandidates } from "../utils/zip";
 import { applyListLimit } from "./list-limit";
 import { resolveReadPath } from "./path-utils";
 import type { ReadToolDetails } from "./read";

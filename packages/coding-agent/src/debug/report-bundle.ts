@@ -9,7 +9,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { WorkProfile } from "@linxiraos/pi-natives";
 import { APP_NAME, getLogPath, getLogsDir, getReportsDir, isEnoent } from "@linxiraos/pi-utils";
-import { writeArchive } from "../utils/zip";
+import { writeArchive } from "@linxiraos/pi-utils/ar";
 import type { CpuProfile, HeapSnapshot } from "./profiler";
 import { collectSystemInfo, sanitizeEnv } from "./system-info";
 

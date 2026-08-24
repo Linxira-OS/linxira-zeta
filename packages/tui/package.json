@@ -37,11 +37,13 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
+    "@oh-my-pi/pi-natives": "catalog:",
+    "@oh-my-pi/pi-utils": "catalog:",
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:"
   },
   "devDependencies": {
-    "ghostty-web": "catalog:"
+    "kitty-vt-wasm": "catalog:"
   },
   "engines": {
     "bun": ">=1.3.14"

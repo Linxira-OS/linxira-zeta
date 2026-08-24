@@ -8,12 +8,16 @@ import type {
 	AgentToolUpdateCallback,
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
-import { formatHashlineHeader } from "@linxiraos/pi-hashline";
 import { type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { prompt, untilAborted } from "@linxiraos/pi-utils";
+import {
+	type ArchiveReader,
+	type ExtractedArchiveFile,
+	openArchive,
+	parseArchivePathCandidates,
+} from "@linxiraos/pi-utils/ar";
 import { recordFileSnapshot, recordSeenLinesFromBody } from "../edit/file-snapshot-store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n/messages";
@@ -36,7 +40,6 @@ import {
 	uriHyperlink,
 } from "../tui";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
-import { type ArchiveReader, type ExtractedArchiveFile, openArchive, parseArchivePathCandidates } from "../utils/zip";
 import type { ToolSession } from ".";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath } from "./file-recorder";
@@ -806,7 +809,7 @@ async function resolveInternalSearchInputs(opts: {
 		// misleading. Local/skill/vault dir resources set `sourcePath` and skip this.
 		if (resource.isDirectory && !resource.sourcePath) {
 			throw new ToolError(
-				`search cannot recurse the directory listing at ${rawPath}; search a specific file under it (e.g. ${rawPath.replace(/\/+$/, "")}/<file>) or read ${rawPath} to list its entries`,
+				`grep cannot recurse the directory listing at ${rawPath}; grep a specific file under it (e.g. ${rawPath.replace(/\/+$/, "")}/<file>) or read ${rawPath} to list its entries`,
 			);
 		}
 		if (resource.sourcePath) {

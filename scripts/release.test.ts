@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { selectLatestZetaTag, validateExplicitVersion } from "./release";
+import { bumpCanaryVersion, bumpVersion, validateExplicitVersion } from "./release";
 
 describe("validateExplicitVersion", () => {
 	test("rejects malformed versions", () => {
@@ -44,38 +44,24 @@ describe("validateExplicitVersion", () => {
 	});
 });
 
-describe("selectLatestZetaTag", () => {
-	test("ignores annotated OMP baseline tags in main history", () => {
-		const output = ["v17.2.12%00OMP v17.2.12", "v17.2.11%00Release v17.2.11"].join("\n");
-		expect(selectLatestZetaTag(output)).toBe(null);
+describe("release version bumps", () => {
+	test("starts a canary patch release after the current stable version", () => {
+		expect(bumpCanaryVersion("0.13.0")).toBe("0.13.1-canary.1");
 	});
 
-	test("picks the newest Zeta tag over OMP baselines", () => {
-		const output = [
-			"v1.0.0%00chore: bump version to 1.0.0",
-			"v17.2.12%00OMP v17.2.12",
-			"v17.2.11%00Release v17.2.11",
-		].join("\n");
-		expect(selectLatestZetaTag(output)).toBe("v1.0.0");
+	test("increments the existing canary release number", () => {
+		expect(bumpCanaryVersion("0.13.0-canary.2")).toBe("0.13.0-canary.3");
 	});
 
-	test("ignores raw OMP tags whose bump subject matches (major >= 10)", () => {
-		const output = [
-			"v17.3.8%00test(export): re-pinned html template bytes",
-			"v17.3.7%00chore: bump version to 17.3.7",
-			"v17.3.5%00chore: bump version to 17.3.5",
-			"v1.0.9%00chore: bump version to 1.0.9",
-		].join("\n");
-		expect(selectLatestZetaTag(output)).toBe("v1.0.9");
+	test("finalizes a canary with a patch bump", () => {
+		expect(bumpVersion("0.13.0-canary.2", "patch")).toBe("0.13.0");
 	});
 
-	test("returns null when only raw OMP bump tags exist", () => {
-		const output = ["v17.3.7%00chore: bump version to 17.3.7"].join("\n");
-		expect(selectLatestZetaTag(output)).toBe(null);
+	test("bumps the core version when applying a minor bump to a canary", () => {
+		expect(bumpVersion("0.13.0-canary.2", "minor")).toBe("0.14.0");
 	});
 
-	test("returns null for empty or non-matching output", () => {
-		expect(selectLatestZetaTag("")).toBe(null);
-		expect(selectLatestZetaTag("v1.2.3%00Merge PR #1: something")).toBe(null);
+	test("rejects explicit canary versions", () => {
+		expect(validateExplicitVersion("1.2.3-canary.1")).toBe(null);
 	});
 });

@@ -784,8 +784,8 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugToolDetails
 				return result.text(formatSessionSnapshot(snapshot).join("\n")).done();
 			}
 			case "attach": {
-				if (params.pid === undefined && params.port === undefined) {
-					throw new ToolError(M.dbgErrAttachPidOrPort);
+				if (params.pid === undefined && params.port === undefined && !params.adapter) {
+					throw new ToolError("attach requires pid or port");
 				}
 				const commandCwd = params.cwd ? resolveToCwd(params.cwd, this.session.cwd) : this.session.cwd;
 				const adapter = selectAttachAdapter(commandCwd, params.adapter, params.port);

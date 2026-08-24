@@ -39,16 +39,19 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-catalog": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
+    "@oh-my-pi/pi-ai": "catalog:",
+    "@oh-my-pi/pi-catalog": "catalog:",
+    "@oh-my-pi/pi-utils": "catalog:",
     "@tailwindcss/node": "catalog:",
     "chart.js": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-chartjs-2": "catalog:",
     "react-dom": "catalog:",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-utils": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

@@ -31,6 +31,7 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
+    "@oh-my-pi/pi-natives": "catalog:",
     "@linxiraos/pi-natives": "catalog:"
   },
   "devDependencies": {
@@ -48,6 +49,10 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
+    },
+    "./ar": {
+      "types": "./src/ar/index.ts",
+      "import": "./src/ar/index.ts"
     },
     "./*": {
       "types": "./src/*.ts",

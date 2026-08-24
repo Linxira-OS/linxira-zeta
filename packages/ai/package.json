@@ -37,6 +37,10 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
+    "@oh-my-pi/omptype": "catalog:",
+    "@oh-my-pi/pi-catalog": "catalog:",
+    "@oh-my-pi/pi-utils": "catalog:",
+    "@oh-my-pi/pi-wire": "catalog:",
     "@linxiraos/pi-omptype": "catalog:",
     "@linxiraos/pi-catalog": "catalog:",
     "@linxiraos/pi-utils": "catalog:",

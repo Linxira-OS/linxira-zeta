@@ -1,4 +1,4 @@
-import { extractRetryHint } from "@linxiraos/pi-utils";
+import { extractRetryHint } from "@linxiraos/pi-utils/fetch-retry";
 
 /**
  * Rate limit reason classification and backoff calculation utilities.

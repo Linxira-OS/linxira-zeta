@@ -3,7 +3,7 @@
   "name": "@linxiraos/collab-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Browser guest client and local relay tools for zeta collab live sessions",
+  "description": "Browser guest client and local relay tools for omp collab live sessions",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",
   "license": "MIT",
@@ -37,11 +37,13 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:",
+    "@oh-my-pi/pi-utils": "catalog:",
+    "@oh-my-pi/pi-wire": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
+    "@linxiraos/pi-wire": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

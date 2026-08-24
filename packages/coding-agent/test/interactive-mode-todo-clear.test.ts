@@ -1,18 +1,17 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import type { NativeScrollbackLiveRegion } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task";
-import type { TodoPhase } from "@linxiraos/zeta/tools/todo";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@oh-my-pi/pi-coding-agent/task";
+import type { TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/todo";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
 function renderTodos(mode: InteractiveMode): string {
 	return Bun.stripANSI(mode.todoContainer.render(120).join("\n"));
@@ -162,17 +161,6 @@ describe("InteractiveMode todo HUD persistence", () => {
 
 		vi.advanceTimersByTime(1);
 		expect(renderTodos(mode)).not.toContain("done task");
-	});
-
-	it("keeps the anchored todo panel in the live region while visible", () => {
-		setTodoClearDelay(-1);
-
-		mode.setTodos([{ name: "Implementation", tasks: [{ content: "pending task", status: "pending" }] }]);
-		const liveRegion = mode.todoContainer as unknown as NativeScrollbackLiveRegion;
-		expect(liveRegion.getNativeScrollbackLiveRegionStart?.()).toBe(0);
-
-		mode.setTodos([]);
-		expect(liveRegion.getNativeScrollbackLiveRegionStart?.()).toBeUndefined();
 	});
 
 	it("marks todos complete when subagent reconciliation reports a finished agent", async () => {
@@ -374,15 +362,119 @@ describe("InteractiveMode todo HUD anchor", () => {
 		expect(root?.trim()).toBe("TODO");
 	});
 
-	it("anchors the todo HUD as a native-scrollback live region while populated", () => {
-		// The loader sits below this HUD, so the HUD must report its own seam or
-		// its rows commit to scrollback as stale duplicates on short terminals.
-		const seam = () =>
-			(mode.todoContainer as Partial<NativeScrollbackLiveRegion>).getNativeScrollbackLiveRegionStart?.();
-		expect(seam()).toBeUndefined();
-		mode.setTodos([{ name: "Tasks", tasks: [{ content: "alpha", status: "pending" }] }]);
-		expect(seam()).toBe(0);
-		mode.setTodos([]);
-		expect(seam()).toBeUndefined();
+	describe("compact todo for small terminal height (< 18 rows)", () => {
+		function setTerminalRows(rows: number): void {
+			Object.defineProperty(mode.ui.terminal, "rows", {
+				get: () => rows,
+				configurable: true,
+			});
+		}
+
+		afterEach(() => {
+			setTerminalRows(24);
+			mode.loadingAnimation = undefined;
+			mode.statusContainer.disposeChildren();
+		});
+
+		it("renders todo as a single line item aligned to the right when terminal height < 18", () => {
+			setTerminalRows(15);
+			mode.setTodos([
+				{
+					name: "Phase 1",
+					tasks: [
+						{ content: "Setup database", status: "completed" },
+						{ content: "Create API endpoints", status: "in_progress" },
+						{ content: "Write tests", status: "pending" },
+					],
+				},
+			]);
+
+			// todoContainer is empty in compact mode
+			expect(mode.todoContainer.render(100)).toHaveLength(0);
+
+			// statusContainer renders the compact right-aligned todo above editor
+			const rendered = mode.statusContainer.render(100);
+			expect(rendered.length).toBeGreaterThan(0);
+			const lastLine = Bun.stripANSI(rendered[rendered.length - 1] ?? "");
+			expect(lastLine).toContain("TODO 1/3");
+			expect(lastLine).toContain("Create API endpoints");
+			// Right-aligned: ends with the todo text (with trailing space)
+			expect(lastLine.trimEnd().endsWith("Create API endpoints")).toBe(true);
+			expect(lastLine.startsWith(" ")).toBe(true);
+		});
+
+		it("places compact todo on the right side of the active loader / intent spinner", () => {
+			setTerminalRows(14);
+			mode.setTodos([
+				{
+					name: "Tasks",
+					tasks: [
+						{ content: "Inspect server", status: "in_progress" },
+						{ content: "Deploy fix", status: "pending" },
+					],
+				},
+			]);
+
+			mode.ensureLoadingAnimation();
+			mode.setWorkingMessage("Reading src/index.ts (esc to interrupt)");
+
+			expect(mode.todoContainer.render(120)).toHaveLength(0);
+
+			const rendered = mode.statusContainer.render(120);
+			expect(rendered.length).toBeGreaterThanOrEqual(2);
+			const lastLine = Bun.stripANSI(rendered[rendered.length - 1] ?? "");
+			// Left side has the intent spinner/message
+			expect(lastLine).toContain("Reading src/index.ts");
+			// Right side has the compact todo
+			expect(lastLine).toContain("TODO 0/2");
+			expect(lastLine).toContain("Inspect server");
+			// Left message comes before right todo
+			expect(lastLine.indexOf("Reading src/index.ts")).toBeLessThan(lastLine.indexOf("TODO 0/2"));
+		});
+
+		it("shows completed summary when all tasks are done in compact mode", () => {
+			setTerminalRows(16);
+			mode.setTodos([
+				{
+					name: "Tasks",
+					tasks: [
+						{ content: "Task 1", status: "completed" },
+						{ content: "Task 2", status: "completed" },
+					],
+				},
+			]);
+
+			const rendered = mode.statusContainer.render(100);
+			const lastLine = Bun.stripANSI(rendered[rendered.length - 1] ?? "");
+			expect(lastLine).toContain("TODO 2/2");
+			expect(lastLine).toContain("done");
+		});
+
+		it("switches dynamically between multi-line HUD and compact single line on resize", () => {
+			mode.setTodos([
+				{
+					name: "Tasks",
+					tasks: [{ content: "Refactor router", status: "in_progress" }],
+				},
+			]);
+
+			// Terminal >= 18 rows: full tree HUD
+			setTerminalRows(24);
+			expect(mode.todoContainer.render(100).length).toBeGreaterThan(0);
+			expect(mode.statusContainer.render(100)).toHaveLength(0);
+
+			// Terminal < 18 rows: compact mode
+			setTerminalRows(15);
+			expect(mode.todoContainer.render(100)).toHaveLength(0);
+			expect(mode.statusContainer.render(100).length).toBeGreaterThan(0);
+			const compactLine = Bun.stripANSI(mode.statusContainer.render(100).slice(-1)[0] ?? "");
+			expect(compactLine).toContain("TODO 0/1");
+			expect(compactLine).toContain("Refactor router");
+
+			// Resize back >= 18 rows
+			setTerminalRows(24);
+			expect(mode.todoContainer.render(100).length).toBeGreaterThan(0);
+			expect(mode.statusContainer.render(100)).toHaveLength(0);
+		});
 	});
 });

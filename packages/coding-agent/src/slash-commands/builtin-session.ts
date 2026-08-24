@@ -141,8 +141,9 @@ async function handleSessionPinCommand(
 export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "todo",
-		description: M.cmdTodo,
-		acpDescription: M.cmdTodoAcp,
+		icon: "todo",
+		description: "View or modify the agent's todo list",
+		acpDescription: "Manage todos",
 		acpInputHint: "<subcommand>",
 		subcommands: [
 			{ name: "edit", description: M.cmdTodoEdit },
@@ -176,8 +177,9 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "session",
-		description: M.cmdSession,
-		acpDescription: M.cmdSessionAcp,
+		icon: "session",
+		description: "Session management commands",
+		acpDescription: "Show or configure the current session",
 		acpInputHint: "[info|delete|pin [account]]",
 		subcommands: [
 			{ name: "info", description: M.cmdSessionInfo },
@@ -253,8 +255,9 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "jobs",
-		description: M.cmdJobs,
-		acpDescription: M.cmdJobsAcp,
+		icon: "jobs",
+		description: "Show async background jobs status",
+		acpDescription: "Show background jobs",
 		getTuiAutocompleteDescription: runtime => {
 			const snapshot = runtime.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });
 			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) return M.acJobsNone;
@@ -296,8 +299,9 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "usage",
-		description: M.cmdUsage,
-		acpDescription: M.cmdUsageAcp,
+		icon: "gauge",
+		description: "Show provider usage and limits",
+		acpDescription: "Show token usage",
 		acpInputHint: "[show|reset [account|active]]",
 		subcommands: [
 			{ name: "show", description: M.cmdUsage },
@@ -338,7 +342,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "stats",
-		description: M.cmdStats,
+		icon: "stats",
+		description: "Launch the local stats dashboard",
 		inlineHint: "[--port <port>] [--host <host>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -357,8 +362,9 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "changelog",
-		description: M.cmdChangelog,
-		acpDescription: M.cmdChangelogAcp,
+		icon: "news",
+		description: "Show changelog entries",
+		acpDescription: "Show changelog",
 		acpInputHint: "[full]",
 		subcommands: [{ name: "full", description: M.cmdChangelogFull }],
 		allowArgs: true,
@@ -382,7 +388,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "hotkeys",
-		description: M.cmdHotkeys,
+		icon: "keyboard",
+		description: "Show all keyboard shortcuts",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.handleHotkeysCommand();
 			runtime.ctx.editor.setText("");
@@ -390,8 +397,9 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "tools",
-		description: M.cmdTools,
-		acpDescription: M.cmdToolsAcp,
+		icon: "tools",
+		description: "Show tools currently visible to the agent",
+		acpDescription: "Show available tools",
 		getTuiAutocompleteDescription: runtime => {
 			const active = runtime.ctx.session.getActiveToolNames().length;
 			const all = runtime.ctx.session.getAllToolNames().length;
@@ -418,8 +426,9 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "context",
-		description: M.cmdContext,
-		acpDescription: M.cmdContextAcp,
+		icon: "context",
+		description: "Show estimated context usage breakdown",
+		acpDescription: "Show context usage",
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
 			if (!usage) return M.acContextUnavailable;
@@ -440,7 +449,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "extensions",
 		aliases: ["status"],
-		description: M.cmdExtensions,
+		icon: "extension",
+		description: "Open Extension Control Center dashboard",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showExtensionsDashboard();
 			runtime.ctx.editor.setText("");
@@ -448,7 +458,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "agents",
-		description: M.cmdAgents,
+		icon: "agents",
+		description: "Open the agents hub (per-agent model, prewalk, and advisor)",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showAgentsDashboard();
 			runtime.ctx.editor.setText("");
@@ -456,7 +467,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "branch",
-		description: M.cmdBranch,
+		icon: "branch",
+		description: "Create a new branch from a previous message",
 		handleTui: (_command, runtime) => {
 			if (settings.get("doubleEscapeAction") === "tree") {
 				runtime.ctx.showTreeSelector();
@@ -468,7 +480,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "fork",
-		description: M.cmdFork,
+		icon: "branch",
+		description: "Create a new fork from a previous message",
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleForkCommand();
@@ -476,7 +489,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "tree",
-		description: M.cmdTree,
+		icon: "tree",
+		description: "Navigate session tree (switch branches)",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showTreeSelector();
 			runtime.ctx.editor.setText("");
@@ -484,7 +498,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "login",
-		description: M.cmdLogin,
+		icon: "signIn",
+		description: "Login with OAuth provider",
 		inlineHint: "[provider|redirect URL]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -536,7 +551,8 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "logout",
-		description: M.cmdLogout,
+		icon: "signOut",
+		description: "Logout from OAuth provider",
 		inlineHint: "[provider]",
 		allowArgs: true,
 		handleTui: (command, runtime) => {
@@ -558,8 +574,9 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "mcp",
-		description: M.cmdMcp,
-		acpDescription: M.cmdMcpAcp,
+		icon: "mcp",
+		description: "Manage MCP servers (add, list, remove, test)",
+		acpDescription: "Manage MCP servers",
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
