@@ -1182,7 +1182,7 @@ describe("update-cli script-shim takeover", () => {
 	}
 
 	const shims: Record<string, string> = {
-		omp: "#!/bin/sh\nnode omp.js\n",
+		zeta: "#!/bin/sh\nnode omp.js\n",
 		"zeta.cmd": "@node omp.js %*\n",
 		"zeta.ps1": "node omp.js @args\n",
 	};
