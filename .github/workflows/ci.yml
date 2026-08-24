@@ -580,7 +580,7 @@ jobs:
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [native_addons]
       if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true') && !cancelled() && needs.native_addons.result == 'success' }}
-      timeout-minutes: 25
+      timeout-minutes: 45
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/setup-system-deps
@@ -592,7 +592,14 @@ jobs:
            run: julia -e "exit(0)" || true
          - name: Test coding-agent native/unit bucket
            env:
-              OMP_TEST_CONCURRENCY: "4"
+              # 2-way chunk concurrency instead of 4: the 719-file native bucket
+              # runs up to four bun test processes per host on a 4-vCPU runner,
+              # and the timing-sensitive TUI/transcript/spawn tests (e.g.
+              # transcript-history-exactly-once, streaming-edit-abort) trip on
+              # GC pauses / OS preemption under that contention. 2-way keeps
+              # those assertions inside their bounds with an acceptable time
+              # tradeoff.
+              OMP_TEST_CONCURRENCY: "2"
            run: bun run ci:test:coding-agent:native
 
    test_smoke:
