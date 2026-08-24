@@ -6,8 +6,7 @@
  * kind-specific surface → contents → boring config.
  */
 import * as os from "node:os";
-import { arkToWireSchema, isArkSchema } from "@linxiraos/pi-ai/utils/schema";
-import { type Component, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
+import { type Component, visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
 import { theme } from "../../../modes/theme/theme";
 import { expandKeyHint, PREVIEW_LIMITS, replaceTabs, shortenPath } from "../../../tools/render-utils";
 import {

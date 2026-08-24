@@ -2,14 +2,11 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { gzipSync } from "node:zlib";
+import { getHistoryDbPath, getSessionsDir, TempDir } from "@linxiraos/pi-utils";
 import { runGcCommand } from "@linxiraos/zeta/cli/gc-cli";
-import {
-	mergeSessionRanking,
-	rankSessionSearchMatches,
-} from "@linxiraos/zeta/modes/components/session-selector";
+import { mergeSessionRanking, rankSessionSearchMatches } from "@linxiraos/zeta/modes/components/session-selector";
 import { listSessions, type SessionInfo } from "@linxiraos/zeta/session/session-listing";
 import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
-import { getHistoryDbPath, getSessionsDir, TempDir } from "@linxiraos/pi-utils";
 
 function makeSession(id: string, overrides: Partial<SessionInfo> = {}): SessionInfo {
 	return {

@@ -8,6 +8,7 @@ import {
 	InMemorySnapshotStore,
 	missingSnapshotTagMessage,
 } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	adjustIndentation,
 	computeEditDiff,
@@ -16,7 +17,6 @@ import {
 	findMatch,
 	replaceText,
 } from "@linxiraos/zeta/edit";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("findMatch", () => {
 	describe("exact matching", () => {

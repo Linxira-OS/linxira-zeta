@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import { isArkSchema } from "@linxiraos/pi-ai/utils/schema";
+import { type } from "@linxiraos/pi-omptype";
 import { applyToolProxy } from "../../src/extensibility/tool-proxy";
 
 describe("applyToolProxy", () => {

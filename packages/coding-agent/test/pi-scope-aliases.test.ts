@@ -18,14 +18,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { TempDir } from "@linxiraos/pi-utils";
+import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 
 const canonicalCodingAgent = Bun.resolveSync("@linxiraos/zeta", import.meta.dir);
-const canonicalCodingAgentExtensions = Bun.resolveSync(
-	"@linxiraos/zeta/extensibility/extensions",
-	import.meta.dir,
-);
+const canonicalCodingAgentExtensions = Bun.resolveSync("@linxiraos/zeta/extensibility/extensions", import.meta.dir);
 const canonicalUtils = Bun.resolveSync("@linxiraos/pi-utils", import.meta.dir);
 const canonicalTui = Bun.resolveSync("@linxiraos/pi-tui", import.meta.dir);
 // Subpath: upstream `pi-ai/oauth` re-exported `utils/oauth/index`; our pi-ai now

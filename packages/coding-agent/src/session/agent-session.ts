@@ -77,10 +77,10 @@ import { type Effort, streamSimple } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
 import { MacOSPowerAssertion } from "@linxiraos/pi-natives";
-import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import {
 	$env,
 	escapeXmlText,

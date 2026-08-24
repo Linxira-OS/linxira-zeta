@@ -13,9 +13,9 @@ import {
 } from "@linxiraos/pi-ai";
 import { getOAuthProviders, unregisterOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
+import { logger, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { logger, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("ModelRegistry runtime provider registration", () => {
 	let tempDir: string;

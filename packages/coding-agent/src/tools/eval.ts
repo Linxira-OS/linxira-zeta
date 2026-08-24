@@ -1,6 +1,6 @@
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ImageContent, ToolExample } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
 import { prompt } from "@linxiraos/pi-utils";
 import {
 	DEFAULT_AUTO_BACKGROUND_THRESHOLD_MS,

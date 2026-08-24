@@ -4,8 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import { type AuthBrokerServerHandle, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
-import { runAuthBrokerCommand } from "@linxiraos/zeta/cli/auth-broker-cli";
 import { getAgentDbPath, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { runAuthBrokerCommand } from "@linxiraos/zeta/cli/auth-broker-cli";
 
 const TEAM_ORG = "org-team-1111";
 

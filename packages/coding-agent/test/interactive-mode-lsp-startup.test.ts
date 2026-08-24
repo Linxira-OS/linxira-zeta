@@ -2,6 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "@linxiraos/zeta/lsp/startup-events";
@@ -12,7 +13,6 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { LspStartupServerInfo } from "@linxiraos/zeta/tools";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { TempDir } from "@linxiraos/pi-utils";
 
 describe("InteractiveMode LSP startup welcome banner", () => {
 	let authStorage: AuthStorage;

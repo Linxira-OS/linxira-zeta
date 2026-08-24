@@ -4,10 +4,7 @@ import type { CompactOptions } from "@linxiraos/zeta/extensibility/extensions/ty
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { CompactMode } from "@linxiraos/zeta/session/compact-modes";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
-import {
-	ACP_BUILTIN_SLASH_COMMANDS,
-	executeAcpBuiltinSlashCommand,
-} from "@linxiraos/zeta/slash-commands/acp-builtins";
+import { ACP_BUILTIN_SLASH_COMMANDS, executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 

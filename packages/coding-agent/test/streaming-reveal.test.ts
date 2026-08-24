@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { getSegmenter } from "@linxiraos/pi-tui";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import {
 	BlockUnitCounter,
@@ -12,7 +13,6 @@ import {
 	visibleUnits,
 } from "@linxiraos/zeta/modes/controllers/streaming-reveal";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { getSegmenter } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	await initTheme(false);

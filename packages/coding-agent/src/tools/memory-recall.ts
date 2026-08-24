@@ -1,5 +1,5 @@
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { logger, untilAborted } from "@linxiraos/pi-utils";
 import { formatCurrentTime, formatMemories } from "../hindsight/content";
 import recallDescription from "../prompts/tools/recall.md" with { type: "text" };

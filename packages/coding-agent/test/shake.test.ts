@@ -5,12 +5,12 @@ import { Agent, type AgentMessage, RESCUE_SHAKE_CONFIG, Tokenizer } from "@linxi
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, ImageContent, ToolResultMessage } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
 
 const usage = {
 	input: 16,

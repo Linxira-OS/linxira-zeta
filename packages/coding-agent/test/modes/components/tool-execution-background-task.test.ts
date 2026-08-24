@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
+import type { TUI } from "@linxiraos/pi-tui";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/zeta/task/types";
-import type { TUI } from "@linxiraos/pi-tui";
 
 function progressEntry(description: string): AgentProgress {
 	return {

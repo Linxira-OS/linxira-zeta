@@ -6,11 +6,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import type { Component } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
-import type { Component } from "@linxiraos/pi-tui";
 
 beforeEach(async () => {
 	resetSettingsForTest();

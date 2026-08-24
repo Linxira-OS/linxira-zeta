@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { $which, removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	InternalUrlRouter,
 	parseInternalUrl,
@@ -10,7 +11,6 @@ import {
 	VaultProtocolHandler,
 } from "@linxiraos/zeta/internal-urls";
 import * as vaultProtocol from "@linxiraos/zeta/internal-urls/vault-protocol";
-import { $which, removeWithRetries } from "@linxiraos/pi-utils";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vault-protocol-"));

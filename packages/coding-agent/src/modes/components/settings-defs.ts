@@ -11,8 +11,6 @@
 
 import { TERMINAL } from "@linxiraos/pi-tui";
 import { Settings } from "../../config/settings";
-import { ZH_SETTING_TEXTS } from "../../config/settings-zh";
-import { currentLanguage } from "../../i18n";
 import {
 	type AnyUiMetadata,
 	getDefault,
@@ -27,6 +25,8 @@ import {
 	type SubmenuOption,
 	TAB_GROUPS,
 } from "../../config/settings-schema";
+import { ZH_SETTING_TEXTS } from "../../config/settings-zh";
+import { currentLanguage } from "../../i18n";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // UI Definition Types

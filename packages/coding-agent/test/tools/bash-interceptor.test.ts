@@ -1,10 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import {
-	type BashInterceptorRule,
-	DEFAULT_BASH_INTERCEPTOR_RULES,
-} from "@linxiraos/zeta/config/settings-schema";
+import { type BashInterceptorRule, DEFAULT_BASH_INTERCEPTOR_RULES } from "@linxiraos/zeta/config/settings-schema";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool, type BashToolInput } from "@linxiraos/zeta/tools/bash";
 import { checkBashInterception } from "@linxiraos/zeta/tools/bash-interceptor";

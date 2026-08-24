@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
+import { visibleWidth } from "@linxiraos/pi-tui";
 import { HookSelectorComponent } from "@linxiraos/zeta/modes/components/hook-selector";
 import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { visibleWidth } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	const theme = await getThemeByName("dark");

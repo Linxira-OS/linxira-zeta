@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import type { CliConfig, CommandCtor } from "@linxiraos/pi-utils/cli";
 import { buildSpec, type CompletionSpec, generateCompletion } from "@linxiraos/zeta/cli/completion-gen";
 import { generateLiveCompletion } from "@linxiraos/zeta/commands/completions";
-import type { CliConfig, CommandCtor } from "@linxiraos/pi-utils/cli";
 
 // A compact synthetic spec exercising every value-source kind and an aliased
 // subcommand. The generators are pure functions of this shape, so pinning their

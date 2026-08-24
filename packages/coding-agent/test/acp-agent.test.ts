@@ -4,31 +4,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
-import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
-import {
-	ACP_BOOTSTRAP_RACE_GUARD_MS,
-	AcpAgent,
-	createAcpExtensionUiContext,
-} from "@linxiraos/zeta/modes/acp/acp-agent";
-import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
-import type {
-	AgentSession,
-	AgentSessionEvent,
-	UsageFallbackConfirmation,
-} from "@linxiraos/zeta/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@linxiraos/zeta/stt/models";
-import { TaskTool } from "@linxiraos/zeta/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import {
-	DEFAULT_TTS_LOCAL_MODEL_KEY,
-	DEFAULT_TTS_VOICE,
-	TTS_LOCAL_MODELS,
-	TTS_LOCAL_VOICE_OPTIONS,
-} from "@linxiraos/zeta/tts/models";
 import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import type {
 	AgentSideConnection,
@@ -46,6 +21,27 @@ import {
 	zPromptResponse,
 	zSessionNotification,
 } from "@linxiraos/pi-utils/acp";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import {
+	ACP_BOOTSTRAP_RACE_GUARD_MS,
+	AcpAgent,
+	createAcpExtensionUiContext,
+} from "@linxiraos/zeta/modes/acp/acp-agent";
+import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
+import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@linxiraos/zeta/stt/models";
+import { TaskTool } from "@linxiraos/zeta/task";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import {
+	DEFAULT_TTS_LOCAL_MODEL_KEY,
+	DEFAULT_TTS_VOICE,
+	TTS_LOCAL_MODELS,
+	TTS_LOCAL_VOICE_OPTIONS,
+} from "@linxiraos/zeta/tts/models";
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */

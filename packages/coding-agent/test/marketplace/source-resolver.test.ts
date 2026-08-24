@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import type { MarketplacePluginEntry } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import { resolvePluginSource } from "@linxiraos/zeta/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // Fixture: a cloned marketplace with a single plugin at ./plugins/hello-plugin
 const FIXTURE_DIR = path.resolve(import.meta.dir, "fixtures/valid-marketplace");

@@ -7,6 +7,7 @@ import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { TUI } from "@linxiraos/pi-tui";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import {
@@ -17,7 +18,6 @@ import {
 } from "@linxiraos/zeta/modes/components/model-hub";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
-import type { TUI } from "@linxiraos/pi-tui";
 
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();

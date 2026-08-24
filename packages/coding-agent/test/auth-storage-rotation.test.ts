@@ -6,9 +6,9 @@ import { type OAuthCredential, type UsageProvider, withAuth } from "@linxiraos/p
 import * as oauth from "@linxiraos/pi-ai/oauth";
 import type { OAuthCredentials, OAuthProviderId } from "@linxiraos/pi-ai/oauth/types";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { createApiKeyResolver } from "../src/config/api-key-resolver";
 
 describe("AuthStorage account rotation", () => {

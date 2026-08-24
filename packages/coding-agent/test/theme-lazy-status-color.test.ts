@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
 import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
-import type { Component } from "@linxiraos/pi-tui";
-import { Text } from "@linxiraos/pi-tui";
 
 /**
  * Regression for issue #6337: a status message presented while the auto-theme

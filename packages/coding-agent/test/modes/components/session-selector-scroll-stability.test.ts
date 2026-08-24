@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
+import { TUI } from "@linxiraos/pi-tui";
 import { SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
-import { TUI } from "@linxiraos/pi-tui";
 import { StressRenderScheduler } from "../../../../tui/test/render-stress-scheduler";
 import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
 

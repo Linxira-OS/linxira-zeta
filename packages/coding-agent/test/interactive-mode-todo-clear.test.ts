@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
@@ -11,7 +12,6 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task";
 import type { TodoItem, TodoPhase } from "@linxiraos/zeta/tools/todo";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { TempDir } from "@linxiraos/pi-utils";
 
 function renderTodos(mode: InteractiveMode): string {
 	return Bun.stripANSI(mode.todoContainer.render(120).join("\n"));

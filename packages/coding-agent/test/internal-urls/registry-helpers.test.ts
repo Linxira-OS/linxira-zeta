@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	hasResolvableTranscript,
 	registerArtifactsDir,
@@ -17,7 +18,6 @@ import {
 } from "@linxiraos/zeta/internal-urls/registry-helpers";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function fakeLiveSession(): AgentSession {
 	return { messages: [] } as unknown as AgentSession;

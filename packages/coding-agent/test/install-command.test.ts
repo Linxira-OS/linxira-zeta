@@ -15,9 +15,9 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { commands, isSubcommand, resolveCliArgv } from "@linxiraos/zeta/cli-commands";
 import { looksLikeLocalPath } from "@linxiraos/zeta/commands/install";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 describe("install command is registered as a top-level subcommand", () => {
 	test("CLI runner sees `install` as a known command", () => {

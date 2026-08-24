@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { generateThemeVars } from "@linxiraos/zeta/export/html";
 import { defaultThemes } from "@linxiraos/zeta/modes/theme/defaults";
 import { getResolvedThemeColors, getThemeByName, isLightTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 describe("Theme.isLight", () => {
 	it("classifies built-in themes by their status-line surface", async () => {

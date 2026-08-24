@@ -1,9 +1,9 @@
 import * as nodePath from "node:path";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
 import { MismatchError as HashlineMismatchError } from "@linxiraos/pi-hashline";
 import hashlineGrammar from "@linxiraos/pi-hashline/grammar.lark" with { type: "text" };
 import hashlineDescription from "@linxiraos/pi-hashline/prompt.md" with { type: "text" };
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
-import type { ToolExample } from "@linxiraos/pi-ai";
 import { isEnoent, isEnotdir, logger, prompt } from "@linxiraos/pi-utils";
 import { createLspWritethrough, flushLspWritethroughBatch, type WritethroughCallback, writethroughNoop } from "../lsp";
 import { DeferredDiagnostics } from "../lsp/deferred-diagnostics";

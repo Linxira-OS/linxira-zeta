@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAndLoadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { getAgentDir, getPluginsDir, removeSyncWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { discoverAndLoadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 
 const currentPiCodingAgentPath = Bun.resolveSync("@linxiraos/zeta", import.meta.dir);
 const currentPiExtensionsPath = Bun.resolveSync("@linxiraos/zeta/extensibility/extensions", import.meta.dir);

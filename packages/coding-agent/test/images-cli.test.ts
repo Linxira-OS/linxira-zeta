@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { AuthStorage } from "@linxiraos/pi-ai";
+import type { FetchImpl } from "@linxiraos/pi-utils";
 import type {
 	BlobBrokerDoctorResponse,
 	BlobBrokerProbeResponse,
@@ -18,7 +19,6 @@ import {
 	runImagesCommand,
 } from "@linxiraos/zeta/cli/images-cli";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { FetchImpl } from "@linxiraos/pi-utils";
 
 interface CapturedRequest {
 	readonly method: string;

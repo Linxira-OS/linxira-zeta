@@ -6,11 +6,11 @@
  */
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { disposeAllKernelSessions, executePythonWithKernel } from "@linxiraos/zeta/eval/py/executor";
 import { PythonKernel } from "@linxiraos/zeta/eval/py/kernel";
 import { filterEnv, resolvePythonRuntime } from "@linxiraos/zeta/eval/py/runtime";
-import { TempDir } from "@linxiraos/pi-utils";
 
 const SHOULD_RUN = Bun.env.PI_PYTHON_INTEGRATION === "1";
 const MATPLOTLIB_TEST_CWD = process.cwd();

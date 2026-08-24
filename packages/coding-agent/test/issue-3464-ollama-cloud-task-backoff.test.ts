@@ -5,6 +5,7 @@ import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -12,7 +13,6 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { Semaphore } from "@linxiraos/zeta/task/parallel";
 import { wrapStreamFnWithProviderConcurrency } from "@linxiraos/zeta/task/provider-concurrency";
-import { TempDir } from "@linxiraos/pi-utils";
 
 interface Deferred {
 	promise: Promise<void>;

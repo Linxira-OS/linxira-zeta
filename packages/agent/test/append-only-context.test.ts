@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import { AppendOnlyContextManager, AppendOnlyLog, StablePrefix } from "@linxiraos/pi-agent-core/append-only-context";
 import { invalidateMessageCache } from "@linxiraos/pi-agent-core/compaction/message-cache";
 import type { AgentContext, AgentTool } from "@linxiraos/pi-agent-core/types";
 import type { Message, Tool, ToolExample } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 // ---------------------------------------------------------------------------

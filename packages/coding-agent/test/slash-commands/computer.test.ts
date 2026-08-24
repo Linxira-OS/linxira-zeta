@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
+import type { DesktopCapabilities } from "@linxiraos/pi-natives";
 import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
-import type { DesktopCapabilities } from "@linxiraos/pi-natives";
 
 const capabilities: DesktopCapabilities = {
 	backend: "quartz",

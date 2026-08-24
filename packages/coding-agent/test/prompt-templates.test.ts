@@ -11,10 +11,10 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { prompt } from "@linxiraos/pi-utils";
 import { expandPromptTemplate, type PromptTemplate } from "@linxiraos/zeta/config/prompt-templates";
 import { expandSlashCommand, type FileSlashCommand } from "@linxiraos/zeta/extensibility/slash-commands";
 import { parseCommandArgs, substituteArgs } from "@linxiraos/zeta/utils/command-args";
-import { prompt } from "@linxiraos/pi-utils";
 
 // ============================================================================
 // substituteArgs

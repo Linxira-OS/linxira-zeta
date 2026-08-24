@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createAutoresearchExtension } from "@linxiraos/zeta/autoresearch";
 import { closeAllAutoresearchStorages } from "@linxiraos/zeta/autoresearch/storage";
 import type {
@@ -10,7 +11,6 @@ import type {
 	SessionStartEvent,
 } from "@linxiraos/zeta/extensibility/extensions";
 import * as git from "@linxiraos/zeta/utils/git";
-import { TempDir } from "@linxiraos/pi-utils";
 
 // Reproduces issue #3665: when the upstream system prompt resolution leaves
 // `event.systemPrompt` unset, the autoresearch handler must still render its

@@ -5,9 +5,9 @@
  * (or sandboxes where subprocess spawning is restricted) does not fail.
  */
 import { afterEach, describe, expect, it } from "bun:test";
+import { TempDir } from "@linxiraos/pi-utils";
 import { disposeAllRubyKernelSessions, executeRubyWithKernel } from "@linxiraos/zeta/eval/rb/executor";
 import { RubyKernel } from "@linxiraos/zeta/eval/rb/kernel";
-import { TempDir } from "@linxiraos/pi-utils";
 
 const SHOULD_RUN = Bun.env.PI_RUBY_INTEGRATION === "1";
 

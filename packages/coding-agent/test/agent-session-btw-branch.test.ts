@@ -6,6 +6,7 @@ import { Agent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { createMockModel, type MockHandler } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Snowflake } from "@linxiraos/pi-utils";
 import { loadAdvisorTranscriptCosts } from "@linxiraos/zeta/advisor/transcript-recorder";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -13,7 +14,6 @@ import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { Snowflake } from "@linxiraos/pi-utils";
 
 function createBtwAssistant(): AssistantMessage {
 	return {

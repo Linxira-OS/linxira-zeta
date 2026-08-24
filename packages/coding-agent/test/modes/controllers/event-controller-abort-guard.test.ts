@@ -17,6 +17,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { TERMINAL } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { SETTINGS_SCHEMA } from "@linxiraos/zeta/config/settings-schema";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
@@ -24,7 +25,6 @@ import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import * as titleGenerator from "@linxiraos/zeta/utils/title-generator";
-import { TERMINAL } from "@linxiraos/pi-tui";
 
 const originalWarpProtocolVersion = process.env.WARP_CLI_AGENT_PROTOCOL_VERSION;
 

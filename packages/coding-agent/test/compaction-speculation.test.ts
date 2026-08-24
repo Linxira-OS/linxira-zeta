@@ -3,13 +3,13 @@ import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, Model, UserMessage } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import * as snapcompactModule from "@linxiraos/pi-snapcompact";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { CompactionMethod } from "@linxiraos/zeta/session/compaction-methods";
 import { SessionMaintenance, type SessionMaintenanceHost } from "@linxiraos/zeta/session/session-maintenance";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import * as snapcompactModule from "@linxiraos/pi-snapcompact";
 
 const CONTEXT_WINDOW = 100_000;
 const THRESHOLD = 50_000;

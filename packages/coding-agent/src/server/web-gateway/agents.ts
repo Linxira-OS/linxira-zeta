@@ -683,7 +683,7 @@ export class AgentSessionWrapper {
 	}
 
 	/** Resolve a pending extension UI dialog by request id. Returns false if unknown. */
-	resolveUiRequest(id: string, response: ExtensionUiResponse): boolean {
+	resolveUiRequest(id: string, _response: ExtensionUiResponse): boolean {
 		const pending = this.#pendingUiRequests.get(id);
 		if (!pending) return false;
 		this.#pendingUiRequests.delete(id);
@@ -744,7 +744,7 @@ function mapBashResult(result: BashResult): {
 export async function handleGlobalExtensionUiResponse(req: Request): Promise<Response> {
 	let body: { id?: string; value?: string; confirmed?: boolean; cancelled?: boolean; timedOut?: boolean };
 	try {
-		body = await req.json() as typeof body;
+		body = (await req.json()) as typeof body;
 	} catch {
 		return json({ error: "Invalid JSON body" }, 400);
 	}
@@ -1109,7 +1109,7 @@ export async function handleAgentState(sessionId: string): Promise<Response> {
 	}
 }
 
-export async function handleAgentEvents(req: Request, sessionId: string): Promise<Response> {
+export async function handleAgentEvents(_req: Request, sessionId: string): Promise<Response> {
 	let session = sessions.get(sessionId);
 	if (!session?.isAlive()) {
 		const filePath = await resolveSessionPath(sessionId);
@@ -1133,13 +1133,13 @@ export async function handleAgentEvents(req: Request, sessionId: string): Promis
 
 			const unsubscribe = session.onEvent(event => {
 				if (
-					event
-					&& typeof event === "object"
-					&& "type" in event
-					&& event.type === "extension_ui_request"
-					&& "id" in event
-					&& typeof event.id === "string"
-					&& event.id.length > 0
+					event &&
+					typeof event === "object" &&
+					"type" in event &&
+					event.type === "extension_ui_request" &&
+					"id" in event &&
+					typeof event.id === "string" &&
+					event.id.length > 0
 				) {
 					uiRequestOwners.set(event.id, sessionId);
 				}

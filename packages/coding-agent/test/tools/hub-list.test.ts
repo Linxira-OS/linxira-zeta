@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
 import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
 import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 import { executeList } from "@linxiraos/zeta/tools/hub/messaging";
-import { TempDir } from "@linxiraos/pi-utils";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({

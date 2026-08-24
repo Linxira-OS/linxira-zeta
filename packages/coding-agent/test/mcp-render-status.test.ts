@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
 import type { TSchema } from "@linxiraos/pi-ai";
+import { TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { renderMCPResult } from "@linxiraos/zeta/mcp/render";
 import { DeferredMCPTool, MCPTool, type MCPToolDetails } from "@linxiraos/zeta/mcp/tool-bridge";
@@ -9,7 +10,6 @@ import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-ex
 import { theme as activeTheme, getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { formatOutputNotice, type OutputMeta } from "@linxiraos/zeta/tools/output-meta";
 import { formatStatusIcon } from "@linxiraos/zeta/tools/render-utils";
-import { TUI } from "@linxiraos/pi-tui";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 beforeAll(async () => {

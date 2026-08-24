@@ -3,13 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
 import type { AsyncJobSnapshot } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("AsyncJobManager singleton across concurrent top-level sessions", () => {
 	const tempDirs: string[] = [];

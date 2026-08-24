@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
-import { TempDir } from "@linxiraos/pi-utils";
 
 const SONNET = { provider: "anthropic", model: "claude-sonnet-5" };
 const SOL = { provider: "openai-codex", model: "gpt-5.6-sol" };

@@ -7,12 +7,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ToolCall } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { AsyncJobManager } from "@linxiraos/zeta/async";
 import type { Rule } from "@linxiraos/zeta/capability/rule";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -26,7 +27,6 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 // Mock stream that mimics AssistantMessageEventStream
 

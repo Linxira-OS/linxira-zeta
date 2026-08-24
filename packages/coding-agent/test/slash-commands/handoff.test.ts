@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
-import {
-	ACP_BUILTIN_SLASH_COMMANDS,
-	executeAcpBuiltinSlashCommand,
-} from "@linxiraos/zeta/slash-commands/acp-builtins";
+import { ACP_BUILTIN_SLASH_COMMANDS, executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 
 function acpRuntime({

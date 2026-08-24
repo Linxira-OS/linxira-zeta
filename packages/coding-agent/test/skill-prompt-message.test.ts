@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildSkillPromptMessage, type Skill } from "@linxiraos/zeta/extensibility/skills";
 import { removeWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { buildSkillPromptMessage, type Skill } from "@linxiraos/zeta/extensibility/skills";
 
 async function createSkill(body: string): Promise<{ dir: string; skill: Skill }> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-skill-prompt-${Snowflake.next()}-`));

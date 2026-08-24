@@ -4,9 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { clearCustomApis, type FetchImpl } from "@linxiraos/pi-ai";
 import { unregisterOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("issue #5780 post-auth runtime provider refresh", () => {
 	let tempDir: string;

@@ -4,6 +4,8 @@ import * as path from "node:path";
 import { Agent, AgentBusyError, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
+import { type OverlayHandle, type OverlayOptions, setKeybindings } from "@linxiraos/pi-tui";
+import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
@@ -23,8 +25,6 @@ import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/sessi
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 import * as clipboard from "@linxiraos/zeta/utils/clipboard";
-import { type OverlayHandle, type OverlayOptions, setKeybindings } from "@linxiraos/pi-tui";
-import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Matches the plan-approved synthetic-prompt dispatch. `#approvePlan` calls

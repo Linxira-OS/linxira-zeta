@@ -28,6 +28,7 @@ import { toolCapability } from "@linxiraos/zeta/capability/tool";
 import type { LoadContext, Provider } from "@linxiraos/zeta/capability/types";
 // Register all discovery providers as a side effect.
 import "@linxiraos/zeta/discovery";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import {
 	clearOmpExtensionCliRoots,
 	injectOmpExtensionCliRoots,
@@ -35,7 +36,6 @@ import {
 	withOmpExtensionRootScope,
 } from "@linxiraos/zeta/discovery/omp-extension-roots";
 import { discoverExtensionPaths } from "@linxiraos/zeta/extensibility/extensions/loader";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 const PROVIDER_ID = "omp-plugins";
 

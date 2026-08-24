@@ -65,8 +65,7 @@ function createMockSession(
 function createSessionResult(session: AgentSession): CreateAgentSessionResult {
 	return {
 		session,
-		extensionsResult:
-			{} as unknown as import("@linxiraos/zeta/extensibility/extensions/types").LoadExtensionsResult,
+		extensionsResult: {} as unknown as import("@linxiraos/zeta/extensibility/extensions/types").LoadExtensionsResult,
 		setToolUIContext: () => {},
 		eventBus: new EventBus(),
 	};

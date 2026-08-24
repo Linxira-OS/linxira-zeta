@@ -1,7 +1,5 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { splitAddressableFileLines } from "@linxiraos/pi-hashline";
-import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -10,6 +8,8 @@ import type {
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { splitAddressableFileLines } from "@linxiraos/pi-hashline";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	BINARY_SNIFF_BYTES,
 	type ImageMetadata,

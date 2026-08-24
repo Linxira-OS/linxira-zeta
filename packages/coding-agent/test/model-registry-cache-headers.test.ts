@@ -6,9 +6,9 @@ import * as path from "node:path";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { getBundledModels } from "@linxiraos/pi-catalog/models";
 import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 describe("startup model cache header restoration (#5780)", () => {
 	let tempDir: string;

@@ -2,14 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { disableProvider, enableProvider } from "@linxiraos/zeta/capability";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
-import {
-	clearOmpExtensionCliRoots,
-	injectOmpExtensionCliRoots,
-} from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { clearOmpExtensionCliRoots, injectOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
 import { discoverAgents } from "@linxiraos/zeta/task/discovery";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const OMP_AGENT_MD = [
 	"---",

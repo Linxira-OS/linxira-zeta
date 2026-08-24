@@ -4,8 +4,6 @@
 import type * as fs1 from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
-import * as zod from "@linxiraos/pi-omptype/zod";
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type {
 	ImageContent,
@@ -16,6 +14,8 @@ import type {
 	TextContent,
 	TSchema,
 } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import * as zod from "@linxiraos/pi-omptype/zod";
 import { isBuiltinComposerStyle, type KeyId } from "@linxiraos/pi-tui";
 import { hasFsCode, isEacces, isEnoent, logger } from "@linxiraos/pi-utils";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";

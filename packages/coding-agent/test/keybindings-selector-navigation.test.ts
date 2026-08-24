@@ -1,5 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { setKeybindings } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
 import { ExtensionList } from "@linxiraos/zeta/modes/components/extensions/extension-list";
 import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
@@ -11,8 +13,6 @@ import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
-import { setKeybindings } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
 
 const CTRL_N = "\x0e";
 const CTRL_P = "\x10";

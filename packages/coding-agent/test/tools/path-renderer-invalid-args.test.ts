@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
+import type { Component } from "@linxiraos/pi-tui";
 import { editToolRenderer } from "@linxiraos/zeta/edit/renderer";
 import { getThemeByName, initTheme, type Theme } from "@linxiraos/zeta/modes/theme/theme";
 import { readToolRenderer } from "@linxiraos/zeta/tools/read";
 import { writeToolRenderer } from "@linxiraos/zeta/tools/write";
-import type { Component } from "@linxiraos/pi-tui";
 
 interface InvalidPathCase {
 	readonly name: string;

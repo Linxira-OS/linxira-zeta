@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { resumeCommand } from "@linxiraos/zeta/utils/resume-command";
 import { APP_NAME, getActiveProfile, setProfile } from "@linxiraos/pi-utils/dirs";
+import { resumeCommand } from "@linxiraos/zeta/utils/resume-command";
 
 describe("resumeCommand", () => {
 	const originalProfile = getActiveProfile();

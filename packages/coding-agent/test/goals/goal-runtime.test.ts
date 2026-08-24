@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { escapeXmlText } from "@linxiraos/pi-utils";
 import {
 	GoalRuntime,
 	type GoalRuntimeHost,
@@ -7,7 +8,6 @@ import {
 	renderTrustedObjective,
 } from "@linxiraos/zeta/goals/runtime";
 import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@linxiraos/zeta/goals/state";
-import { escapeXmlText } from "@linxiraos/pi-utils";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return {

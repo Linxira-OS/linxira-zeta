@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getProjectDir, normalizePathForComparison, setProjectDir } from "@linxiraos/pi-utils";
 import { type Args, parseArgs } from "@linxiraos/zeta/cli/args";
 import * as modelResolverModule from "@linxiraos/zeta/config/model-resolver";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -22,7 +23,6 @@ import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 import * as sessionListingModule from "@linxiraos/zeta/session/session-listing";
 import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { getProjectDir, normalizePathForComparison, setProjectDir } from "@linxiraos/pi-utils";
 
 function buildArgs(resume: string, sessionDir?: string): Args {
 	return {

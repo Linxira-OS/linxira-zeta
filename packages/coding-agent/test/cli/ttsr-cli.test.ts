@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getProjectAgentDir, getProjectDir, removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 import {
 	runTtsrCommand,
 	TTSR_SOURCES,
@@ -10,7 +11,6 @@ import {
 	type TtsrTestArgs,
 } from "@linxiraos/zeta/cli/ttsr-cli";
 import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
-import { getProjectAgentDir, getProjectDir, removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 
 let testTmpDir: string;
 

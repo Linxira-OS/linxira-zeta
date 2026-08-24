@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
+import type { TUI } from "@linxiraos/pi-tui";
 import { BashExecutionComponent } from "@linxiraos/zeta/modes/components/bash-execution";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
-import type { TUI } from "@linxiraos/pi-tui";
 
 const ui = { requestRender: () => {}, requestComponentRender: () => {} } as unknown as TUI;
 

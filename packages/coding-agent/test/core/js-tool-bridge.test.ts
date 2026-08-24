@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { callSessionTool } from "@linxiraos/zeta/eval/js/tool-bridge";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 function createTool(name: string, execute: AgentTool["execute"]): AgentTool {
 	return {

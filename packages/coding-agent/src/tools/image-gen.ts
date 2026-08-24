@@ -1,7 +1,13 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
-import { type ApiKey, type FetchImpl, getEnvApiKey, getOpenRouterHeaders, type Model, withAuth } from "@linxiraos/pi-ai";
+import {
+	type ApiKey,
+	type FetchImpl,
+	getEnvApiKey,
+	getOpenRouterHeaders,
+	type Model,
+	withAuth,
+} from "@linxiraos/pi-ai";
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 import {
 	applyCodexResidencyHeader,
@@ -12,6 +18,7 @@ import {
 	URL_PATHS,
 } from "@linxiraos/pi-catalog/wire/codex";
 import { getAntigravityUserAgent } from "@linxiraos/pi-catalog/wire/gemini-headers";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	$env,
 	isEnoent,

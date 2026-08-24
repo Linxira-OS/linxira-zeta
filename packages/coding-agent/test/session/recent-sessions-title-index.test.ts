@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { getRecentSessions } from "@linxiraos/zeta/session/session-listing";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { resetSessionTitleIndexForTests } from "@linxiraos/zeta/session/title-index";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { makeAssistantMessage } from "../session-manager/helpers";
 
 /**

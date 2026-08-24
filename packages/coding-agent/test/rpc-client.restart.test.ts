@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 import { TempDir } from "@linxiraos/pi-utils";
+import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 
 const MOCK_AGENT = path.join(import.meta.dir, "fixtures", "mock-rpc-agent.ts");
 

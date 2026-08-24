@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentMessage, type AgentOptions, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@linxiraos/pi-ai";
 import { streamGoogle } from "@linxiraos/pi-ai/providers/google";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
 import { AutoLearnController, buildAutoLearnInstructions } from "@linxiraos/zeta/autolearn/controller";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAutoLearnCaptureRunner } from "@linxiraos/zeta/sdk";

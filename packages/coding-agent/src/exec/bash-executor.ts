@@ -5,8 +5,8 @@
  */
 import { ExponentialYield } from "@linxiraos/pi-agent-core/utils/yield";
 import { type MinimizerOptions, PtySession, Shell, type ShellRunResult } from "@linxiraos/pi-natives";
-import { isCmdShell, isExecutable, type ShellConfig } from "@linxiraos/pi-utils/procmgr";
 import { $env } from "@linxiraos/pi-utils/env";
+import { isCmdShell, isExecutable, type ShellConfig } from "@linxiraos/pi-utils/procmgr";
 import { Settings, type ShellMinimizerSettings } from "../config/settings";
 import { OutputSink } from "../session/streaming-output";
 import { resolveOutputMaxColumns, resolveOutputSinkHeadBytes } from "../tools/output-meta";

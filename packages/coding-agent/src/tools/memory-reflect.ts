@@ -1,5 +1,5 @@
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { logger, untilAborted } from "@linxiraos/pi-utils";
 import { ensureBankExists } from "../hindsight/bank";
 import reflectDescription from "../prompts/tools/reflect.md" with { type: "text" };

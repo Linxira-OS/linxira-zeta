@@ -1,5 +1,8 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
+import { getStatsDbPath } from "@linxiraos/pi-utils";
 import {
 	closeDb,
 	getCostTimeSeries,
@@ -10,9 +13,6 @@ import {
 	initDb,
 	insertMessageStats,
 } from "@oh-my-pi/omp-stats/db";
-import type { MessageStats } from "@linxiraos/pi-stats/types";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-db-");

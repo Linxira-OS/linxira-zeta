@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
+import { type ChildProcess, ptree } from "@linxiraos/pi-utils";
 import { DapClient } from "@linxiraos/zeta/dap/client";
 import { DapSessionManager } from "@linxiraos/zeta/dap/session";
 import type {
@@ -8,7 +9,6 @@ import type {
 	DapResolvedAdapter,
 	DapThread,
 } from "@linxiraos/zeta/dap/types";
-import { type ChildProcess, ptree } from "@linxiraos/pi-utils";
 
 const TEST_ADAPTER: DapResolvedAdapter = {
 	name: "js-debug-adapter",

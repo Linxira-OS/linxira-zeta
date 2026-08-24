@@ -13,13 +13,13 @@
 
 import type { AgentRunCoverage, AgentRunSummary, ChatUsageEvent } from "@linxiraos/pi-agent-core";
 import { emptyAgentRunCoverage, emptyAgentRunSummary } from "@linxiraos/pi-agent-core";
+import { logger } from "@linxiraos/pi-utils";
 import {
 	createTelemetryExportConfig,
 	flushTelemetryExport,
 	initTelemetryExport,
 	isTelemetryExportEnabled,
 } from "@linxiraos/zeta/telemetry-export";
-import { logger } from "@linxiraos/pi-utils";
 
 const seen = new Set<string>();
 const metricPayloads: Uint8Array[] = [];

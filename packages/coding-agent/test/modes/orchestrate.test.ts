@@ -1,9 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import {
-	containsOrchestrate,
-	highlightOrchestrate,
-	renderOrchestrateNotice,
-} from "@linxiraos/zeta/modes/orchestrate";
+import { containsOrchestrate, highlightOrchestrate, renderOrchestrateNotice } from "@linxiraos/zeta/modes/orchestrate";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { containsUltrathink, highlightUltrathink } from "@linxiraos/zeta/modes/ultrathink";
 import { clearBundledCommandsCache, loadBundledCommands } from "@linxiraos/zeta/task/commands";

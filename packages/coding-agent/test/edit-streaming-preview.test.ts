@@ -3,8 +3,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { computeFileHash, formatHashlineHeader, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
-import { dropIncompleteLastEdit, EDIT_MODE_STRATEGIES } from "@linxiraos/zeta/edit";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { dropIncompleteLastEdit, EDIT_MODE_STRATEGIES } from "@linxiraos/zeta/edit";
 
 describe("dropIncompleteLastEdit", () => {
 	test("keeps all entries when partialJson is undefined", () => {

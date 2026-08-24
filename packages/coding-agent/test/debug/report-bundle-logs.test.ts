@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createReportBundle } from "@linxiraos/zeta/debug/report-bundle";
 import { getConfigRootDir, getLogsDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { createReportBundle } from "@linxiraos/zeta/debug/report-bundle";
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalXdgStateHome = process.env.XDG_STATE_HOME;

@@ -9,9 +9,10 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentTool, type StreamFn } from "@linxiraos/pi-agent-core";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
@@ -23,7 +24,6 @@ import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta
 import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
-import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function stubTool(name: string): AgentTool {

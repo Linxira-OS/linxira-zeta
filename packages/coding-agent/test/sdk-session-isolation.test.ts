@@ -4,6 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getSessionsDir, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { getActiveProfile, getConfigRootDir, setProfile } from "@linxiraos/pi-utils/dirs";
 import type { Rule } from "@linxiraos/zeta/capability/rule";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -16,8 +18,6 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
-import { getSessionsDir, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
-import { getActiveProfile, getConfigRootDir, setProfile } from "@linxiraos/pi-utils/dirs";
 
 function createTtsrRule(name: string): Rule {
 	return {

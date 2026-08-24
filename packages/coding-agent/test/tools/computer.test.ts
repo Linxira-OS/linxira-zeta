@@ -1,4 +1,14 @@
 import { describe, expect, it } from "bun:test";
+import type {
+	AxNode,
+	AxQuery,
+	AxSnapshotOptions,
+	DesktopCapabilities,
+	DesktopDisplay,
+	DesktopPoint,
+	DesktopWindow,
+	PointerOptions,
+} from "@linxiraos/pi-natives";
 import { type as arkType } from "@linxiraos/pi-omptype";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -11,16 +21,6 @@ import type {
 } from "@linxiraos/zeta/tools/computer/protocol";
 import { ComputerSupervisor, type ComputerWorkerHandle } from "@linxiraos/zeta/tools/computer/supervisor";
 import { ComputerWorkerCore, type NativeDesktopSession } from "@linxiraos/zeta/tools/computer/worker";
-import type {
-	AxNode,
-	AxQuery,
-	AxSnapshotOptions,
-	DesktopCapabilities,
-	DesktopDisplay,
-	DesktopPoint,
-	DesktopWindow,
-	PointerOptions,
-} from "@linxiraos/pi-natives";
 
 const capabilities: DesktopCapabilities = {
 	backend: "fake",

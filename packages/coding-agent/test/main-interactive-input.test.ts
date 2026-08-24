@@ -2,15 +2,11 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-	applyResolvedSystemPromptInputs,
-	readPipedInput,
-	submitInteractiveInput,
-} from "@linxiraos/zeta/main";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { applyResolvedSystemPromptInputs, readPipedInput, submitInteractiveInput } from "@linxiraos/zeta/main";
 import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
 import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
 import { discoverTitleSystemPromptFile } from "@linxiraos/zeta/system-prompt";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const cleanupDirs: string[] = [];
 

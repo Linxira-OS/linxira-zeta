@@ -3,16 +3,16 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import {
-	ANTIGRAVITY_PRIMARY_ENDPOINT,
-	fetchAntigravityDiscoveryModels,
-} from "@oh-my-pi/pi-catalog/discovery/antigravity";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { stripThinkingVariantToken } from "@linxiraos/pi-catalog/identity/family";
 import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
 import { defaultSupportedEffort, resolveWireModelId } from "@linxiraos/pi-catalog/model-thinking";
 import { googleGeminiCliModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/google";
 import type { ModelSpec } from "@linxiraos/pi-catalog/types";
+import {
+	ANTIGRAVITY_PRIMARY_ENDPOINT,
+	fetchAntigravityDiscoveryModels,
+} from "@oh-my-pi/pi-catalog/discovery/antigravity";
 import {
 	ANTIGRAVITY_VARIANT_COLLAPSE_TABLE,
 	CURSOR_VARIANT_COLLAPSE_TABLE,

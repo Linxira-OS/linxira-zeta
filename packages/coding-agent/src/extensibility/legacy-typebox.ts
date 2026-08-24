@@ -1,3 +1,4 @@
+import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@linxiraos/pi-ai/utils/schema";
 import { type } from "@linxiraos/pi-omptype";
 import { IR_BRAND } from "@linxiraos/pi-omptype/ir";
 import {
@@ -7,7 +8,6 @@ import {
 	type TypeBuilder as OmpTypeBuilder,
 	type TUnsafe,
 } from "@linxiraos/pi-omptype/typebox";
-import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@linxiraos/pi-ai/utils/schema";
 
 export * from "@linxiraos/pi-omptype/typebox";
 

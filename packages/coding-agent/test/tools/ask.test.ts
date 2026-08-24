@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it, spyOn, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { TERMINAL } from "@linxiraos/pi-tui";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type {
 	ExtensionAskDialogQuestion,
@@ -12,7 +13,6 @@ import { getThemeByName, initTheme, type Theme } from "@linxiraos/zeta/modes/the
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { AskTool, askToolRenderer } from "@linxiraos/zeta/tools/ask";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import { TERMINAL } from "@linxiraos/pi-tui";
 
 function createSession(overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

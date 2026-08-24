@@ -4,15 +4,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentEvent, AgentMessage } from "@linxiraos/pi-agent-core";
 import { type AssistantMessage, Effort, type TextContent } from "@linxiraos/pi-ai";
-import {
-	type CompactionEntry,
-	type FileEntry,
-	parseSessionEntries,
-	type SessionMessageEntry,
-} from "@linxiraos/zeta";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { type CompactionEntry, type FileEntry, parseSessionEntries, type SessionMessageEntry } from "@linxiraos/zeta";
 import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 import type { BashExecutionMessage } from "@linxiraos/zeta/session/messages";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { e2eApiKey } from "./utilities";
 
 type MessageEndEvent = Extract<AgentEvent, { type: "message_end" }>;

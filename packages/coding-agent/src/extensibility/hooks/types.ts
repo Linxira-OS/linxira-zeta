@@ -1,7 +1,7 @@
+import type { ImageContent, Message, Model, TextContent } from "@linxiraos/pi-ai";
 import type { type as ArkType } from "@linxiraos/pi-omptype";
 import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
 import type * as zod from "@linxiraos/pi-omptype/zod";
-import type { ImageContent, Message, Model, TextContent } from "@linxiraos/pi-ai";
 import type { Component, TUI } from "@linxiraos/pi-tui";
 import type { logger as PiLogger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../../config/model-registry";

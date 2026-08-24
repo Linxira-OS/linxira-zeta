@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import type { OAuthLoginCallbacks, OAuthProviderId } from "@linxiraos/pi-ai/oauth/types";
+import type { Component } from "@linxiraos/pi-tui";
 import { SignInTab } from "@linxiraos/zeta/modes/setup-wizard/scenes/sign-in";
 import type { SetupSceneHost } from "@linxiraos/zeta/modes/setup-wizard/scenes/types";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import * as clipboard from "@linxiraos/zeta/utils/clipboard";
-import type { Component } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	await initTheme();

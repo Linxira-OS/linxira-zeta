@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import type { Component } from "@linxiraos/pi-tui";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 
 class Block implements Component {
 	#rows: string[];

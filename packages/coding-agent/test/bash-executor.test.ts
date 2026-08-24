@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
+import * as piNatives from "@linxiraos/pi-natives";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings, type ShellMinimizerSettings } from "@linxiraos/zeta/config/settings";
 import {
 	applyDirenvPreflight,
@@ -12,9 +15,6 @@ import {
 import * as direnvModule from "@linxiraos/zeta/exec/direnv";
 import { DEFAULT_MAX_BYTES } from "@linxiraos/zeta/session/streaming-output";
 import * as shellSnapshot from "@linxiraos/zeta/utils/shell-snapshot";
-import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
-import * as piNatives from "@linxiraos/pi-natives";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.

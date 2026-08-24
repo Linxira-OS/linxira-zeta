@@ -6,6 +6,8 @@ import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
 import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
 import { __providerInFlightForTesting, streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Context } from "@linxiraos/pi-ai/types";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
+import * as fileLock from "@linxiraos/pi-utils/file-lock";
 import {
 	onAppendOnlyModeChanged,
 	onCodeModeChanged,
@@ -19,8 +21,6 @@ import * as discovery from "@linxiraos/zeta/discovery";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { AUTO_IMAGE_PROVIDER_ORDER } from "@linxiraos/zeta/tools/image-providers";
 import { SEARCH_PROVIDER_ORDER } from "@linxiraos/zeta/web/search/types";
-import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
-import * as fileLock from "@linxiraos/pi-utils/file-lock";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

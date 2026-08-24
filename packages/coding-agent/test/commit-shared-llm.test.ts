@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import {
-	createConventionalAnalysisTool,
-	parseConventionalAnalysisResponse,
-} from "@linxiraos/zeta/commit/shared-llm";
+import { createConventionalAnalysisTool, parseConventionalAnalysisResponse } from "@linxiraos/zeta/commit/shared-llm";
 
 describe("commit shared LLM parsing", () => {
 	it("ignores harmless extra fields in conventional analysis tool output", () => {

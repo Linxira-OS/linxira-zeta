@@ -152,7 +152,7 @@ type LeafType = "boolean" | "string" | "domain" | "strings" | "record";
 
 /** Known dot paths → expected leaf type (for PUT validation). */
 const KNOWN_PATHS: Record<string, LeafType> = {
-	"uiVersion": "string",
+	uiVersion: "string",
 	"tray.minimizeToTray": "boolean",
 	"tray.autostart": "boolean",
 	"channels.wechat.enabled": "boolean",

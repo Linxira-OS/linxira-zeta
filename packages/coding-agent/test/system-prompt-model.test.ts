@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -11,7 +12,6 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { buildSystemPrompt } from "@linxiraos/zeta/system-prompt";
 import { usesCodexTaskPrompt } from "@linxiraos/zeta/task/prompt-policy";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 const EMPTY_TREE = {

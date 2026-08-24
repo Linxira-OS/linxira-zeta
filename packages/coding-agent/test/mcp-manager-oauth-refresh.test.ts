@@ -15,10 +15,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
 import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const CREDENTIAL_ID = "mcp_oauth_test_1908";
 const TOKEN_URL = "https://example.com/oauth/token";

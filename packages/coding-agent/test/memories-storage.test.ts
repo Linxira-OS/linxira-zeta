@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
+import { getAgentDbPath, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { startMemoryStartupTask } from "@linxiraos/zeta/memories";
 import {
@@ -16,7 +17,6 @@ import {
 	tryClaimGlobalPhase2Job,
 	upsertThreads,
 } from "@linxiraos/zeta/memories/storage";
-import { getAgentDbPath, TempDir } from "@linxiraos/pi-utils";
 
 const GLOBAL_KIND = "memory_consolidate_global";
 const PROJECT_CWD = "/repo";

@@ -4,10 +4,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { resolveWireModelId } from "@linxiraos/pi-catalog/model-thinking";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("Portkey gateway custom models", () => {
 	let tempDir: string;

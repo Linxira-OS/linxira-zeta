@@ -3,10 +3,7 @@ import * as path from "node:path";
 import * as url from "node:url";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { getDefault } from "@linxiraos/zeta/config/settings-schema";
-import {
-	ReadToolGroupComponent,
-	readArgsCollapseIntoGroup,
-} from "@linxiraos/zeta/modes/components/read-tool-group";
+import { ReadToolGroupComponent, readArgsCollapseIntoGroup } from "@linxiraos/zeta/modes/components/read-tool-group";
 import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 
 function extractLinkUris(text: string): string[] {

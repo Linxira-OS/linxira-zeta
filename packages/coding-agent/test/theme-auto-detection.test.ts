@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 import * as nativesModule from "@linxiraos/pi-natives";
 import { type MacAppearanceObserver, MacOSAppearance } from "@linxiraos/pi-natives";
 import type { Terminal, TerminalAppearance } from "@linxiraos/pi-tui";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 
 const originalPlatform = process.platform;
 const originalColorfgbg = Bun.env.COLORFGBG;

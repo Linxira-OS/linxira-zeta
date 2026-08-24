@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import { StdinBuffer } from "@linxiraos/pi-tui/stdin-buffer";
 import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
 import { getEditorTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { StdinBuffer } from "@linxiraos/pi-tui/stdin-buffer";
 
 /**
  * Regression for #3857.

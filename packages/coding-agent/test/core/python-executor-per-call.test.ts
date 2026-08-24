@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { TempDir } from "@linxiraos/pi-utils";
 import { executePython } from "@linxiraos/zeta/eval/py/executor";
 import type { KernelExecuteOptions, KernelExecuteResult } from "@linxiraos/zeta/eval/py/kernel";
 import { PythonKernel } from "@linxiraos/zeta/eval/py/kernel";
-import { TempDir } from "@linxiraos/pi-utils";
 
 interface KernelStub {
 	execute: (code: string, options?: KernelExecuteOptions) => Promise<KernelExecuteResult>;

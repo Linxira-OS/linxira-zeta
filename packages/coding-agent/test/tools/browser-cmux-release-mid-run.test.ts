@@ -32,17 +32,12 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as logger from "@linxiraos/pi-utils/logger";
 import type { CmuxKind } from "@linxiraos/zeta/tools/browser/cmux/rpc";
 import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
 import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
-import {
-	acquireTab,
-	getTabsMapForTest,
-	releaseTab,
-	runInTab,
-} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { acquireTab, getTabsMapForTest, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
-import * as logger from "@linxiraos/pi-utils/logger";
 
 function makeKind(socketSuffix: string): CmuxKind {
 	return {

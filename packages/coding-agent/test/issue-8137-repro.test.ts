@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { Skill } from "@linxiraos/zeta/extensibility/skills";
@@ -12,7 +13,6 @@ import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 import { SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { BUILTIN_MODE_SLASH_COMMANDS } from "@linxiraos/zeta/slash-commands/builtin-modes";
-import { TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Issue #8137 — a `/skill:<name>` token embedded in a `/plan [prompt]` (or

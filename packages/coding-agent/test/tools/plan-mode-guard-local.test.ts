@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { enforcePlanModeWrite, resolvePlanPath } from "@linxiraos/zeta/tools/plan-mode-guard";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const ARTIFACTS_DIR = path.join(os.tmpdir(), "agent-artifacts");
 const REPO_ROOT = path.join(os.tmpdir(), "repo");

@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as url from "node:url";
-import { __buildLegacyPiPackageRootOverrides } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 import { TempDir } from "@linxiraos/pi-utils";
+import { __buildLegacyPiPackageRootOverrides } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 import { __renderLegacyPiVirtualModule, collectBundledPiEntries } from "../../scripts/legacy-pi-virtual-module";
 
 const bundledEntries = await collectBundledPiEntries();

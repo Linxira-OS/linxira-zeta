@@ -1,20 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@linxiraos/pi-agent-core";
 import { type AssistantMessage, Effort } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionActions, LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
 import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import * as sdkModule from "@linxiraos/zeta/sdk";
 import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import {
-	finalizeSubprocessOutput,
-	runSubprocess,
-	SUBAGENT_WARNING_MISSING_YIELD,
-} from "@linxiraos/zeta/task/executor";
+import { finalizeSubprocessOutput, runSubprocess, SUBAGENT_WARNING_MISSING_YIELD } from "@linxiraos/zeta/task/executor";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { logger } from "@linxiraos/pi-utils";
 
 function createAssistantStopMessage(text: string): AssistantMessage {
 	return {

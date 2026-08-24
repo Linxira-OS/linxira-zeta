@@ -1,21 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import type { Api, Context, Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	hashProviderFileContent,
 	ProviderFileCache,
 	type ProviderFileClient,
 	type ProviderFileHandle,
 } from "@linxiraos/zeta/blob-broker/provider-file-types";
-import {
-	type ProviderFileClientFactory,
-	ProviderFileManager,
-} from "@linxiraos/zeta/blob-broker/provider-files";
+import { type ProviderFileClientFactory, ProviderFileManager } from "@linxiraos/zeta/blob-broker/provider-files";
 import { createAnthropicFileClient } from "@linxiraos/zeta/blob-broker/provider-files-anthropic";
 import { createGeminiProviderFileClient } from "@linxiraos/zeta/blob-broker/provider-files-gemini";
 import { createOpenAIFileClient } from "@linxiraos/zeta/blob-broker/provider-files-openai";
 import type { FetchImpl } from "@linxiraos/zeta/blob-broker/uploader-runtime";
-import { TempDir } from "@linxiraos/pi-utils";
 
 interface RecordedRequest {
 	readonly url: string;

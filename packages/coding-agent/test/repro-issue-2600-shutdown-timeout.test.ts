@@ -18,6 +18,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { discoverAndLoadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 import {
@@ -29,7 +30,6 @@ import {
 } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
 
 const HANG_EXTENSION_SRC = `
 	export default function(pi) {

@@ -2,11 +2,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getConfigRootDir, getProjectDir, removeWithRetries, setAgentDir, setProjectDir } from "@linxiraos/pi-utils";
 import * as mcpClient from "@linxiraos/zeta/mcp/client";
 import * as mcpConfigWriter from "@linxiraos/zeta/mcp/config-writer";
 import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { getConfigRootDir, getProjectDir, removeWithRetries, setAgentDir, setProjectDir } from "@linxiraos/pi-utils";
 
 const originalProjectDir = getProjectDir();
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

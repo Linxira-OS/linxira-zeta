@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { openPath } from "@linxiraos/zeta/utils/open";
 import * as piUtils from "@linxiraos/pi-utils";
+import { openPath } from "@linxiraos/zeta/utils/open";
 import type { Subprocess } from "bun";
 
 type SpawnOptions = Bun.SpawnOptions.SpawnOptions<

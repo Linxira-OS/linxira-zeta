@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { ImageContent } from "@linxiraos/pi-ai";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 
 const IMAGE: ImageContent = {
 	type: "image",

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
+import { isConPTYHosted } from "@linxiraos/pi-tui";
+import { setTerminalHeadless } from "@linxiraos/pi-utils";
 import {
 	buildTerminalTitleWithState,
 	disposeTerminalTitleState,
 	setSessionTerminalTitle,
 	setTerminalTitleState,
 } from "@linxiraos/zeta/utils/title-generator";
-import { isConPTYHosted } from "@linxiraos/pi-tui";
-import { setTerminalHeadless } from "@linxiraos/pi-utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 const LABEL = "my-project";

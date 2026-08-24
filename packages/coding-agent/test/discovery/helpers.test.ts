@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { parseFrontmatter, removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { clearCache } from "@linxiraos/zeta/capability/fs";
 import type { LoadContext } from "@linxiraos/zeta/capability/types";
 import { loadFilesFromDir } from "@linxiraos/zeta/discovery/helpers";
-import { parseFrontmatter, removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 describe("parseFrontmatter", () => {
 	const parse = (content: string) => parseFrontmatter(content, { source: "tests:frontmatter", level: "off" });

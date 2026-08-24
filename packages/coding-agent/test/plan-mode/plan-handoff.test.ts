@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import type { LocalProtocolOptions } from "@linxiraos/zeta/internal-urls";
 import { loadOverallPlanReference } from "@linxiraos/zeta/plan-mode/plan-handoff";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("loadOverallPlanReference", () => {
 	let tmpDir: string;

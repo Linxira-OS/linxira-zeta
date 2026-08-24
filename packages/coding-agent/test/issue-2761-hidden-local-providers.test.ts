@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { TUI } from "@linxiraos/pi-tui";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import {
@@ -10,7 +11,6 @@ import {
 	resetProviderAutoRefreshGuard,
 } from "@linxiraos/zeta/modes/components/model-hub";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
-import type { TUI } from "@linxiraos/pi-tui";
 
 // Issue #2761: implicit local providers (ollama, llama.cpp, lm-studio) used to
 // get a sidebar tab even when nothing was listening on their endpoint. The hub

@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { AuthStorage, type CredentialDisabledEvent } from "@linxiraos/pi-ai";
 import * as oauthUtils from "@linxiraos/pi-ai/oauth";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { Extension, ExtensionError, ExtensionFactory } from "@linxiraos/zeta/extensibility/extensions";
@@ -11,7 +12,6 @@ import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 interface SessionDirs {
 	cwd: string;

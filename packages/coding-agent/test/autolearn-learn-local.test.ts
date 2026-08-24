@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	buildMemoryToolDeveloperInstructions,
@@ -13,7 +14,6 @@ import { localBackend } from "@linxiraos/zeta/memory-backend/local-backend";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { LearnTool } from "@linxiraos/zeta/tools/learn";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 

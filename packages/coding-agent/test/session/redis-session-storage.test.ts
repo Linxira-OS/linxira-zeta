@@ -15,10 +15,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import {
-	RedisSessionStorage,
-	type RedisSessionStorageClient,
-} from "@linxiraos/zeta/session/redis-session-storage";
+import { RedisSessionStorage, type RedisSessionStorageClient } from "@linxiraos/zeta/session/redis-session-storage";
 import { serializeTitleSlot } from "@linxiraos/zeta/session/session-title-slot";
 
 interface FakeRedisCall {

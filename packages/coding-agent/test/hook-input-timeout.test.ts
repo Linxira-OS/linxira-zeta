@@ -1,8 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-
+import type { TUI } from "@linxiraos/pi-tui";
 import { HookInputComponent } from "@linxiraos/zeta/modes/components/hook-input";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
-import type { TUI } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	const theme = await getThemeByName("dark");

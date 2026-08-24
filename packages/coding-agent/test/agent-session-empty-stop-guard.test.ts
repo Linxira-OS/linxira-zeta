@@ -1,10 +1,11 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { ThinkingContent } from "@linxiraos/pi-ai";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
@@ -12,7 +13,6 @@ import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/ag
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 
 const recordToolSchema = type({ value: type("string") });
 

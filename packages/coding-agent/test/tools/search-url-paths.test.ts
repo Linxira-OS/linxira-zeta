@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
 import * as scrapers from "@linxiraos/zeta/web/scrapers/types";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function createSession(testDir: string): ToolSession {
 	const sessionFile = path.join(testDir, "session.jsonl");

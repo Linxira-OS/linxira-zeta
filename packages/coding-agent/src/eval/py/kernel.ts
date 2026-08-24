@@ -9,7 +9,6 @@
  */
 import * as path from "node:path";
 import { $flag, isBunTestRuntime, logger, Snowflake } from "@linxiraos/pi-utils";
-import { $ } from "bun";
 import { Settings } from "../../config/settings";
 import { BaseKernel, getRemainingTimeMs, type KernelStartOptions } from "../kernel-base";
 import { type BackendProbeOptions, probeCandidates } from "../probe";

@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildDirectoryTree, buildWorkspaceTree } from "@linxiraos/zeta/workspace-tree";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { buildDirectoryTree, buildWorkspaceTree } from "@linxiraos/zeta/workspace-tree";
 
 const tempDirs: string[] = [];
 

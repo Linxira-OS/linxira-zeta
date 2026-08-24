@@ -1,8 +1,8 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { BashExecutionComponent } from "@linxiraos/zeta/modes/components/bash-execution";
-import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta/modes/theme/theme";
 import type { TUI } from "@linxiraos/pi-tui";
 import { visibleWidth } from "@linxiraos/pi-tui";
+import { BashExecutionComponent } from "@linxiraos/zeta/modes/components/bash-execution";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta/modes/theme/theme";
 
 const MAX_DISPLAY_LINE_CHARS = 4000;
 let darkTheme: Theme;

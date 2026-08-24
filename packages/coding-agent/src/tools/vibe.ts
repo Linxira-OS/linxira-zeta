@@ -11,8 +11,8 @@
  * stacked, each showing its tool calls and streamed text as it works.
  */
 
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { prompt } from "@linxiraos/pi-utils";

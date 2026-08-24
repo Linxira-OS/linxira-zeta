@@ -4,9 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { getManagedSkillsDir } from "@linxiraos/zeta/autolearn/managed-skills";
 import "@linxiraos/zeta/discovery";
-import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
 
 async function writeSkill(dir: string, name: string, description: string): Promise<void> {
 	const file = path.join(dir, name, "SKILL.md");

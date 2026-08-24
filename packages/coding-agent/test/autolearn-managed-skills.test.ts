@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { parseFrontmatter, removeWithRetries } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 import {
 	deleteManagedSkill,
 	getManagedSkillsDir,
@@ -10,8 +12,6 @@ import {
 	toSkillFrontmatter,
 	writeManagedSkill,
 } from "@linxiraos/zeta/autolearn/managed-skills";
-import { parseFrontmatter, removeWithRetries } from "@linxiraos/pi-utils";
-import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 
 describe("managed-skills primitives", () => {
 	let tempHome: string;

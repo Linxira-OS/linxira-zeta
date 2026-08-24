@@ -29,7 +29,12 @@
  * queued/planning until `tool_execution_start`, and only then delegate to the
  * wrapped tool's own renderer with the decoded inner args.
  */
-import type { AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolLoadMode } from "@linxiraos/pi-agent-core";
+import type {
+	AgentToolContext,
+	AgentToolResult,
+	AgentToolUpdateCallback,
+	ToolLoadMode,
+} from "@linxiraos/pi-agent-core";
 import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema, validateToolArguments } from "@linxiraos/pi-ai";
 import { type Component, Container, Text } from "@linxiraos/pi-tui";
 import { parseStreamingJson } from "@linxiraos/pi-utils";

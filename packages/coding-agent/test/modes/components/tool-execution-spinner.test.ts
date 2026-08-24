@@ -1,18 +1,18 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
+import type { TUI } from "@linxiraos/pi-tui";
 import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
 import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
 import { COLLAB_PROTO, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import {
 	SPINNER_RENDER_INTERVAL_MS,
 	stopSharedSpinnerTicker,
 	ToolExecutionComponent,
 } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import type { TUI } from "@linxiraos/pi-tui";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "../../collab/helpers/in-memory-relay";
 
 // Contract under test: live tool previews that render a pending/running status

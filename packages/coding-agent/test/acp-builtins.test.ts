@@ -9,11 +9,11 @@ import type {
 	ResetCreditTarget,
 	UsageReport,
 } from "@linxiraos/pi-ai";
+import { removeWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
-import { removeWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 
 interface FakeAcpBuiltinSession {
 	fastMode: boolean;

@@ -7,14 +7,14 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import {
 	formatHashlineHeader,
 	formatNumberedLines,
 	type SnapshotStore,
 	splitAddressableFileLines,
 } from "@linxiraos/pi-hashline";
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { ImageContent } from "@linxiraos/pi-ai";
 import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@linxiraos/pi-utils";
 import { canonicalSnapshotKey } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";

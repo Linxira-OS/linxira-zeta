@@ -23,11 +23,7 @@ import {
 	TINY_TITLE_MODEL_OPTIONS,
 	TINY_TITLE_MODEL_VALUES,
 } from "@linxiraos/zeta/tiny/models";
-import {
-	createTinyTitleSubprocess,
-	TinyTitleClient,
-	tinyTitleClient,
-} from "@linxiraos/zeta/tiny/title-client";
+import { createTinyTitleSubprocess, TinyTitleClient, tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
 import type { TinyTitleWorkerInbound, TinyTitleWorkerOutbound } from "@linxiraos/zeta/tiny/title-protocol";
 import { generateSessionTitle } from "@linxiraos/zeta/utils/title-generator";
 import type { Subprocess } from "bun";

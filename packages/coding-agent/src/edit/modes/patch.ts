@@ -7,8 +7,8 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { isEnoent } from "@linxiraos/pi-utils";
 import {
 	type FileDiagnosticsResult,

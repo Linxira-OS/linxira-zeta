@@ -3,10 +3,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { searchSearXNG } from "@linxiraos/zeta/web/search/providers/searxng";
 import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("SearXNG web search provider", () => {
 	afterEach(() => {

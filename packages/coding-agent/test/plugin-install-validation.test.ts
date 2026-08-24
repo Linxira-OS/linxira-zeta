@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import * as piUtils from "@linxiraos/pi-utils";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import type { Subprocess } from "bun";
 
 function emptyStream(): ReadableStream<Uint8Array> {

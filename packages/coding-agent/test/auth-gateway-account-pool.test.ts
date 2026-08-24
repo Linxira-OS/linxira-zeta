@@ -4,8 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import { type AuthBrokerServerHandle, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
-import { runAuthGatewayCommand } from "@linxiraos/zeta/cli/auth-gateway-cli";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { runAuthGatewayCommand } from "@linxiraos/zeta/cli/auth-gateway-cli";
 
 const BROKER_TOKEN = "gateway-account-pool-token";
 const ENV_KEYS = ["OMP_AUTH_BROKER_URL", "OMP_AUTH_BROKER_TOKEN", "OMP_AUTH_BROKER_ACCOUNT_POOL_FILE"] as const;

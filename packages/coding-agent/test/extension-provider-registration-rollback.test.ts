@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { UsageProvider, UsageReport } from "@linxiraos/pi-ai";
 import { unregisterOAuthProvider } from "@linxiraos/pi-ai/oauth";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
@@ -8,7 +9,6 @@ import type { ProviderConfig } from "@linxiraos/zeta/extensibility/extensions/ty
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { TempDir } from "@linxiraos/pi-utils";
 
 const testProviderConfig: ProviderConfig = {
 	baseUrl: "https://example.invalid/v1",

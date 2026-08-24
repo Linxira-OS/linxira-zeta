@@ -1,8 +1,6 @@
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { formatHashlineHeader } from "@linxiraos/pi-hashline";
-import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -10,7 +8,9 @@ import type {
 	AgentToolUpdateCallback,
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
+import { formatHashlineHeader } from "@linxiraos/pi-hashline";
 import { type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { prompt, untilAborted } from "@linxiraos/pi-utils";

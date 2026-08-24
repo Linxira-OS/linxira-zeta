@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentStorage, SCHEMA_VERSION } from "@linxiraos/zeta/session/agent-storage";
 import { TempDir } from "@linxiraos/pi-utils";
+import { AgentStorage, SCHEMA_VERSION } from "@linxiraos/zeta/session/agent-storage";
 import { readTableSql } from "./helpers/sqlite-inspect";
 
 const LEGACY_TIMESTAMP = 1_700_000_000;

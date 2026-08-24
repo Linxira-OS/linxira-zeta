@@ -2,8 +2,9 @@
  * Example extension that uses a 3rd party dependency (chalk).
  * Tests that jiti can resolve npm modules correctly.
  */
-import type { ExtensionAPI } from "@linxiraos/zeta";
+
 import chalk from "@linxiraos/pi-utils/chalk";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function (pi: ExtensionAPI) {
 	// Log with colors using chalk

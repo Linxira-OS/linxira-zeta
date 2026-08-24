@@ -2,10 +2,7 @@ import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as os from "node:os";
 import { stripVTControlCharacters } from "node:util";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins";
-import {
-	type InstalledPluginSummary,
-	MarketplaceManager,
-} from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { type InstalledPluginSummary, MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import type { InstalledPlugin } from "@linxiraos/zeta/extensibility/plugins/types";
 import {
 	MarketplacePluginDetailComponent,

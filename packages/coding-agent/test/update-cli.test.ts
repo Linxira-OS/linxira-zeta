@@ -4,6 +4,8 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import * as pluginCli from "@linxiraos/zeta/cli/plugin-cli";
 import * as updateCli from "@linxiraos/zeta/cli/update-cli";
 import {
@@ -36,8 +38,6 @@ import {
 	updateViaShimTakeover,
 } from "@linxiraos/zeta/cli/update-cli";
 import Update from "@linxiraos/zeta/commands/update";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import { getThemeByName, setThemeInstance } from "../src/modes/theme/theme";
 
 const tempDirs: string[] = [];
@@ -475,10 +475,7 @@ describe("update-cli npm rename contract", () => {
 			"@linxiraos/pi-natives",
 			"@linxiraos/pi-natives-darwin-arm64",
 		]);
-		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual([
-			"@linxiraos/zeta",
-			"@linxiraos/pi-natives",
-		]);
+		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta", "@linxiraos/pi-natives"]);
 	});
 
 	it("keeps the natives packages on an agent-only rename so cleanup cannot strip the addon the new install pinned", () => {

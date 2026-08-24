@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as natives from "@linxiraos/pi-natives";
+import { ptree, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
@@ -9,8 +11,6 @@ import * as imageResize from "@linxiraos/zeta/utils/image-resize";
 import * as toolsManager from "@linxiraos/zeta/utils/tools-manager";
 import * as scrapers from "@linxiraos/zeta/web/scrapers/types";
 import * as scraperUtils from "@linxiraos/zeta/web/scrapers/utils";
-import * as natives from "@linxiraos/pi-natives";
-import { ptree, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { asGlobalFetch } from "../helpers/fetch-mock";
 
 const withMissingSystemPython = () => {

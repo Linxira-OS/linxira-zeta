@@ -3,11 +3,11 @@ import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { listSessions } from "@linxiraos/zeta/session/session-listing";
 import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
 
 class CountingMemorySessionStorage extends MemorySessionStorage {
 	writeTextSyncCalls = 0;

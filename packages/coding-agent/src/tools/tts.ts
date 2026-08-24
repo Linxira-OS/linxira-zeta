@@ -3,10 +3,10 @@
 // backend (Kokoro-82M via kokoro-js on the shared ONNX worker) is layered on behind
 // the `providers.tts` switch.
 
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type ApiKey, withAuth } from "@linxiraos/pi-ai";
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { type } from "@linxiraos/pi-omptype";
 import { USER_AGENT } from "@linxiraos/pi-utils";
 import { settings } from "../config/settings";
 import type { CustomTool, CustomToolContext } from "../extensibility/custom-tools/types";

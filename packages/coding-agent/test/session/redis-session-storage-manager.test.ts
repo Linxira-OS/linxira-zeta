@@ -10,10 +10,7 @@
 
 import { describe, expect, it } from "bun:test";
 import type { Usage } from "@linxiraos/pi-ai";
-import {
-	RedisSessionStorage,
-	type RedisSessionStorageClient,
-} from "@linxiraos/zeta/session/redis-session-storage";
+import { RedisSessionStorage, type RedisSessionStorageClient } from "@linxiraos/zeta/session/redis-session-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 interface FakeRedis extends RedisSessionStorageClient {

@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
+import { CURSOR_MARKER, isFocusable, setKeybindings, type TUI } from "@linxiraos/pi-tui";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
 import { HookEditorComponent } from "@linxiraos/zeta/modes/components/hook-editor";
 import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import { CURSOR_MARKER, isFocusable, setKeybindings, type TUI } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	const theme = await getThemeByName("dark");

@@ -1,5 +1,11 @@
 import { type Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type { Model, ProviderSessionState, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@linxiraos/pi-ai";
+import type {
+	Model,
+	ProviderSessionState,
+	ServiceTier,
+	ServiceTierByFamily,
+	ServiceTierFamily,
+} from "@linxiraos/pi-ai";
 import {
 	clearAnthropicFastModeFallback,
 	Effort,

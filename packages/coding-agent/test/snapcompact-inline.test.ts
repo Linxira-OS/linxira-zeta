@@ -1,13 +1,13 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { Context, ImageContent, Message, TextContent, ToolResultMessage } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import {
 	estimateInlineSavings,
 	planInlineSwaps,
 	type SnapcompactInlineOptions,
 	SnapcompactInlineTransformer,
 } from "@linxiraos/zeta/session/snapcompact-inline";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
 
 /**
  * Token-dense deterministic word salad: each word is `w` + ≤5 digits, ~7

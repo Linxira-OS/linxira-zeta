@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Api, AuthStorage, Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { TempDir } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resolveModelScope } from "@linxiraos/zeta/config/model-resolver";
@@ -14,7 +15,6 @@ import {
 	toSessionScopedModels,
 } from "@linxiraos/zeta/main";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function model(id: string): Model<Api> {

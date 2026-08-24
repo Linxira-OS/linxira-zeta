@@ -2,19 +2,14 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as dapModule from "@linxiraos/zeta/dap";
 import { connectSocket, DapClient, waitForTcpServerListening } from "@linxiraos/zeta/dap/client";
 import { DapSessionManager } from "@linxiraos/zeta/dap/session";
-import type {
-	DapCapabilities,
-	DapClientState,
-	DapEventMessage,
-	DapResolvedAdapter,
-} from "@linxiraos/zeta/dap/types";
+import type { DapCapabilities, DapClientState, DapEventMessage, DapResolvedAdapter } from "@linxiraos/zeta/dap/types";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { DebugTool } from "@linxiraos/zeta/tools/debug";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const TEST_ADAPTER: DapResolvedAdapter = {
 	name: "lldb-dap",

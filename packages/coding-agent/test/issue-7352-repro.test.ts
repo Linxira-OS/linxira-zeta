@@ -18,10 +18,7 @@
  */
 import { describe, expect, it, vi } from "bun:test";
 import { MnemopiEmbedClient, type MnemopiEmbedWorkerHandle } from "@linxiraos/zeta/mnemopi/embed-client";
-import type {
-	MnemopiEmbedWorkerInbound,
-	MnemopiEmbedWorkerOutbound,
-} from "@linxiraos/zeta/mnemopi/embed-protocol";
+import type { MnemopiEmbedWorkerInbound, MnemopiEmbedWorkerOutbound } from "@linxiraos/zeta/mnemopi/embed-protocol";
 
 /** A fake worker that answers `init` but never answers `embed`. */
 function silentEmbedWorker(state: { spawns: number; terminated: number }): () => MnemopiEmbedWorkerHandle {

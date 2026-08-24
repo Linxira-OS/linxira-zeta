@@ -9,11 +9,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { clearCache } from "@linxiraos/zeta/capability/fs";
 import type { Skill } from "@linxiraos/zeta/capability/skill";
 import type { LoadContext, LoadResult } from "@linxiraos/zeta/capability/types";
 import { scanSkillsFromDir } from "@linxiraos/zeta/discovery/helpers";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 function writeSkill(dir: string, name: string, description: string): void {
 	const skillDir = path.join(dir, name);

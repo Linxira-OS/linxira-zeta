@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
+import { getDbBusyTimeoutMs, setInteractiveHost } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { runRootCommand } from "@linxiraos/zeta/main";
-import { getDbBusyTimeoutMs, setInteractiveHost } from "@linxiraos/pi-utils";
 
 it("classifies an interactive host before opening auth storage", async () => {
 	const previous = setInteractiveHost(false);

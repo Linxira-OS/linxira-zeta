@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	createCompactionSummaryMessage,
@@ -13,6 +12,7 @@ import type { AssistantMessage, Model, ToolCall } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
 import { Effort } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 
 function createAssistantMessage(content: AssistantMessage["content"]): AssistantMessage {
 	return {

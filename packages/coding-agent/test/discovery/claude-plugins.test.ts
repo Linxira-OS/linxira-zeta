@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { loadCapability } from "@linxiraos/zeta/capability";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import {
@@ -11,7 +12,6 @@ import {
 } from "@linxiraos/zeta/discovery/helpers";
 import { loadSlashCommands } from "@linxiraos/zeta/extensibility/slash-commands";
 import { discoverAgents } from "@linxiraos/zeta/task/discovery";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import "@linxiraos/zeta/discovery/claude-plugins";
 import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
 import type { Skill } from "@linxiraos/zeta/capability/skill";

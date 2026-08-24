@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
 import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
 import { streamSimple } from "@linxiraos/pi-ai/stream";
-import type { AssistantMessage, Context, CursorExecHandlers, ToolCall, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import type {
+	AssistantMessage,
+	Context,
+	CursorExecHandlers,
+	ToolCall,
+	ToolResultMessage,
+} from "@linxiraos/pi-ai/types";
 import { getStreamingPartialJson, setStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { applyGlyphCodec, decodeGlyphText, encodeGlyphText } from "@linxiraos/pi-ai/utils/glyph-codec";

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import type { Api, Model } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
 import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { logger, setTerminalHeadless } from "@linxiraos/pi-utils";
 import {
 	disposeTerminalTitleState,
 	generateSessionTitle,
@@ -10,7 +11,6 @@ import {
 	setTerminalTitle,
 	setTerminalTitleState,
 } from "@linxiraos/zeta/utils/title-generator";
-import { logger, setTerminalHeadless } from "@linxiraos/pi-utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 function getModelOrThrow(id: string): Model<Api> {

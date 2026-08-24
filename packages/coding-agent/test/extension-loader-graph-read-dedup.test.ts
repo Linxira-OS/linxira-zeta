@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
 import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { loadLegacyPiModule } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
-import { TempDir } from "@linxiraos/pi-utils";
 import type { BunFile } from "bun";
 
 describe("Extension Loader Graph Read Dedup", () => {

@@ -7,6 +7,7 @@ import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { loadAdvisorTranscriptCosts } from "@linxiraos/zeta/advisor/transcript-recorder";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -16,7 +17,6 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("AgentSession advisor toggle", () => {

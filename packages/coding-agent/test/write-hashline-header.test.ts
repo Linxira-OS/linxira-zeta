@@ -3,13 +3,13 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Patch, Patcher } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { canonicalSnapshotKey, getFileSnapshotStore } from "@linxiraos/zeta/edit/file-snapshot-store";
 import { HashlineFilesystem } from "@linxiraos/zeta/edit/hashline/filesystem";
 import { writethroughNoop } from "@linxiraos/zeta/lsp";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { WriteTool } from "@linxiraos/zeta/tools/write";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function createSession(cwd: string): ToolSession {
 	return {

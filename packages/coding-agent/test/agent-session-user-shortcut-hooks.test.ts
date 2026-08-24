@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as pythonExecutor from "@linxiraos/zeta/eval/py/executor";
@@ -8,7 +9,6 @@ import * as bashExecutor from "@linxiraos/zeta/exec/bash-executor";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const sharedAuthStorage = createInMemoryAuthStorage();

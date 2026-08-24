@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { Container } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type {
 	ExtensionActions,
@@ -14,7 +15,6 @@ import type { InteractiveModeContext, RenderSessionContextOptions } from "@linxi
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { buildSessionContext, type SessionContext } from "@linxiraos/zeta/session/session-context";
 import type { CustomMessageEntry, SessionEntry } from "@linxiraos/zeta/session/session-entries";
-import { Container } from "@linxiraos/pi-tui";
 
 /**
  * Issue #1955: `sendMessage` with `display: true` renders twice during

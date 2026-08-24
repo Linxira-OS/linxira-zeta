@@ -13,10 +13,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { loadCapability } from "@linxiraos/zeta/capability";
 import { clearCache } from "@linxiraos/zeta/capability/fs";
 import type { Skill } from "@linxiraos/zeta/capability/skill";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import "@linxiraos/zeta/capability/skill";
 import "@linxiraos/zeta/discovery/github";
 

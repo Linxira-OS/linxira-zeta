@@ -710,7 +710,10 @@ interface SessionUsageRow {
 	lastActive: string;
 }
 
-let usageCache: { data: { totalTokens: number; input: number; output: number; cost: number; sessions: SessionUsageRow[] } | null; ts: number } = {
+let usageCache: {
+	data: { totalTokens: number; input: number; output: number; cost: number; sessions: SessionUsageRow[] } | null;
+	ts: number;
+} = {
 	data: null,
 	ts: 0,
 };
@@ -725,7 +728,7 @@ function sessionUsageFromFile(filePath: string, info: SessionInfo): SessionUsage
 		const parsed = parseSessionContent(fs.readFileSync(filePath, "utf8"));
 		for (const entry of parsed.entries) {
 			const message = entry.type === "message" ? entry.message : undefined;
-			if (!message || message.role !== "assistant") continue;
+			if (message?.role !== "assistant") continue;
 			const usage = message.usage;
 			if (!usage) continue;
 			totalTokens += usage.totalTokens ?? 0;

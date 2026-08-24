@@ -4,7 +4,13 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import * as path from "node:path";
 
-import { type Api, type AssistantMessage, completeSimple, type Model, retryTransientCompletion } from "@linxiraos/pi-ai";
+import {
+	type Api,
+	type AssistantMessage,
+	completeSimple,
+	type Model,
+	retryTransientCompletion,
+} from "@linxiraos/pi-ai";
 import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
 import { isConPTYHosted, writeThroughActiveTerminal } from "@linxiraos/pi-tui";
 import { isTerminalHeadless, logger, prompt } from "@linxiraos/pi-utils";

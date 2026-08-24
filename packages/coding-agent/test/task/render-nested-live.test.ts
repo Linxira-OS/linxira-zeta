@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
+import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/zeta/task";
 import { taskToolRenderer } from "@linxiraos/zeta/task/renderer";
-import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
 
 describe("task renderer: nested live rendering", () => {
 	beforeAll(async () => {

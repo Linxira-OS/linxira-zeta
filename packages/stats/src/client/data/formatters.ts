@@ -1,7 +1,6 @@
 import { formatDistanceToNow } from "@linxiraos/pi-utils/dates";
 import type { MessageStats } from "../types";
 
-
 export function formatInteger(value: number): string {
 	return value.toLocaleString();
 }

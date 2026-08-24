@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	type ExecuteHashlineSingleOptions,
@@ -12,7 +13,6 @@ import {
 import { NOOP_HARD_LIMIT } from "@linxiraos/zeta/edit/hashline/noop-loop-guard";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 beforeAll(async () => {
 	resetSettingsForTest();

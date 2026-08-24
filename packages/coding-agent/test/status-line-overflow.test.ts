@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { visibleWidth } from "@linxiraos/pi-tui";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { StatusLineSegmentId } from "@linxiraos/zeta/config/settings-schema";
 import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
@@ -9,8 +11,6 @@ import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-lin
 import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
 import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/zeta/utils/session-color";
-import { visibleWidth } from "@linxiraos/pi-tui";
-import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 
 const originalProjectDir = getProjectDir();
 

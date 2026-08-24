@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ApiKeyResolveContext, OAuthAccess, OAuthAccessSource } from "@linxiraos/pi-ai";
+import { OAuthError, ProviderHttpError } from "@linxiraos/pi-ai/error";
 import {
 	AUTH_RETRY_MAX_ATTEMPTS,
 	isApiKeyResolver,
@@ -8,7 +9,6 @@ import {
 	withAuth,
 	withOAuthAccess,
 } from "@oh-my-pi/pi-ai";
-import { OAuthError, ProviderHttpError } from "@linxiraos/pi-ai/error";
 
 function authError(status = 401): Error & { status: number } {
 	return Object.assign(new Error(`${status} authentication_error`), { status });

@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "bun:test";
-import {
-	type PendingExtensionRequest,
-	requestRpcDialog,
-	requestRpcSelect,
-} from "@linxiraos/zeta/modes/rpc/rpc-mode";
+import { type PendingExtensionRequest, requestRpcDialog, requestRpcSelect } from "@linxiraos/zeta/modes/rpc/rpc-mode";
 
 function requireRequest(frame: object | undefined): { id: string } {
 	if (!frame || !("id" in frame)) {

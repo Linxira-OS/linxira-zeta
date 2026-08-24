@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getAgentDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import type { Personality } from "@linxiraos/zeta/config/settings";
 import { buildSystemPrompt } from "@linxiraos/zeta/system-prompt";
-import { getAgentDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 const EMPTY_TREE = {
 	rootPath: "",

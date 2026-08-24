@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ConfigFile } from "@linxiraos/zeta/config/config-file";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { ModelsConfigSchema } from "@linxiraos/zeta/config/models-config-schema";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { TempDir } from "@linxiraos/pi-utils";
 
 describe("ModelRegistry.create() factory (F6)", () => {
 	let tempDir: TempDir;

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createLspWritethrough, FileFormatResult } from "@linxiraos/zeta/lsp";
 import * as lspConfig from "@linxiraos/zeta/lsp/config";
 import type { LinterClient, ServerConfig } from "@linxiraos/zeta/lsp/types";
 import { addFileWriteFallback } from "@linxiraos/zeta/tools/file-write-fallback";
-import { TempDir } from "@linxiraos/pi-utils";
 
 function createFormatter(format: (filePath: string, content: string) => Promise<string>): ServerConfig {
 	return {

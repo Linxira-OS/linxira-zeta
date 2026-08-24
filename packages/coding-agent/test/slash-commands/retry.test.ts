@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import {
-	ACP_BUILTIN_SLASH_COMMANDS,
-	executeAcpBuiltinSlashCommand,
-} from "@linxiraos/zeta/slash-commands/acp-builtins";
+import { ACP_BUILTIN_SLASH_COMMANDS, executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 

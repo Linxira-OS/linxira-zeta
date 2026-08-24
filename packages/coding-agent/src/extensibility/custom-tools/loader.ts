@@ -5,9 +5,9 @@
  * directories do not depend on workspace module resolution.
  */
 import * as path from "node:path";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
 import * as zod from "@linxiraos/pi-omptype/zod";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger } from "@linxiraos/pi-utils";
 import { toolCapability } from "../../capability/tool";
 import { type CustomTool, loadCapability } from "../../discovery";

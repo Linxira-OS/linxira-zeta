@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { type Skill as CapabilitySkill, skillCapability } from "@linxiraos/zeta/capability/skill";
 import { getCapability } from "@linxiraos/zeta/discovery";
 import { getWslWindowsHomeCandidate, runHostProbe } from "@linxiraos/zeta/discovery/agents";
@@ -12,7 +13,6 @@ import {
 	parseSkillInvocation,
 	type Skill,
 } from "@linxiraos/zeta/extensibility/skills";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");

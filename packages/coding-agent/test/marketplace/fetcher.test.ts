@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import {
 	classifySource,
 	fetchMarketplace,
 	parseMarketplaceCatalog,
 } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import * as git from "@linxiraos/zeta/utils/git";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // Fixture lives at test/marketplace/fixtures/valid-marketplace/
 const FIXTURE_DIR = path.join(import.meta.dir, "fixtures", "valid-marketplace");

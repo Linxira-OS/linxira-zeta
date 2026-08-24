@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import type { ComposerStyle } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { COMPOSER_SHAPE_VALUES, type ComposerShape } from "@linxiraos/zeta/config/settings-schema";
 import {
@@ -11,7 +12,6 @@ import {
 } from "@linxiraos/zeta/modes/components/composer-shape-registry";
 import { SettingsSelectorComponent } from "@linxiraos/zeta/modes/components/settings-selector";
 import { initTheme, setTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { ComposerStyle } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	await initTheme();

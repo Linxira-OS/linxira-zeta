@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { Container } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
 import { UserMessageComponent } from "@linxiraos/zeta/modes/components/user-message";
@@ -10,7 +11,6 @@ import { imageReferenceHyperlink } from "@linxiraos/zeta/modes/image-references"
 import { getEditorTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
-import { Container } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();

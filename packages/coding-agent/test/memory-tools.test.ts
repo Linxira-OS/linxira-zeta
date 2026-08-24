@@ -11,6 +11,8 @@ import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { resetMemoryForTests } from "@linxiraos/pi-mnemopi";
+import { logger, TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { HindsightApi } from "@linxiraos/zeta/hindsight/client";
 import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
@@ -31,8 +33,6 @@ import { MemoryEditTool } from "@linxiraos/zeta/tools/memory-edit";
 import { MemoryRecallTool } from "@linxiraos/zeta/tools/memory-recall";
 import { MemoryReflectTool } from "@linxiraos/zeta/tools/memory-reflect";
 import { MemoryRetainTool } from "@linxiraos/zeta/tools/memory-retain";
-import { resetMemoryForTests } from "@linxiraos/pi-mnemopi";
-import { logger, TempDir } from "@linxiraos/pi-utils";
 
 // Mnemopi is lazy-loaded at runtime; preload it for synchronous state construction.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);

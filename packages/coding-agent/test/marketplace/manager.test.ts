@@ -2,7 +2,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-
+import * as piUtils from "@linxiraos/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { listOmpExtensionRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
 import { getEnabledPlugins } from "@linxiraos/zeta/extensibility/plugins/loader";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
@@ -12,8 +13,6 @@ import {
 	readMarketplacesRegistry,
 	writeMarketplacesRegistry,
 } from "@linxiraos/zeta/extensibility/plugins/marketplace";
-import * as piUtils from "@linxiraos/pi-utils";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // Minimal marketplace fixture, built once into a temp dir (see beforeAll). It carries only
 // what these tests assert — one plugin entry plus a plugin.json for the version-fallback path —

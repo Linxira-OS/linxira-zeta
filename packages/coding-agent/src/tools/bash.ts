@@ -1,5 +1,4 @@
 import * as fs from "node:fs";
-import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -7,6 +6,7 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import { getProjectDir, isEnoent, logger, prompt } from "@linxiraos/pi-utils";

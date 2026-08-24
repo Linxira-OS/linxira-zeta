@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	AssistantMessageComponent,
 	resetThinkingSpeedTracker,
 } from "@linxiraos/zeta/modes/components/assistant-message";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 

@@ -5,9 +5,6 @@
  * They can provide custom rendering for tool calls and results in the TUI.
  */
 
-import type { type as ArkType } from "@linxiraos/pi-omptype";
-import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
-import type * as zod from "@linxiraos/pi-omptype/zod";
 import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
@@ -18,6 +15,9 @@ import type {
 } from "@linxiraos/pi-agent-core";
 import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { FetchImpl, Model, Static, TSchema } from "@linxiraos/pi-ai";
+import type { type as ArkType } from "@linxiraos/pi-omptype";
+import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
+import type * as zod from "@linxiraos/pi-omptype/zod";
 import type { Component } from "@linxiraos/pi-tui";
 import type { logger as PiLogger } from "@linxiraos/pi-utils";
 import type { Rule } from "../../capability/rule";

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getAgentDir } from "@linxiraos/pi-utils";
 import type { LoadContext } from "@linxiraos/zeta/capability/types";
 import { getConfigDirs } from "@linxiraos/zeta/config";
 import { resolveClaudePaths } from "@linxiraos/zeta/config/claude-paths";
 import { getUserPath } from "@linxiraos/zeta/discovery/helpers";
-import { getAgentDir } from "@linxiraos/pi-utils";
 
 describe("PI_CONFIG_DIR", () => {
 	const original = process.env.PI_CONFIG_DIR;

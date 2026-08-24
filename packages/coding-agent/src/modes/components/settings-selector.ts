@@ -1,5 +1,6 @@
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Effort } from "@linxiraos/pi-ai";
+import type { ShapeTarget } from "@linxiraos/pi-snapcompact";
 import {
 	type Component,
 	Container,
@@ -25,7 +26,6 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "@linxiraos/pi-tui";
-import type { ShapeTarget } from "@linxiraos/pi-snapcompact";
 import {
 	getDefault,
 	getType,

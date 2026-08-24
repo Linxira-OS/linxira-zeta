@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { COMPOSER_DEFAULTS } from "@linxiraos/zeta/modes/composer";
 import {
 	readComposerStartupCache,
@@ -10,7 +11,6 @@ import {
 	writeComposerUiCache,
 	writeComposerWelcomeCache,
 } from "@linxiraos/zeta/modes/composer-cache";
-import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 
 describe("composer startup cache", () => {
 	it("round-trips per-project UI, recent-session JSONL, and LSP speculation", async () => {

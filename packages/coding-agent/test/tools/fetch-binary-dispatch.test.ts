@@ -4,13 +4,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { encodeArchive } from "@linxiraos/pi-utils/ar";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import * as scrapers from "@linxiraos/zeta/web/scrapers/types";
 import * as scraperUtils from "@linxiraos/zeta/web/scrapers/utils";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
-import { encodeArchive } from "@linxiraos/pi-utils/ar";
 
 function makeSession(testDir: string): ToolSession {
 	const sessionFile = path.join(testDir, "session.jsonl");

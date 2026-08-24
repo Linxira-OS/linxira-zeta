@@ -5,12 +5,12 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("ModelRegistry LM Studio Fixes", () => {
 	let tempDir: string;

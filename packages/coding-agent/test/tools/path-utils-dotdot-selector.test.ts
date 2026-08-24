@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 import {
 	isFilesystemSourcePath,
 	parseLineRangeChunk,
 	parseLineRanges,
 	splitPathAndSel,
 } from "@oh-my-pi/pi-coding-agent/tools/path-utils";
-import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 
 describe("`..` range selector alias", () => {
 	it("treats `N..M` as the inclusive range `N-M`", () => {

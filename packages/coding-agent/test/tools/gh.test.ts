@@ -5,6 +5,8 @@ import * as path from "node:path";
 import type { ToolCall } from "@linxiraos/pi-ai";
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import * as piUtils from "@linxiraos/pi-utils";
+import { $which, getAgentDir, hashPath, removeWithRetries, setAgentDir, WhichCachePolicy } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import {
@@ -16,8 +18,6 @@ import {
 	resolveDefaultRepoMemoized,
 } from "@linxiraos/zeta/tools/gh";
 import * as git from "@linxiraos/zeta/utils/git";
-import * as piUtils from "@linxiraos/pi-utils";
-import { $which, getAgentDir, hashPath, removeWithRetries, setAgentDir, WhichCachePolicy } from "@linxiraos/pi-utils";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";

@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import type { McpConnectionStatusEvent } from "@linxiraos/zeta/mcp/startup-events";
 import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "many-tools-mcp.ts");
 const BUN_EXEC = process.execPath;

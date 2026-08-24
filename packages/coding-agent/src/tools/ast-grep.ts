@@ -1,9 +1,9 @@
 import * as path from "node:path";
-import { formatHashlineHeader } from "@linxiraos/pi-hashline";
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
+import { formatHashlineHeader } from "@linxiraos/pi-hashline";
 import { type AstFindMatch, astGrep } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { prompt, untilAborted } from "@linxiraos/pi-utils";

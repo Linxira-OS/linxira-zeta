@@ -4,6 +4,8 @@ import * as path from "node:path";
 import { Agent, RESCUE_SHAKE_CONFIG } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
@@ -12,8 +14,6 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
 
 /**
  * Regression test for the snapcompact frame dead-end.

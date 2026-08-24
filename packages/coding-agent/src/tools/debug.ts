@@ -1,5 +1,4 @@
 import * as fs from "node:fs/promises";
-import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -9,6 +8,7 @@ import type {
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
 import { type Component, Text } from "@linxiraos/pi-tui";
 import { isEnoent, prompt } from "@linxiraos/pi-utils";
 import {

@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { resolveExplicitSearchPaths } from "@linxiraos/zeta/tools/path-utils";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { GrepTool } from "../../src/tools/grep";
 
 const testSettings = Settings.isolated();

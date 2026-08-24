@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentEvent } from "@linxiraos/pi-agent-core";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { defineRpcClientTool, RpcClient } from "@linxiraos/zeta/modes";
 import { RpcHostToolBridge } from "@linxiraos/zeta/modes/rpc/host-tools";
 import type {
@@ -9,7 +10,6 @@ import type {
 	RpcHostToolCancelRequest,
 	RpcHostToolUpdate,
 } from "@linxiraos/zeta/modes/rpc/rpc-types";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const tempPaths: string[] = [];
 

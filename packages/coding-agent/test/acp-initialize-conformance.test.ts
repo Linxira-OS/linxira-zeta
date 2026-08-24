@@ -7,15 +7,15 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { getConfigRootDir, setAgentDir, VERSION } from "@linxiraos/pi-utils";
+import type { AgentSideConnection, InitializeRequest } from "@linxiraos/pi-utils/acp";
 import { AcpAgent } from "@linxiraos/zeta/modes/acp/acp-agent";
 import { ACP_TERMINAL_AUTH_FLAG, prepareAcpTerminalAuthArgs } from "@linxiraos/zeta/modes/acp/terminal-auth";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { getConfigRootDir, setAgentDir, VERSION } from "@linxiraos/pi-utils";
-import type { AgentSideConnection, InitializeRequest } from "@linxiraos/pi-utils/acp";
 import { expectAcpStructure } from "./helpers/acp-schema";
 
 const arkInitializeResponse = type({

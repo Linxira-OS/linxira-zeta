@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentEvent, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import { type BlockState, handleServerMessage, type ToolCallState } from "@linxiraos/pi-ai/providers/cursor";
 import { buildPiLsResult, piTruncation } from "@linxiraos/pi-ai/providers/cursor/exec-modern";
@@ -18,6 +17,8 @@ import {
 	ShellArgsSchema,
 } from "@linxiraos/pi-catalog/discovery/cursor-proto";
 import { create, fromBinary } from "@linxiraos/pi-catalog/discovery/protobuf";
+import { type } from "@linxiraos/pi-omptype";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { CursorExecHandlers } from "@linxiraos/zeta/cursor";
 import {
@@ -27,14 +28,12 @@ import {
 	cursorMcpPrefersReplaceEdit,
 	normalizeCursorReplaceArgs,
 } from "@linxiraos/zeta/cursor-bridge-tools";
-
 import { EditTool } from "@linxiraos/zeta/edit";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions";
 import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool } from "@linxiraos/zeta/tools/bash";
 import type { TruncationMeta } from "@linxiraos/zeta/tools/output-meta";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { AdviseTool } from "../src/advisor/advise-tool";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {

@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import type { TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { LoginDialogComponent } from "@linxiraos/zeta/modes/components/login-dialog";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import * as openModule from "@linxiraos/zeta/utils/open";
-import type { TUI } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();

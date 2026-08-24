@@ -1,9 +1,6 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-
-import { formatHashlineHeader, stripHashlinePrefixes } from "@linxiraos/pi-hashline";
-import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -11,6 +8,8 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
+import { formatHashlineHeader, stripHashlinePrefixes } from "@linxiraos/pi-hashline";
+import { type } from "@linxiraos/pi-omptype";
 import { type Component, Text } from "@linxiraos/pi-tui";
 import { isEnoent, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
 import {

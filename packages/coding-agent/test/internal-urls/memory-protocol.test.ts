@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "bun:test"
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
 import { getMemoryRoot } from "@linxiraos/zeta/memories";
@@ -16,7 +17,6 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { GlobTool } from "@linxiraos/zeta/tools/glob";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 // Mnemopi state is loaded lazily; preload so `new MnemopiSessionState(...)` can
 // resolve the module synchronously in the fixtures below.

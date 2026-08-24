@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { isEnoent, TempDir } from "@linxiraos/pi-utils";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 async function fileExists(p: string): Promise<boolean> {
 	try {

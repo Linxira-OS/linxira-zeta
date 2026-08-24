@@ -1,4 +1,3 @@
-import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentIdentity,
 	AgentTelemetryConfig,
@@ -7,6 +6,7 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { escapeXmlAttribute, escapeXmlText } from "@linxiraos/pi-utils";
 import adviseDescription from "../prompts/advisor/advise-tool.md" with { type: "text" };
 

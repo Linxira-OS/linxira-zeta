@@ -12,13 +12,13 @@
  * rejection so the segment never wedges after a single failure.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
 import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { GitRefHead } from "@linxiraos/zeta/utils/git";
 import * as git from "@linxiraos/zeta/utils/git";
-import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 
 const originalProjectDir = getProjectDir();
 

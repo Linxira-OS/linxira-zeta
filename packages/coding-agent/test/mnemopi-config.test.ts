@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { getMemoriesDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { loadMnemopiConfig, type MnemopiBackendConfig } from "@linxiraos/zeta/mnemopi/config";
-import { getMemoriesDir } from "@linxiraos/pi-utils";
 
 // `mnemopi.embeddingVariant` selects the concrete local embedding model, while an
 // explicit `mnemopi.embeddingModel` is an advanced override that wins. Scoping is

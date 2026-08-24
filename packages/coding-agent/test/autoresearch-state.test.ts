@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createAutoresearchExtension } from "@linxiraos/zeta/autoresearch";
 import {
 	buildExperimentState,
@@ -16,7 +17,6 @@ import type {
 	RegisteredCommand,
 } from "@linxiraos/zeta/extensibility/extensions";
 import * as git from "@linxiraos/zeta/utils/git";
-import { TempDir } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

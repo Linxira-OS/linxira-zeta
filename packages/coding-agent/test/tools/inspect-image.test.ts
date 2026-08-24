@@ -2,9 +2,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import { AuthStorage, type completeSimple, Effort, type ImageContent, type Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { removeSyncWithRetries, sanitizeText } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
@@ -14,7 +15,6 @@ import type { ImageAttachmentEntry, ToolSession } from "@linxiraos/zeta/tools";
 import { InspectImageTool } from "@linxiraos/zeta/tools/inspect-image";
 import { inspectImageToolRenderer } from "@linxiraos/zeta/tools/inspect-image-renderer";
 import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
-import { removeSyncWithRetries, sanitizeText } from "@linxiraos/pi-utils";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";

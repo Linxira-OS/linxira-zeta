@@ -3,11 +3,11 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { formatHashlineHeader } from "@linxiraos/pi-hashline";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { canonicalSnapshotKey, EditTool, getFileSnapshotStore, type PatchParams } from "@linxiraos/zeta/edit";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import type { EditMode } from "@linxiraos/zeta/utils/edit-mode";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const MODEL = "openai/gpt-5.6";
 const SOURCE = "export function value(): number {\n\treturn 1;\n}\n";

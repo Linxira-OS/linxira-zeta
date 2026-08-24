@@ -1,21 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { Message, Model } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponseSource } from "@linxiraos/pi-ai/providers/mock";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { logger } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { type CustomMessage, convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import {
-	collectMountedMCPToolRoutes,
-	projectMountedMCPXdevGuidance,
-} from "@linxiraos/zeta/session/session-tools";
+import { collectMountedMCPToolRoutes, projectMountedMCPXdevGuidance } from "@linxiraos/zeta/session/session-tools";
 import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@linxiraos/zeta/tools/xdev";
-import { logger } from "@linxiraos/pi-utils";
 
 // Cache-stability invariant: when MCP servers reconnect with byte-identical tool
 // definitions, `refreshMCPTools` must not rebuild the system prompt. A rebuild

@@ -1,5 +1,5 @@
-import type { Clipboard, SnapshotStore } from "@linxiraos/pi-hashline";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { Clipboard, SnapshotStore } from "@linxiraos/pi-hashline";
 import {
 	Box,
 	type Component,

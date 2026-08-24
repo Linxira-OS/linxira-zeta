@@ -15,6 +15,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { isRecord } from "@linxiraos/pi-utils";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
@@ -24,7 +25,6 @@ import * as discoveryModule from "@linxiraos/zeta/task/discovery";
 import * as executorModule from "@linxiraos/zeta/task/executor";
 import type { AgentDefinition, SingleResult, TaskParams } from "@linxiraos/zeta/task/types";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { isRecord } from "@linxiraos/pi-utils";
 
 const taskAgent: AgentDefinition = {
 	name: "task",

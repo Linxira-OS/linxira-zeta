@@ -11,10 +11,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import type { MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
 import { applyMcpToggleRuntime } from "@linxiraos/zeta/modes/components/extensions/mcp-runtime";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { MANY_TOOL_COUNT, manyToolName } from "./fixtures/many-tools-mcp";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "many-tools-mcp.ts");

@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { getOrFetchIssue, getOrFetchPr } from "@linxiraos/zeta/tools/gh";
 import {
@@ -21,7 +22,6 @@ import {
 } from "@linxiraos/zeta/tools/github-cache";
 import { ToolAbortError, throwIfAborted } from "@linxiraos/zeta/tools/tool-errors";
 import * as git from "@linxiraos/zeta/utils/git";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const TEST_REPO = "owner/example";
 const TEST_AUTH_KEY = "test-auth";

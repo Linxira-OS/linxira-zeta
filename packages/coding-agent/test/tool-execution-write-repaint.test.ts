@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
+import type { TUI } from "@linxiraos/pi-tui";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { TUI } from "@linxiraos/pi-tui";
 
 function writeArgs(lineCount: number) {
 	return {

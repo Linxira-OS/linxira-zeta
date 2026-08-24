@@ -15,11 +15,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { __resetDirsFromEnvForTests, getMCPConfigPath, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initializeWithSettings, reset as resetDiscoveryCache } from "@linxiraos/zeta/discovery";
 import { readMCPConfigFile, setMcpServerEnabled, setServerDisabled } from "@linxiraos/zeta/mcp/config-writer";
 import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
-import { __resetDirsFromEnvForTests, getMCPConfigPath, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 describe("loadAllExtensions MCP parity with /mcp list (issue #3827)", () => {
 	let projectDir = "";

@@ -2,11 +2,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, StreamFn } from "@linxiraos/pi-agent-core";
 import type { Model, ToolResultMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
+import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CursorExecHandlers } from "@linxiraos/zeta/cursor";
@@ -26,7 +27,6 @@ import {
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
-import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 
 const toolActivationExtension: ExtensionFactory = pi => {
 	pi.registerTool({

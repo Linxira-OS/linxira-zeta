@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import * as native from "@linxiraos/pi-natives/clipboard";
 import {
 	readImageFromClipboard,
 	readMacFileUrlsFromClipboard,
 	readTextFromClipboard,
 } from "@linxiraos/zeta/utils/clipboard";
-import * as native from "@linxiraos/pi-natives/clipboard";
 import type { Subprocess } from "bun";
 
 type SpawnOptions = Bun.SpawnOptions.SpawnOptions<

@@ -7,6 +7,7 @@ import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
 import { getModelMatchPreferences, resolveModelScope } from "@linxiraos/zeta/config/model-resolver";
@@ -15,7 +16,6 @@ import { buildSessionOptions as buildCliSessionOptions } from "@linxiraos/zeta/m
 import { createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("createAgentSession deferred model pattern resolution", () => {

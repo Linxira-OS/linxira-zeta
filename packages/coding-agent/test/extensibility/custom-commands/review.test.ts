@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn, vi } from 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { ReviewCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/review";
 import type { CustomCommandAPI } from "@linxiraos/zeta/extensibility/custom-commands/types";
 import type { HookCommandContext } from "@linxiraos/zeta/extensibility/hooks/types";
@@ -10,7 +11,6 @@ import type { PrDiffPayload, ViewLookupResult } from "@linxiraos/zeta/tools/gh";
 import * as gh from "@linxiraos/zeta/tools/gh";
 import * as git from "@linxiraos/zeta/utils/git";
 import * as jj from "@linxiraos/zeta/utils/jj";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const SAMPLE_JJ_DIFF = `diff --git a/src/workspace.ts b/src/workspace.ts
 --- a/src/workspace.ts

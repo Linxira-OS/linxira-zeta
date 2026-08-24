@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, expect, it } from "bun:test";
-import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 import { TempDir } from "@linxiraos/pi-utils";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 import { readTableSql } from "./helpers/sqlite-inspect";
 
 const LEGACY_TIMESTAMP = 1_700_000_000;

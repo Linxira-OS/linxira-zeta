@@ -2,6 +2,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { scheduler } from "node:timers/promises";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir, withTimeout } from "@linxiraos/pi-utils";
+import * as logger from "@linxiraos/pi-utils/logger";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
@@ -11,8 +13,6 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import * as unexpectedStopClassifier from "@linxiraos/zeta/session/unexpected-stop-classifier";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { TempDir, withTimeout } from "@linxiraos/pi-utils";
-import * as logger from "@linxiraos/pi-utils/logger";
 
 const runtimeSignalStoreKey = "__ompRuntimeSignals";
 

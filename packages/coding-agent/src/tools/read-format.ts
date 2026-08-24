@@ -1,11 +1,11 @@
 import * as path from "node:path";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import {
 	formatHashlineHeader,
 	formatNumberedLine,
 	formatNumberedLines,
 	splitAddressableFileLines,
 } from "@linxiraos/pi-hashline";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { canonicalSnapshotKey, getFileSnapshotStore, recordSeenLines } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
 import { isMarkdownPath } from "../modes/theme/theme";

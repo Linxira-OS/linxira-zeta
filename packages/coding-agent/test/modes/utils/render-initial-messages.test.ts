@@ -15,6 +15,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi }
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ImageContent, Message, Usage } from "@linxiraos/pi-ai";
 import { kStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
@@ -23,8 +25,6 @@ import type { InteractiveModeContext, RenderSessionContextOptions } from "@linxi
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext, StrippedToolCallsMarker } from "@linxiraos/zeta/session/session-context";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
 
 beforeAll(() => {
 	initTheme();

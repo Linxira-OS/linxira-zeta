@@ -29,8 +29,8 @@ import {
 	handleAgentCommand,
 	handleAgentEvents,
 	handleAgentNew,
-	handleGlobalExtensionUiResponse,
 	handleAgentState,
+	handleGlobalExtensionUiResponse,
 	handleRunningEvents,
 } from "./web-gateway/agents";
 import {

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import type {
 	InstalledPluginEntry,
 	InstalledPluginsRegistry,
@@ -23,7 +24,6 @@ import {
 	writeInstalledPluginsRegistry,
 	writeMarketplacesRegistry,
 } from "@linxiraos/zeta/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // Inline the parseClaudePluginsRegistry validation logic to avoid pulling
 // in discovery/helpers.ts which transitively imports @linxiraos/pi-natives.

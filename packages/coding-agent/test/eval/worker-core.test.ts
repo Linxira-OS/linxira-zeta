@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
+import { postmortem } from "@linxiraos/pi-utils";
 import { WorkerCore } from "@linxiraos/zeta/eval/js/worker-core";
 import type {
 	SessionSnapshot,
@@ -10,7 +11,6 @@ import type {
 	WorkerInbound,
 	WorkerOutbound,
 } from "@linxiraos/zeta/eval/js/worker-protocol";
-import { postmortem } from "@linxiraos/pi-utils";
 
 interface WorkerHarness {
 	send(message: WorkerInbound): void;

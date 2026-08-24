@@ -12,10 +12,10 @@
 import { describe, expect, it, vi } from "bun:test";
 import { AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
 import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
+import { setInteractiveHost } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { describeAuthBrokerStartupError } from "@linxiraos/zeta/session/auth-broker-config";
-import { setInteractiveHost } from "@linxiraos/pi-utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {

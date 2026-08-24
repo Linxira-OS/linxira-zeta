@@ -10,11 +10,7 @@
  * entries and service.name resolves to OTEL_SERVICE_NAME.
  */
 
-import {
-	flushTelemetryExport,
-	initTelemetryExport,
-	isTelemetryExportEnabled,
-} from "@linxiraos/zeta/telemetry-export";
+import { flushTelemetryExport, initTelemetryExport, isTelemetryExportEnabled } from "@linxiraos/zeta/telemetry-export";
 import { trace } from "@opentelemetry/api";
 
 let body: Buffer | undefined;

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ToolCall } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
@@ -11,7 +12,6 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { buildSessionContext } from "@linxiraos/zeta/session/session-context";
 import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Regression for issue #6879 — a tool call renders twice (follow-up to #6516).
