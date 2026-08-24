@@ -16,10 +16,10 @@ import {
 // past macOS's 104-byte sun_path once OpenSSH appends its mux temp suffix.
 describe("SSH control-path budget (#9070)", () => {
 	it("rejects a control dir that overflows sun_path once %C.sock + mux temp bind is added", () => {
-		// A representative macOS named-profile control dir is 48 bytes; the
-		// temporary bind path is 48 + 63 = 111 >= 104, so it must not fit.
+		// A representative macOS named-profile control dir is 49 bytes; the
+		// temporary bind path is 49 + 63 = 112 >= 104, so it must not fit.
 		const profileDir = "/Users/arthur/.zeta/profiles/upstream/ssh-control";
-		expect(Buffer.byteLength(profileDir)).toBe(48);
+		expect(Buffer.byteLength(profileDir)).toBe(49);
 		expect(controlPathFitsBudget(profileDir, "darwin")).toBe(false);
 		// The default (unprofiled) macOS dir stays within budget.
 		expect(controlPathFitsBudget("/Users/arthur/.zeta/ssh-control", "darwin")).toBe(true);
@@ -46,7 +46,7 @@ describe("sshControlFallbackDir", () => {
 		const a = sshControlFallbackDir(canonicalDir, 501);
 		const b = sshControlFallbackDir(canonicalDir, 501);
 		expect(a).toBe(b);
-		expect(a).toBe("/tmp/omp-5434354bc38f9a50fbbd");
+		expect(a).toBe("/tmp/omp-012e16d9a4abc01bed5f");
 		expect(Buffer.byteLength(a)).toBe(29);
 		const tempBind = path.join(a, `${"a".repeat(40)}.sock.${"b".repeat(16)}`);
 		expect(Buffer.byteLength(tempBind)).toBe(92);
@@ -75,7 +75,7 @@ describe("resolveSshControlDir", () => {
 	it("relocates to the bounded shared fallback when the canonical dir overflows", () => {
 		const canonicalDir = "/Users/arthur/.zeta/profiles/upstream/ssh-control";
 		const choice = resolveSshControlDir({ canonicalDir, platform: "darwin", uid: 501, tmpBase: "/tmp" });
-		expect(choice).toEqual({ dir: "/tmp/omp-5434354bc38f9a50fbbd", shared: true });
+		expect(choice).toEqual({ dir: "/tmp/omp-012e16d9a4abc01bed5f", shared: true });
 		expect(controlPathFitsBudget(choice.dir, "darwin")).toBe(true);
 	});
 
