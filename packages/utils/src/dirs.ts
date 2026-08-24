@@ -717,6 +717,11 @@ export function getAuthBrokerSnapshotCachePath(): string {
 }
 
 /** Get the local FastEmbed model cache directory (~/.zeta/cache/fastembed). */
+/** Get the commit-author avatar cache directory (~/.omp/cache/avatars). */
+export function getAvatarCacheDir(): string {
+	return dirs.rootSubdir(path.join("cache", "avatars"), "cache");
+}
+/** Get the local FastEmbed model cache directory (~/.omp/cache/fastembed). */
 export function getFastembedCacheDir(): string {
 	return dirs.rootSubdir(path.join("cache", "fastembed"), "cache");
 }

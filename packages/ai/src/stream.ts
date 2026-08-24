@@ -11,9 +11,9 @@ import {
 	resolveVertexEndpointHost,
 } from "@linxiraos/pi-catalog/hosts";
 import {
+	defaultSupportedEffort,
 	mapEffortToAnthropicAdaptiveEffort,
 	mapEffortToGoogleThinkingLevel,
-	minimumSupportedEffort,
 	requireSupportedEffort,
 	resolveWireModelId,
 } from "@linxiraos/pi-catalog/model-thinking";
@@ -1894,7 +1894,7 @@ function normalizeMandatoryReasoningOptions<TApi extends Api>(
 	) {
 		return options;
 	}
-	const floor = minimumSupportedEffort(model);
+	const floor = defaultSupportedEffort(model);
 	if (floor === undefined) return options;
 	return { ...options, reasoning: floor, disableReasoning: undefined, forceReasoningOff: undefined };
 }
