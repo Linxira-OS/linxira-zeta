@@ -134,9 +134,51 @@ Zeta keeps upstream references minimal so the repository stays lean:
   - Outdated OMP version tags (`v17.x`, older) are deleted locally and never
     pushed to `origin`; `origin` carries only Zeta product release tags
     (`v1.x.x`) plus the `backup/*` namespace.
-  - A genuinely long-lived dev branch (something that must survive outside
-    `main` for an extended period) is the exception — keep it only when its
-    retention is explicitly agreed per-branch.
+
+### Branch naming & retention
+
+Every ref has a fixed shape and a fixed lifetime. The same rules apply to
+local refs and `origin`.
+
+**Long-lived (kept indefinitely):**
+
+| Ref | Shape | Notes |
+|---|---|---|
+| Product trunk | `main` | sole integration target |
+| Upstream mirror | `sync/omp` | fast-forward to `omp-upstream/main` only, never edited |
+| Stable/version branch | `zeta/v<zeta>-<omp>` (e.g. `zeta/v1.1.10-17.3.8`) | one per shipped Zeta version; kept forever |
+| Backup namespace | `backup/<remote>/main`, `backup/omp-tag/<tag>` | disaster recovery; see below |
+
+**Short-lived (delete on merge, local + remote):**
+
+| Ref | Shape | Notes |
+|---|---|---|
+| OMP release sync | `sync/omp-release/<release>` | deleted as soon as merged to `main` |
+| Pi semantic port | `port/<scope>` / `port/pi-web/<scope>` | deleted as soon as merged |
+| Feature branch | `feat/<scope>` | deleted as soon as merged |
+
+**Development branches (time-stamped, 3-month retention):**
+
+A real development branch that cannot land quickly is named
+`dev/<scope>/<YYYY-MM>` — the third field is the creation period, used to
+decide when the branch is stale:
+
+- Example: `dev/web-ui/2026-05`, `dev/gateway/2026-08`.
+- Default retention is **3 months** from the creation period. A branch older
+  than 3 months that is not merged and not actively worked is deleted
+  (local + remote). When a dev branch is abandoned mid-flight, delete it
+  rather than leaving it to rot.
+- The exception is `dev/longtime/<scope>` — explicitly agreed long-lived
+  development work that survives past 3 months. Keep it only when its
+  retention was consciously decided; do not use `dev/longtime/` as a default.
+
+**Backup retention:**
+
+`backup/omp-tag/<tag>` keeps only the **recent stable OMP release baselines**
+(the same two most recent tags that exist locally, currently `v18.0.3` and
+`v18.0.4`). Older `backup/omp-tag/v17.x` entries are removed once the release
+is superseded; full history stays reachable through `backup/omp/main`, which
+mirrors `omp-upstream/main`.
 
 ## Documentation Layout
 
