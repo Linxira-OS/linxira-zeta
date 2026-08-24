@@ -15,6 +15,7 @@ const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const repoRoot = path.resolve(desktopDir, "..");
 const agentDir = path.join(repoRoot, "packages", "coding-agent");
 const webUiDir = path.join(repoRoot, "web-ui");
+const webUiNextDir = path.join(repoRoot, "web-ui-next");
 const stagingDir = path.join(repoRoot, "temp", "desktop", "staging", "zeta");
 const platformInfo = desktopPlatformInfo(process.platform, process.arch);
 const desktopVersion = JSON.parse(fs.readFileSync(path.join(desktopDir, "package.json"), "utf8")).version;
@@ -35,14 +36,21 @@ run(process.execPath, [npmCli, "run", "build"], webUiDir, {
 	NEXT_OUTPUT_STANDALONE: "1",
 	ZETA_APP_VERSION: desktopVersion,
 });
+run(process.execPath, [npmCli, "run", "build"], webUiNextDir, {
+	...process.env,
+});
 
 const zetaBinary = path.join(agentDir, "dist", platformInfo.zetaBinaryName);
 const standalone = path.join(webUiDir, ".next", "standalone");
 const staticFiles = path.join(webUiDir, ".next", "static");
 const publicFiles = path.join(webUiDir, "public");
 const standaloneRoot = fs.existsSync(path.join(standalone, "server.js")) ? standalone : path.join(standalone, "web-ui");
+const webUiNextDist = path.join(webUiNextDir, "dist");
 if (!fs.existsSync(zetaBinary) || !fs.existsSync(path.join(standaloneRoot, "server.js"))) {
 	throw new Error("Expected Zeta executable or standalone Web UI output was not produced.");
+}
+if (!fs.existsSync(path.join(webUiNextDist, "index.html"))) {
+	throw new Error("Expected web-ui-next build output (dist/index.html) was not produced.");
 }
 
 fs.rmSync(stagingDir, { recursive: true, force: true });
@@ -63,5 +71,9 @@ fs.cpSync(staticFiles, path.join(stagedStandalone, ".next", "static"), { recursi
 if (fs.existsSync(publicFiles)) {
 	fs.cpSync(publicFiles, path.join(stagedStandalone, "public"), { recursive: true });
 }
+
+// web-ui-next (Vite) static bundle, served by zeta serve under /next.
+const stagedWebUiNext = path.join(stagingDir, "web-ui-next");
+fs.cpSync(webUiNextDist, stagedWebUiNext, { recursive: true });
 
 console.log(`desktop runtime staged at ${stagingDir}`);

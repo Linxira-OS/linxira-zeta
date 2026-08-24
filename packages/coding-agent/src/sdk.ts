@@ -3197,6 +3197,12 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 
 		const setToolUIContext = (uiContext: ExtensionUIContext, hasUI: boolean) => {
 			toolContextStore.setUIContext(uiContext, hasUI);
+			// The approval gate reads the RUNNER's context (`runner.hasUI()` /
+			// `getUIContext()`), not the tool context store. Keep both backends
+			// in lockstep so gateway/ACP transports answer approval prompts.
+			if (hasUI) {
+				extensionRunner.setUIContext(uiContext);
+			}
 		};
 
 		const initialTools = initialToolNames

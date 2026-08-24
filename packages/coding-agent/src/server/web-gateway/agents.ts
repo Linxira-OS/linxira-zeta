@@ -214,7 +214,16 @@ type PendingUiResponse = {
 const sessions = new Map<string, AgentSessionWrapper>();
 /** Per-start-key coalescing promise, mirroring web-ui's `globalThis.__piStartLocks`. */
 const startLocks = new Map<string, Promise<{ session: AgentSessionWrapper; realSessionId: string }>>();
-
+/**
+ * Pending extension UI dialogs, keyed by request id → owning session id.
+ *
+ * Serve-hosted agents run in RPC subprocesses, so the pending dialog lives in
+ * the child's memory — the gateway can only observe the `extension_ui_request`
+ * frames it already relays over SSE. Recording the owner there lets
+ * `/api/extension-ui/response` forward the reply to the right session's
+ * command channel without the caller knowing which session asked.
+ */
+const uiRequestOwners = new Map<string, string>();
 export function getRpcSession(sessionId: string): AgentSessionWrapper | undefined {
 	return sessions.get(sessionId);
 }
@@ -580,6 +589,10 @@ export class AgentSessionWrapper {
 							? { confirmed: command.confirmed }
 							: { value: command.value ?? "" };
 					pending.resolve(response);
+					// Tell SSE listeners the dialog closed so web clients can
+					// drop the pending question/permission card even when the
+					// reply came from a different tab than the one showing it.
+					this.#emit({ type: "extension_ui_resolved", id: command.id });
 				}
 				return { ok: true };
 			}
@@ -674,7 +687,7 @@ export class AgentSessionWrapper {
 		const pending = this.#pendingUiRequests.get(id);
 		if (!pending) return false;
 		this.#pendingUiRequests.delete(id);
-		pending.resolve(response);
+		this.#emit({ type: "extension_ui_resolved", id });
 		return true;
 	}
 
@@ -702,7 +715,6 @@ export class AgentSessionWrapper {
 	/** Reload the runtime's current thinking level etc. into the client contract. */
 	destroy(): void {
 		if (this.#destroyed) return;
-		this.#destroyed = true;
 		for (const pending of this.#pendingUiRequests.values()) {
 			try {
 				pending.cancel();
@@ -710,8 +722,6 @@ export class AgentSessionWrapper {
 				// best-effort cancel
 			}
 		}
-		this.#pendingUiRequests.clear();
-		removeRunningSession(this.realSessionId);
 		sessions.delete(this.realSessionId);
 	}
 }
@@ -728,6 +738,40 @@ function mapBashResult(result: BashResult): {
 		error: result.exitCode === 0 ? undefined : `Command failed with exit code ${result.exitCode ?? "unknown"}`,
 		exitCode: result.exitCode,
 	};
+}
+
+/** Resolve a pending extension UI dialog without addressing a session. */
+export async function handleGlobalExtensionUiResponse(req: Request): Promise<Response> {
+	let body: { id?: string; value?: string; confirmed?: boolean; cancelled?: boolean; timedOut?: boolean };
+	try {
+		body = await req.json() as typeof body;
+	} catch {
+		return json({ error: "Invalid JSON body" }, 400);
+	}
+	const id = typeof body.id === "string" ? body.id : "";
+	if (!id) return json({ error: "id is required" }, 400);
+	const ownerSessionId = uiRequestOwners.get(id);
+	if (!ownerSessionId) return json({ error: "Unknown extension UI request id" }, 404);
+	uiRequestOwners.delete(id);
+	// Forward through the owning session's command channel — the pending
+	// dialog lives in that session's RPC subprocess, not in this process.
+	const command: Record<string, unknown> = { type: "extension_ui_response", id };
+	if (body.cancelled) {
+		command.cancelled = true;
+		command.timedOut = body.timedOut;
+	} else if (body.confirmed !== undefined) {
+		command.confirmed = body.confirmed;
+	} else {
+		command.value = body.value ?? "";
+	}
+	return handleAgentCommand(
+		new Request("http://local/forward", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(command),
+		}),
+		ownerSessionId,
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -766,6 +810,10 @@ export function createGatewayUiContext(
 	emit: (request: ExtensionUiRequest) => void,
 ): ExtensionUIContext {
 	return {
+		// The gateway client owns the dialog UI and answers on cancel with
+		// `cancelled: true` — treat that as user cancellation, not a timeout,
+		// so the ask tool reports "cancelled by the user" instead of aborting.
+		timeoutStartsOnPresentation: false,
 		select(title, options, dialogOptions) {
 			return sendDialog(
 				"select",
@@ -845,9 +893,12 @@ export function createGatewayUiContext(
 		setHeader() {},
 		addAutocompleteProvider() {},
 		setEditorComponent() {},
-		askDialog() {
-			return Promise.resolve(undefined);
-		},
+		// Intentionally no `askDialog`: its mere presence would route AskTool
+		// through the rich-dialog path, whose unresolved promise resolves to
+		// `undefined` and turns every ask into "cancelled by the user". Omitting
+		// it makes ask.ts fall back to `ui.select`, which emits
+		// `extension_ui_request(method=select)` over SSE and resolves through
+		// the gateway's `extension_ui_response` route (the QuestionCard path).
 		get theme(): never {
 			throw new Error("Theme access is not supported by the web gateway");
 		},
@@ -932,6 +983,11 @@ export async function startRpcSession(
 			channelSend: channelHooks?.channelSend,
 			workspaceRun: channelHooks?.workspaceRun,
 			imControl: channelHooks?.imControl,
+			// Serve-hosted sessions own a real UI backend: createGatewayUiContext
+			// below routes select/editor over SSE (`extension_ui_request`) and
+			// resolves them via the `extension_ui_response` command. Declaring
+			// hasUI here lets UI-gated tools (AskTool) register at all.
+			hasUI: true,
 		});
 
 		const wrapper = new AgentSessionWrapper(session, realSessionId, sessionFile || manager.getSessionFile() || null);
@@ -1076,6 +1132,17 @@ export async function handleAgentEvents(req: Request, sessionId: string): Promis
 			encode({ type: "connected", sessionId });
 
 			const unsubscribe = session.onEvent(event => {
+				if (
+					event
+					&& typeof event === "object"
+					&& "type" in event
+					&& event.type === "extension_ui_request"
+					&& "id" in event
+					&& typeof event.id === "string"
+					&& event.id.length > 0
+				) {
+					uiRequestOwners.set(event.id, sessionId);
+				}
 				encode(event);
 			});
 
@@ -1092,7 +1159,6 @@ export async function handleAgentEvents(req: Request, sessionId: string): Promis
 				unsubscribe();
 				controller.close();
 			};
-			req.signal?.addEventListener("abort", cleanup);
 		},
 	});
 

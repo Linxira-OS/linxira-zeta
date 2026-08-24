@@ -29,6 +29,7 @@ import {
 	handleAgentCommand,
 	handleAgentEvents,
 	handleAgentNew,
+	handleGlobalExtensionUiResponse,
 	handleAgentState,
 	handleRunningEvents,
 } from "./web-gateway/agents";
@@ -55,6 +56,7 @@ import {
 import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import {
+	handleDeleteProject,
 	handleDeleteSession,
 	handleExportSession,
 	handleGetSession,
@@ -63,6 +65,7 @@ import {
 	handleSessionContext,
 	handleSessionState,
 	handleThinking,
+	handleUsageStats,
 } from "./web-gateway/sessions";
 import { handleSettingsGet, handleSettingsPut, handleSettingsReload } from "./web-gateway/settings";
 import {
@@ -90,6 +93,7 @@ const SESSION_EXPORT_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/export
 
 // Literal agent routes are matched before the generic /api/agent/:id forms.
 const AGENT_ID_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})$`);
+const EXTENSION_UI_RESPONSE_RE = /^\/api\/extension-ui\/response$/;
 const AGENT_EVENTS_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/events$`);
 
 const AUTH_ALL_PROVIDERS_RE = /^\/api\/auth\/all-providers$/;
@@ -219,6 +223,16 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (pathname === "/api/projects") {
+		if (req.method === "DELETE") return handleDeleteProject(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/usage") {
+		if (req.method === "GET") return handleUsageStats();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
 	const id = capture(pathname, SESSION_ID_RE);
 	if (id) {
 		const [sessionId] = id;
@@ -284,6 +298,14 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (agentId) {
 		if (req.method === "GET") return handleAgentState(agentId[0]);
 		if (req.method === "POST") return handleAgentCommand(req, agentId[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Session-agnostic extension UI reply channel: request ids are unique
+	// across the process, so LAN clients (and multi-tab UIs) can answer a
+	// pending select/editor dialog without knowing which session owns it.
+	if (EXTENSION_UI_RESPONSE_RE.test(pathname)) {
+		if (req.method === "POST") return handleGlobalExtensionUiResponse(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
