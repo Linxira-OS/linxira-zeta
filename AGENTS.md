@@ -103,7 +103,7 @@ Zeta keeps upstream references minimal so the repository stays lean:
   sync policy, and fetch a specific tag explicitly only when a release sync
   needs it: `git fetch omp-upstream tag v17.2.12`.
 - Local tags are curated: OMP tags only for the two most recent versions
-  (currently `v17.2.11`, `v17.2.12`), plus `baseline/*` markers and Zeta
+  (currently `v18.0.3`, `v18.0.4`), plus `baseline/*` markers and Zeta
   product release tags. All other upstream history is preserved through the
   SHAs recorded in `document/upstream-sync.md`, not through tag refs.
 - `origin` (the GitHub remote) is the product truth: the Zeta `main` branch,
@@ -121,6 +121,22 @@ Zeta keeps upstream references minimal so the repository stays lean:
   refs/remotes/<remote>/main:refs/heads/backup/<remote>/main` and the peeled
   tag SHAs). `backup/*` never feeds product work; it exists only for
   disaster recovery.
+- **Branch/tag hygiene (local and remote).** Keep the branch and tag surface
+  minimal — the same rule applies to local refs and `origin`:
+  - Local branches are limited to `main`, the `sync/omp` mirror (fast-forward
+    to `omp-upstream/main` only), and long-lived product/version branches
+    (e.g. `zeta/v1.1.10-17.3.8`). Nothing else is kept locally.
+  - Short-lived integration branches (`sync/omp-release/<release>`,
+    `port/<scope>`, `port/pi-web/<scope>`, `feat/<scope>`) are deleted —
+    local and remote — as soon as they are merged into `main`. Do not leave
+    merged branches around "just in case"; their commits are already on
+    `main`.
+  - Outdated OMP version tags (`v17.x`, older) are deleted locally and never
+    pushed to `origin`; `origin` carries only Zeta product release tags
+    (`v1.x.x`) plus the `backup/*` namespace.
+  - A genuinely long-lived dev branch (something that must survive outside
+    `main` for an extended period) is the exception — keep it only when its
+    retention is explicitly agreed per-branch.
 
 ## Documentation Layout
 
