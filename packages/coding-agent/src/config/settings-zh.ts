@@ -332,6 +332,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "外部思考",
 		description: "私有草稿；不向用户显示。禁用受支持的 GPT、Claude 和 Gemini 推理",
 	},
+	"tui.resizeScrollback": {
+		label: "调整大小回滚",
+		description: "终端调整大小后刷新保留在回滚中的转录行的方式",
+	},
 	"model.loopGuard.enabled": {
 		label: "循环防护",
 		description: "为模型推理和散文启用自动流循环检测",
@@ -1594,7 +1598,60 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "EndTurn 压缩（状态机 B）",
 		description: "模型发出 endTurn 标签时触发自动压缩",
 	},
+	"images.urls.enabled": {
+		label: "以 URL 提供图片",
+		description: "将终端图片作为 URL 提供，供外部服务商访问",
+	},
+	"images.urls.backends": {
+		label: "图片 URL 后端",
+		description: "发布图片以供服务商访问时的有序目标",
+	},
+	"images.urls.command": {
+		label: "图片上传命令",
+		description: "发布图片时执行的自定义上传命令",
+	},
+	"images.urls.publicBaseUrl": {
+		label: "图片 URL 公共基址",
+		description: "面向 blob 服务器的外部可达基址（ssh 必需，direct 可选）",
+	},
+	"images.urls.bindHost": {
+		label: "图片 URL 绑定主机",
+		description: "blob 服务器绑定的主机；隧道用回环，直连用 0.0.0.0",
+	},
+	"images.urls.sshTarget": {
+		label: "图片 URL SSH 目标",
+		description: "ssh 反向转发目标 user@host",
+	},
+	"spelling.typoDetection": {
+		label: "拼写错误检测 (macOS)",
+		description: "用当前 macOS 词典标记拼写错误的提示词",
+	},
+	"spelling.autocomplete": {
+		label: "单词自动补全 (macOS)",
+		description: "显示 macOS 词典单词补全作为 Tab 接受的内联提示",
+	},
+	"spelling.autocorrect": {
+		label: "自动更正 (macOS)",
+		description: "在完成的单词后应用可信的 macOS 拼写更正",
+	},
+	"update.channel": {
+		label: "更新通道",
+		description: "omp update 和启动更新检查使用的更新通道",
+	},
+	"edit.blackbox.enabled": {
+		label: "记录解析回归",
+		description: "编辑引入 AST 解析失败时追加完整的前后源码",
+	},
+	"edit.autoRepair.enabled": {
+		label: "自动修复解析回归",
+		description: "编辑引入 AST 解析失败时自动修复",
+	},
+	"providers.openai-codex.codeMode": {
+		label: "Codex 代码模式",
+		description: "以代码优先模式运行 Codex",
+	},
 };
+export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
 
 /**
  * Submenu option label/description texts, keyed by `${path}::${optionValue}`.

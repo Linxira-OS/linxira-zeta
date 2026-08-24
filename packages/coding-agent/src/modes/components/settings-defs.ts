@@ -11,6 +11,8 @@
 
 import { TERMINAL } from "@linxiraos/pi-tui";
 import { Settings } from "../../config/settings";
+import { ZH_SETTING_TEXTS } from "../../config/settings-zh";
+import { currentLanguage } from "../../i18n";
 import {
 	type AnyUiMetadata,
 	getDefault,
@@ -237,12 +239,13 @@ function pathToSettingDef(path: SettingPath): SettingDef | null {
 // Public API
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Cache of generated definitions */
+/** Cache of generated definitions, keyed by language. */
 let cachedDefs: SettingDef[] | null = null;
+let cachedDefsLang: string | null = null;
 
 /** Get all setting definitions with UI */
 export function getAllSettingDefs(): SettingDef[] {
-	if (cachedDefs) return cachedDefs;
+	if (cachedDefs && cachedDefsLang === currentLanguage()) return cachedDefs;
 
 	const defs: SettingDef[] = [];
 	for (const tab of SETTING_TABS) {
@@ -251,7 +254,17 @@ export function getAllSettingDefs(): SettingDef[] {
 			if (def) defs.push(def);
 		}
 	}
+	if (currentLanguage() === "zh") {
+		for (const def of defs) {
+			const zh = ZH_SETTING_TEXTS[def.path];
+			if (zh) {
+				if (zh.label) def.label = zh.label;
+				if (zh.description !== undefined) def.description = zh.description;
+			}
+		}
+	}
 	cachedDefs = defs;
+	cachedDefsLang = currentLanguage();
 	return defs;
 }
 
