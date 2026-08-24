@@ -7,7 +7,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { arkToWireSchema, isArkSchema } from "@linxiraos/pi-ai/utils/schema";
-import { normalizePathForComparison, parseFrontmatter } from "@linxiraos/pi-utils";
+import { CONFIG_DIR_NAME, normalizePathForComparison, parseFrontmatter } from "@linxiraos/pi-utils";
 import { parseRuleConditionAndScope } from "../../../capability/rule";
 import { slashCommandFrontmatterDisplay } from "../../../capability/slash-command";
 import { isFilesystemSourcePath } from "../../../tools/path-utils";
@@ -252,7 +252,7 @@ function pathSegments(filePath: string): string[] {
 export function projectListHint(ext: Extension): string | undefined {
 	if (ext.source.level !== "project") return undefined;
 	const parts = pathSegments(ext.path);
-	const ompIndex = parts.lastIndexOf(".omp");
+	const ompIndex = parts.lastIndexOf(CONFIG_DIR_NAME);
 	if (ompIndex <= 0) return undefined;
 	const parent = parts[ompIndex - 1];
 	return parent && parent !== "." ? parent : undefined;

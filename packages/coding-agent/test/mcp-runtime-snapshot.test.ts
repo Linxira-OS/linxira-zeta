@@ -12,7 +12,7 @@ import {
 	type MCPRuntimeSource,
 	snapshotMcpRuntime,
 	visibleMcpTools,
-} from "@oh-my-pi/pi-coding-agent/modes/components/extensions/mcp-runtime";
+} from "@linxiraos/zeta/modes/components/extensions/mcp-runtime";
 
 function stubCustomTool(name: string): CustomTool {
 	return {

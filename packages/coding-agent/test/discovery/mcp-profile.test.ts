@@ -71,7 +71,7 @@ describe("native user-level MCP discovery follows the active profile", () => {
 
 		// Decoy: the default profile's user file at the literal-home path the old
 		// (buggy) loader read. It must NOT leak into the active profile.
-		await writeMcpJson(path.join(tempHome, ".omp", "agent"), {
+		await writeMcpJson(path.join(tempHome, ".zeta", "agent"), {
 			"default-only": { command: "default-cmd" },
 		});
 		await writeMcpJson(profileAgentDir, {
@@ -93,7 +93,7 @@ describe("native user-level MCP discovery follows the active profile", () => {
 	});
 
 	test("default profile loads the user server from ~/.zeta/agent", async () => {
-		const defaultAgentDir = path.join(tempHome, ".omp", "agent");
+		const defaultAgentDir = path.join(tempHome, ".zeta", "agent");
 		setAgentDir(defaultAgentDir);
 		await writeMcpJson(defaultAgentDir, {
 			"default-only": { command: "default-cmd" },

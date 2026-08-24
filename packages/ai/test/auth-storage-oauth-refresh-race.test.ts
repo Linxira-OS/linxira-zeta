@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, test, vi } from
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as oauthUtils from "@linxiraos/pi-ai/registry/oauth";
 import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type CredentialDisabledEvent,
 	SqliteAuthCredentialStore,
 	type StoredAuthCredential,
-} from "@oh-my-pi/pi-ai/auth-storage";
+} from "@linxiraos/pi-ai/auth-storage";
+import * as oauthUtils from "@linxiraos/pi-ai/registry/oauth";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 

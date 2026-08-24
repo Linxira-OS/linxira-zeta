@@ -20,8 +20,6 @@ import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import type { McpResult, ReadResult } from "@linxiraos/pi-catalog/discovery/cursor-proto";
-import { create, encodeJsonValue } from "@linxiraos/pi-catalog/discovery/protobuf";
-import { logger } from "@linxiraos/pi-utils";
 import {
 	type AgentRunRequest,
 	AgentServerMessageSchema,
@@ -37,7 +35,9 @@ import {
 	ReadRejectedSchema,
 	ReadResultSchema,
 	ReadSuccessSchema,
-} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { create, encodeJsonValue } from "@linxiraos/pi-catalog/discovery/protobuf";
+import { logger } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

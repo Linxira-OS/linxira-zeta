@@ -1,16 +1,16 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import * as os from "node:os";
 import { ExtensionList } from "@linxiraos/zeta/modes/components/extensions/extension-list";
-import { InspectorPanel } from "@linxiraos/zeta/modes/components/extensions/inspector-panel";
-import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { shortenPath } from "@linxiraos/zeta/tools/render-utils";
 import {
 	liveToolsForExtension,
 	parseToolFileHeader,
 	projectListHint,
 	toolParamsFromSchema,
-} from "@oh-my-pi/pi-coding-agent/modes/components/extensions/inspector-model";
+} from "@linxiraos/zeta/modes/components/extensions/inspector-model";
+import { InspectorPanel } from "@linxiraos/zeta/modes/components/extensions/inspector-panel";
+import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { shortenPath } from "@linxiraos/zeta/tools/render-utils";
 
 beforeAll(async () => {
 	await initTheme(false);

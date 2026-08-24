@@ -645,6 +645,9 @@ jobs:
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
+         - name: Install web-ui-next dependencies
+           working-directory: web-ui-next
+           run: npm ci
          - name: Install desktop dependencies
            working-directory: desktop
            run: npm ci
@@ -693,6 +696,9 @@ jobs:
            run: bun --version
          - name: Install Web UI dependencies
            working-directory: web-ui
+           run: npm ci
+         - name: Install web-ui-next dependencies
+           working-directory: web-ui-next
            run: npm ci
          - name: Install desktop dependencies
            working-directory: desktop
@@ -757,6 +763,9 @@ jobs:
               cache-scope: release-${{ matrix.target_id }}
          - name: Install Web UI dependencies
            working-directory: web-ui
+           run: npm ci
+         - name: Install web-ui-next dependencies
+           working-directory: web-ui-next
            run: npm ci
          - name: Install desktop dependencies
            working-directory: desktop

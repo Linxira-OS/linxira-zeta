@@ -848,16 +848,24 @@ export function __getLegacyPiBundledModulesGlobal(): string {
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
 // scope name they happened to declare in their peerDependencies.
-const CANONICAL_PI_SCOPE = "@oh-my-pi";
+const CANONICAL_PI_SCOPE = "@linxiraos";
 
 // Scopes that have historically been used to publish (or alias) the same set
 // of internal pi-* packages. `@oh-my-pi` is intentionally included so direct
 // canonical imports still pass through the same host-bundled package resolution
 // path instead of pulling a duplicate copy from plugin node_modules.
-const PI_SCOPE_ALIASES = ["oh-my-pi", "mariozechner", "earendil-works"] as const;
+const PI_SCOPE_ALIASES = ["linxiraos", "zeta", "oh-my-pi", "mariozechner", "earendil-works"] as const;
 
 // Internal pi-* package basenames bundled inside the omp binary.
-const PI_PACKAGE_NAMES = ["pi-agent-core", "pi-ai", "pi-coding-agent", "pi-natives", "pi-tui", "pi-utils"] as const;
+const PI_PACKAGE_NAMES = [
+	"pi-agent-core",
+	"pi-ai",
+	"pi-coding-agent",
+	"pi-natives",
+	"pi-tui",
+	"pi-utils",
+	"zeta",
+] as const;
 
 const PI_SCOPE_ALTERNATION = PI_SCOPE_ALIASES.join("|");
 const PI_PACKAGE_ALTERNATION = PI_PACKAGE_NAMES.join("|");
@@ -1015,7 +1023,7 @@ const LEGACY_PI_AI_SHIM_PATH = IS_COMPILED_BINARY
 // sibling source shim whose distinct file path avoids the #1474 collision
 // while still re-exporting the canonical package surface.
 const LEGACY_PI_CODING_AGENT_SHIM_PATH = IS_COMPILED_BINARY
-	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/pi-coding-agent`)
+	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/zeta`)
 	: sourceShimPath("legacy-pi-coding-agent-shim.ts");
 
 // Legacy pi-tui exported `decodeKittyPrintable` from its package root. The
@@ -1076,7 +1084,7 @@ export function __buildLegacyPiPackageRootOverrides(
 ): Record<string, string> {
 	const candidates: Record<string, string> = {
 		[`${CANONICAL_PI_SCOPE}/pi-ai`]: LEGACY_PI_AI_SHIM_PATH,
-		[`${CANONICAL_PI_SCOPE}/pi-coding-agent`]: LEGACY_PI_CODING_AGENT_SHIM_PATH,
+		[`${CANONICAL_PI_SCOPE}/zeta`]: LEGACY_PI_CODING_AGENT_SHIM_PATH,
 		[`${CANONICAL_PI_SCOPE}/pi-tui`]: LEGACY_PI_TUI_SHIM_PATH,
 	};
 	if (isCompiled) {
@@ -1119,7 +1127,12 @@ function remapLegacyPiSpecifier(specifier: string): string | null {
 	if (slashIdx === -1) {
 		return null;
 	}
-	const rest = specifier.slice(slashIdx + 1);
+	let rest = specifier.slice(slashIdx + 1);
+	// `pi-coding-agent` ↦ `zeta`: the renamed host package keeps the legacy
+	// basename only as a historical alias plugins may still declare.
+	if (rest === "pi-coding-agent" || rest.startsWith("pi-coding-agent/")) {
+		rest = `zeta${rest.slice("pi-coding-agent".length)}`;
+	}
 	const remappedSubpath = remapLegacyPiSubpath(rest);
 	return `${CANONICAL_PI_SCOPE}/${remappedSubpath}`;
 }

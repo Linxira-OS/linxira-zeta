@@ -1109,7 +1109,7 @@ export async function handleAgentState(sessionId: string): Promise<Response> {
 	}
 }
 
-export async function handleAgentEvents(_req: Request, sessionId: string): Promise<Response> {
+export async function handleAgentEvents(req: Request, sessionId: string): Promise<Response> {
 	let session = sessions.get(sessionId);
 	if (!session?.isAlive()) {
 		const filePath = await resolveSessionPath(sessionId);
@@ -1159,6 +1159,7 @@ export async function handleAgentEvents(_req: Request, sessionId: string): Promi
 				unsubscribe();
 				controller.close();
 			};
+			req.signal?.addEventListener("abort", cleanup);
 		},
 	});
 

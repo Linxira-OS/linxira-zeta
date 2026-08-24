@@ -3,14 +3,14 @@ import type { ToolInfo } from "@linxiraos/zeta/extensibility/extensions/types";
 import { ExtensionList } from "@linxiraos/zeta/modes/components/extensions/extension-list";
 import { liveToolsForExtension } from "@linxiraos/zeta/modes/components/extensions/inspector-model";
 import { InspectorPanel } from "@linxiraos/zeta/modes/components/extensions/inspector-panel";
-import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import {
 	type LiveToolSessionLookup,
 	listLiveToolRecords,
 	liveToolRecordFromSession,
 	snapshotToolRuntimeSource,
-} from "@oh-my-pi/pi-coding-agent/modes/components/extensions/live-tool-session";
+} from "@linxiraos/zeta/modes/components/extensions/live-tool-session";
+import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 function info(
 	name: string,

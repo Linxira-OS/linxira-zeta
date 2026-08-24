@@ -1,20 +1,19 @@
 import { describe, expect, it } from "bun:test";
-import { kCursorExecResolved, kStreamingBlockKind } from "@linxiraos/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { create } from "@linxiraos/pi-catalog/discovery/protobuf";
 import {
 	type BlockState,
 	flushOpenToolCalls,
 	handleServerMessage,
 	processInteractionUpdate,
 	type ToolCallState,
-} from "@oh-my-pi/pi-ai/providers/cursor";
+} from "@linxiraos/pi-ai/providers/cursor";
 import type {
 	AssistantMessage,
 	CursorExecHandlers,
 	CursorToolResultHandler,
 	ToolResultMessage,
-} from "@oh-my-pi/pi-ai/types";
+} from "@linxiraos/pi-ai/types";
+import { kCursorExecResolved, kStreamingBlockKind } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import {
 	AgentServerMessageSchema,
 	EditErrorSchema,
@@ -24,7 +23,8 @@ import {
 	ReadArgsSchema,
 	ToolCallSchema,
 	WriteArgsSchema,
-} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { create } from "@linxiraos/pi-catalog/discovery/protobuf";
 
 const EDIT_ID = "tool_7aef3020-f275-4579-887c-34106e146f7";
 const ENVELOPE_ID = "call-edit-1";

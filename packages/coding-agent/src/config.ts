@@ -78,7 +78,7 @@ export function getChangelogPath(): string | undefined {
 
 /**
  * User-level: ~/.zeta/agent, Claude's active config directory, ~/.codex, ~/.gemini
- * Project-level: .omp, .claude, .codex, .gemini
+ * Project-level: .zeta, .claude, .codex, .gemini
  */
 const USER_CONFIG_BASES = priorityList.map(({ dir, globalAgentDir }) => ({
 	base: () =>
@@ -93,7 +93,7 @@ const PROJECT_CONFIG_BASES = priorityList.map(({ dir }) => ({
 
 export interface ConfigDirEntry {
 	path: string;
-	source: string; // e.g., ".omp", ".claude"
+	source: string; // e.g., ".zeta", ".claude"
 	level: "user" | "project";
 }
 
@@ -118,7 +118,7 @@ export interface GetConfigDirsOptions {
  * @example
  * // Get all command directories
  * getConfigDirs("commands")
- * // → [{ path: "~/.zeta/agent/commands", source: ".omp", level: "user" }, ...]
+ * // → [{ path: "~/.zeta/agent/commands", source: ".zeta", level: "user" }, ...]
  *
  * @example
  * // Get only existing project skill directories
@@ -208,7 +208,7 @@ export function findConfigFileWithMeta(
 
 /**
  * Find all nearest config directories by walking up from cwd.
- * Returns one entry per config base (.omp, .claude) - the nearest one found.
+ * Returns one entry per config base (.zeta, .claude) - the nearest one found.
  * Results are in priority order (highest first).
  */
 export function findAllNearestProjectConfigDirs(subpath: string, cwd: string = getProjectDir()): ConfigDirEntry[] {

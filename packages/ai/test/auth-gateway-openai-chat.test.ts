@@ -5,7 +5,7 @@ import type {
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
 	ToolCall,
-} from "@oh-my-pi/pi-ai/types";
+} from "@linxiraos/pi-ai/types";
 
 function makeEventStream(events: AssistantMessageEvent[], final: AssistantMessage): AssistantMessageEventStream {
 	async function* iter() {
