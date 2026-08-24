@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-tui",
-  "version": "18.0.3",
+  "version": "1.0.11",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
   "homepage": "https://omp.sh",
   "author": "Stencil Labs, Inc.",
@@ -37,8 +37,6 @@
     "fmt": "biome format --write ."
   },
   "dependencies": {
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:"
   },
