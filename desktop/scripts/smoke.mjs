@@ -179,7 +179,15 @@ async function main() {
 	}
 }
 
-main().catch((error) => {
-	console.error(error instanceof Error ? error.stack ?? error.message : String(error));
-	process.exitCode = 1;
-});
+// Exit explicitly: even after the zeta child is reaped, lingering resources
+// (e.g. undici keep-alive connections from the SSE/fetch probes) keep the Node
+// event loop alive on Linux/macOS, so the CI step spins forever after "smoke
+// passed". We are done — the child is stopped, the verdict is printed — so
+// force the process out instead of waiting for the loop to drain.
+main().then(
+	() => process.exit(0),
+	(error) => {
+		console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+		process.exit(1);
+	},
+);

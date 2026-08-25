@@ -152,29 +152,13 @@ interface ManifestShape {
 	repository?: { url?: string } | string;
 }
 
-/** The npm package names to configure, plus a repo slug inferred from a manifest. */
-async function collectTargets(): Promise<{ names: string[]; repoFromManifest: string | null }> {
-	const seen = new Set<string>();
-	const names: string[] = [];
-	let repoFromManifest: string | null = null;
-	for (const pkg of packages) {
-		const manifest = (await Bun.file(path.join(repoRoot, pkg.dir, "package.json")).json()) as ManifestShape;
-		if (manifest.private) continue;
-		repoFromManifest ??= parseRepo(manifest.repository);
-		if (typeof manifest.name === "string" && !seen.has(manifest.name)) {
-			seen.add(manifest.name);
-			names.push(manifest.name);
-		}
-		// Native leaves are generated per platform at release time; each is its
-		// own published package and needs its own trusted-publisher link.
-		if (pkg.kind === "native") {
-			for (const target of LEAF_TARGETS) {
-				const leaf = `@linxiraos/pi-natives-${target.tag}`;
-				if (!seen.has(leaf)) {
-					seen.add(leaf);
-					names.push(leaf);
-				}
-			}
+	// Published outside ci-release-publish (web-ui builds via its own job;
+	// pi-messenger is the ported multi-agent extension, npm-only for now).
+	// They still need trusted-publisher links so CI can publish them with OIDC.
+	for (const extra of ["@linxiraos/zeta-web", "@linxiraos/pi-messenger"]) {
+		if (!seen.has(extra)) {
+			seen.add(extra);
+			names.push(extra);
 		}
 	}
 	return { names, repoFromManifest };
