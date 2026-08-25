@@ -297,6 +297,7 @@ jobs:
    # bazel. Job name says "bazel" for continuity with required checks.
    native_addons:
       name: Build native addons (bazel)
+      timeout-minutes: 50
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [release_metadata]
       steps:
