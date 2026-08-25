@@ -186,8 +186,8 @@ async function publishWithRetry(dir: string, name: string, version: string): Pro
 			if (!ok) return 1;
 			continue;
 		}
-		console.log(`  publish 失败（attempt ${attempt}/4）：`);
-		console.log(stderr.split("\n").slice(0, 8).join("\n"));
+		console.log(`  publish 失败（attempt ${attempt}/4）--错误详情（stderr 末尾）：`);
+		console.log(stderr.split("\n").filter(Boolean).slice(-15).join("\n"));
 		return 1;
 	}
 	return 1;
