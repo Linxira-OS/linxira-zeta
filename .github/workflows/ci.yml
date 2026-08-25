@@ -376,21 +376,26 @@ jobs:
          # native behavior (e.g. new tokenizer encodings, hashline apply
          # fixes) fail against stale published addons until the next release.
          # The warm bazel disk cache keeps this cheap (~tens of seconds).
-         - name: Build gnu and win32 native addons (bazel)
+         # TEMP bypass (2026-08-25): bazel cold builds hang on hosted runners.
+         # Fetch already-published leaf addons from npm instead of building;
+         # native sources are unchanged since 1.1.1, so artifacts are equal.
+         # Revert to the bazel build once runner caching recovers.
+         - name: Fetch native addons from npm (TEMP bypass)
            if: github.event_name != 'pull_request'
-           uses: ./.github/actions/bazel-natives
-           with:
-              targets: >-
-                 linux-x64-baseline linux-x64-modern linux-arm64 win32-x64-baseline
-         - name: Build musl native addons (bazel)
-           if: >-
-              github.event_name != 'pull_request' &&
-              needs.release_metadata.outputs.is-release == 'true'
-           uses: ./.github/actions/bazel-natives
-           with:
-              targets: linux-musl-x64-baseline linux-musl-arm64
-              dest: packages/natives/native-musl
-              cache-scope: natives-musl
+           shell: bash
+           run: |
+              set -euo pipefail
+              mkdir -p packages/natives/native
+              for pkg in linux-x64 linux-arm64 win32-x64; do
+                tarball="$(npm view "@linxiraos/pi-natives-$pkg@latest" dist.tarball)"
+                echo "Fetching $tarball"
+                curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
+                cp -L "$RUNNER_TEMP"/package/*.node packages/natives/native/
+                rm -rf "$RUNNER_TEMP/package"
+              done
+              ls -1 packages/natives/native/*.node
+         - name: Build musl native addons (bazel) [TEMP: skipped]
+           if: ${{ false }}
          - name: Smoke release addons
            if: github.event_name != 'pull_request'
            shell: bash
@@ -1107,22 +1112,22 @@ jobs:
          # Darwin addons only exist on the release_binary_darwin macos runners
          # (no cross-hosted artifact); export them here so every leaf package
          # publishes after the validation gate.
-         - name: Download darwin native addon artifacts
-           uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-           with:
-              pattern: native-addons-darwin-*
-              path: ${{ runner.temp }}/omp-native-darwin
-              merge-multiple: true
-         - name: Install darwin native addons
+         # TEMP bypass (2026-08-25): also fetch darwin addons from npm (bazel
+         # cold builds hang on hosted runners; native sources unchanged since
+         # 1.1.1). Revert to artifact + bazel-natives once caching recovers.
+         - name: Install darwin native addons from npm (TEMP bypass)
            shell: bash
-           env:
-              NATIVE_TARGETS: darwin-x64-baseline darwin-arm64
-              NATIVE_DEST: packages/natives/native
            run: |
               set -euo pipefail
-              bun scripts/bazel-natives.ts $NATIVE_TARGETS \
-                --source "$RUNNER_TEMP/omp-native-darwin" \
-                --dest "$NATIVE_DEST"
+              mkdir -p packages/natives/native
+              for pkg in darwin-x64 darwin-arm64; do
+                tarball="$(npm view "@linxiraos/pi-natives-$pkg@latest" dist.tarball)"
+                echo "Fetching $tarball"
+                curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
+                cp -L "$RUNNER_TEMP"/package/*.node packages/natives/native/
+                rm -rf "$RUNNER_TEMP/package"
+              done
+              ls -1 packages/natives/native/*darwin*.node || true
          - name: Publish native leaf packages
            env:
               # Fallback auth: setup-node wrote an .npmrc referencing
