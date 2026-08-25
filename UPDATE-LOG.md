@@ -41,6 +41,12 @@
 - **OMP v18.0.4 合并**：update-cli 异步增量重构、streaming guard 漂移下限放宽（CI 抖动，上游 `4854db856c`）、zh 本地化 overlay（`38a7dff556`）。
 - **Zeta 品牌适配**：14 包统一 `@linxiraos/*` 版本线 1.0.11、`@oh-my-pi` 残留清零、`.omp` → `.zeta` 路径、desktop / web-ui 版本号识别单源（desktop `package.json`）。
 
+### 版本与发布流程（v1.1.0）
+
+- 各包 CHANGELOG 统一 Zeta 版本线：移除上游 OMP `[15.x]`-`[18.x]` 段（OMP 日志为 Zeta 子集，上游变更并入 `[Unreleased]`），恢复 Zeta 早期版本记录。
+- 发布日志门禁：`release-v2` 发布前校验（无上游段 + 每包 `[Unreleased]` 非空 + UPDATE-LOG 非空）；CI 加版本一致性 + CHANGELOG 结构校验（`scripts/check-version-consistency.ts`）。
+- README 徽章（版本 / Bun / TypeScript / Rust / CI）；版本号脚本体系 `scripts/set-version.ts`（14 包 + catalog + Cargo + sentinel + desktop + web-ui + README badge 一键对齐）。
+
 - 当前基于 **OMP 17.3.8**（`858f7dd91f`）。
 - 完整合并 OMP 17.3.8 官方 tag（分支 `zeta/v1.1.10-17.3.8`，合并提交 `2bf455c9c3`，`git merge-base --is-ancestor` 已验证），59 个冲突按 AGENTS.md 政策表解决：
   - 保留 Zeta 包名/版本（`@linxiraos/*` @ 1.0.9、workspace 1.0.9、native sentinel `__piNativesV1_0_9`）。

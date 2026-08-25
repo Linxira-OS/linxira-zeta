@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- npm 包 repository 字段指向 linxira-zeta（修正上游 OMP 仓库 URL）。
+- 同步上游 OMP v18.0.3 / v18.0.4（native 绑定与构建改进）。
+
 ## [1.0.11] - 2026-08-22
 ## [1.0.4] - 2026-08-18
 ### Added
