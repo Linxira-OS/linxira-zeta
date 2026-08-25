@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-wire",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Shared wire protocol types for Zeta packages",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",

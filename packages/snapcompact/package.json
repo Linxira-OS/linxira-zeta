@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-snapcompact",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Bitmap-frame context compression for vision-capable LLMs",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",

@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-stats",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Local observability dashboard for pi AI usage statistics",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",
