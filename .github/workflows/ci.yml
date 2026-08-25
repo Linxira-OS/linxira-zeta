@@ -651,6 +651,9 @@ jobs:
          - uses: ./.github/actions/native-artifacts
            with:
               targets: linux-x64-baseline linux-x64-modern
+         - uses: ./.github/actions/web-ui-build-cache
+           with:
+              mode: restore
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
@@ -666,6 +669,9 @@ jobs:
          - name: Build Linux desktop artifact
            working-directory: desktop
            run: npm run dist
+         - uses: ./.github/actions/web-ui-build-cache
+           with:
+              mode: save
          - name: Smoke Linux desktop artifact
            shell: bash
            run: |
@@ -703,6 +709,9 @@ jobs:
          - name: Verify Bun is available to Windows desktop build
            shell: pwsh
            run: bun --version
+         - uses: ./.github/actions/web-ui-build-cache
+           with:
+              mode: restore
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
@@ -770,6 +779,9 @@ jobs:
            with:
               targets: ${{ matrix.native_targets }}
               cache-scope: release-${{ matrix.target_id }}
+         - uses: ./.github/actions/web-ui-build-cache
+           with:
+              mode: restore
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
@@ -785,6 +797,9 @@ jobs:
          - name: Build macOS desktop artifact
            working-directory: desktop
            run: npm run dist
+         - uses: ./.github/actions/web-ui-build-cache
+           with:
+              mode: save
          - name: Smoke macOS desktop artifact
            shell: bash
            run: |

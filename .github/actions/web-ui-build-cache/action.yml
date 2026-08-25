@@ -1,0 +1,65 @@
+name: "Web UI build caches (npm + Next + Vite)"
+description: >
+   Restore/save the caches that make desktop jobs fast: the shared npm cache
+   (~/.npm) so `npm ci` resolves from disk, Next.js's incremental build cache
+   (web-ui/.next/cache) and Vite's transform cache (web-ui-next/node_modules/.vite).
+   Cache keys hash the per-app lockfiles so any dependency change invalidates them.
+   Desktop jobs run `web-ui` (Next standalone) + `web-ui-next` (Vite) builds per
+   platform; without these the first `next build` alone can take most of the job
+   budget on hosted runners.
+
+inputs:
+   mode:
+      description: "restore | save"
+      required: true
+
+runs:
+   using: composite
+   steps:
+      - name: Restore npm cache
+        if: ${{ inputs.mode == 'restore' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+           path: ~/.npm
+           key: npm-desktop-${{ runner.os }}-${{ hashFiles('web-ui/package-lock.json', 'web-ui-next/package-lock.json', 'desktop/package-lock.json') }}
+           restore-keys: |
+              npm-desktop-${{ runner.os }}-
+
+      - name: Save npm cache
+        if: ${{ inputs.mode == 'save' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+           path: ~/.npm
+           key: npm-desktop-${{ runner.os }}-${{ hashFiles('web-ui/package-lock.json', 'web-ui-next/package-lock.json', 'desktop/package-lock.json') }}
+
+      - name: Restore Next.js build cache
+        if: ${{ inputs.mode == 'restore' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+           path: web-ui/.next/cache
+           key: next-cache-${{ runner.os }}-${{ hashFiles('web-ui/package-lock.json', 'web-ui/app/**', 'web-ui/components/**', 'web-ui/lib/**', 'web-ui/hooks/**', 'web-ui/next.config.*') }}
+           restore-keys: |
+              next-cache-${{ runner.os }}-
+
+      - name: Save Next.js build cache
+        if: ${{ inputs.mode == 'save' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+           path: web-ui/.next/cache
+           key: next-cache-${{ runner.os }}-${{ hashFiles('web-ui/package-lock.json', 'web-ui/app/**', 'web-ui/components/**', 'web-ui/lib/**', 'web-ui/hooks/**', 'web-ui/next.config.*') }}
+
+      - name: Restore Vite cache
+        if: ${{ inputs.mode == 'restore' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+           path: web-ui-next/node_modules/.vite
+           key: vite-cache-${{ runner.os }}-${{ hashFiles('web-ui-next/package-lock.json', 'web-ui-next/src/**', 'web-ui-next/vite.config.*') }}
+           restore-keys: |
+              vite-cache-${{ runner.os }}-
+
+      - name: Save Vite cache
+        if: ${{ inputs.mode == 'save' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+           path: web-ui-next/node_modules/.vite
+           key: vite-cache-${{ runner.os }}-${{ hashFiles('web-ui-next/package-lock.json', 'web-ui-next/src/**', 'web-ui-next/vite.config.*') }}

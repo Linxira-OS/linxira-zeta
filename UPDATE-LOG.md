@@ -36,6 +36,11 @@
 
 ### 同步基线
 
+- 当前基于 **OMP v18.0.4**（`5eef8a2386`；v18.0.3 `160ed439ac` 亦已合并，`git merge-base --is-ancestor` 均验证通过）。
+- **OMP v18.0.3 合并**：TUI 采用上游新渲染架构（provider window / resize replay），streaming edit guard 改为异步增量验证，Julia 内核可用性探测加固（超时上限 + 进程组击杀）；Zeta 侧保留 web-gateway / i18n / `.zeta` 路径与 scrollback 扩展（tui.ts 三方融合）。
+- **OMP v18.0.4 合并**：update-cli 异步增量重构、streaming guard 漂移下限放宽（CI 抖动，上游 `4854db856c`）、zh 本地化 overlay（`38a7dff556`）。
+- **Zeta 品牌适配**：14 包统一 `@linxiraos/*` 版本线 1.0.11、`@oh-my-pi` 残留清零、`.omp` → `.zeta` 路径、desktop / web-ui 版本号识别单源（desktop `package.json`）。
+
 - 当前基于 **OMP 17.3.8**（`858f7dd91f`）。
 - 完整合并 OMP 17.3.8 官方 tag（分支 `zeta/v1.1.10-17.3.8`，合并提交 `2bf455c9c3`，`git merge-base --is-ancestor` 已验证），59 个冲突按 AGENTS.md 政策表解决：
   - 保留 Zeta 包名/版本（`@linxiraos/*` @ 1.0.9、workspace 1.0.9、native sentinel `__piNativesV1_0_9`）。
