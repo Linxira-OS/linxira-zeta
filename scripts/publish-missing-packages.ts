@@ -156,7 +156,7 @@ async function publishWithRetry(dir: string, name: string, version: string): Pro
 		// npm 在非 TTY 下遇到 EOTP 会打印授权 URL 后立即失败（不会自己等待授权）。
 		// 脚本捕获 URL、打开浏览器，等你完成 security key 确认（勾选
 		// "5 分钟内不再要求 2FA"）并回车后重试——5 分钟窗口内重试应免 2FA。
-		const proc = Bun.spawn(["npm", "publish", path.join(repo, dir)], {
+		const proc = Bun.spawn(["npm", "publish", path.join(repo, dir), "--access", "public"], {
 			cwd: repo,
 			stdin: "inherit",
 			stdout: "inherit",
