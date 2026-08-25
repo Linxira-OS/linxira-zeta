@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import * as fs from "node:fs";
+import * as path from "node:path";
 /**
  * 本地补发包脚本（统一工具，保留）——本地向 npm registry 补发 @linxiraos/* 各包版本，
  * 用于 CI 发布中断后的缺口补发，或本地先行创建新包（pi-channels/zeta-web/pi-messenger）
@@ -23,8 +25,6 @@
  *     + version 1.1.0 + main=index.ts + publish；仅发 npm 模块，不进入 Zeta 主软件打包
  */
 import { $ } from "bun";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
 const repo = path.resolve(import.meta.dir, "..");
 const args = process.argv.slice(2);
@@ -129,7 +129,7 @@ for (const t of TARGETS) {
 	if (only && t.name !== only) continue;
 	const pkgPath = path.join(repo, t.dir, "package.json");
 	const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as PkgShape;
-	const version = t.align || t.rename ? RELEASE : pkg.version ?? "";
+	const version = t.align || t.rename ? RELEASE : (pkg.version ?? "");
 	console.log(`\n=== ${t.name}@${version} ===`);
 
 	if (t.rename) {
