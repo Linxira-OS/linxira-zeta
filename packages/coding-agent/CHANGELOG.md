@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-25
+
 ### Changed
 
 - TUI 渲染升级至上游 v18.0.3 架构（provider window + resize 重绘），终端尺寸变化即时重绘。
@@ -45,9 +47,6 @@
 - Web settings secret inputs (Feishu App Secret, Telegram Bot Token, remote token) no longer clear after saving: a stored secret now renders as masked dots, and blurring a masked field never re-commits the placeholder.
 - WeChat login QR renders even when the flow returns a page URL instead of an image (the legacy iLink `liteapp.weixin.qq.com` QR is HTML): the panel falls back to rendering a QR code of that URL.
 - `next dev` rewrites now route `/api/web-config`, `/api/channels/*`, `/api/open/*`, `/api/update/*`, and `/api/docs/*` to the gateway (production `zeta serve` already handled them in-process).
-
-### Fixed
-
 - WeChat QR login now speaks the documented `/api/v1/wechat` shape: reads the status token from `data.qrcode` (not a flat `token`), polls `qrcode/status` with `{ qrcode }`, and reads `data.status`/`data.credentials`/`data.baseurl` — the v1 flow previously mis-parsed the response, always falling back to legacy iLink endpoints and never surfacing a QR.
 - Toggling an IM channel in the web settings now restarts the running channel set immediately (stop + re-start against the fresh `web.yml`), so enabling WeChat starts the QR login without a serve restart.
 
@@ -65,4 +64,3 @@
 ### Changed
 
 - WeChat login now prefers the new `/api/v1/wechat` endpoints (endpoint host configurable via `channels.wechat.endpoint`); older hosts fall back to the legacy iLink QR flow.
-
