@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as readline from "node:readline";
 /**
  * 本地补发包脚本（统一工具，保留）——本地向 npm registry 补发 @linxiraos/* 各包版本，
  * 用于 CI 发布中断后的缺口补发，或本地先行创建新包（pi-channels/zeta-web/pi-messenger）
@@ -76,6 +77,26 @@ async function loginInteractive(label: string): Promise<boolean> {
 	return true;
 }
 
+async function openUrl(url: string): Promise<void> {
+	if (process.platform === "win32") {
+		await $`start ${url}`.cwd(repo).quiet().nothrow();
+	} else if (process.platform === "darwin") {
+		await $`open ${url}`.cwd(repo).quiet().nothrow();
+	} else {
+		await $`xdg-open ${url}`.cwd(repo).quiet().nothrow();
+	}
+}
+
+function waitForEnter(): Promise<void> {
+	return new Promise((resolve) => {
+		const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+		rl.question("", () => {
+			rl.close();
+			resolve();
+		});
+	});
+}
+
 async function ensureLogin(): Promise<void> {
 	const who = await $`npm whoami`.cwd(repo).quiet().nothrow();
 	if (who.exitCode === 0) {
@@ -105,9 +126,15 @@ async function publishWithRetry(dir: string, name: string, version: string): Pro
 			return 2;
 		}
 		if (/EOTP|one-time password|requires a one-time password/.test(err)) {
-			console.log(`  ✗ ${name} 需要 2FA（attempt ${attempt}/4）——重新登录获得 5 分钟免 2FA 窗口后继续...`);
-			const ok = await relogin();
-			if (!ok) return 1;
+			const url = err.match(/https:\/\/www\.npmjs\.com\/auth\/cli\/[^\s]+/)?.[0];
+			console.log(`  ✗ ${name} 需要发包授权（attempt ${attempt}/4）。`);
+			console.log("    正在打开浏览器——请完成 security key 确认，并勾选"5 分钟内不再要求 2FA"：");
+			if (url) {
+				console.log(`    ${url}`);
+				await openUrl(url);
+			}
+			console.log("    授权完成后按回车继续...");
+			await waitForEnter();
 			continue;
 		}
 		if (/401|E401|Unauthorized/.test(err)) {
