@@ -343,7 +343,16 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 		);
 		process.exit(1);
 	}
-	console.log(`  sentinel: ${sentinelName}`);
+	// Step 2d: Cargo.lock workspace members (pi-*) carry the release version
+	// too — keep them in lock-step so `cargo deny --locked` (CI Lint job)
+	// doesn't fail with "cannot update the lock file" after the Cargo.toml
+	// bump (Cargo.toml at the new version vs a stale Cargo.lock).
+	const cargoLock = await Bun.file("Cargo.lock").text();
+	const updatedLock = cargoLock.replace(/^(name = "pi-[^"]+"\r?\n\s*version = ")[^"]+/gm, `$1${version}`);
+	await Bun.write("Cargo.lock", updatedLock);
+	console.log(`  Cargo.lock: pi-* members -> ${version}`);
+
+	// Step 3: desktop shell (package.json + package-lock.json root version).
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 	console.log("Updating desktop version...");
