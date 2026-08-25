@@ -34,6 +34,7 @@ const repo = path.resolve(import.meta.dir, "..");
 const args = process.argv.slice(2);
 const onlyIdx = args.indexOf("--only");
 const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
+const doDeprecate = args.includes("--deprecate");
 const RELEASE = "1.1.0";
 
 const TARGETS: Array<{
@@ -150,6 +151,18 @@ async function alreadyPublished(name: string, version: string): Promise<boolean>
 	return r.exitCode === 0;
 }
 
+/** deprecate 1.1.0 的坏版本（依赖带 Bun catalog: 协议，npm 无法解析）。 */
+async function deprecateBroken110(): Promise<void> {
+	// 14 个核心包 + zeta-web 的 1.1.0 都是坏的；pi-messenger@1.1.0 零依赖、完整，不处理。
+	const names = [...TARGETS.filter(t => t.name !== "@linxiraos/pi-messenger").map(t => t.name)];
+	const message =
+		"Broken in 1.1.0: dependencies use Bun's catalog: protocol which npm cannot resolve. Upgrade to 1.1.1.";
+	for (const name of names) {
+		const r = await $`npm deprecate ${name}@1.1.0 ${message}`.cwd(repo).quiet().nothrow();
+		console.log(`${name}@1.1.0 ${r.exitCode === 0 ? "已 deprecate" : "失败/跳过"}`);
+	}
+}
+
 /** 返回 0 成功；1 最终失败；2 已存在（视为成功）。 */
 async function publishWithRetry(dir: string, name: string, version: string): Promise<number> {
 	for (let attempt = 1; attempt <= 4; attempt++) {
@@ -191,6 +204,12 @@ async function publishWithRetry(dir: string, name: string, version: string): Pro
 		return 1;
 	}
 	return 1;
+}
+
+if (doDeprecate) {
+	await ensureLogin();
+	await deprecateBroken110();
+	process.exit(0);
 }
 
 const results: string[] = [];
