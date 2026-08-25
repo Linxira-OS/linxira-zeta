@@ -9,19 +9,25 @@
  *   - the __piNativesVX_Y_Z sentinel (lib.rs + committed bindings)
  *   - desktop/package.json + desktop/package-lock.json
  *   - the root workspaces.catalog @linxiraos keys
- *   - web-ui/package.json (zeta-web)
+ *   - web-ui/package.json (zeta-web) version AND its @linxiraos/* dependency
+ *     ranges (kept as ^<version>, so a lockstep publish always resolves)
  *
  * It deliberately does NOT touch CHANGELOGs, commit, tag, or push — that is
  * `bun scripts/release-v2.ts <version>`'s job. Use this when you need the
  * version line moved (e.g. a local test build) without running a release.
+ * After a real run, regenerate the lockfile (`bun install`) or let
+ * release-v2.ts do it — a stale bun.lock is the usual npm-publish hazard.
  *
- * Usage: bun scripts/set-version.ts <version>
+ * Usage:
+ *   bun scripts/set-version.ts <version>          apply and write
+ *   bun scripts/set-version.ts <version> --dry-run  preview only
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 const repoRoot = path.join(import.meta.dir, "..");
+const DRY_RUN = process.argv.includes("--dry-run");
 
 // Mirrors scripts/release-v2.ts ALL_PACKAGES. Keep in lock-step.
 const ALL_PACKAGES = [
@@ -41,8 +47,8 @@ const ALL_PACKAGES = [
 	"wire",
 ] as const;
 
-// Mirrors release-v2.ts CATALOG_KEYS — the exact @linxiraos/* workspace-catalog keys.
-const CATALOG_KEYS: ReadonlyArray<{ key: string }> = [
+// Mirrors release-v2.ts CATALOG_KEYS — the exact @linxiraos workspace-catalog keys.
+const CATALOG_KEYS = [
 	"@linxiraos/pi-utils",
 	"@linxiraos/pi-agent-core",
 	"@linxiraos/pi-catalog",
@@ -57,7 +63,7 @@ const CATALOG_KEYS: ReadonlyArray<{ key: string }> = [
 	"@linxiraos/pi-natives",
 	"@linxiraos/pi-omptype",
 	"@linxiraos/pi-wire",
-].map(key => ({ key }));
+] as const;
 
 // Files carrying the pi-natives sentinel, same set as release-v2.ts.
 const SENTINEL_FILES = [
@@ -66,23 +72,24 @@ const SENTINEL_FILES = [
 	"packages/natives/native/index.d.ts",
 ];
 
-function readJson(rel: string): Record<string, unknown> {
+function readJson(rel: string): unknown {
 	return JSON.parse(fs.readFileSync(path.join(repoRoot, rel), "utf8"));
 }
 
 function writeJson(rel: string, data: unknown): void {
-	fs.writeFileSync(path.join(repoRoot, rel), `${JSON.stringify(data, null, 2)}\n`);
+	if (!DRY_RUN) {
+		fs.writeFileSync(path.join(repoRoot, rel), `${JSON.stringify(data, null, 2)}\n`);
+	}
 }
 
 function replaceInFile(rel: string, pattern: RegExp, replacement: string): boolean {
 	const file = path.join(repoRoot, rel);
 	const text = fs.readFileSync(file, "utf8");
 	const next = text.replace(pattern, replacement);
-	if (next !== text) {
+	if (next !== text && !DRY_RUN) {
 		fs.writeFileSync(file, next);
-		return true;
 	}
-	return false;
+	return next !== text;
 }
 
 function fail(msg: string): never {
@@ -90,10 +97,23 @@ function fail(msg: string): never {
 	process.exit(1);
 }
 
+function hasCatalog(rootPkg: unknown): rootPkg is { workspaces: { catalog: Record<string, string> } } {
+	return (
+		typeof rootPkg === "object" &&
+		rootPkg !== null &&
+		"workspaces" in rootPkg &&
+		typeof rootPkg.workspaces === "object" &&
+		rootPkg.workspaces !== null &&
+		"catalog" in rootPkg.workspaces &&
+		typeof rootPkg.workspaces.catalog === "object" &&
+		rootPkg.workspaces.catalog !== null
+	);
+}
+
 async function main(): Promise<void> {
 	const versionArg = process.argv[2];
 	if (!versionArg) {
-		console.error("Usage: bun scripts/set-version.ts <version>");
+		console.error("Usage: bun scripts/set-version.ts <version> [--dry-run]");
 		process.exit(1);
 	}
 	const version = versionArg.replace(/^v/, "");
@@ -107,7 +127,7 @@ async function main(): Promise<void> {
 	// 1. All published packages.
 	for (const pkg of ALL_PACKAGES) {
 		const rel = `packages/${pkg}/package.json`;
-		const manifest = readJson(rel);
+		const manifest = readJson(rel) as { version?: string };
 		if (manifest.version === version) {
 			unchanged.push(rel);
 			continue;
@@ -118,14 +138,11 @@ async function main(): Promise<void> {
 	}
 
 	// 2. Cargo workspace version.
-	const cargo = path.join(repoRoot, "Cargo.toml");
-	const cargoText = fs.readFileSync(cargo, "utf8");
-	const cargoNext = cargoText.replace(/^version = "[^"]+"/m, `version = "${version}"`);
-	if (cargoNext !== cargoText) {
-		fs.writeFileSync(cargo, cargoNext);
-		changed.push("Cargo.toml");
+	const cargoRel = "Cargo.toml";
+	if (replaceInFile(cargoRel, /^version = "[^"]+"/m, `version = "${version}"`)) {
+		changed.push(cargoRel);
 	} else {
-		unchanged.push("Cargo.toml");
+		unchanged.push(cargoRel);
 	}
 
 	// 3. pi-natives version sentinel.
@@ -141,13 +158,13 @@ async function main(): Promise<void> {
 
 	// 4. Desktop shell.
 	for (const rel of ["desktop/package.json", "desktop/package-lock.json"]) {
-		const manifest = readJson(rel);
+		const manifest = readJson(rel) as { version?: string; packages?: Record<string, { version?: string }> };
 		let touched = false;
 		if (manifest.version !== version) {
 			manifest.version = version;
 			touched = true;
 		}
-		const rootPkg = (manifest as { packages?: Record<string, { version?: string }> }).packages?.[""];
+		const rootPkg = manifest.packages?.[""];
 		if (rootPkg && rootPkg.version !== version) {
 			rootPkg.version = version;
 			touched = true;
@@ -160,24 +177,13 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 5. Root catalog @linxiraos/* keys.
-	const rootPkgPath = path.join(repoRoot, "package.json");
-	const rootPkgRaw = readJson("package.json") as unknown;
-	if (
-		typeof rootPkgRaw !== "object" ||
-		rootPkgRaw === null ||
-		!("workspaces" in rootPkgRaw) ||
-		typeof rootPkgRaw.workspaces !== "object" ||
-		rootPkgRaw.workspaces === null ||
-		!("catalog" in rootPkgRaw.workspaces) ||
-		typeof rootPkgRaw.workspaces.catalog !== "object" ||
-		rootPkgRaw.workspaces.catalog === null
-	) {
+	// 5. Root catalog @linxiraos keys.
+	const rootPkg = readJson("package.json");
+	if (!hasCatalog(rootPkg)) {
 		fail("Root package.json has no workspaces.catalog");
 	}
-	const rootPkg = rootPkgRaw as { workspaces: { catalog: Record<string, string> } };
 	const catalog = rootPkg.workspaces.catalog;
-	for (const { key } of CATALOG_KEYS) {
+	for (const key of CATALOG_KEYS) {
 		if (key in catalog) {
 			if (catalog[key] !== version) {
 				catalog[key] = version;
@@ -191,26 +197,40 @@ async function main(): Promise<void> {
 	}
 	writeJson("package.json", rootPkg);
 
-	// 6. Web UI (zeta-web) package version.
+	// 6. Web UI (zeta-web): package version + its @linxiraos dependency ranges.
 	const webUiRel = "web-ui/package.json";
-	const webUi = readJson(webUiRel);
-	if (webUi.version === version) {
-		unchanged.push(webUiRel);
-	} else {
+	const webUi = readJson(webUiRel) as {
+		version?: string;
+		dependencies?: Record<string, string>;
+	};
+	if (webUi.version !== version) {
 		webUi.version = version;
-		writeJson(webUiRel, webUi);
 		changed.push(webUiRel);
+	} else {
+		unchanged.push(webUiRel);
 	}
+	const depRange = `^${version}`;
+	for (const [dep, range] of Object.entries(webUi.dependencies ?? {})) {
+		if (dep.startsWith("@linxiraos/") && range !== depRange) {
+			webUi.dependencies![dep] = depRange;
+			changed.push(`web-ui deps.${dep}`);
+		}
+	}
+	writeJson(webUiRel, webUi);
 
-	console.log(`Version ${version} applied:`);
+	console.log(`${DRY_RUN ? "[dry-run] " : ""}Version ${version} applied:`);
 	console.log(`  changed (${changed.length}):`);
 	for (const rel of changed) console.log(`    ${rel}`);
 	console.log(`  already at ${version} (${unchanged.length}):`);
 	for (const rel of unchanged.slice(0, 10)) console.log(`    ${rel}`);
 	if (unchanged.length > 10) console.log(`    … and ${unchanged.length - 10} more`);
 	console.log();
-	console.log("Note: this only moves the version line. CHANGELOGs, bun.lock, commit,");
-	console.log("tag and push are handled by: bun scripts/release-v2.ts <version>");
+	if (DRY_RUN) {
+		console.log("Dry run — nothing written.");
+	} else {
+		console.log("Next: regenerate the lockfile (bun install), then either commit directly");
+		console.log("or run the full release: bun scripts/release-v2.ts <version>");
+	}
 }
 
 await main();
