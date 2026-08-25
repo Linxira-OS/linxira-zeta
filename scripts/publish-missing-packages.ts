@@ -35,7 +35,7 @@ const args = process.argv.slice(2);
 const onlyIdx = args.indexOf("--only");
 const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
 const doDeprecate = args.includes("--deprecate");
-const RELEASE = "1.1.0";
+const RELEASE = "1.1.1";
 
 const TARGETS: Array<{
 	dir: string;
@@ -58,7 +58,7 @@ const TARGETS: Array<{
 	{ dir: "packages/natives", name: "@linxiraos/pi-natives" },
 	{ dir: "packages/omptype", name: "@linxiraos/pi-omptype" },
 	{ dir: "packages/wire", name: "@linxiraos/pi-wire" },
-	{ dir: "web-ui", name: "@linxiraos/zeta-web", align: true }, // 占位直发（trusted 配好后 CI 构建并发布完整版）
+	{ dir: "web-ui", name: "@linxiraos/zeta-web", build: true, align: true },
 	{ dir: "temp/pi-messenger", name: "@linxiraos/pi-messenger", rename: true },
 ];
 
