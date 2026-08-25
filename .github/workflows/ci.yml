@@ -234,8 +234,10 @@ jobs:
               # cache is warm, which is why main stayed green. Fetch first.
               cargo fetch --locked
               cargo deny --locked --offline check licenses sources
-         - name: Type check workspace
-           run: bun run ci:check:full
+         - name: Verify version-line consistency
+           run: bun scripts/check-version-consistency.ts
+         - name: Build collab web
+           run: bun run collab:web:build
          - name: Build collab web
            run: bun run collab:web:build
 

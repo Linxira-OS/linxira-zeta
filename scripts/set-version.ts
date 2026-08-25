@@ -197,26 +197,14 @@ async function main(): Promise<void> {
 	}
 	writeJson("package.json", rootPkg);
 
-	// 6. Web UI (zeta-web): package version + its @linxiraos dependency ranges.
-	const webUiRel = "web-ui/package.json";
-	const webUi = readJson(webUiRel) as {
-		version?: string;
-		dependencies?: Record<string, string>;
-	};
-	if (webUi.version !== version) {
-		webUi.version = version;
-		changed.push(webUiRel);
+	// 7. README version badge (shields.io `badge/zeta-<version>-…`), kept in
+	// lock-step so the product front door shows the release version.
+	const readmeRel = "README.md";
+	if (replaceInFile(readmeRel, /badge\/zeta-\d+\.\d+\.\d+-/, `badge/zeta-${version}-`)) {
+		changed.push(readmeRel);
 	} else {
-		unchanged.push(webUiRel);
+		unchanged.push(readmeRel);
 	}
-	const depRange = `^${version}`;
-	for (const [dep, range] of Object.entries(webUi.dependencies ?? {})) {
-		if (dep.startsWith("@linxiraos/") && range !== depRange) {
-			webUi.dependencies![dep] = depRange;
-			changed.push(`web-ui deps.${dep}`);
-		}
-	}
-	writeJson(webUiRel, webUi);
 
 	console.log(`${DRY_RUN ? "[dry-run] " : ""}Version ${version} applied:`);
 	console.log(`  changed (${changed.length}):`);

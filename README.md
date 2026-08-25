@@ -3,8 +3,14 @@
 </p>
 
 <p align="center">
-  A local-first coding agent for deliberate, inspectable software work.
+  <a href="https://github.com/Linxira-OS/linxira-zeta/releases"><img src="https://img.shields.io/badge/zeta-1.0.11-8B5CF6?style=flat-square" alt="Zeta version"></a>
+  <img src="https://img.shields.io/badge/runtime-Bun-black?style=flat-square&logo=bun&logoColor=white" alt="Runtime: Bun">
+  <img src="https://img.shields.io/badge/language-TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="Language: TypeScript">
+  <img src="https://img.shields.io/badge/native-Rust-dea584?style=flat-square&logo=rust&logoColor=white" alt="Native: Rust">
+  <a href="https://github.com/Linxira-OS/linxira-zeta/actions"><img src="https://img.shields.io/github/actions/workflow/status/Linxira-OS/linxira-zeta/ci.yml?style=flat-square" alt="CI"></a>
 </p>
+
+Zeta is a Bun-native coding agent distribution built on the OMP runtime. It
 
 Zeta is a Bun-native coding agent distribution built on the OMP runtime. It
 keeps the terminal workflow fast and direct while owning its package namespace,

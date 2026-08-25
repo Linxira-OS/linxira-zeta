@@ -1,6 +1,19 @@
-# Changelog
+### Changed
 
-## [Unreleased]
+- TUI 渲染升级至上游 v18.0.3 架构（provider window + resize 重绘），终端尺寸变化即时重绘。
+- `zeta update` 改为异步增量更新，慢盘/大文件不再阻塞交互。
+- Streaming edit guard 改为异步增量验证，大文件编辑不再卡顿。
+
+### Fixed
+
+- Julia 内核可用性探测加固（超时上限 + 进程组击杀），冷启动不再误判为不可用。
+- 中文界面本地化覆盖（zh overlay，随 v18.0.4 合并）。
+
+### Removed
+
+- 配置目录统一 `.zeta`，移除 `.omp` 兼容别名路径。
+
+## [1.0.11] - 2026-08-22
 
 ## [1.0.11] - 2026-08-22
 

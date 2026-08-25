@@ -1,6 +1,8 @@
-# Changelog
+### Changed
 
-## [Unreleased]
+- Zeta scrollback 扩展合并（三方 tui 渲染融合），会话回滚保持上游 provider window 行为。
+
+## [18.0.4] - 2026-08-24
 
 ## [18.0.4] - 2026-08-24
 
