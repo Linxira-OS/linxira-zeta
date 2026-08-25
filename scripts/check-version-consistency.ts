@@ -99,7 +99,7 @@ function main(): void {
 	// Root workspaces.catalog — exactly the 14 @linxiraos/* keys, all at the line version.
 	const rootPkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 	const catalog = rootPkg.workspaces?.catalog ?? {};
-	const catalogKeys = Object.keys(catalog).filter((k) => k.startsWith("@linxiraos/"));
+	const catalogKeys = Object.keys(catalog).filter(k => k.startsWith("@linxiraos/"));
 	if (catalogKeys.length !== CATALOG_KEYS.length) {
 		problems.push(
 			`workspaces.catalog: ${catalogKeys.length} @linxiraos/* keys, expected ${CATALOG_KEYS.length}: ${catalogKeys.join(", ")}`,
