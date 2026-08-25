@@ -3,7 +3,7 @@
   "name": "@linxiraos/pi-tui",
   "version": "1.1.0",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
-  "homepage": "https://omp.sh",
+  "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Stencil Labs, Inc.",
   "contributors": [
     "Mario Zechner"
@@ -11,11 +11,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
     "directory": "packages/tui"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
     "tui",

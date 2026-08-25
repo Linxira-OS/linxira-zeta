@@ -1,6 +1,6 @@
 # @linxiraos/pi-catalog
 
-Model catalog for [oh-my-pi](https://github.com/can1357/oh-my-pi): bundled model database, provider discovery, model identity, classification, and equivalence.
+Model catalog for [Zeta](https://github.com/Linxira-OS/linxira-zeta): bundled model database, provider discovery, model identity, classification, and equivalence.
 
 ## What's inside
 
@@ -39,5 +39,5 @@ Ships TypeScript source directly (no build step); requires Bun ≥ 1.3.14.
 
 ## References
 
-- [Monorepo README](https://github.com/can1357/oh-my-pi#readme)
+- [Monorepo README](https://github.com/Linxira-OS/linxira-zeta#readme)
 - [CHANGELOG](./CHANGELOG.md)

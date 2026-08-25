@@ -37,7 +37,7 @@ import { getSessionEntry, listAllSessionFiles, type ParseSessionResult, parseSes
 import type { SyncWorkerRequest, SyncWorkerResponse } from "./sync-worker";
 // Coding-agent binary/bundle workers route through the CLI entrypoint with a
 // hidden argv mode, so the compiled binary and npm bundle only need one
-// JavaScript entry. Standalone source `omp-stats` keeps using this package's
+// JavaScript entry. Standalone source `zeta-stats` keeps using this package's
 // own sync-worker source file.
 import type {
 	BehaviorDashboardStats,

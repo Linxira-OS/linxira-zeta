@@ -2,7 +2,7 @@
   "type": "module",
   "name": "@linxiraos/pi-catalog",
   "version": "1.1.0",
-  "description": "Model catalog for omp: bundled model database, provider discovery descriptors, model identity, classification, and equivalence",
+  "description": "Model catalog for Zeta: bundled model database, provider discovery descriptors, model identity, classification, and equivalence",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",
   "license": "MIT",
