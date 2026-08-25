@@ -86,12 +86,27 @@ async function assertSseStaysOpen(webUrl) {
 	await pendingRead;
 }
 
-function stopService(child) {
+async function stopService(child) {
 	if (child.pid === undefined) return;
 	if (isWindows) {
 		spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-	} else {
-		child.kill("SIGTERM");
+		return;
+	}
+	if (child.exitCode !== null || child.signalCode !== null) return;
+	child.kill("SIGTERM");
+	// A graceful stop can hang: a lingering zeta child keeps its stdio pipes
+	// open, which keeps this Node process's event loop alive and the CI step
+	// spinning long after "smoke passed" printed. Wait for the child to exit,
+	// then force-kill after a short timeout so the pipes close and the smoke
+	// process can actually terminate.
+	const exited = Promise.withResolvers();
+	child.once("exit", () => exited.resolve(true));
+	const ok = await Promise.race([exited.promise, sleep(5000).then(() => false)]);
+	if (!ok) {
+		child.kill("SIGKILL");
+		const killed = Promise.withResolvers();
+		child.once("exit", killed.resolve);
+		await killed.promise;
 	}
 }
 
@@ -160,7 +175,7 @@ async function main() {
 		console.log(`Desktop smoke passed: default workspace, SSE, ${assets.length} Next assets, Web UI, API, and Stats dashboard.`);
 	} finally {
 		stopping = true;
-		stopService(child);
+		await stopService(child);
 	}
 }
 
