@@ -1,6 +1,6 @@
 {
-  "name": "zeta-web",
-  "version": "1.0.0",
+  "name": "@linxiraos/zeta-web",
+  "version": "1.1.0",
   "description": "Zeta's browser interface for the coding agent",
   "homepage": "https://github.com/Linxira-OS/linxira-zeta#readme",
   "repository": {
@@ -42,16 +42,17 @@
     "release": "npm version patch --no-git-tag-version && npm run build && npm publish --access public"
   },
   "dependencies": {
-    "@linxiraos/pi-agent-core": "^1.0.10",
-    "@linxiraos/pi-ai": "^1.0.10",
-    "@linxiraos/pi-tui": "^1.0.10",
-    "@linxiraos/zeta": "^1.0.10",
+    "@linxiraos/pi-agent-core": "^1.1.0",
+    "@linxiraos/pi-ai": "^1.1.0",
+    "@linxiraos/pi-tui": "^1.1.0",
+    "@linxiraos/zeta": "^1.1.0",
     "better-sqlite3": "^11.8.1",
     "next": "16.2.9",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "undici": "8.5.0",
-    "yaml": "^2.7.0"
+    "yaml": "^2.7.0",
+    "fastembed": "2.1.0"
   },
   "devDependencies": {
     "@babel/core": "^8.0.1",
