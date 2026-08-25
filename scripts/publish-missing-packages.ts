@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as readline from "node:readline";
 /**
  * 本地补发包脚本（统一工具，保留）——本地向 npm registry 补发 @linxiraos/* 各包版本，
  * 用于 CI 发布中断后的缺口补发，或本地先行创建新包（pi-channels/zeta-web/pi-messenger）
@@ -77,26 +76,6 @@ async function loginInteractive(label: string): Promise<boolean> {
 	return true;
 }
 
-async function openUrl(url: string): Promise<void> {
-	if (process.platform === "win32") {
-		await $`start ${url}`.cwd(repo).quiet().nothrow();
-	} else if (process.platform === "darwin") {
-		await $`open ${url}`.cwd(repo).quiet().nothrow();
-	} else {
-		await $`xdg-open ${url}`.cwd(repo).quiet().nothrow();
-	}
-}
-
-function waitForEnter(): Promise<void> {
-	return new Promise(resolve => {
-		const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-		rl.question("", () => {
-			rl.close();
-			resolve();
-		});
-	});
-}
-
 async function ensureLogin(): Promise<void> {
 	const who = await $`npm whoami`.cwd(repo).quiet().nothrow();
 	if (who.exitCode === 0) {
@@ -118,33 +97,38 @@ async function alreadyPublished(name: string, version: string): Promise<boolean>
 /** 返回 0 成功；1 最终失败；2 已存在（视为成功）。 */
 async function publishWithRetry(dir: string, name: string, version: string): Promise<number> {
 	for (let attempt = 1; attempt <= 4; attempt++) {
-		const r = await $`npm publish ${path.join(repo, dir)}`.cwd(repo).nothrow();
-		if (r.exitCode === 0) return 0;
-		const err = `${r.stderr?.toString() ?? ""}\n${r.stdout?.toString() ?? ""}`;
-		if (/EPUBLISHCONFLICT|already exists|You cannot publish over the previously published versions/.test(err)) {
+		// Run npm publish with stdin on the terminal (TTY). npm then prints the
+		// auth URL and WAITS in the same command for the browser approval
+		// (security key + "skip 2FA for 5 minutes"), then completes the publish.
+		// Non-TTY shells (Bun $) make npm fail EOTP immediately, so re-running
+		// still needs a fresh approval every time.
+		const proc = Bun.spawn(["npm", "publish", path.join(repo, dir)], {
+			cwd: repo,
+			stdin: "inherit",
+			stdout: "inherit",
+			stderr: "pipe",
+		});
+		const [code, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+		if (code === 0) return 0;
+		if (/EPUBLISHCONFLICT|already exists|You cannot publish over the previously published versions/.test(stderr)) {
 			console.log(`  ${name}@${version} 已存在（并发发布），视为已发。`);
 			return 2;
 		}
-		if (/EOTP|one-time password|requires a one-time password/.test(err)) {
-			const url = err.match(/https:\/\/www\.npmjs\.com\/auth\/cli\/[^\s]+/)?.[0];
-			console.log(`  ✗ ${name} 需要发包授权（attempt ${attempt}/4）。`);
-			console.log("    正在打开浏览器——请完成 security key 确认，并勾选「5 分钟内不再要求 2FA」：");
-			if (url) {
-				console.log(`    ${url}`);
-				await openUrl(url);
-			}
-			console.log("    授权完成后按回车继续...");
-			await waitForEnter();
+		if (/EOTP|one-time password|requires a one-time password/.test(stderr)) {
+			console.log(`  ✗ ${name} 授权未完成（attempt ${attempt}/4）。`);
+			console.log(
+				"    请在上面的浏览器授权页完成 security key 确认；若多次失败，确认勾选了「5 分钟内不再要求 2FA」。",
+			);
 			continue;
 		}
-		if (/401|E401|Unauthorized/.test(err)) {
+		if (/401|E401|Unauthorized/.test(stderr)) {
 			console.log(`  publish 401（attempt ${attempt}/4）`);
 			const ok = await relogin();
 			if (!ok) return 1;
 			continue;
 		}
 		console.log(`  publish 失败（attempt ${attempt}/4）：`);
-		console.log(err.split("\n").slice(0, 8).join("\n"));
+		console.log(stderr.split("\n").slice(0, 8).join("\n"));
 		return 1;
 	}
 	return 1;
