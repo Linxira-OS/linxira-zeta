@@ -33,7 +33,7 @@ const repo = path.resolve(import.meta.dir, "..");
 const args = process.argv.slice(2);
 const onlyIdx = args.indexOf("--only");
 const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
-const RELEASE = "1.1.0";
+const RELEASE = "1.1.1";
 
 const TARGETS: Array<{
 	dir: string;
