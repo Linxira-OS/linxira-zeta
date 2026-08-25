@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as readline from "node:readline";
 /**
  * 本地补发包脚本（统一工具，保留）——本地向 npm registry 补发 @linxiraos/* 各包版本，
  * 用于 CI 发布中断后的缺口补发，或本地先行创建新包（pi-channels/zeta-web/pi-messenger）
@@ -102,6 +103,16 @@ async function openUrl(url: string): Promise<void> {
 	}
 }
 
+function waitForEnter(promptText: string): Promise<void> {
+	return new Promise(resolve => {
+		const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+		rl.question(promptText, () => {
+			rl.close();
+			resolve();
+		});
+	});
+}
+
 /** npm 不支持 Bun 的 catalog: 协议——发布前临时重写为实际版本，发布后恢复。 */
 function rewriteCatalogDeps(pkgPath: string): Array<{ field: string; name: string; spec: string }> {
 	const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as Record<string, Record<string, string>>;
@@ -142,49 +153,31 @@ async function alreadyPublished(name: string, version: string): Promise<boolean>
 /** 返回 0 成功；1 最终失败；2 已存在（视为成功）。 */
 async function publishWithRetry(dir: string, name: string, version: string): Promise<number> {
 	for (let attempt = 1; attempt <= 4; attempt++) {
-		// npm 打印授权 URL + "Press ENTER to open in the browser..." 后进入授权
-		// 轮询。脚本接管 stdin（pipe）：检测到 auth/cli URL 就打开浏览器并写入
-		// ENTER，npm 随即等待你在浏览器完成 security key 确认（勾选
-		// "5 分钟内不再要求 2FA"），然后同一条命令内完成发布。
+		// npm 在非 TTY 下遇到 EOTP 会打印授权 URL 后立即失败（不会自己等待授权）。
+		// 脚本捕获 URL、打开浏览器，等你完成 security key 确认（勾选
+		// "5 分钟内不再要求 2FA"）并回车后重试——5 分钟窗口内重试应免 2FA。
 		const proc = Bun.spawn(["npm", "publish", path.join(repo, dir)], {
 			cwd: repo,
-			stdin: "pipe",
+			stdin: "inherit",
 			stdout: "inherit",
 			stderr: "pipe",
 		});
-		const errBuf: string[] = [];
-		let authOpened = false;
-		const drainStderr = (async () => {
-			for await (const chunk of proc.stderr as AsyncIterable<Uint8Array>) {
-				const text = new TextDecoder().decode(chunk);
-				errBuf.push(text);
-				if (!authOpened) {
-					const url = text.match(/https:\/\/www\.npmjs\.com\/auth\/cli\/[^\s]+/)?.[0];
-					if (url) {
-						authOpened = true;
-						console.log(
-							`  已在浏览器打开发包授权页——完成 security key 确认（勾选「5 分钟内不再要求 2FA」）：\n    ${url}`,
-						);
-						await openUrl(url);
-						proc.stdin?.write("\n");
-						proc.stdin?.end();
-					}
-				}
-			}
-		})();
-		const code = await proc.exited;
-		await drainStderr;
-		const stderr = errBuf.join("");
+		const [code, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
 		if (code === 0) return 0;
 		if (/EPUBLISHCONFLICT|already exists|You cannot publish over the previously published versions/.test(stderr)) {
 			console.log(`  ${name}@${version} 已存在（并发发布），视为已发。`);
 			return 2;
 		}
 		if (/EOTP|one-time password|requires a one-time password/.test(stderr)) {
+			const url = stderr.match(/https:\/\/www\.npmjs\.com\/auth\/cli\/[^\s]+/)?.[0];
+			if (url) {
+				console.log(`  ✗ ${name} 需要发包授权（attempt ${attempt}/4）。`);
+				console.log(`    已在浏览器打开发包授权页：${url}`);
+				await openUrl(url);
+				await waitForEnter("    完成 security key 确认（勾选「5 分钟内不再要求 2FA」）后按回车继续...");
+				continue;
+			}
 			console.log(`  ✗ ${name} 授权未完成（attempt ${attempt}/4）。`);
-			console.log(
-				"    请在上面的浏览器授权页完成 security key 确认；若多次失败，确认勾选了「5 分钟内不再要求 2FA」。",
-			);
 			continue;
 		}
 		if (/401|E401|Unauthorized/.test(stderr)) {
