@@ -75,20 +75,19 @@ jobs:
          - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
            with:
               bun-version: "1.3"
-         # gnu+win32 与 musl 必须分开 invocation：musl 复用 gnu 的 canonical
-         # basename，同一 --dest 会触发 bazel-natives 的保护（拒绝安装防
-         # clobber）。与 ci.yml native_addons 的两步模式保持一致；musl 用
-         # 独立 cache-scope 使 restore miss → save（否则 step2 restore hit
-         # 不保存，musl 永远冷构建）。
+         # Zeta: warm seeds ONLY the natives scope (gnu+win32+arm64). The musl
+         # scope is NOT warmed: its archive (~6.6 GB) + the natives archive
+         # (~5.3 GB) + the bun store exceed the 10 GB repo cache quota, so the
+         # later musl save evicts the natives archive — which is exactly the
+         # archive the release's native_addons restores. Without the natives
+         # archive the release builds cold (~53 min) and blows the 50-min job
+         # timeout (the 1.1.2 hang). The release's musl step cold-builds in
+         # ~25 min (repo cache already on the runner from the natives step),
+         # well inside the same timeout.
          - uses: ./.github/actions/bazel-natives
            with:
               targets: >-
                  linux-x64-baseline linux-x64-modern linux-arm64 win32-x64-baseline
-         - uses: ./.github/actions/bazel-natives
-           with:
-              targets: linux-musl-x64-baseline linux-musl-arm64
-              dest: packages/natives/native-musl
-              cache-scope: natives-musl
 
    # Produces the shared bun store entry PR jobs restore. bun-install's save
    # half only runs on non-PR events.
