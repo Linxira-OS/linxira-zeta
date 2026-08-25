@@ -394,7 +394,7 @@ jobs:
                 rm -rf "$RUNNER_TEMP/package"
               done
               ls -1 packages/natives/native/*.node
-         - name: Build musl native addons (bazel) [TEMP: skipped]
+         - name: Build musl native addons (bazel) [TEMP skipped]
            if: ${{ false }}
          - name: Smoke release addons
            if: github.event_name != 'pull_request'
