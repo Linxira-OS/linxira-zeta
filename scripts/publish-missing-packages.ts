@@ -36,6 +36,10 @@ const onlyIdx = args.indexOf("--only");
 const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
 const doDeprecate = args.includes("--deprecate");
 const RELEASE = "1.1.1";
+const deprecateVersion = (() => {
+	const idx = args.indexOf("--version");
+	return idx >= 0 ? args[idx + 1] : "1.1.0";
+})();
 
 const TARGETS: Array<{
 	dir: string;
@@ -151,25 +155,48 @@ async function alreadyPublished(name: string, version: string): Promise<boolean>
 	return r.exitCode === 0;
 }
 
-/** deprecate 1.1.0 的坏版本（依赖带 Bun catalog: 协议，npm 无法解析）。 */
-async function deprecateBroken110(): Promise<void> {
-	// 14 个核心包 + zeta-web 的 1.1.0 都是坏的；pi-messenger@1.1.0 零依赖、完整，不处理。
-	const names = [...TARGETS.filter(t => t.name !== "@linxiraos/pi-messenger").map(t => t.name)];
-	const message =
-		"Broken in 1.1.0: dependencies use Bun's catalog: protocol which npm cannot resolve. Upgrade to 1.1.1.";
+/** deprecate 坏版本。1.1.0: catalog: 协议依赖；1.1.2: native addon sentinel 不匹配。 */
+async function deprecateBroken(version: string): Promise<void> {
+	let names: string[];
+	let message: string;
+	if (version === "1.1.2") {
+		// 10 个已发核心包 + 5 个 leaf（1.1.1 addon 顶替 1.1.2，sentinel 不匹配）。
+		names = [
+			"@linxiraos/pi-utils",
+			"@linxiraos/pi-ai",
+			"@linxiraos/pi-tui",
+			"@linxiraos/pi-hashline",
+			"@linxiraos/pi-mnemopi",
+			"@linxiraos/pi-snapcompact",
+			"@linxiraos/pi-stats",
+			"@linxiraos/pi-channels",
+			"@linxiraos/pi-omptype",
+			"@linxiraos/pi-wire",
+			"@linxiraos/pi-natives-linux-x64",
+			"@linxiraos/pi-natives-linux-arm64",
+			"@linxiraos/pi-natives-win32-x64",
+			"@linxiraos/pi-natives-darwin-x64",
+			"@linxiraos/pi-natives-darwin-arm64",
+		];
+		message = "Broken: native addon sentinel mismatch (1.1.1 addon in 1.1.2). Use 1.1.3.";
+	} else {
+		// 14 个核心包 + zeta-web 的 1.1.0 都是坏的；pi-messenger@1.1.0 零依赖、完整，不处理。
+		names = [...TARGETS.filter(t => t.name !== "@linxiraos/pi-messenger").map(t => t.name)];
+		message = "Broken in 1.1.0: dependencies use Bun's catalog: protocol which npm cannot resolve. Upgrade to 1.1.1.";
+	}
 	for (const name of names) {
 		// npm 12 in TTY prints the REAL auth URL and waits for ENTER to open the
 		// browser; non-TTY stderr masks it as auth/cli/*** (useless). Keep npm
 		// fully interactive so the real URL opens and the 5-min window applies.
 		// Bun Shell splits the message on spaces — pass it as a single argv.
-		const proc = Bun.spawn(["npm", "deprecate", `${name}@1.1.0`, message], {
+		const proc = Bun.spawn(["npm", "deprecate", `${name}@${version}`, message], {
 			cwd: repo,
 			stdin: "inherit",
 			stdout: "inherit",
 			stderr: "inherit",
 		});
 		const code = await proc.exited;
-		console.log(`${name}@1.1.0 ${code === 0 ? "已 deprecate" : "失败（见上方输出）"}`);
+		console.log(`${name}@${version} ${code === 0 ? "已 deprecate" : "失败（见上方输出）"}`);
 	}
 }
 
@@ -218,7 +245,7 @@ async function publishWithRetry(dir: string, name: string, version: string): Pro
 
 if (doDeprecate) {
 	await ensureLogin();
-	await deprecateBroken110();
+	await deprecateBroken(deprecateVersion);
 	process.exit(0);
 }
 
