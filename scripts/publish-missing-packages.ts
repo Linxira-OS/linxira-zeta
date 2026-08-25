@@ -6,7 +6,10 @@ import * as path from "node:path";
  * 用于 CI 发布中断后的缺口补发，或本地先行创建新包（pi-channels/zeta-web/pi-messenger）
  * 再让 CI 的 trusted publishing 接管后续发布。
  *
- * 2FA 处理（npm 新政策，无法本地输入验证码）：
+ *   - publish 遇到 EOTP（需要 2FA）→ npm CLI 在 TTY 下会打印授权 URL 并等你在浏览器完成
+ *     security key 确认（勾选"5 分钟内不再要求 2FA"），然后同一条命令内完成发布；
+ *     5 分钟窗口内多个包无需重复 2FA（超时再 EOTP 会再次等授权）。
+ *   - 401（会话过期）重新 `npm login`。
  *   - publish 遇到 EOTP（需要 2FA）→ 脚本调用 `npm login`（CLI 跳转浏览器授权），
  *     你在浏览器登录页勾选"5 分钟内不再要求 2FA"，获得临时认证后脚本继续发布
  *     （5 分钟窗口内多个包无需重复 2FA；超时再 EOTP 会再次登录）。
