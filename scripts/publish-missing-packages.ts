@@ -35,7 +35,7 @@ const args = process.argv.slice(2);
 const onlyIdx = args.indexOf("--only");
 const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
 const doDeprecate = args.includes("--deprecate");
-const RELEASE = "1.1.1";
+const RELEASE = "1.1.3";
 const deprecateVersion = (() => {
 	const idx = args.indexOf("--version");
 	return idx >= 0 ? args[idx + 1] : "1.1.0";
