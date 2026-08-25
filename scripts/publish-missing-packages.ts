@@ -158,29 +158,18 @@ async function deprecateBroken110(): Promise<void> {
 	const message =
 		"Broken in 1.1.0: dependencies use Bun's catalog: protocol which npm cannot resolve. Upgrade to 1.1.1.";
 	for (const name of names) {
-		// Bun Shell splits the message on spaces; pass it as a single argv entry.
-		// deprecate is a write op too — npm may demand web 2FA (auth/cli URL).
-		for (let attempt = 1; attempt <= 3; attempt++) {
-			const proc = Bun.spawn(["npm", "deprecate", `${name}@1.1.0`, message], {
-				cwd: repo,
-				stdout: "pipe",
-				stderr: "pipe",
-			});
-			const [code, err] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
-			if (code === 0) {
-				console.log(`${name}@1.1.0 已 deprecate`);
-				break;
-			}
-			const url = err.match(/https:\/\/www\.npmjs\.com\/auth\/cli\/[^\s]+/)?.[0];
-			if (url && attempt < 3) {
-				console.log(`  ${name}@1.1.0 需要发包授权（attempt ${attempt}/3）：${url}`);
-				await openUrl(url);
-				await waitForEnter("    完成 security key 确认（勾选「5 分钟内不再要求 2FA」）后按回车继续...");
-				continue;
-			}
-			console.log(`${name}@1.1.0 失败: ${err.split("\n").filter(Boolean).slice(-3).join(" ")}`);
-			break;
-		}
+		// npm 12 in TTY prints the REAL auth URL and waits for ENTER to open the
+		// browser; non-TTY stderr masks it as auth/cli/*** (useless). Keep npm
+		// fully interactive so the real URL opens and the 5-min window applies.
+		// Bun Shell splits the message on spaces — pass it as a single argv.
+		const proc = Bun.spawn(["npm", "deprecate", `${name}@1.1.0`, message], {
+			cwd: repo,
+			stdin: "inherit",
+			stdout: "inherit",
+			stderr: "inherit",
+		});
+		const code = await proc.exited;
+		console.log(`${name}@1.1.0 ${code === 0 ? "已 deprecate" : "失败（见上方输出）"}`);
 	}
 }
 
