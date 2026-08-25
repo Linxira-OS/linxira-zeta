@@ -358,6 +358,14 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 		await Bun.write(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 	}
 
+	// Step 4: root catalog explicit mapping (workspace deps resolve to the
+	// release version — without this, catalog stays on the old version and
+	// `bun install` fails resolving `@linxiraos/*@catalog:` against npm).
+	console.log("Updating root catalog...");
+	await updateCatalog(version);
+	await readCatalog(); // re-validates catalog key count
+	console.log(`  Root catalog: ${CATALOG_KEYS.length} keys -> ${version}`);
+
 	// Step 4b: README shields.io version badge stays in lock-step with the
 	// release (see scripts/set-version.ts — keep both replacements identical).
 	console.log("Updating README version badge...");
