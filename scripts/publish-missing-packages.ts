@@ -158,8 +158,15 @@ async function deprecateBroken110(): Promise<void> {
 	const message =
 		"Broken in 1.1.0: dependencies use Bun's catalog: protocol which npm cannot resolve. Upgrade to 1.1.1.";
 	for (const name of names) {
-		const r = await $`npm deprecate ${name}@1.1.0 ${message}`.cwd(repo).quiet().nothrow();
-		console.log(`${name}@1.1.0 ${r.exitCode === 0 ? "已 deprecate" : "失败/跳过"}`);
+		// Bun Shell splits the message on spaces; pass it as a single argv entry.
+		const proc = Bun.spawn(["npm", "deprecate", `${name}@1.1.0`, message], {
+			cwd: repo,
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		const [code, out] = await Promise.all([proc.exited, new Response(proc.stdout).text()]);
+		const tail = out.split("\n").filter(Boolean).slice(-2).join(" ");
+		console.log(`${name}@1.1.0 ${code === 0 ? "已 deprecate" : "失败"}: ${tail}`);
 	}
 }
 
