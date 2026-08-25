@@ -88,7 +88,7 @@ async function openUrl(url: string): Promise<void> {
 }
 
 function waitForEnter(): Promise<void> {
-	return new Promise((resolve) => {
+	return new Promise(resolve => {
 		const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 		rl.question("", () => {
 			rl.close();
@@ -128,7 +128,7 @@ async function publishWithRetry(dir: string, name: string, version: string): Pro
 		if (/EOTP|one-time password|requires a one-time password/.test(err)) {
 			const url = err.match(/https:\/\/www\.npmjs\.com\/auth\/cli\/[^\s]+/)?.[0];
 			console.log(`  ✗ ${name} 需要发包授权（attempt ${attempt}/4）。`);
-			console.log("    正在打开浏览器——请完成 security key 确认，并勾选"5 分钟内不再要求 2FA"：");
+			console.log("    正在打开浏览器——请完成 security key 确认，并勾选「5 分钟内不再要求 2FA」：");
 			if (url) {
 				console.log(`    ${url}`);
 				await openUrl(url);
