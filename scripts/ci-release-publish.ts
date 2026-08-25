@@ -170,6 +170,30 @@ export const packages: PublishPackage[] = [
 	{ dir: "packages/coding-agent", kind: "typescript", publishBin: { zeta: "dist/cli.js" } },
 ];
 
+async function loadWorkspaceCatalog(): Promise<Record<string, string>> {
+	const rootPkg = (await Bun.file(path.join(repoRoot, "package.json")).json()) as {
+		workspaces?: { catalog?: Record<string, string> };
+	};
+	return rootPkg.workspaces?.catalog ?? {};
+}
+
+/** npm cannot resolve Bun's `catalog:` protocol; replace it with the resolved specifier. */
+function rewriteCatalogDependencies(dir: string, manifest: PackageManifest, catalog: Record<string, string>): void {
+	for (const field of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"] as const) {
+		const deps = manifest[field];
+		if (deps === undefined || deps === null || Array.isArray(deps) || typeof deps !== "object") continue;
+		for (const [name, spec] of Object.entries(deps)) {
+			if (spec === "catalog:") {
+				const resolved = catalog[name];
+				if (!resolved) {
+					throw new Error(`Package ${dir}: dependency "${name}" uses catalog: but has no root catalog entry`);
+				}
+				(deps as JsonObject)[name] = resolved;
+			}
+		}
+	}
+}
+
 function rewriteSrcToTypes(value: string): string {
 	if (!value.startsWith("./src/")) return value;
 	const rel = value.slice("./src/".length).replace(/\.tsx?$/, "");
@@ -222,6 +246,8 @@ function rewriteExports(exports: JsonValue, publishJs: boolean): JsonValue {
 export async function rewriteManifest(pkg: PublishPackage, write: boolean): Promise<PackageManifest> {
 	const manifestPath = path.join(repoRoot, pkg.dir, "package.json");
 	const manifest = (await Bun.file(manifestPath).json()) as PackageManifest;
+	const catalog = await loadWorkspaceCatalog();
+	rewriteCatalogDependencies(pkg.dir, manifest, catalog);
 	if (pkg.publishBin) manifest.bin = { ...pkg.publishBin };
 	if (typeof manifest.types === "string" && manifest.types.startsWith("./src/")) {
 		manifest.types = rewriteSrcToTypes(manifest.types);

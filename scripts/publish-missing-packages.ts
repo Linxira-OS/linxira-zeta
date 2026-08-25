@@ -92,6 +92,48 @@ async function relogin(): Promise<boolean> {
 	return loginInteractive("npm 会话过期或需要 2FA。");
 }
 
+async function openUrl(url: string): Promise<void> {
+	if (process.platform === "win32") {
+		await $`start ${url}`.cwd(repo).quiet().nothrow();
+	} else if (process.platform === "darwin") {
+		await $`open ${url}`.cwd(repo).quiet().nothrow();
+	} else {
+		await $`xdg-open ${url}`.cwd(repo).quiet().nothrow();
+	}
+}
+
+/** npm 不支持 Bun 的 catalog: 协议——发布前临时重写为实际版本，发布后恢复。 */
+function rewriteCatalogDeps(pkgPath: string): Array<{ field: string; name: string; spec: string }> {
+	const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as Record<string, Record<string, string>>;
+	const rootPkg = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")) as {
+		workspaces?: { catalog?: Record<string, string> };
+	};
+	const catalog = rootPkg.workspaces?.catalog ?? {};
+	const backup: Array<{ field: string; name: string; spec: string }> = [];
+	for (const field of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"]) {
+		const deps = pkg[field];
+		if (!deps) continue;
+		for (const [name, spec] of Object.entries(deps)) {
+			if (spec === "catalog:") {
+				backup.push({ field, name, spec });
+				deps[name] = catalog[name] ?? spec;
+			}
+		}
+	}
+	if (backup.length) {
+		fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+		console.log(`  (catalog: 依赖临时重写为实际版本——${backup.length} 处)`);
+	}
+	return backup;
+}
+
+function restoreCatalogDeps(pkgPath: string, backup: Array<{ field: string; name: string; spec: string }>): void {
+	if (!backup.length) return;
+	const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as Record<string, Record<string, string>>;
+	for (const b of backup) pkg[b.field][b.name] = b.spec;
+	fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+}
+
 async function alreadyPublished(name: string, version: string): Promise<boolean> {
 	const r = await $`npm view ${name}@${version} version`.cwd(repo).quiet().nothrow();
 	return r.exitCode === 0;
@@ -100,18 +142,39 @@ async function alreadyPublished(name: string, version: string): Promise<boolean>
 /** 返回 0 成功；1 最终失败；2 已存在（视为成功）。 */
 async function publishWithRetry(dir: string, name: string, version: string): Promise<number> {
 	for (let attempt = 1; attempt <= 4; attempt++) {
-		// Run npm publish with stdin on the terminal (TTY). npm then prints the
-		// auth URL and WAITS in the same command for the browser approval
-		// (security key + "skip 2FA for 5 minutes"), then completes the publish.
-		// Non-TTY shells (Bun $) make npm fail EOTP immediately, so re-running
-		// still needs a fresh approval every time.
+		// npm 打印授权 URL + "Press ENTER to open in the browser..." 后进入授权
+		// 轮询。脚本接管 stdin（pipe）：检测到 auth/cli URL 就打开浏览器并写入
+		// ENTER，npm 随即等待你在浏览器完成 security key 确认（勾选
+		// "5 分钟内不再要求 2FA"），然后同一条命令内完成发布。
 		const proc = Bun.spawn(["npm", "publish", path.join(repo, dir)], {
 			cwd: repo,
-			stdin: "inherit",
+			stdin: "pipe",
 			stdout: "inherit",
 			stderr: "pipe",
 		});
-		const [code, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+		const errBuf: string[] = [];
+		let authOpened = false;
+		const drainStderr = (async () => {
+			for await (const chunk of proc.stderr as AsyncIterable<Uint8Array>) {
+				const text = new TextDecoder().decode(chunk);
+				errBuf.push(text);
+				if (!authOpened) {
+					const url = text.match(/https:\/\/www\.npmjs\.com\/auth\/cli\/[^\s]+/)?.[0];
+					if (url) {
+						authOpened = true;
+						console.log(
+							`  已在浏览器打开发包授权页——完成 security key 确认（勾选「5 分钟内不再要求 2FA」）：\n    ${url}`,
+						);
+						await openUrl(url);
+						proc.stdin?.write("\n");
+						proc.stdin?.end();
+					}
+				}
+			}
+		})();
+		const code = await proc.exited;
+		await drainStderr;
+		const stderr = errBuf.join("");
 		if (code === 0) return 0;
 		if (/EPUBLISHCONFLICT|already exists|You cannot publish over the previously published versions/.test(stderr)) {
 			console.log(`  ${name}@${version} 已存在（并发发布），视为已发。`);
@@ -189,7 +252,9 @@ for (const t of TARGETS) {
 		}
 	}
 
+	const catalogBackup = rewriteCatalogDeps(pkgPath);
 	const code = await publishWithRetry(t.dir, t.name, version);
+	restoreCatalogDeps(pkgPath, catalogBackup);
 	results.push(`${t.name}@${version}: ${code === 0 ? "OK" : code === 2 ? "already published" : "FAIL"}`);
 }
 
