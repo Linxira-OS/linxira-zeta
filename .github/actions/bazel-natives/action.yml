@@ -27,6 +27,7 @@ runs:
            scope: ${{ inputs.cache-scope }}
 
       - name: Build native addons
+        timeout-minutes: 45
         shell: bash
         env:
            OMP_BAZEL_RC: ${{ steps.cache.outputs.rc }}
