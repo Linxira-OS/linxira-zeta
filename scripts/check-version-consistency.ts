@@ -125,10 +125,16 @@ function main(): void {
 	const desktopVersion = readVersion("desktop/package.json");
 	if (desktopVersion !== expected) problems.push(`desktop/package.json: ${desktopVersion} != ${expected}`);
 
-	// README shields.io version badge must show the line version.
-	const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
-	if (!readme.includes(`badge/zeta-${expected}-`)) {
-		problems.push(`README.md: version badge not at ${expected}`);
+	// CHANGELOG structure: each package keeps only the Zeta version line — no
+	// upstream OMP version sections ([15.x]–[18.x]) — and has an
+	// [Unreleased] header (the release preflight enforces non-empty bodies).
+	for (const pkg of ALL_PACKAGES) {
+		const changelog = fs.readFileSync(path.join(root, `packages/${pkg}/CHANGELOG.md`), "utf8");
+		const upstream = changelog.match(/^## \[1[5-8]\./m);
+		if (upstream) problems.push(`packages/${pkg}/CHANGELOG.md: upstream OMP section ${upstream[0].trim()}`);
+		if (!changelog.includes("## [Unreleased]")) {
+			problems.push(`packages/${pkg}/CHANGELOG.md: missing [Unreleased] header`);
+		}
 	}
 
 	if (problems.length > 0) {

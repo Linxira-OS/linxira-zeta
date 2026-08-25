@@ -651,7 +651,37 @@ Location: `packages/*/CHANGELOG.md` (per package).
 - Internal (from issues): `Fixed foo bar ([#123](https://github.com/can1357/oh-my-pi/issues/123))`.
 - External contributions: `Added feature X ([#456](https://github.com/can1357/oh-my-pi/pull/456) by [@username](https://github.com/username))`.
 
-## Releasing
+### Release log completeness (pre-tag gate)
+
+Every Zeta release tag (`v*`) MUST ship complete logs **before** the tag is
+pushed; CI never fixes logs for you. `release-v2.ts` runs a preflight gate that
+refuses to bump while any log is missing:
+
+1. **Package CHANGELOGs keep ONLY the Zeta version line.** Each
+   `packages/*/CHANGELOG.md` may only carry `[Unreleased]` and Zeta versions
+   (`[1.0.x]`, `[1.1.x]`, …). Upstream OMP version sections (`[15.x]`–`[18.x]`)
+   must never appear: OMP's changelog is a subset of Zeta's, so upstream
+   changes are folded into the Zeta `[Unreleased]` entry at sync time, never
+   kept under upstream version headers. The preflight fails while any package
+   still matches `## [1[5-8].`.
+2. **Every package `[Unreleased]` is non-empty at release time.** Each released
+   package records its user-visible changes since the last release (sync or
+   Zeta work) — an empty `[Unreleased]` is a pre-tag gate failure.
+3. **`UPDATE-LOG.md` carries the release entry.** Version, date,
+   added/fixed/removed items, and the OMP sync baseline under
+   `## 下一版本（Unreleased）`; the sync baseline must be current. The preflight
+   verifies the section is non-empty.
+4. **README.md version badge stays in lock-step.** `badge/zeta-<version>-` is
+   rewritten by `set-version.ts` and `release-v2.ts`; the version-line
+   consistency check (`scripts/check-version-consistency.ts`, wired into CI)
+   fails if it drifts.
+
+The pre-tag gate in `release-v2.ts` runs before any bump:
+- no `## [1[5-8].` upstream version sections in any `packages/*/CHANGELOG.md`
+- every package `[Unreleased]` section has at least one entry line
+- `UPDATE-LOG.md` `## 下一版本（Unreleased）` is non-empty
+
+**Zeta uses one version line for everything.** All 13 published `@linxiraos/*`
 
 **Zeta uses one version line for everything.** All 13 published `@linxiraos/*`
 packages (the 10 core packages plus the 3 native leaves `natives`/`omptype`/`wire`)

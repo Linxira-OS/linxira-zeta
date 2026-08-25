@@ -209,8 +209,66 @@ async function assertConsistency(version: string): Promise<void> {
 	);
 }
 
+/**
+ * Body text between a `## [Header]` line and the next `## `-level header (or
+ * end of file). Returns undefined when the header is absent. indexOf-based so
+ * it is immune to `$`/`\s*$` lookahead pitfalls that match line ends under
+ * the `m` flag (which would wrongly report a populated section as empty).
+ */
+function extractSectionBody(content: string, header: string): string | undefined {
+	const start = content.indexOf(header);
+	if (start === -1) return undefined;
+	const afterHeader = content.indexOf("\n", start);
+	if (afterHeader === -1) return "";
+	const bodyStart = afterHeader + 1;
+	const nextHeader = content.slice(bodyStart).search(/^## /m);
+	const body = nextHeader === -1 ? content.slice(bodyStart) : content.slice(bodyStart, bodyStart + nextHeader);
+	return body;
+}
+
+/**
+ * Pre-tag log gate — refuse to release while any package CHANGELOG carries an
+ * upstream OMP version section ([15.x]–[18.x]), any package [Unreleased] is
+ * empty, or UPDATE-LOG's Unreleased section is empty. See AGENTS.md "Release
+ * log completeness (pre-tag gate)".
+ */
+async function assertReleaseLogs(): Promise<void> {
+	const problems: string[] = [];
+
+	for (const pkg of ALL_PACKAGES) {
+		const changelogPath = `packages/${pkg}/CHANGELOG.md`;
+		const content = await Bun.file(changelogPath).text();
+		const upstreamMatch = content.match(/^## \[1[5-8]\./m);
+		if (upstreamMatch) {
+			problems.push(`${changelogPath}: upstream OMP version section ${upstreamMatch[0].trim()}`);
+		}
+		const unreleasedBody = extractSectionBody(content, "## [Unreleased]");
+		if (unreleasedBody === undefined) {
+			problems.push(`${changelogPath}: missing [Unreleased] section`);
+		} else if (!unreleasedBody.trim()) {
+			problems.push(`${changelogPath}: [Unreleased] is empty — add user-visible entries`);
+		}
+	}
+
+	const updateLog = await Bun.file("UPDATE-LOG.md").text();
+	const updateLogBody = extractSectionBody(updateLog, "## 下一版本（Unreleased）");
+	if (updateLogBody === undefined || !updateLogBody.trim()) {
+		problems.push("UPDATE-LOG.md: ## 下一版本（Unreleased） is empty — add the release entry + sync baseline");
+	}
+
+	if (problems.length > 0) {
+		console.error("Error: release log preflight failed:");
+		for (const p of problems) console.error(`  - ${p}`);
+		process.exit(1);
+	}
+	console.log("  Log gate: no upstream OMP sections, all [Unreleased] non-empty, UPDATE-LOG updated");
+}
+
 async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	console.log("\n=== Release v2 ===\n");
+
+	// Step 0: pre-tag log gate — see assertReleaseLogs above.
+	await assertReleaseLogs();
 
 	// Step 1: strict explicit-version guard (bump keywords and prereleases rejected).
 	const version = validateExplicitVersion(versionArg);
