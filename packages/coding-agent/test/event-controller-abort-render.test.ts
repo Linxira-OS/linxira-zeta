@@ -22,9 +22,10 @@ import * as AIError from "@linxiraos/pi-ai/error";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { resolveAssistantErrorPresentation } from "@linxiraos/zeta/modes/utils/transcript-render-helpers";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
-import { resolveAssistantErrorPresentation } from "@linxiraos/zeta/modes/utils/transcript-render-helpers";
+
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {
 		role: "assistant",

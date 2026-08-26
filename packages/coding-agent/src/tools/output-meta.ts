@@ -12,8 +12,8 @@ import type {
 	AgentToolUpdateCallback,
 } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
-import { logger } from "@linxiraos/pi-utils";
-import { isRecord, logger } from "@linxiraos/pi-utils";import { getDefault, type Settings } from "../config/settings";
+import { isRecord, logger } from "@linxiraos/pi-utils";
+import { getDefault, type Settings } from "../config/settings";
 import { formatGroupedDiagnosticMessages } from "../lsp/utils";
 import type { Theme } from "../modes/theme/theme";
 import { type OutputSummary, type TruncationResult, truncateMiddle, truncateTail } from "../session/streaming-output";

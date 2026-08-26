@@ -24,10 +24,10 @@ import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner
 import { GoalRuntime } from "@linxiraos/zeta/goals/runtime";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { convertToLlm, shouldRenderAbortReason } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { convertToLlm, shouldRenderAbortReason } from "@linxiraos/zeta/session/messages";
+
 // Mock stream that mimics AssistantMessageEventStream
 
 // AgentSession schedules its TTSR retry and context-promotion continuations

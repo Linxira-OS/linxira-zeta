@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { RunOutput } from "@linxiraos/zeta/tools/browser/run-output";
-import { formatSelectorMatchHint, toActionableHandle } from "@linxiraos/zeta/tools/browser/tab-worker";
 import {
 	formatSelectorMatchHint,
 	type HandleOpGuard,
 	toActionableHandle,
-} from "@linxiraos/zeta/tools/browser/tab-worker";import type { ElementHandle } from "puppeteer-core";
+} from "@linxiraos/zeta/tools/browser/tab-worker";
+import type { ElementHandle } from "puppeteer-core";
 
 // Regression coverage for the invisible-output failure mode: `display("string")`,
 // `console.log`, and `print` reach the runtime as `onText` chunks, which the browser

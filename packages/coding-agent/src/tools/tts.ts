@@ -4,12 +4,11 @@
 // the `providers.tts` switch.
 
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type ApiKey, withAuth } from "@linxiraos/pi-ai";
+import { type ApiKey, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 import { type } from "@linxiraos/pi-omptype";
-import { USER_AGENT } from "@linxiraos/pi-utils";
-import { type ApiKey, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
-import { prompt, USER_AGENT } from "@linxiraos/pi-utils";import { settings } from "../config/settings";
+import { prompt, USER_AGENT } from "@linxiraos/pi-utils";
+import { settings } from "../config/settings";
 import type { CustomTool, CustomToolContext } from "../extensibility/custom-tools/types";
 import { resolveXAIHttpCredentials } from "../lib/xai-http";
 import ttsDescription from "../prompts/tools/tts.md" with { type: "text" };

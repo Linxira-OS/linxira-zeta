@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
+import type { Component } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { TRUNCATE_LENGTHS } from "@linxiraos/zeta/tools/render-utils";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
-import type { Component } from "@linxiraos/pi-tui";
+
 beforeAll(async () => {
 	resetSettingsForTest();
 	await Settings.init({ inMemory: true });

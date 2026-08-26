@@ -10,7 +10,8 @@ import {
 	TruncatedText,
 	truncateToWidth,
 } from "@linxiraos/pi-tui";
-import { isRecord, sanitizeText } from "@linxiraos/pi-utils";import type { TreeFilterMode } from "../../config/settings-schema";
+import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
+import type { TreeFilterMode } from "../../config/settings-schema";
 import { theme } from "../../modes/theme/theme";
 import {
 	matchesAppInterrupt,

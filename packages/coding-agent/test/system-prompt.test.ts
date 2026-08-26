@@ -28,9 +28,9 @@ async function runProbeScenario(options: {
 		const probeCountPath = path.join(tempRoot, "probe-count");
 		await fs.mkdir(binDir, { recursive: true });
 		await fs.mkdir(path.join(cacheRoot, APP_NAME), { recursive: true });
-		const lspciPath = path.join(binDir, "lspci");
 		await fs.mkdir(path.join(cacheRoot, "omp"), { recursive: true });
-		const probePath = path.join(binDir, options.platform === "win32" ? "wmic" : "lspci");		await Bun.write(
+		const probePath = path.join(binDir, options.platform === "win32" ? "wmic" : "lspci");
+		await Bun.write(
 			probePath,
 			'#!/usr/bin/env sh\nprintf x >> "$OMP_GPU_PROBE_COUNT"\nif [ -n "$OMP_GPU_PROBE_VALID_OUTPUT" ]; then printf "%s\\n" "$OMP_GPU_PROBE_VALID_OUTPUT"; fi\nif [ "$OMP_GPU_PROBE_DESCENDANT_HOLDS_STDOUT" = "true" ]; then sleep "$OMP_GPU_PROBE_SLEEP" & exit 0; fi\nif [ "$OMP_GPU_PROBE_HOLD_STDOUT_OPEN" = "true" ]; then sleep "$OMP_GPU_PROBE_SLEEP" & wait "$!"; fi\nif [ -n "$OMP_GPU_PROBE_SLEEP" ]; then exec sleep "$OMP_GPU_PROBE_SLEEP"; fi\nexit 0\n',
 		);

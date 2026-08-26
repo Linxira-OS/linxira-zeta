@@ -15,8 +15,8 @@ import {
 	releaseBrowser,
 } from "@linxiraos/zeta/tools/browser/registry";
 import { acquireTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
-import type { Browser, Page, Target } from "puppeteer-core";
-import type { Browser, HTTPRequest, Page, Target } from "puppeteer-core";import { chromiumAvailable } from "./chromium-probe";
+import type { Browser, HTTPRequest, Page, Target } from "puppeteer-core";
+import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
 let sharedHeadless: BrowserHandle | undefined;

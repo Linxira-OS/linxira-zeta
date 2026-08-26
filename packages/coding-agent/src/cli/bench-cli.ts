@@ -10,23 +10,13 @@ import type {
 	ProviderSessionState,
 	ServiceTier,
 	ServiceTierByFamily,
-	SimpleStreamOptions,
 } from "@linxiraos/pi-ai";
 import { resolveModelServiceTier, streamSimple } from "@linxiraos/pi-ai";
-import { buildModelProviderPriorityRank } from "@linxiraos/pi-catalog/identity";
 import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
-import { formatDuration, formatNumber, getProjectDir, prompt } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
-import type { ApiKeyResolverModel } from "../config/api-key-resolver";
-import { ModelRegistry } from "../config/model-registry";
-import {
-	formatModelSelectorValue,
-	formatModelString,
-	getModelMatchPreferences,
-	resolveCliModel,
-} from "../config/model-resolver";
 import { formatDuration, formatNumber, prompt } from "@linxiraos/pi-utils";
-import { formatModelSelectorValue, formatModelString } from "../config/model-resolver";import { buildServiceTierByFamily, serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/service-tier";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { formatModelSelectorValue, formatModelString } from "../config/model-resolver";
+import { buildServiceTierByFamily, serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/service-tier";
 import cachePrefixTemplate from "../prompts/bench/cache-prefix.md" with { type: "text" };
 import cachePrefixChunk from "../prompts/bench/cache-prefix-chunk.md" with { type: "text" };
 import cacheSuffixTemplate from "../prompts/bench/cache-suffix.md" with { type: "text" };

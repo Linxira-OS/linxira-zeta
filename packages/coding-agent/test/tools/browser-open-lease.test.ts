@@ -11,13 +11,13 @@
 
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import { BrowserTool } from "@linxiraos/zeta/tools/browser";
+import * as attach from "@linxiraos/zeta/tools/browser/attach";
 import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
-import { getBrowsersMapForTest } from "@linxiraos/zeta/tools/browser/registry";
+import * as registry from "@linxiraos/zeta/tools/browser/registry";
 import { getTabsMapForTest, releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { ToolAbortError, ToolError } from "@linxiraos/zeta/tools/tool-errors";
-import * as attach from "@linxiraos/zeta/tools/browser/attach";
-import * as registry from "@linxiraos/zeta/tools/browser/registry";
+
 function makeSession(): ToolSession {
 	return {
 		cwd: "/tmp",

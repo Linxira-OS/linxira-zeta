@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import { scheduler } from "node:timers/promises";
 import { Agent } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import { type CompactionPreparation, resolveThresholdTokens, shouldCompact } from "@linxiraos/pi-agent-core/compaction";
@@ -10,7 +11,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { scheduler } from "node:timers/promises";
+
 it("clamps a reserve exceeding the window for small-window threshold recovery bands", () => {
 	const settings = {
 		enabled: true,

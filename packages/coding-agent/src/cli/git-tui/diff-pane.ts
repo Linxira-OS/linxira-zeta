@@ -13,13 +13,13 @@
  * the visible viewport brightened; clicking it seeks. Long lines either pan
  * horizontally (`←`/`→`) or soft-wrap when word wrap is enabled.
  */
-import { diffWords, structuredPatchHunks } from "@linxiraos/pi-natives";
-import { replaceTabs, sliceWithWidth, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
-import { getLanguageFromPath, highlightCode, theme } from "../../modes/theme/theme";
+
 import type { DiffStreamResult, HighlightStream } from "@linxiraos/pi-natives";
+import { diffWords, structuredPatchHunks } from "@linxiraos/pi-natives";
 import { Image, type ImageBudget, replaceTabs, sliceWithWidth, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
 import { formatBytes } from "@linxiraos/pi-utils";
-import { createHighlightStream, getLanguageFromPath, theme } from "../../modes/theme/theme";import { bgAnsi, canvasHex, fgAnsi, mixHex, pill, selectionBgAnsi, textHex, withBg } from "./colors";
+import { createHighlightStream, getLanguageFromPath, theme } from "../../modes/theme/theme";
+import { bgAnsi, canvasHex, fgAnsi, mixHex, pill, selectionBgAnsi, textHex, withBg } from "./colors";
 import { DIFF_CONTEXT_LINES, type FileAssetSide, type FileStreamUpdate } from "./state";
 
 /** Column ranges (inclusive start, exclusive end) carrying intraline emphasis. */

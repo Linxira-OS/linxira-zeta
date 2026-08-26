@@ -14,10 +14,10 @@ import { loadSlashCommands } from "@linxiraos/zeta/extensibility/slash-commands"
 import { discoverAgents } from "@linxiraos/zeta/task/discovery";
 import "@linxiraos/zeta/discovery/claude-plugins";
 import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
 import type { Skill } from "@linxiraos/zeta/capability/skill";
 import type { SlashCommand } from "@linxiraos/zeta/capability/slash-command";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
-import type { Rule } from "@linxiraos/zeta/capability/rule";
+
 describe("parseClaudePluginsRegistry", () => {
 	test("parses valid registry", () => {
 		const content = JSON.stringify({

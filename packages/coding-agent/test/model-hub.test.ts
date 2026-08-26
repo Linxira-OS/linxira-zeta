@@ -16,10 +16,9 @@ import {
 	type ModelHubOptions,
 	resetProviderAutoRefreshGuard,
 } from "@linxiraos/zeta/modes/components/model-hub";
-import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
-import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
-import type { TUI } from "@linxiraos/pi-tui";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
+
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();
 }

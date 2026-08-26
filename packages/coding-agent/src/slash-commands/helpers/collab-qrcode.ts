@@ -1,5 +1,6 @@
 import { type Component, visibleWidth } from "@linxiraos/pi-tui";
-import type { AnimationFrame, TranscriptPresentationTarget } from "../../modes/components/transcript-container";import { fgOrPlain } from "../../modes/theme/theme";
+import type { AnimationFrame, TranscriptPresentationTarget } from "../../modes/components/transcript-container";
+import { fgOrPlain } from "../../modes/theme/theme";
 import { QrCode, renderQrHalfBlocks } from "../../utils/qrcode";
 
 /**

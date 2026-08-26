@@ -3,8 +3,8 @@
  *
  * Stores tool definitions per server in agent.db for fast startup.
  */
-import { isRecord, logger } from "@linxiraos/pi-utils";
-import { isRecord, logger, stableStringifyJson } from "@linxiraos/pi-utils";import type { AgentStorage } from "../session/agent-storage";
+import { isRecord, logger, stableStringifyJson } from "@linxiraos/pi-utils";
+import type { AgentStorage } from "../session/agent-storage";
 import type { MCPServerConfig, MCPToolDefinition } from "./types";
 
 const CACHE_VERSION = 1;

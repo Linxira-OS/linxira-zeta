@@ -15,14 +15,14 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { TaskToolDetails } from "@linxiraos/zeta/task/types";
 import type { BashToolDetails } from "@linxiraos/zeta/tools/bash";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+
 function taskResult(asyncState: "running" | "completed" | "failed" | undefined, text: string) {
 	const details: TaskToolDetails = {
 		projectAgentsDir: null,

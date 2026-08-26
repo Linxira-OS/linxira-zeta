@@ -8,9 +8,10 @@ import type {
 	OpenAIResponsesHistoryPayload,
 	TextContent,
 } from "@linxiraos/pi-ai";
+import { rasterizeSvg } from "@linxiraos/pi-natives";
 import { formatBytes, isRecord, logger, readImageMetadata, SUPPORTED_IMAGE_MIME_TYPES } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
-import { rasterizeSvg } from "@linxiraos/pi-natives";import { resolveReadPath } from "../tools/path-utils";
+import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, type ImageResizeOptions, resizeImage } from "./image-resize";
 
 export const MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024;

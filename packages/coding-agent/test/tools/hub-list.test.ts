@@ -1,13 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
-import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
-import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
-import { executeList } from "@linxiraos/zeta/tools/hub/messaging";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 import { renderIrcPeerRoster } from "@linxiraos/zeta/task/executor";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { HubTool } from "@linxiraos/zeta/tools/hub";
@@ -17,6 +16,7 @@ import {
 	executeSend,
 	MAX_HUB_LIST_LIMIT,
 } from "@linxiraos/zeta/tools/hub/messaging";
+
 function sessionHeader(id: string): string {
 	return JSON.stringify({
 		type: "session",

@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { logger } from "@linxiraos/pi-utils";import { ADVISOR_TRANSCRIPT_FILENAME, isAdvisorTranscriptName } from "../advisor/transcript-recorder";
+import { logger } from "@linxiraos/pi-utils";
+import { ADVISOR_TRANSCRIPT_FILENAME, isAdvisorTranscriptName } from "../advisor/transcript-recorder";
 import { resolveExplicitModelRole } from "../config/model-resolver";
 import { assistantTurnProducedOutput } from "../session/messages";
 import { EPHEMERAL_MODEL_CHANGE_ROLE } from "../session/session-entries";

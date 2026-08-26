@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { renderHtmlToText } from "@linxiraos/zeta/tools/fetch";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import { TempDir } from "@linxiraos/pi-utils";import { asGlobalFetch } from "../helpers/fetch-mock";
+import { renderHtmlToText } from "@linxiraos/zeta/tools/fetch";
+import { asGlobalFetch } from "../helpers/fetch-mock";
 
 /**
  * Regression test for #1449: a stalled Jina reader request must not prevent

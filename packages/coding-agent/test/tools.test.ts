@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import * as zlib from "node:zlib";
-import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import type { AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import { $which, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { openArchive, readArchiveEntries } from "@linxiraos/pi-utils/ar";
 import { AsyncJobManager } from "@linxiraos/zeta/async";
@@ -17,7 +17,7 @@ import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import * as toolTimeouts from "@linxiraos/zeta/tools/tool-timeouts";
 import { WriteTool } from "@linxiraos/zeta/tools/write";
-import type { AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";import { GlobTool } from "../src/tools/glob";
+import { GlobTool } from "../src/tools/glob";
 import { DEFAULT_FILE_LIMIT, GrepTool, MULTI_FILE_PER_FILE_MATCHES } from "../src/tools/grep";
 import { HubTool } from "../src/tools/hub";
 

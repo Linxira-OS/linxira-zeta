@@ -1,14 +1,10 @@
-import { describe, expect, it } from "bun:test";
-import type { Component } from "@linxiraos/pi-tui";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { beforeAll, describe, expect, it } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import type { Component } from "@linxiraos/pi-tui";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import {
-	TranscriptContainer,
-	type TranscriptStableRow,
-} from "@linxiraos/zeta/modes/components/transcript-container";
+import { TranscriptContainer, type TranscriptStableRow } from "@linxiraos/zeta/modes/components/transcript-container";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+
 class Block implements Component {
 	#rows: string[];
 	#finalized: boolean;

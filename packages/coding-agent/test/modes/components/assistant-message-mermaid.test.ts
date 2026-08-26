@@ -5,9 +5,10 @@ import { ImageProtocol, setTerminalImageProtocol, TERMINAL, Text } from "@linxir
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { AssistantThinkingRenderer } from "@linxiraos/zeta/extensibility/extensions";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { clearMermaidCache } from "@linxiraos/zeta/modes/theme/mermaid-cache";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+
 const originalImageProtocol = TERMINAL.imageProtocol;
 
 function createAssistantMessage(markdown: string): AssistantMessage {

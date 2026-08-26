@@ -5,8 +5,9 @@
  * diagnostics metadata, snapshot cap, and aggregate shape. Keeping those
  * mechanics here makes each backend responsible only for applying its edit.
  */
-import { buildCompactDiffPreview } from "@linxiraos/pi-hashline";
+
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { buildCompactDiffPreview } from "@linxiraos/pi-hashline";
 import type { FileDiagnosticsResult } from "../lsp";
 import { outputMeta } from "../tools/output-meta";
 import { generateDiffString } from "./diff";

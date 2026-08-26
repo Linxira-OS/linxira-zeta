@@ -12,6 +12,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent, type StreamFn } from "@linxiraos/pi-agent-core";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
@@ -21,7 +22,6 @@ import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("InteractiveMode plan mode exit", () => {

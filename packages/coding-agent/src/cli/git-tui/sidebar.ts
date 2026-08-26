@@ -20,7 +20,8 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "@linxiraos/pi-tui";
-import type { ConventionalCommit } from "../../commit/types";import { getEditorTheme, theme } from "../../modes/theme/theme";
+import type { ConventionalCommit } from "../../commit/types";
+import { getEditorTheme, theme } from "../../modes/theme/theme";
 import { type AvatarLoader, identiconLines } from "./avatar";
 import { pill, selectionBgAnsi, softPill, tintChip, withBg } from "./colors";
 import type { ChangedFile, GitModel } from "./state";

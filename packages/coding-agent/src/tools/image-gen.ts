@@ -1,5 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import {
 	type ApiKey,
 	type FetchImpl,
@@ -9,9 +10,7 @@ import {
 	withAuth,
 } from "@linxiraos/pi-ai";
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
-import { type } from "@linxiraos/pi-omptype";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type ApiKey, type FetchImpl, getEnvApiKey, getOpenRouterHeaders, type Model, withAuth } from "@linxiraos/pi-ai";import {
+import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
 	getCodexAccountId,

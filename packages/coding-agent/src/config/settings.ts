@@ -28,7 +28,6 @@ import {
 	MAIN_CONFIG_FILENAMES,
 	procmgr,
 	setWorktreesDir,
-	toError,
 } from "@linxiraos/pi-utils";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { JSONC, YAML } from "bun";

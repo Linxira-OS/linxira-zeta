@@ -3,11 +3,12 @@ import {
 	HighlightStream as NativeHighlightStream,
 	highlightCode as nativeHighlightCode,
 	supportsLanguage as nativeSupportsLanguage,
+	warmHighlighter as nativeWarmHighlighter,
 } from "@linxiraos/pi-natives";
 import type { EditorTheme, MarkdownTheme, SelectListTheme, SettingsListTheme, SymbolTheme } from "@linxiraos/pi-tui";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
-	warmHighlighter as nativeWarmHighlighter,import { resolveMermaidAscii } from "./mermaid-cache";
+import { resolveMermaidAscii } from "./mermaid-cache";
 import type { SlashCommandIconName } from "./symbols";
 import { theme } from "./theme";
 import type { Theme } from "./theme-class";

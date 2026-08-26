@@ -7,6 +7,7 @@ import { describe, expect, it } from "bun:test";
 import type { AssistantMessage, AssistantMessageEvent, Context, Usage } from "@linxiraos/pi-ai/types";
 import { MAX_EMPTY_COMPLETION_RETRIES, withReplaySafeStreamRetry } from "@linxiraos/pi-ai/utils/empty-completion-retry";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+
 const CTX = {} as Context;
 
 function usage(): Usage {

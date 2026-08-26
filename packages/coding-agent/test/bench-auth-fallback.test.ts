@@ -8,10 +8,10 @@ import type {
 	Model,
 	SimpleStreamOptions,
 } from "@linxiraos/pi-ai";
-import { type BenchModelRegistry, type BenchSummary, runBenchCommand } from "@linxiraos/zeta/cli/bench-cli";
-import { Settings } from "@linxiraos/zeta/config/settings";
 import { type BenchSummary, runBenchCommand } from "@linxiraos/zeta/cli/bench-cli";
 import type { BenchModelRegistry } from "@linxiraos/zeta/cli/bench-runtime";
+import { Settings } from "@linxiraos/zeta/config/settings";
+
 function fakeModel(provider: string, id: string): Model<Api> {
 	return {
 		provider,

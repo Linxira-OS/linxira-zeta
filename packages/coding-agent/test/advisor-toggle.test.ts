@@ -17,7 +17,8 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import * as advisorModule from "../src/advisor";import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import * as advisorModule from "../src/advisor";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("AgentSession advisor toggle", () => {
 	let authStorage: AuthStorage;

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { diffLineRuns, diffLines, diffWords, type PatchHunk, structuredPatchHunks } from "@linxiraos/pi-natives";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -12,6 +11,7 @@ import {
 	type PatchHunk,
 	structuredPatchHunks,
 } from "@linxiraos/pi-natives";
+
 function applyHunks(oldText: string, hunks: PatchHunk[]): string {
 	if (hunks.length === 0) return oldText;
 	const oldLines = oldText.split("\n");

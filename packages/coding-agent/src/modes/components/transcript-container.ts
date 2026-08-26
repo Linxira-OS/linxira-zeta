@@ -1,6 +1,7 @@
 import type { Component, HistoryBatch } from "@linxiraos/pi-tui";
 import { Container } from "@linxiraos/pi-tui";
-import { logger } from "@linxiraos/pi-utils";import { isToolActivityComponent } from "./tool-activity";
+import { logger } from "@linxiraos/pi-utils";
+import { isToolActivityComponent } from "./tool-activity";
 
 /** Shared animation time supplied by the constrained transcript root. */
 export interface AnimationFrame {
