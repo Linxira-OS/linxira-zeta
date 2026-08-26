@@ -2,7 +2,15 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-
+import {
+	DiffSide,
+	DiffStream,
+	diffLineRuns,
+	diffLines,
+	diffWords,
+	type PatchHunk,
+	structuredPatchHunks,
+} from "@linxiraos/pi-natives";
 // PR CI tests against the latest release addons by design (native changes are
 // validated post-merge on main and at release). DiffStream arrived upstream in
 // v18.0.5; release addons published before that lack it, so skip the streaming

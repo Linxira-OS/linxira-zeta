@@ -11,11 +11,17 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { rasterizeSvg } from "@linxiraos/pi-natives";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { InternalUrlRouter, LocalProtocolHandler, parseInternalUrl } from "@linxiraos/zeta/internal-urls";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+
+// PR CI runs against the latest release addons by design; `rasterizeSvg`
+// arrived upstream after the currently published addon, so skip rather than
+// fail there. Full coverage happens post-merge and at release.
+const HAS_RASTERIZE_SVG = typeof rasterizeSvg === "function";
 
 // 1x1 transparent PNG — small enough to pass through image loading untouched.
 const TINY_PNG = Buffer.from(
@@ -84,7 +90,7 @@ describe("read local:// images", () => {
 		// the replacement char; the fixed path must never emit it as text.
 		expect(joinText(result.content)).not.toContain("\uFFFDPNG");
 	});
-	it("rasterizes a local SVG into a PNG attachment when :img is selected", async () => {
+	it.skipIf(!HAS_RASTERIZE_SVG)("rasterizes a local SVG into a PNG attachment when :img is selected", async () => {
 		await Bun.write(path.join(localRoot, "diagram.svg"), TINY_SVG);
 		const tool = new ReadTool(makeSession(testDir));
 

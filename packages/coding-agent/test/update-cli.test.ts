@@ -1265,23 +1265,23 @@ describe("update-cli script-shim takeover", () => {
 		// A canary release is published as a prerelease: without opt-in the
 		// takeover refuses the asset and leaves the shims intact.
 		await expect(
-			updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
+			updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe, true),
 				githubToken: "test-token",
 			}),
 		).rejects.toThrow("is a prerelease");
-		expect(await Bun.file(path.join(dir, "omp.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
 
 		// allowPrerelease threads through to the asset resolver, so the canary
 		// exe installs and the shims are retired.
-		await updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
+		await updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
 			binaryName,
 			fetchImpl: makeFetch(exe, true),
 			allowPrerelease: true,
 			githubToken: "test-token",
 		});
-		expect(await Bun.file(path.join(dir, "omp.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
 	});
 
 	it("drops bun's launcher metadata when the standalone binary takes the .exe over", async () => {
