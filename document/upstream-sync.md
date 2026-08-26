@@ -387,14 +387,61 @@ merge. No version bump, no tag, no release.
     `dirs.ts`/`changelog.ts` comments). `update-cli.test.ts` intentionally
     keeps the `@linxiraos/zeta/omp` managed-path fixture (the
     resolver detects the upstream-managed pattern).
-- Local checks: `bun run check:types` green in all 11 workspace packages;
-  biome check green (25 files auto-fixed). Channel tests 60 pass (IM
-  feature intact, wechat network flake except), web-gateway 21 pass,
-  compaction + model-registry 148 pass; agent tokenizer tests 72 pass
-  (2 failures are a stale local native addon lacking upstream's `ClaudeV47`
-  `Encoding` variant — `check:rs` blocked on this Windows host, covered by
-  CI). `check:rs` environment-blocked as before.
-- Status: pending merge into `main` + CI before acceptance.
+### Pending: v18.0.6 (branch `sync/omp-release/v18.0.6`)
+
+- Prior baseline: `v18.0.4` at `4854db856c20e000a3760d793c56d78065dcf83f`
+  (main `9d0b471d0f` — Zeta 1.1.4 release).
+- Source: `refs/tags/v18.0.6` at
+  `b4e8e856ad40294167679a3f88417c07429fe59b` (verified with `git ls-remote
+  --tags omp-upstream refs/tags/v18.0.6`; upstream `main` == tag HEAD;
+  v18.0.5 `eab72e88e447a4be45bea2bc302995844c0c51a2` included via the
+  v18.0.6 history).
+- Zeta start: `9d0b471d0f`; integration branch: `sync/omp-release/v18.0.6`;
+  tag merge commit: `185d51db50`; follow-up adaptation commits: `dbfe504f3b`
+  (import repair + merged-code artifacts) and `94d553238a` (test finally
+  match). `git merge-base --is-ancestor v18.0.6 HEAD` verified.
+- Merge-tree: 62 conflicts (57 content + 7 modify/delete). Resolutions:
+  - Zeta-owned surfaces kept (ours): README.md (product page), native
+    sentinel `__piNativesV1_1_4` (lib.rs + generated `index.js`/`index.d.ts`,
+    with upstream `pdfToMarkdown`/`rasterizeSvg` exports added), root
+    `Cargo.toml` workspace `1.1.4`, `workspaces.catalog` `@linxiraos/*` @
+    `1.1.4` (14 keys incl. `pi-channels`), `/language` + `/tracking`
+    (builtin-zeta.ts registry spread), `getKeyProvenance` (settings.ts),
+    `.zeta` paths, `@linxiraos/*` package identity.
+  - **`scripts/merge-package-json.ts` driver bug fixed**: `OMP_SCOPE` was
+    `@linxiraos/` but upstream workspace packages/catalog are `@oh-my-pi/*`
+    at both v18.0.4 and v18.0.6 — the wrong value left upstream catalog keys
+    unmapped and the merged root catalog was taken over by `@oh-my-pi/*`
+    entries. Corrected to `@oh-my-pi/` (the v17.4.0 fix that never landed on
+    main).
+  - Upstream v18.0.6 accepted wholesale: commit refactor (`conventional/` +
+    `agentic/` replaces `commit/analysis` + `commit/map-reduce` +
+    `commit/shared-llm`; 7 modify/delete accepted — main deltas were pure
+    scope renames; `commit/pipeline.ts` = upstream), `if-bench`, TUI
+    markdown/multiplexer rework, utils `browsers`/`json` additions,
+    lsp/tools/mcp fixes, new natives exports.
+  - Tree-wide `@oh-my-pi/*` → `@linxiraos/*` sweep (name mapping
+    `hashline`→`pi-hashline`, `omp-stats`→`pi-stats`, `omptype`→
+    `pi-omptype`, `pi-coding-agent`→`zeta`, `snapcompact`→`pi-snapcompact`)
+    for 49 upstream-added files; `.omp` → `.zeta` in 43 test/doc files;
+    package.json duplicate keys deduped; `bun.lock` regenerated with Bun
+    1.3.14, `Cargo.lock` via `cargo generate-lockfile` (pi-* at 1.1.4).
+  - Import-block conflicts resolved per file (union of upstream + Zeta
+    imports, scope-mapped); merged-code artifacts repaired: eval-code-mode
+    `toolRegistry` Map annotation (upstream's `typeof read | typeof write`),
+    tui-adapters orphaned `warmHighlighter` fragment, system-prompt unused
+    `lspciPath`, streaming-edit-abort adopted upstream's beacon-based test
+    (drift measurement removed upstream).
+- Local checks: `bun run check:ts` green (all workspaces, biome clean);
+  `check:rs` environment-blocked on this Windows host (no MSVC linker/SDK)
+  — covered by CI. Key Zeta features verified locally: builtin-registry
+  `/language` + `/tracking` registered, i18n detection tests green.
+  `streaming-edit-abort` large-target test fails locally with the stale
+  v18.0.4 native addon (upstream's exact test + guard; passes upstream CI
+  with v18.0.6 natives). Required CI pending before this branch reaches
+  `main`.
+
+## Pi Runtime Ports
 
 ## Pi Runtime Ports
 
