@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-utils",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Shared utilities for pi packages",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",

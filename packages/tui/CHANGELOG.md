@@ -2,9 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-08-26
+
 - 同步上游 OMP v18.0.5 / v18.0.6：append-only transcript 声明与稳定行 API、markdown 渲染重构。
 
-## [1.1.4] - 2026-08-26
 ## [1.1.3] - 2026-08-25
 
 ### Fixed

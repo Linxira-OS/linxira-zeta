@@ -2,9 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-08-26
+
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 Yolo-Auto / OpenRouter 浏览器登录与 DeepInfra 支持，空补全重试重构（withReplaySafeStreamRetry）。
 
-## [1.1.4] - 2026-08-26
 ## [1.1.3] - 2026-08-25
 
 ### Fixed
