@@ -289,8 +289,8 @@ function buildAssetSections(version: string): string {
 		`- [\`${name}\`](https://github.com/${REPO}/releases/download/${releaseTag}/${name})`;
 
 	const desktopAssets = [
-		`zeta-desktop-${version}-linux-x64.AppImage`,
-		`zeta-desktop-${version}-linux-x64.deb`,
+		`zeta-desktop-${version}-linux-x86_64.AppImage`,
+		`zeta-desktop-${version}-linux-amd64.deb`,
 		`zeta-desktop-${version}-linux-x64.tar.gz`,
 		`zeta-desktop-${version}-win-x64.zip`,
 		`zeta-desktop-${version}-win-x64.exe`,
