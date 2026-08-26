@@ -9,7 +9,15 @@
 - release 资产命名系统化：CLI 二进制统一 `zeta-cli-*`（不再与桌面产物混排），桌面安装包统一 `zeta-desktop-<version>-<os>-<arch>.<ext>`（electron-builder `artifactName`），release 正文自动附带桌面/CLI 资产索引分节。
 - CI/发布链修复：release 发布串行化与幂等（darwin x64→arm64 串行、zeta-web 幂等发布、native_addons 超时 50→90min、warm 只预热 natives 缓存）。
 
-- OMP 同步基线：v18.0.4（`5eef8a2386`）；1.1.4 无新 OMP 同步。
+### 新增（1.1.5，随 OMP v18.0.5 / v18.0.6 同步）
+
+- `/language`、`/tracking` 斜杠指令恢复：v18.0.3 合并时上游重构遗漏了 Zeta 自定义指令注册，输入被当作普通消息；现已恢复注册并新增合并护栏测试。中文用户可直接 `/language zh` 切换界面语言。
+- git TUI 内置 conventional commit 生成与 `commit --legacy` 统一生成入口、`if-bench` 基准框架。
+- `read`/`inspect_image` 新增 `:img` 选择器：SVG 自动栅格化为 PNG 附件送视觉模型；git TUI 资产预览同步支持 SVG/PNG 媒体渲染与 Git LFS 指针解析。
+- 新增 Yolo-Auto / OpenRouter 浏览器登录与 DeepInfra image_gen/tts 接入。
+- canary 更新通道：更新器支持安装 prerelease 二进制（显式 opt-in），草稿/预发布校验更精确。
+
+- OMP 同步基线：v18.0.6（`b4e8e856ad40`，v18.0.5 经由其历史一并并入）；PR #3 合并提交 `8043ec175c`。
 
 ---
 
