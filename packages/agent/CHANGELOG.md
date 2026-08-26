@@ -2,19 +2,9 @@
 
 ## [Unreleased]
 
+- 同步上游 OMP v18.0.5 / v18.0.6（内部运行时与构建改进）。
+
 ## [1.1.4] - 2026-08-26
-## [18.0.5] - 2026-08-25
-
-### Fixed
-
-- Corrected remote compaction summaries so they accurately report the number of input tokens processed.
-
-## [18.0.4] - 2026-08-24
-
-### Changed
-
-- 同步 1.1.4 发布线（与 1.1.3 无功能差异）。
-
 ## [1.1.3] - 2026-08-25
 
 ### Fixed
