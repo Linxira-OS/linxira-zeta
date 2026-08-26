@@ -693,6 +693,7 @@ it(
 			expect(guard.abortTriggered).toBe(true);
 			expect(abortCalls.count).toBe(1);
 		} finally {
+			releaseLoad(content);
 			clockSpy.mockRestore();
 			fileSpy.mockRestore();
 		}
