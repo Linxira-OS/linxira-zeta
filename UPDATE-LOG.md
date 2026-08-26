@@ -5,9 +5,11 @@
 
 - 发布链修复：1.1.0 各 `@linxiraos/*` 包依赖误带 Bun `catalog:` 协议（npm 无法解析、安装即报错），1.1.1 起发布时重写为实际版本并重发全部包。
 - 1.1.2 空涨重发：重置 `latest` 指向，彻底排除坏的 1.1.0（内容与 1.1.1 无功能差异）。
-- 1.1.3 空涨重发：重置 `latest` 指向，排除坏的 1.1.2（内容与 1.1.1 无功能差异）。
+- CLI 汉化自动检测修复：`language` 未显式设置时不再用 schema 默认值（`"en"`）顶掉环境检测，`LC_ALL` / `Intl` 区域设置生效——中文系统开箱即中文界面；显式 `/language` 设置仍优先。
+- release 资产命名系统化：CLI 二进制统一 `zeta-cli-*`（不再与桌面产物混排），桌面安装包统一 `zeta-desktop-<version>-<os>-<arch>.<ext>`（electron-builder `artifactName`），release 正文自动附带桌面/CLI 资产索引分节。
+- CI/发布链修复：release 发布串行化与幂等（darwin x64→arm64 串行、zeta-web 幂等发布、native_addons 超时 50→90min、warm 只预热 natives 缓存）。
 
-- OMP 同步基线：v18.0.4（`5eef8a2386`）
+- OMP 同步基线：v18.0.4（`5eef8a2386`）；1.1.4 无新 OMP 同步。
 
 ---
 
