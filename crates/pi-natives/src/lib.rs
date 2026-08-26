@@ -264,7 +264,6 @@ fn create_windows_napi_tokio_runtime() -> Option<tokio::runtime::Runtime> {
 /// `packages/natives/native/index.js` (which derives the name from
 /// `package.json#version`).
 #[napi(js_name = "__piNativesV1_1_4")]
-#[napi(js_name = "__piNativesV18_0_6")]
 pub const fn pi_natives_version_sentinel() {}
 
 /// Native module entry point: install crash diagnostics before any tool can
