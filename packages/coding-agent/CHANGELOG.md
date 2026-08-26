@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+
+## [1.1.4] - 2026-08-26
+
 ### Changed
 
 - release 资产命名系统化：CLI 二进制统一为 `zeta-cli-*`，桌面安装包统一为 `zeta-desktop-<version>-<os>-<arch>`。

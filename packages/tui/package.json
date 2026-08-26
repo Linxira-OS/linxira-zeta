@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-tui",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Stencil Labs, Inc.",
