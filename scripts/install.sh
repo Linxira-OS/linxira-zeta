@@ -238,7 +238,7 @@ install_binary() {
         fi
     fi
 
-    BINARY="zeta-${PLATFORM}-${ARCH}"
+    BINARY="zeta-cli-${PLATFORM}-${ARCH}"
     # Get release tag
     if [ -n "$REF" ]; then
         echo "Fetching release $REF..."

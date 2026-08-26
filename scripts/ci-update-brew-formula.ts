@@ -73,27 +73,27 @@ export function renderFormula(version: string, sums: Record<string, string>): st
 
   on_macos do
     on_arm do
-      url "https://github.com/${REPO}/releases/download/v#{version}/zeta-darwin-arm64",
+      url "https://github.com/${REPO}/releases/download/v#{version}/zeta-cli-darwin-arm64",
           using: :nounzip
-      sha256 "${sums["zeta-darwin-arm64"]}"
+      sha256 "${sums["zeta-cli-darwin-arm64"]}"
     end
     on_intel do
-      url "https://github.com/${REPO}/releases/download/v#{version}/zeta-darwin-x64",
+      url "https://github.com/${REPO}/releases/download/v#{version}/zeta-cli-darwin-x64",
           using: :nounzip
-      sha256 "${sums["zeta-darwin-x64"]}"
+      sha256 "${sums["zeta-cli-darwin-x64"]}"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/${REPO}/releases/download/v#{version}/zeta-linux-arm64",
+      url "https://github.com/${REPO}/releases/download/v#{version}/zeta-cli-linux-arm64",
           using: :nounzip
-      sha256 "${sums["zeta-linux-arm64"]}"
+      sha256 "${sums["zeta-cli-linux-arm64"]}"
     end
     on_intel do
-      url "https://github.com/${REPO}/releases/download/v#{version}/zeta-linux-x64",
+      url "https://github.com/${REPO}/releases/download/v#{version}/zeta-cli-linux-x64",
           using: :nounzip
-      sha256 "${sums["zeta-linux-x64"]}"
+      sha256 "${sums["zeta-cli-linux-x64"]}"
     end
   end
 
@@ -117,7 +117,7 @@ async function main(): Promise<void> {
 	const version = tag.replace(/^v/, "");
 	const assets = await fetchAssets(tag);
 
-	const targets = ["zeta-darwin-arm64", "zeta-darwin-x64", "zeta-linux-arm64", "zeta-linux-x64"];
+	const targets = ["zeta-cli-darwin-arm64", "zeta-cli-darwin-x64", "zeta-cli-linux-arm64", "zeta-cli-linux-x64"];
 	const sums: Record<string, string> = {};
 	for (const name of targets) sums[name] = sha256For(assets, name);
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build Zeta .deb package for x86_64 Linux
 # Usage: ./build-deb.sh <version> <binary-path>
-# Example: ./build-deb.sh 1.0.0 ../../packages/coding-agent/binaries/zeta-linux-x64
+# Example: ./build-deb.sh 1.0.0 ../../packages/coding-agent/binaries/zeta-cli-linux-x64
 
 set -euo pipefail
 

@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { renderFormula } from "./ci-update-brew-formula";
 
 const SUMS = {
-	"zeta-darwin-arm64": "darwin_arm64_sha",
-	"zeta-darwin-x64": "darwin_x64_sha",
-	"zeta-linux-arm64": "linux_arm64_sha",
-	"zeta-linux-x64": "linux_x64_sha",
+	"zeta-cli-darwin-arm64": "darwin_arm64_sha",
+	"zeta-cli-darwin-x64": "darwin_x64_sha",
+	"zeta-cli-linux-arm64": "linux_arm64_sha",
+	"zeta-cli-linux-x64": "linux_x64_sha",
 };
 
 describe("renderFormula", () => {
@@ -18,7 +18,12 @@ describe("renderFormula", () => {
 	it("attaches `using: :nounzip` to every per-platform url stanza", () => {
 		const matches = formula.match(/using: :nounzip/g) ?? [];
 		expect(matches).toHaveLength(4);
-		for (const arch of ["zeta-darwin-arm64", "zeta-darwin-x64", "zeta-linux-arm64", "zeta-linux-x64"]) {
+		for (const arch of [
+			"zeta-cli-darwin-arm64",
+			"zeta-cli-darwin-x64",
+			"zeta-cli-linux-arm64",
+			"zeta-cli-linux-x64",
+		]) {
 			expect(formula).toMatch(
 				new RegExp(
 					`url "https://github\\.com/[^"]+/${arch}",\\s+using: :nounzip\\s+sha256 "${SUMS[arch as keyof typeof SUMS]}"`,

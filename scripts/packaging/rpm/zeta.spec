@@ -5,7 +5,7 @@ Summary:        Zeta Coding Agent — AI-powered terminal coding assistant
 
 License:        MIT
 URL:            https://github.com/can1357/oh-my-pi
-Source0:        zeta-linux-x64
+Source0:        zeta-cli-linux-x64
 
 BuildArch:      x86_64
 Requires:       glibc >= 2.28

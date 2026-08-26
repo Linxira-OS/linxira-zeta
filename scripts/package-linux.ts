@@ -3,7 +3,7 @@
  * Build all Linux packages (deb, rpm, AUR PKGBUILD) for x86_64.
  *
  * Usage:
- *   bun run scripts/package-linux.ts --version 1.0.0 [--binary path/to/zeta-linux-x64]
+ *   bun run scripts/package-linux.ts --version 1.0.0 [--binary path/to/zeta-cli-linux-x64]
  *
  * Prerequisites:
  *   - Linux host with dpkg-deb, rpmbuild, and makepkg available
@@ -15,7 +15,7 @@ import * as path from "node:path";
 
 const repoRoot = path.join(import.meta.dir, "..");
 const packagingDir = path.join(repoRoot, "scripts", "packaging");
-const defaultBinary = path.join(repoRoot, "packages", "coding-agent", "binaries", "zeta-linux-x64");
+const defaultBinary = path.join(repoRoot, "packages", "coding-agent", "binaries", "zeta-cli-linux-x64");
 
 function parseArgs(): { version: string; binary: string } {
 	const args = process.argv.slice(2);

@@ -268,11 +268,48 @@ async function main(): Promise<void> {
 		process.exit(0);
 	}
 
-	const body = `${sections.join("\n\n")}\n`;
+	const body = `${buildAssetSections(version)}\n\n${sections.join("\n\n")}\n`;
 	await Bun.write(outputPath, body);
 	console.log(
 		`Wrote ${sections.length} package section(s) to ${outputPath} (version ${version}${floor ? `, floor ${floor}` : ""}).`,
 	);
+}
+
+/**
+ * Build the release asset index appended to the release body: the desktop
+ * installers/archives (`zeta-desktop-<version>-<os>-<arch>.<ext>`, matching
+ * `desktop/electron-builder.yml` `artifactName`) and the CLI binaries
+ * (`zeta-cli-<target>`, matching `ci-release-build-binaries.ts` outfiles).
+ * Every line links to its `releases/download` URL so release assets stay
+ * discoverable from the notes without scripting.
+ */
+function buildAssetSections(version: string): string {
+	const releaseTag = `v${version}`;
+	const link = (name: string): string =>
+		`- [\`${name}\`](https://github.com/${REPO}/releases/download/${releaseTag}/${name})`;
+
+	const desktopAssets = [
+		`zeta-desktop-${version}-linux-x64.AppImage`,
+		`zeta-desktop-${version}-linux-x64.deb`,
+		`zeta-desktop-${version}-linux-x64.tar.gz`,
+		`zeta-desktop-${version}-win-x64.zip`,
+		`zeta-desktop-${version}-win-x64.exe`,
+		`zeta-desktop-${version}-mac-x64.dmg`,
+		`zeta-desktop-${version}-mac-x64.zip`,
+		`zeta-desktop-${version}-mac-arm64.dmg`,
+		`zeta-desktop-${version}-mac-arm64.zip`,
+	];
+	const cliAssets = [
+		"zeta-cli-linux-x64",
+		"zeta-cli-linux-musl-x64",
+		"zeta-cli-linux-arm64",
+		"zeta-cli-linux-musl-arm64",
+		"zeta-cli-darwin-x64",
+		"zeta-cli-darwin-arm64",
+		"zeta-cli-windows-x64.exe",
+	];
+
+	return `## 桌面安装包\n\n${desktopAssets.map(link).join("\n")}\n\n## CLI 二进制\n\n${cliAssets.map(link).join("\n")}`;
 }
 
 if (import.meta.main) {

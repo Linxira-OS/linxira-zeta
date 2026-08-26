@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build Zeta .rpm package for x86_64 Linux
 # Usage: ./build-rpm.sh <version> <binary-path>
-# Example: ./build-rpm.sh 1.0.0 ../../packages/coding-agent/binaries/zeta-linux-x64
+# Example: ./build-rpm.sh 1.0.0 ../../packages/coding-agent/binaries/zeta-cli-linux-x64
 
 set -euo pipefail
 
@@ -18,7 +18,7 @@ echo "==> Building Zeta ${VERSION} .rpm package (x86_64)"
 mkdir -p "$RPMBUILD_DIR"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
 # ----- Copy binary to SOURCES -----
-cp "$BINARY" "$RPMBUILD_DIR/SOURCES/zeta-linux-x64"
+cp "$BINARY" "$RPMBUILD_DIR/SOURCES/zeta-cli-linux-x64"
 
 # ----- Copy LICENSE -----
 if [ -f "$REPO_ROOT/LICENSE" ]; then

@@ -5,6 +5,7 @@
 
 appId: com.zeta.desktop
 productName: Zeta
+artifactName: zeta-desktop-${version}-${os}-${arch}.${ext}
 copyright: Copyright (c) 2026 Zeta
 electronVersion: 37.10.3
 

@@ -12,12 +12,12 @@ arch=('x86_64')
 url="https://github.com/can1357/oh-my-pi"
 license=('MIT')
 depends=('glibc')
-source=("zeta-linux-x64::https://github.com/can1357/oh-my-pi/releases/download/v${pkgver}/zeta-linux-x64")
+source=("zeta-cli-linux-x64::https://github.com/can1357/oh-my-pi/releases/download/v${pkgver}/zeta-cli-linux-x64")
 sha256sums=('SKIP')
 install=zeta.install
 
 package() {
-  install -Dm755 "$srcdir/zeta-linux-x64" "$pkgdir/usr/bin/zeta"
+  install -Dm755 "$srcdir/zeta-cli-linux-x64" "$pkgdir/usr/bin/zeta"
 
   # Shell completions directories
   install -d "$pkgdir/usr/share/bash-completion/completions"
