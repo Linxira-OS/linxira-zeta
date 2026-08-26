@@ -88,11 +88,13 @@ describe("git TUI streamed document", () => {
 		});
 	});
 
-	test.each([
-		["replacement", "a\nb\nc\n", "a\nx\nc\n"],
-		["insert and delete", "a\nb\nc\nd\n", "a\nnew\nb\nd\n"],
-		["EOF newline transition", "a\nb", "a\nb\n"],
-	]).skipIf(!HAS_DIFF_STREAM)("matches the exact synchronous builder for %s", async (_name, oldText, newText) => {
+	test
+		.each([
+			["replacement", "a\nb\nc\n", "a\nx\nc\n"],
+			["insert and delete", "a\nb\nc\nd\n", "a\nnew\nb\nd\n"],
+			["EOF newline transition", "a\nb", "a\nb\n"],
+		])
+		.skipIf(!HAS_DIFF_STREAM)("matches the exact synchronous builder for %s", async (_name, oldText, newText) => {
 		const streamed = await streamedDocument(oldText, newText);
 		const synchronous = buildDiffDocument(oldText, newText, "fixture.ts");
 		expect(streamed).toEqual(synchronous);
