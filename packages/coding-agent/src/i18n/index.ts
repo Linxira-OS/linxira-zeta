@@ -89,6 +89,11 @@ function ensureDetected(): void {
 
 function resolveConfigOverride(): string | undefined {
 	try {
+		// An unset `language` must not shadow environment detection: `get()`
+		// resolves to the schema default ("en") which would otherwise win over
+		// `LC_ALL`/`Intl` and force English on Chinese systems. Only an
+		// explicitly configured value counts as a config override.
+		if (settings.getKeyProvenance("language") === "default") return undefined;
 		const value = settings.get("language");
 		return typeof value === "string" ? value : undefined;
 	} catch {

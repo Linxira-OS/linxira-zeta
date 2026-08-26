@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
+import { resetSettingsForTest, Settings, settings } from "../config/settings";
 import { en } from "./en";
 import { currentLanguage, detectLanguage, M, setLanguage, type ZetaLanguage } from "./index";
 import { zh } from "./zh";
@@ -87,6 +91,34 @@ describe("detectLanguage", () => {
 		expect(detectLanguage()).toBe("zh");
 		Bun.env.LANG = "zh-Hans-CN";
 		expect(detectLanguage()).toBe("zh");
+	});
+
+	test("unset language falls back to environment detection", async () => {
+		const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-i18n-"));
+		try {
+			resetSettingsForTest();
+			await Settings.init({ inMemory: true, cwd: tmpdir });
+			Bun.env.LC_ALL = "zh_CN.UTF-8";
+			expect(detectLanguage()).toBe("zh");
+			expect(M.welcomeBack).toBe("欢迎回来！");
+		} finally {
+			resetSettingsForTest();
+			await fs.rm(tmpdir, { recursive: true, force: true });
+		}
+	});
+
+	test("explicit language override beats environment detection", async () => {
+		const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-i18n-"));
+		try {
+			resetSettingsForTest();
+			await Settings.init({ inMemory: true, cwd: tmpdir });
+			settings.override("language", "en");
+			Bun.env.LC_ALL = "zh_CN.UTF-8";
+			expect(detectLanguage()).toBe("en");
+		} finally {
+			resetSettingsForTest();
+			await fs.rm(tmpdir, { recursive: true, force: true });
+		}
 	});
 
 	test("M switches live after setLanguage", () => {

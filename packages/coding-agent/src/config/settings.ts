@@ -1106,6 +1106,25 @@ export class Settings {
 	}
 
 	/**
+	 * Report which layer actually supplies the effective value for a
+	 * dotted setting path across full merge precedence (runtime override →
+	 * config overlay → project → global → default). Presence is detected by
+	 * key existence rather than by comparing against the schema default, so
+	 * a key the user never set resolves to `"default"` even when the schema
+	 * supplies a non-`undefined` fallback. Callers that must distinguish
+	 * "explicitly configured" from "defaulted" (e.g. language auto-detection)
+	 * should use this instead of `get(path)`.
+	 */
+	getKeyProvenance(key: string): "runtime" | "overlay" | "project" | "global" | "default" {
+		const segments = key.split(".");
+		if (getByPath(this.#overrides, segments) !== undefined) return "runtime";
+		if (getByPath(this.#configOverlay, segments) !== undefined) return "overlay";
+		if (getByPath(this.#projectSettingsForMerge(), segments) !== undefined) return "project";
+		if (getByPath(this.#global, segments) !== undefined) return "global";
+		return "default";
+	}
+
+	/**
 	 * Get the persisted layer supplying a model role (project/global/default only).
 	 */
 	getModelRoleSource(role: ModelRole | string): "project" | "global" | "default" {
