@@ -757,18 +757,18 @@ jobs:
                   temp/desktop/release/*.exe
               if-no-files-found: error
               retention-days: 1
-   desktop_mac:
-      name: "Build and smoke desktop (${{ matrix.target_id }})"
-      runs-on: ${{ matrix.os }}
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+   # Zeta: darwin desktop builds start at release_metadata — they build their
+   # own darwin addon via bazel (cache-scope release-darwin-*) and touch
+   # nothing from native_addons. The x64 and arm64 legs are serialized (arm64
+   # waits for x64): the org's macOS runner pool is shared and undersized, so
+   # x64+arm64 running together randomly makes one ~2x slower; serial keeps
+   # the darwin wall-clock equal but deterministic.
+   desktop_mac_x64:
+      name: "Build and smoke desktop (darwin-x64)"
+      runs-on: macos-15-intel
+      needs: [release_metadata]
+      if: ${{ !cancelled() && needs.release_metadata.result == 'success' }}
       timeout-minutes: 180
-      strategy:
-         fail-fast: false
-         matrix:
-            include:
-               - { os: macos-15-intel, target_id: darwin-x64, native_targets: darwin-x64-baseline }
-               - { os: macos-14, target_id: darwin-arm64, native_targets: darwin-arm64 }
       steps:
          - uses: actions/checkout@v4
          - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -780,8 +780,8 @@ jobs:
          - name: Build native addon (bazel)
            uses: ./.github/actions/bazel-natives
            with:
-              targets: ${{ matrix.native_targets }}
-              cache-scope: release-${{ matrix.target_id }}
+              targets: darwin-x64-baseline
+              cache-scope: release-darwin-x64
          - uses: ./.github/actions/web-ui-build-cache
            with:
               mode: restore
@@ -815,7 +815,61 @@ jobs:
          - name: Upload macOS desktop artifacts
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
            with:
-              name: zeta-desktop-mac-${{ matrix.target_id }}
+              name: zeta-desktop-mac-darwin-x64
+              path: |
+                  temp/desktop/release/*.dmg
+                  temp/desktop/release/*.zip
+              if-no-files-found: error
+              retention-days: 1
+   desktop_mac_arm64:
+      name: "Build and smoke desktop (darwin-arm64)"
+      runs-on: macos-14
+      needs: [release_metadata, desktop_mac_x64]
+      if: ${{ !cancelled() && needs.desktop_mac_x64.result == 'success' }}
+      timeout-minutes: 180
+      steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+         - uses: ./.github/actions/bun-install
+         - name: Build native addon (bazel)
+           uses: ./.github/actions/bazel-natives
+           with:
+              targets: darwin-arm64
+              cache-scope: release-darwin-arm64
+         - uses: ./.github/actions/web-ui-build-cache
+           with:
+              mode: restore
+         - name: Install Web UI dependencies
+           working-directory: web-ui
+           run: npm ci
+         - name: Install web-ui-next dependencies
+           working-directory: web-ui-next
+           run: npm ci
+         - name: Install desktop dependencies
+           working-directory: desktop
+           run: npm ci
+         - name: Test desktop platform contracts
+           working-directory: desktop
+           run: npm test
+         - name: Build macOS desktop artifact
+           working-directory: desktop
+           run: npm run dist
+         - uses: ./.github/actions/web-ui-build-cache
+           with:
+              mode: save
+         - name: Smoke macOS desktop artifact
+           shell: bash
+           run: |
+                set -euo pipefail
+                app_dir="$(find temp/desktop/release -mindepth 1 -maxdepth 1 -type d -name 'zeta-desktop-*-mac-*' -print -quit)"
+                test -n "$app_dir"
+                npm --prefix desktop run smoke -- --app "$PWD/$app_dir"
+         - name: Upload macOS desktop artifacts
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: zeta-desktop-mac-darwin-arm64
               path: |
                   temp/desktop/release/*.dmg
                   temp/desktop/release/*.zip
@@ -860,10 +914,12 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.native_addons.result == 'success' &&
          needs.release_binary.result == 'success' &&
-         needs.release_binary_darwin.result == 'success' &&
+         needs.release_binary_darwin_x64.result == 'success' &&
+         needs.release_binary_darwin_arm64.result == 'success' &&
          needs.desktop_linux.result == 'success' &&
-         needs.desktop_windows.result == 'success' && needs.desktop_mac.result == 'success' }}
-      needs: [release_metadata, native_addons, release_binary, release_binary_darwin, desktop_linux, desktop_windows, desktop_mac]
+         needs.desktop_windows.result == 'success' &&
+         needs.desktop_mac_x64.result == 'success' && needs.desktop_mac_arm64.result == 'success' }}
+      needs: [release_metadata, native_addons, release_binary, release_binary_darwin_x64, release_binary_darwin_arm64, desktop_linux, desktop_windows, desktop_mac_x64, desktop_mac_arm64]
       runs-on: ubuntu-22.04
       steps:
          - run: echo "release build green"
@@ -978,30 +1034,16 @@ jobs:
 
    # Darwin release builds are the longest leg of a release (bazel-built
    # addons on macOS runners), build their own addons, and touch nothing from
-   # native_addons. They are disabled: Zeta ships no macOS binaries or
-   # darwin leaf packages for now.
-   release_binary_darwin:
-      name: "Release binary: ${{ matrix.target_id }}"
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.native_addons.result == 'success' }}
-      needs: [release_metadata, native_addons]
-      strategy:
-         fail-fast: false
-         matrix:
-            include:
-               - {
-                    os: macos-15-intel,
-                    target_id: darwin-x64,
-                    binary_path: packages/coding-agent/binaries/zeta-darwin-x64,
-                    native_targets: darwin-x64-baseline,
-                 }
-               - {
-                    os: macos-14,
-                    target_id: darwin-arm64,
-                    binary_path: packages/coding-agent/binaries/zeta-darwin-arm64,
-                    native_targets: darwin-arm64,
-                 }
-      runs-on: ${{ matrix.os }}
+   # native_addons, so they start at release_metadata time. The x64 and arm64
+   # legs are serialized (arm64 waits for x64) exactly like desktop_mac: the
+   # org's macOS runner pool is shared and undersized, so x64+arm64 together
+   # randomly makes one ~2x slower — serial keeps the wall-clock equal but
+   # deterministic.
+   release_binary_darwin_x64:
+      name: "Release binary: darwin-x64"
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() }}
+      needs: [release_metadata]
+      runs-on: macos-15-intel
       permissions:
          contents: read
       env:
@@ -1017,23 +1059,16 @@ jobs:
               path: ~/.bun/install/cache
               key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
          - run: bun install --frozen-lockfile
-         # Darwin runners build their own architecture; cross-hosted artifacts
-         # do not exist for macOS. The warm workflow keeps these scopes seeded
-         # near HEAD, so this is normally the version-bump delta.
          - name: Build native addon (bazel)
            uses: ./.github/actions/bazel-natives
            with:
-              targets: ${{ matrix.native_targets }}
-              cache-scope: release-${{ matrix.target_id }}
+              targets: darwin-x64-baseline
+              cache-scope: release-darwin-x64
          - name: Build release binary
            env:
-              RELEASE_TARGETS: ${{ matrix.target_id }}
+              RELEASE_TARGETS: darwin-x64
            run: bun run ci:release:build-binaries
          - name: Sign and notarize macOS binary (Developer ID)
-           # Replaces the ad-hoc signature with a Developer ID + hardened-runtime
-           # one (+JIT/library-validation entitlements; omp dlopens its
-           # runtime-extracted native addon, which has a different Team ID) and
-           # notarizes. Auto-skips until the APPLE_* secrets are configured.
            if: env.MACOS_SIGNING == 'true'
            env:
               APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
@@ -1041,27 +1076,79 @@ jobs:
               APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
               APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
               APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-           run: bash scripts/ci-macos-sign.sh "${{ matrix.binary_path }}"
+           run: bash scripts/ci-macos-sign.sh "packages/coding-agent/binaries/zeta-darwin-x64"
          - name: Smoke release binary
            run: |
               runtime_dir="$(mktemp -d)"
-              HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "${{ matrix.binary_path }}" --version
-              HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "${{ matrix.binary_path }}" --smoke-test
-         # Darwin addons exist only on these runners; export them so
-         # release_native_leaves can publish every leaf package after the
-         # validation gate. Non-darwin leaves reuse the native-addons artifact.
+              HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "packages/coding-agent/binaries/zeta-darwin-x64" --version
+              HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "packages/coding-agent/binaries/zeta-darwin-x64" --smoke-test
          - name: Upload darwin native addon artifact
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
            with:
-              name: native-addons-${{ matrix.target_id }}
+              name: native-addons-darwin-x64
               path: bazel-bin/natives-*/*.node
               if-no-files-found: error
               retention-days: 1
          - name: Upload release binary artifact
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
            with:
-              name: omp-binary-${{ matrix.target_id }}
-              path: ${{ matrix.binary_path }}
+              name: omp-binary-darwin-x64
+              path: packages/coding-agent/binaries/zeta-darwin-x64
+   release_binary_darwin_arm64:
+      name: "Release binary: darwin-arm64"
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() && needs.release_binary_darwin_x64.result == 'success' }}
+      needs: [release_metadata, release_binary_darwin_x64]
+      runs-on: macos-14
+      permissions:
+         contents: read
+      env:
+         MACOS_SIGNING: ${{ secrets.APPLE_CERTIFICATE_P12 != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_API_KEY_ID != '' && secrets.APPLE_API_ISSUER_ID != '' && secrets.APPLE_API_KEY != '' }}
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+           with:
+              bun-version: "1.4"
+         - name: Cache bun dependencies
+           uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+           with:
+              path: ~/.bun/install/cache
+              key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+         - run: bun install --frozen-lockfile
+         - name: Build native addon (bazel)
+           uses: ./.github/actions/bazel-natives
+           with:
+              targets: darwin-arm64
+              cache-scope: release-darwin-arm64
+         - name: Build release binary
+           env:
+              RELEASE_TARGETS: darwin-arm64
+           run: bun run ci:release:build-binaries
+         - name: Sign and notarize macOS binary (Developer ID)
+           if: env.MACOS_SIGNING == 'true'
+           env:
+              APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+              APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+              APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+              APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+              APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+           run: bash scripts/ci-macos-sign.sh "packages/coding-agent/binaries/zeta-darwin-arm64"
+         - name: Smoke release binary
+           run: |
+              runtime_dir="$(mktemp -d)"
+              HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "packages/coding-agent/binaries/zeta-darwin-arm64" --version
+              HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "packages/coding-agent/binaries/zeta-darwin-arm64" --smoke-test
+         - name: Upload darwin native addon artifact
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: native-addons-darwin-arm64
+              path: bazel-bin/natives-*/*.node
+              if-no-files-found: error
+              retention-days: 1
+         - name: Upload release binary artifact
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: omp-binary-darwin-arm64
+              path: packages/coding-agent/binaries/zeta-darwin-arm64
 
    # Publishes the @linxiraos/pi-natives-<tag> leaf packages once
    # validation passes and every binary built. Runs on one linux runner: leaf
@@ -1072,7 +1159,7 @@ jobs:
       # Explicit condition: a matrix template job (release_binary) reports
       # "skipped" as a job; an unconditional needs would propagate that skip.
       if: ${{ github.event.inputs.build_only != 'true' && needs.release_quality_gate.result == 'success' && !cancelled() }}
-      needs: [release_metadata, release_quality_gate, release_binary, release_binary_darwin]
+      needs: [release_metadata, release_quality_gate, release_binary, release_binary_darwin_x64, release_binary_darwin_arm64]
       runs-on: ubuntu-22.04
       # id-token lets npm mint the OIDC token for trusted publishing; the
       # NODE_AUTH_TOKEN below is the fallback for unconfigured packages.
@@ -1138,7 +1225,7 @@ jobs:
    release_github:
       name: Publish GitHub release
       if: ${{ github.event.inputs.build_only != 'true' && needs.release_quality_gate.result == 'success' && needs.release_build_gate.result == 'success' && !cancelled() }}
-      needs: [release_metadata, release_quality_gate, release_build_gate, release_binary, release_binary_darwin, desktop_linux, desktop_windows, desktop_mac]
+      needs: [release_metadata, release_quality_gate, release_build_gate, release_binary, release_binary_darwin_x64, release_binary_darwin_arm64, desktop_linux, desktop_windows, desktop_mac_x64, desktop_mac_arm64]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -1316,7 +1403,16 @@ jobs:
               # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
               # publisher for the package (or on a first publish).
               NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-           run: npm publish --access public
+           # Idempotent: a sibling run or a retry may already have published the
+           # tag version (npm rejects re-publishing and reds the job). Preflight
+           # like ci-release-publish.ts does, then publish only if missing.
+           run: |
+              ver="$(node -p 'require("./package.json").version')"
+              if npm view "@linxiraos/zeta-web@${ver}" version >/dev/null 2>&1; then
+                echo "@linxiraos/zeta-web@${ver} already published; skipping"
+              else
+                npm publish --access public
+              fi
 
    # Regenerate the Homebrew tap formula (can1357/homebrew-tap) from the freshly
    # published release assets and push it. Gated on release_github_verify so the
