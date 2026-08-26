@@ -48,7 +48,7 @@ describe("HookSelectorComponent", () => {
 	it("wraps outlined option text without omitting the tail", () => {
 		const options = [
 			"Option A: Move to OMP-native only by migrating reusable shared AI instructions into .zeta/AGENTS.md, .zeta/rules, .zeta/skills, and .zeta/agents while deliberately not creating a root .github directory.",
-			"Option B: Keep dual support by migrating canonical instructions into .omp while also maintaining a root .github/copilot-instructions.md compatibility bridge for editors that do not understand OMP resources yet.",
+			"Option B: Keep dual support by migrating canonical instructions into .zeta while also maintaining a root .github/copilot-instructions.md compatibility bridge for editors that do not understand OMP resources yet.",
 		];
 		const component = new HookSelectorComponent(
 			"Which migration stance should be used?",
@@ -74,7 +74,7 @@ describe("HookSelectorComponent", () => {
 			{
 				label: "Use existing local credentials",
 				description:
-					"Authenticate via the provider keys and OAuth state already configured under ~/.omp without opening a new browser-based setup flow.",
+					"Authenticate via the provider keys and OAuth state already configured under ~/.zeta without opening a new browser-based setup flow.",
 			},
 			{
 				label: "Set up Oh My Pi in terminal",
@@ -237,6 +237,109 @@ describe("HookSelectorComponent", () => {
 		component.handleInput("\n");
 
 		expect(selected).toBeUndefined();
+	});
+
+	it("selects the matching numbered option after an unnumbered row", () => {
+		let selected: string | undefined;
+		const component = new HookSelectorComponent(
+			"Pick one",
+			["Detected item", "1. First", "2. Second", "3. Third"],
+			option => {
+				selected = option;
+			},
+			() => {},
+		);
+
+		component.handleInput("3");
+
+		expect(selected).toBe("3. Third");
+	});
+
+	it("ignores a digit that targets a disabled option", () => {
+		let selected: string | undefined;
+		const component = new HookSelectorComponent(
+			"Pick one",
+			["1. First", "2. Disabled", "3. Third"],
+			option => {
+				selected = option;
+			},
+			() => {},
+			{ disabledIndices: [1] },
+		);
+
+		component.handleInput("2");
+
+		expect(selected).toBeUndefined();
+	});
+
+	it("ignores a digit without a matching numbered option", () => {
+		let selected: string | undefined;
+		const component = new HookSelectorComponent(
+			"Pick one",
+			["1. First", "2. Second"],
+			option => {
+				selected = option;
+			},
+			() => {},
+		);
+
+		component.handleInput("9");
+
+		expect(selected).toBeUndefined();
+	});
+
+	it("does not turn an unnumbered menu into implicit numeric shortcuts", () => {
+		let selected: string | undefined;
+		const component = new HookSelectorComponent(
+			"Pick one",
+			["First", "Second", "Third"],
+			option => {
+				selected = option;
+			},
+			() => {},
+		);
+
+		component.handleInput("3");
+
+		expect(selected).toBeUndefined();
+	});
+
+	it("moves the cursor without confirming on checkbox menus", () => {
+		let selected: string | undefined;
+		const component = new HookSelectorComponent(
+			"Pick many",
+			["1. First", "2. Second", "3. Third"],
+			option => {
+				selected = option;
+			},
+			() => {},
+			{ selectionMarker: "checkbox" },
+		);
+
+		component.handleInput("2");
+		expect(selected).toBeUndefined();
+
+		component.handleInput("\n");
+		expect(selected).toBe("2. Second");
+	});
+
+	it("treats digits as search text once the list overflows", () => {
+		let selected: string | undefined;
+		const options = Array.from({ length: 20 }, (_, i) => `Option ${i + 1}`);
+		const component = new HookSelectorComponent(
+			"Pick one",
+			options,
+			option => {
+				selected = option;
+			},
+			() => {},
+			{ maxVisible: 5 },
+		);
+
+		component.handleInput("1");
+
+		expect(selected).toBeUndefined();
+		expect(component.render(80).join("\n")).toContain("Search: 1");
 	});
 
 	it("renders disabled options dimmed", () => {

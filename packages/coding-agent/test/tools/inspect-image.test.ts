@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { AuthStorage, type completeSimple, Effort, type ImageContent, type Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { rasterizeSvg } from "@linxiraos/pi-natives";
 import { type } from "@linxiraos/pi-omptype";
 import { removeSyncWithRetries, sanitizeText } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -16,8 +17,14 @@ import { InspectImageTool } from "@linxiraos/zeta/tools/inspect-image";
 import { inspectImageToolRenderer } from "@linxiraos/zeta/tools/inspect-image-renderer";
 import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
 
+// PR CI runs against the latest release addons by design; `rasterizeSvg`
+// arrived upstream after the currently published addon, so skip rather than
+// fail there. Full coverage happens post-merge and at release.
+const HAS_RASTERIZE_SVG = typeof rasterizeSvg === "function";
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+const TINY_SVG =
+	'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="7"><rect width="12" height="7" fill="red"/></svg>';
 
 const visionModel: Model<"openai-responses"> = buildModel({
 	id: "gpt-4o",
@@ -195,6 +202,21 @@ describe("InspectImageTool", () => {
 		const contentParts = (Array.isArray(content) ? content : []) as Array<{ type: string; text?: string }>;
 		expect(contentParts[0]?.type).toBe("image");
 		expect(contentParts[1]).toEqual({ type: "text", text: "Extract visible UI labels." });
+	});
+	it.skipIf(!HAS_RASTERIZE_SVG)("rasterizes a selected SVG before sending it to the vision model", async () => {
+		const svgPath = path.join(testDir, "diagram.svg");
+		fs.writeFileSync(svgPath, TINY_SVG);
+		const stub = createCompleteSimpleSuccessStub("Red rectangle");
+		const tool = new InspectImageTool(createSession(testDir, visionModel), stub.fn);
+
+		const result = await tool.execute("call-svg", {
+			path: `${svgPath}:img`,
+			question: "Describe the diagram.",
+		});
+
+		expect(stub.calls).toHaveLength(1);
+		expect(result.details?.imagePath).toBe(svgPath);
+		expect(result.details?.mimeType).toBe("image/png");
 	});
 
 	it("passes the vision role's configured thinking effort into the oneshot", async () => {

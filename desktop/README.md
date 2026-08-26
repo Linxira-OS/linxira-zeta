@@ -28,7 +28,8 @@ The build produces release artifacts under `../temp/desktop/release/`:
   - `zeta-desktop-<version>-win-x64.exe` — NSIS installer (assisted, per-user).
 - Linux:
   - `zeta-desktop-<version>-linux-x64/` plus `.tar.gz` archive.
-  - `zeta-desktop-<version>-linux-x64.deb` — Debian/Ubuntu package.
+  - `zeta-desktop-<version>-linux-x86_64.AppImage` — portable AppImage.
+  - `zeta-desktop-<version>-linux-amd64.deb` — Debian/Ubuntu package.
 
 Installers and archives are uploaded as GitHub Release assets by CI; the
 unpacked directory is a local/CI smoke target only.

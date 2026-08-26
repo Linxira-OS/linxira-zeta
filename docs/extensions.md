@@ -132,7 +132,7 @@ Core methods:
 ### Provider registration
 
 `pi.registerProvider(name, config)` can include an optional `usage` field containing a
-`UsageProvider` imported from `@oh-my-pi/pi-ai`. Its `fetchUsage` implementation receives the
+`UsageProvider` imported from `@linxiraos/pi-ai`. Its `fetchUsage` implementation receives the
 normalized credential and returns a normalized `UsageReport`; the result is then handled
 by the host's AuthStorage cache, history, and usage displays just like built-in provider
 usage.

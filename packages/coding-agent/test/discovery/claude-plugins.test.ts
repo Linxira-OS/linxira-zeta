@@ -14,6 +14,7 @@ import { loadSlashCommands } from "@linxiraos/zeta/extensibility/slash-commands"
 import { discoverAgents } from "@linxiraos/zeta/task/discovery";
 import "@linxiraos/zeta/discovery/claude-plugins";
 import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
 import type { Skill } from "@linxiraos/zeta/capability/skill";
 import type { SlashCommand } from "@linxiraos/zeta/capability/slash-command";
 
@@ -533,6 +534,43 @@ describe("listClaudePluginRoots", () => {
 		const result = await listClaudePluginRoots(tempDir);
 		expect(result.roots).toHaveLength(1);
 		expect(result.roots[0].scope).toBe("user");
+	});
+	test("loads rules from OMP marketplace plugins", async () => {
+		const pluginsDir = path.join(tempDir, ".zeta", "plugins");
+		const pluginPath = path.join(tempDir, "plugins", "omp-rules");
+		await Promise.all([
+			fs.mkdir(pluginsDir, { recursive: true }),
+			fs.mkdir(path.join(pluginPath, "rules"), { recursive: true }),
+		]);
+		await fs.writeFile(
+			path.join(pluginsDir, "installed_plugins.json"),
+			JSON.stringify({
+				version: 2,
+				plugins: {
+					"omp-rules@market": [
+						{
+							scope: "user",
+							installPath: pluginPath,
+							version: "1.0.0",
+						},
+					],
+				},
+			}),
+		);
+		await fs.writeFile(
+			path.join(pluginPath, "package.json"),
+			JSON.stringify({ name: "omp-rules", omp: { extensions: ["./extension.ts"] } }),
+		);
+		await fs.writeFile(
+			path.join(pluginPath, "rules", "style.md"),
+			"---\ndescription: Marketplace style rule\n---\nUse tabs.\n",
+		);
+
+		const result = await loadCapability<Rule>("rules", { cwd: tempDir });
+		const found = result.all.find(rule => rule.name === "style");
+
+		expect(found?.description).toBe("Marketplace style rule");
+		expect(found?._source?.provider).toBe("claude-plugins");
 	});
 	test("reads skills directory from plugin manifest skills field", async () => {
 		const pluginsDir = path.join(tempDir, ".claude", "plugins");

@@ -24,7 +24,7 @@ import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner
 import { GoalRuntime } from "@linxiraos/zeta/goals/runtime";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { convertToLlm, shouldRenderAbortReason } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
@@ -1075,6 +1075,20 @@ describe("AgentSession TTSR resume gate", () => {
 				: "";
 		expect(text).toContain("Tool execution was aborted: TTSR matched rule: no-unwrap");
 		expect(text).not.toContain("Request was aborted");
+
+		// The persisted aborted assistant turn must not render as an error on
+		// resume/`/tree`/rebuild: TTSR interruption is control flow, so AgentSession
+		// stamps the SilentAbort flag and `shouldRenderAbortReason` returns false.
+		const abortedAssistant = sessionManager
+			.getEntries()
+			.find(
+				entry =>
+					entry.type === "message" && entry.message.role === "assistant" && entry.message.stopReason === "aborted",
+			);
+		expect(abortedAssistant?.type).toBe("message");
+		if (abortedAssistant?.type === "message" && abortedAssistant.message.role === "assistant") {
+			expect(shouldRenderAbortReason(abortedAssistant.message)).toBe(false);
+		}
 	});
 
 	it("labels only the matching aborted tool placeholder with the TTSR rule reason", async () => {

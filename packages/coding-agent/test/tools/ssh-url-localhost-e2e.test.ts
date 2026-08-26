@@ -142,7 +142,7 @@ describe.skipIf(!SSH_OK)("ssh:// handler against a real localhost ssh", () => {
 		expect(kind.trim()).toBe("dir"); // directory intact, not clobbered into a file
 		// The dir-error path must remove the temp it created beside the destination.
 		const leftovers =
-			await Bun.$`ssh -o BatchMode=yes localhost ls -A ${TMP} | grep -c "wdir.omp-tmp" || true`.text();
+			await Bun.$`ssh -o BatchMode=yes localhost ls -A ${TMP} | grep -c "wdir.zeta-tmp" || true`.text();
 		expect(leftovers.trim()).toBe("0");
 	});
 

@@ -31,10 +31,11 @@ const ZETA_IDENTITY_FIELDS = new Set([
 
 const ZETA_SCOPE = "@linxiraos/";
 
-// Upstream workspace packages are named @linxiraos/*. Zeta renames that scope
-// to @linxiraos/* and keeps its own independent versions (1.0.x product line), so
-// the driver must map upstream keys back to Zeta names before merging.
-const OMP_SCOPE = "@linxiraos/";
+// Upstream workspace packages are named @oh-my-pi/*. Zeta renames that scope
+// to @linxiraos/* (with RENAME_BY_TAIL for renamed packages) and keeps its own
+// independent versions (1.x product line), so the driver must map upstream
+// keys back to Zeta names before merging.
+const OMP_SCOPE = "@oh-my-pi/";
 
 // Upstream names whose catalog/tail does not equal the Zeta package tail.
 const RENAME_BY_TAIL: Record<string, string> = {
