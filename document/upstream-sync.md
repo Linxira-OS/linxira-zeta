@@ -387,7 +387,8 @@ merge. No version bump, no tag, no release.
     `dirs.ts`/`changelog.ts` comments). `update-cli.test.ts` intentionally
     keeps the `@linxiraos/zeta/omp` managed-path fixture (the
     resolver detects the upstream-managed pattern).
-### Pending: v18.0.6 (branch `sync/omp-release/v18.0.6`)
+
+### Merged: v18.0.6 (PR #3 — merge commit `8043ec175c`)
 
 - Prior baseline: `v18.0.4` at `4854db856c20e000a3760d793c56d78065dcf83f`
   (main `9d0b471d0f` — Zeta 1.1.4 release).
@@ -398,8 +399,12 @@ merge. No version bump, no tag, no release.
   v18.0.6 history).
 - Zeta start: `9d0b471d0f`; integration branch: `sync/omp-release/v18.0.6`;
   tag merge commit: `185d51db50`; follow-up adaptation commits: `dbfe504f3b`
-  (import repair + merged-code artifacts) and `94d553238a` (test finally
-  match). `git merge-base --is-ancestor v18.0.6 HEAD` verified.
+  (import repair + merged-code artifacts), `94d553238a` (test finally
+  match), `d104ff8c1b` (changelog reconciliation: fold upstream sections
+  into `[Unreleased]`), `1e74d2ffb3` (DiffStream skip guard), `c4db430286`
+  + `1f59b818aa` + `3bfdb649fe` + `8018de23f7` (CI repairs, below).
+  `git merge-base --is-ancestor v18.0.6 HEAD` verified on the branch tip
+  and again on merged `main`.
 - Merge-tree: 62 conflicts (57 content + 7 modify/delete). Resolutions:
   - Zeta-owned surfaces kept (ours): README.md (product page), native
     sentinel `__piNativesV1_1_4` (lib.rs + generated `index.js`/`index.d.ts`,
@@ -438,8 +443,35 @@ merge. No version bump, no tag, no release.
   `/language` + `/tracking` registered, i18n detection tests green.
   `streaming-edit-abort` large-target test fails locally with the stale
   v18.0.4 native addon (upstream's exact test + guard; passes upstream CI
-  with v18.0.6 natives). Required CI pending before this branch reaches
-  `main`.
+  with v18.0.6 natives).
+- CI fixes found on PR #3 (three runs to green; run `32963669211`
+  rerun-final):
+  - Duplicate `#[napi(js_name = ...)]` sentinel attributes survived the
+    lib.rs conflict resolution → E0428 duplicate napi registration symbol
+    on the darwin bazel build. Keep only `__piNativesV1_1_4`.
+  - **Over-applied `.omp`→`.zeta` sweep**: `.omp` matches inside longer
+    tokens that are upstream service identifiers or hash-pinned fixtures,
+    NOT Zeta config surfaces. Reverted exactly those:
+    `.omp-plugin`/`.omp-plugins.lock.json` plugin-manifest names (intentional
+    OMP/Claude compat surface in code AND main's tests),
+    `my.omp.sh` relay/share URLs (Zeta shares OMP's collab service domain;
+    main never rebranded these — wire constants, crypto/share/join/qrcode/
+    link tests), `\ompprurl` git-config key in gh.test (code writes
+    `ompPrUrl`), `pi.omp.agent.*` OTLP metric names in otel-signals-probe.
+    Lesson: sweep only `<path-sep>.omp<sep>` config-dir shapes; audit every
+    swept line for mid-token matches before committing.
+  - packages/natives/test/diff.test.ts lost its import block during the
+    DiffStream skip-guard edit (bare identifiers → ReferenceError);
+    restored.
+  - git-tui-stream ×10 + inspect-image/read-local-image SVG tests:
+    `skipIf` capability guards for exports missing from the published
+    release addons (`DiffStream`, `rasterizeSvg`) per the PR-path design;
+    full coverage lands post-merge/at release with fresh natives.
+  - GlobTool timeout test flaked twice under runner load (identical files
+    green on main); passed on job rerun — left as-is.
+- Deliverable: PR #3 merged into `main` at `8043ec175c5dc890aa4220eb4957b
+  5764bcae96f` after all-green CI; branch `sync/omp-release/v18.0.6`
+  deleted local + remote.
 
 ## Pi Runtime Ports
 
