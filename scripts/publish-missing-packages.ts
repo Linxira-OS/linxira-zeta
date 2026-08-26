@@ -149,6 +149,61 @@ function restoreCatalogDeps(pkgPath: string, backup: Array<{ field: string; name
 	for (const b of backup) pkg[b.field][b.name] = b.spec;
 	fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
+function walk(dir: string): string[] {
+	const out: string[] = [];
+	let entries: fs.Dirent[];
+	try {
+		entries = fs.readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return out;
+	}
+	for (const entry of entries) {
+		if (entry.name === ".git" || entry.name === "node_modules") continue;
+		const full = path.join(dir, entry.name);
+		if (entry.isDirectory()) out.push(...walk(full));
+		else out.push(full);
+	}
+	return out;
+}
+
+/**
+ * pi-messenger 来自 OMP 上游（依赖/源码引用 @earendil-works/*）——发布前把包名依赖和
+ * 源码 import 全部改写到 @linxiraos/*，让扩展 peer 到 Zeta 运行时而不是上游运行时；
+ * 发布后恢复原状。
+ */
+function rewriteEarendilDeps(dir: string): Array<{ path: string; original: string }> {
+	const backup: Array<{ path: string; original: string }> = [];
+	const manifestPath = path.join(dir, "package.json");
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as Record<string, Record<string, string>>;
+	for (const field of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"]) {
+		const deps = manifest[field];
+		if (!deps) continue;
+		for (const name of Object.keys(deps)) {
+			if (!name.startsWith("@earendil-works/")) continue;
+			const renamed = `@linxiraos/${name.slice("@earendil-works/".length)}`;
+			deps[renamed] = deps[name];
+			delete deps[name];
+			console.log(`  (@earendil-works → @linxiraos in ${field}: ${name} → ${renamed})`);
+		}
+	}
+	const originalManifest = fs.readFileSync(manifestPath, "utf8");
+	fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+	backup.push({ path: manifestPath, original: originalManifest });
+
+	for (const file of walk(dir)) {
+		if (!/\.(ts|mjs|js|tsx|jsx)$/.test(file)) continue;
+		const content = fs.readFileSync(file, "utf8");
+		if (!content.includes("@earendil-works/")) continue;
+		fs.writeFileSync(file, content.replaceAll("@earendil-works/", "@linxiraos/"));
+		backup.push({ path: file, original: content });
+		console.log(`  (source import rewrite: ${path.relative(repo, file)})`);
+	}
+	return backup;
+}
+
+function restoreFiles(backup: Array<{ path: string; original: string }>): void {
+	for (const b of backup) fs.writeFileSync(b.path, b.original);
+}
 
 async function alreadyPublished(name: string, version: string): Promise<boolean> {
 	const r = await $`npm view ${name}@${version} version`.cwd(repo).quiet().nothrow();
@@ -301,9 +356,16 @@ for (const t of TARGETS) {
 		}
 	}
 
+	// pi-messenger 来自 OMP 上游（@earendil-works/*）：发布前把依赖/源码 import 改写为
+	// @linxiraos/*，发布后恢复，保证扩展 peer 到 Zeta 运行时。
+	const earendilBackup = t.rename ? rewriteEarendilDeps(path.join(repo, t.dir)) : [];
 	const catalogBackup = rewriteCatalogDeps(pkgPath);
 	const code = await publishWithRetry(t.dir, t.name, version);
 	restoreCatalogDeps(pkgPath, catalogBackup);
+	if (earendilBackup.length) {
+		restoreFiles(earendilBackup);
+		console.log("  (已恢复 @earendil-works 原名)");
+	}
 	results.push(`${t.name}@${version}: ${code === 0 ? "OK" : code === 2 ? "already published" : "FAIL"}`);
 }
 
