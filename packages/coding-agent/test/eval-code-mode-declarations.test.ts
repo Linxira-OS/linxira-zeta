@@ -105,7 +105,7 @@ test("EvalTool omits tools the model can still call directly", () => {
 		getSessionFile: () => null,
 		settings: Settings.isolated(),
 		toolRegistry: new Map<string, { name: string; parameters: object }>([
-			["read", read],
+		toolRegistry: new Map<string, typeof read | typeof write>([			["read", read],
 			["write", write],
 		]),
 		getEvalBridgeToolNames: () => ["eval", "read", "write"],

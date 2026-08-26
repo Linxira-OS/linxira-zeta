@@ -314,8 +314,8 @@ merge. No version bump, no tag, no release.
   - `.omp` path adaptations recorded: `omp-plugins.test.ts` (`.omp/settings.json`
     → `.zeta`), `lsp-regressions.test.ts` comment (`~/.omp/agent` →
     `~/.zeta/agent`), `update-cli.test.ts` mock registry URL
-    (`@oh-my-pi/pi-coding-agent` → `@linxiraos/zeta`), `docs/extensions.md`
-    import example (`@oh-my-pi/pi-coding-agent` → `@linxiraos/zeta`).
+    (`@linxiraos/zeta` → `@linxiraos/zeta`), `docs/extensions.md`
+    import example (`@linxiraos/zeta` → `@linxiraos/zeta`).
   - `structured-subagent.test.ts` (upstream 17.3.8-added "reloads model roles"
     case): `.omp/config.yml` + `.omp/agents/hot-worker.md` writes adapted to
     `.zeta` (caught by release CI — discovery is `.zeta`-only; recorded here
@@ -385,7 +385,7 @@ merge. No version bump, no tag, no release.
     upstream-added files; `.omp/` → `.zeta/` path adaptations
     (`docs/settings.md`, `docs/extensions.md` import examples,
     `dirs.ts`/`changelog.ts` comments). `update-cli.test.ts` intentionally
-    keeps the `@oh-my-pi/pi-coding-agent/omp` managed-path fixture (the
+    keeps the `@linxiraos/zeta/omp` managed-path fixture (the
     resolver detects the upstream-managed pattern).
 - Local checks: `bun run check:types` green in all 11 workspace packages;
   biome check green (25 files auto-fixed). Channel tests 60 pass (IM

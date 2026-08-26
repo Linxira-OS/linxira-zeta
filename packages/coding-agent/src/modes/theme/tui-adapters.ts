@@ -7,7 +7,7 @@ import {
 import type { EditorTheme, MarkdownTheme, SelectListTheme, SettingsListTheme, SymbolTheme } from "@linxiraos/pi-tui";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
-import { resolveMermaidAscii } from "./mermaid-cache";
+	warmHighlighter as nativeWarmHighlighter,import { resolveMermaidAscii } from "./mermaid-cache";
 import type { SlashCommandIconName } from "./symbols";
 import { theme } from "./theme";
 import type { Theme } from "./theme-class";
@@ -88,6 +88,34 @@ export function highlightCode(code: string, lang?: string, highlightTheme: Theme
 	// Always return a fresh array: callers (e.g. renderCodeCell) push extra lines
 	// onto the result, which would corrupt the cached string otherwise.
 	return (highlighted ?? code).split("\n");
+}
+
+/** Create a stateful highlighter for progressive terminal rendering. */
+export function createHighlightStream(lang?: string, highlightTheme: Theme = theme): NativeHighlightStream | null {
+	const validLang = lang && nativeSupportsLanguage(lang) ? lang : undefined;
+	if (!validLang) return null;
+	// Workspace loads skip the natives version sentinel, so a stale local
+	// `.node` can omit `HighlightStream` after a pull. Napi constructors can
+	// also throw; callers degrade to plain text instead of aborting a render.
+	try {
+		if (typeof NativeHighlightStream !== "function") return null;
+		return new NativeHighlightStream(validLang, getHighlightColors(highlightTheme));
+	} catch {
+		return null;
+	}
+}
+
+let highlighterWarmup: Promise<void> | undefined;
+
+/** Warm native syntax grammars off-thread once per process. */
+export function warmHighlighter(): Promise<void> {
+	if (!highlighterWarmup) {
+		highlighterWarmup =
+			typeof nativeWarmHighlighter === "function"
+				? nativeWarmHighlighter().catch(() => undefined)
+				: Promise.resolve();
+	}
+	return highlighterWarmup;
 }
 
 export function getSymbolTheme(): SymbolTheme {
@@ -196,20 +224,7 @@ export function getMarkdownTheme(): MarkdownTheme {
 			if (highlighted !== null) return highlighted.split("\n");
 			return code.split("\n").map(line => theme.fg("mdCodeBlock", line));
 		},
-		createHighlightStream: (lang?: string) => {
-			const validLang = lang && nativeSupportsLanguage(lang) ? lang : undefined;
-			if (!validLang) return null;
-			// Workspace loads skip the natives version sentinel, so a stale local
-			// `.node` can omit `HighlightStream` after a pull. napi constructors can
-			// also throw. Match `highlightCached`: degrade to the unhighlighted
-			// streaming path instead of aborting the TUI render.
-			try {
-				if (typeof NativeHighlightStream !== "function") return null;
-				return new NativeHighlightStream(validLang, getHighlightColors(theme));
-			} catch {
-				return null;
-			}
-		},
+		createHighlightStream: lang => createHighlightStream(lang, theme),
 	};
 	cachedMarkdownTheme = markdownTheme;
 	cachedMarkdownThemeRef = theme;

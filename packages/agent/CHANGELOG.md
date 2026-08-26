@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ## [1.1.4] - 2026-08-26
+## [18.0.5] - 2026-08-25
+
+### Fixed
+
+- Corrected remote compaction summaries so they accurately report the number of input tokens processed.
+
+## [18.0.4] - 2026-08-24
 
 ### Changed
 

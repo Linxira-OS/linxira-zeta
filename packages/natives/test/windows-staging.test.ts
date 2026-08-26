@@ -87,7 +87,7 @@ describe("windows native addon staging", () => {
 	});
 
 	it("prepends versionedDir candidates ahead of node_modules when staging on Windows", () => {
-		const versionedDir = "C:\\Users\\Admin\\.omp\\natives\\15.0.1";
+		const versionedDir = "C:\\Users\\Admin\\.zeta\\natives\\15.0.1";
 		const userDataDir = "C:\\Users\\Admin\\AppData\\Local\\omp";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "win32-x64", arch: "x64", variant: "baseline" }),

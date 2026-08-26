@@ -18,7 +18,8 @@ import {
 } from "@linxiraos/zeta/modes/components/model-hub";
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
-
+import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
+import type { TUI } from "@linxiraos/pi-tui";
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();
 }
@@ -387,6 +388,23 @@ describe("ModelHub", () => {
 			expect(previewText.indexOf("smol")).toBeGreaterThan(-1);
 			expect(previewText.indexOf("smol")).toBeLessThan(previewText.indexOf("default"));
 			expect(previewText.indexOf("default")).toBeLessThan(previewText.indexOf("slow"));
+		});
+
+		test("separates the quick-cycle icon from its ordinal", () => {
+			const model = makeModel("test", "cycle-model");
+			const settings = Settings.isolated({
+				cycleOrder: ["default"],
+				modelRoles: { default: `${model.provider}/${model.id}` },
+			});
+			const { hub } = createHub({ models: [model], scoped: true, settings });
+
+			hub.handleInput(UP); // All models → Roles.
+			const defaultRow = hub
+				.render(220)
+				.map(line => stripVTControlCharacters(line))
+				.find(line => line.includes("DEFAULT"));
+
+			expect(defaultRow).toContain(`${theme.icon.loop} 1`);
 		});
 
 		test("the + New role row names a custom role and jumps into assigning it", () => {

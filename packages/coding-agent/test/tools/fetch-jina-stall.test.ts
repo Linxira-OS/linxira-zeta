@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { renderHtmlToText } from "@linxiraos/zeta/tools/fetch";
-import { asGlobalFetch } from "../helpers/fetch-mock";
+import * as path from "node:path";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { TempDir } from "@linxiraos/pi-utils";import { asGlobalFetch } from "../helpers/fetch-mock";
 
 /**
  * Regression test for #1449: a stalled Jina reader request must not prevent
@@ -95,6 +97,71 @@ describe("renderHtmlToText: jina stall does not starve local fallbacks (#1449)",
 });
 
 describe("renderHtmlToText: Jina response validation", () => {
+	it("sends JINA_API_KEY as optional bearer authentication", async () => {
+		const originalApiKey = process.env.JINA_API_KEY;
+		process.env.JINA_API_KEY = "env-jina-key";
+		try {
+			const settings = Settings.isolated({ "providers.fetch": "jina" });
+			let requestHeaders: Headers | undefined;
+			const markdown = `# Authenticated article\n\n${"Substantive reader content. ".repeat(8)}`.trim();
+			const fetchMock = asGlobalFetch((_input, init) => {
+				requestHeaders = new Headers(init?.headers);
+				return new Response(`Markdown Content:\n${markdown}`);
+			});
+
+			const result = await renderHtmlToText(
+				"https://example.com/article",
+				"<html><body>short</body></html>",
+				1,
+				settings,
+				undefined,
+				null,
+				fetchMock,
+			);
+
+			expect(result.method).toBe("jina");
+			expect(requestHeaders?.get("authorization")).toBe("Bearer env-jina-key");
+		} finally {
+			if (originalApiKey === undefined) delete process.env.JINA_API_KEY;
+			else process.env.JINA_API_KEY = originalApiKey;
+		}
+	});
+
+	it("uses a stored Jina credential when the environment key is absent", async () => {
+		const originalApiKey = process.env.JINA_API_KEY;
+		delete process.env.JINA_API_KEY;
+		const tempDir = TempDir.createSync("@omp-jina-reader-auth-");
+		try {
+			const storage = await AgentStorage.open(path.join(tempDir.path(), "agent.db"));
+			storage.replaceAuthCredentialsForProvider("jina", [{ type: "api_key", key: "stored-jina-key" }]);
+			const settings = Settings.isolated({ "providers.fetch": "jina" });
+			let requestHeaders: Headers | undefined;
+			const markdown = `# Authenticated article\n\n${"Substantive reader content. ".repeat(8)}`.trim();
+			const fetchMock = asGlobalFetch((_input, init) => {
+				requestHeaders = new Headers(init?.headers);
+				return new Response(`Markdown Content:\n${markdown}`);
+			});
+
+			const result = await renderHtmlToText(
+				"https://example.com/article",
+				"<html><body>short</body></html>",
+				1,
+				settings,
+				undefined,
+				storage,
+				fetchMock,
+			);
+
+			expect(result.method).toBe("jina");
+			expect(requestHeaders?.get("authorization")).toBe("Bearer stored-jina-key");
+		} finally {
+			AgentStorage.resetInstance();
+			await tempDir.remove().catch(() => {});
+			if (originalApiKey === undefined) delete process.env.JINA_API_KEY;
+			else process.env.JINA_API_KEY = originalApiKey;
+		}
+	});
+
 	it("requests fresh markdown and strips the Jina metadata preamble", async () => {
 		const settings = Settings.isolated({ "providers.fetch": "jina" });
 		const markdown = `# Extracted article\n\n${"Substantive reader content. ".repeat(8)}`.trim();
@@ -117,6 +184,7 @@ describe("renderHtmlToText: Jina response validation", () => {
 		expect(result).toEqual({ content: markdown, ok: true, method: "jina" });
 		expect(requestHeaders?.get("accept")).toBe("text/markdown");
 		expect(requestHeaders?.get("x-no-cache")).toBe("true");
+		expect(requestHeaders?.get("authorization")).toBeNull();
 	});
 
 	for (const { label, readerBody, headers } of [

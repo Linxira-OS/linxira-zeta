@@ -8,7 +8,7 @@ import { htmlToMarkdown } from "@linxiraos/pi-natives";
 import { type Component, Text } from "@linxiraos/pi-tui";
 import { $which, ptree, truncate } from "@linxiraos/pi-utils";
 import { type ArchiveFormat, listArchiveRoot, sniffArchiveFormat } from "@linxiraos/pi-utils/ar";
-import type { Settings } from "../config/settings";
+import { type FetchImpl, getEnvApiKey, type ImageContent, type TextContent } from "@linxiraos/pi-ai";import type { Settings } from "../config/settings";
 import { readEditableNotebookText } from "../edit/notebook";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { type Theme, theme } from "../modes/theme/theme";
@@ -25,6 +25,7 @@ import { extractWithParallel, findParallelApiKey, getParallelExtractContent } fr
 import type { RenderResult, SpecialHandler } from "../web/scrapers/types";
 import { finalizeOutput, loadPage, looksLikeHtml, MAX_BYTES, MAX_OUTPUT_CHARS } from "../web/scrapers/types";
 import { convertWithMarkit, fetchBinary } from "../web/scrapers/utils";
+import { findCredential } from "../web/search/providers/utils";
 import { applyListLimit } from "./list-limit";
 import { formatStyledArtifactReference, type OutputMeta } from "./output-meta";
 import { isReadableUrlPath, type LineRange, parseLineRanges } from "./path-utils";
@@ -665,11 +666,14 @@ export async function renderHtmlToText(
 			return firstDocument ? getParallelExtractContent(firstDocument) : null;
 		},
 		jina: async () => {
+			const apiKey = findCredential(storage, getEnvApiKey("jina"), "jina");
+			const headers: Record<string, string> = {
+				Accept: "text/markdown",
+				"X-No-Cache": "true",
+			};
+			if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 			const response = await fetchImpl(`https://r.jina.ai/${url}`, {
-				headers: {
-					Accept: "text/markdown",
-					"X-No-Cache": "true",
-				},
+				headers,
 				signal: remoteSignal(),
 			});
 			if (!response.ok) return null;

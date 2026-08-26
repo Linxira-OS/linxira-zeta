@@ -196,13 +196,13 @@ describe("wrapCode cross-cell persistence", () => {
 		expect(wrapped.asyncWrapped).toBe(true);
 		try {
 			await indirectEval(wrapped.source);
-			const fn = globals.ompPersistedFn as (n: number) => Promise<number>;
+			const fn = globals.zetaPersistedFn as (n: number) => Promise<number>;
 			expect(typeof fn).toBe("function");
 			expect(await fn(1)).toBe(2);
-			expect(globals.ompPersistedTotal).toBe(42);
+			expect(globals.zetaPersistedTotal).toBe(42);
 		} finally {
-			delete globals.ompPersistedFn;
-			delete globals.ompPersistedTotal;
+			delete globals.zetaPersistedFn;
+			delete globals.zetaPersistedTotal;
 		}
 	});
 
@@ -212,9 +212,9 @@ describe("wrapCode cross-cell persistence", () => {
 		expect(wrapped.asyncWrapped).toBe(true);
 		try {
 			await indirectEval(wrapped.source);
-			expect(globals.ompPersistedVar).toBe(5);
+			expect(globals.zetaPersistedVar).toBe(5);
 		} finally {
-			delete globals.ompPersistedVar;
+			delete globals.zetaPersistedVar;
 		}
 	});
 });

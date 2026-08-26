@@ -216,7 +216,7 @@ Remember that higher-precedence settings layers **replace** array settings rathe
 `disabledProviders` removes a whole config source. To drop one context file and keep the rest of what its provider contributes, list its extension id in `disabledExtensions`:
 
 ```yaml
-# ~/.omp/agent/config.yml, .omp/config.yml, or a --config overlay
+# ~/.zeta/agent/config.yml, .zeta/config.yml, or a --config overlay
 disabledExtensions:
   - context-file:user:CLAUDE.md
 ```
@@ -229,7 +229,7 @@ Context-file ids have the form `context-file:<level>:<basename>`, where `<level>
 | `context-file:project:AGENTS.md`    | **Every** project-level `AGENTS.md`, at each directory depth the walk reaches — the id carries no depth. |
 | `context-file:user:AGENTS.md`       | Every user-level file named `AGENTS.md`, whichever provider supplied it.       |
 
-The match is on level and file name only, so one entry covers every provider that contributes a file of that name at that level, and a project entry cannot be narrowed to a single depth. When you need per-directory control, use a project `.omp/config.yml` in the subtree that should differ, or the path-scoped `disabledProviders` form above.
+The match is on level and file name only, so one entry covers every provider that contributes a file of that name at that level, and a project entry cannot be narrowed to a single depth. When you need per-directory control, use a project `.zeta/config.yml` in the subtree that should differ, or the path-scoped `disabledProviders` form above.
 
 Disabling is not the same as shadowing, and the difference is visible: a disabled file is dropped before deduplication, so it does not claim its scope. **The file it used to shadow is loaded in its place.** In a project holding both `.claude/CLAUDE.md` and `AGENTS.md`, `CLAUDE.md` normally wins the depth-0 scope; disable `context-file:project:CLAUDE.md` and `AGENTS.md` becomes the project context rather than the scope falling empty. To leave the scope with no file at all, disable each candidate name.
 

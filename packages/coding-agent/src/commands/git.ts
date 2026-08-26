@@ -1,6 +1,6 @@
 /**
  * Fullscreen interactive git TUI: split-pane diff viewer with minimap, file
- * staging sidebar, and commit composer.
+ * staging sidebar, and generated or manual commit composer.
  */
 
 import { getProjectDir } from "@linxiraos/pi-utils";
