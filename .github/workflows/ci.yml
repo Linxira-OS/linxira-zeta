@@ -665,9 +665,6 @@ jobs:
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
-         - name: Install web-ui-next dependencies
-           working-directory: web-ui-next
-           run: npm ci
          - name: Install desktop dependencies
            working-directory: desktop
            run: npm ci
@@ -722,9 +719,6 @@ jobs:
               mode: restore
          - name: Install Web UI dependencies
            working-directory: web-ui
-           run: npm ci
-         - name: Install web-ui-next dependencies
-           working-directory: web-ui-next
            run: npm ci
          - name: Install desktop dependencies
            working-directory: desktop
@@ -793,9 +787,6 @@ jobs:
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
-         - name: Install web-ui-next dependencies
-           working-directory: web-ui-next
-           run: npm ci
          - name: Install desktop dependencies
            working-directory: desktop
            run: npm ci
@@ -848,9 +839,6 @@ jobs:
               mode: restore
          - name: Install Web UI dependencies
            working-directory: web-ui
-           run: npm ci
-         - name: Install web-ui-next dependencies
-           working-directory: web-ui-next
            run: npm ci
          - name: Install desktop dependencies
            working-directory: desktop
