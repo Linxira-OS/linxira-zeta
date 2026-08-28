@@ -1,0 +1,62 @@
+{
+  "name": "@linxiraos/pi-messenger",
+  "version": "1.1.1",
+  "description": "Inter-agent messaging and file reservation system for pi coding agent",
+  "type": "module",
+  "author": "Nico Bailon",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicobailon/pi-messenger.git"
+  },
+  "homepage": "https://github.com/nicobailon/pi-messenger#readme",
+  "bugs": {
+    "url": "https://github.com/nicobailon/pi-messenger/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "extension",
+    "messaging",
+    "multi-agent",
+    "coordination",
+    "ai",
+    "agents",
+    "cli"
+  ],
+  "bin": {
+    "pi-messenger": "install.mjs"
+  },
+  "files": [
+    "*.ts",
+    "*.mjs",
+    "crew/**",
+    "skills/**",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@linxiraos/pi-ai": "*",
+    "@linxiraos/pi-agent-core": "*",
+    "@linxiraos/zeta": "*",
+    "@linxiraos/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "main": "index.ts"
+}

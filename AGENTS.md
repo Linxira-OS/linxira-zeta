@@ -91,6 +91,29 @@ Current baseline references and the sync procedure live in
 `document/upstream-sync.md`. Before starting an upstream port, read that file and
 the upstream OMP guide at `document/porting-from-pi-mono.md`.
 
+## Zeta Brand Surface Registry (merge-protected)
+
+Zeta owns its product brand surface. Each upstream OMP merge must re-check
+this table row by row and restore the Zeta canonical form wherever the merge
+pulled an OMP (`π` / `PI_LOGO` / `@oh-my-pi` / `.omp`) value back in. This is a
+hard merge rule, not a suggestion — the v18.0.3 merge (c5ceed6285) silently
+reverted the ζ CLI brand, which this registry exists to prevent.
+
+| Surface | Canonical | Guard |
+|---|---|---|
+| CLI 终端标题品牌字符 | `ζ`（title-generator.ts） | 上游重引 `π` 即恢复 + 两测试 |
+| CLI welcome/splash/outro 字符画 | `ZETA_LOGO`（ζ 形）+ wordmark `"Z e t a"` | 不接受上游 `PI_LOGO` |
+| `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
+| latex-to-unicode π 条目 | `π` | 保留——数学转换 |
+| 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名 |
+| npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@oh-my-pi/*` 全量改写 |
+| Native 哨兵 | `__piNativesV1_X_Y` | 保留 Zeta 版本线 |
+| `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
+| 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
+| 中继/分享 URL | `my.omp.sh` | 共享 OMP 基础设施，不品牌化 |
+| 安装提示 URL | `https://omp.sh/install` | 共享基础设施，勿改 |
+| 产品前门（README/logo/名称/主页/安装文档） | Zeta 产品面 | 完整合并后单独 branding-overlay commit |
+
 ## Upstream Reference Hygiene
 
 Zeta keeps upstream references minimal so the repository stays lean:

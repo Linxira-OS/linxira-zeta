@@ -25,7 +25,7 @@ import * as readline from "node:readline";
  *   - 已发布版本跳过（npm view 命中；EPUBLISHCONFLICT 视为已发）
  *   - zeta-web: version 1.1.0 + @linxiraos 依赖 ^1.1.0 + npm install（装 fastembed、更新 lock）
  *     + next build + publish；会改动 web-ui/package.json（正式提交前请确认）
- *   - pi-messenger（temp/pi-messenger 浅克隆参考）: 临时改名 @linxiraos/pi-messenger
+ *   - pi-messenger（plugins/official/pi-messenger 常驻源码）: 临时改名 @linxiraos/pi-messenger
  *     + version 1.1.0 + main=index.ts + publish；仅发 npm 模块，不进入 Zeta 主软件打包
  */
 import { $ } from "bun";
@@ -63,7 +63,7 @@ const TARGETS: Array<{
 	{ dir: "packages/omptype", name: "@linxiraos/pi-omptype" },
 	{ dir: "packages/wire", name: "@linxiraos/pi-wire" },
 	{ dir: "web-ui", name: "@linxiraos/zeta-web", build: true, align: true },
-	{ dir: "temp/pi-messenger", name: "@linxiraos/pi-messenger", rename: true },
+	{ dir: "plugins/official/pi-messenger", name: "@linxiraos/pi-messenger", rename: true },
 ];
 
 interface PkgShape {
@@ -180,7 +180,7 @@ function rewriteEarendilDeps(dir: string): Array<{ path: string; original: strin
 		if (!deps) continue;
 		for (const name of Object.keys(deps)) {
 			if (!name.startsWith("@earendil-works/")) continue;
-			const renamed = `@linxiraos/${name.slice("@earendil-works/".length)}`;
+			const renamed = name === "@earendil-works/pi-coding-agent" ? "@linxiraos/zeta" : `@linxiraos/${name.slice("@earendil-works/".length)}`;
 			deps[renamed] = deps[name];
 			delete deps[name];
 			console.log(`  (@earendil-works → @linxiraos in ${field}: ${name} → ${renamed})`);
@@ -194,7 +194,7 @@ function rewriteEarendilDeps(dir: string): Array<{ path: string; original: strin
 		if (!/\.(ts|mjs|js|tsx|jsx)$/.test(file)) continue;
 		const content = fs.readFileSync(file, "utf8");
 		if (!content.includes("@earendil-works/")) continue;
-		fs.writeFileSync(file, content.replaceAll("@earendil-works/", "@linxiraos/"));
+		fs.writeFileSync(file, content.replaceAll("@earendil-works/pi-coding-agent", "@linxiraos/zeta").replaceAll("@earendil-works/", "@linxiraos/"));
 		backup.push({ path: file, original: content });
 		console.log(`  (source import rewrite: ${path.relative(repo, file)})`);
 	}
