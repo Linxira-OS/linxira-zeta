@@ -51,6 +51,38 @@ let statsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
 // ---------------------------------------------------------------------------
+// Window controls for the self-drawn titlebar (`window.piDesktop`).
+//
+// The window runs frameless so all three platforms share one chrome. The
+// renderer owns the buttons; the main process only performs the action and
+// pushes state changes back so the icons can follow (maximize ↔ restore).
+// ---------------------------------------------------------------------------
+
+function pushWindowState(win: BrowserWindow): void {
+	if (win.isDestroyed()) return;
+	win.webContents.send("pi:window-state", { maximized: win.isMaximized() });
+}
+
+ipcMain.handle("pi:window-minimize", (): void => {
+	mainWindow?.minimize();
+});
+
+ipcMain.handle("pi:window-maximize", (): void => {
+	const win = mainWindow;
+	if (!win || win.isDestroyed()) return;
+	if (win.isMaximized()) win.unmaximize();
+	else win.maximize();
+});
+
+ipcMain.handle("pi:window-close", (): void => {
+	mainWindow?.close();
+});
+
+ipcMain.handle("pi:window-state", (): { maximized: boolean } => {
+	return { maximized: mainWindow && !mainWindow.isDestroyed() ? mainWindow.isMaximized() : false };
+});
+
+// ---------------------------------------------------------------------------
 // Service resolution
 // ---------------------------------------------------------------------------
 
@@ -271,6 +303,10 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		minWidth: 960,
 		minHeight: 600,
 		autoHideMenuBar: true,
+		// Frameless on every platform: the Web UI draws its own 30px titlebar
+		// (minimize / maximize / close) so the chrome looks identical on
+		// Windows, macOS and Linux.
+		frame: false,
 		title: "Zeta",
 		icon: iconPath(),
 		backgroundColor: "#102c31",
@@ -281,9 +317,7 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		},
 	});
 
-	void resolveWebUiRoot().then((root) => {
-		if (!win.isDestroyed()) void win.loadURL(root).catch(() => {});
-	});
+	if (!win.isDestroyed()) void win.loadURL(WEB_UI_URL).catch(() => {});
 	win.on("close", (event) => {
 		// Minimize-to-tray (default): closing the window hides it and keeps the
 		// service + tray alive. Only a real quit (tray menu / Cmd+Q / app.quit)
@@ -296,22 +330,24 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		mainWindow = null;
 	});
 	mainWindow = win;
+	// Keep the self-drawn titlebar in sync with the real window state.
+	win.on("maximize", () => pushWindowState(win));
+	win.on("unmaximize", () => pushWindowState(win));
+	win.on("enter-full-screen", () => pushWindowState(win));
+	win.on("leave-full-screen", () => pushWindowState(win));
 	win.webContents.on("console-message", (_event, level, message, line, sourceId) => {
 		writeDesktopLog(`Renderer console [${level}] ${sourceId}:${line} ${message}`);
 	});
 	win.webContents.once("did-finish-load", () => {
 		writeDesktopLog("Renderer finished loading the Web UI.");
+		pushWindowState(win);
 	});
 	win.webContents.on("did-fail-load", (_event, code, desc, validatedUrl, isMainFrame) => {
 		writeDesktopLog(`Renderer load failure: code=${code} url=${validatedUrl} detail=${desc}`);
 		if (!isMainFrame) return;
 		if (desc.includes("ERR_CONNECTION_REFUSED")) {
 			setTimeout(() => {
-				if (!win.isDestroyed()) {
-					void resolveWebUiRoot().then((root) => {
-						if (!win.isDestroyed()) void win.loadURL(root).catch(() => {});
-					});
-				}
+				if (!win.isDestroyed()) void win.loadURL(WEB_UI_URL).catch(() => {});
 			}, 1500);
 			return;
 		}
@@ -346,26 +382,6 @@ const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
 	webUi: "Web UI",
 	reload: "Reload",
 };
-
-/**
- * Root URL for the embedded UI — /next/ when the gateway reports uiVersion=next,
- * else / (web-ui). Same HTTP-only contract as readTrayPrefs.
- */
-async function resolveWebUiRoot(): Promise<string> {
-	try {
-		const response = await fetch(`${WEB_UI_URL}/api/web-config`);
-		if (response.ok) {
-			const data = (await response.json()) as { uiVersion?: string };
-			if (data.uiVersion === "next") {
-				return `${WEB_UI_URL}/next/`;
-			}
-		}
-	} catch {
-		// fall through to the legacy UI
-	}
-	return WEB_UI_URL;
-}
-
 /**
  * Read tray/autostart preferences from the gateway's /api/web-config over HTTP.
  * The desktop shell never imports packages/* source; it talks to the backend
@@ -427,18 +443,20 @@ function trayIcon(): Electron.NativeImage {
 	return nativeImage.createEmpty();
 }
 
+function showMainWindow(): void {
+	if (!mainWindow) return;
+	if (mainWindow.isMinimized()) mainWindow.restore();
+	mainWindow.show();
+	mainWindow.focus();
+}
+
 function createTray(labels: DesktopLabels): void {
 	if (tray) return;
 	tray = new Tray(trayIcon());
 	const contextMenu = Menu.buildFromTemplate([
 		{
 			label: labels.showWindow,
-			click: () => {
-				if (!mainWindow) return;
-				if (mainWindow.isMinimized()) mainWindow.restore();
-				mainWindow.show();
-				mainWindow.focus();
-			},
+			click: () => showMainWindow(),
 		},
 		{ label: labels.statsDashboard, click: () => openStatsWindow() },
 		{ label: labels.openSettings, click: () => mainWindow?.loadURL(`${WEB_UI_URL}/settings`) },
@@ -453,6 +471,7 @@ function createTray(labels: DesktopLabels): void {
 	]);
 	tray.setToolTip("Zeta");
 	tray.setContextMenu(contextMenu);
+	tray.on("double-click", showMainWindow);
 }
 
 /**

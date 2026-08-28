@@ -10,7 +10,6 @@
  *                                 └─ 其余        → Web UI Next.js (随机内部端口)
  */
 
-import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger } from "@linxiraos/pi-utils";
@@ -99,89 +98,6 @@ const NEXT_OWNED_API_PREFIXES = [
 	"/api/file-index",
 ];
 
-// ---------------------------------------------------------------------------
-// web-ui-next (Vite) static hosting
-// ---------------------------------------------------------------------------
-
-const NEXT_STATIC_MIME: Record<string, string> = {
-	".html": "text/html; charset=utf-8",
-	".js": "text/javascript",
-	".mjs": "text/javascript",
-	".css": "text/css",
-	".json": "application/json",
-	".svg": "image/svg+xml",
-	".png": "image/png",
-	".jpg": "image/jpeg",
-	".jpeg": "image/jpeg",
-	".gif": "image/gif",
-	".webp": "image/webp",
-	".ico": "image/x-icon",
-	".woff": "font/woff",
-	".woff2": "font/woff2",
-	".ttf": "font/ttf",
-	".map": "application/json",
-	".txt": "text/plain",
-	".webmanifest": "application/manifest+json",
-};
-
-function findWebUiNextDist(): string | null {
-	// 1. Desktop staging / embedded layout: <runtime>/web-ui-next
-	// 2. Source repo layout: <repo>/web-ui-next/dist
-	const candidates = [
-		path.join(import.meta.dir, "..", "..", "web-ui-next"),
-		path.join(import.meta.dir, "..", "..", "..", "..", "web-ui-next", "dist"),
-		path.join(process.cwd(), "web-ui-next", "dist"),
-	];
-	for (const candidate of candidates) {
-		try {
-			if (fs.existsSync(path.join(candidate, "index.html"))) {
-				return candidate;
-			}
-		} catch {
-			// unreadable
-		}
-	}
-	return null;
-}
-
-function serveWebUiNext(req: Request, distDir: string): Response {
-	const url = new URL(req.url);
-	let rel = url.pathname;
-	if (rel.startsWith("/next")) {
-		rel = rel.slice("/next".length);
-	}
-	if (rel === "" || rel === "/") {
-		rel = "/index.html";
-	}
-	// Directory → index.html (SPA fallback for client routes).
-	if (!path.extname(rel)) {
-		rel = `${rel}/index.html`;
-	}
-	const filePath = path.resolve(distDir, `.${rel}`);
-	if (!filePath.startsWith(path.resolve(distDir))) {
-		return new Response("Forbidden", { status: 403 });
-	}
-	try {
-		if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-			// SPA fallback: unknown client routes serve the app shell.
-			const shell = path.join(distDir, "index.html");
-			if (!fs.existsSync(shell)) return new Response("Not found", { status: 404 });
-			return new Response(fs.readFileSync(shell), {
-				headers: { "Content-Type": "text/html; charset=utf-8" },
-			});
-		}
-		const mime = NEXT_STATIC_MIME[path.extname(filePath)] ?? "application/octet-stream";
-		return new Response(fs.readFileSync(filePath), { headers: { "Content-Type": mime } });
-	} catch {
-		return new Response("Not found", { status: 404 });
-	}
-}
-
-/** Whether the serve process hosts web-ui-next at the web root (uiVersion=next). */
-function webUiNextIsDefault(): boolean {
-	return process.env.ZETA_UI_VERSION === "next";
-}
-
 /**
  * Classify an incoming request based on its URL path.
  * Extracted as a standalone function so routing logic can be tested without
@@ -215,6 +131,7 @@ export function classifyRequest(req: Request, webUiPort: number, gatewayRunning 
 
 function getRandomPort(): number {
 	// Use a random port in the ephemeral range (49152-65535)
+
 	return Math.floor(Math.random() * 16384) + 49152;
 }
 
@@ -969,17 +886,6 @@ export class ZetaServer {
 			async fetch(req, srv) {
 				const route = classifyRequest(req, webUiPort, gatewayRunning);
 				const remoteAddr = srv?.requestIP(req)?.address;
-
-				// web-ui-next static bundle: explicit /next prefix always served;
-				// when uiVersion=next the web root also hosts web-ui-next. Vite's
-				// default base "/" puts assets under /assets/, so that prefix is
-				// served from the same bundle too.
-				const pathname = new URL(req.url).pathname;
-				const nextDist = findWebUiNextDist();
-				const isNextPath = pathname.startsWith("/next") || pathname.startsWith("/assets");
-				if (nextDist && (isNextPath || (webUiNextIsDefault() && !pathname.startsWith("/api/")))) {
-					return serveWebUiNext(req, nextDist);
-				}
 
 				switch (route.type) {
 					case "stats":

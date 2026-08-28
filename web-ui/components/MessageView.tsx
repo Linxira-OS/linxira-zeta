@@ -76,6 +76,12 @@ interface Props {
   showTimestamp?: boolean;
   prevTimestamp?: number;
   sessionId?: string;
+  /**
+   * Reasoning effort used for this turn. The transcript does not record it, so
+   * callers may only supply it where the value is actually known (the current
+   * session setting for the newest assistant message). Omitted → no chip.
+   */
+  effort?: string;
 }
 
 function formatTime(ts?: number): string | null {
@@ -116,12 +122,12 @@ function haveSameRelevantToolResults(
   return true;
 }
 
-export const MessageView = memo(function MessageView({ message, isStreaming, toolResults, modelNames, cwd, onOpenFile, entryId, onFork, forking, onNavigate, prevAssistantEntryId, onEditContent, showTimestamp, prevTimestamp, sessionId }: Props) {
+export const MessageView = memo(function MessageView({ message, isStreaming, toolResults, modelNames, cwd, onOpenFile, entryId, onFork, forking, onNavigate, prevAssistantEntryId, onEditContent, showTimestamp, prevTimestamp, sessionId, effort }: Props) {
   if (message.role === "user") {
     return <UserMessageView message={message as UserMessage} cwd={cwd} onOpenFile={onOpenFile} entryId={entryId} onFork={onFork} forking={forking} onNavigate={onNavigate} prevAssistantEntryId={prevAssistantEntryId} onEditContent={onEditContent} />;
   }
   if (message.role === "assistant") {
-    return <AssistantMessageView message={message as AssistantMessage} isStreaming={isStreaming} toolResults={toolResults} modelNames={modelNames} cwd={cwd} onOpenFile={onOpenFile} showTimestamp={showTimestamp} prevTimestamp={prevTimestamp} sessionId={sessionId} entryId={entryId} />;
+    return <AssistantMessageView message={message as AssistantMessage} isStreaming={isStreaming} toolResults={toolResults} modelNames={modelNames} cwd={cwd} onOpenFile={onOpenFile} showTimestamp={showTimestamp} prevTimestamp={prevTimestamp} sessionId={sessionId} entryId={entryId} effort={effort} />;
   }
   if (message.role === "toolResult") {
     // Rendered inline under its toolCall — skip standalone rendering if paired
@@ -152,7 +158,8 @@ export const MessageView = memo(function MessageView({ message, isStreaming, too
     && prev.onEditContent === next.onEditContent
     && prev.showTimestamp === next.showTimestamp
     && prev.prevTimestamp === next.prevTimestamp
-    && prev.sessionId === next.sessionId;
+    && prev.sessionId === next.sessionId
+    && prev.effort === next.effort;
 });
 
 function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, onNavigate, prevAssistantEntryId, onEditContent }: {
@@ -420,6 +427,7 @@ function AssistantMessageView({
   prevTimestamp,
   sessionId,
   entryId,
+  effort,
 }: {
   message: AssistantMessage;
   isStreaming?: boolean;
@@ -431,6 +439,7 @@ function AssistantMessageView({
   prevTimestamp?: number;
   sessionId?: string;
   entryId?: string;
+  effort?: string;
 }) {
   const { t } = useI18n();
   const time = showTimestamp ? formatTime(message.timestamp) : null;
@@ -482,6 +491,36 @@ function AssistantMessageView({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
+
+  };
+  // Distinct file paths touched by tool calls in this message (edit/write/read…).
+  const touchedFiles: string[] = (() => {
+    const found = new Set<string>();
+    for (const b of blocks) {
+      if (b.type !== "toolCall") continue;
+      const input = (b as ToolCallContent).input ?? {};
+      for (const [key, value] of Object.entries(input)) {
+        if (typeof value === "string" && /path|file|file_path|note_path/i.test(key) && /[\\/]/.test(value)) {
+          found.add(value);
+        }
+      }
+    }
+    return [...found];
+  })();
+
+  const openExternally = async (target: "explorer" | "editor") => {
+    const firstFile = touchedFiles[0];
+    const dir = firstFile ? firstFile.replace(/[\\/][^\\/]+$/, "") : cwd;
+    if (!dir) return;
+    try {
+      await fetch("/api/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target, path: dir }),
+      });
+    } catch {
+      // best-effort
+    }
   };
 
   useEffect(() => {
@@ -562,6 +601,22 @@ function AssistantMessageView({
       >
         {message.provider && (
           <span>{modelNames?.[`${message.provider}:${message.model}`] ?? modelNames?.[message.model] ?? message.model}</span>
+        )}
+        {/* Turn metadata. The transcript records neither effort nor duration:
+            effort comes from the session setting (only supplied where it is
+            actually known) and elapsed time is derived from the previous
+            message's timestamp, so it is an estimate. */}
+        {effort && !isStreaming && (
+          <span title={t("message.effort")} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <span aria-hidden>⚡</span>
+            {effort}
+          </span>
+        )}
+        {thinkingDurationFromFile !== undefined && !isStreaming && (
+          <span title={t("message.duration")} style={{ display: "flex", alignItems: "center", gap: 2, fontVariantNumeric: "tabular-nums" }}>
+            <span aria-hidden>⏱</span>
+            {formatDuration(thinkingDurationFromFile)}
+          </span>
         )}
         {isStreaming && (() => {
           let chars = 0;
@@ -644,11 +699,112 @@ function AssistantMessageView({
             {copied ? t("copied") : t("copy")}
           </button>
         )}
+        {touchedFiles.length > 0 && !isStreaming && (
+          <details style={{ position: "relative" }}>
+            <summary
+              title={t("message.touched-files")}
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "3px 8px", height: 22,
+                background: "none", border: "none",
+                borderRadius: 5,
+                color: "var(--text-dim)", cursor: "pointer",
+                fontSize: 11, fontWeight: 400,
+                whiteSpace: "nowrap",
+                opacity: hovered ? 1 : 0,
+                pointerEvents: hovered ? "auto" : "none",
+                transition: "opacity 0.12s",
+                listStyle: "none",
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+              </svg>
+              {touchedFiles.length} files
+            </summary>
+            <div
+              style={{
+                position: "absolute", bottom: "calc(100% + 4px)", left: 0,
+                minWidth: 260, maxWidth: 420, maxHeight: 240, overflowY: "auto",
+                background: "var(--bg-panel)", border: "1px solid var(--border)",
+                borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.14)",
+                padding: "4px 0", zIndex: 60,
+              }}
+            >
+              {touchedFiles.map((filePath) => (
+                <button
+                  key={filePath}
+                  onClick={() => onOpenFile?.(filePath)}
+                  style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    padding: "5px 10px", background: "none", border: "none",
+                    color: "var(--text-muted)", cursor: "pointer",
+                    fontSize: 11, fontFamily: "var(--font-mono)",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+                >
+                  {filePath}
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
+        {cwd && !isStreaming && (
+          <>
+            <IconAction
+              hovered={hovered}
+              label={t("message.open-in-explorer")}
+              onClick={() => void openExternally("explorer")}
+              icon={<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />}
+            />
+            <IconAction
+              hovered={hovered}
+              label={t("message.open-in-editor")}
+              onClick={() => void openExternally("editor")}
+              icon={<><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></>}
+            />
+          </>
+        )}
         {time && !isStreaming && (
           <span style={{ fontSize: 10, color: "var(--text-dim)", marginLeft: "auto" }}>{time}</span>
         )}
       </div>
     </div>
+  );
+}
+
+function IconAction({ hovered, label, onClick, icon }: {
+  hovered: boolean;
+  label: string;
+  onClick: () => void;
+  icon: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      style={{
+        display: "flex", alignItems: "center", gap: 4,
+        padding: "3px 8px", height: 22,
+        background: "none", border: "none",
+        borderRadius: 5,
+        color: "var(--text-dim)", cursor: "pointer",
+        fontSize: 11, fontWeight: 400,
+        whiteSpace: "nowrap",
+        opacity: hovered ? 1 : 0,
+        pointerEvents: hovered ? "auto" : "none",
+        transition: "opacity 0.12s, color 0.12s",
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-dim)"; }}
+    >
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {icon}
+      </svg>
+    </button>
   );
 }
 

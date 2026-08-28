@@ -21,8 +21,9 @@ import { listAllSessions as listRuntimeSessions } from "../../session/session-li
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
 import { serializeTitleSlot } from "../../session/session-title-slot";
+import * as git from "../../utils/git";
 import { getRpcSession } from "./agents";
-import { type ProjectInfo, resolveProject } from "./projects";
+import { invalidateProjectCache, type ProjectInfo, resolveProject } from "./projects";
 import { getRunningSessionIds, notifyBotSessionDeleted, removeRunningSession } from "./running-sessions";
 import type {
 	AgentMessage,
@@ -631,6 +632,8 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 			return json({ error: "Session not found" }, 404);
 		}
 
+		const sessionCwd = readSessionHeader(filePath)?.cwd;
+
 		// Default-space bot sessions are registry-managed: the relay transcript is
 		// undeletable, and deleting a bot/draft session must drop its registry
 		// entry + chat pointers so `!session` and the sidebar stay consistent.
@@ -684,6 +687,7 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 		fs.unlinkSync(filePath);
 		invalidateSessionPathCache(sessionId);
 		invalidateSessionListCache();
+		await maybeRemoveWorktreeAfterSessionDelete(sessionCwd);
 		return json({ ok: true });
 	} catch (error) {
 		logger.error("web-gateway: delete session failed", { sessionId, error: String(error) });
@@ -693,6 +697,32 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 
 function normalizeCwdForCompare(cwd: string): string {
 	return cwd.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+async function maybeRemoveWorktreeAfterSessionDelete(deletedCwd: string | undefined): Promise<void> {
+	if (!deletedCwd) return;
+	try {
+		const project = await resolveProject(deletedCwd);
+		if (!project.isWorktree) return;
+
+		const normalizedDeleted = normalizeCwdForCompare(deletedCwd);
+		const sessions = await listAllSessionsWeb();
+		for (const session of sessions) {
+			if (session.cwd && normalizeCwdForCompare(session.cwd) === normalizedDeleted) {
+				return;
+			}
+		}
+
+		const removed = await git.worktree.tryRemove(project.projectRoot, deletedCwd, { force: true });
+		if (!removed) {
+			logger.warn("web-gateway: git worktree remove failed (non-fatal)", { cwd: deletedCwd });
+			return;
+		}
+		await git.worktree.prune(project.projectRoot);
+		invalidateProjectCache();
+	} catch (error) {
+		logger.warn("web-gateway: worktree cleanup failed (non-fatal)", { cwd: deletedCwd, error: String(error) });
+	}
 }
 
 // ---------------------------------------------------------------------------

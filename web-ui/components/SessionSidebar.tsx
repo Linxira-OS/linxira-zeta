@@ -1,5 +1,9 @@
 "use client";
 
+// `node:`-prefixed specifiers are not resolvable in the client bundle — the
+// project's own helper covers POSIX and Windows paths without a Node import.
+import { getFileName } from "@/lib/file-paths";
+
 import {
   useEffect,
   useLayoutEffect,
@@ -422,7 +426,7 @@ export function SessionSidebar({
   );
   const wtDropdownRef = useRef<HTMLDivElement>(null);
   const wtNewInputRef = useRef<HTMLInputElement>(null);
-  const [explorerOpen, setExplorerOpen] = useState(true);
+  const [explorerOpen, setExplorerOpen] = useState(false);
   const [explorerKey, setExplorerKey] = useState(0);
   const [explorerUploadBusy, setExplorerUploadBusy] = useState(false);
   const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
@@ -735,6 +739,7 @@ export function SessionSidebar({
       const res = await fetch("/api/default-cwd", { method: "POST" });
       const data = (await res.json()) as { cwd?: string; error?: string };
       if (data.cwd) {
+        setDefaultSpacePath(data.cwd);
         setSelectedCwd(data.cwd);
         setCustomPathOpen(false);
         setCustomPathValue("");
@@ -898,6 +903,32 @@ export function SessionSidebar({
     selectedCwd &&
     selectedProject === worktreeState.projectRoot,
   );
+  const [clearWorkspaceBusy, setClearWorkspaceBusy] = useState(false);
+  // Path of the pinned Default Space (~/.zeta/workspace). Stays unknown until
+  // the user activates it — POST /api/default-cwd creates the directory.
+  const [defaultSpacePath, setDefaultSpacePath] = useState<string | null>(null);
+  // Wipe every session of the current workspace: enumerates the session list
+  // resolved for the selected project (including worktree paths), DELETEs
+  // each via the gateway (removes the .jsonl transcript and prunes an
+  // emptied git worktree), then reloads the list.
+  const handleClearWorkspaceSessions = useCallback(async () => {
+    if (!selectedCwd || filteredSessions.length === 0) return;
+    const count = filteredSessions.length;
+    const name = getFileName(selectedProject ?? selectedCwd);
+    if (!window.confirm(t("sidebar.clear-workspace-confirm").replace("{name}", name).replace("{count}", String(count)))) return;
+    setClearWorkspaceBusy(true);
+    try {
+      for (const session of filteredSessions) {
+        await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, { method: "DELETE" });
+      }
+      await loadSessions(true);
+      onSessionDeleted?.(filteredSessions[filteredSessions.length - 1].id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setClearWorkspaceBusy(false);
+    }
+  }, [selectedCwd, selectedProject, filteredSessions, loadSessions, onSessionDeleted]);
   const worktreeGuide =
     selectedCwd &&
     worktreeState &&
@@ -918,12 +949,24 @@ export function SessionSidebar({
   );
   const inactiveWorktreeSelector =
     worktreeGuide ??
+
     (worktreeLoading && !showWorktreeSwitcher
       ? {
           label: "Worktrees...",
           title: "Checking worktrees for this directory.",
         }
       : null);
+  // All known workspaces, current first — the sidebar lists every workspace
+  // with its own session group (reference-project layout).
+  const workspaceGroups = useMemo(() => {
+    const ordered = [...recentProjects].sort((a, b) =>
+      a === selectedProject ? -1 : b === selectedProject ? 1 : 0,
+    );
+    return ordered.map((project) => ({
+      project,
+      count: visibleSessions.filter((s) => (s.projectRoot ?? s.cwd) === project).length,
+    }));
+  }, [recentProjects, selectedProject, visibleSessions]);
 
   // Local session search (data is fully in memory — no backend round trip).
   const searchQuery = sessionSearch.trim().toLowerCase();
@@ -953,9 +996,9 @@ export function SessionSidebar({
     return "earlier";
   };
   const BUCKET_LABELS: Record<TimeBucket, string> = {
-    today: "Today",
-    yesterday: "Yesterday",
-    earlier: "Earlier",
+    today: t("sidebar.bucket.today"),
+    yesterday: t("sidebar.bucket.yesterday"),
+    earlier: t("sidebar.bucket.earlier"),
   };
   const bucketOrder: TimeBucket[] = ["today", "yesterday", "earlier"];
   const groupedTree = useMemo(() => {
@@ -967,6 +1010,87 @@ export function SessionSidebar({
     }
     return bucketOrder.map((b) => ({ bucket: b, nodes: byBucket[b] })).filter((g) => g.nodes.length > 0);
   }, [filteredSessions, searching]);
+
+  // Default Space is pinned as the first workspace group and always visible.
+  // Activating it POSTs /api/default-cwd first so the directory exists (and so
+  // the file-access allowlist includes it) before it becomes active; only then
+  // do we know its real path, which is why the count stays 0 until first use.
+  const defaultSpaceActive = defaultSpacePath !== null && selectedCwd === defaultSpacePath;
+  const defaultSpaceCount = defaultSpacePath === null
+    ? 0
+    : visibleSessions.filter((s) => (s.projectRoot ?? s.cwd) === defaultSpacePath).length;
+  const defaultSpaceNode = (
+    <div key="__default_space__">
+      <button
+        onClick={() => {
+          if (!defaultSpaceActive) void handleDefaultCwd();
+        }}
+        title={t("sidebar.default-workspace")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          width: "100%",
+          padding: "9px 14px 5px",
+          background: "none",
+          border: "none",
+          cursor: defaultSpaceActive ? "default" : "pointer",
+          textAlign: "left",
+        }}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={defaultSpaceActive ? "var(--accent)" : "var(--text-dim)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <path d="M3 9.5L12 3l9 6.5V21H3z" />
+        </svg>
+        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: defaultSpaceActive ? "var(--text)" : "var(--text-muted)" }}>
+          {t("sidebar.default-workspace")}
+        </span>
+        {defaultSpaceActive && defaultSpaceCount > 0 && (
+          <span style={{ fontSize: 10, color: "var(--text-dim)", flexShrink: 0 }}>
+            {defaultSpaceCount}
+          </span>
+        )}
+      </button>
+      {defaultSpaceActive && defaultSpaceCount === 0 && (
+        <div style={{ padding: "2px 14px 8px", fontSize: 11, color: "var(--text-dim)" }}>
+          {t("sidebar.no-sessions-in-workspace")}
+        </div>
+      )}
+      {defaultSpaceActive &&
+        groupedTree !== null &&
+        groupedTree.map((group) => (
+          <div key={group.bucket}>
+            <div
+              style={{
+                padding: "10px 14px 4px",
+                color: "var(--text-dim)",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              {BUCKET_LABELS[group.bucket]}
+            </div>
+            {group.nodes.map((node) => (
+              <SessionTreeItem
+                key={node.session.id}
+                node={node}
+                selectedSessionId={selectedSessionId}
+                runningSessionIds={runningSessionIds}
+                unreadSessionIds={unreadSessionIds}
+                onSelectSession={handleSelectSessionFromList}
+                onRenamed={loadSessions}
+                onSessionDeleted={(id) => {
+                  onSessionDeleted?.(id);
+                  loadSessions();
+                }}
+                depth={0}
+              />
+            ))}
+          </div>
+        ))}
+    </div>
+  );
 
   return (
     <div
@@ -1006,6 +1130,35 @@ export function SessionSidebar({
         >
           <ZetaWebTitle />
           <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => void handleClearWorkspaceSessions()}
+              disabled={!selectedCwd || clearWorkspaceBusy || filteredSessions.length === 0}
+              title={
+                filteredSessions.length > 0
+                  ? t("sidebar.clear-workspace-confirm").replace("{count}", String(filteredSessions.length))
+                  : t("sidebar.clear-workspace")
+              }
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "var(--bg-hover)",
+                border: "1px solid var(--border)",
+                color: "var(--text-muted)",
+                cursor: clearWorkspaceBusy ? "wait" : "pointer",
+                width: 32,
+                height: 32,
+                borderRadius: 7,
+                padding: 0,
+                flexShrink: 0,
+                opacity: clearWorkspaceBusy ? 0.6 : 1,
+                transition: "background 0.12s, color 0.12s, border-color 0.12s",
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
             <button
               onClick={handleNewSession}
               disabled={!selectedCwd}
@@ -1150,16 +1303,28 @@ export function SessionSidebar({
               transition: "border-color 0.15s, background 0.15s",
             }}
           >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
             {selectedCwd ? (
-              <PathLabel
-                text={displayCwd(selectedProject ?? selectedCwd, homeDir)}
-                style={{
-                  flex: 1,
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "var(--text)",
-                }}
-              />
+              <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--text)",
+                  }}
+                >
+                  {getFileName(selectedProject ?? selectedCwd)}
+                </span>
+                <PathLabel
+                  text={displayCwd(selectedProject ?? selectedCwd, homeDir)}
+                  style={{ fontSize: 10, color: "var(--text-muted)" }}
+                />
+              </span>
             ) : (
               <span
                 style={{
@@ -1167,7 +1332,6 @@ export function SessionSidebar({
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
-                  fontFamily: "var(--font-mono)",
                   fontSize: 11,
                   color: "var(--text-dim)",
                 }}
@@ -1177,6 +1341,9 @@ export function SessionSidebar({
                   : t("select-project")}
               </span>
             )}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: "var(--text-muted)" }}>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </button>
 
           <AnimatedDropdown
@@ -1225,67 +1392,83 @@ export function SessionSidebar({
                     boxSizing: "border-box",
                   }}
                 />
-              </div>
+            </div>
             )}
+            {/* Default workspace — always the first entry */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleDefaultCwd();
+                setDropdownOpen(false);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                width: "100%",
+                padding: "7px 10px",
+                background: "var(--bg)",
+                border: "none",
+                borderBottom: "1px solid var(--border)",
+                color: "var(--text)",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+              title={t("sidebar.default-workspace")}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M3 9.5L12 3l9 6.5V21H3z" />
+              </svg>
+              <span style={{ fontSize: 11.5, fontWeight: 600 }}>{t("sidebar.default-workspace")}</span>
+            </button>
             <div style={{ maxHeight: "min(50vh, 380px)", overflowY: "auto" }}>
-              {visibleProjects.map((project) => (
-                <button
-                  key={project}
-                  onClick={() => {
-                    setSelectedCwd(project);
-                    setProjectFilter("");
-                    setCustomPathOpen(false);
-                    setCustomPathValue("");
-                    setCustomPathError(null);
-                    setDropdownOpen(false);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 7,
-                    width: "100%",
-                    padding: "8px 10px",
-                    background: "var(--bg)",
-                    border: "none",
-                    borderBottom: "1px solid var(--border)",
-                    color:
-                      project === selectedProject
-                        ? "var(--text)"
-                        : "var(--text-muted)",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    fontSize: 11,
-                    fontFamily: "var(--font-mono)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                  title={project}
-                >
-                  {project === selectedProject && (
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 10 10"
-                      fill="none"
-                      stroke="var(--accent)"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ flexShrink: 0 }}
-                    >
-                      <polyline points="1.5 5 4 7.5 8.5 2.5" />
-                    </svg>
-                  )}
-                  {project !== selectedProject && (
-                    <span style={{ width: 10, flexShrink: 0 }} />
-                  )}
-                  <PathLabel
-                    text={displayCwd(project, homeDir)}
-                    style={{ flex: 1 }}
-                  />
-                </button>
-              ))}
+              {visibleProjects.map((project) => {
+                const active = project === selectedProject;
+                return (
+                  <button
+                    key={project}
+                    onClick={() => {
+                      setSelectedCwd(project);
+                      setProjectFilter("");
+                      setCustomPathOpen(false);
+                      setCustomPathValue("");
+                      setCustomPathError(null);
+                      setDropdownOpen(false);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 7,
+                      width: "100%",
+                      padding: "7px 10px",
+                      background: active ? "var(--bg-selected)" : "var(--bg)",
+                      border: "none",
+                      borderBottom: "1px solid var(--border)",
+                      color: active ? "var(--text)" : "var(--text-muted)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                    title={project}
+                  >
+                    <span style={{ width: 10, flexShrink: 0, display: "flex" }}>
+                      {active && (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="1.5 5 4 7.5 8.5 2.5" />
+                        </svg>
+                      )}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {getFileName(project)}
+                      </span>
+                      <PathLabel
+                        text={displayCwd(project, homeDir)}
+                        style={{ fontSize: 10, color: "var(--text-muted)" }}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
               {visibleProjects.length === 0 && projectFilter.trim() && (
                 <div
                   style={{
@@ -1299,123 +1482,88 @@ export function SessionSidebar({
               )}
             </div>
 
-            {/* Default cwd shortcut */}
-            {!customPathOpen && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDefaultCwd();
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  width: "100%",
-                  padding: "8px 10px",
-                  background: "none",
-                  border: "none",
-                  borderTop:
-                    visibleProjects.length > 0
-                      ? "1px solid var(--border)"
-                      : "none",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  fontSize: 11,
-                }}
-              >
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 10 10"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.1"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ flexShrink: 0 }}
-                >
-                  <path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" />
-                </svg>
-                <span>{t("use-default-directory")}</span>
-              </button>
-            )}
-
-            {/* IDE Folder Picker shortcut */}
-            {!customPathOpen && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDropdownOpen(false);
-                  setFolderPickerModalOpen(true);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  width: "100%",
-                  padding: "8px 10px",
-                  background: "none",
-                  border: "none",
-                  color: "var(--accent)",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  textAlign: "left",
-                  fontSize: 11,
-                }}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ flexShrink: 0 }}
-                >
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                <span>{t("browse-folder-ide-style")}</span>
-              </button>
-            )}
-
-            {/* Custom path directory picker */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCustomPathClick();
-              }}
+            {/* Workspace source actions — compact single row */}
+            <div
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: 7,
-                width: "100%",
-                padding: "8px 10px",
-                background: "none",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                textAlign: "left",
-                fontSize: 11,
+                borderTop: "1px solid var(--border)",
+                background: "var(--bg)",
               }}
             >
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.1"
-                strokeLinecap="round"
-                style={{ flexShrink: 0 }}
-              >
-                <line x1="5" y1="1" x2="5" y2="9" />
-                <line x1="1" y1="5" x2="9" y2="5" />
-              </svg>
-              <span>{t("custom-path")}</span>
-            </button>
+              {[
+                {
+                  key: "default",
+                  label: t("use-default-directory"),
+                  visible: !customPathOpen,
+                  color: "var(--text-muted)" as string,
+                  icon: (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" />
+                    </svg>
+                  ),
+                  onClick: (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    void handleDefaultCwd();
+                  },
+                },
+                {
+                  key: "browse",
+                  label: t("browse-folder-ide-style"),
+                  visible: !customPathOpen,
+                  color: "var(--accent)" as string,
+                  icon: (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                  ),
+                  onClick: (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    setDropdownOpen(false);
+                    setFolderPickerModalOpen(true);
+                  },
+                },
+                {
+                  key: "custom",
+                  label: t("custom-path"),
+                  visible: true,
+                  color: "var(--text-muted)" as string,
+                  icon: (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                      <line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" />
+                    </svg>
+                  ),
+                  onClick: (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    handleCustomPathClick();
+                  },
+                },
+              ]
+                .filter((action) => action.visible)
+                .map((action) => (
+                  <button
+                    key={action.key}
+                    onClick={action.onClick}
+                    title={action.label}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 5,
+                      padding: "7px 4px",
+                      background: "none",
+                      border: "none",
+                      color: action.color,
+                      cursor: "pointer",
+                      fontSize: 10.5,
+                      minWidth: 0,
+                    }}
+                  >
+                    {action.icon}
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{action.label}</span>
+                  </button>
+                ))}
+            </div>
           </AnimatedDropdown>
         </div>
 
@@ -2034,39 +2182,85 @@ export function SessionSidebar({
             No sessions match &ldquo;{sessionSearch.trim()}&rdquo;
           </div>
         )}
+        {/* Default Space — pinned as the first group, always visible */}
+        {!loading && !error && groupedTree !== null && defaultSpaceNode}
         {!loading && !error && groupedTree !== null
-          ? groupedTree.map((group) => (
-              <div key={group.bucket}>
-                <div
-                  style={{
-                    padding: "10px 14px 4px",
-                    color: "var(--text-dim)",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {BUCKET_LABELS[group.bucket]}
-                </div>
-                {group.nodes.map((node) => (
-                  <SessionTreeItem
-                    key={node.session.id}
-                    node={node}
-                    selectedSessionId={selectedSessionId}
-                    runningSessionIds={runningSessionIds}
-                    unreadSessionIds={unreadSessionIds}
-                    onSelectSession={handleSelectSessionFromList}
-                    onRenamed={loadSessions}
-                    onSessionDeleted={(id) => {
-                      onSessionDeleted?.(id);
-                      loadSessions();
+          ? workspaceGroups.map((pg) => {
+              const isCurrent = pg.project === selectedProject;
+              return (
+                <div key={pg.project}>
+                  {/* Workspace group header — click switches the active workspace */}
+                  <button
+                    onClick={() => {
+                      if (!isCurrent) {
+                        setSelectedCwd(pg.project);
+                        setDropdownOpen(false);
+                      }
                     }}
-                    depth={0}
-                  />
-                ))}
-              </div>
-            ))
+                    title={pg.project}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      width: "100%",
+                      padding: "9px 14px 5px",
+                      background: "none",
+                      border: "none",
+                      cursor: isCurrent ? "default" : "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={isCurrent ? "var(--accent)" : "var(--text-dim)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: isCurrent ? "var(--text)" : "var(--text-muted)" }}>
+                      {getFileName(pg.project)}
+                    </span>
+                    <span style={{ fontSize: 10, color: "var(--text-dim)", flexShrink: 0 }}>
+                      {pg.count > 0 ? pg.count : ""}
+                    </span>
+                  </button>
+                  {isCurrent && pg.count === 0 && (
+                    <div style={{ padding: "2px 14px 8px", fontSize: 11, color: "var(--text-dim)" }}>
+                      {t("sidebar.no-sessions-in-workspace")}
+                    </div>
+                  )}
+                  {isCurrent &&
+                    groupedTree.map((group) => (
+                      <div key={group.bucket}>
+                        <div
+                          style={{
+                            padding: "10px 14px 4px",
+                            color: "var(--text-dim)",
+                            fontSize: 10,
+                            fontWeight: 600,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {BUCKET_LABELS[group.bucket]}
+                        </div>
+                        {group.nodes.map((node) => (
+                          <SessionTreeItem
+                            key={node.session.id}
+                            node={node}
+                            selectedSessionId={selectedSessionId}
+                            runningSessionIds={runningSessionIds}
+                            unreadSessionIds={unreadSessionIds}
+                            onSelectSession={handleSelectSessionFromList}
+                            onRenamed={loadSessions}
+                            onSessionDeleted={(id) => {
+                              onSessionDeleted?.(id);
+                              loadSessions();
+                            }}
+                            depth={0}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                </div>
+              );
+            })
           : !loading &&
             !error &&
             searchTree.map((node) => (
