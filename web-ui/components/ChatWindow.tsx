@@ -730,6 +730,13 @@ export function ChatWindow({ session, newSessionCwd, explicitNew, onAgentEnd, on
               for (let i = messages.length - 1; i >= 0; i--) {
                 if (isGroupAnchor(messages[i])) { lastAnchorIdx = i; break; }
               }
+              // Effort is not recorded in the transcript, so it can only be
+              // shown for the newest assistant message — for older turns the
+              // session may have since switched to a different level.
+              let lastAssistantIdx = -1;
+              for (let i = messages.length - 1; i >= 0; i--) {
+                if (messages[i].role === "assistant") { lastAssistantIdx = i; break; }
+              }
 
               const visibleRefIndexByMessage = new Map<number, number>();
               let refIdx = 0;
@@ -784,6 +791,7 @@ export function ChatWindow({ session, newSessionCwd, explicitNew, onAgentEnd, on
                     showTimestamp={showTimestamp}
                     prevTimestamp={idx > 0 ? (messages[idx - 1] as AgentMessage & { timestamp?: number }).timestamp : undefined}
                     sessionId={session?.id ?? sessionIdRef.current ?? undefined}
+                    effort={msg.role === "assistant" && idx === lastAssistantIdx ? (thinkingLevel ?? undefined) : undefined}
                   />
                 );
                 if (!isVisible || options.attachRef === false || currentRefIdx === undefined) return view;

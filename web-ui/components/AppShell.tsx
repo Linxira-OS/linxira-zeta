@@ -6,6 +6,7 @@ import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { installRemoteTokenFetch } from "@/lib/remote-token";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
+import { PluginsManager } from "./PluginsManager";
 import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
 import { ModelsConfig } from "./ModelsConfig";
@@ -27,7 +28,15 @@ import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText }
 import { getInitialNavigation } from "@/lib/initial-navigation";
 import { SidePanel } from "./SidePanel";
 import { useSidebar } from "@/hooks/useSidebar";
-import { fetchDesktopInfo } from "@/lib/pi-desktop";
+import {
+  fetchDesktopInfo,
+  hasDesktopWindowControls,
+  isWindowMaximized,
+  subscribeWindowState,
+  minimizeWindow,
+  maximizeWindow,
+  closeWindow,
+} from "@/lib/pi-desktop";
 import type { SessionInfo, SessionTreeNode } from "@/lib/types";
 import type { ChatInputHandle } from "./ChatInput";
 import type { SessionStatsInfo } from "@/lib/pi-types";
@@ -125,6 +134,16 @@ function AppShellContent() {
   const [skillsConfigOpen, setSkillsConfigOpen] = useState(false);
   const [pluginsConfigOpen, setPluginsConfigOpen] = useState(false);
   const [settingsConfigOpen, setSettingsConfigOpen] = useState(false);
+  // Self-drawn titlebar. Only rendered inside the frameless desktop shell, and
+  // only detected after mount so SSR and the browser build paint identically.
+  const [desktopChrome, setDesktopChrome] = useState(false);
+  const [windowMaximized, setWindowMaximized] = useState(false);
+  useEffect(() => {
+    if (!hasDesktopWindowControls()) return;
+    setDesktopChrome(true);
+    void isWindowMaximized().then(setWindowMaximized);
+    return subscribeWindowState((state) => setWindowMaximized(state.maximized));
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   // On mobile the sidebar is an overlay drawer; hide it by default so the chat
@@ -276,8 +295,8 @@ function AppShellContent() {
   const handleModelChange = useCallback((model: { provider: string; modelId: string } | null, thinkingLevel: string) => {
     setModelInfo({ model, thinkingLevel });
   }, []);
-  const { visible: sidePanelVisible, hide: hideSidePanel } = useSidebar();
-  // The panel auto-hides below 1024px regardless of the stored preference.
+  const { visible: sessionPanelVisible } = useSidebar();
+  // The dock auto-hides below 1024px regardless of the stored preference.
   const [sidePanelNarrow, setSidePanelNarrow] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
@@ -287,10 +306,21 @@ function AppShellContent() {
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
-  const showSidePanel = sidePanelVisible && !sidePanelNarrow;
 
+  // Bridge the shared "session panel" visibility flag (SettingsPanel toggle,
+  // storage-persisted) into the dock's window selection. Edge-triggered so a
+  // mount with a stale persisted `true` does not force-open the dock.
+  const prevSessionPanelVisible = useRef(sessionPanelVisible);
+  useEffect(() => {
+    const was = prevSessionPanelVisible.current;
+    prevSessionPanelVisible.current = sessionPanelVisible;
+    if (sessionPanelVisible && !was) setDockTool("session");
+    else if (!sessionPanelVisible && was) setDockTool((cur) => (cur === "session" ? null : cur));
+  }, [sessionPanelVisible]);
   // Single active panel — only one dropdown open at a time
   const [activeTopPanel, setActiveTopPanel] = useState<"branches" | "system" | "session" | null>(null);
+  type DockTool = "session" | "files" | "tracking" | "plugins";
+  const [dockTool, setDockTool] = useState<DockTool | null>(null);
   const [topPanelPos, setTopPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const toggleTopPanel = useCallback((panel: "branches" | "system" | "session") => {
@@ -323,8 +353,6 @@ function AppShellContent() {
   // Right panel — file tabs or tracking panel
   const [fileTabs, setFileTabs] = useState<Tab[]>([]);
   const [activeFileTabId, setActiveFileTabId] = useState<string | null>(null);
-  const [rightPanelOpen, setRightPanelOpen] = useState(false);
-  const [rightPanelMode, setRightPanelMode] = useState<"files" | "tracking">("files");
 
   // Same @mention format as the chat input's @ autocomplete, so the agent's
   // read tool resolves it the same way (it strips the @ prefix).
@@ -530,7 +558,7 @@ function AppShellContent() {
       return prev.map((t) => t.id === tabId ? { ...t, sourceSessionId } : t);
     });
     setActiveFileTabId(tabId);
-    setRightPanelOpen(true);
+    setDockTool("files");
     // On mobile the file panel is full-screen; close the drawer so it shows.
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
@@ -542,7 +570,7 @@ function AppShellContent() {
   const handleCloseFileTab = useCallback((tabId: string) => {
     setFileTabs((prev) => {
       const next = prev.filter((t) => t.id !== tabId);
-      if (next.length === 0) setRightPanelOpen(false);
+      if (next.length === 0) setDockTool((cur) => (cur === "files" ? null : cur));
       return next;
     });
     setActiveFileTabId((cur) => {
@@ -631,8 +659,10 @@ function AppShellContent() {
           },
           {
             label: t("plugins"),
-            onClick: () => setPluginsConfigOpen(true),
-            disabled: !activeCwd && !selectedSession?.cwd && !newSessionCwd,
+            // Open the right tool dock's plugin window instead of the legacy
+            // modal; it degrades to a "select project" hint without a cwd.
+            onClick: () => setDockTool("plugins"),
+            disabled: false,
             icon: (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 7V2" />
@@ -643,7 +673,7 @@ function AppShellContent() {
             ),
           },
           {
-            label: "Settings",
+            label: t("settings"),
             onClick: () => setSettingsConfigOpen(true),
             disabled: false,
             icon: (
@@ -653,7 +683,7 @@ function AppShellContent() {
               </svg>
             ),
           },
-        ] as { label: string; onClick: () => void; disabled: boolean; icon: React.ReactNode }[]).map(({ label, onClick, disabled, icon }) => (
+        ] as { label: string; onClick: () => void; disabled: boolean; icon: ReactNode }[]).map(({ label, onClick, disabled, icon }) => (
           <button
             key={label}
             onClick={onClick}
@@ -748,7 +778,63 @@ function AppShellContent() {
         }
       }
     `}</style>
-    <div style={{ display: "flex", height: "100dvh", overflow: "hidden", background: "var(--bg)" }}>
+    {/* Self-drawn titlebar — frameless desktop shell only. Fixed so the
+        existing three-column row only needs a top inset to make room. */}
+    {desktopChrome && (
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 30,
+          zIndex: 400,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "var(--bg-panel)",
+          borderBottom: "1px solid var(--border)",
+          userSelect: "none",
+          WebkitAppRegion: "drag",
+        } as React.CSSProperties}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 7, paddingLeft: 11, fontSize: 11.5, fontWeight: 600, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+          Zeta
+        </div>
+        <div style={{ display: "flex", alignItems: "stretch", height: "100%" }}>
+          <TitlebarButton label={t("titlebar.minimize")} onClick={() => void minimizeWindow()}>
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </TitlebarButton>
+          <TitlebarButton
+            label={windowMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
+            onClick={() => void maximizeWindow()}
+          >
+            {windowMaximized ? (
+              <>
+                <rect x="5" y="7" width="10" height="10" rx="1.5" />
+                <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h8A1.5 1.5 0 0 1 20 5.5V13.5A1.5 1.5 0 0 1 18.5 15H17" />
+              </>
+            ) : (
+              <rect x="5.5" y="5.5" width="13" height="13" rx="1.5" />
+            )}
+          </TitlebarButton>
+          <TitlebarButton label={t("titlebar.close")} danger onClick={() => void closeWindow()}>
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </TitlebarButton>
+        </div>
+      </div>
+    )}
+    <div
+      style={{
+        display: "flex",
+        height: "100dvh",
+        overflow: "hidden",
+        background: "var(--bg)",
+        paddingTop: desktopChrome ? 30 : 0,
+        boxSizing: "border-box",
+      }}
+    >
       {/* Mobile overlay backdrop */}
       <div
         className={`sidebar-overlay-backdrop${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
@@ -1144,22 +1230,22 @@ function AppShellContent() {
               </button>
             );
           })()}
-          {/* Files panel toggle — replaces the old fixed float buttons */}
+          {/* Files window toggle — opens the dock on the files window */}
           <button
-            onClick={() => { setRightPanelMode("files"); setRightPanelOpen((v) => !v); }}
-            title={rightPanelOpen && rightPanelMode === "files" ? "Hide file panel" : "Show file panel"}
-            aria-label={rightPanelOpen && rightPanelMode === "files" ? "Hide file panel" : "Show file panel"}
-            aria-pressed={rightPanelOpen && rightPanelMode === "files"}
+            onClick={() => { setDockTool((cur) => (cur === "files" ? null : "files")); }}
+            title={dockTool === "files" ? t("dock.hide-files") : t("dock.show-files")}
+            aria-label={dockTool === "files" ? t("dock.hide-files") : t("dock.show-files")}
+            aria-pressed={dockTool === "files"}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 36, height: "100%", padding: 0,
               background: "none", border: "none",
-              color: rightPanelOpen && rightPanelMode === "files" ? "var(--accent)" : "var(--text-muted)",
+              color: dockTool === "files" ? "var(--accent)" : "var(--text-muted)",
               cursor: "pointer",
               transition: "color 0.12s, background 0.12s",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = rightPanelOpen && rightPanelMode === "files" ? "var(--accent)" : "var(--text-muted)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = dockTool === "files" ? "var(--accent)" : "var(--text-muted)"; }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
@@ -1172,7 +1258,9 @@ function AppShellContent() {
               top: topPanelPos.top,
               left: topPanelPos.left,
               width: topPanelPos.width,
-              maxHeight: `calc(100dvh - ${topPanelPos.top}px)`,
+              // Reserve the self-drawn titlebar height so the dropdown never
+              // runs past the bottom of the frameless window.
+              maxHeight: `calc(100dvh - ${topPanelPos.top + (desktopChrome ? 30 : 0)}px)`,
               overflowY: "auto",
               zIndex: 500,
             }}>
@@ -1457,9 +1545,73 @@ function AppShellContent() {
         </div>
       </div>
 
-      {/* Right panel: file viewer — always mounted, width animated via CSS */}
+
+      {/* Right tool dock — vertical window rail + active window (openchamber layout logic) */}
+      {/* Persistent tool rail — hugs the right edge, always visible */}
       <div
-        className={`right-panel-container${rightPanelOpen ? " right-panel-open" : " right-panel-closed"}`}
+        role="tablist"
+        aria-label={t("dock.rail-label")}
+        style={{
+          width: 40,
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 4,
+          padding: "6px 0",
+          background: "var(--bg-panel)",
+          borderLeft: "1px solid var(--border)",
+        }}
+      >
+          {([
+            { id: "session", label: t("dock.window.session"), icon: (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" /><line x1="12" y1="10" x2="12" y2="16" /><circle cx="12" cy="7.5" r="0.5" fill="currentColor" />
+              </svg>
+            ) },
+            { id: "files", label: t("dock.window.files"), icon: (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
+              </svg>
+            ) },
+            { id: "tracking", label: t("dock.window.tracking"), icon: (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+              </svg>
+            ) },
+            { id: "plugins", label: t("dock.window.plugins"), icon: (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 8l-9-6-9 6v8l9 6 9-6z" /><path d="M12 22V14" /><path d="M3.5 6.5L12 11l8.5-4.5" />
+              </svg>
+            ) },
+          ] as Array<{ id: DockTool; label: string; icon: ReactNode }>).map((entry) => {
+            const active = dockTool === entry.id;
+            return (
+              <button
+                key={entry.id}
+                onClick={() => setDockTool((cur) => (cur === entry.id ? null : entry.id))}
+                title={entry.label}
+                aria-label={entry.label}
+                aria-pressed={active}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 30, height: 30, padding: 0,
+                  background: active ? "var(--bg-selected)" : "transparent",
+                  border: "none", borderRadius: 7,
+                  color: active ? "var(--accent)" : "var(--text-muted)",
+                  cursor: "pointer", transition: "color 0.12s, background 0.12s",
+                }}
+              >
+                {entry.icon}
+              </button>
+            );
+          })}
+      </div>
+
+      {/* Dock window — animated open/close */}
+      <div
+        className={`right-panel-container${dockTool !== null ? " right-panel-open" : " right-panel-closed"}`}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -1467,112 +1619,90 @@ function AppShellContent() {
           background: "var(--bg)",
         }}
       >
-        {/* Right panel tab bar — mode tabs (Files / Tracking) + close */}
-        <div className="right-panel-tabbar" style={{ display: "flex", alignItems: "center", flexShrink: 0, background: "var(--bg-panel)", borderBottom: "1px solid var(--border)", height: 36, paddingLeft: 8, gap: 2 }}>
-          <button
-            onClick={() => { setRightPanelMode("files"); setRightPanelOpen(true); }}
-            title="Files"
-            aria-label="Files"
-            style={{
-              display: "flex", alignItems: "center", gap: 5,
-              height: 26, padding: "0 10px",
-              background: rightPanelMode === "files" ? "var(--bg-selected)" : "transparent",
-              border: "none", borderRadius: 6,
-              color: rightPanelMode === "files" ? "var(--text)" : "var(--text-muted)",
-              cursor: "pointer", fontSize: 12, fontWeight: 600,
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
-            </svg>
-            Files
-          </button>
-          <button
-            onClick={() => { setRightPanelMode("tracking"); setRightPanelOpen(true); }}
-            title="Tracking"
-            aria-label="Tracking"
-            style={{
-              display: "flex", alignItems: "center", gap: 5,
-              height: 26, padding: "0 10px",
-              background: rightPanelMode === "tracking" ? "var(--bg-selected)" : "transparent",
-              border: "none", borderRadius: 6,
-              color: rightPanelMode === "tracking" ? "var(--text)" : "var(--text-muted)",
-              cursor: "pointer", fontSize: 12, fontWeight: 600,
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-            项目追踪
-          </button>
-          <div style={{ flex: 1 }} />
-          {rightPanelMode === "files" ? (
-            <div style={{ flex: 1, overflow: "hidden", display: "flex", alignItems: "center", maxWidth: "50%" }}>
-              <TabBar
-                tabs={fileTabs}
-                activeTabId={activeFileTabId ?? ""}
-                onSelectTab={setActiveFileTabId}
-                onCloseTab={handleCloseFileTab}
-              />
-            </div>
-          ) : null}
-          <button
-            onClick={() => {
-              if (rightPanelMode === "tracking") setRightPanelMode("files");
-              if (fileTabs.length === 0 || rightPanelMode === "tracking") setRightPanelOpen(false);
-            }}
-            title="Close panel"
-            aria-label="Close panel"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: 26, height: 26, padding: 0, marginRight: 4,
-              background: "transparent", border: "none", borderRadius: 6,
-              color: "var(--text-muted)", cursor: "pointer",
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
+        {/* Active window */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: "var(--bg)", overflow: "hidden" }}>
+          {/* Window header */}
+          <div className="right-panel-tabbar" style={{ display: "flex", alignItems: "center", flexShrink: 0, background: "var(--bg-panel)", borderBottom: "1px solid var(--border)", height: 36, paddingLeft: 10, gap: 8 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, color: "var(--text)" }}>
+              {dockTool === "session" ? t("dock.window.session")
+                : dockTool === "files" ? t("dock.window.files")
+                : dockTool === "tracking" ? t("dock.window.tracking")
+                : t("dock.window.plugins")}
+            </span>
+            <div style={{ flex: 1 }} />
+            {dockTool === "files" && fileTabs.length > 0 && (
+              <div style={{ flex: 1, overflow: "hidden", display: "flex", alignItems: "center", maxWidth: "55%" }}>
+                <TabBar
+                  tabs={fileTabs}
+                  activeTabId={activeFileTabId ?? ""}
+                  onSelectTab={setActiveFileTabId}
+                  onCloseTab={handleCloseFileTab}
+                />
+              </div>
+            )}
+            <button
+              onClick={() => setDockTool(null)}
+              title={t("dock.close")}
+              aria-label={t("dock.close")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 26, height: 26, padding: 0, marginRight: 4,
+                background: "transparent", border: "none", borderRadius: 6,
+                color: "var(--text-muted)", cursor: "pointer",
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
 
-        {/* File content or Tracking panel */}
-        <div style={{ flex: 1, overflow: "hidden" }}>
-          {rightPanelMode === "tracking" ? (
-            <TrackingPanel cwd={activeCwd} />
-          ) : activeFileTab?.filePath ? (
-            <FileViewer
-              filePath={activeFileTab.filePath}
-              cwd={activeCwd ?? undefined}
-              sourceSessionId={activeFileTab.sourceSessionId}
-              gitRefreshKey={explorerRefreshKey}
-              onMentionLines={rightPanelOpen ? handleFileLineMention : undefined}
-              onOpenFile={(filePath) => handleOpenFile(
-                filePath,
-                getFileName(filePath),
-                activeFileTab.sourceSessionId,
-              )}
-            />
-          ) : (
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", fontSize: 12 }}>
-              No file open
-            </div>
-          )}
+          {/* Window body */}
+          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
+            {dockTool === "session" ? (
+              <SidePanel
+                stats={sessionStats}
+                contextUsage={contextUsage}
+                model={modelInfo.model}
+                thinkingLevel={modelInfo.thinkingLevel}
+                onClose={() => setDockTool(null)}
+              />
+            ) : dockTool === "tracking" ? (
+              <TrackingPanel cwd={activeCwd} />
+            ) : dockTool === "plugins" ? (
+              (activeCwd ?? selectedSession?.cwd) ? (
+                <PluginsManager
+                  cwd={(activeCwd ?? selectedSession?.cwd)!}
+                  sessionId={selectedSession?.id ?? null}
+                  onReloaded={() => setSessionKey((k) => k + 1)}
+                  onOpenAdvanced={() => setPluginsConfigOpen(true)}
+                />
+              ) : (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", fontSize: 12 }}>
+                  {t("dock.plugins-select-project")}
+                </div>
+              )
+            ) : activeFileTab?.filePath ? (
+              <FileViewer
+                filePath={activeFileTab.filePath}
+                cwd={activeCwd ?? undefined}
+                sourceSessionId={activeFileTab.sourceSessionId}
+                gitRefreshKey={explorerRefreshKey}
+                onMentionLines={handleFileLineMention}
+                onOpenFile={(filePath) => handleOpenFile(
+                  filePath,
+                  getFileName(filePath),
+                  activeFileTab.sourceSessionId,
+                )}
+              />
+            ) : (
+              <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", fontSize: 12 }}>
+                {t("dock.no-file")}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      {showSidePanel && showChat && (
-        <SidePanel
-          stats={sessionStats}
-          contextUsage={contextUsage}
-          model={modelInfo.model}
-          thinkingLevel={modelInfo.thinkingLevel}
-          onClose={hideSidePanel}
-        />
-      )}
     </div>
     {modelsConfigOpen && <ModelsConfig onClose={() => { setModelsConfigOpen(false); setModelsRefreshKey((k) => k + 1); }} />}
     {settingsConfigOpen && (
@@ -1596,4 +1726,51 @@ function AppShellContent() {
     )}
 		</>
 	);
+}
+
+/**
+ * One window-control button in the self-drawn titlebar. `no-drag` keeps the
+ * button clickable inside the titlebar's drag region, and the hover colours
+ * come from the shared theme tokens so the chrome follows the active theme.
+ */
+function TitlebarButton({
+  label,
+  onClick,
+  danger,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  children: ReactNode;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 44,
+        height: "100%",
+        padding: 0,
+        border: "none",
+        cursor: "pointer",
+        color: hovered ? (danger ? "#fff" : "var(--text)") : "var(--text-muted)",
+        background: hovered ? (danger ? "#e81123" : "var(--bg-hover)") : "transparent",
+        transition: "background 0.12s, color 0.12s",
+        WebkitAppRegion: "no-drag",
+      } as React.CSSProperties}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {children}
+      </svg>
+    </button>
+  );
 }

@@ -10,6 +10,13 @@ declare global {
 	interface Window {
 		piDesktop?: {
 			selectDirectory: (startPath?: string) => Promise<string | null>;
+			// Self-drawn titlebar (frameless window on every platform). Optional:
+			// an older desktop build — or a plain browser — simply has no shell.
+			minimize?: () => Promise<void>;
+			maximize?: () => Promise<void>;
+			close?: () => Promise<void>;
+			isMaximized?: () => Promise<boolean>;
+			onWindowState?: (callback: (state: { maximized: boolean }) => void) => () => void;
 		};
 	}
 }
@@ -25,6 +32,48 @@ export async function selectNativeDirectory(startPath?: string): Promise<string 
 		return await window.piDesktop?.selectDirectory(startPath) ?? null;
 	} catch {
 		return null;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Self-drawn titlebar — window controls for the frameless desktop shell.
+// Every helper degrades to a no-op outside the desktop shell (plain browser
+// tab, or a desktop build that predates these APIs).
+// ---------------------------------------------------------------------------
+
+export function hasDesktopWindowControls(): boolean {
+	return typeof window !== "undefined" && typeof window.piDesktop?.minimize === "function";
+}
+
+async function windowControl(method: "minimize" | "maximize" | "close"): Promise<void> {
+	if (!hasDesktopWindowControls()) return;
+	try {
+		await window.piDesktop?.[method]?.();
+	} catch {
+		// The window may already be gone; nothing useful to do.
+	}
+}
+
+export const minimizeWindow = (): Promise<void> => windowControl("minimize");
+export const maximizeWindow = (): Promise<void> => windowControl("maximize");
+export const closeWindow = (): Promise<void> => windowControl("close");
+
+export async function isWindowMaximized(): Promise<boolean> {
+	if (!hasDesktopWindowControls()) return false;
+	try {
+		return (await window.piDesktop?.isMaximized?.()) ?? false;
+	} catch {
+		return false;
+	}
+}
+
+/** Subscribe to maximize/restore changes. Returns an unsubscribe function. */
+export function subscribeWindowState(callback: (state: { maximized: boolean }) => void): () => void {
+	if (!hasDesktopWindowControls()) return () => {};
+	try {
+		return window.piDesktop?.onWindowState?.(callback) ?? (() => {});
+	} catch {
+		return () => {};
 	}
 }
 
