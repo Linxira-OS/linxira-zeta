@@ -296,6 +296,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "显示 token 用量",
 		description: "在助手消息上显示每轮 token 用量",
 	},
+	"display.showTurnTime": {
+		label: "显示轮次耗时",
+		description: "在助手消息的用量行上显示从提示到产出结束的总耗时（含工具调用）",
+	},
 	"display.cacheMissMarker": {
 		label: "缓存未命中标记",
 		description: "在请求丢失（未命中）提示词缓存的助手轮次上方显示分隔线",
