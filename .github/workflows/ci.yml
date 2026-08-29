@@ -312,12 +312,13 @@ jobs:
            with:
               bun-version: "1.3"
 
-         # PR path: build exactly the two targets the TS test jobs install.
-         - name: Build native addons (PR, linux x64 pair)
+         # PR path: build the linux pair the TS test jobs install plus the
+         # win32 addon the desktop_windows job installs from the artifact.
+         - name: Build native addons (PR, linux x64 pair + win32)
            if: github.event_name == 'pull_request'
            uses: ./.github/actions/bazel-natives
            with:
-              targets: linux-x64-baseline linux-x64-modern
+              targets: linux-x64-baseline linux-x64-modern win32-x64-baseline
 
          # ---- main path: addons for tests vs release ----
          # Every main push (release or not) bazel-builds the tested addon
