@@ -246,6 +246,35 @@ how to *use* the product (survives in the shipped binary) it belongs in
 mechanics, or internal plans (never shipped) it belongs in `document/`.
 `roadmap.md` lives in `document/` — do not recreate it under `docs/`.
 
+## Planning Discipline
+
+Agent sessions follow the product's own plan-mode doctrine
+(`packages/coding-agent/src/prompts/system/plan-mode-active.md`): a plan is an
+**execution spec, not a design doc**. Decision-completeness > brevity — a plan
+that leaves an implementer choice open has failed, no matter how long or short;
+padding sections (Non-Goals / Alternatives / Risks) are noise, not rigor.
+
+- **Decision-complete.** Every load-bearing choice (approach, exact target,
+  signature, path, fallback) is stated in the plan; a fresh implementer executes
+  top-to-bottom without re-deriving choices. Depth follows change: one-file fix
+  → a few bullets; cross-cutting work → ordered behavior steps. Multi-round
+  plans are amended in place (delete outdated sections), never re-derived from
+  memory — drift between rounds is the failure mode to prevent.
+- **Self-contained.** Never reference the planning conversation; state the
+  choice and reason inline. A different task gets a new plan file.
+- **Storage routing.** Plan artifacts are session-scoped product state: the
+  product writes them under its userdata root (`local://` resolves to the
+  session artifacts dir under `~/.zeta`), never into the repository working
+  tree. When Tracking is enabled for a project, the tracking layer mirrors the
+  durable plan into `<project>/.zeta/tracking/` (spec:
+  `document/web-ui-modernization.md` §5); the mirror is the only project-local
+  copy.
+- **Prune completed plans.** Once a plan's work has landed, its document is
+  deleted; durable outcomes are encoded in AGENTS.md registries and the
+  roadmap, not kept as historical plan files. `document/` stays lean: core
+  references (roadmap, sync ledger, porting guides, architecture internals) and
+  the one active spec per in-flight track.
+
 ## CI and Release
 
 - `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It
