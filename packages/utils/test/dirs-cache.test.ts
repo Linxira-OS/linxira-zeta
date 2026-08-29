@@ -62,16 +62,16 @@ describe("document conversion cache directory", () => {
 		);
 	});
 
-	it("routes getComposerCacheDir to $XDG_CACHE_HOME/omp/cache/composer", async () => {
+	it("routes getComposerCacheDir to $XDG_CACHE_HOME/zeta/cache/composer", async () => {
 		if (process.platform === "win32") return;
 
 		process.env.XDG_CACHE_HOME = path.join(tempRoot, "cache");
-		await fs.mkdir(path.join(process.env.XDG_CACHE_HOME, "omp"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_CACHE_HOME, "zeta"), { recursive: true });
 
 		const defaultAgentDir = path.join(os.homedir(), getConfigDirName(), "agent");
 		setAgentDir(defaultAgentDir);
 
-		expect(getComposerCacheDir()).toBe(path.join(process.env.XDG_CACHE_HOME, "omp", "cache", "composer"));
+		expect(getComposerCacheDir()).toBe(path.join(process.env.XDG_CACHE_HOME, "zeta", "cache", "composer"));
 	});
 
 	it("stays under a custom PI_CODING_AGENT_DIR", () => {
