@@ -1,10 +1,10 @@
+import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/hashline";
 import type { AgentOptions, AgentTelemetryConfig, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@linxiraos/pi-ai";
-import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
 import { logger } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
-import type { ImControlParams, ImControlResult } from "../channels/im-control";
+import type { EffectiveExtensionRoots } from "../capability/types";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
@@ -12,6 +12,7 @@ import { checkJuliaKernelAvailability } from "../eval/jl/kernel";
 import { checkPythonKernelAvailability } from "../eval/py/kernel";
 import { checkRubyKernelAvailability } from "../eval/rb/kernel";
 import type { ToolPathWithSource } from "../extensibility/custom-tools";
+import type { PreparedExtension } from "../extensibility/extensions/types";
 import type { Skill } from "../extensibility/skills";
 import type { GoalModeState, GoalRuntime } from "../goals";
 import { GoalTool } from "../goals/tools/goal-tool";
@@ -43,7 +44,6 @@ import { AstGrepTool } from "./ast-grep";
 import { BashTool } from "./bash";
 import { BrowserTool } from "./browser";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
-import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
 import { ComputerTool } from "./computer";
 import { DebugTool } from "./debug";
@@ -53,7 +53,6 @@ import { GithubTool } from "./gh";
 import { GlobTool } from "./glob";
 import { GrepTool } from "./grep";
 import { HubTool, isIrcEnabled } from "./hub";
-import { ImControlTool } from "./im-control";
 import { InspectImageTool } from "./inspect-image";
 import { LearnTool } from "./learn";
 import { ManageSkillTool } from "./manage-skill";
@@ -64,10 +63,9 @@ import { MemoryRetainTool } from "./memory-retain";
 import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
 import type { PlanProposalHandler } from "./resolve";
+import { SecurityScanTool } from "./security-scan";
 import { supportsExternalThinking, ThinkTool } from "./think";
 import { type TodoPhase, TodoTool } from "./todo";
-import { TrackingTool } from "./tracking";
-import { WorkspaceRunTool } from "./workspace-run";
 import { WriteTool } from "./write";
 import { isMountableUnderXdev, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
@@ -110,7 +108,6 @@ export * from "./review";
 export * from "./security-scan";
 export * from "./think";
 export * from "./todo";
-export * from "./tracking";
 export * from "./tts";
 export * from "./vibe";
 export * from "./write";
@@ -179,11 +176,6 @@ export interface ToolSession {
 	suppressSpawnAdvisory?: boolean;
 	/** Optional fetch implementation injected into the URL read pipeline (tests, proxies). Defaults to global fetch. */
 	fetch?: FetchImpl;
-	/** Channel send sink (web/desktop sessions only; undefined in CLI mode). */
-	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
-	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
-	/** Natural-language IM control sink (web/desktop sessions only). */
-	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 	/** Provider credential resolver forwarded unchanged to restricted child sessions. */
 	getApiKey?: AgentOptions["getApiKey"];
 	/** Skip subprocess-kernel availability checks and warmup */
@@ -207,8 +199,18 @@ export interface ToolSession {
 	 * (`<inline-N>`) are NOT included — those are session-local.
 	 */
 	extensionPaths?: string[];
+	/** Imported extension factories safe to rebind in child sessions. */
+	preparedExtensions?: PreparedExtension[];
 	/**
-	 * Pre-discovered custom-tool source paths from `.zeta/tools/`, `.claude/tools/`,
+	 * Session-local extension roots for post-startup sub-discovery: explicit SDK
+	 * roots, discovery mode, and configured `extensions:`. A provider (not a
+	 * stored value) so it is materialized live per discovery call — a runtime
+	 * override or settings reload is reflected, never a construction-time
+	 * snapshot. Keeps the task surface byte-identical to the scoped load.
+	 */
+	effectiveExtensionRoots?(): EffectiveExtensionRoots;
+	/**
+	 * Pre-discovered custom-tool source paths from `.omp/tools/`, `.claude/tools/`,
 	 * plugins, etc. Forwarded to subagents so they skip the FS scan but still
 	 * re-bind tools to their own session-scoped `CustomToolAPI`.
 	 */
@@ -228,6 +230,13 @@ export interface ToolSession {
 	hasEditTool?: boolean;
 	/** Event bus for tool/extension communication */
 	eventBus?: EventBus;
+	/**
+	 * Root-scoped bus for `task:subagent:*` observability frames. The root
+	 * session creates it; every spawned subagent session inherits it, so RPC
+	 * and HUD surfaces see spawns at any depth without crossing into another
+	 * root session's traffic.
+	 */
+	subagentEventBus?: EventBus;
 	/** Output schema for structured completion (subagents). */
 	outputSchema?: unknown;
 	/** Enforcement policy for {@link outputSchema}; defaults to legacy permissive behavior. */
@@ -282,6 +291,20 @@ export interface ToolSession {
 	toolRegistry?: Map<string, Tool>;
 	/** `xd://` presentation state backed by {@link toolRegistry}. */
 	xdev?: XdevState;
+	/**
+	 * Set when this session's `write` tool was granted only as the `xd://`
+	 * transport: `write xd://<tool>` dispatches mounted devices, but filesystem
+	 * writes are rejected. Granted by {@link createTools} to sessions whose
+	 * explicit tool list includes `read` but omits `write`, so xd:// mounting
+	 * can engage without expanding the write contract.
+	 */
+	deviceOnlyWrite?: boolean;
+	/**
+	 * Prompt-only preview used while a full-write activation rebuilds. It changes
+	 * the advertised schema without relaxing {@link deviceOnlyWrite}; execution
+	 * remains restricted until the activation commits.
+	 */
+	pendingFullWriteDescription?: boolean;
 	/** Agent registry for IRC routing across live sessions. */
 	agentRegistry?: AgentRegistry;
 	/** Idle→parked→revive lifecycle owner; lets the hub kill a non-job-backed agent registration. Default: AgentLifecycleManager.global(). */
@@ -313,14 +336,16 @@ export interface ToolSession {
 	/**
 	 * Async job manager scoped to this session.
 	 *
-	 * - Top-level session: its own manager (every top-level session
-	 *   constructs one, issue #1923).
+	 * - Top-level session that constructed one: its own manager.
 	 * - Subagent (`parentTaskPrefix` set): the parent's manager, so background
 	 *   bash/task work and `onJobComplete` deliveries flow into the conversation
 	 *   that spawned it.
+	 * - Secondary in-process top-level session that found a singleton already
+	 *   installed (issue #1923): `undefined`. Tools refuse async work rather
+	 *   than silently route completions into the owning session's `yieldQueue`.
 	 *
-	 * Tools MUST use this instead of a process-global handle so one session's
-	 * async work never routes into another session's `yieldQueue`.
+	 * Tools MUST use this instead of `AsyncJobManager.instance()` so a secondary
+	 * session never borrows the owning session's manager by accident.
 	 */
 	asyncJobManager?: AsyncJobManager;
 	/** MCP manager visible to subagents without relying on the process-global singleton. */
@@ -435,23 +460,8 @@ export type ToolFactory = (session: ToolSession) => Tool | null | Promise<Tool |
  * `BUILTIN_TOOLS[name](session)` to construct a tool directly.
  */
 export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
-	channel_send: session => {
-		if (!session.channelSend) return null; // CLI mode
-		return new ChannelSendTool(session);
-	},
-	workspace_run: session => {
-		if (!session.workspaceRun) return null; // CLI mode
-		return new WorkspaceRunTool(session);
-	},
-	im_control: session => {
-		if (!session.imControl) return null; // CLI mode
-		return new ImControlTool(session);
-	},
 	read: s => new ReadTool(s),
-	security_scan: async s => {
-		const { SecurityScanTool } = await import("./security-scan");
-		return new SecurityScanTool(s);
-	},
+	security_scan: s => new SecurityScanTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
@@ -479,7 +489,6 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reflect: MemoryReflectTool.createIf,
 	learn: LearnTool.createIf,
 	manage_skill: ManageSkillTool.createIf,
-	tracking_update: s => new TrackingTool(s),
 };
 
 export const HIDDEN_TOOLS: Record<HiddenToolName, ToolFactory> = {
@@ -499,9 +508,16 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	const enableLsp = session.enableLsp ?? true;
 	const requestedTools = restrictToolNames
 		? normalizeToolNames(toolNames ?? [])
-		: toolNames && toolNames.length > 0
+		: toolNames
 			? normalizeToolNames(toolNames)
 			: undefined;
+	// createTools may be called more than once for the same ToolSession. A later
+	// explicit (or full-set) write request is a real grant and must upgrade any
+	// device-only transport left by an earlier read-only call.
+	if (requestedTools === undefined || requestedTools.includes("write")) {
+		session.deviceOnlyWrite = undefined;
+		session.pendingFullWriteDescription = undefined;
+	}
 	const goalEnabled = session.settings.get("goal.enabled");
 	const goalModeActive = !restrictToolNames && goalEnabled && session.getGoalModeState?.()?.enabled === true;
 	const externalThinkingActive =
@@ -641,13 +657,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "debug") return session.settings.get("debug.enabled");
 		if (name === "todo")
 			return (!includeYield || session.prewalkArmed === true) && session.settings.get("todo.enabled");
-		if (name === "tracking_update") return session.settings.get("tracking.enabled");
-		if (name === "channel_send")
-			return session.channelSend !== undefined && session.settings.get("channels.enabled") !== false;
-		if (name === "workspace_run")
-			return session.workspaceRun !== undefined && session.settings.get("channels.enabled") !== false;
-		if (name === "im_control")
-			return session.imControl !== undefined && session.settings.get("channels.enabled") !== false;
 		if (name === "glob") return session.settings.get("glob.enabled");
 		if (name === "grep") return session.settings.get("grep.enabled");
 		if (name === "github") return session.settings.get("github.enabled");
@@ -727,15 +736,40 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	const builtInNames = new Set(tools.map(tool => tool.name));
 	for (const tool of tools) toolRegistry.set(tool.name, tool);
 
+	const xdevRequested = !restrictToolNames && session.settings.get("tools.xdev");
+	// xd:// mounting rides the write tool as its execution transport, so a
+	// session whose explicit tool list grants `read` but omits `write` would
+	// allocate no xd:// state and expose every later-registered MCP/extension
+	// tool top-level with its full schema on every request — the opposite of
+	// the intended restriction, and enough to overflow narrow provider context
+	// windows on MCP-heavy sessions. Grant a device-only `write` instead:
+	// `write xd://<tool>` dispatches mounted devices while filesystem writes
+	// stay rejected (enforced by WriteTool via `session.deviceOnlyWrite`). No
+	// capability is expanded: without mounting, those tools were already
+	// presented — and callable — top-level.
+	if (
+		xdevRequested &&
+		requestedTools !== undefined &&
+		!tools.some(tool => tool.name === "write") &&
+		tools.some(tool => tool.name === "read")
+	) {
+		session.deviceOnlyWrite = true;
+		const writeTool = await logger.time("createTools:write:xdev-transport", BUILTIN_TOOLS.write, session);
+		if (writeTool) {
+			const wrapped = wrapToolWithMetaNotice(writeTool);
+			tools.push(wrapped);
+			toolRegistry.set(wrapped.name, wrapped);
+			builtInNames.add(wrapped.name);
+		} else {
+			session.deviceOnlyWrite = undefined;
+		}
+	}
+
 	// Ordinary sessions use xd:// for discoverable built-ins, custom tools, and
 	// MCP tools. Structured children must expose only their host-provided names,
 	// so never allocate a registry that later SDK assembly could populate.
-	// The transport rides read/write, so a session granted no write tool never
-	// allocates xd:// state — its tools are exposed top-level directly instead
-	// of auto-granting a write transport the session was denied.
 	// Explicitly requested built-ins retain their top-level presentation.
-	const xdevEnabled =
-		!restrictToolNames && session.settings.get("tools.xdev") && tools.some(tool => tool.name === "write");
+	const xdevEnabled = xdevRequested && tools.some(tool => tool.name === "write");
 	const mountBuiltinTools = requestedTools === undefined;
 	if (xdevEnabled) {
 		const mountedNames = new Set<string>();
@@ -755,8 +789,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	}
 	// Staged previews from deferrable tools (e.g. ast_edit) resolve through a
 	// `write` to xd://resolve/reject, so retain write whenever one can stage.
-	// xd:// mounting itself never registers write: sessions without a granted
-	// write tool skip mounting entirely (see xdevEnabled above).
 	const xdevMounted = (session.xdev?.mountedNames.size ?? 0) > 0;
 	if (
 		!restrictToolNames &&

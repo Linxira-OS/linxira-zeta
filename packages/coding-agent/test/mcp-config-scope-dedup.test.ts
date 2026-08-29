@@ -14,10 +14,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { clearCache as clearFsCache } from "@linxiraos/pi-coding-agent/capability/fs";
+import { loadAllMCPConfigs } from "@linxiraos/pi-coding-agent/mcp/config";
 import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
-import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
-import { loadAllMCPConfigs } from "@linxiraos/zeta/mcp/config";
-import "@linxiraos/zeta/discovery/builtin";
+import "@linxiraos/pi-coding-agent/discovery";
 
 const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
@@ -44,7 +44,7 @@ describe("MCP scope filtering precedes connection-equivalence deduplication", ()
 		setAgentDir(userAgentDir);
 		clearFsCache();
 		// Same connection identity under two distinct names, one per scope.
-		await writeMcpJson(path.join(projectDir, ".zeta"), { projcontext: CONNECTION });
+		await writeMcpJson(path.join(projectDir, ".omp"), { projcontext: CONNECTION });
 		await writeMcpJson(userAgentDir, { usercontext: CONNECTION });
 	});
 
@@ -79,7 +79,7 @@ describe("MCP scope filtering precedes connection-equivalence deduplication", ()
 	test("keeps the enabled alias when an equivalent higher-priority server is disabled", async () => {
 		// Higher-priority project server disabled via `enabled: false`; a differently
 		// named but connection-equivalent user server stays enabled and must survive.
-		await writeMcpJson(path.join(projectDir, ".zeta"), { projcontext: { ...CONNECTION, enabled: false } });
+		await writeMcpJson(path.join(projectDir, ".omp"), { projcontext: { ...CONNECTION, enabled: false } });
 		const result = await loadAllMCPConfigs(projectDir, { enableProjectConfig: true, filterExa: false });
 		expect(Object.keys(result.configs)).toEqual(["usercontext"]);
 		expect(result.sources.usercontext?.level).toBe("user");
@@ -90,7 +90,7 @@ describe("MCP scope filtering precedes connection-equivalence deduplication", ()
 		// key even while disabled, so the enabled user entry must NOT survive
 		// and connect. An equivalent user server under a DIFFERENT name is not
 		// starved by the disabled owner and still survives.
-		await writeMcpJson(path.join(projectDir, ".zeta"), { shared: { ...CONNECTION, enabled: false } });
+		await writeMcpJson(path.join(projectDir, ".omp"), { shared: { ...CONNECTION, enabled: false } });
 		await writeMcpJson(userAgentDir, { shared: CONNECTION, usercontext: CONNECTION });
 		const result = await loadAllMCPConfigs(projectDir, { enableProjectConfig: true, filterExa: false });
 		expect(Object.keys(result.configs)).toEqual(["usercontext"]);
@@ -100,10 +100,31 @@ describe("MCP scope filtering precedes connection-equivalence deduplication", ()
 	test("same-named user server survives when project config is scope-disabled", async () => {
 		// Scope exclusion removes the project entry entirely — unlike a disabled
 		// entry, it must not claim the key and shadow the user server.
-		await writeMcpJson(path.join(projectDir, ".zeta"), { shared: { ...CONNECTION, enabled: false } });
+		await writeMcpJson(path.join(projectDir, ".omp"), { shared: { ...CONNECTION, enabled: false } });
 		await writeMcpJson(userAgentDir, { shared: CONNECTION });
 		const result = await loadAllMCPConfigs(projectDir, { enableProjectConfig: false, filterExa: false });
 		expect(Object.keys(result.configs)).toEqual(["shared"]);
 		expect(result.sources.shared?.level).toBe("user");
+	});
+
+	test("effective extension roots survive scopeless MCP rediscovery", async () => {
+		const extensionDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-extension-"));
+		try {
+			await fs.writeFile(
+				path.join(extensionDir, ".mcp.json"),
+				JSON.stringify({ mcpServers: { extensionserver: { command: "extension-mcp" } } }),
+			);
+
+			const withEffectiveRoots = await loadAllMCPConfigs(projectDir, {
+				filterExa: false,
+				extensionRoots: { explicit: [extensionDir], mode: "merge", configured: [], configuredLevel: "user" },
+			});
+			expect(withEffectiveRoots.configs.extensionserver).toMatchObject({ command: "extension-mcp" });
+
+			const diskOnly = await loadAllMCPConfigs(projectDir, { filterExa: false });
+			expect(diskOnly.configs.extensionserver).toBeUndefined();
+		} finally {
+			await removeWithRetries(extensionDir);
+		}
 	});
 });

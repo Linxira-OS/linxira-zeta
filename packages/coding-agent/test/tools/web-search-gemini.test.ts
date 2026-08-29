@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
-import { GeminiProvider, searchGemini } from "@linxiraos/zeta/web/search/providers/gemini";
+import { serializeCloudflareAiGatewayCredential } from "@linxiraos/pi-catalog/wire/cloudflare-ai-gateway";
+import { GeminiProvider, searchGemini } from "@linxiraos/pi-coding-agent/web/search/providers/gemini";
 
 const SSE_RESPONSE =
 	'data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"Gemini answer"}]}}],"modelVersion":"gemini-2.5-flash"}}\n\n';
@@ -130,7 +131,9 @@ describe("searchGemini tools serialization", () => {
 				return provider === "cloudflare-ai-gateway";
 			},
 			async getApiKey(provider: string) {
-				return provider === "cloudflare-ai-gateway" ? "test-cloudflare-key" : undefined;
+				return provider === "cloudflare-ai-gateway"
+					? serializeCloudflareAiGatewayCredential("test-cloudflare-key", "account", "gateway")
+					: undefined;
 			},
 		} as unknown as AuthStorage;
 		const fetchMock = mockGeminiFetch(DEVELOPER_SSE_RESPONSE);

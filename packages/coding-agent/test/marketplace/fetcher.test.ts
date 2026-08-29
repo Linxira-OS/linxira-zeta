@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import {
 	classifySource,
 	fetchMarketplace,
 	parseMarketplaceCatalog,
-} from "@linxiraos/zeta/extensibility/plugins/marketplace";
-import * as git from "@linxiraos/zeta/utils/git";
+} from "@linxiraos/pi-coding-agent/extensibility/plugins/marketplace";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // Fixture lives at test/marketplace/fixtures/valid-marketplace/
 const FIXTURE_DIR = path.join(import.meta.dir, "fixtures", "valid-marketplace");
@@ -233,7 +233,7 @@ describe("fetchMarketplace", () => {
 	});
 
 	it("hides temp clone paths in cloned catalog validation errors", async () => {
-		const cloneSpy = spyOn(git, "clone").mockImplementation(async (_url, targetDir) => {
+		const cloneSpy = spyOn(vcs, "clone").mockImplementation(async (_url, targetDir) => {
 			fs.mkdirSync(path.join(targetDir, ".claude-plugin"), { recursive: true });
 			fs.writeFileSync(
 				path.join(targetDir, ".claude-plugin", "marketplace.json"),

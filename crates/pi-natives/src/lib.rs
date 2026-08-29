@@ -1,8 +1,8 @@
-//! Native utilities exported via N-API for the Zeta toolchain.
+//! Native utilities exported via N-API for the Oh My Pi toolchain.
 //!
 //! # Overview
 //! High-performance primitives for clipboard access, grep, file discovery,
-//! ANSI-aware text measurement, syntax highlighting, HTML-to-Markdown
+//! ANSI-aware text measurement, syntax highlighting, HTML/PDF-to-Markdown
 //! conversion, and terminal SIXEL encoding.
 //!
 //! # Example
@@ -15,7 +15,6 @@
 //!
 //! # Architecture
 //! ```text
-//! JS (packages/natives) -> N-API -> Rust modules (clipboard/fd/glob/grep/html/pdf/highlight/sixel/svg/text)
 //! JS (packages/natives) -> N-API -> Rust modules (clipboard/fd/glob/grep/html/pdf/highlight/sixel/svg/text)
 //! ```
 
@@ -50,6 +49,7 @@ pub mod snapcompact;
 pub mod spelling;
 pub mod svg;
 pub mod utok;
+pub mod vcs;
 pub use pi_ast::language;
 
 pub mod power;
@@ -263,14 +263,14 @@ fn create_windows_napi_tokio_runtime() -> Option<tokio::runtime::Runtime> {
 /// MUST stay in sync with `VERSION_SENTINEL_EXPORT` in
 /// `packages/natives/native/index.js` (which derives the name from
 /// `package.json#version`).
-#[napi(js_name = "__piNativesV1_1_5")]
+#[napi(js_name = "__piNativesV18_0_9")]
 pub const fn pi_natives_version_sentinel() {}
 
 /// Native module entry point: install crash diagnostics before any tool can
 /// invoke a panicking or allocating native call. This runs during `.node`
 /// load, while the dynamic-loader lock is held, so it MUST NOT spawn threads —
 /// the Tokio runtime is installed afterwards on Windows by
-/// [`zeta_install_tokio_runtime`], which the JS loader calls once `dlopen` has
+/// [`omp_install_tokio_runtime`], which the JS loader calls once `dlopen` has
 /// returned.
 ///
 /// On Windows, the custom Tokio runtime is host-sized to prevent aborts under
@@ -283,7 +283,7 @@ fn install_native_crash_handler() {
 	crash_handler::install();
 }
 
-/// Guards [`zeta_install_tokio_runtime`] so the runtime is built at most once
+/// Guards [`omp_install_tokio_runtime`] so the runtime is built at most once
 /// per process even if the loader invokes it more than once.
 #[cfg(target_os = "windows")]
 static TOKIO_RUNTIME_INSTALLED: AtomicBool = AtomicBool::new(false);
@@ -311,9 +311,9 @@ static TOKIO_RUNTIME_INSTALLED: AtomicBool = AtomicBool::new(false);
 /// spawnable, patched Rayon callsites stay sequential rather than registering a
 /// current-thread-only global pool that cannot steal work from later native
 /// calls. Idempotent.
-#[napi(js_name = "__zetaInstallTokioRuntime")]
+#[napi(js_name = "__ompInstallTokioRuntime")]
 #[allow(clippy::missing_const_for_fn, reason = "napi macro is incompatible with const fn")]
-pub fn zeta_install_tokio_runtime() {
+pub fn omp_install_tokio_runtime() {
 	#[cfg(target_os = "windows")]
 	if TOKIO_RUNTIME_INSTALLED.swap(true, Ordering::SeqCst) {
 		return;

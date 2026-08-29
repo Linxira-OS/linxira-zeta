@@ -9,7 +9,9 @@
 
 import { existsSync, realpathSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { runGitText } from "../../utils/git";
+// Upstream v18.0.9 deleted src/utils/git.ts — git discovery now lives in the
+// pi-vcs native addon (crates/pi-vcs, exposed through pi-natives/vcs).
+import { git, gitInfo } from "@linxiraos/pi-natives/vcs";
 
 export interface ProjectInfo {
 	projectRoot: string;
@@ -54,16 +56,15 @@ export async function resolveProject(cwd: string): Promise<ProjectInfo> {
 			projectCache.set(cwd, { info, expiresAt: Date.now() + PROJECT_CACHE_TTL_MS });
 			return info;
 		}
-		const out = await runGitText(cwd, [
-			"rev-parse",
-			"--path-format=absolute",
-			"--git-common-dir",
-			"--git-dir",
-			"--show-toplevel",
-			"--abbrev-ref",
-			"HEAD",
-		]);
-		const [commonDir, gitDir, toplevel, ref] = out.split("\n").map(line => line.trim());
+		// Replaces `git rev-parse --path-format=absolute --git-common-dir
+		// --git-dir --show-toplevel --abbrev-ref HEAD` from the deleted
+		// src/utils/git.ts. `gitInfo` reads the same metadata without spawning
+		// git; `headSync().branch` is undefined on a detached HEAD.
+		const discovered = gitInfo(cwd);
+		const commonDir = discovered?.commonDir;
+		const gitDir = discovered?.gitDir;
+		const toplevel = discovered?.repoRoot;
+		const ref = git(cwd)?.headSync()?.branch ?? null;
 		// git prints resolved (symlink-free) paths; normalize cwd the same way
 		let realCwd = cwd;
 		try {

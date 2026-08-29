@@ -5,21 +5,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, expectTypeOf, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { Type } from "@linxiraos/omptype/typebox";
 import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { Type } from "@linxiraos/pi-omptype/typebox";
-import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { ExtensionRuntime, loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { ExtensionRuntime, loadExtensions } from "@linxiraos/pi-coding-agent/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	SESSION_SHUTDOWN_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
 	testSetSessionShutdownHandlerTimeoutMs,
-} from "@linxiraos/zeta/extensibility/extensions/runner";
+} from "@linxiraos/pi-coding-agent/extensibility/extensions/runner";
 import type {
 	Extension,
 	ExtensionError,
@@ -27,10 +26,12 @@ import type {
 	ExtensionUIContext,
 	InputEvent,
 	InputEventResult,
-} from "@linxiraos/zeta/extensibility/extensions/types";
-import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+	ProviderModelConfig,
+} from "@linxiraos/pi-coding-agent/extensibility/extensions/types";
+import { ExtensionToolWrapper } from "@linxiraos/pi-coding-agent/extensibility/extensions/wrapper";
+import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
+import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
 
 describe("ExtensionRunner", () => {
 	let tempDir: TempDir;
@@ -2054,6 +2055,12 @@ describe("ExtensionRunner", () => {
 		});
 	});
 
+	describe("provider model API", () => {
+		it("accepts a per-model WebSocket preference", () => {
+			expectTypeOf<ProviderModelConfig["preferWebsockets"]>().toEqualTypeOf<boolean | undefined>();
+		});
+	});
+
 	describe("service tier API", () => {
 		it("restricts tiers to values supported by each provider family", () => {
 			expectTypeOf<"scale">().toExtend<ExtensionServiceTier<"openai">>();
@@ -2915,7 +2922,7 @@ describe("ExtensionRunner", () => {
 			// resolves against the revised args and blocks — the tool never runs.
 			await expect(
 				wrapped.execute("tool-call-id", { command: "echo original" }, undefined, undefined, yoloContext),
-			).rejects.toThrow(/blocked by user policy/);
+			).rejects.toThrow('Tool "bash" is blocked by tool policy.\nReason: dangerous');
 			expect(fs.existsSync(recordPath)).toBe(false); // tool never executed
 		});
 

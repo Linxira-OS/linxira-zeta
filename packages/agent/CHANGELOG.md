@@ -7,6 +7,19 @@
 - 同步上游 OMP v18.0.5 / v18.0.6（内部运行时与构建改进）。
 
 ## [1.1.3] - 2026-08-25
+## [18.0.9] - 2026-08-28
+
+### Fixed
+
+- Fixed `/shake elide` handling of mixed tool results so images are preserved and token savings are reported accurately.
+
+## [18.0.7] - 2026-08-26
+
+### Fixed
+
+- Fixed Codex remote compaction to preserve images returned by image-reading tools, preventing them from being replayed as incorrect synthetic user messages.
+
+## [18.0.5] - 2026-08-25
 
 ### Fixed
 
