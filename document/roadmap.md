@@ -329,6 +329,22 @@ trio; CLI sessions never do), and gate sink wiring on the channels runtime
 actually being started so a channel-less `zeta serve` never advertises tools
 that fail at call time.
 
+### P1 — pi-vcs restage race: apply-to-index silently no-ops for new files
+
+`GitRepo::stage_hunks` with `HunkSpec::All` on a newly created (untracked)
+file intermittently stages nothing: `apply_patch(cached)` resolves `Ok` but
+the index is unchanged, so a split-commit restage can silently drop a file.
+Reproduced locally at ~40% per run (7/15) with both dev and release addon
+builds on identical source, and 3/3 on CI runners — an upstream-inherited
+nondeterminism present in v18.0.9 and v18.0.10 alike (v18.0.10's only
+pi-vcs change is the `merge_base` addition). Suspect: gix index
+FileSnapshot staleness across separately-opened handles (mtime/size cache
+key) between the staging write and the subsequent cached read. The
+upstream regression test (`issue-966-repro.test.ts`) is quarantined
+`it.skip` until this is fixed — it gates nothing reliably at a 40% trip
+rate. Fix direction: force an index reload (or share one handle) across
+write-then-read restage sequences, then un-skip the test as the guard.
+
 ### P1 — Surface-scoped tool exposure contract
 
 The channel-trio pattern is the canonical mechanism for surface-targeted
