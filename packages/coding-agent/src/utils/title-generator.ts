@@ -28,6 +28,8 @@ import { tinyTitleClient } from "../tiny/title-client";
 const TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
 const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 
+// Plain Greek glyph, not the nerd-font icon.omp PUA glyph: window/tab titles render in the
+// OS UI font, which has no nerd-font PUA coverage.
 const DEFAULT_TERMINAL_TITLE = "ζ";
 const TERMINAL_TITLE_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 /**

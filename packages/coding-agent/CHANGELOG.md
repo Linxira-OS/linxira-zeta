@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
-- 同步上游 OMP v18.0.9（`cc14e04f075d`）。
+- 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
+- 新增 Sharpshooter 记忆后端（`/memory queue`、`/memory sync`）与 `/restart` 原地重启并恢复当前会话。
+- 新增 `band` composer 状态带（默认启用，原 `composer.shape` 设置保持兼容）与失败工具调用原地重试（F5 / Alt+R / `/retry`）。
+- 工作状态显示升级：计时盲文 spinner、流式意图、会话强调色；`/review` PR 式对比改用 merge base；提示历史提交即持久化、退出时 checkpoint 会话数据库。
+- 修复 Windows 上 Python 评估导入 `numpy` 等原生扩展无限挂起、编辑工具 `－` 前缀 MATCH 行解析、macOS 快速输入下划线残留、`xd://` MCP 失败信息缺失上下文、ACP `read` 工具位置解析等问题。
 
 ### Fixed
 

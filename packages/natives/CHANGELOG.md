@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- 同步上游 OMP v18.0.9（`cc14e04f075d`）。
+- 同步上游 OMP v18.0.10（`33cc6b9a043a`）：新增原生进程替换（支持 CLI `/restart`）与 `VcsGitRepo.mergeBase(a, b)`。
 ## [1.1.5] - 2026-08-26
 
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 rasterizeSvg，SHA-2/SHA-3 ARM64 加速。
