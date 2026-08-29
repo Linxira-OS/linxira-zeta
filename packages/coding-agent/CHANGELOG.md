@@ -6,6 +6,7 @@
 
 ### Fixed
 
+- 修复扩展发现读不到项目级配置：原生扩展根解析把项目配置目录写死为 `.omp`，`<project>/.zeta/` 下的 `config.yml`/`settings.json` 扩展注册失效。
 - 修复 v18.0.9 合并后 web/desktop 外部客户端不可用：恢复 AgentSession 会话层 mode API（plan/goal/vibe 进入退出、状态版本、plan 文件读取、IRC 自动回复），CLI 不受影响。
 - 修复 IM 频道工具（`channel_send`/`workspace_run`/`im_control`/`tracking_update`）在合并后从工具表消失的问题。
 
