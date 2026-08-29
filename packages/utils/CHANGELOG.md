@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
+
+### Added
+
+- tracking 目录路径 helpers：`getProjectTrackingDir`（`<project>/.zeta/tracking`）与 `getTrackingIndexPath`（`~/.zeta/agent/tracking-index.json`）。
+
 ## [1.1.5] - 2026-08-26
 
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 browsers / json 工具，SHA-2/SHA-3 在 ARM64 上加速。

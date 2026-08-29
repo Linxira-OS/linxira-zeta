@@ -114,6 +114,24 @@ reverted the ζ CLI brand, which this registry exists to prevent.
 | 安装提示 URL | `https://omp.sh/install` | 共享基础设施，勿改 |
 | 产品前门（README/logo/名称/主页/安装文档） | Zeta 产品面 | 完整合并后单独 branding-overlay commit |
 
+## Post-Merge Release-Surface Checklist (merge damage classes)
+
+每次 OMP release 合并都反复砸坏同一批 release surface：merge 本身"成功"，
+`main` 却已不可构建。推送 sync 分支前必须逐类检查（v18.0.9 全部命中）。
+
+| # | 损伤类别 | 症状 / 规律 | 修复规则 |
+|---|---|---|---|
+| 1 | root `workspaces.catalog` 的 `@linxiraos/*` 键被覆盖：版本号被写成上游 OMP 版本（v18.0.9 把 8 个键写成 `18.0.9`），甚至键名被合并改回陈旧旧版名（`@linxiraos/hashline`/`omp-stats`/`pi-coding-agent`/`snapcompact`） | CI 每个 job 都死在 `Run ./.github/actions/bun-install`：`error: No version matching "18.0.9" found for specifier "@linxiraos/pi-natives" (but package exists)` —— 这是版本线损伤的指纹，不是测试失败 | 全部 14 个键必须是当前 Zeta 统一键名 + 当前 Zeta 版本线；跑 `bun scripts/check-version-consistency.ts` 验证 |
+| 2 | Cargo workspace 版本 + natives 哨兵被合并拉回 OMP 线（`Cargo.toml` workspace version、`crates/pi-natives/src/lib.rs` 的 `__piNativesVX_Y_Z`、committed bindings `packages/natives/native/index.{js,d.ts}`） | `check-version-consistency.ts` 报 `expected 1.1.5` / `missing __piNativesV1_1_5` | 跑 `bun scripts/set-version.ts <当前 Zeta 版本>` 整线对齐，再 `bun install` 刷新 lockfile |
+| 3 | OMP 包名经 scope 改写泄漏：上游自己的包名（`omptype` 等）被机械改写成 `@linxiraos/<omp-name>`，而 Zeta 发布名是 `@linxiraos/pi-omptype` | `bun check:ts` 报 `Cannot find module '@linxiraos/omptype'`；npm registry 无此包 | 全库 grep：每个 `@linxiraos/<name>` import 必须能在 `workspaces.catalog` / npm 找到；合并时对上游包名做映射改写，不是 scope 替换 |
+| 4 | 冲突解决时静默丢弃 Zeta-only 代码。已知清单：AgentSession 会话层 mode API（`ModeId`/`getModeState`/`enterMode`/`exitMode`/`enterPlanMode`/`exitPlanMode`/`enterGoalMode`/`exitGoalMode`/`enterVibeMode`/`exitVibeMode`/`getStateVersion`/`bumpStateVersion`/`getPlanFileContent`/`resetModeTransientState`/`flushPendingModelSwitch`/`restorePlanPreviousModel` + `#stateVersion`/快照字段 + `state_version_changed` 事件）；`sdk.ts` 的 `channelSend`/`workspaceRun`/`imControl` sinks；IRC auto-reply（`setIrcAutoReplyListener` + `IrcBridgeHost.onAutoReply` 接线）；`utils/dirs.ts` tracking 路径 helpers | Zeta mode API 刻意存在于两层：`InteractiveMode`（CLI）**和** `AgentSession`（web-gateway/ACP 外部客户端，headless 无 InteractiveMode）。会话层丢失只让 `web-gateway/agents.ts`/`zeta-server.ts` 编译失败，测试跑不到那里——所以 `bun run check:ts` 是探测器 | 逐项恢复（上游无这些 API，恢复源是合并前 Zeta 基线），恢复后 `bun run check:ts` 必须零错误 |
+| 5 | 本地预编译 natives `.node`（不入库）落后于合并后的 bindings：合并新增 natives 函数（如 `vcsGitDiscover`）后，本地旧二进制缺符号 | 本地测试报 `api().vcsGitDiscover is not a function`（status-line/mode 测试成批失败）；CI bazel 现场构建，无此问题——纯本地噪声 | 本地重建：`packages/natives` 里 `bun run build`（Windows 需 VS Build Tools 开发者 shell；WSL 路线：`pacman -S bun` + `glibc ≥ 2.44` + `ninja`，linux host 走本地 cargo/napi 无需 bazel；rustup 慢时用 `RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static`） |
+| 6 | 上游测试携带 `.omp` 配置目录契约被原样合入（如 `dirs-cache` 的 `$XDG/omp/cache`、`acp-agent`/`mcp-config-scope-dedup`/`sdk-skills`/`tools/gh` 的 `.omp` fixture 路径），而源码只解析 `.zeta` | 这些测试只在 Linux/XDG 分支生效，Windows 本地测试全绿、push 到云端 Linux CI 才爆——`bun test` 全绿不代表合并适配完整 | 合并时对每个触碰的测试文件对照 `v<tag>` 版本逐文件 resolve；grep `"\.omp"`（排除刻意保留的 `.omp-plugin`）必须为 0 |
+
+**Triage 指纹**：所有 CI job 死在 `Run ./.github/actions/bun-install` ⇒ 版本线/catalog 损伤（第 1、2 类），先跑 `bun scripts/check-version-consistency.ts`，不要去翻测试日志。
+
+**推送 sync 分支前的最低门槛**：`bun scripts/check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误 + 第 3 类 grep 扫描通过。三者都绿才允许 push。
+
 ## Upstream Reference Hygiene
 
 Zeta keeps upstream references minimal so the repository stays lean:

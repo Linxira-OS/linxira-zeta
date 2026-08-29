@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
+
+### Fixed
+
+- 修复 v18.0.9 合并后 web/desktop 外部客户端不可用：恢复 AgentSession 会话层 mode API（plan/goal/vibe 进入退出、状态版本、plan 文件读取、IRC 自动回复），CLI 不受影响。
+- 修复 IM 频道工具（`channel_send`/`workspace_run`/`im_control`/`tracking_update`）在合并后从工具表消失的问题。
+
 ## [1.1.5] - 2026-08-26
 
 - 同步上游 OMP v18.0.5 / v18.0.6：git TUI 内置 conventional commit 生成与 `if-bench` 基准、`commit --legacy` 统一生成、`:img` 选择器渲染 SVG、新增 Yolo-Auto / OpenRouter 浏览器登录与 DeepInfra image_gen/tts。
