@@ -287,14 +287,16 @@ jobs:
          - name: Rustfmt
            run: bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=rustfmt //crates/...
 
-   # Provides the native addons every downstream TS job installs. PRs never
-   # build: they fetch the latest release's Linux x64 pair from the
-   # @linxiraos/pi-natives-linux-x64 npm leaf instead. The workspace loader
-   # skips its version sentinel for workspace loads, so release addons load
-   # fine under a newer checkout; a PR whose TS tests depend on changed
-   # native behavior fails visibly and the native side lands via main.
-   # Main (kata, cluster remote cache) builds all Linux-hosted targets with
-   # bazel. Job name says "bazel" for continuity with required checks.
+   # Provides the native addons every downstream TS job installs. PRs default
+   # to fetching the latest release's Linux x64 pair from the
+   # @linxiraos/pi-natives-linux-x64 npm leaf; a PR that touches the native
+   # surface (crates/, bazel/Cargo build config, natives bindings) instead
+   # bazel-builds its own addon targets, because its TS tests are written
+   # against the PR's native API and fail confusingly against stale release
+   # addons (release-sync merges always qualify). Detection is best-effort: a
+   # diff-API failure falls back to the npm-fetch path. Main (kata, cluster
+   # remote cache) builds all Linux-hosted targets with bazel. Job name says
+   # "bazel" for continuity with required checks.
    native_addons:
       name: Build native addons (bazel)
       # 90 min, not 50: a cold build (cache evicted by a release's own cache
@@ -311,9 +313,26 @@ jobs:
            with:
               bun-version: "1.3"
 
+         # One shared detection for the PR path below: does this PR change the
+         # native surface? Path list mirrors the release-sync/native-build
+         # fingerprint; packages/natives/ is included because loader and
+         # bindings changes also change what the tests must load.
+         - id: native_changes
+           if: github.event_name == 'pull_request'
+           shell: bash
+           env:
+              GH_TOKEN: ${{ github.token }}
+           run: |
+              if gh pr diff ${{ github.event.pull_request.number }} --name-only 2>/dev/null \
+                 | grep -qE '^(crates/|bazel/|Cargo\.(toml|lock)|MODULE\.bazel(\.lock)?|BUILD\.bazel|\.bazelrc|\.bazelignore|\.bazelversion|rust-toolchain\.toml|rustfmt\.toml|packages/natives/)'; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "changed=false" >> "$GITHUB_OUTPUT"
+              fi
+
          # ---- PR path: latest release addons from npm ----
          - name: Fetch release native addons (npm)
-           if: github.event_name == 'pull_request'
+           if: github.event_name == 'pull_request' && steps.native_changes.outputs.changed != 'true'
            shell: bash
            run: |
               set -euo pipefail
@@ -339,7 +358,7 @@ jobs:
          # A corrupt download must fail here, not as a confusing dlopen error
          # in every downstream test shard.
          - name: Smoke release addons
-           if: github.event_name == 'pull_request'
+           if: github.event_name == 'pull_request' && steps.native_changes.outputs.changed != 'true'
            shell: bash
            run: |
               set -euo pipefail
@@ -360,19 +379,23 @@ jobs:
               "$loader" "$RUNNER_TEMP/smoke-addons.js" \
                 "$PWD/bazel-bin/natives-linux-x64-baseline/pi_natives.linux-x64-baseline.node" \
                 "$PWD/bazel-bin/natives-linux-x64-modern/pi_natives.linux-x64-modern.node"
-         # Make the policy visible on the rare native-touching PR instead of
-         # leaving a reviewer to wonder which addons the tests exercised.
-         # Best-effort: a diff-API failure must not fail the job over a notice.
+         # Make the policy visible on PRs that still test against release
+         # addons instead of leaving a reviewer to wonder which addons the
+         # tests exercised.
          - name: Note native changes tested against release addons
-           if: github.event_name == 'pull_request'
+           if: github.event_name == 'pull_request' && steps.native_changes.outputs.changed != 'true'
            shell: bash
-           env:
-              GH_TOKEN: ${{ github.token }}
            run: |
-              if gh pr diff ${{ github.event.pull_request.number }} --name-only 2>/dev/null \
-                 | grep -qE '^(crates/|bazel/|Cargo\.(toml|lock)|MODULE\.bazel(\.lock)?|BUILD\.bazel|\.bazelrc|\.bazelignore|\.bazelversion|rust-toolchain\.toml|rustfmt\.toml)'; then
-                echo "::notice title=Native sources changed::PR CI tests against the latest release addons by design; native changes are validated post-merge on main and at release."
-              fi
+              echo "::notice title=Testing against release addons::No native-surface change detected; PR CI tests against the latest release addons."
+
+         # Native-touching PR path: build the tested addon targets from the PR
+         # source so downstream TS jobs validate the PR's own native API. The
+         # warm bazel disk cache keeps unchanged deps cheap.
+         - name: Build native addons from source (native-touching PR)
+           if: github.event_name == 'pull_request' && steps.native_changes.outputs.changed == 'true'
+           uses: ./.github/actions/bazel-natives
+           with:
+              targets: linux-x64-baseline linux-x64-modern
 
          # ---- main path: addons for tests vs release ----
          # Every main push (release or not) bazel-builds the tested addon

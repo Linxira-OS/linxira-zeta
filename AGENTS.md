@@ -108,6 +108,7 @@ reverted the ζ CLI brand, which this registry exists to prevent.
 | 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名 |
 | npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@linxiraos/*` 全量改写 |
 | Native 哨兵 | `__piNativesV1_X_Y` | 保留 Zeta 版本线 |
+| Native Tokio 安装导出 | `__ompInstallTokioRuntime` | 运行时导出面：crate/index.js/loader 调用三方一致，勿 sweep 成 `__zeta*`（v18.0.10 合并曾改断，Tokio 静默不装） |
 | `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
 | 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
 | 中继/分享 URL | `my.omp.sh` | 共享 OMP 基础设施，不品牌化 |

@@ -528,10 +528,22 @@ merge. No version bump, no tag, no release.
   (3b01ec88d7): per-session AsyncJobManager contract restore (v18.0.9
   tear), USER_AGENT `zeta/` brand, `display.showTurnTime` zh label;
   merged into this branch at `9fe9b2310a`.
+- Zeta adaptations on this branch (post-merge commits):
+  - CI `native_addons`: PRs that touch the native surface (crates/,
+    bazel/Cargo build config, natives bindings) now bazel-build their own
+    addon targets instead of testing against the latest published npm
+    addon. Root cause this exposed: PR CI fetched the published 1.1.5
+    addon (built 2026-08-26, before the pi-vcs crate landed 2026-08-28),
+    so every vcs-dependent TS job failed `... is not a function` — the
+    upstream design accepts this as visible failure for native-touching
+    PRs; release-sync PRs always qualify, so the gate was rebuilt to be
+    real. Non-native PRs keep the fast npm-fetch path.
+  - Natives loader: the scope sweep renamed the loader's Tokio-runtime
+    install call to `__zetaInstallTokioRuntime` while the crate/index.js
+    export stayed `__ompInstallTokioRuntime` — install silently no-op'd.
+    Call restored; registry row added (Zeta Brand Surface Registry).
 - Deliverable: this branch → PR → CI green → fast-forward merge into
   `main`; branch then deleted local + remote.
-
-## Pi Runtime Ports
 
 ## Pi Runtime Ports
 
