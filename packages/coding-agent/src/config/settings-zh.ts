@@ -713,6 +713,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "记忆后端",
 		description: "关闭、本地摘要管线、Mnemopi SQLite 或 Hindsight 远程记忆",
 	},
+	"sharpshooter.model": {
+		label: "Sharpshooter 模型",
+		description: "抽取/整合所用的模型选择器，留空使用 smol 角色",
+	},
 	"autolearn.enabled": {
 		label: "自动学习（实验性）",
 		description: "智能体停止后，推动它将经验捕获到记忆，并创建/增强隔离的受管技能",

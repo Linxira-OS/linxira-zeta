@@ -473,6 +473,64 @@ merge. No version bump, no tag, no release.
   5764bcae96f` after all-green CI; branch `sync/omp-release/v18.0.6`
   deleted local + remote.
 
+### OMP v18.0.9 → v18.0.10 (synced 2026-08-29)
+
+- Baseline: Zeta `main` at `c8989fd866` (v18.0.9 fallout-repair series
+  2efb354ea1..c8989fd866 already landed: catalog/Cargo/sentinel line,
+  session mode API layer, package-name sweep, channel tool registration,
+  .zeta test contracts, per-session AsyncJobManager contract, USER_AGENT
+  brand, zh settings label).
+- Source: remote tag `v18.0.10` verified via
+  `git ls-remote --tags omp-upstream refs/tags/v18.0.10` →
+  `33cc6b9a043a74e00a157e72ca909272796d8461` (lightweight tag); fetched
+  explicitly and the resolved commit agrees. `sync/omp` fast-forwarded
+  `76a294cb19..33cc6b9a04`.
+- Merge: isolated worktree branch `sync/omp-release/v18.0.10`, real
+  non-squash merge of the tag; 27 conflicting paths resolved:
+  - Version line: Cargo.toml/Cargo.lock/lib.rs/natives bindings taken
+    from upstream, then `set-version.ts 1.1.5` re-applied the Zeta line
+    (sentinel `__piNativesV1_1_5`, Cargo workspace 1.1.5, 8 local crates
+    re-pinned in Cargo.lock); `bun install` regenerated bun.lock.
+  - Package names: the merge driver kept Zeta identity for the 14
+    workspace files but mangled dep blocks (duplicate entries) and let
+    the ROOT catalog go upstream (`@oh-my-pi/* @ 18.0.10`). Root rebuilt
+    from Zeta HEAD + upstream externals; driver duplicates dropped;
+    upstream dep names mapped (omptype→pi-omptype, omp-stats→pi-stats,
+    snapcompact→pi-snapcompact, hashline→pi-hashline,
+    pi-coding-agent→zeta); 24 driver-bypassed files scope-rewritten
+    (@oh-my-pi/→@linxiraos/) and stale-name swept.
+  - Brand: title-generator keeps ζ (upstream plain-glyph rationale
+    comment adopted); terminal-title-state test adopts upstream
+    BRAND-constant structure with ζ; `theme.icon.omp` π provider icon
+    kept per registry.
+  - Contract tests: upstream versions taken (agent, review, mcp
+    transports, session-color, color, manual-retry,
+    interactive-working-accent); history-storage-drain accepted as
+    deleted upstream.
+  - settings-schema: Zeta "Zeta Context Cache" group kept AND upstream
+    "Sharpshooter" memory group adopted; `sharpshooter.model` zh label
+    added for the zh localization contract.
+  - Changelogs: upstream 15.x-18.x sections stripped per pre-tag gate
+    (34 sections across 5 packages); v18.0.10 items folded into
+    [Unreleased].
+- Six-class checklist: catalog keys Zeta@1.1.5 ✓, sentinel ✓, Cargo ✓,
+  package names ✓, Zeta-only layer intact (ModeId/channel tools/
+  CONFIG_DIR_NAME/task-discovery grep-verified) ✓, functional .omp shapes
+  clean ✓ (omp-extension-roots `.omp` plugin compat surface kept by
+  design; metaharness tb benchmark harness keeps omp binary naming —
+  non-shipped benchmark infra, adaptation deferred).
+- Local checks: `bun run check:ts` green; `check-version-consistency`
+  green; WSL local linux natives rebuilt from the merged crates and key
+  suites green (mode-controller, web-gateway, sharpshooter,
+  terminal-title, session-color, sdk-async, i18n). `test:rs` deferred to
+  CI bazel (Windows host has no MSVC linker).
+- Follow-up landed on `main` during this sync
+  (3b01ec88d7): per-session AsyncJobManager contract restore (v18.0.9
+  tear), USER_AGENT `zeta/` brand, `display.showTurnTime` zh label;
+  merged into this branch at `9fe9b2310a`.
+- Deliverable: this branch → PR → CI green → fast-forward merge into
+  `main`; branch then deleted local + remote.
+
 ## Pi Runtime Ports
 
 ## Pi Runtime Ports
