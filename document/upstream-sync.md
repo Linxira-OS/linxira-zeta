@@ -529,15 +529,16 @@ merge. No version bump, no tag, no release.
   tear), USER_AGENT `zeta/` brand, `display.showTurnTime` zh label;
   merged into this branch at `9fe9b2310a`.
 - Zeta adaptations on this branch (post-merge commits):
-  - CI `native_addons`: PRs that touch the native surface (crates/,
-    bazel/Cargo build config, natives bindings) now bazel-build their own
-    addon targets instead of testing against the latest published npm
-    addon. Root cause this exposed: PR CI fetched the published 1.1.5
-    addon (built 2026-08-26, before the pi-vcs crate landed 2026-08-28),
-    so every vcs-dependent TS job failed `... is not a function` — the
-    upstream design accepts this as visible failure for native-touching
-    PRs; release-sync PRs always qualify, so the gate was rebuilt to be
-    real. Non-native PRs keep the fast npm-fetch path.
+  - CI `native_addons`: every event bazel-builds the tested addon targets
+    from the checked-out source. Root cause this exposes: the upstream PR
+    path fetched the latest PUBLISHED addon (npm `@latest`), so a
+    release-sync PR tests TS code against stale exports — the published
+    1.1.5 addon is v18.0.6-era (predates the pi-vcs crate by two days) and
+    every vcs-dependent TS job failed `... is not a function`. An
+    intermediate changed-file-detection design was itself fragile (gh pr
+    diff silently failed on the runner and defaulted to the stale path),
+    so the detection was removed entirely: PRs always source-build the
+    linux-x64 pair; push events keep the 4-target release build.
   - Natives loader: the scope sweep renamed the loader's Tokio-runtime
     install call to `__zetaInstallTokioRuntime` while the crate/index.js
     export stayed `__ompInstallTokioRuntime` — install silently no-op'd.
