@@ -54,6 +54,9 @@ import { loadCapability } from "./capability";
 import { type Rule, ruleCapability, setActiveRules } from "./capability/rule";
 import { bucketRules } from "./capability/rule-buckets";
 import type { EffectiveExtensionRoots } from "./capability/types";
+// Zeta channel integration types (v18.0.9 merge dropped the fields that used
+// them — restored with the im_control/workspace_run/channel_send sinks).
+import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { shouldEnableAppendOnlyContext } from "./config/append-only-context-mode";
 import { shouldInlineToolDescriptors } from "./config/inline-tool-descriptors-mode";
 import { isAuthenticated, kNoAuth, ModelRegistry } from "./config/model-registry";
@@ -633,6 +636,25 @@ export interface CreateAgentSessionOptions {
 
 	/** Whether to auto-approve all tool calls (--auto-approve CLI flag). Default: false */
 	autoApprove?: boolean;
+
+	/**
+	 * IM channel send sink (web/desktop sessions only; undefined in CLI mode).
+	 * When set, `channel_send` is available and the session can push progress
+	 * to the remote IM user.
+	 */
+	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
+	/**
+	 * Workspace delegation sink (web/desktop sessions only; undefined in CLI
+	 * mode). When set, `workspace_run` is available and the coordinator can
+	 * delegate subtasks to other workspace sessions.
+	 */
+	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+	/**
+	 * Natural-language IM control sink (web/desktop sessions only; undefined in
+	 * CLI mode). When set, `im_control` is available and the session can
+	 * manage workspaces / sessions / language / model on the user's behalf.
+	 */
+	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 }
 
 /** Result from createAgentSession */

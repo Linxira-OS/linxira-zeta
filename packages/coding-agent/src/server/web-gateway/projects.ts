@@ -78,9 +78,9 @@ export async function resolveProject(cwd: string): Promise<ProjectInfo> {
 		// grouping subdirs under the repo root would change where new sessions
 		// are created for existing users.
 		const isTopLevel = toplevel === realCwd;
-		const isWorktreeTopLevel = gitDir !== commonDir && isTopLevel;
+		const isWorktreeTopLevel = gitDir !== undefined && commonDir !== undefined && gitDir !== commonDir && isTopLevel;
 		info = {
-			projectRoot: isWorktreeTopLevel ? dirname(commonDir) : cwd,
+			projectRoot: isWorktreeTopLevel && commonDir ? dirname(commonDir) : cwd,
 			branch: ref && ref !== "HEAD" ? ref : null,
 			isWorktree: isWorktreeTopLevel,
 			isTopLevel,
