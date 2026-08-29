@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/omptype";
-import type * as TypeBox from "@linxiraos/omptype/typebox";
-import * as zod from "@linxiraos/omptype/zod";
-import * as piCodingAgent from "@linxiraos/pi-coding-agent";
-import { GreenCommand } from "@linxiraos/pi-coding-agent/extensibility/custom-commands/bundled/ci-green";
-import type { CustomCommandAPI } from "@linxiraos/pi-coding-agent/extensibility/custom-commands/types";
-import type { HookCommandContext } from "@linxiraos/pi-coding-agent/extensibility/hooks/types";
 import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
+import { type } from "@linxiraos/pi-omptype";
+import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
+import * as zod from "@linxiraos/pi-omptype/zod";
+import * as piCodingAgent from "@linxiraos/zeta";
+import { GreenCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/ci-green";
+import type { CustomCommandAPI } from "@linxiraos/zeta/extensibility/custom-commands/types";
+import type { HookCommandContext } from "@linxiraos/zeta/extensibility/hooks/types";
 
 afterEach(() => {
 	vi.restoreAllMocks();

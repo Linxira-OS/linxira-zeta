@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { generateRoomKey, importRoomKey } from "@linxiraos/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@linxiraos/pi-coding-agent/collab/guest";
-import { COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@linxiraos/pi-coding-agent/collab/relay-client";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/pi-coding-agent/task/types";
-import { EventBus } from "@linxiraos/pi-coding-agent/utils/event-bus";
+import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // The guest mirrors host EventBus traffic onto the local session and

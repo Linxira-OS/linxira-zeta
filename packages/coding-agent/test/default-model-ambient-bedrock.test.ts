@@ -15,10 +15,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { pickDefaultAvailableModel } from "@linxiraos/pi-coding-agent/config/model-resolver";
-import type { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
 import { Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { pickDefaultAvailableModel } from "@linxiraos/zeta/config/model-resolver";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("issue #9967 default model with ambient Bedrock credentials", () => {

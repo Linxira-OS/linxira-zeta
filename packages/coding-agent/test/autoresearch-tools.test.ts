@@ -2,21 +2,21 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
-import { createSessionRuntime } from "@linxiraos/pi-coding-agent/autoresearch/state";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { TempDir } from "@linxiraos/pi-utils";
+import { createSessionRuntime } from "@linxiraos/zeta/autoresearch/state";
 import {
 	type AutoresearchStorage,
 	closeAllAutoresearchStorages,
 	openAutoresearchStorage,
 	type SessionRow,
-} from "@linxiraos/pi-coding-agent/autoresearch/storage";
-import { createInitExperimentTool } from "@linxiraos/pi-coding-agent/autoresearch/tools/init-experiment";
-import { createLogExperimentTool } from "@linxiraos/pi-coding-agent/autoresearch/tools/log-experiment";
-import { createRunExperimentTool } from "@linxiraos/pi-coding-agent/autoresearch/tools/run-experiment";
-import { createUpdateNotesTool } from "@linxiraos/pi-coding-agent/autoresearch/tools/update-notes";
-import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@linxiraos/pi-coding-agent/autoresearch/types";
-import type { ExtensionAPI, ExtensionContext } from "@linxiraos/pi-coding-agent/extensibility/extensions";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@linxiraos/zeta/autoresearch/storage";
+import { createInitExperimentTool } from "@linxiraos/zeta/autoresearch/tools/init-experiment";
+import { createLogExperimentTool } from "@linxiraos/zeta/autoresearch/tools/log-experiment";
+import { createRunExperimentTool } from "@linxiraos/zeta/autoresearch/tools/run-experiment";
+import { createUpdateNotesTool } from "@linxiraos/zeta/autoresearch/tools/update-notes";
+import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@linxiraos/zeta/autoresearch/types";
+import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta/extensibility/extensions";
 import { $ } from "bun";
 
 afterEach(() => {

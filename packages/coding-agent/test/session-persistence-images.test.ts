@@ -1,17 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
-import { BlobStore, isBlobRef } from "@linxiraos/pi-coding-agent/session/blob-store";
-import type {
-	CompactionEntry,
-	FileEntry,
-	SessionMessageEntry,
-} from "@linxiraos/pi-coding-agent/session/session-entries";
-import { resolveBlobRefsInEntries } from "@linxiraos/pi-coding-agent/session/session-loader";
-import { prepareEntryForPersistence } from "@linxiraos/pi-coding-agent/session/session-persistence";
+import type { Archive } from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { TempDir } from "@linxiraos/pi-utils";
-import type { Archive } from "@linxiraos/snapcompact";
-import * as snapcompact from "@linxiraos/snapcompact";
+import { BlobStore, isBlobRef } from "@linxiraos/zeta/session/blob-store";
+import type { CompactionEntry, FileEntry, SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
+import { resolveBlobRefsInEntries } from "@linxiraos/zeta/session/session-loader";
+import { prepareEntryForPersistence } from "@linxiraos/zeta/session/session-persistence";
 
 type ImagePayload = { data: string; mimeType: string; type?: "image" };
 type ToolResultMessage = Extract<AgentMessage, { role: "toolResult" }>;

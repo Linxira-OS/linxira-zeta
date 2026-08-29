@@ -2,18 +2,18 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
-import * as executorModule from "@linxiraos/pi-coding-agent/task/executor";
+import * as natives from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as executorModule from "@linxiraos/zeta/task/executor";
 import {
 	applyEligibleNestedPatches,
 	mergeIsolatedChanges,
 	runIsolatedSubprocess,
-} from "@linxiraos/pi-coding-agent/task/isolation-runner";
-import type { SingleResult } from "@linxiraos/pi-coding-agent/task/types";
-import * as worktreeModule from "@linxiraos/pi-coding-agent/task/worktree";
-import * as natives from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
+} from "@linxiraos/zeta/task/isolation-runner";
+import type { SingleResult } from "@linxiraos/zeta/task/types";
+import * as worktreeModule from "@linxiraos/zeta/task/worktree";
 import { $ } from "bun";
 
 function result(overrides: Partial<SingleResult> = {}): SingleResult {

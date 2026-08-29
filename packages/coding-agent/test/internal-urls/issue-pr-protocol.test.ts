@@ -9,11 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@linxiraos/pi-coding-agent/internal-urls";
-import { resetForTests as resetCacheForTests } from "@linxiraos/pi-coding-agent/tools/github-cache";
-import { github } from "@linxiraos/pi-coding-agent/utils/github";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { resetForTests as resetCacheForTests } from "@linxiraos/zeta/tools/github-cache";
+import { github } from "@linxiraos/zeta/utils/github";
 
 let tempDir: string;
 let originalEnv: string | undefined;

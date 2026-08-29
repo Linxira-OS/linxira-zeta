@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { AsyncJobType } from "@linxiraos/pi-coding-agent/async";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@linxiraos/pi-coding-agent/modes/components/status-line";
-import { initTheme, theme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import type { AsyncJobSnapshotItem } from "@linxiraos/pi-coding-agent/session/agent-session";
+import type { AsyncJobType } from "@linxiraos/zeta/async";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AsyncJobSnapshotItem } from "@linxiraos/zeta/session/agent-session";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 let settingsState: SettingsTestState | undefined;

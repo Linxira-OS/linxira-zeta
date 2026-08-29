@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { createAutoresearchExtension } from "@linxiraos/pi-coding-agent/autoresearch";
+import type { VcsGitRepo, VcsGitRepoInfo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { TempDir } from "@linxiraos/pi-utils";
+import { createAutoresearchExtension } from "@linxiraos/zeta/autoresearch";
 import {
 	buildExperimentState,
 	computeConfidence,
@@ -7,17 +10,14 @@ import {
 	findBaselineRunNumber,
 	findBestKeptMetric,
 	reconstructControlState,
-} from "@linxiraos/pi-coding-agent/autoresearch/state";
-import { AutoresearchStorage, closeAllAutoresearchStorages } from "@linxiraos/pi-coding-agent/autoresearch/storage";
-import type { ExperimentResult } from "@linxiraos/pi-coding-agent/autoresearch/types";
+} from "@linxiraos/zeta/autoresearch/state";
+import { AutoresearchStorage, closeAllAutoresearchStorages } from "@linxiraos/zeta/autoresearch/storage";
+import type { ExperimentResult } from "@linxiraos/zeta/autoresearch/types";
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 	RegisteredCommand,
-} from "@linxiraos/pi-coding-agent/extensibility/extensions";
-import type { VcsGitRepo, VcsGitRepoInfo } from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions";
 
 afterEach(() => {
 	vi.restoreAllMocks();

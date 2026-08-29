@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { CollabHost } from "@linxiraos/pi-coding-agent/collab/host";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
+import { Spacer, Text, visibleWidth } from "@linxiraos/pi-tui";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import {
 	type BuiltinSlashCommandRuntime,
 	executeBuiltinSlashCommand,
-} from "@linxiraos/pi-coding-agent/slash-commands/builtin-registry";
-import { CollabQrCodeComponent } from "@linxiraos/pi-coding-agent/slash-commands/helpers/collab-qrcode";
-import { Spacer, Text, visibleWidth } from "@linxiraos/pi-tui";
+} from "@linxiraos/zeta/slash-commands/builtin-registry";
+import { CollabQrCodeComponent } from "@linxiraos/zeta/slash-commands/helpers/collab-qrcode";
 
 beforeAll(async () => {
 	resetSettingsForTest();

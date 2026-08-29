@@ -2,9 +2,9 @@ import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import * as path from "node:path";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
-import { refreshStoredManagedMcpOAuthCredential } from "@linxiraos/pi-coding-agent/mcp/oauth-credentials";
-import type { MCPStoredOAuthCredential } from "@linxiraos/pi-coding-agent/mcp/oauth-flow";
 import { TempDir } from "@linxiraos/pi-utils";
+import { refreshStoredManagedMcpOAuthCredential } from "@linxiraos/zeta/mcp/oauth-credentials";
+import type { MCPStoredOAuthCredential } from "@linxiraos/zeta/mcp/oauth-flow";
 
 /** Capture the `resource` form field of the single refresh_token grant a helper call makes. */
 async function captureRefreshResource(

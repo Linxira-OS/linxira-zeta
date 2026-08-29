@@ -1,26 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { AgentProtocolHandler } from "@linxiraos/pi-coding-agent/internal-urls/agent-protocol";
-import { HistoryProtocolHandler } from "@linxiraos/pi-coding-agent/internal-urls/history-protocol";
-import { parseInternalUrl } from "@linxiraos/pi-coding-agent/internal-urls/parse";
-import { IrcBus } from "@linxiraos/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@linxiraos/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, getAgentTombstonePath, MAIN_AGENT_ID } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import { ensurePersistedRoster, registerPersistedSubagents } from "@linxiraos/pi-coding-agent/registry/persisted-agents";
-import type { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION } from "@linxiraos/pi-coding-agent/session/session-entries";
-import { collectIrcPeerRoster } from "@linxiraos/pi-coding-agent/task/executor";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { HubTool } from "@linxiraos/pi-coding-agent/tools/hub";
+import { prompt, TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentProtocolHandler } from "@linxiraos/zeta/internal-urls/agent-protocol";
+import { HistoryProtocolHandler } from "@linxiraos/zeta/internal-urls/history-protocol";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry, getAgentTombstonePath, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import { ensurePersistedRoster, registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
+import { collectIrcPeerRoster } from "@linxiraos/zeta/task/executor";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { HubTool } from "@linxiraos/zeta/tools/hub";
 import {
 	DEFAULT_HUB_LIST_LIMIT,
 	executeList,
 	executeSend,
 	MAX_HUB_LIST_LIMIT,
-} from "@linxiraos/pi-coding-agent/tools/hub/messaging";
-import { prompt, TempDir } from "@linxiraos/pi-utils";
+} from "@linxiraos/zeta/tools/hub/messaging";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({

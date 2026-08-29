@@ -13,10 +13,10 @@ import type {
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
-import { type BenchSummary, runBenchCommand } from "@linxiraos/pi-coding-agent/cli/bench-cli";
-import type { BenchModelRegistry } from "@linxiraos/pi-coding-agent/cli/bench-runtime";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
 import { getModelDbPath, TempDir } from "@linxiraos/pi-utils";
+import { type BenchSummary, runBenchCommand } from "@linxiraos/zeta/cli/bench-cli";
+import type { BenchModelRegistry } from "@linxiraos/zeta/cli/bench-runtime";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 function fakeModel(provider: string, id: string): Model<Api> {
 	return {

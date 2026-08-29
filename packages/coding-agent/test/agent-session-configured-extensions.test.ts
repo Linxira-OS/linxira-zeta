@@ -13,17 +13,17 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import type { EffectiveExtensionRoots } from "@linxiraos/pi-coding-agent/capability/types";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import "@linxiraos/pi-coding-agent/discovery";
-import { setActiveSkills } from "@linxiraos/pi-coding-agent/extensibility/skills";
-import { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@linxiraos/pi-coding-agent/session/messages";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
-import { discoverAgents } from "@linxiraos/pi-coding-agent/task/discovery";
+import type { EffectiveExtensionRoots } from "@linxiraos/zeta/capability/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import "@linxiraos/zeta/discovery";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { discoverAgents } from "@linxiraos/zeta/task/discovery";
 
 interface SessionInputs {
 	additionalExtensionPaths?: readonly string[];

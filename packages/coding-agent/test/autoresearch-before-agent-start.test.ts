@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { createAutoresearchExtension } from "@linxiraos/pi-coding-agent/autoresearch";
-import { closeAllAutoresearchStorages } from "@linxiraos/pi-coding-agent/autoresearch/storage";
+import type { VcsGitRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { TempDir } from "@linxiraos/pi-utils";
+import { createAutoresearchExtension } from "@linxiraos/zeta/autoresearch";
+import { closeAllAutoresearchStorages } from "@linxiraos/zeta/autoresearch/storage";
 import type {
 	BeforeAgentStartEvent,
 	BeforeAgentStartEventResult,
@@ -8,10 +11,7 @@ import type {
 	ExtensionContext,
 	ExtensionHandler,
 	SessionStartEvent,
-} from "@linxiraos/pi-coding-agent/extensibility/extensions";
-import type { VcsGitRepo } from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions";
 
 // Reproduces issue #3665: when the upstream system prompt resolution leaves
 // `event.systemPrompt` unset, the autoresearch handler must still render its

@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Message, UserMessage } from "@linxiraos/pi-ai";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("AgentSession session stats", () => {
 	let authStorage: AuthStorage;

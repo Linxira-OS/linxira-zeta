@@ -2,8 +2,8 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { RpcClient } from "@linxiraos/pi-coding-agent/modes/rpc/rpc-client";
 import { isRecord } from "@linxiraos/pi-utils";
+import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 
 import { installAgent } from "./agent";
 import type { AgentBinaries, GatewayConfig, TbTask, TrialResult, TrialUsage, VmonConfig } from "./types";

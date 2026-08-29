@@ -2,17 +2,17 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { generateThemeVars } from "@linxiraos/pi-coding-agent/export/html";
-import { defaultThemes } from "@linxiraos/pi-coding-agent/modes/theme/defaults";
-import { createTheme, getBuiltinThemes } from "@linxiraos/pi-coding-agent/modes/theme/loader";
+import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { generateThemeVars } from "@linxiraos/zeta/export/html";
+import { defaultThemes } from "@linxiraos/zeta/modes/theme/defaults";
+import { createTheme, getBuiltinThemes } from "@linxiraos/zeta/modes/theme/loader";
 import {
 	getEditorTheme,
 	getResolvedThemeColors,
 	getThemeByName,
 	isLightTheme,
 	setThemeInstance,
-} from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+} from "@linxiraos/zeta/modes/theme/theme";
 
 function createBaseThemes() {
 	const builtins = getBuiltinThemes();

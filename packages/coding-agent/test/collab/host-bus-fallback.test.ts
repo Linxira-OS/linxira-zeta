@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { importRoomKey } from "@linxiraos/pi-coding-agent/collab/crypto";
-import { CollabHost } from "@linxiraos/pi-coding-agent/collab/host";
-import { COLLAB_PROTO, parseCollabLink } from "@linxiraos/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@linxiraos/pi-coding-agent/collab/relay-client";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/pi-coding-agent/task/types";
-import { EventBus } from "@linxiraos/pi-coding-agent/utils/event-bus";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
+import { COLLAB_PROTO, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // Embedders on the previous InteractiveMode constructor signature wire only a

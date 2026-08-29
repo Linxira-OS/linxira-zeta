@@ -12,14 +12,14 @@
  * rejection so the segment never wedges after a single failure.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { StatusLineSettings } from "@linxiraos/pi-coding-agent/modes/components/status-line";
-import { StatusLineComponent } from "@linxiraos/pi-coding-agent/modes/components/status-line";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import { github } from "@linxiraos/pi-coding-agent/utils/github";
 import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { github } from "@linxiraos/zeta/utils/github";
 
 const originalProjectDir = getProjectDir();
 

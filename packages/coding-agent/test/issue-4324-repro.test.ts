@@ -14,7 +14,7 @@
  * shows up in `~/.omp/logs/omp.log` without regressing idle-worker shutdown.
  */
 import { describe, expect, it } from "bun:test";
-import { createWorkerSubprocess, type SpawnedSubprocess } from "@linxiraos/pi-coding-agent/subprocess/worker-client";
+import { createWorkerSubprocess, type SpawnedSubprocess } from "@linxiraos/zeta/subprocess/worker-client";
 
 interface FakeWorkerOutbound {
 	type: "pong";

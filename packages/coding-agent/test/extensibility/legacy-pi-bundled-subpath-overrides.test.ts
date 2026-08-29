@@ -140,7 +140,7 @@ export const observed = [
 	});
 
 	it("serves coding-agent registry wildcard exports in compiled mode", () => {
-		const key = "@linxiraos/pi-coding-agent/registry/agent-registry";
+		const key = "@linxiraos/zeta/registry/agent-registry";
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		expect(bundledModuleKeys.has(key)).toBe(true);
 		expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);

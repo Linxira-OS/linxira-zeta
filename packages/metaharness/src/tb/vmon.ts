@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { RpcAgentProcess } from "@linxiraos/pi-coding-agent/modes/rpc/rpc-client";
+import type { RpcAgentProcess } from "@linxiraos/zeta/modes/rpc/rpc-client";
 import { type Client, connect, type HostGateway, type Process, type Sandbox } from "@stencil-hq/vibemon";
 import type { GuestArch, VmonConfig } from "./types";
 

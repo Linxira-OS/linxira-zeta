@@ -9,8 +9,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { getOrFetchIssue, getOrFetchPr } from "@linxiraos/pi-coding-agent/tools/gh";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { getOrFetchIssue, getOrFetchPr } from "@linxiraos/zeta/tools/gh";
 import {
 	clearAll,
 	getCached,
@@ -18,10 +19,9 @@ import {
 	openDb,
 	putCached,
 	resetForTests as resetCacheForTests,
-} from "@linxiraos/pi-coding-agent/tools/github-cache";
-import { ToolAbortError, throwIfAborted } from "@linxiraos/pi-coding-agent/tools/tool-errors";
-import { github } from "@linxiraos/pi-coding-agent/utils/github";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+} from "@linxiraos/zeta/tools/github-cache";
+import { ToolAbortError, throwIfAborted } from "@linxiraos/zeta/tools/tool-errors";
+import { github } from "@linxiraos/zeta/utils/github";
 
 const TEST_REPO = "owner/example";
 const TEST_AUTH_KEY = "test-auth";

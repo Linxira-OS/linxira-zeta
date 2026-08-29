@@ -1,6 +1,6 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { getBlobsDir, isEnoent, parseJsonlLenient } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/snapcompact";
 import { BlobStore, isBlobRef, resolveImageData, resolveImageDataUrl } from "./blob-store";
 import { buildSessionContext } from "./session-context";
 import type { FileEntry, RawFileEntry, SessionEntry, SessionHeader } from "./session-entries";

@@ -13,6 +13,9 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+// Upstream v18.0.9 deleted src/utils/git.ts — worktree operations now go
+// through the pi-vcs native addon (crates/pi-vcs, exposed via pi-natives/vcs).
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import { logger } from "@linxiraos/pi-utils";
 import { WebConfig } from "../../config/web-config";
 import { exportFromFile } from "../../export/html";
@@ -21,9 +24,6 @@ import { listAllSessions as listRuntimeSessions } from "../../session/session-li
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
 import { serializeTitleSlot } from "../../session/session-title-slot";
-// Upstream v18.0.9 deleted src/utils/git.ts — worktree operations now go
-// through the pi-vcs native addon (crates/pi-vcs, exposed via pi-natives/vcs).
-import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getRpcSession } from "./agents";
 import { invalidateProjectCache, type ProjectInfo, resolveProject } from "./projects";
 import { getRunningSessionIds, notifyBotSessionDeleted, removeRunningSession } from "./running-sessions";

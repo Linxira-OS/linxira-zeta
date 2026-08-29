@@ -21,9 +21,9 @@ import {
 	resolveModelOverride,
 	resolveModelRoleValue,
 	resolveModelScope,
-} from "@linxiraos/pi-coding-agent/config/model-resolver";
-import { DEFAULT_MODEL_ROLE_ALIAS, LEGACY_MODEL_ROLE_ALIAS_PREFIX } from "@linxiraos/pi-coding-agent/config/model-roles";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+} from "@linxiraos/zeta/config/model-resolver";
+import { DEFAULT_MODEL_ROLE_ALIAS, LEGACY_MODEL_ROLE_ALIAS_PREFIX } from "@linxiraos/zeta/config/model-roles";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 // Mock models for testing
 const mockModels: Model<"anthropic-messages">[] = [

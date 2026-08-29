@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import { ensurePersistedRoster } from "@linxiraos/pi-coding-agent/registry/persisted-agents";
-import { CURRENT_SESSION_VERSION } from "@linxiraos/pi-coding-agent/session/session-entries";
 import { TempDir } from "@linxiraos/pi-utils";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { ensurePersistedRoster } from "@linxiraos/zeta/registry/persisted-agents";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 import type { BunFile } from "bun";
 
 /** Latch-cache bound enforced by `ensurePersistedRoster` (see MAX_PERSISTED_ROSTER_LATCHES). */

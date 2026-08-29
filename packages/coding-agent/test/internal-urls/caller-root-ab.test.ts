@@ -19,16 +19,16 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@linxiraos/pi-coding-agent/internal-urls";
-import { resetRegisteredArtifactDirsForTests } from "@linxiraos/pi-coding-agent/internal-urls/registry-helpers";
-import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import { ensurePersistedRoster } from "@linxiraos/pi-coding-agent/registry/persisted-agents";
-import { CURRENT_SESSION_VERSION } from "@linxiraos/pi-coding-agent/session/session-entries";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { expandInternalUrls } from "@linxiraos/pi-coding-agent/tools/bash-skill-urls";
-import { GlobTool } from "@linxiraos/pi-coding-agent/tools/glob";
-import { GrepTool } from "@linxiraos/pi-coding-agent/tools/grep";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { resetRegisteredArtifactDirsForTests } from "@linxiraos/zeta/internal-urls/registry-helpers";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import { ensurePersistedRoster } from "@linxiraos/zeta/registry/persisted-agents";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { expandInternalUrls } from "@linxiraos/zeta/tools/bash-skill-urls";
+import { GlobTool } from "@linxiraos/zeta/tools/glob";
+import { GrepTool } from "@linxiraos/zeta/tools/grep";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({

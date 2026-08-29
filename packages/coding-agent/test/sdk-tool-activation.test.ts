@@ -2,32 +2,32 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/omptype";
 import type { AgentTool, StreamFn } from "@linxiraos/pi-agent-core";
 import type { Model, ToolResultMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { CursorExecHandlers } from "@linxiraos/pi-coding-agent/cursor";
+import { type } from "@linxiraos/pi-omptype";
+import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CursorExecHandlers } from "@linxiraos/zeta/cursor";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
-} from "@linxiraos/pi-coding-agent/extensibility/extensions/runner";
-import type { MCPManager } from "@linxiraos/pi-coding-agent/mcp/manager";
-import * as memoryBackendModule from "@linxiraos/pi-coding-agent/memory-backend";
-import { initializeExtensions } from "@linxiraos/pi-coding-agent/modes/runtime-init";
+} from "@linxiraos/zeta/extensibility/extensions/runner";
+import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import * as memoryBackendModule from "@linxiraos/zeta/memory-backend";
+import { initializeExtensions } from "@linxiraos/zeta/modes/runtime-init";
 import {
 	type CreateAgentSessionOptions,
 	type CustomTool,
 	createAgentSession,
 	discoverAuthStorage,
 	type ExtensionFactory,
-} from "@linxiraos/pi-coding-agent/sdk";
-import type { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
-import { VIBE_TOOL_NAMES } from "@linxiraos/pi-coding-agent/tools/vibe";
-import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
+} from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
 
 const toolActivationExtension: ExtensionFactory = pi => {
 	pi.registerTool({

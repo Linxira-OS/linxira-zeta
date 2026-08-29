@@ -1,23 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobManager } from "@linxiraos/pi-coding-agent/async";
-import type { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { LoadExtensionsResult } from "@linxiraos/pi-coding-agent/extensibility/extensions/types";
-import { IrcBus } from "@linxiraos/pi-coding-agent/irc/bus";
-import { RpcSubagentRegistry } from "@linxiraos/pi-coding-agent/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@linxiraos/pi-coding-agent/modes/rpc/rpc-types";
-import { AgentLifecycleManager } from "@linxiraos/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import { registerPersistedSubagents } from "@linxiraos/pi-coding-agent/registry/persisted-agents";
-import type { CreateAgentSessionResult } from "@linxiraos/pi-coding-agent/sdk";
-import * as sdkModule from "@linxiraos/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/pi-coding-agent/session/agent-session";
-import type { CustomMessage } from "@linxiraos/pi-coding-agent/session/messages";
-import { resolveSoftRequestBudget, runSubprocess } from "@linxiraos/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@linxiraos/pi-coding-agent/task/types";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/pi-coding-agent/task/types";
-import { EventBus } from "@linxiraos/pi-coding-agent/utils/event-bus";
 import { TempDir } from "@linxiraos/pi-utils";
+import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobManager } from "@linxiraos/zeta/async";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { RpcSubagentRegistry } from "@linxiraos/zeta/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import { resolveSoftRequestBudget, runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 /**
  * Contracts under test — the soft request budget must degrade gracefully

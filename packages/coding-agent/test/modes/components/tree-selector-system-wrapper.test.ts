@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { TreeSelectorComponent } from "@linxiraos/pi-coding-agent/modes/components/tree-selector";
-import * as themeModule from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import type { SessionTreeNode } from "@linxiraos/pi-coding-agent/session/session-entries";
+import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
+import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 
 function customMessageTree(customType: string, content: string): SessionTreeNode[] {
 	return [

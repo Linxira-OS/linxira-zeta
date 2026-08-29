@@ -1,5 +1,5 @@
-import { type } from "@linxiraos/omptype";
 import * as vcs from "@linxiraos/pi-natives/vcs";
+import { type } from "@linxiraos/pi-omptype";
 import type { CommitAgentState, SplitCommitGroup, SplitCommitPlan } from "../../../commit/agentic/state";
 import { computeDependencyOrder } from "../../../commit/agentic/topo-sort";
 import {

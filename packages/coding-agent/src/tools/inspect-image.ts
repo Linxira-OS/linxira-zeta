@@ -1,4 +1,3 @@
-import { type } from "@linxiraos/omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
 import {
@@ -10,6 +9,7 @@ import {
 	type ToolExample,
 	type Usage,
 } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
 import { prompt } from "@linxiraos/pi-utils";
 import { extractTextContent } from "../commit/utils";
 

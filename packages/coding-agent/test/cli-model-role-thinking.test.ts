@@ -3,13 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { parseArgs } from "@linxiraos/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { buildSessionOptions } from "@linxiraos/pi-coding-agent/main";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { buildSessionOptions } from "@linxiraos/zeta/main";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 // Regression: `--model` used to record the `default` role without its effort,
 // so cycling back into that role with ctrl+p ran at the previous role's effort.

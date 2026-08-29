@@ -180,7 +180,10 @@ function rewriteEarendilDeps(dir: string): Array<{ path: string; original: strin
 		if (!deps) continue;
 		for (const name of Object.keys(deps)) {
 			if (!name.startsWith("@earendil-works/")) continue;
-			const renamed = name === "@earendil-works/pi-coding-agent" ? "@linxiraos/zeta" : `@linxiraos/${name.slice("@earendil-works/".length)}`;
+			const renamed =
+				name === "@earendil-works/pi-coding-agent"
+					? "@linxiraos/zeta"
+					: `@linxiraos/${name.slice("@earendil-works/".length)}`;
 			deps[renamed] = deps[name];
 			delete deps[name];
 			console.log(`  (@earendil-works → @linxiraos in ${field}: ${name} → ${renamed})`);
@@ -194,7 +197,12 @@ function rewriteEarendilDeps(dir: string): Array<{ path: string; original: strin
 		if (!/\.(ts|mjs|js|tsx|jsx)$/.test(file)) continue;
 		const content = fs.readFileSync(file, "utf8");
 		if (!content.includes("@earendil-works/")) continue;
-		fs.writeFileSync(file, content.replaceAll("@earendil-works/pi-coding-agent", "@linxiraos/zeta").replaceAll("@earendil-works/", "@linxiraos/"));
+		fs.writeFileSync(
+			file,
+			content
+				.replaceAll("@earendil-works/pi-coding-agent", "@linxiraos/zeta")
+				.replaceAll("@earendil-works/", "@linxiraos/"),
+		);
 		backup.push({ path: file, original: content });
 		console.log(`  (source import rewrite: ${path.relative(repo, file)})`);
 	}

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@linxiraos/pi-coding-agent/slash-commands/builtin-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 beforeEach(async () => {
 	resetSettingsForTest();

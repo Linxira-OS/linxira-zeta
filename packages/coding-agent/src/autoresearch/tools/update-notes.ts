@@ -1,5 +1,5 @@
-import { type } from "@linxiraos/omptype";
 import * as vcs from "@linxiraos/pi-natives/vcs";
+import { type } from "@linxiraos/pi-omptype";
 import { Text } from "@linxiraos/pi-tui";
 import type { ToolDefinition } from "../../extensibility/extensions";
 import type { Theme } from "../../modes/theme/theme";

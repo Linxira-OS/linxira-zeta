@@ -6,11 +6,11 @@ import { streamSimple } from "@linxiraos/pi-ai";
 import { withAuth } from "@linxiraos/pi-ai/auth-retry";
 import type { Api, Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { resolveConfigValue } from "@linxiraos/pi-coding-agent/config/model-config-values";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
 import * as piUtils from "@linxiraos/pi-utils";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { resolveConfigValue } from "@linxiraos/zeta/config/model-config-values";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 function shellQuote(value: string): string {
 	return `'${value.replaceAll("'", "'\\''")}'`;

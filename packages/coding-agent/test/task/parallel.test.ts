@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mapWithConcurrencyLimit, mapWithConcurrencyLimitAllSettled } from "@linxiraos/pi-coding-agent/task/parallel";
+import { mapWithConcurrencyLimit, mapWithConcurrencyLimitAllSettled } from "@linxiraos/zeta/task/parallel";
 
 describe("mapWithConcurrencyLimitAllSettled", () => {
 	it("waits for valid siblings after one item rejects and keeps input order", async () => {

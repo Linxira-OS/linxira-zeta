@@ -2,15 +2,15 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn, vi } from 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ReviewCommand } from "@linxiraos/pi-coding-agent/extensibility/custom-commands/bundled/review";
-import type { CustomCommandAPI } from "@linxiraos/pi-coding-agent/extensibility/custom-commands/types";
-import type { HookCommandContext } from "@linxiraos/pi-coding-agent/extensibility/hooks/types";
-import type { SessionEntry } from "@linxiraos/pi-coding-agent/session/session-entries";
-import type { PrDiffPayload, ViewLookupResult } from "@linxiraos/pi-coding-agent/tools/gh";
-import * as gh from "@linxiraos/pi-coding-agent/tools/gh";
 import type { VcsGitRepo, VcsRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { ReviewCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/review";
+import type { CustomCommandAPI } from "@linxiraos/zeta/extensibility/custom-commands/types";
+import type { HookCommandContext } from "@linxiraos/zeta/extensibility/hooks/types";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import type { PrDiffPayload, ViewLookupResult } from "@linxiraos/zeta/tools/gh";
+import * as gh from "@linxiraos/zeta/tools/gh";
 
 const SAMPLE_JJ_DIFF = `diff --git a/src/workspace.ts b/src/workspace.ts
 --- a/src/workspace.ts

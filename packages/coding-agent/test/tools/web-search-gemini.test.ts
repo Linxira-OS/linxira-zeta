@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import { serializeCloudflareAiGatewayCredential } from "@linxiraos/pi-catalog/wire/cloudflare-ai-gateway";
-import { GeminiProvider, searchGemini } from "@linxiraos/pi-coding-agent/web/search/providers/gemini";
+import { GeminiProvider, searchGemini } from "@linxiraos/zeta/web/search/providers/gemini";
 
 const SSE_RESPONSE =
 	'data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"Gemini answer"}]}}],"modelVersion":"gemini-2.5-flash"}}\n\n';

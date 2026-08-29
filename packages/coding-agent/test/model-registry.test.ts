@@ -8,10 +8,10 @@ import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { fingerprintStaticModels } from "@linxiraos/pi-catalog/model-manager";
 import { getBundledModels } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 describe("ModelRegistry", () => {
 	let tempDir: string;
