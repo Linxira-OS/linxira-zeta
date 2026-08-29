@@ -16,16 +16,25 @@ upstream position changes.
 
 ## Shipped (Zeta-originated capabilities)
 
-These exist today and are marked in the root `README.md`:
+These exist today (headline capabilities are marked in the root `README.md`):
 
 | Capability | Where | Notes |
 | --- | --- | --- |
 | Long-term tracking documents | `packages/coding-agent/src/tools/tracking.ts` | `tracking_update` tool writes `<project>/.zeta/tracking/`; Web UI TrackingPanel. **Default OFF** — gated by `tracking.enabled` (opt-in) since v1.0.6 |
 | Experiment measurement (`autoresearch`) | `packages/coding-agent/src/autoresearch/` | Per-project SQLite experiments, metrics, baseline commits |
 | TypeScript custom commands | `packages/coding-agent/src/extensibility/custom-commands/` | User commands from `~/.zeta/commands/` + project dirs, arktype/typebox/zod arg schemas, bundled `ci-green`/`review` |
+| Markdown command files | `src/discovery/builtin.ts` + `src/utils/command-args.ts` | `<config-dir>/commands/*.md` at user + project level, `$ARGUMENTS`/`$@`/`$1` substitution |
 | Command marketplace (Bun-package distribution) | `slash-commands/builtin-marketplace.ts` | Install/uninstall commands as Bun packages |
 | ACP collaboration builtins | `slash-commands/acp-builtins.ts` | Agent Client Protocol session commands |
 | Local stats dashboard | `zeta stats` (`packages/stats`) | Local observability |
+| IM channels (WeChat / Feishu / Telegram) | `packages/channels` + `src/channels/` | `ChatChannel`/`ChannelHost` interface, session router, `channel_send`/`workspace_run`/`im_control` tools, WeChat iLink QR login |
+| Remote token auth + LAN exposure | `src/server/web-gateway.ts` (`authorizedForAccess`) | Non-loopback bind via `ZETA_SERVE_HOSTNAME` + `remote.token` (Bearer / `X-Zeta-Token` on every `/api/*`), CSRF origin guard, `docs/remote-workspaces.md` |
+| Web-ui open-in-app buttons + update check | `src/server/web-gateway/open.ts`, `web-ui/components/AppShell.tsx` | `POST /api/open` (terminal / explorer / editors), `GET /api/open/options`, update check/download/install |
+| Web-ui quick model import | `src/server/web-gateway/models.ts` | `GET /api/models/import?base=<url>` OpenAI-compatible discovery into `models.yml` |
+| Web-ui stats iframe | `web-ui/components/StatsDashboard.tsx` | AppShell Stats tab rendering `NEXT_PUBLIC_STATS_URL` |
+| Web-ui trajectory view | `web-ui/lib/trajectory.ts` + TrajectoryView/TrajectoryCell | Chat/Trajectory toggle, think/tool cells with duration + token counts, raw-entry inspector |
+| Mermaid rendering (web + TUI) | `web-ui/components/MermaidBlock.tsx`, `packages/utils/src/mermaid-ascii.ts` | Web-ui strict-SVG render (`securityLevel: "strict"`); TUI ASCII render under `tui.renderMermaid` (default on) |
+| Session sharing | `slash-commands/builtin-collaboration.ts` | `/share` slash command + `zeta share` encrypted link |
 
 ## Priorities
 
@@ -141,16 +150,40 @@ capabilities that its execution environment can actually provide.
 
 #### Delivery order
 
-1. Restore the Web UI typecheck and desktop Linux/Windows CI by semantically
-   porting the legacy Web runtime calls to current Zeta APIs.
+1. DONE — Web UI typecheck and desktop Linux/Windows/mac CI restored in the
+   root `ci.yml`. Re-verified 2026-08-29 (v18.0.9 fallout-repair series on
+   `main`; v18.0.10 sync PR #5).
 2. Preserve and test project grouping plus concurrent-session status before any
-   visual rework.
+   visual rework. **Constraints locked for the redesign**: final-answer fold
+   grouping (`splitFinalAssistantBlocks`, compaction-anchor, live-tail
+   non-folding), project grouping + running-session SSE contract stay intact.
 3. Add the desktop bridge for file-manager/editor opening and its trusted-path
    contract.
 4. Add the CLI desktop launcher and durable client/automation provenance.
 5. Add AppImage packaging and Linux CI artifact validation; keep AUR deferred.
 6. Recompose the workbench visual system and evaluate any multi-chat-pane UX as
-   a separate Zeta design.
+   a separate Zeta design. **Scheduled for v1.1.7** — approved design: migrate
+   the OpenChamber design language (CSS-var token system, full JSON theme
+   engine, shadcn-style primitives, icon sprites) and adopt the three-pane
+   Codex/ZCode desktop layout (project-grouped sidebar, surface tabs +
+   context-usage ring in the header, right ContextPanel + icon rail).
+   Connection-layer code is excluded by contract: all data stays on the Zeta
+   gateway (`/api/sessions*`, `/api/agent/*`, `/api/settings`, `/api/git/*`,
+   `/api/fs/*`); the OpenChamber settings page and CLI link logic are not
+   ported — settings become a windowed, searchable surface over the existing
+   gateway settings + `web.yml` contracts. Includes Tracking v2 (todo-phase
+   binding, compaction-derived summaries under `<project>/.zeta/tracking/`,
+   the memory-boundary prompt contract below, default-on) and a
+   per-platform `web_ui_build` CI matrix (ubuntu/windows/macos). Steps 3-5
+   (desktop bridge / launcher / AppImage) proceed as a parallel desktop track
+   and gate the desktop-handoff completion, not the Web visual recomposition.
+   Theme-system constraints from "Typography and visual work" above apply as
+   hard rules: default `zeta-dark` (first launch dark), compact neutral
+   surfaces, system UI font stack with CJK fallbacks (no remote font
+   dependency), Starfield retained as a legacy optional theme only. Full
+   design spec (locked decisions, layout tree, token inventory, tracking v2
+   detail, acceptance): `document/web-ui-modernization.md` — amend that
+   document in place; this entry stays a pointer.
 
 ### P0 — Compaction as a service (not a command)
 
@@ -161,9 +194,10 @@ and a dedicated **compaction agent** produces the summary
 streaming compaction in `packages/agent/src/compaction/` but the same
 service/agent split is not complete.
 
-- **Acceptance**: manual + auto compaction share one pipeline; progress
-  surfaced through events; the compaction call reuses the session
-  `promptCacheKey` so it hits the provider prefix cache (see P0 tracking).
+- **Status**: the shared manual/auto pipeline and the session `promptCacheKey`
+  reuse are done (`session-maintenance.ts`, `compaction-v2-streaming.ts`).
+- **Remaining acceptance**: a dedicated compaction agent split, and granular
+  per-phase progress events (today only `auto_compaction_start`/`_end`).
 
 ### P0 — Long-term tracking document + prompt-cache contract
 
@@ -175,9 +209,11 @@ document or a tool instead of the conversation. The standing system guidance
 stays byte-stable so DeepSeek/Anthropic prefix caches survive long sessions,
 and compaction resumes with the same cached prefix.
 
-- **Acceptance**: any dynamic injection path either lands in the tracking
-  document before cache write or is rejected by review; compaction requests
-  share the session cache key.
+- **Status**: the tool, its `tracking.enabled` opt-in gate, and compaction's
+  session cache-key sharing are done; the cache-write ordering rule itself is
+  still unbuilt.
+- **Remaining acceptance**: any dynamic injection path either lands in the
+  tracking document before cache write or is rejected by review.
 
 ### P1 — Migrate OpenCode's official commands (all three categories)
 
@@ -186,21 +222,20 @@ OpenCode commands fall into three kinds; migrate them in that order:
 1. **Mechanism-triggering** (run code): e.g. compaction triggers, session
    operations — implemented as code, not text.
 2. **Prompt-substitution** (expand to a prompt): `/init` (guided AGENTS.md
-   setup, `initialize.txt`), `/review` (`review.txt`), plus `/update`, `/recipe`,
-   `/share` equivalents where they fit Zeta.
+   setup, `initialize.txt`), plus `/update`, `/recipe` equivalents where they
+   fit Zeta. (`/review` and `/share` already shipped as bundled/builtin
+   commands.)
 3. **Combined** (template + arguments), using V2's command schema
    (`template`/`description`/`agent`/`model`) as reference.
 
-### P1 — User-defined commands, completed
+### P1 — User-defined commands, remaining gaps
 
-Zeta already has the TypeScript command layer (arbitrary logic or prompt
-return, arg schemas). Remaining gaps vs OpenCode:
+Zeta already has the TypeScript command layer and markdown command files
+(`<config-dir>/commands/*.md` at user + project level with `$ARGUMENTS`
+substitution). Remaining gaps vs OpenCode:
 
-- Lightweight **markdown command files** (drop a `.md` in a command dir, add a
-  description, use `$ARGUMENTS` in the body) — currently md commands exist only
-  as builtins.
 - **Hot reload**: OpenCode V2 reloads commands from `config.changes` with a
-  debounce window; Zeta loads commands at startup.
+  debounce window; Zeta loads commands at startup (`/reload-plugins` is manual).
 - **`agent` field on commands** so a command can pin which agent/agent model
   runs it.
 
@@ -248,17 +283,73 @@ Compacted summaries lose specifics that later turns need. Design distillation
 with the tracking document as the durable store, so compaction never
 singlesources context that must survive long sessions.
 
-### P2 — Mermaid rendering revival (`render_mermaid`)
+### P2 — Mermaid/SVG chat rendering: remaining gaps
 
-Upstream deleted the `render_mermaid` tool + `renderMermaid.enabled` setting
-(CHANGELOG #3299); Zeta revives it as a real chart-rendering tool (distinct
-from the TUI's ASCII fence renderer). Dependency: `@mermaid-js/mermaid`
-(canonical, TS-friendly). SVG render path TBD — evaluate linkedom/jsdom,
-puppeteer, or `@mermaid-js/mermaid-cli` (`mmdc`). Note: `xai-org/grok-build`'s
-Rust vendored mermaid stack is architecture reference only, not a reusable
-package. Before landing: grep `render_mermaid`/`renderMermaid` residue, locate
-the original tool implementation + rendering path, reuse the
-`renderMermaid.enabled` setting key.
+The revival shipped in a different shape than the original `render_mermaid`
+tool plan, and most of it is done: web-ui renders ```mermaid fences via
+`MermaidBlock.tsx` (`mermaid@^11`, `securityLevel: "strict"`, source/preview
++ zoom dialog); the TUI renders ASCII under `tui.renderMermaid` (default on,
+`packages/utils/src/mermaid-ascii.ts`); the system prompt advertises mermaid
+blocks. Remaining:
+
+- **SVG fenced blocks in chat**: raw inline SVG is sanitized away today
+  (`rehype-sanitize` default schema in `web-ui/lib/markdown.ts`), and
+  `MarkdownBody.tsx` has no ```svg block path at all — an emitted SVG block
+  renders as plain code even on desktop. Add the render path behind a
+  security-reviewed sanitize decision (the XSS surface grows once the gateway
+  is exposed to phones/WAN). No DOMPurify second layer exists today;
+  mermaid's strict output is the only trusted SVG source.
+- **Dynamic prompt adjustment (decided design)**: add an immutable
+  per-session `chatSvgRendering` surface option set at `createAgentSession`
+  (CLI → false, serve → true; serve's only client is web-ui, so a
+  process-level binary suffices — no per-client provenance needed). Extend
+  the `{{#if renderMermaid}}` block in `prompts/system/system-prompt.md` into
+  a three-branch template: SVG surfaces advertise that the model MAY emit
+  ```svg blocks (rendered for the user); the `{{else}}` branch keeps today's
+  ASCII wording. Do not read the flag from settings: prompt-render options
+  sit outside the applied-tool signature and the web settings POST never
+  refreshes running-session prompts — an immutable constructor value avoids
+  cache drift entirely.
+- A dedicated `render_mermaid` tool is no longer required for web/mobile;
+  if a real `render_svg` tool is ever warranted, follow the surface-scoped
+  sink pattern (see Surface-scoped tool exposure contract below).
+
+### P0 — Channel tool sink wiring regression
+
+The v18.0.9 merge dropped the `channelSend`/`workspaceRun`/`imControl` wiring
+from the `toolSession` literal in `sdk.ts` (originally from `3e043195a4`; the
+restore commit re-added the option declarations, `ToolSession` fields,
+factories and `isToolAllowed` gates but not the wiring lines). All three
+channel tools are inert in every session — serve coordinator and bot sessions
+included. `bun run check:ts` cannot see it (optional fields compile clean) and
+no test exercises the tools, so the regression is silent — a new member of the
+post-merge damage class 4 (Zeta-only session-layer drops). Fix: restore the
+three wiring keys, add a contract test (serve coordinator session exposes the
+trio; CLI sessions never do), and gate sink wiring on the channels runtime
+actually being started so a channel-less `zeta serve` never advertises tools
+that fail at call time.
+
+### P1 — Surface-scoped tool exposure contract
+
+The channel-trio pattern is the canonical mechanism for surface-targeted
+tools: sink presence on `CreateAgentSessionOptions` → `ToolSession` field →
+`BUILTIN_TOOLS` factory returning `null` without the sink → `isToolAllowed`
+double gate → fail-closed `execute()`. Availability is construction-time
+wiring, not a runtime gate — only the serve coordinator
+(`zeta-server.ts #ensureMainSession`) and bot sessions receive sinks;
+`SessionRouter.open()` workspace sessions, temp web-opened sessions, and
+subagents never do. Preserve that invariant in merges. Hardening remaining:
+
+- `channels.enabled` is an opt-out (default true); settings copy must not
+  imply the toggle grants capability.
+- No `taskDepth` guard exists for the trio in `isToolAllowed` (safe only
+  because subagents never receive sinks — add the guard before any sink
+  forwarding change).
+- Bot sessions hold the full sink set including absolute-path `workspace_run`
+  delegation (by design; revisit if the surface widens).
+- Future surface-conditional prompt options must be immutable per session
+  (see Mermaid/SVG above) or paired with an explicit
+  `refreshBaseSystemPrompt` on every surface that can flip them.
 
 ### P2 — Memory ↔ tracking boundary (prompt contract)
 
@@ -274,16 +365,16 @@ boundary and the `tracking.enabled` gate.
 `packages/stats` gets a read-only `/api/tracking` snapshot (status.json /
 INDEX.md / actions.jsonl / sessions/*.md under `<project>/.zeta/tracking/`),
 with a self-contained `TrackingSnapshot` type — stats must not import
-coding-agent types. Requires `getProjectTrackingDir` barrel export from
-`packages/utils`. (Web UI already has a TrackingPanel wired to the gateway;
-this is the stats-dashboard-side panel.)
+coding-agent types. `getProjectTrackingDir` is already exported from
+`packages/utils`; the stats-side endpoint + type remain. (Web UI already has a
+TrackingPanel wired to the gateway; this is the stats-dashboard-side panel.)
 
 ### P2 — SSH remote command tool (extension recovery)
 
-Upstream removed the `ssh-executor` wrapper but retained the plumbing:
-`ssh/connection-manager.ts`, `internal-urls/ssh-protocol.ts`, `cli/ssh-cli.ts`,
-`commands/ssh.ts`. Revive as an extension via `ctx.registerTool` wrapping the
-retained connection manager — no new protocol work needed.
+The plumbing already shipped: `zeta ssh` CLI, the `/ssh` slash command, and
+`src/ssh/` (connection-manager, file-transfer, sshfs-mount). Remaining: an
+agent-callable SSH exec tool via `ctx.registerTool` wrapping the retained
+connection manager — no new protocol work needed.
 
 ### P2 — Bing search provider (core provider add, not an extension)
 
@@ -333,10 +424,10 @@ verifies SHA256, and prompts to restart for overwrite install.
 
 ### P1 — Web-ui settings coverage + refresh button
 
-Some CLI settings are not yet mapped into SettingsPanel. Add a "Reload
-config" action (re-read settings file through the existing gateway
-`/api/settings` channel) and fill remaining schema groups by diffing
-`settings-schema.ts` against the panel's rendered fields.
+SettingsPanel now renders the full schema (all tabs/groups mirrored from
+`GET /api/settings`). Remaining: wire a "Reload config" button to the existing
+`POST /api/settings/reload` endpoint (built in `web-gateway/settings.ts`, no
+UI caller yet).
 
 ### P1 — Stats dashboard iframe bridge
 
@@ -356,19 +447,40 @@ step cells (user / assistant message with Think + token columns from
 entry JSON and a reconstructed (labeled "重建") prompt view. Pure-function
 `deriveTrajectory` + React components, no DSH dependency.
 
-### P2 — Remote control: phone browser + first IM channels
+### P1 — Mobile remote control (phone-first web access)
 
-Phone browser access: ZetaServer already serves web-ui on one port — add
-`--host 0.0.0.0` option, firewall guidance, and token auth (reuse
-`omp-auth.ts` patterns) so a phone on the LAN can drive the PC. IM channels
-(reference `temp/openclaw-ref` adapter model + `temp/deepseek-reasonix`
-channel registry): abstract a minimal channel interface (send text/media,
-receive event, identity/room binding) behind the existing web gateway, then
-port channels in waves — first Feishu custom-bot webhook (official API, low
-risk) and Telegram bot token; later WhatsApp/QQ/WeChat (external plugins with
-QR pairing / risk review). WeChat specifically: openclaw uses Tencent iLink
-QR-login (private-chat only, external plugin); evaluate against account-risk
-policy before committing.
+Phone control of the desktop agent over the user's own network path. **No
+embedded tunneling**: users bring their own port mapping, server, or frp; Zeta's
+job is to make the served endpoint safe to expose and the UI phone-first.
+
+Shipped foundation: non-loopback bind via `ZETA_SERVE_HOSTNAME` with the
+`remote.token` gate (`authorizedForAccess` — Bearer / `X-Zeta-Token` on every
+`/api/*`, CSRF origin guard), token rows in SettingsPanel, and
+`docs/remote-workspaces.md`; IM channels (WeChat/Feishu/Telegram — see
+Shipped); full conversation reconstruction over REST + SSE
+(`/api/sessions/:id/context`, `/api/agent/:id/events`), including thinking
+blocks and inline media.
+
+Remaining:
+
+1. **Exposure hardening**: a `--host` flag on `zeta serve` (today env-only);
+   optional built-in TLS listener (`Bun.serve tls`) plus documented
+   reverse-proxy (caddy/nginx) recipes — never silent plain-HTTP beyond the
+   LAN; a pairing QR in settings/desktop encoding `URL + token` (reuse
+   `utils/qrcode.ts`) so the phone pairs by scanning; token rotation/revocation
+   and rate limiting on the auth gate for WAN exposure.
+2. **Lazy media for mobile**: `?deferMedia` blanks tool-result images with no
+   fetch-back endpoint; add a blob-store read endpoint
+   (`~/.zeta/agent/blobs`) so phone clients lazy-load images instead of
+   pulling base64 inline.
+3. **Mobile web-ui**: PWA manifest + service worker (installable, offline
+   shell) on top of the existing responsive pass; voice input rides the native
+   IME (zero work) — an optional Web Speech API mic button can come later.
+4. **Android shell (later)**: a thin WebView wrapper of the same web-ui build
+   pointing at a user-configured URL only — no business logic, no tunneling,
+   and no new workflow file (checks live in the root `ci.yml`).
+5. **Transport**: SSE stays the preserved contract; no WebSocket rewrite for
+   mobile.
 
 ### P3 — IM channel wave 2 (post first-wave)
 
