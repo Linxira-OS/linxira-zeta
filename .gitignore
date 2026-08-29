@@ -100,3 +100,7 @@ packages/coding-agent/bench/boot-baseline.json
 
 # Local-only session handoff notes (never commit)
 HANDOFF.md
+
+# Agent / IDE local state (never commit)
+.mimosa/
+.workbuddy/

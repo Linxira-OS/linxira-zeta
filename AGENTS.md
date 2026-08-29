@@ -135,7 +135,8 @@ Zeta keeps upstream references minimal so the repository stays lean:
   scratch branches never reach `origin`.
 - Zeta product versions are Zeta-semver, decoupled from OMP version numbers.
   OMP tags are integration baselines recorded in `document/upstream-sync.md`;
-  `bun run release` bumps Zeta package versions, not OMP-derived ones.
+  `bun scripts/release-v2.ts <version>` bumps Zeta package versions, not
+  OMP-derived ones. See **Version line tooling** below.
 - **Cloud backup of upstream refs.** `origin` keeps a `backup/` namespace so a
   corrupted local clone can be rebuilt without re-fetching upstream history:
   `backup/<remote>/main` mirrors each upstream `main`, and
@@ -287,6 +288,39 @@ mechanics, or internal plans (never shipped) it belongs in `document/`.
   entry, mirroring the per-package `CHANGELOG.md` requirement.
 - `UPDATE-LOG.md` entries are written at release time and committed with (or
   before) the version bump.
+
+### Version line tooling (lockstep bump)
+
+Zeta rides **one** version line across every published surface. Never hand-edit
+a version: the number lives in more than a dozen places, and any drift is a
+release-blocking bug — `zeta update` pins every package to the release version,
+so a straggler fails with `ETARGET` (the 1.0.6/1.0.7 era shipped
+`natives@1.0.2/1.0.4` while `zeta` rode 1.0.6/1.0.7 and broke the updater).
+
+Always move the version with a script:
+
+| Script | Purpose |
+|---|---|
+| `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 14 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, the `__piNativesVX_Y_Z` sentinel (lib.rs + committed bindings), `desktop/package.json` + its lockfile, and `web-ui/package.json` (`zeta-web` version **and** its `@linxiraos/*` ranges, kept as `^<version>`). **Does not** touch changelogs, commit, tag or push. |
+| `bun scripts/sync-versions.ts` | Re-sync every `@linxiraos/*` dependency range to the current package versions. |
+| `bun scripts/check-version-consistency.ts` | Verify the line is consistent (packages, catalog, Rust workspace, natives sentinel, desktop app, README badge). Run before tagging. |
+| `bun scripts/release-v2.ts <version>` | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, atomic `v*` tag push. |
+
+Rules:
+
+- Use `set-version.ts` when the version line must move **without** a release
+  (local test build, pre-alignment). Use `release-v2.ts` for anything that
+  reaches `origin` — it is the only path that produces the
+  `chore: bump version to X.Y.Z` subject that CI's release-run concurrency
+  group and `selectLatestZetaTag` match on.
+- `release-v2.ts` takes an **explicit** version (`1.1.6`); it runs
+  `validateExplicitVersion`, so words like `patch`/`minor`/`canary` are not
+  valid input there.
+- After `set-version.ts`, regenerate the lockfile (`bun install`) or let
+  `release-v2.ts` do it — a stale `bun.lock` is the usual npm-publish hazard.
+- `scripts/release.ts` is the v1 script, retained only for its shared helpers
+  (`selectLatestZetaTag`, `validateExplicitVersion`, `watchCI`) and its
+  `watch` mode. Do not use it to cut a release.
 
 ## Default Context
 

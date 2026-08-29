@@ -1,6 +1,14 @@
 # Zeta 更新日志
 ## 下一版本（Unreleased）
 
+### 新增（1.1.6，随 OMP v18.0.9 同步）
+
+- Web UI 改造：右侧工具坞（会话 / 文件 / 追踪 / 插件四窗格常驻导轨，插件管理器 PluginsManager 上线）、左侧 Default Space 常驻首组、消息"涉及文件"下拉与 ⚡ 推理强度 / ⏱ 耗时元信息、三平台统一 frameless 自绘标题栏（桌面壳 IPC 控制窗口）。
+- 插件平台落地：`plugins/official/` 与 `plugins/community/` 目录结构、pi-messenger 纳入版本管理。
+- Zeta CLI 品牌恢复：v18.0.3 合并回退的 `ZETA_LOGO`、终端标题 `ζ`、`/language` `/tracking` 图标等逐项恢复，AGENTS.md 新增品牌登记表护栏。
+- 下线 web-ui-next（Vite）UI 线：`zeta serve` 只托管一套 Web UI。
+- OMP 同步基线：v18.0.9（`cc14e04f075d`）。git/jj 工具迁入新 Rust crate `pi-vcs`，经 `@linxiraos/pi-natives/vcs` 暴露；Zeta 自有 web 网关（上游无此目录）同步移植到新 API。PR #4 合并提交 `842390f707`。
+
 ### 修复
 
 - 发布链修复：1.1.0 各 `@linxiraos/*` 包依赖误带 Bun `catalog:` 协议（npm 无法解析、安装即报错），1.1.1 起发布时重写为实际版本并重发全部包。
@@ -20,8 +28,6 @@
 - OMP 同步基线：v18.0.6（`b4e8e856ad40`，v18.0.5 经由其历史一并并入）；PR #3 合并提交 `8043ec175c`。
 
 ---
-
-## v1.1.0（2026-08-25）
 
 ## v1.1.0（2026-08-25）
 

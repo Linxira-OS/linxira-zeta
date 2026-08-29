@@ -2,14 +2,8 @@
 
 ## [Unreleased]
 
+- 同步上游 OMP v18.0.9（`cc14e04f075d`）。
 ## [1.1.5] - 2026-08-26
-## [18.0.9] - 2026-08-28
-
-### Fixed
-
-- Fixed inconsistent model colors between the Model Preference chart and Model Statistics table.
-
-## [18.0.4] - 2026-08-24
 
 - 随 1.1.5 版本线对齐发布：OMP v18.0.6 同步未触及本包，无独立功能变更。
 
