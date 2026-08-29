@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
 import type { ImageContent } from "@linxiraos/pi-ai";
+import { AskDialogComponent } from "@linxiraos/pi-coding-agent/modes/components/ask-dialog";
+import { TreeSelectorComponent } from "@linxiraos/pi-coding-agent/modes/components/tree-selector";
+import { InputController } from "@linxiraos/pi-coding-agent/modes/controllers/input-controller";
+import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
+import type { SessionTreeNode } from "@linxiraos/pi-coding-agent/session/session-entries";
 import { type KeyId, matchesKey } from "@linxiraos/pi-tui";
-import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
-import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 import manualContinuePrompt from "../src/prompts/system/manual-continue.md" with { type: "text" };
 
 type FakeEditor = {
@@ -768,5 +769,43 @@ describe("InputController global tool-output expand (ctrl+o)", () => {
 
 		expect(dispatchInput(listeners, "\x18")).toEqual({ consume: true });
 		expect(context.ctx.toolOutputExpanded).toBe(true);
+	});
+
+	it("expands a truncated ask question instead of tool output when the ask dialog is focused", async () => {
+		const { ctx, listeners, setFocused } = await setup();
+		const dialog = new AskDialogComponent(
+			[
+				{
+					id: "q1",
+					question: "This is a very long question ".repeat(30),
+					options: [{ label: "Option A" }, { label: "Option B" }],
+				},
+			],
+			{ onSubmit: () => {}, onCancel: () => {}, onPrompt: async () => undefined },
+		);
+		const collapsed = dialog.render(80).join("\n");
+		setFocused(dialog);
+
+		expect(dispatchInput(listeners, "\x0f")).toEqual({ consume: true });
+		expect(ctx.toolOutputExpanded).toBe(false);
+		const expanded = dialog.render(80).join("\n");
+		const collapsedCount = collapsed.match(/This is a very long question/g)?.length ?? 0;
+		const expandedCount = expanded.match(/This is a very long question/g)?.length ?? 0;
+		expect(collapsedCount).toBeLessThan(10);
+		expect(expandedCount).toBeGreaterThan(collapsedCount);
+	});
+
+	it("still expands tool output when a short ask question has nothing to reveal", async () => {
+		const { ctx, listeners, setFocused } = await setup();
+		const dialog = new AskDialogComponent([{ id: "q1", question: "Choose one?", options: [{ label: "Option A" }] }], {
+			onSubmit: () => {},
+			onCancel: () => {},
+			onPrompt: async () => undefined,
+		});
+		dialog.render(80);
+		setFocused(dialog);
+
+		expect(dispatchInput(listeners, "\x0f")).toEqual({ consume: true });
+		expect(ctx.toolOutputExpanded).toBe(true);
 	});
 });

@@ -106,7 +106,7 @@ reverted the ζ CLI brand, which this registry exists to prevent.
 | `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
 | latex-to-unicode π 条目 | `π` | 保留——数学转换 |
 | 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名 |
-| npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@oh-my-pi/*` 全量改写 |
+| npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@linxiraos/*` 全量改写 |
 | Native 哨兵 | `__piNativesV1_X_Y` | 保留 Zeta 版本线 |
 | `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
 | 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
@@ -422,7 +422,7 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
 Before writing a helper, check whether one already exists — `packages/coding-agent/src/utils/`, `@linxiraos/pi-utils`, `@linxiraos/pi-tui`, and the domain modules next to your callsite. This applies to **everything**: VCS wrappers, formatting/truncation/path-display helpers, image handling, clipboard, streams, temp files, caching. The central versions carry hardening a fresh copy always loses (timeouts, output caps, non-interactive env, lock avoidance, caching, TUI sanitization).
 
 - Search first: `grep` for the operation before implementing it. Two implementations of the same thing is a bug even when both work.
-- Examples of the pattern: `src/utils/git.ts` and `src/utils/jj.ts` are the only sanctioned way to run git/jj (`import * as git from "../utils/git"` — never hand-spawn via `$`/`Bun.spawn`); rendering goes through the helpers in TUI Sanitization below (`replaceTabs`, `truncateToWidth`, `shortenPath`, `PREVIEW_LIMITS`) rather than ad-hoc string math.
+- Examples of the pattern: git/jj access goes through the `pi-vcs` native addon (`import * as vcs from "@linxiraos/pi-natives/vcs"`, e.g. `vcs.gitInfo(dir)`, `vcs.git(dir)?.worktreeRemove(path, force)`) — never hand-spawn via `$`/`Bun.spawn`. The old `src/utils/git.ts` / `src/utils/jj.ts` wrappers were removed upstream in v18.0.9; rendering goes through the helpers in TUI Sanitization below (`replaceTabs`, `truncateToWidth`, `shortenPath`, `PREVIEW_LIMITS`) rather than ad-hoc string math.
 - Missing capability? Extend the central helper (new option, new sub-function on the namespace) and call it — don't fork its logic locally.
 
 ## Bun Over Node

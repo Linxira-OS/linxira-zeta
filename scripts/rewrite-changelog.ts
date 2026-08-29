@@ -8,8 +8,8 @@
  * the final shipped behavior belongs in release notes.
  *
  * For every non-empty `[Unreleased]` section this script hands the whole section
- * to a small model (default `google-antigravity/gemini-3.7-flash` via `@linxiraos/pi-ai`)
- * with fallback to `openai-codex/gpt-5.6-luna` when the primary fails (quota, auth), * and asks for a complete replacement grouped by changelog category. The model
+ * to a small model (default `openai-codex/gpt-5.6-luna` via `@linxiraos/pi-ai`),
+ * and asks for a complete replacement grouped by changelog category. The model
  * returns structured sections/items; markdown is rendered locally so only the
  * Unreleased section changes and formatting stays deterministic.
  *
@@ -31,10 +31,10 @@
 
 import * as path from "node:path";
 import { parseArgs } from "node:util";
+import { type } from "@linxiraos/omptype";
 import { type Api, completeSimple, Effort, type Model, type Tool, type ToolCall } from "@linxiraos/pi-ai";
 import { discoverAuthStorage } from "@linxiraos/pi-ai/auth-broker";
 import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
 import {
 	type ChangelogDocument,
 	changelogPaths,
@@ -46,9 +46,9 @@ import {
 	resolveRepoRoot,
 } from "./fix-changelogs";
 
-const DEFAULT_MODEL = "google-antigravity/gemini-3.7-flash";
+const DEFAULT_MODEL = "openai-codex/gpt-5.6-luna";
 /** Tried in order after the primary model fails (quota exhaustion, auth, hard API errors). */
-const FALLBACK_MODELS = ["openai-codex/gpt-5.6-luna"];
+const FALLBACK_MODELS = [];
 
 // --------------------------------------------------------------------------
 // Prompts
@@ -432,7 +432,7 @@ function usage(): string {
 		"while preserving public contract, exports, API, config, auth, and billing behavior.",
 		"",
 		"Options:",
-		`  -m, --model <prov/id>  Classifier model (default ${DEFAULT_MODEL}; falls back to ${FALLBACK_MODELS.join(", ")} on failure).`,
+		`  -m, --model <prov/id>  Classifier model (default ${DEFAULT_MODEL}${FALLBACK_MODELS.length > 0 ? `; falls back to ${FALLBACK_MODELS.join(", ")} on failure` : ""}).`,
 		"  --package <substr> Only changelogs whose path contains this substring.",
 		"  --concurrency <n>  Max concurrent changelogs to process in parallel (default 4).",
 		"  --dry-run          Report what would be dropped without writing files.",

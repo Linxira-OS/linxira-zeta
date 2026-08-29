@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Spacer } from "@linxiraos/pi-tui";
-import { CollabHost } from "@linxiraos/zeta/collab/host";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { CollabHost } from "@linxiraos/pi-coding-agent/collab/host";
+import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
 import {
 	type BuiltinSlashCommandRuntime,
 	executeBuiltinSlashCommand,
-} from "@linxiraos/zeta/slash-commands/builtin-registry";
-import { CollabQrCodeComponent } from "@linxiraos/zeta/slash-commands/helpers/collab-qrcode";
+} from "@linxiraos/pi-coding-agent/slash-commands/builtin-registry";
+import { CollabQrCodeComponent } from "@linxiraos/pi-coding-agent/slash-commands/helpers/collab-qrcode";
+import { Spacer, Text, visibleWidth } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();
@@ -149,7 +149,24 @@ describe("/collab slash command QR code rendering", () => {
 		expect(presented[1]).toBeInstanceOf(CollabQrCodeComponent);
 		const component = presented[1] as CollabQrCodeComponent;
 		expect(component.url).toBe(webViewLink);
-		expect(component.render(10).join("\n")).toContain("QR code hidden");
+		const clipped = component.render(10).join("\n");
+		expect(visibleWidth(clipped)).toBeLessThanOrEqual(10);
+		expect(clipped).toContain(webViewLink);
+		expect(clipped).not.toContain("URL above");
+	});
+
+	it("keeps the browser URL on the first status row so transcript clipping cannot hide it", async () => {
+		const webLink = `https://my.omp.sh/#${"long-collab-token".repeat(8)}`;
+		const harness = createRuntimeHarness({ collabHost: fakeHost({ webLink }) });
+
+		const handled = await executeBuiltinSlashCommand("/collab", harness.runtime);
+
+		expect(handled).toBe(true);
+		const statusText = harness.showStatus.mock.calls[0]?.[0] as string;
+		const firstRow = new Text(statusText, 1, 0).render(80)[0] ?? "";
+		expect(firstRow).toContain("Collab session active");
+		expect(firstRow).toContain("Join in browser");
+		expect(firstRow).toContain(webLink);
 	});
 });
 
@@ -175,6 +192,17 @@ describe("CollabQrCodeComponent transcript height clipping", () => {
 		expect(clipped).toHaveLength(1);
 		expect(clipped[0]).toContain("QR code hidden");
 		expect(clipped[0]).toContain("viewport height 1");
+		expect(clipped[0]).toContain("my.omp.sh/#clip-test");
+		expect(clipped[0]).not.toContain("URL above");
 		expect(clipped[0]).not.toMatch(/\x1b\[(?:47|40)m/);
+	});
+
+	it("keeps the browser URL as the emergency one-row transcript representation", () => {
+		const component = new CollabQrCodeComponent("https://my.omp.sh/#clip-test");
+		component.setTranscriptAllocation(1);
+		const row = component.renderTranscriptBlockEmergencyRow(10);
+		expect(visibleWidth(row)).toBeLessThanOrEqual(10);
+		expect(row).toContain("https://my.omp.sh/#clip-test");
+		expect(row).not.toContain("URL above");
 	});
 });

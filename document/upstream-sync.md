@@ -124,7 +124,7 @@ Do not alter an existing ledger entry after it records an accepted release.
   (v17.2.12 unified uu-*/brush-builtins/jaq into `crates/pi-builtins`) with
   `@oh-my-pi` → `@zeta` branding.
 - Post-merge findings: the package.json merge driver had `OMP_SCOPE` set to
-  `@zeta/` (upstream is `@oh-my-pi/`); corrected with regression tests. The
+  `@zeta/` (upstream is `@linxiraos/`); corrected with regression tests. The
   upstream dispose-release memory test referenced the global
   `AsyncJobManager.resetForTests()` which Zeta's per-session manager does not
   have; call removed.
@@ -191,7 +191,7 @@ merge. No version bump, no tag, no release.
     `dev.autoqaPush.*` with default `https://qa.omp.sh/v1/grievances`),
     `.zeta/*` paths, `@linxiraos/*` package identity.
   - Upstream v17.3.3 pair accepted wholesale for the remaining 238 files;
-    Zeta overlay re-applied: `@oh-my-pi/*` → `@linxiraos/*` with name
+    Zeta overlay re-applied: `@linxiraos/*` → `@linxiraos/*` with name
     mapping (`hashline`→`pi-hashline`, `omp-stats`→`pi-stats`,
     `omptype`→`pi-omptype`, `pi-coding-agent`→`zeta`, `snapcompact`→
     `pi-snapcompact`), `.omp/` path fragments → `.zeta/`, brand `π` → `ζ`
@@ -237,7 +237,7 @@ merge. No version bump, no tag, no release.
   - Package graph: workspace `package.json` dep names corrected
     (`pi-snapcompact`/`pi-hashline`/`pi-stats`), duplicate keys deduped;
     `bun.lock` regenerated with Bun 1.3.14; `Cargo.lock` regenerated via
-    `cargo metadata`; new upstream files package-scope `@oh-my-pi/*` →
+    `cargo metadata`; new upstream files package-scope `@linxiraos/*` →
     `@linxiraos/*` re-applied.
 - Status: merged into `main` as part of the v17.3.5 sync (v17.3.5 tag builds on
   the same release line; the v17.3.4 worktree became the v17.3.5 branch).
@@ -293,8 +293,8 @@ merge. No version bump, no tag, no release.
     generation artifact — deduplicated to upstream's single set + Zeta
     sentinel).
   - Root `package.json`: restored `@linxiraos/*` catalog keys @ 1.0.9
-    (auto-merge had taken upstream's `@oh-my-pi/*` @ 17.3.8).
-  - Workspace `package.json` files: 43 duplicate `@oh-my-pi/*` deps dropped
+    (auto-merge had taken upstream's `@linxiraos/*` @ 17.3.8).
+  - Workspace `package.json` files: 43 duplicate `@linxiraos/*` deps dropped
     (each verified to have a `@linxiraos` twin); `@larksuiteoapi/node-sdk`
     restored (Zeta feishu channel; upstream manifest dropped it).
   - Source files (`packages/ai`, `agent`, `catalog`, `coding-agent`):
@@ -320,7 +320,7 @@ merge. No version bump, no tag, no release.
     case): `.omp/config.yml` + `.omp/agents/hot-worker.md` writes adapted to
     `.zeta` (caught by release CI — discovery is `.zeta`-only; recorded here
     per policy).
-  - Tree-wide `@oh-my-pi/*` → `@linxiraos/*` sweep for 31 upstream-added or
+  - Tree-wide `@linxiraos/*` → `@linxiraos/*` sweep for 31 upstream-added or
     auto-merged files (new upstream files carrying un-rebranded imports;
     these resolved through main's node_modules and broke worktree type
     checking).
@@ -363,9 +363,9 @@ merge. No version bump, no tag, no release.
     `settings-zh.ts` zh entries updated to the upstream refactor
     (`compaction.strategy`/`compaction.remoteEnabled` removed).
   - `scripts/merge-package-json.ts` driver bug fixed: `OMP_SCOPE` corrected
-    from `@linxiraos/` to `@oh-my-pi/` with full `RENAME_BY_TAIL`
+    from `@linxiraos/` to `@linxiraos/` with full `RENAME_BY_TAIL`
     (hashline/omp-stats/omptype/pi-coding-agent/snapcompact) — the previous
-    value made upstream `@oh-my-pi/*` deps land as new entries instead of
+    value made upstream `@linxiraos/*` deps land as new entries instead of
     mapping onto Zeta's `@linxiraos/*` deps (duplicate keys).
   - `@types/bun` pinned `1.3.14` in the root catalog (upstream's lock
     resolution picked 1.4.0 whose `process.once` typing broke
@@ -380,7 +380,7 @@ merge. No version bump, no tag, no release.
     helpers (`getDaemonRuntimeRoot`/`getGlobalDaemonRuntimeRoot`),
     `telemetry-export-otlp` lazy-load, `gen-clippy-bazelrc` release step,
     `release.ts` nix-bun deps generation.
-  - Tree-wide `@oh-my-pi/*` → `@linxiraos/*` sweep for 77 pure-rename
+  - Tree-wide `@linxiraos/*` → `@linxiraos/*` sweep for 77 pure-rename
     conflict files (resolved to upstream content + scope sweep) and
     upstream-added files; `.omp/` → `.zeta/` path adaptations
     (`docs/settings.md`, `docs/extensions.md` import examples,
@@ -414,10 +414,10 @@ merge. No version bump, no tag, no release.
     (builtin-zeta.ts registry spread), `getKeyProvenance` (settings.ts),
     `.zeta` paths, `@linxiraos/*` package identity.
   - **`scripts/merge-package-json.ts` driver bug fixed**: `OMP_SCOPE` was
-    `@linxiraos/` but upstream workspace packages/catalog are `@oh-my-pi/*`
+    `@linxiraos/` but upstream workspace packages/catalog are `@linxiraos/*`
     at both v18.0.4 and v18.0.6 — the wrong value left upstream catalog keys
-    unmapped and the merged root catalog was taken over by `@oh-my-pi/*`
-    entries. Corrected to `@oh-my-pi/` (the v17.4.0 fix that never landed on
+    unmapped and the merged root catalog was taken over by `@linxiraos/*`
+    entries. Corrected to `@linxiraos/` (the v17.4.0 fix that never landed on
     main).
   - Upstream v18.0.6 accepted wholesale: commit refactor (`conventional/` +
     `agentic/` replaces `commit/analysis` + `commit/map-reduce` +
@@ -425,7 +425,7 @@ merge. No version bump, no tag, no release.
     scope renames; `commit/pipeline.ts` = upstream), `if-bench`, TUI
     markdown/multiplexer rework, utils `browsers`/`json` additions,
     lsp/tools/mcp fixes, new natives exports.
-  - Tree-wide `@oh-my-pi/*` → `@linxiraos/*` sweep (name mapping
+  - Tree-wide `@linxiraos/*` → `@linxiraos/*` sweep (name mapping
     `hashline`→`pi-hashline`, `omp-stats`→`pi-stats`, `omptype`→
     `pi-omptype`, `pi-coding-agent`→`zeta`, `snapcompact`→`pi-snapcompact`)
     for 49 upstream-added files; `.omp` → `.zeta` in 43 test/doc files;

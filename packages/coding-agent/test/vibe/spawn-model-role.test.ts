@@ -9,14 +9,15 @@
  * chain and vibe children silently retry on the `default` role's chain.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { ExecutorOptions } from "@linxiraos/zeta/task/executor";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import type { SingleResult } from "@linxiraos/zeta/task/types";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { type VibeCli, VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
+import { AsyncJobManager } from "@linxiraos/pi-coding-agent/async/job-manager";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
+import type { ExecutorOptions } from "@linxiraos/pi-coding-agent/task/executor";
+import * as executorModule from "@linxiraos/pi-coding-agent/task/executor";
+import type { SingleResult } from "@linxiraos/pi-coding-agent/task/types";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import type { VibeCli } from "@linxiraos/pi-coding-agent/vibe/lifecycle";
+import { VibeSessionRegistry } from "@linxiraos/pi-coding-agent/vibe/runtime";
 
 function makeParentSession(settings: Settings): ToolSession {
 	return {

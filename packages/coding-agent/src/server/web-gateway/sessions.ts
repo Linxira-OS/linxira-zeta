@@ -21,7 +21,9 @@ import { listAllSessions as listRuntimeSessions } from "../../session/session-li
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
 import { serializeTitleSlot } from "../../session/session-title-slot";
-import * as git from "../../utils/git";
+// Upstream v18.0.9 deleted src/utils/git.ts — worktree operations now go
+// through the pi-vcs native addon (crates/pi-vcs, exposed via pi-natives/vcs).
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getRpcSession } from "./agents";
 import { invalidateProjectCache, type ProjectInfo, resolveProject } from "./projects";
 import { getRunningSessionIds, notifyBotSessionDeleted, removeRunningSession } from "./running-sessions";
@@ -713,12 +715,20 @@ async function maybeRemoveWorktreeAfterSessionDelete(deletedCwd: string | undefi
 			}
 		}
 
-		const removed = await git.worktree.tryRemove(project.projectRoot, deletedCwd, { force: true });
+		// Replaces `git.worktree.tryRemove(root, cwd, { force: true })` from the
+		// deleted src/utils/git.ts. The native API takes only the worktree path
+		// and prunes the owning repository, so the root is no longer passed.
+		const repo = vcs.git(project.projectRoot);
+		if (!repo) {
+			logger.warn("web-gateway: no git repository for worktree cleanup (non-fatal)", { cwd: deletedCwd });
+			return;
+		}
+		const removed = await repo.worktreeRemove(deletedCwd, true);
 		if (!removed) {
 			logger.warn("web-gateway: git worktree remove failed (non-fatal)", { cwd: deletedCwd });
 			return;
 		}
-		await git.worktree.prune(project.projectRoot);
+		await repo.worktreePrune();
 		invalidateProjectCache();
 	} catch (error) {
 		logger.warn("web-gateway: worktree cleanup failed (non-fatal)", { cwd: deletedCwd, error: String(error) });

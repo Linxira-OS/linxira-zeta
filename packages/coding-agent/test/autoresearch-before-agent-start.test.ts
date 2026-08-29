@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { TempDir } from "@linxiraos/pi-utils";
-import { createAutoresearchExtension } from "@linxiraos/zeta/autoresearch";
-import { closeAllAutoresearchStorages } from "@linxiraos/zeta/autoresearch/storage";
+import { createAutoresearchExtension } from "@linxiraos/pi-coding-agent/autoresearch";
+import { closeAllAutoresearchStorages } from "@linxiraos/pi-coding-agent/autoresearch/storage";
 import type {
 	BeforeAgentStartEvent,
 	BeforeAgentStartEventResult,
@@ -9,8 +8,10 @@ import type {
 	ExtensionContext,
 	ExtensionHandler,
 	SessionStartEvent,
-} from "@linxiraos/zeta/extensibility/extensions";
-import * as git from "@linxiraos/zeta/utils/git";
+} from "@linxiraos/pi-coding-agent/extensibility/extensions";
+import type { VcsGitRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { TempDir } from "@linxiraos/pi-utils";
 
 // Reproduces issue #3665: when the upstream system prompt resolution leaves
 // `event.systemPrompt` unset, the autoresearch handler must still render its
@@ -73,8 +74,17 @@ describe("autoresearch before_agent_start handler", () => {
 		dbDir = TempDir.createSync("@pi-autoresearch-bas-test-");
 		process.env.OMP_AUTORESEARCH_DB_DIR = dbDir.path();
 		cwdDir = TempDir.createSync("@pi-autoresearch-bas-cwd-");
-		vi.spyOn(git.branch, "current").mockResolvedValue("autoresearch/test");
-		vi.spyOn(git.repo, "root").mockResolvedValue(cwdDir.path());
+		vi.spyOn(vcs, "git").mockReturnValue({
+			currentBranch: async () => "autoresearch/test",
+		} as unknown as VcsGitRepo);
+		vi.spyOn(vcs, "gitInfo").mockReturnValue({
+			commonDir: `${cwdDir.path()}/.git`,
+			gitDir: `${cwdDir.path()}/.git`,
+			gitEntryPath: `${cwdDir.path()}/.git`,
+			headPath: `${cwdDir.path()}/.git/HEAD`,
+			isReftable: false,
+			repoRoot: cwdDir.path(),
+		});
 	});
 
 	afterEach(() => {

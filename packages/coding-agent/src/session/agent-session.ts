@@ -18,6 +18,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import { isPromise } from "node:util/types";
+
+import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/hashline";
 import {
 	type AfterToolCallContext,
 	type AfterToolCallResult,
@@ -79,7 +81,6 @@ import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/provide
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
-import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
 import { MacOSPowerAssertion } from "@linxiraos/pi-natives";
 import {
 	$env,
@@ -100,10 +101,10 @@ import {
 import { type AdvisorConfig, type AdvisorRuntimeStatus, loadAdvisorTranscriptCosts } from "../advisor";
 import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, type AsyncJob, AsyncJobManager } from "../async";
 import { reset as resetCapabilities } from "../capability";
+import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldEnableAppendOnlyContext } from "../config/append-only-context-mode";
 import type { ModelRegistry } from "../config/model-registry";
 import type { ResolvedModelRoleValue } from "../config/model-resolver";
-import { formatModelString } from "../config/model-resolver";
 import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-templates";
 import { buildServiceTierByFamily } from "../config/service-tier";
 import type { Settings, SkillsSettings } from "../config/settings";
@@ -162,7 +163,6 @@ import { containsUltrathink, ULTRATHINK_NOTICE } from "../modes/ultrathink";
 import { computeNonMessageTokens } from "../modes/utils/context-usage";
 import { containsWorkflow, renderWorkflowNotice } from "../modes/workflow";
 import { type PlanApprovalDetails, resolveApprovedPlan } from "../plan-mode/approved-plan";
-import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import { listPlanFiles, readPlanFile } from "../plan-mode/plan-files";
 import type { PlanModeState } from "../plan-mode/state";
 import goalModeContextPrompt from "../prompts/goals/goal-mode-context.md" with { type: "text" };
@@ -221,7 +221,6 @@ import type { InspectImageMode } from "../utils/inspect-image-mode";
 import { resumeCommand } from "../utils/resume-command";
 import { generateSessionTitle } from "../utils/title-generator";
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
-import { type VibeOwnerScope, type VibeParentSession, VibeSessionRegistry } from "../vibe/runtime";
 import type { VibeModeState } from "../vibe/state";
 import type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
 import type {
@@ -360,40 +359,6 @@ export * from "./agent-session-events";
 export * from "./agent-session-types";
 export type { AdvisorStats, PerAdvisorStat } from "./session-advisors";
 
-/** Modes driveable through the shared ModeController API (CLI and external clients). */
-export type ModeId = "plan" | "goal" | "vibe";
-
-export interface PlanModeEntryOptions {
-	initialPrompt?: string;
-	planFilePath?: string;
-	workflow?: "parallel" | "iterative";
-	preserveRestoredModel?: boolean;
-	reentry?: boolean;
-}
-
-export interface PlanModeExitOptions {
-	silent?: boolean;
-	paused?: boolean;
-	deferModelRestore?: boolean;
-}
-
-export interface GoalModeEntryOptions {
-	objective?: string;
-	resume?: boolean;
-	silent?: boolean;
-}
-
-export interface GoalModeExitOptions {
-	silent?: boolean;
-	paused?: boolean;
-	reason?: "completed" | "paused" | "dropped";
-}
-
-export interface VibeModeEntryOptions {
-	persistModeChange?: boolean;
-	previousTools?: string[];
-}
-
 const SESSION_STOP_CONTINUATION_CAP = 8;
 
 import { LoopGuards, type StreamGuardsHost, StreamingEditGuard } from "./stream-guards";
@@ -456,11 +421,29 @@ type AgentContinueSkipReason =
 	| "post-restore-unavailable";
 
 type ScheduledAgentContinueOptions = {
+	source: string;
 	delayMs?: number;
 	generation?: number;
 	shouldContinue?: () => boolean;
 	onSkip?: (reason: AgentContinueSkipReason) => void;
 	onError?: (error: unknown) => void;
+};
+
+type ScheduledAgentContinueRequest = {
+	schedulerToken: number;
+	options: ScheduledAgentContinueOptions;
+};
+
+type AgentContinueOutcome =
+	| { status: "completed" }
+	| { status: "skipped"; reason: AgentContinueSkipReason }
+	| { status: "failed"; error: unknown };
+
+type ActiveAgentContinue = {
+	schedulerToken: number;
+	source: string;
+	coalescedSources: Set<string>;
+	promise: Promise<AgentContinueOutcome>;
 };
 
 type SessionTitleSource = "auto" | "user";
@@ -504,6 +487,7 @@ function cloneMessageEndNotification(message: AgentMessage): AgentMessage {
 }
 
 const INTERRUPTED_THINKING_MIN_CHARS = 60;
+const SESSION_CWD_CHANGE_REJECTED = Symbol("sessionCwdChangeRejected");
 
 export class AgentSession {
 	readonly agent: Agent;
@@ -515,6 +499,18 @@ export class AgentSession {
 	fileSnapshotStore?: InMemorySnapshotStore;
 	/** Per-session `CUT`/`PASTE` clipboard register shared across edit calls. */
 	editClipboard?: Clipboard;
+
+	/** Materializes this session's live extension-root policy per discovery call. */
+	readonly #extensionRoots: () => EffectiveExtensionRoots;
+
+	/**
+	 * Session-local extension roots for post-startup rediscovery. Subagents may
+	 * inherit the owning session's provider so recursive task discovery preserves
+	 * explicit roots, mode, configured roots, and provenance.
+	 */
+	get effectiveExtensionRoots(): EffectiveExtensionRoots {
+		return this.#extensionRoots();
+	}
 
 	#powerAssertion: MacOSPowerAssertion | undefined;
 
@@ -555,24 +551,8 @@ export class AgentSession {
 	#vibeModeState: VibeModeState | undefined;
 	#goalModeState: GoalModeState | undefined;
 	#goalRuntime: GoalRuntime;
-	/** Monotonic counter bumped whenever mode or model state changes (external-state contract). */
-	#stateVersion = 0;
-	/** Pre-plan-mode tool snapshot, restored on plan-mode exit. */
-	#planModePreviousTools: string[] | undefined;
-	/** Pre-plan-mode model snapshot, restored on plan-mode exit. */
-	#planModePreviousModelState: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined;
-	/** Deferred model switch queued while the session was mid-stream (plan-mode transitions). */
-	#pendingModelSwitch: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined;
-	/** Whether `#pendingModelSwitch` was queued by the live plan-role reconciler. */
-	#pendingPlanModelSwitch = false;
-	/** Pre-goal-mode tool snapshot, restored on goal-mode exit. */
-	#goalModePreviousTools: string[] | undefined;
-	/** Pre-vibe-mode tool snapshot, restored on vibe-mode exit. */
-	#vibeModePreviousTools: string[] | undefined;
-	/** Vibe worker owner scope for the current session (vibe-mode entry/exit and worker teardown). */
-	#vibeModeOwnerScope: VibeOwnerScope | undefined;
 	readonly #advisors: SessionAdvisors;
-	/** Resolves once the resume-time advisor spend backfill settles (issue #9553). */
+	/** Resolves once the resume-time advisor spend backfill settles. */
 	#advisorCostRestore: Promise<void> = Promise.resolve();
 	#goalTurnCounter = 0;
 	#planReferenceSent = false;
@@ -638,8 +618,6 @@ export class AgentSession {
 	#ircWakeTurnObserver:
 		| ((records: CustomMessage[]) => ((error?: unknown) => void | Promise<void>) | undefined)
 		| undefined;
-	/** Outbound listener for IRC auto-reply text (installed by IM channels). */
-	#ircAutoReplyListener: ((msg: IrcMessage, replyText: string) => void) | null = null;
 	// Agent identity (registry id) used for IRC routing and job ownership.
 	#agentId: string | undefined;
 	#agentKind: "main" | "sub" = "main";
@@ -712,6 +690,8 @@ export class AgentSession {
 	#postPromptTasksPromise: Promise<void> | undefined = undefined;
 	#postPromptTasksResolve: (() => void) | undefined = undefined;
 	#postPromptTasksAbortController = new AbortController();
+	#activeAgentContinue: ActiveAgentContinue | undefined;
+	#agentContinueSchedulerToken = 0;
 
 	readonly #streamingEditGuard: StreamingEditGuard;
 	readonly #loopGuards: LoopGuards;
@@ -764,7 +744,7 @@ export class AgentSession {
 		if (mode === "off") return;
 		try {
 			this.#powerAssertion = MacOSPowerAssertion.start({
-				reason: "Zeta agent session",
+				reason: "Oh My Pi agent session",
 				idle: true,
 				display: mode === "display" || mode === "system",
 				system: mode === "system",
@@ -1003,7 +983,25 @@ export class AgentSession {
 		const pending = this.#pendingAgentEndEmit;
 		if (!pending) return;
 		this.#pendingAgentEndEmit = undefined;
-		this.#emit(pending);
+		if (pending.type !== "agent_end" || pending.isTerminal === false) {
+			this.#emit(pending);
+			return;
+		}
+
+		// `agent_end` is deferred until the prompt count reaches zero, but it is
+		// emitted immediately before the settle drain schedules work that arrived
+		// after the loop's final queue/aside poll. Such a tail arrival is a real
+		// continuation, not a terminal stop: mark this end non-terminal so
+		// subscribers wait through the queued steer/follow-up or stranded IRC wake.
+		const canDrain =
+			!this.#abortInProgress && this.#unsubscribeAgent !== undefined && this.#modeExitDrainSuppressionDepth === 0;
+		const queuedContinuation =
+			canDrain &&
+			!this.#queuedMessageDrainBlocked &&
+			this.#canAutoContinueForFollowUp() &&
+			this.agent.hasQueuedMessages();
+		const ircContinuation = canDrain && !this.#isDisposed && !this.#planModeState?.enabled && this.#irc.hasPending();
+		this.#emit(queuedContinuation || ircContinuation ? { ...pending, isTerminal: false } : pending);
 	}
 
 	/**
@@ -1038,12 +1036,6 @@ export class AgentSession {
 		});
 	}
 
-	/** Public read access to a session-local plan file (used by the web gateway
-	 *  to surface plan content for the remote PlanApproval preview). */
-	async getPlanFileContent(planFilePath: string): Promise<string | null> {
-		return this.#readPlanFile(planFilePath);
-	}
-
 	/** `local://` URLs of plan files in the session-local root, newest first —
 	 *  a fallback for `resolveApprovedPlan` when the agent dropped `extra.title`. */
 	async #listPlanFiles(): Promise<string[]> {
@@ -1058,6 +1050,14 @@ export class AgentSession {
 		this.sessionManager = config.sessionManager;
 		this.settings = config.settings;
 		this.#modelRegistry = config.modelRegistry;
+		this.#extensionRoots =
+			config.extensionRoots ??
+			(() => ({
+				explicit: config.additionalExtensionPaths ?? [],
+				mode: config.disableExtensionDiscovery ? "explicit-only" : "merge",
+				configured: this.settings.get("extensions") ?? [],
+				configuredLevel: this.settings.extensionsSourceLevel(),
+			}));
 		this.#codexResetCoordinator = config.codexResetCoordinator ?? defaultCodexAutoRedeemCoordinator;
 		const bashHost: BashRunnerHost = {
 			agent: this.agent,
@@ -1093,7 +1093,6 @@ export class AgentSession {
 			emitSessionEvent: event => this.#emitSessionEvent(event),
 			wakeForIrc: records => this.#wakeForIrc(records),
 			runEphemeralTurn: args => this.runEphemeralTurn(args),
-			onAutoReply: (msg, replyText) => this.#ircAutoReplyListener?.(msg, replyText),
 		};
 		this.#irc = new IrcBridge(ircHost);
 		const prewalkHost: PrewalkCoordinatorHost = {
@@ -1376,6 +1375,7 @@ export class AgentSession {
 			agent: this.agent,
 			sessionManager: this.sessionManager,
 			settings: this.settings,
+			effectiveExtensionRoots: () => this.effectiveExtensionRoots,
 			modelRegistry: this.#modelRegistry,
 			extensionRunner: () => this.#extensionRunner,
 			clientBridge: () => this.#clientBridge,
@@ -1411,6 +1411,9 @@ export class AgentSession {
 			mcpManagerToolNames: config.mcpManagerToolNames,
 			presentationPinnedToolNames: config.presentationPinnedToolNames,
 			ensureWriteRegistered: config.ensureWriteRegistered,
+			isDeviceOnlyWrite: config.isDeviceOnlyWrite,
+			setDeviceOnlyWrite: config.setDeviceOnlyWrite,
+			setPendingFullWriteDescription: config.setPendingFullWriteDescription,
 			ensureGoalRegistered: config.ensureGoalRegistered,
 			rebuildSystemPrompt: config.rebuildSystemPrompt,
 			getMcpServerInstructions: config.getMcpServerInstructions,
@@ -1914,6 +1917,7 @@ export class AgentSession {
 			status: job.status,
 			label: job.label,
 			startTime: job.startTime,
+			agentId: job.agentId,
 		}));
 		const recent = manager.getRecentJobs(options?.recentLimit ?? 5, ownerFilter).map(job => ({
 			id: job.id,
@@ -1921,6 +1925,7 @@ export class AgentSession {
 			status: job.status,
 			label: job.label,
 			startTime: job.startTime,
+			agentId: job.agentId,
 		}));
 		const delivery = manager.getDeliveryState(ownerFilter);
 		return { running, recent, delivery };
@@ -2267,6 +2272,18 @@ export class AgentSession {
 	};
 
 	/**
+	 * Await only message persistence already in flight at call time.
+	 *
+	 * Focus attach uses this after subscribing to the target so a tool result
+	 * emitted during the focus blackout is present in the transcript rebuild.
+	 * This intentionally excludes agent_end maintenance, which may perform
+	 * provider-backed compaction and must not block switching sessions.
+	 */
+	async settleInFlightMessagePersistence(): Promise<void> {
+		await Promise.allSettled([...this.#pendingMessageEndPersistence.values()]);
+	}
+
+	/**
 	 * Await every in-flight event handler (and any it chains into) so a late
 	 * message/entry append cannot land after the caller clears session memory.
 	 * The agent must already be idle — otherwise new events keep arriving and
@@ -2520,6 +2537,10 @@ export class AgentSession {
 					message.display,
 					message.details,
 					message.attribution ?? "agent",
+					// Preserve the initiating message's own timestamp: the entry
+					// otherwise records emission time, which on rebuild excludes
+					// provider preparation / hook time from the prompt→yield anchor.
+					message.timestamp,
 				);
 			}
 			if (message.role === "custom" && message.customType === "ttsr-injection") {
@@ -2720,6 +2741,13 @@ export class AgentSession {
 
 		const messageEndPersistence =
 			event.type === "message_end" ? this.#createMessageEndPersistenceSlot(event.message) : undefined;
+		// Local completion time for prompt→yield timing: stamped here, not by the
+		// provider, so the usage row's Δ is exact and provider-independent — some
+		// providers never report `duration` (gitlab-duo) or stamp `timestamp` at
+		// request start. Persisted with the message and read on rebuild.
+		if (event.type === "message_end" && event.message.role === "assistant") {
+			event.message.completedAt = Date.now();
+		}
 
 		// Deobfuscate assistant message content for display emission — the LLM echoes back
 		// obfuscated placeholders, but listeners (TUI, extensions, exporters) must see real
@@ -3368,12 +3396,72 @@ export class AgentSession {
 		this.#trackPostPromptTask(scheduled);
 	}
 
-	#skipAgentContinue(reason: AgentContinueSkipReason, options: ScheduledAgentContinueOptions | undefined): void {
-		logger.debug("agent.continue skipped after scheduling", { reason });
-		options?.onSkip?.(reason);
+	#skipAgentContinue(reason: AgentContinueSkipReason, request: ScheduledAgentContinueRequest): void {
+		logger.debug("agent.continue skipped after scheduling", {
+			reason,
+			source: request.options.source,
+			schedulerToken: request.schedulerToken,
+		});
+		request.options.onSkip?.(reason);
 	}
 
-	#scheduleAgentContinue(options?: ScheduledAgentContinueOptions): void {
+	#handleAgentContinueOutcome(outcome: AgentContinueOutcome, request: ScheduledAgentContinueRequest): void {
+		if (outcome.status === "skipped") {
+			this.#skipAgentContinue(outcome.reason, request);
+		} else if (outcome.status === "failed") {
+			request.options.onError?.(outcome.error);
+		}
+	}
+
+	async #runAgentContinue(
+		signal: AbortSignal,
+		request: ScheduledAgentContinueRequest,
+		coalescedSources: Set<string>,
+	): Promise<AgentContinueOutcome> {
+		try {
+			const reverted = await this.#recovery.maybeRestoreRetryFallbackPrimary();
+			if (signal.aborted || this.#isDisposed) {
+				return { status: "skipped", reason: "post-restore-unavailable" };
+			}
+			// A cooldown-expiry revert can drop the active window below the
+			// accumulated context. The user-prompt path re-checks context after
+			// the revert via runPrePromptCompactionIfNeeded; the auto-continue
+			// path must do the same so agent.continue() never sends a
+			// predictably oversized request to the reverted (smaller) model.
+			if (reverted) {
+				await this.#maintenance.runPrePromptCompactionIfNeeded([]);
+				if (signal.aborted || this.#isDisposed) {
+					return { status: "skipped", reason: "post-restore-unavailable" };
+				}
+			}
+			if (this.settings.get("retry.usageAwareFallback")) {
+				if (!(await this.#runQueuedUsageAwarePreflight(signal))) {
+					return { status: "skipped", reason: "session-unavailable" };
+				}
+			}
+			await this.agent.continue(signal);
+			return { status: "completed" };
+		} catch (error) {
+			logger.warn("agent.continue failed after scheduling", {
+				source: request.options.source,
+				schedulerToken: request.schedulerToken,
+				coalescedSources: [...coalescedSources].filter(source => source !== request.options.source),
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined,
+			});
+			return { status: "failed", error };
+		}
+	}
+
+	#scheduleAgentContinue(options: ScheduledAgentContinueOptions): void {
+		const request: ScheduledAgentContinueRequest = {
+			schedulerToken: ++this.#agentContinueSchedulerToken,
+			options,
+		};
+		logger.debug("agent.continue scheduled", {
+			source: options.source,
+			schedulerToken: request.schedulerToken,
+		});
 		this.#schedulePostPromptTask(
 			async signal => {
 				// Defense in depth: if compaction/handoff slipped onto the post-prompt queue
@@ -3382,54 +3470,55 @@ export class AgentSession {
 				// reset. The first-class fix is in #checkCompaction/the agent_end handler,
 				// but this guard catches anything that bypasses that path.
 				if (signal.aborted || this.#isDisposed || this.isCompacting || this.isGeneratingHandoff) {
-					this.#skipAgentContinue("session-unavailable", options);
+					this.#skipAgentContinue("session-unavailable", request);
 					return;
 				}
-				if (options?.shouldContinue && !options.shouldContinue()) {
-					this.#skipAgentContinue("should-continue-false", options);
+				if (options.shouldContinue && !options.shouldContinue()) {
+					this.#skipAgentContinue("should-continue-false", request);
 					return;
 				}
-				this.#beginInFlight();
-				try {
-					const reverted = await this.#recovery.maybeRestoreRetryFallbackPrimary();
-					if (signal.aborted || this.#isDisposed) {
-						this.#skipAgentContinue("post-restore-unavailable", options);
-						return;
-					}
-					// A cooldown-expiry revert can drop the active window below the
-					// accumulated context. The user-prompt path re-checks context after
-					// the revert via runPrePromptCompactionIfNeeded; the auto-continue
-					// path must do the same so agent.continue() never sends a
-					// predictably oversized request to the reverted (smaller) model.
-					if (reverted) {
-						await this.#maintenance.runPrePromptCompactionIfNeeded([]);
-						if (signal.aborted || this.#isDisposed) {
-							this.#skipAgentContinue("post-restore-unavailable", options);
-							return;
-						}
-					}
-					if (this.settings.get("retry.usageAwareFallback")) {
-						if (!(await this.#runQueuedUsageAwarePreflight(signal))) {
-							this.#skipAgentContinue("session-unavailable", options);
-							return;
-						}
-					}
-					await this.agent.continue(signal);
-				} catch (error) {
-					logger.warn("agent.continue failed after scheduling", {
-						error: error instanceof Error ? error.message : String(error),
-						stack: error instanceof Error ? error.stack : undefined,
+
+				const active = this.#activeAgentContinue;
+				if (active) {
+					active.coalescedSources.add(options.source);
+					logger.debug("agent.continue coalesced after scheduling", {
+						source: options.source,
+						schedulerToken: request.schedulerToken,
+						activeSource: active.source,
+						activeSchedulerToken: active.schedulerToken,
 					});
-					options?.onError?.(error);
+					this.#handleAgentContinueOutcome(await active.promise, request);
+					return;
+				}
+
+				this.#beginInFlight();
+				const coalescedSources = new Set([options.source]);
+				const promise = this.#runAgentContinue(signal, request, coalescedSources);
+				const attempt: ActiveAgentContinue = {
+					schedulerToken: request.schedulerToken,
+					source: options.source,
+					coalescedSources,
+					promise,
+				};
+				this.#activeAgentContinue = attempt;
+				try {
+					this.#handleAgentContinueOutcome(await promise, request);
 				} finally {
+					// Clear the active attempt BEFORE #endInFlight(): the settle drain it
+					// triggers (#drainStrandedQueuedMessages -> queued-message-drain) runs
+					// synchronously and must start a fresh continue for messages queued
+					// after this attempt's final poll, not coalesce onto the finished one.
+					if (this.#activeAgentContinue === attempt) {
+						this.#activeAgentContinue = undefined;
+					}
 					this.#usagePreflightReadyForNextModelCall = false;
 					this.#endInFlight();
 				}
 			},
 			{
-				delayMs: options?.delayMs,
-				generation: options?.generation,
-				onSkip: reason => this.#skipAgentContinue(reason, options),
+				delayMs: options.delayMs,
+				generation: options.generation,
+				onSkip: reason => this.#skipAgentContinue(reason, request),
 			},
 		);
 	}
@@ -3443,6 +3532,7 @@ export class AgentSession {
 		if (options.suppressContinuation) return false;
 		if (this.agent.hasQueuedMessages()) {
 			this.#scheduleAgentContinue({
+				source: "compaction-queued-message",
 				delayMs: 100,
 				generation: options.generation,
 				shouldContinue: () => this.agent.hasQueuedMessages(),
@@ -3468,6 +3558,10 @@ export class AgentSession {
 					content: [{ type: "text", text: autoContinuePrompt }],
 					attribution: "agent",
 					timestamp: Date.now(),
+					// Distinguishes this run-initiating prompt from same-turn
+					// continuation reminders (todo/plan) that are also persisted as
+					// developer messages; replay uses it for the prompt→yield anchor.
+					synthetic: true,
 				},
 				autoContinuePrompt,
 				{
@@ -3482,6 +3576,7 @@ export class AgentSession {
 				if (signal.aborted) return;
 				if (this.agent.hasQueuedMessages()) {
 					this.#scheduleAgentContinue({
+						source: "auto-continue-queued-message",
 						generation,
 						shouldContinue: () => this.agent.hasQueuedMessages(),
 					});
@@ -4989,7 +5084,6 @@ export class AgentSession {
 	/** Toggle automatic compaction. */
 	setAutoCompactionEnabled(enabled: boolean): void {
 		this.#maintenance.setAutoCompactionEnabled(enabled);
-		this.bumpStateVersion();
 	}
 
 	/** Whether automatic compaction is enabled. */
@@ -5118,62 +5212,6 @@ export class AgentSession {
 	}
 
 	/** Prompt templates */
-	/** Monotonic counter bumped whenever mode or model state changes (external-state contract). */
-	getStateVersion(): number {
-		return this.#stateVersion;
-	}
-
-	/** Bump the external-state version and notify subscribers. */
-	bumpStateVersion(): number {
-		this.#stateVersion++;
-		this.#emit({ type: "state_version_changed", stateVersion: this.#stateVersion });
-		return this.#stateVersion;
-	}
-
-	/** Current state snapshot for a mode, if active. */
-	getModeState(mode: ModeId): PlanModeState | GoalModeState | VibeModeState | undefined {
-		switch (mode) {
-			case "plan":
-				return this.getPlanModeState();
-			case "goal":
-				return this.getGoalModeState();
-			case "vibe":
-				return this.getVibeModeState();
-		}
-	}
-
-	/** Enter a mode through the shared ModeController API (CLI and external clients). */
-	async enterMode(mode: ModeId, options?: unknown): Promise<void> {
-		switch (mode) {
-			case "plan": {
-				const opts = (options ?? {}) as PlanModeEntryOptions;
-				await this.enterPlanMode(opts.initialPrompt, opts);
-				return;
-			}
-			case "goal":
-				await this.enterGoalMode((options ?? {}) as GoalModeEntryOptions);
-				return;
-			case "vibe":
-				await this.enterVibeMode((options ?? {}) as VibeModeEntryOptions);
-				return;
-		}
-	}
-
-	/** Exit a mode through the shared ModeController API (CLI and external clients). */
-	async exitMode(mode: ModeId, options?: unknown): Promise<void> {
-		switch (mode) {
-			case "plan":
-				await this.exitPlanMode((options ?? {}) as PlanModeExitOptions);
-				return;
-			case "goal":
-				await this.exitGoalMode((options ?? {}) as GoalModeExitOptions);
-				return;
-			case "vibe":
-				await this.exitVibeMode();
-				return;
-		}
-	}
-
 	getPlanModeState(): PlanModeState | undefined {
 		return this.#planModeState;
 	}
@@ -5195,230 +5233,6 @@ export class AgentSession {
 			// does not inherit a stale `required` tool choice.
 			this.#toolChoiceQueue.removeByLabel("plan-mode-decision");
 		}
-		this.bumpStateVersion();
-	}
-
-	/**
-	 * Enter plan mode — the shared plan-mode core for both the CLI and external
-	 * clients. Arms the plan-mode state, ensures the `write` tool is active so
-	 * the agent can draft the plan file, wires plan approval, applies the `plan`
-	 * role model transition, journals the mode change, then delivers the optional
-	 * initial prompt (or the plan-mode context when already streaming).
-	 */
-	async enterPlanMode(initialPrompt?: string, options: PlanModeEntryOptions = {}): Promise<void> {
-		if (this.#planModeState?.enabled) return;
-		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
-		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
-
-		const planFilePath = options.planFilePath ?? (this.getPlanReferencePath() || "local://PLAN.md");
-		const previousTools = this.getEnabledToolNames();
-		const planAugmentations: string[] = [];
-		if (this.hasBuiltInTool("write")) planAugmentations.push("write");
-		const uniquePlanTools = [...new Set([...previousTools, ...planAugmentations])];
-		this.#planModePreviousTools = previousTools;
-		await this.setActiveToolsByName(uniquePlanTools);
-		this.setPlanModeState({
-			enabled: true,
-			planFilePath,
-			workflow: options.workflow ?? "parallel",
-			reentry: options.reentry,
-		});
-		this.setPlanProposalHandler(title => this.preparePlanForReview(title));
-		if (this.isStreaming) {
-			await this.sendPlanModeContext({ deliverAs: "steer" });
-		}
-		if (!options.preserveRestoredModel) {
-			await this.#applyPlanModeModel();
-		}
-		this.sessionManager.appendModeChange("plan", { planFilePath });
-		if (initialPrompt && initialPrompt.trim() !== "") {
-			await this.steer(initialPrompt.trim());
-		}
-	}
-
-	/**
-	 * Exit plan mode — restores the pre-plan tool/model state, drops the plan
-	 * proposal handler, journals the transition, and rolls back on failure
-	 * (mirrors `InteractiveMode.#exitPlanMode` minus TUI concerns).
-	 */
-	async exitPlanMode(options: PlanModeExitOptions = {}): Promise<void> {
-		if (!this.#planModeState?.enabled) return;
-
-		const planModeState = this.#planModeState;
-		const planModeTools = this.getEnabledToolNames();
-		const planModeMountedTools = this.getMountedXdevToolNames();
-		const planModeModelState = this.model
-			? { model: this.model, thinkingLevel: this.configuredThinkingLevel() }
-			: undefined;
-		this.setPlanModeState(undefined);
-		try {
-			if (this.#planModePreviousTools !== undefined) {
-				await this.setActiveToolsByName(this.#planModePreviousTools);
-			}
-			if (this.#planModePreviousModelState && !options.deferModelRestore) {
-				await this.restorePlanPreviousModel(this.#planModePreviousModelState);
-			}
-			// If a deferred switch to the plan-role model was queued (streaming
-			// entry), drop it now: leaving plan mode means flushing it later would
-			// land the session on the plan-role model after exit (issue #816).
-			if (this.#planModePreviousModelState) this.#clearPendingPlanModelSwitch();
-		} catch (error) {
-			this.setPlanModeState(planModeState);
-			if (
-				planModeModelState &&
-				(!modelsAreEqual(this.model, planModeModelState.model) ||
-					this.configuredThinkingLevel() !== planModeModelState.thinkingLevel)
-			) {
-				try {
-					await this.restorePlanPreviousModel(planModeModelState);
-				} catch (rollbackError) {
-					logger.warn("Failed to restore plan model after plan exit failure", { error: String(rollbackError) });
-				}
-			}
-			const enabledTools = this.getEnabledToolNames();
-			const mountedTools = this.getMountedXdevToolNames();
-			if (
-				enabledTools.length !== planModeTools.length ||
-				enabledTools.some((name, index) => name !== planModeTools[index]) ||
-				mountedTools.length !== planModeMountedTools.length ||
-				mountedTools.some((name, index) => name !== planModeMountedTools[index])
-			) {
-				try {
-					await this.setActiveToolPresentation(planModeTools, planModeMountedTools);
-				} catch (rollbackError) {
-					logger.warn("Failed to restore plan tools after plan exit failure", { error: String(rollbackError) });
-				}
-			}
-			throw error;
-		}
-		this.setPlanProposalHandler?.(null);
-		this.#planModePreviousTools = undefined;
-		if (!options.deferModelRestore) this.#planModePreviousModelState = undefined;
-		this.sessionManager.appendModeChange(options.paused ? "plan_paused" : "none");
-	}
-
-	/** Pre-plan tool snapshot (used by the CLI approval/switch flows). */
-	getPlanModePreviousTools(): string[] | undefined {
-		return this.#planModePreviousTools;
-	}
-
-	setPlanModePreviousTools(tools: string[] | undefined): void {
-		this.#planModePreviousTools = tools;
-	}
-
-	/**
-	 * Drop all transient mode bookkeeping (pre-mode tool/model snapshots,
-	 * deferred model switches, vibe owner scope) without journaling. Used by the
-	 * CLI's session-switch reconciliation, where the previous mode's transient
-	 * state must not leak onto the restored session.
-	 */
-	resetModeTransientState(): void {
-		this.#planModePreviousTools = undefined;
-		this.#planModePreviousModelState = undefined;
-		this.#pendingModelSwitch = undefined;
-		this.#pendingPlanModelSwitch = false;
-		this.#goalModePreviousTools = undefined;
-		this.#vibeModePreviousTools = undefined;
-		this.#vibeModeOwnerScope = undefined;
-	}
-
-	/** Pre-plan model snapshot (used by the CLI approval flow). */
-	getPlanModePreviousModelState(): { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined {
-		return this.#planModePreviousModelState;
-	}
-
-	setPlanModePreviousModelState(state: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined): void {
-		this.#planModePreviousModelState = state;
-	}
-
-	async #applyPlanModeModel(): Promise<void> {
-		const resolved = this.resolveRoleModelWithThinking("plan");
-		if (!resolved.model) return;
-		const currentModel = this.model;
-		// Capture the pre-plan model so exit can restore it. Only the entry path
-		// records this — a mid-planning role change
-		// (reapplyPlanModeModelOnRoleChange) leaves the active model on the plan
-		// role, so overwriting here would restore the old plan model instead of
-		// the user's real pre-plan model.
-		this.#planModePreviousModelState = currentModel
-			? { model: currentModel, thinkingLevel: this.configuredThinkingLevel() }
-			: undefined;
-		await this.#applyPlanModelTransition(currentModel, resolved);
-	}
-
-	/** Re-resolve the `plan` role and move the active model onto it (role reassignment). */
-	async reapplyPlanModeModelOnRoleChange(): Promise<void> {
-		if (!this.#planModeState?.enabled) return;
-		const resolved = this.resolveRoleModelWithThinking("plan");
-		if (!resolved.model) {
-			this.#clearPendingPlanModelSwitch();
-			return;
-		}
-		await this.#applyPlanModelTransition(this.model, resolved);
-	}
-
-	#clearPendingPlanModelSwitch(): void {
-		if (!this.#pendingPlanModelSwitch) return;
-		this.#pendingModelSwitch = undefined;
-		this.#pendingPlanModelSwitch = false;
-	}
-
-	/** Apply (or defer) the model/thinking change implied by the resolved plan role. */
-	async #applyPlanModelTransition(currentModel: Model | undefined, resolved: ResolvedModelRoleValue): Promise<void> {
-		const transition = resolvePlanModelTransition(currentModel, resolved, this.isStreaming);
-		if (transition.kind !== "apply" || !transition.deferred) {
-			this.#clearPendingPlanModelSwitch();
-		}
-		switch (transition.kind) {
-			case "none":
-				return;
-			case "thinking":
-				this.setThinkingLevel(transition.thinkingLevel);
-				return;
-			case "apply":
-				if (transition.deferred) {
-					this.#pendingModelSwitch = { model: transition.model, thinkingLevel: transition.thinkingLevel };
-					this.#pendingPlanModelSwitch = true;
-					return;
-				}
-				try {
-					await this.setModelTemporary(transition.model, transition.thinkingLevel);
-				} catch (error) {
-					logger.warn(
-						`Failed to switch to plan model for plan mode: ${error instanceof Error ? error.message : String(error)}`,
-					);
-				}
-				return;
-		}
-	}
-
-	/** Apply any deferred model switch after the current stream ends. */
-	async flushPendingModelSwitch(): Promise<void> {
-		const pending = this.#pendingModelSwitch;
-		this.#pendingModelSwitch = undefined;
-		this.#pendingPlanModelSwitch = false;
-		if (!pending) return;
-		try {
-			await this.setModelTemporary(pending.model, pending.thinkingLevel);
-		} catch (error) {
-			logger.warn(
-				`Failed to switch model after streaming: ${error instanceof Error ? error.message : String(error)}`,
-			);
-		}
-	}
-
-	/** Restore a captured pre-plan model state, deferring the switch when streaming. */
-	async restorePlanPreviousModel(prev: { model: Model; thinkingLevel?: ConfiguredThinkingLevel }): Promise<void> {
-		if (modelsAreEqual(this.model, prev.model)) {
-			// Same model — only thinking level may differ. Avoid setModelTemporary()
-			// which would reset provider-side sessions and break continuity.
-			this.setThinkingLevel(prev.thinkingLevel);
-		} else if (this.isStreaming) {
-			this.#pendingModelSwitch = { model: prev.model, thinkingLevel: prev.thinkingLevel };
-			this.#pendingPlanModelSwitch = false;
-		} else {
-			await this.setModelTemporary(prev.model, prev.thinkingLevel);
-		}
 	}
 
 	getGoalModeState(): GoalModeState | undefined {
@@ -5427,77 +5241,6 @@ export class AgentSession {
 
 	setGoalModeState(state: GoalModeState | undefined): void {
 		this.#goalModeState = state;
-		this.bumpStateVersion();
-	}
-
-	/** Pre-goal-mode tool snapshot (used by the CLI interview/switch flows). */
-	getGoalModePreviousTools(): string[] | undefined {
-		return this.#goalModePreviousTools;
-	}
-
-	setGoalModePreviousTools(tools: string[] | undefined): void {
-		this.#goalModePreviousTools = tools;
-	}
-
-	/**
-	 * Enter goal mode — shared goal-mode core. Creates (or resumes) the goal via
-	 * the goal runtime, augments the active toolset with the `goal` tool, and
-	 * injects the goal-mode context when already streaming.
-	 */
-	async enterGoalMode(options: GoalModeEntryOptions = {}): Promise<void> {
-		if (this.#goalModeState?.enabled) return;
-		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
-		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
-
-		const previousTools = this.getEnabledToolNames().filter(name => name !== "goal");
-		const goalTools = [...new Set([...previousTools, "goal"])];
-		this.#goalModePreviousTools = previousTools;
-		const state = options.resume
-			? await this.goalRuntime.resumeGoal()
-			: await this.goalRuntime.createGoal({ objective: options.objective ?? "" });
-		await this.setActiveToolsByName(goalTools);
-		this.setGoalModeState(state);
-		if (this.isStreaming) {
-			await this.sendGoalModeContext({ deliverAs: "steer" });
-		}
-	}
-
-	/**
-	 * Exit goal mode — restores the pre-goal toolset and, for a completed goal,
-	 * clears the mode state and journals the transition. External clients exit
-	 * an active goal without pre-running the goal tool, so a reason-less exit
-	 * terminates the runtime cleanly (abandon, mirroring the goal tool's `drop`).
-	 */
-	async exitGoalMode(options: GoalModeExitOptions = {}): Promise<void> {
-		const previousTools = this.#goalModePreviousTools;
-		// `#goalModePreviousTools` is the "goal mode was entered" signal — it is
-		// cleared only on exit, so the restore runs even when the runtime already
-		// cleared the mode state (e.g. the goal `drop` op, which emits no
-		// goal_updated event and leaves `#goalModeState` undefined).
-		if (previousTools !== undefined) {
-			await this.setActiveToolsByName(previousTools);
-		}
-		const currentState = this.getGoalModeState();
-		if (
-			currentState?.enabled &&
-			currentState.goal?.status === "active" &&
-			(options.reason === undefined || options.reason === "dropped")
-		) {
-			await this.goalRuntime.dropGoal();
-			this.#goalModePreviousTools = undefined;
-			return;
-		}
-		if (options.reason === "completed") {
-			this.setGoalModeState(undefined);
-			this.sessionManager.appendModeChange("none");
-			this.sessionManager.appendCustomEntry("goal-completed", {
-				objective: currentState?.goal?.objective,
-				tokensUsed: currentState?.goal?.tokensUsed,
-				tokenBudget: currentState?.goal?.tokenBudget,
-				timeUsedSeconds: currentState?.goal?.timeUsedSeconds,
-			});
-		}
-		this.#goalModePreviousTools = undefined;
 	}
 
 	getVibeModeState(): VibeModeState | undefined {
@@ -5506,82 +5249,6 @@ export class AgentSession {
 
 	setVibeModeState(state: VibeModeState | undefined): void {
 		this.#vibeModeState = state;
-		this.bumpStateVersion();
-	}
-
-	/** Pre-vibe-mode tool snapshot (used by the CLI switch flows). */
-	getVibeModePreviousTools(): string[] | undefined {
-		return this.#vibeModePreviousTools;
-	}
-
-	setVibeModePreviousTools(tools: string[] | undefined): void {
-		this.#vibeModePreviousTools = tools;
-	}
-
-	/** Vibe worker owner scope for the current session (CLI switch/teardown flows). */
-	getVibeModeOwnerScope(): VibeOwnerScope | undefined {
-		return this.#vibeModeOwnerScope;
-	}
-
-	/** The session itself as a vibe parent (worker spawns + registry scoping). */
-	#vibeParentSession(): VibeParentSession {
-		return {
-			getAgentId: () => this.getAgentId() ?? null,
-			getSessionId: () => this.sessionManager.getSessionId(),
-			getSessionFile: () => this.sessionManager.getSessionFile() ?? null,
-			sessionManager: this.sessionManager,
-			asyncJobManager: this.asyncJobManager,
-			settings: this.settings,
-			getActiveModelString: () => (this.model ? formatModelString(this.model) : undefined),
-		};
-	}
-
-	/**
-	 * Enter vibe mode — shared vibe-mode core. Activates the ephemeral vibe
-	 * toolset (read + optional parent todo + vibe tools), opens the worker
-	 * spawn scope, journals the mode change, and injects the director context
-	 * when already streaming. Returns the owner scope for the caller.
-	 */
-	async enterVibeMode(options: VibeModeEntryOptions = {}): Promise<VibeOwnerScope> {
-		if (this.#vibeModeState?.enabled) return this.#vibeModeOwnerScope!;
-		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
-		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
-
-		const vibeRegistry = VibeSessionRegistry.global();
-		const ownerScope = vibeRegistry.ownerScope(this.#vibeParentSession());
-		vibeRegistry.activateScope(ownerScope);
-		const previousTools = options.previousTools ?? this.getEnabledToolNames();
-		const vibeBaseTools = ["read"];
-		if (this.hasBuiltInTool("todo")) vibeBaseTools.push("todo");
-		await this.activateVibeTools(vibeBaseTools);
-		this.#vibeModePreviousTools = previousTools;
-		this.#vibeModeOwnerScope = ownerScope;
-		this.setVibeModeState({ enabled: true });
-		if (this.isStreaming) {
-			await this.sendVibeModeContext({ deliverAs: "steer" });
-		}
-		if (options.persistModeChange !== false) this.sessionManager.appendModeChange("vibe", { previousTools });
-		return ownerScope;
-	}
-
-	/**
-	 * Exit vibe mode — tears down worker sessions, unregisters the vibe tools,
-	 * and clears the mode state. Returns the number of worker sessions killed.
-	 */
-	async exitVibeMode(): Promise<number> {
-		if (!this.#vibeModeState?.enabled) return 0;
-		let killed = 0;
-		await this.runModeExitTeardown(async () => {
-			if (this.isStreaming) {
-				await this.abort();
-			}
-			killed = await VibeSessionRegistry.global().killAll(this.#vibeParentSession(), this.#vibeModeOwnerScope!);
-			await this.deactivateVibeTools(this.#vibeModePreviousTools ?? []);
-			this.setVibeModeState(undefined);
-		});
-		this.#vibeModePreviousTools = undefined;
-		this.#vibeModeOwnerScope = undefined;
-		return killed;
 	}
 
 	#assertVibeSessionTransitionAllowed(action: string): void {
@@ -6028,6 +5695,10 @@ export class AgentSession {
 	 * the ACP agent) use this to know whether to expect an `agent_end` event.
 	 */
 	async prompt(text: string, options?: PromptOptions): Promise<boolean> {
+		// Stamp the operator's submission instant before ANY async preprocessing —
+		// command execution, image normalization, vision-model description — so the
+		// prompt→yield delta includes the whole wait, whatever path the prompt takes.
+		const submittedAt = Date.now();
 		// A manual `/compact` runs with the agent subscription disconnected until its
 		// cleanup finally re-drains the preserved queues. Starting a turn before then
 		// would neither persist nor forward its events and could race the in-flight
@@ -6093,9 +5764,9 @@ export class AgentSession {
 				await this.#queueCustomMessage(notice, streamingBehavior);
 			}
 			if (streamingBehavior === "followUp") {
-				await this.#queueUserMessage(expandedText, options?.images, "followUp");
+				await this.#queueUserMessage(expandedText, options?.images, "followUp", submittedAt);
 			} else {
-				await this.#queueUserMessage(expandedText, options?.images, "steer");
+				await this.#queueUserMessage(expandedText, options?.images, "steer", submittedAt);
 			}
 			return true;
 		}
@@ -6135,8 +5806,15 @@ export class AgentSession {
 			});
 		}
 		const message = options?.synthetic
-			? { role: "developer" as const, content: userContent, attribution: promptAttribution, timestamp: Date.now() }
-			: { role: "user" as const, content: userContent, attribution: promptAttribution, timestamp: Date.now() };
+			? {
+					role: "developer" as const,
+					content: userContent,
+					attribution: promptAttribution,
+					timestamp: submittedAt,
+					synthetic: true,
+					userInitiated: options?.userInitiated === true ? true : undefined,
+				}
+			: { role: "user" as const, content: userContent, attribution: promptAttribution, timestamp: submittedAt };
 
 		const preludeMessages: AgentMessage[] = [];
 		if (eagerTodoPrelude) {
@@ -6655,7 +6333,10 @@ export class AgentSession {
 		}
 
 		const expandedText = expandPromptTemplate(text, [...this.#promptTemplates]);
-		await this.#queueUserMessage(expandedText, images, "steer");
+		// Stamp before image preprocessing so a queued image steer measures from
+		// the operator's submission, not after the vision-model description.
+		const submittedAt = Date.now();
+		await this.#queueUserMessage(expandedText, images, "steer", submittedAt);
 	}
 
 	/**
@@ -6672,8 +6353,11 @@ export class AgentSession {
 
 		const expandedText =
 			options?.expandPromptTemplates === false ? text : expandPromptTemplate(text, [...this.#promptTemplates]);
+		// Stamp before image preprocessing so a queued image follow-up measures
+		// from the operator's submission, not after the vision-model description.
+		const submittedAt = Date.now();
 		if (!options?.synthetic) {
-			await this.#queueUserMessage(expandedText, images, "followUp");
+			await this.#queueUserMessage(expandedText, images, "followUp", submittedAt);
 			return;
 		}
 		// Synthetic branch: agent-initiated hidden developer message. Bypass
@@ -6695,6 +6379,10 @@ export class AgentSession {
 			content,
 			attribution: options.attribution ?? "agent",
 			timestamp: Date.now(),
+			// Run-initiating synthetic prompt (e.g. approved-plan execution queued
+			// behind a busy turn): replay uses the marker to clear the preceding
+			// user's prompt anchor, matching the live agent_start clear.
+			synthetic: true,
 		});
 		this.#scheduleIdleQueueDrain();
 	}
@@ -6730,6 +6418,7 @@ export class AgentSession {
 		text: string,
 		images: ImageContent[] | undefined,
 		mode: "steer" | "followUp",
+		timestamp?: number,
 	): Promise<void> {
 		// A queued user message (RPC/SDK/collab steer or follow-up, or a typed message
 		// while streaming) is a deliberate resume; re-enable advisor auto-resume that
@@ -6752,7 +6441,7 @@ export class AgentSession {
 				role: "user",
 				content,
 				attribution: "user",
-				timestamp: Date.now(),
+				timestamp: timestamp ?? Date.now(),
 			});
 		} else {
 			if (imageDescriptionNotice) this.agent.steer(imageDescriptionNotice);
@@ -6761,7 +6450,7 @@ export class AgentSession {
 				content,
 				steering: true,
 				attribution: "user",
-				timestamp: Date.now(),
+				timestamp: timestamp ?? Date.now(),
 			});
 		}
 		this.#scheduleIdleQueueDrain();
@@ -6783,6 +6472,7 @@ export class AgentSession {
 		}
 		this.#queuedMessageDrainScheduled = true;
 		this.#scheduleAgentContinue({
+			source: "queued-message-drain",
 			shouldContinue: () => {
 				this.#queuedMessageDrainScheduled = false;
 				return (
@@ -7699,19 +7389,16 @@ export class AgentSession {
 			persist?: boolean;
 		},
 	): Promise<{ switched: boolean }> {
-		const result = await this.#models.setModel(model, role, options);
-		this.bumpStateVersion();
-		return result;
+		return this.#models.setModel(model, role, options);
 	}
 
 	/** Selects a model for this session without updating persisted model settings. */
-	async setModelTemporary(
+	setModelTemporary(
 		model: Model,
 		thinkingLevel?: ConfiguredThinkingLevel,
 		options?: { ephemeral?: boolean },
 	): Promise<void> {
-		await this.#models.setModelTemporary(model, thinkingLevel, options);
-		this.bumpStateVersion();
+		return this.#models.setModelTemporary(model, thinkingLevel, options);
 	}
 
 	/** Cycles the scoped model set, or all available models when no scope exists. */
@@ -7904,7 +7591,10 @@ export class AgentSession {
 			attribution: "agent",
 			timestamp: Date.now(),
 		});
-		this.#scheduleAgentContinue({ generation: this.#promptGeneration });
+		this.#scheduleAgentContinue({
+			source: "checkpoint-rewind-reminder",
+			generation: this.#promptGeneration,
+		});
 		return true;
 	}
 
@@ -8037,6 +7727,7 @@ export class AgentSession {
 		this.agent.appendMessage(reminderMessage);
 		this.sessionManager.appendMessage(reminderMessage);
 		this.#scheduleAgentContinue({
+			source: "plan-mode-reminder",
 			generation: this.#promptGeneration,
 			// If the continuation never runs (new prompt, dispose, compaction,
 			// handoff), the forced choice must not leak onto an unrelated turn.
@@ -8254,7 +7945,6 @@ export class AgentSession {
 	/** Toggle the auto-retry setting. */
 	setAutoRetryEnabled(enabled: boolean): void {
 		this.#recovery.setAutoRetryEnabled(enabled);
-		this.bumpStateVersion();
 	}
 
 	/** Retry the last failed assistant turn when the session is idle. */
@@ -8373,9 +8063,9 @@ export class AgentSession {
 		return this.#irc.deliver(msg, opts);
 	}
 
-	/** Installs/clears the outbound listener for IRC auto-reply text (IM channels). */
-	setIrcAutoReplyListener(listener: ((msg: IrcMessage, replyText: string) => void) | null): void {
-		this.#ircAutoReplyListener = listener;
+	/** Waits for side-channel IRC auto-replies currently owned by this session. */
+	waitForIrcAutoReplies(): Promise<void> {
+		return this.#irc.waitForAutoReplies();
 	}
 
 	/** Installs task-executor monitoring around autonomous IRC wake turns. */
@@ -8557,16 +8247,23 @@ export class AgentSession {
 	async reload(): Promise<void> {
 		const sessionFile = this.sessionFile;
 		if (!sessionFile) return;
-		await this.switchSession(sessionFile);
+		const switched = await this.switchSession(sessionFile);
+		if (!switched) throw new Error("Session reload cancelled");
 	}
-
 	/**
 	 * Switch to a different session file.
 	 * Aborts current operation, loads messages, restores model/thinking.
 	 * Listeners are preserved and will continue receiving events.
-	 * @returns true if switch completed, false if cancelled by hook
+	 * @returns true if switch completed, false if cancelled by hook or cwd change
 	 */
-	async switchSession(sessionPath: string): Promise<boolean> {
+	async switchSession(
+		sessionPath: string,
+		options?: {
+			onCwdChange?: (newCwd: string, previousCwd: string) => Promise<boolean>;
+			/** Collab snapshot adoption keeps the guest's process cwd and marks the replica runtime-only. */
+			preserveLocalCwd?: boolean;
+		},
+	): Promise<boolean> {
 		const previousSessionFile = this.sessionManager.getSessionFile();
 		const switchingToDifferentSession = previousSessionFile
 			? path.resolve(previousSessionFile) !== path.resolve(sessionPath)
@@ -8641,6 +8338,7 @@ export class AgentSession {
 		this.#usagePreflightReadyForNextModelCall = false;
 		this.#usagePreflightReadyModel = undefined;
 
+		let cwdChangeTarget: string | undefined;
 		try {
 			if (switchingToDifferentSession) {
 				// Stop and settle in-flight advisors while the old-session feeds can
@@ -8649,6 +8347,25 @@ export class AgentSession {
 			}
 			await this.sessionManager.setSessionFile(sessionPath);
 			this.#bash.markSessionTransition(bashTransition);
+			const newCwd = this.sessionManager.getCwd();
+			const recordedCwd = this.sessionManager.getRecordedCwd() ?? previousSessionState.cwd;
+			if (options?.preserveLocalCwd) {
+				this.sessionManager.setCwdWithoutRelocation(previousSessionState.cwd);
+			} else {
+				if (!options?.onCwdChange && path.resolve(recordedCwd) !== path.resolve(previousSessionState.cwd)) {
+					throw SESSION_CWD_CHANGE_REJECTED;
+				}
+				if (options?.onCwdChange) {
+					if (path.resolve(newCwd) !== path.resolve(previousSessionState.cwd)) {
+						cwdChangeTarget = newCwd;
+						if (!(await options.onCwdChange(newCwd, previousSessionState.cwd))) {
+							throw SESSION_CWD_CHANGE_REJECTED;
+						}
+					} else if (path.resolve(recordedCwd) !== path.resolve(previousSessionState.cwd)) {
+						throw SESSION_CWD_CHANGE_REJECTED;
+					}
+				}
+			}
 			if (switchingToDifferentSession) {
 				this.#freshProviderSessionId = undefined;
 				this.#clearInheritedProviderPromptCacheKey();
@@ -8851,7 +8568,25 @@ export class AgentSession {
 					error: String(reconcileError),
 				});
 			}
+			if (cwdChangeTarget && error !== SESSION_CWD_CHANGE_REJECTED && options?.onCwdChange) {
+				let rollbackFailure: string | undefined;
+				try {
+					if (!(await options.onCwdChange(previousSessionState.cwd, cwdChangeTarget))) {
+						rollbackFailure = "cwd rollback was rejected";
+					}
+				} catch (rollbackError) {
+					rollbackFailure = `cwd rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`;
+				}
+				if (rollbackFailure) {
+					this.beginDispose();
+					this.#bash.finishSessionTransition(bashTransition, false);
+					logger.warn("Failed to restore cwd after session switch", { cwd: previousSessionState.cwd });
+					const original = error instanceof Error ? error.message : String(error);
+					throw new Error(`${original} (${rollbackFailure}; the process may remain in ${cwdChangeTarget})`);
+				}
+			}
 			this.#bash.finishSessionTransition(bashTransition, false);
+			if (error === SESSION_CWD_CHANGE_REJECTED) return false;
 			throw error;
 		}
 	}
@@ -9445,7 +9180,7 @@ export class AgentSession {
 	 * guards as every other post-prompt continuation.
 	 */
 	resumeAfterAskReanswer(): void {
-		this.#scheduleAgentContinue();
+		this.#scheduleAgentContinue({ source: "ask-reanswer" });
 	}
 
 	/**
@@ -10235,11 +9970,9 @@ export class AgentSession {
 
 	/**
 	 * Begin backfilling advisor spend recorded before this resume, off the
-	 * critical path (issue #9553). A large advisor transcript would otherwise
-	 * block session startup for tens of seconds while the whole file is streamed
-	 * and parsed; instead the status-line total hydrates once the scan settles.
-	 * The resulting promise is exposed via {@link advisorCostRestore} for tests
-	 * and headless callers that must observe the hydrated total.
+	 * critical path. A large transcript would otherwise block startup while
+	 * the file is streamed; the status-line total hydrates once the scan
+	 * settles.
 	 */
 	beginInitialAdvisorCostRestore(): void {
 		let stale = false;

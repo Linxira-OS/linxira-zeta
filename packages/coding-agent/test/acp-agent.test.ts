@@ -2,8 +2,34 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { AgentBusyError } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import type { ExtensionUIContext } from "@linxiraos/pi-coding-agent/extensibility/extensions";
+import { resolveLocalUrlToPath } from "@linxiraos/pi-coding-agent/internal-urls";
+import {
+	ACP_BOOTSTRAP_RACE_GUARD_MS,
+	AcpAgent,
+	createAcpExtensionUiContext,
+} from "@linxiraos/pi-coding-agent/modes/acp/acp-agent";
+import type { PlanModeState } from "@linxiraos/pi-coding-agent/plan-mode/state";
+import type {
+	AgentSession,
+	AgentSessionEvent,
+	UsageFallbackConfirmation,
+} from "@linxiraos/pi-coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@linxiraos/pi-coding-agent/session/messages";
+import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
+import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@linxiraos/pi-coding-agent/stt/models";
+import { TaskTool } from "@linxiraos/pi-coding-agent/task";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import {
+	DEFAULT_TTS_LOCAL_MODEL_KEY,
+	DEFAULT_TTS_VOICE,
+	TTS_LOCAL_MODELS,
+	TTS_LOCAL_VOICE_OPTIONS,
+} from "@linxiraos/pi-coding-agent/tts/models";
 import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import type {
 	AgentSideConnection,
@@ -15,33 +41,13 @@ import type {
 	Validator,
 } from "@linxiraos/pi-utils/acp";
 import {
+	RequestError,
 	zForkSessionResponse,
 	zLoadSessionResponse,
 	zNewSessionResponse,
 	zPromptResponse,
 	zSessionNotification,
 } from "@linxiraos/pi-utils/acp";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
-import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
-import {
-	ACP_BOOTSTRAP_RACE_GUARD_MS,
-	AcpAgent,
-	createAcpExtensionUiContext,
-} from "@linxiraos/zeta/modes/acp/acp-agent";
-import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
-import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@linxiraos/zeta/stt/models";
-import { TaskTool } from "@linxiraos/zeta/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import {
-	DEFAULT_TTS_LOCAL_MODEL_KEY,
-	DEFAULT_TTS_VOICE,
-	TTS_LOCAL_MODELS,
-	TTS_LOCAL_VOICE_OPTIONS,
-} from "@linxiraos/zeta/tts/models";
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */
@@ -1713,7 +1719,7 @@ describe("ACP agent", () => {
 
 	it("refreshes task agent descriptions on ACP /reload-plugins", async () => {
 		const harness = await createHarness();
-		const agentDir = path.join(harness.cwdA, ".zeta", "agents");
+		const agentDir = path.join(harness.cwdA, ".omp", "agents");
 		const agentFile = path.join(agentDir, "acp-reload-agent.md");
 		await fs.promises.mkdir(agentDir, { recursive: true });
 		await fs.promises.writeFile(
@@ -2455,6 +2461,33 @@ describe("ACP agent", () => {
 		finishPrompt();
 		harness.abortController.abort();
 		await Bun.sleep(0);
+	});
+
+	it("maps agent-busy rejections to a typed session_busy error instead of internalError", async () => {
+		const harness = await createHarness();
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId)!;
+		// Autonomous turns stream without an owning ACP promptTurn, so prompt()'s
+		// implicit-cancel guard never fires. Mirror AgentSession's contract: a
+		// bare prompt while streaming throws AgentBusyError.
+		session.isStreaming = true;
+		session.prompt = async (): Promise<boolean> => {
+			if (session.isStreaming) throw new AgentBusyError();
+			return true;
+		};
+
+		const error = await harness.agent
+			.prompt({
+				sessionId: created.sessionId,
+				prompt: [{ type: "text", text: "ping during autonomous turn" }],
+			} as PromptRequest)
+			.catch((reason: unknown) => reason);
+
+		expect(error).toBeInstanceOf(RequestError);
+		const requestError = error as RequestError;
+		expect(requestError.code).toBe(-32003);
+		expect(requestError.message).toContain("already processing");
+		expect(requestError.data).toEqual({ reason: "session_busy", hint: "steer|followUp|wait" });
 	});
 
 	it("keeps closeSession gated while cancel cleanup is pending", async () => {
