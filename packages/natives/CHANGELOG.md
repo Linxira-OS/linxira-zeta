@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-08-30
+
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）：新增原生进程替换（支持 CLI `/restart`）与 `VcsGitRepo.mergeBase(a, b)`。
 - 修复：加载原生 addon 后 Tokio 共享运行时未安装（loader 调用名与 crate 导出不一致），异步原生操作静默回退默认运行时。
 

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-08-30
+
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 新增 Sharpshooter 记忆后端（`/memory queue`、`/memory sync`）与 `/restart` 原地重启并恢复当前会话。
 - 新增 `band` composer 状态带（默认启用，原 `composer.shape` 设置保持兼容）与失败工具调用原地重试（F5 / Alt+R / `/retry`）。

@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"name": "@linxiraos/pi-ai",
-	"version": "1.1.5",
+	"version": "1.1.6",
 	"description": "Unified LLM API with automatic model discovery and provider configuration",
 	"homepage": "https://linxira-os.github.io/zeta/",
 	"author": "Can Boluk",
