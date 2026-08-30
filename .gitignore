@@ -104,3 +104,6 @@ HANDOFF.md
 # Agent / IDE local state (never commit)
 .mimosa/
 .workbuddy/
+
+# ZCode session-local planning artifacts (never shipped)
+.zcode/
