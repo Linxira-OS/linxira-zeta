@@ -7,10 +7,14 @@
 - 插件平台落地：`plugins/official/` 与 `plugins/community/` 目录结构、pi-messenger 纳入版本管理。
 - Zeta CLI 品牌恢复：v18.0.3 合并回退的 `ZETA_LOGO`、终端标题 `ζ`、`/language` `/tracking` 图标等逐项恢复，AGENTS.md 新增品牌登记表护栏。
 - 下线 web-ui-next（Vite）UI 线：`zeta serve` 只托管一套 Web UI。
-- OMP 同步基线：v18.0.9（`cc14e04f075d`）。git/jj 工具迁入新 Rust crate `pi-vcs`，经 `@linxiraos/pi-natives/vcs` 暴露；Zeta 自有 web 网关（上游无此目录）同步移植到新 API。PR #4 合并提交 `842390f707`。
+- v18.0.10 同步项：原生进程替换（支持 CLI `/restart`）、`VcsGitRepo.mergeBase`（PR 式 diff 以 merge-base 为基准）、`execReplace`、设置新增 Sharpshooter 记忆组。
+- OMP 同步基线：v18.0.10（`33cc6b9a043a`，v18.0.9 经由其历史一并并入）。git/jj 工具迁入新 Rust crate `pi-vcs`，经 `@linxiraos/pi-natives/vcs` 暴露；Zeta 自有 web 网关（上游无此目录）同步移植到新 API。v18.0.9 合并提交 `842390f707`，v18.0.10 合并提交 `c1ee701735`。
 
 ### 修复
 
+- v18.0.9/v18.0.10 合并损伤修复：恢复 AgentSession 会话层 mode API（plan/goal/vibe，web 网关与 ACP 外部客户端恢复可用）、channel 工具（`channel_send`/`workspace_run`/`im_control`）接线、root catalog `@linxiraos/*` 键与版本线（1.1.5）、包名规范与 `.zeta` 测试契约。
+- 修复扩展发现读不到项目级配置：原生扩展根解析把项目配置目录写死为 `.omp`，`<project>/.zeta/` 下的扩展注册失效。
+- CI 门禁修复：PR 不再拉取 npm 最新发布 addon 充当测试产物（同步分支因旧 addon 缺新原生导出而必红），所有事件一律从源码构建；隔离上游继承的 issue-966 restage 竞态测试并立项（roadmap P1）。
 - 发布链修复：1.1.0 各 `@linxiraos/*` 包依赖误带 Bun `catalog:` 协议（npm 无法解析、安装即报错），1.1.1 起发布时重写为实际版本并重发全部包。
 - 1.1.2 空涨重发：重置 `latest` 指向，彻底排除坏的 1.1.0（内容与 1.1.1 无功能差异）。
 - CLI 汉化自动检测修复：`language` 未显式设置时不再用 schema 默认值（`"en"`）顶掉环境检测，`LC_ALL` / `Intl` 区域设置生效——中文系统开箱即中文界面；显式 `/language` 设置仍优先。

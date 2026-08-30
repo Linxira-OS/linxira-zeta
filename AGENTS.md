@@ -145,7 +145,7 @@ Zeta keeps upstream references minimal so the repository stays lean:
   sync policy, and fetch a specific tag explicitly only when a release sync
   needs it: `git fetch omp-upstream tag v17.2.12`.
 - Local tags are curated: OMP tags only for the two most recent versions
-  (currently `v18.0.3`, `v18.0.4`), plus `baseline/*` markers and Zeta
+  (currently `v18.0.9`, `v18.0.10`), plus `baseline/*` markers and Zeta
   product release tags. All other upstream history is preserved through the
   SHAs recorded in `document/upstream-sync.md`, not through tag refs.
 - `origin` (the GitHub remote) is the product truth: the Zeta `main` branch,
@@ -218,8 +218,8 @@ decide when the branch is stale:
 **Backup retention:**
 
 `backup/omp-tag/<tag>` keeps only the **recent stable OMP release baselines**
-(the same two most recent tags that exist locally, currently `v18.0.3` and
-`v18.0.4`). Older `backup/omp-tag/v17.x` entries are removed once the release
+(the same two most recent tags that exist locally, currently `v18.0.9` and
+`v18.0.10`). Older `backup/omp-tag/v17.x` entries are removed once the release
 is superseded; full history stays reachable through `backup/omp/main`, which
 mirrors `omp-upstream/main`.
 
