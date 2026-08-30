@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Share+Tech+Mono&display=swap');
 @import "tailwindcss";
+/* Design-system token layer (v1.1.7 modernization, step 1 — additive).
+   See document/web-ui-modernization.md §2. */
+@import "../styles/design-system.css";
+@import "../styles/typography.css";
 
 /* ── Local font: HarmonyOS Sans (UI chrome) ─────────────────────────────── */
 @font-face {
