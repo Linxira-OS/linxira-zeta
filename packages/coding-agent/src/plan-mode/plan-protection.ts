@@ -5,8 +5,9 @@ import { normalizeLocalScheme } from "../tools/path-utils";
 const LOCAL_PLAN_ALIAS = "local://PLAN.md";
 
 /** True when `readPath` targets `planTarget`, ignoring `local:/` vs `local://`
- *  scheme spelling and any trailing read selector (`:1-50`, `:raw`, …). */
-function readTargetsPlan(readPath: string, planTarget: string): boolean {
+ *  scheme spelling and any trailing read selector (`:1-50`, `:raw`, …).
+ *  Exported for the read tool's plan-aware default window. */
+export function readTargetsPlan(readPath: string, planTarget: string): boolean {
 	const read = normalizeLocalScheme(readPath);
 	const target = normalizeLocalScheme(planTarget);
 	return read === target || read.startsWith(`${target}:`);

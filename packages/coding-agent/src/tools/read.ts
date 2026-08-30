@@ -32,6 +32,7 @@ import { InternalUrlRouter, resolveLocalUrlToFile, resolveLocalUrlToPath } from 
 import { type ResolvedArtifactFile, resolveArtifactFile } from "../internal-urls/artifact-protocol";
 import { parseInternalUrl } from "../internal-urls/parse";
 import type { InternalUrl } from "../internal-urls/types";
+import { readTargetsPlan } from "../plan-mode/plan-protection";
 import readDescription from "../prompts/tools/read.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import {
@@ -646,6 +647,17 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	}
 
 	/**
+	 * True when `readPath` targets the session's plan file: the canonical
+	 * `local://PLAN.md` alias or the session's plan reference path. Plan files
+	 * read without an explicit selector get the full default window so
+	 * incremental plan amendments never operate on a truncated view.
+	 */
+	#isPlanRead(readPath: string): boolean {
+		const reference = this.session.getPlanReferencePath?.() ?? "local://PLAN.md";
+		return readTargetsPlan(readPath, "local://PLAN.md") || readTargetsPlan(readPath, reference);
+	}
+
+	/**
 	 * Re-render the tool description for the current display mode and the
 	 * effective inspect_image state (mode setting, `/vision` override, and
 	 * active-model image capability all feed it, so it can change at runtime).
@@ -1085,6 +1097,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		if (readPath.startsWith("file://")) {
 			readPath = expandPath(readPath);
 		}
+		// Set when the requested path is the session plan (canonical alias or the
+		// plan reference URL) — captured before scheme resolution rewrites readPath.
+		let planTargetedRead = false;
 
 		if (IMAGE_ATTACHMENT_URI_REGEX.test(readPath)) {
 			const attachments = this.session.getImageAttachments?.() ?? [];
@@ -1169,6 +1184,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				throw new ToolError(imageSelectorMessage);
 			}
 			if (scheme === "local") {
+				// Capture plan targeting BEFORE the URL is rewritten to its on-disk
+				// path — the plan-aware read window keys on the `local://` spelling.
+				planTargetedRead = this.#isPlanRead(readPath);
 				const localFile = await resolveLocalUrlToFile(urlMeta, {
 					cwd: this.session.cwd,
 					settings: this.session.settings,
@@ -1582,7 +1600,11 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const startLineDisplay = startLine + 1;
 
 					const DEFAULT_LIMIT = this.#defaultLimit;
-					const effectiveLimit = limit ?? DEFAULT_LIMIT;
+					// Plan files get the full default window: plan mode instructs the
+					// model to re-read and incrementally amend its plan, and a 300-line
+					// view of a longer plan makes every amendment blind past the window
+					// (details silently drop across rounds). Explicit selectors win.
+					const effectiveLimit = limit ?? (planTargetedRead ? DEFAULT_MAX_LINES : DEFAULT_LIMIT);
 					const maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, DEFAULT_MAX_LINES);
 					const selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
 					// Scale byte budget with line limit so the configured line count actually fits.
