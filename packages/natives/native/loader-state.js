@@ -724,12 +724,12 @@ export function validateLoadedBindings(ctx, bindings, candidate) {
  * Install the addon's bounded Tokio runtime now that `dlopen` has returned and
  * the dynamic-loader lock is released. The Rust `#[module_init]` deliberately
  * does NOT build the runtime — spawning worker threads under the loader lock
- * deadlocks on some hosts — so it exposes `__zetaInstallTokioRuntime` for the
+ * deadlocks on some hosts — so it exposes `__ompInstallTokioRuntime` for the
  * loader to call once, before any async native runs. Best-effort: older addons
  * predating this export simply fall back to napi-rs's default runtime.
  */
 function installNativeTokioRuntime(bindings) {
-	const install = bindings.__zetaInstallTokioRuntime;
+	const install = bindings.__ompInstallTokioRuntime;
 	if (typeof install !== "function") return;
 	try {
 		install();

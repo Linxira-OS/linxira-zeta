@@ -2,11 +2,9 @@
 
 ## [Unreleased]
 
+- 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
 ## [1.1.5] - 2026-08-26
-
-- 同步上游 OMP v18.0.5 / v18.0.6：append-only transcript 声明与稳定行 API、markdown 渲染重构。
-
 ## [1.1.3] - 2026-08-25
 
 ### Fixed

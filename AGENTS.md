@@ -108,6 +108,7 @@ reverted the ζ CLI brand, which this registry exists to prevent.
 | 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名 |
 | npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@linxiraos/*` 全量改写 |
 | Native 哨兵 | `__piNativesV1_X_Y` | 保留 Zeta 版本线 |
+| Native Tokio 安装导出 | `__ompInstallTokioRuntime` | 运行时导出面：crate/index.js/loader 调用三方一致，勿 sweep 成 `__zeta*`（v18.0.10 合并曾改断，Tokio 静默不装） |
 | `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
 | 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
 | 中继/分享 URL | `my.omp.sh` | 共享 OMP 基础设施，不品牌化 |
@@ -468,10 +469,18 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
    feature plan is written (e.g. `feat/web-ui-next`, `feat/<scope>`); plans
    MUST name their branch.
 2. Work and commit on that branch locally until functionally complete.
-3. Push the branch to `origin`, open a PR, and only merge after CI passes.
-4. Merge to `main` on the remote (cloud), then merge the same branch into
+3. **Before EVERY push of an integration branch** (`sync/omp-release/*`,
+   `port/*`, `feat/*`): merge the latest `main` into it first
+   (`git merge main`), then run the local minimum gate —
+   `bun scripts/check-version-consistency.ts`, `bun run check:ts`, biome on
+   the changed files, plus a re-run of any suite that was red in the last CI
+   round. Never push a branch that is behind `main`; a PR CI failure triage
+   starts with "is this already fixed on `main`, and is `main` fully merged
+   into this branch?" before touching the branch itself.
+4. Push the branch to `origin`, open a PR, and only merge after CI passes.
+5. Merge to `main` on the remote (cloud), then merge the same branch into
    local `main` to keep them in sync.
-5. Delete the branch after the merge (both remote and local).
+6. Delete the branch after the merge (both remote and local).
 
 `main` stays reserved for released/stable work; a new direction only lands on
 `main` via this merge path, never by committing directly to it.

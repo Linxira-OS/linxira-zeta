@@ -2,6 +2,8 @@ import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Effort } from "@linxiraos/pi-ai";
 import { colorLuma, logger, relativeLuminance } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
+import type { SessionAccentTheme } from "../../utils/session-color";
+
 import { bgAnsi, colorToAnsi, fgAnsi, resolveToHex } from "./color";
 import { type ColorMode, isValidThemeColor, type ThemeBg, type ThemeColor } from "./schema";
 import {
@@ -275,6 +277,19 @@ export class Theme {
 	getAccentColorHex(): string {
 		return this.getColorHex("accent");
 	}
+	/**
+	 * Theme-derived inputs for `getSessionAccentHex`: the accent hex whose
+	 * OKLCH weight session accents adopt, the major colors they must not
+	 * hue-collide with, and the light-theme surface luminance to contrast
+	 * against.
+	 */
+	get sessionAccentInputs(): SessionAccentTheme {
+		return {
+			accentHex: this.getAccentColorHex(),
+			colorHexes: this.getMajorThemeColorHexes(),
+			surfaceLuminance: this.accentSurfaceLuminance,
+		};
+	}
 
 	fg(color: ThemeColor, text: string): string {
 		const ansi = this.#fgColors[color];
@@ -525,6 +540,7 @@ export class Theme {
 			powerlineRight: this.#symbols["sep.powerlineRight"],
 			powerlineThinLeft: this.#symbols["sep.powerlineThinLeft"],
 			powerlineThinRight: this.#symbols["sep.powerlineThinRight"],
+			powerlineCapLeft: this.#symbols["sep.powerlineCapLeft"],
 			block: this.#symbols["sep.block"],
 			space: this.#symbols["sep.space"],
 			asciiLeft: this.#symbols["sep.asciiLeft"],
@@ -557,7 +573,8 @@ export class Theme {
 			subscription: this.#symbols["icon.subscription"],
 			advisor: this.#symbols["icon.advisor"],
 			time: this.#symbols["icon.time"],
-			pi: this.#symbols["icon.pi"],
+			omp: this.#symbols["icon.omp"],
+			esc: this.#symbols["icon.esc"],
 			ghost: this.#symbols["icon.ghost"],
 			agents: this.#symbols["icon.agents"],
 			job: this.#symbols["icon.job"],

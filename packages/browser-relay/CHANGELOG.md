@@ -2,12 +2,6 @@
 
 ## [Unreleased]
 
+- 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
-## [17.2.5] - 2026-08-03
-
-### Added
-
-- Initial release of the Chrome MV3 extension, enabling the omp browser tool to attach to and drive existing browser tabs via chrome.debugger.
-- Added automatic, robust tab management that groups active agent-driven tabs into a dedicated per-window "omp" tab group and ensures clean dissolution upon disconnect.
-
 ## [1.0.2] - 2026-08-15
