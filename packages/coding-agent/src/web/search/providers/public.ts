@@ -11,13 +11,15 @@ import { withHardTimeout } from "./utils";
  * Credential-free engines the Public Web aggregate fans out to. Order is the
  * tiebreak for merged ranking (earlier engines win equal consensus/rank), so
  * engines with the best ranking quality when they answer come first:
- * Google-index engines (startpage, google) lead, and Mojeek's independent
- * index breaks remaining ties (measured 2026-07).
+ * Google-index engines (startpage, google) lead, Bing and DuckDuckGo provide
+ * additional coverage, and Mojeek's independent index breaks remaining ties
+ * (measured 2026-07).
  */
 const PUBLIC_ENGINE_IDS = [
 	"startpage",
 	"google",
 	"duckduckgo",
+	"bing",
 	"ecosia",
 	"mojeek",
 ] as const satisfies readonly SearchProviderId[];

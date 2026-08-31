@@ -1781,6 +1781,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			hasUI: options.hasUI ?? false,
 			canPromptUser: options.interactivePrompts ?? options.hasUI ?? false,
 			getApiKey: options.getApiKey,
+			channelSend: options.channelSend,
+			workspaceRun: options.workspaceRun,
+			imControl: options.imControl,
 			get additionalDirectories() {
 				return sessionManager.getAdditionalDirectories();
 			},

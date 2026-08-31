@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
+import type { ImControlParams } from "@linxiraos/zeta/channels/im-control";
 import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
 import { createTools, HIDDEN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
 
@@ -304,6 +305,34 @@ describe("createTools", () => {
 		const tools = await createTools(session, ["read", "write"]);
 
 		expect(tools.map(tool => tool.name)).toEqual(["read", "write"]);
+	});
+
+	it("advertises channel tools only for a top-level session", async () => {
+		const sinks = {
+			channelSend: async (_opts: { text: string; to?: string; channel?: string }) => {},
+			workspaceRun: async (_opts: { workspace: string; task: string }) => ({ reply: "done" }),
+			imControl: async (_params: ImControlParams) => ({ text: "ok" }),
+		};
+		const names = ["channel_send", "workspace_run", "im_control"];
+
+		const topLevel = await createTools(createTestSession(sinks), names);
+		const nested = await createTools(createTestSession({ ...sinks, taskDepth: 1 }), names);
+
+		expect(topLevel.map(tool => tool.name)).toEqual(names);
+		expect(nested.map(tool => tool.name)).toEqual([]);
+	});
+
+	it("does not advertise channel tools when channels are disabled", async () => {
+		const session = createTestSession({
+			channelSend: async () => {},
+			workspaceRun: async () => ({ reply: "done" }),
+			imControl: async () => ({ text: "ok" }),
+			settings: createSettingsWithOverrides({ "channels.enabled": false }),
+		});
+
+		const tools = await createTools(session, ["channel_send", "workspace_run", "im_control"]);
+
+		expect(tools.map(tool => tool.name)).toEqual([]);
 	});
 
 	it("records active tools on the original session object", async () => {

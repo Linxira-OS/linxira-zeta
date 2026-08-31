@@ -680,13 +680,26 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "debug") return session.settings.get("debug.enabled");
 		if (name === "tracking_update") return session.settings.get("tracking.enabled");
 		if (name === "channel_send")
-			return session.channelSend !== undefined && session.settings.get("channels.enabled") !== false;
+			return (
+				(session.taskDepth ?? 0) === 0 &&
+				session.channelSend !== undefined &&
+				session.settings.get("channels.enabled") !== false
+			);
 		if (name === "workspace_run")
-			return session.workspaceRun !== undefined && session.settings.get("channels.enabled") !== false;
+			return (
+				(session.taskDepth ?? 0) === 0 &&
+				session.workspaceRun !== undefined &&
+				session.settings.get("channels.enabled") !== false
+			);
 		if (name === "im_control")
-			return session.imControl !== undefined && session.settings.get("channels.enabled") !== false;
+			return (
+				(session.taskDepth ?? 0) === 0 &&
+				session.imControl !== undefined &&
+				session.settings.get("channels.enabled") !== false
+			);
 		if (name === "todo")
 			return (!includeYield || session.prewalkArmed === true) && session.settings.get("todo.enabled");
+
 		if (name === "glob") return session.settings.get("glob.enabled");
 		if (name === "grep") return session.settings.get("grep.enabled");
 		if (name === "github") return session.settings.get("github.enabled");

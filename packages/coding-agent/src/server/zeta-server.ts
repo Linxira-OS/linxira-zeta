@@ -49,6 +49,8 @@ import { setBotSessionDispose } from "./web-gateway/running-sessions";
 export interface ZetaServerOptions {
 	/** 主服务器端口，默认 30141 */
 	port?: number;
+	/** Public HTTP bind hostname. Non-loopback binds still require remote.token. */
+	host?: string;
 	/** Stats Dashboard 端口，默认 3847 */
 	statsPort?: number;
 	/** 是否自动打开浏览器 */
@@ -143,6 +145,11 @@ function isLoopbackHostname(hostname: string): boolean {
 		return true;
 	}
 	return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized);
+}
+
+export function formatServerUrl(hostname: string, port: number): string {
+	const urlHostname = hostname.includes(":") && !hostname.startsWith("[") ? `[${hostname}]` : hostname;
+	return `http://${urlHostname}:${port}`;
 }
 /**
  * 向目标 URL 代理转发请求。
@@ -247,6 +254,7 @@ export class ZetaServer {
 	constructor(options: ZetaServerOptions = {}) {
 		this.#options = {
 			port: options.port ?? 30141,
+			host: options.host ?? process.env.ZETA_SERVE_HOSTNAME ?? "127.0.0.1",
 			statsPort: options.statsPort ?? 3847,
 			// 默认不打开系统浏览器：服务仅监听端口，由 UI 壳（Electron/web-ui）消费。
 			noBrowser: options.noBrowser ?? true,
@@ -258,11 +266,11 @@ export class ZetaServer {
 	}
 
 	get url(): string {
-		return `http://localhost:${this.#options.port}`;
+		return formatServerUrl(this.#options.host, this.#options.port);
 	}
 
 	get statsUrl(): string {
-		return `http://localhost:${this.#options.statsPort}`;
+		return formatServerUrl(this.#options.host, this.#options.statsPort);
 	}
 
 	/**
@@ -871,7 +879,7 @@ export class ZetaServer {
 		// Loopback by default; operators may explicitly expose the server to the
 		// LAN (or WAN) via env. A non-loopback bind MUST pair with a configured
 		// remote token or every API request is rejected by the access gate.
-		const hostname = process.env.ZETA_SERVE_HOSTNAME ?? "127.0.0.1";
+		const hostname = this.#options.host;
 		if (!isLoopbackHostname(hostname)) {
 			logger.warn("正在非 loopback 地址监听 —— 必须配置 remote.token，否则所有 API 请求将被拒绝", {
 				hostname,

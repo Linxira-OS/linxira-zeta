@@ -25,6 +25,9 @@ export default class Serve extends Command {
 			description: "Port for the Web UI",
 			default: 30141,
 		}),
+		host: Flags.string({
+			description: "Public bind hostname (non-loopback requires remote.token)",
+		}),
 		"gateway-port": Flags.integer({
 			char: "g",
 			description: "Port for the Web Gateway (127.0.0.1 only)",
@@ -66,6 +69,7 @@ export default class Serve extends Command {
 		try {
 			instance = await startZetaServer({
 				port: webPort,
+				host: flags.host,
 				statsPort,
 				gatewayPort,
 				noBrowser,

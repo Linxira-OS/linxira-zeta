@@ -8,6 +8,7 @@ import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { type } from "@linxiraos/pi-omptype";
 import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
+import type { ImControlParams } from "@linxiraos/zeta/channels/im-control";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CursorExecHandlers } from "@linxiraos/zeta/cursor";
@@ -60,6 +61,129 @@ const sdkCustomTool = {
 		return { content: [{ type: "text", text: "sdk custom" }] };
 	},
 } satisfies CustomTool;
+
+describe("createAgentSession channel tool wiring", () => {
+	const tempDirs: string[] = [];
+	let modelRegistry!: ModelRegistry;
+	let registryAuthDir: string;
+
+	const makeTempDir = (): string => {
+		const tempDir = path.join(os.tmpdir(), `pi-sdk-channel-tools-${Snowflake.next()}`);
+		tempDirs.push(tempDir);
+		fs.mkdirSync(tempDir, { recursive: true });
+		return tempDir;
+	};
+
+	beforeAll(async () => {
+		registryAuthDir = path.join(os.tmpdir(), `pi-sdk-channel-tools-auth-${Snowflake.next()}`);
+		fs.mkdirSync(registryAuthDir, { recursive: true });
+		modelRegistry = new ModelRegistry(await discoverAuthStorage(registryAuthDir));
+	});
+
+	afterEach(() => {
+		for (const tempDir of tempDirs.splice(0)) removeSyncWithRetries(tempDir);
+		vi.restoreAllMocks();
+	});
+
+	afterAll(() => {
+		removeSyncWithRetries(registryAuthDir);
+	});
+
+	it("forwards channel sinks into the top-level ToolSession and hides them from nested sessions", async () => {
+		const tempDir = makeTempDir();
+		const calls = {
+			channelSend: [] as Array<{ text: string; to?: string; channel?: string }>,
+			workspaceRun: [] as Array<{ workspace: string; task: string }>,
+			imControl: [] as ImControlParams[],
+		};
+		const options: CreateAgentSessionOptions = {
+			cwd: tempDir,
+			agentDir: tempDir,
+			modelRegistry,
+			sessionManager: SessionManager.inMemory(),
+			settings: Settings.isolated(),
+			model: getBundledModel("openai", "gpt-4o-mini"),
+			disableExtensionDiscovery: true,
+			skills: [],
+			contextFiles: [],
+			promptTemplates: [],
+			slashCommands: [],
+			enableMCP: false,
+			enableLsp: false,
+			rules: [],
+			workspaceTree: { rootPath: tempDir, rendered: "", truncated: false, totalLines: 0, agentsMdFiles: [] },
+			toolNames: ["channel_send", "workspace_run", "im_control"],
+			channelSend: async opts => {
+				calls.channelSend.push(opts);
+			},
+			workspaceRun: async opts => {
+				calls.workspaceRun.push(opts);
+				return { reply: "workspace reply" };
+			},
+			imControl: async params => {
+				calls.imControl.push(params);
+				return { text: "control reply" };
+			},
+		};
+		const { session } = await createAgentSession(options);
+
+		try {
+			expect(session.getActiveToolNames()).toEqual(["channel_send", "workspace_run", "im_control"]);
+			const channelSend = session.getToolByName("channel_send");
+			const workspaceRun = session.getToolByName("workspace_run");
+			const imControl = session.getToolByName("im_control");
+			if (!channelSend || !workspaceRun || !imControl) throw new Error("Expected channel tools");
+
+			await channelSend.execute("channel-call", { text: "hello", to: "peer", channel: "wechat" });
+			await workspaceRun.execute("workspace-call", { workspace: "docs", task: "inspect" });
+			await imControl.execute("control-call", { operation: "status" });
+
+			expect(calls.channelSend).toEqual([{ text: "hello", to: "peer", channel: "wechat" }]);
+			expect(calls.workspaceRun).toEqual([{ workspace: "docs", task: "inspect" }]);
+			expect(calls.imControl).toEqual([{ operation: "status" }]);
+		} finally {
+			await session.dispose();
+		}
+	});
+
+	it("does not advertise channel tools for a nested session even when explicitly listed", async () => {
+		const tempDir = makeTempDir();
+		const { session } = await createAgentSession({
+			cwd: tempDir,
+			agentDir: tempDir,
+			modelRegistry,
+			sessionManager: SessionManager.inMemory(),
+			settings: Settings.isolated(),
+			model: getBundledModel("openai", "gpt-4o-mini"),
+			disableExtensionDiscovery: true,
+			skills: [],
+			contextFiles: [],
+			promptTemplates: [],
+			slashCommands: [],
+			enableMCP: false,
+			enableLsp: false,
+			rules: [],
+			workspaceTree: { rootPath: tempDir, rendered: "", truncated: false, totalLines: 0, agentsMdFiles: [] },
+			parentTaskPrefix: "nested-channel-test",
+			taskDepth: 1,
+			toolNames: ["channel_send", "workspace_run", "im_control"],
+			channelSend: async () => {},
+			workspaceRun: async () => ({ reply: "unused" }),
+			imControl: async () => ({ text: "unused" }),
+		});
+
+		try {
+			expect(session.getActiveToolNames()).not.toEqual(
+				expect.arrayContaining(["channel_send", "workspace_run", "im_control"]),
+			);
+			expect(session.getToolByName("channel_send")).toBeUndefined();
+			expect(session.getToolByName("workspace_run")).toBeUndefined();
+			expect(session.getToolByName("im_control")).toBeUndefined();
+		} finally {
+			await session.dispose();
+		}
+	});
+});
 
 describe("createAgentSession defaultInactive tool activation", () => {
 	const tempDirs: string[] = [];
