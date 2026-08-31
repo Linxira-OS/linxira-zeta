@@ -1,5 +1,10 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
+interface DesktopOpenTarget {
+	id: string;
+	label: string;
+}
+
 /**
  * Renderer bridge for desktop-only capabilities. The web-ui feature-detects
  * `window.piDesktop` and degrades to browser fallbacks when absent (plain
@@ -8,6 +13,11 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 const api = {
 	/** Open the OS directory picker; resolves to the chosen path or null on cancel. */
 	selectDirectory: (startPath?: string): Promise<string | null> => ipcRenderer.invoke("pi:select-directory", startPath),
+	/** Host-defined open targets; IDs are opaque to the renderer. */
+	getOpenTargets: (): Promise<DesktopOpenTarget[]> => ipcRenderer.invoke("pi:open-targets"),
+	/** Opens only a gateway-authorized directory through a host-defined target. */
+	openTarget: (targetId: string, gatewayPath: { path: string; token: string }): Promise<void> =>
+		ipcRenderer.invoke("pi:open-target", targetId, gatewayPath),
 
 	// -------------------------------------------------------------------------
 	// Self-drawn titlebar (frameless window on all platforms)

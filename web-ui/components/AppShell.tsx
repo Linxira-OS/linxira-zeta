@@ -36,6 +36,11 @@ import {
   minimizeWindow,
   maximizeWindow,
   closeWindow,
+  getDesktopOpenTargets,
+  hasDesktopOpenBridge,
+  openDesktopTarget,
+  type DesktopOpenTarget,
+  type GatewayOpenPath,
 } from "@/lib/pi-desktop";
 import type { SessionInfo, SessionTreeNode } from "@/lib/types";
 import type { ChatInputHandle } from "./ChatInput";
@@ -102,6 +107,7 @@ function AppShellContent() {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
+  const [activeCwd, setActiveCwd] = useState<string | null>(null);
   // When user clicks +, we only store the cwd — no fake session id
   const [newSessionCwd, setNewSessionCwd] = useState<string | null>(null);
   /** True once the user explicitly requested a new session (default chat shares the coordinator). */
@@ -121,7 +127,9 @@ function AppShellContent() {
     terminal: boolean;
     explorer: boolean;
     editors: string[];
+    desktop: boolean;
   } | null>(null);
+  const [desktopOpenTargets, setDesktopOpenTargets] = useState<DesktopOpenTarget[]>([]);
   const [updating, setUpdating] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateNotice, setUpdateNotice] = useState<string | null>(null);
@@ -185,24 +193,31 @@ function AppShellContent() {
     setSessionStats(stats);
   }, []);
 
-  // "Open" dropdown: resolve local apps from the gateway, then spawn one.
+  // Browser clients retain the gateway launcher. Desktop clients receive the
+  // validated project path from the gateway and execute only host-defined IDs.
   const handleToggleOpenMenu = useCallback(async () => {
     if (openMenuOpen) {
       setOpenMenuOpen(false);
       return;
     }
     try {
-      const response = await fetch("/api/open/options");
+      const [response, targets] = await Promise.all([
+        fetch("/api/open/options"),
+        hasDesktopOpenBridge() ? getDesktopOpenTargets() : Promise.resolve([]),
+      ]);
       if (response.ok) {
         const options = (await response.json()) as {
           terminal: boolean;
           explorer: boolean;
           editors: string[];
+          desktop: boolean;
         };
         setOpenOptions(options);
+        setDesktopOpenTargets(options.desktop ? targets : []);
       }
     } catch {
       setOpenOptions(null);
+      setDesktopOpenTargets([]);
     }
     setOpenMenuOpen(true);
   }, [openMenuOpen]);
@@ -211,7 +226,25 @@ function AppShellContent() {
     setOpenMenuOpen(false);
     try {
       const body: Record<string, string> = { target };
+      const selectedProjectPath = activeCwd ?? selectedSession?.projectRoot ?? selectedSession?.cwd ?? newSessionCwd;
+      if (selectedProjectPath) body.path = selectedProjectPath;
       if (editor) body.editor = editor;
+      if (hasDesktopOpenBridge() && openOptions?.desktop) {
+        if (target.startsWith("editor:")) {
+          body.target = "editor";
+          body.editor = target.slice("editor:".length);
+        } else if (target === "file-manager") {
+          body.target = "explorer";
+        }
+        const response = await fetch("/api/open", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) return;
+        await openDesktopTarget(target, (await response.json()) as GatewayOpenPath);
+        return;
+      }
       await fetch("/api/open", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -220,7 +253,7 @@ function AppShellContent() {
     } catch {
       // Non-fatal: the app simply does not open.
     }
-  }, []);
+  }, [activeCwd, newSessionCwd, openOptions?.desktop, selectedSession?.cwd, selectedSession?.projectRoot]);
 
   // "Update" button: check → confirm → download → install → prompt restart.
   const handleCheckUpdate = useCallback(async () => {
@@ -370,7 +403,6 @@ function AppShellContent() {
   }, []);
 
   const initialSessionId = initialNavigation.sessionId;
-  const [activeCwd, setActiveCwd] = useState<string | null>(null);
   // True once the initial ?session= URL param has been resolved (or confirmed absent)
   const [initialSessionRestored, setInitialSessionRestored] = useState<boolean>(() => !initialSessionId);
   // Suppresses sessionKey bump in handleCwdChange during the initial URL restore
@@ -1017,22 +1049,27 @@ function AppShellContent() {
                     flexDirection: "column",
                   }}
                 >
-                  {openOptions.terminal && (
+                  {desktopOpenTargets.map((target) => (
+                    <button key={target.id} onClick={() => void handleOpenTarget(target.id)} style={openMenuItemStyle}>
+                      {target.label}
+                    </button>
+                  ))}
+                  {desktopOpenTargets.length === 0 && openOptions.terminal && (
                     <button onClick={() => void handleOpenTarget("terminal")} style={openMenuItemStyle}>
                       Terminal
                     </button>
                   )}
-                  {openOptions.explorer && (
+                  {desktopOpenTargets.length === 0 && openOptions.explorer && (
                     <button onClick={() => void handleOpenTarget("explorer")} style={openMenuItemStyle}>
                       Explorer
                     </button>
                   )}
-                  {openOptions.editors.map((editor) => (
+                  {desktopOpenTargets.length === 0 && openOptions.editors.map((editor) => (
                     <button key={editor} onClick={() => void handleOpenTarget("editor", editor)} style={openMenuItemStyle}>
                       {editor}
                     </button>
                   ))}
-                  {!openOptions.terminal && !openOptions.explorer && openOptions.editors.length === 0 && (
+                  {desktopOpenTargets.length === 0 && !openOptions.terminal && !openOptions.explorer && openOptions.editors.length === 0 && (
                     <div style={{ padding: "6px 10px", color: "var(--text-dim)", fontSize: 12 }}>{t("no-apps-found")}</div>
                   )}
                 </div>
