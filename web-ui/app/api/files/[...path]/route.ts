@@ -193,6 +193,15 @@ export async function POST(
 
     for (const file of files) {
       const destination = path.join(directory, file.name);
+      // Defense-in-depth containment check: file names are already validated
+      // by validateUploadFileNames (no separators, no ".."), but the write
+      // target must never escape the allow-listed upload directory even if a
+      // future validation change regresses.
+      const contained = path.relative(directory, destination);
+      if (!contained || contained.startsWith("..") || path.isAbsolute(contained)) {
+        errors.push({ name: file.name, error: "Resolved upload target escapes the target directory" });
+        continue;
+      }
       if (conflictSet.has(file.name) && strategy === "skip") {
         skipped.push(file.name);
         continue;

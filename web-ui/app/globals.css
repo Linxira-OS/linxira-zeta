@@ -1,36 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Share+Tech+Mono&display=swap');
 @import "tailwindcss";
+@import "../styles/themes/zeta-dark-static.css";
+/* Design-system token layer (v1.1.7 modernization, step 1 — additive).
+   See document/web-ui-modernization.md §2. */
+@import "../styles/design-system.css";
+@import "../styles/typography.css";
 
-/* ── Local font: HarmonyOS Sans (UI chrome) ─────────────────────────────── */
-@font-face {
-  font-family: 'HarmonyOS Sans';
-  src: local('HarmonyOS Sans');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'HarmonyOS Sans SC';
-  src: local('HarmonyOS Sans SC');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* ── Local font: Maple Mono Normal NL NF CN (session/code) ──────────────── */
-@font-face {
-  font-family: 'Maple Mono NL NF CN';
-  src: local('Maple Mono NL NF CN'), local('MapleMono NL NF CN'), local('Maple Mono Normal NL NF CN');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Maple Mono NL NF CN';
-  src: local('Maple Mono NL NF CN Italic'), local('MapleMono NL NF CN Italic'), local('Maple Mono Normal NL NF CN Italic');
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
+html.zeta-theme-switching *,
+html.zeta-theme-switching *::before,
+html.zeta-theme-switching *::after {
+  transition: none !important;
 }
 
 @theme {
@@ -51,144 +29,42 @@
   --font-mono-font: var(--font-mono);
 }
 
-:root {
-  --bg: #ffffff;
-  --bg-panel: #f5f5f5;
-  --bg-hover: #eeeeee;
-  --bg-selected: #e8e8e8;
-  --border: #e0e0e0;
-  --text: #1a1a1a;
-  --text-muted: #6b7280;
-  --text-dim: #9ca3af;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-active: #1e40af;
-  --accent-muted: rgba(37,99,235,0.12);
-  --accent-foreground: #ffffff;
-  --status-error-foreground: #b91c1c;
-  --status-error-background: #fee2e2;
-  --status-error-border: #fca5a5;
-  --status-warning-foreground: #b45309;
-  --status-warning-background: #fef3c7;
-  --status-warning-border: #fcd34d;
-  --status-success-foreground: #15803d;
-  --status-success-background: #dcfce7;
-  --status-success-border: #86efac;
-  --status-info-foreground: #1d4ed8;
-  --status-info-background: #dbeafe;
-  --status-info-border: #93c5fd;
-  --user-bg: #eff6ff;
-  --assistant-bg: #ffffff;
-  --tool-bg: #f9fafb;
-  --bg-subtle: rgba(0,0,0,0.03);
-}
+/* Theme color variables are owned by ThemeSystemProvider. The static dark
+   sheet above prevents a light first frame; the provider then injects the
+   selected preset and legacy aliases for existing components. */
 
-html.dark {
-  --bg: #1a1a1a;
-  --bg-panel: #242424;
-  --bg-hover: #2e2e2e;
-  --bg-selected: #383838;
-  --border: #3a3a3a;
-  --text: #e8e8e8;
-  --text-muted: #9ca3af;
-  --text-dim: #6b7280;
-  --accent: #60a5fa;
-  --accent-hover: #93c5fd;
-  --accent-active: #3b82f6;
-  --accent-muted: rgba(96,165,250,0.15);
-  --accent-foreground: #0b1220;
-  --status-error-foreground: #fca5a5;
-  --status-error-background: rgba(127,29,29,0.4);
-  --status-error-border: #7f1d1d;
-  --status-warning-foreground: #fcd34d;
-  --status-warning-background: rgba(113,63,18,0.4);
-  --status-warning-border: #92400e;
-  --status-success-foreground: #86efac;
-  --status-success-background: rgba(22,101,52,0.4);
-  --status-success-border: #166534;
-  --status-info-foreground: #93c5fd;
-  --status-info-background: rgba(30,64,175,0.4);
-  --status-info-border: #1e40af;
-  --user-bg: #1e293b;
-  --assistant-bg: #1a1a1a;
-  --tool-bg: #1f2937;
-  --bg-subtle: rgba(255,255,255,0.04);
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   STARFIELD THEME  —  NASA-punk · Constellation Field · Deep Space HUD
-   Applied via `html.starfield`.  All overrides are scoped under this class
-   so the light and dark themes are completely unaffected.
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* ── 1. Design tokens ──────────────────────────────────────────────────── */
-html.starfield {
-  --bg:           #08090d;
-  --bg-panel:     #0d1117;
-  --bg-hover:     #161d2e;
-  --bg-selected:  #1a2540;
-  --bg-subtle:    rgba(217,155,38,0.05);
-  --border:       #1e2d45;
-  --text:         #e8eeff;
-  --text-muted:   #8fa3c0;
-  --text-dim:     #3d5070;
-  --accent:       #d99b26;
-  --accent-hover: #f0b840;
-  --accent-active: #f0b840;
-  --accent-muted:  rgba(217,155,38,0.14);
-  --accent-foreground: #08090d;
-  --status-error-foreground: #f87171;
-  --status-error-background: rgba(200,29,37,0.18);
-  --status-error-border: #c81d25;
-  --status-warning-foreground: #fbbf24;
-  --status-warning-background: rgba(217,155,38,0.15);
-  --status-warning-border: #a07018;
-  --status-success-foreground: #4ade80;
-  --status-success-background: rgba(34,197,94,0.15);
-  --status-success-border: #22c55e;
-  --status-info-foreground: #38bdf8;
-  --status-info-background: rgba(56,189,248,0.15);
-  --status-info-border: #0ea5e9;
-  --user-bg:      #0c1a2e;
-  --assistant-bg: #08090d;
-  --tool-bg:      #0a1020;
-  /* Typography — NASA-punk Orbitron & Share Tech Mono */
-  --font-display: 'Orbitron', 'Noto Sans SC', -apple-system, sans-serif;
-  --font-mono:    'Share Tech Mono', ui-monospace, monospace;
-  --font-mono-font: var(--font-mono);
-  /* Internal palette */
-  --sf-navy:      #1b365d;
-  --sf-gold:      #d99b26;
-  --sf-gold-dim:  #a07018;
-  --sf-orange:    #e05a2b;
-  --sf-red:       #c81d25;
-  --sf-green:     #22c55e;
-  --sf-cyan:      #38bdf8;
-  --sf-glow:      rgba(217,155,38,0.22);
-  --sf-stripe:    linear-gradient(90deg,
-    #1b365d 0% 25%, #d99b26 25% 50%,
-    #e05a2b 50% 75%, #c81d25 75% 100%);
+/* Starfield remains an explicit Zeta preset rather than a generic dark theme. */
+html[data-theme-id="zeta-starfield"] {
+  --sf-navy: #1b365d;
+  --sf-gold: #d99b26;
+  --sf-gold-dim: #a07018;
+  --sf-orange: #e05a2b;
+  --sf-red: #c81d25;
+  --sf-green: #22c55e;
+  --sf-cyan: #38bdf8;
+  --sf-glow: rgb(217 155 38 / 0.22);
+  --sf-stripe: linear-gradient(90deg, #1b365d 0% 25%, #d99b26 25% 50%, #e05a2b 50% 75%, #c81d25 75% 100%);
 }
 
 /* UI Chrome Typography: Orbitron for titles & Share Tech Mono for controls */
-html.starfield .sidebar-container,
-html.starfield .file-viewer-toolbar,
-html.starfield button,
-html.starfield input,
-html.starfield select {
+html[data-theme-id="zeta-starfield"] .sidebar-container,
+html[data-theme-id="zeta-starfield"] .file-viewer-toolbar,
+html[data-theme-id="zeta-starfield"] button,
+html[data-theme-id="zeta-starfield"] input,
+html[data-theme-id="zeta-starfield"] select {
   font-family: var(--font-mono) !important;
 }
 
-html.starfield .brand-title,
-html.starfield .section-title,
-html.starfield .comp-title {
+html[data-theme-id="zeta-starfield"] .brand-title,
+html[data-theme-id="zeta-starfield"] .section-title,
+html[data-theme-id="zeta-starfield"] .comp-title {
   font-family: var(--font-display) !important;
   letter-spacing: 0.12em !important;
   text-transform: uppercase !important;
 }
 
 /* ── 2. Global background: deep-space dot-grid ─────────────────────────── */
-html.starfield body {
+html[data-theme-id="zeta-starfield"] body {
   background-color: var(--bg);
   background-image:
     radial-gradient(circle, rgba(217,155,38,0.06) 1px, transparent 1px),
@@ -198,7 +74,7 @@ html.starfield body {
 }
 
 /* ── 3. Top 4-color mission stripe ─────────────────────────────────────── */
-html.starfield body::before {
+html[data-theme-id="zeta-starfield"] body::before {
   content: "";
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -209,14 +85,14 @@ html.starfield body::before {
 }
 
 /* ── 4. Sidebar ──────────────────────────────────────────────────────────── */
-html.starfield .sidebar-container {
+html[data-theme-id="zeta-starfield"] .sidebar-container {
   background: #0b0f18 !important;
   border-right: 2px solid var(--sf-navy) !important;
   box-shadow: inset -8px 0 24px rgba(27,54,93,0.12) !important;
   position: relative;
 }
 /* Gold accent bar on inner edge of sidebar */
-html.starfield .sidebar-container::after {
+html[data-theme-id="zeta-starfield"] .sidebar-container::after {
   content: "";
   position: absolute;
   top: 0; right: -1px; bottom: 0;
@@ -229,30 +105,30 @@ html.starfield .sidebar-container::after {
 }
 
 /* ── 5. Top bar ─────────────────────────────────────────────────────────── */
-html.starfield [class*="top-bar"],
-html.starfield [style*="height: 36"][style*="bg-panel"],
-html.starfield div[style*="height: 36px"],
-html.starfield div[style*="height:36px"] {
+html[data-theme-id="zeta-starfield"] [class*="top-bar"],
+html[data-theme-id="zeta-starfield"] [style*="height: 36"][style*="bg-panel"],
+html[data-theme-id="zeta-starfield"] div[style*="height: 36px"],
+html[data-theme-id="zeta-starfield"] div[style*="height:36px"] {
   background: #0b0f18 !important;
 }
 
 /* ── 6. Scrollbars ──────────────────────────────────────────────────────── */
-html.starfield ::-webkit-scrollbar { width: 3px; height: 3px; }
-html.starfield ::-webkit-scrollbar-track { background: transparent; }
-html.starfield ::-webkit-scrollbar-thumb {
+html[data-theme-id="zeta-starfield"] ::-webkit-scrollbar { width: 3px; height: 3px; }
+html[data-theme-id="zeta-starfield"] ::-webkit-scrollbar-track { background: transparent; }
+html[data-theme-id="zeta-starfield"] ::-webkit-scrollbar-thumb {
   background: var(--sf-navy);
   border-radius: 0;
 }
-html.starfield ::-webkit-scrollbar-thumb:hover { background: var(--sf-gold); }
+html[data-theme-id="zeta-starfield"] ::-webkit-scrollbar-thumb:hover { background: var(--sf-gold); }
 
 /* ── 7. Text selection ──────────────────────────────────────────────────── */
-html.starfield ::selection {
+html[data-theme-id="zeta-starfield"] ::selection {
   background: rgba(217,155,38,0.30);
   color: #f0f4ff;
 }
 
 /* ── 8. User message bubble ─────────────────────────────────────────────── */
-html.starfield .sf-user-bubble {
+html[data-theme-id="zeta-starfield"] .sf-user-bubble {
   border-radius: 0 !important;
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%) !important;
   border: 1px solid rgba(217,155,38,0.35) !important;
@@ -262,7 +138,7 @@ html.starfield .sf-user-bubble {
   position: relative;
 }
 /* Corner crosshair — top-right */
-html.starfield .sf-user-bubble::before {
+html[data-theme-id="zeta-starfield"] .sf-user-bubble::before {
   content: "";
   position: absolute;
   top: 4px; right: 4px;
@@ -273,7 +149,7 @@ html.starfield .sf-user-bubble::before {
   pointer-events: none;
 }
 /* Corner crosshair — bottom-left */
-html.starfield .sf-user-bubble::after {
+html[data-theme-id="zeta-starfield"] .sf-user-bubble::after {
   content: "";
   position: absolute;
   bottom: 4px; left: 6px;
@@ -285,7 +161,7 @@ html.starfield .sf-user-bubble::after {
 }
 
 /* ── 9. Tool call blocks ────────────────────────────────────────────────── */
-html.starfield .sf-tool-block {
+html[data-theme-id="zeta-starfield"] .sf-tool-block {
   border-radius: 0 !important;
   border: 1px solid rgba(27,54,93,0.8) !important;
   border-left: 2px solid var(--sf-orange) !important;
@@ -293,13 +169,13 @@ html.starfield .sf-tool-block {
   position: relative;
   overflow: hidden;
 }
-html.starfield .sf-tool-block.sf-tool-error {
+html[data-theme-id="zeta-starfield"] .sf-tool-block.sf-tool-error {
   border-left-color: var(--sf-red) !important;
   border-color: rgba(200,29,37,0.4) !important;
   background: rgba(200,29,37,0.04) !important;
 }
 /* Scan-line shimmer on tool header hover */
-html.starfield .sf-tool-block::before {
+html[data-theme-id="zeta-starfield"] .sf-tool-block::before {
   content: "";
   position: absolute;
   top: 0; left: -100%; right: 0; bottom: 0;
@@ -308,17 +184,17 @@ html.starfield .sf-tool-block::before {
   transition: left 0.6s ease;
   pointer-events: none;
 }
-html.starfield .sf-tool-block:hover::before { left: 100%; }
+html[data-theme-id="zeta-starfield"] .sf-tool-block:hover::before { left: 100%; }
 
 /* ── 10. Code blocks ────────────────────────────────────────────────────── */
-html.starfield .markdown-code-block {
+html[data-theme-id="zeta-starfield"] .markdown-code-block {
   border-radius: 0 !important;
   border: 1px solid var(--sf-navy) !important;
   border-left: 3px solid var(--sf-gold) !important;
   background: #06080f !important;
   box-shadow: inset 0 0 30px rgba(27,54,93,0.12) !important;
 }
-html.starfield .markdown-code-header {
+html[data-theme-id="zeta-starfield"] .markdown-code-header {
   background: linear-gradient(90deg, var(--sf-navy), #0d1a33) !important;
   color: var(--sf-gold) !important;
   border-bottom: 1px solid rgba(217,155,38,0.3) !important;
@@ -326,23 +202,23 @@ html.starfield .markdown-code-header {
   letter-spacing: 0.08em !important;
   border-radius: 0 !important;
 }
-html.starfield .markdown-code-lang {
+html[data-theme-id="zeta-starfield"] .markdown-code-lang {
   color: var(--sf-orange) !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.12em !important;
 }
-html.starfield .markdown-code-action {
+html[data-theme-id="zeta-starfield"] .markdown-code-action {
   color: var(--sf-gold) !important;
   border-radius: 0 !important;
 }
-html.starfield .markdown-code-action:hover:not(:disabled) {
+html[data-theme-id="zeta-starfield"] .markdown-code-action:hover:not(:disabled) {
   background: rgba(217,155,38,0.12) !important;
   color: #f0b840 !important;
 }
 
 /* ── 11. Inline code ────────────────────────────────────────────────────── */
-html.starfield .markdown-inline-code {
+html[data-theme-id="zeta-starfield"] .markdown-inline-code {
   background: rgba(27,54,93,0.5) !important;
   color: var(--sf-gold) !important;
   border-radius: 0 !important;
@@ -352,14 +228,14 @@ html.starfield .markdown-inline-code {
 }
 
 /* ── 12. Blockquote ─────────────────────────────────────────────────────── */
-html.starfield .markdown-body blockquote {
+html[data-theme-id="zeta-starfield"] .markdown-body blockquote {
   border-left: 3px solid var(--sf-orange) !important;
   background: rgba(224,90,43,0.06) !important;
   border-radius: 0 !important;
 }
 
 /* ── 13. Tables ─────────────────────────────────────────────────────────── */
-html.starfield .markdown-body th {
+html[data-theme-id="zeta-starfield"] .markdown-body th {
   background: var(--sf-navy) !important;
   color: #f0f4ff !important;
   border: 1px solid rgba(217,155,38,0.3) !important;
@@ -368,32 +244,32 @@ html.starfield .markdown-body th {
   text-transform: uppercase !important;
   font-size: 0.78em !important;
 }
-html.starfield .markdown-body td {
+html[data-theme-id="zeta-starfield"] .markdown-body td {
   border-color: #1e2d45 !important;
 }
-html.starfield .markdown-body tbody tr:nth-child(even) td {
+html[data-theme-id="zeta-starfield"] .markdown-body tbody tr:nth-child(even) td {
   background: rgba(27,54,93,0.15) !important;
 }
-html.starfield .markdown-body table {
+html[data-theme-id="zeta-starfield"] .markdown-body table {
   border: 1px solid var(--sf-navy) !important;
 }
 
 /* ── 14. Headings in chat ───────────────────────────────────────────────── */
-html.starfield .markdown-body h1,
-html.starfield .markdown-body h2,
-html.starfield .markdown-body h3 {
+html[data-theme-id="zeta-starfield"] .markdown-body h1,
+html[data-theme-id="zeta-starfield"] .markdown-body h2,
+html[data-theme-id="zeta-starfield"] .markdown-body h3 {
   color: var(--sf-gold) !important;
   font-family: var(--font-mono) !important;
   letter-spacing: 0.06em !important;
   border-bottom: 1px solid rgba(217,155,38,0.2) !important;
   padding-bottom: 4px !important;
 }
-html.starfield .markdown-body h1::before { content: "// "; color: var(--sf-orange); }
-html.starfield .markdown-body h2::before { content: "// "; color: rgba(217,155,38,0.6); }
-html.starfield .markdown-body h3::before { content: "// "; color: rgba(217,155,38,0.35); }
+html[data-theme-id="zeta-starfield"] .markdown-body h1::before { content: "// "; color: var(--sf-orange); }
+html[data-theme-id="zeta-starfield"] .markdown-body h2::before { content: "// "; color: rgba(217,155,38,0.6); }
+html[data-theme-id="zeta-starfield"] .markdown-body h3::before { content: "// "; color: rgba(217,155,38,0.35); }
 
 /* ── 15. HR separator ───────────────────────────────────────────────────── */
-html.starfield .markdown-body hr {
+html[data-theme-id="zeta-starfield"] .markdown-body hr {
   border: none !important;
   height: 1px !important;
   background: linear-gradient(90deg,
@@ -402,19 +278,19 @@ html.starfield .markdown-body hr {
 }
 
 /* ── 16. Thinking block ─────────────────────────────────────────────────── */
-html.starfield .sf-thinking-block {
+html[data-theme-id="zeta-starfield"] .sf-thinking-block {
   border-left: 2px solid var(--sf-cyan) !important;
   background: rgba(56,189,248,0.04) !important;
   border-radius: 0 !important;
 }
 
 /* ── 17. Chat input area ─────────────────────────────────────────────────── */
-html.starfield .sf-chat-input-wrap {
+html[data-theme-id="zeta-starfield"] .sf-chat-input-wrap {
   border-top: 1px solid var(--sf-navy) !important;
   background: #0b0f18 !important;
   position: relative;
 }
-html.starfield .sf-chat-input-wrap::before {
+html[data-theme-id="zeta-starfield"] .sf-chat-input-wrap::before {
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -425,20 +301,20 @@ html.starfield .sf-chat-input-wrap::before {
   opacity: 0.5;
   pointer-events: none;
 }
-html.starfield .sf-chat-input-box {
+html[data-theme-id="zeta-starfield"] .sf-chat-input-box {
   border: 1px solid var(--sf-navy) !important;
   border-radius: 0 !important;
   background: #0a1020 !important;
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%) !important;
   transition: border-color 0.2s, box-shadow 0.2s !important;
 }
-html.starfield .sf-chat-input-box:focus-within {
+html[data-theme-id="zeta-starfield"] .sf-chat-input-box:focus-within {
   border-color: rgba(217,155,38,0.6) !important;
   box-shadow: 0 0 0 1px rgba(217,155,38,0.2), inset 0 0 20px rgba(27,54,93,0.1) !important;
 }
 
 /* ── 18. Send button ────────────────────────────────────────────────────── */
-html.starfield .sf-send-btn {
+html[data-theme-id="zeta-starfield"] .sf-send-btn {
   border-radius: 0 !important;
   background: var(--sf-navy) !important;
   border: 1px solid var(--sf-gold) !important;
@@ -446,16 +322,16 @@ html.starfield .sf-send-btn {
   color: var(--sf-gold) !important;
   transition: background 0.2s, color 0.2s !important;
 }
-html.starfield .sf-send-btn:hover:not(:disabled) {
+html[data-theme-id="zeta-starfield"] .sf-send-btn:hover:not(:disabled) {
   background: var(--sf-gold) !important;
   color: var(--sf-navy) !important;
 }
-html.starfield .sf-send-btn:disabled {
+html[data-theme-id="zeta-starfield"] .sf-send-btn:disabled {
   opacity: 0.4 !important;
 }
 
 /* ── 19. Model/tool/control chips in input bar ───────────────────────────── */
-html.starfield .sf-control-chip {
+html[data-theme-id="zeta-starfield"] .sf-control-chip {
   border-radius: 0 !important;
   border: 1px solid rgba(27,54,93,0.8) !important;
   background: rgba(27,54,93,0.3) !important;
@@ -465,29 +341,29 @@ html.starfield .sf-control-chip {
   font-size: 10px !important;
   text-transform: uppercase !important;
 }
-html.starfield .sf-control-chip:hover {
+html[data-theme-id="zeta-starfield"] .sf-control-chip:hover {
   border-color: var(--sf-gold) !important;
   background: rgba(217,155,38,0.1) !important;
 }
 
 /* ── 20. Notice / alert shelf ───────────────────────────────────────────── */
-html.starfield .sf-notice {
+html[data-theme-id="zeta-starfield"] .sf-notice {
   border-left: 3px solid var(--sf-gold) !important;
   border-radius: 0 !important;
   background: rgba(27,54,93,0.35) !important;
   font-family: var(--font-mono) !important;
 }
-html.starfield .sf-notice.sf-notice-error {
+html[data-theme-id="zeta-starfield"] .sf-notice.sf-notice-error {
   border-left-color: var(--sf-red) !important;
   background: rgba(200,29,37,0.08) !important;
 }
-html.starfield .sf-notice.sf-notice-success {
+html[data-theme-id="zeta-starfield"] .sf-notice.sf-notice-success {
   border-left-color: var(--sf-green) !important;
   background: rgba(34,197,94,0.06) !important;
 }
 
 /* ── 21. Mermaid diagram container ─────────────────────────────────────── */
-html.starfield .mermaid-block {
+html[data-theme-id="zeta-starfield"] .mermaid-block {
   border: 1px solid var(--sf-navy) !important;
   background: #06080f !important;
   border-left: 3px solid var(--sf-cyan) !important;
@@ -495,7 +371,7 @@ html.starfield .mermaid-block {
 }
 
 /* ── 22. Session info / stats popover ───────────────────────────────────── */
-html.starfield .session-info-popover {
+html[data-theme-id="zeta-starfield"] .session-info-popover {
   border-radius: 0 !important;
   border: 1px solid var(--sf-navy) !important;
   border-top: 2px solid var(--sf-gold) !important;
@@ -503,42 +379,42 @@ html.starfield .session-info-popover {
 }
 
 /* ── 23. Branch navigator ───────────────────────────────────────────────── */
-html.starfield .sf-branch-nav {
+html[data-theme-id="zeta-starfield"] .sf-branch-nav {
   border-bottom: 1px solid var(--sf-navy) !important;
   background: #0b0f18 !important;
 }
 
 /* ── 24. Right Panel & File Viewer (NASA-punk Source Code & Preview) ─────── */
-html.starfield .right-panel-container {
+html[data-theme-id="zeta-starfield"] .right-panel-container {
   background: #06080f !important;
   border-left: 2px solid var(--sf-navy) !important;
   position: relative;
 }
 
 /* File viewer toolbar */
-html.starfield .file-viewer-toolbar {
+html[data-theme-id="zeta-starfield"] .file-viewer-toolbar {
   background: #0b0f18 !important;
   border-bottom: 1px solid var(--sf-navy) !important;
   font-family: var(--font-mono) !important;
 }
-html.starfield .file-viewer-path {
+html[data-theme-id="zeta-starfield"] .file-viewer-path {
   color: var(--sf-gold) !important;
   font-family: var(--font-mono) !important;
   font-weight: 600 !important;
 }
-html.starfield .file-viewer-meta {
+html[data-theme-id="zeta-starfield"] .file-viewer-meta {
   color: var(--text-dim) !important;
   font-family: var(--font-mono) !important;
 }
 
 /* View mode switcher (Source / Preview / Diff) */
-html.starfield .file-viewer-mode-switch {
+html[data-theme-id="zeta-starfield"] .file-viewer-mode-switch {
   background: #06080f !important;
   border: 1px solid var(--sf-navy) !important;
   border-radius: 0 !important;
   padding: 1px !important;
 }
-html.starfield .file-viewer-mode-button {
+html[data-theme-id="zeta-starfield"] .file-viewer-mode-button {
   border-radius: 0 !important;
   font-family: var(--font-mono) !important;
   font-size: 10px !important;
@@ -547,7 +423,7 @@ html.starfield .file-viewer-mode-button {
   border: none !important;
   padding: 2px 8px !important;
 }
-html.starfield .file-viewer-mode-button[aria-pressed="true"] {
+html[data-theme-id="zeta-starfield"] .file-viewer-mode-button[aria-pressed="true"] {
   background: var(--sf-navy) !important;
   color: var(--sf-gold) !important;
   font-weight: 700 !important;
@@ -555,25 +431,25 @@ html.starfield .file-viewer-mode-button[aria-pressed="true"] {
 }
 
 /* Icon buttons in file viewer toolbar (word wrap, copy, download) */
-html.starfield .file-viewer-icon-button {
+html[data-theme-id="zeta-starfield"] .file-viewer-icon-button {
   border-radius: 0 !important;
   color: var(--text-muted) !important;
   border: 1px solid transparent !important;
 }
-html.starfield .file-viewer-icon-button:hover {
+html[data-theme-id="zeta-starfield"] .file-viewer-icon-button:hover {
   background: rgba(27,54,93,0.4) !important;
   color: var(--sf-gold) !important;
   border-color: rgba(217,155,38,0.3) !important;
 }
-html.starfield .file-viewer-icon-button[aria-pressed="true"] {
+html[data-theme-id="zeta-starfield"] .file-viewer-icon-button[aria-pressed="true"] {
   background: var(--sf-navy) !important;
   color: var(--sf-gold) !important;
 }
 
 /* Source Code Container & Syntax Highlighter */
-html.starfield .file-source-view,
-html.starfield pre.file-source-view,
-html.starfield div.file-source-view {
+html[data-theme-id="zeta-starfield"] .file-source-view,
+html[data-theme-id="zeta-starfield"] pre.file-source-view,
+html[data-theme-id="zeta-starfield"] div.file-source-view {
   background: #06080f !important;
   color: #e8eeff !important;
   font-family: var(--font-mono) !important;
@@ -583,8 +459,8 @@ html.starfield div.file-source-view {
 }
 
 /* Line numbers in source viewer */
-html.starfield .file-source-view span.linenumber,
-html.starfield span.linenumber {
+html[data-theme-id="zeta-starfield"] .file-source-view span.linenumber,
+html[data-theme-id="zeta-starfield"] span.linenumber {
   background: #0b0f18 !important;
   color: #3d5070 !important;
   border-right: 1px solid #1e2d45 !important;
@@ -594,62 +470,62 @@ html.starfield span.linenumber {
 }
 
 /* Custom NASA-punk Syntax Highlighting for source code preview */
-html.starfield .file-source-view .token.keyword,
-html.starfield .file-source-view span[style*="color: rgb(0, 0, 255)"],
-html.starfield .file-source-view span[style*="color: rgb(86, 156, 214)"],
-html.starfield .file-source-view span[style*="color: #569cd6"] {
+html[data-theme-id="zeta-starfield"] .file-source-view .token.keyword,
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(0, 0, 255)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(86, 156, 214)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #569cd6"] {
   color: #e05a2b !important; /* Starfield Orange for keywords */
   font-weight: 700 !important;
 }
-html.starfield .file-source-view .token.string,
-html.starfield .file-source-view span[style*="color: rgb(163, 21, 21)"],
-html.starfield .file-source-view span[style*="color: rgb(206, 145, 120)"],
-html.starfield .file-source-view span[style*="color: #ce9178"] {
+html[data-theme-id="zeta-starfield"] .file-source-view .token.string,
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(163, 21, 21)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(206, 145, 120)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #ce9178"] {
   color: #22c55e !important; /* Tactical Green for strings */
 }
-html.starfield .file-source-view .token.function,
-html.starfield .file-source-view span[style*="color: rgb(220, 220, 170)"],
-html.starfield .file-source-view span[style*="color: #dcdcaa"] {
+html[data-theme-id="zeta-starfield"] .file-source-view .token.function,
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(220, 220, 170)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #dcdcaa"] {
   color: #d99b26 !important; /* Starfield Gold for functions */
 }
-html.starfield .file-source-view .token.comment,
-html.starfield .file-source-view span[style*="color: rgb(0, 128, 0)"],
-html.starfield .file-source-view span[style*="color: rgb(106, 153, 85)"],
-html.starfield .file-source-view span[style*="color: #6a9955"] {
+html[data-theme-id="zeta-starfield"] .file-source-view .token.comment,
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(0, 128, 0)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(106, 153, 85)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #6a9955"] {
   color: #4b5a72 !important; /* Muted Space Slate for comments */
   font-style: italic !important;
 }
-html.starfield .file-source-view .token.number,
-html.starfield .file-source-view .token.boolean,
-html.starfield .file-source-view span[style*="color: rgb(181, 206, 168)"],
-html.starfield .file-source-view span[style*="color: #b5cea8"] {
+html[data-theme-id="zeta-starfield"] .file-source-view .token.number,
+html[data-theme-id="zeta-starfield"] .file-source-view .token.boolean,
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(181, 206, 168)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #b5cea8"] {
   color: #38bdf8 !important; /* Telemetry Cyan for numbers/booleans */
 }
-html.starfield .file-source-view .token.class-name,
-html.starfield .file-source-view .token.type-name,
-html.starfield .file-source-view span[style*="color: rgb(78, 201, 176)"],
-html.starfield .file-source-view span[style*="color: #4ec9b0"] {
+html[data-theme-id="zeta-starfield"] .file-source-view .token.class-name,
+html[data-theme-id="zeta-starfield"] .file-source-view .token.type-name,
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(78, 201, 176)"],
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #4ec9b0"] {
   color: #f0f4ff !important;
   font-weight: 600 !important;
 }
 
 /* Markdown Document Preview in Right Panel */
-html.starfield .markdown-file-preview {
+html[data-theme-id="zeta-starfield"] .markdown-file-preview {
   background: #06080f !important;
   color: #e8eeff !important;
 }
-html.starfield .markdown-file-preview h1,
-html.starfield .markdown-file-preview h2,
-html.starfield .markdown-file-preview h3,
-html.starfield .markdown-file-preview h4 {
+html[data-theme-id="zeta-starfield"] .markdown-file-preview h1,
+html[data-theme-id="zeta-starfield"] .markdown-file-preview h2,
+html[data-theme-id="zeta-starfield"] .markdown-file-preview h3,
+html[data-theme-id="zeta-starfield"] .markdown-file-preview h4 {
   color: var(--sf-gold) !important;
   font-family: var(--font-mono) !important;
   border-bottom: 1px solid rgba(217,155,38,0.25) !important;
   padding-bottom: 6px !important;
 }
-html.starfield .markdown-file-preview h1::before { content: "// "; color: var(--sf-orange); }
-html.starfield .markdown-file-preview h2::before { content: "// "; color: rgba(217,155,38,0.7); }
-html.starfield .markdown-file-preview pre {
+html[data-theme-id="zeta-starfield"] .markdown-file-preview h1::before { content: "// "; color: var(--sf-orange); }
+html[data-theme-id="zeta-starfield"] .markdown-file-preview h2::before { content: "// "; color: rgba(217,155,38,0.7); }
+html[data-theme-id="zeta-starfield"] .markdown-file-preview pre {
   background: #0a1020 !important;
   border: 1px solid var(--sf-navy) !important;
   border-left: 3px solid var(--sf-gold) !important;
@@ -657,19 +533,19 @@ html.starfield .markdown-file-preview pre {
 }
 
 /* Git Diff View in Right Panel */
-html.starfield .file-diff-view {
+html[data-theme-id="zeta-starfield"] .file-diff-view {
   background: #06080f !important;
   font-family: var(--font-mono) !important;
 }
-html.starfield .file-diff-line {
+html[data-theme-id="zeta-starfield"] .file-diff-line {
   border-radius: 0 !important;
 }
 
 /* ── 25. Decorative ambient corner reticle on main chat panel ─────────────
    The chat scroll container has no suitable class hook, so we use
    a pure-CSS SVG background layered at low opacity in the top-right corner. */
-html.starfield [style*="flex: 1"][style*="overflow: hidden"][style*="position: relative"]::after,
-html.starfield div[style*="flex:1"][style*="overflow:hidden"]::after {
+html[data-theme-id="zeta-starfield"] [style*="flex: 1"][style*="overflow: hidden"][style*="position: relative"]::after,
+html[data-theme-id="zeta-starfield"] div[style*="flex:1"][style*="overflow:hidden"]::after {
   content: "";
   position: absolute;
   top: 12px; right: 12px;
@@ -682,7 +558,7 @@ html.starfield div[style*="flex:1"][style*="overflow:hidden"]::after {
 }
 
 /* ── 26. Animated scanline overlay on the whole page ─────────────────────── */
-html.starfield body::after {
+html[data-theme-id="zeta-starfield"] body::after {
   content: "";
   position: fixed;
   inset: 0;
@@ -708,7 +584,7 @@ html.starfield body::after {
 }
 
 /* Running agent indicator pulse in starfield */
-html.starfield .sf-running-dot {
+html[data-theme-id="zeta-starfield"] .sf-running-dot {
   animation: sf-pulse-gold 1.2s ease-in-out infinite !important;
   background: var(--sf-gold) !important;
   border-radius: 0 !important;
@@ -739,7 +615,7 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: 'HarmonyOS Sans', 'HarmonyOS Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
   overscroll-behavior: none;
 }
@@ -764,7 +640,8 @@ body {
 }
 
 :root {
-  --font-mono: 'Maple Mono NL NF CN', 'Maple Mono Normal NL NF CN', 'JetBrains Mono', 'Fira Code', 'Consolas', ui-monospace, monospace;
+  --font-display: ui-sans-serif, system-ui, "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 pre, code {

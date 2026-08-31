@@ -216,7 +216,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
             flex: 1,
             minWidth: 0,
             background: "var(--user-bg)",
-            border: "1px solid rgba(59,130,246,0.2)",
+            border: "1px solid var(--chat-user-border)",
             borderRadius: 12,
             padding: "8px 12px",
             fontSize: 14,
@@ -244,7 +244,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                     key={i}
                     src={src}
                     alt=""
-                    style={{ maxWidth: 240, maxHeight: 240, borderRadius: 6, objectFit: "contain", display: "block", border: "1px solid rgba(59,130,246,0.15)" }}
+                    style={{ maxWidth: 240, maxHeight: 240, borderRadius: 6, objectFit: "contain", display: "block", border: "1px solid var(--interactive-border)" }}
                   />
                 );
               })}
@@ -638,9 +638,21 @@ function AssistantMessageView({
                     {est}
                   </span>
                   {tps !== null && (() => {
-                    const bg = tps >= 50 ? "#53b3cb" : tps >= 30 ? "#9bc53d" : tps >= 15 ? "#f9c22e" : "#e01a4f";
+                    const status = tps >= 50 ? "info" : tps >= 30 ? "success" : tps >= 15 ? "warning" : "error";
                     return (
-                      <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 4, background: bg, color: "#fff", fontSize: 11, fontWeight: 400 }}>
+                      <span
+                        data-status={status}
+                        style={{
+                          marginLeft: 6,
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          background: `var(--status-${status}-background)`,
+                          border: `1px solid var(--status-${status}-border)`,
+                          color: `var(--status-${status}-foreground)`,
+                          fontSize: 11,
+                          fontWeight: 500,
+                        }}
+                      >
                         {tps.toFixed(1)} t/s
                       </span>
                     );
@@ -727,7 +739,7 @@ function AssistantMessageView({
                 position: "absolute", bottom: "calc(100% + 4px)", left: 0,
                 minWidth: 260, maxWidth: 420, maxHeight: 240, overflowY: "auto",
                 background: "var(--bg-panel)", border: "1px solid var(--border)",
-                borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.14)",
+                borderRadius: 8, boxShadow: "0 8px 24px var(--surface-shadow)",
                 padding: "4px 0", zIndex: 60,
               }}
             >
@@ -946,8 +958,8 @@ function ToolCallBlock({ block, result, duration, isStreaming }: { block: ToolCa
         borderRadius: 7,
         overflow: "hidden",
         fontSize: 12,
-        border: isError ? "1px solid rgba(248,113,113,0.45)" : "1px solid rgba(34,197,94,0.25)",
-        background: isError ? "rgba(248,113,113,0.05)" : "rgba(34,197,94,0.04)",
+        border: isError ? "1px solid var(--status-error-border)" : "1px solid var(--chat-tool-border)",
+        background: isError ? "var(--status-error-background)" : "var(--chat-tool-background)",
       }}
     >
       {/* ── Tool call header ── */}
@@ -1001,7 +1013,7 @@ function ToolCallBlock({ block, result, duration, isStreaming }: { block: ToolCa
             lineHeight: 1.5,
             overflow: "auto",
             background: "var(--bg-subtle)",
-            borderTop: isError ? "1px solid rgba(248,113,113,0.25)" : "1px solid rgba(34,197,94,0.2)",
+            borderTop: isError ? "1px solid var(--status-error-border)" : "1px solid var(--status-success-border)",
             whiteSpace: "pre-wrap",
             wordBreak: "break-all",
           }}
@@ -1038,7 +1050,7 @@ function PairedDiffResult({ diff }: {
   return (
     <div
       style={{
-        borderTop: "1px solid rgba(34,197,94,0.15)",
+        borderTop: "1px solid var(--status-success-border)",
         background: "var(--bg)",
       }}
     >
@@ -1122,10 +1134,10 @@ function SplitDiffHeader({ title, side }: { title: string; side: "left" | "right
 
 function SplitDiffCellView({ cell, side }: { cell: SplitDiffCell; side: "left" | "right" }) {
   const bg =
-    cell.type === "added"
-      ? "rgba(34,197,94,0.12)"
+      cell.type === "added"
+      ? "var(--status-success-background)"
       : cell.type === "removed"
-      ? "rgba(248,113,113,0.13)"
+      ? "var(--status-error-background)"
       : cell.type === "empty"
       ? "var(--bg-subtle)"
       : "transparent";
@@ -1197,9 +1209,9 @@ function PatchTextView({ text }: { text: string }) {
           line.startsWith("-") && !line.startsWith("---") ? "removed" :
           "context";
         const bg =
-          kind === "added" ? "rgba(34,197,94,0.12)" :
-          kind === "removed" ? "rgba(248,113,113,0.13)" :
-          kind === "hunk" ? "rgba(96,165,250,0.12)" :
+          kind === "added" ? "var(--status-success-background)" :
+          kind === "removed" ? "var(--status-error-background)" :
+          kind === "hunk" ? "var(--status-info-background)" :
           "transparent";
         const color =
           kind === "added" ? "var(--status-success-foreground)" :
@@ -1281,8 +1293,8 @@ function PairedResult({ text, isEmpty, isError }: {
   return (
     <div
       style={{
-        borderTop: `1px solid ${isError ? "rgba(248,113,113,0.3)" : "rgba(34,197,94,0.15)"}`,
-        background: isError ? "rgba(248,113,113,0.04)" : "var(--bg-subtle)",
+        borderTop: isError ? "1px solid var(--status-error-border)" : "1px solid var(--status-success-border)",
+        background: isError ? "var(--status-error-background)" : "var(--bg-subtle)",
       }}
     >
       <pre

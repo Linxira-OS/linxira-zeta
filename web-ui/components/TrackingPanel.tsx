@@ -261,7 +261,7 @@ export function TrackingPanel({ cwd }: Props) {
             width={barW}
             height={barH}
             rx={2}
-            fill="var(--accent)"
+            fill="var(--chart-1)"
             opacity={0.7}
           />
           <text
@@ -278,18 +278,18 @@ export function TrackingPanel({ cwd }: Props) {
       );
     });
 
-    // --- Op distribution pie-like bar chart ---
-    const colors = ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#0891b2", "#ca8a04", "#4f46e5"];
+    // --- Operation distribution reads the active preset's chart series. ---
     const opBars = sortedOps.slice(0, 8).map(([op, count], i) => {
+      const color = `var(--chart-${(i % 8) + 1})`;
       const pct = Math.round((count / data.actions.length) * 100);
       return (
-        <div key={op} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <div style={{ width: 10, height: 10, borderRadius: 2, background: colors[i % colors.length], flexShrink: 0 }} />
+          <div key={op} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <div style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
           <div style={{ width: 80, fontSize: 11, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={op}>
             {op}
           </div>
           <div style={{ flex: 1, height: 8, background: "var(--bg-hover)", borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: colors[i % colors.length], borderRadius: 4, minWidth: pct > 0 ? 2 : 0, transition: "width 0.3s" }} />
+            <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 4, minWidth: pct > 0 ? 2 : 0, transition: "width 0.3s" }} />
           </div>
           <div style={{ width: 48, fontSize: 11, color: "var(--text-muted)", textAlign: "right", fontFamily: "var(--font-mono)" }}>
             {count} ({pct}%)
@@ -351,7 +351,7 @@ export function TrackingPanel({ cwd }: Props) {
   if (error) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 24, color: "var(--text-muted)" }}>
-        <div style={{ fontSize: 13, color: "#dc2626" }}>加载失败</div>
+        <div style={{ fontSize: 13, color: "var(--status-error-foreground)" }}>加载失败</div>
         <div style={{ fontSize: 12 }}>{error}</div>
         <button
           onClick={fetchData}

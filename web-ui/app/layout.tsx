@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { Noto_Sans_Mono } from "next/font/google";
 import "katex/dist/katex.min.css";
+import { ThemeSystemProvider } from "@/contexts/ThemeSystemProvider";
+import { getThemeBootstrapScript } from "@/lib/theme/bootstrap";
 import "./globals.css";
-
-const notoSansMono = Noto_Sans_Mono({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-noto-mono",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Zeta Web",
@@ -20,17 +15,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" translate="no" className={`${notoSansMono.variable} notranslate`} suppressHydrationWarning>
+    <html lang="en" translate="no" className="dark notranslate" data-theme="dark" data-theme-id="zeta-dark" suppressHydrationWarning>
       <head>
         <meta name="google" content="notranslate" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("zeta-theme");if(t==="starfield"){document.documentElement.classList.add("starfield");}else if(t!=="light"){document.documentElement.classList.add("dark");}}catch(e){}})();`,
-          }}
-        />
+        <meta name="theme-color" content="#111827" />
+        <script dangerouslySetInnerHTML={{ __html: getThemeBootstrapScript() }} />
       </head>
       <body translate="no" className="notranslate" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
-        {children}
+        <ThemeSystemProvider>{children}</ThemeSystemProvider>
       </body>
     </html>
   );

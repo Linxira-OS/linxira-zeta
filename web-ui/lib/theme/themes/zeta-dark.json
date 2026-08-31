@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "id": "zeta-dark",
+    "name": "Zeta",
+    "description": "Zeta dark theme",
+    "variant": "dark",
+    "tags": [
+      "dark",
+      "preset"
+    ]
+  },
+  "colors": {
+    "primary": {
+      "base": "#60a5fa",
+      "hover": "rgb(96 165 250 / 0.84)",
+      "active": "rgb(96 165 250 / 0.68)",
+      "foreground": "#111827",
+      "muted": "rgb(96 165 250 / 0.2)"
+    },
+    "surface": {
+      "background": "#111827",
+      "foreground": "#e5edf9",
+      "muted": "#172033",
+      "mutedForeground": "#98a8c2",
+      "elevated": "#1d2940",
+      "elevatedForeground": "#e5edf9",
+      "overlay": "rgb(0 0 0 / 0.64)",
+      "subtle": "rgb(96 165 250 / 0.08)"
+    },
+    "interactive": {
+      "border": "#31415e",
+      "borderHover": "rgb(96 165 250 / 0.62)",
+      "borderFocus": "#60a5fa",
+      "selection": "#2d3d59",
+      "selectionForeground": "#e5edf9",
+      "focus": "#60a5fa",
+      "focusRing": "rgb(96 165 250 / 0.42)",
+      "cursor": "#e5edf9",
+      "hover": "#26334b",
+      "active": "#2d3d59"
+    },
+    "status": {
+      "error": "#fb7185",
+      "errorForeground": "#fecdd3",
+      "errorBackground": "rgb(251 113 133 / 0.18)",
+      "errorBorder": "rgb(251 113 133 / 0.48)",
+      "warning": "#fbbf24",
+      "warningForeground": "#fde68a",
+      "warningBackground": "rgb(251 191 36 / 0.18)",
+      "warningBorder": "rgb(251 191 36 / 0.48)",
+      "success": "#4ade80",
+      "successForeground": "#bbf7d0",
+      "successBackground": "rgb(74 222 128 / 0.18)",
+      "successBorder": "rgb(74 222 128 / 0.48)",
+      "info": "#60a5fa",
+      "infoForeground": "#dbeafe",
+      "infoBackground": "rgb(96 165 250 / 0.18)",
+      "infoBorder": "rgb(96 165 250 / 0.48)"
+    },
+    "syntax": {
+      "background": "#172033",
+      "foreground": "#cbd5e1",
+      "comment": "#8b9ab3",
+      "keyword": "#fb7185",
+      "string": "#86efac",
+      "number": "#7dd3fc",
+      "function": "#c4b5fd",
+      "variable": "#fdba74",
+      "type": "#6ee7b7",
+      "operator": "#fda4af",
+      "property": "#93c5fd",
+      "header": "#1d2940",
+      "lineNumber": "#98a8c2"
+    },
+    "chart": [
+      "#60a5fa",
+      "#a78bfa",
+      "#f472b6",
+      "#fb923c",
+      "#4ade80",
+      "#22d3ee",
+      "#facc15",
+      "#818cf8"
+    ],
+    "chat": {
+      "userBackground": "rgb(96 165 250 / 0.16)",
+      "userBorder": "rgb(96 165 250 / 0.32)",
+      "assistantBackground": "#111827",
+      "toolBackground": "rgb(96 165 250 / 0.07)",
+      "toolBorder": "rgb(96 165 250 / 0.24)"
+    }
+  }
+}
