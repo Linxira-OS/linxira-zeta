@@ -66,6 +66,7 @@ import type { NonMessageTokenSource } from "../modes/utils/context-usage";
 import { computeNonMessageTokens } from "../modes/utils/context-usage";
 import { createPlanReadMatcher } from "../plan-mode/plan-protection";
 import type { ConfiguredThinkingLevel } from "../thinking";
+import { TrackingRecorder } from "../tools/tracking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ContextUsageBreakdown, HandoffResult, SessionHandoffOptions } from "./agent-session-types";
 import { findCompactMode } from "./compact-modes";
@@ -366,6 +367,7 @@ export class SessionMaintenance {
 	#speculation: SpeculationRun | undefined;
 	#skipPostTurnMaintenanceAssistantTimestamp: number | undefined;
 	readonly #host: SessionMaintenanceHost;
+	readonly #trackingRecorder: TrackingRecorder;
 
 	get #model(): Model | undefined {
 		return this.#host.model();
@@ -381,6 +383,7 @@ export class SessionMaintenance {
 
 	constructor(host: SessionMaintenanceHost) {
 		this.#host = host;
+		this.#trackingRecorder = new TrackingRecorder(host.settings);
 	}
 
 	/** Whether manual or automatic context maintenance is active. */
@@ -1498,6 +1501,9 @@ export class SessionMaintenance {
 		const savedCompactionEntry = newEntries.find(e => e.type === "compaction" && e.id === entryId) as
 			| CompactionEntry
 			| undefined;
+		if (savedCompactionEntry) {
+			await this.#trackingRecorder.recordCompaction(this.#host.sessionManager.getCwd(), savedCompactionEntry);
+		}
 		if (this.#host.extensionRunner && savedCompactionEntry) {
 			const compactEmit = this.#host.extensionRunner.emit({
 				type: "session_compact",

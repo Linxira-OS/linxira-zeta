@@ -8,8 +8,10 @@ import * as path from "node:path";
 import type { TextContent } from "@linxiraos/pi-ai";
 import { setAgentDir } from "@linxiraos/pi-utils";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { TrackingTool } from "@linxiraos/zeta/tools/tracking";
+import { TrackingRecorder, TrackingTool } from "@linxiraos/zeta/tools/tracking";
 
 function createMockSession(cwd: string): ToolSession {
 	return { cwd, hasUI: false } as ToolSession;
@@ -101,5 +103,44 @@ describe("TrackingTool (part 2)", () => {
 		const result = await tool.execute("t1", { op: "unknown_op" } as any);
 		expect(result.isError).toBe(true);
 		expect((result.content[0] as TextContent).text).toContain("Unknown operation");
+	});
+
+	it("recordCompaction: persists the committed summary when tracking is enabled", async () => {
+		const cwd = path.join(tempDir, "p7");
+		await fs.mkdir(cwd, { recursive: true });
+		const recorder = new TrackingRecorder(Settings.isolated({ "tracking.enabled": true }));
+		const entry = {
+			type: "compaction",
+			id: "compaction-entry",
+			parentId: null,
+			timestamp: "2026-08-31T12:34:56.789Z",
+			summary: "# Goal\nShip tracking compaction summaries.\n\n# Next Steps\nAdd UI support.",
+			firstKeptEntryId: "kept-entry",
+			tokensBefore: 1000,
+		} satisfies CompactionEntry;
+
+		await recorder.recordCompaction(cwd, entry);
+
+		const summaryPath = path.join(cwd, ".zeta", "tracking", "summaries", "compaction-2026-08-31T12-34-56-789Z.md");
+		expect(await Bun.file(summaryPath).text()).toBe(`${entry.summary}\n`);
+	});
+
+	it("recordCompaction: does nothing when tracking is disabled", async () => {
+		const cwd = path.join(tempDir, "p8");
+		await fs.mkdir(cwd, { recursive: true });
+		const recorder = new TrackingRecorder(Settings.isolated({ "tracking.enabled": false }));
+		const entry = {
+			type: "compaction",
+			id: "compaction-entry",
+			parentId: null,
+			timestamp: "2026-08-31T12:34:56.789Z",
+			summary: "summary",
+			firstKeptEntryId: "kept-entry",
+			tokensBefore: 1000,
+		} satisfies CompactionEntry;
+
+		await recorder.recordCompaction(cwd, entry);
+
+		expect(await Bun.file(path.join(cwd, ".zeta", "tracking", "summaries")).exists()).toBe(false);
 	});
 });
