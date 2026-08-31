@@ -43,6 +43,7 @@ import {
 	handleLogout,
 	handleOAuthProviders,
 } from "./web-gateway/auth";
+import { handleBlobGet } from "./web-gateway/blobs";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
 import {
@@ -122,6 +123,7 @@ const SETTINGS_RE = /^\/api\/settings$/;
 const SETTINGS_RELOAD_RE = /^\/api\/settings\/reload$/;
 const WEB_CONFIG_RE = /^\/api\/web-config$/;
 const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
+const BLOB_RE = /^\/api\/blobs\/([^/]+)$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
 const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
 const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
@@ -446,6 +448,9 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		if (req.method === "GET") return handleDocsGet(req, docs[0]);
 		return json({ error: "Method not allowed" }, 405);
 	}
+
+	const blob = capture(pathname, BLOB_RE);
+	if (blob) return handleBlobGet(req, blob[0]);
 
 	if (CHANNELS_STATUS_RE.test(pathname)) {
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);

@@ -114,6 +114,11 @@ const PROVIDER_META: Record<SearchProviderId, ProviderMeta> = {
 		label: SEARCH_PROVIDER_LABELS.duckduckgo,
 		load: async () => new (await import("./providers/duckduckgo")).DuckDuckGoProvider(),
 	},
+	bing: {
+		id: "bing",
+		label: SEARCH_PROVIDER_LABELS.bing,
+		load: async () => new (await import("./providers/bing")).BingProvider(),
+	},
 	google: {
 		id: "google",
 		label: SEARCH_PROVIDER_LABELS.google,

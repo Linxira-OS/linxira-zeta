@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeProxiedResponse, parsePlanApprovalReply } from "@linxiraos/zeta/server/zeta-server";
+import {
+	formatServerUrl,
+	normalizeProxiedResponse,
+	parsePlanApprovalReply,
+	ZetaServer,
+} from "@linxiraos/zeta/server/zeta-server";
 
 describe("ZetaServer proxy responses", () => {
 	it("removes stale compression metadata from Bun-decoded upstream bodies", async () => {
@@ -15,6 +20,13 @@ describe("ZetaServer proxy responses", () => {
 		expect(response.headers.get("content-encoding")).toBeNull();
 		expect(response.headers.get("content-length")).toBeNull();
 		expect(await response.text()).toBe("decoded Web UI chunk");
+	});
+});
+
+describe("ZetaServer host URLs", () => {
+	it("reports the configured public host and brackets IPv6 literals", () => {
+		expect(new ZetaServer({ host: "192.168.1.5", port: 30141 }).url).toBe("http://192.168.1.5:30141");
+		expect(formatServerUrl("::1", 30141)).toBe("http://[::1]:30141");
 	});
 });
 
