@@ -12,10 +12,12 @@ import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { getProjectTrackingDir, getTrackingIndexPath, logger } from "@linxiraos/pi-utils";
+import type { Settings } from "../config/settings";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n";
 import trackingDescription from "../prompts/tools/tracking.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
+import type { CompactionEntry } from "../session/session-entries";
 
 // =============================================================================
 // Types
@@ -69,6 +71,50 @@ const STATUS_FILE = "status.json";
 const INDEX_FILE = "INDEX.md";
 const ACTIONS_FILE = "actions.jsonl";
 const SESSIONS_DIR = "sessions";
+const SUMMARIES_DIR = "summaries";
+
+/**
+ * Persists committed compaction summaries without changing the live session
+ * or the existing tracking document semantics.
+ */
+export class TrackingRecorder {
+	#settings: Settings;
+
+	constructor(settings: Settings) {
+		this.#settings = settings;
+	}
+
+	async recordCompaction(cwd: string, entry: CompactionEntry): Promise<void> {
+		if (this.#settings.get("tracking.enabled") !== true) return;
+
+		try {
+			const trackingDir = getProjectTrackingDir(cwd);
+			const summariesDir = path.join(trackingDir, SUMMARIES_DIR);
+			await fs.mkdir(summariesDir, { recursive: true });
+
+			const timestamp = entry.timestamp.replace(/[:.]/g, "-");
+			const summaryPath = path.join(summariesDir, `compaction-${timestamp}.md`);
+			try {
+				await fs.writeFile(summaryPath, `${entry.summary}\n`, { flag: "wx" });
+			} catch (error) {
+				if (!isFileExistsError(error)) throw error;
+				await Bun.write(
+					path.join(summariesDir, `compaction-${timestamp}-${entry.id}.md`),
+					`${entry.summary.trim()}\n`,
+				);
+			}
+		} catch (error) {
+			logger.warn("Failed to persist tracking compaction summary", {
+				cwd,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+}
+
+function isFileExistsError(error: unknown): boolean {
+	return error instanceof Error && "code" in error && error.code === "EEXIST";
+}
 
 async function ensureTrackingDir(cwd: string): Promise<string> {
 	const dir = getProjectTrackingDir(cwd);
