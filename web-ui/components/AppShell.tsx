@@ -1502,7 +1502,7 @@ function AppShellContent() {
                 {isStarfield && (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                     <StarfieldEmblem size={120} />
-                    <div style={{ fontFamily: "var(--font-display)", fontSize: 13, letterSpacing: "0.16em", color: "#d99b26", textTransform: "uppercase" }}>
+                    <div style={{ fontFamily: "var(--font-display)", fontSize: 13, letterSpacing: "0.16em", color: "var(--accent)", textTransform: "uppercase" }}>
                       {t("constellation-ready")}
                     </div>
                   </div>
@@ -1517,12 +1517,12 @@ function AppShellContent() {
                     <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 900, letterSpacing: "0.2em", color: "var(--text)", textTransform: "uppercase" }}>
                       STARFIELD // CONSTELLATION FIELD
                     </div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "#d99b26", letterSpacing: "0.1em" }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent)", letterSpacing: "0.1em" }}>
                       SYS.LOC // ZETA-WEB-INTERFACE · MISSION AGENT ACTIVE
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.8, background: "rgba(27,54,93,0.3)", border: "1px solid #1e2d45", borderLeft: "3px solid #d99b26", padding: "14px 20px", textAlign: "left", width: "100%" }}>
-                      <span style={{ color: "#e05a2b", fontFamily: "var(--font-mono)", fontWeight: 700 }}>01.</span> {t("select-a-project-directory-from-the-sidebar")}<br />
-                      <span style={{ color: "#e05a2b", fontFamily: "var(--font-mono)", fontWeight: 700 }}>02.</span> {t("configure-provider-models-via-the-models-configu")}
+                    <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.8, background: "var(--surface-subtle)", border: "1px solid var(--border)", borderLeft: "3px solid var(--accent)", padding: "14px 20px", textAlign: "left", width: "100%" }}>
+                      <span style={{ color: "var(--status-warning-foreground)", fontFamily: "var(--font-mono)", fontWeight: 700 }}>01.</span> {t("select-a-project-directory-from-the-sidebar")}<br />
+                      <span style={{ color: "var(--status-warning-foreground)", fontFamily: "var(--font-mono)", fontWeight: 700 }}>02.</span> {t("configure-provider-models-via-the-models-configu")}
                     </div>
                   </div>
                 ) : (

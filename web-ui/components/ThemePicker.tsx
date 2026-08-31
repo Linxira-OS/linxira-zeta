@@ -1,388 +1,119 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useTheme, type Theme } from "@/hooks/useTheme";
-import { useCodeTheme, type CodeTheme } from "@/hooks/useCodeTheme";
-import { useI18n } from "@/hooks/useI18n";
-import { StarfieldEmblem } from "./StarfieldEmblem";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useThemeSystem } from "@/contexts/useThemeSystem";
+import type { ThemeMode } from "@/contexts/theme-system-context";
 
-interface CodeThemeOption {
-  id: CodeTheme;
-  label: string;
-  subZh: string;
-  subEn: string;
-  swatch: string;
-}
-
-const CODE_THEMES: CodeThemeOption[] = [
-  {
-    id: "auto",
-    label: "Auto",
-    subZh: "跟随应用主题",
-    subEn: "Follow App Theme",
-    swatch: "linear-gradient(135deg, #ffffff 50%, #1e1e1e 50%)",
-  },
-  {
-    id: "vs",
-    label: "VS Light",
-    subZh: "浅色代码块",
-    subEn: "Light syntax theme",
-    swatch: "linear-gradient(135deg, #ffffff 0%, #0000ff 50%, #008000 100%)",
-  },
-  {
-    id: "vscDarkPlus",
-    label: "VSC Dark Plus",
-    subZh: "深色代码块",
-    subEn: "Dark syntax theme",
-    swatch: "linear-gradient(135deg, #1e1e1e 0%, #569cd6 50%, #4ec9b0 100%)",
-  },
-  {
-    id: "oneDark",
-    label: "One Dark Pro",
-    subZh: "One Dark Pro 配色",
-    subEn: "One Dark Pro theme",
-    swatch: "linear-gradient(135deg, #282c34 0%, #61afef 50%, #e06c75 100%)",
-  },
-];
-
-interface ThemeOption {
-  id: Theme;
-  label: string;
-  sub: string;
-  icon: React.ReactNode;
-  /** Mini-preview swatch bands — theme background / accent / text bar */
-  preview: { bg: string; accent: string; text: string };
-}
-
-const SunIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="5" />
-    <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-    <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-  </svg>
-);
-
-const MoonIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-  </svg>
-);
-
-const StarIcon = () => <StarfieldEmblem size={15} />;
-
-const THEMES: ThemeOption[] = [
-  {
-    id: "light",
-    label: "Light",
-    sub: "Clean white",
-    icon: <SunIcon />,
-    preview: { bg: "#ffffff", accent: "#2563eb", text: "#f0f0f0" },
-  },
-  {
-    id: "dark",
-    label: "Dark",
-    sub: "Neutral dark",
-    icon: <MoonIcon />,
-    preview: { bg: "#1a1a1a", accent: "#60a5fa", text: "#2e2e2e" },
-  },
-  {
-    id: "starfield",
-    label: "Starfield",
-    sub: "NASA-punk HUD",
-    icon: <StarIcon />,
-    preview: { bg: "#0b0e14", accent: "#d99b26", text: "#1b365d" },
-  },
-];
-
-const CURRENT_LABEL: Record<Theme, string> = {
+const MODE_LABELS: Record<ThemeMode, string> = {
+  system: "System",
   light: "Light",
   dark: "Dark",
-  starfield: "★ Starfield",
-};
-
-const CURRENT_COLOR: Record<Theme, string> = {
-  light: "var(--text-muted)",
-  dark: "var(--text-muted)",
-  starfield: "#d99b26",
 };
 
 export function ThemePicker() {
-  const { theme, setTheme } = useTheme();
-  const { codeTheme, setCodeTheme } = useCodeTheme();
-  const { t, isZh } = useI18n();
+  const {
+    availableThemes,
+    currentTheme,
+    darkThemeId,
+    lightThemeId,
+    setDarkThemePreference,
+    setLightThemePreference,
+    setThemeMode,
+    themeMode,
+  } = useThemeSystem();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const lightThemes = useMemo(() => availableThemes.filter((theme) => theme.metadata.variant === "light"), [availableThemes]);
+  const darkThemes = useMemo(() => availableThemes.filter((theme) => theme.metadata.variant === "dark"), [availableThemes]);
 
-  /* Close on outside click or Escape */
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    const dismiss = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onDown);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", dismiss);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("mousedown", dismiss);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
 
   return (
     <div ref={rootRef} style={{ position: "relative", flexShrink: 0 }}>
-      {/* Trigger button */}
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
+        type="button"
+        onClick={() => setOpen((value) => !value)}
         title="Choose theme"
         aria-label="Choose theme"
-        aria-haspopup="listbox"
         aria-expanded={open}
         style={{
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-          height: 36, padding: "0 10px",
-          background: "none", border: "none",
+          alignItems: "center",
+          background: "none",
+          border: "none",
           borderRight: "1px solid var(--border)",
-          color: CURRENT_COLOR[theme],
-          cursor: "pointer", fontSize: 11, whiteSpace: "nowrap",
-          transition: "color 0.12s, background 0.12s",
+          color: "var(--text-muted)",
+          cursor: "pointer",
+          display: "flex",
+          fontSize: 11,
+          gap: 6,
+          height: 36,
+          padding: "0 10px",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
       >
-        {/* icon for current theme */}
-        {theme === "starfield" ? <StarIcon /> : theme === "dark" ? <MoonIcon /> : <SunIcon />}
-        <span style={{
-          fontFamily: "var(--font-mono, monospace)",
-          letterSpacing: "0.04em",
-          fontSize: 10,
-          opacity: 0.9,
-        }}>
-          {CURRENT_LABEL[theme]}
-        </span>
-        {/* chevron */}
-        <svg
-          width="8" height="8" viewBox="0 0 10 10" fill="none"
-          stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
-          style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }}
-          aria-hidden="true"
-        >
-          <polyline points="2 3.5 5 6.5 8 3.5" />
-        </svg>
+        <span aria-hidden="true">{currentTheme.metadata.variant === "dark" ? "◐" : "◑"}</span>
+        <span>{currentTheme.metadata.name}</span>
+        <span aria-hidden="true">⌄</span>
       </button>
-
-      {/* Dropdown panel */}
       {open && (
         <div
-          role="listbox"
-          aria-label="Select theme"
+          role="dialog"
+          aria-label="Theme settings"
           style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            zIndex: 9000,
-            minWidth: 220,
             background: "var(--bg-panel)",
             border: "1px solid var(--border)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
-            borderRadius: theme === "starfield" ? 0 : 8,
-            overflow: "hidden",
-            /* Starfield: top gold bar */
-            borderTop: theme === "starfield"
-              ? "2px solid #d99b26"
-              : "1px solid var(--border)",
+            boxShadow: "0 10px 32px rgb(0 0 0 / 0.28)",
+            display: "grid",
+            gap: 10,
+            left: 0,
+            minWidth: 280,
+            padding: 12,
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            zIndex: 9000,
           }}
         >
-          {/* Starfield header decoration */}
-          {theme === "starfield" && (
-            <div style={{
-              padding: "6px 12px 4px",
-              fontFamily: "var(--font-mono, monospace)",
-              fontSize: 9,
-              letterSpacing: "0.14em",
-              color: "#d99b26",
-              opacity: 0.7,
-              textTransform: "uppercase",
-              borderBottom: "1px solid #1e2d45",
-            }}>
-              ◈ Theme Selection
-            </div>
-          )}
-          {/* Section 1: App Theme */}
-          <div style={{
-            padding: "8px 12px 4px",
-            fontFamily: "var(--font-mono, monospace)",
-            fontSize: 9,
-            letterSpacing: "0.08em",
-            color: "var(--text-dim)",
-            textTransform: "uppercase",
-          }}>
-            {t("app-theme")}
-          </div>
-          {THEMES.map((opt) => {
-            const isActive = theme === opt.id;
-            return (
-              <button
-                key={opt.id}
-                role="option"
-                aria-selected={isActive}
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setTheme(opt.id, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-                  setOpen(false);
-                }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  width: "100%", padding: "9px 12px",
-                  background: isActive ? "var(--bg-selected)" : "none",
-                  border: "none",
-                  borderLeft: isActive
-                    ? opt.id === "starfield" ? "3px solid #d99b26"
-                    : "3px solid var(--accent)"
-                    : "3px solid transparent",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
-              >
-                {/* Mini-preview swatch: background + accent + text bands */}
-                <div style={{
-                  width: 28, height: 18, flexShrink: 0,
-                  display: "flex",
-                  overflow: "hidden",
-                  border: "1px solid var(--border)",
-                  borderRadius: opt.id === "starfield" ? 0 : 3,
-                  boxShadow: isActive ? "0 0 0 1.5px var(--accent)" : "none",
-                }}>
-                  <div style={{ flex: 1.4, background: opt.preview.bg }} />
-                  <div style={{ flex: 1, background: opt.preview.accent }} />
-                  <div style={{ flex: 1, background: opt.preview.text }} />
-                </div>
-
-                {/* Icon + text */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0,
-                  color: opt.id === "starfield" && isActive ? "#d99b26" : "var(--text)",
-                }}>
-                  <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.65 }}>
-                    {opt.icon}
-                  </span>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{
-                      fontSize: 12, fontWeight: 600,
-                      fontFamily: opt.id === "starfield"
-                        ? "var(--font-mono, monospace)" : "inherit",
-                      letterSpacing: opt.id === "starfield" ? "0.06em" : 0,
-                      color: "inherit",
-                    }}>
-                      {opt.label}
-                    </div>
-                    <div style={{
-                      fontSize: 10, color: "var(--text-dim)",
-                      fontFamily: opt.id === "starfield"
-                        ? "var(--font-mono, monospace)" : "inherit",
-                      marginTop: 1,
-                    }}>
-                      {opt.sub}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Active checkmark */}
-                {isActive && (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-                    stroke={opt.id === "starfield" ? "#d99b26" : "var(--accent)"}
-                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ flexShrink: 0 }} aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-
-          {/* Divider */}
-          <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
-
-          {/* Section 2: Code Theme */}
-          <div style={{
-            padding: "6px 12px 4px",
-            fontFamily: "var(--font-mono, monospace)",
-            fontSize: 9,
-            letterSpacing: "0.08em",
-            color: "var(--text-dim)",
-            textTransform: "uppercase",
-          }}>
-            {t("code-syntax-theme")}
-          </div>
-
-          {CODE_THEMES.map((opt) => {
-            const isActive = codeTheme === opt.id;
-            return (
-              <button
-                key={opt.id}
-                role="option"
-                aria-selected={isActive}
-                onClick={() => {
-                  setCodeTheme(opt.id);
-                }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  width: "100%", padding: "8px 12px",
-                  background: isActive ? "var(--bg-selected)" : "none",
-                  border: "none",
-                  borderLeft: isActive
-                    ? theme === "starfield" ? "3px solid #d99b26"
-                    : "3px solid var(--accent)"
-                    : "3px solid transparent",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
-              >
-                {/* Color swatch */}
-                <div style={{
-                  width: 26, height: 18, flexShrink: 0,
-                  background: opt.swatch,
-                  border: "1px solid var(--border)",
-                  borderRadius: 3,
-                  boxShadow: isActive ? "0 0 0 1.5px var(--accent)" : "none",
-                }} />
-
-                {/* Text */}
-                <div style={{ flex: 1, minWidth: 0, color: "var(--text)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>
-                    {opt.label}
-                  </div>
-                  <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 1 }}>
-                    {isZh ? opt.subZh : opt.subEn}
-                  </div>
-                </div>
-
-                {/* Active checkmark */}
-                {isActive && (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-                    stroke={theme === "starfield" ? "#d99b26" : "var(--accent)"}
-                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ flexShrink: 0 }} aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
+          <label style={{ color: "var(--text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
+            Appearance
+            <select value={themeMode} onChange={(event) => setThemeMode(event.target.value as ThemeMode)} style={selectStyle}>
+              {(Object.entries(MODE_LABELS) as Array<[ThemeMode, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label style={{ color: "var(--text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
+            Light preset
+            <select value={lightThemeId} onChange={(event) => setLightThemePreference(event.target.value)} style={selectStyle}>
+              {lightThemes.map((theme) => <option key={theme.metadata.id} value={theme.metadata.id}>{theme.metadata.name}</option>)}
+            </select>
+          </label>
+          <label style={{ color: "var(--text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
+            Dark preset
+            <select value={darkThemeId} onChange={(event) => setDarkThemePreference(event.target.value)} style={selectStyle}>
+              {darkThemes.map((theme) => <option key={theme.metadata.id} value={theme.metadata.id}>{theme.metadata.name}</option>)}
+            </select>
+          </label>
         </div>
       )}
     </div>
   );
 }
+
+const selectStyle: React.CSSProperties = {
+  background: "var(--bg)",
+  border: "1px solid var(--border)",
+  color: "var(--text)",
+  fontSize: 12,
+  padding: "6px 8px",
+};
