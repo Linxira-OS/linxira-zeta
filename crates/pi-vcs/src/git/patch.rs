@@ -105,7 +105,10 @@ impl GitRepo {
 			return Ok(());
 		}
 		let patches = parse_patch(patch_text).map_err(ApplyFailure::into_error)?;
-		let repo = self.gix()?;
+		// Index writes use separately owned gix index files. Open a fresh
+		// repository so chained operations cannot reuse a stale snapshot.
+		let repo = self.gix_fresh()?;
+
 		let mut state = if options.cached {
 			index_map_at(&repo, options.index_path.as_deref())?
 		} else {
@@ -131,7 +134,8 @@ impl GitRepo {
 		let Ok(patches) = parse_patch(patch_text) else {
 			return Ok(false);
 		};
-		let repo = self.gix()?.with_object_memory();
+		let repo = self.gix_fresh()?.with_object_memory();
+
 		let mut state = if options.cached {
 			index_map_at(&repo, options.index_path.as_deref())?
 		} else {

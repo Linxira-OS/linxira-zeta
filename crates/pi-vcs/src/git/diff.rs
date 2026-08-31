@@ -31,7 +31,7 @@ struct Rendered {
 impl GitRepo {
 	/// Render changes as a git patch.
 	pub fn diff_text(&self, options: &DiffOptions) -> Result<String> {
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		let changes = collect_changes(&repo, options)?;
 		render_changes(&repo, &changes, options.context.unwrap_or(3), options.binary)
 			.map(|rendered| rendered.into_iter().map(|item| item.text).collect())
@@ -39,7 +39,7 @@ impl GitRepo {
 
 	/// Return changed paths, using the destination path for renames.
 	pub fn changed_files(&self, options: &DiffOptions) -> Result<Vec<String>> {
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		Ok(collect_changes(&repo, options)?
 			.into_iter()
 			.map(|change| change.new_path)
@@ -48,7 +48,7 @@ impl GitRepo {
 
 	/// Return per-file line counts, with no counts for binary files.
 	pub fn numstat(&self, options: &DiffOptions) -> Result<Vec<NumstatEntry>> {
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		let changes = collect_changes(&repo, options)?;
 		let rendered = render_changes(&repo, &changes, 0, false)?;
 		Ok(changes
@@ -64,7 +64,7 @@ impl GitRepo {
 
 	/// Return whether the selected comparison contains at least one change.
 	pub fn has_diff(&self, options: &DiffOptions) -> Result<bool> {
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		Ok(!collect_changes(&repo, options)?.is_empty())
 	}
 
