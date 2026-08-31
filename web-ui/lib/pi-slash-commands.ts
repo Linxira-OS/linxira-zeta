@@ -25,6 +25,7 @@ export const PI_CLI_BUILTIN_SLASH_COMMANDS: ReadonlyArray<PiCliSlashCommand> = [
   { name: "new", description: "Start a new session" },
   { name: "compact", description: "Manually compact the session context" },
   { name: "plan", description: "Start plan mode", argumentHint: "<task>" },
+  { name: "plan-ultra", description: "Start ultra plan mode (deeper scouting and incremental plan writes)", argumentHint: "<task>" },
   { name: "exit-plan", description: "Exit plan mode" },
   { name: "goal", description: "Start goal mode", argumentHint: "<objective>" },
   { name: "vibe", description: "Toggle vibe mode" },

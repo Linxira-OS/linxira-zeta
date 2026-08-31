@@ -73,6 +73,7 @@ export interface SegmentContext {
 	planMode: {
 		enabled: boolean;
 		paused: boolean;
+		workflow?: "parallel" | "iterative" | "ultra";
 	} | null;
 	prewalk: {
 		enabled: boolean;

@@ -246,6 +246,29 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 	},
 	{
+		name: "plan-ultra",
+		icon: "plan",
+		description: "Toggle ultra plan mode (fan-out scouting, incremental plan writes, deepest decision floor)",
+		inlineHint: "[prompt]",
+		allowArgs: true,
+		getTuiAutocompleteDescription: runtime => {
+			if (!runtime.ctx.settings.get("plan.enabled" as SettingPath)) return "Plan-ultra: disabled in settings";
+			const workflow = runtime.ctx.session.getPlanModeState?.()?.workflow;
+			if (runtime.ctx.planModeEnabled && workflow === "ultra") {
+				const planFile = runtime.ctx.planModePlanFilePath;
+				return `Plan-ultra: on${planFile ? ` (${path.basename(planFile)})` : ""}`;
+			}
+			if (runtime.ctx.planModeEnabled) return "Plan-ultra: plan mode already active (toggles off)";
+			if (runtime.ctx.goalModeEnabled) return "Plan-ultra: blocked by goal mode";
+			return "Plan-ultra: off";
+		},
+		handleTui: async (command, runtime) => {
+			await runWithDetachedModeDraft(command, runtime, () =>
+				runtime.ctx.handlePlanUltraCommand(command.args || undefined, runtime.input),
+			);
+		},
+	},
+	{
 		name: "plan-review",
 		icon: "plan",
 		description: "Re-open the plan review for the latest plan (plan mode only)",

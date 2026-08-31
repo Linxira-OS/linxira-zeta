@@ -345,6 +345,32 @@ upstream regression test (`issue-966-repro.test.ts`) is quarantined
 rate. Fix direction: force an index reload (or share one handle) across
 write-then-read restage sequences, then un-skip the test as the guard.
 
+### P1 — Plan mode detail ceiling (length-bound plans)
+
+Two mechanical caps keep long plans from being written or amended in
+detail (root-caused 2026-08-30):
+
+1. **Single-response output ceiling**: a full-replacement `write` of the
+   plan must fit one model response's tool arguments
+   (`model.maxTokens`, often the legacy 32000 catalog value; providers
+   clamp at 64k, `packages/ai/src/stream.ts:1712-1722`). On overflow the
+   entire tool call is abandoned (`packages/agent/src/agent-loop.ts`
+   stop-reason handling), so models self-compress plans.
+2. **300-line read window**: `read.defaultLimit` defaults to 300
+   (`config/settings-schema.ts`), and plan mode instructs the model to
+   re-read and incrementally amend its plan — every amendment beyond line
+   300 operated blind, silently dropping details across rounds; the
+   executor's mandatory plan read had the same window. (The approval,
+   export, and compaction chain never truncates: the file is read and
+   written whole end to end.)
+
+Fixes: the read tool now gives plan files the full default window
+(`readTargetsPlan` on `local://PLAN.md` / the plan reference path,
+explicit selectors still win), and `/plan-ultra` (workflow `ultra`)
+carries an always-on incremental-write discipline (edit `PUT >N*`
+appends + `CUT` deletions, never full-replacement writes; explicit
+high-limit re-reads). The original plan-mode prompt is unchanged.
+
 ### P1 — Surface-scoped tool exposure contract
 
 The channel-trio pattern is the canonical mechanism for surface-targeted
