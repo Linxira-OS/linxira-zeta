@@ -87,8 +87,14 @@ export async function handleOpenPost(req: Request): Promise<Response> {
 		}
 
 		if (process.env.ZETA_DESKTOP === "1" && process.env.ZETA_DESKTOP_OPEN_SECRET) {
-			const targetId = target === "explorer" ? "file-manager" : target === "editor" ? `editor:${(body as { editor?: string }).editor ?? ""}` : null;
-			if (!targetId || (targetId !== "file-manager" && !EDITOR_CLIS[targetId.slice("editor:".length)])) return json({ error: "Unknown desktop target" }, 400);
+			const targetId =
+				target === "explorer"
+					? "file-manager"
+					: target === "editor"
+						? `editor:${(body as { editor?: string }).editor ?? ""}`
+						: null;
+			if (!targetId || (targetId !== "file-manager" && !EDITOR_CLIS[targetId.slice("editor:".length)]))
+				return json({ error: "Unknown desktop target" }, 400);
 			return json(desktopOpenPath(dir));
 		}
 
