@@ -2,14 +2,16 @@
  * POST /api/open — opens a terminal, file-manager, or editor at a given path.
  *
  * Body: { target: "terminal"|"explorer"|"editor", path?: string }
- *   path defaults to the current project root when omitted.
- * Returns: { spawned: true } or { error: "no_app_found" }.
+ *   path defaults to the current project root when omitted and must remain
+ *   inside that project. Desktop requests return a signed path capability for
+ *   the Electron host; browser requests launch through the gateway.
  */
 
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir } from "@linxiraos/pi-utils";
+import { getProjectDir, pathIsWithin } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 
 function json(data: unknown, status = 200): Response {
@@ -36,6 +38,15 @@ const EDITOR_CLIS: Record<string, string> = {
 	zed: "zed",
 };
 
+function desktopOpenPath(targetPath: string): { path: string; token: string } {
+	const secret = process.env.ZETA_DESKTOP_OPEN_SECRET;
+	if (!secret) throw new Error("Desktop open bridge is unavailable");
+	return {
+		path: targetPath,
+		token: crypto.createHmac("sha256", secret).update(targetPath).digest("hex"),
+	};
+}
+
 async function resolveEditor(): Promise<string[]> {
 	const available: string[] = [];
 	for (const [name, cli] of Object.entries(EDITOR_CLIS)) {
@@ -50,12 +61,14 @@ async function resolveEditor(): Promise<string[]> {
 }
 
 export async function handleOpenGet(_req: Request): Promise<Response> {
-	const editors = await resolveEditor();
 	const platform = os.platform() as keyof typeof TERMINAL_CMDS;
+	const desktop = process.env.ZETA_DESKTOP === "1" && Boolean(process.env.ZETA_DESKTOP_OPEN_SECRET);
+	const editors = desktop ? [] : await resolveEditor();
 	return json({
-		terminal: platform in TERMINAL_CMDS,
-		explorer: platform in EXPLORER_CMDS,
+		terminal: platform in TERMINAL_CMDS && !desktop,
+		explorer: platform in EXPLORER_CMDS && !desktop,
 		editors,
+		desktop,
 	});
 }
 
@@ -63,10 +76,20 @@ export async function handleOpenPost(req: Request): Promise<Response> {
 	try {
 		const body = (await req.json()) as { target?: string; path?: string };
 		const target = body.target ?? "terminal";
-		const dir = body.path ? path.resolve(body.path) : getProjectDir();
+		const projectPath = path.resolve(getProjectDir());
+		const dir = body.path ? path.resolve(body.path) : projectPath;
 
-		if (!fs.existsSync(dir)) {
-			return json({ error: `Directory does not exist: ${dir}` }, 400);
+		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+			return json({ error: "Directory does not exist" }, 400);
+		}
+		if (!pathIsWithin(projectPath, dir)) {
+			return json({ error: "Path is outside the selected project" }, 403);
+		}
+
+		if (process.env.ZETA_DESKTOP === "1" && process.env.ZETA_DESKTOP_OPEN_SECRET) {
+			const targetId = target === "explorer" ? "file-manager" : target === "editor" ? `editor:${(body as { editor?: string }).editor ?? ""}` : null;
+			if (!targetId || (targetId !== "file-manager" && !EDITOR_CLIS[targetId.slice("editor:".length)])) return json({ error: "Unknown desktop target" }, 400);
+			return json(desktopOpenPath(dir));
 		}
 
 		const platform = os.platform() as keyof typeof TERMINAL_CMDS;

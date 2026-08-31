@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm run build && electron .",
     "build": "node scripts/generate-icon.mjs && tsc -p tsconfig.json",
-    "test": "node --test scripts/*.test.mjs",
+    "test": "tsc -p tsconfig.json && node --test scripts/*.test.mjs",
     "prepare:runtime": "node scripts/prepare-runtime.mjs",
     "smoke": "node scripts/smoke.mjs",
     "dist": "npm run build && npm run prepare:runtime && node scripts/package-desktop.mjs"

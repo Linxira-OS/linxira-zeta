@@ -6,10 +6,18 @@
  * The system browser is never opened and no terminal window appears.
  */
 
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, shell, Tray } from "electron";
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import {
+	editorCommand,
+	editorIdFromTarget,
+	listHostOpenTargets,
+	validateGatewayOpenTarget,
+	type DesktopOpenTarget,
+} from "./open-bridge";
 
 const WEB_UI_URL = "http://127.0.0.1:30141";
 const STATS_URL = "http://127.0.0.1:3847";
@@ -21,7 +29,32 @@ const WEB_RUNTIME_NAME = process.platform === "win32" ? "node.exe" : "node";
 let serveChild: ChildProcess | null = null;
 let serviceLogFd: number | null = null;
 let serviceOwned = false;
+let serviceWorkspacePath = process.cwd();
 let quitting = false;
+const desktopOpenSecret = crypto.randomBytes(32).toString("base64url");
+
+function desktopServiceEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+	return { ...env, ZETA_DESKTOP: "1", ZETA_DESKTOP_OPEN_SECRET: desktopOpenSecret };
+}
+
+function currentWorkspacePath(): string {
+	return serviceWorkspacePath;
+}
+
+ipcMain.handle("pi:open-targets", (): DesktopOpenTarget[] => listHostOpenTargets());
+
+ipcMain.handle("pi:open-target", async (_event, targetId: unknown, gatewayPath: unknown): Promise<void> => {
+	if (!listHostOpenTargets().some((target) => target.id === targetId)) throw new Error("Rejected untrusted desktop open target");
+	const target = validateGatewayOpenTarget(targetId, gatewayPath, currentWorkspacePath(), desktopOpenSecret);
+	if (!target) throw new Error("Rejected untrusted desktop open target");
+	const editorId = editorIdFromTarget(target.targetId);
+	if (editorId) {
+		spawn(editorCommand(editorId), [target.path], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+		return;
+	}
+	const error = await shell.openPath(target.path);
+	if (error) throw new Error(error);
+});
 
 /**
  * Working directory requested by `zeta-d -d <cwd>` / `zeta --desktop <cwd>`
@@ -528,6 +561,8 @@ async function boot(): Promise<void> {
 	// `zeta-d -d <cwd>` / `zeta --desktop <cwd>`: open the requested workspace.
 	const requestedCwd = parseRequestedCwd();
 	if (requestedCwd) cmd.cwd = requestedCwd;
+	serviceWorkspacePath = path.resolve(cmd.cwd);
+	cmd.env = desktopServiceEnv(cmd.env);
 
 	try {
 		writeDesktopLog(`Starting service: ${cmd.file}`);

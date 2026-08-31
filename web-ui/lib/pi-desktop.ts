@@ -17,6 +17,8 @@ declare global {
 			close?: () => Promise<void>;
 			isMaximized?: () => Promise<boolean>;
 			onWindowState?: (callback: (state: { maximized: boolean }) => void) => () => void;
+			getOpenTargets?: () => Promise<{ id: string; label: string }[]>;
+			openTarget?: (targetId: string, gatewayPath: { path: string; token: string }) => Promise<void>;
 		};
 	}
 }
@@ -43,6 +45,36 @@ export async function selectNativeDirectory(startPath?: string): Promise<string 
 
 export function hasDesktopWindowControls(): boolean {
 	return typeof window !== "undefined" && typeof window.piDesktop?.minimize === "function";
+}
+
+export interface DesktopOpenTarget {
+	id: string;
+	label: string;
+}
+
+export interface GatewayOpenPath {
+	path: string;
+	token: string;
+}
+
+export function hasDesktopOpenBridge(): boolean {
+	return typeof window !== "undefined"
+		&& typeof window.piDesktop?.getOpenTargets === "function"
+		&& typeof window.piDesktop?.openTarget === "function";
+}
+
+export async function getDesktopOpenTargets(): Promise<DesktopOpenTarget[]> {
+	if (!hasDesktopOpenBridge()) return [];
+	try {
+		return await window.piDesktop?.getOpenTargets?.() ?? [];
+	} catch {
+		return [];
+	}
+}
+
+export async function openDesktopTarget(targetId: string, gatewayPath: GatewayOpenPath): Promise<void> {
+	if (!hasDesktopOpenBridge()) return;
+	await window.piDesktop?.openTarget?.(targetId, gatewayPath);
 }
 
 async function windowControl(method: "minimize" | "maximize" | "close"): Promise<void> {
