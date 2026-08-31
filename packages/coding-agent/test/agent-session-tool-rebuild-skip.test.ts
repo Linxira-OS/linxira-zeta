@@ -110,6 +110,8 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		exposeXdevCatalog?: boolean;
 		/** Optional per-turn system prompt replacement returned by before_agent_start. */
 		beforeAgentStartSystemPrompt?: string[];
+		/** Provider prompt-cache key inherited by a forked session. */
+		inheritedPromptCacheKey?: string;
 	}
 
 	function newSession(
@@ -126,6 +128,7 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		isDeviceOnlyWrite: () => boolean;
 		isPendingFullWriteDescription: () => boolean;
 		isToolActive: (name: string) => boolean;
+		agent: Agent;
 	} {
 		const readTool = createBasicTool("read", "Read");
 		const initialMcp = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
@@ -141,6 +144,7 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		const systemPrompts: string[][] = [];
 		const agent = new Agent({
 			getApiKey: () => "test-key",
+			promptCacheKey: options.inheritedPromptCacheKey,
 			initialState: {
 				model: createModel(),
 				systemPrompt: ["initial"],
@@ -198,6 +202,7 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 			},
 			getMcpServerInstructions: options.getMcpServerInstructions,
 			xdev: options.xdev,
+			providerPromptCacheKeySource: options.inheritedPromptCacheKey ? "fork" : undefined,
 		});
 		sessions.push(session);
 		return {
@@ -208,6 +213,7 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 			isDeviceOnlyWrite: () => deviceOnlyWrite,
 			isPendingFullWriteDescription: () => pendingFullWriteDescription,
 			isToolActive: name => activeToolNames.has(name),
+			agent,
 		};
 	}
 
@@ -639,26 +645,57 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		expect(agent.state.systemPrompt).toEqual(["bash hides grep"]);
 	});
 
-	it("does not skip when refreshBaseSystemPrompt is called explicitly", async () => {
+	it("rebuilds an explicit refresh but preserves an inherited cache when rendered bytes are unchanged", async () => {
 		let rebuildCount = 0;
-		const { session } = newSession(async toolNames => {
-			rebuildCount++;
-			return `tools:${toolNames.join(",")}`;
-		});
+		const inheritedPromptCacheKey = "parent-cache-key";
+		const { agent, session } = newSession(
+			async toolNames => {
+				rebuildCount++;
+				return `tools:${toolNames.join(",")}`;
+			},
+			{ inheritedPromptCacheKey },
+		);
 
+		const setSystemPrompt = vi.spyOn(agent, "setSystemPrompt");
 		const tool = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search");
 		await session.refreshMCPTools([tool]);
 		expect(rebuildCount).toBe(1);
+		const appliedAfterFirstRefresh = setSystemPrompt.mock.calls.length;
+		expect(agent.promptCacheKey).toBe(inheritedPromptCacheKey);
 
-		// Explicit refresh must always rebuild (callers use it to pick up env-side changes
-		// such as edit mode toggles, which are invisible to our tool signature).
+		// Explicit refresh still renders current disk-backed context, but matching
+		// provider bytes must retain the stable prompt and inherited cache lineage.
 		await session.refreshBaseSystemPrompt();
 		expect(rebuildCount).toBe(2);
+		expect(setSystemPrompt).toHaveBeenCalledTimes(appliedAfterFirstRefresh);
+		expect(agent.promptCacheKey).toBe(inheritedPromptCacheKey);
 
 		// Subsequent identical MCP refresh should still skip after the explicit refresh
 		// freshens the cached signature.
 		await session.refreshMCPTools([tool]);
 		expect(rebuildCount).toBe(2);
+	});
+
+	it("applies changed rendered context bytes and clears the inherited provider cache", async () => {
+		let renderedContext = "context v1";
+		const inheritedPromptCacheKey = "parent-cache-key";
+		const { agent, session } = newSession(async toolNames => `tools:${toolNames.join(",")}\n${renderedContext}`, {
+			inheritedPromptCacheKey,
+		});
+
+		const setSystemPrompt = vi.spyOn(agent, "setSystemPrompt");
+		const tool = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search");
+		await session.refreshMCPTools([tool]);
+		expect(agent.state.systemPrompt).toEqual(["tools:read,mcp__nucleus_search\ncontext v1"]);
+		expect(agent.promptCacheKey).toBe(inheritedPromptCacheKey);
+		const appliedAfterFirstRefresh = setSystemPrompt.mock.calls.length;
+
+		renderedContext = "context v2";
+		await session.refreshBaseSystemPrompt();
+
+		expect(agent.state.systemPrompt).toEqual(["tools:read,mcp__nucleus_search\ncontext v2"]);
+		expect(setSystemPrompt).toHaveBeenCalledTimes(appliedAfterFirstRefresh + 1);
+		expect(agent.promptCacheKey).toBeUndefined();
 	});
 
 	it("rebuilds when the refresh argument tool order changes", async () => {
