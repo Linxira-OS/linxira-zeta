@@ -333,10 +333,10 @@ export class SessionTools {
 	}
 
 	/**
-	 * Pushes `base` to the agent as the effective system prompt, unless an active
-	 * per-turn {@link #turnSystemPromptOverride} takes precedence. Every base
-	 * rebuild applies its result through here so a mid-turn rebuild preserves the
-	 * override.
+	 * Pushes a changed base prompt to the agent as the effective system prompt,
+	 * unless an active per-turn {@link #turnSystemPromptOverride} takes precedence.
+	 * Every base-prompt update applies its result through here so a mid-turn
+	 * rebuild preserves the override.
 	 */
 	#applyAgentSystemPrompt(base: string[]): void {
 		this.#host.agent.setSystemPrompt(this.#turnSystemPromptOverride ?? base);
@@ -1071,13 +1071,15 @@ export class SessionTools {
 				? this.#computeCodeModeDirectWireSignature(appliedNames)
 				: undefined;
 			if (rebuiltSystemPrompt && rebuiltSignature) {
-				if (this.#lastAppliedToolSignature !== undefined) this.#host.clearInheritedProviderPromptCacheKey();
-				this.#baseSystemPrompt = rebuiltSystemPrompt;
-				this.#host.clearMemoryPromotionSnapshot();
-				this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
+				if (!systemPromptsAreEqual(this.#baseSystemPrompt, rebuiltSystemPrompt)) {
+					if (this.#lastAppliedToolSignature !== undefined) this.#host.clearInheritedProviderPromptCacheKey();
+					this.#baseSystemPrompt = rebuiltSystemPrompt;
+					this.#host.clearMemoryPromotionSnapshot();
+					this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
+					this.#basePromptXdevNames = new Set(rebuiltXdevCatalogNames);
+				}
 				this.#lastAppliedToolSignature = rebuiltSignature;
 				this.#promptModelKey = this.#currentPromptModelKey();
-				this.#basePromptXdevNames = new Set(rebuiltXdevCatalogNames);
 			}
 			if (restoreDormantDeviceOnlyWrite) {
 				this.#setDeviceOnlyWrite?.(true);
@@ -1591,19 +1593,15 @@ export class SessionTools {
 		// Under Code Mode the active names are exactly the direct keep-set.
 		const directToolNames = this.#codeModeDirectWireSignature === undefined ? undefined : activeToolNames;
 		this.#setActiveToolNames?.(this.#toolPredicateNames ?? activeToolNames);
-		const previousBaseSystemPrompt = this.#baseSystemPrompt;
 		const built = await this.#rebuildSystemPrompt(promptToolNames, this.#toolRegistry, { directToolNames });
 		if (this.#host.isDisposed()) return;
-		this.#baseSystemPrompt = built.systemPrompt;
-		this.#basePromptXdevNames = new Set(built.xdevCatalogNames);
-		this.#host.clearMemoryPromotionSnapshot();
-		if (
-			previousBaseSystemPrompt.length !== this.#baseSystemPrompt.length ||
-			previousBaseSystemPrompt.some((part, index) => part !== this.#baseSystemPrompt[index])
-		) {
+		if (!systemPromptsAreEqual(this.#baseSystemPrompt, built.systemPrompt)) {
+			this.#baseSystemPrompt = built.systemPrompt;
+			this.#basePromptXdevNames = new Set(built.xdevCatalogNames);
+			this.#host.clearMemoryPromotionSnapshot();
 			this.#host.clearInheritedProviderPromptCacheKey();
+			this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 		}
-		this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 		this.#promptModelKey = this.#currentPromptModelKey();
 		// Refresh the cached signature so a subsequent `applyActiveToolsByName` with
 		// the same tool set does not re-rebuild on top of the explicit refresh we
@@ -1872,6 +1870,10 @@ export class SessionTools {
 			throw error;
 		}
 	}
+}
+
+function systemPromptsAreEqual(previous: readonly string[], next: readonly string[]): boolean {
+	return previous.length === next.length && previous.every((part, index) => part === next[index]);
 }
 
 function registeredFilesystemSourcePath(runner: ExtensionRunner | undefined, name: string): string | undefined {
