@@ -184,7 +184,7 @@ impl GitRepo {
 				.status_porcelain(&options)
 				.map(|status| !status.is_empty());
 		}
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		let platform = repo
 			.status(gix::progress::Discard)
 			.map_err(|err| Error::backend("git status", err))?
@@ -240,7 +240,7 @@ impl GitRepo {
 			}
 			return cli_text_owned(self.root(), &owned);
 		}
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		let untracked = match options.untracked {
 			UntrackedMode::No => gix::status::UntrackedFiles::None,
 			UntrackedMode::Normal => gix::status::UntrackedFiles::Collapsed,

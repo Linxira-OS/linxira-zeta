@@ -76,7 +76,7 @@ pub(crate) fn update_reference(
 impl GitRepo {
 	/// Stage worktree files, or every change when `files` is empty.
 	pub fn stage_files(&self, files: &[String]) -> Result<()> {
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		let mut index = repo
 			.index_or_load_from_head_or_empty()
 			.map_err(|err| Error::backend("git add", err))?
@@ -108,7 +108,7 @@ impl GitRepo {
 
 	/// Reset selected index entries to HEAD while preserving the worktree.
 	pub fn unstage(&self, files: &[String]) -> Result<()> {
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		let head = head_tree(&repo)?;
 		let head_index = index_for_tree(&repo, head.as_ref())?;
 		let mut current = repo
@@ -123,7 +123,7 @@ impl GitRepo {
 
 	/// Create a commit and return its object id.
 	pub fn commit_create(&self, message: &str, options: &CommitOptions) -> Result<String> {
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		run_commit_hook(self, &repo, "pre-commit", &[])?;
 		let mut head = repo
 			.head()
@@ -332,7 +332,7 @@ impl GitRepo {
 
 	/// Restore index and/or worktree paths from a selected source.
 	pub fn restore(&self, options: &RestoreOptions) -> Result<()> {
-		let repo = self.gix()?;
+		let repo = self.gix_fresh()?;
 		let restore_worktree = options.worktree || !options.staged;
 		let mut index = repo
 			.index_or_load_from_head_or_empty()
