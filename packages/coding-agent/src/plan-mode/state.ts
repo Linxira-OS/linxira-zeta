@@ -1,6 +1,8 @@
+export type PlanWorkflow = "parallel" | "iterative" | "ultra";
+
 export interface PlanModeState {
 	enabled: boolean;
 	planFilePath: string;
-	workflow?: "parallel" | "iterative";
+	workflow?: PlanWorkflow;
 	reentry?: boolean;
 }

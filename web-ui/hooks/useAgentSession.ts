@@ -1500,6 +1500,24 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           return complete({ handled: true, message: "Plan mode enabled" });
         }
 
+        case "plan-ultra": {
+          if (!sid) return complete({ handled: true, error: "No active session to start ultra plan mode" });
+          await sendAgentCommand(sid, {
+            type: "mode_enter",
+            mode: "plan",
+            options: {
+              workflow: "ultra",
+              ...(args ? { initialPrompt: args } : {}),
+            },
+          });
+          const ultraAgentState = await loadSession(sid, true, true);
+          if (ultraAgentState) promoteNewSession();
+          const ultraPlanFile =
+            (ultraAgentState as { state?: { planFilePath?: string | null } } | null)?.state?.planFilePath ?? "PLAN.md";
+          appendModeMessage(t("plan-ultra-enabled-fmt", { path: ultraPlanFile }));
+          return complete({ handled: true, message: "Plan-ultra mode enabled" });
+        }
+
         case "exit-plan": {
           if (!sid) return complete({ handled: true, error: "No active session" });
           await sendAgentCommand(sid, { type: "mode_exit", mode: "plan" });

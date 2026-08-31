@@ -96,6 +96,7 @@ import {
 } from "../mcp/startup-events";
 import { humanizePlanTitle, type PlanApprovalDetails, resolvePlanTitle } from "../plan-mode/approved-plan";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
+import type { PlanWorkflow } from "../plan-mode/state";
 import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
 import planFilenamePrompt from "../prompts/system/plan-filename.md" with { type: "text" };
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
@@ -2762,6 +2763,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				? {
 						enabled: this.planModeEnabled,
 						paused: this.planModePaused,
+						workflow: this.session.getPlanModeState?.()?.workflow,
 					}
 				: undefined;
 		this.statusLine.setPlanModeStatus(status);
@@ -3124,7 +3126,7 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	async #enterPlanMode(options?: {
 		planFilePath?: string;
-		workflow?: "parallel" | "iterative";
+		workflow?: PlanWorkflow;
 		preserveRestoredModel?: boolean;
 	}): Promise<void> {
 		if (this.planModeEnabled) {
@@ -3196,7 +3198,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		this.#updatePlanModeStatus();
 		this.sessionManager.appendModeChange("plan", { planFilePath });
-		this.showStatus(`Plan mode enabled. Plan file: ${planFilePath}`);
+		const workflow = this.session.getPlanModeState?.()?.workflow;
+		this.showStatus(`${workflow === "ultra" ? "Plan-ultra" : "Plan"} mode enabled. Plan file: ${planFilePath}`);
 	}
 
 	async #restorePlanPreviousModel(prev: { model: Model; thinkingLevel?: ConfiguredThinkingLevel }): Promise<void> {
@@ -3880,6 +3883,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	async handlePlanModeCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+		workflow?: PlanWorkflow,
 	): Promise<boolean> {
 		if (this.goalModeEnabled || this.goalModePaused) {
 			this.showWarning("Exit goal mode first.");
@@ -3918,7 +3922,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.showWarning("Plan mode is disabled. Enable it in settings (plan.enabled).");
 			return false;
 		}
-		await this.#enterPlanMode();
+		await this.#enterPlanMode(workflow ? { workflow } : undefined);
 		if (!initialPrompt) return false;
 		if (isKnownSkillCommand(this, initialPrompt)) {
 			await invokeSkillCommandFromText(this, initialPrompt, "steer", {
@@ -3941,6 +3945,18 @@ export class InteractiveMode implements InteractiveModeContext {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * `/plan-ultra` toggle. Same machinery as `/plan`, but the entry selects the
+	 * `ultra` plan workflow: fan-out scouting, incremental plan writes, and the
+	 * deeper decision floor rendered from the ultra prompt template.
+	 */
+	async handlePlanUltraCommand(
+		initialPrompt?: string,
+		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+	): Promise<boolean> {
+		return this.handlePlanModeCommand(initialPrompt, input, "ultra");
 	}
 
 	/**

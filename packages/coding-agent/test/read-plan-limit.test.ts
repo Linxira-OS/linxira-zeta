@@ -11,10 +11,7 @@ const LINE_COUNT = 500;
 
 function writeNumberedFile(filePath: string, lines: number): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(
-		filePath,
-		Array.from({ length: lines }, (_, index) => `line ${index + 1}`).join("\n") + "\n",
-	);
+	fs.writeFileSync(filePath, `${Array.from({ length: lines }, (_, index) => `line ${index + 1}`).join("\n")}\n`);
 }
 
 function createSession(cwd: string, artifactsDir: string, planReferencePath: string): ToolSession {

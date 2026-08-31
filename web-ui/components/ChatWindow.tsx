@@ -671,7 +671,11 @@ export function ChatWindow({ session, newSessionCwd, explicitNew, onAgentEnd, on
               {modes.plan?.enabled && (
                 <ModeBanner
                   mode="plan"
-                  title={t("plan-mode-active-fmt", { path: modes.plan.planFilePath })}
+                  title={
+                    modes.plan.workflow === "ultra"
+                      ? t("plan-ultra-mode-active-fmt", { path: modes.plan.planFilePath })
+                      : t("plan-mode-active-fmt", { path: modes.plan.planFilePath })
+                  }
                   actions={[{ label: t("plan-mode-exit"), onClick: () => handleModeExit("plan") }]}
                 />
               )}
