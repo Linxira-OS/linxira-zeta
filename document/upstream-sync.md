@@ -546,6 +546,89 @@ merge. No version bump, no tag, no release.
 - Deliverable: this branch → PR → CI green → fast-forward merge into
   `main`; branch then deleted local + remote.
 
+### OMP v18.0.10 → v18.0.11 (synced 2026-08-31)
+
+- Baseline: Zeta `main` at `06177e248d` (theme system with 43 JSON
+  presets + VS Code-neutral zeta-dark, channel sink forwarding, Bing
+  provider, `serve --host`, blob gateway endpoint, TrackingRecorder
+  compaction summaries, prompt-cache byte-change refresh, desktop
+  trusted open bridge, plan-ultra workflow, pi-vcs gix_fresh interim
+  fix — all merged into main this session).
+- Source: remote tag `v18.0.11` verified via
+  `git ls-remote --tags omp-upstream refs/tags/v18.0.11` →
+  `b8ce33a58911c26bed1d84f0db9a5e2e727c49a2` (lightweight tag); fetched
+  explicitly (`git fetch omp-upstream tag v18.0.11`).
+- Merge: isolated worktree `zeta-sync-omp-18-0-11`, branch
+  `sync/omp-release/v18.0.11`, real non-squash merge of the tag
+  (merge commit `8efa1a46e8`); 37 conflicting paths resolved:
+  - Version line: Cargo.toml (kept 1.1.6) and lib.rs sentinel (kept
+    `__piNativesV1_1_6`) took the Zeta side; committed bindings
+    (index.js/index.d.ts) took upstream `__piNativesV18_0_11` then
+    `set-version.ts 1.1.6` realigned the whole line; bun.lock via
+    `bun install`, Cargo.lock via `cargo update -w`.
+  - pi-vcs: took upstream `load_index_or_head`/`status_with_fresh_index`
+    helpers (PR #10190) — the same issue-966 stale-index race Zeta had
+    fixed interim with `gix_fresh`; upstream's version supersedes and
+    the Zeta-only helper is not kept.
+  - Docs layout: upstream still ships natives internals under `docs/`;
+    Zeta keeps them in `document/`. Rename detection mapped the changes;
+    `docs/natives-architecture.md`/`docs/natives-binding-contract.md`
+    removed (Zeta layout), `document/natives-architecture.md` updated to
+    the merged lib.rs module list (fs_cache removed, pdf/svg/spelling/
+    tty_writer/utok/vcs/js/iso/audio/devicecheck/diff/file_lock/live
+    added), `document/natives-text-search-pipeline.md` +
+    `document/natives-binding-contract.md` taken from v18.0.11 content
+    + brand pass, `document/porting-from-pi-mono.md` upstream text with
+    Zeta package-mapping table (`@linxiraos/*`) preserved.
+  - Package names (class 3): the merge resurrected `@oh-my-pi/*` in the
+    root catalog (13 keys @ 18.0.11) and 49 duplicate dep lines across
+    10 workspace package.json files; root restored to the 14
+    `@linxiraos/*` keys @ 1.1.6 (incl. re-adding the merge-dropped
+    `@linxiraos/pi-channels`), workspace files restored to Zeta identity
+    (verified no upstream dep additions were lost — bin fields stay
+    `zeta`/`zeta-stats`), then a full sweep rewrote 25 scope leaks in
+    auto-merged src/tests/docs (`@oh-my-pi/pi-coding-agent`→`@linxiraos/zeta`,
+    `omptype`→`pi-omptype`, rest 1:1).
+  - Source contracts: tokenizer (upstream `natives.*` namespace style),
+    hyperlink (upstream `setTerminalHyperlinks`), image-loading
+    (upstream `parseImageMetadata`), provider-image-budget (upstream
+    remote-URL/decode pipeline, `@linxiraos/pi-snapcompact` kept),
+    retry-fallback-chains (upstream drops the logger import), plugin-cli
+    (upstream `getPluginsNodeModules`) — all upstream behavior with
+    `@linxiraos` scopes.
+  - Test contracts (class 6): 13 files taken from v18.0.11 as contract
+    (tokenizer, baseten-provider, agent-session-retry-fallback,
+    gallery-cli, image-input, oauth-discovery, plugin-config,
+    selector-settings-side-effects, theme-islight,
+    browser-tab-worker-startup, lsp-regressions, tui/hyperlink,
+    tui/editor) + brand pass; `.zeta` fixture adaptations include
+    plugin-config project plugin dirs, selector-settings config paths,
+    lsp-regressions `rootMarkers: [".zeta"]` + `~/.zeta/agent`.
+  - `.omp` sweep (class 6): 32/33 re-introduced occurrences converted
+    back to `.zeta` (sdk.ts/watchdog/storage/worktree/avatar/settings/
+    builtin/agents/types/acp/task/tools/executor comments+strings,
+    4 test fixtures, user-facing-packages.md, fd.rs fixtures). The one
+    exception is pre-existing, not merge damage:
+    `packages/metaharness/src/tb/agent.ts:122` writes guest configs to
+    `$HOME/.omp/agent` — identical on the pre-merge baseline; benchmark
+    infra, adaptation deferred (carried over from the v18.0.10 note).
+  - Changelogs: upstream `## [18.0.11]` sections (plus 18.0.10/18.0.9
+    headings the merge re-inserted) stripped from 8 packages;
+    `[Unreleased]` carries the sync line per pre-tag gate.
+- Six-class checklist: catalog keys Zeta@1.1.6 ✓, sentinel/Cargo ✓,
+  package names ✓, Zeta-only layer intact (agent-session mode API,
+  sdk channelSend/workspaceRun/imControl, IRC auto-reply, tracking dir
+  helpers, `__ompInstallTokioRuntime` export grep-verified) ✓,
+  functional `.omp` shapes clean (metaharness deferred, pre-existing) ✓,
+  natives `.node` rebuild needed locally (new v18.0.11 modules) — WSL
+  build rerun before running natives-dependent suites.
+- Zeta adaptation commit: `ef0747b2fc` (post-merge batch: version line,
+  catalog restore, scope sweep, `.omp` sweep, changelog fold, lockfile
+  regen).
+- Checks: `check-version-consistency` green (1.1.6, 14 packages/14
+  catalog keys); `bun run check:ts` + biome + focused suites → results
+  recorded below before merge to `main`.
+
 ## Pi Runtime Ports
 
 Never run `git merge pi-upstream/main` into Zeta. Pi and OMP intentionally
