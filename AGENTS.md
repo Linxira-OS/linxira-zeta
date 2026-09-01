@@ -145,7 +145,7 @@ Zeta keeps upstream references minimal so the repository stays lean:
   sync policy, and fetch a specific tag explicitly only when a release sync
   needs it: `git fetch omp-upstream tag v17.2.12`.
 - Local tags are curated: OMP tags only for the two most recent versions
-  (currently `v18.0.9`, `v18.0.10`), plus `baseline/*` markers and Zeta
+  (currently `v18.0.10`, `v18.0.11`), plus `baseline/*` markers and Zeta
   product release tags. All other upstream history is preserved through the
   SHAs recorded in `document/upstream-sync.md`, not through tag refs.
 - `origin` (the GitHub remote) is the product truth: the Zeta `main` branch,
@@ -218,8 +218,8 @@ decide when the branch is stale:
 **Backup retention:**
 
 `backup/omp-tag/<tag>` keeps only the **recent stable OMP release baselines**
-(the same two most recent tags that exist locally, currently `v18.0.9` and
-`v18.0.10`). Older `backup/omp-tag/v17.x` entries are removed once the release
+(the same two most recent tags that exist locally, currently `v18.0.10` and
+`v18.0.11`). Older `backup/omp-tag/` entries are removed once the release
 is superseded; full history stays reachable through `backup/omp/main`, which
 mirrors `omp-upstream/main`.
 
@@ -326,6 +326,36 @@ padding sections (Non-Goals / Alternatives / Risks) are noise, not rigor.
 - Test-suite failures in a push run are environment flakes (e.g. singleton
   `broker-idle-shutdown`, julia prelude kernel) unless proven otherwise; a
   release run gates on its own test results, never on unrelated push runs.
+
+### CI watching discipline (no polling)
+
+A full release run takes 1.5–2.5 hours. Watching it must not cost agent time
+proportional to that: **tight-loop polling is forbidden** — never loop
+`gh run view` / `gh api` on a short sleep (60 s or similar) against a running
+release; it burns the session on a wall-clock wait and produces no
+intermediate decisions.
+
+Allowed patterns, in order of preference:
+
+1. **Blocking watch, then detach.** Fire `gh run watch <run-id> --exit-status`
+   once (optionally in a background task), stop attending, and act on its
+   final output. `gh run watch` long-polls server-side and exits the moment
+   the run completes — that is the sanctioned "stare" tool.
+2. **Deferred one-shot checks.** If a delay-based approach is used, it must be
+   coarse: at most **two ~3500 s deferred tasks per run**, each waking to read
+   the run state exactly once (`gh run view --json status,conclusion`) — never
+   a repeating short-interval loop.
+3. **Respect the tool's real cap.** If the runtime reports that long-delay or
+   long-running background tasks are not permitted, chain multiple single
+   delays at the maximum duration the tool actually allows (same one-read
+   rule per wake), or skip watching entirely.
+4. **Default: don't watch at all.** CI failure notifications arrive by email;
+   the human forwards the verdict. After dispatching or pushing a release,
+   report what is in flight and stop. Re-engage only on the human's report or
+   the completion of a sanctioned watch.
+
+Diagnose a finished run with `gh run view <run-id> --json jobs` (job-level
+conclusions first, `--log-failed` second) — one call, not a loop.
 
 ### Release tags require an update log
 
@@ -794,17 +824,15 @@ The pre-tag gate in `release-v2.ts` runs before any bump:
 - every package `[Unreleased]` section has at least one entry line
 - `UPDATE-LOG.md` `## 下一版本（Unreleased）` is non-empty
 
-**Zeta uses one version line for everything.** All 13 published `@linxiraos/*`
-
-**Zeta uses one version line for everything.** All 13 published `@linxiraos/*`
-packages (the 10 core packages plus the 3 native leaves `natives`/`omptype`/`wire`)
+**Zeta uses one version line for everything.** All 14 published `@linxiraos/*`
+packages (the 11 core packages plus the 3 native leaves `natives`/`omptype`/`wire`)
 ride the same release version, and the root `workspaces.catalog` (13 keys),
 `Cargo.toml` workspace version, the `__piNativesVX_Y_Z` sentinel, and
 `desktop/package.json` + `desktop/package-lock.json` follow in lock-step. There
 is no separate leaf version — the 1.0.6/1.0.7 era shipped natives at
 1.0.2/1.0.4 while zeta rode 1.0.6/1.0.7, which broke `zeta update` with
 `ETARGET No matching version found for @linxiraos/pi-natives@1.0.7`. Never
-introduce a second version line: any version drift across the 13 packages,
+introduce a second version line: any version drift across the 14 packages,
 catalog, Cargo, or sentinel is a release-blocking bug.
 
 Version bumps are a script operation, never hand edits:
@@ -812,10 +840,10 @@ Version bumps are a script operation, never hand edits:
 1. Ensure all changes since last release are in each affected package's `[Unreleased]` section.
 2. Run `bun scripts/release-v2.ts <version> [--watch]` (e.g. `bun scripts/release-v2.ts 1.0.8`).
 
-The script bumps all 13 packages, Cargo.toml, and the pi-natives sentinel
+The script bumps all 14 packages, Cargo.toml, and the pi-natives sentinel
 (`__piNativesVX_Y_Z` in `crates/pi-natives/src/lib.rs` + the committed
-bindings in `packages/natives/native/index.{js,d.ts}`), rewrites the 13 root
-catalog keys, regenerates `bun.lock`, finalizes all 13 CHANGELOGs, runs
+bindings in `packages/natives/native/index.{js,d.ts}`), rewrites the 14 root
+catalog keys, regenerates `bun.lock`, finalizes all 14 CHANGELOGs, runs
 `check:ts`, then commits (`chore: bump version to <version>`), tags
 (`v<version>`), and pushes atomically. The pushed commit triggers CI, which
 runs the full gate and — because HEAD carries the tag — the release/publish
