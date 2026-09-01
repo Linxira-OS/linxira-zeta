@@ -2,11 +2,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, mock, spyOn, test }
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as piUtils from "@linxiraos/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import * as piUtils from "@linxiraos/pi-utils";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 
 beforeAll(async () => {
 	await initTheme(false);

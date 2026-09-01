@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
+import * as terminalCaps from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { LocalProtocolHandler } from "@linxiraos/zeta/internal-urls/local-protocol";
 import { getMarkdownTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
@@ -15,7 +16,6 @@ import {
 	urlHyperlink,
 	urlHyperlinkAlways,
 } from "@linxiraos/zeta/tui/hyperlink";
-import * as terminalCaps from "@linxiraos/pi-tui";
 
 // OSC 8 sequence markers
 const OSC = "\x1b]";

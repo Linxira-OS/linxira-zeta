@@ -7,6 +7,8 @@ import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { setTerminalHyperlinks, TERMINAL } from "@linxiraos/pi-tui";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
@@ -16,8 +18,6 @@ import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/th
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { ResolvedRoleModel } from "@linxiraos/zeta/session/agent-session";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
-import { setTerminalHyperlinks, TERMINAL } from "@linxiraos/pi-tui";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 let settingsState: SettingsTestState | undefined;

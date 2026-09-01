@@ -10,11 +10,7 @@ import {
 	releaseBrowser,
 } from "@linxiraos/zeta/tools/browser/registry";
 import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
-import {
-	acquireTab,
-	initializeTabWorkerForTest,
-	releaseTab,
-} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { acquireTab, initializeTabWorkerForTest, releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

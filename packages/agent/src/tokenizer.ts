@@ -1,8 +1,8 @@
 import type { Model } from "@linxiraos/pi-ai";
 import type { ModelTokenizer } from "@linxiraos/pi-catalog/types";
 import * as natives from "@linxiraos/pi-natives";
-import { stringifyJson } from "@linxiraos/pi-utils";
 import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { stringifyJson } from "@linxiraos/pi-utils";
 import { isEstimateCacheable, messageEstimateVersion } from "./compaction/message-cache";
 import type { AgentMessage } from "./types";
 
