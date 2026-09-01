@@ -11,9 +11,10 @@ import {
 } from "@linxiraos/zeta/tools/browser/registry";
 import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
 import { acquireTab, initializeTabWorkerForTest, releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
-import { chromiumAvailable } from "./chromium-probe";
+import { chromiumAvailable, headfulDisplayAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
+const HEADFUL_DISPLAY = headfulDisplayAvailable();
 
 class FakeStartupWorker {
 	#errorHandlers = new Set<(error: Error) => void>();
@@ -213,7 +214,7 @@ describe("browser init deadline carry-over", () => {
 	);
 });
 describe("visible OMP-owned browser tabs", () => {
-	it.skipIf(!CHROMIUM_AVAILABLE)(
+	it.skipIf(!CHROMIUM_AVAILABLE || !HEADFUL_DISPLAY)(
 		"creates independent pages without pinning the resizable window viewport",
 		async () => {
 			let browser: BrowserHandle | undefined;

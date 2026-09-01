@@ -31,6 +31,17 @@ async function chromiumCanLaunch(): Promise<boolean> {
 let probe: Promise<boolean> | undefined;
 
 /**
+ * Whether a headful (visible-window) launch can work on this host: Linux CI
+ * runners have no X server, so `headless: false` fails at spawn with
+ * "Missing X server" even though the binary itself executes fine. Gate headful
+ * suites on this in addition to `chromiumAvailable()`.
+ */
+export function headfulDisplayAvailable(): boolean {
+	if (process.platform !== "linux") return true;
+	return Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+}
+
+/**
  * Gate for tests that launch a real Chromium:
  *
  *     const CHROMIUM_AVAILABLE = await chromiumAvailable();

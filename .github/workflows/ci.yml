@@ -298,12 +298,13 @@ jobs:
    # job timeout. Job name says "bazel" for continuity with required checks.
    native_addons:
       name: Build native addons (bazel)
-      # 90 min, not 50: a cold build (cache evicted by a release's own cache
-      # saves under the 10 GB repo quota) takes ~50.3 min — right at the old
-      # 50-min guard, so legitimate cold builds timed out and cancelled the
-      # run. A warm-cache replay is still ~1 min; 90 min only extends the
-      # hang guard for the cold path.
-      timeout-minutes: 90
+      # 150 min, not 90: v18.0.11 grew the native surface (pi-vcs plus the
+      # pdf/svg/spelling/tty_writer/utok/js modules) and a cold push-event
+      # build (4 targets, started before the parallel Warm run had saved its
+      # cache) ran the full 90-min guard and cancelled the release run. A
+      # warm-cache replay is still ~1 min; 150 min only extends the hang
+      # guard for the cold path.
+      timeout-minutes: 150
       runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-22.04' || 'ubuntu-22.04' }}
       needs: [release_metadata]
       steps:
