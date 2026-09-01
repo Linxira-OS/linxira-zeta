@@ -83,7 +83,7 @@ Recursive or mutually-referencing schemas go through named scopes
 (`packages/omptype/src/type.ts`, `scope()` / `type.scope()`):
 
 ```ts
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/pi-omptype";
 
 const types = type.module({
 	tree: { value: "number", "children?": "tree[]" },

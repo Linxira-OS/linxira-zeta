@@ -44,7 +44,7 @@ export interface ConfigCandidate {
 /**
  * Walk the watchdog/advisor config search path — the user agent dir plus every
  * directory from `cwd` up to the repo root (or home), probing both `<F>` and
- * `.omp/<F>` for each given filename — and return the readable candidates with
+ * `.zeta/<F>` for each given filename — and return the readable candidates with
  * their raw content, sorted user-first then project ancestor→leaf (depth
  * descending, so the leaf directory is most specific/last). Shared by
  * {@link discoverWatchdogFiles} and `discoverAdvisorConfigs`. Content is returned
@@ -67,7 +67,7 @@ export async function collectConfigCandidates(
 
 	const candidates = new Set<string>();
 
-	// 1. User level: ~/.omp/<F> (or active profile agent dir)
+	// 1. User level: ~/.zeta/<F> (or active profile agent dir)
 	if (resolvedAgentDir) {
 		for (const filename of filenames) {
 			const userPath = path.resolve(resolvedAgentDir, filename);

@@ -2,18 +2,9 @@
 
 ## [Unreleased]
 
+- 同步上游 OMP v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。
+
 ## [1.1.6] - 2026-08-30
-## [18.0.11] - 2026-08-29
-
-### Added
-
-- Added `setTerminalHyperlinks()` to let hosts control OSC 8 hyperlink behavior in rendered Markdown links.
-
-### Fixed
-
-- Fixed inline color swatches appearing for words with hex-like prefixes, such as `#each`; swatches now appear only when the entire word is a valid color.
-
-## [18.0.10] - 2026-08-28
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。

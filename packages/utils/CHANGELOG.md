@@ -2,14 +2,9 @@
 
 ## [Unreleased]
 
+- 同步上游 OMP v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。
+
 ## [1.1.6] - 2026-08-30
-## [18.0.11] - 2026-08-29
-
-### Fixed
-
-- Fixed runtime installation getting stuck for up to 60 seconds after an installer crash or forced termination, allowing subsequent installation attempts to proceed normally.
-
-## [18.0.10] - 2026-08-28
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。

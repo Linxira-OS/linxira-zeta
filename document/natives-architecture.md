@@ -32,9 +32,9 @@ There is no current `packages/natives/src` TypeScript wrapper layer. Consumers i
 
 Current capability groups in the generated API include:
 
-- **Search/text/code primitives**: `grep`, `search`, `hasMatch`, `fuzzyFind`, `glob`, `astGrep`, `astEdit`, `blockRangeAt`, `summarizeCode`, text width/slicing/wrapping/sanitization, syntax highlighting, token counting.
-- **Execution/process/terminal primitives**: `executeShell`, `Shell`, `PtySession`, `Process`, key parsing, bash fixups.
-- **System/media/isolation/conversion primitives**: clipboard, SIXEL encoding, HTML-to-Markdown, macOS appearance/power helpers, work profiling, workspace scanning, isolation backend helpers (`iso*`).
+- **Search/text/code primitives**: `grep`, `search`, `hasMatch`, `fuzzyFind`, `glob`, `astGrep`, `astEdit`, `blockRangeAt`, `nodeChainAt`, `summarizeCode`, text width/slicing/wrapping/sanitization, syntax highlighting, token counting.
+- **Execution/process/terminal primitives**: `executeShell`, `Shell`, `PtySession`, `Process`, key parsing, bash fixups, `TtyWriter`.
+- **System/media/isolation/conversion primitives**: clipboard, SIXEL encoding, HTML-to-Markdown, PDF inspection/Markdown conversion (`pdfToMarkdown`), SVG rasterization (`rasterizeSvg`), macOS appearance/power/spelling helpers, work profiling, workspace scanning, in-process Git/Jujutsu operations (`vcs*`), isolation backend helpers (`iso*`).
 
 ## Loader layer
 
@@ -105,19 +105,27 @@ Loader failures are explicit:
 
 - `appearance`
 - `ast`
+- `audio`
 - `block`
 - `clipboard`
 - `crash_handler`
+- `desktop`
+- `devicecheck`
+- `diff`
 - `fd`
-- `fs_cache`
+- `file_lock`
 - `glob`
 - `glob_util`
 - `grep`
 - `highlight`
 - `html`
+- `iofs`
 - `iso`
+- `js` (N-API boundary/conversion helpers)
 - `keys`
 - `language` (re-exported from `pi_ast`)
+- `live`
+- `pdf`
 - `power`
 - `prof`
 - `ps`
@@ -125,11 +133,17 @@ Loader failures are explicit:
 - `shell`
 - `sixel`
 - `snapcompact`
+- `spelling`
+- `svg`
 - `summary`
 - `task`
 - `text`
 - `tokens`
+- `tty_writer`
+- `utok`
 - `utils` (crate-private helpers)
+- `vcs`
+- `vectors`
 - `workspace`
 
 N-API exports are generated from Rust `#[napi]` functions/classes/objects/enums. Snake_case Rust names are exposed as camelCase JavaScript names unless explicitly configured by napi-rs.

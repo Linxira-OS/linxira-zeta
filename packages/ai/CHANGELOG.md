@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 同步上游 OMP v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。
+
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
@@ -11,18 +13,6 @@
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 Yolo-Auto / OpenRouter 浏览器登录与 DeepInfra 支持，空补全重试重构（withReplaySafeStreamRetry）。
 
 ## [1.1.3] - 2026-08-25
-## [18.0.11] - 2026-08-29
-
-### Fixed
-
-- Fixed automatic session retries for Anthropic-compatible streams that end prematurely without a completion signal.
-- Fixed Gemini 3.x tool-call continuations through OpenAI-compatible endpoints.
-- Fixed credential fallback for HTTP 402 payment-required and deactivated-workspace responses, preventing them from being misclassified as quota exhaustion.
-- Fixed Perplexity email sign-in for accounts protected by authenticator-based two-factor authentication.
-- Fixed Qianfan API-key login validation for keys that cannot access the validation model.
-- Fixed Z.AI browser sign-in to report an occupied callback port before opening the browser.
-
-## [18.0.9] - 2026-08-28
 
 ### Fixed
 

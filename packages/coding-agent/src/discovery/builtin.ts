@@ -38,7 +38,7 @@ import {
 
 const PROVIDER_ID = "native";
 const DISPLAY_NAME = "OMP";
-const DESCRIPTION = "Native OMP configuration from ~/.omp and .zeta/";
+const DESCRIPTION = "Native OMP configuration from ~/.zeta and .zeta/";
 const PRIORITY = 100;
 
 const PATHS = SOURCE_PATHS.native;

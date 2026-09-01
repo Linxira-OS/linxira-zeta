@@ -2,14 +2,9 @@
 
 ## [Unreleased]
 
+- 同步上游 OMP v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。
+
 ## [1.1.6] - 2026-08-30
-## [18.0.11] - 2026-08-29
-
-### Fixed
-
-- Fixed staging and committing files through a reused Git repository handle, ensuring newly staged changes are correctly included in commits even on filesystems with coarse timestamp resolution.
-
-## [18.0.10] - 2026-08-28
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）：新增原生进程替换（支持 CLI `/restart`）与 `VcsGitRepo.mergeBase(a, b)`。
 - 修复：加载原生 addon 后 Tokio 共享运行时未安装（loader 调用名与 crate 导出不一致），异步原生操作静默回退默认运行时。

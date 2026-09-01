@@ -15,7 +15,7 @@ The package has no `packages/natives/src/<module>` wrapper layer. Its entrypoint
 - eager root: `native/index.js` with generated `native/index.d.ts`;
 - lazy desktop wrapper: `native/desktop.js` / `desktop.d.ts`;
 - lazy clipboard wrapper: `native/clipboard.js` / `clipboard.d.ts`;
-- lazy vcs wrapper: `native/vcs.js` / `vcs.d.ts` (`@oh-my-pi/pi-natives/vcs`).
+- lazy vcs wrapper: `native/vcs.js` / `vcs.d.ts` (`@linxiraos/pi-natives/vcs`).
 
 The vcs subpath exposes the backend-neutral `Vcs*` repository API (added in
 18.0.9, with `VcsGitRepo.mergeBase()` following in 18.0.10): discovery and
