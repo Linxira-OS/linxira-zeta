@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ## [1.1.6] - 2026-08-30
+## [18.0.11] - 2026-08-29
+
+### Fixed
+
+- Fixed agent startup and context compaction failures for models with unrecognized tokenizer encodings.
+
+## [18.0.10] - 2026-08-28
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。

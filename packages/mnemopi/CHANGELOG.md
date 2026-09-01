@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ## [1.1.6] - 2026-08-30
+## [18.0.11] - 2026-08-29
+
+### Fixed
+
+- Fixed working-memory recall returning too few or no results after matching memories were invalidated.
+
+## [18.0.9] - 2026-08-28
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
 

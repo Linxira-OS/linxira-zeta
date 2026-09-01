@@ -7,7 +7,6 @@ import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
@@ -17,6 +16,8 @@ import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/th
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { ResolvedRoleModel } from "@linxiraos/zeta/session/agent-session";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
+import { setTerminalHyperlinks, TERMINAL } from "@linxiraos/pi-tui";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 let settingsState: SettingsTestState | undefined;
@@ -66,6 +67,32 @@ describe("selector setting side effects", () => {
 
 		expect(invalidate).toHaveBeenCalledTimes(1);
 		expect(requestRender).toHaveBeenCalledTimes(1);
+	});
+	it("applies tui.hyperlinks changes to live renderers", () => {
+		const originalHyperlinks = TERMINAL.hyperlinks;
+		const statusInvalidate = vi.fn();
+		const invalidate = vi.fn();
+		const requestRender = vi.fn();
+		const controller = new SelectorController({
+			statusLine: { invalidate: statusInvalidate },
+			ui: { invalidate, requestRender },
+		} as unknown as InteractiveModeContext);
+
+		try {
+			setTerminalHyperlinks(false);
+			Settings.instance.override("tui.hyperlinks", "always");
+			controller.handleSettingChange("tui.hyperlinks", "always");
+			expect(TERMINAL.hyperlinks).toBe(true);
+
+			Settings.instance.override("tui.hyperlinks", "off");
+			controller.handleSettingChange("tui.hyperlinks", "off");
+			expect(TERMINAL.hyperlinks).toBe(false);
+			expect(statusInvalidate).toHaveBeenCalledTimes(2);
+			expect(invalidate).toHaveBeenCalledTimes(2);
+			expect(requestRender).toHaveBeenCalledTimes(2);
+		} finally {
+			setTerminalHyperlinks(originalHyperlinks);
+		}
 	});
 	it("applies memory backend changes to the live session", () => {
 		const applyMemoryBackend = vi.fn(async () => {});

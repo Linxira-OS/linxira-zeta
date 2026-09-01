@@ -4,7 +4,8 @@
  * Handles `omp plugin <command>` subcommands for plugin lifecycle management.
  */
 
-import { APP_NAME, getProjectDir } from "@linxiraos/pi-utils";
+import * as path from "node:path";
+import { APP_NAME, getPluginsNodeModules, getProjectDir } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { resolveOrDefaultProjectRegistryPath } from "../discovery/helpers";
 import { PluginManager, parseSettingValue, validateSetting } from "../extensibility/plugins";
@@ -690,8 +691,7 @@ async function handleFeatures(
 	}
 
 	const pluginName = args[0];
-	const plugins = await manager.list();
-	const plugin = plugins.find(p => p.name === pluginName);
+	const plugin = await manager.getPlugin(pluginName, { path: path.join(getPluginsNodeModules(), pluginName) });
 
 	if (!plugin) {
 		console.error(chalk.red(`Plugin "${pluginName}" not found`));
