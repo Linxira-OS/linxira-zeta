@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"name": "@linxiraos/zeta",
-	"version": "1.1.6",
+	"version": "1.1.7",
 	"description": "Coding agent CLI with read, bash, edit, write tools and session management",
 	"homepage": "https://linxira-os.github.io/zeta/",
 	"author": "Stencil Labs, Inc.",

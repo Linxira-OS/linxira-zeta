@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.7] - 2026-09-01
+
 - 同步上游 OMP v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）：gallery 预览 CLI、状态栏紧凑思考档位图标、MCP OAuth 嵌套路径发现、工具调用后传输错误安全重试、损坏图片可行动报错、空闲 CPU 降低、聊天链接 OSC 8 超链接等（完整清单见同步账本）。
 - Web UI 新增完整主题注册表：43 套浅/深预设、VS Code 风格中性 zeta-dark 深色（`#1E1E1E` 底 + 灰阶面板）、图表 8 色板、预水合主题引导（首屏即正确主题）。
 - 新增 `zeta serve --host`：可绑定非回环地址，远程访问 URL 经 `formatServerUrl` 统一展示。
