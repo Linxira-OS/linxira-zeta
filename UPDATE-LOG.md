@@ -1,6 +1,14 @@
 # Zeta 更新日志
 ## 下一版本（Unreleased）
 
+### 新增（1.1.7，随 OMP v18.0.11 同步）
+
+- OMP 同步基线：v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。gallery 预览 CLI、状态栏紧凑思考档位图标、MCP OAuth 嵌套路径发现（Keycloak realm 等）、工具调用后传输错误安全重试与 fallback、损坏/截断图片可行动报错不再卡死会话、聊天链接 OSC 8 超链接、空闲 CPU 降低；pi-vcs 索引刷新（`load_index_or_head`/`status_with_fresh_index`）取代临时 gix_fresh 方案。
+- Web UI 主题系统：43 套完整浅/深预设（背景/面板/语法/图表 8 色板全量变量，主题 JSON 入库）、VS Code 风格中性 zeta-dark（`#1E1E1E` 底 + 灰阶面板）、预水合主题引导（首屏即正确主题，不闪白）。
+- 桌面信任打开桥：web-ui 经 HMAC 网关令牌 + 目标 ID 白名单 + 工作区包含检查安全唤起桌面 shell 打开本地目录。
+- `zeta serve --host` 自定义绑定地址（远程访问 URL 统一展示）；blob 网关端点（外部客户端上传/拉取会话二进制）；Bing 搜索 provider；IM 频道转发任务深度守卫（嵌套任务不重复投递）。
+- 追踪面板 compaction 摘要持久化；提示缓存仅在内容字节变化时刷新；增量 plan-ultra 工作流（plan 文件按完整默认窗口读取）。
+
 ### 新增（1.1.6，随 OMP v18.0.9 同步）
 
 - Web UI 改造：右侧工具坞（会话 / 文件 / 追踪 / 插件四窗格常驻导轨，插件管理器 PluginsManager 上线）、左侧 Default Space 常驻首组、消息"涉及文件"下拉与 ⚡ 推理强度 / ⏱ 耗时元信息、三平台统一 frameless 自绘标题栏（桌面壳 IPC 控制窗口）。
