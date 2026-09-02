@@ -1,7 +1,7 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { renderWelcomeTip, WelcomeComponent } from "@linxiraos/zeta/modes/components/welcome";
+import { initTheme, setSymbolPreset, setTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import { visibleWidth } from "@linxiraos/pi-tui";
-import { renderWelcomeTip } from "@linxiraos/zeta/modes/components/welcome";
-import { initTheme, setTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 describe("renderWelcomeTip", () => {
 	beforeAll(async () => {
@@ -90,5 +90,20 @@ describe("renderWelcomeTip", () => {
 		// theme-tuned luminance.
 		expect(dark).not.toContain("\x1b[2m");
 		expect(light).not.toContain("\x1b[2m");
+	});
+	it("drops the nerdfont nag once the preset resolves away from unicode", async () => {
+		// Regression: the startup prepaint runs under the default "unicode"
+		// preset before settings load; the nag latched there used to survive
+		// the switch to the user's configured "nerd" preset.
+		const rand = spyOn(Math, "random").mockReturnValue(0.05);
+		try {
+			const welcome = new WelcomeComponent("1.0.0", "model", "provider");
+			expect(welcome.tip).toBe("Please use nerdfont 😭.");
+			await setSymbolPreset("nerd");
+			expect(welcome.tip).not.toBe("Please use nerdfont 😭.");
+		} finally {
+			rand.mockRestore();
+			await setSymbolPreset("unicode");
+		}
 	});
 });

@@ -3,6 +3,18 @@
 ## [Unreleased]
 
 ## [1.1.7] - 2026-09-01
+## [18.1.0] - 2026-09-01
+
+### Added
+
+- Added a declarative compatibility rules system for consistent model identification, capabilities, policies, and provider-specific behavior across model classes, families, and revisions.
+- Added the compat-compiler CLI for managing model identity and capability rules through KDL configuration files.
+
+### Changed
+
+- Standardized model revision handling and compatibility resolution across model discovery and runtime behavior.
+
+## [17.4.1] - 2026-08-21
 
 - 版本线随 1.1.7 发布对齐（随本体 v18.0.11 同步与主题/网关更新），包内无独立变更。
 

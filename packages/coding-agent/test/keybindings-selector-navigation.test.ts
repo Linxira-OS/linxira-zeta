@@ -1,18 +1,19 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { setKeybindings } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionList } from "@linxiraos/zeta/modes/components/extensions/extension-list";
 import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
 import { HistorySearchComponent } from "@linxiraos/zeta/modes/components/history-search";
+import { RewindSelectorComponent } from "@linxiraos/zeta/modes/components/rewind-selector";
 import { SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
 import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
-import { UserMessageSelectorComponent } from "@linxiraos/zeta/modes/components/user-message-selector";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
-import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
+import type { SessionMessageEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
+import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const CTRL_N = "\x0e";
 const CTRL_P = "\x10";
@@ -305,23 +306,34 @@ describe("selector navigation keybindings", () => {
 		expect(selected).toEqual(["node-20", "node-0"]);
 	});
 
-	it("uses tui.select.up in the user message selector", () => {
-		setKeybindings(TEST_KEYBINDINGS);
-		const selected: string[] = [];
-		const selector = new UserMessageSelectorComponent(
-			[
-				{ id: "first", text: "First" },
-				{ id: "second", text: "Second" },
-				{ id: "third", text: "Third" },
-			],
-			id => selected.push(id),
-			() => {},
-		);
+	it("uses tui.select.up in the esc-esc rewind selector", async () => {
+		await Settings.init({ inMemory: true, cwd: process.cwd() });
+		try {
+			setKeybindings(TEST_KEYBINDINGS);
+			const selected: string[] = [];
+			const ids = ["first", "second", "third"];
+			const entries: SessionMessageEntry[] = ids.map((id, index) => ({
+				type: "message",
+				id,
+				parentId: index === 0 ? null : ids[index - 1]!,
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { role: "user", content: `${id} prompt`, timestamp: 1 },
+			}));
+			const selector = new RewindSelectorComponent(entries, {
+				ui: { requestRender: () => {}, requestComponentRender: () => {} } as unknown as TUI,
+				cwd: "/tmp",
+				requestRender: () => {},
+				onSelect: id => selected.push(id),
+				onCancel: () => {},
+			});
 
-		selector.getMessageList().handleInput(CTRL_P);
-		selector.getMessageList().handleInput("\n");
+			selector.handleInput(CTRL_P);
+			selector.handleInput("\n");
 
-		expect(selected).toEqual(["second"]);
+			expect(selected).toEqual(["second"]);
+		} finally {
+			resetSettingsForTest();
+		}
 	});
 
 	it("uses tui.select.down in the extension list", () => {

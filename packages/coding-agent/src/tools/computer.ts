@@ -1,3 +1,4 @@
+import { type Type, type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -6,9 +7,8 @@ import type {
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
-import { isClaudeModelId } from "@linxiraos/pi-catalog/identity";
+import { classifyModel } from "@linxiraos/pi-catalog/identity";
 import type { DesktopCapabilities } from "@linxiraos/pi-natives";
-import { type Type, type } from "@linxiraos/pi-omptype";
 import { once, prompt } from "@linxiraos/pi-utils";
 import { callSessionTool } from "../eval/js/tool-bridge";
 import computerDescription from "../prompts/tools/computer.md" with { type: "text" };
@@ -33,9 +33,9 @@ function usesCoordinateSafeImageSizing(model: Model | undefined): boolean {
 	const compat = model.compat;
 	return (
 		(!!compat && "supportsImageDetailOriginal" in compat && compat.supportsImageDetailOriginal === false) ||
-		isClaudeModelId(model.id) ||
-		(model.requestModelId !== undefined && isClaudeModelId(model.requestModelId)) ||
-		(typeof model.name === "string" && /^claude(?:\s|$)/i.test(model.name))
+		model.identity.class === "anthropic" ||
+		(model.requestModelId !== undefined &&
+			classifyModel(model.provider, model.requestModelId, { lenient: true }).class === "anthropic")
 	);
 }
 

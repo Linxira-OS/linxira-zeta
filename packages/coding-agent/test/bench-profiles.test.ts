@@ -9,17 +9,22 @@ import type {
 	Model,
 	SimpleStreamOptions,
 } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { runBenchCommand } from "@linxiraos/zeta/cli/bench-cli";
 import type { BenchModelRegistry } from "@linxiraos/zeta/cli/bench-runtime";
 
-const model = {
+const model: Model<Api> = buildModel({
 	provider: "acme",
 	id: "bench-model",
 	name: "bench-model",
 	api: "openai-completions",
+	baseUrl: "https://example.test/v1",
+	reasoning: false,
+	input: ["text"],
+	cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 	maxTokens: 4096,
 	contextWindow: 128_000,
-} as unknown as Model<Api>;
+});
 
 const registry: BenchModelRegistry = {
 	getAll: () => [model],

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
+import { setBedrockProviderModule } from "@linxiraos/pi-ai/providers/register-builtins";
 import type { Context, Model } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Effort } from "@linxiraos/pi-catalog/effort";
@@ -29,14 +31,17 @@ function bedrockModel(id: string, thinking: Model<"bedrock-converse-stream">["th
 
 function payloadFor(model: Model<"bedrock-converse-stream">, reasoning: Effort): Promise<unknown> {
 	const context: Context = { messages: [{ role: "user", content: "hi", timestamp: 0 }] };
-	const controller = new AbortController();
-	controller.abort();
+	setBedrockProviderModule({ streamBedrock });
 	const { promise, resolve } = Promise.withResolvers<unknown>();
 	void streamSimple(model, context, {
 		providerOptions: { bearerToken: "test-token" },
-		signal: controller.signal,
 		reasoning,
 		maxTokens: 16,
+		fetch: async () =>
+			new Response(new Uint8Array(), {
+				status: 200,
+				headers: { "content-type": "application/vnd.amazon.eventstream" },
+			}),
 		onPayload: payload => resolve(payload),
 	});
 	return promise;

@@ -16,6 +16,13 @@
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 rasterizeSvg，SHA-2/SHA-3 ARM64 加速。
 
 ## [1.1.3] - 2026-08-25
+## [18.1.0] - 2026-09-01
+
+### Fixed
+
+- Fixed TTY output backpressure reporting so pending write progress is accurately reflected during large writes.
+
+## [18.0.11] - 2026-08-29
 
 ### Fixed
 

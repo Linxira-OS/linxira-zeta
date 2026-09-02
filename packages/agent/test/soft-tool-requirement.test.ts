@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { type } from "@linxiraos/pi-omptype";
 import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import type {
 	AgentContext,
@@ -9,7 +10,8 @@ import type {
 } from "@linxiraos/pi-agent-core/types";
 import type { Message, ToolChoice } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { type } from "@linxiraos/pi-omptype";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {
@@ -249,7 +251,7 @@ describe("agentLoop soft tool requirement", () => {
 			responses: [{ content: [leak] }, { content: ["clean retry"] }],
 		});
 		const config: AgentLoopConfig = {
-			model: mock.model,
+			model: buildModel({ ...getBundledModel("openai-codex", "gpt-5.4") }),
 			convertToLlm: identityConverter,
 			getToolChoice: () => queue.shift(),
 		};

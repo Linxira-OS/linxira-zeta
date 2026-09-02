@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
 import type { Context, FetchImpl, Model, ModelSpec, ProviderSessionState } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { buildOpenAIResponsesCompat } from "@linxiraos/pi-catalog/compat/openai";
+import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
+import { classifyModel } from "@linxiraos/pi-catalog/compat/taxonomy";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 const model = getBundledModel("openai", "gpt-5-mini") as Model<"openai-responses">;
@@ -10,13 +11,20 @@ const model = getBundledModel("openai", "gpt-5-mini") as Model<"openai-responses
 const explicitPromptCacheModel: Model<"openai-responses"> = {
 	...model,
 	id: "gpt-5.6",
+	identity: classifyModel("openai", "gpt-5.6"),
 	name: "GPT-5.6",
-	compat: buildOpenAIResponsesCompat({
+	compat: resolveModelPolicy({
 		id: "gpt-5.6",
+		api: "openai-responses",
 		name: "GPT-5.6",
 		provider: "openai",
 		baseUrl: "https://api.openai.com/v1",
-	}),
+		reasoning: true,
+		input: ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 128_000,
+		maxTokens: 16_384,
+	}).compat,
 };
 
 afterEach(() => {

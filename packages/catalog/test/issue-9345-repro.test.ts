@@ -21,7 +21,7 @@
 import { describe, expect, it } from "bun:test";
 import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
 import type { Context } from "@linxiraos/pi-ai/types";
-import { buildOpenAICompat } from "@linxiraos/pi-catalog/compat/openai";
+import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import type { FetchImpl, ModelSpec } from "@linxiraos/pi-catalog/types";
@@ -86,12 +86,12 @@ async function captureVeniceQwenBody(options: VeniceReasoningOptions) {
 
 describe("issue #9345 — Venice qwen thinking format", () => {
 	it("resolves Venice-hosted qwen models to the reasoning_effort thinking format", () => {
-		const compat = buildOpenAICompat(veniceQwenSpec());
+		const compat = resolveModelPolicy(veniceQwenSpec()).compat;
 		expect(compat.thinkingFormat).toBe("openai");
 	});
 
 	it("detects Venice by baseUrl even when the provider id is a custom loopback", () => {
-		const compat = buildOpenAICompat(veniceQwenSpec({ provider: "custom" }));
+		const compat = resolveModelPolicy(veniceQwenSpec({ provider: "custom" })).compat;
 		expect(compat.thinkingFormat).toBe("openai");
 	});
 
@@ -104,7 +104,7 @@ describe("issue #9345 — Venice qwen thinking format", () => {
 			provider: "alibaba-coding-plan",
 			baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
 		});
-		expect(buildOpenAICompat(dashscope).thinkingFormat).toBe("qwen");
+		expect(resolveModelPolicy(dashscope).compat.thinkingFormat).toBe("qwen");
 	});
 
 	it("emits reasoning_effort — never top-level enable_thinking — on the wire", async () => {

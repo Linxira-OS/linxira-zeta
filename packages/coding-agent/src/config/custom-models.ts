@@ -1,11 +1,11 @@
 import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getVariantAliasSources, resolveVariantSelector } from "@linxiraos/pi-catalog/compat/collapse";
 import {
 	getBundledModelReferenceIndex,
 	inheritReferenceThinking,
 	resolveModelReference,
 } from "@linxiraos/pi-catalog/identity";
-import { getVariantAliasSources, resolveVariantAlias } from "@linxiraos/pi-catalog/variant-collapse";
 import { logger } from "@linxiraos/pi-utils";
 import { createLiveConfigHeaders, type HeaderSource } from "./model-config-values";
 import { type ModelPatch, mergeCompat, mergeRemoteCompactionConfig } from "./model-patch";
@@ -162,7 +162,7 @@ export function normalizeSuppressedSelector(
 	if (!parsed) return trimmed;
 	// Retired effort-tier variant ids normalize to their collapsed logical id
 	// so persisted suppressions keyed by raw member ids still bind.
-	const aliasId = resolveVariantAlias(parsed.provider, parsed.id);
+	const aliasId = resolveVariantSelector(parsed.provider, parsed.id);
 	return `${parsed.provider}/${aliasId ?? parsed.id}`;
 }
 

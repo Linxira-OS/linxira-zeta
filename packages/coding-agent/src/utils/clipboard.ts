@@ -3,6 +3,7 @@ import {
 	copyToClipboard as nativeCopyToClipboard,
 	readImageFromClipboard as nativeReadImageFromClipboard,
 } from "@linxiraos/pi-natives/clipboard";
+import { isWsl } from "@linxiraos/pi-utils";
 import * as logger from "@linxiraos/pi-utils/logger";
 import { SUPPORTED_IMAGE_MIME_TYPES } from "@linxiraos/pi-utils/mime";
 import MAC_FILE_URL_SCRIPT from "./mac-file-urls.applescript" with { type: "text" };
@@ -60,10 +61,6 @@ async function spawnCapture(
 
 function hasDisplay(): boolean {
 	return process.platform !== "linux" || Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
-}
-
-function isWsl(): boolean {
-	return process.platform === "linux" && Boolean(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP);
 }
 
 /**

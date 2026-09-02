@@ -2,7 +2,6 @@ import type { Agent, AgentEvent, AgentMessage, AgentTurnEndContext } from "@linx
 import type { AssistantMessage, AssistantMessageEvent, Model, ToolCall } from "@linxiraos/pi-ai";
 import { GeminiHeaderRunDetector } from "@linxiraos/pi-ai/utils/thinking-loop";
 import { type RepeatedToolCallDetection, ToolCallLoopGuard } from "@linxiraos/pi-ai/utils/tool-call-loop-guard";
-import { modelFamilyToken } from "@linxiraos/pi-catalog/identity";
 import { logger, prompt } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { normalizeDiff, normalizeToLF, ParseError, previewPatch, stripBom } from "../edit";
@@ -436,7 +435,7 @@ export class LoopGuards {
 			this.#host.settings.get("model.loopGuard.enabled") === true &&
 			this.#host.settings.get("model.loopGuard.toolCallReminder") === true &&
 			model !== undefined &&
-			modelFamilyToken(model.id) === "gemini"
+			model.identity.class === "gemini"
 		);
 	}
 

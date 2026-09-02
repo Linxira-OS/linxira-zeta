@@ -1,11 +1,13 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { adjustHsv, TempDir } from "@linxiraos/pi-utils";
+import { stripVTControlCharacters } from "node:util";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import * as sessionColor from "@linxiraos/zeta/utils/session-color";
+import { adjustHsv, TempDir } from "@linxiraos/pi-utils";
 
 type Harness = {
 	mode: InteractiveMode;
@@ -57,6 +59,7 @@ async function createHarness(sessionName: string): Promise<Harness> {
 		messages: [],
 		systemPrompt: [],
 		state: { model: undefined },
+		isStreaming: true,
 		model: undefined,
 		thinkingLevel: undefined,
 	} as unknown as AgentSession;
@@ -178,5 +181,25 @@ describe("InteractiveMode working-message session accent cache", () => {
 		mode.loadingAnimation?.setMessage("Accent enabled");
 		expect(renderLoader(mode)).toContain(accentAnsi);
 		expect(getHex).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe("InteractiveMode working activity", () => {
+	it("preserves the active loader when blank /rename reports usage", async () => {
+		const { mode } = await createHarness("Active rename session");
+		mode.ensureLoadingAnimation();
+		const loader = defined(mode.loadingAnimation);
+		expect(mode.session.isStreaming).toBe(true);
+
+		try {
+			const handled = await executeBuiltinSlashCommand("/rename", { ctx: mode });
+
+			expect(handled).toBe(true);
+			expect(mode.session.isStreaming).toBe(true);
+			expect(mode.loadingAnimation).toBe(loader);
+			expect(stripVTControlCharacters(renderLoader(mode))).toContain("Working");
+		} finally {
+			loader.stop();
+		}
 	});
 });
