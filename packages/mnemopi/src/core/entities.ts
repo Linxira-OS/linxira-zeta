@@ -144,7 +144,9 @@ export function levenshteinDistance(s1: string, s2: string): number {
 	}
 	if (right.length === 0) return left.length;
 
+	// [suppressed] length preallocation
 	let previousRow = new Array<number>(right.length + 1);
+	// [suppressed] length preallocation
 	let currentRow = new Array<number>(right.length + 1).fill(0);
 	for (let i = 0; i <= right.length; i++) previousRow[i] = i;
 

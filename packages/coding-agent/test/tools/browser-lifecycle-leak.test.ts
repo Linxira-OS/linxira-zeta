@@ -33,6 +33,7 @@ function makeKind(socketSuffix: string): CmuxKind {
 }
 
 async function drainAllTabs(): Promise<void> {
+	//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: releasing tabs mutates the map
 	for (const name of [...getTabsMapForTest().keys()]) {
 		await releaseTab(name, { kill: false }).catch(() => undefined);
 	}

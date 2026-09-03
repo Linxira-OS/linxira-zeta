@@ -1,3 +1,4 @@
+import { M } from "../i18n";
 import { runPauseScreen } from "../modes/components/pause-screen";
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
@@ -7,13 +8,13 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "force",
 		icon: "hammer",
-		description: "Force next turn to use a specific tool",
+		description: M.cmdForce,
 		aliases: ["force:"],
 		inlineHint: "<tool-name> [prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const count = runtime.ctx.session.getActiveToolNames().length;
-			return count === 0 ? "Force: no active tools" : `Force: ${count} active tools`;
+			return count === 0 ? M.acForceNoActiveTools : `Force: ${count} active tools`;
 		},
 		handle: async (command, runtime) => {
 			const spaceIdx = command.args.indexOf(" ");
@@ -57,7 +58,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "live",
 		icon: "voice",
-		description: "Start Codex-backed realtime voice mode",
+		description: M.cmdLiveVoice,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleLiveCommand();
@@ -66,7 +67,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "pause",
 		icon: "pause",
-		description: "Freeze all agents (main, subagents, advisor) until resumed",
+		description: M.cmdPause,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runPauseScreen(runtime.ctx);
@@ -76,7 +77,17 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "quit",
 		aliases: ["q"],
 		icon: "power",
-		description: "Quit the application",
+		description: M.cmdQuit,
 		handleTui: shutdownHandlerTui,
+	},
+	{
+		name: "sidebar",
+		icon: "gauge",
+		description: M.cmdSidebar,
+		getTuiAutocompleteDescription: runtime =>
+			runtime.ctx.settings.get("tui.sidebar") ? M.acSidebarOn : M.acSidebarOff,
+		handleTui: (_command, runtime) => {
+			runtime.ctx.handleSidebarToggle();
+		},
 	},
 ];

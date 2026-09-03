@@ -167,7 +167,10 @@ export class WeChatChannel implements ChatChannel {
 	}
 
 	#baseInfo(): Record<string, string> {
-		return { channel_version: CHANNEL_VERSION, bot_agent: "zeta-WeChat-ClawBot/1.0.0" };
+		return {
+			channel_version: CHANNEL_VERSION,
+			bot_agent: "zeta-WeChat-ClawBot/1.0.0",
+		};
 	}
 
 	async #apiGet(path: string): Promise<Record<string, unknown>> {
@@ -236,7 +239,9 @@ export class WeChatChannel implements ChatChannel {
 
 		while (this.#started && !this.#abort?.signal.aborted) {
 			try {
-				const result = await this.#apiPost("api/v1/wechat/qrcode/status", { qrcode: token });
+				const result = await this.#apiPost("api/v1/wechat/qrcode/status", {
+					qrcode: token,
+				});
 				const body = (result.data as Record<string, unknown> | undefined) ?? result;
 				const status = typeof body.status === "string" ? body.status : "";
 				if (status === "confirmed") {
@@ -274,13 +279,23 @@ export class WeChatChannel implements ChatChannel {
 							await config.set("channels.wechat.ilinkUserId", ilinkUserId);
 						}
 					}
-					this.#options.onQrCode?.({ qrcode: token, qrcodeUrl, status: "confirmed" });
-					logger.info("WeChat channel logged in (v1 API)", { baseUrl: this.#baseUrl });
+					this.#options.onQrCode?.({
+						qrcode: token,
+						qrcodeUrl,
+						status: "confirmed",
+					});
+					logger.info("WeChat channel logged in (v1 API)", {
+						baseUrl: this.#baseUrl,
+					});
 					return;
 				}
 				if (status === "expired") {
 					logger.warn("WeChat QR code expired; fetching a fresh one");
-					this.#options.onQrCode?.({ qrcode: token, qrcodeUrl, status: "expired" });
+					this.#options.onQrCode?.({
+						qrcode: token,
+						qrcodeUrl,
+						status: "expired",
+					});
 					return await this.#loginFlowV1();
 				}
 				this.#options.onQrCode?.({
@@ -405,7 +420,10 @@ export class WeChatChannel implements ChatChannel {
 					}
 					const textItem = (msg.item_list ?? []).find(item => item.type === 1)?.text_item?.text;
 					if (typeof textItem !== "string" || textItem === "") continue;
-					logger.debug("WeChat message received", { from, length: textItem.length });
+					logger.debug("WeChat message received", {
+						from,
+						length: textItem.length,
+					});
 					this.#onMessage(from, textItem, String(msg.to_user_id ?? ""));
 				}
 			} catch (error) {
@@ -534,7 +552,11 @@ export class WeChatChannel implements ChatChannel {
 		}
 
 		// 2. PUT the encrypted payload to the CDN.
-		const putRes = await this.#fetch(uploadUrl, { method: "PUT", body: encrypted, signal: this.#abort?.signal });
+		const putRes = await this.#fetch(uploadUrl, {
+			method: "PUT",
+			body: encrypted,
+			signal: this.#abort?.signal,
+		});
 		if (!putRes.ok) {
 			throw new Error(`WeChat CDN upload failed (HTTP ${putRes.status})`);
 		}

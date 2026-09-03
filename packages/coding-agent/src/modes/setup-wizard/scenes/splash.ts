@@ -136,6 +136,7 @@ export function renderSetupSplash(width: number, height: number, elapsedMs: numb
 	const cx = Math.floor(w / 2);
 	const surfaceTime = frame * 0.13;
 
+	// [suppressed] length preallocation
 	const cells: string[][] = Array.from({ length: h }, () => new Array<string>(w).fill(" "));
 	const put = (x: number, y: number, glyph: string): void => {
 		if (y >= 0 && y < h && x >= 0 && x < w) cells[y][x] = glyph;

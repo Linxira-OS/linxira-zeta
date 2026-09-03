@@ -15,9 +15,9 @@ import { __computeBundledSelfPackageRoot } from "@linxiraos/zeta/extensibility/p
 // pinned below.
 describe("legacy pi compat bundled-self package root computation", () => {
 	it("derives the npm prebuilt bundle package root from dist import.meta.dir", () => {
-		const winMetaDir = "C:\\Users\\me\\.bun\\install\\global\\node_modules\\@oh-my-pi\\pi-coding-agent\\dist";
+		const winMetaDir = "C:\\Users\\me\\.bun\\install\\global\\node_modules\\@linxiraos\\zeta\\dist";
 		expect(__computeBundledSelfPackageRoot(winMetaDir, path.win32)).toBe(
-			"C:\\Users\\me\\.bun\\install\\global\\node_modules\\@oh-my-pi\\pi-coding-agent",
+			"C:\\Users\\me\\.bun\\install\\global\\node_modules\\@linxiraos\\zeta",
 		);
 
 		const posixMetaDir = "/home/me/.bun/install/global/node_modules/@linxiraos/zeta/dist";

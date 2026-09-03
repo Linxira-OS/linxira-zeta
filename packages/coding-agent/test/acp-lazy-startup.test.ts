@@ -242,7 +242,8 @@ describe("ACP lazy startup", () => {
 		const { runRootCommand } = await import("@linxiraos/zeta/main");
 
 		const explicit = {
-			"task.isolation.mode": "rcopy",
+			"task.isolation.enabled": true,
+			"isolation.backend": "rcopy",
 			"task.isolation.apply": false,
 			"task.isolation.merge": "branch",
 			"task.isolation.commits": "ai",

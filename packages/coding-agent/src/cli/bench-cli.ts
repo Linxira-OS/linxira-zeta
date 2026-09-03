@@ -518,6 +518,7 @@ async function runWithConcurrency<T>(
 	concurrency: number,
 	run: (index: number) => Promise<T>,
 ): Promise<T[]> {
+	// [suppressed] length preallocation
 	const results = new Array<T>(count);
 	let next = 0;
 	const worker = async (): Promise<void> => {

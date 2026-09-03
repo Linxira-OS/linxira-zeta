@@ -2,8 +2,8 @@
  * Agent discovery from filesystem.
  *
  * Discovers agent definitions from OMP-native task-agent roots:
- *   - ~/.zeta/agent/agents/*.md (user-level)
- *   - .zeta/agents/*.md (project-level)
+ *   - ~/.omp/agent/agents/*.md (user-level)
+ *   - .omp/agents/*.md (project-level)
  *   - <ext>/agents/*.md for every OMP extension package wired through
  *     `listOmpExtensionRoots` (CLI `--extension` roots, `extensions:` in
  *     settings, and enabled npm/link plugins under `<plugins>/node_modules/`).
@@ -20,8 +20,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, logger } from "@linxiraos/pi-utils";
-import { isProviderEnabled } from "../capability";
+import { logger } from "@linxiraos/pi-utils";
+import { isProviderEnabled, isUserSourceEnabled } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { findAllNearestProjectConfigDirs, getConfigDirs } from "../config";
 import { listClaudePluginRoots } from "../discovery/helpers";
@@ -29,7 +29,7 @@ import { listOmpExtensionRoots } from "../discovery/omp-extension-roots";
 import { loadBundledAgents, parseAgent } from "./agents";
 import type { AgentDefinition, AgentSource } from "./types";
 
-const TASK_AGENT_CONFIG_SOURCE = CONFIG_DIR_NAME;
+const TASK_AGENT_CONFIG_SOURCE = ".omp";
 
 /** Result of agent discovery */
 export interface DiscoveryResult {
@@ -61,7 +61,7 @@ async function loadAgentsFromDir(dir: string, source: AgentSource): Promise<Agen
 
 /**
  * Discover agents from filesystem and merge with bundled agents.
- * Precedence (highest wins): project `.zeta/agents`, user `.zeta/agents`,
+ * Precedence (highest wins): project `.omp/agents`, user `.omp/agents`,
  * OMP extension-package agents from the effective `extensions` setting,
  * installed npm/link plugins, Claude marketplace plugin agents (project scope
  * before user), then bundled.
@@ -105,11 +105,13 @@ export async function discoverAgents(
 		orderedDirs.push({ dir: path.join(root.path, "agents"), source: root.level });
 	}
 
-	// Load agents from Claude Code marketplace plugins (respects disabledProviders)
+	// Load agents from Claude Code marketplace plugins (respects disabledProviders and opt-in)
+	const claudePluginsUserEnabled = isUserSourceEnabled("claude-plugins") || isUserSourceEnabled("claude");
 	const { roots: pluginRoots } = isProviderEnabled("claude-plugins")
 		? await listClaudePluginRoots(home, resolvedCwd)
 		: { roots: [] };
-	const sortedPluginRoots = [...pluginRoots].sort((a, b) => {
+	const filteredPluginRoots = claudePluginsUserEnabled ? pluginRoots : pluginRoots.filter(r => r.scope === "project");
+	const sortedPluginRoots = [...filteredPluginRoots].sort((a, b) => {
 		if (a.scope === b.scope) return 0;
 		return a.scope === "project" ? -1 : 1;
 	});

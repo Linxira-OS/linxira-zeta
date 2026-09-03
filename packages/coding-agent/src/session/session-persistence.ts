@@ -175,6 +175,7 @@ function truncateForPersistence(obj: unknown, blobStore: BlobStore, key?: string
 
 	if (Array.isArray(obj)) {
 		let changed = false;
+		// [suppressed] length preallocation
 		const result: unknown[] = new Array(obj.length);
 		for (let i = 0; i < obj.length; i++) {
 			const item = obj[i];

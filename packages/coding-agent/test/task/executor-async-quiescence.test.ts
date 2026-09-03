@@ -75,6 +75,7 @@ function createAsyncSession(
 	let toolCallSeq = 0;
 
 	const emit = (event: AgentSessionEvent) => {
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
 		for (const listener of [...listeners]) listener(event);
 	};
 

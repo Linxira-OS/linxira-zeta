@@ -175,7 +175,7 @@ function withMetadata(schema: ArkSchema, newMeta: Record<string, unknown>): ArkS
 		schema,
 		{ ...jsonSchemaOf(schema), ...newMeta },
 		{
-			metadata: { ...(schema.__metadata ?? {}), ...newMeta },
+			metadata: { ...schema.__metadata, ...newMeta },
 		},
 	);
 }

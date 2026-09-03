@@ -622,9 +622,9 @@ function renderListStatusBar(cwd: string, task: Task): string {
 
 function renderConfirmBar(taskId: string, label: string, type: "reset" | "cascade-reset" | "delete" | "cancel-planning"): string {
   if (type === "cancel-planning") return "⚠ Cancel planning? [y] Confirm  [n] Cancel";
-  if (type === "reset") return `⚠ Reset ${taskId} \"${label}\"? [y] Confirm  [n] Cancel`;
+  if (type === "reset") return `⚠ Reset ${taskId} "${label}"? [y] Confirm  [n] Cancel`;
   if (type === "cascade-reset") return `⚠ Cascade reset ${taskId} and dependents? [y] Confirm  [n] Cancel`;
-  return `⚠ Delete ${taskId} \"${label}\"? [y] Confirm  [n] Cancel`;
+  return `⚠ Delete ${taskId} "${label}"? [y] Confirm  [n] Cancel`;
 }
 
 function renderBlockReasonBar(input: string): string {

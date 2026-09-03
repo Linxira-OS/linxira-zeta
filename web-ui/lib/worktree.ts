@@ -167,7 +167,7 @@ export async function listWorktrees(cwd: string): Promise<WorktreeInfo[]> {
 }
 
 function sanitizeBranchForDir(branch: string): string {
-  return branch.replace(/[\/\\:*?"<>|\s]+/g, "-").replace(/^-+|-+$/g, "");
+  return branch.replace(/[/\\:*?"<>|\s]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
 export async function addWorktree(cwd: string, branch: string): Promise<{ path: string; branch: string }> {

@@ -1,14 +1,14 @@
 import type { CommandMetadata } from "@linxiraos/pi-utils/cli";
 
 export const acpHelp = {
-	description: "Run Zeta as an ACP (Agent Client Protocol) server over stdio",
+	description: "Run Oh My Pi as an ACP (Agent Client Protocol) server over stdio",
 } satisfies CommandMetadata;
-
-export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
 
 export const attachHelp = {
 	description: "Attach a REPL to the serve process's shared session (status + mode control)",
 } satisfies CommandMetadata;
+
+export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
 
 export const authBrokerHelp = {
 	description: "Manage the omp auth-broker (credential vault)",
@@ -138,5 +138,5 @@ export const webHelp = {
 } satisfies CommandMetadata;
 
 export const worktreeHelp = {
-	description: "List or clear agent-managed git worktrees (~/.zeta/wt)",
+	description: "Add, list, or clear git worktrees (clone-first when enabled)",
 } satisfies CommandMetadata;

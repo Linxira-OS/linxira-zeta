@@ -1281,23 +1281,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "重新规划时刷新标题",
 		description: "在待办初始化重新规划后刷新生成的会话标题，除非标题由用户设置",
 	},
-	"task.isolation.mode": {
-		label: "隔离模式",
-		description:
-			'子代理的隔离后端。"auto" 让原生 PAL 选择最佳可用后端（CoW 感知文件系统，然后是 overlayfs/ProjFS，最后是 git worktree / 递归复制回退）。',
-	},
-	"task.isolation.apply": {
-		label: "应用隔离更改",
-		description: "自动将成功的隔离任务更改应用到父检出；禁用则保留补丁或分支工件",
-	},
-	"task.isolation.merge": {
-		label: "隔离合并策略",
-		description: "隔离任务更改如何集成（补丁应用或分支合并）",
-	},
-	"task.isolation.commits": {
-		label: "隔离提交风格",
-		description: "嵌套仓库更改的提交消息风格（通用或 AI 生成）",
-	},
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
@@ -1657,6 +1640,463 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"providers.openai-codex.codeMode": {
 		label: "Codex 代码模式",
 		description: "以代码优先模式运行 Codex",
+	},
+	// ===== v18.1.2–v18.1.5 上游新增设置项（合并批补齐） =====
+	"async.maxJobs": {
+		label: "异步任务并发上限",
+		description: "同时运行的异步（后台）任务的最大数量",
+	},
+	"auth.broker.token": {
+		label: "Auth Broker 令牌",
+		description: "连接 auth-broker 时使用的 bearer 令牌",
+	},
+	"auth.broker.url": {
+		label: "Auth Broker 地址",
+		description: "auth-broker 服务器的 base URL",
+	},
+	"autolearn.minToolCalls": {
+		label: "自动学习最小工具调用数",
+		description: "触发自动学习所需的会话内最少工具调用次数",
+	},
+	"bash.autoBackground.thresholdMs": {
+		label: "Bash 自动转后台阈值",
+		description: "前台 Bash 超过该毫秒数后自动转入后台运行",
+	},
+	"bashInterceptor.patterns": {
+		label: "Bash 拦截模式",
+		description: "匹配这些 glob 模式的 Bash 命令将被拦截重写",
+	},
+	"branchSummary.reserveTokens": {
+		label: "分支摘要保留 Token",
+		description: "为分支摘要预留的上下文 token 预算",
+	},
+	"commit.cacheEnabled": {
+		label: "提交缓存",
+		description: "缓存 git 提交信息生成结果以加速重复提交",
+	},
+	"commit.cacheTtlDays": {
+		label: "提交缓存保留天数",
+		description: "提交信息生成缓存的保留天数",
+	},
+	"commit.changelogMaxDiffChars": {
+		label: "Changelog 最大 Diff 字符",
+		description: "生成 changelog 时读取的最大 diff 字符数",
+	},
+	"commit.mapBatchTokenBudget": {
+		label: "提交分批 Token 预算",
+		description: "map 阶段每批次处理的 token 预算",
+	},
+	"commit.mapReduceEnabled": {
+		label: "提交 Map-Reduce 生成",
+		description: "大 diff 使用 map-reduce 两阶段生成提交信息",
+	},
+	"commit.mapReduceThreshold": {
+		label: "Map-Reduce 触发阈值",
+		description: "超过该字符数的 diff 启用 map-reduce 路径",
+	},
+	"compaction.autoContinue": {
+		label: "压缩后自动继续",
+		description: "上下文压缩完成后自动继续被中断的回合",
+	},
+	"compaction.remoteEndpoint": {
+		label: "远程压缩端点",
+		description: "把压缩请求转发到该远程端点执行",
+	},
+	"compaction.v2RetainedMessageBudget": {
+		label: "压缩 v2 保留消息预算",
+		description: "v2 压缩策略中保留近期消息的 token 预算",
+	},
+	"dev.autoqaConsent": {
+		label: "AutoQA 同意",
+		description: "确认允许 AutoQA 自动化质量检查流程",
+	},
+	"dev.autoqaPush.token": {
+		label: "AutoQA 推送令牌",
+		description: "AutoQA 结果推送使用的认证令牌",
+	},
+	"edit.recoverInlineEdits": {
+		label: "恢复内联编辑载荷",
+		description: "将模型以纯文本输出的编辑载荷转换为 edit 工具调用执行",
+	},
+	"eval.autoBackground.thresholdMs": {
+		label: "Eval 自动转后台阈值",
+		description: "Eval 运行超过该毫秒数后自动转入后台",
+	},
+	"gc.archive": {
+		label: "GC 归档",
+		description: "垃圾回收时把冷数据移动到归档存储",
+	},
+	"gc.blobs": {
+		label: "GC Blob 数据",
+		description: "垃圾回收扫描未引用的 blob 附件",
+	},
+	"gc.coldArchiveAfterDays": {
+		label: "冷归档天数",
+		description: "数据闲置该天数后移入冷归档",
+	},
+	"gc.retainNewestGlobal": {
+		label: "全局保留最新数",
+		description: "全局保留的最新会话数量下限",
+	},
+	"gc.retainNewestPerCwd": {
+		label: "每目录保留最新数",
+		description: "每个工作目录保留的最新会话数量",
+	},
+	"gc.wal": {
+		label: "GC WAL",
+		description: "垃圾回收预写日志（WAL）文件",
+	},
+	"hindsight.bankIdPrefix": {
+		label: "Hindsight Bank ID 前缀",
+		description: "hindsight 记忆库 ID 的命名前缀",
+	},
+	"hindsight.bankMission": {
+		label: "Hindsight 使命声明",
+		description: "写入记忆库的使命描述，用于检索相关性判断",
+	},
+	"hindsight.debug": {
+		label: "Hindsight 调试",
+		description: "输出 hindsight 检索与写入的调试日志",
+	},
+	"hindsight.mentalModelMaxRenderChars": {
+		label: "心智模型渲染上限",
+		description: "心智模型渲染到上下文的最大字符数",
+	},
+	"hindsight.mentalModelRefreshIntervalMs": {
+		label: "心智模型刷新间隔",
+		description: "心智模型自动刷新的毫秒间隔",
+	},
+	"hindsight.recallBudget": {
+		label: "回忆预算",
+		description: "每次回忆（recall）允许消耗的 token 预算",
+	},
+	"hindsight.recallContextTurns": {
+		label: "回忆上下文回合数",
+		description: "参与召回查询构造的最近回合数",
+	},
+	"hindsight.recallMaxQueryChars": {
+		label: "回忆查询字符上限",
+		description: "单次召回查询的最大字符数",
+	},
+	"hindsight.recallMaxTokens": {
+		label: "回忆 Token 上限",
+		description: "召回内容注入上下文的最大 token 数",
+	},
+	"hindsight.recallTimeoutMs": {
+		label: "回忆超时",
+		description: "召回请求的超时毫秒数",
+	},
+	"hindsight.recallTypes": {
+		label: "回忆类型",
+		description: "允许召回的记忆条目类型列表",
+	},
+	"hindsight.reflectTimeoutMs": {
+		label: "反思超时",
+		description: "反思（reflect）阶段的超时毫秒数",
+	},
+	"hindsight.requestTimeoutMs": {
+		label: "Hindsight 请求超时",
+		description: "hindsight 后端请求的超时毫秒数",
+	},
+	"hindsight.retainContext": {
+		label: "Hindsight 保留上下文",
+		description: "回忆结果在后续回合中的保留策略",
+	},
+	"hindsight.retainEveryNTurns": {
+		label: "「hindsight.retainEveryNTurns」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"hindsight.retainMission": {
+		label: "「hindsight.retainMission」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"hindsight.retainOverlapTurns": {
+		label: "「hindsight.retainOverlapTurns」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"hindsight.retainTimeoutMs": {
+		label: "「hindsight.retainTimeoutMs」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"images.urls.credentials": {
+		label: "「images.urls.credentials」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"images.urls.options": {
+		label: "「images.urls.options」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"images.urls.sshRemotePort": {
+		label: "「images.urls.sshRemotePort」设置",
+		description: "（v18.1.x 新增设置项，英文原文：Remote listen port of the ssh reverse forward that your web ）",
+	},
+	"images.urls.ttlHours": {
+		label: "「images.urls.ttlHours」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"isolation.backend": {
+		label: "「isolation.backend」设置",
+		description: "（v18.1.x 新增设置项，英文原文：Backend used for subagent isolation and worktree cloning）",
+	},
+	"memories.enabled": {
+		label: "「memories.enabled」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.fallbackTokenLimit": {
+		label: "「memories.fallbackTokenLimit」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.maxRawMemoriesForGlobal": {
+		label: "「memories.maxRawMemoriesForGlobal」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.maxRolloutAgeDays": {
+		label: "「memories.maxRolloutAgeDays」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.maxRolloutsPerStartup": {
+		label: "「memories.maxRolloutsPerStartup」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.minRolloutIdleHours": {
+		label: "「memories.minRolloutIdleHours」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.phase1InputTokenLimit": {
+		label: "「memories.phase1InputTokenLimit」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.phase2HeartbeatSeconds": {
+		label: "「memories.phase2HeartbeatSeconds」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.phase2LeaseSeconds": {
+		label: "「memories.phase2LeaseSeconds」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.phase2RetryDelaySeconds": {
+		label: "「memories.phase2RetryDelaySeconds」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.rolloutPayloadPercent": {
+		label: "「memories.rolloutPayloadPercent」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.stage1Concurrency": {
+		label: "「memories.stage1Concurrency」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.stage1LeaseSeconds": {
+		label: "「memories.stage1LeaseSeconds」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.stage1RetryDelaySeconds": {
+		label: "「memories.stage1RetryDelaySeconds」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.summaryInjectionTokenLimit": {
+		label: "「memories.summaryInjectionTokenLimit」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"memories.threadScanLimit": {
+		label: "「memories.threadScanLimit」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"mnemopi.debug": {
+		label: "「mnemopi.debug」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"mnemopi.injectionTokenLimit": {
+		label: "「mnemopi.injectionTokenLimit」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"mnemopi.recallContextTurns": {
+		label: "「mnemopi.recallContextTurns」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"mnemopi.recallLimit": {
+		label: "「mnemopi.recallLimit」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"mnemopi.recallMaxQueryChars": {
+		label: "「mnemopi.recallMaxQueryChars」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"mnemopi.retainEveryNTurns": {
+		label: "「mnemopi.retainEveryNTurns」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"retry.baseDelayMs": {
+		label: "「retry.baseDelayMs」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"searxng.basicPassword": {
+		label: "「searxng.basicPassword」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"searxng.basicUsername": {
+		label: "「searxng.basicUsername」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"searxng.engines": {
+		label: "「searxng.engines」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"searxng.token": {
+		label: "「searxng.token」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"sharpshooter.injectionTokenLimit": {
+		label: "「sharpshooter.injectionTokenLimit」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"sharpshooter.intervalMinutes": {
+		label: "「sharpshooter.intervalMinutes」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"shellMinimizer.except": {
+		label: "「shellMinimizer.except」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"shellMinimizer.legacyFilters": {
+		label: "「shellMinimizer.legacyFilters」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"shellMinimizer.maxCaptureBytes": {
+		label: "「shellMinimizer.maxCaptureBytes」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"shellMinimizer.only": {
+		label: "「shellMinimizer.only」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"shellMinimizer.settingsPath": {
+		label: "「shellMinimizer.settingsPath」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.customDirectories": {
+		label: "「skills.customDirectories」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.enableAgentsProject": {
+		label: "「skills.enableAgentsProject」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.enableAgentsUser": {
+		label: "「skills.enableAgentsUser」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.enableClaudeProject": {
+		label: "「skills.enableClaudeProject」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.enableClaudeUser": {
+		label: "「skills.enableClaudeUser」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.enableCodexUser": {
+		label: "「skills.enableCodexUser」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.enablePiProject": {
+		label: "「skills.enablePiProject」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.enablePiUser": {
+		label: "「skills.enablePiUser」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.ignoredSkills": {
+		label: "「skills.ignoredSkills」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"skills.includeSkills": {
+		label: "「skills.includeSkills」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"statusLine.leftSegments": {
+		label: "「statusLine.leftSegments」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"statusLine.rightSegments": {
+		label: "「statusLine.rightSegments」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"statusLine.segmentOptions": {
+		label: "「statusLine.segmentOptions」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"task.agentAdvisor": {
+		label: "「task.agentAdvisor」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"task.agentModelOverrides": {
+		label: "「task.agentModelOverrides」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"task.agentPrewalk": {
+		label: "「task.agentPrewalk」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"task.disabledAgents": {
+		label: "「task.disabledAgents」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"task.isolation.apply": {
+		label: "「task.isolation.apply」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"task.isolation.commits": {
+		label: "「task.isolation.commits」设置",
+		description: "（v18.1.x 新增设置项，英文原文：Commit message style for nested repo changes (generic or AI-）",
+	},
+	"task.isolation.enabled": {
+		label: "「task.isolation.enabled」设置",
+		description: "（v18.1.x 新增设置项，英文原文：Run subagents in an isolated copy of the checkout and integr）",
+	},
+	"task.isolation.merge": {
+		label: "「task.isolation.merge」设置",
+		description: "（v18.1.x 新增设置项，英文原文：How isolated task changes are integrated (patch apply or bra）",
+	},
+	"thinkingBudgets.high": {
+		label: "「thinkingBudgets.high」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"thinkingBudgets.low": {
+		label: "「thinkingBudgets.low」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"thinkingBudgets.max": {
+		label: "「thinkingBudgets.max」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"thinkingBudgets.medium": {
+		label: "「thinkingBudgets.medium」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"thinkingBudgets.minimal": {
+		label: "「thinkingBudgets.minimal」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"thinkingBudgets.xhigh": {
+		label: "「thinkingBudgets.xhigh」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"tui.maxInlineImageColumns": {
+		label: "「tui.maxInlineImageColumns」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"tui.maxInlineImageRows": {
+		label: "「tui.maxInlineImageRows」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"tui.maxInlineImages": {
+		label: "「tui.maxInlineImages」设置",
+		description: "（v18.1.x 新增设置项）",
+	},
+	"worktree.clone": {
+		label: "「worktree.clone」设置",
+		description: "（v18.1.x 新增设置项）",
 	},
 };
 export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;

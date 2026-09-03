@@ -1,16 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
-import { $which, logger } from "@linxiraos/pi-utils";
+import { $which, isWsl, logger } from "@linxiraos/pi-utils";
 
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 function getExistingWslLocalPath(urlOrPath: string): string | undefined {
-	if (
-		process.platform !== "linux" ||
-		!(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP) ||
-		!$which("wslview")
-	) {
+	if (!isWsl() || !$which("wslview")) {
 		return undefined;
 	}
 
@@ -111,7 +107,7 @@ export function openPath(urlOrPath: string): void {
 	// Detect delayed failures (exec succeeded but the opener exited non-zero)
 	// without blocking the caller. Recording them makes silent misconfigurations
 	// (e.g. `xdg-open` present but no MIME handler for `https`) diagnosable from
-	// `~/.zeta/logs/omp.*.log`.
+	// `~/.omp/logs/omp.*.log`.
 	child.exited.then(
 		exitCode => {
 			if (typeof exitCode === "number" && exitCode !== 0) {

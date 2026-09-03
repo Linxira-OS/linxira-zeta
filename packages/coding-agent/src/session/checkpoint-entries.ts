@@ -1,6 +1,7 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import { stringProperty } from "@linxiraos/pi-utils";
+import { stripXdUrlPrefix } from "../internal-urls/xd-protocol";
 import type { CompletedRewindState } from "../tools/checkpoint";
 import { writeDeviceDispatch } from "../tools/resolve";
 import type { SessionEntry } from "./session-entries";
@@ -34,9 +35,10 @@ export interface SemanticToolResult {
 
 /** Normalizes checkpoint and rewind results across native calls and xdev dispatches. */
 export function semanticToolResult(toolName: string | undefined, result: unknown): SemanticToolResult | undefined {
-	if (toolName === "checkpoint" || toolName === "rewind") {
+	const canonicalName = toolName === undefined ? undefined : stripXdUrlPrefix(toolName);
+	if (canonicalName === "checkpoint" || canonicalName === "rewind") {
 		const details = result && typeof result === "object" && "details" in result ? result.details : undefined;
-		return { toolName, details };
+		return { toolName: canonicalName, details };
 	}
 	const dispatch = writeDeviceDispatch(toolName ?? "", result);
 	if (dispatch?.mode !== "execute" || (dispatch.tool !== "checkpoint" && dispatch.tool !== "rewind")) {

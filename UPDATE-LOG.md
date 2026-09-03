@@ -1,6 +1,11 @@
 # Zeta 更新日志
 ## 下一版本（Unreleased）
 
+### 新增（1.1.7 补充，随 OMP v18.1.2–v18.1.5 同步）
+
+- OMP 同步基线更新：v18.1.2（`86bf72f52947`）+ v18.1.4（`39cf639c7b`）+ v18.1.5（`2b8471bc33`）三 tag 一串真合并（`sync/omp-release/v18.1.2`）。Agent Hub 活动流（`/hub` activity 分区 + `src/activity/` 模块）、`/trace` 命令 + stats 追踪面板、声明式 provider 认证注册表（registry/engine/hooks/oauth 重构）、Copilot 认证标准化、selector 转录回滚过滤、welcome tip latch、`boxDotted.*`/`icon.advisorClosed` 符号预设。
+- 品牌覆盖：状态栏 `icon.omp` unicode 预设 π→ζ（ascii `pi`→`zeta`，nerd 保留 + 决议注释）；`ZETA_LOGO` 换 ζ 描边版（用户选定 B）；AGENTS.md 品牌登记表新增 `icon.omp` 守卫行。
+
 ### 新增（1.1.7，随 OMP v18.0.11 同步）
 
 - OMP 同步基线：v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。gallery 预览 CLI、状态栏紧凑思考档位图标、MCP OAuth 嵌套路径发现（Keycloak realm 等）、工具调用后传输错误安全重试与 fallback、损坏/截断图片可行动报错不再卡死会话、聊天链接 OSC 8 超链接、空闲 CPU 降低；pi-vcs 索引刷新（`load_index_or_head`/`status_with_fresh_index`）取代临时 gix_fresh 方案。

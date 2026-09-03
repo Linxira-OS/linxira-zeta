@@ -1356,6 +1356,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 				let totalMatchLimitReached = false;
 				if (windowFiles.length > 0) {
 					const lists = windowFiles.map(file => matchesByPath.get(file) ?? []);
+					// [suppressed] length preallocation
 					const cursors = new Array<number>(lists.length).fill(0);
 					let anyAdded = true;
 					while (anyAdded) {

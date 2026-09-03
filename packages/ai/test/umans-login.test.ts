@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import { loginUmans } from "@linxiraos/pi-ai/registry/umans";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry/registry";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+
+const loginUmans = getProviderDefinition("umans")!.login!;
 
 describe("umans login", () => {
 	it("validates pasted keys against the Anthropic messages endpoint", async () => {

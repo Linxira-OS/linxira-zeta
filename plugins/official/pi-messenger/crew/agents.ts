@@ -19,7 +19,6 @@ import {
   getAssistantText,
   compactEventForArtifact,
   getTerminalProviderError,
-  type PiEvent,
 } from "./utils/progress.ts";
 import {
   getArtifactPaths,

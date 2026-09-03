@@ -729,7 +729,7 @@ function hasDeepseekCompat(model: ModelEntry): boolean {
 
 function setDeepseekCompat(model: ModelEntry, enabled: boolean): ModelEntry {
   if (enabled) {
-    return { ...model, compat: { ...(model.compat ?? {}), ...DEEPSEEK_COMPAT } };
+    return { ...model, compat: { ...model.compat, ...DEEPSEEK_COMPAT } };
   }
   if (!model.compat) return model;
   const rest = { ...model.compat };
@@ -757,7 +757,7 @@ function ModelDetail({
   const costVal = (k: keyof NonNullable<ModelEntry["cost"]>) => model.cost?.[k] !== undefined ? String(model.cost[k]) : "";
   const setCost = (k: keyof NonNullable<ModelEntry["cost"]>, v: string) => {
     const n = parseFloat(v);
-    onChange({ ...model, cost: { ...(model.cost ?? {}), [k]: isNaN(n) ? undefined : n } });
+    onChange({ ...model, cost: { ...model.cost, [k]: isNaN(n) ? undefined : n } });
   };
   const testSummary = (() => {
     if (testState.phase === "idle") return null;
@@ -1624,12 +1624,12 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
     let finalName = "new-provider";
     let n = 1;
     while (config.providers?.[finalName]) finalName = `new-provider-${n++}`;
-    setConfig((prev) => ({ ...prev, providers: { ...(prev.providers ?? {}), [finalName]: { api: "openai-completions" } } }));
+    setConfig((prev) => ({ ...prev, providers: { ...prev.providers, [finalName]: { api: "openai-completions" } } }));
     setSelection({ type: "provider", name: finalName });
   }, [config.providers]);
 
   const updateProvider = useCallback((name: string, p: ProviderEntry) => {
-    setConfig((prev) => ({ ...prev, providers: { ...(prev.providers ?? {}), [name]: p } }));
+    setConfig((prev) => ({ ...prev, providers: { ...prev.providers, [name]: p } }));
   }, []);
 
   const renameProvider = useCallback((oldName: string, newName: string) => {
@@ -1650,7 +1650,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
 
   const deleteProvider = useCallback((name: string) => {
     setConfig((prev) => {
-      const providers = { ...(prev.providers ?? {}) };
+      const providers = { ...prev.providers };
       delete providers[name];
       return { ...prev, providers };
     });
@@ -1665,7 +1665,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
     setConfig((prev) => {
       const provider = prev.providers?.[providerName] ?? {};
       const models = [...(provider.models ?? []), { id: "" }];
-      return { ...prev, providers: { ...(prev.providers ?? {}), [providerName]: { ...provider, models } } };
+      return { ...prev, providers: { ...prev.providers, [providerName]: { ...provider, models } } };
     });
     setConfig((prev) => {
       const idx = (prev.providers?.[providerName]?.models?.length ?? 1) - 1;
@@ -1679,7 +1679,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
       const provider = prev.providers?.[providerName] ?? {};
       const models = [...(provider.models ?? [])];
       models[index] = m;
-      return { ...prev, providers: { ...(prev.providers ?? {}), [providerName]: { ...provider, models } } };
+      return { ...prev, providers: { ...prev.providers, [providerName]: { ...provider, models } } };
     });
   }, []);
 
@@ -1688,7 +1688,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
       const provider = prev.providers?.[providerName] ?? {};
       const models = [...(provider.models ?? [])];
       models.splice(index, 1);
-      return { ...prev, providers: { ...(prev.providers ?? {}), [providerName]: { ...provider, models: models.length ? models : undefined } } };
+      return { ...prev, providers: { ...prev.providers, [providerName]: { ...provider, models: models.length ? models : undefined } } };
     });
     setSelection({ type: "provider", name: providerName });
   }, []);

@@ -132,6 +132,7 @@ describe("interactive /mcp test", () => {
 
 		// ...and a press inside it gives feedback instead of silently aborting
 		// the (already-settled) test controller.
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: handlers are removed while dispatching
 		for (const handler of [...mcpTestEscapeHandlers]) {
 			mcpTestEscapeHandlers.delete(handler); // mirrors InputController's consume-on-dispatch
 			handler();
@@ -214,6 +215,7 @@ describe("interactive /mcp test", () => {
 		expect(presented[0]?.isTranscriptBlockFinalized()).toBe(false);
 
 		// Consume like InputController does: clear the set, then fire.
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: handlers are removed while dispatching
 		for (const handler of [...mcpTestEscapeHandlers]) {
 			mcpTestEscapeHandlers.delete(handler);
 			handler();
@@ -291,6 +293,7 @@ describe("interactive /mcp test", () => {
 		// Wait until the test is past listTools and inside #syncManagerConnection:
 		// an abort here does not observe the signal, so the flow still completes.
 		await syncStarted;
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: handlers are removed while dispatching
 		for (const handler of [...mcpTestEscapeHandlers]) {
 			mcpTestEscapeHandlers.delete(handler);
 			handler();
@@ -337,6 +340,7 @@ describe("interactive /mcp test", () => {
 
 		// Esc lands while the config lookup is still awaiting: the dispatcher
 		// consumes ownership, and the resumed handler must not render a hint.
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: handlers are removed while dispatching
 		for (const handler of [...mcpTestEscapeHandlers]) {
 			mcpTestEscapeHandlers.delete(handler);
 			handler();
@@ -382,6 +386,7 @@ describe("interactive /mcp test", () => {
 		expect(mcpTestEscapeHandlers).toHaveLength(1);
 
 		// Esc lands during the stuck read; consume like InputController does.
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: handlers are removed while dispatching
 		for (const handler of [...mcpTestEscapeHandlers]) {
 			mcpTestEscapeHandlers.delete(handler);
 			handler();

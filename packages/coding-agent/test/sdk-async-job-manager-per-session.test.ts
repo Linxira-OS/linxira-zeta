@@ -47,7 +47,7 @@ describe("AsyncJobManager per top-level session (concurrent sessions)", () => {
 		const { session } = await createAgentSession({
 			cwd,
 			agentDir,
-			settings: Settings.isolated({ "bash.autoBackground.enabled": true, ...(extraSettings ?? {}) }),
+			settings: Settings.isolated({ "bash.autoBackground.enabled": true, ...extraSettings }),
 			disableExtensionDiscovery: true,
 			extensions,
 			skills: [],

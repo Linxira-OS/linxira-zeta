@@ -16,8 +16,8 @@ Primary implementation files:
 
 Default config paths, in precedence order:
 
-- `~/.zeta/agent/models.yml`
-- `~/.zeta/agent/models.yaml`
+- `~/.omp/agent/models.yml`
+- `~/.omp/agent/models.yaml`
 
 Legacy behavior still present:
 
@@ -59,11 +59,7 @@ providers:
       - id: some-model-id
         name: Some Model
         api: openai-completions
-        reasoning: true
-        thinking:
-          mode: effort
-          efforts: [low, medium, high, max]
-          defaultLevel: medium
+        reasoning: false
         input: [text]
         imageInputDecoder: stb # local STB decoder; OMP converts WebP before dispatch
         cost:
@@ -110,73 +106,10 @@ providers:
 
 - `auth`: `apiKey` (default), `none`, or `oauth`; for `models.yml` custom models, `oauth` is accepted by schema but does not waive the `apiKey` requirement
 - `discovery.type`: `ollama`, `llama.cpp`, `lm-studio`, `openai-models-list`, `proxy`, or `litellm`
-- `transport`: `pi-native` only. When set, every model under that provider is sent to an `zeta auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer.
+- `discovery.injectV1`: optional boolean, default `true`, for `openai-models-list`. Set `false` to fetch the model list from `{baseUrl}/models` without injecting `/v1` — for gateways that root their OpenAI-compatible surface at a versioned path (e.g. `https://api.opper.ai/v3/compat`) where the forced `/v1/models` returns a different, smaller model list. Query strings in `baseUrl` are ignored, matching the default mode.
+- `transport`: `pi-native` only. When set, every model under that provider is sent to an `omp auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer.
 - `imageInputDecoder`: `stb` only. Set this on a custom model or `modelOverrides` entry when the serving backend uses an STB-compatible image decoder that cannot accept WebP; OMP converts attached and historical WebP images before provider dispatch.
 - `tokenizer`: opt into a specific embedded local tokenizer when a proxy's model id is ambiguous or noncanonical. Allowed values: `claude-v3`, `claude-v47`, `claude-v5`, `claude-v5-sonnet`, `qwen3`, `deepseek-v3`, `kimi-k2`, and `glm5`. Omit it to use catalog identity policy; unknown models retain the fast local estimate.
-
-### Per-model `thinking` block (reasoning effort surface)
-
-A reasoning model may declare which thinking transports and effort levels it
-supports. This is the "思考强度" (thinking intensity) configuration surfaced
-by the web provider/model editor.
-
-```yaml
-models:
-  - id: my-reasoning-model
-    reasoning: true
-    thinking:
-      # effort  — user-facing effort levels mapped to the provider's
-      #           reasoning_effort (OpenAI-compatible) wire value
-      # budget  — token-budget based (e.g. Anthropic budget_tokens)
-      # google-level — Google native thinkingLevel
-      # anthropic-adaptive / anthropic-budget-effort — Anthropic adaptive/budget variants
-      mode: effort
-      # Supported user-facing efforts, ordered least → most intensive.
-      # Values: off, minimal, low, medium, high, xhigh, max.
-      efforts: [low, medium, high, max]
-      # Optional default effort applied when this model is selected.
-      defaultLevel: medium
-      # Optional effort → provider wire-value remap (identity for omitted efforts).
-      effortMap:
-        medium: medium-2026-01-15
-      # Optional per-effort upstream wire-id routing for collapsed effort tiers.
-      effortRouting:
-        off: my-model-off
-        low: my-model-low
-      # Optional per-effort token budgets (only meaningful for mode: "budget").
-      effortBudgets:
-        low: 4096
-        high: 16384
-      # thinking-off must be sent explicitly on the wire (some endpoints
-      # re-apply a baked per-id default when the config is absent).
-      suppressWhenOff: true
-      # Thinking is mandatory upstream; a thinking-off request is clamped to
-      # the lowest supported effort.
-      requiresEffort: false
-```
-
-Legacy `levels` / `minLevel`+`maxLevel` spellings are still accepted and are
-normalized to `efforts` on load; prefer `efforts`.
-
-### Editing providers in the web UI
-
-The web settings **Models** panel (`/api/models-config`) edits the same
-`models.yml` file the CLI reads, so a change in the browser applies to the
-CLI and serve immediately.
-
-- Every provider defined in `models.yml` always renders its **full custom
-  editor** (name, base URL, API key, headers, `compat`, and per-model detail
-  including the `thinking` block, cost, context/max tokens). It is never
-  hidden or replaced by an auth-only card — `models.yml` is the authoritative
-  CLI provider source.
-- Providers **not** defined in `models.yml` are shown as managed cards:
-  OAuth subscription login (e.g. ChatGPT/Anthropic subscriptions) or a
-  simple API-key card. Their credentials are stored in the auth store
-  (`agent.db`), separate from `models.yml`.
-- The provider's **API key** field accepts an environment-variable name
-  (`VOLCENGINE_API_KEY`), a `!shell-command`, or a literal key. A
-  `models.yml` `apiKey` entry is a config override that wins over auth-store
-  credentials for that provider.
 
 ## Validation rules (current)
 
@@ -227,7 +160,7 @@ providers:
   openai:
     apiKey: "!op read op://dev/openai/api-key"
     headers:
-      X-Team-Key: "!bw get password zeta-team-key"
+      X-Team-Key: "!bw get password omp-team-key"
 ```
 
 Successful command outputs are cached for the process lifetime so the command is not re-run for every model.
@@ -488,7 +421,7 @@ When a bare id matches models from multiple providers, preference order is:
 
 Supported model roles:
 
-- `default`, `smol`, `slow`, `vision`, `plan`, `designer`, `commit`, `tiny`, `task`, `advisor`
+- `default`, `smol`, `slow`, `vision`, `plan`, `commit`, `tiny`, `task`, `advisor`
 
 The `tiny` role overrides the online model used for lightweight background tasks (session titles, memory, `auto`-thinking difficulty classification, unexpected-stop detection); when unset, these fall back to `@smol`. Pick one in `/models`.
 
@@ -524,7 +457,7 @@ disabledProviders:
 
 String entries apply everywhere. Scoped entries apply when the current working directory is the configured path or one of its subdirectories. Use `path`, `paths`, `pathPrefix`, or `pathPrefixes`; use `models` for `enabledModels`, `providers` for `disabledProviders`, or `values` for either.
 
-## `/model` and `zeta models`
+## `/model` and `omp models`
 
 Both surfaces keep provider-prefixed concrete models visible and selectable.
 
@@ -787,7 +720,7 @@ providers:
 
 ## Legacy consumer caveat
 
-Most model configuration now flows through `models.yml` / `models.yaml` via `ModelRegistry`. Explicit `.json` / `.jsonc` paths remain supported only when passed programmatically to `ModelRegistry`; the default user config prefers `~/.zeta/agent/models.yml`, then falls back to `~/.zeta/agent/models.yaml`.
+Most model configuration now flows through `models.yml` / `models.yaml` via `ModelRegistry`. Explicit `.json` / `.jsonc` paths remain supported only when passed programmatically to `ModelRegistry`; the default user config prefers `~/.omp/agent/models.yml`, then falls back to `~/.omp/agent/models.yaml`.
 
 ## Failure mode
 

@@ -47,7 +47,7 @@ export function truncateOutput(
   }
 
   // Truncate by lines first
-  let truncatedLines = lines.length > maxLines ? lines.slice(0, maxLines) : lines;
+  const truncatedLines = lines.length > maxLines ? lines.slice(0, maxLines) : lines;
   let result = truncatedLines.join("\n");
 
   // Then truncate by bytes if still too large

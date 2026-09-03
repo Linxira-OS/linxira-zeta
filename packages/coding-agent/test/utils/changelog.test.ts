@@ -19,6 +19,7 @@ import { SETTINGS_SCHEMA, Settings } from "../../src/config/settings";
 import {
 	type ChangelogEntry,
 	formatStartupChangelogSummary,
+	getNewEntries,
 	parseChangelog,
 	RECENT_CHANGELOG_ENTRY_LIMIT,
 	readLastChangelogVersion,
@@ -231,9 +232,19 @@ describe("parseChangelog", () => {
 	test("reads current source release data and filters versions newer than the previous release", async () => {
 		const entries = await parseChangelog(undefined);
 		const latest = entries[0];
+		const previous = entries[1];
 
-		expect(`${latest?.major}.${latest?.minor}.${latest?.patch}`).toBe(VERSION);
-		expect(latest?.content).toContain(`## [${VERSION}]`);
+		// A release with no user-facing coding-agent changes gets no changelog
+		// section (scripts/release.ts skips empty [Unreleased]), so the newest
+		// section may lag VERSION — but it must never be ahead of it.
+		expect(latest).toBeDefined();
+		const latestVersion = `${latest?.major}.${latest?.minor}.${latest?.patch}`;
+		expect(latest?.content).toContain(`## [${latestVersion}]`);
+		expect(getNewEntries(entries, VERSION)).toEqual([]);
+		expect(previous).toBeDefined();
+
+		const previousVersion = `${previous?.major}.${previous?.minor}.${previous?.patch}`;
+		expect(getNewEntries(entries, previousVersion)).toEqual([latest]);
 	});
 });
 

@@ -61,7 +61,12 @@ export interface ChannelsWebConfig {
 				endpoint?: string;
 				peerTokens?: Record<string, string>;
 			};
-			feishu: { enabled: boolean; appId?: string; appSecret?: string; domain?: "feishu" | "lark" };
+			feishu: {
+				enabled: boolean;
+				appId?: string;
+				appSecret?: string;
+				domain?: "feishu" | "lark";
+			};
 			telegram: { enabled: boolean; botToken?: string };
 			allowedPeers?: string[];
 		};

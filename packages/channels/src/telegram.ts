@@ -66,7 +66,10 @@ export class TelegramChannel implements ChatChannel {
 			try {
 				const url = `${this.#apiUrl("getUpdates")}?timeout=${POLL_TIMEOUT_SECONDS}&offset=${this.#offset + 1}`;
 				const res = await this.#fetch(url, {
-					signal: AbortSignal.any([this.#abort!.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
+					signal: AbortSignal.any([
+						this.#abort?.signal ?? AbortSignal.abort(),
+						AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+					]),
 				});
 				if (res.status === 401) {
 					logger.error("Telegram bot token rejected (HTTP 401); polling stopped");
@@ -81,7 +84,11 @@ export class TelegramChannel implements ChatChannel {
 					ok?: boolean;
 					result?: Array<{
 						update_id?: number;
-						message?: { message_id?: number; chat?: { id?: number }; text?: string };
+						message?: {
+							message_id?: number;
+							chat?: { id?: number };
+							text?: string;
+						};
 					}>;
 				};
 				for (const update of data.result ?? []) {
@@ -92,7 +99,10 @@ export class TelegramChannel implements ChatChannel {
 					const text = update.message?.text;
 					if (chatId === undefined || typeof text !== "string" || text === "") continue;
 					if (text.startsWith("/")) continue;
-					logger.debug("Telegram message received", { chatId, length: text.length });
+					logger.debug("Telegram message received", {
+						chatId,
+						length: text.length,
+					});
 					this.#onMessage(String(chatId), text, String(update.message?.message_id ?? ""));
 				}
 			} catch (error) {
@@ -122,7 +132,10 @@ export class TelegramChannel implements ChatChannel {
 		form.append("chat_id", to);
 		form.append("photo", new Blob([image.data], { type: image.mime }), "plan.png");
 		if (caption && caption !== "") form.append("caption", caption);
-		const res = await this.#fetch(this.#apiUrl("sendPhoto"), { method: "POST", body: form });
+		const res = await this.#fetch(this.#apiUrl("sendPhoto"), {
+			method: "POST",
+			body: form,
+		});
 		if (!res.ok) {
 			throw new Error(`Telegram sendPhoto failed (HTTP ${res.status}): ${await res.text()}`);
 		}

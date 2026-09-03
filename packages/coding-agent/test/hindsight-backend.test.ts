@@ -69,6 +69,7 @@ function makeFakeSession(deps: FakeSessionDeps) {
 			return previous;
 		},
 		emit(event: Parameters<AgentSessionEventListener>[0]) {
+			//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
 			for (const l of [...listeners]) l(event);
 		},
 		listenerCount: () => listeners.size,

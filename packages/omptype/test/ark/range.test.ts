@@ -6,14 +6,14 @@ describe("string expressions", () => {
 	it(">", () => {
 		const T = type("number>0");
 		const _type: Eq<typeof T.infer, number> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<number, {}>> = true;
 	});
 
 	it("<", () => {
 		const T = type("number<10");
 		const _type: Eq<typeof T.infer, number> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<number, {}>> = true;
 		const Expected = {
 			domain: "number",
@@ -25,7 +25,7 @@ describe("string expressions", () => {
 	it("<=", () => {
 		const T = type("number<=-49");
 		const _type: Eq<typeof T.infer, number> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<number, {}>> = true;
 		const Expected = {
 			domain: "number",
@@ -37,7 +37,7 @@ describe("string expressions", () => {
 	it("==", () => {
 		const T = type("number==3211993");
 		const _type: Eq<typeof T.infer, number> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<number, {}>> = true;
 		const Expected = { unit: 3211993 };
 		expect(Expected).toBeDefined();
@@ -53,7 +53,7 @@ describe("string expressions", () => {
 	it("<,<=", () => {
 		const T = type("-5<number<=5");
 		const _type: Eq<typeof T.infer, number> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<number, {}>> = true;
 		const Expected = {
 			domain: "number",
@@ -66,7 +66,7 @@ describe("string expressions", () => {
 	it("<=,<", () => {
 		const T = type("-3.23<=number<4.654");
 		const _type: Eq<typeof T.infer, number> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<number, {}>> = true;
 		const Expected = {
 			domain: "number",
@@ -79,7 +79,7 @@ describe("string expressions", () => {
 	it("whitespace following comparator", () => {
 		const T = type("number > 3");
 		const _type: Eq<typeof T.infer, number> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<number, {}>> = true;
 		const Expected = {
 			domain: "number",
@@ -91,14 +91,14 @@ describe("string expressions", () => {
 	it("single Date", () => {
 		const T = type("Date<d'2023/1/12'");
 		const _type: Eq<typeof T.infer, Date> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<Date, {}>> = true;
 	});
 
 	it("Date equality", () => {
 		const T = type("Date==d'2020-1-1'");
 		const _type: Eq<typeof T.infer, Date> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<Date, {}>> = true;
 		expect(T.allows(new Date("2020/01/01"))).toEqual(true);
 		expect(T.allows(new Date("2020/01/02"))).toEqual(false);
@@ -117,7 +117,7 @@ describe("string expressions", () => {
 		const now = new Date();
 		const T = type(`d'2000'< Date <=d'${now.toISOString()}'`);
 		const _type: Eq<typeof T.infer, Date> = true;
-		// biome-ignore lint/complexity/noBannedTypes: Type second generic parameter test
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _schema: Eq<typeof T, Type<Date, {}>> = true;
 		expect(T.allows(new Date(now.valueOf() - 1000))).toEqual(true);
 		expect(T.allows(now)).toEqual(true);

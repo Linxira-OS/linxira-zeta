@@ -79,6 +79,7 @@ const testCases = {
 const WIDTH_VARIANT_COUNT = 64;
 
 function makeWidthVariants(base: string): string[] {
+	// [suppressed] length preallocation
 	const variants: string[] = new Array(WIDTH_VARIANT_COUNT);
 	for (let i = 0; i < WIDTH_VARIANT_COUNT; i++) {
 		variants[i] = `${base} ${String(i).padStart(2, "0")}`;

@@ -87,7 +87,10 @@ export class ChannelHost {
 		// Optional allowlist: when configured, only listed peers may reach the
 		// agent (empty allowlist = everyone, unchanged behavior).
 		if (this.#allowedPeers.length > 0 && !this.#allowedPeers.includes(peer)) {
-			logger.debug("Channel message from non-allowed peer dropped", { channel: channelId, peer });
+			logger.debug("Channel message from non-allowed peer dropped", {
+				channel: channelId,
+				peer,
+			});
 			return;
 		}
 		const agentId = this.#session.getAgentId();

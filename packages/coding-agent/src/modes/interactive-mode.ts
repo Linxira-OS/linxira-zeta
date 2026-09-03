@@ -179,6 +179,7 @@ import type { HookSelectorComponent, HookSelectorSlider } from "./components/hoo
 import { type PlanReviewAnnotationState, PlanReviewOverlay } from "./components/plan-review-overlay";
 import { PlanSaveOverlay, type PlanSaveOverlayResult } from "./components/plan-save-overlay";
 import { SessionInfoOverlay } from "./components/session-info-overlay";
+import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
 import { StatusLineComponent } from "./components/status-line";
 import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "./components/tool-execution";
 import { TranscriptContainer } from "./components/transcript-container";
@@ -234,6 +235,7 @@ import {
 } from "./theme/theme";
 import { getSlashCommandTypeIcon } from "./theme/tui-adapters";
 import type {
+	AgentHubOpenOptions,
 	CompactionQueuedMessage,
 	InteractiveModeContext,
 	InteractiveModeInitOptions,
@@ -559,7 +561,6 @@ const CTRL_L_APPEARANCE_RESPONSE_DEADLINE_MS = 2000;
 
 export class InteractiveMode implements InteractiveModeContext {
 	#ownsStartedUi: boolean;
-	#startupSubmitGated: boolean;
 	session: AgentSession;
 	sessionManager: SessionManager;
 	settings: Settings;
@@ -590,6 +591,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
+	sidebar: SidebarComponent;
 
 	isInitialized = false;
 	initialChatRendered = false;
@@ -896,7 +898,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editor.magicKeywordsEnabled = () => this.settings.get("magicKeywords.enabled");
 		this.editor.imageReferenceHyperlink = imageReferenceHyperlink;
 		this.#ownsStartedUi = wasStarted;
-		this.#startupSubmitGated = true;
 		this.keybindings = KeybindingsManager.inMemory();
 		this.agent = session.agent;
 		this.#version = version;
@@ -990,6 +991,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer = new Container();
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session);
+		this.sidebar = new SidebarComponent(this.statusLine);
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
 		this.#codexResetFireworksController = new CodexResetFireworksController(this);
 		this.statusLine.setCodexResetFireworksHandler(event => {
@@ -1002,6 +1004,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.statusLine.setVibeWorkerTokenRateProvider(() =>
 			aggregateVibeWorkerTokensPerSecond(this.session.getAgentId() ?? MAIN_AGENT_ID),
 		);
+		this.#applySidebar();
 
 		this.hideToolActivity = settings.get("display.hideToolActivity");
 		this.chatContainer.setToolActivityVisible(!this.hideToolActivity);
@@ -1064,6 +1067,11 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.#trackMcpStatusServer(serverName);
 				this.#mcpPendingServers.add(serverName);
 			}
+		} else if (event.type === "reconnecting") {
+			this.#trackMcpStatusServer(event.serverName);
+			this.#mcpConnectedServers.delete(event.serverName);
+			this.#mcpFailedServers.delete(event.serverName);
+			this.#mcpPendingServers.add(event.serverName);
 		} else if (event.type === "connected") {
 			this.#trackMcpStatusServer(event.serverName);
 			this.#mcpPendingServers.delete(event.serverName);
@@ -1436,6 +1444,17 @@ export class InteractiveMode implements InteractiveModeContext {
 			// replay with the newly detected palette.
 			onTerminalAppearanceChange(mode, appearanceRefreshWasRequested ? {} : undefined);
 		});
+
+		// Everything is wired: subscriptions observe agent events, the session
+		// mode is reconciled, and the submit handler is installed. Lift the
+		// composer's bootstrap submit gate (`disableSubmit = true` since
+		// construction, so an Enter typed before the pipeline existed could not
+		// clear the draft into nowhere, and a turn started mid-init could not run
+		// unobserved). From here Enter dispatches safely in every state — the
+		// initial CLI prompt and a user submission both flow with
+		// `streamingBehavior: "steer"`, so whichever lands second queues into the
+		// other's turn instead of dying.
+		this.editor.disableSubmit = false;
 	}
 
 	/** Reload the title-generation system prompt override for the provided working
@@ -1651,11 +1670,6 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.onInputCallback = undefined;
 			resolve(input);
 		};
-		if (this.#startupSubmitGated) {
-			this.#startupSubmitGated = false;
-			this.editor.disableSubmit = false;
-			this.ui.requestRender();
-		}
 		this.#scheduleLoopAutoSubmit();
 		this.#scheduleGoalContinuation();
 
@@ -5367,6 +5381,28 @@ export class InteractiveMode implements InteractiveModeContext {
 	handleExportCommand(text: string): Promise<void> {
 		return this.#commandController.handleExportCommand(text);
 	}
+	/** Toggle the right-hand sidebar: flips the setting and re-wires the engine. */
+	handleSidebarToggle(): void {
+		const next = !settings.get("tui.sidebar");
+		settings.set("tui.sidebar", next);
+		this.#applySidebar();
+		this.ui.requestRender();
+	}
+
+	/** Apply the `tui.sidebar` setting to the engine's main-width override. */
+	#applySidebar(): void {
+		if (settings.get("tui.sidebar")) {
+			this.ui.setMainWidth(SIDEBAR_WIDTH);
+			this.ui.setGutterComponent(this.sidebar);
+		} else {
+			this.ui.setMainWidth(null);
+			this.ui.setGutterComponent(null);
+		}
+	}
+
+	handleTraceCommand(): Promise<void> {
+		return this.#commandController.handleTraceCommand();
+	}
 
 	async handleDumpCommand(): Promise<void> {
 		return this.#commandController.handleDumpCommand();
@@ -5466,6 +5502,11 @@ export class InteractiveMode implements InteractiveModeContext {
 	async handleMoveCommand(targetPath?: string): Promise<void> {
 		if (this.#vibeSessionTransitionBlocked()) return;
 		await this.#commandController.handleMoveCommand(targetPath);
+	}
+
+	async handleWorktreeCommand(branch?: string): Promise<void> {
+		if (this.#vibeSessionTransitionBlocked()) return;
+		await this.#commandController.handleWorktreeCommand(branch);
 	}
 
 	handleRenameCommand(title: string): Promise<void> {
@@ -5574,7 +5615,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		await this.#selectorController.showDebugSelector();
 	}
 
-	showAgentHub(options?: { requireContent?: boolean; armCloseTap?: boolean }): void {
+	showAgentHub(options?: AgentHubOpenOptions): void {
 		this.#selectorController.showAgentHub(this.#observerRegistry, options);
 	}
 
@@ -5632,6 +5673,10 @@ export class InteractiveMode implements InteractiveModeContext {
 	// Selector handling
 	showSettingsSelector(): void {
 		this.#selectorController.showSettingsSelector();
+	}
+
+	showUsageDashboard(reports: UsageReport[]): void {
+		this.#selectorController.showUsageDashboard(reports);
 	}
 
 	showAdvisorConfigure(): void {

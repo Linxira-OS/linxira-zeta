@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import { loginSynthetic } from "@linxiraos/pi-ai/registry/synthetic";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry/registry";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+
+const loginSynthetic = getProviderDefinition("synthetic")!.login!;
 
 describe("synthetic login", () => {
 	it("validates API keys against the models endpoint instead of a deprecated model", async () => {

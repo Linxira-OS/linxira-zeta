@@ -3,7 +3,7 @@
   "name": "@linxiraos/browser-relay",
   "version": "0.1.0",
   "private": true,
-  "description": "Chrome extension that lets the Zeta browser tool drive your existing tabs (relay server lives in the Zeta CLI: `zeta browser-relay`)",
+  "description": "Chrome extension that lets the omp browser tool drive your existing tabs (relay server lives in the omp CLI: `omp browser-relay`)",
   "homepage": "https://github.com/Linxira-OS/linxira-zeta",
   "author": "Can Boluk",
   "license": "MIT",

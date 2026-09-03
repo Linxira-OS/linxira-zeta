@@ -623,6 +623,7 @@ async function mapPool<T, R>(
 	limit: number,
 	fn: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
+	// [suppressed] length preallocation
 	const out = new Array<R>(items.length);
 	let next = 0;
 	const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {

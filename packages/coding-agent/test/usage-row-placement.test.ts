@@ -5,7 +5,8 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { Container, type TUI } from "@linxiraos/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { Container, TUI } from "@linxiraos/pi-tui";
 import { formatNumber } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { ChatTranscriptBuilder } from "@linxiraos/zeta/modes/components/chat-transcript-builder";
@@ -14,6 +15,7 @@ import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 // 4242 → "4.2K": distinctive enough not to collide with a read group's render.
 const USAGE_INPUT = 4242;
@@ -59,7 +61,6 @@ function readTurn(
 }
 
 function makeHarness(showTokenUsage: boolean): { ctx: InteractiveModeContext; helpers: UiHelpers } {
-	let helpers: UiHelpers;
 	const ctx = {
 		chatContainer: new Container(),
 		transcriptMessageComponents: new WeakMap(),
@@ -81,7 +82,7 @@ function makeHarness(showTokenUsage: boolean): { ctx: InteractiveModeContext; he
 		hideThinkingBlock: false,
 		clearTransientSessionUi: () => {},
 	} as unknown as InteractiveModeContext;
-	helpers = new UiHelpers(ctx);
+	const helpers = new UiHelpers(ctx);
 	return { ctx, helpers };
 }
 
@@ -175,6 +176,38 @@ describe("ChatTranscriptBuilder token-usage row timestamp", () => {
 		const rendered = last.render(120).join("\n");
 		expect(rendered).toContain(USAGE_TS_LABEL);
 		expect(rendered).toContain(USAGE_LABEL);
+	});
+
+	it("deep-links tool-only assistant entries to their first rendered row", () => {
+		const builder = new ChatTranscriptBuilder({
+			ui: new TUI(new VirtualTerminal(120, 20)),
+			cwd: process.cwd(),
+			requestRender: () => {},
+		});
+		const message: AssistantMessage = {
+			role: "assistant",
+			content: [{ type: "toolCall", id: "call-1", name: "bash", arguments: { command: "echo ok" } }],
+			api: "anthropic-messages",
+			provider: "anthropic",
+			model: "claude-sonnet-4-5",
+			stopReason: "toolUse",
+			usage: {
+				input: 1,
+				output: 1,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 2,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			timestamp: 1_000,
+		};
+		builder.rebuild([
+			{ type: "message", id: "tool-entry", parentId: null, timestamp: new Date(0).toISOString(), message },
+		]);
+
+		const rendered = builder.container.render(120);
+		expect(Bun.stripANSI(rendered.join("\n"))).toContain("echo ok");
+		expect(builder.rowForEntry("tool-entry")).toBe(0);
 	});
 
 	it("keeps grouped read metrics nested on the reusable transcript-builder path", () => {

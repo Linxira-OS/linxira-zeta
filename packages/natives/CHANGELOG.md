@@ -16,17 +16,7 @@
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 rasterizeSvg，SHA-2/SHA-3 ARM64 加速。
 
 ## [1.1.3] - 2026-08-25
-
-### Fixed
-
-- Republished as 1.1.3 to reset the latest tag after the broken 1.1.2 (no functional change over 1.1.1).
-
 ## [1.1.2] - 2026-08-25
-
-### Fixed
-
-- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
-
 ## [1.1.1] - 2026-08-25
 
 ### Fixed

@@ -29,6 +29,7 @@ import type {
 	ClientBridgeTerminalOutput,
 } from "../session/client-bridge";
 import { DEFAULT_MAX_BYTES, enforceInlineByteCap, streamTailUpdates, TailBuffer } from "../session/streaming-output";
+import { resolveCliEntryCmd } from "../subprocess/worker-client";
 import { renderStatusLine } from "../tui";
 import { CachedOutputBlock, markFramedBlockComponent, outputBlockContentWidth } from "../tui/output-block";
 import { getSixelLineMask } from "../utils/sixel";
@@ -38,6 +39,7 @@ import { type BashInteractiveResult, runInteractiveBashPty } from "./bash-intera
 import { checkBashInterception } from "./bash-interceptor";
 import { canUseInteractiveBashPty } from "./bash-pty-selection";
 import { expandInternalUrls, type InternalUrlExpansionOptions } from "./bash-skill-urls";
+import { rewriteGitWorktreeAdd } from "./bash-worktree-rewrite";
 import { resolveEvalBackends } from "./eval-backends";
 import { invalidateGithubCacheForBashCommand } from "./gh-cache-invalidation";
 import {
@@ -941,6 +943,10 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 					throw new ToolError(interception.message ?? "Command blocked");
 				}
 			}
+		}
+
+		if (this.session.settings.get("worktree.clone")) {
+			command = rewriteGitWorktreeAdd(command, resolveCliEntryCmd());
 		}
 
 		const internalUrlOptions: InternalUrlExpansionOptions = {

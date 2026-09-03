@@ -1,5 +1,4 @@
 import { readFileSync } from "fs";
-import { dirname } from "path";
 import { closeSync, existsSync, openSync, readdirSync, readSync, statSync, writeFileSync } from "fs";
 import { join, normalize as normalizePath } from "path";
 import type { SessionEntry, SessionHeader, SessionInfo } from "./types";

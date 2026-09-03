@@ -9,6 +9,8 @@ import type {
 } from "@linxiraos/pi-agent-core/types";
 import type { Message, ToolChoice } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { type } from "@linxiraos/pi-omptype";
 import { createUserMessage } from "./helpers";
 
@@ -249,7 +251,7 @@ describe("agentLoop soft tool requirement", () => {
 			responses: [{ content: [leak] }, { content: ["clean retry"] }],
 		});
 		const config: AgentLoopConfig = {
-			model: mock.model,
+			model: buildModel({ ...getBundledModel("openai-codex", "gpt-5.4") }),
 			convertToLlm: identityConverter,
 			getToolChoice: () => queue.shift(),
 		};

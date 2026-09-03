@@ -10,9 +10,10 @@
 import type { Effort } from "@linxiraos/pi-catalog/effort";
 import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@linxiraos/pi-catalog/model-thinking";
 import { calculateCost } from "@linxiraos/pi-catalog/models";
-import { $env, $flag, fetchWithRetry, parseStreamingJson, parseStreamingJsonThrottled } from "@linxiraos/pi-utils";
+import { $flag, fetchWithRetry, logger, parseStreamingJson, parseStreamingJsonThrottled } from "@linxiraos/pi-utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";
+import { resolveAwsBearerToken } from "../registry/aws";
 import type {
 	Api,
 	AssistantMessage,
@@ -29,7 +30,7 @@ import type {
 	ToolCall,
 	ToolResultMessage,
 } from "../types";
-import { normalizeSystemPrompts, normalizeToolCallId, resolveCacheRetention } from "../utils";
+import { isRecord, normalizeSystemPrompts, normalizeToolCallId, resolveCacheRetention } from "../utils";
 import { resolveAwsAmbientRegion } from "../utils/aws-profile";
 import {
 	clearStreamingPartialJson,
@@ -41,6 +42,7 @@ import { AssistantMessageEventStream } from "../utils/event-stream";
 import type { RawHttpRequestDump } from "../utils/http-inspector";
 import { armPreResponseTimeout, getStreamFirstEventTimeoutMs } from "../utils/idle-iterator";
 import { toolWireSchema } from "../utils/schema/wire";
+import { parseAnthropicInputTransformations, THINKING_BINDING_CONTROLS_BETA } from "./anthropic-wire";
 import { invalidateAwsCredentialCache, resolveAwsCredentials } from "./aws-credentials";
 import { decodeEventStream } from "./aws-eventstream";
 import { signRequest } from "./aws-sigv4";
@@ -101,11 +103,9 @@ export interface BedrockOptions extends StreamOptions {
 	 */
 	thinkingDisplay?: BedrockThinkingDisplay;
 }
-const AUTHENTICATED_API_KEY_SENTINEL = "<authenticated>";
 
 function resolveBearerToken(options: BedrockOptions): string | undefined {
-	const apiKey = options.apiKey === AUTHENTICATED_API_KEY_SENTINEL ? undefined : options.apiKey;
-	return options.bearerToken || apiKey || $env.AWS_BEARER_TOKEN_BEDROCK;
+	return resolveAwsBearerToken(options.apiKey, options.bearerToken);
 }
 
 function inferRegionFromBedrockArn(modelId: string): string | undefined {
@@ -283,6 +283,7 @@ interface ConverseStreamRequest {
 	toolConfig?: WireToolConfig;
 	guardrailConfig?: WireGuardrailConfig;
 	additionalModelRequestFields?: Record<string, unknown>;
+	additionalModelResponseFieldPaths?: string[];
 }
 
 // Streaming events (snake_case matches the JSON envelope key, but Bedrock uses camelCase).
@@ -306,6 +307,7 @@ interface ContentBlockStopEvent {
 }
 interface MessageStopEvent {
 	stopReason?: string;
+	additionalModelResponseFields?: unknown;
 }
 interface MetadataEvent {
 	usage?: {
@@ -355,15 +357,27 @@ export const streamBedrock: StreamFunction<"bedrock-converse-stream"> = (
 			const promptCachePolicy = resolvePromptCachePolicy(model, cacheRetention);
 			const convertedMessages = convertMessages(context, model, promptCachePolicy);
 			const toolPlan = planToolConfig(context.tools, options.toolChoice, convertedMessages);
-			const toolConfig = toolPlan.toolConfig;
+			let toolConfig = toolPlan.toolConfig;
 			const sentinelInjected = toolPlan.sentinelInjected;
 			let additionalModelRequestFields = buildAdditionalModelRequestFields(model, options);
+			const prefixMismatchBehavior = model.thinking?.prefixBinding
+				? (options.anthropicPrefixMismatchBehavior ?? "drop_block")
+				: undefined;
 
-			// Bedrock rejects thinking + forced tool_choice ("any" or specific tool).
-			// When tool_choice forces tool use, disable thinking to avoid API errors.
+			// Bedrock rejects thinking + forced tool_choice. Fable's adaptive
+			// thinking cannot be disabled, so downgrade its forced choice instead.
 			if (toolConfig?.toolChoice && additionalModelRequestFields) {
 				const tc = toolConfig.toolChoice;
-				if (tc.any || tc.tool) additionalModelRequestFields = undefined;
+				if (tc.any || tc.tool) {
+					if (prefixMismatchBehavior) toolConfig = { ...toolConfig, toolChoice: { auto: {} } };
+					else additionalModelRequestFields = undefined;
+				}
+			}
+			if (prefixMismatchBehavior) {
+				additionalModelRequestFields = applyBedrockThinkingBinding(
+					additionalModelRequestFields,
+					prefixMismatchBehavior,
+				);
 			}
 
 			let commandInput: ConverseStreamRequest = {
@@ -377,6 +391,7 @@ export const streamBedrock: StreamFunction<"bedrock-converse-stream"> = (
 				toolConfig,
 				guardrailConfig: buildGuardrailConfig(options),
 				additionalModelRequestFields,
+				...(prefixMismatchBehavior ? { additionalModelResponseFieldPaths: ["/input_transformations"] } : {}),
 			};
 			const replacementInput = await options?.onPayload?.(commandInput, model);
 			if (replacementInput !== undefined) commandInput = replacementInput as ConverseStreamRequest;
@@ -547,6 +562,20 @@ export const streamBedrock: StreamFunction<"bedrock-converse-stream"> = (
 					}
 					case "messageStop": {
 						const ev = payload as MessageStopEvent;
+						const responseFields = isRecord(ev.additionalModelResponseFields)
+							? ev.additionalModelResponseFields
+							: undefined;
+						const transformations = parseAnthropicInputTransformations(responseFields?.input_transformations);
+						if (transformations.length > 0) {
+							output.inputTransformations = transformations;
+							for (const transformation of transformations) {
+								if (transformation.reason !== "prefix_binding_mismatch") continue;
+								logger.warn("bedrock: dropped thinking block after conversation prefix changed", {
+									model: model.id,
+									path: transformation.path,
+								});
+							}
+						}
 						// A sentinel-only request must never surface a tool-use stop:
 						// no real tool exists for the agent to dispatch.
 						output.stopReason =
@@ -800,6 +829,8 @@ function resolvePromptCachePolicy(
 	}
 
 	return {
+		// This emitter has only two placement sites (final user and system); the
+		// provider's wire-level maximum remains authoritative in catalog compat.
 		remainingCheckpoints: Math.min(configuredMaximum, 2),
 		...(cacheRetention === "long" && model.compat.supportsLongPromptCacheRetention ? { ttl: "1h" } : {}),
 	};
@@ -888,8 +919,8 @@ function convertMessages(
 							});
 							break;
 						case "thinking":
-							// Skip empty thinking blocks
-							if (c.thinking.trim().length === 0) continue;
+							// Hidden thinking has empty display text but a load-bearing signature.
+							if (c.thinking.trim().length === 0 && !c.thinkingSignature) continue;
 							// A captured signature is authoritative even when the model id is an opaque ARN:
 							// only a model that itself streamed a signature (Claude) can have one, so replay
 							// it as signed reasoningContent regardless of how the id is spelled.
@@ -1063,6 +1094,24 @@ function buildGuardrailConfig(options: BedrockOptions): WireGuardrailConfig | un
 		guardrailVersion: options.guardrailVersion ?? "DRAFT",
 		...(options.guardrailTrace === undefined ? {} : { trace: options.guardrailTrace }),
 	};
+}
+
+function applyBedrockThinkingBinding(
+	fields: Record<string, unknown> | undefined,
+	behavior: "drop_block" | "error",
+): Record<string, unknown> {
+	const result = { ...fields };
+	const thinking: Record<string, unknown> = isRecord(result.thinking) ? { ...result.thinking } : { type: "adaptive" };
+	thinking.block_binding = { prefix_mismatch_behavior: behavior };
+	result.thinking = thinking;
+	const betas = Array.isArray(result.anthropic_beta)
+		? result.anthropic_beta.filter((beta): beta is string => typeof beta === "string")
+		: [];
+	if (!betas.includes(THINKING_BINDING_CONTROLS_BETA)) {
+		betas.push(THINKING_BINDING_CONTROLS_BETA);
+	}
+	result.anthropic_beta = betas;
+	return result;
 }
 
 function buildAdditionalModelRequestFields(

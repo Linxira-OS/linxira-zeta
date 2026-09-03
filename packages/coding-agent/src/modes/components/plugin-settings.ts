@@ -319,7 +319,7 @@ export class PluginDetailComponent extends OverlayPanel {
 		if (manifest.features && Object.keys(manifest.features).length > 0) {
 			const enabledSet = new Set(plugin.enabledFeatures ?? []);
 			const defaultFeatures = Object.entries(manifest.features)
-				.filter(([_, f]) => f.default)
+				.filter(([_featureName, f]) => f.default)
 				.map(([name]) => name);
 
 			// If enabledFeatures is null, use defaults
@@ -623,15 +623,12 @@ interface InputHandler {
  * Manages navigation between plugin list and plugin detail views.
  */
 export class PluginSettingsComponent extends Container {
+	#currentView: "list" | "npm-detail" | "marketplace-detail" = "list";
+	#currentPlugin: InstalledPlugin | null = null;
+	#currentMarketplacePlugin: InstalledPluginSummary | null = null;
 	#cwd: string;
 	#manager: PluginManager;
 	#viewComponent: (Component & InputHandler) | null = null;
-	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
-	#currentView: "list" | "npm-detail" | "marketplace-detail" = "list";
-	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
-	#currentPlugin: InstalledPlugin | null = null;
-	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
-	#currentMarketplacePlugin: InstalledPluginSummary | null = null;
 
 	constructor(
 		cwd: string,

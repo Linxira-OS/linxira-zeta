@@ -45,6 +45,9 @@ export type SymbolKey =
 	| "boxRound.bottomRight"
 	| "boxRound.horizontal"
 	| "boxRound.vertical"
+	// Box Drawing - Dotted (selection outlines)
+	| "boxDotted.horizontal"
+	| "boxDotted.vertical"
 	// Box Drawing - Sharp
 	| "boxSharp.topLeft"
 	| "boxSharp.topRight"
@@ -93,6 +96,7 @@ export type SymbolKey =
 	| "icon.cost"
 	| "icon.subscription"
 	| "icon.advisor"
+	| "icon.advisorClosed"
 	| "icon.time"
 	| "icon.omp"
 	| "icon.esc"
@@ -392,6 +396,9 @@ const UNICODE_SYMBOLS: SymbolMap = {
 	"boxRound.bottomRight": "╯",
 	"boxRound.horizontal": "─",
 	"boxRound.vertical": "│",
+	// Box (dotted)
+	"boxDotted.horizontal": "┄",
+	"boxDotted.vertical": "┆",
 	// Box (sharp)
 	"boxSharp.topLeft": "┌",
 	"boxSharp.topRight": "┐",
@@ -441,8 +448,9 @@ const UNICODE_SYMBOLS: SymbolMap = {
 	"icon.cost": "💲",
 	"icon.subscription": "(sub)",
 	"icon.advisor": "👁",
+	"icon.advisorClosed": "🙈",
 	"icon.time": "⏱",
-	"icon.omp": "π",
+	"icon.omp": "ζ",
 	"icon.esc": "⎋",
 	"icon.ghost": "👻",
 	"icon.agents": "👥",
@@ -690,6 +698,11 @@ const NERD_SYMBOLS: SymbolMap = {
 	"boxRound.horizontal": "─",
 	// pick: │ | alt: ┃ ║ ▏
 	"boxRound.vertical": "│",
+	// Box Drawing - Dotted (same as unicode)
+	// pick: ┄ | alt: ╌ ┈ ⋯
+	"boxDotted.horizontal": "┄",
+	// pick: ┆ | alt: ╎ ┊ ⋮
+	"boxDotted.vertical": "┆",
 	// Box Drawing - Sharp (same as unicode)
 	// pick: ┌ | alt: ┏ ╭ ╔
 	"boxSharp.topLeft": "┌",
@@ -773,7 +786,9 @@ const NERD_SYMBOLS: SymbolMap = {
 	"icon.pin": "\uf08d",
 	// pick:  | alt: ⊛ ◍ 
 	"icon.tokens": "\ue26b",
-	// pick:  | alt: ◫ ▦
+	// pick:  (nf-dev-windows) | alt:  (nf-cod-window) ◫ ▦
+	// INTENTIONAL: the Windows logo is the chosen glyph here. It has been "fixed"
+	// to nf-cod-window before (739d5a3947) and reverted; do not swap it again.
 	"icon.context": "\ue70f",
 	// pick:  | alt: $ ¢
 	"icon.cost": "\uf155",
@@ -781,8 +796,11 @@ const NERD_SYMBOLS: SymbolMap = {
 	"icon.subscription": "\u{f067a}",
 	// pick:  (nf-cod-eye)
 	"icon.advisor": "\uea70",
+	// pick:  (nf-oct-eye_closed)
+	"icon.advisorClosed": "\ueae7",
 	// pick:  | alt: ◷ ◴
 	"icon.time": "\uf017",
+	// Zeta brand: nf-md-pi glyph kept (v18.0.10 decision — nerd preset is pi-provider icon set semantics).
 	// pick: 󰵗 (nf-md-pi) | alt:  π ∏ ∑
 	"icon.omp": "\u{f0d57}",
 	// pick: 󱊷 (nf-md-keyboard_esc) | alt: ⎋
@@ -1084,6 +1102,9 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"boxRound.bottomRight": "+",
 	"boxRound.horizontal": "-",
 	"boxRound.vertical": "|",
+	// Box Drawing - Dotted (ASCII fallback)
+	"boxDotted.horizontal": "-",
+	"boxDotted.vertical": ":",
 	// Box Drawing - Sharp (ASCII fallback)
 	"boxSharp.topLeft": "+",
 	"boxSharp.topRight": "+",
@@ -1132,8 +1153,9 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"icon.cost": "$",
 	"icon.subscription": "(sub)",
 	"icon.advisor": "(adv)",
+	"icon.advisorClosed": "(adv)",
 	"icon.time": "t:",
-	"icon.omp": "pi",
+	"icon.omp": "zeta",
 	"icon.esc": "esc",
 	"icon.ghost": "@",
 	"icon.agents": "AG",
@@ -1306,7 +1328,7 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"tool.review": "rev",
 	"tool.inspectImage": "[i]",
 	"tool.goal": "(o)",
-	"tool.irc": "irc",
+	"tool.irc": "#",
 	"tool.delete": "rm",
 	"tool.move": "mv",
 };

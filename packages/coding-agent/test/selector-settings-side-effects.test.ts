@@ -9,6 +9,7 @@ import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { setTerminalHyperlinks, TERMINAL } from "@linxiraos/pi-tui";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { MODEL_ROLE_IDS } from "@linxiraos/zeta/config/model-roles";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
@@ -371,7 +372,8 @@ describe("selector setting side effects", () => {
 		try {
 			hub.handleInput("\x1b[A"); // All models → Roles.
 			hub.handleInput("\n"); // Enter the role rows.
-			for (let i = 0; i < 8; i++) hub.handleInput("\x1b[B"); // Default → task.
+			const taskOffset = MODEL_ROLE_IDS.indexOf("task") - MODEL_ROLE_IDS.indexOf("default");
+			for (let i = 0; i < taskOffset; i++) hub.handleInput("\x1b[B"); // Default → task.
 			hub.handleInput("t");
 
 			const levels = [ThinkingLevel.Inherit, ThinkingLevel.Off, AUTO_THINKING, ...getSupportedEfforts(taskModel)];
@@ -671,8 +673,8 @@ describe("selector setting side effects", () => {
 		const globalSelector = `${globalModel.provider}/${globalModel.id}`;
 		const testDir = path.join(os.tmpdir(), `selector-runtime-identical-${Snowflake.next()}`);
 		const projectDir = path.join(testDir, "project");
-		fs.mkdirSync(path.join(projectDir, ".zeta"), { recursive: true });
-		fs.writeFileSync(path.join(projectDir, ".zeta", "config.yml"), `modelRoles:\n  default: ${projectSelector}\n`);
+		fs.mkdirSync(path.join(projectDir, ".omp"), { recursive: true });
+		fs.writeFileSync(path.join(projectDir, ".omp", "config.yml"), `modelRoles:\n  default: ${projectSelector}\n`);
 
 		try {
 			const settings = await Settings.loadIsolated({
@@ -867,7 +869,7 @@ describe("selector setting side effects", () => {
 				expect(settings.getGlobalModelRole("default")).toBeUndefined();
 				expect(settings.getModelRole("default")).toBe(overlaySelector);
 				expect(settings.getModelRoleProvenance("default")).toBe("overlay");
-				expect(await Bun.file(path.join(projectDir, ".zeta", "config.yml")).text()).toContain(
+				expect(await Bun.file(path.join(projectDir, ".omp", "config.yml")).text()).toContain(
 					`default: ${projectSelector}`,
 				);
 				expect(setModel).not.toHaveBeenCalled();

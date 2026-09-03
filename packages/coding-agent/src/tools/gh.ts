@@ -5,6 +5,7 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
+import type { IsoBackendKind } from "@linxiraos/pi-natives";
 import { type } from "@linxiraos/pi-omptype";
 import {
 	BINARY_SNIFF_BYTES,
@@ -154,6 +155,7 @@ export interface GhPrCheckoutSummary {
 	remote: string;
 	remoteBranch: string;
 	reused: boolean;
+	clonedWith?: IsoBackendKind;
 }
 
 export interface GhRunWatchJobDetails {

@@ -14,18 +14,19 @@
  */
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
-import { $flag, getDebugLogPath, logger } from "@linxiraos/pi-utils";
+import { $flag, getDebugLogPath, logger, postmortem } from "@linxiraos/pi-utils";
 import { DEFAULT_MAX_INLINE_IMAGES, ImageBudget } from "./components/image";
 import { TuiDebugServer } from "./debug-server";
 import { isKeyRelease, matchesKey } from "./keys";
 import { LoopWatchdog } from "./loop-watchdog";
-import { setAltScreenActive, type Terminal } from "./terminal";
+import { STDOUT_BACKLOG_CLEAR_BYTES, setAltScreenActive, type Terminal } from "./terminal";
 import {
 	encodeKittyDeleteAllImages,
 	encodeKittyDeleteImage,
 	encodeKittyPlacementLine,
 	ImageProtocol,
 	isImageProtocolForced,
+	isInsideHerdr,
 	isInsideTerminalMultiplexer,
 	parseKittyDirectPlacementLine,
 	setCellDimensions,
@@ -56,6 +57,7 @@ const SEGMENT_RESET = "\x1b[0m";
 const LINE_TERMINATOR = "\x1b[0m\x1b]8;;\x07";
 const ERASE_LINE = "\x1b[2K";
 const ERASE_TO_END_OF_LINE = "\x1b[K";
+const MIN_MAIN_AREA_COLUMNS = 64;
 // Keep the common short-row path out of native width/truncation. Longer rows
 // are fit by visible cells, not source code units, so zero-width-heavy prefixes
 // cannot hide visible suffix text that still belongs in the viewport.
@@ -474,6 +476,7 @@ export class Container implements Component {
 		let refs = this.#memoChildLines;
 		let unchanged = this.#memoLines !== undefined && this.#memoWidth === width && refs.length === count;
 		if (refs.length !== count) {
+			// [suppressed] render-frame length preallocation
 			refs = new Array(count);
 			this.#memoChildLines = refs;
 		}
@@ -753,8 +756,12 @@ export class TUI extends Container {
 	 * render (keeping its forced/clear-scrollback intent) and retry shortly;
 	 * the eventual frame composes the latest component state, so a slow
 	 * terminal receives only fresh frames instead of every intermediate one.
+	 *
+	 * This is the terminal's healthy-backlog level ({@link STDOUT_BACKLOG_CLEAR_BYTES}):
+	 * gating here and ending a StdoutStallWatchdog episode there keeps the stall
+	 * watchdog armed across exactly the range where frames are deferred (#10434).
 	 */
-	static readonly #MAX_PENDING_OUTPUT_BYTES = 256 * 1024;
+	static readonly #MAX_PENDING_OUTPUT_BYTES = STDOUT_BACKLOG_CLEAR_BYTES;
 	/** Retry cadence while the output backlog gate is holding renders back. */
 	static readonly #OUTPUT_BACKLOG_RETRY_MS = 10;
 	/** Quiet window before restoring the normal buffer after resize. */
@@ -792,9 +799,21 @@ export class TUI extends Container {
 	// Consumed by the next frame: a user-driven redraw gesture (resetDisplay,
 	// requestRender(true)) that must rewrite the viewport even when the diff
 	// believes nothing changed.
+	// Sidebar support (restored from db37b05765, adapted to the v18.1.5 engine):
+	// when #mainWidthOverride is set and the terminal is wide enough to keep
+	// MIN_MAIN_AREA_COLUMNS for the main area, #renderChildrenFrame composes and
+	// paints at the overridden width; the freed right margin is painted per frame
+	// from #gutterComponent via absolute-positioned writes that never enter the
+	// composed frame, committed prefix, or native scrollback.
+	#mainWidthOverride: number | null = null;
+	#gutterComponent: Component | null = null;
+	// Gutter rows painted by the most recent emitting frame.
+	#paintedGutterRows: readonly string[] | null = null;
+	#paintedGutterWidth = 0;
 	#forceViewportRepaintOnNextRender = false;
 	#hasEverRendered = false;
 	#stopped = false;
+	#cancelPostmortemRestore?: () => void;
 	/** True between a `deferInput` start() and enableInput(). */
 	#inputDeferred = false;
 	// Always-on event-loop lag probe. The high default threshold keeps it quiet;
@@ -871,6 +890,73 @@ export class TUI extends Container {
 	 */
 	setMaxInlineImages(cap: number): void {
 		this.#imageBudget.setCap(cap);
+	}
+
+	/**
+	 * Yield `width` columns from the right edge of the terminal as a sidebar
+	 * margin, repainted per frame from the gutter component (see
+	 * {@link setGutterComponent}). The main area composes and paints at
+	 * `terminal.columns - width`, which keeps every committed row — and
+	 * therefore native scrollback — free of gutter text. `null` restores
+	 * full-width rendering. Frames where that would drop the main area below
+	 * {@link MIN_MAIN_AREA_COLUMNS}, or where a fullscreen-capable overlay is
+	 * visible, ignore the reservation and paint at the physical width.
+	 */
+	setMainWidth(width: number | null): void {
+		const next = width !== null && Number.isInteger(width) && width > 0 ? width : null;
+		if (this.#mainWidthOverride === next) return;
+		this.#mainWidthOverride = next;
+		this.requestRender();
+	}
+
+	/**
+	 * Component rendered into the right-hand margin created by
+	 * {@link setMainWidth}. Its rows are painted viewport-only via absolute
+	 * cursor addressing inside each frame's synchronized block; they never enter
+	 * the composed frame or scrollback. `null` clears the margin.
+	 */
+	setGutterComponent(component: Component | null): void {
+		if (this.#gutterComponent === component) return;
+		this.#gutterComponent = component;
+		this.#paintedGutterRows = null;
+		this.requestRender();
+	}
+
+	/** Effective main-area width for this frame, honoring the sidebar guards. */
+	#effectiveMainWidth(rawWidth: number): number {
+		if (
+			this.#mainWidthOverride === null ||
+			rawWidth - this.#mainWidthOverride < MIN_MAIN_AREA_COLUMNS ||
+			this.overlayStack.length > 0
+		) {
+			return rawWidth;
+		}
+		return rawWidth - this.#mainWidthOverride;
+	}
+
+	/**
+	 * Absolute-positioned paint for one frame's gutter column. Writes every
+	 * viewport row's gutter cells at column `mainWidth + 1`, then restores the
+	 * hardware cursor. Returns "" when there is no gutter this frame.
+	 */
+	#gutterPaintSequence(
+		rows: readonly string[] | null,
+		gutterWidth: number,
+		mainWidth: number,
+		height: number,
+		restoreRow: number,
+	): string {
+		const col = mainWidth + 1;
+		let seq = "";
+		for (let row = 0; row < height; row++) {
+			if (rows === null || gutterWidth <= 0) return "";
+			let text = truncateToWidth(rows[row] ?? "", gutterWidth, Ellipsis.Omit);
+			const pad = gutterWidth - visibleWidth(text);
+			if (pad > 0) text += " ".repeat(pad);
+			seq += `\x1b[${row + 1};${col}H${text}`;
+		}
+		seq += `\x1b[${restoreRow + 1};1H`;
+		return seq;
 	}
 	/** Return how settled resizes refresh native scrollback. */
 	getResizeScrollback(): ResizeScrollbackMode {
@@ -1102,9 +1188,15 @@ export class TUI extends Container {
 		// implementing DECRQM, so retain the statically detected default instead of
 		// exposing destructive full paints. An explicit user opt-out/force still
 		// wins, so skip every probe result in that case.
-		this.terminal.onPrivateModeReport?.((mode, supported, confirmed = true) => {
+		this.terminal.onPrivateModeReport?.((mode, supported, confirmed = true, status) => {
 			if (mode !== 2026 || !confirmed) return;
 			if (synchronizedOutputUserOverride() !== null) return;
+			// Herdr's Ghostty VTE honors DEC 2026 even when DECRQM is unanswered or
+			// reports unrecognized (status 0). Other confirmed unsupported reports
+			// still disable: status 4 is permanently reset, and a three-argument
+			// callback (`status` omitted) is a definitive unsupported from a
+			// custom Terminal that does not distinguish DECRPM codes.
+			if (!supported && isInsideHerdr() && status === 0) return;
 			this.#setSynchronizedOutput(supported);
 		});
 		this.terminal.start(
@@ -1126,6 +1218,8 @@ export class TUI extends Container {
 			{ deferInput: this.#inputDeferred },
 		);
 		if (this.#stopped) return;
+		this.#cancelPostmortemRestore?.();
+		this.#cancelPostmortemRestore = postmortem.register("tui-restore", () => this.stop());
 		for (const listener of this.#startListeners) {
 			try {
 				listener();
@@ -1422,11 +1516,13 @@ export class TUI extends Container {
 	/** Paint the full semantic tail on the borrowed resize buffer. */
 	#renderResizeAltFrame(width: number, height: number): void {
 		const provider = this.#frameProvider;
-		this.#imageBudget.beginPass();
-		const rendered =
-			provider?.renderResizeFrame?.({ columns: width, rows: height }) ??
-			(provider ? provider.renderFrame({ columns: width, rows: height }).viewport : this.render(width));
-		this.#imageBudget.endPass();
+		let rendered: readonly string[];
+		do {
+			this.#imageBudget.beginPass();
+			rendered =
+				provider?.renderResizeFrame?.({ columns: width, rows: height }) ??
+				(provider ? provider.renderFrame({ columns: width, rows: height }).viewport : this.render(width));
+		} while (this.#imageBudget.endPass());
 		const viewport = rendered.length > height ? rendered.slice(rendered.length - height) : Array.from(rendered);
 		this.#extractCursorMarkers(viewport);
 		this.#emitAltFrame(this.#prepareLinesArray(viewport, width), width, height);
@@ -1600,9 +1696,11 @@ export class TUI extends Container {
 		if (width <= 0 || height <= 0) return;
 		provider.beginHistoryFlush();
 		while (true) {
-			this.#imageBudget.beginPass();
-			const plan = provider.renderFrame({ columns: width, rows: height });
-			this.#imageBudget.endPass();
+			let plan: TerminalFramePlan;
+			do {
+				this.#imageBudget.beginPass();
+				plan = provider.renderFrame({ columns: width, rows: height });
+			} while (this.#imageBudget.endPass());
 			if (plan.history === undefined) return;
 			let viewport = Array.from(plan.viewport);
 			if (viewport.length > height) viewport = viewport.slice(0, height);
@@ -1615,6 +1713,8 @@ export class TUI extends Container {
 	}
 
 	stop(): void {
+		this.#cancelPostmortemRestore?.();
+		this.#cancelPostmortemRestore = undefined;
 		this.#debugServer?.stop();
 		this.#debugServer = undefined;
 		this.#resizeSettleTimer?.cancel();
@@ -2262,9 +2362,11 @@ export class TUI extends Container {
 		const provider = this.#frameProvider;
 		if (!provider || width <= 0 || height <= 0) return;
 		this.#debugNextWindowTop = 0;
-		this.#imageBudget.beginPass();
-		const plan = provider.renderFrame({ columns: width, rows: height });
-		this.#imageBudget.endPass();
+		let plan: TerminalFramePlan;
+		do {
+			this.#imageBudget.beginPass();
+			plan = provider.renderFrame({ columns: width, rows: height });
+		} while (this.#imageBudget.endPass());
 		let viewport = Array.from(plan.viewport);
 		if (viewport.length > height) {
 			const message = `Frame provider returned ${viewport.length} rows for a ${height}-row viewport`;
@@ -2413,7 +2515,8 @@ export class TUI extends Container {
 		const geometryStable = this.#hasEverRendered && this.#previousWidth === width && this.#previousHeight === height;
 		const startTop = destructiveReset ? 0 : Math.min(this.#providerViewportTop, Math.max(0, height - 1));
 		const newTop = Math.max(0, Math.min(startTop + historyRows.length, height - rows));
-		let buffer = this.#paintBeginSequence;
+		const pendingAltExit = this.#pendingAltExit;
+		let buffer = this.#paintBeginSequence + pendingAltExit;
 		if (destructiveReset && TERMINAL.imageProtocol === ImageProtocol.Kitty) {
 			// ED2/ED3 erase text cells but leave Kitty graphics visible. A reset is
 			// explicitly destructive, so remove every placement—not only the ones
@@ -2520,6 +2623,10 @@ export class TUI extends Container {
 			altScreen: false,
 			...(target === null ? {} : { cursor: { x: target.col, y: target.row, visible: target.visible } }),
 		};
+		if (pendingAltExit) {
+			this.#pendingAltExit = "";
+			setAltScreenActive(false);
+		}
 		if (target) this.#recordHardwareCursorState(target);
 		else this.#recordHardwareCursorHidden();
 		this.#providerWindow = mutablePrepared;
@@ -2584,8 +2691,15 @@ export class TUI extends Container {
 			const mouseExit = this.#altMouseTrackingActive ? MOUSE_TRACKING_OFF : "";
 			const enhancementExit = this.#keyboardEnhancementExit();
 			const exitSequence = `${mouseExit}${enhancementExit}\x1b[?1049l`;
-			this.terminal.write(exitSequence);
-			setAltScreenActive(false);
+			// Session replacement finishes while its fullscreen selector still
+			// covers the old normal buffer. Fuse the restore into the destructive
+			// repaint so no stale frame can become visible between writes.
+			if (this.#clearScrollbackOnNextRender) {
+				this.#pendingAltExit = exitSequence;
+			} else {
+				this.terminal.write(exitSequence);
+				setAltScreenActive(false);
+			}
 			this.#forgetHardwareCursorState();
 			this.#altActive = false;
 			this.#altMouseTrackingActive = false;
@@ -2615,7 +2729,7 @@ export class TUI extends Container {
 			this.#renderProviderFrame(width, height);
 			return;
 		}
-		this.#renderChildrenFrame(width, height);
+		this.#renderChildrenFrame(width, this.#effectiveMainWidth(width), height);
 	}
 
 	/**
@@ -2623,18 +2737,39 @@ export class TUI extends Container {
 	 * compose the root children and paint the bottom `height` rows as the
 	 * mutable viewport. Nothing is ever appended to terminal history.
 	 */
-	#renderChildrenFrame(width: number, height: number): void {
-		this.#imageBudget.beginPass();
-		const composed = this.render(width);
-		this.#imageBudget.endPass();
+	#renderChildrenFrame(rawWidth: number, width: number, height: number): void {
+		const gutter = this.#gutterComponent && width < rawWidth ? this.#gutterComponent : null;
+		let composed: readonly string[];
+		do {
+			this.#imageBudget.beginPass();
+			composed = this.render(width);
+		} while (this.#imageBudget.endPass());
 		if (this.#maybeDeferGhosttyInitialImagePaint()) return;
 		this.#debugNextWindowTop = Math.max(0, composed.length - height);
 		const viewport = composed.length > height ? composed.slice(composed.length - height) : Array.from(composed);
 		this.#emitPlanFrame(width, height, viewport, undefined, undefined);
+		if (gutter) {
+			const rows = gutter.render(width);
+			// Paint the freed right margin after the frame block: absolute-positioned
+			// writes at column width+1 never touch the composed frame or scrollback.
+			const seq = this.#gutterPaintSequence(rows, rawWidth - width, width, viewport.length, 0);
+			if (seq) this.terminal.write(seq);
+			this.#paintedGutterRows = rows;
+			this.#paintedGutterWidth = rawWidth - width;
+		} else if (this.#paintedGutterRows !== null) {
+			// Gutter removed: clear the margin column once via absolute EL per row.
+			const col = width + 1;
+			let seq = "";
+			for (let row = 0; row < height; row++) seq += `\x1b[${row + 1};${col}H\x1b[K`;
+			seq += "\x1b[H";
+			this.terminal.write(seq);
+			this.#paintedGutterRows = null;
+		}
 	}
 
 	/** Stateless variant for overlay-composited windows and alt-screen frames. */
 	#prepareLinesArray(lines: readonly string[], width: number): string[] {
+		// [suppressed] render-frame length preallocation
 		const prepared: string[] = new Array(lines.length);
 		for (let i = 0; i < lines.length; i++) {
 			prepared[i] = this.#prepareLine(lines[i]!, width).line;
@@ -2923,6 +3058,7 @@ export class TUI extends Container {
 	 * blank base — the transcript is never touched while the alt buffer is up.
 	 */
 	#renderAltFrame(width: number, height: number): void {
+		// [suppressed] alt-frame length preallocation
 		const base: string[] = new Array(Math.max(0, height)).fill("");
 		let lines = this.#compositeOverlaysIntoWindow(base, width, height);
 		this.#extractCursorMarkers(lines);
@@ -2936,6 +3072,7 @@ export class TUI extends Container {
 	 * native-scrollback byte. The hardware cursor stays hidden here.
 	 */
 	#emitAltFrame(lines: string[], width: number, height: number): void {
+		// [suppressed] alt-frame length preallocation
 		const fitted: string[] = new Array(height);
 		for (let r = 0; r < height; r++) fitted[r] = lines[r] ?? "";
 		// Flush queued image-data transmits (`a=t`, no visible output) before the

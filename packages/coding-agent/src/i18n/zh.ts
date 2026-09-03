@@ -294,6 +294,23 @@ export const zh = {
 	cmdUpdateMarketplaceCatalogS: "更新市场目录",
 	cmdUpgradeOutdatedPlugins: "升级过时的插件",
 	cmdValidateOneFindingWithZetaTools: "使用 Zeta 工具验证一条发现",
+	cmdDetectAndFixProjectDiagnosticsWithWeightedParallelSubagents:
+		"\u68c0\u6d4b\u5e76\u7528\u52a0\u6743\u5e76\u884c\u5b50\u4ee3\u7406\u4fee\u590d\u9879\u76ee\u8bca\u65ad",
+	cmdMoveThisSessionIntoANewWorktreeChangesIncluded:
+		"\u5c06\u672c\u4f1a\u8bdd\u79fb\u5165\u65b0 worktree\uff08\u8fde\u540c\u66f4\u6539\uff09",
+	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer:
+		"\u6253\u5f00 Git \u754c\u9762\uff08\u5206\u680f diff\u3001\u6682\u5b58\u3001\u63d0\u4ea4\u7f16\u8f91\u5668\uff09",
+	cmdOpenTheLiveAgentHub: "打开实时 Agent Hub",
+	cmdPinOrUnpinASessionAtTheTopOfTheResumeList:
+		"\u5728\u6062\u590d\u5217\u8868\u56fa\u5b9a/\u53d6\u6d88\u56fa\u5b9a\u4f1a\u8bdd",
+	cmdRestartOmpWithTheSameLaunchFlagsResumingThisSession:
+		"\u4ee5\u76f8\u540c\u542f\u52a8\u53c2\u6570\u91cd\u542f\u5e76\u6062\u590d\u672c\u4f1a\u8bdd",
+	cmdRestoreTheBoundedHudPreview: "\u6062\u590d\u6709\u754c HUD \u9884\u89c8",
+	cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch:
+		"\u56de\u9000\u5230\u5386\u53f2\u6d88\u606f\uff08\u65e7\u8def\u5f84\u4fdd\u7559\u4e3a\u5206\u652f\uff09",
+	cmdShowEveryPhaseAndTaskInTheHud: "\u5728 HUD \u663e\u793a\u6240\u6709\u9636\u6bb5\u4e0e\u4efb\u52a1",
+	cmdToggleLoopModeWhileEnabledTheNextPromptYouSendResubmitsAfterEveryYieldEscCancelsTheCurrentIterationLoopAgainToDisable:
+		"切换循环模式。开启后，你发送的下一条提示会在每次产出后自动重新提交；Esc 取消当前迭代；再次 /loop 关闭。",
 	cmdViewAndManageInstalledPlugins: "查看并管理已安装插件",
 	cmdViewOrModifyTheAgentSTodoList: "查看或修改智能体的待办列表",
 	cmdWriteTodosAsMarkdownToAFileDefaultTODOMd: "将待办列表以 Markdown 写入文件（默认：TODO.md）",
@@ -1863,6 +1880,8 @@ export const zh = {
 	cmdForce: "强制下一轮使用指定工具",
 	cmdLiveVoice: "启动 Codex 支持的实时语音模式",
 	cmdSidebar: "切换右侧边栏（上下文、用量、git、模型）",
+	acSidebarOn: "侧边栏：开启",
+	acSidebarOff: "侧边栏：关闭",
 	cmdPause: "冻结所有代理（主、子、顾问）直到恢复",
 	cmdQuit: "退出应用",
 	cmdMemoryMmDelete: "从库中删除心智模型（需要 id）",
@@ -1993,6 +2012,27 @@ export const zh = {
 	cmdMcpAcp: "管理 MCP 服务器",
 	cmdAdvisorAcp: "切换顾问",
 	cmdDumpAcp: "以纯文本返回完整对话记录，并附 LLM 请求 JSON 路径",
+	cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents: "检测并用加权并行子代理修复项目诊断",
+	cmdDropAllThinkingBlocks: "丢弃全部思考块",
+	cmdEnablePremiumLongContextWindows: "启用溢价长上下文窗口",
+	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: "将本会话移入新 worktree（连同更改）",
+	cmdOpenThisSessionsTraceInTheStatsDashboard: "在统计面板打开本会话追踪",
+	cmdOpentheGitUISplitDiffViewerStagingCommitComposer: "打开 Git 界面（分栏 diff、暂存、提交编辑器）",
+	cmdOpentheLiveAgentHub: "打开实时 Agent Hub",
+	cmdPinorUnpinaSessionattheTopoftheResumeList: "在恢复列表顶部固定/取消固定会话",
+	cmdPlanRunInspectImportandCompareOMPNativeSecurityScans: "计划、执行、检查、导入与对比 OMP 原生安全扫描",
+	cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession: "以相同启动参数重启并恢复本会话",
+	cmdRestoretheBoundedHUDPreview: "恢复有界 HUD 预览",
+	cmdRewindtoaPreviousMessageKeepingtheOldPathAsaBranch: "回退到历史消息（旧路径保留为分支）",
+	cmdRunMemoryConsolidationNow: "立即运行记忆整合",
+	cmdShowEveryPhaseandTaskintheHUD: "在 HUD 显示所有阶段与任务",
+	cmdShowExtendedContextStatus: "显示扩展上下文状态",
+	cmdShowPendingMemoryDeltasAwaitingConsolidation: "显示待整合的记忆增量",
+	cmdTogglePremiumLongContextWindows: "切换溢价长上下文窗口",
+	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor:
+		"\u5207\u6362 ultra \u8ba1\u5212\u6a21\u5f0f\uff08\u6247\u51fa\u4fa6\u5bdf\u3001\u589e\u91cf\u8ba1\u5212\u5199\u5165\u3001\u6700\u6df1\u51b3\u7b56\u4e0b\u9650\uff09",
+	cmdUseStandardPricingContextWindows: "使用标准计费上下文窗口",
+	cmdValidateOneFindingwithOMPNativeTools: "用 OMP 原生工具验证单个发现",
 
 	acPlanDisabledInSettings: "计划：设置中已禁用",
 	acPlanBlockedByGoalMode: "计划：被目标模式阻止",
@@ -2033,6 +2073,11 @@ export const zh = {
 	acLeaveCollabHosting: "退出协作：正在主持",
 	acLeaveCollabGuest: "退出协作：来宾",
 	acLeaveCollabNone: "退出协作：未在协作中",
+	acAdvisorConfiguredNoModel: "顾问：已配置，无模型",
+	acAdvisorOff: "顾问：关闭",
+	acTodosNone: "待办：无",
+	acTodosFmt: "待办：%s 项未完成（%s 进行中，%s 已完成）",
+	acForceNoActiveTools: "强制：无活动工具",
 
 	compactModeSoft: "使用当前模型在本地总结（跳过远程端点）",
 	compactModeRemote: "通过远程端点 / 提供方原生压缩进行总结",

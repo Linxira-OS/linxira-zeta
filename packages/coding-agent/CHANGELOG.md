@@ -3,30 +3,23 @@
 ## [Unreleased]
 
 ## [1.1.7] - 2026-09-01
-
-- 同步上游 OMP v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）：gallery 预览 CLI、状态栏紧凑思考档位图标、MCP OAuth 嵌套路径发现、工具调用后传输错误安全重试、损坏图片可行动报错、空闲 CPU 降低、聊天链接 OSC 8 超链接等（完整清单见同步账本）。
-- Web UI 新增完整主题注册表：43 套浅/深预设、VS Code 风格中性 zeta-dark 深色（`#1E1E1E` 底 + 灰阶面板）、图表 8 色板、预水合主题引导（首屏即正确主题）。
-- 新增 `zeta serve --host`：可绑定非回环地址，远程访问 URL 经 `formatServerUrl` 统一展示。
-- 新增 blob 网关端点：外部客户端可上传/拉取会话二进制（图片等）。
-- IM 频道转发增加任务深度守卫，嵌套任务不再重复投递 channel sink 消息。
-- 新增 Bing 搜索 provider。
-- 追踪面板持久化 compaction 摘要，历史压缩后仍可回看。
-- 提示缓存仅在内容字节实际变化时刷新，消除无效刷新。
-- 新增增量 plan-ultra 工作流；plan 文件按完整默认窗口读取。
-
 ## [1.1.6] - 2026-08-30
-
-- 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
-- 新增 Sharpshooter 记忆后端（`/memory queue`、`/memory sync`）与 `/restart` 原地重启并恢复当前会话。
-- 新增 `band` composer 状态带（默认启用，原 `composer.shape` 设置保持兼容）与失败工具调用原地重试（F5 / Alt+R / `/retry`）。
-- 工作状态显示升级：计时盲文 spinner、流式意图、会话强调色；`/review` PR 式对比改用 merge base；提示历史提交即持久化、退出时 checkpoint 会话数据库。
-- 修复 Windows 上 Python 评估导入 `numpy` 等原生扩展无限挂起、编辑工具 `－` 前缀 MATCH 行解析、macOS 快速输入下划线残留、`xd://` MCP 失败信息缺失上下文、ACP `read` 工具位置解析等问题。
-
-### Fixed
-
-- 修复扩展发现读不到项目级配置：原生扩展根解析把项目配置目录写死为 `.omp`，`<project>/.zeta/` 下的 `config.yml`/`settings.json` 扩展注册失效。
-- 修复 v18.0.9 合并后 web/desktop 外部客户端不可用：恢复 AgentSession 会话层 mode API（plan/goal/vibe 进入退出、状态版本、plan 文件读取、IRC 自动回复），CLI 不受影响。
-- 修复 IM 频道工具（`channel_send`/`workspace_run`/`im_control`/`tracking_update`）在合并后从工具表消失的问题。
+- Fixed prewalk conflicting with `todo.eager=always`: the forced eager-todo prelude ("call todo first this turn") was injected alongside the prewalk plan nudge ("write a complete plan first, then todo"), giving the model contradictory instructions; the eager-todo prelude is now suppressed only when prewalk will perform a handoff ([#10510](https://github.com/can1357/oh-my-pi/issues/10510)).
+- Fixed `authHeader: true` + command-backed `apiKey` discovery providers (no explicit `headers:` block) resending a stale bearer after a 401 force-refresh; discovered models now re-derive `Authorization` from the live `apiKey` each request ([#10551](https://github.com/can1357/oh-my-pi/issues/10551)).
+- Fixed the embedded shell's `command -v`/`-V` honoring only the first operand: it now iterates every name like bash/zsh, printing one line per resolved name and skipping misses ([#10544](https://github.com/can1357/oh-my-pi/issues/10544)).
+- Fixed hard-killed subagents vanishing from the agent registry under concurrent fan-out: `AgentLifecycleManager.release` now applies the terminal `aborted` transition before awaiting the tombstone sidecar write, closing a race where the dying session's own dispose-path unregister deleted the ref instead of leaving it as a tombstone ([#10531](https://github.com/can1357/oh-my-pi/issues/10531)).
+- `omp commit` now keeps extension-provided model credentials available in its nested commit-agent session ([#10528](https://github.com/can1357/oh-my-pi/issues/10528)).
+- MCP tool results now surface `structuredContent`: servers that return their payload in the structured channel while keeping `content` a terse ack (e.g. rhizome-mcp) are no longer data-less to the model ([#10522](https://github.com/can1357/oh-my-pi/issues/10522)).
+- Fixed the Agent Hub roster shuffling erratically while open: rows no longer re-sort on every agent heartbeat, so the list stays stable and navigable with many active agents ([#10524](https://github.com/can1357/oh-my-pi/issues/10524)).
+- Exiting Vibe mode now removes its restrictions from subsequent model turns, including restored sessions ([#10500](https://github.com/can1357/oh-my-pi/issues/10500)).
+- Fixed all-sessions listing (`Tab` in session picker) and cross-project resume failing when sessions are stored under `XDG_DATA_HOME`; `listAllSessions` now scans the active `getSessionsDir()` root instead of hardcoding `~/.omp/agent/sessions`.
+- Fixed the Nerd Font context icon showing a Windows logo instead of a generic window ([#10476](https://github.com/can1357/oh-my-pi/pull/10476) by [@erickmazer](https://github.com/erickmazer)).
+- The debug terminal snapshot now reports Herdr (and CMUX) as the multiplexer wrapping the session, matching the TUI's pane-identity detection instead of only tmux/screen/zellij.
+- Fixed vibe mode becoming un-exitable after branching a session (including via `/btw`), which previously failed with "Vibe parent session changed before mode exit could be persisted." ([#10468](https://github.com/can1357/oh-my-pi/issues/10468)).
+- Fixed HTML session exports reordering interleaved assistant text, thinking, images, and tool calls in the transcript, and split matching text/tool sidebar rows with block-accurate navigation. ([#10253](https://github.com/can1357/oh-my-pi/pull/10253) by [@realcoderandom](https://github.com/realcoderandom))
+- Fixed the built-in `grep` and `sed` treating a basic regular expression as an extended one: a bare `+` is now the literal and `\+` the operator, patterns like `^+` or `s/^\+/` no longer match every line, `^` anchors inside `\(…\)` and after `\|`, and a repetition operator with nothing to repeat is reported instead of silently selecting the whole file ([#10298](https://github.com/can1357/oh-my-pi/pull/10298) by [@mruangutai](https://github.com/mruangutai)).
+- Fixed RPC `prompt` responses for `/skill:*` commands arriving only after the entire prompt-dispatch pipeline finished (usage preflight, compaction, provider calls): under provider stress that outlasts any client prompt timeout, so hosts reported the prompt as rejected while the turn was in fact running. The skill branch now builds the skill prompt eagerly (preserving the immediate error for an unreadable skill file) and dispatches the expensive pipeline asynchronously after answering, matching plain prompts; when the dispatch is cancelled before a turn starts (e.g. an abort overtakes usage preflight), the session now reports it through the non-invoked  completion frame instead of leaving hosts waiting for an  that never comes ([#10249](https://github.com/can1357/oh-my-pi/pull/10249) by [@cwr250](https://github.com/cwr250)).
+- Fixed stale `omp-plugins.lock.json` entries loading leftover `node_modules` trees for plugins no longer declared in an existing `package.json` — the orphaned copy double-loaded its extensions. Lockfile-only plugins remain supported for manifest-less roots and symlinked packages (`omp plugin link`, marketplace runtime packages); stale entries are skipped with a warning.
 
 ## [1.1.5] - 2026-08-26
 
@@ -126,3 +119,33 @@
 ### Changed
 
 - WeChat login now prefers the new `/api/v1/wechat` endpoints (endpoint host configurable via `channels.wechat.endpoint`); older hosts fall back to the legacy iLink QR flow.
+- Reworked the Ctrl+S Agent Hub into a responsive fullscreen roster and selected-agent inspector, featuring aggregate status/usage metrics, detailed per-agent views (task, model, activity, usage, lineage), roster and spawn-tree views, stable ordering, asynchronous persisted-session discovery, restored historical metadata, and improved keyboard and mouse navigation.
+- Replaced `arktype` with `@oh-my-pi/omptype` for all tool parameter and configuration schemas, resulting in significantly faster startup times. Configuration schema errors are now reported via `OmpErrors` entries using the standard `path`/`problem` format.
+
+### Fixed
+
+- Fixed panel commands (such as `/usage` and `/advisor status`) appearing unresponsive during active turns by flushing the deferred-panel queue at every settle, terminal or not. The deferral itself stays silent: mounting a status line into the transcript mid-turn re-renders rows below the live block and duplicates them in native scrollback (issues #4806/#6767).
+- Fixed the bundled `ts-no-tiny-functions` rule failing to match one-line arrow functions in files with trailing newlines.
+- Fixed advisor refusals skipping the model fallback chain, and bounded refusal recovery to a single attempt per model to prevent infinite fallback loops.
+- Fixed repeated `/mcp reauth` commands getting stuck by ensuring new reauthorization requests cancel and clean up any pending MCP OAuth login flows.
+- Fixed WSL host-home resolution to build `/mnt/<drive>/...` fallback paths using POSIX semantics regardless of the host platform.
+- Fixed Python evaluation shell helpers (`!cmd`, `%%bash`, `%pip`) letting child processes inherit the runner's stdin, which previously caused deadlocks on Windows. Additionally, `%%bash` now correctly resolves Git Bash on Windows.
+- Fixed subagents spawned via model-role aliases incorrectly falling back to the `default` role's retry chain instead of their own configured role chain.
+- Fixed Linux/X11 clipboard reads failing when `xclip` is missing but `xsel` is available.
+- Hardened Linux Chromium executable detection to filter out non-executable files, invalid wrappers, and candidates that hang during version probes.
+- Fixed Bash command preview crashes caused by malformed tool arguments containing non-string environment values.
+- Fixed UI rendering in the model browser and model hub where `nerd`-preset role chips would overlap and obscure the first character of labels.
+- Fixed Codex web search sending incompatible request shapes to certain models, which caused the hosted `web_search` tool to ignore them.
+- Fixed resumed or rebuilt sessions incorrectly applying stale rewind reports from previous checkpoint cycles to new checkpoints.
+- Fixed the `read` tool incorrectly parsing semicolon-delimited internal URLs (such as batched `skill://` resources) as a single invalid resource.
+- Fixed `pi.getAllTools()` returning bare strings instead of `ToolInfo[]` objects, restoring compatibility with extensions built against the upstream contract.
+- Fixed legacy extensions failing to load in compiled binaries when resolving bundled dependencies via dynamic `createRequire` factories.
+- Fixed Wayland window activation and native input handling by correctly reporting them as unavailable rather than attempting unsupported foreground-delivery paths.
+- Fixed live execution progress being hidden in the conversation view after approving a plan in the fullscreen Plan Review.
+- Fixed `omp -r` failing to discover sessions created under the temporary hashed project-directory scheme by adding a one-way migration back to legacy path-based names.
+- Prevented the `read` tool from advertising or resolving `memory://` URIs when the memory backend is disabled.
+- Fixed the Shift-Tab thinking mode UI rendering the `off` state as a blank label, which made it appear that reasoning could not be disabled.
+- Fixed parsing of POSIX `$EDITOR` commands that contain quoted arguments or executable paths with spaces.
+- Fixed persisted Agent Hub rows losing the explicit caller model role when a subagent used a model override, preserving role provenance across restarts.
+- Fixed unobserved promise rejections in browser helpers (such as `tab.waitForResponse()`) causing tab workers to hang or crash.
+

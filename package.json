@@ -1,15 +1,9 @@
 {
   "name": "zeta",
-  "homepage": "https://linxira-os.github.io",
   "private": true,
-  "author": "Stencil Labs, Inc.",
+  "homepage": "https://linxira-os.github.io",
   "license": "MIT",
-  "type": "module",
-  "packageManager": "bun@1.4.0",
-  "patchedDependencies": {
-    "@ark/schema@0.56.2": "patches/@ark%2Fschema@0.56.2.patch",
-    "puppeteer-core@25.3.0": "patches/puppeteer-core@25.3.0.patch"
-  },
+  "author": "Stencil Labs, Inc.",
   "workspaces": {
     "packages": [
       "packages/*",
@@ -20,17 +14,21 @@
       "@babel/parser": "^7.29.7",
       "@babel/traverse": "^7.29.7",
       "@babel/types": "^7.29.7",
-      "@biomejs/biome": "^2.5.3",
       "@huggingface/transformers": "^4.2.0",
       "@napi-rs/cli": "3.7.2",
+      "@linxiraos/pi-hashline": "1.1.7",
+      "@linxiraos/pi-stats": "1.1.7",
+      "@linxiraos/pi-omptype": "1.1.7",
       "@linxiraos/pi-agent-core": "1.1.7",
       "@linxiraos/pi-ai": "1.1.7",
       "@linxiraos/pi-catalog": "1.1.7",
+      "@linxiraos/zeta": "1.1.7",
       "@linxiraos/pi-mnemopi": "1.1.7",
       "@linxiraos/pi-natives": "1.1.7",
       "@linxiraos/pi-tui": "1.1.7",
       "@linxiraos/pi-utils": "1.1.7",
       "@linxiraos/pi-wire": "1.1.7",
+      "@linxiraos/pi-snapcompact": "1.1.7",
       "@opentelemetry/api": "^1.9.1",
       "@opentelemetry/api-logs": "^0.220.0",
       "@opentelemetry/context-async-hooks": "^2.9.0",
@@ -71,17 +69,11 @@
       "typescript": "^7.0.2",
       "vite": "^8.1.4",
       "vite-plugin-solid": "^2.11.12",
-      "@linxiraos/pi-hashline": "1.1.7",
-      "@linxiraos/pi-snapcompact": "1.1.7",
-      "@linxiraos/pi-stats": "1.1.7",
-      "@linxiraos/zeta": "1.1.7",
       "@linxiraos/pi-channels": "1.1.7",
-      "@linxiraos/pi-omptype": "1.1.7"
+      "@biomejs/biome": "^2.5.3"
     }
   },
-  "overrides": {
-    "@ark/schema": "0.56.2"
-  },
+  "type": "module",
   "scripts": {
     "setup": "bun scripts/setup.ts",
     "dev": "bun --cwd=packages/coding-agent src/cli.ts",
@@ -100,7 +92,7 @@
     "test:scripts": "bun test scripts/ci-test-ts.test.ts scripts/ci-release-build-binaries.test.ts scripts/musl-release.test.ts scripts/ci-release-publish.test.ts scripts/release.test.ts",
     "test:rs": "bun scripts/run-rs-task.ts test:rs",
     "check": "bun run --parallel check:ts check:rs",
-    "check:ts": "bun run check:tools && bun run --workspaces --if-present check",
+    "check:ts": "bun run check:tools && bun run --workspaces --sequential --if-present check",
     "check:tools": "biome check . --no-errors-on-unmatched",
     "check:rs": "bun scripts/run-rs-task.ts check:rs",
     "lint": "bun run --parallel lint:ts lint:rs",
@@ -116,7 +108,7 @@
     "fix:ts": "bun run fix:tools && bun run --workspaces --if-present fix",
     "fix:ts:all": "bun run fix:tools:all && bun run --workspaces --if-present fix",
     "fix:tools": "biome check --write --unsafe --changed --no-errors-on-unmatched .",
-    "fix:tools:all": "biome check --write --unsafe --no-errors-on-unmatched .",
+    "fix:tools:all": "oxlint --fix --fix-suggestions . && bun run fmt:tools",
     "fix:changelogs": "bun scripts/fix-changelogs.ts",
     "fix:rs": "bun scripts/run-rs-task.ts fix:rs",
     "ci:check:full": "bun run check:ts",
@@ -164,6 +156,7 @@
     "publish": "bun run prepublishOnly && npm publish -ws --access public",
     "publish:dry": "bun run prepublishOnly && npm publish -ws --access public --dry-run",
     "release": "bun scripts/release.ts",
+    "gen:compat": "bun --cwd=packages/catalog run gen:compat",
     "gen:models": "bun --cwd=packages/catalog run gen:models",
     "gen:clippy": "bun scripts/gen-clippy-bazelrc.ts",
     "gen:stats": "bun --cwd=packages/stats run gen:stats",
@@ -176,6 +169,11 @@
     "gen:native:reset": "bun --cwd=packages/natives run gen:native:reset",
     "check-spoofed-versions": "bun scripts/check-spoofed-versions.ts"
   },
+  "dependencies": {
+    "sherpa-onnx": "1.13.2",
+    "sherpa-onnx-darwin-arm64": "1.13.3",
+    "sherpa-onnx-node": "1.13.2"
+  },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@types/bun": "catalog:",
@@ -185,12 +183,30 @@
     "ts-morph": "catalog:",
     "typescript": "catalog:"
   },
-  "lint-staged": {
-    "*.{js,ts,jsx,tsx,json,jsonc,css}": "biome check --write --no-errors-on-unmatched"
+  "overrides": {
+    "@ark/schema": "0.56.2"
   },
-  "dependencies": {
-    "sherpa-onnx": "1.13.2",
-    "sherpa-onnx-darwin-arm64": "1.13.3",
-    "sherpa-onnx-node": "1.13.2"
+  "lint-staged": {
+    "packages/*/src/**/*.{ts,tsx}": [
+      "oxlint --fix",
+      "oxfmt"
+    ],
+    "packages/*/{test,bench,examples,scripts}/**/*.ts": [
+      "oxlint --fix",
+      "oxfmt"
+    ],
+    "packages/*/*.ts": [
+      "oxlint --fix",
+      "oxfmt"
+    ],
+    "scripts/**/*.ts": [
+      "oxlint --fix",
+      "oxfmt"
+    ]
+  },
+  "packageManager": "bun@1.4.0",
+  "patchedDependencies": {
+    "@ark/schema@0.56.2": "patches/@ark%2Fschema@0.56.2.patch",
+    "puppeteer-core@25.3.0": "patches/puppeteer-core@25.3.0.patch"
   }
 }

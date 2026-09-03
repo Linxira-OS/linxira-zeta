@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "bun:test";
-import { loginDeepSeek, normalizeDeepSeekApiKey } from "@linxiraos/pi-ai/registry/deepseek";
-import type { OAuthController } from "@linxiraos/pi-ai/registry/oauth/types";
+import type { OAuthController } from "@linxiraos/pi-ai/oauth/types";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+
+const loginDeepSeek = getProviderDefinition("deepseek")?.login;
+if (!loginDeepSeek) throw new Error("DeepSeek login is not registered");
 
 function makeController(paste: string, fetchMock: FetchImpl): OAuthController {
 	return {
@@ -66,20 +69,5 @@ describe("loginDeepSeek validation", () => {
 
 		await expect(loginDeepSeek(makeController("   ", fetchMock))).rejects.toThrow(/API key is required/i);
 		expect(fetchMock).not.toHaveBeenCalled();
-	});
-});
-
-describe("normalizeDeepSeekApiKey", () => {
-	it("trims whitespace", () => {
-		expect(normalizeDeepSeekApiKey("  sk-abc  ")).toBe("sk-abc");
-	});
-
-	it("strips a leading 'Bearer ' prefix (case-insensitive)", () => {
-		expect(normalizeDeepSeekApiKey("Bearer sk-abc")).toBe("sk-abc");
-		expect(normalizeDeepSeekApiKey("bearer\tsk-abc")).toBe("sk-abc");
-	});
-
-	it("throws when only a Bearer prefix is supplied", () => {
-		expect(() => normalizeDeepSeekApiKey("Bearer    ")).toThrow(/empty after stripping/i);
 	});
 });
