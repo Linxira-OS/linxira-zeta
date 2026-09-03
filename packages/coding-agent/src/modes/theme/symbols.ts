@@ -450,7 +450,7 @@ const UNICODE_SYMBOLS: SymbolMap = {
 	"icon.advisor": "👁",
 	"icon.advisorClosed": "🙈",
 	"icon.time": "⏱",
-	"icon.omp": "π",
+	"icon.omp": "ζ",
 	"icon.esc": "⎋",
 	"icon.ghost": "👻",
 	"icon.agents": "👥",
@@ -800,6 +800,7 @@ const NERD_SYMBOLS: SymbolMap = {
 	"icon.advisorClosed": "\ueae7",
 	// pick:  | alt: ◷ ◴
 	"icon.time": "\uf017",
+	// Zeta brand: nf-md-pi glyph kept (v18.0.10 decision — nerd preset is pi-provider icon set semantics).
 	// pick: 󰵗 (nf-md-pi) | alt:  π ∏ ∑
 	"icon.omp": "\u{f0d57}",
 	// pick: 󱊷 (nf-md-keyboard_esc) | alt: ⎋
@@ -1154,7 +1155,7 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"icon.advisor": "(adv)",
 	"icon.advisorClosed": "(adv)",
 	"icon.time": "t:",
-	"icon.omp": "pi",
+	"icon.omp": "zeta",
 	"icon.esc": "esc",
 	"icon.ghost": "@",
 	"icon.agents": "AG",

@@ -103,6 +103,7 @@ reverted the ζ CLI brand, which this registry exists to prevent.
 |---|---|---|
 | CLI 终端标题品牌字符 | `ζ`（title-generator.ts） | 上游重引 `π` 即恢复 + 两测试 |
 | CLI welcome/splash/outro 字符画 | `ZETA_LOGO`（ζ 形）+ wordmark `"Z e t a"` | 不接受上游 `PI_LOGO` |
+| `icon.omp` unicode 预设（symbols.ts） | `ζ`（ascii 预设 `zeta`） | 上游合并重引 `π`/`pi` 即恢复；nerd 预设 `U+F0D57` 保留（v18.0.10 决议） |
 | `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
 | latex-to-unicode π 条目 | `π` | 保留——数学转换 |
 | 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名 |

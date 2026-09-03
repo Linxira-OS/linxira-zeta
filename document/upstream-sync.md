@@ -629,6 +629,100 @@ merge. No version bump, no tag, no release.
   catalog keys); `bun run check:ts` + biome + focused suites → results
   recorded below before merge to `main`.
 
+### OMP v18.0.11 -> v18.1.5 (synced 2026-09-03; three tags in one merge train)
+
+- Baseline: Zeta `main` at `c09e0d30f0` (AGENTS.md refresh, CI watching
+  discipline, version-line counts; 1.1.7 line).
+- Sources: remote tags `v18.1.2` (`86bf72f52947f62ecaf9bd28e35572812e725a92`,
+  peeled, verified via `git ls-remote`), `v18.1.4`
+  (`39cf639c7bb6b5014a1cc8ea8175558cccb23905`), `v18.1.5`
+  (`2b8471bc33f2f4e10b187f02d19b54b48fd2191f`) - fetched explicitly with
+  `git fetch omp-upstream tag <tag>` after shallow-history connectivity
+  repair (blobless partial fetch; upstream release spans are far deeper than
+  first-parent counts - v18.1.2 needs ~15.6k reachable commits).
+- Merge: isolated worktree `zeta-sync-omp-18-1-2`, branch
+  `sync/omp-release/v18.1.2`, real non-squash merges in sequence:
+  v18.1.2 -> `51516cb48a`, v18.1.4 -> `cf6ec32e85` (adaptation commit),
+  v18.1.5 -> `95283736be`, Zeta adaptation -> `06cedb72b8` + `eded1e1c7c`.
+  Ancestry verified: all three tag commits + Zeta base are ancestors of HEAD.
+- Conflict resolution (v18.1.2: 143 paths; v18.1.4: 28; v18.1.5: 94):
+  - Class 1/2 (catalog/Cargo/sentinel): upstream sides taken at each merge,
+    then `set-version.ts 1.1.7` realigned the whole line each round
+    (14 packages, 14 catalog keys incl. re-added `@linxiraos/pi-channels`,
+    Cargo, `__piNativesV1_1_7` sentinel, committed bindings); bun.lock
+    regenerated from scratch (`rm bun.lock && bun install`) - the merge had
+    re-created duplicate workspace dep entries (JSON object dedup pass).
+  - Class 3 (package names): scope-only conflicts (123/22/81 files per
+    merge) resolved by taking the upstream side and rewriting
+    `@oh-my-pi/*` to `@linxiraos/*` with the fixed mapping
+    (`pi-coding-agent`->`zeta`, `omp-stats`->`pi-stats`, `hashline`->
+    `pi-hashline`, `omptype`->`pi-omptype`, `snapcompact`->
+    `pi-snapcompact`, rest 1:1). Post-merge sweeps caught newly added
+    upstream files (registry engine, compat compiler, oauth modules).
+  - Class 4 (Zeta-only layer): v18.1.2 merge silently dropped the
+    AgentSession mode API again (fingerprint: web-gateway/agents.ts +
+    zeta-server.ts compile errors). Restored from pre-merge baseline:
+    `ModeId` + Plan/Goal/Vibe entry/exit option interfaces, `#stateVersion`
+    + mode-snapshot fields, `getStateVersion`/`bumpStateVersion`/
+    `getModeState`/`enterMode`/`exitMode`/`enter|exitPlanMode`/
+    `enter|exitGoalMode`/`enter|exitVibeMode`/`resetModeTransientState`/
+    `flushPendingModelSwitch`/`restorePlanPreviousModel`,
+    `getPlanFileContent`, `setIrcAutoReplyListener` + `onAutoReply` wiring
+    in the IrcBridge host, sdk.ts `channelSend`/`workspaceRun`/`imControl`
+    sinks (interface + pass-through). Deduplicated against accessors the
+    merged tree already carried.
+  - Class 6 (tests as contract): upstream-side taken for scope-rewritten
+    tests; `identity-family.test.ts` accepted deleted (helper removed by
+    KDL policy engine); `user-message-selector`(+test) accepted deleted
+    (superseded by transcript-rewind selector); `output-backlog-guard.test`
+    accepted deleted (replaced by stdout-stall-watchdog +
+    terminal-oversized-frame); browser-relay-daemon resolved as upstream
+    shape + `PI_CONFIG_DIR: ".zeta"`.
+  - Brand: `KEY_NAME = "zeta"` kept in zai oauth (upstream callback-port
+    fix accepted); docs (auth-broker-gateway, context-files) upstream
+    text with `omp`->`zeta` brand pass; README/packages READMEs/docs
+    README = Zeta side (product front door).
+  - `types.ts` import conflict: kept Zeta scope; dropped the dead
+    `isOpenAIModelId` import (upstream replaced its use with
+    `identity.class === "openai"`).
+  - zai.ts callback: upstream port-9999 fix (#10245) accepted.
+  - vision-guard/harmony-leak/stream-markup-healing: upstream
+    `identity.class`-based resolvers accepted (supersede Zeta's interim
+    `preferredDialect`/regex gates - same lineage, upstream evolved them).
+  - cli/command-help: Zeta-only `attachHelp`/`serveHelp`/`webHelp`
+    restored after the merge dropped them (cli-commands.ts compile
+    fingerprint).
+  - settings-zh.ts: stale `task.isolation.{mode,apply,merge,commits}` +
+    `isolation.mode::*` option entries removed (upstream dropped the
+    schema keys); `task.isolation.enabled`, `isolation.backend`,
+    `edit.recoverInlineEdits` + the other v18.1.x new keys got zh labels
+    (114-entry overlay block) - i18n-settings-localization green again.
+- Upstream new surfaces (all adopted whole): `src/activity/` + agent-hub
+  `initialSection` (AgentHubOpenOptions = requireContent/armCloseTap/
+  initialSection), `/trace` command + stats trace panel
+  (`@linxiraos/pi-stats` import), `boxDotted.*` + `icon.advisorClosed`
+  symbol presets, welcome `#nagRoll`/`#tipRoll` latch, selector
+  transcript-rewind filtering, declarative provider auth registry
+  (registry/engine/hooks/oauth refactor), Copilot auth standardization.
+- Brand overlay (A6): `icon.omp` unicode preset pi-glyph to zeta glyph,
+  ascii preset `pi`->`zeta`, nerd preset `u{f0d57}` kept with a decision
+  comment (v18.0.10 precedent); `ZETA_LOGO` -> zeta outline (user-selected
+  variant B); welcome/setup-wizard/outro/wizard-overlay consume the
+  constant, no test asserted the old glyph rows.
+- Changelogs: upstream `## [18.1.x]`/`## [18.0.x]` sections stripped from
+  9 packages each round; `[Unreleased]` carries the sync line.
+- Six-class checklist: catalog keys Zeta@1.1.7 yes, sentinel/Cargo yes,
+  package names grep-clean (`@oh-my-pi/` 0 in sources/scripts/lockfiles),
+  Zeta-only layer restored + `check:ts` green, natives local `.node`
+  rebuilt (WSL arch, cargo-xwin + clang-cl `/clang:-msse4.1` wrapper for
+  the audiopus/opus cmake SSE4.1 sources; artifact installed as
+  `pi_natives.win32-x64-modern.node`), `.omp` contract sweep clean (only
+  known metaharness `$HOME/.omp/agent` benchmark infra remains).
+- Checks: `check-version-consistency` green (1.1.7, 14/14); `bun run
+  check:ts` green (0 errors, exit 0); focused suites green (messages,
+  i18n-settings-localization, terminal-title-state, welcome-tip,
+  welcome-history-resize).
+
 ## Pi Runtime Ports
 
 Never run `git merge pi-upstream/main` into Zeta. Pi and OMP intentionally
