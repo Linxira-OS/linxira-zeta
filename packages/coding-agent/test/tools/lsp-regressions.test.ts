@@ -5,10 +5,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult, RenderResultOptions } from "@linxiraos/pi-agent-core";
 import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
-import * as piUtils from "@linxiraos/pi-utils";
-import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { preloadPluginRoots } from "@linxiraos/zeta/discovery/helpers";
+import { restoreEnvValue } from "../helpers/settings-test-state";
 import { LspTool } from "@linxiraos/zeta/lsp";
 import * as lspClient from "@linxiraos/zeta/lsp/client";
 import * as lspConfig from "@linxiraos/zeta/lsp/config";
@@ -52,6 +51,8 @@ import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import { clampTimeout } from "@linxiraos/zeta/tools/tool-timeouts";
+import * as piUtils from "@linxiraos/pi-utils";
+import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
 import { renderResult as renderLocalResult } from "../../src/lsp/render";
@@ -305,7 +306,7 @@ function textResult(result: AgentToolResult<LspToolDetails>): string {
 }
 
 /**
- * `loadConfig` walks the user config directories (~/.zeta/agent, ~/.pi/agent,
+ * `loadConfig` walks the user config directories (~/.omp/agent, ~/.pi/agent,
  * ~/.claude), which resolve from os.homedir(). A developer with a real
  * lsp.json there flips loadConfig off its auto-detect path onto the override
  * path, where their rootMarkers replace the packaged ones — so these tests
@@ -431,14 +432,14 @@ describe("lsp regressions", () => {
 		const syncedFilePath = path.join(tempDir.path(), "unsaved.gd");
 		try {
 			await Bun.write(
-				path.join(tempDir.path(), ".zeta", "lsp.json"),
+				path.join(tempDir.path(), ".omp", "lsp.json"),
 				JSON.stringify({
 					servers: {
 						"fake-gd": {
 							command: process.execPath,
 							fileTypes: [".gd"],
 							languageId: "gdscript",
-							rootMarkers: [".zeta"],
+							rootMarkers: [".omp"],
 						},
 					},
 				}),
@@ -2107,6 +2108,75 @@ describe("lsp regressions", () => {
 		}
 	});
 
+	// TypeScript 7 dropped lib/tsserver.js (typescript-language-server's backend) and
+	// speaks LSP via `tsc --lsp --stdio`; older tsc rejects `--lsp`. Exactly one of the
+	// two servers must survive config loading, chosen from the resolved tsc install.
+	describe("TypeScript server selection", () => {
+		async function writeTypescriptWorkspace(root: string, options: { tsserver: boolean; symlinkTsc: boolean }) {
+			await Bun.write(path.join(root, "package.json"), "{}");
+			const binDir = path.join(root, "node_modules", ".bin");
+			const pkgDir = path.join(root, "node_modules", "typescript");
+			await fs.promises.mkdir(binDir, { recursive: true });
+			await Bun.write(path.join(pkgDir, "package.json"), '{"name":"typescript"}');
+			await Bun.write(path.join(pkgDir, "bin", "tsc"), "");
+			if (options.tsserver) await Bun.write(path.join(pkgDir, "lib", "tsserver.js"), "");
+			if (options.symlinkTsc) {
+				await fs.promises.symlink(path.join("..", "typescript", "bin", "tsc"), path.join(binDir, "tsc"));
+			} else {
+				await Bun.write(path.join(binDir, "tsc"), "");
+			}
+			await Bun.write(path.join(binDir, "typescript-language-server"), "");
+		}
+
+		it("prefers tsc --lsp when the workspace TypeScript ships no tsserver.js", async () => {
+			if (process.platform === "win32") return;
+			const tempDir = TempDir.createSync("@omp-lsp-ts7-");
+			vi.spyOn(Bun, "which").mockReturnValue(null);
+			try {
+				await writeTypescriptWorkspace(tempDir.path(), { tsserver: false, symlinkTsc: true });
+				const config = loadConfig(tempDir.path());
+				expect(Object.keys(config.servers)).toEqual(["typescript-native"]);
+				expect(config.servers["typescript-native"]?.resolvedCommand).toBe(
+					path.join(tempDir.path(), "node_modules", ".bin", "tsc"),
+				);
+				expect(config.servers["typescript-native"]?.args).toEqual(["--lsp", "--stdio"]);
+			} finally {
+				vi.restoreAllMocks();
+				tempDir.removeSync();
+			}
+		});
+
+		it("keeps typescript-language-server when tsserver.js exists", async () => {
+			const tempDir = TempDir.createSync("@omp-lsp-ts5-");
+			vi.spyOn(Bun, "which").mockReturnValue(null);
+			try {
+				await writeTypescriptWorkspace(tempDir.path(), { tsserver: true, symlinkTsc: false });
+				const config = loadConfig(tempDir.path());
+				expect(Object.keys(config.servers)).toEqual(["typescript-language-server"]);
+			} finally {
+				vi.restoreAllMocks();
+				tempDir.removeSync();
+			}
+		});
+
+		it("drops tsc --lsp when the tsc install layout is unrecognized", async () => {
+			const tempDir = TempDir.createSync("@omp-lsp-ts-unknown-");
+			vi.spyOn(Bun, "which").mockReturnValue(null);
+			try {
+				await Bun.write(path.join(tempDir.path(), "package.json"), "{}");
+				const binDir = path.join(tempDir.path(), "node_modules", ".bin");
+				await fs.promises.mkdir(binDir, { recursive: true });
+				await Bun.write(path.join(binDir, "tsc"), "");
+				await Bun.write(path.join(binDir, "typescript-language-server"), "");
+				const config = loadConfig(tempDir.path());
+				expect(Object.keys(config.servers)).toEqual(["typescript-language-server"]);
+			} finally {
+				vi.restoreAllMocks();
+				tempDir.removeSync();
+			}
+		});
+	});
+
 	it("detects Ruff in Windows virtualenv Scripts directories", async () => {
 		const originalPlatform = process.platform;
 		Object.defineProperty(process, "platform", { value: "win32", configurable: true, writable: true });
@@ -2226,6 +2296,9 @@ describe("lsp regressions", () => {
 	});
 
 	it("loads config-only marketplace LSP servers from Claude plugin cache", async () => {
+		const originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+		delete process.env.CLAUDE_CONFIG_DIR;
+		delete Bun.env.CLAUDE_CONFIG_DIR;
 		const tempDir = TempDir.createSync("@omp-lsp-marketplace-config-");
 		const home = path.join(tempDir.path(), "home");
 		const cwd = path.join(tempDir.path(), "repo");
@@ -2306,8 +2379,12 @@ describe("lsp regressions", () => {
 			expect(config.servers["csharp-ls"]?.rootMarkers).toEqual(["."]);
 			expect(whichSpy).toHaveBeenCalledWith("csharp-ls");
 		} finally {
-			await preloadPluginRoots(path.join(tempDir.path(), "empty-home"), cwd);
-			tempDir.removeSync();
+			try {
+				await preloadPluginRoots(path.join(tempDir.path(), "empty-home"), cwd);
+			} finally {
+				restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
+				tempDir.removeSync();
+			}
 		}
 	});
 	it("rename_file applies LSP willRenameFiles edits and renames the file", async () => {
@@ -4254,9 +4331,9 @@ describe("lsp regressions", () => {
 		expect(output).toContain("typescript-language-server (ready)");
 	});
 
-	it("reload * invalidates the per-cwd config cache so newly written .zeta/lsp.json is observed", async () => {
+	it("reload * invalidates the per-cwd config cache so newly written .omp/lsp.json is observed", async () => {
 		// #3546: `getConfig` caches the first `loadConfig` result per cwd
-		// permanently. Creating `.zeta/lsp.json` after the first LSP call left
+		// permanently. Creating `.omp/lsp.json` after the first LSP call left
 		// the tool stuck on "No language servers configured" until the process
 		// restarted. `reload *` (the user's explicit refresh) must invalidate
 		// that cache so subsequent calls observe the fresh config from disk.

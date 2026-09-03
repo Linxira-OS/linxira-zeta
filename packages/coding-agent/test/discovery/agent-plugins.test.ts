@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getPluginsDir, removeWithRetries } from "@linxiraos/pi-utils";
 import { loadCapability } from "@linxiraos/zeta/capability";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import {
@@ -17,6 +16,8 @@ import {
 	injectPluginDirRoots,
 	listClaudePluginRoots,
 } from "@linxiraos/zeta/discovery/helpers";
+import { getPluginsDir, removeWithRetries } from "@linxiraos/pi-utils";
+import { restoreEnvValue } from "../helpers/settings-test-state";
 import "@linxiraos/zeta/discovery/agent-plugins";
 import "@linxiraos/zeta/discovery/claude-plugins";
 import type { MCPServer } from "@linxiraos/zeta/capability/mcp";
@@ -255,6 +256,7 @@ describe("parseAgentPluginMcp", () => {
 describe("agent-plugins discovery", () => {
 	let tempDir: string;
 	let pluginPath: string;
+	let originalClaudeConfigDir: string | undefined;
 
 	const writeRegistry = async (installPath: string, id = "std-plugin@market") => {
 		const pluginsDir = path.join(tempDir, ".claude", "plugins");
@@ -295,6 +297,9 @@ describe("agent-plugins discovery", () => {
 		clearClaudePluginRootsCache();
 		clearAgentPluginRootCache();
 		clearFsCache();
+		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+		delete process.env.CLAUDE_CONFIG_DIR;
+		delete Bun.env.CLAUDE_CONFIG_DIR;
 		tempDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "agent-plugins-test-")));
 		pluginPath = path.join(tempDir, "plugins", "std-plugin");
 		await fs.mkdir(pluginPath, { recursive: true });
@@ -306,6 +311,7 @@ describe("agent-plugins discovery", () => {
 		clearAgentPluginRootCache();
 		clearFsCache();
 		vi.restoreAllMocks();
+		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
 		await removeWithRetries(tempDir);
 	});
 

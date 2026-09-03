@@ -40,7 +40,8 @@
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
     "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/pi-snapcompact": "catalog:"
+    "@linxiraos/pi-snapcompact": "catalog:",
+    "@opentelemetry/api": "catalog:"
   },
   "devDependencies": {
     "@linxiraos/pi-omptype": "catalog:",

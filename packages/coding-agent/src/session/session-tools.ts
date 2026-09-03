@@ -17,6 +17,7 @@ import { deduplicateMCPToolsByName } from "../mcp/tool-bridge";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import { MEMORY_BACKEND_TOOL_NAMES } from "../memory-backend/tool-names";
 import type { MemoryBackendStartOptions } from "../memory-backend/types";
+import toolRosterNoticePrompt from "../prompts/system/tool-roster-notice.md" with { type: "text" };
 import xdevMountNoticePrompt from "../prompts/system/xdev-mount-notice.md" with { type: "text" };
 import { usesCodexTaskPrompt } from "../task/prompt-policy";
 import { isMCPToolName, normalizeToolNames } from "../tools/builtin-names";
@@ -177,6 +178,7 @@ export function projectMountedMCPXdevGuidance(routes: Iterable<MountedMCPToolRou
 	return { mappings, hasOmittedMappings };
 }
 
+const TOOL_ROSTER_NOTICE_MESSAGE_TYPE = "tool-roster-notice";
 const XDEV_MOUNT_NOTICE_MESSAGE_TYPE = "xdev-mount-notice";
 
 /**
@@ -206,6 +208,7 @@ export class SessionTools {
 	#mcpManagerToolNames = new Set<string>();
 	#extensionMcpTools = new Map<string, AgentTool>();
 	#xdev: XdevState | undefined;
+	#pendingToolRosterDelta: { added: Set<string>; removed: Set<string> } | undefined;
 	#pendingXdevMountDelta: { added: Set<string>; removed: Set<string> } | undefined;
 	/**
 	 * Dynamic (`xd://`) devices the model has already been told are mounted.
@@ -333,10 +336,10 @@ export class SessionTools {
 	}
 
 	/**
-	 * Pushes a changed base prompt to the agent as the effective system prompt,
-	 * unless an active per-turn {@link #turnSystemPromptOverride} takes precedence.
-	 * Every base-prompt update applies its result through here so a mid-turn
-	 * rebuild preserves the override.
+	 * Pushes `base` to the agent as the effective system prompt, unless an active
+	 * per-turn {@link #turnSystemPromptOverride} takes precedence. Every base
+	 * rebuild applies its result through here so a mid-turn rebuild preserves the
+	 * override.
 	 */
 	#applyAgentSystemPrompt(base: string[]): void {
 		this.#host.agent.setSystemPrompt(this.#turnSystemPromptOverride ?? base);
@@ -1011,6 +1014,7 @@ export class SessionTools {
 
 		let rebuiltSystemPrompt: string[] | undefined;
 		let rebuiltSignature: string | undefined;
+		let frozenSignature: string | undefined;
 		let rebuiltXdevCatalogNames: readonly string[] | undefined;
 		try {
 			if (restrictDeviceOnlyWrite) this.#setDeviceOnlyWrite?.(true);
@@ -1030,7 +1034,15 @@ export class SessionTools {
 					: appliedTools;
 				const directToolNames = codeMode.active ? appliedNames : undefined;
 				const signature = this.#computeAppliedToolSignature(promptToolNames, promptTools, directToolNames);
-				if (forcePromptRefresh || signature !== this.#lastAppliedToolSignature) {
+				const freezeImplicitPromptRefresh =
+					!forcePromptRefresh &&
+					signature !== this.#lastAppliedToolSignature &&
+					this.#lastAppliedToolSignature !== undefined &&
+					this.#host.model()?.thinking?.prefixBinding === true &&
+					this.#host.agent.state.messages.some(message => message.role === "assistant");
+				if (freezeImplicitPromptRefresh) {
+					frozenSignature = signature;
+				} else if (forcePromptRefresh || signature !== this.#lastAppliedToolSignature) {
 					const built = await untilAborted(
 						signal,
 						this.#rebuildSystemPrompt(promptToolNames, this.#toolRegistry, { directToolNames }),
@@ -1071,15 +1083,16 @@ export class SessionTools {
 				? this.#computeCodeModeDirectWireSignature(appliedNames)
 				: undefined;
 			if (rebuiltSystemPrompt && rebuiltSignature) {
-				if (!systemPromptsAreEqual(this.#baseSystemPrompt, rebuiltSystemPrompt)) {
-					if (this.#lastAppliedToolSignature !== undefined) this.#host.clearInheritedProviderPromptCacheKey();
-					this.#baseSystemPrompt = rebuiltSystemPrompt;
-					this.#host.clearMemoryPromotionSnapshot();
-					this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
-					this.#basePromptXdevNames = new Set(rebuiltXdevCatalogNames);
-				}
+				if (this.#lastAppliedToolSignature !== undefined) this.#host.clearInheritedProviderPromptCacheKey();
+				this.#baseSystemPrompt = rebuiltSystemPrompt;
+				this.#host.clearMemoryPromotionSnapshot();
+				this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 				this.#lastAppliedToolSignature = rebuiltSignature;
 				this.#promptModelKey = this.#currentPromptModelKey();
+				this.#basePromptXdevNames = new Set(rebuiltXdevCatalogNames);
+			} else if (frozenSignature) {
+				this.#notifyToolRosterDelta(previousActiveToolNames, appliedNames);
+				this.#lastAppliedToolSignature = frozenSignature;
 			}
 			if (restoreDormantDeviceOnlyWrite) {
 				this.#setDeviceOnlyWrite?.(true);
@@ -1096,6 +1109,22 @@ export class SessionTools {
 		if (!mountedNames) return;
 		mountedNames.clear();
 		for (const name of names) mountedNames.add(name);
+	}
+
+	#notifyToolRosterDelta(previousActiveToolNames: readonly string[], appliedNames: readonly string[]): void {
+		const previous = new Set(previousActiveToolNames);
+		const current = new Set(appliedNames);
+		const addedNames = appliedNames.filter(name => !previous.has(name));
+		const removedNames = previousActiveToolNames.filter(name => !current.has(name));
+		if (addedNames.length === 0 && removedNames.length === 0) return;
+		const pending = this.#pendingToolRosterDelta ?? { added: new Set<string>(), removed: new Set<string>() };
+		for (const name of addedNames) {
+			if (!pending.removed.delete(name)) pending.added.add(name);
+		}
+		for (const name of removedNames) {
+			if (!pending.added.delete(name)) pending.removed.add(name);
+		}
+		this.#pendingToolRosterDelta = pending.added.size > 0 || pending.removed.size > 0 ? pending : undefined;
 	}
 
 	/**
@@ -1201,6 +1230,27 @@ export class SessionTools {
 				else this.#announcedMounts.delete(name);
 			}
 		}
+	}
+
+	/** Consumes the hidden notice for provider-visible tool-roster changes. */
+	takePendingToolRosterNotice(): CustomMessage<{ added: string[]; removed: string[] }> | undefined {
+		const pending = this.#pendingToolRosterDelta;
+		if (!pending) return undefined;
+		this.#pendingToolRosterDelta = undefined;
+		const added = [...pending.added];
+		const removed = [...pending.removed];
+		return {
+			role: "custom",
+			customType: TOOL_ROSTER_NOTICE_MESSAGE_TYPE,
+			content: prompt.render(toolRosterNoticePrompt, {
+				added: added.length > 0 ? added.join(", ") : undefined,
+				removed: removed.length > 0 ? removed.join(", ") : undefined,
+			}),
+			details: { added, removed },
+			attribution: "agent",
+			display: false,
+			timestamp: Date.now(),
+		};
 	}
 
 	/** Consumes the hidden notice for unannounced `xd://` mount changes. */
@@ -1593,15 +1643,19 @@ export class SessionTools {
 		// Under Code Mode the active names are exactly the direct keep-set.
 		const directToolNames = this.#codeModeDirectWireSignature === undefined ? undefined : activeToolNames;
 		this.#setActiveToolNames?.(this.#toolPredicateNames ?? activeToolNames);
+		const previousBaseSystemPrompt = this.#baseSystemPrompt;
 		const built = await this.#rebuildSystemPrompt(promptToolNames, this.#toolRegistry, { directToolNames });
 		if (this.#host.isDisposed()) return;
-		if (!systemPromptsAreEqual(this.#baseSystemPrompt, built.systemPrompt)) {
-			this.#baseSystemPrompt = built.systemPrompt;
-			this.#basePromptXdevNames = new Set(built.xdevCatalogNames);
-			this.#host.clearMemoryPromotionSnapshot();
+		this.#baseSystemPrompt = built.systemPrompt;
+		this.#basePromptXdevNames = new Set(built.xdevCatalogNames);
+		this.#host.clearMemoryPromotionSnapshot();
+		if (
+			previousBaseSystemPrompt.length !== this.#baseSystemPrompt.length ||
+			previousBaseSystemPrompt.some((part, index) => part !== this.#baseSystemPrompt[index])
+		) {
 			this.#host.clearInheritedProviderPromptCacheKey();
-			this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 		}
+		this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 		this.#promptModelKey = this.#currentPromptModelKey();
 		// Refresh the cached signature so a subsequent `applyActiveToolsByName` with
 		// the same tool set does not re-rebuild on top of the explicit refresh we
@@ -1870,10 +1924,6 @@ export class SessionTools {
 			throw error;
 		}
 	}
-}
-
-function systemPromptsAreEqual(previous: readonly string[], next: readonly string[]): boolean {
-	return previous.length === next.length && previous.every((part, index) => part === next[index]);
 }
 
 function registeredFilesystemSourcePath(runner: ExtensionRunner | undefined, name: string): string | undefined {
