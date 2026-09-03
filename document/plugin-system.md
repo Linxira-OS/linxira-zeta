@@ -201,3 +201,5 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
 - P0 场景二（人设群聊）的编排规则与交互形态（Neuro 系玩法细化）。
 - `ModeRegistry` 重构的兼容面验证（内置三模式行为必须零变化，含回归测试）。
 - 社区插件准入 CI 的具体形态（依赖改写校验 + 加载冒烟）。
+
+agent-team 完整开发规格（编排器 / `team_*` 工具 / 人设群聊 / Web pages）→ [agent-team-plugin.md](./agent-team-plugin.md)。

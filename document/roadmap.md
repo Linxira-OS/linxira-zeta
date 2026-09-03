@@ -184,6 +184,10 @@ capabilities that its execution environment can actually provide.
    design spec (locked decisions, layout tree, token inventory, tracking v2
    detail, acceptance): `document/web-ui-modernization.md` — amend that
    document in place; this entry stays a pointer.
+   Status (2026-09-03): Sidebar 重构红线 + openchamber 头部布局已落地
+   (feat/web-ui-sidebar；头部红线见 web-ui-modernization.md §1)；会话地图
+   设计已登记 (`document/session-map-web.md`)；agent-team 插件设计已登记
+   (`document/agent-team-plugin.md`)。
 
 ### P0 — Compaction as a service (not a command)
 
