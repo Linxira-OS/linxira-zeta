@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { DailyActivityPoint } from "@oh-my-pi/omp-stats/shared-types";
-import type { UsageReport } from "@oh-my-pi/pi-ai";
-import { buildHeatmapLayout, buildProviderCards } from "@oh-my-pi/pi-coding-agent/modes/components/usage-dashboard";
+import type { DailyActivityPoint } from "@linxiraos/pi-stats/shared-types";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import { buildHeatmapLayout, buildProviderCards } from "@linxiraos/zeta/modes/components/usage-dashboard";
 
 function day(day: string, cost: number, requests = 1): DailyActivityPoint {
 	return { day, cost, requests, totalTokens: 0 };

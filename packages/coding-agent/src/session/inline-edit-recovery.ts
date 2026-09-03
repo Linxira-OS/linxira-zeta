@@ -7,8 +7,8 @@
  * normal tool pipeline — validation, approval tiering, execution, rendering,
  * journaling, provider replay — runs it unchanged.
  */
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { mintToolCallId } from "@oh-my-pi/pi-ai/dialect";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { mintToolCallId } from "@linxiraos/pi-ai/dialect";
 import { extractInlineSloppyRegions } from "../edit";
 
 /**

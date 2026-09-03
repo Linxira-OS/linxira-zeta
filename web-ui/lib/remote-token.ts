@@ -47,7 +47,7 @@ export function installRemoteTokenFetch(): void {
       if (token && typeof input === "string" && input.startsWith("/api/")) {
         init = {
           ...init,
-          headers: { ...(init?.headers ?? {}), "X-Zeta-Token": token },
+          headers: { ...init?.headers, "X-Zeta-Token": token },
         };
       }
       return original(input, init);

@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildScale, buildTicks } from "@oh-my-pi/omp-stats/client/traces/time-scale";
-import type { TraceSpan, TraceTrack } from "@oh-my-pi/omp-stats/types";
+import { buildScale, buildTicks } from "@linxiraos/pi-stats/client/traces/time-scale";
+import type { TraceSpan, TraceTrack } from "@linxiraos/pi-stats/types";
 
 const B = 1_700_000_000_000;
 

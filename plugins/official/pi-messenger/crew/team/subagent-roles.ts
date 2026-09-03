@@ -26,7 +26,7 @@ function splitList(value: string): string[] {
   const trimmed = value.trim();
   if (!trimmed) return [];
   if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-    return trimmed.slice(1, -1).split(",").map(v => v.trim().replace(/^['\"]|['\"]$/g, "")).filter(Boolean);
+    return trimmed.slice(1, -1).split(",").map(v => v.trim().replace(/^['"]|['"]$/g, "")).filter(Boolean);
   }
   return trimmed.split(",").map(v => v.trim()).filter(Boolean);
 }
@@ -42,7 +42,7 @@ function parseFrontmatter(content: string): { data: Record<string, string>; body
     const idx = line.indexOf(":");
     if (idx <= 0) continue;
     const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim().replace(/^['\"]|['\"]$/g, "");
+    const value = line.slice(idx + 1).trim().replace(/^['"]|['"]$/g, "");
     if (key) data[key] = value;
   }
   const bodyStart = normalized.indexOf("\n", end + 4);

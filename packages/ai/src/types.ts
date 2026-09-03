@@ -33,7 +33,6 @@ import type {
 	WriteResult,
 } from "@linxiraos/pi-catalog/discovery/cursor-proto";
 import type { Effort } from "@linxiraos/pi-catalog/effort";
-import { isOpenAIModelId } from "@linxiraos/pi-catalog/identity/family";
 import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@linxiraos/pi-catalog/types";
 import type { Type } from "@linxiraos/pi-omptype";
 import type { ApiKey } from "./auth-retry";

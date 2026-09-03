@@ -1,10 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import {
-	extractCodeBlocks,
-	extractLastCommand,
-	extractQuoteBlocks,
-} from "@linxiraos/zeta/modes/utils/copy-targets";
+import { extractCodeBlocks, extractLastCommand, extractQuoteBlocks } from "@linxiraos/zeta/modes/utils/copy-targets";
 
 function assistantCalls(toolCalls: Array<{ name: string; arguments: Record<string, unknown> }>): AgentMessage {
 	return {

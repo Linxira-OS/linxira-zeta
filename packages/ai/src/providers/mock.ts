@@ -42,7 +42,7 @@
  *   expect(mock.calls).toHaveLength(2);
  */
 
-import { classifyModel } from "@oh-my-pi/pi-catalog/compat/taxonomy";
+import { classifyModel } from "@linxiraos/pi-catalog/compat/taxonomy";
 import { registerCustomApi } from "../api-registry";
 import * as AIError from "../error";
 import type {

@@ -244,7 +244,7 @@ async function deprecateBroken(version: string): Promise<void> {
 		message = "Broken: native addon sentinel mismatch (1.1.1 addon in 1.1.2). Use 1.1.3.";
 	} else {
 		// 14 个核心包 + zeta-web 的 1.1.0 都是坏的；pi-messenger@1.1.0 零依赖、完整，不处理。
-		names = [...TARGETS.filter(t => t.name !== "@linxiraos/pi-messenger").map(t => t.name)];
+		names = TARGETS.filter(t => t.name !== "@linxiraos/pi-messenger").map(t => t.name);
 		message = "Broken in 1.1.0: dependencies use Bun's catalog: protocol which npm cannot resolve. Upgrade to 1.1.1.";
 	}
 	for (const name of names) {

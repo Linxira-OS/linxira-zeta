@@ -365,7 +365,7 @@ export function syncOmpRuntimeModelsJson(agentDir: string = getOmpAgentDir()): s
             const customId = String(customM.id || "");
             const dbM = dbModelMap.get(customId);
             const merged = {
-              ...(dbM || {}),
+              ...dbM,
               ...customM,
             };
             if (!merged.contextWindow || typeof merged.contextWindow !== "number" || (merged.contextWindow as number) <= 0) {
@@ -380,7 +380,7 @@ export function syncOmpRuntimeModelsJson(agentDir: string = getOmpAgentDir()): s
           }
 
           providers[providerId] = {
-            ...(providers[providerId] || {}),
+            ...providers[providerId],
             ...providerConfig,
             models: mergedModels,
           };

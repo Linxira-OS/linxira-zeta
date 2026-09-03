@@ -546,7 +546,7 @@ export function renameAgent(
   
   try {
     fs.writeFileSync(join(dirs.registry, `${newName}.json`), JSON.stringify(registration, null, 2));
-  } catch (err) {
+  } catch {
     return { success: false, error: "invalid_name" as const };
   }
 

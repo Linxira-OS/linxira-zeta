@@ -33,8 +33,6 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:"
   },

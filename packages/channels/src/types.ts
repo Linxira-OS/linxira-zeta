@@ -29,9 +29,14 @@ export interface IrcMessage {
  */
 export interface ChannelSession {
 	getAgentId(): string | undefined;
-	deliverIrcMessage(msg: IrcMessage, opts?: { expectsReply?: boolean }): Promise<unknown>;
+	deliverIrcMessage(
+		msg: IrcMessage,
+		opts?: { expectsReply?: boolean },
+	): Promise<unknown>;
 	subscribe(handler: (event: ChannelSessionEvent) => void): () => void;
-	setIrcAutoReplyListener(listener: ((msg: IrcMessage, replyText: string) => void) | null): void;
+	setIrcAutoReplyListener(
+		listener: ((msg: IrcMessage, replyText: string) => void) | null,
+	): void;
 }
 
 /**
@@ -61,7 +66,12 @@ export interface ChannelsWebConfig {
 				endpoint?: string;
 				peerTokens?: Record<string, string>;
 			};
-			feishu: { enabled: boolean; appId?: string; appSecret?: string; domain?: "feishu" | "lark" };
+			feishu: {
+				enabled: boolean;
+				appId?: string;
+				appSecret?: string;
+				domain?: "feishu" | "lark";
+			};
 			telegram: { enabled: boolean; botToken?: string };
 			allowedPeers?: string[];
 		};

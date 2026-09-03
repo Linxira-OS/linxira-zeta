@@ -142,8 +142,8 @@ function buildConfig(projectConfig?: Partial<MessengerConfig> | null): Messenger
   const merged = { 
     ...DEFAULT_CONFIG, 
     ...settingsConfig,
-    ...(extensionConfig ?? {}), 
-    ...(projectConfig ?? {}) 
+    ...extensionConfig, 
+    ...projectConfig 
   };
 
   const nameWords = (merged as Record<string, unknown>).nameWords as { adjectives: string[]; nouns: string[] } | undefined;

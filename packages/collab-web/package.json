@@ -37,14 +37,12 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@oh-my-pi/pi-utils": "catalog:",
-    "@oh-my-pi/pi-wire": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
+    "@linxiraos/pi-wire": "catalog:",
     "lucide-react": "catalog:",
     "katex": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:"
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

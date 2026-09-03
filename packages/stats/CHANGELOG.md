@@ -3,21 +3,6 @@
 ## [Unreleased]
 
 ## [1.1.7] - 2026-09-01
-## [18.1.0] - 2026-09-01
-
-### Added
-
-- Added API for daily activity tracking, including cost, requests, and token usage aggregates
-- Added a Traces dashboard for detailed session analysis, including an interactive timeline, searchable and filterable transcripts, token and cost summaries, and aggregate tool-usage and timing insights.
-
-### Fixed
-
-- Fixed `omp stats` omitting usage from online auto-thinking classifier calls.
-
-## [18.0.9] - 2026-08-28
-
-- 版本线随 1.1.7 发布对齐（随本体 v18.0.11 同步与主题/网关更新），包内无独立变更。
-
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。

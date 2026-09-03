@@ -844,7 +844,7 @@ export function __getLegacyPiBundledModulesGlobal(): string {
 
 // Canonical scope for in-process pi packages. Plugins published against any of
 // the aliased scopes below (mariozechner's original publish, earendil-works'
-// fork, or the canonical @oh-my-pi scope itself) are remapped to this scope and
+// fork, or the canonical @linxiraos scope itself) are remapped to this scope and
 // resolved against the bundled copy that ships inside the omp binary. This
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
@@ -852,7 +852,7 @@ export function __getLegacyPiBundledModulesGlobal(): string {
 const CANONICAL_PI_SCOPE = "@linxiraos";
 
 // Scopes that have historically been used to publish (or alias) the same set
-// of internal pi-* packages. `@oh-my-pi` is intentionally included so direct
+// of internal pi-* packages. `@linxiraos` is intentionally included so direct
 // canonical imports still pass through the same host-bundled package resolution
 // path instead of pulling a duplicate copy from plugin node_modules.
 const PI_SCOPE_ALIASES = ["linxiraos", "zeta", "oh-my-pi", "mariozechner", "earendil-works"] as const;
@@ -2858,7 +2858,7 @@ function resolveLegacyPiSpecifier(args: { path: string; importer: string }): Leg
 		// Fallback for compiled binary mode: the bundled packages live inside
 		// /$bunfs/root and aren't reachable by filesystem resolution. Prefer the
 		// canonical specifier against the importing file's directory when the
-		// plugin installed @oh-my-pi peer deps, then try the original legacy
+		// plugin installed @linxiraos peer deps, then try the original legacy
 		// specifier for plugins that still vendor only @mariozechner or
 		// @earendil-works peer deps.
 		const importerDir = path.dirname(args.importer);

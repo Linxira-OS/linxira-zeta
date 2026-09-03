@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { loginClinePass } from "@oh-my-pi/pi-ai/registry/cline-pass";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
+import { loginClinePass } from "@linxiraos/pi-ai/registry/cline-pass";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 
 describe("ClinePass login", () => {
 	it("opens the dashboard and validates the key against the account identity route", async () => {

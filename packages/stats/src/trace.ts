@@ -11,7 +11,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getSessionsDir, isEnoent } from "@oh-my-pi/pi-utils";
+import { getSessionsDir, isEnoent } from "@linxiraos/pi-utils";
 import { getSessionRollups, getToolCallCountsBySession } from "./db";
 import { extractFolderFromPath, parseAllSessionEntries } from "./parser";
 import type {

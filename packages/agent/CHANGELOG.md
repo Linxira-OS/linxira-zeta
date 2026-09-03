@@ -16,18 +16,6 @@
 - 同步上游 OMP v18.0.5 / v18.0.6（内部运行时与构建改进）。
 
 ## [1.1.2] - 2026-08-25
-## [18.1.2] - 2026-09-01
-
-### Fixed
-
-- Fixed preservation of Claude thinking/reasoning context when conversations are compacted or tool results are pruned.
-
-## [18.0.11] - 2026-08-29
-
-### Fixed
-
-- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
-
 ## [1.1.1] - 2026-08-25
 
 ### Fixed

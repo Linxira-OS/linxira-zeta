@@ -15,7 +15,11 @@ import * as Lark from "@larksuiteoapi/node-sdk";
 import { logger } from "@linxiraos/pi-utils";
 import type { ChatChannel, ChatImage } from "./channel";
 
-export type FeishuInboundHandler = (peer: string, body: string, messageId?: string) => void;
+export type FeishuInboundHandler = (
+	peer: string,
+	body: string,
+	messageId?: string,
+) => void;
 
 export interface FeishuChannelOptions {
 	appId: string;
@@ -57,7 +61,9 @@ export class FeishuChannel implements ChatChannel {
 	}
 
 	#sdkDomain(): Lark.Domain {
-		return this.#options.domain === "lark" ? Lark.Domain.Lark : Lark.Domain.Feishu;
+		return this.#options.domain === "lark"
+			? Lark.Domain.Lark
+			: Lark.Domain.Feishu;
 	}
 
 	async start(): Promise<void> {
@@ -77,8 +83,10 @@ export class FeishuChannel implements ChatChannel {
 		});
 		const dispatcher = new Lark.EventDispatcher({});
 		dispatcher.register({
-			"im.message.receive_v1": (data: FeishuTextEventData) => this.#onEvent(data),
-			bot_p2p_chat_entered: (data: FeishuP2pEnteredData) => this.#onP2pEntered(data),
+			"im.message.receive_v1": (data: FeishuTextEventData) =>
+				this.#onEvent(data),
+			bot_p2p_chat_entered: (data: FeishuP2pEnteredData) =>
+				this.#onP2pEntered(data),
 		});
 
 		const ws = new Lark.WSClient({
@@ -87,7 +95,7 @@ export class FeishuChannel implements ChatChannel {
 			domain: this.#sdkDomain(),
 			loggerLevel: Lark.LoggerLevel.error,
 			wsConfig: { pingTimeout: 3 },
-			onError: err => {
+			onError: (err) => {
 				logger.warn("Feishu WebSocket error", {
 					error: err instanceof Error ? err.message : String(err),
 				});
@@ -143,7 +151,7 @@ export class FeishuChannel implements ChatChannel {
 		const chatId = data.chat_id ?? data.event?.chat_id;
 		if (typeof chatId !== "string" || chatId === "") return;
 		logger.info("Feishu first p2p contact; sending onboarding", { chatId });
-		void this.sendText(chatId, P2P_ONBOARDING_TEXT).catch(error => {
+		void this.sendText(chatId, P2P_ONBOARDING_TEXT).catch((error) => {
 			logger.warn("Feishu onboarding reply failed", {
 				error: error instanceof Error ? error.message : String(error),
 			});
@@ -166,11 +174,17 @@ export class FeishuChannel implements ChatChannel {
 			},
 		});
 		if (res.code !== 0) {
-			throw new Error(`Feishu sendMessage failed: code=${String(res.code)} msg=${res.msg ?? ""}`);
+			throw new Error(
+				`Feishu sendMessage failed: code=${String(res.code)} msg=${res.msg ?? ""}`,
+			);
 		}
 	}
 
-	async sendImage(to: string, image: ChatImage, caption?: string): Promise<void> {
+	async sendImage(
+		to: string,
+		image: ChatImage,
+		caption?: string,
+	): Promise<void> {
 		const client = this.#requireClient();
 		const upload = await client.im.image.create({
 			data: {
@@ -191,7 +205,9 @@ export class FeishuChannel implements ChatChannel {
 			},
 		});
 		if (res.code !== 0) {
-			throw new Error(`Feishu image message failed: code=${String(res.code)} msg=${res.msg ?? ""}`);
+			throw new Error(
+				`Feishu image message failed: code=${String(res.code)} msg=${res.msg ?? ""}`,
+			);
 		}
 		if (caption && caption !== "") {
 			await this.sendText(to, caption);

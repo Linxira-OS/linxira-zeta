@@ -5,10 +5,10 @@
  * above a GitHub-style daily activity heatmap fed by the local stats DB.
  * Enter flips into the classic full per-account report, scrollable in place.
  */
-import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@oh-my-pi/pi-ai";
-import type { DailyActivityPoint } from "@oh-my-pi/omp-stats/shared-types";
-import { type Component, matchesKey, routeSgrMouseInput, truncateToWidth, visibleWidth } from "@oh-my-pi/pi-tui";
-import { colorLuma, formatDuration, hexToRgb, rgbToHex } from "@oh-my-pi/pi-utils";
+import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@linxiraos/pi-ai";
+import type { DailyActivityPoint } from "@linxiraos/pi-stats/shared-types";
+import { type Component, matchesKey, routeSgrMouseInput, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
+import { colorLuma, formatDuration, hexToRgb, rgbToHex } from "@linxiraos/pi-utils";
 import { formatProviderName } from "../../slash-commands/helpers/format";
 import { colorToAnsi } from "../theme/color";
 import { theme } from "../theme/theme";
