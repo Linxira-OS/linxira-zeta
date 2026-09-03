@@ -324,8 +324,10 @@ function buildCompiledTables(): Readonly<Record<string, VariantCollapseTable>> {
 		{ families: EffortVariantFamily[]; templates?: VariantFamilyTemplate[]; providerAliases?: Record<string, string> }
 	> = {};
 	for (const compiled of variantFamilies) {
+		// biome-ignore lint/suspicious/noAssignInExpressions: compiled stratum walker assigns during traversal
 		const table = (tables[compiled.provider] ??= { families: [] });
 		if (compiled.id.includes(REVISION_PLACEHOLDER)) {
+			// biome-ignore lint/suspicious/noAssignInExpressions: compiled stratum walker assigns during traversal
 			(table.templates ??= []).push(compiledTemplate(compiled));
 		} else {
 			table.families.push(compiledFamily(compiled));

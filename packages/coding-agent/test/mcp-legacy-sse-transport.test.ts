@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { MCPConnectionTimeoutError, connectToServer, listTools } from "@linxiraos/zeta/mcp/client";
+import { connectToServer, listTools, MCPConnectionTimeoutError } from "@linxiraos/zeta/mcp/client";
 import { isRetriableConnectionError } from "@linxiraos/zeta/mcp/tool-bridge";
 import type { JsonRpcMessage } from "@linxiraos/zeta/mcp/types";
 

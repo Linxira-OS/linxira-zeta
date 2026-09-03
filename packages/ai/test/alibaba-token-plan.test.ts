@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { resolveOpenAIRequestSetup } from "@linxiraos/pi-ai/providers/openai-shared";
-import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
 import type { OAuthController } from "@linxiraos/pi-ai/oauth/types";
+import { resolveOpenAIRequestSetup } from "@linxiraos/pi-ai/providers/openai-shared";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 function registeredLogin(options: OAuthController) {

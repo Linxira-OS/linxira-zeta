@@ -4,6 +4,8 @@ import {
 	getTerminalInfo,
 	hyperlinksUserOverride,
 	ImageProtocol,
+	isInsideHerdr,
+	isInsideTerminalMultiplexer,
 	isPaseoEmbedder,
 	NotifyProtocol,
 	resolveImageProtocol,
@@ -11,8 +13,6 @@ import {
 	shouldEnableHyperlinksByDefault,
 	shouldEnableSynchronizedOutputByDefault,
 	synchronizedOutputUserOverride,
-	isInsideHerdr,
-	isInsideTerminalMultiplexer,
 } from "@linxiraos/pi-tui/terminal-capabilities";
 
 describe("isInsideHerdr", () => {

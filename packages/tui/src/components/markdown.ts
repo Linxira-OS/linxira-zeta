@@ -2355,11 +2355,11 @@ export class Markdown implements Component {
 		}
 
 		const recorder: TailRenderRecorder = {
-			// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+			// [suppressed] render-cache length preallocation
 			rows: new Array(tokens.length - spliceEnd).fill(undefined),
-			// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+			// [suppressed] render-cache length preallocation
 			raws: new Array(tokens.length - spliceEnd).fill(undefined),
-			// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+			// [suppressed] render-cache length preallocation
 			nextTypes: new Array(tokens.length - spliceEnd).fill(undefined),
 		};
 		const fresh = this.#renderContentLines(tokens, spliceEnd, tokens.length, contentWidth, signature, recorder);
@@ -2372,11 +2372,11 @@ export class Markdown implements Component {
 		// `start`), so a mostly-frozen document allocates only for the
 		// unfrozen tail instead of the whole token list every frame.
 		const tailCount = tokens.length - start;
-		// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+		// [suppressed] render-cache length preallocation
 		const rows: (readonly string[] | undefined)[] = new Array(tailCount).fill(undefined);
-		// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+		// [suppressed] render-cache length preallocation
 		const raws: (string | undefined)[] = new Array(tailCount).fill(undefined);
-		// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+		// [suppressed] render-cache length preallocation
 		const nextTypes: (string | undefined)[] = new Array(tailCount).fill(undefined);
 		if (cache !== undefined && cache.tokenStart === start) {
 			for (let i = start; i < Math.min(cache.cachedThrough, spliceEnd); i++) {
@@ -3474,7 +3474,7 @@ export class Markdown implements Component {
 		let minCellsWidth = minColumnWidths.reduce((a, b) => a + b, 0);
 
 		if (minCellsWidth > availableForCells) {
-			// oxlint-disable-next-line unicorn/no-new-array -- column-width allocation
+			// [suppressed] column-width allocation
 			minColumnWidths = new Array(numCols).fill(1);
 			const remaining = availableForCells - numCols;
 

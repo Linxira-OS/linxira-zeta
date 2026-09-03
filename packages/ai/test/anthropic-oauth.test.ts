@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { claudeCodeVersion } from "@linxiraos/pi-ai/providers/claude-code-fingerprint";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
-import type { OAuthCredentials, OAuthController } from "@linxiraos/pi-ai/registry/oauth/types";
+import type { OAuthController, OAuthCredentials } from "@linxiraos/pi-ai/registry/oauth/types";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import {
 	buildAnthropicAuthConfig,

@@ -87,16 +87,16 @@ import {
 	type MessageParam,
 	parseAnthropicInputTransformations,
 	type RawMessageStreamEvent,
-	THINKING_BINDING_CONTROLS_BETA,
 	type TextBlockParam,
+	THINKING_BINDING_CONTROLS_BETA,
 } from "./anthropic-wire";
 import {
 	CLAUDE_CODE_MAX_OUTPUT_TOKENS,
 	claudeCodeSdkVersion,
 	claudeCodeSystemInstruction,
+	claudeCodeUserAgent,
 	claudeCodeVersion,
 	claudeToolPrefix,
-	claudeCodeUserAgent,
 } from "./claude-code-fingerprint";
 import {
 	buildCopilotDynamicHeaders,
@@ -4932,10 +4932,12 @@ function buildAnthropicBaseToolInputSchema(tool: Tool): Record<string, unknown> 
 }
 
 function buildAnthropicToolSchemaPlans(tools: Tool[], disableStrictTools = false): AnthropicToolSchemaPlan[] {
-	const plans = tools.map((tool): AnthropicToolSchemaPlan => ({
-		inputSchema: buildAnthropicBaseToolInputSchema(tool) as AnthropicToolInputSchema,
-		strict: false,
-	}));
+	const plans = tools.map(
+		(tool): AnthropicToolSchemaPlan => ({
+			inputSchema: buildAnthropicBaseToolInputSchema(tool) as AnthropicToolInputSchema,
+			strict: false,
+		}),
+	);
 	if (NO_STRICT || disableStrictTools) return plans;
 
 	const candidateIndexes = tools.flatMap((tool, index) => {

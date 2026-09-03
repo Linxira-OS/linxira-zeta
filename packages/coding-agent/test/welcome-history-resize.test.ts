@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
-import { COMPOSER_DEFAULTS, Composer } from "@linxiraos/zeta/modes/composer";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { setLanguage } from "../src/i18n";
 import { type Component, Container, type RenderScheduler, visibleWidth } from "@linxiraos/pi-tui";
 import { Image } from "@linxiraos/pi-tui/components/image";
 import { getKittyGraphics, setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
 import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { COMPOSER_DEFAULTS, Composer } from "@linxiraos/zeta/modes/composer";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { VirtualRenderScheduler } from "../../tui/test/virtual-render-scheduler";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
+import { setLanguage } from "../src/i18n";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 
 const BASE64_ONE_PIXEL_PNG =

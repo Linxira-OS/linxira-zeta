@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { visibleWidth } from "@linxiraos/pi-tui";
 import { renderWelcomeTip, WelcomeComponent } from "@linxiraos/zeta/modes/components/welcome";
 import { initTheme, setSymbolPreset, setTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { visibleWidth } from "@linxiraos/pi-tui";
 import { M } from "../src/i18n";
 
 describe("renderWelcomeTip", () => {

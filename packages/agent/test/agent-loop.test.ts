@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent } from "@linxiraos/pi-agent-core";
 import {
 	agentLoop,
@@ -22,6 +21,7 @@ import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/m
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 

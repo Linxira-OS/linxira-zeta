@@ -6,6 +6,7 @@ import {
 	resolveCliModel,
 } from "../config/model-resolver";
 import type { SettingPath, Settings } from "../config/settings";
+import { M } from "../i18n";
 import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
 import type { AgentSession } from "../session/agent-session";
@@ -15,7 +16,6 @@ import type { InspectImageMode } from "../utils/inspect-image-mode";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { handleSecurityCommand } from "./helpers/security";
 import type { ParsedSlashCommand, SlashCommandSpec, TuiSlashCommandRuntime } from "./types";
-import { M } from "../i18n";
 
 export function refreshStatusLine(ctx: InteractiveModeContext): void {
 	ctx.statusLine.invalidate();

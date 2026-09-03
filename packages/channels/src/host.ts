@@ -24,11 +24,7 @@ import type { ChannelId } from "./channel";
 import type { ChannelSession, ChannelSessionEvent, IrcMessage } from "./types";
 
 /** Outbound sink: resolves a channel + peer to a `sendText` call. */
-export type ChannelSendFn = (
-	channelId: ChannelId,
-	to: string,
-	text: string,
-) => Promise<void>;
+export type ChannelSendFn = (channelId: ChannelId, to: string, text: string) => Promise<void>;
 
 interface PendingReply {
 	channelId: ChannelId;
@@ -36,11 +32,10 @@ interface PendingReply {
 }
 
 function assistantText(message: AssistantMessage | undefined): string {
-	if (message?.role !== "assistant" || !Array.isArray(message.content))
-		return "";
+	if (message?.role !== "assistant" || !Array.isArray(message.content)) return "";
 	return message.content
 		.filter((content): content is TextContent => content.type === "text")
-		.map((content) => content.text)
+		.map(content => content.text)
 		.join("")
 		.trim();
 }
@@ -53,11 +48,7 @@ export class ChannelHost {
 	#unsubscribe: (() => void) | null = null;
 	#lastInbound: { channelId: ChannelId; peer: string } | null = null;
 
-	constructor(
-		session: ChannelSession,
-		send: ChannelSendFn,
-		allowedPeers?: readonly string[],
-	) {
+	constructor(session: ChannelSession, send: ChannelSendFn, allowedPeers?: readonly string[]) {
 		this.#session = session;
 		this.#send = send;
 		this.#allowedPeers = allowedPeers ?? [];
@@ -76,12 +67,8 @@ export class ChannelHost {
 	/** Attach the session event listener + IRC auto-reply hook. */
 	start(): void {
 		if (this.#unsubscribe) return;
-		this.#unsubscribe = this.#session.subscribe((event) =>
-			this.#onSessionEvent(event),
-		);
-		this.#session.setIrcAutoReplyListener((msg, replyText) =>
-			this.#onAutoReply(msg, replyText),
-		);
+		this.#unsubscribe = this.#session.subscribe(event => this.#onSessionEvent(event));
+		this.#session.setIrcAutoReplyListener((msg, replyText) => this.#onAutoReply(msg, replyText));
 	}
 
 	/** Detach listeners and drop pending reply bindings. */
@@ -96,11 +83,7 @@ export class ChannelHost {
 	 * Inject one inbound channel message into the coordinator session and
 	 * bind the sender so the turn's final reply returns to them.
 	 */
-	async deliver(
-		channelId: ChannelId,
-		peer: string,
-		body: string,
-	): Promise<void> {
+	async deliver(channelId: ChannelId, peer: string, body: string): Promise<void> {
 		// Optional allowlist: when configured, only listed peers may reach the
 		// agent (empty allowlist = everyone, unchanged behavior).
 		if (this.#allowedPeers.length > 0 && !this.#allowedPeers.includes(peer)) {
@@ -124,9 +107,7 @@ export class ChannelHost {
 			await this.#session.deliverIrcMessage(msg, { expectsReply: true });
 			this.#lastInbound = { channelId, peer };
 		} catch (error) {
-			this.#pending = this.#pending.filter(
-				(p) => !(p.channelId === channelId && p.peer === peer),
-			);
+			this.#pending = this.#pending.filter(p => !(p.channelId === channelId && p.peer === peer));
 			throw error;
 		}
 	}
@@ -137,7 +118,7 @@ export class ChannelHost {
 		if (!pending) return;
 		const text = assistantText(event.message as AssistantMessage);
 		if (!text) return;
-		void this.#send(pending.channelId, pending.peer, text).catch((error) => {
+		void this.#send(pending.channelId, pending.peer, text).catch(error => {
 			logger.warn("Channel reply delivery failed", {
 				channel: pending.channelId,
 				error: error instanceof Error ? error.message : String(error),
@@ -150,7 +131,7 @@ export class ChannelHost {
 		if (!pending) return;
 		const body = replyText.trim();
 		if (!body) return;
-		void this.#send(pending.channelId, pending.peer, body).catch((error) => {
+		void this.#send(pending.channelId, pending.peer, body).catch(error => {
 			logger.warn("Channel auto-reply delivery failed", {
 				channel: pending.channelId,
 				error: error instanceof Error ? error.message : String(error),

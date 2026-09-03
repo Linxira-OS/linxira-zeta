@@ -18,8 +18,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import { isPromise } from "node:util/types";
-
-import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
 import {
 	type AfterToolCallContext,
 	type AfterToolCallResult,
@@ -81,6 +79,7 @@ import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/provide
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import type { Clipboard, InMemorySnapshotStore } from "@linxiraos/pi-hashline";
 import { MacOSPowerAssertion } from "@linxiraos/pi-natives";
 import {
 	$env,
@@ -164,10 +163,9 @@ import { containsUltrathink, ULTRATHINK_NOTICE } from "../modes/ultrathink";
 import { computeNonMessageTokens } from "../modes/utils/context-usage";
 import { containsWorkflow, renderWorkflowNotice } from "../modes/workflow";
 import { type PlanApprovalDetails, resolveApprovedPlan } from "../plan-mode/approved-plan";
+import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import { listPlanFiles, readPlanFile } from "../plan-mode/plan-files";
 import type { PlanModeState, PlanWorkflow } from "../plan-mode/state";
-import { resolvePlanModelTransition } from "../plan-mode/model-transition";
-import { type VibeOwnerScope, type VibeParentSession, VibeSessionRegistry } from "../vibe/runtime";
 import goalModeContextPrompt from "../prompts/goals/goal-mode-context.md" with { type: "text" };
 import goalTodoContextPrompt from "../prompts/goals/goal-todo-context.md" with { type: "text" };
 import autoContinuePrompt from "../prompts/system/auto-continue.md" with { type: "text" };
@@ -175,7 +173,9 @@ import checkpointActiveNoticeTemplate from "../prompts/system/checkpoint-active-
 import interruptedThinkingTemplate from "../prompts/system/interrupted-thinking.md" with { type: "text" };
 import planModeActivePrompt from "../prompts/system/plan-mode-active.md" with { type: "text" };
 import planModeReferencePrompt from "../prompts/system/plan-mode-reference.md" with { type: "text" };
-import planModeToolDecisionReminderPrompt from "../prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
+import planModeToolDecisionReminderPrompt from "../prompts/system/plan-mode-tool-decision-reminder.md" with {
+	type: "text",
+};
 import rewindReportTemplate from "../prompts/system/rewind-report.md" with { type: "text" };
 import sideChannelNoToolsReminder from "../prompts/system/side-channel-no-tools.md" with { type: "text" };
 import vibeModeActivePrompt from "../prompts/system/vibe-mode-active.md" with { type: "text" };
@@ -224,6 +224,7 @@ import type { InspectImageMode } from "../utils/inspect-image-mode";
 import { resumeCommand } from "../utils/resume-command";
 import { generateSessionTitle } from "../utils/title-generator";
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
+import { type VibeOwnerScope, type VibeParentSession, VibeSessionRegistry } from "../vibe/runtime";
 import type { VibeModeState } from "../vibe/state";
 import type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
 import type {

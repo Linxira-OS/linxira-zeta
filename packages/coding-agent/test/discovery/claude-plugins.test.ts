@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
 } from "@linxiraos/zeta/discovery/helpers";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import "@linxiraos/zeta/discovery/claude-plugins";
 
 describe("parseClaudePluginsRegistry", () => {

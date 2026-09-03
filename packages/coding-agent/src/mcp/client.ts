@@ -8,7 +8,7 @@ import * as url from "node:url";
 import { getProjectDir, logger, withTimeout } from "@linxiraos/pi-utils";
 import { describeMCPTimeout, isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "./timeout";
 import { createHttpTransport } from "./transports/http";
-import { LegacySseConnectionTimeoutError, createSseTransport } from "./transports/sse";
+import { createSseTransport, LegacySseConnectionTimeoutError } from "./transports/sse";
 import { createStdioTransport } from "./transports/stdio";
 import type {
 	MCPGetPromptParams,

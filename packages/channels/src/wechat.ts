@@ -26,11 +26,7 @@ import { logger } from "@linxiraos/pi-utils";
 import type { ChatChannel, ChatImage } from "./channel";
 import type { ChannelsWebConfig } from "./types";
 
-export type WeChatInboundHandler = (
-	peer: string,
-	body: string,
-	messageId?: string,
-) => void;
+export type WeChatInboundHandler = (peer: string, body: string, messageId?: string) => void;
 
 /** QR login progress surfaced to the UI (web settings panel). */
 export interface WeChatQrStatus {
@@ -75,28 +71,15 @@ function randomClientId(): string {
 }
 
 /** AES-128-ECB with PKCS7 padding (WebCrypto has no ECB mode; CBC + zero IV is equivalent). */
-async function aesEcbEncrypt(
-	data: Uint8Array,
-	key: Uint8Array,
-): Promise<Uint8Array> {
+async function aesEcbEncrypt(data: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
 	const paddedLength = data.length + (16 - (data.length % 16));
 	const padded = new Uint8Array(paddedLength);
 	padded.set(data);
 	for (let i = data.length; i < paddedLength; i++) {
 		padded[i] = paddedLength - data.length;
 	}
-	const cryptoKey = await crypto.subtle.importKey(
-		"raw",
-		new Uint8Array(key),
-		{ name: "AES-CBC" },
-		false,
-		["encrypt"],
-	);
-	const encrypted = await crypto.subtle.encrypt(
-		{ name: "AES-CBC", iv: new Uint8Array(16) },
-		cryptoKey,
-		padded,
-	);
+	const cryptoKey = await crypto.subtle.importKey("raw", new Uint8Array(key), { name: "AES-CBC" }, false, ["encrypt"]);
+	const encrypted = await crypto.subtle.encrypt({ name: "AES-CBC", iv: new Uint8Array(16) }, cryptoKey, padded);
 	return new Uint8Array(encrypted);
 }
 
@@ -126,13 +109,10 @@ export class WeChatChannel implements ChatChannel {
 		this.#options = options;
 		this.#onMessage = options.onMessage;
 		this.#botToken = options.config.botToken;
-		this.#baseUrl =
-			options.config.endpoint ?? options.config.baseUrl ?? DEFAULT_BASE_URL;
+		this.#baseUrl = options.config.endpoint ?? options.config.baseUrl ?? DEFAULT_BASE_URL;
 		this.#fetch = options.customFetch ?? globalThis.fetch;
 		// Restore persisted peer bindings so replies keep landing after a restart.
-		for (const [peer, token] of Object.entries(
-			options.config.peerTokens ?? {},
-		)) {
+		for (const [peer, token] of Object.entries(options.config.peerTokens ?? {})) {
 			if (token) this.#contextTokens.set(peer, token);
 		}
 	}
@@ -199,8 +179,7 @@ export class WeChatChannel implements ChatChannel {
 			signal: this.#abort?.signal,
 		});
 		const text = await res.text();
-		if (res.status === 401)
-			throw new WeChatAuthError("iLink request unauthorized");
+		if (res.status === 401) throw new WeChatAuthError("iLink request unauthorized");
 		try {
 			return JSON.parse(text) as Record<string, unknown>;
 		} catch {
@@ -208,10 +187,7 @@ export class WeChatChannel implements ChatChannel {
 		}
 	}
 
-	async #apiPost(
-		path: string,
-		body: unknown,
-	): Promise<Record<string, unknown>> {
+	async #apiPost(path: string, body: unknown): Promise<Record<string, unknown>> {
 		const res = await this.#fetch(`${this.#baseUrl}/${path}`, {
 			method: "POST",
 			headers: this.#headers(),
@@ -219,8 +195,7 @@ export class WeChatChannel implements ChatChannel {
 			signal: this.#abort?.signal,
 		});
 		const text = await res.text();
-		if (res.status === 401)
-			throw new WeChatAuthError("iLink request unauthorized");
+		if (res.status === 401) throw new WeChatAuthError("iLink request unauthorized");
 		try {
 			return JSON.parse(text) as Record<string, unknown>;
 		} catch {
@@ -236,12 +211,9 @@ export class WeChatChannel implements ChatChannel {
 			await this.#loginFlowV1();
 			return;
 		} catch (error) {
-			logger.warn(
-				"WeChat v1 login unavailable; falling back to legacy iLink flow",
-				{
-					error: error instanceof Error ? error.message : String(error),
-				},
-			);
+			logger.warn("WeChat v1 login unavailable; falling back to legacy iLink flow", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 		}
 		await this.#loginFlowLegacy();
 	}
@@ -252,8 +224,7 @@ export class WeChatChannel implements ChatChannel {
 		// flat `qrcode_url`/`token` shape too for hosts that don't nest.
 		const qr = await this.#apiPost("api/v1/wechat/qrcode", {});
 		const qrData = (qr.data as Record<string, unknown> | undefined) ?? qr;
-		const qrcodeUrl =
-			typeof qrData.qrcode_url === "string" ? qrData.qrcode_url : "";
+		const qrcodeUrl = typeof qrData.qrcode_url === "string" ? qrData.qrcode_url : "";
 		const token =
 			typeof qrData.qrcode === "string" && qrData.qrcode !== ""
 				? qrData.qrcode
@@ -271,8 +242,7 @@ export class WeChatChannel implements ChatChannel {
 				const result = await this.#apiPost("api/v1/wechat/qrcode/status", {
 					qrcode: token,
 				});
-				const body =
-					(result.data as Record<string, unknown> | undefined) ?? result;
+				const body = (result.data as Record<string, unknown> | undefined) ?? result;
 				const status = typeof body.status === "string" ? body.status : "";
 				if (status === "confirmed") {
 					const credentials =
@@ -287,18 +257,13 @@ export class WeChatChannel implements ChatChannel {
 					}
 					this.#botToken = botToken;
 					// The response may carry a host override for the message API.
-					const baseUrl =
-						typeof body.baseurl === "string" && body.baseurl !== ""
-							? body.baseurl
-							: "";
+					const baseUrl = typeof body.baseurl === "string" && body.baseurl !== "" ? body.baseurl : "";
 					if (baseUrl !== "" && baseUrl !== this.#baseUrl) {
 						this.#baseUrl = baseUrl;
 					}
 					// Restore persisted peer bindings so replies keep landing
 					// in the right chats after a restart.
-					for (const [peer, contextToken] of Object.entries(
-						this.#options.config.peerTokens ?? {},
-					)) {
+					for (const [peer, contextToken] of Object.entries(this.#options.config.peerTokens ?? {})) {
 						if (contextToken) this.#contextTokens.set(peer, contextToken);
 					}
 					const config = this.#options.webConfig;
@@ -336,8 +301,7 @@ export class WeChatChannel implements ChatChannel {
 				this.#options.onQrCode?.({
 					qrcode: token,
 					qrcodeUrl,
-					status:
-						status === "scaned" ? "scaned" : status === "" ? "wait" : status,
+					status: status === "scaned" ? "scaned" : status === "" ? "wait" : status,
 				});
 				await Bun.sleep(QR_POLL_INTERVAL_MS);
 			} catch (error) {
@@ -373,9 +337,7 @@ export class WeChatChannel implements ChatChannel {
 
 		while (this.#started && !this.#abort?.signal.aborted) {
 			try {
-				const status = await this.#apiGet(
-					`ilink/bot/get_qrcode_status?qrcode=${encodeURIComponent(qrcode)}`,
-				);
+				const status = await this.#apiGet(`ilink/bot/get_qrcode_status?qrcode=${encodeURIComponent(qrcode)}`);
 				if (typeof status.bot_token === "string" && status.bot_token !== "") {
 					this.#botToken = status.bot_token;
 					if (typeof status.baseurl === "string" && status.baseurl !== "") {
@@ -388,23 +350,11 @@ export class WeChatChannel implements ChatChannel {
 						if (this.#baseUrl !== DEFAULT_BASE_URL) {
 							await config.set("channels.wechat.baseUrl", this.#baseUrl);
 						}
-						if (
-							typeof status.ilink_bot_id === "string" &&
-							status.ilink_bot_id !== ""
-						) {
-							await config.set(
-								"channels.wechat.ilinkBotId",
-								status.ilink_bot_id,
-							);
+						if (typeof status.ilink_bot_id === "string" && status.ilink_bot_id !== "") {
+							await config.set("channels.wechat.ilinkBotId", status.ilink_bot_id);
 						}
-						if (
-							typeof status.ilink_user_id === "string" &&
-							status.ilink_user_id !== ""
-						) {
-							await config.set(
-								"channels.wechat.ilinkUserId",
-								status.ilink_user_id,
-							);
+						if (typeof status.ilink_user_id === "string" && status.ilink_user_id !== "") {
+							await config.set("channels.wechat.ilinkUserId", status.ilink_user_id);
 						}
 					}
 					this.#options.onQrCode?.({ qrcode, qrcodeUrl, status: "confirmed" });
@@ -413,10 +363,7 @@ export class WeChatChannel implements ChatChannel {
 				}
 				if (status.status === "scaned_but_redirect") {
 					// Server redirected the session to another host; follow it.
-					if (
-						typeof status.redirect_host === "string" &&
-						status.redirect_host !== ""
-					) {
+					if (typeof status.redirect_host === "string" && status.redirect_host !== "") {
 						this.#baseUrl = `https://${status.redirect_host}`;
 					}
 					this.#options.onQrCode?.({ qrcode, qrcodeUrl, status: "scaned" });
@@ -428,10 +375,7 @@ export class WeChatChannel implements ChatChannel {
 					this.#options.onQrCode?.({
 						qrcode,
 						qrcodeUrl,
-						status:
-							typeof status.status === "string" && status.status !== ""
-								? status.status
-								: "wait",
+						status: typeof status.status === "string" && status.status !== "" ? status.status : "wait",
 					});
 				}
 				await Bun.sleep(QR_POLL_INTERVAL_MS);
@@ -468,14 +412,13 @@ export class WeChatChannel implements ChatChannel {
 						msg.context_token !== this.#contextTokens.get(from)
 					) {
 						this.#contextTokens.set(from, msg.context_token);
-						void this.#persistPeerTokens().catch((error) => {
+						void this.#persistPeerTokens().catch(error => {
 							logger.warn("WeChat peer-token persistence failed", {
 								error: error instanceof Error ? error.message : String(error),
 							});
 						});
 					}
-					const textItem = (msg.item_list ?? []).find((item) => item.type === 1)
-						?.text_item?.text;
+					const textItem = (msg.item_list ?? []).find(item => item.type === 1)?.text_item?.text;
 					if (typeof textItem !== "string" || textItem === "") continue;
 					logger.debug("WeChat message received", {
 						from,
@@ -492,10 +435,7 @@ export class WeChatChannel implements ChatChannel {
 						continue;
 					} catch (loginError) {
 						logger.error("WeChat re-login failed", {
-							error:
-								loginError instanceof Error
-									? loginError.message
-									: String(loginError),
+							error: loginError instanceof Error ? loginError.message : String(loginError),
 						});
 						await Bun.sleep(RETRY_DELAY_MS);
 					}
@@ -551,9 +491,7 @@ export class WeChatChannel implements ChatChannel {
 	async sendText(to: string, text: string): Promise<void> {
 		const contextToken = this.#contextTokenFor(to);
 		if (!contextToken) {
-			throw new Error(
-				"WeChat: no context token for peer (wait for an inbound message first)",
-			);
+			throw new Error("WeChat: no context token for peer (wait for an inbound message first)");
 		}
 		const data = await this.#apiPost("ilink/bot/sendmessage", {
 			msg: {
@@ -572,22 +510,14 @@ export class WeChatChannel implements ChatChannel {
 		}
 	}
 
-	async sendImage(
-		to: string,
-		image: ChatImage,
-		caption?: string,
-	): Promise<void> {
+	async sendImage(to: string, image: ChatImage, caption?: string): Promise<void> {
 		const contextToken = this.#contextTokenFor(to);
 		if (!contextToken) {
-			throw new Error(
-				"WeChat: no context token for peer (wait for an inbound message first)",
-			);
+			throw new Error("WeChat: no context token for peer (wait for an inbound message first)");
 		}
 		const aesKey = crypto.getRandomValues(new Uint8Array(16));
 		const encrypted = await aesEcbEncrypt(image.data, aesKey);
-		const fileBase =
-			(caption ?? "plan").replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 40) ||
-			"plan";
+		const fileBase = (caption ?? "plan").replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 40) || "plan";
 
 		// 1. Request a presigned CDN upload URL.
 		const upload = await this.#apiPost("ilink/bot/getuploadurl", {
@@ -618,9 +548,7 @@ export class WeChatChannel implements ChatChannel {
 					? upload.full_url
 					: undefined;
 		if (!uploadUrl) {
-			throw new Error(
-				"WeChat getuploadurl returned no upload URL; cannot send image",
-			);
+			throw new Error("WeChat getuploadurl returned no upload URL; cannot send image");
 		}
 
 		// 2. PUT the encrypted payload to the CDN.
@@ -656,9 +584,7 @@ export class WeChatChannel implements ChatChannel {
 			base_info: this.#baseInfo(),
 		});
 		if (data?.ret !== undefined && data.ret !== 0) {
-			throw new Error(
-				`WeChat sendmessage (image) failed: ret=${String(data.ret)}`,
-			);
+			throw new Error(`WeChat sendmessage (image) failed: ret=${String(data.ret)}`);
 		}
 	}
 }

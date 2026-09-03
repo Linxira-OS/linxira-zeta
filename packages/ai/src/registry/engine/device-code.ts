@@ -15,8 +15,8 @@ import {
 	mapCredentials,
 	postTokenRequest,
 	resolveValue,
-	template,
 	type TemplateVars,
+	template,
 	throwIfCancelled,
 } from "./common";
 

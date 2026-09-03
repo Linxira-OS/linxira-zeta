@@ -319,7 +319,7 @@ export class TranscriptContainer extends Container {
 			return output;
 		}
 
-		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+		// [suppressed] length preallocation
 		const allocation: number[] = new Array(shown.length).fill(1);
 		let surplus = capacity - shown.length;
 		// Surplus rows favor ordinary transcript blocks over dynamic tool-activity
@@ -409,9 +409,9 @@ export class TranscriptContainer extends Container {
 		const room = Math.max(0, Math.trunc(capacity));
 		const live = this.#liveEntries();
 		if (live.length === 0) return undefined;
-		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+		// [suppressed] length preallocation
 		const rendered: (readonly string[])[] = new Array(live.length);
-		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+		// [suppressed] length preallocation
 		const heights: number[] = new Array(live.length);
 		let total = 0;
 		let visible = 0;

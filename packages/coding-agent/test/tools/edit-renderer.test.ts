@@ -2,16 +2,16 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { InMemorySnapshotStore } from "@linxiraos/pi-hashline";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { InMemorySnapshotStore } from "@linxiraos/pi-hashline";
+import { Text, type TUI, visibleWidth } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { editToolRenderer } from "@linxiraos/zeta/edit/renderer";
 import { renderDiff } from "@linxiraos/zeta/modes/components/diff";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
-import { Text, type TUI, visibleWidth } from "@linxiraos/pi-tui";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
 
 beforeAll(async () => {
 	resetSettingsForTest();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { DailyActivityPoint } from "@linxiraos/pi-stats/shared-types";
 import type { UsageReport } from "@linxiraos/pi-ai";
+import type { DailyActivityPoint } from "@linxiraos/pi-stats/shared-types";
 import { buildHeatmapLayout, buildProviderCards } from "@linxiraos/zeta/modes/components/usage-dashboard";
 
 function day(day: string, cost: number, requests = 1): DailyActivityPoint {

@@ -21,8 +21,8 @@ import {
 	NEVER_EXPIRES,
 	postTokenRequest,
 	resolveValue,
-	template,
 	type TemplateVars,
+	template,
 	throwIfCancelled,
 } from "./common";
 

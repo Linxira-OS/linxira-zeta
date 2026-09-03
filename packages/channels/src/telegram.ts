@@ -12,11 +12,7 @@
 import { logger } from "@linxiraos/pi-utils";
 import type { ChatChannel, ChatImage } from "./channel";
 
-export type TelegramInboundHandler = (
-	peer: string,
-	body: string,
-	messageId?: string,
-) => void;
+export type TelegramInboundHandler = (peer: string, body: string, messageId?: string) => void;
 
 export interface TelegramChannelOptions {
 	botToken: string;
@@ -76,9 +72,7 @@ export class TelegramChannel implements ChatChannel {
 					]),
 				});
 				if (res.status === 401) {
-					logger.error(
-						"Telegram bot token rejected (HTTP 401); polling stopped",
-					);
+					logger.error("Telegram bot token rejected (HTTP 401); polling stopped");
 					break;
 				}
 				if (!res.ok) {
@@ -103,18 +97,13 @@ export class TelegramChannel implements ChatChannel {
 					}
 					const chatId = update.message?.chat?.id;
 					const text = update.message?.text;
-					if (chatId === undefined || typeof text !== "string" || text === "")
-						continue;
+					if (chatId === undefined || typeof text !== "string" || text === "") continue;
 					if (text.startsWith("/")) continue;
 					logger.debug("Telegram message received", {
 						chatId,
 						length: text.length,
 					});
-					this.#onMessage(
-						String(chatId),
-						text,
-						String(update.message?.message_id ?? ""),
-					);
+					this.#onMessage(String(chatId), text, String(update.message?.message_id ?? ""));
 				}
 			} catch (error) {
 				if (this.#abort?.signal.aborted) break;
@@ -134,33 +123,21 @@ export class TelegramChannel implements ChatChannel {
 			body: JSON.stringify({ chat_id: to, text }),
 		});
 		if (!res.ok) {
-			throw new Error(
-				`Telegram sendMessage failed (HTTP ${res.status}): ${await res.text()}`,
-			);
+			throw new Error(`Telegram sendMessage failed (HTTP ${res.status}): ${await res.text()}`);
 		}
 	}
 
-	async sendImage(
-		to: string,
-		image: ChatImage,
-		caption?: string,
-	): Promise<void> {
+	async sendImage(to: string, image: ChatImage, caption?: string): Promise<void> {
 		const form = new FormData();
 		form.append("chat_id", to);
-		form.append(
-			"photo",
-			new Blob([image.data], { type: image.mime }),
-			"plan.png",
-		);
+		form.append("photo", new Blob([image.data], { type: image.mime }), "plan.png");
 		if (caption && caption !== "") form.append("caption", caption);
 		const res = await this.#fetch(this.#apiUrl("sendPhoto"), {
 			method: "POST",
 			body: form,
 		});
 		if (!res.ok) {
-			throw new Error(
-				`Telegram sendPhoto failed (HTTP ${res.status}): ${await res.text()}`,
-			);
+			throw new Error(`Telegram sendPhoto failed (HTTP ${res.status}): ${await res.text()}`);
 		}
 	}
 }

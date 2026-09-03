@@ -24,6 +24,7 @@ export function authHookNames(): Record<string, string[]> {
 	const names: Record<string, string[]> = {};
 	const add = (kind: string, name: string | undefined) => {
 		if (!name) return;
+		// biome-ignore lint/suspicious/noAssignInExpressions: destructuring default with assignment inside the compiled stratum walker
 		(names[kind] ??= []).push(name);
 	};
 	for (const p of providers) {

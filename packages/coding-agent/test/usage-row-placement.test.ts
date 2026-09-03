@@ -6,6 +6,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { Container, TUI } from "@linxiraos/pi-tui";
+import { formatNumber } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { ChatTranscriptBuilder } from "@linxiraos/zeta/modes/components/chat-transcript-builder";
 import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
@@ -13,8 +15,6 @@ import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
-import { Container, TUI } from "@linxiraos/pi-tui";
-import { formatNumber } from "@linxiraos/pi-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 // 4242 → "4.2K": distinctive enough not to collide with a read group's render.

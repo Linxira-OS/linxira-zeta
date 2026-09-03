@@ -6,6 +6,7 @@ import { reset as resetCapabilities } from "../capability";
 import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
 import { clearClaudePluginRootsCache } from "../discovery/helpers";
 import { loadSlashCommands } from "../extensibility/slash-commands";
+import { M } from "../i18n";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-backend";
 import type { FreshSessionResult, HandoffResult } from "../session/agent-session";
 import { COMPACT_MODES, parseCompactArgs } from "../session/compact-modes";
@@ -23,7 +24,6 @@ import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-pro
 import { resolveToCwd } from "../tools/path-utils";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { handleSshAcp } from "./helpers/ssh";
-import { M } from "../i18n";
 import type {
 	ParsedSlashCommand,
 	SlashCommandResult,

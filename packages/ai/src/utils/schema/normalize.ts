@@ -100,7 +100,7 @@ const SUBSCHEMA_VALUE_KEYS: Record<string, true> = {
 	unevaluatedItems: true,
 	not: true,
 	if: true,
-	// oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+	// biome-ignore lint/suspicious/noThenProperty: schema then keyword is intentional
 	then: true,
 	else: true,
 	contains: true,
@@ -1507,7 +1507,7 @@ const GRAMMAR_SCHEMA_VALUE_KEYS: Record<string, true> = {
 	contentSchema: true,
 	propertyNames: true,
 	if: true,
-	// oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+	// biome-ignore lint/suspicious/noThenProperty: schema then keyword is intentional
 	then: true,
 	else: true,
 	not: true,

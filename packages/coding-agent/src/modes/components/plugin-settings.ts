@@ -623,15 +623,12 @@ interface InputHandler {
  * Manages navigation between plugin list and plugin detail views.
  */
 export class PluginSettingsComponent extends Container {
+	#currentView: "list" | "npm-detail" | "marketplace-detail" = "list";
+	#currentPlugin: InstalledPlugin | null = null;
+	#currentMarketplacePlugin: InstalledPluginSummary | null = null;
 	#cwd: string;
 	#manager: PluginManager;
 	#viewComponent: (Component & InputHandler) | null = null;
-	// oxlint-disable-next-line no-unused-private-class-members -- state tracking for view management
-	#currentView: "list" | "npm-detail" | "marketplace-detail" = "list";
-	// oxlint-disable-next-line no-unused-private-class-members -- state tracking for view management
-	#currentPlugin: InstalledPlugin | null = null;
-	// oxlint-disable-next-line no-unused-private-class-members -- state tracking for view management
-	#currentMarketplacePlugin: InstalledPluginSummary | null = null;
 
 	constructor(
 		cwd: string,

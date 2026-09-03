@@ -9,6 +9,7 @@ import * as AIError from "../../error";
 import { extractGoogleValidationUrl, formatGoogleValidationRequiredMessage } from "../../utils/google-validation";
 import type { AfterExchangeHook } from "../hooks/types";
 import { oauthFetch, throwIfLoginCancelled } from "./google-oauth-shared";
+
 const CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com";
 
 interface LoadCodeAssistPayload {

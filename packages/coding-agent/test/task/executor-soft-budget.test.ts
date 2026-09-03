@@ -63,7 +63,7 @@ function createMockSession(
 		| undefined;
 
 	const emit = (event: AgentSessionEvent) => {
-		// oxlint-disable-next-line unicorn/no-useless-spread -- listeners may change during dispatch
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
 		for (const listener of [...listeners]) listener(event);
 	};
 

@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
-import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import type { OAuthController } from "@linxiraos/pi-ai/oauth/types";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import { stream } from "@linxiraos/pi-ai/stream";
 import type { FetchImpl, Model } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";

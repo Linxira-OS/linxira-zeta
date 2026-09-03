@@ -514,7 +514,7 @@ export class UsageDashboardComponent implements Component {
 		summary.push(theme.fg("dim", truncateToWidth(monthLine, innerWidth)));
 
 		for (let day = 0; day < 7; day++) {
-			let line = theme.fg("dim", HEATMAP_DAY_LABELS[day]) + " ";
+			let line = `${theme.fg("dim", HEATMAP_DAY_LABELS[day])} `;
 			for (let week = 0; week < weeks; week++) {
 				const cell = layout.cells[day][week];
 				if (cell === null) line += "  ";

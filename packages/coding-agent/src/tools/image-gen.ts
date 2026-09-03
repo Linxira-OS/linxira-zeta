@@ -1,6 +1,5 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import {
 	type ApiKey,
@@ -21,6 +20,7 @@ import {
 	URL_PATHS,
 } from "@linxiraos/pi-catalog/wire/codex";
 import { getAntigravityUserAgent } from "@linxiraos/pi-catalog/wire/gemini-headers";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	$env,
 	isEnoent,

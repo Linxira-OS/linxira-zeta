@@ -385,6 +385,7 @@ describe("merge", () => {
 
 		const T = type.merge(...types);
 
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _36: Eq<typeof T.t, {}> = true;
 		expect(T.expression).toEqual("object");
 	});

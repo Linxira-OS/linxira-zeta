@@ -17,7 +17,8 @@ export function indirectEval(source: string, filename?: string): unknown {
 	// We deliberately avoid `node:vm` because Bun crashes the parent with SIGTRAP when
 	// Worker.terminate() fires mid-`vm.runInContext` synchronous loop — indirect eval is
 	// the executor for user code in the worker.
-	// oxlint-disable-next-line no-eval -- this is the executor.
+	// [suppressed] this is the executor.
+	// biome-ignore lint/security/noGlobalEval: indirect eval is the documented sandbox escape hatch
 	const geval = globalThis.eval as (src: string) => unknown;
 	return geval(withPragma);
 }

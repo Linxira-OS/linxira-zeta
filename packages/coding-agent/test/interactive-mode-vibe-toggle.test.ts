@@ -9,14 +9,15 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentTool, type StreamFn } from "@linxiraos/pi-agent-core";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import * as vcs from "@linxiraos/pi-natives/vcs";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm, VIBE_MODE_CONTEXT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
@@ -25,7 +26,6 @@ import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta
 import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
-import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function stubTool(name: string): AgentTool {

@@ -1,11 +1,11 @@
 import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
-import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
-import { getDailyActivity } from "@linxiraos/pi-stats/db";
 import { PASTE_CODE_LOGIN_PROVIDERS, type UsageReport } from "@linxiraos/pi-ai";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
 import * as vcs from "@linxiraos/pi-natives/vcs";
+import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
+import { getDailyActivity } from "@linxiraos/pi-stats/db";
 import type { Component, OverlayHandle, ResizeScrollbackMode } from "@linxiraos/pi-tui";
 import { Loader, Spacer, setTuiTight, Text } from "@linxiraos/pi-tui";
 import { getAgentDbPath, getAgentDir, getProjectDir, normalizePathForComparison } from "@linxiraos/pi-utils";
@@ -110,8 +110,8 @@ import { ToolExecutionComponent } from "../components/tool-execution";
 import { TranscriptBlock } from "../components/transcript-container";
 import { TreeSelectorComponent } from "../components/tree-selector";
 import { UsageDashboardComponent } from "../components/usage-dashboard";
-import { renderUsageReports } from "./command-controller";
 import type { SessionObserverRegistry } from "../session-observer-registry";
+import { renderUsageReports } from "./command-controller";
 
 const MANUAL_LOGIN_PROMPT = "Paste the authorization code (or full redirect URL), then press Enter:";
 

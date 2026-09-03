@@ -29,14 +29,9 @@ export interface IrcMessage {
  */
 export interface ChannelSession {
 	getAgentId(): string | undefined;
-	deliverIrcMessage(
-		msg: IrcMessage,
-		opts?: { expectsReply?: boolean },
-	): Promise<unknown>;
+	deliverIrcMessage(msg: IrcMessage, opts?: { expectsReply?: boolean }): Promise<unknown>;
 	subscribe(handler: (event: ChannelSessionEvent) => void): () => void;
-	setIrcAutoReplyListener(
-		listener: ((msg: IrcMessage, replyText: string) => void) | null,
-	): void;
+	setIrcAutoReplyListener(listener: ((msg: IrcMessage, replyText: string) => void) | null): void;
 }
 
 /**

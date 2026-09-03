@@ -1,8 +1,8 @@
-import { describe, expect, test, afterEach } from "bun:test";
-import { BUILTIN_SLASH_COMMAND_DEFS } from "../src/slash-commands/builtin-registry";
-import { setLanguage, currentLanguage, M, type Messages } from "../src/i18n";
+import { afterEach, describe, expect, test } from "bun:test";
+import { currentLanguage, M, setLanguage } from "../src/i18n";
 import { en } from "../src/i18n/en";
 import { zh } from "../src/i18n/zh";
+import { BUILTIN_SLASH_COMMAND_DEFS } from "../src/slash-commands/builtin-registry";
 
 /**
  * Anti-regression probe for the CLI /command zh localization (v18.1.5 base).
@@ -58,10 +58,6 @@ describe("builtin slash command zh localization", () => {
 	});
 
 	test("registry descriptions resolve to en catalogue keys", () => {
-		const missing: string[] = [];
-		for (const { via } of referencedCmdKeys()) {
-			// count only; per-command missing keys are caught by the next test
-		}
 		expect(referencedCmdKeys().length).toBeGreaterThan(40);
 	});
 

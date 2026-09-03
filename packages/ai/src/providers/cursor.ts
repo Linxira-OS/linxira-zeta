@@ -211,7 +211,6 @@ import { connectProxiedSocket, getProxyForUrl } from "../utils/proxy";
 import { createRequestDebugSession, isRequestDebugEnabled, type RequestDebugResponseLog } from "../utils/request-debug";
 import { sanitizeSchemaForCursor, toolWireSchema } from "../utils/schema";
 import { formatConnectEndStreamError } from "./connect-error-detail";
-import mcpExternalHandoffMessage from "./cursor-external-tool-handoff.md" with { type: "text" };
 import {
 	buildMcpStateResult,
 	buildNeutralHookResult,
@@ -243,6 +242,7 @@ import {
 	piTimeout,
 } from "./cursor/exec-modern";
 import { handleInteractionQuery } from "./cursor/interaction-query";
+import mcpExternalHandoffMessage from "./cursor-external-tool-handoff.md" with { type: "text" };
 
 export const CURSOR_API_URL = "https://api2.cursor.sh";
 export const CURSOR_CLIENT_VERSION = "cli-2026.07.23-e383d2b";

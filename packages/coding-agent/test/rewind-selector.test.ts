@@ -7,12 +7,12 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { type BranchVariantPath, RewindSelectorComponent } from "@linxiraos/zeta/modes/components/rewind-selector";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
-import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
 
 const UP = "\x1b[A";
 const DOWN = "\x1b[B";

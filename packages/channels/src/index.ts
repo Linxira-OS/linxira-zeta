@@ -62,9 +62,7 @@ export interface ChannelStatus {
 	running: boolean;
 }
 
-export function registerChannelStatus(
-	fn: (() => ChannelStatus[]) | null,
-): void {
+export function registerChannelStatus(fn: (() => ChannelStatus[]) | null): void {
 	channelStatus = fn;
 }
 
@@ -95,9 +93,7 @@ export function getMainSessionId(): string | null {
 }
 
 /** Register the running WeChat channel's reconnect hook (zeta-server wires this). */
-export function registerWechatReconnect(
-	fn: (() => Promise<void>) | null,
-): void {
+export function registerWechatReconnect(fn: (() => Promise<void>) | null): void {
 	reconnectWechat = fn;
 }
 
@@ -117,9 +113,7 @@ export function triggerWechatUnbind(): Promise<void> | null {
 }
 
 /** Register the live channel (re)start hook (zeta-server wires this). */
-export function registerRestartChannels(
-	fn: (() => Promise<void>) | null,
-): void {
+export function registerRestartChannels(fn: (() => Promise<void>) | null): void {
 	restartChannels = fn;
 }
 
@@ -141,23 +135,13 @@ export interface ChannelRuntime {
 	/** Send a text message through one channel. */
 	sendText(channelId: ChannelId, to: string, text: string): Promise<void>;
 	/** Send an image through one channel (falls back to caller on error). */
-	sendImage(
-		channelId: ChannelId,
-		to: string,
-		image: ChatImage,
-		caption?: string,
-	): Promise<void>;
+	sendImage(channelId: ChannelId, to: string, image: ChatImage, caption?: string): Promise<void>;
 	/** Stop every channel and detach the host. */
 	stop(): Promise<void>;
 }
 
 /** Handle one inbound channel message (the Phase-3 routing seam lives here). */
-export type ChannelInboundHandler = (
-	channelId: ChannelId,
-	peer: string,
-	body: string,
-	messageId?: string,
-) => void;
+export type ChannelInboundHandler = (channelId: ChannelId, peer: string, body: string, messageId?: string) => void;
 
 /**
  * Start all enabled channels for the given coordinator session.
@@ -181,7 +165,7 @@ export async function startChannels(
 	const routeInbound: ChannelInboundHandler =
 		onInbound ??
 		((channelId, peer, body) => {
-			void host.deliver(channelId, peer, body).catch((error) => {
+			void host.deliver(channelId, peer, body).catch(error => {
 				logger.warn("Channel message injection failed", {
 					channel: channelId,
 					error: error instanceof Error ? error.message : String(error),
@@ -197,8 +181,7 @@ export async function startChannels(
 				"telegram",
 				new TelegramChannel({
 					botToken,
-					onMessage: (peer, body, messageId) =>
-						routeInbound("telegram", peer, body, messageId),
+					onMessage: (peer, body, messageId) => routeInbound("telegram", peer, body, messageId),
 				}),
 			);
 		} else {
@@ -220,8 +203,7 @@ export async function startChannels(
 					peerTokens: data.channels.wechat.peerTokens,
 				},
 				webConfig,
-				onMessage: (peer, body, messageId) =>
-					routeInbound("wechat", peer, body, messageId),
+				onMessage: (peer, body, messageId) => routeInbound("wechat", peer, body, messageId),
 				onQrCode: wechatQrHandler,
 			}),
 		);
@@ -238,24 +220,17 @@ export async function startChannels(
 					appId,
 					appSecret,
 					domain: data.channels.feishu.domain,
-					onMessage: (peer, body, messageId) =>
-						routeInbound("feishu", peer, body, messageId),
+					onMessage: (peer, body, messageId) => routeInbound("feishu", peer, body, messageId),
 				}),
 			);
 		} else {
-			logger.warn(
-				"Feishu channel is enabled but missing appId/appSecret; skipping",
-			);
+			logger.warn("Feishu channel is enabled but missing appId/appSecret; skipping");
 		}
 	}
 
 	host.start();
 
-	const sendText = async (
-		channelId: ChannelId,
-		to: string,
-		text: string,
-	): Promise<void> => {
+	const sendText = async (channelId: ChannelId, to: string, text: string): Promise<void> => {
 		const channel = channels.get(channelId);
 		if (!channel) throw new Error(`Channel not enabled: ${channelId}`);
 		await channel.sendText(to, text);
@@ -282,9 +257,7 @@ export async function startChannels(
 		},
 		stop: async () => {
 			host.stop();
-			await Promise.allSettled(
-				[...channels.values()].map((channel) => channel.stop()),
-			);
+			await Promise.allSettled([...channels.values()].map(channel => channel.stop()));
 			channels.clear();
 		},
 	};

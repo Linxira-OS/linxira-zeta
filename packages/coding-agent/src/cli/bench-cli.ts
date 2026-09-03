@@ -518,7 +518,7 @@ async function runWithConcurrency<T>(
 	concurrency: number,
 	run: (index: number) => Promise<T>,
 ): Promise<T[]> {
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const results = new Array<T>(count);
 	let next = 0;
 	const worker = async (): Promise<void> => {

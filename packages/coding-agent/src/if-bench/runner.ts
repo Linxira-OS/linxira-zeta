@@ -138,7 +138,7 @@ function errorText(error: unknown): string {
 export async function runIfBench(options: IfBenchRunOptions): Promise<IfBenchSummary> {
 	const reports: IfBenchModelReport[] = [];
 	const queue = options.targets.map((target, index) => ({ target, index }));
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const ordered: IfBenchModelReport[] = new Array(options.targets.length);
 
 	const worker = async (): Promise<void> => {

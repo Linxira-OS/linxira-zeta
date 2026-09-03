@@ -12,13 +12,13 @@
  */
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionFactory } from "@linxiraos/zeta/extensibility/extensions";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
 
 const PROVIDER = "tan-fixture-gw";
 const MODEL_ID = "tan-fixture-model";

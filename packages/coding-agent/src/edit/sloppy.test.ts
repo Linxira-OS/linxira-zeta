@@ -102,10 +102,10 @@ describe("sloppy v8", () => {
 
 	test("keeps a mid-line ellipsis in REWRITE literal when the capture is multi-line", () => {
 		const content = "function f() {\n  a();\n  b();\n}\n";
-		// oxlint-disable-next-line no-template-curly-in-string -- test fixture contains template literal
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: test fixture contains template literal
 		const input = operation("function f() {\n…\n}", "function f() {\n  return `${x}[… ]${y}`;\n}");
 
-		// oxlint-disable-next-line no-template-curly-in-string -- test fixture contains template literal
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: test fixture contains template literal
 		expect(variant.apply(content, input, context)).toBe("function f() {\n  return `${x}[… ]${y}`;\n}\n");
 	});
 
@@ -1475,9 +1475,7 @@ describe("sloppy v8", () => {
 		const input = operation("function …\n⟪return value;⟫…\naudit();", "return nextValue;");
 
 		expect(() => variant.apply(content, input, context)).toThrow(
-			new RegExp(
-				String.raw`ambiguous: 2 ordered tuples match[\s\S]*retry every match:\n<SM:EDIT all>[\s\S]*Add context that only the intended match has`,
-			),
+			/ambiguous: 2 ordered tuples match[\s\S]*retry every match:\n<SM:EDIT all>[\s\S]*Add context that only the intended match has/,
 		);
 	});
 
@@ -1713,9 +1711,7 @@ describe("sloppy v8", () => {
 		const input = operation("  case 'end_turn':", "  case 'end_turn':\n    finishTurn();");
 
 		expect(() => variant.apply(content, input, context)).toThrow(
-			new RegExp(
-				String.raw`If you are ADDING this text: <SM:FIND> the existing neighbor line it belongs next to, and restate it with the new text in <SM:PUT> —[\s\S]*<SM:EDIT>\n<SM:FIND>\n {2}case 'message':\n</SM:FIND>\n<SM:PUT>\n {2}case 'end_turn':\n {4}finishTurn\(\);\n {2}case 'message':\n</SM:PUT>\n</SM:EDIT>`,
-			),
+			/If you are ADDING this text: <SM:FIND> the existing neighbor line it belongs next to, and restate it with the new text in <SM:PUT> —[\s\S]*<SM:EDIT>\n<SM:FIND>\n {2}case 'message':\n<\/SM:FIND>\n<SM:PUT>\n {2}case 'end_turn':\n {4}finishTurn\(\);\n {2}case 'message':\n<\/SM:PUT>\n<\/SM:EDIT>/,
 		);
 	});
 
@@ -1881,7 +1877,7 @@ describe("sloppy v8", () => {
 			"      ui,",
 			"      (spinner) => theme.fg('accent', spinner),",
 			"      (text) => theme.fg('muted', text),",
-			// oxlint-disable-next-line no-template-curly-in-string -- test fixture contains template literal
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: test fixture contains template literal
 			"      `Summarizing branch... (${keyText('app.interrupt')} to cancel)`,",
 			"    );",
 			"",
@@ -1889,7 +1885,7 @@ describe("sloppy v8", () => {
 		const pattern = [
 			"super(\u2026",
 			"⟪'branchSummary'⟫,\u2026",
-			// oxlint-disable-next-line no-template-curly-in-string -- test fixture contains template literal
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: test fixture contains template literal
 			"`Summarizing branch... (${keyText('app.interrupt')} to cancel)`,",
 			");",
 		].join("\n");

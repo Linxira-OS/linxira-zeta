@@ -6,8 +6,7 @@
  */
 import * as path from "node:path";
 import { hasFsCode, tryParseJson } from "@linxiraos/pi-utils";
-import { registerProvider } from "../capability";
-import { isUserSourceEnabled } from "../capability";
+import { isUserSourceEnabled, registerProvider } from "../capability";
 import type { ContextFile } from "../capability/context-file";
 import { contextFileCapability } from "../capability/context-file";
 import { type ExtensionModule, extensionModuleCapability } from "../capability/extension-module";

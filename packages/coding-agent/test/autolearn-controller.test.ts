@@ -41,7 +41,7 @@ class FakeSession {
 	}
 
 	emit(event: AgentSessionEvent): void {
-		// oxlint-disable-next-line unicorn/no-useless-spread -- listeners may change during dispatch
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
 		for (const listener of [...this.listeners]) listener(event);
 	}
 

@@ -8,9 +8,9 @@ import {
 	wrapTextWithAnsi,
 } from "@linxiraos/pi-tui";
 import { APP_NAME } from "@linxiraos/pi-utils";
+import { M } from "../../i18n";
 import { theme } from "../../modes/theme/theme";
 import tipsText from "./tips.txt" with { type: "text" };
-import { M } from "../../i18n";
 
 /** Tips embedded at build time, one per line; blanks dropped. */
 const TIPS: readonly string[] = tipsText

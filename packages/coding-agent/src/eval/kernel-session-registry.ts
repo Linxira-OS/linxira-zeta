@@ -178,7 +178,6 @@ export function createKernelSessionRegistry<
 			attachSessionOwner(starting, sessionId, options.kernelOwnerId);
 			return await waitForStartup(starting.promise, options);
 		}
-		// oxlint-disable-next-line prefer-const -- captured by the startup closure before assignment
 		let startingSession!: StartingKernelSession<TSession>;
 		const startup = (async () => {
 			const kernel = await descriptor.startKernel(cwd, options);

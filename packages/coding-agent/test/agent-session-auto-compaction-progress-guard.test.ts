@@ -12,8 +12,8 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { INCOMPLETE_RECOVERY_MAX_RETRIES } from "@linxiraos/zeta/session/session-maintenance";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 it("clamps a reserve exceeding the window for small-window threshold recovery bands", () => {
 	const settings = {

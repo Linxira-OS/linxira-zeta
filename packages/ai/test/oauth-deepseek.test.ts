@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import type { OAuthController } from "@linxiraos/pi-ai/oauth/types";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
 
 const loginDeepSeek = getProviderDefinition("deepseek")?.login;

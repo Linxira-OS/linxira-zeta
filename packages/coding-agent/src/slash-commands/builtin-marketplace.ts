@@ -12,6 +12,7 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 } from "../extensibility/plugins/marketplace";
+import { M } from "../i18n";
 import { MCPCommandController } from "../modes/controllers/mcp-command-controller";
 import type { InteractiveModeContext } from "../modes/types";
 import { refreshAgentDiscovery } from "../task";
@@ -19,7 +20,6 @@ import { createMarketplaceManager } from "./helpers/marketplace-manager";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import { parseMarketplaceInstallArgs, parsePluginScopeArgs } from "./marketplace-install-parser";
 import type { SlashCommandSpec } from "./types";
-import { M } from "../i18n";
 
 /**
  * Reload the interactive session's plugin runtime: invalidate fs/plugin-root

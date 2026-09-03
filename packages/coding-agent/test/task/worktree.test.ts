@@ -2,6 +2,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as natives from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { removeWithRetries, setWorktreesDir } from "@linxiraos/pi-utils";
 import {
 	applyNestedPatches,
 	captureBaseline,
@@ -16,9 +19,6 @@ import {
 	mergeTaskBranches,
 	parseIsolationBackend,
 } from "@linxiraos/zeta/task/worktree";
-import * as natives from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { removeWithRetries, setWorktreesDir } from "@linxiraos/pi-utils";
 
 const tempDirs: string[] = [];
 

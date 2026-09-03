@@ -282,7 +282,7 @@ describe("browser run cancellation", () => {
 			reason => floatingRejections.push(reason),
 			async () => {
 				try {
-					// oxlint-disable-next-line unicorn/no-single-promise-in-promise-methods -- the tracked combinator is under test
+					// [suppressed] the tracked combinator is under test
 					await Promise.all([facade.fail()]);
 				} catch (error) {
 					caught = error;

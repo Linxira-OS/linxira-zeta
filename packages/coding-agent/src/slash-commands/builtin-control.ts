@@ -1,8 +1,8 @@
+import { M } from "../i18n";
 import { runPauseScreen } from "../modes/components/pause-screen";
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
-import { M } from "../i18n";
 
 export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{

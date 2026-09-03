@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
-import type { OAuthCredentials, OAuthController } from "@linxiraos/pi-ai/registry/oauth/types";
+import type { OAuthController, OAuthCredentials } from "@linxiraos/pi-ai/registry/oauth/types";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import { withEnv } from "./helpers";
 

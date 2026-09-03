@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import * as mcpClient from "@linxiraos/zeta/mcp/client";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import type { MCPServerConnection, MCPStdioServerConfig, MCPTransport } from "@linxiraos/zeta/mcp/types";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { TOOL_NAME as DELAYED_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 const CONFIG: MCPStdioServerConfig = {

@@ -6,6 +6,7 @@ import type { SettingPath, SettingValue } from "../config/settings";
 import { settings } from "../config/settings";
 import { parseExportArgs } from "../export/html/args";
 import { shareSession } from "../export/share";
+import { M } from "../i18n";
 import { theme } from "../modes/theme/theme";
 import type { InteractiveModeContext } from "../modes/types";
 import { extractLastCodeBlock, extractLastCommand } from "../modes/utils/copy-targets";
@@ -14,7 +15,6 @@ import { refreshStatusLine } from "./builtin-modes";
 import { CollabQrCodeComponent, collabBrowserLink } from "./helpers/collab-qrcode";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
-import { M } from "../i18n";
 
 /** Join hint printed by /collab: compact terminal link + clickable browser deep link. */
 function collabLinkHint(host: CollabHost, heading: string, view = false): string {

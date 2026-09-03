@@ -1,4 +1,3 @@
-import { type Type, type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -9,6 +8,7 @@ import type {
 import type { Model } from "@linxiraos/pi-ai";
 import { classifyModel } from "@linxiraos/pi-catalog/identity";
 import type { DesktopCapabilities } from "@linxiraos/pi-natives";
+import { type Type, type } from "@linxiraos/pi-omptype";
 import { once, prompt } from "@linxiraos/pi-utils";
 import { callSessionTool } from "../eval/js/tool-bridge";
 import computerDescription from "../prompts/tools/computer.md" with { type: "text" };

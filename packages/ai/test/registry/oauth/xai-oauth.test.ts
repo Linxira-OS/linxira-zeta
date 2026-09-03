@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getProviderDefinition } from "../../../src/registry/registry";
+import type { OAuthController, OAuthCredentials } from "../../../src/registry/oauth/types";
 import {
 	buildXAICliBillingUrl,
 	extractXAIAccessTokenSubject,
@@ -10,7 +10,7 @@ import {
 	validateXAIBillingEndpoint,
 	validateXAIEndpoint,
 } from "../../../src/registry/oauth/xai-oauth";
-import type { OAuthController, OAuthCredentials } from "../../../src/registry/oauth/types";
+import { getProviderDefinition } from "../../../src/registry/registry";
 import type { FetchImpl } from "../../../src/types";
 
 afterEach(() => {

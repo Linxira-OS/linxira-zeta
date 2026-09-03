@@ -5,9 +5,9 @@ import * as path from "node:path";
 import { getManagedSkillsDir } from "@linxiraos/zeta/autolearn/managed-skills";
 import { disableUserSource, enableUserSource } from "@linxiraos/zeta/capability";
 import "@linxiraos/zeta/discovery";
-import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 
 async function writeSkill(dir: string, name: string, description: string): Promise<void> {

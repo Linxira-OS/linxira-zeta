@@ -19,7 +19,9 @@ import * as path from "node:path";
 import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
-import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
+import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with {
+	type: "text",
+};
 import type { AgentSession } from "../session/agent-session";
 
 export type PlanApproveMode = "preserve" | "compact" | "fresh" | "cancel";

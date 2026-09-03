@@ -83,12 +83,12 @@ import { createImageUrlServiceFromSettings } from "./blob-broker/service";
 import { wrapStreamFnWithBlobUrlFallback } from "./blob-broker/stream-fallback";
 import { initializeWithSettings } from "./discovery";
 import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/omp-extension-roots";
+import type { EditMode } from "./edit";
 import { disposeAllJuliaKernelSessions, disposeJuliaKernelSessionsByOwner } from "./eval/jl/executor";
 import { disposeVmContextsByOwner } from "./eval/js/context-manager";
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";
 import { disposeAllRubyKernelSessions, disposeRubyKernelSessionsByOwner } from "./eval/rb/executor";
 import { defaultEvalSessionId } from "./eval/session-id";
-import type { EditMode } from "./edit";
 import {
 	type CustomCommandsLoadResult,
 	type LoadedCustomCommand,
@@ -2976,7 +2976,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			await ensureWriteRegistered();
 		}
 
-		// oxlint-disable-next-line prefer-const -- captured by device closures before assignment
 		let cursorEventEmitter: ((event: AgentEvent) => void) | undefined;
 		// Cursor and the agent loop may call a mounted device by its top-level
 		// name. Resolve that name from the canonical map and apply the same

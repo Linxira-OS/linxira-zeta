@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { Message, Model } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";

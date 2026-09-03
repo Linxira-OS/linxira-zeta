@@ -1,4 +1,5 @@
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { M } from "../i18n";
 import type { AgentSession } from "../session/agent-session";
 import type { SessionOAuthAccountList } from "../session/agent-session-types";
 import {
@@ -18,7 +19,6 @@ import { launchStatsDashboard, parseStatsDashboardArgs } from "./helpers/stats-d
 import { handleTodoAcp } from "./helpers/todo";
 import { buildUsageReportText } from "./helpers/usage-report";
 import type { SlashCommandRuntime, SlashCommandSpec } from "./types";
-import { M } from "../i18n";
 
 async function handleUsageResetCommand(
 	arg: string,

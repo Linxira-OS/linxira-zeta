@@ -100,7 +100,9 @@ import type { PlanWorkflow } from "../plan-mode/state";
 import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
 import planFilenamePrompt from "../prompts/system/plan-filename.md" with { type: "text" };
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
-import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
+import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with {
+	type: "text",
+};
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import {
 	type AgentSession,
@@ -177,8 +179,8 @@ import type { HookSelectorComponent, HookSelectorSlider } from "./components/hoo
 import { type PlanReviewAnnotationState, PlanReviewOverlay } from "./components/plan-review-overlay";
 import { PlanSaveOverlay, type PlanSaveOverlayResult } from "./components/plan-save-overlay";
 import { SessionInfoOverlay } from "./components/session-info-overlay";
-import { StatusLineComponent } from "./components/status-line";
 import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
+import { StatusLineComponent } from "./components/status-line";
 import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "./components/tool-execution";
 import { TranscriptContainer } from "./components/transcript-container";
 import type { LspServerInfo as WelcomeLspServerInfo } from "./components/welcome";

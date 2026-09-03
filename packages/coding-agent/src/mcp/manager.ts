@@ -13,7 +13,6 @@ import { resolveConfigValue } from "../config/resolve-config-value";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import type { AuthStorage } from "../session/auth-storage";
 import {
-	MCPConnectionTimeoutError,
 	connectToServer,
 	disconnectServer,
 	getPrompt,
@@ -21,6 +20,7 @@ import {
 	listResources,
 	listResourceTemplates,
 	listTools,
+	MCPConnectionTimeoutError,
 	readResource,
 	serverSupportsPrompts,
 	serverSupportsResources,

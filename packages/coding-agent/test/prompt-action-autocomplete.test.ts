@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { KeybindingsManager, SelectList, setKeybindings, TUI_KEYBINDINGS } from "@linxiraos/pi-tui";
 import { KeybindingsManager as AppKeybindingsManager, setKeyHintPlatform } from "@linxiraos/zeta/config/keybindings";
 import { createPromptActionAutocompleteProvider } from "@linxiraos/zeta/modes/prompt-action-autocomplete";
 import { getSelectListTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { KeybindingsManager, SelectList, setKeybindings, TUI_KEYBINDINGS } from "@linxiraos/pi-tui";
 
 describe("prompt action autocomplete", () => {
 	beforeEach(() => {

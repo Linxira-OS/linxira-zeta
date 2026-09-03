@@ -1119,6 +1119,7 @@ it("allows morph union with non-overlapping root objects", () => {
 	});
 });
 it("allows inferring a schema's type argument in a generic wrapper function when the type uses Default", () => {
+	// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 	function someFunction<TSchema extends Record<string, any>>(schema: Type<TSchema, {}>): (typeof schema)["infer"] {
 		const someData = { hello: "world" };
 		return schema.assert(someData);

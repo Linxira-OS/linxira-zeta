@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import {
 	type AssistantMessage,
 	createAssistantMessageEventStream,
 	getCustomApi,
 	type ToolCall,
 } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { runCommitAgentSession } from "@linxiraos/zeta/commit/agentic/agent";
 import * as commitTools from "@linxiraos/zeta/commit/agentic/tools";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -17,7 +17,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { type CreateAgentSessionOptions, createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { $ } from "bun";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const providerName = "restricted-session-provider";

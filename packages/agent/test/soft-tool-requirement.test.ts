@@ -1,5 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
 import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import type {
 	AgentContext,
@@ -12,6 +11,7 @@ import type { Message, ToolChoice } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

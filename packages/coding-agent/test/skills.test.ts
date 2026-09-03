@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { disableUserSource, enableUserSource } from "@linxiraos/zeta/capability";
 import { type Skill as CapabilitySkill, skillCapability } from "@linxiraos/zeta/capability/skill";
 import { getCapability } from "@linxiraos/zeta/discovery";
@@ -13,8 +14,8 @@ import {
 	parseSkillInvocation,
 	type Skill,
 } from "@linxiraos/zeta/extensibility/skills";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "./helpers/settings-test-state";
+
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");
 
@@ -670,10 +671,10 @@ describe("parseSkillInvocation", () => {
 				name: "reviewer",
 				args: "$echo",
 			});
-			// oxlint-disable-next-line no-template-curly-in-string -- testing literal string containing shell variable
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: testing literal string containing shell variable
 			expect(parseSkillInvocation("${HOME}/bin /skill:foo")).toEqual({
 				name: "foo",
-				// oxlint-disable-next-line no-template-curly-in-string -- testing literal string containing shell variable
+				// biome-ignore lint/suspicious/noTemplateCurlyInString: testing literal string containing shell variable
 				args: "${HOME}/bin",
 			});
 		});

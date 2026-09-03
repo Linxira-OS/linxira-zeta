@@ -2531,7 +2531,7 @@ describe("AgentSession retry delay cap", () => {
 
 		expect(attempts).toBe(11);
 		expect(retryStartEvents).toHaveLength(10);
-		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+		// [suppressed] length preallocation
 		expect(retryStartEvents.map(event => event.maxAttempts)).toEqual(new Array(10).fill(10));
 		expect(retryStartEvents.map(event => event.delayMs)).toEqual([
 			500, 1000, 2000, 4000, 8000, 8000, 8000, 8000, 8000, 8000,

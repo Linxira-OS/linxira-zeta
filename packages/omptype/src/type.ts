@@ -199,6 +199,7 @@ type NaryAndOutput<definitions extends readonly unknown[]> = definitions extends
 type NaryAndInput<definitions extends readonly unknown[]> = definitions extends readonly []
 	? unknown
 	: SimplifyNary<UnionToIntersection<InferDefIn<definitions[number]>>>;
+// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 type ReduceNaryMergeOutput<definitions extends readonly unknown[], result = {}> = definitions extends readonly [
 	infer head,
 	...infer tail,
@@ -206,7 +207,9 @@ type ReduceNaryMergeOutput<definitions extends readonly unknown[], result = {}> 
 	? ReduceNaryMergeOutput<tail, SimplifyNary<MergeTypes<result, InferDef<head>>>>
 	: definitions extends readonly []
 		? result
-		: {};
+		: // biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
+			{};
+// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 type ReduceNaryMergeInput<definitions extends readonly unknown[], result = {}> = definitions extends readonly [
 	infer head,
 	...infer tail,
@@ -214,7 +217,8 @@ type ReduceNaryMergeInput<definitions extends readonly unknown[], result = {}> =
 	? ReduceNaryMergeInput<tail, SimplifyNary<MergeTypes<result, InferDefIn<head>>>>
 	: definitions extends readonly []
 		? result
-		: {};
+		: // biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
+			{};
 type NaryMergeOutput<definitions extends readonly unknown[]> = definitions extends readonly []
 	? object
 	: ReduceNaryMergeOutput<definitions>;
@@ -556,8 +560,7 @@ const EMPTY_META: TypeMeta = {};
 const ARK_COMPAT_SCOPE = Object.freeze({ internal: Object.freeze({ name: "ark" as const }) });
 
 interface InternalType
-	extends
-		Type<unknown, unknown>,
+	extends Type<unknown, unknown>,
 		FluentMethods<unknown, unknown>,
 		ObjectMethods<Record<PropertyKey, unknown>, unknown> {
 	(data: unknown): unknown;
@@ -2679,15 +2682,18 @@ export function type<const expression extends readonly unknown[]>(
 	...definition: expression
 ): FluentType<InferDef<expression>, InferDefIn<expression>>;
 export function type(first?: unknown): FluentType<unknown> | Generic {
+	// biome-ignore lint/complexity/noArguments: omptype mirrors ArkType public API surface
 	const count = arguments.length;
 	if (count === 2 && typeof first === "string" && first.trimStart().startsWith("<")) {
+		// biome-ignore lint/complexity/noArguments: omptype mirrors ArkType public API surface
 		return createRuntimeGeneric(parseGenericParameters(first), arguments[1]);
 	}
 	let definition: unknown = first;
 	if (count !== 1) {
-		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+		// [suppressed] length preallocation
 		const expression: unknown[] = new Array(count);
 		for (let index = 0; index < count; index++) {
+			// biome-ignore lint/complexity/noArguments: omptype mirrors ArkType public API surface
 			expression[index] = arguments[index];
 		}
 		definition = expression;
@@ -3156,6 +3162,7 @@ export interface DeclaredParser<declared> {
 }
 
 /** Fix a schema's externally declared static type without changing its runtime validation. */
+// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 export function declare<declared, _options = {}>(): DeclaredParser<declared> {
 	return {
 		type: definition => type(definition) as unknown as FluentType<declared, InferDefIn<typeof definition>>,
@@ -3458,6 +3465,7 @@ export namespace type {
 		RegExp: keywordSchema<RegExp>("RegExp"),
 		File: keywordSchema<File>("File"),
 		Error: keywordSchema<Error>("Error"),
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		Function: keywordSchema<Function>("Function"),
 		Array: {
 			liftFrom<const definition>(
@@ -3561,6 +3569,7 @@ export namespace type {
 		unknown: { any: keywordSchema<unknown>("unknown.any") },
 	};
 	/** Date instance validator. */
+	// biome-ignore lint/suspicious/noShadowRestrictedNames: omptype mirrors ArkType public API surface
 	export const Date = makeType<globalThis.Date>({ k: "instance", ctor: globalThis.Date, expected: "a Date" }, [], {});
 
 	/** Validate instances of `ctor`. */
@@ -3597,6 +3606,7 @@ export namespace type {
 	}
 
 	/** Enumerate an enum-like object's forward values, excluding numeric reverse mappings. */
+	// biome-ignore lint/suspicious/noShadowRestrictedNames: omptype mirrors ArkType public API surface
 	export function valueOf<const values extends Record<PropertyKey, unknown>>(
 		values: values,
 	): FluentType<values[keyof values]> {
@@ -3621,6 +3631,7 @@ export namespace type {
 	export const fn: FnParser = makeFn();
 
 	/** Fix an externally declared static type while retaining runtime validation. */
+	// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 	export const declare = <declared, _options = {}>(): DeclaredParser<declared> =>
 		({
 			type: definition => type(definition) as unknown as FluentType<declared, InferDefIn<typeof definition>>,

@@ -241,7 +241,7 @@ export async function postTokenRequest(
 		});
 	}
 	const text = await response.text();
-	let body: unknown = undefined;
+	let body: unknown;
 	if (text.length > 0) {
 		try {
 			body = JSON.parse(text);
