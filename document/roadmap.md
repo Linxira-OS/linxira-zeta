@@ -349,6 +349,48 @@ upstream regression test (`issue-966-repro.test.ts`) is quarantined
 rate. Fix direction: force an index reload (or share one handle) across
 write-then-read restage sequences, then un-skip the test as the guard.
 
+### P1 — Memory stability track (Windows OOM / render retention)
+
+Background: v18-era Windows crashes — the process commits 64–72 GB until the
+system commit limit breaks, then whichever native thread allocates first
+panics with os error 1455 and the process dies with no traceback
+(`document/v18-gix-status-oom-triage.md` has the full evidence chain). The
+gix status spike is fixed upstream (c901f632fa, shipped in 18.1.1; arrives via
+the v18.1.x sync branch). What remains is Zeta-owned validation and
+self-protection on the Bun 1.4 base (Rust rewrite: mimalloc-backed JSC,
+`process.on("memoryPressure")` on Windows, smaller binaries). Local dev
+machines are already on Bun 1.4 (done out-of-band); the remaining work is
+repo-side:
+
+1. **Lockfile + CI pin residue**: regenerate `bun.lock` under Bun 1.4
+   (lockfileVersion 1 → 2) and bump the `native_addons` bazel job's
+   `bun-version` from 1.3 to 1.4 in the same commit — bun 1.3 cannot parse
+   v2 locks, so the two must land together.
+2. **Memory profiling harness**: a bounded soak script (scripted long session:
+   large tool outputs + resize sequences) sampling rss/heap plus Windows
+   commit; A/B matrix — Bun 1.3-built vs 1.4-built binaries, 18.0.x vs 18.1.x
+   baseline, PowerShell vs third-party terminals. Evidence before tuning.
+3. **memoryPressure shed hook**: subscribe on Windows; on system memory
+   pressure, shed render caches (transcript render retention, markdown cache)
+   — degrade to a smaller UI instead of dying at 1455. Contract test: the
+   shed fires, caches shrink, re-render restores full state.
+4. **Transcript render memory bound**: port the upstream farm fix f6a646d305
+   (bounded retained transcript render memory: weighted markdown cache
+   entries by retained bytes, release finalized blocks after native scrollback
+   commits) if the v18.1.x sync does not carry it — that fix is still unmerged
+   upstream.
+5. **CI memory guardrails**: (a) unit-level retained-bytes caps for
+   transcript/markdown caches; (b) a bounded headless soak integration test
+   (2–3 min, commit/RSS threshold — conservative for shared runners);
+   (c) desktop memory smoke in the existing desktop jobs asserting aggregate
+   multi-process footprint (upstream #9908 measured 6.89 GiB across 9
+   processes); (d) a Windows status-path panic-catch contract test.
+6. **Desktop memory visibility**: periodic per-process + aggregate memory
+   sampling in `desktop/src/main.ts` boot/heartbeat logging.
+
+Everything lands as Zeta overlay commits after the v18.1.x sync merges, except
+item 1, which is build-infra and can land independently.
+
 ### P1 — Plan mode detail ceiling (length-bound plans)
 
 Two mechanical caps keep long plans from being written or amended in

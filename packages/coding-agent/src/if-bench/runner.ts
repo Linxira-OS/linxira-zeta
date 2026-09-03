@@ -119,7 +119,7 @@ const REFUSAL_MAX_ATTEMPTS = 8;
 const REFUSAL_BACKOFF_MS = [0, 5_000, 15_000, 30_000, 60_000, 90_000, 120_000, 180_000];
 
 function isCyberRefusal(error: string | undefined): boolean {
-	return error !== undefined && error.startsWith("Refusal (");
+	return error !== undefined && /^Refusal \(/.test(error);
 }
 
 function assistantText(message: AssistantMessage): string {

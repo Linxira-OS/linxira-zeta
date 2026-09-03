@@ -809,7 +809,6 @@ export class TUI extends Container {
 	#gutterComponent: Component | null = null;
 	// Gutter rows painted by the most recent emitting frame.
 	#paintedGutterRows: readonly string[] | null = null;
-	#paintedGutterWidth = 0;
 	#forceViewportRepaintOnNextRender = false;
 	#hasEverRendered = false;
 	#stopped = false;
@@ -2755,7 +2754,6 @@ export class TUI extends Container {
 			const seq = this.#gutterPaintSequence(rows, rawWidth - width, width, viewport.length, 0);
 			if (seq) this.terminal.write(seq);
 			this.#paintedGutterRows = rows;
-			this.#paintedGutterWidth = rawWidth - width;
 		} else if (this.#paintedGutterRows !== null) {
 			// Gutter removed: clear the margin column once via absolute EL per row.
 			const col = width + 1;

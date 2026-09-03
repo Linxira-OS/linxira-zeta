@@ -1746,7 +1746,6 @@ export class StatusLineComponent implements Component {
 		};
 		return { usedTokens, contextWindow };
 	}
-
 	/**
 	 * Sidebar data source: the same segment context the bar renders from
 	 * (usage aggregates, cached context breakdown, git branch/status with all

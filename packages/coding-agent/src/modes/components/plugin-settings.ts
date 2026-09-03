@@ -623,8 +623,11 @@ interface InputHandler {
  * Manages navigation between plugin list and plugin detail views.
  */
 export class PluginSettingsComponent extends Container {
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
 	#currentView: "list" | "npm-detail" | "marketplace-detail" = "list";
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
 	#currentPlugin: InstalledPlugin | null = null;
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
 	#currentMarketplacePlugin: InstalledPluginSummary | null = null;
 	#cwd: string;
 	#manager: PluginManager;
