@@ -51,7 +51,7 @@ runs:
         shell: bash
         run: |
             export BUN_INSTALL="${HOME}/.bun"
-            curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"
+            curl -fsSL https://bun.sh/install | bash -s "bun-v${{ steps.env.outputs.bun_version }}"
             if [ "$RUNNER_OS" = "Windows" ]; then
               cygpath -w "${BUN_INSTALL}/bin" >> "$GITHUB_PATH"
             else
