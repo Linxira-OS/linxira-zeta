@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import { loginNanoGPT } from "@linxiraos/pi-ai/registry/nanogpt";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry/registry";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+
+const loginNanoGPT = getProviderDefinition("nanogpt")!.login!;
 
 describe("nanogpt login", () => {
 	it("validates API key without requiring a specific model entitlement", async () => {

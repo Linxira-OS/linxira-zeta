@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
-import { loginMeta } from "@linxiraos/pi-ai/registry/meta";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry/registry";
 import type { Context, Model } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { META_MUSE_STATIC_MODELS } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+
+const loginMeta = getProviderDefinition("meta")!.login!;
 
 const context: Context = {
 	messages: [{ role: "user", content: "hello", timestamp: Date.now() }],

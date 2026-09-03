@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@linxiraos/zeta/capability";
+import { disableUserSource, enableUserSource, loadCapability } from "@linxiraos/zeta/capability";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
 import { removeWithRetries } from "@linxiraos/pi-utils";
@@ -25,9 +25,11 @@ describe("issue-851: claude-plugins loads flat .mcp.json shape", () => {
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "issue-851-"));
 		process.env.HOME = tempDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempDir);
+		enableUserSource("claude");
 	});
 
 	afterEach(async () => {
+		disableUserSource("claude");
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		vi.restoreAllMocks();

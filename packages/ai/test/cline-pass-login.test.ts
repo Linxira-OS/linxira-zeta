@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { loginClinePass } from "@linxiraos/pi-ai/registry/cline-pass";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+
+const loginClinePass = getProviderDefinition("cline-pass")?.login;
+if (!loginClinePass) throw new Error("ClinePass login is not registered");
 
 describe("ClinePass login", () => {
 	it("opens the dashboard and validates the key against the account identity route", async () => {

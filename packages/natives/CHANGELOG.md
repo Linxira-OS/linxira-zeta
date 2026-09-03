@@ -17,18 +17,6 @@
 
 ## [1.1.3] - 2026-08-25
 ## [1.1.2] - 2026-08-25
-## [18.1.3] - 2026-09-02
-
-### Fixed
-
-- Fixed `grep` and `sed` treating basic regular expressions as extended ones, which silently matched every line for patterns like `^+` or `s/^\+/` and swapped the meanings of `+` and `\+` ([#10298](https://github.com/can1357/oh-my-pi/pull/10298) by [@mruangutai](https://github.com/mruangutai)).
-
-## [18.1.0] - 2026-09-01
-
-### Fixed
-
-- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
-
 ## [1.1.1] - 2026-08-25
 
 ### Fixed

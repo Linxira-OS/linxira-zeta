@@ -3,16 +3,6 @@
 ## [Unreleased]
 
 ## [1.1.7] - 2026-09-01
-## [18.1.3] - 2026-09-02
-
-### Fixed
-
-- Fixed retry-hint extraction for body-level millisecond hints and absolute quota-reset timestamps ([#10325](https://github.com/can1357/oh-my-pi/pull/10325) by [@usr-bin-roygbiv](https://github.com/usr-bin-roygbiv)).
-
-## [18.1.0] - 2026-09-01
-
-- 同步上游 OMP v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。
-
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。

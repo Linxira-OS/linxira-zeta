@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { loginCoreWeave } from "@linxiraos/pi-ai/registry/coreweave";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+
+const loginCoreWeave = getProviderDefinition("coreweave")?.login;
+if (!loginCoreWeave) throw new Error("CoreWeave login is not registered");
 
 const COREWEAVE_ENV_KEYS = ["COREWEAVE_PROJECT", "WANDB_INFERENCE_PROJECT", "WANDB_ENTITY", "WANDB_PROJECT"] as const;
 const ORIGINAL_ENV = new Map(COREWEAVE_ENV_KEYS.map(key => [key, Bun.env[key]]));

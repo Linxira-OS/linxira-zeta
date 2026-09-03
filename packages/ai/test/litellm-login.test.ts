@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { loginLiteLLM } from "@linxiraos/pi-ai/registry/litellm";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+
+const loginLiteLLM = getProviderDefinition("litellm")?.login;
+if (!loginLiteLLM) throw new Error("LiteLLM login is not registered");
 
 describe("LiteLLM login", () => {
 	it("mentions LITELLM_BASE_URL for custom proxy endpoints", async () => {

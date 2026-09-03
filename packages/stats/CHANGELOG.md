@@ -4,16 +4,6 @@
 
 ## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
-## [18.1.3] - 2026-09-02
-
-### Changed
-
-- Provider, tool, and project `<select>` dropdowns are now styled to match the dashboard design, with dark and light theme support.
-
-## [18.1.0] - 2026-09-01
-
-- 同步上游 OMP v18.0.9（`cc14e04f075d`）。
-
 ## [1.1.5] - 2026-08-26
 
 - 随 1.1.5 版本线对齐发布：OMP v18.0.6 同步未触及本包，无独立功能变更。
