@@ -26,6 +26,9 @@ AppShell（重构为 layout/ 组合）
 ├─ Sidebar 左栏（完整参考 openchamber packages/ui/src/components/session/sidebar/）
 │   ├─ SidebarHeader 快捷操作行：新建会话 / 搜索(展开+计数+Esc 提示) / 多选切换 /
 │   │   排序显示下拉（manual|a-z|z-a|date-added|recent；by-worktree|flat；Recent 分区开关）
+│   │   ── 头部红线（2026-09-02 用户决议，已落地 feat/web-ui-sidebar）：
+│   │      头部不得存在批量删除/归档按钮；新建会话是唯一创建入口（整宽行）；
+│   │      上游 omp-web 快照若带回该头部按钮，合并时恢复 Zeta 布局
 │   ├─ SidebarProjectsList：项目行（可折叠、manual 排序可拖拽、折叠时聚合状态点
 │   │   active=--accent-primary/unread=--status-info，1.5px 圆点非数字）
 │   │   → worktree 子分组（git-branch 图标 + 分支副标题 + hover 删除）
@@ -198,8 +201,11 @@ update 流程（用我们 /api/update）。
 
 ## 8. 实施顺序（10 个提交，每步绿 tsc+lint）
 
-1. 依赖 + Tailwind v4 CSS-first + token/typography + 图标 sprite（旧 UI 不破坏）
-2. 主题系统（JSON 预设 + 生成器 + Provider + 选择器；zeta-* 三主题移植；首开 dark）
+1. 依赖 + Tailwind v4 CSS-first + token/typography + 图标 sprite（旧 UI 不破坏）✓ 已合并（8ba6971d27）
+2. 主题系统（JSON 预设 + 生成器 + Provider + 选择器；zeta-* 三主题移植；首开 dark）✓ 已合并（8ba6971d27）
+   · Sidebar 子集已先行落地（feat/web-ui-sidebar，2026-09-03）：头部红线执行、
+     radix 显示设置下拉（排序/分组/Recent 开关，localStorage 持久化）、搜索切换
+     （展开+计数+Esc）、整宽新会话行、项目折叠持久化（zeta-web:sidebar-collapsed-projects）
 3. ui 原语子集替换高频内联样式
 4. layout/ 三栏重构 + surface tabs + 计数圈 + ContextPanel/Rail（红线全保留）
 5. Git/Diff/Files 视图 + CM6 + PUT /api/files
@@ -225,3 +231,4 @@ update 流程（用我们 /api/update）。
 - 2026-08-29: §5 增第 7 条 Plan 落盘路由——plan 默认留 userdata（`local://`
   → 会话 artifacts 目录），tracking.enabled 时才镜像进
   `<project>/.zeta/tracking/plans/`，不写仓库工作树。
+- 2026-09-03: §1 Sidebar 头部红线落地 + §8 步骤 1-2 合并标记（feat/web-ui-sidebar）。
