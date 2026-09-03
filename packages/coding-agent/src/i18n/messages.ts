@@ -2026,6 +2026,36 @@ export interface Messages {
 	cmdMcpAcp: string;
 	cmdAdvisorAcp: string;
 	cmdDumpAcp: string;
+	cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents: string;
+	cmdDropAllThinkingBlocks: string;
+	cmdEnablePremiumLongContextWindows: string;
+	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: string;
+	cmdOpentheGitUISplitDiffViewerStagingCommitComposer: string;
+	cmdOpentheLiveAgentHub: string;
+	cmdPinorUnpinaSessionattheTopoftheResumeList: string;
+	cmdPlanRunInspectImportandCompareOMPNativeSecurityScans: string;
+	cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession: string;
+	cmdRestoretheBoundedHUDPreview: string;
+	cmdRewindtoaPreviousMessageKeepingtheOldPathAsaBranch: string;
+	cmdRunMemoryConsolidationNow: string;
+	cmdShowEveryPhaseandTaskintheHUD: string;
+	cmdShowExtendedContextStatus: string;
+	cmdShowPendingMemoryDeltasAwaitingConsolidation: string;
+	cmdTogglePremiumLongContextWindows: string;
+	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor: string;
+	cmdUseStandardPricingContextWindows: string;
+	cmdValidateOneFindingwithOMPNativeTools: string;
+	cmdDetectAndFixProjectDiagnosticsWithWeightedParallelSubagents: string;
+	cmdMoveThisSessionIntoANewWorktreeChangesIncluded: string;
+	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer: string;
+	cmdOpenTheLiveAgentHub: string;
+	cmdOpenThisSessionsTraceInTheStatsDashboard: string;
+	cmdPinOrUnpinASessionAtTheTopOfTheResumeList: string;
+	cmdRestartOmpWithTheSameLaunchFlagsResumingThisSession: string;
+	cmdRestoreTheBoundedHudPreview: string;
+	cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch: string;
+	cmdShowEveryPhaseAndTaskInTheHud: string;
+	cmdToggleLoopModeWhileEnabledTheNextPromptYouSendResubmitsAfterEveryYieldEscCancelsTheCurrentIterationLoopAgainToDisable: string;
 
 	// ── Slash-command TUI autocomplete states ───────────────────────────────
 	acPlanDisabledInSettings: string; // "Plan: disabled in settings"
@@ -2067,6 +2097,11 @@ export interface Messages {
 	acLeaveCollabHosting: string; // "Leave collab: hosting"
 	acLeaveCollabGuest: string; // "Leave collab: guest"
 	acLeaveCollabNone: string; // "Leave collab: not in collab"
+	acAdvisorConfiguredNoModel: string;
+	acAdvisorOff: string;
+	acTodosNone: string;
+	acTodosFmt: string;
+	acForceNoActiveTools: string;
 
 	// ── /compact subcommand mode descriptions ───────────────────────────────
 	compactModeSoft: string;

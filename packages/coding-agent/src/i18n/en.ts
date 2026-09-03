@@ -2029,6 +2029,45 @@ export const en = {
 	cmdMcpAcp: "Manage MCP servers",
 	cmdAdvisorAcp: "Toggle advisor",
 	cmdDumpAcp: "Return full transcript as plain text, with LLM request JSON path",
+	cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents:
+		"Detect and fix project diagnostics with weighted parallel subagents",
+	cmdDropAllThinkingBlocks: "Drop all thinking blocks",
+	cmdEnablePremiumLongContextWindows: "Enable premium long-context windows",
+	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: "Move this session into a new worktree, changes included",
+	cmdOpentheGitUISplitDiffViewerStagingCommitComposer: "Open the git UI (split diff viewer, staging, commit composer)",
+	cmdOpentheLiveAgentHub: "Open the live Agent Hub",
+	cmdPinorUnpinaSessionattheTopoftheResumeList: "Pin or unpin a session at the top of the resume list",
+	cmdPlanRunInspectImportandCompareOMPNativeSecurityScans:
+		"Plan, run, inspect, import, and compare OMP-native security scans",
+	cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession:
+		"Restart omp with the same launch flags, resuming this session",
+	cmdRestoretheBoundedHUDPreview: "Restore the bounded HUD preview",
+	cmdRewindtoaPreviousMessageKeepingtheOldPathAsaBranch:
+		"Rewind to a previous message, keeping the old path as a branch",
+	cmdRunMemoryConsolidationNow: "Run memory consolidation now",
+	cmdShowEveryPhaseandTaskintheHUD: "Show every phase and task in the HUD",
+	cmdShowExtendedContextStatus: "Show extended context status",
+	cmdShowPendingMemoryDeltasAwaitingConsolidation: "Show pending memory deltas awaiting consolidation",
+	cmdTogglePremiumLongContextWindows: "Toggle premium long-context windows",
+	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor:
+		"Toggle ultra plan mode (fan-out scouting, incremental plan writes, deepest decision floor)",
+	cmdUseStandardPricingContextWindows: "Use standard-pricing context windows",
+	cmdValidateOneFindingwithOMPNativeTools: "Validate one finding with OMP-native tools",
+	cmdDetectAndFixProjectDiagnosticsWithWeightedParallelSubagents:
+		"Detect and fix project diagnostics with weighted parallel subagents",
+	cmdMoveThisSessionIntoANewWorktreeChangesIncluded: "Move this session into a new worktree, changes included",
+	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer: "Open the git UI (split diff viewer, staging, commit composer)",
+	cmdOpenTheLiveAgentHub: "Open the live Agent Hub",
+	cmdOpenThisSessionsTraceInTheStatsDashboard: "Open this session's trace in the stats dashboard",
+	cmdPinOrUnpinASessionAtTheTopOfTheResumeList: "Pin or unpin a session at the top of the resume list",
+	cmdRestartOmpWithTheSameLaunchFlagsResumingThisSession:
+		"Restart omp with the same launch flags, resuming this session",
+	cmdRestoreTheBoundedHudPreview: "Restore the bounded HUD preview",
+	cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch:
+		"Rewind to a previous message, keeping the old path as a branch",
+	cmdShowEveryPhaseAndTaskInTheHud: "Show every phase and task in the HUD",
+	cmdToggleLoopModeWhileEnabledTheNextPromptYouSendResubmitsAfterEveryYieldEscCancelsTheCurrentIterationLoopAgainToDisable:
+		"Toggle loop mode. While enabled, the next prompt you send re-submits after every yield. Esc cancels the current iteration; /loop again to disable.",
 
 	acPlanDisabledInSettings: "Plan: disabled in settings",
 	acPlanBlockedByGoalMode: "Plan: blocked by goal mode",
@@ -2069,6 +2108,11 @@ export const en = {
 	acLeaveCollabHosting: "Leave collab: hosting",
 	acLeaveCollabGuest: "Leave collab: guest",
 	acLeaveCollabNone: "Leave collab: not in collab",
+	acAdvisorConfiguredNoModel: "Advisor: configured, no model",
+	acAdvisorOff: "Advisor: off",
+	acTodosNone: "Todos: none",
+	acTodosFmt: "Todos: %s open (%s in progress, %s done)",
+	acForceNoActiveTools: "Force: no active tools",
 
 	compactModeSoft: "Summarize locally with the active model (skip remote endpoints)",
 	compactModeRemote: "Summarize via the remote endpoint / provider-native compaction",

@@ -19,6 +19,7 @@ import { createMarketplaceManager } from "./helpers/marketplace-manager";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import { parseMarketplaceInstallArgs, parsePluginScopeArgs } from "./marketplace-install-parser";
 import type { SlashCommandSpec } from "./types";
+import { M } from "../i18n";
 
 /**
  * Reload the interactive session's plugin runtime: invalidate fs/plugin-root
@@ -43,24 +44,24 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 	{
 		name: "marketplace",
 		icon: "cart",
-		description: "Manage marketplace plugin sources and installed plugins",
+		description: M.cmdMarketplace,
 		acpDescription: "Manage plugins from marketplaces",
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "add", description: "Add a marketplace source", usage: "<source>" },
-			{ name: "remove", description: "Remove a marketplace source", usage: "<name>" },
-			{ name: "update", description: "Update marketplace catalog(s)", usage: "[name]" },
-			{ name: "list", description: "List configured marketplaces" },
-			{ name: "discover", description: "Browse available plugins", usage: "[marketplace]" },
+			{ name: "add", description: M.cmdMarketplaceAdd, usage: "<source>" },
+			{ name: "remove", description: M.cmdMarketplaceRemove, usage: "<name>" },
+			{ name: "update", description: M.cmdMarketplaceUpdate, usage: "[name]" },
+			{ name: "list", description: M.cmdMarketplaceList },
+			{ name: "discover", description: M.cmdMarketplaceDiscover, usage: "[marketplace]" },
 			{
 				name: "install",
-				description: "Install a plugin (interactive browser if no args)",
+				description: M.cmdMarketplaceInstall,
 				usage: "[--force] [name@marketplace]",
 			},
-			{ name: "uninstall", description: "Uninstall a plugin (selector if no args)", usage: "[name@marketplace]" },
-			{ name: "installed", description: "List installed marketplace plugins" },
-			{ name: "upgrade", description: "Upgrade outdated plugins", usage: "[name@marketplace]" },
-			{ name: "help", description: "Show usage guide" },
+			{ name: "uninstall", description: M.cmdMarketplaceUninstall, usage: "[name@marketplace]" },
+			{ name: "installed", description: M.cmdMarketplaceInstalled },
+			{ name: "upgrade", description: M.cmdMarketplaceUpgrade, usage: "[name@marketplace]" },
+			{ name: "help", description: M.cmdMarketplaceHelp },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -423,13 +424,13 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 	{
 		name: "plugins",
 		icon: "package",
-		description: "View and manage installed plugins",
+		description: M.cmdPlugins,
 		acpDescription: "Manage plugins",
 		acpInputHint: "[list|enable|disable]",
 		subcommands: [
-			{ name: "list", description: "List all installed plugins (npm + marketplace)" },
-			{ name: "enable", description: "Enable a marketplace plugin", usage: "<name@marketplace>" },
-			{ name: "disable", description: "Disable a marketplace plugin", usage: "<name@marketplace>" },
+			{ name: "list", description: M.cmdPluginsList },
+			{ name: "enable", description: M.cmdPluginsEnable, usage: "<name@marketplace>" },
+			{ name: "disable", description: M.cmdPluginsDisable, usage: "<name@marketplace>" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -554,7 +555,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 	{
 		name: "reload-plugins",
 		icon: "restart",
-		description: "Reload all plugins (skills, commands, hooks, tools, agents, MCP)",
+		description: M.cmdReloadPlugins,
 		acpDescription: "Reload all plugins",
 		handle: async (_command, runtime) => {
 			await runtime.reloadPlugins();

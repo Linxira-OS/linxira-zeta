@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { COMPOSER_DEFAULTS, Composer } from "@linxiraos/zeta/modes/composer";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { setLanguage } from "../src/i18n";
 import { type Component, Container, type RenderScheduler, visibleWidth } from "@linxiraos/pi-tui";
 import { Image } from "@linxiraos/pi-tui/components/image";
 import { getKittyGraphics, setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
@@ -106,6 +107,7 @@ function startRetiredWelcome(modelName: string): { composer: Composer; terminal:
 }
 
 beforeAll(async () => {
+	setLanguage("en");
 	await initTheme();
 });
 
