@@ -27,10 +27,7 @@ import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import {
-	type ServingModel,
-	validateRetryFallbackChains,
-} from "@linxiraos/zeta/session/retry-fallback-chains";
+import { type ServingModel, validateRetryFallbackChains } from "@linxiraos/zeta/session/retry-fallback-chains";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";

@@ -1,4 +1,4 @@
-import { replaceTabs, wrapTextWithAnsi } from "@oh-my-pi/pi-tui";
+import { replaceTabs, wrapTextWithAnsi } from "@linxiraos/pi-tui";
 import { expandKeyHint } from "../../tools/render-utils";
 import { theme } from "../theme/theme";
 

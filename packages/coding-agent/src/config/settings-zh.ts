@@ -1281,23 +1281,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "重新规划时刷新标题",
 		description: "在待办初始化重新规划后刷新生成的会话标题，除非标题由用户设置",
 	},
-	"task.isolation.mode": {
-		label: "隔离模式",
-		description:
-			'子代理的隔离后端。"auto" 让原生 PAL 选择最佳可用后端（CoW 感知文件系统，然后是 overlayfs/ProjFS，最后是 git worktree / 递归复制回退）。',
-	},
-	"task.isolation.apply": {
-		label: "应用隔离更改",
-		description: "自动将成功的隔离任务更改应用到父检出；禁用则保留补丁或分支工件",
-	},
-	"task.isolation.merge": {
-		label: "隔离合并策略",
-		description: "隔离任务更改如何集成（补丁应用或分支合并）",
-	},
-	"task.isolation.commits": {
-		label: "隔离提交风格",
-		description: "嵌套仓库更改的提交消息风格（通用或 AI 生成）",
-	},
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
