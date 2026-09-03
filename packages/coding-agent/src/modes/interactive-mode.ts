@@ -178,6 +178,7 @@ import { type PlanReviewAnnotationState, PlanReviewOverlay } from "./components/
 import { PlanSaveOverlay, type PlanSaveOverlayResult } from "./components/plan-save-overlay";
 import { SessionInfoOverlay } from "./components/session-info-overlay";
 import { StatusLineComponent } from "./components/status-line";
+import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
 import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "./components/tool-execution";
 import { TranscriptContainer } from "./components/transcript-container";
 import type { LspServerInfo as WelcomeLspServerInfo } from "./components/welcome";
@@ -588,6 +589,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
+	sidebar: SidebarComponent;
 
 	isInitialized = false;
 	initialChatRendered = false;
@@ -987,6 +989,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer = new Container();
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session);
+		this.sidebar = new SidebarComponent(this.statusLine);
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
 		this.#codexResetFireworksController = new CodexResetFireworksController(this);
 		this.statusLine.setCodexResetFireworksHandler(event => {
@@ -999,6 +1002,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.statusLine.setVibeWorkerTokenRateProvider(() =>
 			aggregateVibeWorkerTokensPerSecond(this.session.getAgentId() ?? MAIN_AGENT_ID),
 		);
+		this.#applySidebar();
 
 		this.hideToolActivity = settings.get("display.hideToolActivity");
 		this.chatContainer.setToolActivityVisible(!this.hideToolActivity);
@@ -5375,6 +5379,25 @@ export class InteractiveMode implements InteractiveModeContext {
 	handleExportCommand(text: string): Promise<void> {
 		return this.#commandController.handleExportCommand(text);
 	}
+	/** Toggle the right-hand sidebar: flips the setting and re-wires the engine. */
+	handleSidebarToggle(): void {
+		const next = !settings.get("tui.sidebar");
+		settings.set("tui.sidebar", next);
+		this.#applySidebar();
+		this.ui.requestRender();
+	}
+
+	/** Apply the `tui.sidebar` setting to the engine's main-width override. */
+	#applySidebar(): void {
+		if (settings.get("tui.sidebar")) {
+			this.ui.setMainWidth(SIDEBAR_WIDTH);
+			this.ui.setGutterComponent(this.sidebar);
+		} else {
+			this.ui.setMainWidth(null);
+			this.ui.setGutterComponent(null);
+		}
+	}
+
 	handleTraceCommand(): Promise<void> {
 		return this.#commandController.handleTraceCommand();
 	}

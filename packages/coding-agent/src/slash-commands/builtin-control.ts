@@ -80,4 +80,14 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: M.cmdQuit,
 		handleTui: shutdownHandlerTui,
 	},
+	{
+		name: "sidebar",
+		icon: "gauge",
+		description: M.cmdSidebar,
+		getTuiAutocompleteDescription: runtime =>
+			runtime.ctx.settings.get("tui.sidebar") ? M.acSidebarOn : M.acSidebarOff,
+		handleTui: (_command, runtime) => {
+			runtime.ctx.handleSidebarToggle();
+		},
+	},
 ];

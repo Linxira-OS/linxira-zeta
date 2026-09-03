@@ -57,6 +57,7 @@ const SEGMENT_RESET = "\x1b[0m";
 const LINE_TERMINATOR = "\x1b[0m\x1b]8;;\x07";
 const ERASE_LINE = "\x1b[2K";
 const ERASE_TO_END_OF_LINE = "\x1b[K";
+const MIN_MAIN_AREA_COLUMNS = 64;
 // Keep the common short-row path out of native width/truncation. Longer rows
 // are fit by visible cells, not source code units, so zero-width-heavy prefixes
 // cannot hide visible suffix text that still belongs in the viewport.
@@ -798,6 +799,17 @@ export class TUI extends Container {
 	// Consumed by the next frame: a user-driven redraw gesture (resetDisplay,
 	// requestRender(true)) that must rewrite the viewport even when the diff
 	// believes nothing changed.
+	// Sidebar support (restored from db37b05765, adapted to the v18.1.5 engine):
+	// when #mainWidthOverride is set and the terminal is wide enough to keep
+	// MIN_MAIN_AREA_COLUMNS for the main area, #renderChildrenFrame composes and
+	// paints at the overridden width; the freed right margin is painted per frame
+	// from #gutterComponent via absolute-positioned writes that never enter the
+	// composed frame, committed prefix, or native scrollback.
+	#mainWidthOverride: number | null = null;
+	#gutterComponent: Component | null = null;
+	// Gutter rows painted by the most recent emitting frame.
+	#paintedGutterRows: readonly string[] | null = null;
+	#paintedGutterWidth = 0;
 	#forceViewportRepaintOnNextRender = false;
 	#hasEverRendered = false;
 	#stopped = false;
@@ -878,6 +890,73 @@ export class TUI extends Container {
 	 */
 	setMaxInlineImages(cap: number): void {
 		this.#imageBudget.setCap(cap);
+	}
+
+	/**
+	 * Yield `width` columns from the right edge of the terminal as a sidebar
+	 * margin, repainted per frame from the gutter component (see
+	 * {@link setGutterComponent}). The main area composes and paints at
+	 * `terminal.columns - width`, which keeps every committed row — and
+	 * therefore native scrollback — free of gutter text. `null` restores
+	 * full-width rendering. Frames where that would drop the main area below
+	 * {@link MIN_MAIN_AREA_COLUMNS}, or where a fullscreen-capable overlay is
+	 * visible, ignore the reservation and paint at the physical width.
+	 */
+	setMainWidth(width: number | null): void {
+		const next = width !== null && Number.isInteger(width) && width > 0 ? width : null;
+		if (this.#mainWidthOverride === next) return;
+		this.#mainWidthOverride = next;
+		this.requestRender();
+	}
+
+	/**
+	 * Component rendered into the right-hand margin created by
+	 * {@link setMainWidth}. Its rows are painted viewport-only via absolute
+	 * cursor addressing inside each frame's synchronized block; they never enter
+	 * the composed frame or scrollback. `null` clears the margin.
+	 */
+	setGutterComponent(component: Component | null): void {
+		if (this.#gutterComponent === component) return;
+		this.#gutterComponent = component;
+		this.#paintedGutterRows = null;
+		this.requestRender();
+	}
+
+	/** Effective main-area width for this frame, honoring the sidebar guards. */
+	#effectiveMainWidth(rawWidth: number): number {
+		if (
+			this.#mainWidthOverride === null ||
+			rawWidth - this.#mainWidthOverride < MIN_MAIN_AREA_COLUMNS ||
+			this.overlayStack.length > 0
+		) {
+			return rawWidth;
+		}
+		return rawWidth - this.#mainWidthOverride;
+	}
+
+	/**
+	 * Absolute-positioned paint for one frame's gutter column. Writes every
+	 * viewport row's gutter cells at column `mainWidth + 1`, then restores the
+	 * hardware cursor. Returns "" when there is no gutter this frame.
+	 */
+	#gutterPaintSequence(
+		rows: readonly string[] | null,
+		gutterWidth: number,
+		mainWidth: number,
+		height: number,
+		restoreRow: number,
+	): string {
+		const col = mainWidth + 1;
+		let seq = "";
+		for (let row = 0; row < height; row++) {
+			if (rows === null || gutterWidth <= 0) return "";
+			let text = truncateToWidth(rows[row] ?? "", gutterWidth, Ellipsis.Omit);
+			const pad = gutterWidth - visibleWidth(text);
+			if (pad > 0) text += " ".repeat(pad);
+			seq += `\x1b[${row + 1};${col}H${text}`;
+		}
+		seq += `\x1b[${restoreRow + 1};1H`;
+		return seq;
 	}
 	/** Return how settled resizes refresh native scrollback. */
 	getResizeScrollback(): ResizeScrollbackMode {
@@ -2650,7 +2729,7 @@ export class TUI extends Container {
 			this.#renderProviderFrame(width, height);
 			return;
 		}
-		this.#renderChildrenFrame(width, height);
+		this.#renderChildrenFrame(width, this.#effectiveMainWidth(width), height);
 	}
 
 	/**
@@ -2658,7 +2737,8 @@ export class TUI extends Container {
 	 * compose the root children and paint the bottom `height` rows as the
 	 * mutable viewport. Nothing is ever appended to terminal history.
 	 */
-	#renderChildrenFrame(width: number, height: number): void {
+	#renderChildrenFrame(rawWidth: number, width: number, height: number): void {
+		const gutter = this.#gutterComponent && width < rawWidth ? this.#gutterComponent : null;
 		let composed: readonly string[];
 		do {
 			this.#imageBudget.beginPass();
@@ -2668,6 +2748,23 @@ export class TUI extends Container {
 		this.#debugNextWindowTop = Math.max(0, composed.length - height);
 		const viewport = composed.length > height ? composed.slice(composed.length - height) : Array.from(composed);
 		this.#emitPlanFrame(width, height, viewport, undefined, undefined);
+		if (gutter) {
+			const rows = gutter.render(width);
+			// Paint the freed right margin after the frame block: absolute-positioned
+			// writes at column width+1 never touch the composed frame or scrollback.
+			const seq = this.#gutterPaintSequence(rows, rawWidth - width, width, viewport.length, 0);
+			if (seq) this.terminal.write(seq);
+			this.#paintedGutterRows = rows;
+			this.#paintedGutterWidth = rawWidth - width;
+		} else if (this.#paintedGutterRows !== null) {
+			// Gutter removed: clear the margin column once via absolute EL per row.
+			const col = width + 1;
+			let seq = "";
+			for (let row = 0; row < height; row++) seq += `\x1b[${row + 1};${col}H\x1b[K`;
+			seq += "\x1b[H";
+			this.terminal.write(seq);
+			this.#paintedGutterRows = null;
+		}
 	}
 
 	/** Stateless variant for overlay-composited windows and alt-screen frames. */

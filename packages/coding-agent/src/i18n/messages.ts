@@ -1896,6 +1896,8 @@ export interface Messages {
 	cmdForce: string;
 	cmdLiveVoice: string;
 	cmdSidebar: string;
+	acSidebarOn: string;
+	acSidebarOff: string;
 	cmdPause: string;
 	cmdQuit: string;
 	cmdMemoryMmDelete: string;

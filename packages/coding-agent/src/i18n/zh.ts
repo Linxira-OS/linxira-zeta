@@ -1880,6 +1880,8 @@ export const zh = {
 	cmdForce: "强制下一轮使用指定工具",
 	cmdLiveVoice: "启动 Codex 支持的实时语音模式",
 	cmdSidebar: "切换右侧边栏（上下文、用量、git、模型）",
+	acSidebarOn: "侧边栏：开启",
+	acSidebarOff: "侧边栏：关闭",
 	cmdPause: "冻结所有代理（主、子、顾问）直到恢复",
 	cmdQuit: "退出应用",
 	cmdMemoryMmDelete: "从库中删除心智模型（需要 id）",

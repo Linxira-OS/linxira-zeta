@@ -1899,6 +1899,8 @@ export const en = {
 	cmdForce: "Force next turn to use a specific tool",
 	cmdLiveVoice: "Start Codex-backed realtime voice mode",
 	cmdSidebar: "Toggle the right-hand sidebar (context, usage, git, model)",
+	acSidebarOn: "Sidebar: on",
+	acSidebarOff: "Sidebar: off",
 	cmdPause: "Freeze all agents (main, subagents, advisor) until resumed",
 	cmdQuit: "Quit the application",
 	cmdMemoryMmDelete: "Delete a mental model from the bank (id required)",
