@@ -192,7 +192,7 @@ describe("listClaudePluginRoots", () => {
 			fs.mkdir(path.join(projectB, ".git"), { recursive: true }),
 			fs.mkdir(projectBSubdir, { recursive: true }),
 		]);
-		await fs.symlink(projectB, projectBAlias, "dir");
+		await fs.symlink(projectB, projectBAlias, process.platform === "win32" ? "junction" : "dir");
 
 		const entry = (scope: "user" | "project" | "local", installPath: string, projectPath?: string) => ({
 			scope,
@@ -478,7 +478,7 @@ describe("listClaudePluginRoots", () => {
 			[firstHome, "first@market"],
 			[secondHome, "second@market"],
 		] as const) {
-			const pluginsDir = path.join(home, ".omp", "plugins");
+			const pluginsDir = path.join(home, ".zeta", "plugins");
 			await fs.mkdir(pluginsDir, { recursive: true });
 			await fs.writeFile(
 				path.join(pluginsDir, "installed_plugins.json"),

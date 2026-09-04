@@ -5374,6 +5374,7 @@ export class AgentSession {
 			// does not inherit a stale `required` tool choice.
 			this.#toolChoiceQueue.removeByLabel("plan-mode-decision");
 		}
+		this.bumpStateVersion();
 	}
 
 	getGoalModeState(): GoalModeState | undefined {
@@ -5382,6 +5383,7 @@ export class AgentSession {
 
 	setGoalModeState(state: GoalModeState | undefined): void {
 		this.#goalModeState = state;
+		this.bumpStateVersion();
 	}
 
 	getVibeModeState(): VibeModeState | undefined {
@@ -5390,6 +5392,7 @@ export class AgentSession {
 
 	setVibeModeState(state: VibeModeState | undefined): void {
 		this.#vibeModeState = state;
+		this.bumpStateVersion();
 		if (state?.enabled) return;
 
 		const isVibeContext = (message: AgentMessage): boolean =>
