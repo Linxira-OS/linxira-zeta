@@ -18,6 +18,7 @@ import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-c
 import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { ResolvedRoleModel } from "@linxiraos/zeta/session/agent-session";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
@@ -673,8 +674,8 @@ describe("selector setting side effects", () => {
 		const globalSelector = `${globalModel.provider}/${globalModel.id}`;
 		const testDir = path.join(os.tmpdir(), `selector-runtime-identical-${Snowflake.next()}`);
 		const projectDir = path.join(testDir, "project");
-		fs.mkdirSync(path.join(projectDir, ".omp"), { recursive: true });
-		fs.writeFileSync(path.join(projectDir, ".omp", "config.yml"), `modelRoles:\n  default: ${projectSelector}\n`);
+		fs.mkdirSync(path.join(projectDir, ".zeta"), { recursive: true });
+		fs.writeFileSync(path.join(projectDir, ".zeta", "config.yml"), `modelRoles:\n  default: ${projectSelector}\n`);
 
 		try {
 			const settings = await Settings.loadIsolated({
@@ -763,7 +764,14 @@ describe("selector setting side effects", () => {
 				hub.dispose();
 			}
 		} finally {
-			if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			AgentStorage.close();
+			await Bun.sleep(750);
+			try {
+				if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			} catch {
+				// Windows can hold the SQLite handle past our retry window; the
+				// snowflake-named temp dir is inert and the OS reclaims it.
+			}
 		}
 	});
 
@@ -869,7 +877,7 @@ describe("selector setting side effects", () => {
 				expect(settings.getGlobalModelRole("default")).toBeUndefined();
 				expect(settings.getModelRole("default")).toBe(overlaySelector);
 				expect(settings.getModelRoleProvenance("default")).toBe("overlay");
-				expect(await Bun.file(path.join(projectDir, ".omp", "config.yml")).text()).toContain(
+				expect(await Bun.file(path.join(projectDir, ".zeta", "config.yml")).text()).toContain(
 					`default: ${projectSelector}`,
 				);
 				expect(setModel).not.toHaveBeenCalled();
@@ -892,7 +900,14 @@ describe("selector setting side effects", () => {
 				hub.dispose();
 			}
 		} finally {
-			if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			AgentStorage.close();
+			await Bun.sleep(750);
+			try {
+				if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			} catch {
+				// Windows can hold the SQLite handle past our retry window; the
+				// snowflake-named temp dir is inert and the OS reclaims it.
+			}
 		}
 	});
 
@@ -1575,7 +1590,14 @@ describe("selector setting side effects", () => {
 				hub.dispose();
 			}
 		} finally {
-			if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			AgentStorage.close();
+			await Bun.sleep(750);
+			try {
+				if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			} catch {
+				// Windows can hold the SQLite handle past our retry window; the
+				// snowflake-named temp dir is inert and the OS reclaims it.
+			}
 		}
 	});
 
@@ -1682,7 +1704,14 @@ describe("selector setting side effects", () => {
 				hub.dispose();
 			}
 		} finally {
-			if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			AgentStorage.close();
+			await Bun.sleep(750);
+			try {
+				if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			} catch {
+				// Windows can hold the SQLite handle past our retry window; the
+				// snowflake-named temp dir is inert and the OS reclaims it.
+			}
 		}
 	});
 
