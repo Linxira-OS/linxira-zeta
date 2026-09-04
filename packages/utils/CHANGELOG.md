@@ -3,6 +3,24 @@
 ## [Unreleased]
 
 ## [1.1.8] - 2026-09-04
+## [18.1.7] - 2026-09-03
+
+### Added
+
+- Added the public `getTinyWorkerRuntimeDir()` utility, which returns the standard `~/.omp/run/tiny` directory for tiny-worker runtime data.
+
+## [18.1.6] - 2026-09-03
+
+### Added
+
+- Added `IncomingDoc` (`@oh-my-pi/pi-utils/incoming-json`) for incrementally reading path-addressed JSON data as text arrives, including string chunks and lines, array elements, and keyed object values, with structured errors for missing, incomplete, aborted, malformed, or mismatched data.
+- Added `Serial` for running asynchronous operations sequentially in call order.
+
+### Fixed
+
+- Fixed relaxed JSON parsing for single-quoted strings followed by line or block comments.
+
+## [18.1.5] - 2026-09-03
 
 - Added `symlinkDirectorySync` — Windows-correct directory links (junction) for tests and tooling that must link temp trees without elevation.
 - Extended the temp-removal retry window to 7.5s: measured Windows handle-release latency after a child process dies reaches ~5s, and the previous 2s window flaked suites cleaning up trees containing SQLite databases.

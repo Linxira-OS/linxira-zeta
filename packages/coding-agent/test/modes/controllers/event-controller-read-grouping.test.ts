@@ -13,16 +13,16 @@
  * one-entry block).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
-import { type Component, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
-import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
+import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
+import { ReadToolGroupComponent } from "@oh-my-pi/pi-coding-agent/modes/components/read-tool-group";
+import { TranscriptContainer } from "@oh-my-pi/pi-coding-agent/modes/components/transcript-container";
+import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { type Component, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
+import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(async () => {
 	await initTheme(false, undefined, undefined, "dark", "light");
@@ -76,28 +76,8 @@ function assistantMessage(content: Block[]): AssistantMessage {
 }
 
 function createFixture() {
-	const chatContainer = new TranscriptContainer();
-	const sessionMock = { getToolByName: () => undefined, hasBuiltInTool: () => true, extensionRunner: undefined };
-	const ctx = {
-		isInitialized: true,
-		init: vi.fn(async () => {}),
-		statusLine: { invalidate: vi.fn() },
-		updateEditorTopBorder: vi.fn(),
-		ui: { requestRender: vi.fn(), imageBudget: undefined },
-		chatContainer,
-		transcriptMessageComponents: new WeakMap(),
-		pendingTools: new Map(),
-		noteDisplayableThinkingContent: vi.fn(() => false),
-		settings: { get: () => false },
-		toolOutputExpanded: false,
-		hideThinkingBlock: false,
-		setWorkingMessage: vi.fn(),
-		clearTransientSessionUi: () => {},
-		session: sessionMock,
-		sessionManager: { getCwd: () => process.cwd() },
-		viewSession: sessionMock,
-	} as unknown as InteractiveModeContext;
-	return { controller: new EventController(ctx), chatContainer };
+	const ctx = createInteractiveModeContext();
+	return { controller: new EventController(ctx), chatContainer: ctx.chatContainer };
 }
 
 /** Drive one assistant completion: message_start then a single full message_update. */

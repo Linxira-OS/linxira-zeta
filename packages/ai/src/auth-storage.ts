@@ -8,8 +8,8 @@
  * - re-exported `SqliteAuthCredentialStore`: concrete SQLite-backed implementation
  */
 import { createHash } from "node:crypto";
-import { planRequirementFor } from "@linxiraos/pi-catalog/compat/behavior";
-import { $env, $envExact, extractRetryHint, getAgentDbPath, logger } from "@linxiraos/pi-utils";
+import { planRequirementFor } from "@oh-my-pi/pi-catalog/compat/behavior";
+import { $env, $envExact, extractRetryHint, getAgentDbPath, logger, untilAborted } from "@oh-my-pi/pi-utils";
 import {
 	isSqliteCorruptionError,
 	resolveCredentialIdentityKey,
@@ -741,7 +741,7 @@ const OAUTH_REFRESH_OPERATION_TIMEOUT_MS = 10_000;
 const MAX_PENDING_DISABLED_EVENTS = 32;
 
 // Re-exported from the error module (its new home) to preserve the public
-// `@linxiraos/pi-ai` entrypoint and the in-module call sites below.
+// `@oh-my-pi/pi-ai` entrypoint and the in-module call sites below.
 export { isDefinitiveOAuthFailure } from "./error/auth-classify";
 
 /**
@@ -3025,17 +3025,18 @@ export class AuthStorage {
 	): Promise<OAuthLoginIdentity | undefined> {
 		// Only paste-code providers (fixed non-loopback redirect, e.g. GitLab Duo
 		// Agent's vscode:// URI) get a default manual-code prompt. For loopback OAuth
-		// providers the `OAuthCallbackFlow` would otherwise race this readline prompt
-		// against the HTTP callback and, when the callback wins, leave the prompt
-		// outstanding — a dirty/blocked terminal. Synthesizing the default only for
-		// paste-code providers is the authoritative gate (it covers every caller, not
+		// providers an eager paste prompt adds noise to a flow that normally completes
+		// through HTTP. Synthesizing the default only for paste-code providers is the
+		// authoritative gate (it covers every caller, not
 		// just the CLI); an explicit caller-supplied `onManualCodeInput` is still
 		// honored for any provider as an escape hatch.
 		const manualCodeInput = PASTE_CODE_LOGIN_PROVIDERS.has(provider)
-			? () =>
-					ctrl.onPrompt({
-						message: "Paste the authorization code (or full redirect URL):",
-					})
+			? (signal?: AbortSignal) =>
+					untilAborted(signal, () =>
+						ctrl.onPrompt({
+							message: "Paste the authorization code (or full redirect URL):",
+						}),
+					)
 			: undefined;
 		// Built-in registry first, then runtime-registered extension providers.
 		const def = getProviderDefinition(provider) ?? getOAuthProvider(provider);

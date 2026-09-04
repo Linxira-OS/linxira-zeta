@@ -2,17 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { Patch, Patcher } from "@linxiraos/pi-hashline";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { getFileSnapshotStore } from "@linxiraos/zeta/edit/file-snapshot-store";
-import { HashlineFilesystem } from "@linxiraos/zeta/edit/hashline/filesystem";
-import { writethroughNoop } from "@linxiraos/zeta/lsp";
-import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { ReadToolDetails } from "@linxiraos/zeta/tools/read";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
+import type { ClientBridge } from "@oh-my-pi/pi-coding-agent/session/client-bridge";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content
@@ -306,15 +303,9 @@ describe("read tool multi-range selector", () => {
 		expect(text).toContain("1:first\n2:");
 		expect(text).not.toContain("\n4:");
 
-		const patch = Patch.parse(`${header}\nCUT 2`, { cwd: tmpDir });
-		const filesystem = new HashlineFilesystem({
-			session,
-			writethrough: writethroughNoop,
-			beginDeferredDiagnosticsForPath: () => {
-				throw new Error("deferred diagnostics are unused");
-			},
+		await new EditTool(session, "hashline").execute("call-bridge-edit", {
+			input: `${header}\nCUT 2`,
 		});
-		await new Patcher({ fs: filesystem, snapshots: getFileSnapshotStore(session) }).apply(patch);
 
 		expect(await fs.readFile(filePath, "utf8")).toBe("first\nlast\n");
 	});

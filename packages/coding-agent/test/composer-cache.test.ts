@@ -2,18 +2,19 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getComposerCacheDir } from "@linxiraos/pi-utils/dirs";
-import { COMPOSER_DEFAULTS } from "@linxiraos/zeta/modes/composer";
+import { COMPOSER_DEFAULTS, type ComposerStatusSnapshot } from "@oh-my-pi/pi-coding-agent/modes/composer";
 import {
 	readComposerStartupCache,
 	writeComposerLspCache,
 	writeComposerRecentSessionsCache,
+	writeComposerStatusCache,
 	writeComposerUiCache,
 	writeComposerWelcomeCache,
-} from "@linxiraos/zeta/modes/composer-cache";
+} from "@oh-my-pi/pi-coding-agent/modes/composer-cache";
+import { getComposerCacheDir } from "@oh-my-pi/pi-utils/dirs";
 
 describe("composer startup cache", () => {
-	it("round-trips per-project UI, recent-session JSONL, and LSP speculation", async () => {
+	it("round-trips per-project UI, status, recent-session JSONL, and LSP speculation", async () => {
 		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-composer-cache-"));
 		const otherCwd = `${cwd}-other`;
 		const key = Bun.hash.wyhash(path.resolve(cwd)).toString(16).padStart(16, "0");
@@ -22,6 +23,11 @@ describe("composer startup cache", () => {
 			const preferences = { ...COMPOSER_DEFAULTS, composerShape: "rail", autocompleteMaxVisible: 7 };
 			const recentSessions = [{ name: "cached work", timeAgo: "3m ago" }];
 			const lspServers = [{ name: "rust-analyzer", status: "connecting" as const, fileTypes: [".rs"] }];
+			const status: ComposerStatusSnapshot = {
+				shape: "rail",
+				topBorder: { content: "placeholder", width: 11 },
+				bottomLines: ["", "placeholder"],
+			};
 			await Promise.all([
 				writeComposerUiCache(cwd, preferences, {
 					symbolPreset: "ascii",
@@ -31,6 +37,7 @@ describe("composer startup cache", () => {
 				}),
 				writeComposerRecentSessionsCache(cwd, recentSessions),
 				writeComposerLspCache(cwd, lspServers),
+				writeComposerStatusCache(cwd, status),
 				writeComposerWelcomeCache(cwd, { modelName: "Claude Fable 5", providerName: "anthropic" }),
 			]);
 
@@ -45,6 +52,7 @@ describe("composer startup cache", () => {
 				welcome: { modelName: "Claude Fable 5", providerName: "anthropic" },
 				recentSessions,
 				lspServers,
+				status,
 			});
 			expect(readComposerStartupCache(otherCwd)).toEqual({
 				preferences: undefined,
@@ -62,6 +70,31 @@ describe("composer startup cache", () => {
 			]);
 		}
 	});
+
+	it("ignores legacy status snapshots", async () => {
+		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-composer-cache-legacy-status-"));
+		const key = Bun.hash.wyhash(path.resolve(cwd)).toString(16).padStart(16, "0");
+		const cacheDir = path.join(getComposerCacheDir(), key);
+		try {
+			await Bun.write(
+				path.join(cacheDir, "status.json"),
+				JSON.stringify({
+					version: 1,
+					shape: "band",
+					topBorder: { content: "Stale Model | stale-branch | /stale/location", width: 48 },
+					bottomLines: ["", "Stale Model | stale-branch | /stale/location"],
+				}),
+			);
+
+			expect(readComposerStartupCache(cwd).status).toBeUndefined();
+		} finally {
+			await Promise.all([
+				fs.rm(cwd, { recursive: true, force: true }),
+				fs.rm(cacheDir, { recursive: true, force: true }),
+			]);
+		}
+	});
+
 	it("loads XDG_CACHE_HOME from the home .env before the first cache access", async () => {
 		if (process.platform === "win32") return;
 
@@ -72,7 +105,7 @@ describe("composer startup cache", () => {
 		try {
 			await Promise.all([
 				fs.mkdir(home, { recursive: true }),
-				fs.mkdir(path.join(xdgCache, "zeta"), { recursive: true }),
+				fs.mkdir(path.join(xdgCache, "omp"), { recursive: true }),
 			]);
 			await Bun.write(path.join(home, ".env"), `XDG_CACHE_HOME=${xdgCache}\n`);
 
@@ -83,7 +116,7 @@ describe("composer startup cache", () => {
 				`const project = ${JSON.stringify(project)};`,
 				'await writeComposerWelcomeCache(project, { modelName: "model", providerName: "provider" });',
 				'const key = Bun.hash.wyhash(path.resolve(project)).toString(16).padStart(16, "0");',
-				`const expected = path.join(${JSON.stringify(xdgCache)}, "zeta", "cache", "composer", key, "welcome.json");`,
+				`const expected = path.join(${JSON.stringify(xdgCache)}, "omp", "cache", "composer", key, "welcome.json");`,
 				"process.stdout.write(String(await Bun.file(expected).exists()));",
 			].join("\n");
 			const proc = Bun.spawn([process.execPath, "--no-env-file", "--no-install", "--eval", script], {

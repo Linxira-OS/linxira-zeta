@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { Tokenizer } from "@linxiraos/pi-agent-core";
+import { ThinkingLevel, Tokenizer } from "@oh-my-pi/pi-agent-core";
 import {
 	type CompactionPreparation,
 	compact,
@@ -8,7 +8,7 @@ import {
 	NativeCompactionError,
 	prepareCompaction,
 	type SessionEntry,
-} from "@linxiraos/pi-agent-core/compaction";
+} from "@oh-my-pi/pi-agent-core/compaction";
 import {
 	buildCompactionV2Request,
 	buildOpenAiNativeHistory,
@@ -20,10 +20,13 @@ import {
 	shouldUseCompactionV2Streaming,
 	shouldUseOpenAiRemoteCompaction,
 	trimRemoteCompactionInputToContextWindow,
-} from "@linxiraos/pi-agent-core/compaction/openai";
-import * as ai from "@linxiraos/pi-ai";
-import * as AIError from "@linxiraos/pi-ai/error";
-import { getOpenAICodexTransportDetails } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+} from "@oh-my-pi/pi-agent-core/compaction/openai";
+import * as ai from "@oh-my-pi/pi-ai";
+import * as AIError from "@oh-my-pi/pi-ai/error";
+import {
+	buildTransformedCodexRequestBody,
+	getOpenAICodexTransportDetails,
+} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -31,10 +34,11 @@ import type {
 	Model,
 	ProviderSessionState,
 	ToolResultMessage,
-} from "@linxiraos/pi-ai/types";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import type { ModelSpec } from "@linxiraos/pi-catalog/types";
-import * as piUtils from "@linxiraos/pi-utils";
+	UserMessage,
+} from "@oh-my-pi/pi-ai/types";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import * as piUtils from "@oh-my-pi/pi-utils";
 
 const { isRecord } = piUtils;
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";
@@ -931,6 +935,7 @@ describe("requestCompactionV2Streaming", () => {
 		);
 		let betaFeaturesHeader: string | undefined;
 		let residencyHeader: string | undefined;
+		let clientMetadata: Record<string, unknown> | undefined;
 		const fetchMock: FetchImpl = async (_input, init) => {
 			if (!init?.headers || init.headers instanceof Headers || Array.isArray(init.headers)) {
 				throw new Error("Expected V2 compaction to send headers as a plain object");
@@ -939,6 +944,10 @@ describe("requestCompactionV2Streaming", () => {
 			const rawResidencyHeader = init.headers["x-openai-internal-codex-residency"];
 			betaFeaturesHeader = typeof rawBetaFeaturesHeader === "string" ? rawBetaFeaturesHeader : undefined;
 			residencyHeader = typeof rawResidencyHeader === "string" ? rawResidencyHeader : undefined;
+			const parsedBody: unknown = JSON.parse(String(init.body));
+			if (isRecord(parsedBody) && isRecord(parsedBody.client_metadata)) {
+				clientMetadata = parsedBody.client_metadata;
+			}
 			return sseResponse([
 				{
 					type: "response.output_item.done",
@@ -953,6 +962,7 @@ describe("requestCompactionV2Streaming", () => {
 
 		expect(betaFeaturesHeader).toBe("remote_compaction_v2");
 		expect(residencyHeader).toBe("us");
+		expect(clientMetadata?.["x-codex-installation-id"]).toBe(TEST_INSTALLATION_ID);
 	});
 
 	test("retries transient V2 stream failures with a fresh request attempt", async () => {
@@ -1198,7 +1208,54 @@ describe("Responses Lite remote compaction", () => {
 		expect(captured?.body.input?.at(-1)).toEqual({ type: "compaction_trigger" });
 	});
 
-	test("V2 compaction reuses the live Codex WebSocket transport when preferred", async () => {
+	test.each([false, true])(
+		"V2 compaction preserves Codex input and disabled reasoning (Lite: %s)",
+		async responsesLite => {
+			const model = makeCodexLiteModel({ useResponsesLite: responsesLite });
+			const systemPrompt = ["base instructions", "workspace instructions"];
+			const messages: UserMessage[] = [
+				{ role: "user", content: "first user request", timestamp: 1 },
+				{ role: "user", content: "second user request", timestamp: 2 },
+			];
+			const normalBody = await buildTransformedCodexRequestBody(
+				model,
+				{ systemPrompt, messages },
+				{ sessionId: "codex-cache-session", responsesLite, forceReasoningOff: true },
+			);
+			const preparation: CompactionPreparation = {
+				firstKeptEntryId: "kept-1",
+				messagesToSummarize: [messages[0]],
+				turnPrefixMessages: [],
+				recentMessages: [messages[1]],
+				isSplitTurn: false,
+				tokensBefore: 100_000,
+				fileOps: createFileOps(),
+				settings: {
+					...DEFAULT_COMPACTION_SETTINGS,
+					remoteStreamingV2Enabled: true,
+				},
+			};
+			let captured: CapturedLiteExchange | undefined;
+			const fetchMock: FetchImpl = async (_input, init) => {
+				captured = captureStreamLite(init);
+				return sseResponse(compactionV2Events("enc-cache"));
+			};
+
+			await compact(preparation, model, CODEX_RESIDENCY_TOKEN, undefined, undefined, {
+				fetch: fetchMock,
+				remoteSystemPrompt: systemPrompt,
+				sessionId: "codex-cache-session",
+				thinkingLevel: ThinkingLevel.Off,
+			});
+
+			expect(JSON.stringify(captured?.body.input?.slice(0, -1))).toBe(JSON.stringify(normalBody.input));
+			expect(captured?.body.instructions).toEqual(normalBody.instructions);
+			expect(captured?.body.reasoning).toEqual(normalBody.reasoning);
+			expect(captured?.body.reasoning?.effort).toBe("none");
+		},
+	);
+
+	test("V2 compaction isolates its Lite WebSocket from the full Responses session", async () => {
 		const providerSessionState = new Map<string, ProviderSessionState>();
 		const webSocket = installCodexCompactionWebSocket({
 			respond: (socket, outbound) => {
@@ -1267,13 +1324,21 @@ describe("Responses Lite remote compaction", () => {
 				codexCompaction: TEST_CODEX_COMPACTION,
 			});
 
-			const sentRequest = webSocket.sockets[0]?.sent[1];
-			const sentInput = sentRequest?.input;
+			const liveRequest = webSocket.sockets[0]?.sent[0];
+			const compactionRequest = webSocket.sockets[1]?.sent[0];
+			const compactionInput = compactionRequest?.input;
 			expect(fetchMock).not.toHaveBeenCalled();
-			expect(webSocket.sockets).toHaveLength(1);
-			expect(webSocket.sockets[0]?.sent).toHaveLength(2);
-			expect(sentRequest?.type).toBe("response.create");
-			expect(Array.isArray(sentInput) ? sentInput.at(-1) : undefined).toEqual({ type: "compaction_trigger" });
+			expect(webSocket.sockets).toHaveLength(2);
+			expect(webSocket.sockets[0]?.sent).toHaveLength(1);
+			expect(webSocket.sockets[1]?.sent).toHaveLength(1);
+			expect(liveRequest?.instructions).toBe("You are a helpful assistant.");
+			expect(liveRequest?.parallel_tool_calls).toBeUndefined();
+			expect(compactionRequest?.type).toBe("response.create");
+			expect(compactionRequest?.instructions).toBeUndefined();
+			expect(compactionRequest?.parallel_tool_calls).toBe(false);
+			expect(Array.isArray(compactionInput) ? compactionInput.at(-1) : undefined).toEqual({
+				type: "compaction_trigger",
+			});
 			expect(result.compactionItem).toEqual({ type: "compaction", encrypted_content: "enc-websocket" });
 			expect(
 				getOpenAICodexTransportDetails(model, {

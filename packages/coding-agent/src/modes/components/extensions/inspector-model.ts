@@ -6,9 +6,9 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { arkToWireSchema, isArkSchema } from "@linxiraos/pi-ai/utils/schema";
-import { CONFIG_DIR_NAME, normalizePathForComparison, parseFrontmatter } from "@linxiraos/pi-utils";
-import { parseRuleConditionAndScope } from "../../../capability/rule";
+import { arkToWireSchema, isArkSchema } from "@oh-my-pi/pi-ai/utils/schema";
+import { normalizePathForComparison, parseFrontmatter } from "@oh-my-pi/pi-utils";
+import { parseRuleAgents, parseRuleConditionAndScope } from "../../../capability/rule";
 import { slashCommandFrontmatterDisplay } from "../../../capability/slash-command";
 import { isFilesystemSourcePath } from "../../../tools/path-utils";
 import {
@@ -252,7 +252,7 @@ function pathSegments(filePath: string): string[] {
 export function projectListHint(ext: Extension): string | undefined {
 	if (ext.source.level !== "project") return undefined;
 	const parts = pathSegments(ext.path);
-	const ompIndex = parts.lastIndexOf(CONFIG_DIR_NAME);
+	const ompIndex = parts.lastIndexOf(".omp");
 	if (ompIndex <= 0) return undefined;
 	const parent = parts[ompIndex - 1];
 	return parent && parent !== "." ? parent : undefined;
@@ -340,6 +340,7 @@ export function ruleInspectorData(ext: Extension): {
 	condition?: string[];
 	astCondition?: string[];
 	scope?: string[];
+	agents?: string[];
 	interruptMode?: string;
 	content: string;
 	runtimeDetail?: string;
@@ -352,6 +353,7 @@ export function ruleInspectorData(ext: Extension): {
 		astCondition: stringArray(raw.astCondition) ?? stringField(raw, "astCondition"),
 		scope: stringArray(raw.scope) ?? stringField(raw, "scope"),
 	});
+	const agents = parseRuleAgents(raw.agents);
 	const interruptMode = stringField(raw, "interruptMode");
 	const content = stringField(raw, "content") ?? "";
 	return {
@@ -361,6 +363,7 @@ export function ruleInspectorData(ext: Extension): {
 		condition: parsed.condition,
 		astCondition: parsed.astCondition,
 		scope: parsed.scope,
+		agents,
 		interruptMode,
 		content,
 		runtimeDetail: ext.trigger,

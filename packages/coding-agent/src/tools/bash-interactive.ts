@@ -1,5 +1,6 @@
-import type { AgentToolContext } from "@linxiraos/pi-agent-core";
-import { type PtyRunResult, PtySession } from "@linxiraos/pi-natives";
+import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import type { ImageContent } from "@oh-my-pi/pi-ai";
+import { type PtyRunResult, PtySession } from "@oh-my-pi/pi-natives";
 import {
 	type Component,
 	extractPrintableText,
@@ -9,14 +10,13 @@ import {
 	parseKittySequence,
 	truncateToWidth,
 	visibleWidth,
-} from "@linxiraos/pi-tui";
-import { sanitizeText } from "@linxiraos/pi-utils";
-import type * as XtermModule from "@linxiraos/pi-utils/vterm";
-import type { Terminal as XtermTerminalType } from "@linxiraos/pi-utils/vterm";
+} from "@oh-my-pi/pi-tui";
+import type * as XtermModule from "@oh-my-pi/pi-utils/vterm";
+import type { Terminal as XtermTerminalType } from "@oh-my-pi/pi-utils/vterm";
 import { Settings } from "../config/settings";
 import type { Theme } from "../modes/theme/theme";
 import { OutputSink, type OutputSummary } from "../session/streaming-output";
-import { sanitizeWithOptionalSixelPassthrough } from "../utils/sixel";
+import { TerminalGraphicsDecoder } from "../utils/terminal-graphics";
 import { resolveOutputMaxColumns, resolveOutputSinkHeadBytes } from "./output-meta";
 import { formatStatusIcon, replaceTabs } from "./render-utils";
 import { readTerminalRows, styleTerminalRow } from "./terminal-output";
@@ -25,11 +25,8 @@ export interface BashInteractiveResult extends OutputSummary {
 	exitCode: number | undefined;
 	cancelled: boolean;
 	timedOut: boolean;
-}
-
-function normalizeCaptureChunk(chunk: string): string {
-	const normalized = chunk.replace(/\r\n?/gu, "\n");
-	return sanitizeWithOptionalSixelPassthrough(normalized, sanitizeText);
+	/** Terminal graphics extracted from raw PTY output before transcript sanitization. */
+	images?: ImageContent[];
 }
 
 // Caps only the live xterm display backlog; OutputSink remains the bounded
@@ -43,7 +40,7 @@ let xtermTerminalCtor: typeof XtermModule.Terminal | undefined;
 /** Lazily load the headless xterm Terminal shared by PTY render paths. */
 export async function loadXtermTerminal(): Promise<typeof XtermModule.Terminal> {
 	if (!xtermTerminalCtor) {
-		const mod = (await import("@linxiraos/pi-utils/vterm")) as typeof XtermModule & { default?: typeof XtermModule };
+		const mod = (await import("@oh-my-pi/pi-utils/vterm")) as typeof XtermModule & { default?: typeof XtermModule };
 		xtermTerminalCtor = (mod.default ?? mod).Terminal;
 	}
 	return xtermTerminalCtor;
@@ -335,6 +332,7 @@ export async function runInteractiveBashPty(
 	// Load the xterm Terminal ctor here (async boundary) — the ui.custom factory below is sync.
 	const XtermTerminal = await loadXtermTerminal();
 	const { shell: resolvedShell } = settings.getShellConfig();
+	const graphics = new TerminalGraphicsDecoder();
 	const sink = new OutputSink({
 		artifactPath: options.artifactPath,
 		artifactId: options.artifactId,
@@ -360,12 +358,15 @@ export async function runInteractiveBashPty(
 					tui.requestRender();
 					void (async () => {
 						await component.flushOutput();
-						const summary = await sink.dump();
+						const tail = graphics.finish();
+						if (tail) sink.push(tail);
+						const [summary, images] = await Promise.all([sink.dump(), graphics.images()]);
 						done({
 							exitCode: run.exitCode,
 							cancelled: run.cancelled,
 							timedOut: run.timedOut,
 							...summary,
+							...(images.length > 0 ? { images } : {}),
 						});
 					})();
 				};
@@ -415,8 +416,8 @@ export async function runInteractiveBashPty(
 						(err, chunk) => {
 							if (finished || err || !chunk) return;
 							component.appendOutput(chunk);
-							const normalizedChunk = normalizeCaptureChunk(chunk);
-							sink.push(normalizedChunk);
+							const clean = graphics.push(chunk);
+							if (clean) sink.push(clean.replace(/\r\n?/gu, "\n"));
 							tui.requestRender();
 						},
 					)

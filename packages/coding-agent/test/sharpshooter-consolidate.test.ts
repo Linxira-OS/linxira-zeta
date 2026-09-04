@@ -24,6 +24,7 @@ interface Harness {
 	cwd: string;
 	settings: Settings;
 	modelRegistry: ModelRegistry;
+	sessionId: string;
 }
 
 function createHarness(root: string): Harness {
@@ -43,6 +44,7 @@ function createHarness(root: string): Harness {
 			"sharpshooter.intervalMinutes": 5,
 		}),
 		modelRegistry,
+		sessionId: "01900000-0000-7000-8000-000000000001",
 	};
 }
 

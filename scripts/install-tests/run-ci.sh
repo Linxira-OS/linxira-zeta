@@ -23,16 +23,16 @@ section() {
 }
 
 smoke_cli() {
-   local cli_bin="$1"
+   local omp_bin="$1"
    local runtime_dir
    runtime_dir="$(mktemp -d "$WORK_DIR/compiled-runtime.XXXXXX")"
-   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$cli_bin" --version
-   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$cli_bin" --help >/dev/null
-   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$cli_bin" stats --summary >/dev/null
+   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$omp_bin" --version
+   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$omp_bin" --help >/dev/null
+   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$omp_bin" stats --summary >/dev/null
    # Spawns bundled workers and serves the stats dashboard once. Regression
    # probe for #1011/#1027 worker loading and for npm/compiled distributions
    # missing the dashboard assets that `stats --summary` never touches.
-   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$cli_bin" --smoke-test
+   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$omp_bin" --smoke-test
 }
 
 find_tarball() {
@@ -90,8 +90,8 @@ bun --cwd=packages/coding-agent run build
 
 BINARY_DIR="$WORK_DIR/binary-bin"
 mkdir -p "$BINARY_DIR"
-cp packages/coding-agent/dist/zeta "$BINARY_DIR/zeta"
-smoke_cli "$BINARY_DIR/zeta"
+cp packages/coding-agent/dist/omp "$BINARY_DIR/omp"
+smoke_cli "$BINARY_DIR/omp"
 
 section "Source install smoke"
 SOURCE_BUN_HOME="$WORK_DIR/bun-source"
@@ -99,7 +99,7 @@ SOURCE_BUN_HOME="$WORK_DIR/bun-source"
    export BUN_INSTALL="$SOURCE_BUN_HOME"
    export PATH="$BUN_INSTALL/bin:$PATH"
    bun --cwd="$ROOT_DIR/packages/coding-agent" link
-   smoke_cli "$BUN_INSTALL/bin/zeta"
+   smoke_cli "$BUN_INSTALL/bin/omp"
 )
 
 section "Tarball install smoke"
@@ -135,7 +135,7 @@ cp "$natives_pkg_backup" "$ROOT_DIR/packages/natives/package.json"
 # 3. Pack the remaining workspace packages (natives core and coding-agent
 #    handled separately). `collab-web` is private but still packed here so its
 #    prepack build and tarball file list stay release-safe.
-for pkg in utils wire omptype hashline catalog channels ai mnemopi snapcompact agent tui stats collab-web; do
+for pkg in utils wire omptype catalog ai mnemopi snapcompact agent tui stats collab-web; do
    (
       cd "$ROOT_DIR/packages/$pkg"
       bun pm pack --destination "$TARBALL_DIR" --quiet >/dev/null
@@ -143,7 +143,7 @@ for pkg in utils wire omptype hashline catalog channels ai mnemopi snapcompact a
 done
 
 # 4. Pack the coding agent with its *published* manifest: release swaps
-#    `bin.zeta` from `src/cli.ts` to the prepack bundle `dist/cli.js`. The repo
+#    `bin.omp` from `src/cli.ts` to the prepack bundle `dist/cli.js`. The repo
 #    manifest keeps pointing at source so `bun link`/`install.sh --source`
 #    work without a build, so the swap must be reproduced here for the smoke
 #    to exercise the bundled worker-host entry the published package ships.
@@ -158,21 +158,20 @@ agent_rc=0
 cp "$agent_pkg_backup" "$ROOT_DIR/packages/coding-agent/package.json"
 [ "$agent_rc" -eq 0 ] || exit "$agent_rc"
 
-utils_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-utils-*.tgz)"
-wire_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-wire-*.tgz)"
-omptype_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-omptype-*.tgz)"
-natives_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-natives-[0-9]*.tgz)"
-natives_leaf_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-natives-"$host_tag"-*.tgz)"
-hashline_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-hashline-*.tgz)"
-catalog_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-catalog-*.tgz)"
-ai_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-ai-*.tgz)"
-mnemopi_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-mnemopi-*.tgz)"
-snapcompact_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-snapcompact-*.tgz)"
-agent_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-agent-core-*.tgz)"
-tui_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-tui-*.tgz)"
-stats_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-stats-*.tgz)"
-coding_agent_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-zeta-*.tgz)"
-collab_web_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-collab-web-*.tgz)"
+utils_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-utils-*.tgz)"
+wire_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-wire-*.tgz)"
+omptype_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-omptype-*.tgz)"
+natives_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-natives-[0-9]*.tgz)"
+natives_leaf_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-natives-"$host_tag"-*.tgz)"
+catalog_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-catalog-*.tgz)"
+ai_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-ai-*.tgz)"
+mnemopi_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-mnemopi-*.tgz)"
+snapcompact_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-snapcompact-*.tgz)"
+agent_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-agent-core-*.tgz)"
+tui_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-tui-*.tgz)"
+stats_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-omp-stats-*.tgz)"
+coding_agent_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-coding-agent-*.tgz)"
+collab_web_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-collab-web-*.tgz)"
 
 TARBALL_APP_DIR="$WORK_DIR/tarball-install"
 mkdir -p "$TARBALL_APP_DIR"
@@ -185,57 +184,54 @@ mkdir -p "$TARBALL_APP_DIR"
    node -e "
 		const pkg = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
 		pkg.overrides = {
-			'@linxiraos/pi-utils': '$utils_tgz',
-			'@linxiraos/pi-wire': '$wire_tgz',
-			'@linxiraos/pi-omptype': '$omptype_tgz',
-			'@linxiraos/pi-natives': '$natives_tgz',
-			'@linxiraos/pi-natives-$host_tag': '$natives_leaf_tgz',
-			'@linxiraos/pi-hashline': '$hashline_tgz',
-			'@linxiraos/pi-ai': '$ai_tgz',
-			'@linxiraos/pi-catalog': '$catalog_tgz',
-			'@linxiraos/pi-mnemopi': '$mnemopi_tgz',
-			'@linxiraos/pi-snapcompact': '$snapcompact_tgz',
-			'@linxiraos/pi-agent-core': '$agent_tgz',
-			'@linxiraos/pi-tui': '$tui_tgz',
-			'@linxiraos/pi-stats': '$stats_tgz',
-			'@linxiraos/zeta': '$coding_agent_tgz',
-			'@linxiraos/collab-web': '$collab_web_tgz'
+			'@oh-my-pi/pi-utils': '$utils_tgz',
+			'@oh-my-pi/pi-wire': '$wire_tgz',
+			'@oh-my-pi/omptype': '$omptype_tgz',
+			'@oh-my-pi/pi-natives': '$natives_tgz',
+			'@oh-my-pi/pi-natives-$host_tag': '$natives_leaf_tgz',
+			'@oh-my-pi/pi-ai': '$ai_tgz',
+			'@oh-my-pi/pi-catalog': '$catalog_tgz',
+			'@oh-my-pi/pi-mnemopi': '$mnemopi_tgz',
+			'@oh-my-pi/snapcompact': '$snapcompact_tgz',
+			'@oh-my-pi/pi-agent-core': '$agent_tgz',
+			'@oh-my-pi/pi-tui': '$tui_tgz',
+			'@oh-my-pi/omp-stats': '$stats_tgz',
+			'@oh-my-pi/pi-coding-agent': '$coding_agent_tgz',
+			'@oh-my-pi/collab-web': '$collab_web_tgz'
 		};
 		require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 	"
 
-   bun add "$utils_tgz" "$wire_tgz" "$omptype_tgz" "$natives_tgz" "$hashline_tgz" "$catalog_tgz" "$ai_tgz" "$mnemopi_tgz" "$snapcompact_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$coding_agent_tgz" "$collab_web_tgz"
+   bun add "$utils_tgz" "$wire_tgz" "$omptype_tgz" "$natives_tgz" "$catalog_tgz" "$ai_tgz" "$mnemopi_tgz" "$snapcompact_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$coding_agent_tgz" "$collab_web_tgz"
    # The platform leaf must arrive through the core's optionalDependencies +
    # override, not as a direct dependency — assert it landed before smoking so a
    # resolution regression is distinguishable from a runtime loader bug.
-   leaf_dir="node_modules/@linxiraos/pi-natives-$host_tag"
+   leaf_dir="node_modules/@oh-my-pi/pi-natives-$host_tag"
    [ -d "$leaf_dir" ] || {
       echo "Platform leaf package not installed: $leaf_dir"
       exit 1
    }
-   wire_proto="$(bun -e 'import { COLLAB_PROTO } from "@linxiraos/pi-wire"; process.stdout.write(String(COLLAB_PROTO));')"
+   wire_proto="$(bun -e 'import { COLLAB_PROTO } from "@oh-my-pi/pi-wire"; process.stdout.write(String(COLLAB_PROTO));')"
    [ "$wire_proto" = "3" ] || {
-      echo "Unexpected @linxiraos/pi-wire COLLAB_PROTO: $wire_proto"
+      echo "Unexpected @oh-my-pi/pi-wire COLLAB_PROTO: $wire_proto"
       exit 1
    }
    omptype_probe="$(bun -e '
-import { type } from "@linxiraos/pi-omptype";
-      import { Type } from "@linxiraos/pi-omptype/typebox";
-      import { z } from "@linxiraos/pi-omptype/zod";
+      import { type } from "@oh-my-pi/omptype";
+      import { Type } from "@oh-my-pi/omptype/typebox";
       const root = type({ name: "string", enabled: "boolean = false" }).assert({ name: "omp" });
       const typebox = Type.Object({ name: Type.String() }).assert({ name: "tb" });
-      const zod = z.object({ name: z.string() }).parse({ name: "z" });
-      process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}:${zod.name}`);
+      process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}`);
    ')"
-[ "$omptype_probe" = "omp:false:tb:z" ] || {
-      echo "Unexpected @linxiraos/pi-omptype probe result: $omptype_probe"
+   [ "$omptype_probe" = "omp:false:tb" ] || {
+      echo "Unexpected @oh-my-pi/omptype probe result: $omptype_probe"
       exit 1
    }
-   [ -f "node_modules/@linxiraos/collab-web/dist/index.html" ] || {
+   [ -f "node_modules/@oh-my-pi/collab-web/dist/index.html" ] || {
       echo "Collab web tarball did not install built dist/index.html"
       exit 1
    }
-   smoke_cli ./node_modules/.bin/zeta
+   smoke_cli ./node_modules/.bin/omp
 )
 
 echo ""

@@ -2,14 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Patch, Patcher } from "@linxiraos/pi-hashline";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "@linxiraos/zeta/edit/file-snapshot-store";
-import { HashlineFilesystem } from "@linxiraos/zeta/edit/hashline/filesystem";
-import { writethroughNoop } from "@linxiraos/zeta/lsp";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
+import { getEditStore } from "@oh-my-pi/pi-coding-agent/edit/store";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 function createSession(cwd: string): ToolSession {
 	return {
@@ -66,9 +64,8 @@ describe("write tool hashline header", () => {
 
 		// The tag must address a snapshot whose content matches what we wrote so a
 		// follow-up edit can land without an extra `read` round-trip.
-		const snapshot = getFileSnapshotStore(session).byHash(canonicalSnapshotKey(filePath), tag!);
-		expect(snapshot).not.toBeNull();
-		expect(snapshot?.text).toBe(content);
+		const snapshot = getEditStore(session).byHashText(filePath, tag!);
+		expect(snapshot).toBe(content);
 	});
 
 	it("makes the post-write tag usable by the hashline patcher", async () => {
@@ -84,20 +81,7 @@ describe("write tool hashline header", () => {
 		// Apply a hashline patch immediately, using only the tag the write tool
 		// returned — no intervening `read`.
 		const patchInput = `${headerLine}\nPUT 1-1:\n+export const enabled = true;\n`;
-		const patch = Patch.parse(patchInput, { cwd: tmpDir });
-		expect(patch.sections).toHaveLength(1);
-
-		const filesystem = new HashlineFilesystem({
-			session,
-			writethrough: writethroughNoop,
-			beginDeferredDiagnosticsForPath: () => {
-				throw new Error("deferred diagnostics unused with writethroughNoop");
-			},
-		});
-		const patcher = new Patcher({ fs: filesystem, snapshots: getFileSnapshotStore(session) });
-		const prepared = await patcher.prepare(patch.sections[0]!);
-		const sectionResult = await patcher.commit(prepared);
-		expect(sectionResult.op).toBe("update");
+		await new EditTool(session, "hashline").execute("call-2", { input: patchInput });
 
 		const final = await fs.readFile(filePath, "utf8");
 		expect(final).toBe("export const enabled = true;\n");

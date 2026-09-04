@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { formatHashlineHeader } from "@linxiraos/pi-hashline";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { canonicalSnapshotKey, EditTool, getFileSnapshotStore, type PatchParams } from "@linxiraos/zeta/edit";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { EditMode } from "@linxiraos/zeta/utils/edit-mode";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EditTool, getEditStore, type PatchParams } from "@oh-my-pi/pi-coding-agent/edit";
+import { formatHashlineHeader } from "@oh-my-pi/pi-coding-agent/tools/hashline-format";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { EditMode } from "@oh-my-pi/pi-coding-agent/utils/edit-mode";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 const MODEL = "openai/gpt-5.6";
 const SOURCE = "export function value(): number {\n\treturn 1;\n}\n";
@@ -152,7 +152,7 @@ describe("edit parse-regression blackbox", () => {
 		});
 
 		const hashlinePath = await writeFixture("hashline.ts");
-		const tag = getFileSnapshotStore(session).record(canonicalSnapshotKey(hashlinePath), SOURCE);
+		const tag = getEditStore(session).recordSnapshot(hashlinePath, SOURCE, undefined);
 		const hashlineArg = {
 			input: `${formatHashlineHeader("hashline.ts", tag)}\nPUT 2-2:\n+\treturn (;`,
 		};

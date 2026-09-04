@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent } from "@linxiraos/pi-agent-core";
-import type { ApiKeyResolveContext, AssistantMessage, AssistantRetryRecovery, Usage } from "@linxiraos/pi-ai";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import * as aiStream from "@linxiraos/pi-ai/stream";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { resolveAssistantErrorPresentation } from "@linxiraos/zeta/modes/utils/transcript-render-helpers";
-import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
-import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Agent, AgentBusyError } from "@oh-my-pi/pi-agent-core";
+import type { ApiKeyResolveContext, AssistantMessage, AssistantRetryRecovery, Usage } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import * as aiStream from "@oh-my-pi/pi-ai/stream";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { resolveAssistantErrorPresentation } from "@oh-my-pi/pi-coding-agent/modes/utils/transcript-render-helpers";
+import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SILENT_ABORT_MARKER } from "@oh-my-pi/pi-coding-agent/session/messages";
+import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;
 
@@ -275,6 +275,74 @@ describe("AgentSession retry recovery", () => {
 				message => message.role === "assistant" && message.retryRecovery?.status === "recovered",
 			),
 		).toBe(true);
+	});
+
+	it("waits through a local busy overlap before continuing an automatic retry", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) {
+			throw new Error("Expected bundled Anthropic test model to exist");
+		}
+		authStorage.setRuntimeApiKey("anthropic", "anthropic-test-key");
+
+		const mock = createMockModel({
+			responses: [
+				{ throw: RETRIABLE_SERVER_ERROR },
+				{ content: ["recovered after local overlap"], stopReason: "stop" },
+			],
+		});
+		const agent = new Agent({
+			getApiKey: requestedModel => `${requestedModel.provider}-test-key`,
+			initialState: {
+				model,
+				systemPrompt: ["Test"],
+				tools: [],
+				messages: [],
+			},
+			streamFn: mock.stream,
+		});
+		const continueAgent = agent.continue.bind(agent);
+		let continueCalls = 0;
+		const continueSpy = vi.spyOn(agent, "continue").mockImplementation(async signal => {
+			continueCalls++;
+			if (continueCalls === 1) throw new AgentBusyError();
+			await continueAgent(signal);
+		});
+		const settings = Settings.isolated({
+			"compaction.enabled": false,
+			"retry.baseDelayMs": 5,
+			"retry.maxDelayMs": 100,
+			"retry.maxRetries": 1,
+			"retry.modelFallback": false,
+		});
+		settings.setModelRole("default", `${model.provider}/${model.id}`);
+
+		const sessionManager = SessionManager.inMemory();
+		const session = new AgentSession({
+			agent,
+			sessionManager,
+			settings,
+			modelRegistry,
+		});
+		sessions.push(session);
+		vi.spyOn(scheduler, "wait").mockResolvedValue(undefined);
+		const retryEndEvents: AutoRetryEndEvent[] = [];
+		session.subscribe(event => {
+			if (event.type === "auto_retry_end") retryEndEvents.push(event);
+		});
+
+		await session.prompt("Recover after a local continuation overlap");
+		await session.waitForIdle();
+
+		expect(continueSpy).toHaveBeenCalledTimes(2);
+		expect(mock.calls).toHaveLength(2);
+		expect(retryEndEvents).toHaveLength(1);
+		expect(retryEndEvents[0]).toMatchObject({ success: true, attempt: 1 });
+		const last = session.agent.state.messages.at(-1);
+		expect(last).toMatchObject({
+			role: "assistant",
+			stopReason: "stop",
+			content: [{ type: "text", text: "recovered after local overlap" }],
+		});
 	});
 
 	it("collapses exhausted retries into one terminal error naming the spent budget", async () => {
