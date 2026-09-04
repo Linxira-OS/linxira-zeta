@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { removeSyncWithRetries, symlinkDirectorySync } from "@linxiraos/pi-utils";
 import { resolveUpdateMethodForTest } from "@linxiraos/zeta/cli/update-cli";
 
 // Issue #845: on Windows with Bun installed via Scoop, ~/.bun is a junction
@@ -30,7 +30,7 @@ describe("issue-845: resolveUpdateMethod follows symlinks/junctions", () => {
 		fs.writeFileSync(path.join(realBinDir, "omp"), "#!/bin/sh\n", { mode: 0o755 });
 
 		linkedBinDir = path.join(tmpRoot, "link-bin");
-		fs.symlinkSync(realBinDir, linkedBinDir, "dir");
+		symlinkDirectorySync(realBinDir, linkedBinDir);
 		ompPathViaLink = path.join(linkedBinDir, "omp");
 	});
 

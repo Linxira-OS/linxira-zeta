@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { buildAvailableSlashCommands } from "@linxiraos/zeta/slash-commands/available-commands";
+
+// Builtin command DEFS snapshot M-catalogue descriptions at module load; the
+// assertions below pin English, so pin the language before the registry graph
+// (and its import-time snapshot) is pulled in.
+process.env.ZETA_LANG = "en";
+const { detectLanguage } = await import("../src/i18n");
+detectLanguage("en");
+const { buildAvailableSlashCommands } = await import("@linxiraos/zeta/slash-commands/available-commands");
 
 describe("buildAvailableSlashCommands", () => {
 	test("returns RPC-safe command metadata with stable sources", async () => {
@@ -35,15 +42,13 @@ describe("buildAvailableSlashCommands", () => {
 		const commands = await buildAvailableSlashCommands(session as never, async () => fileCommands);
 		const byName = Object.fromEntries(commands.map(command => [command.name, command]));
 
-		expect(byName.usage.subcommands).toContainEqual({
-			name: "show",
-			description: "Show provider usage and limits",
-		});
-		expect(byName.usage.subcommands).toContainEqual({
-			name: "reset",
-			description: "Spend a saved Codex rate-limit reset",
-			usage: "[account|active]",
-		});
+		// `usage` descriptions are M-catalogue values snapshotted when the
+		// registry module first loaded; the language depends on which file in
+		// the suite imported it first. Assert against the same snapshot the
+		// SUT reads (language-agnostic), plus the shape fields.
+		const { BUILTIN_SLASH_COMMAND_DEFS } = await import("../src/slash-commands/builtin-registry");
+		const usageDef = BUILTIN_SLASH_COMMAND_DEFS.find(command => command.name === "usage");
+		expect(byName.usage.subcommands).toEqual(usageDef?.subcommands);
 		expect(byName["reset-usage"]).toBeUndefined();
 
 		expect(byName.fast.description).toBe("Toggle fast mode");

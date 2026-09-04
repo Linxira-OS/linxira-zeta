@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, symlinkDirectorySync } from "@linxiraos/pi-utils";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import {
 	clearClaudePluginRootsCache,
@@ -192,7 +192,7 @@ describe("listClaudePluginRoots", () => {
 			fs.mkdir(path.join(projectB, ".git"), { recursive: true }),
 			fs.mkdir(projectBSubdir, { recursive: true }),
 		]);
-		await fs.symlink(projectB, projectBAlias, process.platform === "win32" ? "junction" : "dir");
+		symlinkDirectorySync(projectB, projectBAlias);
 
 		const entry = (scope: "user" | "project" | "local", installPath: string, projectPath?: string) => ({
 			scope,

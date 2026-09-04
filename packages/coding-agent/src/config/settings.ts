@@ -36,6 +36,7 @@ import { invalidate as invalidateCapabilityFsCache } from "../capability/fs";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
 import type { ModelRole } from "../config/model-roles";
 import { loadCapability } from "../discovery";
+import { registerLanguageConfigOverride } from "../i18n";
 import { isLightTheme, setAutoThemeMapping, setColorBlindMode, setSymbolPreset } from "../modes/theme/theme";
 import { AgentStorage } from "../session/agent-storage";
 import { type CompactionMethod, DEFAULT_COMPACTION_METHOD_ORDER } from "../session/compaction-methods";
@@ -573,6 +574,15 @@ export class Settings {
 			instance => {
 				globalInstance = instance;
 				clearBoundSettingsMethods();
+				registerLanguageConfigOverride(() => {
+					// An unset `language` must not shadow environment detection:
+					// `get()` resolves to the schema default ("en") which would
+					// otherwise win over `LC_ALL`/`Intl`. Only an explicitly
+					// configured value counts as a config override.
+					if (instance.getKeyProvenance("language") === "default") return undefined;
+					const value = instance.get("language");
+					return typeof value === "string" ? value : undefined;
+				});
 				globalInstancePromise = Promise.resolve(instance);
 				return instance;
 			},

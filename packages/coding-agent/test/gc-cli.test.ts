@@ -10,6 +10,7 @@ import {
 	getBlobsDir,
 	getHistoryDbPath,
 	getSessionsDir,
+	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
 } from "@linxiraos/pi-utils";
@@ -50,7 +51,9 @@ afterEach(async () => {
 	process.exitCode = originalExitCode;
 	restoreSettingsTestState(settingsState);
 	settingsState = undefined;
-	await fs.rm(root, { recursive: true, force: true });
+	// Detach slow Windows handle release: race the removal against a short
+	// window instead of blocking the 5s hook budget.
+	await Promise.race([removeWithRetries(root), Bun.sleep(2_000)]).catch(() => undefined);
 });
 
 function hashFor(label: string): string {

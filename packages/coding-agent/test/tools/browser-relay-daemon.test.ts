@@ -152,7 +152,7 @@ process.stdout.write(String(await probeRelayServer(url)));`,
 		const secondProject = path.join(home, "project-b");
 		const firstMarker = path.join(home, "first-ready");
 		const secondMarker = path.join(home, "second-ready");
-		const globalRuntimeDir = path.join(home, ".omp", "run", "daemons", "global", "browser-relay");
+		const globalRuntimeDir = path.join(home, ".zeta", "run", "daemons", "global", "browser-relay");
 		const cdpUrl = `http://127.0.0.1:${await findFreeCdpPort()}`;
 		const scriptPath = path.join(home, "consumer.ts");
 		await Promise.all([fs.mkdir(firstProject), fs.mkdir(secondProject)]);

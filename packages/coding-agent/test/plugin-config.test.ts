@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as piUtils from "@linxiraos/pi-utils";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { removeWithRetries, symlinkDirectorySync } from "@linxiraos/pi-utils";
 import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
@@ -83,7 +83,7 @@ describe("plugin config", () => {
 			}),
 		);
 		await fs.mkdir(path.dirname(pluginPath), { recursive: true });
-		await fs.symlink(installPath, pluginPath, "dir");
+		symlinkDirectorySync(installPath, pluginPath);
 		await Bun.write(
 			path.join(pluginsDir, "installed_plugins.json"),
 			JSON.stringify({
@@ -132,7 +132,7 @@ describe("plugin config", () => {
 			}),
 		);
 		await fs.mkdir(path.dirname(pluginPath), { recursive: true });
-		await fs.symlink(installPath, pluginPath, "dir");
+		symlinkDirectorySync(installPath, pluginPath);
 		await Bun.write(
 			path.join(pluginsDir, "installed_plugins.json"),
 			JSON.stringify({
@@ -169,7 +169,7 @@ describe("plugin config", () => {
 			}),
 		);
 		await fs.mkdir(path.dirname(projectPluginPath), { recursive: true });
-		await fs.symlink(projectInstallPath, projectPluginPath, "dir");
+		symlinkDirectorySync(projectInstallPath, projectPluginPath);
 		await Bun.write(
 			path.join(projectPluginsDir, "omp-plugins.lock.json"),
 			JSON.stringify({
@@ -211,7 +211,11 @@ describe("plugin config", () => {
 		});
 		const projectRoot = path.join(tmpRoot, ".zeta", "plugins");
 		await fs.mkdir(path.join(projectRoot, "node_modules"), { recursive: true });
-		await fs.symlink(installPath, path.join(projectRoot, "node_modules", "omp-commit"), "dir");
+		await fs.symlink(
+			installPath,
+			path.join(projectRoot, "node_modules", "omp-commit"),
+			process.platform === "win32" ? "junction" : "dir",
+		);
 		await Bun.write(
 			path.join(projectRoot, "omp-plugins.lock.json"),
 			JSON.stringify({

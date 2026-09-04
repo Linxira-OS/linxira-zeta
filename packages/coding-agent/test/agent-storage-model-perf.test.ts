@@ -238,6 +238,7 @@ describe("AgentStorage model perf aggregates", () => {
 		const env = {
 			...process.env,
 			HOME: homeDir,
+			USERPROFILE: homeDir,
 			OMP_PROFILE: "",
 			PI_CODING_AGENT_DIR: agentDir,
 			PI_PROFILE: "",

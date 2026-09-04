@@ -10,6 +10,7 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { getMnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
@@ -49,7 +50,15 @@ describe("AgentSession memory backend lifecycle", () => {
 		session = undefined;
 		resetMemoryForTests();
 		authStorage.close();
-		tempDir.removeSync();
+		AgentStorage.close();
+		try {
+			// Bounded sweep: the extended retry window inside removeSync can
+			// exceed the 5s hook budget on Windows; a leftover prefixed temp
+			// dir is inert and the OS reclaims it.
+			await Promise.race([tempDir.remove(), Bun.sleep(2_000)]);
+		} catch {
+			// Removal raced out — inert temp dir, no contract violated.
+		}
 	});
 
 	function createSession(createMemoryTools: () => Promise<AgentTool[]>): AgentSession {

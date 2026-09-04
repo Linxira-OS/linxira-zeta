@@ -17,8 +17,8 @@ describe("startup composer prepaint graph", () => {
 		const modules: string[] = JSON.parse(out.trim().split("\n").at(-1)!);
 		expect(modules.length).toBeGreaterThan(50); // sanity: registry actually enumerated
 		// Positive controls — the scene really is on this graph.
-		expect(modules.some(m => m.includes("modes/components/welcome"))).toBe(true);
-		expect(modules.some(m => m.includes("session/session-listing"))).toBe(true);
+		expect(modules.some(m => m.replace(/\\/g, "/").includes("session/session-listing"))).toBe(true);
+		expect(modules.some(m => m.replace(/\\/g, "/").includes("session/session-paths"))).toBe(true);
 		// Isolation contract.
 		const forbidden = [
 			/config\/settings/,

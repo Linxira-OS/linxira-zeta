@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
-import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { getProjectAgentDir, symlinkDirectorySync, TempDir } from "@linxiraos/pi-utils";
 import { type ExtensionModule, extensionModuleCapability } from "@linxiraos/zeta/capability/extension-module";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { getCapability, initializeWithSettings } from "@linxiraos/zeta/discovery";
@@ -230,7 +230,7 @@ describe("extensions discovery", () => {
 				},
 			}),
 		);
-		fs.symlinkSync(packageDir, path.join(extensionsDir, "linked-package"), "dir");
+		symlinkDirectorySync(packageDir, path.join(extensionsDir, "linked-package"));
 
 		const result = await discoverForTest();
 
@@ -243,7 +243,7 @@ describe("extensions discovery", () => {
 		const packageDir = path.join(tempDir.path(), "linked-index-ts");
 		fs.mkdirSync(packageDir);
 		fs.writeFileSync(path.join(packageDir, "index.ts"), extensionCode);
-		fs.symlinkSync(packageDir, path.join(extensionsDir, "linked-index-ts"), "dir");
+		symlinkDirectorySync(packageDir, path.join(extensionsDir, "linked-index-ts"));
 
 		const result = await discoverForTest();
 
@@ -256,7 +256,7 @@ describe("extensions discovery", () => {
 		const packageDir = path.join(tempDir.path(), "linked-index-js");
 		fs.mkdirSync(packageDir);
 		fs.writeFileSync(path.join(packageDir, "index.js"), extensionCode);
-		fs.symlinkSync(packageDir, path.join(extensionsDir, "linked-index-js"), "dir");
+		symlinkDirectorySync(packageDir, path.join(extensionsDir, "linked-index-js"));
 
 		const result = await discoverForTest();
 
@@ -384,7 +384,7 @@ describe("extensions discovery", () => {
 		const realDir = path.join(tempDir.path(), "external", "shared-ext");
 		fs.mkdirSync(realDir, { recursive: true });
 		fs.writeFileSync(path.join(realDir, "index.ts"), extensionCode);
-		fs.symlinkSync(realDir, path.join(extensionsDir, "linked-ext"), "dir");
+		symlinkDirectorySync(realDir, path.join(extensionsDir, "linked-ext"));
 
 		const result = await discoverForTest();
 
@@ -404,7 +404,7 @@ describe("extensions discovery", () => {
 			path.join(realDir, "package.json"),
 			JSON.stringify({ name: "ctk", omp: { extensions: ["./index.ts"] } }),
 		);
-		fs.symlinkSync(realDir, path.join(extensionsDir, "ctk"), "dir");
+		symlinkDirectorySync(realDir, path.join(extensionsDir, "ctk"));
 
 		const result = await discoverForTest();
 
@@ -416,7 +416,7 @@ describe("extensions discovery", () => {
 		expect(result.extensions[0].tools.has("ctk-tool")).toBe(true);
 	});
 
-	it("discovers a symlinked extension file", async () => {
+	it.skipIf(process.platform === "win32")("discovers a symlinked extension file", async () => {
 		// Symlinked *files* resolve through the native file-type filter; guards that
 		// the directory fallback does not regress the file case.
 		const realFile = path.join(tempDir.path(), "external", "shared.ts");
@@ -435,7 +435,7 @@ describe("extensions discovery", () => {
 		// A profile symlink pointing at a since-deleted shared extension. The fallback
 		// reads the (missing) target, gets [], and must yield no extension and no
 		// error rather than throwing.
-		fs.symlinkSync(path.join(tempDir.path(), "external", "gone"), path.join(extensionsDir, "broken"), "dir");
+		symlinkDirectorySync(path.join(tempDir.path(), "external", "gone"), path.join(extensionsDir, "broken"));
 
 		const result = await discoverForTest();
 
@@ -451,7 +451,7 @@ describe("extensions discovery", () => {
 		const realDir = path.join(tempDir.path(), "external", "weird");
 		fs.mkdirSync(realDir, { recursive: true });
 		fs.writeFileSync(path.join(realDir, "index.ts"), extensionCode);
-		fs.symlinkSync(realDir, path.join(extensionsDir, "weird.ts"), "dir");
+		symlinkDirectorySync(realDir, path.join(extensionsDir, "weird.ts"));
 
 		const result = await discoverForTest([], true);
 

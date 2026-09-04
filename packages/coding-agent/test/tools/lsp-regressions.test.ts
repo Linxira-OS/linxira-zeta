@@ -6,7 +6,7 @@ import * as path from "node:path";
 import type { AgentToolResult, RenderResultOptions } from "@linxiraos/pi-agent-core";
 import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import * as piUtils from "@linxiraos/pi-utils";
-import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
+import { sanitizeText, symlinkDirectorySync, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { preloadPluginRoots } from "@linxiraos/zeta/discovery/helpers";
 import { LspTool } from "@linxiraos/zeta/lsp";
@@ -432,14 +432,14 @@ describe("lsp regressions", () => {
 		const syncedFilePath = path.join(tempDir.path(), "unsaved.gd");
 		try {
 			await Bun.write(
-				path.join(tempDir.path(), ".omp", "lsp.json"),
+				path.join(tempDir.path(), ".zeta", "lsp.json"),
 				JSON.stringify({
 					servers: {
 						"fake-gd": {
 							command: process.execPath,
 							fileTypes: [".gd"],
 							languageId: "gdscript",
-							rootMarkers: [".omp"],
+							rootMarkers: [".zeta"],
 						},
 					},
 				}),
@@ -3670,7 +3670,7 @@ describe("lsp regressions", () => {
 			await Bun.write(filePath, "SOURCE");
 
 			const linkDir = path.join(tempDir.path(), "dirlink");
-			fs.symlinkSync(realDir, linkDir);
+			symlinkDirectorySync(realDir, linkDir);
 			const aliasPath = path.join(linkDir, "f.ts");
 
 			const renameOp: RenameFile = {

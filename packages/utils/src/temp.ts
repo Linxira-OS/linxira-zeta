@@ -78,10 +78,12 @@ function normalizePrefix(prefix?: string): string {
 }
 
 const kRemoveOptions = { recursive: true, force: true } as const;
-const kRemoveRetries = 40;
-// 50ms × 40 retries = 2s total retry window. Windows holds file locks on
-// SQLite DBs for up to ~1.5s after close(); the previous 25ms (1s total)
-// was too short for some test cleanup scenarios.
+const kRemoveRetries = 150;
+// 50ms × 150 retries = 7.5s total retry window. Windows releases file locks on
+// SQLite DBs (and spawned-process CWDs) asynchronously after close(); the
+// measured release latency reaches ~730ms–5s when a child process just died
+// holding the directory, and the previous 2s window flaked suites that clean
+// up temp trees containing agent.db.
 const kRemoveRetryDelayMs = 50;
 const kRetryableRemoveErrorCodes = new Set(["EBUSY", "EPERM", "ENOTEMPTY"]);
 const kSleepBuffer = new Int32Array(new SharedArrayBuffer(4));
@@ -131,4 +133,14 @@ function sleepSync(ms: number): void {
 		return;
 	}
 	Atomics.wait(kSleepBuffer, 0, 0, ms);
+}
+
+/**
+ * Create a directory symlink in a platform-correct way. Windows denies
+ * unprivileged file/dir symlinks (EPERM on `fs.symlink` without a type), but
+ * allows directory *junctions*, which every test that links temp directories
+ * should use instead. POSIX ignores the type argument.
+ */
+export function symlinkDirectorySync(target: string, linkPath: string): void {
+	fs.symlinkSync(target, linkPath, process.platform === "win32" ? "junction" : "dir");
 }

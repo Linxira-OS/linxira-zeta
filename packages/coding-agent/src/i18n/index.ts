@@ -1,9 +1,27 @@
-import { settings } from "../config/settings";
 import { en } from "./en";
 import type { Messages } from "./messages";
 import { zh } from "./zh";
 
 export type { Messages };
+
+/**
+ * Late-bound config-override resolver. The startup-prepaint module graph must
+ * stay isolated from `config/settings` (and its transitive catalog /
+ * internal-urls weight), so instead of a static import the settings layer
+ * *registers* the resolver via `registerLanguageConfigOverride` during boot.
+ * Before registration (or before settings init) the override is simply
+ * absent — detection falls back to the environment, which is the documented
+ * behavior for an uninitialized settings singleton.
+ */
+let configLanguageOverride: (() => string | undefined) | undefined;
+
+/**
+ * Register the config-layer language override resolver. Called by the settings
+ * bootstrap; replaces any previously registered resolver.
+ */
+export function registerLanguageConfigOverride(resolve: (() => string | undefined) | undefined): void {
+	configLanguageOverride = resolve;
+}
 
 /** Languages this distribution ships catalogues for. */
 export type ZetaLanguage = "en" | "zh";
@@ -89,15 +107,9 @@ function ensureDetected(): void {
 
 function resolveConfigOverride(): string | undefined {
 	try {
-		// An unset `language` must not shadow environment detection: `get()`
-		// resolves to the schema default ("en") which would otherwise win over
-		// `LC_ALL`/`Intl` and force English on Chinese systems. Only an
-		// explicitly configured value counts as a config override.
-		if (settings.getKeyProvenance("language") === "default") return undefined;
-		const value = settings.get("language");
-		return typeof value === "string" ? value : undefined;
+		return configLanguageOverride?.();
 	} catch {
-		// Settings not initialized yet — environment detection only.
+		// Settings layer not registered / not initialized — env detection only.
 		return undefined;
 	}
 }
