@@ -69,7 +69,9 @@ describe("Bing web search provider", () => {
 		expect(capturedInit?.method).toBeUndefined();
 		const headers = new Headers(capturedInit?.headers);
 		expect(headers.get("accept")).toContain("text/html");
-		expect(headers.get("user-agent")).toMatch(/Chrome\/\d+\.0\.0\.0/);
+		// The navigation fingerprint randomizes across coherent Chrome, Firefox,
+		// and Safari profiles; asserting one family would flake ~2/3 of runs.
+		expect(headers.get("user-agent")).toMatch(/(Chrome\/\d+\.0\.0\.0|Firefox\/\d+\.0|Safari\/605)/);
 		expect(headers.get("referer")).toBe("https://cn.bing.com/");
 
 		expect(response).toEqual({
