@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - OMP sync v18.1.2–v18.1.5: pi-vcs index-refresh path (`load_index_or_head`/`status_with_fresh_index`) and natives surface updates.
 
 ## [1.1.7] - 2026-09-01
@@ -17,8 +19,6 @@
 
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 rasterizeSvg，SHA-2/SHA-3 ARM64 加速。
 
-## [1.1.3] - 2026-08-25
-## [1.1.2] - 2026-08-25
 ## [1.1.1] - 2026-08-25
 
 ### Fixed

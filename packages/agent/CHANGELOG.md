@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - OMP sync v18.1.2–v18.1.5: Agent Hub activity stream groundwork, declarative provider auth registry, and tool-roster notice plumbing shared with the session layer.
 - Fixed the session extension rebinding path so freshly prepared extensions bind without re-evaluating the module.
 
@@ -18,7 +20,6 @@
 
 - 同步上游 OMP v18.0.5 / v18.0.6（内部运行时与构建改进）。
 
-## [1.1.2] - 2026-08-25
 ## [1.1.1] - 2026-08-25
 
 ### Fixed

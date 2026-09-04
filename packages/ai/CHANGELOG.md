@@ -2,10 +2,11 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - OMP sync v18.1.2–v18.1.5: Copilot auth standardization, transport-error-safe retries after tool calls, and prefix-binding control state.
 - Fixed the Z.ai OAuth key name to the Zeta brand (`zeta`) — the merge had reintroduced upstream's `oh-my-pi` fixture rows.
 
-## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
@@ -14,7 +15,6 @@
 
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 Yolo-Auto / OpenRouter 浏览器登录与 DeepInfra 支持，空补全重试重构（withReplaySafeStreamRetry）。
 
-## [1.1.3] - 2026-08-25
 ## [1.1.2] - 2026-08-25
 
 ### Fixed
@@ -60,4 +60,3 @@
 - Fixed opencode-go (Console Go) rejecting Responses turns with `400 No tool output found for tool call …` (naming a random call of the batch on each retry) when a model streamed a trailing text/thinking block after its tool calls: `buildResponsesInput` emitted that block as an assistant `message` item wedged between the `function_call` batch and its `function_call_output` items. Such interleaved messages are now hoisted ahead of their call batch (canonical `message(s) → calls → outputs`), which the strict gateway validator accepts; content is unchanged ([#8789](https://github.com/can1357/oh-my-pi/issues/8789)).
 - Fixed the OpenAI-wire transport sleeping on a LiteLLM concurrency-admission 429 (`rate_limit_type: max_parallel_requests`, `Retry-After: 60`) and retrying it up to 6 times (~300s) before session recovery saw the error. Because a 60s hint equals the transport's `maxDelayMs` cap, `fetchWithRetry` kept sleeping and retrying; the request now surfaces on the first attempt so `TurnRecovery`'s concurrency backoff/model fallback runs promptly. Genuine RPM/quota 429s (no such marker) still honor `Retry-After` ([#8854](https://github.com/can1357/oh-my-pi/issues/8854)).
 - Fixed OAuth login (Codex `localhost:1455`, and any `localhost` callback flow) failing on hosts with IPv6 disabled at the kernel (`ipv6.disable=1`). The `::1` companion listener added in #8081 fails there with Bun's generic "Is port X in use?" message (oven-sh/bun#7187), which the in-use check misread as a real collision — tearing down the healthy IPv4 listener and surfacing a bogus "port 1455 is in use" error. The dual-bind path now detects the missing IPv6 loopback up front and serves IPv4 alone ([#8814](https://github.com/can1357/oh-my-pi/issues/8814)).
-

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - OMP 同步 v18.1.2（`86bf72f52947`）+ v18.1.4（`39cf639c7b`）+ v18.1.5（`2b8471bc33`）：Agent Hub 活动流（`/hub` activity 分区）、`/trace` 命令 + 追踪面板、声明式 provider 认证注册表、Copilot 认证标准化、selector 转录回滚过滤、welcome tip latch、`boxDotted.*`/`icon.advisorClosed` 符号。
 - 增量 plan-ultra 工作流恢复：v18.1.5 合并丢失的 ultra 模板选择（`planModeUltraActivePrompt`）已恢复，plan-ultra 模式重新渲染增量写入纪律模板。
 - Task 工具项目代理目录恢复 `.zeta/agents` 解析（合并曾硬编码 `.omp`，项目级 agent 定义被静默忽略）。
@@ -16,8 +18,8 @@
 - 修复 Bing 搜索 provider 请求头随机化（Chrome/Firefox/Safari 一致指纹轮换）。
 - 修复 pi-grep/sed 基本正则语义（`+` 字面量、`\+` 操作符）从上游同步。
 
-## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
+
 - Fixed prewalk conflicting with `todo.eager=always`: the forced eager-todo prelude ("call todo first this turn") was injected alongside the prewalk plan nudge ("write a complete plan first, then todo"), giving the model contradictory instructions; the eager-todo prelude is now suppressed only when prewalk will perform a handoff ([#10510](https://github.com/can1357/oh-my-pi/issues/10510)).
 - Fixed `authHeader: true` + command-backed `apiKey` discovery providers (no explicit `headers:` block) resending a stale bearer after a 401 force-refresh; discovered models now re-derive `Authorization` from the live `apiKey` each request ([#10551](https://github.com/can1357/oh-my-pi/issues/10551)).
 - Fixed the embedded shell's `command -v`/`-V` honoring only the first operand: it now iterates every name like bash/zsh, printing one line per resolved name and skipping misses ([#10544](https://github.com/can1357/oh-my-pi/issues/10544)).
@@ -162,4 +164,3 @@
 - Fixed parsing of POSIX `$EDITOR` commands that contain quoted arguments or executable paths with spaces.
 - Fixed persisted Agent Hub rows losing the explicit caller model role when a subagent used a model override, preserving role provenance across restarts.
 - Fixed unobserved promise rejections in browser helpers (such as `tab.waitForResponse()`) causing tab workers to hang or crash.
-

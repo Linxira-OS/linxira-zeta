@@ -2,9 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - OMP sync v18.1.2–v18.1.5: compaction maintenance aligned with the upstream snapcompact updates.
 
-## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。

@@ -2,10 +2,11 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - Added `symlinkDirectorySync` — Windows-correct directory links (junction) for tests and tooling that must link temp trees without elevation.
 - Extended the temp-removal retry window to 7.5s: measured Windows handle-release latency after a child process dies reaches ~5s, and the previous 2s window flaked suites cleaning up trees containing SQLite databases.
 
-## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
@@ -15,7 +16,6 @@
 
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 browsers / json 工具，SHA-2/SHA-3 在 ARM64 上加速。
 
-## [1.1.3] - 2026-08-25
 ## [1.1.2] - 2026-08-25
 
 ### Fixed

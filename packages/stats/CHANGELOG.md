@@ -2,10 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - OMP sync v18.1.2–v18.1.5: `/trace` tracking panel, compaction summary persistence, and stats-sync worker alignment.
 
-## [1.1.7] - 2026-09-01
-## [1.1.6] - 2026-08-30
 ## [1.1.5] - 2026-08-26
 
 - 随 1.1.5 版本线对齐发布：OMP v18.0.6 同步未触及本包，无独立功能变更。

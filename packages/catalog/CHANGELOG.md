@@ -2,10 +2,11 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - OMP sync v18.1.2–v18.1.5: declarative KDL auth contract compiler (`@bgotink/kdl` now a devDependency), provider auth definitions, and model-policy rule updates.
 - Restored the biome toolchain for catalog scripts after the v18.1.5 merge briefly adopted the upstream oxlint/oxfmt configuration.
 
-## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
@@ -14,7 +15,6 @@
 
 - 同步上游 OMP v18.0.5 / v18.0.6：新增 DeepInfra / Yolo-Auto 提供商标识。
 
-## [1.1.3] - 2026-08-25
 ## [1.1.2] - 2026-08-25
 
 ### Fixed
@@ -47,4 +47,3 @@
 ### Fixed
 
 - Fixed tool-call turn failures for `opencode-go/muse-spark-1.2` and related variants by ensuring API transport pins apply to live discovery and automatically inferring response routes for gateway-first OpenCode models ([#8957](https://github.com/can1357/oh-my-pi/issues/8957)).
-

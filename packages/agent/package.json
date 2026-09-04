@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-agent-core",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "General-purpose agent with transport abstraction, state management, and attachment support",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",

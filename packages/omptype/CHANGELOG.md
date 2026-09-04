@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-04
+
 - OMP sync v18.1.2–v18.1.5: schema validation runtime maintenance aligned with upstream.
 
 ## [1.1.7] - 2026-09-01
