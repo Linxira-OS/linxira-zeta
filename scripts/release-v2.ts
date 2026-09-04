@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import { compareVersions } from "../packages/utils/src/version.ts";
+import { runChangelogFixer } from "./fix-changelogs";
 /**
  * Release script v2 for Zeta — explicit-manifest bump, single fixed-subject
  * commit, atomic tag push.
@@ -22,9 +24,7 @@
  * X.Y.Z`) so CI's release-run concurrency group and selectLatestZetaTag both
  * match.
  */
-import { $ } from "bun";
-import { compareVersions } from "../packages/utils/src/version.ts";
-import { runChangelogFixer } from "./fix-changelogs";
+import { normalizeLockfileVersion } from "./gen-nix-bun";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
 // All published packages ride the release version in lock-step.
@@ -385,6 +385,12 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	console.log("Regenerating lockfile...");
 	await $`rm -f bun.lock`;
 	await $`bun install`;
+	// bun 1.4+ writes lockfileVersion 2, but bun2nix (the flake's bun.lock
+	// consumer) hard-requires v1 — and Bun's v1→v2 change adds parse-time
+	// strictness only, never content. Restamp so the flake check stays green.
+	const lockPath = "bun.lock";
+	await Bun.write(lockPath, normalizeLockfileVersion(await Bun.file(lockPath).text()));
+	await $`git add bun.lock`;
 	await verifyLockfile(await readCatalog());
 	console.log();
 
