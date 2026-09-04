@@ -10,14 +10,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import * as attach from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import { CmuxSocketClient } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/socket-client";
-import * as registry from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { getTabsMapForTest, releaseTab } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { ToolAbortError, ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { createBrowserPrelude } from "@linxiraos/pi-coding-agent/tools/browser";
+import * as attach from "@linxiraos/pi-coding-agent/tools/browser/attach";
+import { CmuxSocketClient } from "@linxiraos/pi-coding-agent/tools/browser/cmux/socket-client";
+import * as registry from "@linxiraos/pi-coding-agent/tools/browser/registry";
+import { getTabsMapForTest, releaseTab } from "@linxiraos/pi-coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools/index";
+import { ToolAbortError, ToolError } from "@linxiraos/pi-coding-agent/tools/tool-errors";
 
 function makeSession(): ToolSession {
 	return {

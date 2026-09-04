@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool, getEditStore, type PatchParams } from "@oh-my-pi/pi-coding-agent/edit";
-import { formatHashlineHeader } from "@oh-my-pi/pi-coding-agent/tools/hashline-format";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import type { EditMode } from "@oh-my-pi/pi-coding-agent/utils/edit-mode";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { EditTool, getEditStore, type PatchParams } from "@linxiraos/pi-coding-agent/edit";
+import { formatHashlineHeader } from "@linxiraos/pi-coding-agent/tools/hashline-format";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import type { EditMode } from "@linxiraos/pi-coding-agent/utils/edit-mode";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const MODEL = "openai/gpt-5.6";
 const SOURCE = "export function value(): number {\n\treturn 1;\n}\n";

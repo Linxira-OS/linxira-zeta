@@ -1,24 +1,24 @@
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolTier,
-} from "@oh-my-pi/pi-agent-core";
-import { type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@oh-my-pi/pi-natives";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { Text } from "@oh-my-pi/pi-tui";
-import { prompt, untilAborted } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@linxiraos/pi-natives";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
+import { prompt, untilAborted } from "@linxiraos/pi-utils";
 import {
 	type ArchiveReader,
 	type ExtractedArchiveFile,
 	openArchive,
 	parseArchivePathCandidates,
-} from "@oh-my-pi/pi-utils/ar";
+} from "@linxiraos/pi-utils/ar";
 import { getEditStore } from "../edit/store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { formatHashlineHeader } from "./hashline-format";

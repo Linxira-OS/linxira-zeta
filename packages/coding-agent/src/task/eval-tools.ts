@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { EvalKernelNotRunningError } from "../eval/executor-base";
 import { invokeJsTool } from "../eval/js/context-manager";
 import { resolveJsKernelIdentity } from "../eval/js";

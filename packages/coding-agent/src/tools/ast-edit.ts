@@ -1,11 +1,11 @@
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
-import { type AstReplaceChange, type AstReplaceFileChange, astEdit } from "@oh-my-pi/pi-natives";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { replaceTabs, Text } from "@oh-my-pi/pi-tui";
-import { $envpos, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
+import { type AstReplaceChange, type AstReplaceFileChange, astEdit } from "@linxiraos/pi-natives";
+import type { Component } from "@linxiraos/pi-tui";
+import { replaceTabs, Text } from "@linxiraos/pi-tui";
+import { $envpos, prompt, untilAborted } from "@linxiraos/pi-utils";
 import { getEditStore } from "../edit/store";
 import { normalizeToLF } from "../edit/normalize";
 import { formatHashlineHeader } from "./hashline-format";

@@ -1,4 +1,4 @@
-import { logger, prompt } from "@oh-my-pi/pi-utils";
+import { logger, prompt } from "@linxiraos/pi-utils";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import workpoolBatchTemplate from "../prompts/tools/workpool-batch.md" with { type: "text" };
 import workpoolTurnResultTemplate from "../prompts/tools/workpool-turn-result.md" with { type: "text" };

@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 
-import { getProjectDir, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { getProjectDir, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { ToolSession } from "../../tools";
 import {
 	buildManagedKernelEnv,

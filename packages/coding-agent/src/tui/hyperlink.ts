@@ -8,7 +8,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as url from "node:url";
-import { getMarkdownLinkUrls, setTerminalHyperlinks, TERMINAL } from "@oh-my-pi/pi-tui";
+import { getMarkdownLinkUrls, setTerminalHyperlinks, TERMINAL } from "@linxiraos/pi-tui";
 import { isSettingsInitialized, settings } from "../config/settings";
 import {
 	extractUriScheme,

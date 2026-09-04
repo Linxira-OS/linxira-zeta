@@ -8,15 +8,15 @@
  * pin a banner.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { ErrorBannerComponent } from "@oh-my-pi/pi-coding-agent/modes/components/error-banner";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { Loader } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/pi-coding-agent/modes/components/assistant-message";
+import { ErrorBannerComponent } from "@linxiraos/pi-coding-agent/modes/components/error-banner";
+import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
+import { Loader } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {

@@ -1,7 +1,7 @@
-import { crc32 } from "@oh-my-pi/pi-ai/providers/aws-eventstream";
-import type { Context, FetchImpl, Model } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { crc32 } from "@linxiraos/pi-ai/providers/aws-eventstream";
+import type { Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 import { withEnv } from "./index";
 
 // Shared harness for the Bedrock Converse-Stream provider tests: encodes the

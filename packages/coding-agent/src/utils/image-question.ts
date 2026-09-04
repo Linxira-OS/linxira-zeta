@@ -1,6 +1,6 @@
-import { instrumentedCompleteSimple, resolveTelemetry } from "@oh-my-pi/pi-agent-core";
-import { type Api, type AssistantMessage, completeSimple, type Model, type Usage } from "@oh-my-pi/pi-ai";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
+import { type Api, type AssistantMessage, completeSimple, type Model, type Usage } from "@linxiraos/pi-ai";
+import { prompt } from "@linxiraos/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import {
 	expandRoleAlias,

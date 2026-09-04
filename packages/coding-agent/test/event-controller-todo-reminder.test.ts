@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 beforeAll(async () => {

@@ -2,16 +2,16 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { editDiffString } from "@oh-my-pi/pi-natives";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { editToolRenderer, renderStreamingFallback } from "@oh-my-pi/pi-coding-agent/edit/renderer";
-import { renderDiff } from "@oh-my-pi/pi-coding-agent/modes/components/diff";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import * as themeModule from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { type TUI, visibleWidth } from "@oh-my-pi/pi-tui";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { editDiffString } from "@linxiraos/pi-natives";
+import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { editToolRenderer, renderStreamingFallback } from "@linxiraos/pi-coding-agent/edit/renderer";
+import { renderDiff } from "@linxiraos/pi-coding-agent/modes/components/diff";
+import { ToolExecutionComponent } from "@linxiraos/pi-coding-agent/modes/components/tool-execution";
+import * as themeModule from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import { type TUI, visibleWidth } from "@linxiraos/pi-tui";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 
 beforeAll(async () => {
 	resetSettingsForTest();

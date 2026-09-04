@@ -17,7 +17,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Repo = "can1357/oh-my-pi"
-$Package = "@oh-my-pi/pi-coding-agent"
+$Package = "@linxiraos/pi-coding-agent"
 $InstallDir = if ($env:PI_INSTALL_DIR) { $env:PI_INSTALL_DIR } else { "$env:LOCALAPPDATA\omp" }
 $NativeArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
 if ($NativeArchitecture -notin @("x64", "arm64")) {

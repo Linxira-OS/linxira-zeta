@@ -1,6 +1,6 @@
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { isRecord } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { isRecord } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type { ToolSession } from "../../tools";
 import { ToolError } from "../../tools/tool-errors";
 import { invokeEvalPrelude } from "../preludes";

@@ -4,10 +4,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { LocalProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/local-protocol";
-import { getMarkdownTheme, initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { LocalProtocolHandler } from "@linxiraos/pi-coding-agent/internal-urls/local-protocol";
+import { getMarkdownTheme, initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
 import {
 	applyHyperlinkSetting,
 	fileHyperlink,
@@ -17,8 +17,8 @@ import {
 	uriHyperlink,
 	urlHyperlink,
 	urlHyperlinkAlways,
-} from "@oh-my-pi/pi-coding-agent/tui/hyperlink";
-import * as terminalCaps from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-coding-agent/tui/hyperlink";
+import * as terminalCaps from "@linxiraos/pi-tui";
 
 // OSC 8 sequence markers
 const OSC = "\x1b]";

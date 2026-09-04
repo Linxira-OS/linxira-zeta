@@ -1,16 +1,16 @@
 import * as fs from "node:fs";
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { ImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
-import { getProjectDir, isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import type { Component } from "@linxiraos/pi-tui";
+import { ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { getProjectDir, isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import {
 	DEFAULT_AUTO_BACKGROUND_THRESHOLD_MS,
 	formatBackgroundNotice,

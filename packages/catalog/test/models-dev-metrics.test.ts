@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import {
 	mapModelsDevToModels,
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
-} from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 test("models.dev metrics survive catalog mapping", () => {
 	const models = mapModelsDevToModels(

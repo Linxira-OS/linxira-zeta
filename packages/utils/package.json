@@ -1,63 +1,59 @@
 {
-  "name": "@linxiraos/pi-utils",
-  "version": "1.1.8",
-  "description": "Shared utilities for pi packages",
-  "keywords": [
-    "utilities",
-    "cli",
-    "logging",
-    "streams"
-  ],
-  "homepage": "https://linxira-os.github.io/zeta/",
-  "bugs": {
-    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
-  },
-  "license": "MIT",
-  "author": "Can Boluk",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-    "directory": "packages/utils"
-  },
-  "files": [
-    "src",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
-    },
-    "./ar": {
-      "types": "./src/ar/index.ts",
-      "import": "./src/ar/index.ts"
-    },
-    "./*": {
-      "types": "./src/*.ts",
-      "import": "./src/*.ts"
-    },
-    "./*.js": "./src/*.ts"
-  },
-  "scripts": {
-    "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
-    "check:types": "tsgo -p tsconfig.json --noEmit",
-    "lint": "oxlint .",
-    "test": "bun test --parallel",
-    "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
-    "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
-  },
-  "dependencies": {
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@linxiraos/pi-natives": "catalog:"
-  },
-  "devDependencies": {
-    "@types/bun": "catalog:"
-  },
-  "engines": {
-    "bun": ">=1.3.14"
-  }
+	"engines": {
+		"bun": ">=1.3.14"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:"
+	},
+	"dependencies": {
+		"@linxiraos/pi-natives": "catalog:"
+	},
+	"scripts": {
+		"test": "bun test --parallel",
+		"check:types": "tsgo -p tsconfig.json --noEmit",
+		"check": "tsgo -p tsconfig.json --noEmit"
+	},
+	"exports": {
+		"./*.js": "./src/*.ts",
+		"./*": {
+			"import": "./src/*.ts",
+			"types": "./src/*.ts"
+		},
+		"./ar": {
+			"import": "./src/ar/index.ts",
+			"types": "./src/ar/index.ts"
+		},
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"types": "./src/index.ts",
+	"main": "./src/index.ts",
+	"type": "module",
+	"files": [
+		"src",
+		"README.md",
+		"CHANGELOG.md"
+	],
+	"repository": {
+		"directory": "packages/utils",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"type": "git"
+	},
+	"author": "Can Boluk",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	},
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"keywords": [
+		"utilities",
+		"cli",
+		"logging",
+		"streams"
+	],
+	"description": "Shared utilities for pi packages",
+	"version": "1.1.8",
+	"name": "@linxiraos/pi-utils"
 }

@@ -8,8 +8,8 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
 import {
 	EditSession,
 	editDescription,
@@ -20,8 +20,8 @@ import {
 	type EditPolicy,
 	type EditWriteRequest,
 	type EditWriteResponse,
-} from "@oh-my-pi/pi-natives";
-import { isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-natives";
+import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { resolveLocalRoot } from "../internal-urls";
 import { cachedVaultRoots, isVaultEnabled } from "../internal-urls/vault-protocol";
 import {

@@ -1,5 +1,5 @@
-import { Spacer } from "@oh-my-pi/pi-tui";
-import { APP_NAME } from "@oh-my-pi/pi-utils";
+import { Spacer } from "@linxiraos/pi-tui";
+import { APP_NAME } from "@linxiraos/pi-utils";
 import { CollabGuestLink } from "../collab/guest";
 import { CollabHost } from "../collab/host";
 import type { SettingPath, SettingValue } from "../config/settings";
@@ -205,7 +205,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			try {
 				// Lazy: the stats dashboard (server + sqlite) loads on demand only,
 				// matching src/cli/stats-cli.ts, to keep CLI startup fast.
-				const { formatStatsDashboardUrl, startServer } = await import("@oh-my-pi/omp-stats");
+				const { formatStatsDashboardUrl, startServer } = await import("@linxiraos/omp-stats");
 				const { hostname, port } = await startServer();
 				const url = `${formatStatsDashboardUrl(hostname, port)}/#/traces?s=${encodeURIComponent(sessionFile)}`;
 				await runtime.output(url);

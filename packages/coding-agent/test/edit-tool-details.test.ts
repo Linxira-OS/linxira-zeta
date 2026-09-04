@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool, type EditToolDetails, getEditStore } from "@oh-my-pi/pi-coding-agent/edit";
-import type { EditMode } from "@oh-my-pi/pi-coding-agent/utils/edit-mode";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { EditTool, type EditToolDetails, getEditStore } from "@linxiraos/pi-coding-agent/edit";
+import type { EditMode } from "@linxiraos/pi-coding-agent/utils/edit-mode";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function makeSession(cwd: string, settings: Record<string, unknown> = {}): ToolSession {
 	return {

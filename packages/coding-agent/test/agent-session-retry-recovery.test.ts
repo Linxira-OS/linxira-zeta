@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent, AgentBusyError } from "@oh-my-pi/pi-agent-core";
-import type { ApiKeyResolveContext, AssistantMessage, AssistantRetryRecovery, Usage } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import * as aiStream from "@oh-my-pi/pi-ai/stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resolveAssistantErrorPresentation } from "@oh-my-pi/pi-coding-agent/modes/utils/transcript-render-helpers";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SILENT_ABORT_MARKER } from "@oh-my-pi/pi-coding-agent/session/messages";
-import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, AgentBusyError } from "@linxiraos/pi-agent-core";
+import type { ApiKeyResolveContext, AssistantMessage, AssistantRetryRecovery, Usage } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import * as aiStream from "@linxiraos/pi-ai/stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { resolveAssistantErrorPresentation } from "@linxiraos/pi-coding-agent/modes/utils/transcript-render-helpers";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
+import { SILENT_ABORT_MARKER } from "@linxiraos/pi-coding-agent/session/messages";
+import type { SessionMessageEntry } from "@linxiraos/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;
 

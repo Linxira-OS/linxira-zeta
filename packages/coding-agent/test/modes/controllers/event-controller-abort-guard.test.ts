@@ -16,14 +16,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SETTINGS_SCHEMA } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import * as titleGenerator from "@oh-my-pi/pi-coding-agent/utils/title-generator";
-import { TERMINAL } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { SETTINGS_SCHEMA } from "@linxiraos/pi-coding-agent/config/settings-schema";
+import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
+import * as titleGenerator from "@linxiraos/pi-coding-agent/utils/title-generator";
+import { TERMINAL } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 const originalWarpProtocolVersion = process.env.WARP_CLI_AGENT_PROTOCOL_VERSION;

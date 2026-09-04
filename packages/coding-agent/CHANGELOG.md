@@ -285,7 +285,7 @@
 
 - WeChat login now prefers the new `/api/v1/wechat` endpoints (endpoint host configurable via `channels.wechat.endpoint`); older hosts fall back to the legacy iLink QR flow.
 - Reworked the Ctrl+S Agent Hub into a responsive fullscreen roster and selected-agent inspector, featuring aggregate status/usage metrics, detailed per-agent views (task, model, activity, usage, lineage), roster and spawn-tree views, stable ordering, asynchronous persisted-session discovery, restored historical metadata, and improved keyboard and mouse navigation.
-- Replaced `arktype` with `@oh-my-pi/omptype` for all tool parameter and configuration schemas, resulting in significantly faster startup times. Configuration schema errors are now reported via `OmpErrors` entries using the standard `path`/`problem` format.
+- Replaced `arktype` with `@linxiraos/omptype` for all tool parameter and configuration schemas, resulting in significantly faster startup times. Configuration schema errors are now reported via `OmpErrors` entries using the standard `path`/`problem` format.
 
 ### Fixed
 
@@ -318,7 +318,7 @@
 
 ### Breaking Changes
 
-- Renamed `compareVersions` to `compareChangelogEntries` in `@oh-my-pi/pi-coding-agent/utils/changelog`. The function signature and behavior are unchanged; update imports to use the new name.
+- Renamed `compareVersions` to `compareChangelogEntries` in `@linxiraos/pi-coding-agent/utils/changelog`. The function signature and behavior are unchanged; update imports to use the new name.
 
 ### Added
 
@@ -327,7 +327,7 @@
 ### Changed
 
 - Restored the legacy project-scoped session directory naming scheme and removed its automatic migration ([#7646](https://github.com/can1357/oh-my-pi/issues/7646)).
-- Routed Bun install-cache pruning in `update-cli` through the shared `compareVersions` utility (`@oh-my-pi/pi-utils`), removing a duplicate local comparator that rounded large numeric version identifiers via `Number`.
+- Routed Bun install-cache pruning in `update-cli` through the shared `compareVersions` utility (`@linxiraos/pi-utils`), removing a duplicate local comparator that rounded large numeric version identifiers via `Number`.
 
 ### Fixed
 
@@ -374,7 +374,7 @@
 
 ### Changed
 
-- Replaced arktype with @oh-my-pi/omptype for tool parameter and config schemas, significantly improving startup performance with ~100x faster schema construction. Config schema errors are now reported via OmpErrors using the same path/problem structure.
+- Replaced arktype with @linxiraos/omptype for tool parameter and config schemas, significantly improving startup performance with ~100x faster schema construction. Config schema errors are now reported via OmpErrors using the same path/problem structure.
 
 ### Fixed
 
@@ -481,7 +481,7 @@
 - Fixed collab guest prompts being sent to models as unframed developer context, so guest messages now retain their transcript attribution while reaching the model as prioritized user interjections ([#7288](https://github.com/can1357/oh-my-pi/issues/7288)).
 - Fixed `/memory stats` and `/memory diagnose` showing "Memory stats is not available for the off backend" when memory is off, in both the TUI and ACP/RPC slash-command handlers; the off backend now says memory is off directly instead of naming itself as an unsupported backend ([#7251](https://github.com/can1357/oh-my-pi/pull/7251) by [@KennethHoff](https://github.com/KennethHoff)).
 - Fixed `/reload-plugins` retaining stale context-file contents and activation state in the current system prompt ([#7258](https://github.com/can1357/oh-my-pi/issues/7258)).
-- Fixed compiled binaries failing to import nested wildcard export subpaths such as `@oh-my-pi/pi-coding-agent/slash-commands/helpers/active-oauth-account`. Node matches `*` in an `exports` pattern across `/`, but the bundled registry enumerated only the top level and skipped any key containing a slash, so such an import resolved from source and died under bunfs — reproducible on the published 17.2.1 binary.
+- Fixed compiled binaries failing to import nested wildcard export subpaths such as `@linxiraos/pi-coding-agent/slash-commands/helpers/active-oauth-account`. Node matches `*` in an `exports` pattern across `/`, but the bundled registry enumerated only the top level and skipped any key containing a slash, so such an import resolved from source and died under bunfs — reproducible on the published 17.2.1 binary.
 - Fixed concurrent session appends during `/move` recreating an orphaned `.jsonl` fragment in the old session directory ([#7270](https://github.com/can1357/oh-my-pi/issues/7270)).
 - Fixed interactive launches hanging silently when a host project or its `.env` sets `NODE_ENV=test` or `BUN_ENV=test` ([#7261](https://github.com/can1357/oh-my-pi/issues/7261)).
 - Fixed a subagent killed from the Agent Hub (`x`) reappearing as a `parked` row after closing and reopening the hub in a local session; the kill now leaves the ref registered as terminal `aborted` instead of unregistering it, so the persisted-subagent rescan no longer re-adopts the surviving transcript ([#7250](https://github.com/can1357/oh-my-pi/issues/7250)).
@@ -572,7 +572,7 @@
 ### Fixed
 
 - Fixed remote or LAN local-engine endpoints being ignored during model discovery: the llama.cpp and Ollama probes used timeouts tuned for loopback, so a host reached over the network could exceed them and return no models, while changing `OLLAMA_BASE_URL`/`OLLAMA_HOST` could keep reusing a fresh cache from the previous endpoint. Non-loopback hosts now get a generous discovery timeout, and Ollama cache rows are scoped to the normalized endpoint ([#7087](https://github.com/can1357/oh-my-pi/issues/7087)).
-- Fixed `omp install` failing extension validation for pi extensions that import `createEditTool` or `createWriteTool` (e.g. gentle-pi) — the legacy `@oh-my-pi/pi-coding-agent` shim exported the read/bash/grep/find/ls tool factories but omitted the edit and write ones, so a named import threw Bun's static "Export named X not found" error. Added `createEditTool`/`createEditToolDefinition` and `createWriteTool`/`createWriteToolDefinition` to match the upstream pi surface ([#7094](https://github.com/can1357/oh-my-pi/issues/7094)).
+- Fixed `omp install` failing extension validation for pi extensions that import `createEditTool` or `createWriteTool` (e.g. gentle-pi) — the legacy `@linxiraos/pi-coding-agent` shim exported the read/bash/grep/find/ls tool factories but omitted the edit and write ones, so a named import threw Bun's static "Export named X not found" error. Added `createEditTool`/`createEditToolDefinition` and `createWriteTool`/`createWriteToolDefinition` to match the upstream pi surface ([#7094](https://github.com/can1357/oh-my-pi/issues/7094)).
 - Fixed Python eval's loopback tool bridge being routed through macOS system HTTP proxies, which caused `parallel()` tool reads to fail with `ConnectionRefusedError` after a local proxy stopped.
 
 ## [17.2.0] - 2026-07-30

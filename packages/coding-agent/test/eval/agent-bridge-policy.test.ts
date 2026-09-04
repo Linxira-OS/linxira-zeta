@@ -1,7 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import { AsyncJobManager } from "../../src/async";
 import { Settings } from "../../src/config/settings";
 import { runEvalAgent, type EvalAgentBridgeOptions, type EvalAgentResult } from "../../src/eval/agent-bridge";

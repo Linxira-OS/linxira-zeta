@@ -1,12 +1,12 @@
-import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { CompactionOutcome } from "@oh-my-pi/pi-agent-core/compaction";
-import { type Model, PASTE_CODE_LOGIN_PROVIDERS, type UsageReport } from "@oh-my-pi/pi-ai";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthProvider } from "@oh-my-pi/pi-ai/oauth/types";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import type { Component, OverlayHandle, ResizeScrollbackMode } from "@oh-my-pi/pi-tui";
-import { Loader, Spacer, setTuiTight, Text } from "@oh-my-pi/pi-tui";
-import { getAgentDbPath, getAgentDir, getProjectDir, normalizePathForComparison } from "@oh-my-pi/pi-utils";
+import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
+import { type Model, PASTE_CODE_LOGIN_PROVIDERS, type UsageReport } from "@linxiraos/pi-ai";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import type { Component, OverlayHandle, ResizeScrollbackMode } from "@linxiraos/pi-tui";
+import { Loader, Spacer, setTuiTight, Text } from "@linxiraos/pi-tui";
+import { getAgentDbPath, getAgentDir, getProjectDir, normalizePathForComparison } from "@linxiraos/pi-utils";
 import {
 	type AdvisorConfigScope,
 	discoverAdvisorConfigs,

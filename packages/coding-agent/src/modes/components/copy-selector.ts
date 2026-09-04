@@ -14,7 +14,7 @@
  * A URL that wrapped across terminal rows therefore needs neither a careful
  * mouse selection nor cmd-click.
  */
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	type Component,
 	matchesKey,
@@ -23,7 +23,7 @@ import {
 	type TUI,
 	truncateToWidth,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import type { MessageRenderer } from "../../extensibility/extensions/types";
 import type { SessionMessageEntry } from "../../session/session-entries";
 import { replaceTabs } from "../../tools/render-utils";

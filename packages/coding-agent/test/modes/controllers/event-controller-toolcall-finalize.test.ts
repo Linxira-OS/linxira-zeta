@@ -9,14 +9,14 @@
  * transcript reads as cut off for the whole args stream.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { Component } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/pi-coding-agent/modes/components/assistant-message";
+import { ToolExecutionComponent } from "@linxiraos/pi-coding-agent/modes/components/tool-execution";
+import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
+import type { Component } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(async () => {

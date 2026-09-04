@@ -1,4 +1,4 @@
-import { NativeOAuthCallback } from "@oh-my-pi/pi-natives";
+import { NativeOAuthCallback } from "@linxiraos/pi-natives";
 
 /** Native callback lifetime exposed to the provider-independent OAuth flow. */
 export interface NativeSchemeCallbackReceiver {

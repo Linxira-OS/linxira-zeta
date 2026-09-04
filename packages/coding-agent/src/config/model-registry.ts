@@ -1,10 +1,10 @@
 import * as path from "node:path";
-import type { ApiKeyResolver, FetchImpl, UsageProvider } from "@oh-my-pi/pi-ai";
-import { registerCustomApi, unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/oauth/types";
-import { setCodexAttestationProvider } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
+import type { ApiKeyResolver, FetchImpl, UsageProvider } from "@linxiraos/pi-ai";
+import { registerCustomApi, unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
+import { setCodexAttestationProvider } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import type {
 	Api,
 	Context,
@@ -13,19 +13,19 @@ import type {
 	RemoteCompactionConfig,
 	SimpleStreamOptions,
 	ThinkingConfig,
-} from "@oh-my-pi/pi-ai/types";
-import type { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { collapseBuiltVariants } from "@oh-my-pi/pi-catalog/compat/collapse";
-import { applyCatalogMetrics, CatalogMetricsIndex } from "@oh-my-pi/pi-catalog/identity/metrics";
-import { readModelCache, writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+} from "@linxiraos/pi-ai/types";
+import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { collapseBuiltVariants } from "@linxiraos/pi-catalog/compat/collapse";
+import { applyCatalogMetrics, CatalogMetricsIndex } from "@linxiraos/pi-catalog/identity/metrics";
+import { readModelCache, writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import {
 	createModelManager,
 	fingerprintStaticModels,
 	type ModelManagerOptions,
 	type ModelRefreshStrategy,
-} from "@oh-my-pi/pi-catalog/model-manager";
-import { getBundledModels, getBundledProviders } from "@oh-my-pi/pi-catalog/models";
+} from "@linxiraos/pi-catalog/model-manager";
+import { getBundledModels, getBundledProviders } from "@linxiraos/pi-catalog/models";
 import {
 	googleAntigravityModelManagerOptions,
 	googleGeminiCliModelManagerOptions,
@@ -36,9 +36,9 @@ import {
 	PROVIDER_DESCRIPTORS,
 	resolveModelCacheProviderId,
 	resolveOllamaModelCacheProviderId,
-} from "@oh-my-pi/pi-catalog/provider-models";
-import { toModelSpec } from "@oh-my-pi/pi-catalog/provider-models/bundled-references";
-import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/provider-models";
+import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
+import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@linxiraos/pi-utils";
 import { resolveProviderModelReference } from "../config/model-resolver";
 import { generateCodexAttestation } from "../live/attestation";
 import type { AuthStorage } from "../session/auth-storage";

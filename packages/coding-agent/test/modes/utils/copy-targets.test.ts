@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	extractCodeBlocks,
 	extractLastCommand,
 	extractLastLink,
 	extractLinks,
 	extractQuoteBlocks,
-} from "@oh-my-pi/pi-coding-agent/modes/utils/copy-targets";
+} from "@linxiraos/pi-coding-agent/modes/utils/copy-targets";
 
 function assistantCalls(toolCalls: Array<{ name: string; arguments: Record<string, unknown> }>): AgentMessage {
 	return {

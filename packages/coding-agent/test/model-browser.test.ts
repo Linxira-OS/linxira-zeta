@@ -1,15 +1,15 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
 import {
 	buildBrowserItems,
 	ModelBrowser,
 	type RoleAssignments,
 	sortModelItems,
-} from "@oh-my-pi/pi-coding-agent/modes/components/model-browser";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/pi-coding-agent/modes/components/model-browser";
+import { initTheme, theme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
 
 /** Optional presentation metadata a catalog or discovery source may attach. */
 type NativeMetadata = Pick<Model, "description" | "isNew" | "isBeta" | "isRecommended" | "int" | "tps">;

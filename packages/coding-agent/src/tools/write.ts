@@ -2,16 +2,16 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import { type Component, Text } from "@oh-my-pi/pi-tui";
-import { isEnoent, isRecord, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { type Component, Text } from "@linxiraos/pi-tui";
+import { isEnoent, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
 import {
 	type ArchiveMemberContent,
 	archiveFormatFromPath,
@@ -19,7 +19,7 @@ import {
 	parseArchivePathCandidates,
 	readArchiveEntries,
 	writeArchive,
-} from "@oh-my-pi/pi-utils/ar";
+} from "@linxiraos/pi-utils/ar";
 import { getEditStore } from "../edit/store";
 import { normalizeToLF } from "../edit/normalize";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";

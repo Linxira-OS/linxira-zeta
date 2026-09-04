@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hashlineFileHash } from "@oh-my-pi/pi-natives";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool, type EditToolDetails } from "@oh-my-pi/pi-coding-agent/edit";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
-import type { ClientBridge } from "@oh-my-pi/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { hashlineFileHash } from "@linxiraos/pi-natives";
+import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { EditTool, type EditToolDetails } from "@linxiraos/pi-coding-agent/edit";
+import { resolveLocalUrlToPath } from "@linxiraos/pi-coding-agent/internal-urls";
+import type { PlanModeState } from "@linxiraos/pi-coding-agent/plan-mode/state";
+import type { ClientBridge } from "@linxiraos/pi-coding-agent/session/client-bridge";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 interface SessionOptions {
 	bridge?: ClientBridge;

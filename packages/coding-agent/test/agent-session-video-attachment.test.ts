@@ -5,17 +5,17 @@
  * selectors.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createVideoPreviewImage } from "@oh-my-pi/pi-coding-agent/utils/video";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@linxiraos/pi-coding-agent/session/messages";
+import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
+import { createVideoPreviewImage } from "@linxiraos/pi-coding-agent/utils/video";
 
 const TINY_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
 const SOURCE_PATH = "/tmp/private-project/demo.mp4";

@@ -1,4 +1,4 @@
-import { logger, once } from "@oh-my-pi/pi-utils";
+import { logger, once } from "@linxiraos/pi-utils";
 import { buildModel } from "../build";
 import { apiRouteFor } from "../compat/behavior";
 import { type CodexModelDiscoveryResult, fetchCodexModels } from "../discovery/codex";

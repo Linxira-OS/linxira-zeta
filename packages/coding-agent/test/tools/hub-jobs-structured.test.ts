@@ -6,13 +6,13 @@
  * carrying data must advertise the `agent://<id>` handle (PR #10625 review).
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import type { AsyncJobRunResult } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { StructuredSubagentOutput } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { HubTool } from "@oh-my-pi/pi-coding-agent/tools/hub";
+import { AsyncJobManager } from "@linxiraos/pi-coding-agent/async/job-manager";
+import type { AsyncJobRunResult } from "@linxiraos/pi-coding-agent/async/job-manager";
+import { IrcBus } from "@linxiraos/pi-coding-agent/irc/bus";
+import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
+import type { StructuredSubagentOutput } from "@linxiraos/pi-coding-agent/task/types";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { HubTool } from "@linxiraos/pi-coding-agent/tools/hub";
 
 const SELF_ID = "Main";
 

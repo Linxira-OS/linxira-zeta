@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { completeSimple, stream } from "@oh-my-pi/pi-ai";
-import { buildAnthropicClientOptions } from "@oh-my-pi/pi-ai/providers/anthropic";
-import { resolveOpenAIRequestSetup } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import type { Model } from "@oh-my-pi/pi-ai/types";
-import { opencodeGoUsageProvider } from "@oh-my-pi/pi-ai/usage/opencode-go";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { USER_AGENT } from "@oh-my-pi/pi-utils";
+import { completeSimple, stream } from "@linxiraos/pi-ai";
+import { buildAnthropicClientOptions } from "@linxiraos/pi-ai/providers/anthropic";
+import { resolveOpenAIRequestSetup } from "@linxiraos/pi-ai/providers/openai-shared";
+import type { Model } from "@linxiraos/pi-ai/types";
+import { opencodeGoUsageProvider } from "@linxiraos/pi-ai/usage/opencode-go";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { USER_AGENT } from "@linxiraos/pi-utils";
 
 const OPENCODE_SESSION_HEADER = "x-opencode-session";
 

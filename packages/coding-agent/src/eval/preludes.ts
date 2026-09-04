@@ -1,5 +1,5 @@
-import type { AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolApproval } from "@oh-my-pi/pi-agent-core";
-import { untilAborted } from "@oh-my-pi/pi-utils";
+import type { AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolApproval } from "@linxiraos/pi-agent-core";
+import { untilAborted } from "@linxiraos/pi-utils";
 import type { ToolSession } from "../tools";
 import { type ApprovalMode, denyError, formatApprovalPrompt, resolveApproval } from "../tools/approval";
 

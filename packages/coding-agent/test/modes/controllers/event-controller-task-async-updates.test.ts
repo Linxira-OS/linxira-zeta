@@ -14,12 +14,12 @@
  *    background ("running") finalizes and untracks it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { TaskToolDetails } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { BashToolDetails } from "@oh-my-pi/pi-coding-agent/tools/bash";
+import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { ToolExecutionComponent } from "@linxiraos/pi-coding-agent/modes/components/tool-execution";
+import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import type { TaskToolDetails } from "@linxiraos/pi-coding-agent/task/types";
+import type { BashToolDetails } from "@linxiraos/pi-coding-agent/tools/bash";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 function taskResult(asyncState: "running" | "completed" | "failed" | undefined, text: string) {

@@ -8,8 +8,8 @@
  * - re-exported `SqliteAuthCredentialStore`: concrete SQLite-backed implementation
  */
 import { createHash } from "node:crypto";
-import { planRequirementFor } from "@oh-my-pi/pi-catalog/compat/behavior";
-import { $env, $envExact, extractRetryHint, getAgentDbPath, logger, untilAborted } from "@oh-my-pi/pi-utils";
+import { planRequirementFor } from "@linxiraos/pi-catalog/compat/behavior";
+import { $env, $envExact, extractRetryHint, getAgentDbPath, logger, untilAborted } from "@linxiraos/pi-utils";
 import {
 	isSqliteCorruptionError,
 	resolveCredentialIdentityKey,
@@ -741,7 +741,7 @@ const OAUTH_REFRESH_OPERATION_TIMEOUT_MS = 10_000;
 const MAX_PENDING_DISABLED_EVENTS = 32;
 
 // Re-exported from the error module (its new home) to preserve the public
-// `@oh-my-pi/pi-ai` entrypoint and the in-module call sites below.
+// `@linxiraos/pi-ai` entrypoint and the in-module call sites below.
 export { isDefinitiveOAuthFailure } from "./error/auth-classify";
 
 /**

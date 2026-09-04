@@ -2,21 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings, type ShellMinimizerSettings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings, type ShellMinimizerSettings } from "@linxiraos/pi-coding-agent/config/settings";
 import {
 	applyDirenvPreflight,
 	buildMinimizerOptions,
 	executeBash,
 	isPersistentShellCdCommand,
-} from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import * as direnvModule from "@oh-my-pi/pi-coding-agent/exec/direnv";
-import { DEFAULT_MAX_BYTES } from "@oh-my-pi/pi-coding-agent/session/streaming-output";
-import * as shellSnapshot from "@oh-my-pi/pi-coding-agent/utils/shell-snapshot";
-import { encodeTerminalImage } from "@oh-my-pi/pi-coding-agent/utils/terminal-graphics";
-import type { Shell, ShellRunResult } from "@oh-my-pi/pi-natives";
-import * as piNatives from "@oh-my-pi/pi-natives";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-coding-agent/exec/bash-executor";
+import * as direnvModule from "@linxiraos/pi-coding-agent/exec/direnv";
+import { DEFAULT_MAX_BYTES } from "@linxiraos/pi-coding-agent/session/streaming-output";
+import * as shellSnapshot from "@linxiraos/pi-coding-agent/utils/shell-snapshot";
+import { encodeTerminalImage } from "@linxiraos/pi-coding-agent/utils/terminal-graphics";
+import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
+import * as piNatives from "@linxiraos/pi-natives";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.

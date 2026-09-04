@@ -1,5 +1,5 @@
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import type { StructuredSubagentOutput } from "../task/types";
 
 const DELIVERY_RETRY_BASE_MS = 500;

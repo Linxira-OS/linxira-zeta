@@ -4,10 +4,10 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { ToolExample, TSchema } from "@oh-my-pi/pi-ai";
-import { renderToolInventory } from "@oh-my-pi/pi-ai/dialect";
-import type { DelegationBias } from "@oh-my-pi/pi-catalog/compat/delegation";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { ToolExample, TSchema } from "@linxiraos/pi-ai";
+import { renderToolInventory } from "@linxiraos/pi-ai/dialect";
+import type { DelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
 import {
 	$env,
 	getAgentDir,
@@ -17,7 +17,7 @@ import {
 	isEnoent,
 	logger,
 	prompt,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";
 import { findConfigFile } from "./config";

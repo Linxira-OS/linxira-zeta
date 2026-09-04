@@ -1,23 +1,23 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval/preludes";
-import { disposeAllKernelSessions, executePython } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { computerApproval, createComputerPrelude } from "@oh-my-pi/pi-coding-agent/tools/computer";
-import { isReadOnlyComputerCall, renderComputerCall } from "@oh-my-pi/pi-coding-agent/tools/computer/call";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import type { EvalPreludeDefinition } from "@linxiraos/pi-coding-agent/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/pi-coding-agent/eval/py/executor";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { computerApproval, createComputerPrelude } from "@linxiraos/pi-coding-agent/tools/computer";
+import { isReadOnlyComputerCall, renderComputerCall } from "@linxiraos/pi-coding-agent/tools/computer/call";
 import type {
 	ComputerSessionSnapshot,
 	ComputerWorkerInbound,
 	ComputerWorkerOutbound,
 	ComputerWorkerTransport,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/protocol";
+} from "@linxiraos/pi-coding-agent/tools/computer/protocol";
 import {
 	type ComputerController,
 	ComputerSupervisor,
 	type ComputerWorkerHandle,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/supervisor";
-import { ComputerWorkerCore, type NativeDesktopSession } from "@oh-my-pi/pi-coding-agent/tools/computer/worker";
+} from "@linxiraos/pi-coding-agent/tools/computer/supervisor";
+import { ComputerWorkerCore, type NativeDesktopSession } from "@linxiraos/pi-coding-agent/tools/computer/worker";
 import type {
 	AxNode,
 	AxQuery,
@@ -27,7 +27,7 @@ import type {
 	DesktopPoint,
 	DesktopWindow,
 	PointerOptions,
-} from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-natives";
 
 /** Method name of the last step in a facade call chain, or "" when the chain is malformed. */
 function terminalMethod(chain: unknown): string {

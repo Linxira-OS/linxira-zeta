@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { COMPOSER_DEFAULTS, type ComposerStatusSnapshot } from "@oh-my-pi/pi-coding-agent/modes/composer";
+import { COMPOSER_DEFAULTS, type ComposerStatusSnapshot } from "@linxiraos/pi-coding-agent/modes/composer";
 import {
 	readComposerStartupCache,
 	writeComposerLspCache,
@@ -10,8 +10,8 @@ import {
 	writeComposerStatusCache,
 	writeComposerUiCache,
 	writeComposerWelcomeCache,
-} from "@oh-my-pi/pi-coding-agent/modes/composer-cache";
-import { getComposerCacheDir } from "@oh-my-pi/pi-utils/dirs";
+} from "@linxiraos/pi-coding-agent/modes/composer-cache";
+import { getComposerCacheDir } from "@linxiraos/pi-utils/dirs";
 
 describe("composer startup cache", () => {
 	it("round-trips per-project UI, status, recent-session JSONL, and LSP speculation", async () => {

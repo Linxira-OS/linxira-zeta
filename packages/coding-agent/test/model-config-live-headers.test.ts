@@ -13,7 +13,7 @@
  * stays linear in depth rather than exponential.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { createLiveConfigHeaders } from "@oh-my-pi/pi-coding-agent/config/model-config-values";
+import { createLiveConfigHeaders } from "@linxiraos/pi-coding-agent/config/model-config-values";
 
 const TEMP_ENV_KEYS: string[] = [];
 

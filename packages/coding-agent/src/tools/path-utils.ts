@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { glob } from "@oh-my-pi/pi-natives";
+import { glob } from "@linxiraos/pi-natives";
 import {
 	hasFsCode,
 	isEnoent,
@@ -10,7 +10,7 @@ import {
 	isWsl,
 	stripWindowsExtendedLengthPathPrefix,
 	windowsPathToWslMount,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import type { Rule } from "../capability/rule";
 import type { Skill } from "../extensibility/skills";
 import { InternalUrlRouter, type LocalProtocolOptions } from "../internal-urls";

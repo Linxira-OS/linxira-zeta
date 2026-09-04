@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Agent, AgentEvent } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
-import { StreamingEditGuard } from "@oh-my-pi/pi-coding-agent/session/stream-guards";
-import type { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { Agent, AgentEvent } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import { EditTool } from "@linxiraos/pi-coding-agent/edit";
+import { StreamingEditGuard } from "@linxiraos/pi-coding-agent/session/stream-guards";
+import type { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function createGuard(
 	streamingAbort: boolean,

@@ -1,4 +1,4 @@
-import type { AssistantMessage, ImageContent, TextContent } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage, ImageContent, TextContent } from "@linxiraos/pi-ai";
 import {
 	type Component,
 	Container,
@@ -10,9 +10,9 @@ import {
 	Spacer,
 	TERMINAL,
 	Text,
-} from "@oh-my-pi/pi-tui";
-import { formatNumber } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+} from "@linxiraos/pi-tui";
+import { formatNumber } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import type { AssistantThinkingRenderer } from "../../extensibility/extensions/types";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import { resolveImageOptions } from "../../tools/render-utils";

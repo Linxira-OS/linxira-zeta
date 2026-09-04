@@ -2,7 +2,7 @@
  * Component for displaying bash command execution with streaming output.
  */
 
-import type { ImageContent } from "@oh-my-pi/pi-ai";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import {
 	Container,
 	Ellipsis,

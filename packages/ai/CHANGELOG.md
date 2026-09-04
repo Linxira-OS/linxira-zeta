@@ -486,7 +486,7 @@
 
 ### Breaking Changes
 
-- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@oh-my-pi/omptype/zod`.
+- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@linxiraos/omptype/zod`.
 
 ## [17.2.9] - 2026-08-05
 
@@ -503,7 +503,7 @@
 
 ### Changed
 
-- Replaced `arktype` with `@oh-my-pi/omptype` for schema validation, delivering up to 100x faster schema construction and 60-100x faster validation while maintaining full compatibility with existing `type`/`Type` exports and the `isArkSchema` contract.
+- Replaced `arktype` with `@linxiraos/omptype` for schema validation, delivering up to 100x faster schema construction and 60-100x faster validation while maintaining full compatibility with existing `type`/`Type` exports and the `isArkSchema` contract.
 
 ### Fixed
 
@@ -561,7 +561,7 @@
 
 ### Added
 
-- Added support for the `gmi-cloud` provider registry, including API-key paste login validation and integration with `@oh-my-pi/pi-catalog`.
+- Added support for the `gmi-cloud` provider registry, including API-key paste login validation and integration with `@linxiraos/pi-catalog`.
 
 ### Changed
 
@@ -1339,7 +1339,7 @@
 
 ### Breaking Changes
 
-- Removed the `@oh-my-pi/pi-ai/utils/json-parse` module. The JSON repair and parsing helpers (`repairJson`, `parseJsonWithRepair`, `parseStreamingJson`, `parseStreamingJsonThrottled`) have been moved to `@oh-my-pi/pi-utils` to be shared across utilities.
+- Removed the `@linxiraos/pi-ai/utils/json-parse` module. The JSON repair and parsing helpers (`repairJson`, `parseJsonWithRepair`, `parseStreamingJson`, `parseStreamingJsonThrottled`) have been moved to `@linxiraos/pi-utils` to be shared across utilities.
 
 ### Added
 
@@ -1397,7 +1397,7 @@
 
 ### Fixed
 
-- Restored the `pollOAuthDeviceCodeFlow` export from `@oh-my-pi/pi-ai/oauth` so legacy provider extensions can reuse the host OAuth device-code poller. ([#3508](https://github.com/can1357/oh-my-pi/issues/3508))
+- Restored the `pollOAuthDeviceCodeFlow` export from `@linxiraos/pi-ai/oauth` so legacy provider extensions can reuse the host OAuth device-code poller. ([#3508](https://github.com/can1357/oh-my-pi/issues/3508))
 
 ## [16.1.20] - 2026-06-25
 
@@ -1736,7 +1736,7 @@
 
 ### Added
 
-- Exported `renderDelimitedThinking` from the `@oh-my-pi/pi-ai/dialect` barrel so consumers can reuse the dialect's `<thinking>` envelope unwrap-and-rewrap logic (the only `./dialect/rendering` primitive re-exported; the rest stay dialect-internal).
+- Exported `renderDelimitedThinking` from the `@linxiraos/pi-ai/dialect` barrel so consumers can reuse the dialect's `<thinking>` envelope unwrap-and-rewrap logic (the only `./dialect/rendering` primitive re-exported; the rest stay dialect-internal).
 
 ### Fixed
 
@@ -1751,7 +1751,7 @@
 
 ### Fixed
 
-- A single MCP tool whose input schema can't be emitted as a valid strict tool schema for the active provider no longer fails the whole turn with HTTP 400. `convertTools` (openai-responses) now validates each tool's emitted parameter schema for `enum`/`const`-vs-`type` contradictions that pass structural JSON-Schema validation but the provider rejects — e.g. a non-null `enum` on a `type: "null"` node, or an `enum` on an `array` node — and quarantines just the offending tool with a `logger.warn` naming the tool and schema path, keeping every other tool usable. Adds `findStrictToolSchemaViolation` to `@oh-my-pi/pi-ai/utils/schema` ([#2652](https://github.com/can1357/oh-my-pi/issues/2652))
+- A single MCP tool whose input schema can't be emitted as a valid strict tool schema for the active provider no longer fails the whole turn with HTTP 400. `convertTools` (openai-responses) now validates each tool's emitted parameter schema for `enum`/`const`-vs-`type` contradictions that pass structural JSON-Schema validation but the provider rejects — e.g. a non-null `enum` on a `type: "null"` node, or an `enum` on an `array` node — and quarantines just the offending tool with a `logger.warn` naming the tool and schema path, keeping every other tool usable. Adds `findStrictToolSchemaViolation` to `@linxiraos/pi-ai/utils/schema` ([#2652](https://github.com/can1357/oh-my-pi/issues/2652))
 - Fixed OpenAI Responses-compatible streams from Ollama/local hosts dropping arguments for parallel tool calls whose deltas use `fc_<call_id>` item ids, which left earlier `ast_grep` calls with `{}` and failed validation. ([#2715](https://github.com/can1357/oh-my-pi/issues/2715))
 - Fixed dialect transcript rendering so literal thinking envelopes are unwrapped before adding the dialect's own thinking tags, preventing nested `<thinking>` output in advisor raw dumps ([#2700](https://github.com/can1357/oh-my-pi/issues/2700)).
 - Fixed Anthropic-compatible Umans requests escaping client tool names and forwarding gateway web search headers so Kimi answers normally instead of returning raw gateway search results.
@@ -1778,7 +1778,7 @@
 
 ### Breaking Changes
 
-- Renamed the public dialect entrypoint from `@oh-my-pi/pi-ai/grammar` to `@oh-my-pi/pi-ai/dialect`.
+- Renamed the public dialect entrypoint from `@linxiraos/pi-ai/grammar` to `@linxiraos/pi-ai/dialect`.
 - Renamed grammar dialect identifiers from `ToolCallSyntax` to `Dialect`, renamed the `Grammar` interface to `DialectDefinition`, and renamed `Grammar.syntax` to `DialectDefinition.dialect`.
 - Added `DialectDefinition.renderThinking` and `DialectDefinition.renderTranscript` so dialect implementations serialize complete native chat transcripts, not just tool call/result blocks.
 
@@ -1800,7 +1800,7 @@
 
 ### Changed
 
-- Moved public dialect entrypoint from `@oh-my-pi/pi-ai/grammar` to `@oh-my-pi/pi-ai/dialect` in package exports
+- Moved public dialect entrypoint from `@linxiraos/pi-ai/grammar` to `@linxiraos/pi-ai/dialect` in package exports
 - Updated internal imports in `stream-markup-healing.ts` to use new dialect module path
 - Changed `renderToolInventory` to demote a tool description's own markdown headers by one level when it contains a top-level `# ` header, so they nest under the wrapping `# Tool: <name>` heading instead of reading as sibling sections. Descriptions that already start at `##` and headers inside fenced code blocks are left untouched.
 
@@ -1841,14 +1841,14 @@
 
 ### Added
 
-- Added `jsonSchemaToTypeScript` to `@oh-my-pi/pi-ai/utils/schema` to render JSON Schema argument shapes as compact, human-readable TypeScript-style signatures
+- Added `jsonSchemaToTypeScript` to `@linxiraos/pi-ai/utils/schema` to render JSON Schema argument shapes as compact, human-readable TypeScript-style signatures
 - Added the generic `ToolExample` type (`ToolCallExample`/`ToolCompareExample`/`ToolNoteExample`, parameterized over a tool's argument shape) and an `examples` property on the `Tool` interface for defining tool-call examples once as data.
-- Added `renderToolExamples` (via `@oh-my-pi/pi-ai/grammar`) to render a tool's examples into an `<examples>` block in the model's native tool-call syntax, with an optional `_i` intent-field placeholder injected when intent tracing is active.
+- Added `renderToolExamples` (via `@linxiraos/pi-ai/grammar`) to render a tool's examples into an `<examples>` block in the model's native tool-call syntax, with an optional `_i` intent-field placeholder injected when intent tracing is active.
 - Added per-grammar `renderToolCall` rendering of a single tool-call invocation (the inner element only, without the parallel-call block envelope), distinct from `renderAssistantToolCalls` which renders a complete block of one or more parallel calls.
 - Added a `GrammarRenderOptions.example` flag to `renderToolCall`: when set, the invocation renders as the bare payload — Harmony emits just the JSON arguments, dropping the verbose `<|start|>…<|message|>…<|call|>` envelope — so `renderToolExamples` keeps `<examples>` blocks legible.
 - Added an `abortOnFabrication` parameter to `wrapInbandToolStream` (default `true`): when `false`, a fabricated in-band tool-result continuation is discarded without aborting the provider request instead of cutting the turn short.
-- Added `@oh-my-pi/pi-ai/utils/harmony-leak` export with helpers to detect, audit, and recover GPT-5 Harmony tool-call header leaks
-- Added the `@oh-my-pi/pi-ai/grammar` public entrypoint for grammar factories, prompt/call rendering, in-band scanning, history encoding, and related typed utilities
+- Added `@linxiraos/pi-ai/utils/harmony-leak` export with helpers to detect, audit, and recover GPT-5 Harmony tool-call header leaks
+- Added the `@linxiraos/pi-ai/grammar` public entrypoint for grammar factories, prompt/call rendering, in-band scanning, history encoding, and related typed utilities
 - Added a unified in-band tool-call grammar engine with syntax-owned scanners, prompts, history rendering, tool-result rendering, and stream adaptation for GLM, Hermes/Qwen, Kimi, XML/Anthropic, DeepSeek, Harmony, and pi-native formats.
 
 ### Changed
@@ -1856,7 +1856,7 @@
 - Changed Harmony in-band tool-call rendering to omit the `<|constrain|>json` marker before the payload in `commentary` channel calls
 - Changed tool inventory rendering to present each tool’s `Parameters` section as a simplified TypeScript-style signature derived from its wire schema
 - Added raw in-band tool-call block capture to parsed owned tool calls so debugging can inspect the exact model-emitted call syntax.
-- Moved the canonical `ToolCallSyntax` union to `@oh-my-pi/pi-catalog/identity` and re-exported it from `@oh-my-pi/pi-ai/grammar` so the catalog can own the syntax vocabulary without an `@oh-my-pi/pi-ai` runtime import; all existing import paths are unchanged.
+- Moved the canonical `ToolCallSyntax` union to `@linxiraos/pi-catalog/identity` and re-exported it from `@linxiraos/pi-ai/grammar` so the catalog can own the syntax vocabulary without an `@linxiraos/pi-ai` runtime import; all existing import paths are unchanged.
 - Made tool-call argument validation more lenient for schema-directed scalar coercions, including object/array stringification and 0/1 boolean coercion.
 - Changed `renderToolInventory` (the verbose system-prompt inventory and `/dump`) to render each tool as a `# Tool: <name>` markdown section instead of a `<tool name="…">…</tool>` wrapper.
 
@@ -2007,7 +2007,7 @@
 
 ### Changed
 
-- The GPT-5 "Juice: 0" no-reasoning developer item in `applyResponsesReasoningParams` is now gated on the resolved `compat.requiresJuiceZeroHack` flag (auto-detected from GPT-5-family model names by `@oh-my-pi/pi-catalog`, overridable per model) instead of an inline model-name check.
+- The GPT-5 "Juice: 0" no-reasoning developer item in `applyResponsesReasoningParams` is now gated on the resolved `compat.requiresJuiceZeroHack` flag (auto-detected from GPT-5-family model names by `@linxiraos/pi-catalog`, overridable per model) instead of an inline model-name check.
 
 ### Fixed
 

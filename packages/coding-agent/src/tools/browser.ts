@@ -1,6 +1,6 @@
-import { type } from "@oh-my-pi/omptype";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { untilAborted } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/omptype";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { untilAborted } from "@linxiraos/pi-utils";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
 import browserDescription from "../prompts/tools/browser.md" with { type: "text" };
 import type { ToolSession } from "../sdk";

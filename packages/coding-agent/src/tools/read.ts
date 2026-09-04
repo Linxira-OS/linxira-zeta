@@ -1,15 +1,15 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { notebookToEditableText } from "@oh-my-pi/pi-natives";
-import { type } from "@oh-my-pi/omptype";
+import { notebookToEditableText } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolTier,
-} from "@oh-my-pi/pi-agent-core";
-import { completeSimple, type ImageContent, type TextContent } from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-agent-core";
+import { completeSimple, type ImageContent, type TextContent } from "@linxiraos/pi-ai";
 import {
 	BINARY_SNIFF_BYTES,
 	type ImageMetadata,
@@ -19,7 +19,7 @@ import {
 	logger,
 	prompt,
 	readImageMetadata,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { normalizeToLF } from "../edit/normalize";
 import { getEditStore } from "../edit/store";
 import { InternalUrlRouter, resolveLocalUrlToFile, resolveLocalUrlToPath } from "../internal-urls";

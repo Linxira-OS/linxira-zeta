@@ -3,8 +3,8 @@ import {
 	type EditRenderContext,
 	editToolRenderer,
 	type PerFileDiffPreview,
-} from "@oh-my-pi/pi-coding-agent/edit/renderer";
-import * as themeModule from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/pi-coding-agent/edit/renderer";
+import * as themeModule from "@linxiraos/pi-coding-agent/modes/theme/theme";
 
 let uiTheme: themeModule.Theme;
 

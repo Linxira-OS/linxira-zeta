@@ -1,104 +1,98 @@
 {
-  "type": "module",
-  "name": "@linxiraos/pi-catalog",
-  "version": "1.1.8",
-  "description": "Model catalog for omp: bundled model database, provider discovery descriptors, model identity, classification, and equivalence",
-  "homepage": "https://linxira-os.github.io/zeta/",
-  "author": "Can Boluk",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-    "directory": "packages/catalog"
-  },
-  "bugs": {
-    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
-  },
-  "keywords": [
-    "ai",
-    "llm",
-    "models",
-    "catalog",
-    "discovery"
-  ],
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "scripts": {
-    "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
-    "check:types": "tsgo -p tsconfig.json --noEmit",
-    "lint": "oxlint .",
-    "test": "bun test --parallel",
-    "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
-    "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'",
-    "gen:models": "bun scripts/generate-models.ts",
-    "gen:compat": "bun scripts/compile-compat.ts",
-    "gen:proto": "bun scripts/generate-protocols.ts"
-  },
-  "dependencies": {
-    "@oh-my-pi/omptype": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
-    "@linxiraos/pi-omptype": "catalog:",
-    "@linxiraos/pi-utils": "catalog:"
-  },
-  "devDependencies": {
-    "@bgotink/kdl": "0.4.0",
-    "@oh-my-pi/pi-ai": "catalog:",
-    "@types/bun": "catalog:",
-    "@linxiraos/pi-ai": "catalog:"
-  },
-  "engines": {
-    "bun": ">=1.3.14"
-  },
-  "files": [
-    "src",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
-    },
-    "./models.json": {
-      "types": "./src/models.json.d.ts",
-      "import": "./src/models.json"
-    },
-    "./provider-models": {
-      "types": "./src/provider-models/index.ts",
-      "import": "./src/provider-models/index.ts"
-    },
-    "./provider-models/*": {
-      "types": "./src/provider-models/*.ts",
-      "import": "./src/provider-models/*.ts"
-    },
-    "./discovery": {
-      "types": "./src/discovery/index.ts",
-      "import": "./src/discovery/index.ts"
-    },
-    "./discovery/*": {
-      "types": "./src/discovery/*.ts",
-      "import": "./src/discovery/*.ts"
-    },
-    "./identity": {
-      "types": "./src/identity/index.ts",
-      "import": "./src/identity/index.ts"
-    },
-    "./identity/*": {
-      "types": "./src/identity/*.ts",
-      "import": "./src/identity/*.ts"
-    },
-    "./wire/*": {
-      "types": "./src/wire/*.ts",
-      "import": "./src/wire/*.ts"
-    },
-    "./compat/*": {
-      "types": "./src/compat/*.ts",
-      "import": "./src/compat/*.ts"
-    },
-    "./*": {
-      "types": "./src/*.ts",
-      "import": "./src/*.ts"
-    },
-    "./*.js": "./src/*.ts"
-  }
+	"exports": {
+		"./*.js": "./src/*.ts",
+		"./*": {
+			"import": "./src/*.ts",
+			"types": "./src/*.ts"
+		},
+		"./compat/*": {
+			"import": "./src/compat/*.ts",
+			"types": "./src/compat/*.ts"
+		},
+		"./wire/*": {
+			"import": "./src/wire/*.ts",
+			"types": "./src/wire/*.ts"
+		},
+		"./identity/*": {
+			"import": "./src/identity/*.ts",
+			"types": "./src/identity/*.ts"
+		},
+		"./identity": {
+			"import": "./src/identity/index.ts",
+			"types": "./src/identity/index.ts"
+		},
+		"./discovery/*": {
+			"import": "./src/discovery/*.ts",
+			"types": "./src/discovery/*.ts"
+		},
+		"./discovery": {
+			"import": "./src/discovery/index.ts",
+			"types": "./src/discovery/index.ts"
+		},
+		"./provider-models/*": {
+			"import": "./src/provider-models/*.ts",
+			"types": "./src/provider-models/*.ts"
+		},
+		"./provider-models": {
+			"import": "./src/provider-models/index.ts",
+			"types": "./src/provider-models/index.ts"
+		},
+		"./models.json": {
+			"import": "./src/models.json",
+			"types": "./src/models.json.d.ts"
+		},
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"files": [
+		"src",
+		"README.md",
+		"CHANGELOG.md"
+	],
+	"engines": {
+		"bun": ">=1.3.14"
+	},
+	"devDependencies": {
+		"@linxiraos/pi-ai": "catalog:",
+		"@types/bun": "catalog:",
+		"@bgotink/kdl": "0.4.0"
+	},
+	"dependencies": {
+		"@linxiraos/pi-utils": "catalog:",
+		"@linxiraos/pi-omptype": "catalog:"
+	},
+	"scripts": {
+		"gen:proto": "bun scripts/generate-protocols.ts",
+		"gen:compat": "bun scripts/compile-compat.ts",
+		"gen:models": "bun scripts/generate-models.ts",
+		"test": "bun test --parallel",
+		"check:types": "tsgo -p tsconfig.json --noEmit",
+		"check": "tsgo -p tsconfig.json --noEmit"
+	},
+	"types": "./src/index.ts",
+	"main": "./src/index.ts",
+	"keywords": [
+		"ai",
+		"llm",
+		"models",
+		"catalog",
+		"discovery"
+	],
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	},
+	"repository": {
+		"directory": "packages/catalog",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"type": "git"
+	},
+	"license": "MIT",
+	"author": "Can Boluk",
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"description": "Model catalog for omp: bundled model database, provider discovery descriptors, model identity, classification, and equivalence",
+	"version": "1.1.8",
+	"name": "@linxiraos/pi-catalog",
+	"type": "module"
 }

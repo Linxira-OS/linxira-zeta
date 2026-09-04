@@ -1,12 +1,12 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, UsageLimit, UsageReport } from "@oh-my-pi/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, UsageLimit, UsageReport } from "@linxiraos/pi-ai";
 import {
 	getAntigravityCounterKeyForModel,
 	scopeAntigravityLimitsForModel,
-} from "@oh-my-pi/pi-ai/usage/google-antigravity";
-import type { VcsRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+} from "@linxiraos/pi-ai/usage/google-antigravity";
+import type { VcsRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import {
 	type Component,
 	type ComposerStyle,
@@ -14,8 +14,8 @@ import {
 	padding,
 	truncateToWidth,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
-import { adjustHsv, formatNumber, getProjectDir, hexToRgb, rgbToHex } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui";
+import { adjustHsv, formatNumber, getProjectDir, hexToRgb, rgbToHex } from "@linxiraos/pi-utils";
 import { settings } from "../../../config/settings";
 import type { AgentSession } from "../../../session/agent-session";
 import type { OAuthAccountIdentity } from "../../../session/auth-storage";

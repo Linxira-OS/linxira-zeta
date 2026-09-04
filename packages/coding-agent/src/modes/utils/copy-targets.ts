@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { ToolCall } from "@oh-my-pi/pi-ai";
-import { extractMarkdownLinks } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ToolCall } from "@linxiraos/pi-ai";
+import { extractMarkdownLinks } from "@linxiraos/pi-tui";
 
 /** A fenced code block extracted from assistant markdown. */
 export interface CodeBlock {

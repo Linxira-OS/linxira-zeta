@@ -9,15 +9,15 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import type { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import type { CreateAgentSessionResult } from "@linxiraos/pi-coding-agent/sdk";
+import type { LoadExtensionsResult } from "@linxiraos/pi-coding-agent/extensibility/extensions/types";
+import * as sdkModule from "@linxiraos/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/pi-coding-agent/session/agent-session";
+import { runSubprocess } from "@linxiraos/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@linxiraos/pi-coding-agent/task/types";
+import { EventBus } from "@linxiraos/pi-coding-agent/utils/event-bus";
 
 function createMockSession(onPrompt: (params: { emit: (event: AgentSessionEvent) => void }) => void): AgentSession {
 	const listeners: Array<(event: AgentSessionEvent) => void> = [];

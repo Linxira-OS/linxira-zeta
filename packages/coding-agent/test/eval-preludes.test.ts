@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval";
-import { getEnabledEvalPreludes, invokeEvalPrelude } from "@oh-my-pi/pi-coding-agent/eval";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import type { EvalPreludeDefinition } from "@linxiraos/pi-coding-agent/eval";
+import { getEnabledEvalPreludes, invokeEvalPrelude } from "@linxiraos/pi-coding-agent/eval";
+import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
 
 function makeSession(getEvalPreludes: () => EvalPreludeDefinition[]): ToolSession {
 	return {

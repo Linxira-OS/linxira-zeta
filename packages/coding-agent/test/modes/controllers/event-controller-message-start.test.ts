@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { UserMessage } from "@oh-my-pi/pi-ai";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import type { Component } from "@oh-my-pi/pi-tui";
+import type { UserMessage } from "@linxiraos/pi-ai";
+import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
+import { UiHelpers } from "@linxiraos/pi-coding-agent/modes/utils/ui-helpers";
+import type { CustomMessage } from "@linxiraos/pi-coding-agent/session/messages";
+import type { Component } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(() => {
