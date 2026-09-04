@@ -1,6 +1,12 @@
 # Zeta 更新日志
 ## 下一版本（Unreleased）
 
+### 修复（1.1.8）
+
+- v18.1.5 合并损伤修复（六类清单第 4 类）：plan-ultra 模板选择、`.zeta/agents` 项目代理发现、每会话 `AsyncJobManager`、prompt-cache 守卫、模式状态版本通知、Z.ai OAuth 键名品牌。
+- CI：bun-install action 改为安装 `packageManager` 钉住的版本（1.3.14 硬编码曾与 1.4.0 lockfileVersion 2 冲突）；`bun.lock` 重新生成为 lockfileVersion 1（bun2nix 只解析 v1）+ `nix/bun.nix` 同步重生成。
+- 测试卫生中心化：`symlinkDirectorySync`（win32 junction）、temp 清理重试窗口 7.5s、locale 钉住策略。
+
 ### 新增（1.1.7 补充，随 OMP v18.1.2–v18.1.5 同步）
 
 - OMP 同步基线更新：v18.1.2（`86bf72f52947`）+ v18.1.4（`39cf639c7b`）+ v18.1.5（`2b8471bc33`）三 tag 一串真合并（`sync/omp-release/v18.1.2`）。Agent Hub 活动流（`/hub` activity 分区 + `src/activity/` 模块）、`/trace` 命令 + stats 追踪面板、声明式 provider 认证注册表（registry/engine/hooks/oauth 重构）、Copilot 认证标准化、selector 转录回滚过滤、welcome tip latch、`boxDotted.*`/`icon.advisorClosed` 符号预设。

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- OMP sync v18.1.2–v18.1.5: parser and scope-rewrite maintenance aligned with the upstream hashline updates.
+
 ## [1.1.7] - 2026-09-01
 
 - 版本线随 1.1.7 发布对齐（随本体 v18.0.11 同步与主题/网关更新），包内无独立变更。

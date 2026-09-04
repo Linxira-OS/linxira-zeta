@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+- OMP 同步 v18.1.2（`86bf72f52947`）+ v18.1.4（`39cf639c7b`）+ v18.1.5（`2b8471bc33`）：Agent Hub 活动流（`/hub` activity 分区）、`/trace` 命令 + 追踪面板、声明式 provider 认证注册表、Copilot 认证标准化、selector 转录回滚过滤、welcome tip latch、`boxDotted.*`/`icon.advisorClosed` 符号。
+- 增量 plan-ultra 工作流恢复：v18.1.5 合并丢失的 ultra 模板选择（`planModeUltraActivePrompt`）已恢复，plan-ultra 模式重新渲染增量写入纪律模板。
+- Task 工具项目代理目录恢复 `.zeta/agents` 解析（合并曾硬编码 `.omp`，项目级 agent 定义被静默忽略）。
+- 每会话独立 `AsyncJobManager`（Zeta 契约）恢复：并发顶层会话各自拥有管理器，子代理经 `options.asyncJobManager` 继承父级。
+- 系统提示缓存守卫恢复：显式 refresh 在渲染字节未变时不再清掉继承的 provider prompt-cache 谱系。
+- 模式状态版本通知恢复：`setPlanModeState`/`setGoalModeState`/`setVibeModeState` 重新触发 `state_version_changed`，外部客户端可观察模式切换。
+- i18n：builtin 斜杠命令描述与 welcome 文案接入 M 目录（en/zh），`/language` 切换即时生效；i18n 与 config/settings 依赖倒置，启动预绘模块图保持隔离。
+- Web UI 侧边栏重构：openchamber 头部（工具下拉、搜索开关、新会话行、可折叠项目组）。
+- 品牌：状态栏 `icon.omp` unicode π→ζ（ascii `zeta`），`ZETA_LOGO` 换 ζ 描边版（B 变体）；24 行终端 setup wizard 行预算随新 logo 重排。
+- zh 设置覆盖层为 v18.1.x 新键补全翻译。
+- 修复 `zeta --resume` 跨项目恢复的路径比较（正反斜杠规范化）。
+- 修复 Bing 搜索 provider 请求头随机化（Chrome/Firefox/Safari 一致指纹轮换）。
+- 修复 pi-grep/sed 基本正则语义（`+` 字面量、`\+` 操作符）从上游同步。
+
 ## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 - Fixed prewalk conflicting with `todo.eager=always`: the forced eager-todo prelude ("call todo first this turn") was injected alongside the prewalk plan nudge ("write a complete plan first, then todo"), giving the model contradictory instructions; the eager-todo prelude is now suppressed only when prewalk will perform a handoff ([#10510](https://github.com/can1357/oh-my-pi/issues/10510)).

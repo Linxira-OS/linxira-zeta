@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Restored the sidebar gutter engine + `SidebarComponent` + `/sidebar` command (Zeta-only surface dropped by an earlier upstream merge).
+- OMP sync v18.1.2–v18.1.5: sub-frame history ownership (the frame provider owns history), CoW worktree cloning support, and renderer fixes.
+
 ## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 ## [1.1.3] - 2026-08-25

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- OMP sync v18.1.2–v18.1.5: memory-backend plumbing aligned with the upstream mnemopi updates.
+
 ## [1.1.7] - 2026-09-01
 
 - 同步上游 OMP v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。

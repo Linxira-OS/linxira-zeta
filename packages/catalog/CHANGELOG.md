@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- OMP sync v18.1.2–v18.1.5: declarative KDL auth contract compiler (`@bgotink/kdl` now a devDependency), provider auth definitions, and model-policy rule updates.
+- Restored the biome toolchain for catalog scripts after the v18.1.5 merge briefly adopted the upstream oxlint/oxfmt configuration.
+
 ## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 

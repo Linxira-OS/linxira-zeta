@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Added `symlinkDirectorySync` — Windows-correct directory links (junction) for tests and tooling that must link temp trees without elevation.
+- Extended the temp-removal retry window to 7.5s: measured Windows handle-release latency after a child process dies reaches ~5s, and the previous 2s window flaked suites cleaning up trees containing SQLite databases.
+
 ## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 

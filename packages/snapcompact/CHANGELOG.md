@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- OMP sync v18.1.2–v18.1.5: compaction maintenance aligned with the upstream snapcompact updates.
+
 ## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 

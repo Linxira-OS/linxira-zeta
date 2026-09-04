@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- OMP sync v18.1.2–v18.1.5: Copilot auth standardization, transport-error-safe retries after tool calls, and prefix-binding control state.
+- Fixed the Z.ai OAuth key name to the Zeta brand (`zeta`) — the merge had reintroduced upstream's `oh-my-pi` fixture rows.
+
 ## [1.1.7] - 2026-09-01
 ## [1.1.6] - 2026-08-30
 
