@@ -522,7 +522,7 @@ jobs:
                     platform: linux,
                     arch: x64,
                     target_id: linux-x64,
-                    binary_path: packages/coding-agent/binaries/omp-linux-x64,
+                    binary_path: packages/coding-agent/binaries/zeta-cli-linux-x64,
                     native_targets: linux-x64-baseline linux-x64-modern,
                  }
                - {
@@ -531,7 +531,7 @@ jobs:
                     libc: musl,
                     arch: x64,
                     target_id: linux-musl-x64,
-                    binary_path: packages/coding-agent/binaries/omp-linux-musl-x64,
+                    binary_path: packages/coding-agent/binaries/zeta-cli-linux-musl-x64,
                     native_targets: linux-musl-x64-baseline,
                  }
                - {
@@ -539,7 +539,7 @@ jobs:
                     platform: linux,
                     arch: arm64,
                     target_id: linux-arm64,
-                    binary_path: packages/coding-agent/binaries/omp-linux-arm64,
+                    binary_path: packages/coding-agent/binaries/zeta-cli-linux-arm64,
                     native_targets: linux-arm64,
                  }
                - {
@@ -548,7 +548,7 @@ jobs:
                     libc: musl,
                     arch: arm64,
                     target_id: linux-musl-arm64,
-                    binary_path: packages/coding-agent/binaries/omp-linux-musl-arm64,
+                    binary_path: packages/coding-agent/binaries/zeta-cli-linux-musl-arm64,
                     native_targets: linux-musl-arm64,
                  }
                - {
@@ -556,7 +556,7 @@ jobs:
                     platform: win32,
                     arch: x64,
                     target_id: win32-x64,
-                    binary_path: packages/coding-agent/binaries/omp-windows-x64.exe,
+                    binary_path: packages/coding-agent/binaries/zeta-cli-windows-x64.exe,
                     native_targets: win32-x64-baseline,
                  }
       runs-on: ${{ matrix.os }}
@@ -626,21 +626,21 @@ jobs:
                     os: macos-15-intel,
                     platform: darwin,
                     target_id: darwin-x64,
-                    binary_path: packages/coding-agent/binaries/omp-darwin-x64,
+                    binary_path: packages/coding-agent/binaries/zeta-cli-darwin-x64,
                     native_targets: darwin-x64-baseline,
                  }
                - {
                     os: macos-14,
                     platform: darwin,
                     target_id: darwin-arm64,
-                    binary_path: packages/coding-agent/binaries/omp-darwin-arm64,
+                    binary_path: packages/coding-agent/binaries/zeta-cli-darwin-arm64,
                     native_targets: darwin-arm64,
                  }
                - {
                     os: windows-11-arm,
                     platform: win32,
                     target_id: win32-arm64,
-                    binary_path: packages/coding-agent/binaries/omp-windows-arm64.exe,
+                    binary_path: packages/coding-agent/binaries/zeta-cli-windows-arm64.exe,
                  }
       runs-on: ${{ matrix.os }}
       permissions:
@@ -830,7 +830,7 @@ jobs:
          - name: Generate checksums
            run: |
               bun run ci:release:checksums SHA256SUMS.txt \
-                packages/coding-agent/binaries/omp-* \
+                packages/coding-agent/binaries/zeta-cli-* \
                 packages/browser-relay/dist/omp-browser-relay-extension.zip \
                 LICENSE \
                 THIRD-PARTY-NOTICES.txt
@@ -840,7 +840,7 @@ jobs:
               tag_name: ${{ needs.release_metadata.outputs.release-tag }}
               prerelease: ${{ needs.release_metadata.outputs.channel == 'canary' }}
               files: |
-                 packages/coding-agent/binaries/omp-*
+                 packages/coding-agent/binaries/zeta-cli-*
                  packages/browser-relay/dist/omp-browser-relay-extension.zip
                  LICENSE
                  THIRD-PARTY-NOTICES.txt

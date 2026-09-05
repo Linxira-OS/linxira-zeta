@@ -83,7 +83,7 @@ const targets: BinaryTarget[] = [
 		platform: "win32",
 		arch: "arm64",
 		target: "bun-windows-arm64",
-		outfile: "packages/coding-agent/binaries/omp-windows-arm64.exe",
+		outfile: "packages/coding-agent/binaries/zeta-cli-windows-arm64.exe",
 	},
 ];
 

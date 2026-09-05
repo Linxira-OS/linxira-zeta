@@ -18,9 +18,9 @@ describe("Windows release binary target", () => {
 		expect(output).toContain(
 			"DRY RUN Bun.build target=bun-windows-x64-baseline outfile=packages/coding-agent/binaries/zeta-cli-windows-x64.exe",
 		);
-		expect(output).toContain("Building packages/coding-agent/binaries/omp-windows-arm64.exe...");
+		expect(output).toContain("Building packages/coding-agent/binaries/zeta-cli-windows-arm64.exe...");
 		expect(output).toContain(
-			"DRY RUN Bun.build target=bun-windows-arm64 outfile=packages/coding-agent/binaries/omp-windows-arm64.exe",
+			"DRY RUN Bun.build target=bun-windows-arm64 outfile=packages/coding-agent/binaries/zeta-cli-windows-arm64.exe",
 		);
 		expect(output).toContain("external=fastembed,onnxruntime-node");
 		expect(output).not.toContain("bun-windows-x64-modern");
