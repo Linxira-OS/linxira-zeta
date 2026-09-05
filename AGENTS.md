@@ -124,10 +124,11 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | 5 | 本地预编译 natives `.node`（不入库）落后于合并后 bindings（合并新增 natives 函数如 `vcsGitDiscover`，本地旧二进制缺符号） | 本地测试报 `api().vcsGitDiscover is not a function`（status-line/mode 测试成批失败）；CI bazel 现场构建，无此问题——纯本地噪声 | 本地重建：`packages/natives` `bun run build`（Windows 需 VS Build Tools 开发者 shell；WSL：`pacman -S bun` + glibc ≥ 2.44 + ninja；rustup 慢用 `RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static`） |
 | 6 | 上游测试携带 `.omp` 配置目录契约原样合入（`dirs-cache` 的 `$XDG/omp/cache`、`acp-agent`/`mcp-config-scope-dedup`/`sdk-skills`/`tools/gh` 的 fixture 路径），源码只解析 `.zeta` | 只在 Linux/XDG 分支生效：Windows 本地全绿，push 云端 Linux CI 才爆——`bun test` 全绿 ≠ 合并适配完整 | 每个触碰的测试文件对照 `v<tag>` 版本逐文件 resolve；grep `"\.omp"`（排除刻意保留的 `.omp-plugin`）必须为 0 |
 | 7 | 上游 CI 基础设施原样合入：`runs-on: omp-kata`（上游自有 runner label，Zeta 仓库无此 runner）及上游产物命名（如 release 矩阵的 `binaries/omp-*`，v18.1.10 曾致 darwin/linux binary job 首个 tag run 即崩） | 非 tag run 跳过受影响 job 时全绿；tag release run 的 job 无限排队（runner 不存在）或冒烟步骤找不到产物 | `runs-on` 一律 GitHub 云（`ubuntu-22.04`/`macos-14`）；产物命名以 `scripts/ci-release-build-binaries.ts` 与安装器（`zeta-cli-*`）为准；守卫：`grep omp-kata .github/workflows/ci.yml` 只允许注释，`bun scripts/brand/brand-check.ts` 归零 |
+| 8 | 品牌字符串替换改变 rustfmt 折叠决策：`"oh-my-pi"`→`"zeta"` 等缩短让原本超宽的多行结构体字面量/表达式落回 `max_width=100` 内，rustfmt 期望翻转（v18.1.10 `pi-vcs/git/mutate.rs` 的 `SignatureRef`）。被三层掩蔽：validate job 在 PR 事件整跳过、release run 只暴露第一个失败的 step、bazel `*.rustfmt.ok` 动作只在缓存 miss 时执行 | `Validate Rust workspace (bazel)` 挂在最后一步 `Rustfmt`（`pi-<crate>.rustfmt.ok` FAILED，exit 1）；测试与三段 clippy 全绿时才轮到它 | 合并适配 commit 后、push 前跑 `cargo fmt --all --check`（本地 rustfmt 与 CI 结论在此类构造上一致）； offender 直接 `cargo fmt --all` 归零。注意 rustfmt.toml `ignore` 名单（brush-core/pi-builtins）且 bazel 只对有 rustfmt 规则的 crate 设门禁 |
 
-**Triage 指纹**：所有 CI job 死在 `Run ./.github/actions/bun-install` ⇒ 版本线/catalog 损伤（第 1、2 类），先跑 `bun scripts/check-version-consistency.ts`，不要去翻测试日志。tag run 的 binary/release job 崩或排队数小时 ⇒ 第 7 类，查 `runs-on` 与产物命名。
+**Triage 指纹**：所有 CI job 死在 `Run ./.github/actions/bun-install` ⇒ 版本线/catalog 损伤（第 1、2 类），先跑 `bun scripts/check-version-consistency.ts`，不要去翻测试日志。tag run 的 binary/release job 崩或排队数小时 ⇒ 第 7 类，查 `runs-on` 与产物命名。`Validate Rust workspace` exit 1（非 3）⇒ 构建/格式门禁（第 8 类），`cargo fmt --all --check` 全量对账；exit 3 ⇒ 测试失败，看 test result 行。
 
-**推送 sync 分支前的最低门槛**：`bun scripts/check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误 + 第 3 类 grep 扫描通过 + `bun scripts/brand/brand-check.ts` 归零（exit 0）。四者都绿才允许 push。
+**推送 sync 分支前的最低门槛**：`bun scripts/check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误 + 第 3 类 grep 扫描通过 + `bun scripts/brand/brand-check.ts` 归零（exit 0）+ 动过 crates/ 时 `cargo fmt --all --check` 归零。五者都绿才允许 push。
 
 ## Documentation Layout
 
