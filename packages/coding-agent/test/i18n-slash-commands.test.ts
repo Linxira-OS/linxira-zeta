@@ -14,11 +14,21 @@ import { BUILTIN_SLASH_COMMAND_DEFS } from "../src/slash-commands/builtin-regist
  * regression (the v17.2.11 lesson: tests are contract, not ours-vs-theirs text).
  *
  * Note: BUILTIN_SLASH_COMMAND_DEFS snapshots description VALUES at import time
- * (language = default en), so the zh assertions compare catalogue KEYS instead
- * of the snapshot; the en assertions validate the snapshot itself.
+ * (language = whatever the loader detected), so the zh assertions compare
+ * catalogue KEYS instead of the snapshot; the en assertions validate the
+ * snapshot itself.
  */
 
 const hasCjk = (s: string) => /[\u4e00-\u9fff]/.test(s);
+
+/**
+ * Descriptions exempt from catalogue reverse-lookup. Only empty or dynamically
+ * composed descriptions may be listed here — a static description in any
+ * language must live in the catalogues so `/language` can translate it. The
+ * bundled /init file command is not part of this registry; its zh description
+ * is overlaid at read time in src/task/commands.ts.
+ */
+const DESCRIPTION_ALLOWLIST: ReadonlySet<string> = new Set<string>([]);
 
 /** The registry snapshot captured descriptions at import time with the
  * system-detected language, so map each DEFS description back to its en
@@ -47,6 +57,32 @@ function referencedCmdKeys(): { key: string; via: string }[] {
 	return keys;
 }
 
+/** Every description (main + subcommand) must resolve to a catalogue key via
+ * either catalogue, or be explicitly allowlisted. Returns the violations. */
+function hardcodedDescriptions(): { via: string; description: string }[] {
+	const enValues = new Map<string, string>();
+	for (const [k, v] of Object.entries(en)) {
+		if (typeof v === "string") enValues.set(v, k);
+	}
+	const zhValues = new Map<string, string>();
+	for (const [k, v] of Object.entries(zh)) {
+		if (typeof v === "string") zhValues.set(v, k);
+	}
+	const violations: { via: string; description: string }[] = [];
+	const check = (via: string, description: string) => {
+		if (enValues.has(description) || zhValues.has(description)) return;
+		if (DESCRIPTION_ALLOWLIST.has(via)) return;
+		violations.push({ via, description });
+	};
+	for (const cmd of BUILTIN_SLASH_COMMAND_DEFS) {
+		check(`/${cmd.name}`, cmd.description);
+		for (const sub of cmd.subcommands ?? []) {
+			check(`/${cmd.name} ${sub.name}`, sub.description);
+		}
+	}
+	return violations;
+}
+
 afterEach(() => setLanguage("en"));
 
 describe("builtin slash command zh localization", () => {
@@ -59,6 +95,16 @@ describe("builtin slash command zh localization", () => {
 
 	test("registry descriptions resolve to en catalogue keys", () => {
 		expect(referencedCmdKeys().length).toBeGreaterThan(40);
+	});
+
+	test("no hardcoded descriptions: every registry description maps to a catalogue key", () => {
+		const violations = hardcodedDescriptions();
+		expect(
+			violations,
+			`hardcoded descriptions bypass /language (add M.cmd* keys or, for genuinely\n` +
+				`dynamic/empty descriptions, the DESCRIPTION_ALLOWLIST):\n` +
+				violations.map(v => `${v.via}: ${JSON.stringify(v.description)}`).join("\n"),
+		).toEqual([]);
 	});
 
 	test("zh: every registry-referenced cmd key has a CJK value in zh catalogue", () => {

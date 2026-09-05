@@ -770,6 +770,9 @@ export interface Messages {
 	ccAdvisorStatusError: string;
 	ccAdvisorStatusTitle: string;
 	ccAdvisorCountFmt: string;
+	ccComputerUseStateFmt: string; // "Computer use: %s" status diagnostic, %s = stateEnabled/stateDisabled
+	ccPreludeStateFmt: string; // "prelude: %s" status diagnostic, %s = stateActive/stateInactive
+	ccComputerConfiguredFmt: string; // "configured: display=%s, maxWidth=%s, maxHeight=%s"
 	ccLabelModel: string;
 	ccBgJobsUnavailable: string;
 	ccBgJobsTitle: string;
@@ -1182,6 +1185,17 @@ export interface Messages {
 	ssMatchesFmt: string;
 	ssNoMatching: string;
 	ssPreviewUnavailable: string;
+	ssUnlimited: string; // Unlimited (no cap)
+	ssLimitFmt: string; // Limit: %s
+	ssOn: string; // Boolean value display: on
+	ssOff: string; // Boolean value display: off
+	ssTabPlugins: string; // Plugins tab label
+	ssFooterPrefix: string; // Enter/Space to change
+	ssFooterSuffix: string; // Type to search · Esc to close
+	ssSectionsFocusedHint: string; // ↑/↓ to jump sections · Tab/Enter to settings · ←/→ to switch tabs · Esc to close
+	ssOrderedDefault: string; // default (ordered multiselect empty value)
+	ssUnorderedNone: string; // none (multiselect empty value)
+	ssTitleSettings: string; // Settings screen title
 	tselFilterNoTools: string;
 	tselFilterUser: string;
 	tselFilterLabeled: string;
@@ -1999,6 +2013,18 @@ export interface Messages {
 	cmdMcpPrompts: string;
 	cmdMcpNotifications: string;
 	cmdMcpHelp: string;
+	cmdSwitchModelWithSelectors: string; // /switch: fuzzy ids, provider/id, @role, :level
+	cmdSwitchModelSessionOnly: string; // /switch acpDescription
+	cmdSkillful: string; // /skillful
+	cmdSkillfulAcp: string; // /skillful acpDescription
+	cmdSkillfulOn: string; // /skillful on
+	cmdSkillfulOff: string; // /skillful off
+	cmdSkillfulStatus: string; // /skillful status
+	cmdToggleExtendedContext: string; // /extended-context acpDescription
+	cmdToggleTheNativeComputerUseEvalPreludeForThisSession: string; // /computer
+	cmdToggleBrowserEvalPreludeHeadlessVsVisibleMode: string; // /browser
+	cmdOpenLastLinkFromConversation: string; // /open
+	cmdInitGenerateAgentsMd: string; // bundled /init zh overlay (task/commands.ts)
 
 	// ── Slash-command ACP descriptions (English leftovers → M.*) ────────────
 	cmdLoop: string;
@@ -2104,6 +2130,30 @@ export interface Messages {
 	acTodosNone: string;
 	acTodosFmt: string;
 	acForceNoActiveTools: string;
+	acExtendedContextFmt: string; // "Extended context: %s", %s = stateOn/stateOff
+	acSkillfulFmt: string; // "Skill listing: %s", %s = stateOn/stateOff
+	acAdvisorOnFmt: string; // "Advisor: on (%s)", %s = count fmt or provider/model
+	acCollabFmt: string; // "Collab: %s", %s = stateHosting/stateGuest/stateReadOnlyGuest/stateOff
+	acCollabGuestsFmt: string; // " (%s guests)" suffix for acCollabFmt hosting state
+	acBrowserFmt: string; // "Browser: %s", %s = stateDisabled/stateHeadless/stateVisible
+	acPlanUltraDisabledInSettings: string;
+	acPlanUltraOnFmt: string; // "Plan-ultra: on%s", %s = plan-file suffix
+	acPlanUltraAlreadyActive: string;
+	acPlanUltraBlockedByGoalMode: string;
+	acPlanUltraOff: string;
+
+	// ── state tokens for dynamic status-line templates ──────────────────────
+	stateOn: string; // "on"
+	stateOff: string; // "off"
+	stateHosting: string; // collab host active
+	stateGuest: string; // collab guest (can prompt)
+	stateReadOnlyGuest: string; // collab guest (watch only)
+	stateHeadless: string; // browser headless
+	stateVisible: string; // browser visible
+	stateEnabled: string; // feature enabled
+	stateDisabled: string; // feature disabled
+	stateActive: string; // prelude active
+	stateInactive: string; // prelude inactive
 
 	// ── /compact subcommand mode descriptions ───────────────────────────────
 	compactModeSoft: string;
