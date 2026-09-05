@@ -3,8 +3,12 @@ import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config
 import { loadHindsightConfig } from "@linxiraos/zeta/hindsight/config";
 import { SettingsSelectorComponent } from "@linxiraos/zeta/modes/components/settings-selector";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { setLanguage } from "../../../src/i18n";
 
 beforeAll(async () => {
+	// The localized selector renders zh chrome under zh locales; pin en so the
+	// English row-text assertions below are environment-independent.
+	setLanguage("en");
 	await initTheme();
 });
 

@@ -23,6 +23,9 @@ export const SKIP_PREFIXES = [
 	"crates/pi-natives/src/utok/", // multilingual tokenizer fixtures
 	"crates/pi-natives/src/syntaxes/", // highlight grammars (Julia π constant)
 	"plugins/", // shipped extension assets
+	".omp/", // in-repo dev-tool directory (not the product config dir)
+	".oxlintrc.json", // lint-glob config; tooling cleanup tracked separately
+	"scripts/brand/", // the guard's own rule table names the tokens it bans
 	".zcode/",
 ];
 

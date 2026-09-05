@@ -656,6 +656,12 @@ export class SelectorController {
 				this.ctx.ui.invalidate();
 				this.ctx.ui.requestRender();
 				break;
+			case "tui.sidebar":
+				// Re-wire the engine's main-width override so the toggle lands live,
+				// without waiting for the next sidebar-related render.
+				this.ctx.applySidebar();
+				this.ctx.ui.requestRender();
+				break;
 			case "tui.hyperlinks":
 				applyHyperlinkSetting();
 				this.ctx.statusLine.invalidate();

@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Sidebar gutter: provider-render frames now honor the reserved main width and paint the right gutter column (sidebar was dead code in production since the frame-provider refactor); overlay close clears the painted column.
 ## [1.1.8] - 2026-09-04
 ## [1.1.3] - 2026-08-25
 

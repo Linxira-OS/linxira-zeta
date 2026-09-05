@@ -133,6 +133,8 @@ export interface InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
+	/** Re-wire the engine's sidebar/main-width override from the `tui.sidebar` setting. */
+	applySidebar(): void;
 	syncComposerShape(): void;
 	syncEditorSpelling(): void;
 
