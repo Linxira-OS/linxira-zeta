@@ -18,7 +18,6 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { ChatTranscriptBuilder } from "@linxiraos/zeta/modes/components/chat-transcript-builder";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { formatUsageRow } from "@linxiraos/zeta/modes/components/usage-row";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
@@ -30,6 +29,7 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 // 60s of elapsed: 30s between the prompt and the final response's creation,
 // plus a 30s provider request — formatDuration renders this as "1m".
@@ -327,63 +327,22 @@ describe("focus-attach mid-turn keeps the prompt→yield delta", () => {
 	});
 
 	function createFixture() {
-		const chatContainer = new TranscriptContainer();
-		chatContainer.setToolActivityVisible(true);
-		const ui = {
-			requestRender: vi.fn(),
-			requestComponentRender: vi.fn(),
-			imageBudget: undefined,
-		} as unknown as TUI;
-		const viewSession = {
-			getToolByName: () => undefined,
-			hasBuiltInTool: () => true,
-			extensionRunner: undefined,
-			isTtsrAbortPending: false,
-			retryAttempt: 0,
-			isStreaming: false,
-			sessionManager: { getCwd: () => process.cwd(), putBlobSync: () => undefined, getSessionName: () => undefined },
-		};
-		const ctx = {
-			isInitialized: true,
-			init: vi.fn(async () => {}),
-			ui,
-			settings,
-			chatContainer,
-			transcriptMessageComponents: new WeakMap(),
-			pendingTools: new Map(),
-			toolOutputExpanded: false,
-			hideToolActivity: false,
-			effectiveHideThinkingBlock: false,
-			proseOnlyThinking: true,
-			statusLine: { invalidate: vi.fn(), markActivityEnd: vi.fn(), markActivityStart: vi.fn() },
-			updateEditorTopBorder: vi.fn(),
-			editor: { getText: () => "busy", setText: vi.fn() },
-			noteDisplayableThinkingContent: vi.fn(() => false),
-			locallySubmittedUserSignatures: new Set<string>(),
-			optimisticUserMessageSignature: undefined,
-			updatePendingMessagesDisplay: vi.fn(),
-			ensureLoadingAnimation: vi.fn(),
-			flushPendingModelSwitch: vi.fn(async () => {}),
-			flushPendingCommandOutput: vi.fn(),
-			syncRetryHintRow: vi.fn(),
-			session: viewSession,
-			viewSession,
-			sessionManager: viewSession.sessionManager,
-			showWarning: vi.fn(),
-			showPinnedError: vi.fn(),
-			clearPinnedError: vi.fn(),
-			clearTransientSessionUi: vi.fn(),
-			lastAssistantUsage: undefined,
-			eventController: undefined as unknown as EventController,
-			getUserMessageText: (message: { content?: unknown }) =>
-				typeof message.content === "string" ? message.content : "",
-			addMessageToChat: (message: AgentMessage) => helpers.addMessageToChat(message),
-			updateEditorBorderColor: vi.fn(),
-		} as unknown as InteractiveModeContext;
+		const streamState = { isStreaming: false };
+		const ctx = createInteractiveModeContext({
+			editor: { getText: () => "busy" },
+			session: {
+				get isStreaming() {
+					return streamState.isStreaming;
+				},
+			},
+			getUserMessageText: message => (typeof message.content === "string" ? message.content : ""),
+		});
+		ctx.chatContainer.setToolActivityVisible(true);
+		const helpers = new UiHelpers(ctx);
+		ctx.addMessageToChat = (message, options) => helpers.addMessageToChat(message, options);
 		const controller = new EventController(ctx);
 		ctx.eventController = controller;
-		const helpers = new UiHelpers(ctx);
-		return { controller, helpers, chatContainer, viewSession };
+		return { controller, helpers, chatContainer: ctx.chatContainer, streamState };
 	}
 
 	async function driveAssistantTurn(controller: EventController, message: AssistantFixture): Promise<void> {
@@ -398,8 +357,8 @@ describe("focus-attach mid-turn keeps the prompt→yield delta", () => {
 	}
 
 	it("hands the replayed user timestamp to the controller so the live message_end row shows the delta", async () => {
-		const { controller, helpers, chatContainer, viewSession } = createFixture();
-		viewSession.isStreaming = true;
+		const { controller, helpers, chatContainer, streamState } = createFixture();
+		streamState.isStreaming = true;
 
 		// Focus attach: reset clears the controller's turn start, then the rebuild
 		// replays the user prompt; because the target is streaming, the generator

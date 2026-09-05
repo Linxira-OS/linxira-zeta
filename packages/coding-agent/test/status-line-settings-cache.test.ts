@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import * as vcs from "@linxiraos/pi-natives/vcs";
+import { visibleWidth } from "@linxiraos/pi-tui";
 import { removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { StatusLineComponent, type StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
@@ -184,6 +185,36 @@ describe("StatusLineComponent effective settings cache", () => {
 		component.setHookStatus("hook", "hook done");
 		expect(component.render(80)).toEqual(["hook done"]);
 		expect(component.getEffectiveSettingsForTest()).toBe(effective);
+	});
+
+	it("renders arbitrary extension statuses in deterministic segment order", () => {
+		const component = makeComponent({
+			preset: "custom",
+			leftSegments: ["pi", "status", "model"],
+			rightSegments: [],
+			separator: "powerline-thin",
+			showHookStatus: false,
+			sessionAccent: false,
+			segmentOptions: { model: { showThinkingLevel: false } },
+		});
+
+		component.setHookStatus("z-tests", "Tests passing");
+		component.setHookStatus("a-indexer", "\x1b]8;;https://example.com\x07Indexer ready\x1b]8;;\x07");
+
+		const border = component.getTopBorder(120).content;
+		const content = stripVTControlCharacters(border);
+		expect(border).not.toContain("https://example.com");
+		expect(content.indexOf("Indexer ready")).toBeGreaterThanOrEqual(0);
+		expect(content.indexOf("Indexer ready")).toBeLessThan(content.indexOf("Tests passing"));
+		expect(content.indexOf("Tests passing")).toBeLessThan(content.indexOf("Test Model"));
+		expect(component.render(120)).toEqual([]);
+		expect(visibleWidth(component.getTopBorder(24).content)).toBeLessThanOrEqual(24);
+
+		component.setHookStatus("a-indexer", undefined);
+		component.setHookStatus("z-tests", undefined);
+		const cleared = stripVTControlCharacters(component.getTopBorder(120).content);
+		expect(cleared).not.toContain("Indexer ready");
+		expect(cleared).not.toContain("Tests passing");
 	});
 
 	it("does not mutate shared preset segment options during narrow renders", () => {

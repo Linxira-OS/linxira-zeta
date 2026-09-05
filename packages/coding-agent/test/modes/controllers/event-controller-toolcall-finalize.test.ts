@@ -10,12 +10,14 @@
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import type { Component } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(async () => {
 	await initTheme();
@@ -43,46 +45,17 @@ function makeStreamingMessage(content: AssistantMessage["content"]): AssistantMe
 
 // Components the controller mounts during a dispatch (pending tool previews).
 // Sealed in afterEach so their spinner intervals never outlive the test file.
-const mountedComponents: { seal?(): void }[] = [];
+const mountedComponents: Component[] = [];
 
 function createFixture(streamingMessage: AssistantMessage) {
-	const markTranscriptBlockFinalized = vi.fn();
-	const streamingComponent = {
-		updateContent: vi.fn(),
-		markTranscriptBlockFinalized,
-	};
-	const chatChildren: unknown[] = [];
-	const chatContainer = {
-		children: chatChildren,
-		addChild: vi.fn((child: { seal?(): void }) => {
-			chatChildren.push(child);
-			mountedComponents.push(child);
-		}),
-		removeChild: vi.fn((child: unknown) => {
-			const index = chatChildren.indexOf(child);
-			if (index >= 0) chatChildren.splice(index, 1);
-		}),
-		canRemoveBlock: vi.fn(() => true),
-	};
-	const ctx = {
-		isInitialized: true,
-		init: vi.fn(async () => {}),
-		ui: { requestRender: vi.fn(), requestComponentRender: vi.fn() },
-		statusLine: { invalidate: vi.fn() },
-		updateEditorTopBorder: vi.fn(),
-		streamingComponent,
-		streamingMessage,
-		transcriptMessageComponents: new WeakMap(),
-		pendingTools: new Map(),
-		noteDisplayableThinkingContent: vi.fn(() => false),
-		chatContainer,
-		toolOutputExpanded: false,
-		settings,
-		session: { getToolByName: () => undefined, hasBuiltInTool: () => true },
-		viewSession: { getToolByName: () => undefined, hasBuiltInTool: () => true },
-		clearTransientSessionUi: () => {},
-		sessionManager: { getCwd: () => process.cwd() },
-	} as unknown as InteractiveModeContext;
+	const streamingComponent = new AssistantMessageComponent();
+	const markTranscriptBlockFinalized = vi.spyOn(streamingComponent, "markTranscriptBlockFinalized");
+	const ctx = createInteractiveModeContext({ streamingComponent, streamingMessage });
+	const addChild = ctx.chatContainer.addChild.bind(ctx.chatContainer);
+	vi.spyOn(ctx.chatContainer, "addChild").mockImplementation(child => {
+		mountedComponents.push(child);
+		addChild(child);
+	});
 
 	const controller = new EventController(ctx);
 	return { controller, markTranscriptBlockFinalized, ctx };
@@ -103,7 +76,9 @@ async function dispatchUpdate(message: AssistantMessage) {
 
 describe("EventController finalizes assistant block when tool-call args stream", () => {
 	afterEach(() => {
-		for (const component of mountedComponents.splice(0)) component.seal?.();
+		for (const component of mountedComponents.splice(0)) {
+			if (component instanceof ToolExecutionComponent) component.seal();
+		}
 		resetSettingsForTest();
 		vi.restoreAllMocks();
 	});
@@ -165,7 +140,9 @@ describe("EventController finalizes assistant block when tool-call args stream",
 });
 describe("EventController finalizes orphaned post-tool assistant segments", () => {
 	afterEach(() => {
-		for (const component of mountedComponents.splice(0)) component.seal?.();
+		for (const component of mountedComponents.splice(0)) {
+			if (component instanceof ToolExecutionComponent) component.seal();
+		}
 		resetSettingsForTest();
 		vi.restoreAllMocks();
 	});

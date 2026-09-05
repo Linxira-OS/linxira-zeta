@@ -9,7 +9,7 @@
  */
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { mintToolCallId } from "@linxiraos/pi-ai/dialect";
-import { extractInlineSloppyRegions } from "../edit";
+import { extractInlineSloppyRegions } from "@linxiraos/pi-natives";
 
 /**
  * Convert stray sloppy payloads in `message`'s text blocks into one synthetic

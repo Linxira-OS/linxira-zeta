@@ -1,105 +1,48 @@
-import { afterAll, describe, expect, it } from "bun:test";
-import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { beforeAll, describe, expect, test } from "bun:test";
+import { type EditRenderContext, editToolRenderer, type PerFileDiffPreview } from "@linxiraos/zeta/edit/renderer";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 
-const sharedAuthStorage = createInMemoryAuthStorage();
-sharedAuthStorage.setRuntimeApiKey("anthropic", "test-key");
-const sharedModelRegistry = new ModelRegistry(sharedAuthStorage);
+let uiTheme: themeModule.Theme;
 
-afterAll(() => {
-	sharedAuthStorage.close();
+beforeAll(async () => {
+	await themeModule.initTheme(false, undefined, undefined, "dark", "light");
+	const loaded = await themeModule.getThemeByName("dark");
+	if (!loaded) throw new Error("dark test theme is unavailable");
+	uiTheme = loaded;
 });
 
-function makeTool(name: string, customWireName?: string): AgentTool {
-	return {
-		name,
-		label: name,
-		description: `${name} tool`,
-		parameters: type({}),
-		...(customWireName ? { customWireName } : {}),
-		async execute() {
-			return { content: [{ type: "text", text: name }] };
-		},
-	};
+function render(previews: PerFileDiffPreview[]): string {
+	const renderContext: EditRenderContext = { editMode: "apply_patch", perFileDiffPreview: previews };
+	return Bun.stripANSI(
+		editToolRenderer
+			.renderCall({}, { expanded: false, isPartial: true, spinnerFrame: 0, renderContext }, uiTheme)
+			.render(160)
+			.join("\n"),
+	);
 }
 
-async function withSession(
-	tools: readonly AgentTool[],
-	builtInToolNames: readonly string[],
-	run: (session: AgentSession) => void,
-): Promise<void> {
-	const tempDir = TempDir.createSync("@apply-patch-preview-");
-	const settings = Settings.isolated({ "compaction.enabled": false });
-	const model = buildModel({
-		id: "mock",
-		name: "mock",
-		api: "openai-responses",
-		provider: "openai",
-		baseUrl: "https://example.invalid",
-		reasoning: false,
-		input: ["text"],
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: 8192,
-		maxTokens: 2048,
-	});
-	const agent = new Agent({
-		getApiKey: () => "test-key",
-		initialState: { model, systemPrompt: ["initial"], tools: [...tools] },
-		streamFn: createMockModel({ responses: [{ content: ["ok"] }] }).stream,
-	});
-	const session = new AgentSession({
-		agent,
-		sessionManager: SessionManager.inMemory(tempDir.path()),
-		settings,
-		modelRegistry: sharedModelRegistry,
-		toolRegistry: new Map<string, AgentTool>(tools.map(tool => [tool.name, tool])),
-		builtInToolNames: [...builtInToolNames],
-		rebuildSystemPrompt: async toolNames => ({ systemPrompt: [toolNames.join(",")] }),
-	});
-	try {
-		run(session);
-	} finally {
-		await session.dispose();
-		tempDir.removeSync();
-	}
-}
+describe("apply_patch streaming preview renderer", () => {
+	test("renders each file from structured per-file diff previews", () => {
+		const rendered = render([
+			{ path: "src/a.ts", diff: "@@ -1,1 +1,1 @@\n-1|old a\n+1|new a", firstChangedLine: 1 },
+			{ path: "src/b.ts", diff: "@@ -2,1 +2,1 @@\n-2|old b\n+2|new b", firstChangedLine: 2 },
+		]);
 
-/**
- * Regression #8184: the built-in `edit` tool presents on the wire as
- * `apply_patch` in apply_patch mode (`customWireName`). Tool cards render the
- * streamed call under that wire name, and the renderer registry is gated behind
- * `hasBuiltInTool(name)`. If the alias does not resolve to its built-in owner,
- * the edit renderer/preview is skipped for apply_patch-mode edits.
- */
-describe("AgentSession.hasBuiltInTool wire-name aliases", () => {
-	it("resolves a built-in tool's customWireName alias to built-in provenance", async () => {
-		// Mirrors `edit` in apply_patch mode: internal name `edit`, wire name
-		// `apply_patch`.
-		const edit = makeTool("edit", "apply_patch");
-		await withSession([edit], ["edit"], session => {
-			expect(session.hasBuiltInTool("edit")).toBe(true);
-			// The wire alias must resolve to its built-in owner so the edit
-			// renderer/preview is used for apply_patch-mode cards.
-			expect(session.hasBuiltInTool("apply_patch")).toBe(true);
-		});
+		expect(rendered).toContain("src/a.ts");
+		expect(rendered).toContain("new a");
+		expect(rendered).toContain("src/b.ts");
+		expect(rendered).toContain("new b");
 	});
 
-	it("lets an extension registering the literal alias name shadow the built-in", async () => {
-		// The agent loop routes exact-name matches ahead of wire aliases, so a
-		// non-built-in tool registered under the literal `apply_patch` name wins;
-		// it must not reuse the built-in edit renderer.
-		const edit = makeTool("edit", "apply_patch");
-		const shadow = makeTool("apply_patch");
-		await withSession([edit, shadow], ["edit"], session => {
-			expect(session.hasBuiltInTool("apply_patch")).toBe(false);
-		});
+	test("renders a structured per-file preview error beside successful siblings", () => {
+		const rendered = render([
+			{ path: "src/good.ts", diff: "@@ -1,1 +1,1 @@\n-1|old\n+1|new", firstChangedLine: 1 },
+			{ path: "src/missing.ts", error: "File not found: src/missing.ts" },
+		]);
+
+		expect(rendered).toContain("src/good.ts");
+		expect(rendered).toContain("new");
+		expect(rendered).toContain("src/missing.ts");
+		expect(rendered).toContain("File not found: src/missing.ts");
 	});
 });

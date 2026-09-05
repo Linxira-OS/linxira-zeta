@@ -27,7 +27,7 @@ import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 interface SteerCall {
 	content: string;
-	options?: { deliverAs?: "steer" | "followUp" };
+	options?: { deliverAs?: "steer" | "followUp" | "aside" };
 }
 
 interface FakeSessionConfig {

@@ -2,11 +2,8 @@
 
 ## [Unreleased]
 
+- Sidebar gutter: provider-render frames now honor the reserved main width and paint the right gutter column (sidebar was dead code in production since the frame-provider refactor); overlay close clears the painted column.
 ## [1.1.8] - 2026-09-04
-
-- Restored the sidebar gutter engine + `SidebarComponent` + `/sidebar` command (Zeta-only surface dropped by an earlier upstream merge).
-- OMP sync v18.1.2–v18.1.5: sub-frame history ownership (the frame provider owns history), CoW worktree cloning support, and renderer fixes.
-
 ## [1.1.3] - 2026-08-25
 
 ### Fixed

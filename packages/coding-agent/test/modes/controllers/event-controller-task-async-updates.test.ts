@@ -16,12 +16,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { TaskToolDetails } from "@linxiraos/zeta/task/types";
 import type { BashToolDetails } from "@linxiraos/zeta/tools/bash";
+import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 function taskResult(asyncState: "running" | "completed" | "failed" | undefined, text: string) {
 	const details: TaskToolDetails = {
@@ -56,28 +55,13 @@ describe("EventController async update finalization", () => {
 	});
 
 	function createFixture() {
-		const chatContainer = new TranscriptContainer();
 		const pendingTools = new Map<string, ToolExecutionComponent>();
-		const ctx = {
-			isInitialized: true,
-			init: vi.fn(async () => {}),
-			ui: { requestRender: vi.fn(), requestComponentRender: vi.fn() },
-			statusLine: { invalidate: vi.fn(), markActivityStart: vi.fn(), markActivityEnd: vi.fn() },
-			updateEditorTopBorder: vi.fn(),
-			toolOutputExpanded: false,
-			transcriptMessageComponents: new WeakMap(),
+		const ctx = createInteractiveModeContext({
 			pendingTools,
-			chatContainer,
-			session: { getToolByName: () => undefined, hasBuiltInTool: () => true, isStreaming: true },
-			showWarning: vi.fn(),
-			viewSession: { getToolByName: () => undefined, hasBuiltInTool: () => true, isStreaming: false },
-			sessionManager: { getCwd: () => process.cwd() },
-			setTodos: vi.fn(),
-			clearPinnedError: vi.fn(),
-			statusContainer: { disposeChildren: vi.fn() },
-			ensureLoadingAnimation: vi.fn(),
-		} as unknown as InteractiveModeContext;
-		return { controller: new EventController(ctx), pendingTools, chatContainer, ctx };
+			session: { isStreaming: true },
+			viewSession: { isStreaming: false },
+		});
+		return { controller: new EventController(ctx), pendingTools, chatContainer: ctx.chatContainer, ctx };
 	}
 
 	async function startTask(controller: EventController, pendingTools: Map<string, ToolExecutionComponent>) {

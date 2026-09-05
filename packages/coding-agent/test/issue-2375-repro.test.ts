@@ -18,7 +18,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
+import { $which } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { chipLabel } from "@linxiraos/zeta/modes/composer-attachments";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
@@ -35,6 +37,7 @@ const ONE_PX_PNG = Buffer.from(
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
 	"base64",
 );
+const hasFfmpeg = Boolean($which("ffmpeg") && $which("ffprobe"));
 
 function createContext() {
 	const pasteText = vi.fn();
@@ -183,5 +186,42 @@ describe("InputController.handleImagePathPaste (issue #2375)", () => {
 		expect(spies.pasteText).not.toHaveBeenCalled();
 		expect(ctx.editor.pendingImages.length).toBe(1);
 		expect(ctx.editor.pendingImages[0]?.mimeType).toBe("image/png");
+	});
+
+	it.skipIf(!hasFfmpeg)("locally: attaches a pasted video as a preview image", async () => {
+		const { ctx, spies } = createContext();
+		const controller = new InputController(ctx, EMPTY_CLIPBOARD);
+		const video = path.join(os.tmpdir(), `issue-2375-video-${Math.random().toString(36).slice(2)}.mp4`);
+		const process = Bun.spawn([
+			"ffmpeg",
+			"-hide_banner",
+			"-loglevel",
+			"error",
+			"-y",
+			"-f",
+			"lavfi",
+			"-i",
+			"testsrc=duration=1:size=320x240:rate=30",
+			"-pix_fmt",
+			"yuv420p",
+			"-c:v",
+			"libx264",
+			video,
+		]);
+		try {
+			expect(await process.exited).toBe(0);
+
+			await controller.handleImagePathPaste(video);
+		} finally {
+			await Bun.file(video)
+				.delete()
+				.catch(() => {});
+		}
+
+		expect(spies.pasteText).not.toHaveBeenCalled();
+		expect(spies.showStatus).not.toHaveBeenCalled();
+		expect(ctx.editor.pendingImages).toHaveLength(1);
+		expect(ctx.editor.pendingImages[0]?.mimeType).toBe("image/png");
+		expect(spies.insertAtom).toHaveBeenCalledWith(chipLabel("video", 1), "[Video #1, 960x480]");
 	});
 });

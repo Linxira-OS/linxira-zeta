@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- v18.1.10 sync baseline (compaction and tool-arg stream updates).
 ## [1.1.8] - 2026-09-04
 
 - OMP sync v18.1.2–v18.1.5: Agent Hub activity stream groundwork, declarative provider auth registry, and tool-roster notice plumbing shared with the session layer.
@@ -21,11 +22,6 @@
 - 同步上游 OMP v18.0.5 / v18.0.6（内部运行时与构建改进）。
 
 ## [1.1.1] - 2026-08-25
-
-### Fixed
-
-- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
-
 ## [1.1.0] - 2026-08-25
 
 ### Changed

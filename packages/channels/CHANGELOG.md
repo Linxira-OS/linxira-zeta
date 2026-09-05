@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- v18.1.10 sync baseline; channel tools remain top-level-session only.
 ## [1.1.8] - 2026-09-04
 
 - OMP sync v18.1.2–v18.1.5: channel forwarding task-depth guard and channel tool surface alignment.

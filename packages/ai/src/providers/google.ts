@@ -8,6 +8,7 @@ import {
 	type GoogleSharedStreamOptions,
 	streamGoogleGenAI,
 } from "./google-shared";
+import { applyInferenceHeaders } from "./inference-headers";
 
 export type GoogleOptions = GoogleSharedStreamOptions;
 
@@ -41,6 +42,11 @@ export const streamGoogle: StreamFunction<"google-generative-ai"> = (
 				...model.headers,
 				...options?.headers,
 			};
+			applyInferenceHeaders(headers, {
+				provider: model.provider,
+				protocol: "google",
+				sessionId: options?.sessionId ?? options?.promptCacheKey,
+			});
 			return { params, url, headers, fetch: options?.fetch };
 		},
 	});

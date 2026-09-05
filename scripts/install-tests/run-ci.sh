@@ -135,7 +135,7 @@ cp "$natives_pkg_backup" "$ROOT_DIR/packages/natives/package.json"
 # 3. Pack the remaining workspace packages (natives core and coding-agent
 #    handled separately). `collab-web` is private but still packed here so its
 #    prepack build and tarball file list stay release-safe.
-for pkg in utils wire omptype hashline catalog channels ai mnemopi snapcompact agent tui stats collab-web; do
+for pkg in utils wire omptype catalog channels ai mnemopi snapcompact agent tui stats collab-web; do
    (
       cd "$ROOT_DIR/packages/$pkg"
       bun pm pack --destination "$TARBALL_DIR" --quiet >/dev/null
@@ -163,7 +163,6 @@ wire_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-wire-*.tgz)"
 omptype_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-omptype-*.tgz)"
 natives_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-natives-[0-9]*.tgz)"
 natives_leaf_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-natives-"$host_tag"-*.tgz)"
-hashline_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-hashline-*.tgz)"
 catalog_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-catalog-*.tgz)"
 ai_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-ai-*.tgz)"
 mnemopi_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-mnemopi-*.tgz)"
@@ -190,7 +189,6 @@ mkdir -p "$TARBALL_APP_DIR"
 			'@linxiraos/pi-omptype': '$omptype_tgz',
 			'@linxiraos/pi-natives': '$natives_tgz',
 			'@linxiraos/pi-natives-$host_tag': '$natives_leaf_tgz',
-			'@linxiraos/pi-hashline': '$hashline_tgz',
 			'@linxiraos/pi-ai': '$ai_tgz',
 			'@linxiraos/pi-catalog': '$catalog_tgz',
 			'@linxiraos/pi-mnemopi': '$mnemopi_tgz',
@@ -204,7 +202,7 @@ mkdir -p "$TARBALL_APP_DIR"
 		require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 	"
 
-   bun add "$utils_tgz" "$wire_tgz" "$omptype_tgz" "$natives_tgz" "$hashline_tgz" "$catalog_tgz" "$ai_tgz" "$mnemopi_tgz" "$snapcompact_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$coding_agent_tgz" "$collab_web_tgz"
+   bun add "$utils_tgz" "$wire_tgz" "$omptype_tgz" "$natives_tgz" "$catalog_tgz" "$ai_tgz" "$mnemopi_tgz" "$snapcompact_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$coding_agent_tgz" "$collab_web_tgz"
    # The platform leaf must arrive through the core's optionalDependencies +
    # override, not as a direct dependency — assert it landed before smoking so a
    # resolution regression is distinguishable from a runtime loader bug.
@@ -219,7 +217,7 @@ mkdir -p "$TARBALL_APP_DIR"
       exit 1
    }
    omptype_probe="$(bun -e '
-import { type } from "@linxiraos/pi-omptype";
+      import { type } from "@linxiraos/pi-omptype";
       import { Type } from "@linxiraos/pi-omptype/typebox";
       import { z } from "@linxiraos/pi-omptype/zod";
       const root = type({ name: "string", enabled: "boolean = false" }).assert({ name: "omp" });
@@ -227,7 +225,7 @@ import { type } from "@linxiraos/pi-omptype";
       const zod = z.object({ name: z.string() }).parse({ name: "z" });
       process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}:${zod.name}`);
    ')"
-[ "$omptype_probe" = "omp:false:tb:z" ] || {
+   [ "$omptype_probe" = "omp:false:tb:z" ] || {
       echo "Unexpected @linxiraos/pi-omptype probe result: $omptype_probe"
       exit 1
    }

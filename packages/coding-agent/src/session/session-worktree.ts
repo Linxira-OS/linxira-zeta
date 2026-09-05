@@ -5,14 +5,14 @@
  *
  * The worktree is created through the clone-first path (`worktree.clone`,
  * `isolation.backend`) and lands under the agent-managed worktree base
- * (`worktree.base`, default `~/.omp/wt`) next to `github pr_checkout` trees,
+ * (`worktree.base`, default `~/.zeta/wt`) next to `github pr_checkout` trees,
  * so `omp worktree list|clear` sees it.
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { IsoBackendKind } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { getWorktreeDir, hashPath } from "@linxiraos/pi-utils";
+import { getWorktreeDir, hashPath, logger } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree";
 import { resolveAvailableWorktreePath } from "../tools/gh-pr-checkout";
@@ -35,17 +35,49 @@ export function defaultSessionWorktreeBranch(now = new Date()): string {
 }
 
 /** One-line confirmation shown after the session moved into `worktree`. */
-export function formatSessionWorktreeSummary(worktree: SessionWorktree): string {
+export function formatSessionWorktreeSummary(worktree: SessionWorktree, sourceCleaned = false): string {
 	const how =
 		worktree.clonedWith === undefined ? "checked out" : `cloned via ${formatIsolationBackend(worktree.clonedWith)}`;
-	return `Moved to worktree ${worktree.path} on branch ${worktree.branch} (${how}, uncommitted changes carried over).`;
+	const changeStatus = sourceCleaned
+		? "uncommitted changes moved, source checkout cleaned"
+		: "uncommitted changes carried over";
+	return `Moved to worktree ${worktree.path} on branch ${worktree.branch} (${how}, ${changeStatus}).`;
 }
 
+/**
+ * If `worktree.cleanSource` is enabled, resets and cleans the source checkout.
+ * Catches git errors and returns `{ cleaned: true }` on success, or `{ cleaned: false, errorMessage }` on failure.
+ */
+export async function cleanSourceCheckoutIfConfigured(
+	sourceCwd: string,
+	settings: Settings,
+): Promise<{ cleaned: boolean; errorMessage?: string }> {
+	if (!settings.get("worktree.cleanSource")) {
+		return { cleaned: false };
+	}
+	try {
+		const repository = vcs.requireGit(sourceCwd);
+		await repository.reset("hard", "HEAD");
+		await repository.clean({});
+		return { cleaned: true };
+	} catch (error) {
+		logger.warn("failed to clean source checkout after /wt", { cwd: sourceCwd, error });
+		return {
+			cleaned: false,
+			errorMessage: error instanceof Error ? error.message : String(error),
+		};
+	}
+}
 /**
  * Create the worktree for `/wt`. Throws with a user-facing message when `cwd`
  * is not a git checkout, `branch` already exists, or git refuses.
  */
 export async function createSessionWorktree(cwd: string, settings: Settings, branch: string): Promise<SessionWorktree> {
+	try {
+		await settings.flush();
+	} catch (err) {
+		throw new Error(`Failed to save pending settings: ${err instanceof Error ? err.message : String(err)}`);
+	}
 	const repository = vcs.git(cwd);
 	if (!repository) {
 		throw new Error(`Not inside a git repository: ${cwd}`);

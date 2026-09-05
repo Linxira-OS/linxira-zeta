@@ -7,7 +7,7 @@ import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
 import type { Text } from "@linxiraos/pi-tui";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { canonicalSnapshotKey } from "@linxiraos/zeta/edit/file-snapshot-store";
+import { getEditStore } from "@linxiraos/zeta/edit/store";
 import type { RenderResultOptions } from "@linxiraos/zeta/extensibility/custom-tools/types";
 import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
 import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
@@ -240,11 +240,8 @@ describe("tool path arrays", () => {
 		const tag = /^# apps\/\n## grep\.txt#([0-9A-F]{4})/m.exec(text)?.[1];
 		if (!tag) throw new Error("Missing search snapshot tag");
 
-		const snapshot = session.fileSnapshotStore?.byHash(
-			canonicalSnapshotKey(path.join(tempDir, "apps", "grep.txt")),
-			tag,
-		);
-		expect(snapshot?.text).toBe("shared-needle apps\n");
+		const snapshot = getEditStore(session).byHashText(path.join(tempDir, "apps", "grep.txt"), tag);
+		expect(snapshot).toBe("shared-needle apps\n");
 	});
 
 	it("search accepts a single string path through tool validation", async () => {

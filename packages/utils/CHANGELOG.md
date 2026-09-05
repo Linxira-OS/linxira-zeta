@@ -2,11 +2,8 @@
 
 ## [Unreleased]
 
+- USER_AGENT constant restored to zeta/<version> (the v18.1.10 merge re-introduced the upstream omp/ UA on every provider request); brand wording in path-resolver docs corrected; profile validation error message Zeta'd.
 ## [1.1.8] - 2026-09-04
-
-- Added `symlinkDirectorySync` — Windows-correct directory links (junction) for tests and tooling that must link temp trees without elevation.
-- Extended the temp-removal retry window to 7.5s: measured Windows handle-release latency after a child process dies reaches ~5s, and the previous 2s window flaked suites cleaning up trees containing SQLite databases.
-
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。

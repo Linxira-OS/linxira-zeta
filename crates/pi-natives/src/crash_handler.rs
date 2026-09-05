@@ -276,7 +276,7 @@ fn resolve_logs_dir(
 	config_dir_override: Option<&OsStr>,
 	xdg_state_logs: Option<PathBuf>,
 ) -> PathBuf {
-	// XDG takes precedence so users who migrated to `$XDG_STATE_HOME/omp/logs/`
+	// XDG takes precedence so users who migrated to `$XDG_STATE_HOME/zeta/logs/`
 	// see native crash reports in the same directory the JS logger rotates.
 	if let Some(p) = xdg_state_logs {
 		return p;

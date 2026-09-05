@@ -1,5 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, TUI, visibleWidth } from "@linxiraos/pi-tui";
+import {
+	type Component,
+	type TerminalFramePlan,
+	type TerminalFrameProvider,
+	TUI,
+	type ViewportSize,
+	visibleWidth,
+} from "@linxiraos/pi-tui";
+import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 
 class AppendableLines implements Component {
@@ -126,6 +134,147 @@ describe("TUI sidebar gutter", () => {
 				expect(line).toContain("ALT");
 				expect(line).not.toContain("GTR");
 			}
+		} finally {
+			tui.stop();
+		}
+	});
+});
+
+/** Frame provider that records the width of every composed frame. */
+class RecordingProvider implements TerminalFrameProvider {
+	readonly widths: number[] = [];
+	replayCount = 0;
+
+	renderFrame(viewport: ViewportSize): TerminalFramePlan {
+		this.widths.push(viewport.columns);
+		return { viewport: [`MAIN@${viewport.columns}`, "editor"] };
+	}
+
+	acknowledgeHistory(): void {}
+
+	beginHistoryReplay(): void {
+		this.replayCount++;
+	}
+}
+
+/** Virtual terminal that also records raw write sequences. */
+class RecordingTerminal extends VirtualTerminal {
+	readonly writes: string[] = [];
+
+	override write(data: string): void {
+		this.writes.push(data);
+		super.write(data);
+	}
+}
+
+interface GutterFixture {
+	term: RecordingTerminal;
+	provider: RecordingProvider;
+	gutter: MutableGutter;
+	tui: TUI;
+	scheduler: VirtualRenderScheduler;
+}
+
+/** Frame-provider TUI at 120x24 with a 36-column sidebar reservation already applied. */
+function providerFixture(): GutterFixture {
+	const term = new RecordingTerminal(120, 24);
+	const provider = new RecordingProvider();
+	const gutter = new MutableGutter();
+	gutter.rows = gutterRows(24, "GTR");
+	const scheduler = new VirtualRenderScheduler();
+	const tui = new TUI(term, undefined, { renderScheduler: scheduler });
+	// Append mode makes resize replay observable as provider.beginHistoryReplay
+	// calls (production's rebuild mode resets destructively instead).
+	tui.setResizeScrollback("append");
+	// Wire the sidebar before the provider so the first frame already composes
+	// at the narrowed main width.
+	tui.setMainWidth(36);
+	tui.setGutterComponent(gutter);
+	tui.setFrameProvider(provider);
+	return { term, provider, gutter, tui, scheduler };
+}
+
+describe("TUI sidebar gutter (frame-provider path)", () => {
+	it("composes the provider frame at the main width and paints the gutter column beside it", async () => {
+		const { term, provider, tui, scheduler } = providerFixture();
+		try {
+			await scheduler.settle(term);
+			// 120 physical - 36 gutter = 84: the provider never sees the gutter columns.
+			expect(provider.widths).toEqual([84]);
+
+			// The gutter write is absolute-positioned at column mainWidth+1 = 85,
+			// in its own write after the frame block.
+			const gutterWrite = term.writes.find(write => write.includes("\x1b[1;85H"));
+			expect(gutterWrite).toBeDefined();
+			expect(gutterWrite).toContain("GTR00");
+
+			// On screen: main content left, gutter right.
+			const rows = term.getViewport().filter(line => line.includes("MAIN@84"));
+			expect(rows.length).toBeGreaterThan(0);
+			for (const line of rows) {
+				expect(line.trimEnd()).toContain("GTR");
+			}
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("restores full provider width and clears the right edge while an overlay is up", async () => {
+		const { term, provider, tui, scheduler } = providerFixture();
+		try {
+			await scheduler.settle(term);
+			const overlay = tui.showOverlay({ render: () => ["DIALOG"] });
+			await scheduler.settle(term);
+			expect(provider.widths.at(-1)).toBe(120);
+			for (const line of term.getViewport()) {
+				expect(line).not.toContain("GTR");
+				expect(line).not.toContain("MAIN@84");
+			}
+			expect(term.getViewport().some(line => line.includes("DIALOG"))).toBe(true);
+
+			overlay.hide();
+			await scheduler.settle(term);
+			expect(provider.widths.at(-1)).toBe(84);
+			expect(term.getViewport().some(line => line.includes("GTR"))).toBe(true);
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("re-offers history and restores full width when the sidebar is disabled", async () => {
+		const { term, provider, tui, scheduler } = providerFixture();
+		try {
+			await scheduler.settle(term);
+			// The pre-start reservation never replayed: no scrollback existed yet.
+			expect(provider.replayCount).toBe(0);
+
+			tui.setMainWidth(null);
+			await scheduler.settle(term);
+			expect(provider.replayCount).toBe(1);
+			expect(provider.widths.at(-1)).toBe(120);
+			for (const line of term.getViewport()) {
+				expect(line).not.toContain("GTR");
+			}
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("dedups resize replay on physical width: a height-only resize must not re-offer history", async () => {
+		const { term, provider, tui, scheduler } = providerFixture();
+		try {
+			await scheduler.settle(term);
+			term.resize(120, 30);
+			tui.requestRender();
+			await scheduler.settle(term);
+			expect(provider.replayCount).toBe(0);
+			expect(provider.widths.at(-1)).toBe(84);
+
+			term.resize(140, 30);
+			tui.requestRender();
+			await scheduler.settle(term);
+			expect(provider.replayCount).toBe(1);
+			expect(provider.widths.at(-1)).toBe(104);
 		} finally {
 			tui.stop();
 		}

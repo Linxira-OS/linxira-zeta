@@ -650,7 +650,7 @@ export class AcpAgent implements Agent {
 		return {
 			protocolVersion: PROTOCOL_VERSION,
 			agentInfo: {
-				name: "oh-my-pi",
+				name: "zeta",
 				title: "Oh My Pi",
 				version: VERSION,
 			},

@@ -7,6 +7,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "@linxiraos/pi-tui";
+import { M } from "../../../i18n";
 import {
 	enableAutoTheme,
 	getAvailableThemes,
@@ -65,7 +66,7 @@ function renderMockEditor(width: number): string[] {
 	const horizontal = box.horizontal.repeat(innerWidth);
 	const top = theme.fg("borderAccent", `${box.topLeft}${horizontal}${box.topRight}`);
 	const bottom = theme.fg("borderMuted", `${box.bottomLeft}${horizontal}${box.bottomRight}`);
-	const prompt = `${theme.fg("accent", ">")} ${theme.fg("text", "Ask anything, edit files, run tools")}${theme.inverse(" ")}`;
+	const prompt = `${theme.fg("accent", ">")} ${theme.fg("text", M.setupThemeMockPrompt)}${theme.inverse(" ")}`;
 	const hint = theme.fg("dim", "enter send · shift+enter newline · / commands");
 	return [
 		top,

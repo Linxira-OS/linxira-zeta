@@ -25,7 +25,7 @@ import {
 	type SubmenuOption,
 	TAB_GROUPS,
 } from "../../config/settings-schema";
-import { ZH_SETTING_TEXTS } from "../../config/settings-zh";
+import { ZH_OPTION_TEXTS, ZH_SETTING_TEXTS } from "../../config/settings-zh";
 import { currentLanguage } from "../../i18n";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -260,6 +260,14 @@ export function getAllSettingDefs(): SettingDef[] {
 			if (zh) {
 				if (zh.label) def.label = zh.label;
 				if (zh.description !== undefined) def.description = zh.description;
+			}
+			if (def.type === "submenu" || def.type === "multiselect") {
+				def.options = def.options.map(option => {
+					const texts = ZH_OPTION_TEXTS[`${def.path}::${option.value}`];
+					return texts
+						? { ...option, label: texts.label, description: texts.description ?? option.description }
+						: option;
+				});
 			}
 		}
 	}

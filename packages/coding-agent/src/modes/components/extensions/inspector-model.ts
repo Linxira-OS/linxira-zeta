@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { arkToWireSchema, isArkSchema } from "@linxiraos/pi-ai/utils/schema";
 import { CONFIG_DIR_NAME, normalizePathForComparison, parseFrontmatter } from "@linxiraos/pi-utils";
-import { parseRuleConditionAndScope } from "../../../capability/rule";
+import { parseRuleAgents, parseRuleConditionAndScope } from "../../../capability/rule";
 import { slashCommandFrontmatterDisplay } from "../../../capability/slash-command";
 import { isFilesystemSourcePath } from "../../../tools/path-utils";
 import {
@@ -248,7 +248,7 @@ function pathSegments(filePath: string): string[] {
 	return normalized.split(flavor.sep).filter(part => part.length > 0 && part !== ".");
 }
 
-/** Project-local items only. Uses the directory that contains `.omp`, when present. */
+/** Project-local items only. Uses the directory that contains `.zeta`, when present. */
 export function projectListHint(ext: Extension): string | undefined {
 	if (ext.source.level !== "project") return undefined;
 	const parts = pathSegments(ext.path);
@@ -340,6 +340,7 @@ export function ruleInspectorData(ext: Extension): {
 	condition?: string[];
 	astCondition?: string[];
 	scope?: string[];
+	agents?: string[];
 	interruptMode?: string;
 	content: string;
 	runtimeDetail?: string;
@@ -352,6 +353,7 @@ export function ruleInspectorData(ext: Extension): {
 		astCondition: stringArray(raw.astCondition) ?? stringField(raw, "astCondition"),
 		scope: stringArray(raw.scope) ?? stringField(raw, "scope"),
 	});
+	const agents = parseRuleAgents(raw.agents);
 	const interruptMode = stringField(raw, "interruptMode");
 	const content = stringField(raw, "content") ?? "";
 	return {
@@ -361,6 +363,7 @@ export function ruleInspectorData(ext: Extension): {
 		condition: parsed.condition,
 		astCondition: parsed.astCondition,
 		scope: parsed.scope,
+		agents,
 		interruptMode,
 		content,
 		runtimeDetail: ext.trigger,

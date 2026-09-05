@@ -711,6 +711,13 @@ export class TUI extends Container {
 	#previousFrameLength = 0;
 	#previousWidth = 0;
 	#previousHeight = 0;
+	/**
+	 * Physical terminal width of the last provider frame. `#previousWidth`
+	 * tracks the composed (main-area) width once a sidebar reservation is
+	 * active, while scrollback reflow follows the terminal's own wrap width —
+	 * resize-replay dedup must compare physical to physical.
+	 */
+	#previousPhysicalWidth = 0;
 	#focusedComponent: Component | null = null;
 	#debugServer: TuiDebugServer | undefined;
 	#debugPaint:
@@ -905,6 +912,17 @@ export class TUI extends Container {
 		const next = width !== null && Number.isInteger(width) && width > 0 ? width : null;
 		if (this.#mainWidthOverride === next) return;
 		this.#mainWidthOverride = next;
+		// The composed row width changes, so already-committed scrollback would
+		// sit shredded at the old width. Re-offer finalized history and force a
+		// full viewport repaint on the next frame, mirroring the settled-resize
+		// replay in #prepareResizeReplay.
+		if (this.#hasEverRendered) {
+			const provider = this.#frameProvider;
+			if (provider?.beginHistoryReplay) {
+				provider.beginHistoryReplay();
+				this.#forceViewportRepaintOnNextRender = true;
+			}
+		}
 		this.requestRender();
 	}
 
@@ -2357,14 +2375,14 @@ export class TUI extends Container {
 		const coalesced = coalesceAdjacentSgr(line);
 		return coalesced + (line.includes("\x1b]8;") ? LINE_TERMINATOR : SEGMENT_RESET);
 	}
-	#renderProviderFrame(width: number, height: number): void {
+	#renderProviderFrame(mainWidth: number, rawWidth: number, height: number): void {
 		const provider = this.#frameProvider;
-		if (!provider || width <= 0 || height <= 0) return;
+		if (!provider || mainWidth <= 0 || height <= 0) return;
 		this.#debugNextWindowTop = 0;
 		let plan: TerminalFramePlan;
 		do {
 			this.#imageBudget.beginPass();
-			plan = provider.renderFrame({ columns: width, rows: height });
+			plan = provider.renderFrame({ columns: mainWidth, rows: height });
 		} while (this.#imageBudget.endPass());
 		let viewport = Array.from(plan.viewport);
 		if (viewport.length > height) {
@@ -2374,7 +2392,36 @@ export class TUI extends Container {
 			viewport = viewport.slice(0, height);
 		}
 		if (this.#maybeDeferGhosttyInitialImagePaint()) return;
-		this.#emitPlanFrame(width, height, viewport, plan.history, provider);
+		this.#emitPlanFrame(mainWidth, height, viewport, plan.history, provider);
+		this.#previousPhysicalWidth = rawWidth;
+		this.#paintGutter(mainWidth, rawWidth, height, viewport.length);
+	}
+
+	/**
+	 * Paint (or clear) the right-hand gutter column after a frame's content
+	 * block, inside the same synchronous paint. Content is composed at
+	 * `mainWidth`, so absolute-positioned gutter writes at column `mainWidth + 1`
+	 * compose with it without touching the frame or scrollback. The gutter
+	 * component composes into the column width it owns (`rawWidth - mainWidth`).
+	 * When no gutter applies this frame — component cleared, or an overlay frame
+	 * composing at full width — a previously painted gutter is erased row by row.
+	 */
+	#paintGutter(mainWidth: number, rawWidth: number, height: number, viewportRows: number): void {
+		const gutter = this.#gutterComponent && mainWidth < rawWidth ? this.#gutterComponent : null;
+		if (gutter) {
+			const rows = gutter.render(rawWidth - mainWidth);
+			const seq = this.#gutterPaintSequence(rows, rawWidth - mainWidth, mainWidth, viewportRows, 0);
+			if (seq) this.terminal.write(seq);
+			this.#paintedGutterRows = rows;
+		} else if (this.#paintedGutterRows !== null) {
+			// Gutter removed: clear the margin column once via absolute EL per row.
+			const col = mainWidth + 1;
+			let seq = "";
+			for (let row = 0; row < height; row++) seq += `\x1b[${row + 1};${col}H\x1b[K`;
+			seq += "\x1b[H";
+			this.terminal.write(seq);
+			this.#paintedGutterRows = null;
+		}
 	}
 	/**
 	 * Re-offer finalized history once after a settled resize.
@@ -2395,7 +2442,7 @@ export class TUI extends Container {
 		const size = `${width}x${height}`;
 		if (
 			!this.#hasEverRendered ||
-			(this.#previousWidth === width && this.#previousHeight === height) ||
+			(this.#previousPhysicalWidth === width && this.#previousHeight === height) ||
 			this.#resizeReplaySize === size ||
 			this.#resizeScrollbackMode === "preserve"
 		) {
@@ -2412,7 +2459,7 @@ export class TUI extends Container {
 			this.#prepareForcedRender(true);
 			return;
 		}
-		if (width === this.#previousWidth) return;
+		if (width === this.#previousPhysicalWidth) return;
 		provider.beginHistoryReplay();
 		this.#forceViewportRepaintOnNextRender = true;
 	}
@@ -2724,8 +2771,11 @@ export class TUI extends Container {
 			return;
 		}
 		if (this.#frameProvider !== undefined) {
+			const mainWidth = this.#effectiveMainWidth(width);
+			// Physical size keys: scrollback reflow follows the terminal's wrap
+			// width, not the composed main-area width.
 			this.#prepareResizeReplay(width, height);
-			this.#renderProviderFrame(width, height);
+			this.#renderProviderFrame(mainWidth, width, height);
 			return;
 		}
 		this.#renderChildrenFrame(width, this.#effectiveMainWidth(width), height);
@@ -2737,7 +2787,6 @@ export class TUI extends Container {
 	 * mutable viewport. Nothing is ever appended to terminal history.
 	 */
 	#renderChildrenFrame(rawWidth: number, width: number, height: number): void {
-		const gutter = this.#gutterComponent && width < rawWidth ? this.#gutterComponent : null;
 		let composed: readonly string[];
 		do {
 			this.#imageBudget.beginPass();
@@ -2747,22 +2796,7 @@ export class TUI extends Container {
 		this.#debugNextWindowTop = Math.max(0, composed.length - height);
 		const viewport = composed.length > height ? composed.slice(composed.length - height) : Array.from(composed);
 		this.#emitPlanFrame(width, height, viewport, undefined, undefined);
-		if (gutter) {
-			const rows = gutter.render(width);
-			// Paint the freed right margin after the frame block: absolute-positioned
-			// writes at column width+1 never touch the composed frame or scrollback.
-			const seq = this.#gutterPaintSequence(rows, rawWidth - width, width, viewport.length, 0);
-			if (seq) this.terminal.write(seq);
-			this.#paintedGutterRows = rows;
-		} else if (this.#paintedGutterRows !== null) {
-			// Gutter removed: clear the margin column once via absolute EL per row.
-			const col = width + 1;
-			let seq = "";
-			for (let row = 0; row < height; row++) seq += `\x1b[${row + 1};${col}H\x1b[K`;
-			seq += "\x1b[H";
-			this.terminal.write(seq);
-			this.#paintedGutterRows = null;
-		}
+		this.#paintGutter(width, rawWidth, height, viewport.length);
 	}
 
 	/** Stateless variant for overlay-composited windows and alt-screen frames. */

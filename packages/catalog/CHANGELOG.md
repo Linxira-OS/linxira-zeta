@@ -2,11 +2,8 @@
 
 ## [Unreleased]
 
+- v18.1.10 sync baseline; retired pi-hashline catalog entry removed from the version-line catalogs.
 ## [1.1.8] - 2026-09-04
-
-- OMP sync v18.1.2–v18.1.5: declarative KDL auth contract compiler (`@bgotink/kdl` now a devDependency), provider auth definitions, and model-policy rule updates.
-- Restored the biome toolchain for catalog scripts after the v18.1.5 merge briefly adopted the upstream oxlint/oxfmt configuration.
-
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。

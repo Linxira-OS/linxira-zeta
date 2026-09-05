@@ -8,7 +8,6 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
-import { formatHashlineHeader, stripHashlinePrefixes } from "@linxiraos/pi-hashline";
 import { type } from "@linxiraos/pi-omptype";
 import { type Component, Text } from "@linxiraos/pi-tui";
 import { isEnoent, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
@@ -20,8 +19,8 @@ import {
 	readArchiveEntries,
 	writeArchive,
 } from "@linxiraos/pi-utils/ar";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
+import { getEditStore } from "../edit/store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { InternalUrlRouter } from "../internal-urls";
 import { parseInternalUrl } from "../internal-urls/parse";
@@ -48,6 +47,7 @@ import {
 	spliceConflict,
 } from "./conflict-detect";
 import { invalidateFsScanAfterWrite } from "./fs-cache-invalidation";
+import { formatHashlineHeader, stripHashlinePrefixes } from "./hashline-format";
 import { type OutputMeta, outputMeta } from "./output-meta";
 import {
 	formatPathRelativeToCwd,
@@ -329,9 +329,10 @@ export interface WriteToolDetails {
  * line-number prefixes (for example legacy or malformed hashline echoes).
  */
 function stripWriteContentWithPotentialLooseHeader(lines: string[]): { text: string; stripped: boolean } {
-	const cleaned = stripHashlinePrefixes(lines);
-	if (cleaned !== lines) {
-		return { text: cleaned.join("\n"), stripped: true };
+	const originalText = lines.join("\n");
+	const cleanedText = stripHashlinePrefixes(lines).join("\n");
+	if (cleanedText !== originalText) {
+		return { text: cleanedText, stripped: true };
 	}
 
 	const headerIndex = lines.findIndex(line => line.trim().length > 0);
@@ -340,11 +341,12 @@ function stripWriteContentWithPotentialLooseHeader(lines: string[]): { text: str
 	}
 
 	const linesWithoutHeader = lines.slice(0, headerIndex).concat(lines.slice(headerIndex + 1));
-	const cleanedWithoutHeader = stripHashlinePrefixes(linesWithoutHeader);
-	if (cleanedWithoutHeader === linesWithoutHeader) {
-		return { text: lines.join("\n"), stripped: false };
+	const textWithoutHeader = linesWithoutHeader.join("\n");
+	const cleanedWithoutHeader = stripHashlinePrefixes(linesWithoutHeader).join("\n");
+	if (cleanedWithoutHeader === textWithoutHeader) {
+		return { text: originalText, stripped: false };
 	}
-	return { text: cleanedWithoutHeader.join("\n"), stripped: true };
+	return { text: cleanedWithoutHeader, stripped: true };
 }
 
 /**
@@ -376,7 +378,7 @@ function stripWriteContent(session: ToolSession, content: string): { text: strin
 function maybeWriteSnapshotHeader(session: ToolSession, absolutePath: string, content: string): string | undefined {
 	if (!resolveFileDisplayMode(session).hashLines) return undefined;
 	const normalized = normalizeToLF(content);
-	const tag = getFileSnapshotStore(session).record(canonicalSnapshotKey(absolutePath), normalized, []);
+	const tag = getEditStore(session).recordSnapshot(absolutePath, normalized, []);
 	return formatHashlineHeader(formatPathRelativeToCwd(absolutePath, session.cwd), tag);
 }
 
@@ -861,7 +863,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 		await writethroughNoop(absolutePath, newContent, signal);
 		invalidateFsScanAfterWrite(absolutePath);
 		this.session.bumpFileMutationVersion?.(absolutePath);
-		this.session.fileSnapshotStore?.invalidate(absolutePath);
+		getEditStore(this.session).invalidate(absolutePath);
 		const history = this.session.conflictHistory;
 		history?.invalidate(entry.id);
 		if (history) {
@@ -1040,7 +1042,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 			await writethroughNoop(absolutePath, text, signal);
 			invalidateFsScanAfterWrite(absolutePath);
 			this.session.bumpFileMutationVersion?.(absolutePath);
-			this.session.fileSnapshotStore?.invalidate(absolutePath);
+			getEditStore(this.session).invalidate(absolutePath);
 			for (const entry of resolvedEntries) history.invalidate(entry.id);
 			for (const entry of staleEntries) history.invalidate(entry.id);
 			const header = maybeWriteSnapshotHeader(this.session, absolutePath, text);

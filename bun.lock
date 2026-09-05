@@ -1,5 +1,5 @@
 {
-  "lockfileVersion": 2,
+  "lockfileVersion": 1,
   "configVersion": 1,
   "workspaces": {
     "": {
@@ -43,6 +43,7 @@
       "version": "1.1.8",
       "dependencies": {
         "@linxiraos/pi-catalog": "catalog:",
+        "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/pi-omptype": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
         "@linxiraos/pi-wire": "catalog:",
@@ -98,7 +99,6 @@
         "@linxiraos/pi-agent-core": "catalog:",
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
-        "@linxiraos/pi-hashline": "catalog:",
         "@linxiraos/pi-mnemopi": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/pi-omptype": "catalog:",
@@ -145,17 +145,6 @@
         "@types/react-dom": "catalog:",
       },
     },
-    "packages/hashline": {
-      "name": "@linxiraos/pi-hashline",
-      "version": "1.1.8",
-      "dependencies": {
-        "@linxiraos/pi-natives": "catalog:",
-        "@linxiraos/pi-utils": "catalog:",
-      },
-      "devDependencies": {
-        "@types/bun": "catalog:",
-      },
-    },
     "packages/metaharness": {
       "name": "@linxiraos/pi-metaharness",
       "version": "0.0.1",
@@ -166,7 +155,6 @@
         "@linxiraos/pi-agent-core": "catalog:",
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
-        "@linxiraos/pi-hashline": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
         "@linxiraos/typescript-edit-benchmark": "workspace:*",
@@ -304,7 +292,6 @@
         "@babel/types": "catalog:",
         "@linxiraos/pi-agent-core": "catalog:",
         "@linxiraos/pi-ai": "catalog:",
-        "@linxiraos/pi-hashline": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/pi-tui": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
@@ -370,7 +357,6 @@
     "@linxiraos/pi-ai": "1.1.8",
     "@linxiraos/pi-catalog": "1.1.8",
     "@linxiraos/pi-channels": "1.1.8",
-    "@linxiraos/pi-hashline": "1.1.8",
     "@linxiraos/pi-mnemopi": "1.1.8",
     "@linxiraos/pi-natives": "1.1.8",
     "@linxiraos/pi-omptype": "1.1.8",
@@ -628,8 +614,6 @@
     "@linxiraos/pi-catalog": ["@linxiraos/pi-catalog@workspace:packages/catalog"],
 
     "@linxiraos/pi-channels": ["@linxiraos/pi-channels@workspace:packages/channels"],
-
-    "@linxiraos/pi-hashline": ["@linxiraos/pi-hashline@workspace:packages/hashline"],
 
     "@linxiraos/pi-metaharness": ["@linxiraos/pi-metaharness@workspace:packages/metaharness"],
 
@@ -1506,8 +1490,6 @@
     "@babel/helper-compilation-targets/semver": ["semver@6.3.1", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA=="],
 
     "@huggingface/transformers/onnxruntime-node": ["onnxruntime-node@1.24.3", "", { "dependencies": { "adm-zip": "^0.5.16", "global-agent": "^3.0.0", "onnxruntime-common": "1.24.3" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-JH7+czbc8ALA819vlTgcV+Q214/+VjGeBHDjX81+ZCD0PCVCIFGFNtT0V4sXG/1JXypKPgScQcB3ij/hk3YnTg=="],
-
-    "@img/sharp-wasm32/@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 
     "@isaacs/fs-minipass/minipass": ["minipass@7.1.3", "", {}, "sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A=="],
 

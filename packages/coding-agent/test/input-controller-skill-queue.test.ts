@@ -24,6 +24,7 @@ import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/ag
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 type StubEditor = {
 	setText: (text: string) => void;
@@ -859,28 +860,12 @@ describe("UiHelpers / InputController against derived queued custom display", ()
 });
 
 function createEventControllerFixture(opts?: { optimisticSkillMessagePending?: boolean }) {
-	const updatePendingMessagesDisplay = vi.fn();
-	const addMessageToChat = vi.fn();
-	const requestRender = vi.fn();
-	const reconcileOptimisticSkillMessage = vi.fn();
-	const ctx = {
-		isInitialized: true,
-		init: vi.fn(async () => {}),
-		ui: { requestRender },
-		statusLine: { invalidate: vi.fn() },
-		updateEditorTopBorder: vi.fn(),
-		addMessageToChat,
-		updatePendingMessagesDisplay,
-		transcriptMessageComponents: new WeakMap(),
-		pendingTools: new Map(),
-		session: {},
+	const ctx = createInteractiveModeContext({
 		optimisticSkillMessagePending: opts?.optimisticSkillMessagePending ?? false,
-		reconcileOptimisticSkillMessage,
-		get viewSession() {
-			return (this as typeof ctx).session;
-		},
-	} as unknown as InteractiveModeContext;
-
+	});
+	const updatePendingMessagesDisplay = vi.spyOn(ctx, "updatePendingMessagesDisplay");
+	const addMessageToChat = vi.spyOn(ctx, "addMessageToChat");
+	const reconcileOptimisticSkillMessage = vi.spyOn(ctx, "reconcileOptimisticSkillMessage");
 	const controller = new EventController(ctx);
 	return { controller, updatePendingMessagesDisplay, addMessageToChat, reconcileOptimisticSkillMessage };
 }

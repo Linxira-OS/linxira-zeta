@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { computeFileHash } from "@linxiraos/pi-hashline";
+import { hashlineFileHash } from "@linxiraos/pi-natives";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
@@ -100,8 +100,8 @@ describe("write tool ACP fs routing", () => {
 		const text = resultText(result);
 
 		expect(await Bun.file(filePath).text()).toBe(persisted);
-		expect(text).toContain(`[formatted.ts#${computeFileHash(persisted)}]`);
-		expect(text).not.toContain(`[formatted.ts#${computeFileHash(requested)}]`);
+		expect(text).toContain(`[formatted.ts#${hashlineFileHash(persisted)}]`);
+		expect(text).not.toContain(`[formatted.ts#${hashlineFileHash(requested)}]`);
 	});
 
 	it("emits a progress snapshot before filesystem writes complete", async () => {

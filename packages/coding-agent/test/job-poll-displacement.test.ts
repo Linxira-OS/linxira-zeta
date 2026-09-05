@@ -14,13 +14,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { Component, TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { ToolExecutionComponent, type ToolExecutionHandle } from "@linxiraos/zeta/modes/components/tool-execution";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 const uiStub = { requestRender() {}, requestComponentRender() {} } as unknown as TUI;
 
@@ -163,24 +162,9 @@ describe("EventController displaces consecutive waiting polls", () => {
 	});
 
 	function createFixture() {
-		const chatContainer = new TranscriptContainer();
-		const children = chatContainer.children;
-		const pendingTools = new Map();
-		const ctx = {
-			isInitialized: true,
-			init: vi.fn(async () => {}),
-			ui: { requestRender: vi.fn() },
-			statusLine: { invalidate: vi.fn() },
-			updateEditorTopBorder: vi.fn(),
-			toolOutputExpanded: false,
-			pendingTools,
-			chatContainer,
-			session: { getToolByName: () => undefined, hasBuiltInTool: () => true },
-			showWarning: vi.fn(),
-			viewSession: { getToolByName: () => undefined, hasBuiltInTool: () => true },
-			sessionManager: { getCwd: () => process.cwd() },
-			setTodos: vi.fn(),
-		} as unknown as InteractiveModeContext;
+		const pendingTools = new Map<string, ToolExecutionHandle>();
+		const ctx = createInteractiveModeContext({ pendingTools });
+		const children = ctx.chatContainer.children;
 		return { controller: new EventController(ctx), children, pendingTools };
 	}
 
@@ -409,31 +393,10 @@ describe("UiHelpers.renderSessionContext collapses repeated todo snapshots", () 
 	});
 
 	it("removes the earlier todo snapshot when an assistant message replays two todo calls", () => {
-		const chatContainer = new TranscriptContainer();
-		const ctx = {
-			chatContainer,
-			transcriptMessageComponents: new WeakMap(),
-			pendingTools: new Map(),
-			ui: { requestRender: vi.fn() },
-			statusLine: { invalidate: vi.fn() },
-			updateEditorBorderColor: vi.fn(),
-			settings: { get: () => false },
-			addMessageToChat: (message: AgentMessage) => helpers.addMessageToChat(message),
-			session: {
-				retryAttempt: 0,
-				getToolByName: () => undefined,
-				hasBuiltInTool: () => true,
-				sessionManager: { getCwd: () => process.cwd() },
-			},
-			get viewSession() {
-				return (this as { session: unknown }).session;
-			},
-			toolOutputExpanded: false,
-			hideThinkingBlock: false,
-			lastAssistantUsage: undefined,
-			clearTransientSessionUi: () => {},
-		} as unknown as InteractiveModeContext;
+		const ctx = createInteractiveModeContext();
+		const chatContainer = ctx.chatContainer;
 		const helpers = new UiHelpers(ctx);
+		ctx.addMessageToChat = helpers.addMessageToChat.bind(helpers);
 
 		const usage = {
 			input: 1,
@@ -485,34 +448,13 @@ describe("UiHelpers.renderSessionContext collapses repeated todo snapshots", () 
 	});
 
 	it("hands the trailing todo snapshot to the controller during mid-turn rebuild", () => {
-		const chatContainer = new TranscriptContainer();
-		const inheritDisplaceableTodo = vi.fn();
-		const ctx = {
-			chatContainer,
-			transcriptMessageComponents: new WeakMap(),
-			pendingTools: new Map(),
-			ui: { requestRender: vi.fn() },
-			statusLine: { invalidate: vi.fn() },
-			updateEditorBorderColor: vi.fn(),
-			settings: { get: () => false },
-			addMessageToChat: (message: AgentMessage) => helpers.addMessageToChat(message),
-			session: {
-				retryAttempt: 0,
-				getToolByName: () => undefined,
-				hasBuiltInTool: () => true,
-				sessionManager: { getCwd: () => process.cwd() },
-				isStreaming: true,
-			},
-			get viewSession() {
-				return (this as { session: unknown }).session;
-			},
-			eventController: { inheritDisplaceableTodo, inheritTurnStart: vi.fn() },
-			toolOutputExpanded: false,
-			hideThinkingBlock: false,
-			lastAssistantUsage: undefined,
-			clearTransientSessionUi: () => {},
-		} as unknown as InteractiveModeContext;
+		const ctx = createInteractiveModeContext({ session: { isStreaming: true } });
+		const chatContainer = ctx.chatContainer;
 		const helpers = new UiHelpers(ctx);
+		ctx.addMessageToChat = helpers.addMessageToChat.bind(helpers);
+		const eventController = new EventController(ctx);
+		ctx.eventController = eventController;
+		const inheritDisplaceableTodo = vi.spyOn(eventController, "inheritDisplaceableTodo");
 
 		const usage = {
 			input: 1,

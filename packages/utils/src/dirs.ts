@@ -8,7 +8,7 @@
  * variables are set, paths are redirected to XDG-compliant locations under
  * $XDG_*_HOME/zeta/. This requires running `zeta config migrate` first to
  * move data to the new locations. No filesystem existence checks are performed
- * — if the env var is set, omp trusts that the migration has been done.
+ * — if the env var is set, zeta trusts that the migration has been done.
  */
 
 import * as fs from "node:fs";
@@ -17,7 +17,7 @@ import * as path from "node:path";
 import { engines, version } from "../package.json" with { type: "json" };
 import { isEnoent, isEnotdir } from "./fs-error";
 
-/** App name (e.g. "omp") */
+/** App name (e.g. "zeta") */
 export const APP_NAME: string = "zeta";
 
 /** Config directory name (e.g. ".zeta") */
@@ -67,7 +67,7 @@ export function normalizeProfileName(profile: string | undefined): string | unde
 		WINDOWS_RESERVED_BASENAME_RE.test(normalized)
 	) {
 		throw new Error(
-			`Invalid OMP profile "${profile}". Profile names must match ${PROFILE_NAME_RE.source}, ` +
+			`Invalid Zeta profile "${profile}". Profile names must match ${PROFILE_NAME_RE.source}, ` +
 				`cannot be "." or "..", cannot end with ".", and cannot be a Windows reserved device name ` +
 				`(CON, PRN, AUX, NUL, COM0-9, LPT0-9, or any of those with an extension).`,
 		);
@@ -97,7 +97,7 @@ function getProfileFromEnv(): string | undefined {
  * crash a bare `import` of this module with an uncaught stack trace before the
  * CLI's error handling is in scope. The default profile is used instead; the
  * CLI re-validates the env (see `runCli` in coding-agent/src/cli.ts) so the
- * user still gets a clean "Invalid OMP profile" message.
+ * user still gets a clean "Invalid Zeta profile" message.
  */
 function readProfileFromEnvSafe(): string | undefined {
 	try {
@@ -295,7 +295,7 @@ export function getConfigAgentDirName(): string {
 type XdgCategory = "data" | "state" | "cache";
 
 /**
- * Resolves and caches all omp directory paths. On Linux, when XDG environment
+ * Resolves and caches all zeta directory paths. On Linux, when XDG environment
  * variables are set, paths are redirected under $XDG_*_HOME/zeta/. A new
  * instance is created whenever the agent directory changes, which naturally
  * invalidates all cached paths.
@@ -949,6 +949,11 @@ export function getSecretPlaceholderKeyPath(): string {
 	return keyPath;
 }
 
+/** Directory holding the per-model tiny-worker sockets and logs (~/.zeta/run/tiny; XDG default: $XDG_STATE_HOME/zeta/run/tiny). */
+export function getTinyWorkerRuntimeDir(): string {
+	return dirs.rootSubdir(path.join("run", "tiny"), "state");
+}
+
 /** Root directory containing every per-project daemon runtime scope (~/.zeta/run/daemons; XDG default: $XDG_STATE_HOME/zeta/run/daemons). */
 export function getDaemonRuntimeRoot(): string {
 	return dirs.rootSubdir(path.join("run", "daemons"), "state");
@@ -1108,11 +1113,6 @@ export function getInstallId(): string {
 	return next;
 }
 
-/** Test-only: clear cached install id. Never call from production code. */
-export function __resetInstallIdCacheForTests(): void {
-	cachedInstallId = null;
-}
-
 /** Get the project-level tracking directory (<project>/.zeta/tracking). */
 export function getProjectTrackingDir(cwd: string = getProjectDir()): string {
 	return path.join(getProjectAgentDir(cwd), "tracking");
@@ -1121,4 +1121,9 @@ export function getProjectTrackingDir(cwd: string = getProjectDir()): string {
 /** Get the global tracking index path (~/.zeta/agent/tracking-index.json). */
 export function getTrackingIndexPath(agentDir?: string): string {
 	return path.join(agentDir ?? getAgentDir(), "tracking-index.json");
+}
+
+/** Test-only: clear cached install id. Never call from production code. */
+export function __resetInstallIdCacheForTests(): void {
+	cachedInstallId = null;
 }

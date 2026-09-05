@@ -42,6 +42,8 @@ import type {
 	StatusLineSeparatorStyle,
 } from "../../config/settings-schema";
 import { SETTING_TABS, TAB_METADATA } from "../../config/settings-schema";
+import { ZH_GROUP_LABELS, ZH_TAB_LABELS } from "../../config/settings-zh";
+import { currentLanguage, M } from "../../i18n";
 import { getCurrentThemeName, getSelectListTheme, getSettingsListTheme, theme } from "../../modes/theme/theme";
 import { AUTO_THINKING, type ConfiguredThinkingLevel } from "../../thinking";
 import { getTabBarTheme } from "../shared";
@@ -98,7 +100,7 @@ class TextInputSubmenu extends Container {
 		this.addChild(this.#input);
 		this.addChild(new Spacer(1));
 		this.addChild(this.#error);
-		this.addChild(new Text(theme.fg("dim", "  Enter to save · Esc to cancel · Clear field to unset"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.ssSaveHint), 0, 0));
 	}
 
 	handleInput(data: string): void {
@@ -137,7 +139,7 @@ class SelectSubmenu extends Container {
 		// Preview (if provided)
 		if (getPreview) {
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("muted", "Preview:"), 0, 0));
+			this.addChild(new Text(theme.fg("muted", M.ssPreview), 0, 0));
 			this.#previewText = new Text(getPreview(), 0, 0);
 			this.addChild(this.#previewText);
 		}
@@ -182,7 +184,7 @@ class SelectSubmenu extends Container {
 
 		// Hint
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", "  Enter to select · Esc to go back"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.ssSelectHint), 0, 0));
 
 		// Footer (e.g. the snapcompact shape preview) below the interactive rows,
 		// so the list never shifts while browsing.
@@ -280,9 +282,7 @@ class MultiSelectSubmenu extends Container {
 		this.addChild(this.#selectList);
 
 		this.addChild(new Spacer(1));
-		const hint = this.ordered
-			? "  Click to toggle · drag selected items to reorder · ←/→ move · 1-9 place · Esc to go back"
-			: "  Click/Enter/Space to toggle · Esc to go back";
+		const hint = this.ordered ? M.ssOrderedToggleHint : M.ssToggleHint;
 		this.addChild(new Text(theme.fg("dim", hint), 0, 0));
 	}
 
@@ -439,13 +439,13 @@ class ProviderLimitsSubmenu extends Container {
 			return {
 				value: provider,
 				label: provider,
-				description: limit === undefined ? "Unlimited" : `Limit: ${limit}`,
+				description: limit === undefined ? M.ssUnlimited : M.ssLimitFmt.replace("%s", String(limit)),
 			};
 		});
 		const clearItem: SelectItem[] =
 			Object.keys(limits).length === 0
 				? []
-				: [{ value: "__clear_all", label: "Clear all limits", description: "Make every provider unlimited" }];
+				: [{ value: "__clear_all", label: M.ssClearAll, description: M.ssClearAllDesc }];
 		const items = [...providerItems, ...clearItem];
 		this.#selectList = new SelectList(items, Math.min(Math.max(items.length, 1), 12), getSelectListTheme());
 		this.#selectList.onSelect = item => {
@@ -461,7 +461,7 @@ class ProviderLimitsSubmenu extends Container {
 		this.#selectList.onCancel = this.onCancel;
 		this.addChild(this.#selectList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", "  Enter to edit provider · Esc to go back"), 0, 0));
+		this.addChild(new Text(theme.fg("dim", M.ssEditProviderHint), 0, 0));
 	}
 
 	#showProviderEditor(provider: string): void {
@@ -507,33 +507,44 @@ class ProviderLimitsSubmenu extends Container {
 	}
 }
 
-let cachedSidebarWidth: number | undefined;
+let cachedSidebarWidth: { lang: string; width: number } | undefined;
 /**
  * Split-sidebar width derived from every group name in the schema (not just
  * the visible tab), so the divider column never moves when switching tabs or
- * when condition-gated groups appear.
+ * when condition-gated groups appear. Re-keyed on language because localized
+ * group labels change the widest name.
  */
 function settingsSidebarWidth(): number {
-	if (cachedSidebarWidth === undefined) {
+	const lang = currentLanguage();
+	if (cachedSidebarWidth === undefined || cachedSidebarWidth.lang !== lang) {
+		const zh = lang === "zh";
 		let nameWidth = 0;
 		for (const tab of SETTING_TABS) {
 			for (const def of getSettingsForTab(tab)) {
-				if (def.group) nameWidth = Math.max(nameWidth, visibleWidth(def.group));
+				if (!def.group) continue;
+				const label = zh ? (ZH_GROUP_LABELS[def.group] ?? def.group) : def.group;
+				nameWidth = Math.max(nameWidth, visibleWidth(label));
 			}
 		}
-		cachedSidebarWidth = Math.min(22, nameWidth) + 4;
+		cachedSidebarWidth = { lang, width: Math.min(22, nameWidth) + 4 };
 	}
-	return cachedSidebarWidth;
+	return cachedSidebarWidth.width;
+}
+
+/** Group display label: localized group title in zh, schema id otherwise. */
+function groupLabel(group: string): string {
+	return currentLanguage() === "zh" ? (ZH_GROUP_LABELS[group] ?? group) : group;
 }
 
 function getSettingsTabs(): Tab[] {
+	const zh = currentLanguage() === "zh";
 	return [
 		...SETTING_TABS.map(id => {
 			const meta = TAB_METADATA[id];
 			const icon = theme.symbol(meta.icon as Parameters<typeof theme.symbol>[0]);
-			return { id, label: `${icon} ${meta.label}`, short: icon };
+			return { id, label: `${icon} ${zh ? (ZH_TAB_LABELS[id] ?? meta.label) : meta.label}`, short: icon };
 		}),
-		{ id: "plugins", label: `${theme.icon.package} Plugins`, short: theme.icon.package },
+		{ id: "plugins", label: `${theme.icon.package} ${M.ssTabPlugins}`, short: theme.icon.package },
 	];
 }
 
@@ -666,22 +677,23 @@ export class SettingsSelectorComponent implements Component {
 
 	#footerHintText(): string {
 		if (this.#searchList) {
-			return "Enter to change · Tab to jump tabs · Esc to exit search";
+			return M.ssSearchHint;
 		}
 		if (this.#currentTabId === "plugins") {
-			return "Tab to switch tabs · Esc to close";
+			return M.ssCloseHint;
 		}
 		if (this.#currentList?.sectionFocused) {
-			return "↑/↓ to jump sections · Tab/Enter to settings · ←/→ to switch tabs · Esc to close";
+			return M.ssSectionsFocusedHint;
 		}
-		const nav = this.#hasSectionJump ? "Tab to jump sections · ←/→ to switch tabs" : "Tab to switch tabs";
-		return `Enter/Space to change · ${nav} · Type to search · Esc to close`;
+		const nav = this.#hasSectionJump ? M.ssNavSectionsHint : M.ssNavTabsHint;
+		return `${M.ssFooterPrefix} · ${nav} · ${M.ssFooterSuffix}`;
 	}
 
 	/** Single-line search banner: accent icon, editable query with live cursor, right-aligned match count. */
 	#renderSearchBanner(width: number): string {
 		const icon = theme.symbol("icon.search");
-		const countText = this.#searchMatchCount === 1 ? "1 match" : `${this.#searchMatchCount} matches`;
+		const countText =
+			this.#searchMatchCount === 1 ? M.ssMatchesOne : M.ssMatchesFmt.replace("%d", String(this.#searchMatchCount));
 		const rightWidth = visibleWidth(countText) + 1; // trailing margin
 		const prefix = ` ${theme.fg("accent", icon)} `;
 		// The input pads itself to exactly this width and keeps the cursor in view.
@@ -703,7 +715,7 @@ export class SettingsSelectorComponent implements Component {
 		const tabLines = this.#tabBar.render(innerWidth);
 		const searching = this.#searchList !== null;
 		const showPreview = !searching && this.#currentTabId === "appearance";
-		const previewLines = showPreview ? ["", theme.fg("muted", "Preview:"), this.#getStatusPreviewString()] : [];
+		const previewLines = showPreview ? ["", theme.fg("muted", M.ssPreview), this.#getStatusPreviewString()] : [];
 
 		// Fixed chrome: top border, tabs, divider, [search row], divider, hint, bottom border.
 		const fixedRows = 1 + tabLines.length + 1 + (searching ? 1 : 0) + 1 + 1 + 1;
@@ -722,7 +734,7 @@ export class SettingsSelectorComponent implements Component {
 		}
 
 		const out: string[] = [];
-		out.push(topBorder(width, "Settings"));
+		out.push(topBorder(width, M.ssTitleSettings));
 		this.#tabRowStart = out.length;
 		this.#tabRowCount = tabLines.length;
 		for (const line of tabLines) {
@@ -829,7 +841,7 @@ export class SettingsSelectorComponent implements Component {
 			{
 				layout: "flat",
 				typeToSearch: false,
-				emptyText: "No matching settings",
+				emptyText: M.ssNoMatching,
 				hint: "",
 			},
 		);
@@ -994,17 +1006,20 @@ export class SettingsSelectorComponent implements Component {
 
 		switch (def.type) {
 			case "boolean":
-				return { ...item, currentValue: currentValue ? "true" : "false", values: ["true", "false"] };
+				return { ...item, currentValue: currentValue ? M.ssOn : M.ssOff, values: ["true", "false"] };
 
 			case "enum":
 				return { ...item, currentValue: String(currentValue ?? ""), values: [...def.values] };
 
-			case "submenu":
+			case "submenu": {
+				const raw = String(currentValue ?? "");
+				const option = def.options?.find(candidate => candidate.value === raw);
 				return {
 					...item,
-					currentValue: this.#getSubmenuCurrentValue(def.path, currentValue),
+					currentValue: option?.label ?? this.#getSubmenuCurrentValue(def.path, currentValue),
 					submenu: (cv, done) => this.#createSubmenu(def, cv, done),
 				};
+			}
 
 			case "text":
 				return {
@@ -1063,10 +1078,13 @@ export class SettingsSelectorComponent implements Component {
 	 */
 	#createSubmenu(
 		def: SettingDef & { type: "submenu" },
-		currentValue: string,
+		_passedValue: string,
 		done: (value?: string) => void,
 	): Container {
+		// The list row may display a localized option label; pre-selection and
+		// previews must key on the raw stored value.
 		let options = def.options;
+		const currentValue = String(settings.get(def.path) ?? "");
 
 		// Special case: inject runtime options for thinking level
 		if (def.path === "defaultThinkingLevel") {
@@ -1215,7 +1233,7 @@ export class SettingsSelectorComponent implements Component {
 	#formatProviderLimitsValue(value: unknown): string {
 		const limits = normalizeProviderMaxInFlightRequests(value);
 		const entries = Object.entries(limits).sort(([a], [b]) => a.localeCompare(b));
-		if (entries.length === 0) return "Unlimited";
+		if (entries.length === 0) return M.ssUnlimited;
 		return entries.map(([provider, limit]) => `${provider}: ${limit}`).join(", ");
 	}
 
@@ -1255,7 +1273,7 @@ export class SettingsSelectorComponent implements Component {
 					return option ? [option.label] : [];
 				})
 			: [];
-		if (labels.length === 0) return def.ordered ? "default" : "none";
+		if (labels.length === 0) return def.ordered ? M.ssOrderedDefault : M.ssUnorderedNone;
 		return def.ordered ? labels.join(" → ") : labels.join(", ");
 	}
 
@@ -1364,7 +1382,7 @@ export class SettingsSelectorComponent implements Component {
 			const item = this.#defToItem(def);
 			if (!item) continue;
 			if (def.group && def.group !== lastGroup) {
-				items.push({ id: `__heading:${def.group}`, label: def.group, currentValue: "", heading: true });
+				items.push({ id: `__heading:${def.group}`, label: groupLabel(def.group), currentValue: "", heading: true });
 				lastGroup = def.group;
 			}
 			items.push(item);
@@ -1385,7 +1403,7 @@ export class SettingsSelectorComponent implements Component {
 		if (this.callbacks.getStatusLinePreview) {
 			return this.callbacks.getStatusLinePreview();
 		}
-		return theme.fg("dim", "(preview not available)");
+		return theme.fg("dim", M.ssPreviewUnavailable);
 	}
 
 	/**

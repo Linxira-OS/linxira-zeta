@@ -1,14 +1,13 @@
 import * as path from "node:path";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
-import { formatHashlineHeader } from "@linxiraos/pi-hashline";
 import { type AstReplaceChange, type AstReplaceFileChange, astEdit } from "@linxiraos/pi-natives";
 import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { replaceTabs, Text } from "@linxiraos/pi-tui";
 import { $envpos, prompt, untilAborted } from "@linxiraos/pi-utils";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
+import { getEditStore } from "../edit/store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { Theme } from "../modes/theme/theme";
 import astEditDescription from "../prompts/tools/ast-edit.md" with { type: "text" };
@@ -26,6 +25,7 @@ import { truncateForPrompt } from "./approval";
 import { parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath } from "./file-recorder";
 import { classifyGroupedLines, formatGroupedFiles, groupLineIndicesByBlank } from "./grouped-file-output";
+import { formatHashlineHeader } from "./hashline-format";
 import type { OutputMeta } from "./output-meta";
 import { isInternalUrlPath, resolveToolSearchScope } from "./path-utils";
 import {
@@ -293,6 +293,7 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 				sessionFile: this.session.getSessionFile() ?? undefined,
 				localProtocolOptions: this.session.localProtocolOptions,
 				skills: this.session.skills,
+				rules: this.session.activeRules,
 				resolveExternalUrl: async rawPath => {
 					if (!parseReadUrlTarget(rawPath)) return undefined;
 					throw new ToolError(
@@ -355,12 +356,12 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 			const useHashLines = resolveFileDisplayMode(this.session).hashLines;
 			const hashContexts = new Map<string, { tag: string }>();
 			if (useHashLines) {
-				const snapshotStore = getFileSnapshotStore(this.session);
+				const snapshotStore = getEditStore(this.session);
 				for (const relativePath of fileList) {
 					const absolutePath = path.resolve(this.session.cwd, relativePath);
 					try {
 						const fullText = normalizeToLF(await Bun.file(absolutePath).text());
-						const tag = snapshotStore.record(canonicalSnapshotKey(absolutePath), fullText);
+						const tag = snapshotStore.recordSnapshot(absolutePath, fullText);
 						hashContexts.set(relativePath, { tag });
 					} catch {
 						// Best-effort: if a file disappears between ast-edit and rendering, emit plain line output.
@@ -472,12 +473,12 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 						// so the model's next hashline edit anchors against fresh tags.
 						const freshTagLines: string[] = [];
 						if (useHashLines) {
-							const snapshotStore = getFileSnapshotStore(this.session);
+							const snapshotStore = getEditStore(this.session);
 							for (const relativePath of appliedFileList) {
 								const appliedAbsolutePath = path.resolve(this.session.cwd, relativePath);
 								try {
 									const fullText = normalizeToLF(await Bun.file(appliedAbsolutePath).text());
-									const freshTag = snapshotStore.record(canonicalSnapshotKey(appliedAbsolutePath), fullText);
+									const freshTag = snapshotStore.recordSnapshot(appliedAbsolutePath, fullText);
 									freshTagLines.push(formatHashlineHeader(relativePath, freshTag));
 								} catch {
 									// File disappeared between apply and re-read; skip its tag.

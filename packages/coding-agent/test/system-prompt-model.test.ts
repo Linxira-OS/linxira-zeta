@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
+import { resolveDelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -11,7 +12,6 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { buildSystemPrompt } from "@linxiraos/zeta/system-prompt";
-import { usesCodexTaskPrompt } from "@linxiraos/zeta/task/prompt-policy";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 const EMPTY_TREE = {
@@ -164,18 +164,18 @@ describe("AgentSession model-change prompt refresh", () => {
 		const second = all.find(
 			model =>
 				(model.provider !== first.provider || model.id !== first.id) &&
-				usesCodexTaskPrompt(model.id) === usesCodexTaskPrompt(first.id),
+				resolveDelegationBias(model) === resolveDelegationBias(first),
 		);
-		if (!first || !second) throw new Error("Expected two distinct models with the same task prompt policy");
+		if (!first || !second) throw new Error("Expected two distinct models with the same delegation bias");
 		return [first, second];
 	}
 
 	function pickModelsAcrossTaskPolicies(): [Model, Model] {
 		const all = modelRegistry.getAll();
-		const defaultPolicy = all.find(model => !usesCodexTaskPrompt(model.id));
-		const codexPolicy = all.find(model => usesCodexTaskPrompt(model.id));
-		if (!defaultPolicy || !codexPolicy) throw new Error("Expected default-policy and GPT-5.6 models");
-		return [defaultPolicy, codexPolicy];
+		const eager = all.find(model => resolveDelegationBias(model) === "eager");
+		const restrained = all.find(model => resolveDelegationBias(model) === "restrained");
+		if (!eager || !restrained) throw new Error("Expected eager and restrained delegation models");
+		return [eager, restrained];
 	}
 
 	function newSession(

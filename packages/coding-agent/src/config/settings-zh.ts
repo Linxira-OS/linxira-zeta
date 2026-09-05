@@ -87,6 +87,9 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Protocol: "协议",
 	Timeouts: "超时",
 	Privacy: "隐私",
+	Composer: "输入编辑器",
+	Power: "电源",
+	Sharpshooter: "精确模式",
 };
 
 /**
@@ -244,6 +247,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "为文本模型描述图片",
 		description: "当图片附加到不支持视觉的模型时，将其保存到 local:// 并从具备视觉能力的模型注入描述，而不是丢弃它",
 	},
+	"images.questionTimeoutMs": {
+		label: "图片问答超时",
+		description:
+			"read 的 ?q= 图片问答背后视觉模型调用的单次超时（毫秒）。停滞的服务商会快速以超时错误失败，而不是阻塞到手动中止。设为 0 禁用超时。",
+	},
 	"terminal.showProgress": {
 		label: "原生终端进度",
 		description: "在智能体或上下文维护运行时发送 OSC 9;4 不确定进度",
@@ -279,6 +287,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tui.sidebar": {
 		label: "侧边栏",
 		description: "显示右侧边栏（上下文、用量、git、模型）",
+	},
+	"tui.reactions": {
+		label: "智能体表情回应",
+		description: "邀请智能体在其消息气泡上以 emoji 徽标回应你的消息",
 	},
 	"display.shimmer": {
 		label: "微光动画",
@@ -1001,13 +1013,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "JavaScript Eval 后端",
 		description: "允许 eval 工具将 JavaScript 单元格分派到进程内运行时",
 	},
-	"eval.rb": {
-		label: "Ruby Eval 后端",
-		description: "允许 eval 工具将 Ruby 单元格分派到持久 Ruby 内核",
+	"eval.tools.enabled": {
+		label: "Eval 定义的工具",
+		description:
+			"允许 eval 单元格定义工具（Python 的 @tool、JS 的 tool(fn)），供 task、agent() 和 workpool() 子代理调用",
 	},
-	"eval.jl": {
-		label: "Julia Eval 后端",
-		description: "允许 eval 工具将 Julia 单元格分派到持久 Julia 内核",
+	"eval.workpool.freshAgents": {
+		label: "Workpool 每项新建代理",
+		description: "为每个 workpool 条目生成全新子代理，而不是复用工作者或批量处理队列条目",
 	},
 	"python.kernelMode": {
 		label: "Python 内核模式",
@@ -1016,14 +1029,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"python.interpreter": {
 		label: "Python 解释器",
 		description: "精确 Python 可执行文件的可选路径。设置后跳过自动 Python 运行时发现。",
-	},
-	"ruby.interpreter": {
-		label: "Ruby 解释器",
-		description: "精确 Ruby 可执行文件的可选路径。设置后跳过自动 Ruby 运行时发现。",
-	},
-	"julia.interpreter": {
-		label: "Julia 解释器",
-		description: "精确 Julia 可执行文件的可选路径。设置后跳过自动 Julia 运行时发现。",
 	},
 	"tools.approval": {
 		label: "工具审批策略",
@@ -1100,11 +1105,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "生成图片",
 		description: "启用 generate_image 工具（文生图与编辑）。当 tools.xdev 开启时以 xd:// 设备形式暴露。",
 	},
-	"inspect_image.mode": {
-		label: "检查图片（Inspect Image）",
-		description:
-			"控制 inspect_image 工具，它将图像理解委托给具备视觉能力的模型。'auto' 仅在当前模型缺少原生图像输入时暴露；'on' 始终暴露；'off' 从不暴露。",
-	},
 	"computer.enabled": {
 		label: "计算机控制（Computer）",
 		description: "启用可脚本化的宿主机桌面控制工具（截图、输入、辅助功能）",
@@ -1120,11 +1120,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"computer.maxHeight": {
 		label: "Computer 截图高度",
 		description: "合成截图的最大高度（像素）",
-	},
-	"inspect_image.timeoutMs": {
-		label: "Inspect Image 超时",
-		description:
-			"inspect_image 视觉模型调用的每次请求超时（毫秒）。停滞的服务商会快速失败并返回超时错误，而不是阻塞到手动中止。设为 0 禁用超时。",
 	},
 	"checkpoint.enabled": {
 		label: "检查点/回退（Checkpoint/Rewind）",
@@ -1284,7 +1279,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
-			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `omp worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
+			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `zeta worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
+	},
+	"worktree.cleanSource": {
+		label: "/wt 时清理源检出",
+		description: "用 `/wt` 创建工作树后，在带走变更的基础上重置源检出的已跟踪修改并删除未跟踪文件",
+	},
+	skillful: {
+		label: "在提示词中列出技能",
+		description: "在系统提示词中列出可用技能；禁用以节省上下文，并可用 /skillful 按会话切换",
 	},
 	"task.eager": {
 		label: "偏好任务委派",
@@ -1384,6 +1387,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"providers.ollama-cloud.maxConcurrency": {
 		label: "Ollama Cloud 最大并发",
 		description: "每个进程的最大并发 Ollama Cloud 子代理运行数；0 禁用服务商特定限制",
+	},
+	"providers.openai-codex.codeModeDirectTools": {
+		label: "Codex Code Mode 直连工具",
+		description:
+			"Codex Code Mode 的额外直连工具。标准直连工具为 eval、ask、todo、yield、think、checkpoint 和 rewind。",
 	},
 	"providers.webSearchOrder": {
 		label: "网络搜索服务商顺序",
@@ -1802,301 +1810,39 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "Hindsight 保留上下文",
 		description: "回忆结果在后续回合中的保留策略",
 	},
-	"hindsight.retainEveryNTurns": {
-		label: "「hindsight.retainEveryNTurns」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"hindsight.retainMission": {
-		label: "「hindsight.retainMission」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"hindsight.retainOverlapTurns": {
-		label: "「hindsight.retainOverlapTurns」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"hindsight.retainTimeoutMs": {
-		label: "「hindsight.retainTimeoutMs」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"images.urls.credentials": {
-		label: "「images.urls.credentials」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"images.urls.options": {
-		label: "「images.urls.options」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
 	"images.urls.sshRemotePort": {
-		label: "「images.urls.sshRemotePort」设置",
-		description: "（v18.1.x 新增设置项，英文原文：Remote listen port of the ssh reverse forward that your web ）",
+		label: "图片 URL SSH 远程端口",
+		description: "ssh 反向转发的远程监听端口，Web 服务器会将请求代理到该端口",
 	},
 	"images.urls.ttlHours": {
-		label: "「images.urls.ttlHours」设置",
-		description: "（v18.1.x 新增设置项）",
+		label: "图片 URL 有效期（小时）",
+		description:
+			"本地托管的图片 URL 的服务窗口，自会话最近一次发送这些图片时起算；恢复会话会以同一链接重新起算该窗口。0 表示在 broker 运行期间链接一直有效",
 	},
 	"isolation.backend": {
-		label: "「isolation.backend」设置",
-		description: "（v18.1.x 新增设置项，英文原文：Backend used for subagent isolation and worktree cloning）",
-	},
-	"memories.enabled": {
-		label: "「memories.enabled」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.fallbackTokenLimit": {
-		label: "「memories.fallbackTokenLimit」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.maxRawMemoriesForGlobal": {
-		label: "「memories.maxRawMemoriesForGlobal」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.maxRolloutAgeDays": {
-		label: "「memories.maxRolloutAgeDays」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.maxRolloutsPerStartup": {
-		label: "「memories.maxRolloutsPerStartup」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.minRolloutIdleHours": {
-		label: "「memories.minRolloutIdleHours」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.phase1InputTokenLimit": {
-		label: "「memories.phase1InputTokenLimit」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.phase2HeartbeatSeconds": {
-		label: "「memories.phase2HeartbeatSeconds」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.phase2LeaseSeconds": {
-		label: "「memories.phase2LeaseSeconds」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.phase2RetryDelaySeconds": {
-		label: "「memories.phase2RetryDelaySeconds」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.rolloutPayloadPercent": {
-		label: "「memories.rolloutPayloadPercent」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.stage1Concurrency": {
-		label: "「memories.stage1Concurrency」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.stage1LeaseSeconds": {
-		label: "「memories.stage1LeaseSeconds」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.stage1RetryDelaySeconds": {
-		label: "「memories.stage1RetryDelaySeconds」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.summaryInjectionTokenLimit": {
-		label: "「memories.summaryInjectionTokenLimit」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"memories.threadScanLimit": {
-		label: "「memories.threadScanLimit」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"mnemopi.debug": {
-		label: "「mnemopi.debug」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"mnemopi.injectionTokenLimit": {
-		label: "「mnemopi.injectionTokenLimit」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"mnemopi.recallContextTurns": {
-		label: "「mnemopi.recallContextTurns」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"mnemopi.recallLimit": {
-		label: "「mnemopi.recallLimit」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"mnemopi.recallMaxQueryChars": {
-		label: "「mnemopi.recallMaxQueryChars」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"mnemopi.retainEveryNTurns": {
-		label: "「mnemopi.retainEveryNTurns」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"retry.baseDelayMs": {
-		label: "「retry.baseDelayMs」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"searxng.basicPassword": {
-		label: "「searxng.basicPassword」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"searxng.basicUsername": {
-		label: "「searxng.basicUsername」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"searxng.engines": {
-		label: "「searxng.engines」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"searxng.token": {
-		label: "「searxng.token」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"sharpshooter.injectionTokenLimit": {
-		label: "「sharpshooter.injectionTokenLimit」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"sharpshooter.intervalMinutes": {
-		label: "「sharpshooter.intervalMinutes」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"shellMinimizer.except": {
-		label: "「shellMinimizer.except」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"shellMinimizer.legacyFilters": {
-		label: "「shellMinimizer.legacyFilters」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"shellMinimizer.maxCaptureBytes": {
-		label: "「shellMinimizer.maxCaptureBytes」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"shellMinimizer.only": {
-		label: "「shellMinimizer.only」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"shellMinimizer.settingsPath": {
-		label: "「shellMinimizer.settingsPath」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.customDirectories": {
-		label: "「skills.customDirectories」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.enableAgentsProject": {
-		label: "「skills.enableAgentsProject」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.enableAgentsUser": {
-		label: "「skills.enableAgentsUser」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.enableClaudeProject": {
-		label: "「skills.enableClaudeProject」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.enableClaudeUser": {
-		label: "「skills.enableClaudeUser」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.enableCodexUser": {
-		label: "「skills.enableCodexUser」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.enablePiProject": {
-		label: "「skills.enablePiProject」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.enablePiUser": {
-		label: "「skills.enablePiUser」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.ignoredSkills": {
-		label: "「skills.ignoredSkills」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"skills.includeSkills": {
-		label: "「skills.includeSkills」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"statusLine.leftSegments": {
-		label: "「statusLine.leftSegments」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"statusLine.rightSegments": {
-		label: "「statusLine.rightSegments」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"statusLine.segmentOptions": {
-		label: "「statusLine.segmentOptions」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"task.agentAdvisor": {
-		label: "「task.agentAdvisor」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"task.agentModelOverrides": {
-		label: "「task.agentModelOverrides」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"task.agentPrewalk": {
-		label: "「task.agentPrewalk」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"task.disabledAgents": {
-		label: "「task.disabledAgents」设置",
-		description: "（v18.1.x 新增设置项）",
+		label: "隔离后端",
+		description: "用于子代理隔离和工作树克隆的后端",
 	},
 	"task.isolation.apply": {
-		label: "「task.isolation.apply」设置",
-		description: "（v18.1.x 新增设置项）",
+		label: "应用隔离变更",
+		description: "自动将成功的隔离任务变更应用到父检出；禁用则保留补丁或分支产物",
 	},
 	"task.isolation.commits": {
-		label: "「task.isolation.commits」设置",
-		description: "（v18.1.x 新增设置项，英文原文：Commit message style for nested repo changes (generic or AI-）",
+		label: "隔离提交风格",
+		description: "嵌套仓库变更的提交消息风格（通用或 AI 生成）",
 	},
 	"task.isolation.enabled": {
-		label: "「task.isolation.enabled」设置",
-		description: "（v18.1.x 新增设置项，英文原文：Run subagents in an isolated copy of the checkout and integr）",
+		label: "隔离子代理",
+		description: "在检出的隔离副本中运行子代理，之后整合其变更",
 	},
 	"task.isolation.merge": {
-		label: "「task.isolation.merge」设置",
-		description: "（v18.1.x 新增设置项，英文原文：How isolated task changes are integrated (patch apply or bra）",
-	},
-	"thinkingBudgets.high": {
-		label: "「thinkingBudgets.high」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"thinkingBudgets.low": {
-		label: "「thinkingBudgets.low」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"thinkingBudgets.max": {
-		label: "「thinkingBudgets.max」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"thinkingBudgets.medium": {
-		label: "「thinkingBudgets.medium」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"thinkingBudgets.minimal": {
-		label: "「thinkingBudgets.minimal」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"thinkingBudgets.xhigh": {
-		label: "「thinkingBudgets.xhigh」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"tui.maxInlineImageColumns": {
-		label: "「tui.maxInlineImageColumns」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"tui.maxInlineImageRows": {
-		label: "「tui.maxInlineImageRows」设置",
-		description: "（v18.1.x 新增设置项）",
-	},
-	"tui.maxInlineImages": {
-		label: "「tui.maxInlineImages」设置",
-		description: "（v18.1.x 新增设置项）",
+		label: "隔离合并策略",
+		description: "隔离任务变更的整合方式（应用补丁或合并分支）",
 	},
 	"worktree.clone": {
-		label: "「worktree.clone」设置",
-		description: "（v18.1.x 新增设置项）",
+		label: "将检出克隆到工作树",
+		description:
+			"bash 中由 `github pr_checkout` 和 `git worktree add` 创建的新工作树，起初是当前检出的写时复制克隆，因此被忽略的构建产物（node_modules、target）会一并保留；文件系统无法克隆时回退为普通检出",
 	},
 };
 export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
@@ -2106,6 +1852,38 @@ export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; description?: string }>> = {
+	"composer.shape::band": {
+		label: "状态带（默认）",
+		description: "柔和封顶的状态带悬浮于弧形提示符上方，无边框",
+	},
+	"composer.shape::box": {
+		label: "圆角框",
+		description: "状态行嵌入顶部边框，紧凑双行提示符",
+	},
+	"composer.shape::claude": {
+		label: "Claude Code",
+		description: "上下通宽横线，状态行在底部",
+	},
+	"composer.shape::pi": {
+		label: "Pi",
+		description: "带边框的上下横线，状态行在底部",
+	},
+	"composer.shape::borderless": {
+		label: "无边框",
+		description: "纯净提示符字形加底部状态行，无框线",
+	},
+	"composer.shape::rule": {
+		label: "顶部横线泊位",
+		description: "单条顶部横线，状态行停靠其上与其下",
+	},
+	"composer.shape::field": {
+		label: "紧凑字段",
+		description: "单行填充字段，两端强调端帽",
+	},
+	"composer.shape::rail": {
+		label: "强调导轨",
+		description: "单条强调导轨锚定的单行填充字段",
+	},
 	"power.sleepPrevention::off": {
 		label: "关闭",
 		description: "不阻止任何睡眠",
@@ -3380,15 +3158,6 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"grep.contextAfter::10": {
 		label: "10 行",
-	},
-	"inspect_image.mode::auto": {
-		label: "Auto（仅限无视觉模型）",
-	},
-	"inspect_image.mode::on": {
-		label: "开启",
-	},
-	"inspect_image.mode::off": {
-		label: "关闭",
 	},
 	"inspect_image.timeoutMs::0": {
 		label: "禁用",

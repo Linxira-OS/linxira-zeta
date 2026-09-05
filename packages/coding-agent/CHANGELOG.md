@@ -2,22 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+
+- OMP v18.1.10 sync baseline (`f241301c8372`): native Rust edit engine (EditStore/EditSession/DiffStream) behind the `edit` tool, `skillful` setting + `/skillful` per-session skill listing, agent emoji reactions (`tui.reactions`), plan-aware read window preserved for plan files, upstream security-scan command family rebranded, extension/agent discovery hardening.
+- TUI settings page fully localized (zh): tabs, group headings, option values, footer hints, preview chrome and slash-command descriptions now follow the configured language; `/language` applies live.
+
+### Fixed
+
+- Sidebar renders again in production sessions: the gutter engine was anchored to the fallback render path after the upstream frame-provider refactor, so `tui.sidebar=true` drew nothing; provider frames now respect the reserved main width and paint the right gutter column. Sidebar content rebuilt to stop duplicating the status line (session header, todo/plan progress, subagent states, MCP health; empty panels hide).
+- Channel tools (`channel_send`/`workspace_run`/`im_control`) are once again exclusive to top-level sessions — nested subagents can no longer relay to IM even when the tool names are requested explicitly; `tracking_update` gating restored.
+- Windows installer (`install.ps1`) restored to the Zeta package/repo/binary names after the merge pulled the upstream OMP form back in.
+- Base system prompt refresh only re-applies on byte-level changes, keeping the inherited provider prompt-cache key stable across explicit refreshes.
+- i18n: zh catalog no longer carries OMP self-references; `/security` descriptions use the clean Zeta keys.
+
 ## [1.1.8] - 2026-09-04
-
-- OMP 同步 v18.1.2（`86bf72f52947`）+ v18.1.4（`39cf639c7b`）+ v18.1.5（`2b8471bc33`）：Agent Hub 活动流（`/hub` activity 分区）、`/trace` 命令 + 追踪面板、声明式 provider 认证注册表、Copilot 认证标准化、selector 转录回滚过滤、welcome tip latch、`boxDotted.*`/`icon.advisorClosed` 符号。
-- 增量 plan-ultra 工作流恢复：v18.1.5 合并丢失的 ultra 模板选择（`planModeUltraActivePrompt`）已恢复，plan-ultra 模式重新渲染增量写入纪律模板。
-- Task 工具项目代理目录恢复 `.zeta/agents` 解析（合并曾硬编码 `.omp`，项目级 agent 定义被静默忽略）。
-- 每会话独立 `AsyncJobManager`（Zeta 契约）恢复：并发顶层会话各自拥有管理器，子代理经 `options.asyncJobManager` 继承父级。
-- 系统提示缓存守卫恢复：显式 refresh 在渲染字节未变时不再清掉继承的 provider prompt-cache 谱系。
-- 模式状态版本通知恢复：`setPlanModeState`/`setGoalModeState`/`setVibeModeState` 重新触发 `state_version_changed`，外部客户端可观察模式切换。
-- i18n：builtin 斜杠命令描述与 welcome 文案接入 M 目录（en/zh），`/language` 切换即时生效；i18n 与 config/settings 依赖倒置，启动预绘模块图保持隔离。
-- Web UI 侧边栏重构：openchamber 头部（工具下拉、搜索开关、新会话行、可折叠项目组）。
-- 品牌：状态栏 `icon.omp` unicode π→ζ（ascii `zeta`），`ZETA_LOGO` 换 ζ 描边版（B 变体）；24 行终端 setup wizard 行预算随新 logo 重排。
-- zh 设置覆盖层为 v18.1.x 新键补全翻译。
-- 修复 `zeta --resume` 跨项目恢复的路径比较（正反斜杠规范化）。
-- 修复 Bing 搜索 provider 请求头随机化（Chrome/Firefox/Safari 一致指纹轮换）。
-- 修复 pi-grep/sed 基本正则语义（`+` 字面量、`\+` 操作符）从上游同步。
-
 ## [1.1.6] - 2026-08-30
 
 - Fixed prewalk conflicting with `todo.eager=always`: the forced eager-todo prelude ("call todo first this turn") was injected alongside the prewalk plan nudge ("write a complete plan first, then todo"), giving the model contradictory instructions; the eager-todo prelude is now suppressed only when prewalk will perform a handoff ([#10510](https://github.com/can1357/oh-my-pi/issues/10510)).
@@ -28,7 +26,7 @@
 - MCP tool results now surface `structuredContent`: servers that return their payload in the structured channel while keeping `content` a terse ack (e.g. rhizome-mcp) are no longer data-less to the model ([#10522](https://github.com/can1357/oh-my-pi/issues/10522)).
 - Fixed the Agent Hub roster shuffling erratically while open: rows no longer re-sort on every agent heartbeat, so the list stays stable and navigable with many active agents ([#10524](https://github.com/can1357/oh-my-pi/issues/10524)).
 - Exiting Vibe mode now removes its restrictions from subsequent model turns, including restored sessions ([#10500](https://github.com/can1357/oh-my-pi/issues/10500)).
-- Fixed all-sessions listing (`Tab` in session picker) and cross-project resume failing when sessions are stored under `XDG_DATA_HOME`; `listAllSessions` now scans the active `getSessionsDir()` root instead of hardcoding `~/.omp/agent/sessions`.
+- Fixed all-sessions listing (`Tab` in session picker) and cross-project resume failing when sessions are stored under `XDG_DATA_HOME`; `listAllSessions` now scans the active `getSessionsDir()` root instead of hardcoding `~/.zeta/agent/sessions`.
 - Fixed the Nerd Font context icon showing a Windows logo instead of a generic window ([#10476](https://github.com/can1357/oh-my-pi/pull/10476) by [@erickmazer](https://github.com/erickmazer)).
 - The debug terminal snapshot now reports Herdr (and CMUX) as the multiplexer wrapping the session, matching the TUI's pane-identity detection instead of only tmux/screen/zellij.
 - Fixed vibe mode becoming un-exitable after branching a session (including via `/btw`), which previously failed with "Vibe parent session changed before mode exit could be persisted." ([#10468](https://github.com/can1357/oh-my-pi/issues/10468)).
@@ -88,7 +86,7 @@
 
 ### Removed
 
-- 配置目录统一 `.zeta`，移除 `.omp` 兼容别名路径。
+- 配置目录统一 `.zeta`，移除 `.zeta` 兼容别名路径。
 
 ## [1.0.11] - 2026-08-22
 
@@ -136,7 +134,7 @@
 
 - WeChat login now prefers the new `/api/v1/wechat` endpoints (endpoint host configurable via `channels.wechat.endpoint`); older hosts fall back to the legacy iLink QR flow.
 - Reworked the Ctrl+S Agent Hub into a responsive fullscreen roster and selected-agent inspector, featuring aggregate status/usage metrics, detailed per-agent views (task, model, activity, usage, lineage), roster and spawn-tree views, stable ordering, asynchronous persisted-session discovery, restored historical metadata, and improved keyboard and mouse navigation.
-- Replaced `arktype` with `@oh-my-pi/omptype` for all tool parameter and configuration schemas, resulting in significantly faster startup times. Configuration schema errors are now reported via `OmpErrors` entries using the standard `path`/`problem` format.
+- Replaced `arktype` with `@linxiraos/omptype` for all tool parameter and configuration schemas, resulting in significantly faster startup times. Configuration schema errors are now reported via `OmpErrors` entries using the standard `path`/`problem` format.
 
 ### Fixed
 
@@ -164,3 +162,4 @@
 - Fixed parsing of POSIX `$EDITOR` commands that contain quoted arguments or executable paths with spaces.
 - Fixed persisted Agent Hub rows losing the explicit caller model role when a subagent used a model override, preserving role provenance across restarts.
 - Fixed unobserved promise rejections in browser helpers (such as `tab.waitForResponse()`) causing tab workers to hang or crash.
+

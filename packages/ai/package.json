@@ -1,135 +1,133 @@
 {
-  "type": "module",
-  "name": "@linxiraos/pi-ai",
-  "version": "1.1.8",
-  "description": "Unified LLM API with automatic model discovery and provider configuration",
-  "homepage": "https://linxira-os.github.io/zeta/",
-  "author": "Can Boluk",
-  "contributors": [
-    "Mario Zechner"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-    "directory": "packages/ai"
-  },
-  "bugs": {
-    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
-  },
-  "keywords": [
-    "ai",
-    "llm",
-    "openai",
-    "anthropic",
-    "gemini",
-    "unified",
-    "api"
-  ],
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "scripts": {
-    "check": "biome check . && bun run check:types",
-    "check:types": "tsgo -p tsconfig.json --noEmit",
-    "lint": "biome lint .",
-    "test": "bun test --parallel",
-    "fix": "biome check --write --unsafe .",
-    "fmt": "biome format --write ."
-  },
-  "dependencies": {
-    "@linxiraos/pi-omptype": "catalog:",
-    "@linxiraos/pi-catalog": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:"
-  },
-  "devDependencies": {
-    "@types/bun": "catalog:"
-  },
-  "engines": {
-    "bun": ">=1.3.14"
-  },
-  "files": [
-    "src",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
-    },
-    "./error": {
-      "types": "./src/error/index.ts",
-      "import": "./src/error/index.ts"
-    },
-    "./*": {
-      "types": "./src/*.ts",
-      "import": "./src/*.ts"
-    },
-    "./auth-broker": {
-      "types": "./src/auth-broker/index.ts",
-      "import": "./src/auth-broker/index.ts"
-    },
-    "./auth-broker/*": {
-      "types": "./src/auth-broker/*.ts",
-      "import": "./src/auth-broker/*.ts"
-    },
-    "./auth-gateway": {
-      "types": "./src/auth-gateway/index.ts",
-      "import": "./src/auth-gateway/index.ts"
-    },
-    "./auth-gateway/*": {
-      "types": "./src/auth-gateway/*.ts",
-      "import": "./src/auth-gateway/*.ts"
-    },
-    "./providers/*": {
-      "types": "./src/providers/*.ts",
-      "import": "./src/providers/*.ts"
-    },
-    "./providers/openai-codex/*": {
-      "types": "./src/providers/openai-codex/*.ts",
-      "import": "./src/providers/openai-codex/*.ts"
-    },
-    "./usage/*": {
-      "types": "./src/usage/*.ts",
-      "import": "./src/usage/*.ts"
-    },
-    "./utils/harmony-leak": {
-      "types": "./src/utils/harmony-leak.ts",
-      "import": "./src/utils/harmony-leak.ts"
-    },
-    "./dialect": {
-      "types": "./src/dialect/index.ts",
-      "import": "./src/dialect/index.ts"
-    },
-    "./utils/*": {
-      "types": "./src/utils/*.ts",
-      "import": "./src/utils/*.ts"
-    },
-    "./oauth": {
-      "types": "./src/registry/oauth/index.ts",
-      "import": "./src/registry/oauth/index.ts"
-    },
-    "./oauth/*": {
-      "types": "./src/registry/oauth/*.ts",
-      "import": "./src/registry/oauth/*.ts"
-    },
-    "./registry": {
-      "types": "./src/registry/index.ts",
-      "import": "./src/registry/index.ts"
-    },
-    "./registry/oauth": {
-      "types": "./src/registry/oauth/index.ts",
-      "import": "./src/registry/oauth/index.ts"
-    },
-    "./utils/schema": {
-      "types": "./src/utils/schema/index.ts",
-      "import": "./src/utils/schema/index.ts"
-    },
-    "./utils/schema/*": {
-      "types": "./src/utils/schema/*.ts",
-      "import": "./src/utils/schema/*.ts"
-    },
-    "./*.js": "./src/*.ts"
-  }
+	"engines": {
+		"bun": ">=1.3.14"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:"
+	},
+	"dependencies": {
+		"@linxiraos/pi-wire": "catalog:",
+		"@linxiraos/pi-utils": "catalog:",
+		"@linxiraos/pi-catalog": "catalog:",
+		"@linxiraos/pi-omptype": "catalog:",
+		"@linxiraos/pi-natives": "catalog:"
+	},
+	"scripts": {
+		"test": "bun test --parallel",
+		"check:types": "tsgo -p tsconfig.json --noEmit",
+		"check": "tsgo -p tsconfig.json --noEmit"
+	},
+	"exports": {
+		"./*.js": "./src/*.ts",
+		"./utils/schema/*": {
+			"import": "./src/utils/schema/*.ts",
+			"types": "./src/utils/schema/*.ts"
+		},
+		"./utils/schema": {
+			"import": "./src/utils/schema/index.ts",
+			"types": "./src/utils/schema/index.ts"
+		},
+		"./registry/oauth": {
+			"import": "./src/registry/oauth/index.ts",
+			"types": "./src/registry/oauth/index.ts"
+		},
+		"./registry": {
+			"import": "./src/registry/index.ts",
+			"types": "./src/registry/index.ts"
+		},
+		"./oauth/*": {
+			"import": "./src/registry/oauth/*.ts",
+			"types": "./src/registry/oauth/*.ts"
+		},
+		"./oauth": {
+			"import": "./src/registry/oauth/index.ts",
+			"types": "./src/registry/oauth/index.ts"
+		},
+		"./utils/*": {
+			"import": "./src/utils/*.ts",
+			"types": "./src/utils/*.ts"
+		},
+		"./dialect": {
+			"import": "./src/dialect/index.ts",
+			"types": "./src/dialect/index.ts"
+		},
+		"./utils/harmony-leak": {
+			"import": "./src/utils/harmony-leak.ts",
+			"types": "./src/utils/harmony-leak.ts"
+		},
+		"./usage/*": {
+			"import": "./src/usage/*.ts",
+			"types": "./src/usage/*.ts"
+		},
+		"./providers/openai-codex/*": {
+			"import": "./src/providers/openai-codex/*.ts",
+			"types": "./src/providers/openai-codex/*.ts"
+		},
+		"./providers/*": {
+			"import": "./src/providers/*.ts",
+			"types": "./src/providers/*.ts"
+		},
+		"./auth-gateway/*": {
+			"import": "./src/auth-gateway/*.ts",
+			"types": "./src/auth-gateway/*.ts"
+		},
+		"./auth-gateway": {
+			"import": "./src/auth-gateway/index.ts",
+			"types": "./src/auth-gateway/index.ts"
+		},
+		"./auth-broker/*": {
+			"import": "./src/auth-broker/*.ts",
+			"types": "./src/auth-broker/*.ts"
+		},
+		"./auth-broker": {
+			"import": "./src/auth-broker/index.ts",
+			"types": "./src/auth-broker/index.ts"
+		},
+		"./*": {
+			"import": "./src/*.ts",
+			"types": "./src/*.ts"
+		},
+		"./error": {
+			"import": "./src/error/index.ts",
+			"types": "./src/error/index.ts"
+		},
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"types": "./src/index.ts",
+	"main": "./src/index.ts",
+	"type": "module",
+	"files": [
+		"src",
+		"README.md",
+		"CHANGELOG.md"
+	],
+	"repository": {
+		"directory": "packages/ai",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"type": "git"
+	},
+	"contributors": [
+		"Mario Zechner"
+	],
+	"author": "Can Boluk",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	},
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"keywords": [
+		"ai",
+		"llm",
+		"openai",
+		"anthropic",
+		"gemini",
+		"unified",
+		"api"
+	],
+	"description": "Unified LLM API with automatic model discovery and provider configuration",
+	"version": "1.1.8",
+	"name": "@linxiraos/pi-ai"
 }

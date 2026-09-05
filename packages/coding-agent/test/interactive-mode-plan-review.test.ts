@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { Agent, AgentBusyError, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
-import { type OverlayHandle, type OverlayOptions, setKeybindings } from "@linxiraos/pi-tui";
+import { setKeybindings } from "@linxiraos/pi-tui";
 import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -12,8 +12,8 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import type { HookSelectorSlider } from "@linxiraos/zeta/modes/components/hook-selector";
-import {
-	type PlanReviewAnnotationState,
+import type {
+	PlanReviewAnnotationState,
 	PlanReviewOverlay,
 } from "@linxiraos/zeta/modes/components/plan-review-overlay";
 import { InteractiveMode, planSaveFileName } from "@linxiraos/zeta/modes/interactive-mode";
@@ -470,28 +470,6 @@ describe("InteractiveMode plan review rendering", () => {
 			if (previousVisual === undefined) delete Bun.env.VISUAL;
 			else Bun.env.VISUAL = previousVisual;
 		}
-	});
-
-	it("leaves terminal mouse tracking disabled while Plan Review is open", async () => {
-		let capturedOverlay: PlanReviewOverlay | undefined;
-		let capturedOptions: OverlayOptions | undefined;
-		const overlayHandle: OverlayHandle = {
-			hide: vi.fn(),
-			setHidden: vi.fn(),
-			isHidden: vi.fn(() => false),
-		};
-		vi.spyOn(mode.ui, "showOverlay").mockImplementation((component, options) => {
-			if (!(component instanceof PlanReviewOverlay)) throw new Error("Expected Plan Review overlay");
-			capturedOverlay = component;
-			capturedOptions = options;
-			return overlayHandle;
-		});
-
-		const choice = mode.showPlanReview("# Plan\n\nSelectable body", "Plan mode - next step", ["Approve"]);
-
-		expect(capturedOptions).toMatchObject({ fullscreen: true, mouseTracking: false });
-		capturedOverlay?.handleInput("\x1b");
-		await expect(choice).resolves.toBeUndefined();
 	});
 
 	it("dismisses Plan Review and restores input when a provider error is pinned", async () => {

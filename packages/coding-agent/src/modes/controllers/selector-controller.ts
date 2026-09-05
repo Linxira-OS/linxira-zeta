@@ -1,11 +1,9 @@
 import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
-import { PASTE_CODE_LOGIN_PROVIDERS, type UsageReport } from "@linxiraos/pi-ai";
+import { type Model, PASTE_CODE_LOGIN_PROVIDERS, type UsageReport } from "@linxiraos/pi-ai";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
-import { getDailyActivity } from "@linxiraos/pi-stats/db";
 import type { Component, OverlayHandle, ResizeScrollbackMode } from "@linxiraos/pi-tui";
 import { Loader, Spacer, setTuiTight, Text } from "@linxiraos/pi-tui";
 import { getAgentDbPath, getAgentDir, getProjectDir, normalizePathForComparison } from "@linxiraos/pi-utils";
@@ -66,6 +64,7 @@ import {
 	toResetUsageAccounts,
 } from "../../slash-commands/helpers/reset-usage";
 import { toSessionPinAccounts } from "../../slash-commands/helpers/session-pin";
+import { loadDailyActivity } from "../../stats/activity-client";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -84,6 +83,7 @@ import { shortenPath } from "../../tools/render-utils";
 import { ToolAbortError } from "../../tools/tool-errors";
 import { applyHyperlinkSetting } from "../../tui/hyperlink";
 import { copyToClipboard } from "../../utils/clipboard";
+import { openPath } from "../../utils/open";
 import { setSessionTerminalTitle } from "../../utils/title-generator";
 import { type AdvisorConfigDeps, AdvisorConfigOverlayComponent } from "../components/advisor-config";
 import { AgentHubOverlayComponent } from "../components/agent-hub";
@@ -111,6 +111,7 @@ import { TranscriptBlock } from "../components/transcript-container";
 import { TreeSelectorComponent } from "../components/tree-selector";
 import { UsageDashboardComponent } from "../components/usage-dashboard";
 import type { SessionObserverRegistry } from "../session-observer-registry";
+import { getAssistantMessageLinkTargets } from "../utils/interactive-context-helpers";
 import { renderUsageReports } from "./command-controller";
 
 const MANUAL_LOGIN_PROMPT = "Paste the authorization code (or full redirect URL), then press Enter:";
@@ -303,13 +304,7 @@ export class SelectorController {
 					provider => (provider === currentProvider ? activeAccount : undefined),
 					usageModelSelectors,
 				),
-			loadActivity: async push => {
-				// Show whatever the stats DB already has, then re-query after an
-				// incremental session sync so the heatmap converges on fresh data.
-				push(await getDailyActivity());
-				await syncAllSessions();
-				push(await getDailyActivity());
-			},
+			loadActivity: loadDailyActivity,
 			requestRender: () => this.ctx.ui.requestRender(),
 			onClose: done,
 		});
@@ -430,6 +425,8 @@ export class SelectorController {
 				listLiveTools: () => listLiveToolRecords(this.ctx.session),
 			},
 			onMcpToolsChanged: tools => this.ctx.session.refreshMCPTools(tools),
+			browserMcpFilterEnabled: () =>
+				this.ctx.session.getEvalPreludes().some(definition => definition.name === "browser"),
 		});
 		// Fullscreen dashboard on the alternate screen (the /settings idiom): the
 		// overlay borrows the terminal's alt buffer and enables mouse tracking for
@@ -560,11 +557,6 @@ export class SelectorController {
 					this.ctx.showError(`Failed to apply memory backend: ${err}`);
 				});
 				break;
-			case "inspect_image.mode":
-				void this.ctx.session.applyInspectImageModeChange().catch(err => {
-					this.ctx.showError(`Failed to apply vision mode: ${err}`);
-				});
-				break;
 			case "externalThinking":
 				void this.ctx.session.setThinkToolEnabled(value as boolean).catch(err => {
 					this.ctx.showError(`Failed to apply external thinking: ${err}`);
@@ -662,6 +654,12 @@ export class SelectorController {
 			case "tui.tight":
 				setTuiTight(value as boolean);
 				this.ctx.ui.invalidate();
+				this.ctx.ui.requestRender();
+				break;
+			case "tui.sidebar":
+				// Re-wire the engine's main-width override so the toggle lands live,
+				// without waiting for the next sidebar-related render.
+				this.ctx.applySidebar();
 				this.ctx.ui.requestRender();
 				break;
 			case "tui.hyperlinks":
@@ -811,6 +809,60 @@ export class SelectorController {
 	}
 
 	/**
+	 * Session-only model switch (`/switch <selector>`): applies the resolved
+	 * model without persisting it. Compacts first when the transcript exceeds
+	 * the target's context window, mirroring an over-context pick in the alt+p
+	 * picker. Failures surface as status errors.
+	 */
+	async switchSessionModel(model: Model, thinkingLevel?: ConfiguredThinkingLevel): Promise<void> {
+		const contextTokens = this.ctx.session.getContextUsage()?.tokens ?? 0;
+		const contextWindow = model.contextWindow ?? 0;
+		const overContext = contextWindow > 0 && contextTokens > contextWindow;
+		try {
+			await this.#applySessionModel(model, `${model.provider}/${model.id}`, thinkingLevel, overContext);
+		} catch (error) {
+			this.ctx.showError(error instanceof Error ? error.message : String(error));
+		}
+	}
+
+	/**
+	 * Apply a session-only model: update agent state but never persist to
+	 * settings. `compactFirst` runs compaction with the current model before
+	 * switching (the target cannot fit the transcript); the switch runs in the
+	 * before-flush hook so any prompt queued during compaction executes on the
+	 * target model, and the idempotent post-return call covers the early
+	 * "nothing to compact" return that skips the hook. A cancelled or failed
+	 * compaction keeps the current model.
+	 */
+	async #applySessionModel(
+		model: Model,
+		selector: string,
+		thinkingLevel: ConfiguredThinkingLevel | undefined,
+		compactFirst: boolean,
+	): Promise<void> {
+		const apply = async () => {
+			const level = thinkingLevel ?? this.ctx.session.resolveTemporaryModelThinkingLevel(model);
+			await this.ctx.session.setModelTemporary(model, level);
+			this.ctx.statusLine.invalidate();
+			this.ctx.updateEditorBorderColor();
+			const roleSelectorHint = this.ctx.keybindings.getKeys("app.model.select")[0] ?? "Alt+M";
+			this.ctx.showStatus(`Session-only model: ${selector}. Use ${roleSelectorHint} or /model for roles.`);
+		};
+		if (!compactFirst) {
+			await apply();
+			return;
+		}
+		let switched = false;
+		const switchAfterCompaction = async (outcome: CompactionOutcome) => {
+			if (switched || outcome !== "ok") return;
+			switched = true;
+			await apply();
+		};
+		const outcome = await this.ctx.handleCompactCommand(undefined, undefined, switchAfterCompaction);
+		await switchAfterCompaction(outcome);
+	}
+
+	/**
 	 * Compact session-only model picker (alt+p / `/switch`): a floating
 	 * bottom-anchored overlay over the transcript. The current model is
 	 * highlighted and preselected; a leading `@` searches ctrl+p quick roles.
@@ -840,38 +892,12 @@ export class SelectorController {
 			this.ctx.session.scopedModels,
 			{
 				onPick: async (model, selector, { overContext }) => {
-					// Session-only: update agent state but don't persist the model to settings.
-					const applySessionModel = async () => {
-						const roleThinkingLevel = this.ctx.session.resolveTemporaryModelThinkingLevel(model);
-						await this.ctx.session.setModelTemporary(model, roleThinkingLevel);
-						this.ctx.statusLine.invalidate();
-						this.ctx.updateEditorBorderColor();
-						const roleSelectorHint = this.ctx.keybindings.getKeys("app.model.select")[0] ?? "Alt+M";
-						this.ctx.showStatus(`Session-only model: ${selector}. Use ${roleSelectorHint} or /model for roles.`);
-					};
 					try {
-						if (overContext) {
-							// Over-context pick: close the picker so the compaction loader is
-							// visible, compact with the current model, then switch. The switch
-							// runs in the before-flush hook so any prompt queued during
-							// compaction executes on the target model, not the old one; the
-							// early "nothing to compact" return skips the hook, so the
-							// idempotent post-return call covers it. A cancelled or failed
-							// compaction keeps the current model — the target still cannot
-							// fit the transcript.
-							done();
-							let switched = false;
-							const switchAfterCompaction = async (outcome: CompactionOutcome) => {
-								if (switched || outcome !== "ok") return;
-								switched = true;
-								await applySessionModel();
-							};
-							const outcome = await this.ctx.handleCompactCommand(undefined, undefined, switchAfterCompaction);
-							await switchAfterCompaction(outcome);
-							return;
-						}
-						await applySessionModel();
-						done();
+						// Over-context pick: close the picker first so the compaction
+						// loader is visible.
+						if (overContext) done();
+						await this.#applySessionModel(model, selector, undefined, overContext);
+						if (!overContext) done();
 					} catch (error) {
 						this.ctx.showError(error instanceof Error ? error.message : String(error));
 					}
@@ -1273,6 +1299,7 @@ export class SelectorController {
 			cwd: this.ctx.sessionManager.getCwd(),
 			hideThinkingBlock: () => this.ctx.effectiveHideThinkingBlock,
 			proseOnlyThinking: () => this.ctx.proseOnlyThinking,
+			linkTargets: getAssistantMessageLinkTargets(this.ctx),
 			requestRender: () => this.ctx.ui.requestRender(),
 			siblingPaths: entryId => this.#siblingBranchPaths(entryId),
 			onSelect: entryId => void this.#rewindFromTranscript(entryId, done),
@@ -1404,6 +1431,7 @@ export class SelectorController {
 			cwd: this.ctx.sessionManager.getCwd(),
 			hideThinkingBlock: () => this.ctx.effectiveHideThinkingBlock,
 			proseOnlyThinking: () => this.ctx.proseOnlyThinking,
+			linkTargets: getAssistantMessageLinkTargets(this.ctx),
 			requestRender: () => this.ctx.ui.requestRender(),
 			onPick: (content, label) => {
 				done();
@@ -1413,6 +1441,11 @@ export class SelectorController {
 				}
 				void copyToClipboard(content);
 				this.ctx.showStatus(`Copied ${label} to clipboard`);
+			},
+			onOpen: (href, label) => {
+				done();
+				openPath(href);
+				this.ctx.showStatus(`Opening ${label}: ${href}`);
 			},
 			onCancel: done,
 		});
@@ -1986,7 +2019,9 @@ export class SelectorController {
 				// the paste lands somewhere the OAuth flow consumes — the hidden
 				// editor's `/login <url>` path is unreachable while the dialog holds
 				// focus (#5339).
-				onManualCodeInput: useManualInput ? () => dialog.showManualInput(MANUAL_LOGIN_PROMPT) : undefined,
+				onManualCodeInput: useManualInput
+					? signal => dialog.showManualInput(MANUAL_LOGIN_PROMPT, signal)
+					: undefined,
 			});
 			// Scope the post-login refresh to the just-authenticated provider with an
 			// `online` strategy: the default all-provider `online-if-uncached` reuses

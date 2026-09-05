@@ -1,78 +1,75 @@
 {
-  "type": "module",
-  "name": "@linxiraos/pi-agent-core",
-  "version": "1.1.8",
-  "description": "General-purpose agent with transport abstraction, state management, and attachment support",
-  "homepage": "https://linxira-os.github.io/zeta/",
-  "author": "Can Boluk",
-  "contributors": [
-    "Mario Zechner"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-    "directory": "packages/agent"
-  },
-  "bugs": {
-    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
-  },
-  "keywords": [
-    "ai",
-    "agent",
-    "llm",
-    "transport",
-    "state-management"
-  ],
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "scripts": {
-    "check": "biome check . && bun run check:types",
-    "check:types": "tsgo -p tsconfig.json --noEmit",
-    "lint": "biome lint .",
-    "test": "bun test --parallel",
-    "fix": "biome check --write --unsafe .",
-    "fmt": "biome format --write ."
-  },
-  "dependencies": {
-    "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-catalog": "catalog:",
-    "@linxiraos/pi-natives": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/pi-snapcompact": "catalog:",
-    "@opentelemetry/api": "catalog:"
-  },
-  "devDependencies": {
-    "@linxiraos/pi-omptype": "catalog:",
-    "@opentelemetry/context-async-hooks": "catalog:",
-    "@opentelemetry/sdk-trace-base": "catalog:",
-    "@types/bun": "catalog:"
-  },
-  "engines": {
-    "bun": ">=1.3.14"
-  },
-  "files": [
-    "src",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
-    },
-    "./compaction": {
-      "types": "./src/compaction.ts",
-      "import": "./src/compaction.ts"
-    },
-    "./compaction/*": {
-      "types": "./src/compaction/*.ts",
-      "import": "./src/compaction/*.ts"
-    },
-    "./*": {
-      "types": "./src/*.ts",
-      "import": "./src/*.ts"
-    }
-  }
+	"exports": {
+		"./*": {
+			"import": "./src/*.ts",
+			"types": "./src/*.ts"
+		},
+		"./compaction/*": {
+			"import": "./src/compaction/*.ts",
+			"types": "./src/compaction/*.ts"
+		},
+		"./compaction": {
+			"import": "./src/compaction.ts",
+			"types": "./src/compaction.ts"
+		},
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"files": [
+		"src",
+		"README.md",
+		"CHANGELOG.md"
+	],
+	"engines": {
+		"bun": ">=1.3.14"
+	},
+	"devDependencies": {
+		"@linxiraos/pi-omptype": "catalog:",
+		"@types/bun": "catalog:",
+		"@opentelemetry/sdk-trace-base": "catalog:",
+		"@opentelemetry/context-async-hooks": "catalog:"
+	},
+	"dependencies": {
+		"@linxiraos/pi-snapcompact": "catalog:",
+		"@linxiraos/pi-wire": "catalog:",
+		"@linxiraos/pi-utils": "catalog:",
+		"@linxiraos/pi-natives": "catalog:",
+		"@linxiraos/pi-catalog": "catalog:",
+		"@linxiraos/pi-ai": "catalog:",
+		"@opentelemetry/api": "catalog:"
+	},
+	"scripts": {
+		"test": "bun test --parallel",
+		"check:types": "tsgo -p tsconfig.json --noEmit",
+		"check": "tsgo -p tsconfig.json --noEmit"
+	},
+	"types": "./src/index.ts",
+	"main": "./src/index.ts",
+	"keywords": [
+		"ai",
+		"agent",
+		"llm",
+		"transport",
+		"state-management"
+	],
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	},
+	"repository": {
+		"directory": "packages/agent",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"type": "git"
+	},
+	"license": "MIT",
+	"contributors": [
+		"Mario Zechner"
+	],
+	"author": "Can Boluk",
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"description": "General-purpose agent with transport abstraction, state management, and attachment support",
+	"version": "1.1.8",
+	"name": "@linxiraos/pi-agent-core",
+	"type": "module"
 }

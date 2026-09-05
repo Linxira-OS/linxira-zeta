@@ -22,9 +22,9 @@ import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config
 import { SETTINGS_SCHEMA } from "@linxiraos/zeta/config/settings-schema";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import * as titleGenerator from "@linxiraos/zeta/utils/title-generator";
+import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 const originalWarpProtocolVersion = process.env.WARP_CLI_AGENT_PROTOCOL_VERSION;
 
@@ -66,12 +66,12 @@ function makeAssistantMessage(stopReason: StopReason): AssistantMessage {
 	} as unknown as AssistantMessage;
 }
 
-function makeContext(): InteractiveModeContext {
-	return {
+function makeContext() {
+	return createInteractiveModeContext({
 		sessionManager: {
 			getSessionName: () => "test-session",
 		},
-	} as unknown as InteractiveModeContext;
+	});
 }
 
 function makeAgentEndEvent(messages: AssistantMessage[]): Extract<AgentSessionEvent, { type: "agent_end" }> {
@@ -79,38 +79,13 @@ function makeAgentEndEvent(messages: AssistantMessage[]): Extract<AgentSessionEv
 }
 
 /** Full context needed to drive `#handleAgentEnd` -> `#finishAgentEnd` end to end. */
-function makeTurnEndContext(options: { lastAssistantMessage?: AssistantMessage } = {}): InteractiveModeContext {
-	const session = {
-		isStreaming: false,
-		isCompacting: false,
-		messages: [] as AssistantMessage[],
-		getLastAssistantMessage: () => options.lastAssistantMessage,
-		getContextUsage: () => undefined,
-	};
-	return {
-		isInitialized: true,
-		loadingAnimation: undefined,
-		autoCompactionLoader: undefined,
-		retryLoader: undefined,
-		focusedAgentId: undefined,
-		streamingComponent: undefined,
-		streamingMessage: undefined,
-		pendingTools: new Map<string, unknown>(),
-		flushPendingModelSwitch: async () => {},
-		flushPendingCommandOutput: () => {},
-		syncRetryHintRow: () => {},
-		ui: { requestRender: () => {}, requestComponentRender: () => {} },
-		chatContainer: { removeChild: () => {} },
-		statusContainer: { clear: () => {}, disposeChildren: () => {}, addChild: () => {} },
-		statusLine: { markActivityEnd: () => {}, markActivityStart: () => {} },
-		editor: { getText: () => "" },
+function makeTurnEndContext(options: { lastAssistantMessage?: AssistantMessage } = {}) {
+	return createInteractiveModeContext({
 		sessionManager: { getSessionName: () => "test-session" },
-		clearPinnedError: () => {},
-		ensureLoadingAnimation: () => {},
-		showError: () => {},
-		session,
-		viewSession: session,
-	} as unknown as InteractiveModeContext;
+		viewSession: {
+			getLastAssistantMessage: () => options.lastAssistantMessage,
+		},
+	});
 }
 
 describe("EventController.sendCompletionNotification — abort guard", () => {

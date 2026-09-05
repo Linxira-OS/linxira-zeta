@@ -1,6 +1,7 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
-import type { AssistantMessage, ImageContent, Message, Usage, UsageReport } from "@linxiraos/pi-ai";
+import type { AssistantMessage, ImageContent, Message, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
 import type { Component, Container, EditorTheme, Loader, Spacer, Text, TUI } from "@linxiraos/pi-tui";
 import type { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
@@ -26,6 +27,7 @@ import type { HistoryStorage } from "../session/history-storage";
 import type { SessionContext } from "../session/session-context";
 import type { SessionManager } from "../session/session-manager";
 import type { ShakeMode } from "../session/shake-types";
+import type { ConfiguredThinkingLevel } from "../thinking";
 import type { LspStartupServerInfo } from "../tools";
 import type { EventBus } from "../utils/event-bus";
 import type { AssistantMessageComponent } from "./components/assistant-message";
@@ -131,6 +133,8 @@ export interface InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
+	/** Re-wire the engine's sidebar/main-width override from the `tui.sidebar` setting. */
+	applySidebar(): void;
 	syncComposerShape(): void;
 	syncEditorSpelling(): void;
 
@@ -443,6 +447,8 @@ export interface InteractiveModeContext {
 	/** Open the fullscreen git UI, optionally pinned to a revision (`/git <rev>`). */
 	showGitUi(revision?: string): void;
 	showModelSelector(options?: { temporaryOnly?: boolean }): void;
+	/** Session-only switch to an already-resolved model (`/switch <selector>`); compacts first when over context. */
+	switchSessionModel(model: Model, thinkingLevel?: ConfiguredThinkingLevel): Promise<void>;
 	showPluginSelector(mode?: "install" | "uninstall"): void;
 	showUserMessageSelector(): void;
 	showCopySelector(): void;

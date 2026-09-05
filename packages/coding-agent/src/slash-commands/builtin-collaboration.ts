@@ -9,8 +9,10 @@ import { shareSession } from "../export/share";
 import { M } from "../i18n";
 import { theme } from "../modes/theme/theme";
 import type { InteractiveModeContext } from "../modes/types";
-import { extractLastCodeBlock, extractLastCommand } from "../modes/utils/copy-targets";
+import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "../modes/utils/copy-targets";
+import { restartBrowserForModeChange } from "../tools/browser";
 import { copyToClipboard } from "../utils/clipboard";
+import { openPath } from "../utils/open";
 import { refreshStatusLine } from "./builtin-modes";
 import { CollabQrCodeComponent, collabBrowserLink } from "./helpers/collab-qrcode";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
@@ -54,7 +56,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		name: "advisor",
 		icon: "advisor",
 		description: M.cmdAdvisor,
-		acpDescription: "Toggle advisor",
+		acpDescription: M.cmdAdvisorAcp,
 		acpInputHint: "[on|off|status|dump [raw]|configure]",
 		subcommands: [
 			{ name: "on", description: M.cmdAdvisorOn },
@@ -66,8 +68,10 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const stats = runtime.ctx.session.getAdvisorStats();
-			if (stats.active && stats.advisors.length > 1) return `Advisor: on (${stats.advisors.length} advisors)`;
-			if (stats.active && stats.model) return `Advisor: on (${stats.model.provider}/${stats.model.id})`;
+			if (stats.active && stats.advisors.length > 1)
+				return M.acAdvisorOnFmt.replace("%s", M.ccAdvisorCountFmt.replace("%s", String(stats.advisors.length)));
+			if (stats.active && stats.model)
+				return M.acAdvisorOnFmt.replace("%s", `${stats.model.provider}/${stats.model.id}`);
 			if (stats.configured) return M.acAdvisorConfiguredNoModel;
 			return M.acAdvisorOff;
 		},
@@ -222,7 +226,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		name: "dump",
 		icon: "clipboard",
 		description: M.cmdDumpTranscript,
-		acpDescription: "Return full transcript as plain text, with LLM request JSON path",
+		acpDescription: M.cmdDumpAcp,
 		allowArgs: true,
 		handle: async (_command, runtime) => {
 			const text = runtime.session.formatSessionAsText();
@@ -290,11 +294,14 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			if (runtime.ctx.collabHost) {
-				return `Collab: hosting (${Math.max(0, runtime.ctx.collabHost.participants.length - 1)} guests)`;
+				return M.acCollabFmt.replace(
+					"%s",
+					`${M.stateHosting}${M.acCollabGuestsFmt.replace("%s", String(Math.max(0, runtime.ctx.collabHost.participants.length - 1)))}`,
+				);
 			}
-			if (runtime.ctx.collabGuest?.readOnly) return "Collab: read-only guest";
-			if (runtime.ctx.collabGuest) return "Collab: guest";
-			return "Collab: off";
+			if (runtime.ctx.collabGuest?.readOnly) return M.acCollabFmt.replace("%s", M.stateReadOnlyGuest);
+			if (runtime.ctx.collabGuest) return M.acCollabFmt.replace("%s", M.stateGuest);
+			return M.acCollabFmt.replace("%s", M.stateOff);
 		},
 		handleTui: async (command, runtime) => {
 			const ctx = runtime.ctx;
@@ -398,9 +405,9 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		icon: "signOut",
 		description: M.cmdCollabLeave,
 		getTuiAutocompleteDescription: runtime => {
-			if (runtime.ctx.collabHost) return "Leave collab: hosting";
-			if (runtime.ctx.collabGuest) return "Leave collab: guest";
-			return "Leave collab: not in collab";
+			if (runtime.ctx.collabHost) return M.acLeaveCollabHosting;
+			if (runtime.ctx.collabGuest) return M.acLeaveCollabGuest;
+			return M.acLeaveCollabNone;
 		},
 		handleTui: async (_command, runtime) => {
 			const ctx = runtime.ctx;
@@ -420,7 +427,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "browser",
 		icon: "globe",
-		description: M.cmdBrowserMode,
+		description: M.cmdToggleBrowserEvalPreludeHeadlessVsVisibleMode,
 		acpInputHint: "[headless|visible]",
 		subcommands: [
 			{ name: "headless", description: M.cmdBrowserHeadless },
@@ -428,13 +435,17 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.settings.get("browser.enabled" as SettingPath)) return "Browser: disabled";
-			return runtime.ctx.settings.get("browser.headless" as SettingPath) ? "Browser: headless" : "Browser: visible";
+			if (!runtime.ctx.settings.get("browser.enabled" as SettingPath))
+				return M.acBrowserFmt.replace("%s", M.stateDisabled);
+			return M.acBrowserFmt.replace(
+				"%s",
+				runtime.ctx.settings.get("browser.headless" as SettingPath) ? M.stateHeadless : M.stateVisible,
+			);
 		},
 		handle: async (command, runtime) => {
 			const arg = command.args.toLowerCase();
 			const enabled = runtime.settings.get("browser.enabled" as SettingPath) as boolean;
-			if (!enabled) return usage("Browser tool is disabled (enable in settings).", runtime);
+			if (!enabled) return usage("Browser capability is disabled (enable in settings).", runtime);
 			const current = runtime.settings.get("browser.headless" as SettingPath) as boolean;
 			let next = current;
 			if (!arg) next = !current;
@@ -442,18 +453,15 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			else if (arg === "visible" || arg === "show" || arg === "headful") next = false;
 			else return usage("Usage: /browser [headless|visible]", runtime);
 			runtime.settings.set("browser.headless" as SettingPath, next as SettingValue<SettingPath>);
-			const tool = runtime.session.getToolByName("browser");
-			if (tool && "restartForModeChange" in tool) {
-				try {
-					await (tool as { restartForModeChange: () => Promise<void> }).restartForModeChange();
-				} catch (err) {
-					// Setting was already mutated; surface the restart failure so the
-					// user knows the browser is in an inconsistent state.
-					await runtime.output(
-						`Browser mode set to ${next ? "headless" : "visible"}, but restart failed: ${errorMessage(err)}`,
-					);
-					return commandConsumed();
-				}
+			try {
+				await restartBrowserForModeChange();
+			} catch (err) {
+				// Setting was already mutated; surface the restart failure so the
+				// user knows the browser is in an inconsistent state.
+				await runtime.output(
+					`Browser mode set to ${next ? "headless" : "visible"}, but restart failed: ${errorMessage(err)}`,
+				);
+				return commandConsumed();
 			}
 			await runtime.output(`Browser mode: ${next ? "headless" : "visible"}`);
 			return commandConsumed();
@@ -463,7 +471,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			const current = settings.get("browser.headless" as SettingPath) as boolean;
 			let next = current;
 			if (!(settings.get("browser.enabled" as SettingPath) as boolean)) {
-				runtime.ctx.showWarning("Browser tool is disabled (enable in settings)");
+				runtime.ctx.showWarning("Browser capability is disabled (enable in settings)");
 				runtime.ctx.editor.setText("");
 				return;
 			}
@@ -479,15 +487,12 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				return;
 			}
 			settings.set("browser.headless" as SettingPath, next as SettingValue<SettingPath>);
-			const tool = runtime.ctx.session.getToolByName("browser");
-			if (tool && "restartForModeChange" in tool) {
-				try {
-					await (tool as { restartForModeChange: () => Promise<void> }).restartForModeChange();
-				} catch (error) {
-					runtime.ctx.showWarning(`Failed to restart browser: ${errorMessage(error)}`);
-					runtime.ctx.editor.setText("");
-					return;
-				}
+			try {
+				await restartBrowserForModeChange();
+			} catch (error) {
+				runtime.ctx.showWarning(`Failed to restart browser: ${errorMessage(error)}`);
+				runtime.ctx.editor.setText("");
+				return;
 			}
 			runtime.ctx.showStatus(`Browser mode: ${next ? "headless" : "visible"}`);
 			runtime.ctx.editor.setText("");
@@ -529,7 +534,42 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus("Usage: /copy [code|cmd]");
+			if (arg === "link" || arg === "url") {
+				const link = extractLastLink(runtime.ctx.session.messages);
+				if (!link) {
+					runtime.ctx.showStatus("No link to copy.");
+					runtime.ctx.editor.setText("");
+					return;
+				}
+				await copyToClipboard(link.href);
+				runtime.ctx.showStatus("Copied link to clipboard");
+				runtime.ctx.editor.setText("");
+				return;
+			}
+			runtime.ctx.showStatus("Usage: /copy [code|cmd|link]");
+			runtime.ctx.editor.setText("");
+		},
+	},
+	{
+		name: "open",
+		icon: "globe",
+		description: M.cmdOpenLastLinkFromConversation,
+		allowArgs: true,
+		handleTui: async (command, runtime) => {
+			const arg = command.args.trim().toLowerCase();
+			if (arg && arg !== "link" && arg !== "url") {
+				runtime.ctx.showStatus("Usage: /open [link]  (pick a specific link: /copy, → blocks, o)");
+				runtime.ctx.editor.setText("");
+				return;
+			}
+			const link = extractLastLink(runtime.ctx.session.messages);
+			if (!link) {
+				runtime.ctx.showStatus("No link to open.");
+				runtime.ctx.editor.setText("");
+				return;
+			}
+			openPath(link.href);
+			runtime.ctx.showStatus(`Opening ${link.href}`);
 			runtime.ctx.editor.setText("");
 		},
 	},

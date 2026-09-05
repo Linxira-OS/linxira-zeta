@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { formatHashlineHeader } from "@linxiraos/pi-hashline";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { canonicalSnapshotKey, EditTool, getFileSnapshotStore, type PatchParams } from "@linxiraos/zeta/edit";
+import { EditTool, getEditStore, type PatchParams } from "@linxiraos/zeta/edit";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { formatHashlineHeader } from "@linxiraos/zeta/tools/hashline-format";
 import type { EditMode } from "@linxiraos/zeta/utils/edit-mode";
 
 const MODEL = "openai/gpt-5.6";
@@ -152,7 +152,7 @@ describe("edit parse-regression blackbox", () => {
 		});
 
 		const hashlinePath = await writeFixture("hashline.ts");
-		const tag = getFileSnapshotStore(session).record(canonicalSnapshotKey(hashlinePath), SOURCE);
+		const tag = getEditStore(session).recordSnapshot(hashlinePath, SOURCE, undefined);
 		const hashlineArg = {
 			input: `${formatHashlineHeader("hashline.ts", tag)}\nPUT 2-2:\n+\treturn (;`,
 		};
