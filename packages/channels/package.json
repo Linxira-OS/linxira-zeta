@@ -59,6 +59,6 @@
 	"homepage": "https://linxira-os.github.io/zeta/",
 	"description": "IM channel adapters for Zeta (WeChat / Feishu / Telegram)",
 	"type": "module",
-	"version": "1.1.8",
+	"version": "1.1.9",
 	"name": "@linxiraos/pi-channels"
 }

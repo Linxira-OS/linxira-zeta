@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-09-05
+
 - v18.1.10 baseline: new Rust edit engine surface (EditStore/EditSession/DiffStream, editDescription) and hashline mode consolidated into crates/pi-edit; sentinel stays on the Zeta version line.
+
 ## [1.1.8] - 2026-09-04
 
 - OMP sync v18.1.2–v18.1.5: pi-vcs index-refresh path (`load_index_or_head`/`status_with_fresh_index`) and natives surface updates.
@@ -26,7 +29,6 @@
 
 - Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
 
-## [1.1.0] - 2026-08-25
 ## [1.0.4] - 2026-08-18
 
 ### Added

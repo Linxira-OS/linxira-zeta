@@ -98,7 +98,7 @@
 	"author": "Can Boluk",
 	"homepage": "https://linxira-os.github.io/zeta/",
 	"description": "Local SQLite memory engine for Oh My Pi agents",
-	"version": "1.1.8",
+	"version": "1.1.9",
 	"name": "@linxiraos/pi-mnemopi",
 	"type": "module"
 }

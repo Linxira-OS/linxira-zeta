@@ -2,8 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-09-05
+
 - v18.1.10 sync baseline; retired pi-hashline catalog entry removed from the version-line catalogs.
-## [1.1.8] - 2026-09-04
+
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。

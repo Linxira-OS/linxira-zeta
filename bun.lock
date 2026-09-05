@@ -21,7 +21,7 @@
     },
     "packages/agent": {
       "name": "@linxiraos/pi-agent-core",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
@@ -40,7 +40,7 @@
     },
     "packages/ai": {
       "name": "@linxiraos/pi-ai",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "dependencies": {
         "@linxiraos/pi-catalog": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
@@ -62,7 +62,7 @@
     },
     "packages/catalog": {
       "name": "@linxiraos/pi-catalog",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "dependencies": {
         "@linxiraos/pi-omptype": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
@@ -75,7 +75,7 @@
     },
     "packages/channels": {
       "name": "@linxiraos/pi-channels",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "dependencies": {
         "@larksuiteoapi/node-sdk": "^1.71.1",
         "@linxiraos/pi-utils": "catalog:",
@@ -90,7 +90,7 @@
     },
     "packages/coding-agent": {
       "name": "@linxiraos/zeta",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "bin": {
         "zeta": "src/cli.ts",
       },
@@ -180,7 +180,7 @@
     },
     "packages/mnemopi": {
       "name": "@linxiraos/pi-mnemopi",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "bin": {
         "mnemopi": "src/cli.ts",
       },
@@ -206,7 +206,7 @@
     },
     "packages/natives": {
       "name": "@linxiraos/pi-natives",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "devDependencies": {
         "@napi-rs/cli": "catalog:",
         "@types/bun": "catalog:",
@@ -221,7 +221,7 @@
     },
     "packages/omptype": {
       "name": "@linxiraos/pi-omptype",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "devDependencies": {
         "@ark/attest": "0.56.3",
         "@ark/schema": "0.56.2",
@@ -234,7 +234,7 @@
     },
     "packages/snapcompact": {
       "name": "@linxiraos/pi-snapcompact",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
@@ -248,7 +248,7 @@
     },
     "packages/stats": {
       "name": "@linxiraos/pi-stats",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "bin": {
         "zeta-stats": "./src/index.ts",
       },
@@ -273,7 +273,7 @@
     },
     "packages/tui": {
       "name": "@linxiraos/pi-tui",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "dependencies": {
         "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
@@ -308,7 +308,7 @@
     },
     "packages/utils": {
       "name": "@linxiraos/pi-utils",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "dependencies": {
         "@linxiraos/pi-natives": "catalog:",
       },
@@ -318,7 +318,7 @@
     },
     "packages/wire": {
       "name": "@linxiraos/pi-wire",
-      "version": "1.1.8",
+      "version": "1.1.9",
       "devDependencies": {
         "@types/bun": "catalog:",
       },
@@ -353,19 +353,19 @@
     "@babel/types": "^7.29.7",
     "@biomejs/biome": "^2.5.3",
     "@huggingface/transformers": "^4.2.0",
-    "@linxiraos/pi-agent-core": "1.1.8",
-    "@linxiraos/pi-ai": "1.1.8",
-    "@linxiraos/pi-catalog": "1.1.8",
-    "@linxiraos/pi-channels": "1.1.8",
-    "@linxiraos/pi-mnemopi": "1.1.8",
-    "@linxiraos/pi-natives": "1.1.8",
-    "@linxiraos/pi-omptype": "1.1.8",
-    "@linxiraos/pi-snapcompact": "1.1.8",
-    "@linxiraos/pi-stats": "1.1.8",
-    "@linxiraos/pi-tui": "1.1.8",
-    "@linxiraos/pi-utils": "1.1.8",
-    "@linxiraos/pi-wire": "1.1.8",
-    "@linxiraos/zeta": "1.1.8",
+    "@linxiraos/pi-agent-core": "1.1.9",
+    "@linxiraos/pi-ai": "1.1.9",
+    "@linxiraos/pi-catalog": "1.1.9",
+    "@linxiraos/pi-channels": "1.1.9",
+    "@linxiraos/pi-mnemopi": "1.1.9",
+    "@linxiraos/pi-natives": "1.1.9",
+    "@linxiraos/pi-omptype": "1.1.9",
+    "@linxiraos/pi-snapcompact": "1.1.9",
+    "@linxiraos/pi-stats": "1.1.9",
+    "@linxiraos/pi-tui": "1.1.9",
+    "@linxiraos/pi-utils": "1.1.9",
+    "@linxiraos/pi-wire": "1.1.9",
+    "@linxiraos/zeta": "1.1.9",
     "@napi-rs/cli": "3.7.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.220.0",
@@ -493,11 +493,11 @@
 
     "@huggingface/blake3-jit": ["@huggingface/blake3-jit@0.0.2", "", {}, "sha512-Bq7B5qabyjrJfhBsl85Jd2QBtf+HzRD7h7A9GfN2lzrrsABhOa5evVPgzoCTxR7Ub0QFj7YDK1YkYRWBU25+2w=="],
 
-    "@huggingface/hub": ["@huggingface/hub@2.16.1", "", { "dependencies": { "@huggingface/tasks": "^0.21.40", "@huggingface/xetchunk-wasm": "^0.2.0" }, "optionalDependencies": { "cli-progress": "^3.12.0" }, "bin": { "hfjs": "dist/cli.js" } }, "sha512-CHJlWEL4H9Ijrm8DDr3I3b+HrL1fKN+DnIKjymvSYJswtfWrK9Cf13Te2ywNIbqAx3yDmdG8zZlNKcEfqrf9Sw=="],
+    "@huggingface/hub": ["@huggingface/hub@2.16.3", "", { "dependencies": { "@huggingface/tasks": "^0.21.42", "@huggingface/xetchunk-wasm": "^0.2.0" }, "optionalDependencies": { "cli-progress": "^3.12.0" }, "bin": { "hfjs": "dist/cli.js" } }, "sha512-1vSUg+/EcqgBRTjJhB5cyC5ncLHtBBjYVQ6nSb9t7Q4PT4AjsJ4KTmTGkMvzUnJWN0XfbXrKUIGKPtkb3SwF1Q=="],
 
     "@huggingface/jinja": ["@huggingface/jinja@0.5.9", "", {}, "sha512-uWTG+l3VJRsl7EXxYizuL3P+cCPoc3cRqbWWRcQN0FhejRfbdq0RNhCmbY/YDtnTcz9icdLYuLDjsnz4d8JMuw=="],
 
-    "@huggingface/tasks": ["@huggingface/tasks@0.21.41", "", {}, "sha512-FSkc+Mu83/4Am7G0o99HYxwPGicsPABaBzsuJTUKCbfqvmHssKdGKTaknXfZQL6Wk9s8HQV0GhZ9C/8AwXZksw=="],
+    "@huggingface/tasks": ["@huggingface/tasks@0.21.42", "", {}, "sha512-eNO1DNB29NegZ1Yz/c0vSyNMDdrCD5CKhUJC4g+y2+10onTT6CeIcyI2YfcZksY7+I0aLM1gv3H82hM1MpURBw=="],
 
     "@huggingface/tokenizers": ["@huggingface/tokenizers@0.1.3", "", {}, "sha512-8rF/RRT10u+kn7YuUbUg0OF30K8rjTc78aHpxT+qJ1uWSqxT1MHi8+9ltwYfkFYJzT/oS+qw3JVfHtNMGAdqyA=="],
 
@@ -901,7 +901,7 @@
 
     "@types/babel__traverse": ["@types/babel__traverse@7.28.0", "", { "dependencies": { "@babel/types": "^7.28.2" } }, "sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q=="],
 
-    "@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@types/bun": ["@types/bun@1.4.1", "", { "dependencies": { "bun-types": "1.4.1" } }, "sha512-0AVGiTXGajf1rgKom3N+c5L7CBxuoyyv1i44M0nX4UDK0G/fnRAMiri93nHuVPIb429KKtAgj7HatVmmOjeQLA=="],
 
     "@types/d3-path": ["@types/d3-path@3.1.1", "", {}, "sha512-VMZBYyQvbGmWyWVea0EHs/BwLgxc+MKi1zLDCONksozI4YJMcTt8ZEuIR4Sb1MMTE8MMW49v0IwI5+b7RmfWlg=="],
 
@@ -911,7 +911,7 @@
 
     "@types/d3-time": ["@types/d3-time@3.0.4", "", {}, "sha512-yuzZug1nkAAaBlBBikKZTgzCeA+k1uy4ZFwWANOfKw5z5LRhV0gNA7gNkKm7HoK+HRN0wX3EkxGk0fpbWhmB7g=="],
 
-    "@types/node": ["@types/node@26.4.0", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-faiGnoIrLH/V8cibOMEAZ8pMw6oXqSukl29ra4mN8GdaB2ZewzeaLj+INpV5N+Z1eKWzY+IzaIZH2EIR6YZRNQ=="],
+    "@types/node": ["@types/node@26.4.1", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-k97ENvZWtvA6yqz5/FS6a7duDgOPEeOQOc2iKS/nY6mX6qJUKtLnWzQS+Xj6tXweyj6ZcTAK2Qecetnvi9nCLA=="],
 
     "@types/react": ["@types/react@19.2.18", "", { "dependencies": { "csstype": "^3.2.2" } }, "sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w=="],
 
@@ -1011,7 +1011,7 @@
 
     "browserslist": ["browserslist@4.28.8", "", { "dependencies": { "baseline-browser-mapping": "^2.11.12", "caniuse-lite": "^1.0.30001809", "electron-to-chromium": "^1.5.402", "node-releases": "^2.0.53", "update-browserslist-db": "^1.3.0" }, "bin": { "browserslist": "cli.js" } }, "sha512-V2NpofLblG64mfOtSgDhOJESZEGogzDMBv/q+W6oc4LXWP/q75eOXoOaaOu1EOadB9U4Bwx/e0yzbvwKH8zalA=="],
 
-    "bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "bun-types": ["bun-types@1.4.1", "", { "dependencies": { "@types/node": "*" } }, "sha512-loKuVrAFZKfEv+JvWkHRS9GW5IqLuLRjVXN9p+vZvBN86O5hf/pBZQ5hSoyipsrMmWObZBDvWnlmKvjKTM0PdA=="],
 
     "call-bind-apply-helpers": ["call-bind-apply-helpers@1.0.2", "", { "dependencies": { "es-errors": "^1.3.0", "function-bind": "^1.1.2" } }, "sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ=="],
 
@@ -1095,7 +1095,7 @@
 
     "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
 
-    "electron-to-chromium": ["electron-to-chromium@1.5.418", "", {}, "sha512-UzS26r3AEbG5wSoGVpJKqwHIU9zwQN7LHdVIThDrJpS0I5KdlXFMEb8543fhc9dVnIIAST6ar8rhwa00AL5MlA=="],
+    "electron-to-chromium": ["electron-to-chromium@1.5.420", "", {}, "sha512-2yD6XreGusOfNV+dUcvipJEXc3n/n7fgr7996aszTG+YY5E4mqM4tOq/3uhP129cazL9YHbVWSpc79ePotWtPA=="],
 
     "emnapi": ["emnapi@1.11.3", "", { "peerDependencies": { "node-addon-api": ">= 6.1.0" }, "optionalPeers": ["node-addon-api"] }, "sha512-+/ZS90YK/rYfVOHtGLHkGffVsnmD/MAKaBHio+Y4XAtg75RLr4cveV/w0jTkUdLM1CcAlaRgG76mpIemWAlk0A=="],
 
@@ -1253,7 +1253,7 @@
 
     "lru-cache": ["lru-cache@5.1.1", "", { "dependencies": { "yallist": "^3.0.2" } }, "sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w=="],
 
-    "lucide-react": ["lucide-react@1.38.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-xZCyBd/wiVUDactoCc+42TjL0aB7EBOXsuX+tjz+W/sGzw2KhHpL1NOH3FIaVUcpimvUBpIYfz34Ofj9S5JEzQ=="],
+    "lucide-react": ["lucide-react@1.39.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-y8nXoEwvqqIsF927NBWXODa4bfMrcUeEb/9sgpwFqg0gUjgn3j5Hznk+v7STmPgZ2iQ11JKlbQGdFRuTOwvYkA=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
@@ -1537,11 +1537,11 @@
 
     "@opentelemetry/sdk-logs/@opentelemetry/resources": ["@opentelemetry/resources@2.9.0", "", { "dependencies": { "@opentelemetry/core": "2.9.0", "@opentelemetry/semantic-conventions": "^1.29.0" }, "peerDependencies": { "@opentelemetry/api": ">=1.3.0 <1.10.0" } }, "sha512-jyA5MBLQ+Dkl3+JsZkUoUvL7yHvU64kLsvpXKarWm6347Sl1t1bXFTFykUePNpT5WH5pm9a2Qtt03iIYQhZ1Fg=="],
 
-    "@tailwindcss/oxide-wasm32-wasi/@emnapi/core": ["@emnapi/core@1.11.3", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.3", "tslib": "^2.4.0" }, "bundled": true }, "sha512-zLpS5asjEb7lq8jYLq37N6XKaE41DIexlY1rF/z4/tIl3wo13Sqm28fRyfIsKZD+NZ8mM5RoKkpW/rBcuoSZSg=="],
+    "@tailwindcss/oxide-wasm32-wasi/@emnapi/core": ["@emnapi/core@1.11.2", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.2", "tslib": "^2.4.0" }, "bundled": true }, "sha512-TC8MkTuZUtcTSiFeuC0ksCh9QIJ5+F21MvZ4Wn4ORfYaFJ/0dsiudv5tVkejgwZlwQ39jL9WWDe2lz8x0WglOA=="],
 
-    "@tailwindcss/oxide-wasm32-wasi/@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" }, "bundled": true }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
+    "@tailwindcss/oxide-wasm32-wasi/@emnapi/runtime": ["@emnapi/runtime@1.11.2", "", { "dependencies": { "tslib": "^2.4.0" }, "bundled": true }, "sha512-kyOl3X0DuTiT1h2ft8r2fYO8JYtU9a9Xis/zBSiGArNaagCOWx90N1k2wxp18czFDH+OgcWGb5ZP/XMt3dcyPA=="],
 
-    "@tailwindcss/oxide-wasm32-wasi/@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.3", "", { "dependencies": { "tslib": "^2.4.0" }, "bundled": true }, "sha512-ELEBe8PsLvvJ6QMr0zLt8ffvOHW/dc1m3CEzNMg7aJUv3bMaoDtw2TXyDAwkYBuroxxuHEwhRTLJSe5sya547g=="],
+    "@tailwindcss/oxide-wasm32-wasi/@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.2", "", { "dependencies": { "tslib": "^2.4.0" }, "bundled": true }, "sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA=="],
 
     "@tailwindcss/oxide-wasm32-wasi/@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.3", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" }, "bundled": true }, "sha512-UMduMbqO5s5zF2NkNacMT/yK5Y5QiKvWr2+50bzIIxFDwVJ2h49b+oyjaCGPhJxd2/gC2x39EHv/gHVuu36x2Q=="],
 

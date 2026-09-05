@@ -2,8 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-09-05
+
 - USER_AGENT constant restored to zeta/<version> (the v18.1.10 merge re-introduced the upstream omp/ UA on every provider request); brand wording in path-resolver docs corrected; profile validation error message Zeta'd.
-## [1.1.8] - 2026-09-04
+
 ## [1.1.6] - 2026-08-30
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。

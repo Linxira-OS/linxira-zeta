@@ -54,6 +54,6 @@
 		"streams"
 	],
 	"description": "Shared utilities for pi packages",
-	"version": "1.1.8",
+	"version": "1.1.9",
 	"name": "@linxiraos/pi-utils"
 }

@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-09-05
+
 - v18.1.10 sync baseline (stats tracking panel updates).
+
 ## [1.1.8] - 2026-09-04
 
 - OMP sync v18.1.2–v18.1.5: `/trace` tracking panel, compaction summary persistence, and stats-sync worker alignment.

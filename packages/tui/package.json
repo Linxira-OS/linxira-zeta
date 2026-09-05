@@ -60,7 +60,7 @@
 	"author": "Stencil Labs, Inc.",
 	"homepage": "https://linxira-os.github.io/zeta/",
 	"description": "Terminal User Interface library with differential rendering for efficient text-based applications",
-	"version": "1.1.8",
+	"version": "1.1.9",
 	"name": "@linxiraos/pi-tui",
 	"type": "module"
 }

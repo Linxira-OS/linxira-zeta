@@ -92,7 +92,7 @@
 	"author": "Can Boluk",
 	"homepage": "https://linxira-os.github.io/zeta/",
 	"description": "Model catalog for omp: bundled model database, provider discovery descriptors, model identity, classification, and equivalence",
-	"version": "1.1.8",
+	"version": "1.1.9",
 	"name": "@linxiraos/pi-catalog",
 	"type": "module"
 }
