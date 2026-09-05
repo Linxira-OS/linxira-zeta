@@ -96,6 +96,7 @@ export async function approveRemotePlan(
 		session.markPlanReferenceSent();
 		const approvedPrompt = prompt.render(planModeApprovedPrompt, {
 			planFilePath,
+			planContent,
 			contextPreserved: mode !== "fresh",
 		});
 		await session.prompt(approvedPrompt);

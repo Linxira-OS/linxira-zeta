@@ -12,8 +12,10 @@ import {
 } from "@linxiraos/zeta/modes/components/composer-shape-registry";
 import { SettingsSelectorComponent } from "@linxiraos/zeta/modes/components/settings-selector";
 import { initTheme, setTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { setLanguage } from "../../../src/i18n";
 
 beforeAll(async () => {
+	setLanguage("en");
 	await initTheme();
 });
 
@@ -95,38 +97,38 @@ describe("composer shape preview", () => {
 
 		const box = renderComposerShapePreview("box", 80, status).join("\n");
 		expect(box).toContain("TOPBAR"); // embedded in the top border
-		expect(box).toContain("omp"); // stand-in title forwarded to the status source
+		expect(box).toContain("ζ"); // stand-in title forwarded to the status source
 		expect(box).not.toContain("BOTTOM"); // box has no standalone bottom bar
 		const band = renderComposerShapePreview("band", 80, status).join("\n");
 		expect(band).toContain("BAND"); // flush band row above the prompt
-		expect(band).toContain("omp");
+		expect(band).toContain("ζ");
 		expect(band).not.toContain("BOTTOM"); // the band replaces the bottom bar
 
 		const claude = renderComposerShapePreview("claude", 80, status).join("\n");
 		expect(claude).toContain("CHIP"); // right group chips onto the top rule
-		expect(claude).toContain("omp");
+		expect(claude).toContain("ζ");
 		expect(claude).toContain("BOTTOM-LEFT"); // left group only on the bottom bar
 
 		const rule = renderComposerShapePreview("rule", 80, status);
 		expect(rule.join("\n")).toContain("CHIP");
-		expect(rule.join("\n")).toContain("omp");
+		expect(rule.join("\n")).toContain("ζ");
 		expect(rule.join("\n")).toContain("BOTTOM-LEFT");
 		expect(rule[rule.length - 2]).toBe(""); // spacer row: rule has no bottom chrome
 
 		const pi = renderComposerShapePreview("pi", 80, status);
 		expect(pi.join("\n")).not.toContain("CHIP");
-		expect(pi.join("\n")).toContain("omp");
+		expect(pi.join("\n")).toContain("ζ");
 		expect(pi.join("\n")).toContain("BOTTOM-FULL"); // both groups on the bottom bar
 		expect(pi[pi.length - 2]).not.toBe(""); // bottom rule already separates the bar
 
 		const borderless = renderComposerShapePreview("borderless", 80, status).join("\n");
-		expect(borderless).toContain("omp");
+		expect(borderless).toContain("ζ");
 		expect(borderless).toContain("BOTTOM-FULL");
 
 		for (const shape of ["field", "rail"]) {
 			const rendered = renderComposerShapePreview(shape, 80, status);
 			expect(rendered.join("\n")).not.toContain("CHIP");
-			expect(rendered.join("\n")).toContain("omp");
+			expect(rendered.join("\n")).toContain("ζ");
 			expect(rendered.join("\n")).toContain("BOTTOM-FULL");
 			expect(rendered[rendered.length - 2]).toBe(""); // spacer row before the bar
 		}

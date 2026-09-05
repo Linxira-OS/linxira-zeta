@@ -244,6 +244,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "为文本模型描述图片",
 		description: "当图片附加到不支持视觉的模型时，将其保存到 local:// 并从具备视觉能力的模型注入描述，而不是丢弃它",
 	},
+	"images.questionTimeoutMs": {
+		label: "图片问答超时",
+		description:
+			"read 的 ?q= 图片问答背后视觉模型调用的单次超时（毫秒）。停滞的服务商会快速以超时错误失败，而不是阻塞到手动中止。设为 0 禁用超时。",
+	},
 	"terminal.showProgress": {
 		label: "原生终端进度",
 		description: "在智能体或上下文维护运行时发送 OSC 9;4 不确定进度",
@@ -279,6 +284,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tui.sidebar": {
 		label: "侧边栏",
 		description: "显示右侧边栏（上下文、用量、git、模型）",
+	},
+	"tui.reactions": {
+		label: "智能体表情回应",
+		description: "邀请智能体在其消息气泡上以 emoji 徽标回应你的消息",
 	},
 	"display.shimmer": {
 		label: "微光动画",
@@ -1001,6 +1010,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "JavaScript Eval 后端",
 		description: "允许 eval 工具将 JavaScript 单元格分派到进程内运行时",
 	},
+	"eval.tools.enabled": {
+		label: "Eval 定义的工具",
+		description:
+			"允许 eval 单元格定义工具（Python 的 @tool、JS 的 tool(fn)），供 task、agent() 和 workpool() 子代理调用",
+	},
+	"eval.workpool.freshAgents": {
+		label: "Workpool 每项新建代理",
+		description: "为每个 workpool 条目生成全新子代理，而不是复用工作者或批量处理队列条目",
+	},
 	"python.kernelMode": {
 		label: "Python 内核模式",
 		description: "在多次 eval 调用间保持 IPython 内核存活，或每次都全新启动",
@@ -1258,7 +1276,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
-			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `omp worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
+			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `zeta worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
+	},
+	"worktree.cleanSource": {
+		label: "/wt 时清理源检出",
+		description: "用 `/wt` 创建工作树后，在带走变更的基础上重置源检出的已跟踪修改并删除未跟踪文件",
+	},
+	skillful: {
+		label: "在提示词中列出技能",
+		description: "在系统提示词中列出可用技能；禁用以节省上下文，并可用 /skillful 按会话切换",
 	},
 	"task.eager": {
 		label: "偏好任务委派",
@@ -1358,6 +1384,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"providers.ollama-cloud.maxConcurrency": {
 		label: "Ollama Cloud 最大并发",
 		description: "每个进程的最大并发 Ollama Cloud 子代理运行数；0 禁用服务商特定限制",
+	},
+	"providers.openai-codex.codeModeDirectTools": {
+		label: "Codex Code Mode 直连工具",
+		description:
+			"Codex Code Mode 的额外直连工具。标准直连工具为 eval、ask、todo、yield、think、checkpoint 和 rewind。",
 	},
 	"providers.webSearchOrder": {
 		label: "网络搜索服务商顺序",

@@ -489,7 +489,7 @@ describe("listClaudePluginRoots", () => {
 			[firstHome, "first@market"],
 			[secondHome, "second@market"],
 		] as const) {
-			const pluginsDir = path.join(home, ".omp", "plugins");
+			const pluginsDir = path.join(home, ".zeta", "plugins");
 			await fs.mkdir(pluginsDir, { recursive: true });
 			await fs.writeFile(
 				path.join(pluginsDir, "installed_plugins.json"),
@@ -518,7 +518,7 @@ describe("listClaudePluginRoots", () => {
 	test("loads OMP user skills without opting into foreign Claude skills", async () => {
 		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
-		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
 		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
 		await Promise.all([
 			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),
@@ -568,7 +568,7 @@ describe("listClaudePluginRoots", () => {
 		// rides SourceMeta, so the foreign gate applies only to claude-origin roots.
 		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
-		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
 		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
 		await Promise.all([
 			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),

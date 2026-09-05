@@ -150,7 +150,7 @@ test("alwaysApply is forced even when frontmatter says false", async () => {
 });
 
 test("enabled false omits a discovered rule", async () => {
-	const rulesDir = path.join(home, ".omp", "agent", "rules");
+	const rulesDir = path.join(home, ".zeta", "agent", "rules");
 	writeFile(
 		path.join(rulesDir, "disabled-example.md"),
 		"---\nenabled: false\ncondition: DISABLED_EXAMPLE\nscope: [tool:edit]\n---\nDisabled rule.\n",

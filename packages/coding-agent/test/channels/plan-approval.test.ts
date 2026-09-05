@@ -74,7 +74,11 @@ describe("approveRemotePlan", () => {
 		expect(session.prompt).toHaveBeenCalledTimes(1);
 		const injected = String(session.prompt.mock.calls[0]?.[0]);
 		expect(injected).toContain("Plan approved.");
-		expect(injected).toContain("MUST read `local://PLAN.md`");
+		// Upstream template inlines the plan; the durable path is for handoff/recovery.
+		expect(injected).toContain("durable copy at `local://PLAN.md`");
+		expect(injected).toContain('<plan path="local://PLAN.md">');
+		// The plan body must actually render — an unwired variable would inline an empty plan.
+		expect(injected).toContain("Do the thing.");
 		expect(injected).toContain("History usable;");
 	});
 

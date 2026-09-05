@@ -106,7 +106,7 @@ function makeBizFetch(
 		}
 		if (url === KEYS_URL && method === "POST") {
 			// Create returns an inline secret; the flow must IGNORE it and copy.
-			return bizEnvelope({ name: "oh-my-pi", apiKey: "created-key", secretKey: "inline-ignored" });
+			return bizEnvelope({ name: "zeta", apiKey: "created-key", secretKey: "inline-ignored" });
 		}
 		if (url.startsWith(`${KEYS_URL}/copy/`)) {
 			const apiKey = decodeURIComponent(url.slice(`${KEYS_URL}/copy/`.length));
@@ -434,14 +434,14 @@ describe("zai oauth flow", () => {
 			expect(bizReq.authorization).toBe("Bearer biz-token");
 		}
 		// Created OMP's own key name, never ZCode's.
-		expect(requests[4]?.body).toEqual({ name: "oh-my-pi" });
+		expect(requests[4]?.body).toEqual({ name: "zeta" });
 	});
 
 	it("reuses an existing key and takes the full secret from copy, not the masked list value", async () => {
 		const { fetchMock, requests } = makeBizFetch({
 			existingKeys: [
 				{ name: "zcode-api-key", apiKey: "zcode-key", secretKey: "*****aaaa" },
-				{ name: "oh-my-pi", apiKey: "existing-key", secretKey: "*****pz5Y" },
+				{ name: "zeta", apiKey: "existing-key", secretKey: "*****pz5Y" },
 			],
 		});
 

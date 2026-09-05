@@ -1464,16 +1464,13 @@ export class SessionTools {
 		const previousBaseSystemPrompt = this.#baseSystemPrompt;
 		const built = await this.#rebuildSystemPrompt(promptToolNames, this.#toolRegistry, { directToolNames });
 		if (this.#host.isDisposed()) return;
-		this.#baseSystemPrompt = built.systemPrompt;
-		this.#basePromptXdevNames = new Set(built.xdevCatalogNames);
-		this.#host.clearMemoryPromotionSnapshot();
-		if (
-			previousBaseSystemPrompt.length !== this.#baseSystemPrompt.length ||
-			previousBaseSystemPrompt.some((part, index) => part !== this.#baseSystemPrompt[index])
-		) {
+		if (!systemPromptsAreEqual(previousBaseSystemPrompt, built.systemPrompt)) {
+			this.#baseSystemPrompt = built.systemPrompt;
+			this.#basePromptXdevNames = new Set(built.xdevCatalogNames);
+			this.#host.clearMemoryPromotionSnapshot();
 			this.#host.clearInheritedProviderPromptCacheKey();
+			this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 		}
-		this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 		this.#promptModelKey = this.#currentPromptModelKey();
 		// Refresh the cached signature so a subsequent `applyActiveToolsByName` with
 		// the same tool set does not re-rebuild on top of the explicit refresh we
@@ -1749,4 +1746,8 @@ function registeredFilesystemSourcePath(runner: ExtensionRunner | undefined, nam
 	if (!registered) return undefined;
 	const candidate = registered.definition.sourcePath ?? registered.extensionPath;
 	return candidate && isFilesystemSourcePath(candidate) ? candidate : undefined;
+}
+
+function systemPromptsAreEqual(previous: readonly string[], next: readonly string[]): boolean {
+	return previous.length === next.length && previous.every((part, index) => part === next[index]);
 }
