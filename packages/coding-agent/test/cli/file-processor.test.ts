@@ -8,8 +8,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { processFileArguments } from "@linxiraos/pi-coding-agent/cli/file-processor";
 import { $which, removeWithRetries } from "@linxiraos/pi-utils";
+import { processFileArguments } from "@linxiraos/zeta/cli/file-processor";
 
 const hasFfmpeg = Boolean($which("ffmpeg") && $which("ffprobe"));
 

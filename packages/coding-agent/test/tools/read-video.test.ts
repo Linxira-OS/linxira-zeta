@@ -8,10 +8,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { ReadTool } from "@linxiraos/pi-coding-agent/tools/read";
 import { $which, removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 const hasFfmpeg = Boolean($which("ffmpeg") && $which("ffprobe"));
 

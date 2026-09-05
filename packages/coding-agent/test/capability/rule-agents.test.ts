@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildRuleFromMarkdown, createSourceMeta } from "@linxiraos/pi-coding-agent/discovery/helpers";
+import { buildRuleFromMarkdown, createSourceMeta } from "@linxiraos/zeta/discovery/helpers";
 
 describe("agents frontmatter normalization", () => {
 	it("lowercases a YAML sequence", () => {

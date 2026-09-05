@@ -22,8 +22,8 @@ import {
 	BUILTIN_DEFAULTS_PROVIDER_ID,
 	compileRuleCondition,
 	MAIN_AGENT_RULE_NAME,
-	ruleAppliesToAgent,
 	type Rule,
+	ruleAppliesToAgent,
 	ruleCapability,
 } from "../capability/rule";
 import { bucketRules } from "../capability/rule-buckets";

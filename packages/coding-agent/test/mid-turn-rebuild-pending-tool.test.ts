@@ -14,13 +14,13 @@
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { ToolExecutionComponent } from "@linxiraos/pi-coding-agent/modes/components/tool-execution";
-import { TranscriptContainer } from "@linxiraos/pi-coding-agent/modes/components/transcript-container";
-import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import { UiHelpers } from "@linxiraos/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@linxiraos/pi-coding-agent/session/session-context";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import type { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { SessionContext } from "@linxiraos/zeta/session/session-context";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 const usage = {

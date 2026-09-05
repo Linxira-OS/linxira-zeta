@@ -73,7 +73,6 @@ import { resolveAgentPrewalkDefault } from "./prewalk";
 import { isReadOnlyAgent } from "./read-only-policy";
 import { formatTaskResultSummary } from "./result-summary";
 import { subprocessToolRegistry } from "./subprocess-tool-registry";
-import type { WorkPoolYieldItem } from "./workpool-yield";
 import {
 	type AgentDefinition,
 	type AgentProgress,
@@ -89,6 +88,7 @@ import {
 	type TaskToolDetails,
 	type YieldItem,
 } from "./types";
+import type { WorkPoolYieldItem } from "./workpool-yield";
 import { arrayValuedLabels, assembleYieldResult } from "./yield-assembly";
 
 export type { YieldItem } from "./types";

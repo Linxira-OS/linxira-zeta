@@ -20,7 +20,7 @@ function createSession(cwd: string, artifactsDir: string, planReferencePath: str
 		hasUI: false,
 		getSessionFile: () => null,
 		getSessionSpawns: () => "*",
-		settings: Settings.isolated({ "images.autoResize": false, "inspect_image.enabled": false }),
+		settings: Settings.isolated({ "images.autoResize": false }),
 		localProtocolOptions: {
 			getArtifactsDir: () => artifactsDir,
 			getSessionId: () => "test-session",

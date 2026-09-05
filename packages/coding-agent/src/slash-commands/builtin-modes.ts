@@ -3,10 +3,11 @@ import {
 	expandRoleAlias,
 	formatModelString,
 	getModelMatchPreferences,
-	resolveCliModel,
 	type ResolveCliModelResult,
+	resolveCliModel,
 } from "../config/model-resolver";
 import type { SettingPath, Settings } from "../config/settings";
+import { M } from "../i18n";
 import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
 import type { AgentSession } from "../session/agent-session";
@@ -215,6 +216,29 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handleTui: async (command, runtime) => {
 			await runWithDetachedModeDraft(command, runtime, () =>
 				runtime.ctx.handlePlanModeCommand(command.args || undefined, runtime.input),
+			);
+		},
+	},
+	{
+		name: "plan-ultra",
+		icon: "plan",
+		description: M.cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor,
+		inlineHint: "[prompt]",
+		allowArgs: true,
+		getTuiAutocompleteDescription: runtime => {
+			if (!runtime.ctx.settings.get("plan.enabled" as SettingPath)) return "Plan-ultra: disabled in settings";
+			const workflow = runtime.ctx.session.getPlanModeState?.()?.workflow;
+			if (runtime.ctx.planModeEnabled && workflow === "ultra") {
+				const planFile = runtime.ctx.planModePlanFilePath;
+				return `Plan-ultra: on${planFile ? ` (${path.basename(planFile)})` : ""}`;
+			}
+			if (runtime.ctx.planModeEnabled) return "Plan-ultra: plan mode already active (toggles off)";
+			if (runtime.ctx.goalModeEnabled) return "Plan-ultra: blocked by goal mode";
+			return "Plan-ultra: off";
+		},
+		handleTui: async (command, runtime) => {
+			await runWithDetachedModeDraft(command, runtime, () =>
+				runtime.ctx.handlePlanUltraCommand(command.args || undefined, runtime.input),
 			);
 		},
 	},

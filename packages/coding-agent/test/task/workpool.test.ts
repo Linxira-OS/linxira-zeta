@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
+import { prompt } from "@linxiraos/pi-utils";
 import { AsyncJobManager } from "../../src/async";
 import { Settings } from "../../src/config/settings";
 import subagentSystemPrompt from "../../src/prompts/system/subagent-system-prompt.md" with { type: "text" };
 import { AgentRegistry } from "../../src/registry/agent-registry";
 import type { AgentSession } from "../../src/session/agent-session";
-import { HubTool } from "../../src/tools/hub";
 import type { CustomMessage } from "../../src/session/messages";
 import * as executor from "../../src/task/executor";
 import type { EffectiveSubagentPolicy, StructuredSubagentResult } from "../../src/task/structured-subagent";
@@ -12,7 +12,7 @@ import * as structured from "../../src/task/structured-subagent";
 import type { AgentDefinition, SingleResult } from "../../src/task/types";
 import { WorkPool, WorkPoolRegistry } from "../../src/task/workpool";
 import type { ToolSession } from "../../src/tools";
-import { prompt } from "@linxiraos/pi-utils";
+import { HubTool } from "../../src/tools/hub";
 
 const AGENT: AgentDefinition = {
 	name: "scout",

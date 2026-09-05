@@ -13,11 +13,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { completeSimple } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { InternalUrlRouter, LocalProtocolHandler, parseInternalUrl } from "@linxiraos/pi-coding-agent/internal-urls";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { ReadTool } from "@linxiraos/pi-coding-agent/tools/read";
 import { $which, removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter, LocalProtocolHandler, parseInternalUrl } from "@linxiraos/zeta/internal-urls";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 const hasFfprobe = Boolean($which("ffprobe"));
 

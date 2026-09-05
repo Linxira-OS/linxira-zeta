@@ -1,5 +1,4 @@
 import * as fs from "node:fs";
-import { type } from "@linxiraos/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -8,6 +7,7 @@ import type {
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import { getProjectDir, isEnoent, logger, prompt } from "@linxiraos/pi-utils";
@@ -39,9 +39,9 @@ import type { ToolSession } from ".";
 import { truncateForPrompt } from "./approval";
 import { type BashInteractiveResult, runInteractiveBashPty } from "./bash-interactive";
 import { checkBashInterception } from "./bash-interceptor";
-import { rewriteGitWorktreeAdd } from "./bash-worktree-rewrite";
 import { canUseInteractiveBashPty } from "./bash-pty-selection";
 import { expandInternalUrls, type InternalUrlExpansionOptions } from "./bash-skill-urls";
+import { rewriteGitWorktreeAdd } from "./bash-worktree-rewrite";
 import { resolveEvalBackends } from "./eval-backends";
 import { invalidateGithubCacheForBashCommand } from "./gh-cache-invalidation";
 import {

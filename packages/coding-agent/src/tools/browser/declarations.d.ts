@@ -220,7 +220,7 @@ interface BrowserWait {
 
 /** Assertion helper available to a browser run function. */
 interface BrowserAssert {
-	/** Throw with `message` when `condition` is falsy. */
+	// biome-ignore lint/style/useShorthandFunctionType: ambient call-signature interface, not an object type
 	(condition: unknown, message?: string): asserts condition;
 }
 

@@ -13,8 +13,8 @@
  * a 400 so the request short-circuits.
  */
 import { describe, expect, it } from "bun:test";
-import type { MessageCreateParams } from "@linxiraos/pi-ai/providers/anthropic-wire";
 import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
+import type { MessageCreateParams } from "@linxiraos/pi-ai/providers/anthropic-wire";
 import type { CacheRetention, Context, Model, ModelSpec } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 

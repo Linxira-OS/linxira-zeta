@@ -3,15 +3,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { UserMessage } from "@linxiraos/pi-ai";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { createAgentSession } from "@linxiraos/pi-coding-agent/sdk";
-import type { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
-import { BUILTIN_MODE_SLASH_COMMANDS } from "@linxiraos/pi-coding-agent/slash-commands/builtin-modes";
-import type { SlashCommandRuntime } from "@linxiraos/pi-coding-agent/slash-commands/types";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { BUILTIN_MODE_SLASH_COMMANDS } from "@linxiraos/zeta/slash-commands/builtin-modes";
+import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 function createUserMessage(content: string): UserMessage {

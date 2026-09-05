@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/pi-coding-agent/modes/components/assistant-message";
-import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { vocalizer } from "@linxiraos/pi-coding-agent/tts/vocalizer";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { vocalizer } from "@linxiraos/zeta/tts/vocalizer";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 function zeroUsage(): Usage {

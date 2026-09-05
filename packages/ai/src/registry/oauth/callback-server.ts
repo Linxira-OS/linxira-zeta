@@ -13,8 +13,8 @@
 import * as os from "node:os";
 import { logger } from "@linxiraos/pi-utils";
 import * as AIError from "../../error";
-import * as nativeSchemeCallback from "./native-scheme-callback";
 import type { NativeSchemeCallbackReceiver } from "./native-scheme-callback";
+import * as nativeSchemeCallback from "./native-scheme-callback";
 import templateHtml from "./oauth.html" with { type: "text" };
 import type { OAuthController, OAuthCredentials } from "./types";
 

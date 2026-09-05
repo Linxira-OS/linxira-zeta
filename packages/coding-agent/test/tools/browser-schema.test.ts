@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/sdk";
-import { createBrowserPrelude } from "@linxiraos/pi-coding-agent/tools/browser";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
 
 function makeSession(settings = Settings.isolated({ "browser.enabled": true })): ToolSession {
 	return {

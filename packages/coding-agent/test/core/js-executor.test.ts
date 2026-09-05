@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, setDefaultTimeout, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/omptype";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { disposeAllVmContexts, invokeJsTool } from "@linxiraos/pi-coding-agent/eval/js/context-manager";
-import { executeJs, type JsResult } from "@linxiraos/pi-coding-agent/eval/js/executor";
-import { describeEvalTools } from "@linxiraos/pi-coding-agent/task/eval-tools";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { type } from "@linxiraos/pi-omptype";
 import { TempDir } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts, invokeJsTool } from "@linxiraos/zeta/eval/js/context-manager";
+import { executeJs, type JsResult } from "@linxiraos/zeta/eval/js/executor";
+import { describeEvalTools } from "@linxiraos/zeta/task/eval-tools";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 // JS eval cold-starts a Bun worker; under --isolate + high CI concurrency that startup
 // can exceed Bun's 5s default per-test timeout, flaking the suite. Give the worker-backed
@@ -484,10 +484,12 @@ describe("executeJs", () => {
 	});
 
 	it("auto-displays the final awaited expression result", async () => {
-		const execute = vi.fn(async (): Promise<AgentToolResult> => ({
-			content: [{ type: "text", text: "tool output" }],
-			details: { kind: "tool-result" },
-		}));
+		const execute = vi.fn(
+			async (): Promise<AgentToolResult> => ({
+				content: [{ type: "text", text: "tool output" }],
+				details: { kind: "tool-result" },
+			}),
+		);
 		const toolSession: ToolSession = {
 			...session,
 			getToolByName: name => (name === "read" ? createTool("read", execute) : undefined),

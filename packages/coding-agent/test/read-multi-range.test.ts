@@ -3,13 +3,13 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { EditTool } from "@linxiraos/pi-coding-agent/edit";
-import type { ClientBridge } from "@linxiraos/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import type { ReadToolDetails } from "@linxiraos/pi-coding-agent/tools/read";
-import { ReadTool } from "@linxiraos/pi-coding-agent/tools/read";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool } from "@linxiraos/zeta/edit";
+import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import type { ReadToolDetails } from "@linxiraos/zeta/tools/read";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content

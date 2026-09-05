@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { Rule } from "@linxiraos/pi-coding-agent/capability/rule";
-import { resetActiveRulesForTests, setActiveRules } from "@linxiraos/pi-coding-agent/capability/rule";
-import type { InternalUrl } from "@linxiraos/pi-coding-agent/internal-urls/types";
-import { RuleProtocolHandler } from "@linxiraos/pi-coding-agent/internal-urls/rule-protocol";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { resetActiveRulesForTests, setActiveRules } from "@linxiraos/zeta/capability/rule";
+import { RuleProtocolHandler } from "@linxiraos/zeta/internal-urls/rule-protocol";
+import type { InternalUrl } from "@linxiraos/zeta/internal-urls/types";
 
 function makeRule(name: string, content: string): Rule {
 	return {

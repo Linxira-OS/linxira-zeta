@@ -6,15 +6,15 @@ import type { ApiKeyResolveContext, AssistantMessage, AssistantRetryRecovery, Us
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import * as aiStream from "@linxiraos/pi-ai/stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { resolveAssistantErrorPresentation } from "@linxiraos/pi-coding-agent/modes/utils/transcript-render-helpers";
-import { AgentSession, type AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
-import { SILENT_ABORT_MARKER } from "@linxiraos/pi-coding-agent/session/messages";
-import type { SessionMessageEntry } from "@linxiraos/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resolveAssistantErrorPresentation } from "@linxiraos/zeta/modes/utils/transcript-render-helpers";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;
 

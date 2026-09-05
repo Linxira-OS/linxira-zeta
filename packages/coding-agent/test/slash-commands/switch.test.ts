@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@linxiraos/pi-coding-agent/slash-commands/builtin-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 const MODELS = [
 	{ provider: "anthropic", id: "claude-opus-4-5", contextWindow: 200_000 },

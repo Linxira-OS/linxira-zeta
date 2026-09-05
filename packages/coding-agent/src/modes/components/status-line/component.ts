@@ -1783,6 +1783,16 @@ export class StatusLineComponent implements Component {
 		return { usedTokens, contextWindow };
 	}
 
+	/**
+	 * Sidebar data source: the same segment context the bar renders from
+	 * (usage aggregates, cached context breakdown, git branch/status with all
+	 * caching and background fetches), so the gutter sidebar can never disagree
+	 * with the status line.
+	 */
+	getSidebarContext(width: number): SegmentContext {
+		return this.#buildSegmentContext(width, this.#resolveSettings().segmentOptions, false, true, true);
+	}
+
 	#buildSegmentContext(
 		width: number,
 		segmentOptions: StatusLineSettings["segmentOptions"],

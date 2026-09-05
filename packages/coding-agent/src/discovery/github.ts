@@ -27,9 +27,9 @@ import { type Skill, skillCapability } from "../capability/skill";
 import type { LoadContext, LoadResult, SourceMeta } from "../capability/types";
 
 import {
-	discoverRuleFromMarkdown,
 	calculateDepth,
 	createSourceMeta,
+	discoverRuleFromMarkdown,
 	getProjectPath,
 	loadFilesFromDir,
 	parseCSV,

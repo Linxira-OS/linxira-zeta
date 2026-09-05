@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { $ } from "bun";
 import { $which, getTinyModelsCacheDir, isEnoent, type RuntimeInstallPhase, withFileLock } from "@linxiraos/pi-utils";
+import { $ } from "bun";
 
 /**
  * Side-installed Python runtime for the MLX tiny-model backend: a private venv

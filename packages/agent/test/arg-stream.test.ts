@@ -1,10 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/omptype";
 import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
-import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@linxiraos/pi-agent-core/types";
+import type {
+	AgentContext,
+	AgentEvent,
+	AgentLoopConfig,
+	AgentMessage,
+	AgentTool,
+} from "@linxiraos/pi-agent-core/types";
 import type { AssistantMessage, Message } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { type } from "@linxiraos/pi-omptype";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

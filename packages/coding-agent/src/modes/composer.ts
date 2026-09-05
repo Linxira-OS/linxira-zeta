@@ -10,9 +10,9 @@ import {
 	type Terminal,
 	type TerminalFramePlan,
 	type TerminalFrameProvider,
-	truncateToWidth,
 	TUI,
 	type TUIOptions,
+	truncateToWidth,
 	type ViewportSize,
 	visibleWidth,
 } from "@linxiraos/pi-tui";

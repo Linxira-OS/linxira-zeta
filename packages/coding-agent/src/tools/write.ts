@@ -1,8 +1,6 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-
-import { type } from "@linxiraos/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -10,6 +8,7 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { type Component, Text } from "@linxiraos/pi-tui";
 import { isEnoent, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
 import {
@@ -20,8 +19,8 @@ import {
 	readArchiveEntries,
 	writeArchive,
 } from "@linxiraos/pi-utils/ar";
-import { getEditStore } from "../edit/store";
 import { normalizeToLF } from "../edit/normalize";
+import { getEditStore } from "../edit/store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { InternalUrlRouter } from "../internal-urls";
 import { parseInternalUrl } from "../internal-urls/parse";
@@ -38,7 +37,6 @@ import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { routeWriteThroughBridge } from "./acp-bridge";
 import { resolveToolTier, truncateForPrompt } from "./approval";
 import { assertEditableFile } from "./auto-generated-guard";
-import { formatHashlineHeader, stripHashlinePrefixes } from "./hashline-format";
 import {
 	type ConflictEntry,
 	conflictRegionPresent,
@@ -49,6 +47,7 @@ import {
 	spliceConflict,
 } from "./conflict-detect";
 import { invalidateFsScanAfterWrite } from "./fs-cache-invalidation";
+import { formatHashlineHeader, stripHashlinePrefixes } from "./hashline-format";
 import { type OutputMeta, outputMeta } from "./output-meta";
 import {
 	formatPathRelativeToCwd,

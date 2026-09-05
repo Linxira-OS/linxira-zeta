@@ -1,23 +1,5 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@linxiraos/pi-coding-agent/eval/preludes";
-import { disposeAllKernelSessions, executePython } from "@linxiraos/pi-coding-agent/eval/py/executor";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { computerApproval, createComputerPrelude } from "@linxiraos/pi-coding-agent/tools/computer";
-import { isReadOnlyComputerCall, renderComputerCall } from "@linxiraos/pi-coding-agent/tools/computer/call";
-import type {
-	ComputerSessionSnapshot,
-	ComputerWorkerInbound,
-	ComputerWorkerOutbound,
-	ComputerWorkerTransport,
-} from "@linxiraos/pi-coding-agent/tools/computer/protocol";
-import {
-	type ComputerController,
-	ComputerSupervisor,
-	type ComputerWorkerHandle,
-} from "@linxiraos/pi-coding-agent/tools/computer/supervisor";
-import { ComputerWorkerCore, type NativeDesktopSession } from "@linxiraos/pi-coding-agent/tools/computer/worker";
 import type {
 	AxNode,
 	AxQuery,
@@ -28,6 +10,24 @@ import type {
 	DesktopWindow,
 	PointerOptions,
 } from "@linxiraos/pi-natives";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { computerApproval, createComputerPrelude } from "@linxiraos/zeta/tools/computer";
+import { isReadOnlyComputerCall, renderComputerCall } from "@linxiraos/zeta/tools/computer/call";
+import type {
+	ComputerSessionSnapshot,
+	ComputerWorkerInbound,
+	ComputerWorkerOutbound,
+	ComputerWorkerTransport,
+} from "@linxiraos/zeta/tools/computer/protocol";
+import {
+	type ComputerController,
+	ComputerSupervisor,
+	type ComputerWorkerHandle,
+} from "@linxiraos/zeta/tools/computer/supervisor";
+import { ComputerWorkerCore, type NativeDesktopSession } from "@linxiraos/zeta/tools/computer/worker";
 
 /** Method name of the last step in a facade call chain, or "" when the chain is malformed. */
 function terminalMethod(chain: unknown): string {

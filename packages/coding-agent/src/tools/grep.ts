@@ -1,7 +1,6 @@
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -10,6 +9,7 @@ import type {
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
 import { type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { prompt, untilAborted } from "@linxiraos/pi-utils";
@@ -21,7 +21,6 @@ import {
 } from "@linxiraos/pi-utils/ar";
 import { getEditStore } from "../edit/store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import { formatHashlineHeader } from "./hashline-format";
 import type { LocalProtocolOptions } from "../internal-urls/local-protocol";
 import { InternalUrlRouter } from "../internal-urls/router";
 import type { InternalResource, ResolveContext } from "../internal-urls/types";
@@ -46,6 +45,7 @@ import type { ToolSession } from ".";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath } from "./file-recorder";
 import { classifyGroupedLines, formatGroupedFiles, groupLineIndicesByBlank } from "./grouped-file-output";
+import { formatHashlineHeader } from "./hashline-format";
 import { formatMatchLine } from "./match-line-format";
 import type { OutputMeta } from "./output-meta";
 import {
@@ -1580,11 +1580,11 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 				const displayText = displayLines.join("\n");
 				const truncated = Boolean(
 					fileLimitReached ||
-					perFileLimitReached ||
-					totalMatchLimitReached ||
-					result.limitReached ||
-					truncation.truncated ||
-					linesTruncated,
+						perFileLimitReached ||
+						totalMatchLimitReached ||
+						result.limitReached ||
+						truncation.truncated ||
+						linesTruncated,
 				);
 				const details: GrepToolDetails = {
 					scopePath,

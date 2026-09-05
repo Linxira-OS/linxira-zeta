@@ -9,13 +9,13 @@ import type { ToolSession } from "../../tools";
 import { ToolAbortError, ToolError } from "../../tools/tool-errors";
 import { safeSend as safeSendIpc } from "../../utils/ipc";
 import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "../bridge-timeout";
-import { getEnabledEvalPreludes } from "../preludes";
 import {
 	attachSessionOwner,
 	EvalKernelNotRunningError,
 	resolveOwnerScopedSessionKey,
 	type SessionOwners,
 } from "../executor-base";
+import { getEnabledEvalPreludes } from "../preludes";
 import { shouldDetachKernel } from "../py/spawn-options";
 import type { EvalToolDescriptor, EvalToolInvokeResult } from "../types";
 import { callSessionTool, type JsStatusEvent } from "./tool-bridge";
@@ -209,6 +209,7 @@ export async function invokeJsTool(
 		getOwners: key => sessions.get(key) ?? startingSessions.get(key),
 	});
 	const session = sessions.get(sessionKey);
+	// biome-ignore lint/complexity/useOptionalChain: mixed null/enum guard reads clearer flat
 	if (!session || session.state !== "alive") throw new EvalKernelNotRunningError("JavaScript");
 
 	const runId = `tool-${crypto.randomUUID()}`;

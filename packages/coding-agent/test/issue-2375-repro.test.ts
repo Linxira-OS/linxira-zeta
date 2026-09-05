@@ -18,11 +18,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { InputController } from "@linxiraos/pi-coding-agent/modes/controllers/input-controller";
-import { chipLabel } from "@linxiraos/pi-coding-agent/modes/composer-attachments";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
 import { $which } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { chipLabel } from "@linxiraos/zeta/modes/composer-attachments";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 // A clipboard with no image on it — the deterministic default for the
 // not-found assertions so a real screenshot on the dev's clipboard cannot

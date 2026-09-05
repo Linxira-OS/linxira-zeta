@@ -1,7 +1,5 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { notebookToEditableText } from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -10,12 +8,14 @@ import type {
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
 import { completeSimple, type ImageContent, type TextContent } from "@linxiraos/pi-ai";
+import { notebookToEditableText } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	BINARY_SNIFF_BYTES,
 	type ImageMetadata,
+	isEnoent,
 	isProbablyBinary,
 	isProbablyBinaryHeader,
-	isEnoent,
 	logger,
 	prompt,
 	readImageMetadata,
@@ -48,8 +48,22 @@ import {
 	webpExclusionForModel,
 } from "../utils/image-loading";
 import { askImageQuestion, resolveImageQuestionModel } from "../utils/image-question";
+import { formatDimensionNote, resizeImage } from "../utils/image-resize";
 import { CONVERTIBLE_EXTENSIONS, convertFileWithMarkit } from "../utils/markit";
 import { isSampleProfilePath, renderSampleProfile } from "../utils/sample-profile";
+import {
+	buildVideoContactSheetPng,
+	extractVideoFramePng,
+	formatVideoDetails,
+	isVideoPath,
+	parseVideoSelector,
+	probeVideo,
+	splitVideoReadTarget,
+	VideoError,
+	type VideoMetadata,
+	type VideoPng,
+	videoMimeForPath,
+} from "../utils/video";
 import { buildDirectoryTree, type DirectoryTree } from "../workspace-tree";
 import {
 	type ConflictEntry,
@@ -63,6 +77,7 @@ import {
 	scanFileForConflicts,
 } from "./conflict-detect";
 import { executeReadUrl, fetchReadUrl, parseReadUrlTarget } from "./fetch";
+import { splitAddressableFileLines } from "./hashline-format";
 import { type OutputMeta, resolveOutputMaxColumns } from "./output-meta";
 import {
 	expandPath,
@@ -107,20 +122,6 @@ import {
 	type SuffixMatchCache,
 } from "./read-path-resolution";
 import { type PdfImageReadTarget, renderPdfPageScreenshot, splitPdfImageReadPath } from "./read-pdf";
-import { formatDimensionNote, resizeImage } from "../utils/image-resize";
-import {
-	VideoError,
-	buildVideoContactSheetPng,
-	extractVideoFramePng,
-	formatVideoDetails,
-	isVideoPath,
-	parseVideoSelector,
-	probeVideo,
-	splitVideoReadTarget,
-	videoMimeForPath,
-	type VideoMetadata,
-	type VideoPng,
-} from "../utils/video";
 import {
 	isMultiRange,
 	isRawSelector,
@@ -130,13 +131,12 @@ import {
 	resolveTailSelector,
 	selToOffsetLimit,
 } from "./read-selector";
-import { splitAddressableFileLines } from "./hashline-format";
 import { readSqlite, resolveSqliteReadPath } from "./read-sqlite";
 import { isProseSummaryPath, renderSummary, routeReadThroughBridge, trySummarize } from "./read-summary";
-import { parseSqlitePathCandidates } from "./sqlite-reader";
 import { formatBytes, shortenPath } from "./render-utils";
 import { REPORT_ISSUE_DEVICE_NAME, reportIssueDeviceUsage } from "./report-tool-issue";
 import { isResolutionDeviceName, resolutionDeviceUsage } from "./resolve";
+import { parseSqlitePathCandidates } from "./sqlite-reader";
 import { ToolAbortError, ToolError, throwIfAborted } from "./tool-errors";
 import { toolResult } from "./tool-result";
 import { xdevDocs, xdevListing } from "./xdev";

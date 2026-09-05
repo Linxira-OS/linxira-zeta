@@ -4,8 +4,8 @@ import { setBedrockProviderModule } from "@linxiraos/pi-ai/providers/register-bu
 import { streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Model } from "@linxiraos/pi-ai/types";
 import {
-	bedrockTestModel,
 	BEDROCK_TEST_CONTEXT,
+	bedrockTestModel,
 	capturingBedrockFetch,
 	withSkippedBedrockAuth,
 } from "./helpers/bedrock-stream";

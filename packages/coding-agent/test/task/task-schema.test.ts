@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/omptype";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { TaskTool, taskSchema } from "@linxiraos/pi-coding-agent/task";
-import * as discoveryModule from "@linxiraos/pi-coding-agent/task/discovery";
-import { getTaskSchema } from "@linxiraos/pi-coding-agent/task/types";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { type } from "@linxiraos/pi-omptype";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { TaskTool, taskSchema } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import { getTaskSchema } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 // Contract: the single-spawn schema (`task.batch: false`; the exported
 // `taskSchema` instance) carries no batch fields while accepting a caller

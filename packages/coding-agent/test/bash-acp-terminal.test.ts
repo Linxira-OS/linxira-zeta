@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as os from "node:os";
-import type { ClientBridge, ClientBridgeTerminalHandle } from "@linxiraos/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { BashTool } from "@linxiraos/pi-coding-agent/tools/bash";
-import { encodeTerminalImage } from "@linxiraos/pi-coding-agent/utils/terminal-graphics";
+import type { ClientBridge, ClientBridgeTerminalHandle } from "@linxiraos/zeta/session/client-bridge";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { encodeTerminalImage } from "@linxiraos/zeta/utils/terminal-graphics";
 
 function makeSession(bridge: ClientBridge): ToolSession {
 	return {

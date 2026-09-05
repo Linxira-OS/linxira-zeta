@@ -3,20 +3,20 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { resetSettingsForTest, Settings, type ShellMinimizerSettings } from "@linxiraos/pi-coding-agent/config/settings";
+import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
+import * as piNatives from "@linxiraos/pi-natives";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings, type ShellMinimizerSettings } from "@linxiraos/zeta/config/settings";
 import {
 	applyDirenvPreflight,
 	buildMinimizerOptions,
 	executeBash,
 	isPersistentShellCdCommand,
-} from "@linxiraos/pi-coding-agent/exec/bash-executor";
-import * as direnvModule from "@linxiraos/pi-coding-agent/exec/direnv";
-import { DEFAULT_MAX_BYTES } from "@linxiraos/pi-coding-agent/session/streaming-output";
-import * as shellSnapshot from "@linxiraos/pi-coding-agent/utils/shell-snapshot";
-import { encodeTerminalImage } from "@linxiraos/pi-coding-agent/utils/terminal-graphics";
-import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
-import * as piNatives from "@linxiraos/pi-natives";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+} from "@linxiraos/zeta/exec/bash-executor";
+import * as direnvModule from "@linxiraos/zeta/exec/direnv";
+import { DEFAULT_MAX_BYTES } from "@linxiraos/zeta/session/streaming-output";
+import * as shellSnapshot from "@linxiraos/zeta/utils/shell-snapshot";
+import { encodeTerminalImage } from "@linxiraos/zeta/utils/terminal-graphics";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.
@@ -943,6 +943,7 @@ exit 64
 		expect(aborted.cancelled).toBe(true);
 
 		// oxlint-disable-next-line no-template-curly-in-string -- this is a bash variable expansion
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: literal shell parameter expansion
 		const afterAbort = await executeBash("echo ${PI_RESET_VAR:-unset}", {
 			cwd: tempDir,
 			timeout: 5000,

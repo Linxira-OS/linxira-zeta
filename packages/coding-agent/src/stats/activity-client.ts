@@ -1,4 +1,4 @@
-import type { DailyActivityPoint } from "@linxiraos/omp-stats/shared-types";
+import type { DailyActivityPoint } from "@linxiraos/pi-stats/shared-types";
 import {
 	createUnavailableWorker,
 	createWorkerHandle,

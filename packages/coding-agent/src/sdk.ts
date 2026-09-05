@@ -56,12 +56,11 @@ import {
 	MAIN_AGENT_RULE_NAME,
 	type Rule,
 	ruleCapability,
-	setActiveRules,
 	SUB_AGENT_RULE_NAME,
+	setActiveRules,
 } from "./capability/rule";
 import { bucketRules } from "./capability/rule-buckets";
 import type { EffectiveExtensionRoots } from "./capability/types";
-import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { shouldEnableAppendOnlyContext } from "./config/append-only-context-mode";
 import { shouldInlineToolDescriptors } from "./config/inline-tool-descriptors-mode";
 import { isAuthenticated, kNoAuth, ModelRegistry } from "./config/model-registry";
@@ -87,15 +86,12 @@ import { createBridgeEditTool, createBridgeGrepFactory } from "./cursor-bridge-t
 import "./discovery";
 import { createImageUrlServiceFromSettings } from "./blob-broker/service";
 import { wrapStreamFnWithBlobUrlFallback } from "./blob-broker/stream-fallback";
+import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { initializeWithSettings } from "./discovery";
 import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/omp-extension-roots";
-<<<<<<< HEAD
 import type { EditMode } from "./edit";
-import { disposeAllJuliaKernelSessions, disposeJuliaKernelSessionsByOwner } from "./eval/jl/executor";
-=======
->>>>>>> v18.1.10
 import { disposeVmContextsByOwner } from "./eval/js/context-manager";
-import { getEnabledEvalPreludes, type EvalPreludeDefinition } from "./eval/preludes";
+import { type EvalPreludeDefinition, getEnabledEvalPreludes } from "./eval/preludes";
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";
 import { defaultEvalSessionId } from "./eval/session-id";
 import {
@@ -197,8 +193,8 @@ import {
 	projectSystemPromptToolMetadata,
 } from "./system-prompt";
 import { AgentOutputManager } from "./task/output-manager";
-import { wrapStreamFnWithProviderConcurrency } from "./task/provider-concurrency";
 import { sessionDelegationBias } from "./task/prompt-policy";
+import { wrapStreamFnWithProviderConcurrency } from "./task/provider-concurrency";
 import { isScoutSpawnable } from "./task/spawn-policy";
 import type { StructuredSubagentSchemaMode } from "./task/types";
 import {
@@ -600,6 +596,26 @@ export interface CreateAgentSessionOptions {
 	/** Parent task ID prefix for nested artifact naming (e.g., "Extensions") */
 	parentTaskPrefix?: string;
 	/**
+	 * IM channel send sink (web/desktop sessions only; undefined in CLI mode).
+	 * When set, `channel_send` is available and the session can push progress
+	 * to the remote IM user.
+	 */
+	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
+	/**
+	 * Workspace delegation sink (web/desktop sessions only; undefined in CLI
+	 * mode). When set, `workspace_run` is available and the coordinator can
+	 * delegate subtasks to other workspace sessions.
+	 */
+	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+	/**
+	 * Natural-language IM control sink (web/desktop sessions only; undefined in
+	 * CLI mode). When set, `im_control` is available and the session can
+	 * manage workspaces / sessions / language / model on the user's behalf.
+	 */
+	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
+	/** Explicit parent AsyncJobManager (subagents inherit the parent's manager; top-level sessions get their own when omitted). */
+	asyncJobManager?: AsyncJobManager;
+	/**
 	 * Registry id of the spawning agent, recorded as this subagent's parent in
 	 * the agent registry. Distinct from `parentTaskPrefix`, which is this agent's
 	 * own artifact/output-id prefix (the executor passes the child's own id
@@ -609,8 +625,6 @@ export interface CreateAgentSessionOptions {
 	parentAgentId?: string;
 	/** Inherited eval executor session id for subagents sharing parent eval state. */
 	parentEvalSessionId?: string;
-	/** Explicit parent AsyncJobManager (subagents inherit the parent's manager; top-level sessions get their own when omitted). */
-	asyncJobManager?: AsyncJobManager;
 
 	/** Session manager. Default: session stored under the configured agentDir sessions root */
 	sessionManager?: SessionManager;
@@ -663,24 +677,6 @@ export interface CreateAgentSessionOptions {
 
 	/** Whether to auto-approve all tool calls (--auto-approve CLI flag). Default: false */
 	autoApprove?: boolean;
-	/**
-	 * IM channel send sink (web/desktop sessions only; undefined in CLI mode).
-	 * When set, `channel_send` is available and the session can push progress
-	 * to the remote IM user.
-	 */
-	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
-	/**
-	 * Workspace delegation sink (web/desktop sessions only; undefined in CLI
-	 * mode). When set, `workspace_run` is available and the coordinator can
-	 * delegate subtasks to other workspace sessions.
-	 */
-	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
-	/**
-	 * Natural-language IM control sink (web/desktop sessions only; undefined in
-	 * CLI mode). When set, `im_control` is available and the session can
-	 * manage workspaces / sessions / language / model on the user's behalf.
-	 */
-	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 }
 
 /** Result from createAgentSession */
@@ -1748,14 +1744,22 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	const enableLsp = options.enableLsp ?? !restrictToolNames;
 	const lspReadOnly = options.lspReadOnly ?? restrictToolNames;
 	const asyncMaxJobs = Math.min(100, Math.max(1, settings.get("async.maxJobs") ?? 100));
+	// Only the first top-level session in a process owns an AsyncJobManager.
+	// Subagents inherit the parent's manager via `AsyncJobManager.instance()`
+	// (set below), and any additional top-level session spun up in-process
+	// (e.g. the agent-creation architect in `agents-hub.ts`) must share
+	// the live singleton — otherwise its dispose path would clobber the
+	// owning session's manager and break the `task`/`bash` async paths
+	// (issue #1923). The `instance()` guard means later sessions also skip
+	// constructing an orphaned manager that nothing would ever route to.
+	// Delivery is owner-routed: every AgentSession registers its own sink
+	// (see session/async-job-delivery.ts), so the manager takes no default
+	// onJobComplete here.
 	// Every top-level session owns its own AsyncJobManager (Zeta per-session
 	// contract, see sdk-async-job-manager-per-session.test.ts): subagents
 	// inherit the parent's manager via the task spawn path, and additional
 	// in-process top-level sessions each get an independent manager so one
 	// session's dispose path can never clobber another's running jobs.
-	// Delivery is owner-routed: every AgentSession registers its own sink
-	// (see session/async-job-delivery.ts), so the manager takes no default
-	// onJobComplete here.
 	const asyncJobManager = options.parentTaskPrefix ? undefined : new AsyncJobManager({ maxRunningJobs: asyncMaxJobs });
 
 	const scopedAsyncJobManager = asyncJobManager ?? options.asyncJobManager;
@@ -3023,6 +3027,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			await ensureWriteRegistered();
 		}
 
+		// oxlint-disable-next-line prefer-const -- captured by device closures before assignment
 		let cursorEventEmitter: ((event: AgentEvent) => void) | undefined;
 		// Cursor and the agent loop may call a mounted device by its top-level
 		// name. Resolve that name from the canonical map and apply the same

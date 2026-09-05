@@ -3,13 +3,13 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { hashlineFileHash } from "@linxiraos/pi-natives";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { EditTool, type EditToolDetails } from "@linxiraos/pi-coding-agent/edit";
-import { resolveLocalUrlToPath } from "@linxiraos/pi-coding-agent/internal-urls";
-import type { PlanModeState } from "@linxiraos/pi-coding-agent/plan-mode/state";
-import type { ClientBridge } from "@linxiraos/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool, type EditToolDetails } from "@linxiraos/zeta/edit";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
+import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 interface SessionOptions {
 	bridge?: ClientBridge;

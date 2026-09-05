@@ -1,16 +1,16 @@
-import { type } from "@linxiraos/omptype";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { untilAborted } from "@linxiraos/pi-utils";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
 import browserDescription from "../prompts/tools/browser.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import { enforceInlineByteCap } from "../session/streaming-output";
+import { resolveCmuxKind } from "./browser/cmux/rpc";
 // @ts-expect-error Bun imports this declaration source as text instead of a TypeScript module.
 import browserDeclarations from "./browser/declarations.d.ts" with { type: "text" };
 // @ts-expect-error Bun imports this JavaScript source as text instead of evaluating its module shape.
 import browserJavascript from "./browser/prelude.js" with { type: "text" };
 import browserPython from "./browser/prelude.py" with { type: "text" };
-import { resolveCmuxKind } from "./browser/cmux/rpc";
 import {
 	acquireBrowser,
 	type BrowserHandle,
@@ -20,8 +20,8 @@ import {
 	releaseBrowser,
 } from "./browser/registry";
 import { resolveRelayKind } from "./browser/relay/kind";
+import { renderTabCall } from "./browser/tab-call";
 import type { ScreenshotResult } from "./browser/tab-protocol";
-import type { OutputMeta } from "./output-meta";
 import {
 	type AcquireTabResult,
 	acquireTab,
@@ -31,7 +31,7 @@ import {
 	releaseTab,
 	runInTab,
 } from "./browser/tab-supervisor";
-import { renderTabCall } from "./browser/tab-call";
+import type { OutputMeta } from "./output-meta";
 import { resolveToCwd } from "./path-utils";
 import { renderFunctionRun } from "./run-code";
 import { ToolAbortError, ToolError, throwIfAborted } from "./tool-errors";

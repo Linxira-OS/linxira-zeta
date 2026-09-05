@@ -4,13 +4,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { AuthStorage } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { MCPManager } from "@linxiraos/pi-coding-agent/mcp/manager";
-import { createAgentSession } from "@linxiraos/pi-coding-agent/sdk";
-import type { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 // Guards the SDK/session boundary: browser and computer stay outside the tool
 // registry while their eval preludes follow live, session-local settings.
@@ -112,6 +112,7 @@ describe("AgentSession eval preludes", () => {
 		settings.override("browser.enabled", true);
 		expect(reconcile).toHaveBeenLastCalledWith(true);
 		const enableReconcile = reconcile.mock.results.at(-1);
+		// biome-ignore lint/complexity/useOptionalChain: value guard before narrowing
 		if (!enableReconcile || enableReconcile.type !== "return") throw new Error("Expected browser MCP reconcile");
 		await enableReconcile.value;
 		await session.runToolRegistryMutation(async () => undefined);
@@ -120,6 +121,7 @@ describe("AgentSession eval preludes", () => {
 		settings.override("browser.enabled", false);
 		expect(reconcile).toHaveBeenLastCalledWith(false);
 		const disableReconcile = reconcile.mock.results.at(-1);
+		// biome-ignore lint/complexity/useOptionalChain: value guard before narrowing
 		if (!disableReconcile || disableReconcile.type !== "return") throw new Error("Expected browser MCP reconcile");
 		await disableReconcile.value;
 		await session.runToolRegistryMutation(async () => undefined);

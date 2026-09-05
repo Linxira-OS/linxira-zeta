@@ -3,13 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { StatusLineComponent, type StatusLineSettings } from "@linxiraos/pi-coding-agent/modes/components/status-line";
-import { STATUS_LINE_PRESETS } from "@linxiraos/pi-coding-agent/modes/components/status-line/presets";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import { visibleWidth } from "@linxiraos/pi-tui";
 import * as vcs from "@linxiraos/pi-natives/vcs";
+import { visibleWidth } from "@linxiraos/pi-tui";
 import { removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent, type StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
+import { STATUS_LINE_PRESETS } from "@linxiraos/zeta/modes/components/status-line/presets";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 let settingsState: SettingsTestState | undefined;

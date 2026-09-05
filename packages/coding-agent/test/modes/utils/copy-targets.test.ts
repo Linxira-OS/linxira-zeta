@@ -6,7 +6,7 @@ import {
 	extractLastLink,
 	extractLinks,
 	extractQuoteBlocks,
-} from "@linxiraos/pi-coding-agent/modes/utils/copy-targets";
+} from "@linxiraos/zeta/modes/utils/copy-targets";
 
 function assistantCalls(toolCalls: Array<{ name: string; arguments: Record<string, unknown> }>): AgentMessage {
 	return {

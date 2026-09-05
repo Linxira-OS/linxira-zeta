@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { GoalModeState } from "@linxiraos/pi-coding-agent/goals/state";
-import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
-import type { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { GoalModeState } from "@linxiraos/zeta/goals/state";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 async function flushMicrotasks(): Promise<void> {

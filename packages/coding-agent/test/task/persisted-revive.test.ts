@@ -1,22 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { MCPManager } from "@linxiraos/pi-coding-agent/mcp/manager";
-import { RpcSubagentRegistry } from "@linxiraos/pi-coding-agent/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@linxiraos/pi-coding-agent/modes/rpc/rpc-types";
-import { AgentLifecycleManager } from "@linxiraos/pi-coding-agent/registry/agent-lifecycle";
-import type { AgentRef } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/pi-coding-agent/sdk";
-import * as sdkModule from "@linxiraos/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
-import type { CustomMessage } from "@linxiraos/pi-coding-agent/session/messages";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
-import { createPersistedSubagentReviverFactory } from "@linxiraos/pi-coding-agent/task/persisted-revive";
-import { EventBus } from "@linxiraos/pi-coding-agent/utils/event-bus";
-import { IrcBus, type IrcMessage } from "@linxiraos/pi-coding-agent/irc/bus";
 import { TempDir } from "@linxiraos/pi-utils";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { IrcBus, type IrcMessage } from "@linxiraos/zeta/irc/bus";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { RpcSubagentRegistry } from "@linxiraos/zeta/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import type { AgentRef } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createPersistedSubagentReviverFactory } from "@linxiraos/zeta/task/persisted-revive";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 const tempDirs: TempDir[] = [];
 

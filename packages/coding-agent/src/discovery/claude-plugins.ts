@@ -18,9 +18,9 @@ import { type CustomTool, toolCapability } from "../capability/tool";
 import type { LoadContext, LoadResult } from "../capability/types";
 import { legacyProviderAllowed } from "./agent-plugin-format";
 import {
-	discoverRuleFromMarkdown,
 	type ClaudePluginRoot,
 	createSourceMeta,
+	discoverRuleFromMarkdown,
 	expandEnvVarsDeep,
 	listClaudePluginRoots,
 	loadFilesFromDir,

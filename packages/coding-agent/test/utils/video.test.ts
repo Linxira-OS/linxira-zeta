@@ -10,7 +10,7 @@ import {
 	parseVideoSelector,
 	parseVideoTimestamp,
 	splitVideoReadTarget,
-} from "@linxiraos/pi-coding-agent/utils/video";
+} from "@linxiraos/zeta/utils/video";
 
 describe("parseVideoSelector", () => {
 	it("reads a bare integer as a frame index", () => {

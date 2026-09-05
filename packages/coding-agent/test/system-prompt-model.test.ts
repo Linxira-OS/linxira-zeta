@@ -5,13 +5,13 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { resolveDelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
-import { buildSystemPrompt } from "@linxiraos/pi-coding-agent/system-prompt";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { buildSystemPrompt } from "@linxiraos/zeta/system-prompt";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 const EMPTY_TREE = {

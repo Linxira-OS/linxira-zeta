@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from "node:zlib";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { decodeSixelToPng } from "@linxiraos/pi-natives";
-import { MAX_IMAGE_INPUT_BYTES, convertImageToPng } from "./image-loading";
+import { convertImageToPng, MAX_IMAGE_INPUT_BYTES } from "./image-loading";
 
 const ESC = "\x1b";
 const KITTY_CHUNK_BYTES = 3072;

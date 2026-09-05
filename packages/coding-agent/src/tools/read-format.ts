@@ -1,13 +1,7 @@
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { getEditStore } from "../edit/store";
-import {
-	formatHashlineHeader,
-	formatNumberedLine,
-	formatNumberedLines,
-	splitAddressableFileLines,
-} from "./hashline-format";
 import { normalizeToLF } from "../edit/normalize";
+import { getEditStore } from "../edit/store";
 import { isMarkdownPath } from "../modes/theme/theme";
 import type { ToolSession } from "../sdk";
 import {
@@ -19,6 +13,12 @@ import {
 } from "../session/streaming-output";
 import { buildLineEntriesWithBlockContext, type LineEntry, lineEntriesToPlainText } from "../utils/block-context";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
+import {
+	formatHashlineHeader,
+	formatNumberedLine,
+	formatNumberedLines,
+	splitAddressableFileLines,
+} from "./hashline-format";
 import { formatPathRelativeToCwd, type LineRange } from "./path-utils";
 import type { ReadToolDetails } from "./read";
 import { isRawSelector, type ParsedSelector, resolveTailSelector, selToOffsetLimit } from "./read-selector";

@@ -1,14 +1,13 @@
 import * as path from "node:path";
-import { type } from "@linxiraos/omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
 import { type AstReplaceChange, type AstReplaceFileChange, astEdit } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { replaceTabs, Text } from "@linxiraos/pi-tui";
 import { $envpos, prompt, untilAborted } from "@linxiraos/pi-utils";
-import { getEditStore } from "../edit/store";
 import { normalizeToLF } from "../edit/normalize";
-import { formatHashlineHeader } from "./hashline-format";
+import { getEditStore } from "../edit/store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { Theme } from "../modes/theme/theme";
 import astEditDescription from "../prompts/tools/ast-edit.md" with { type: "text" };
@@ -26,6 +25,7 @@ import { truncateForPrompt } from "./approval";
 import { parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath } from "./file-recorder";
 import { classifyGroupedLines, formatGroupedFiles, groupLineIndicesByBlank } from "./grouped-file-output";
+import { formatHashlineHeader } from "./hashline-format";
 import type { OutputMeta } from "./output-meta";
 import { isInternalUrlPath, resolveToolSearchScope } from "./path-utils";
 import {

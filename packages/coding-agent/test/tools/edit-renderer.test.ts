@@ -4,14 +4,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
 import { editDiffString } from "@linxiraos/pi-natives";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { editToolRenderer, renderStreamingFallback } from "@linxiraos/pi-coding-agent/edit/renderer";
-import { renderDiff } from "@linxiraos/pi-coding-agent/modes/components/diff";
-import { ToolExecutionComponent } from "@linxiraos/pi-coding-agent/modes/components/tool-execution";
-import * as themeModule from "@linxiraos/pi-coding-agent/modes/theme/theme";
 import { type TUI, visibleWidth } from "@linxiraos/pi-tui";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { editToolRenderer, renderStreamingFallback } from "@linxiraos/zeta/edit/renderer";
+import { renderDiff } from "@linxiraos/zeta/modes/components/diff";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	resetSettingsForTest();

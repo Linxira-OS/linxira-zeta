@@ -6,10 +6,10 @@ import type { Model, Tool, ToolCall } from "@linxiraos/pi-ai/types";
 import { enforceStrictSchema } from "@linxiraos/pi-ai/utils/schema";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { buildOutputValidator } from "@linxiraos/pi-coding-agent/tools/output-schema-validator";
-import { YieldTool } from "@linxiraos/pi-coding-agent/tools/yield";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { buildOutputValidator } from "@linxiraos/zeta/tools/output-schema-validator";
+import { YieldTool } from "@linxiraos/zeta/tools/yield";
 import { buildWorkPoolOutputSchema } from "../../src/task/workpool-yield";
 import { arrayValuedLabels, assembleYieldResult } from "../../src/task/yield-assembly";
 

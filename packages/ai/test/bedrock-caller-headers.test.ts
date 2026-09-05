@@ -4,9 +4,9 @@ import { streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Model } from "@linxiraos/pi-ai/types";
 import { USER_AGENT } from "@linxiraos/pi-utils";
 import {
-	bedrockTestModel,
 	BEDROCK_TEST_CONTEXT,
 	type BedrockCapture,
+	bedrockTestModel,
 	capturingBedrockFetch,
 	withSkippedBedrockAuth,
 } from "./helpers/bedrock-stream";

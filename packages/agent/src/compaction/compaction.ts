@@ -25,19 +25,19 @@ import {
 } from "@linxiraos/pi-ai";
 import type { Dialect } from "@linxiraos/pi-ai/dialect";
 import * as AIError from "@linxiraos/pi-ai/error";
+import type { InputItem as CodexInputItem } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import {
 	buildTransformedCodexRequestBody,
 	createOpenAICodexCompactionRequestContext,
 	type OpenAICodexCompactionBody,
 } from "@linxiraos/pi-ai/providers/openai-codex-responses";
-import type { InputItem as CodexInputItem } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import { convertTools } from "@linxiraos/pi-ai/providers/openai-responses";
 import { buildResponsesInput, resolveOpenAICompatPolicy } from "@linxiraos/pi-ai/providers/openai-shared";
 import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@linxiraos/pi-ai/utils";
 import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/snapcompact";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import { ThinkingLevel } from "../thinking";
 import { Tokenizer } from "../tokenizer";

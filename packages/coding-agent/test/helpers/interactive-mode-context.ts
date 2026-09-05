@@ -31,15 +31,15 @@
  * that also import the module-level `settings` need the global initialized.
  */
 import { vi } from "bun:test";
-import { isSettingsInitialized, Settings, settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { MCPManager } from "@linxiraos/pi-coding-agent/mcp/manager";
-import type { MCPServerConnection } from "@linxiraos/pi-coding-agent/mcp/types";
-import { TranscriptContainer } from "@linxiraos/pi-coding-agent/modes/components/transcript-container";
-import { OAuthManualInputManager } from "@linxiraos/pi-coding-agent/modes/oauth-manual-input";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
-import type { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
 import { type Component, Container } from "@linxiraos/pi-tui";
+import { isSettingsInitialized, Settings, settings } from "@linxiraos/zeta/config/settings";
+import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPServerConnection } from "@linxiraos/zeta/mcp/types";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-input";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 type AnyFn = (...args: never[]) => unknown;
 

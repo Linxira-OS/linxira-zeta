@@ -4,23 +4,20 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { getEditStore } from "@linxiraos/pi-coding-agent/edit/store";
-import type { RenderResultOptions } from "@linxiraos/pi-coding-agent/extensibility/custom-tools/types";
-import { AgentTranscriptViewer } from "@linxiraos/pi-coding-agent/modes/components/agent-transcript-viewer";
-import { TreeSelectorComponent } from "@linxiraos/pi-coding-agent/modes/components/tree-selector";
-import type {
-	ObservableSession,
-	SessionObserverRegistry,
-} from "@linxiraos/pi-coding-agent/modes/session-observer-registry";
-import type { Theme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import type { SessionEntry, SessionTreeNode } from "@linxiraos/pi-coding-agent/session/session-entries";
-import { ToolChoiceQueue } from "@linxiraos/pi-coding-agent/session/tool-choice-queue";
-import { createTools, type ToolSession } from "@linxiraos/pi-coding-agent/tools";
 import type { Text } from "@linxiraos/pi-tui";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getEditStore } from "@linxiraos/zeta/edit/store";
+import type { RenderResultOptions } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
+import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
+import type { ObservableSession, SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
+import type { Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
+import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";
+import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
 import { grepToolRenderer } from "../../src/tools/grep";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {

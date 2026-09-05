@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/omptype";
 import {
 	convertCodexResponsesMessages,
 	streamOpenAICodexResponses,
@@ -10,6 +9,7 @@ import type { Context, Model, ModelSpec, ProviderSessionState, Tool } from "@lin
 import { createOpenAIResponsesHistoryPayload } from "@linxiraos/pi-ai/utils";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 import * as piUtils from "@linxiraos/pi-utils";
 
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";

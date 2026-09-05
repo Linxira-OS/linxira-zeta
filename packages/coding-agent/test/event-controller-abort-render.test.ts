@@ -19,13 +19,13 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/pi-coding-agent/modes/components/assistant-message";
-import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import { resolveAssistantErrorPresentation } from "@linxiraos/pi-coding-agent/modes/utils/transcript-render-helpers";
-import type { AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/pi-coding-agent/session/messages";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { resolveAssistantErrorPresentation } from "@linxiraos/zeta/modes/utils/transcript-render-helpers";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {

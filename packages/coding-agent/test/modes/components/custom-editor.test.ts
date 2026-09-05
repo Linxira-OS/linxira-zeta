@@ -4,7 +4,6 @@ import { CURSOR_MARKER } from "@linxiraos/pi-tui";
 import { setKittyProtocolActive } from "@linxiraos/pi-tui/keys";
 import { $ } from "bun";
 import { getDefaultPasteImageKeys } from "../../../src/config/keybindings";
-import { chipLabel } from "../../../src/modes/composer-attachments";
 import {
 	CustomEditor,
 	extractBracketedImagePastePaths,
@@ -16,6 +15,7 @@ import {
 	SPACE_HOLD_RELEASE_MS,
 	SPACE_REPEAT_MAX_GAP_MS,
 } from "../../../src/modes/components/custom-editor";
+import { chipLabel } from "../../../src/modes/composer-attachments";
 import { getEditorTheme, initTheme, theme } from "../../../src/modes/theme/theme";
 
 function makeEditor() {

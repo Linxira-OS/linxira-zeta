@@ -10,19 +10,16 @@ import { Agent } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { AsyncJobManager } from "@linxiraos/pi-coding-agent/async";
-import type { AsyncJob } from "@linxiraos/pi-coding-agent/async/job-manager";
-import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { DaemonCompletionNotification } from "@linxiraos/pi-coding-agent/launch/protocol";
-import { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
-import {
-	buildAsyncResultBatchMessage,
-	type AsyncResultEntry,
-} from "@linxiraos/pi-coding-agent/session/async-job-delivery";
-import { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@linxiraos/pi-coding-agent/session/messages";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import type { AsyncJob } from "@linxiraos/zeta/async/job-manager";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { DaemonCompletionNotification } from "@linxiraos/zeta/launch/protocol";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { type AsyncResultEntry, buildAsyncResultBatchMessage } from "@linxiraos/zeta/session/async-job-delivery";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 function observeAsyncResultEnqueue(session: AgentSession): Promise<void> {
 	const queued = Promise.withResolvers<void>();

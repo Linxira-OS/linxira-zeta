@@ -2,16 +2,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as mcpClient from "@linxiraos/pi-coding-agent/mcp/client";
-import * as mcpConfigWriter from "@linxiraos/pi-coding-agent/mcp/config-writer";
-import { MCPCommandController } from "@linxiraos/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
 import type { Component } from "@linxiraos/pi-tui";
 import { getConfigRootDir, getProjectDir, removeWithRetries, setAgentDir, setProjectDir } from "@linxiraos/pi-utils";
+import * as mcpClient from "@linxiraos/zeta/mcp/client";
+import * as mcpConfigWriter from "@linxiraos/zeta/mcp/config-writer";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import {
+	type ContextOverrides,
 	createInteractiveModeContext,
 	createMcpManagerStub,
-	type ContextOverrides,
 } from "./helpers/interactive-mode-context";
 
 const originalProjectDir = getProjectDir();

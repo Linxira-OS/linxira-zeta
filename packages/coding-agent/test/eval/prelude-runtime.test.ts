@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@linxiraos/pi-coding-agent/eval/preludes";
-import { executeJs } from "@linxiraos/pi-coding-agent/eval/js/executor";
-import { disposeAllVmContexts } from "@linxiraos/pi-coding-agent/eval/js/context-manager";
-import { disposeAllKernelSessions, executePython } from "@linxiraos/pi-coding-agent/eval/py/executor";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
+import { executeJs } from "@linxiraos/zeta/eval/js/executor";
+import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const IMAGE_DATA = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64");
 

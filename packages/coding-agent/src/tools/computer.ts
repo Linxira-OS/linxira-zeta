@@ -1,20 +1,20 @@
-import { type Type, type } from "@linxiraos/omptype";
 import type { AgentToolResult, ToolApprovalDecision } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { classifyModel } from "@linxiraos/pi-catalog/identity";
 import type { DesktopCapabilities } from "@linxiraos/pi-natives";
+import { type Type, type } from "@linxiraos/pi-omptype";
 import { once } from "@linxiraos/pi-utils";
 import { callSessionTool } from "../eval/js/tool-bridge";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
 import computerDescription from "../prompts/tools/computer.md" with { type: "text" };
 import { enforceInlineByteCap } from "../session/streaming-output";
 import { type ComputerCallStep, isReadOnlyComputerCall, renderComputerCall } from "./computer/call";
-import type { ComputerScreenshot, ComputerSessionSnapshot } from "./computer/protocol";
 // @ts-expect-error Bun imports this declaration source as text instead of a TypeScript module.
 import computerCodeModeDeclarations from "./computer/declarations.d.ts" with { type: "text" };
 // @ts-expect-error Bun imports this JavaScript source as text instead of evaluating its module shape.
 import computerJavascript from "./computer/prelude.js" with { type: "text" };
 import computerPython from "./computer/prelude.py" with { type: "text" };
+import type { ComputerScreenshot, ComputerSessionSnapshot } from "./computer/protocol";
 import { type ComputerController, ComputerSupervisor, registerComputerController } from "./computer/supervisor";
 import type { ToolSession } from "./index";
 import { renderFunctionRun } from "./run-code";

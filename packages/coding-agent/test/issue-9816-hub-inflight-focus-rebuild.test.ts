@@ -14,16 +14,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ToolResultMessage } from "@linxiraos/pi-ai";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
-import { SessionFocusController } from "@linxiraos/pi-coding-agent/modes/controllers/session-focus-controller";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import { UiHelpers } from "@linxiraos/pi-coding-agent/modes/utils/ui-helpers";
-import { AgentLifecycleManager } from "@linxiraos/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
-import type { SessionContext } from "@linxiraos/pi-coding-agent/session/session-context";
-import type { AgentProgress, TaskToolDetails } from "@linxiraos/pi-coding-agent/task/types";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { SessionFocusController } from "@linxiraos/zeta/modes/controllers/session-focus-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import type { AgentProgress, TaskToolDetails } from "@linxiraos/zeta/task/types";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 const usage = {

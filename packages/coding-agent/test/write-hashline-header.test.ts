@@ -2,12 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { EditTool } from "@linxiraos/pi-coding-agent/edit";
-import { getEditStore } from "@linxiraos/pi-coding-agent/edit/store";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { WriteTool } from "@linxiraos/pi-coding-agent/tools/write";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool } from "@linxiraos/zeta/edit";
+import { getEditStore } from "@linxiraos/zeta/edit/store";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
 
 function createSession(cwd: string): ToolSession {
 	return {

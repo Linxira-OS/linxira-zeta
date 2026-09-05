@@ -7,14 +7,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { EffectiveExtensionRoots } from "@linxiraos/pi-coding-agent/capability/types";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@linxiraos/pi-coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@linxiraos/pi-coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@linxiraos/pi-coding-agent/slash-commands/types";
-import { TaskTool } from "@linxiraos/pi-coding-agent/task";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
 import { getProjectDir, removeWithRetries, setProjectDir } from "@linxiraos/pi-utils";
+import type { EffectiveExtensionRoots } from "@linxiraos/zeta/capability/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
+import { TaskTool } from "@linxiraos/zeta/task";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const originalProjectDir = getProjectDir();
 const TEST_EXTENSION_ROOTS: EffectiveExtensionRoots = {

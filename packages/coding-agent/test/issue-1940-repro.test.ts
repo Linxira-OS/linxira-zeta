@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { SttClient } from "@linxiraos/pi-coding-agent/stt/asr-client";
-import type { SttWorkerInbound, SttWorkerOutbound } from "@linxiraos/pi-coding-agent/stt/asr-protocol";
-import { TinyTitleClient } from "@linxiraos/pi-coding-agent/tiny/title-client";
-import type { TinyWorkerRequest, TinyWorkerResponse } from "@linxiraos/pi-coding-agent/tiny/title-protocol";
+import { SttClient } from "@linxiraos/zeta/stt/asr-client";
+import type { SttWorkerInbound, SttWorkerOutbound } from "@linxiraos/zeta/stt/asr-protocol";
+import { TinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
+import type { TinyWorkerRequest, TinyWorkerResponse } from "@linxiraos/zeta/tiny/title-protocol";
 
 class FakeTinyWorker {
 	terminated = false;

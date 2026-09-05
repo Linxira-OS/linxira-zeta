@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { nativeLibraryPathOverlay } from "@linxiraos/pi-coding-agent/subprocess/worker-client";
-import { tinyWorkerEnvOverlay } from "@linxiraos/pi-coding-agent/tiny/title-client";
-import { tinyWorkerEndpoint, tinyWorkerLogPath } from "@linxiraos/pi-coding-agent/tiny/title-protocol";
+import { nativeLibraryPathOverlay } from "@linxiraos/zeta/subprocess/worker-client";
+import { tinyWorkerEnvOverlay } from "@linxiraos/zeta/tiny/title-client";
+import { tinyWorkerEndpoint, tinyWorkerLogPath } from "@linxiraos/zeta/tiny/title-protocol";
 
 describe("tinyWorkerEnvOverlay", () => {
 	it("maps non-default settings onto the worker env vars when neither is already set", () => {

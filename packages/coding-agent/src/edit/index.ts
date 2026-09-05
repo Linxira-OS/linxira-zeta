@@ -11,15 +11,16 @@ import type {
 } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
 import {
-	EditSession,
-	editDescription,
-	editGrammar,
-	editInspect,
+	type EditApplyOutcome,
 	type EditFileOutcome,
 	type EditInspection,
 	type EditPolicy,
+	EditSession,
 	type EditWriteRequest,
 	type EditWriteResponse,
+	editDescription,
+	editGrammar,
+	editInspect,
 } from "@linxiraos/pi-natives";
 import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { resolveLocalRoot } from "../internal-urls";
@@ -71,10 +72,10 @@ import {
 } from "./schemas";
 import { getEditStore } from "./store";
 
+export { DEFAULT_EDIT_MODE, type EditMode, normalizeEditMode } from "../utils/edit-mode";
 export * from "./renderer";
 export * from "./schemas";
 export * from "./store";
-export { DEFAULT_EDIT_MODE, type EditMode, normalizeEditMode } from "../utils/edit-mode";
 
 type TInput =
 	| typeof replaceEditSchema
@@ -337,6 +338,7 @@ export class EditTool implements AgentTool<TInput> {
 		return prompt.render(editDescription(this.mode));
 	}
 
+	// biome-ignore lint/suspicious/useGetterReturn: the switch is exhaustive over `mode`
 	get parameters(): TInput {
 		switch (this.mode) {
 			case "replace":
@@ -445,7 +447,7 @@ export class EditTool implements AgentTool<TInput> {
 			editSession.finish();
 		}
 		const batch = getLspBatchRequest(context?.toolCall);
-		let outcome;
+		let outcome: EditApplyOutcome;
 		try {
 			outcome = await editSession.apply(
 				{ lspBatchId: batch?.id, lspFlush: batch?.flush ?? false },

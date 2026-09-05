@@ -2,10 +2,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SourceMeta } from "@linxiraos/pi-coding-agent/capability/types";
-import type { MCPServerConfig } from "@linxiraos/pi-coding-agent/mcp/types";
-import { MCPCommandController } from "@linxiraos/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -14,6 +10,10 @@ import {
 	setAgentDir,
 	setProjectDir,
 } from "@linxiraos/pi-utils";
+import type { SourceMeta } from "@linxiraos/zeta/capability/types";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { createInteractiveModeContext, createMcpManagerStub } from "./helpers/interactive-mode-context";
 
 const originalProjectDir = getProjectDir();

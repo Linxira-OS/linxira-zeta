@@ -1001,14 +1001,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "JavaScript Eval 后端",
 		description: "允许 eval 工具将 JavaScript 单元格分派到进程内运行时",
 	},
-	"eval.rb": {
-		label: "Ruby Eval 后端",
-		description: "允许 eval 工具将 Ruby 单元格分派到持久 Ruby 内核",
-	},
-	"eval.jl": {
-		label: "Julia Eval 后端",
-		description: "允许 eval 工具将 Julia 单元格分派到持久 Julia 内核",
-	},
 	"python.kernelMode": {
 		label: "Python 内核模式",
 		description: "在多次 eval 调用间保持 IPython 内核存活，或每次都全新启动",
@@ -1016,14 +1008,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"python.interpreter": {
 		label: "Python 解释器",
 		description: "精确 Python 可执行文件的可选路径。设置后跳过自动 Python 运行时发现。",
-	},
-	"ruby.interpreter": {
-		label: "Ruby 解释器",
-		description: "精确 Ruby 可执行文件的可选路径。设置后跳过自动 Ruby 运行时发现。",
-	},
-	"julia.interpreter": {
-		label: "Julia 解释器",
-		description: "精确 Julia 可执行文件的可选路径。设置后跳过自动 Julia 运行时发现。",
 	},
 	"tools.approval": {
 		label: "工具审批策略",
@@ -1100,11 +1084,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "生成图片",
 		description: "启用 generate_image 工具（文生图与编辑）。当 tools.xdev 开启时以 xd:// 设备形式暴露。",
 	},
-	"inspect_image.mode": {
-		label: "检查图片（Inspect Image）",
-		description:
-			"控制 inspect_image 工具，它将图像理解委托给具备视觉能力的模型。'auto' 仅在当前模型缺少原生图像输入时暴露；'on' 始终暴露；'off' 从不暴露。",
-	},
 	"computer.enabled": {
 		label: "计算机控制（Computer）",
 		description: "启用可脚本化的宿主机桌面控制工具（截图、输入、辅助功能）",
@@ -1120,11 +1099,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"computer.maxHeight": {
 		label: "Computer 截图高度",
 		description: "合成截图的最大高度（像素）",
-	},
-	"inspect_image.timeoutMs": {
-		label: "Inspect Image 超时",
-		description:
-			"inspect_image 视觉模型调用的每次请求超时（毫秒）。停滞的服务商会快速失败并返回超时错误，而不是阻塞到手动中止。设为 0 禁用超时。",
 	},
 	"checkpoint.enabled": {
 		label: "检查点/回退（Checkpoint/Rewind）",
@@ -3380,15 +3354,6 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"grep.contextAfter::10": {
 		label: "10 行",
-	},
-	"inspect_image.mode::auto": {
-		label: "Auto（仅限无视觉模型）",
-	},
-	"inspect_image.mode::on": {
-		label: "开启",
-	},
-	"inspect_image.mode::off": {
-		label: "关闭",
 	},
 	"inspect_image.timeoutMs::0": {
 		label: "禁用",

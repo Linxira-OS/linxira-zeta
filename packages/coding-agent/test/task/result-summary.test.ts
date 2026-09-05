@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { formatTaskResultSummary } from "@linxiraos/pi-coding-agent/task/result-summary";
-import type { SingleResult } from "@linxiraos/pi-coding-agent/task/types";
+import { formatTaskResultSummary } from "@linxiraos/zeta/task/result-summary";
+import type { SingleResult } from "@linxiraos/zeta/task/types";
 
 function settledResult(output: string): SingleResult {
 	return {

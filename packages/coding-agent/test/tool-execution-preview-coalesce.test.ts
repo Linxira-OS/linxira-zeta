@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
-import { ToolExecutionComponent } from "@linxiraos/pi-coding-agent/modes/components/tool-execution";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
 import type { TUI } from "@linxiraos/pi-tui";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 describe("native streaming edit previews", () => {
 	beforeAll(async () => {

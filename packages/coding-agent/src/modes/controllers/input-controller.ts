@@ -40,14 +40,14 @@ import { getSlashCommandUsage, loadSlashCommandUsage, recordSlashCommandUsage } 
 import { EnhancedPasteController } from "../../utils/enhanced-paste";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import { ensureSupportedImageInput, ImageInputTooLargeError, loadImageInput } from "../../utils/image-loading";
+import { resizeImage } from "../../utils/image-resize";
 import {
-	VideoError,
 	buildVideoContactSheetPng,
 	createVideoPreviewImage,
 	isVideoPath,
 	probeVideo,
+	VideoError,
 } from "../../utils/video";
-import { resizeImage } from "../../utils/image-resize";
 
 /**
  * Slash commands that may carry secrets in their arguments should never be

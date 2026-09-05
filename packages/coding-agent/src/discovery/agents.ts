@@ -17,9 +17,9 @@ import { type SlashCommand, slashCommandCapability } from "../capability/slash-c
 import { type SystemPrompt, systemPromptCapability } from "../capability/system-prompt";
 import type { LoadContext, LoadResult } from "../capability/types";
 import {
-	discoverRuleFromMarkdown,
 	calculateDepth,
 	createSourceMeta,
+	discoverRuleFromMarkdown,
 	loadFilesFromDir,
 	scanSkillsFromDir,
 } from "./helpers";

@@ -1,7 +1,7 @@
-import { deflateSync } from "node:zlib";
 import { describe, expect, it } from "bun:test";
+import { deflateSync } from "node:zlib";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { TerminalGraphicsDecoder, encodeTerminalImage } from "@linxiraos/pi-coding-agent/utils/terminal-graphics";
+import { encodeTerminalImage, TerminalGraphicsDecoder } from "@linxiraos/zeta/utils/terminal-graphics";
 
 const RED_1X1_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
@@ -130,6 +130,7 @@ describe("TerminalGraphicsDecoder SIXEL", () => {
 	});
 
 	it("preflights malicious raster declarations and repeats before native allocation", async () => {
+		// biome-ignore lint/style/useTemplate: segment-wise construction keeps the quoted DCS payload readable
 		const stream = `${ESC}Pq"1;1;999999;999999~${ESC}\\` + `${ESC}Pq!999999~${ESC}\\` + "still-safe";
 		const decoder = new TerminalGraphicsDecoder();
 		expect(decoder.push(stream)).toBe("still-safe");

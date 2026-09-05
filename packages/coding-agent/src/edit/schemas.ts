@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/omptype";
+import { type } from "@linxiraos/pi-omptype";
 
 export const replaceEditSchema = type({
 	path: "string",

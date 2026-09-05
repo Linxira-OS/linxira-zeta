@@ -14,14 +14,14 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/pi-coding-agent/modes/components/assistant-message";
-import { ReadToolGroupComponent } from "@linxiraos/pi-coding-agent/modes/components/read-tool-group";
-import { TranscriptContainer } from "@linxiraos/pi-coding-agent/modes/components/transcript-container";
-import { EventController } from "@linxiraos/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@linxiraos/pi-coding-agent/session/agent-session";
 import { type Component, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
+import type { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(async () => {

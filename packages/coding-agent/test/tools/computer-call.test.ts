@@ -5,7 +5,7 @@ import {
 	isReadOnlyComputerCall,
 	renderComputerCall,
 	WINDOW_METHODS,
-} from "@linxiraos/pi-coding-agent/tools/computer/call";
+} from "@linxiraos/zeta/tools/computer/call";
 
 function errorMessage(run: () => unknown): string {
 	try {

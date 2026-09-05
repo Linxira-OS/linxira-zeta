@@ -6,9 +6,9 @@
  * server instead of being dropped.
  */
 import { describe, expect, test } from "bun:test";
-import type { SourceMeta } from "@linxiraos/pi-coding-agent/capability/types";
-import { filterExaMCPServers, shouldFilterBrowserMCPForPrelude } from "@linxiraos/pi-coding-agent/mcp/config";
-import type { MCPServerConfig } from "@linxiraos/pi-coding-agent/mcp/types";
+import type { SourceMeta } from "@linxiraos/zeta/capability/types";
+import { filterExaMCPServers, shouldFilterBrowserMCPForPrelude } from "@linxiraos/zeta/mcp/config";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
 
 const SOURCE: SourceMeta = {
 	provider: "test",

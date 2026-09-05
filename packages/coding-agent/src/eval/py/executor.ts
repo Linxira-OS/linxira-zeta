@@ -15,8 +15,6 @@ import {
 	waitForPromiseWithCancellation,
 } from "../executor-base";
 import type { JsStatusEvent } from "../js/shared/types";
-import { getEnabledEvalPreludes } from "../preludes";
-import type { EvalToolDescriptor, EvalToolInvokeResult } from "../types";
 import {
 	createKernelSessionRegistry,
 	formatSessionKernelTimeoutAnnotation,
@@ -26,6 +24,8 @@ import {
 	normalizeKernelSessionCwd,
 	requireRemainingKernelTimeoutMs,
 } from "../kernel-session-registry";
+import { getEnabledEvalPreludes } from "../preludes";
+import type { EvalToolDescriptor, EvalToolInvokeResult } from "../types";
 import {
 	checkPythonKernelAvailability,
 	type KernelDisplayOutput,

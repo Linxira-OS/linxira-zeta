@@ -1,21 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@linxiraos/pi-coding-agent/async";
-import { Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import {
-	runEvalAgent,
-	type EvalAgentBridgeOptions,
-	type EvalAgentResult,
-} from "@linxiraos/pi-coding-agent/eval/agent-bridge";
-import { runEvalWait } from "@linxiraos/pi-coding-agent/eval/handle-bridge";
-import type { LocalProtocolOptions } from "@linxiraos/pi-coding-agent/internal-urls";
-import type { MCPManager } from "@linxiraos/pi-coding-agent/mcp";
-import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
-import * as taskDiscovery from "@linxiraos/pi-coding-agent/task/discovery";
-import * as taskExecutor from "@linxiraos/pi-coding-agent/task/executor";
-import * as isolationRunner from "@linxiraos/pi-coding-agent/task/isolation-runner";
-import { runStructuredSubagent } from "@linxiraos/pi-coding-agent/task/structured-subagent";
-import type { AgentDefinition, SingleResult, StructuredSubagentOutput } from "@linxiraos/pi-coding-agent/task/types";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { type EvalAgentBridgeOptions, type EvalAgentResult, runEvalAgent } from "@linxiraos/zeta/eval/agent-bridge";
+import { runEvalWait } from "@linxiraos/zeta/eval/handle-bridge";
+import type { LocalProtocolOptions } from "@linxiraos/zeta/internal-urls";
+import type { MCPManager } from "@linxiraos/zeta/mcp";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as taskDiscovery from "@linxiraos/zeta/task/discovery";
+import * as taskExecutor from "@linxiraos/zeta/task/executor";
+import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
+import { runStructuredSubagent } from "@linxiraos/zeta/task/structured-subagent";
+import type { AgentDefinition, SingleResult, StructuredSubagentOutput } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const jobManagers = new Set<AsyncJobManager>();
 

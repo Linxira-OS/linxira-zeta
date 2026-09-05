@@ -6,13 +6,13 @@
  * carrying data must advertise the `agent://<id>` handle (PR #10625 review).
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { AsyncJobManager } from "@linxiraos/pi-coding-agent/async/job-manager";
-import type { AsyncJobRunResult } from "@linxiraos/pi-coding-agent/async/job-manager";
-import { IrcBus } from "@linxiraos/pi-coding-agent/irc/bus";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
-import type { StructuredSubagentOutput } from "@linxiraos/pi-coding-agent/task/types";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { HubTool } from "@linxiraos/pi-coding-agent/tools/hub";
+import type { AsyncJobRunResult } from "@linxiraos/zeta/async/job-manager";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { StructuredSubagentOutput } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { HubTool } from "@linxiraos/zeta/tools/hub";
 
 const SELF_ID = "Main";
 

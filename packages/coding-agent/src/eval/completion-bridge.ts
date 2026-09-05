@@ -12,10 +12,10 @@
  * in, text (or, with `schema`, a structured object) out.
  */
 
-import { type } from "@linxiraos/omptype";
 import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
 import { type Api, Effort, type Model, type Tool } from "@linxiraos/pi-ai";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { type } from "@linxiraos/pi-omptype";
 import { Snowflake } from "@linxiraos/pi-utils";
 import { extractTextContent, extractToolCall, parseJsonPayload } from "../commit/utils";
 

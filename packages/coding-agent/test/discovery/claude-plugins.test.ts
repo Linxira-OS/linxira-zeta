@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@linxiraos/pi-coding-agent/capability/fs";
-import { disableUserSource, enableProvider, loadCapability } from "@linxiraos/pi-coding-agent/capability";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { disableUserSource, enableProvider, loadCapability } from "@linxiraos/zeta/capability";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import type { Skill } from "@linxiraos/zeta/capability/skill";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
-} from "@linxiraos/pi-coding-agent/discovery/helpers";
-import type { Skill } from "@linxiraos/pi-coding-agent/capability/skill";
-import { loadSkills } from "@linxiraos/pi-coding-agent/extensibility/skills";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
-import "@linxiraos/pi-coding-agent/discovery/claude-plugins";
+} from "@linxiraos/zeta/discovery/helpers";
+import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
+import "@linxiraos/zeta/discovery/claude-plugins";
 
 describe("parseClaudePluginsRegistry", () => {
 	test("parses valid registry", () => {

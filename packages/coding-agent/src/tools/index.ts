@@ -1,14 +1,15 @@
 import type { AgentOptions, AgentTelemetryConfig, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
-import type { EditStore } from "@linxiraos/pi-natives";
 import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@linxiraos/pi-ai";
+import type { EditStore } from "@linxiraos/pi-natives";
 import { logger } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";
-import type { EvalPreludeDefinition } from "../eval/preludes";
+import type { ImControlParams, ImControlResult } from "../channels/im-control";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
+import type { EvalPreludeDefinition } from "../eval/preludes";
 import { checkPythonKernelAvailability } from "../eval/py/kernel";
 import type { ToolPathWithSource } from "../extensibility/custom-tools";
 import type { PreparedExtension } from "../extensibility/extensions/types";
@@ -42,6 +43,7 @@ import { AstEditTool } from "./ast-edit";
 import { AstGrepTool } from "./ast-grep";
 import { BashTool } from "./bash";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
+import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
 import { DebugTool } from "./debug";
 import { EvalTool } from "./eval";
@@ -50,6 +52,7 @@ import { GithubTool } from "./gh";
 import { GlobTool } from "./glob";
 import { GrepTool } from "./grep";
 import { HubTool, isIrcEnabled } from "./hub";
+import { ImControlTool } from "./im-control";
 import { LearnTool } from "./learn";
 import { ManageSkillTool } from "./manage-skill";
 import { MemoryEditTool } from "./memory-edit";
@@ -62,6 +65,8 @@ import type { PlanProposalHandler } from "./resolve";
 import { SecurityScanTool } from "./security-scan";
 import { supportsExternalThinking, ThinkTool } from "./think";
 import { type TodoPhase, TodoTool } from "./todo";
+import { TrackingTool } from "./tracking";
+import { WorkspaceRunTool } from "./workspace-run";
 import { WriteTool } from "./write";
 import { isMountableUnderXdev, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
@@ -173,6 +178,15 @@ export interface ToolSession {
 	fetch?: FetchImpl;
 	/** Provider credential resolver forwarded unchanged to restricted child sessions. */
 	getApiKey?: AgentOptions["getApiKey"];
+	/**
+	 * IM channel send sink (web/desktop sessions only; undefined in CLI mode).
+	 * Enables `channel_send` for relaying progress to a remote IM user.
+	 */
+	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
+	/** Workspace delegation sink; enables `workspace_run` for coordinator sessions. */
+	workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+	/** Natural-language IM control sink; enables `im_control` for relay sessions. */
+	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 	/** Skip subprocess-kernel availability checks and warmup */
 	skipPythonPreflight?: boolean;
 	/** Pre-loaded context files (AGENTS.md, etc) */
@@ -454,6 +468,18 @@ export type ToolFactory = (session: ToolSession) => Tool | null | Promise<Tool |
  * `BUILTIN_TOOLS[name](session)` to construct a tool directly.
  */
 export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
+	channel_send: session => {
+		if (!session.channelSend) return null; // CLI mode
+		return new ChannelSendTool(session);
+	},
+	workspace_run: session => {
+		if (!session.workspaceRun) return null; // CLI mode
+		return new WorkspaceRunTool(session);
+	},
+	im_control: session => {
+		if (!session.imControl) return null; // CLI mode
+		return new ImControlTool(session);
+	},
 	read: s => new ReadTool(s),
 	security_scan: s => new SecurityScanTool(s),
 	bash: s => new BashTool(s),
@@ -480,6 +506,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reflect: MemoryReflectTool.createIf,
 	learn: LearnTool.createIf,
 	manage_skill: ManageSkillTool.createIf,
+	tracking_update: s => new TrackingTool(s),
 };
 
 export const HIDDEN_TOOLS: Record<HiddenToolName, ToolFactory> = {

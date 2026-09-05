@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, ImageContent, Message, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
 import type { Component, Container, EditorTheme, Loader, Spacer, Text, TUI } from "@linxiraos/pi-tui";
@@ -384,6 +385,7 @@ export interface InteractiveModeContext {
 
 	// Command handling
 	handleExportCommand(text: string): Promise<void>;
+	handleSidebarToggle(): void;
 	handleTraceCommand(): Promise<void>;
 	handleShareCommand(): Promise<void>;
 	handleTodoCommand(args: string): Promise<void>;
@@ -498,6 +500,10 @@ export interface InteractiveModeContext {
 	setToolsExpanded(expanded: boolean): void;
 	toggleThinkingBlockVisibility(): void;
 	handlePlanModeCommand(
+		initialPrompt?: string,
+		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+	): Promise<boolean>;
+	handlePlanUltraCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
 	): Promise<boolean>;
