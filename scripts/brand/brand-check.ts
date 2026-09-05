@@ -76,12 +76,12 @@ for (const file of trackedFiles()) {
 		});
 	}
 
-	// .omp path segments outside the interop allow-list. Allow patterns match
-	// against "file ⟶ line" so entries may scope by file path or by content.
-	// Lookbehind keeps property access (pkg.omp, theme.icon.omp) out; test
-	// fixtures are exempt.
+	// .omp path segments outside the interop allow-list. `.omp` followed by a
+	// word char, dot or hyphen is a retained surface (.omp-plugin, .omp-tmp,
+	// pkg.omp, theme.icon.omp); allow patterns match "file ⟶ line" so entries
+	// may scope by file path or content; test fixtures are exempt.
 	lines.forEach((line, index) => {
-		if (!/(?<![\w])\.omp\b/.test(line)) return;
+		if (!/(?<![\w])\.omp(?![\w.\-])/.test(line)) return;
 		if (/\/test\//.test(relPath)) return;
 		const hay = `${relPath} ⟶ ${line}`;
 		if (OMP_PATH_ALLOW.some(pattern => pattern.test(hay) || pattern.test(relPath))) return;

@@ -59,7 +59,7 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		// Doc comments and non-interop strings describing paths that actually
 		// resolve under the zeta config root (dirs.ts docs, log paths, etc.).
 		name: "omp-doc-path",
-		from: /(\W|^)\.omp\b(?!\.sh)/g,
+		from: /(\W|^)\.omp(?![\w.\-])/g,
 		to: "$1.zeta",
 		exclude:
 			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts/,
