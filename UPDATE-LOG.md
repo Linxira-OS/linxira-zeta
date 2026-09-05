@@ -12,6 +12,7 @@
 ### 修复
 
 - v18.1.10 合并损伤清零：UA 常量（全 provider 请求回到 `zeta/<version>`）、基础系统提示字节守卫、计划文件读取窗口、扩展检查器配置目录键、channel 工具顶层会话独占门控、`tracking_update` 门控、Windows 安装器（install.ps1）包名/仓库/二进制名还原。
+- Rust 作业控制修复：管道子进程在等待注册前自行 SIGSTOP 时，brush-core 的停机检测永久失明（`run_string` 挂死）——`waitid` 改按 pid 查询 + wait 入口预检查已停子进程，附红绿回归测试；GitHub 托管 runner 首次执行 Rust 门禁即触发的环境潜伏缺陷。
 - 品牌残留清零并进入 CI 守卫（`scripts/brand/brand-check.ts`，check job 每次运行）：oh-my-pi/.omp/π 家族标记五级分类规则表 + 品牌 overlay 脚本（`brand-overlay.ts`），后续 OMP 合并的机械替换一步完成。
 - i18n：zh 目录 OMP 自指清零（守卫测试固定）、设置项占位假翻译 74 处换真文案、上游 issue 链接等合法引用入册豁免。
 

@@ -17,6 +17,9 @@
   - `c89e92cc65` AGENTS.md restructure (lean core + document/ splits)
 - **Conflict decision**: modify/delete → accept upstream deletions; content → take upstream (`--theirs` for 184 files), then re-apply Zeta layer.
 - **Checks**: PR #8 CI fully green (4 rounds; run `33958572706` = success incl. brand-residue guard), `bun scripts/check-version-consistency.ts`, ancestor check, Zeta Nix success. Local prebuilt natives stale (damage class #5, CI builds fresh via bazel).
+- **Release-run repairs (first GH-hosted execution of the Rust gate)**:
+  - `14db3db79a` utok fixtures: dropped 5 stale Zeta-snapshot entries whose reference counts went stale with the v18.1.10 tokenizer update; pi-shell kill-test timeouts 5s→30s (superseded by the root-cause fix below).
+  - brush-core stop detection: `ChildProcess::wait` relied on a tokio SIGCHLD stream that misses signals arriving before registration — a pipeline stage that SIGSTOPs during later-stage spawning stalled `run_string` forever on loaded GH-hosted runners (fast local/upstream machines always win the race, so the upstream test never showed it). Fix in the vendored fork: `waitid` scoped to the caller's pid (`Id::Pid`, no cross-child event consumption) + one entry probe for already-pending stops (`processes.rs`, `sys/unix/signal.rs` incl. macOS shim, `sys/stubs/signal.rs`), regression test `wait_observes_a_stop_that_precedes_the_wait` verified red (5s timeout) without the entry probe and green with it. Upstream test files untouched.
 
 ## OMP Release Sync Policy
 
@@ -27,4 +30,4 @@
 ## Current Baselines
 
 - OMP: `v18.1.10` (fetched tag `f241301c83726afe75a847e919b89977a54dafbe`)
-- Zeta: `1.1.8` (released), version line holds across 13 published `@linxiraos/*` packages.
+- Zeta: `1.1.9` (tag on `main`; release run in flight at the time of the brush-core stop-detection repair), version line holds across 14 published `@linxiraos/*` packages.
