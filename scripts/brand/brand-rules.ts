@@ -157,4 +157,8 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{ needle: /const APP_NAME = "omp"/, why: "init-xdg must import APP_NAME from pi-utils" },
 	{ needle: /display: "omp"/, why: "profile alias default command is zeta" },
 	{ needle: /@oh-my-pi\//, why: "upstream npm scope never appears in product sources" },
+	{
+		needle: /runs-on:.*(omp-kata|\bomp\b)/,
+		why: "Zeta CI runs exclusively on GitHub-hosted runners; upstream runner labels never resolve here and stall release jobs",
+	},
 ];
