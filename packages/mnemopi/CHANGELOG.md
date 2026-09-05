@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- v18.1.10 sync baseline; embeddings requests send the zeta User-Agent again.
 ## [1.1.8] - 2026-09-04
 
 - OMP sync v18.1.2–v18.1.5: memory-backend plumbing aligned with the upstream mnemopi updates.

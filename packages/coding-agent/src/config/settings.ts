@@ -963,7 +963,7 @@ export class Settings {
 	}
 
 	/**
-	 * Raw project settings layer (`.claude/settings.yml`, `.omp/config.yml`,
+	 * Raw project settings layer (`.claude/settings.yml`, `.zeta/config.yml`,
 	 * etc.), deep-cloned. Companion to {@link getGlobalSettings} for the legacy
 	 * pi `SettingsManager` shim's `getProjectSettings()`.
 	 */

@@ -162,6 +162,8 @@ jobs:
               cargo deny --locked --offline check licenses sources
          - name: Type check workspace
            run: bun run ci:check:full
+         - name: Brand residue guard
+           run: bun scripts/brand/brand-check.ts
          - name: Build collab web
            run: bun run collab:web:build
 

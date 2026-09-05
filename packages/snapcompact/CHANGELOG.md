@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- v18.1.10 sync baseline (published as @linxiraos/pi-snapcompact).
 ## [1.1.8] - 2026-09-04
 
 - OMP sync v18.1.2–v18.1.5: compaction maintenance aligned with the upstream snapcompact updates.

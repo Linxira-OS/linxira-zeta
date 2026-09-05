@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- v18.1.10 sync baseline (compaction and tool-arg stream updates).
 ## [1.1.8] - 2026-09-04
 
 - OMP sync v18.1.2–v18.1.5: Agent Hub activity stream groundwork, declarative provider auth registry, and tool-roster notice plumbing shared with the session layer.

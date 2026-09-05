@@ -1,7 +1,21 @@
 # Zeta 更新日志
 ## 下一版本（Unreleased）
 
-### 修复（1.1.8）
+### OMP 同步基线
+
+- v18.1.10（tag commit `f241301c83726afe75a847e919b89977a54dafbe`）完整真合并（PR #8，`sync/omp-release/v18.1.10`）：原生 Rust 编辑引擎（EditStore/EditSession/DiffStream）、`skillful` 技能列示、智能体表情回应、安全扫描命令族、发现/插件系统强化。
+
+### 新增
+
+- TUI 设置页全量汉化：顶部标签、分组标题、选项值、底部提示条、预览 chrome、斜杠命令描述全部跟随语言设置，`/language` 即时生效；修复侧边栏设置开启后 TUI 不渲染的回归，侧边栏内容重构（会话头/待办进度/子代理状态/MCP 健康，空面板隐藏）。
+
+### 修复
+
+- v18.1.10 合并损伤清零：UA 常量（全 provider 请求回到 `zeta/<version>`）、基础系统提示字节守卫、计划文件读取窗口、扩展检查器配置目录键、channel 工具顶层会话独占门控、`tracking_update` 门控、Windows 安装器（install.ps1）包名/仓库/二进制名还原。
+- 品牌残留清零并进入 CI 守卫（`scripts/brand/brand-check.ts`，check job 每次运行）：oh-my-pi/.omp/π 家族标记五级分类规则表 + 品牌 overlay 脚本（`brand-overlay.ts`），后续 OMP 合并的机械替换一步完成。
+- i18n：zh 目录 OMP 自指清零（守卫测试固定）、设置项占位假翻译 74 处换真文案、上游 issue 链接等合法引用入册豁免。
+
+### 1.1.8（历史）
 
 - v18.1.5 合并损伤修复（六类清单第 4 类）：plan-ultra 模板选择、`.zeta/agents` 项目代理发现、每会话 `AsyncJobManager`、prompt-cache 守卫、模式状态版本通知、Z.ai OAuth 键名品牌。
 - CI：bun-install action 改为安装 `packageManager` 钉住的版本（1.3.14 硬编码曾与 1.4.0 lockfileVersion 2 冲突）；`bun.lock` 重新生成为 lockfileVersion 1（bun2nix 只解析 v1）+ `nix/bun.nix` 同步重生成。

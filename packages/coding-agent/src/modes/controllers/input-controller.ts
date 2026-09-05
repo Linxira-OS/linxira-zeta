@@ -2195,7 +2195,7 @@ export class InputController {
 
 		try {
 			this.ctx.ui.stop();
-			const result = await openInEditor(editorCmd, currentText, { extension: ".omp.md" });
+			const result = await openInEditor(editorCmd, currentText, { extension: ".zeta.md" });
 			if (result !== null) {
 				this.ctx.editor.setText(result);
 			}

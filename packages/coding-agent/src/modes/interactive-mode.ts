@@ -992,7 +992,16 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer = new Container();
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session);
-		this.sidebar = new SidebarComponent(this.statusLine);
+		this.sidebar = new SidebarComponent({
+			statusLine: this.statusLine,
+			session,
+			subagents: () => this.#observerRegistry.getSessions(),
+			mcp: {
+				pending: this.#mcpPendingServers,
+				connected: this.#mcpConnectedServers,
+				failed: this.#mcpFailedServers,
+			},
+		});
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
 		this.#codexResetFireworksController = new CodexResetFireworksController(this);
 		this.statusLine.setCodexResetFireworksHandler(event => {
@@ -1005,7 +1014,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.statusLine.setVibeWorkerTokenRateProvider(() =>
 			aggregateVibeWorkerTokensPerSecond(this.session.getAgentId() ?? MAIN_AGENT_ID),
 		);
-		this.#applySidebar();
+		this.applySidebar();
 
 		this.hideToolActivity = settings.get("display.hideToolActivity");
 		this.chatContainer.setToolActivityVisible(!this.hideToolActivity);
@@ -5454,12 +5463,12 @@ export class InteractiveMode implements InteractiveModeContext {
 	handleSidebarToggle(): void {
 		const next = !settings.get("tui.sidebar");
 		settings.set("tui.sidebar", next);
-		this.#applySidebar();
+		this.applySidebar();
 		this.ui.requestRender();
 	}
 
 	/** Apply the `tui.sidebar` setting to the engine's main-width override. */
-	#applySidebar(): void {
+	applySidebar(): void {
 		if (settings.get("tui.sidebar")) {
 			this.ui.setMainWidth(SIDEBAR_WIDTH);
 			this.ui.setGutterComponent(this.sidebar);

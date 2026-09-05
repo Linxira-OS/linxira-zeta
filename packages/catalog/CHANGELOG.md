@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- v18.1.10 sync baseline; retired pi-hashline catalog entry removed from the version-line catalogs.
 ## [1.1.8] - 2026-09-04
 ## [1.1.6] - 2026-08-30
 

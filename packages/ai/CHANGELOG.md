@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Z.ai OAuth key name sends zeta (merge restored the upstream oh-my-pi literal in tests); xAI/OpenAI-compatible requests send the zeta User-Agent again.
 ## [1.1.8] - 2026-09-04
 ## [1.1.6] - 2026-08-30
 
