@@ -357,7 +357,6 @@
     "@linxiraos/pi-ai": "1.1.8",
     "@linxiraos/pi-catalog": "1.1.8",
     "@linxiraos/pi-channels": "1.1.8",
-    "@linxiraos/pi-hashline": "1.1.8",
     "@linxiraos/pi-mnemopi": "1.1.8",
     "@linxiraos/pi-natives": "1.1.8",
     "@linxiraos/pi-omptype": "1.1.8",
