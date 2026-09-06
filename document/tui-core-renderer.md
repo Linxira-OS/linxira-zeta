@@ -35,7 +35,7 @@ interface TerminalFramePlan {
 }
 ```
 
-`viewport` is the complete mutable screen image for this frame. An `append`
+`viewport` is the complete mutable screen image for this frame.（例外：`setMainWidth`/`setGutterComponent` 启用侧边栏时，plan 按缩窄后的主区宽度合成，右侧 gutter 列由 TUI 在 plan 之外补绘。） An `append`
 history batch contains finalized rows or a stable append-only head row. A
 `replay` batch contains the complete logical ledger, including any naturally
 emitted prefix of the active append-only head. Finality
@@ -102,7 +102,8 @@ The raw TUI defaults to `preserve` and accepts
 rebuild resize policies each prepare one complete bottom-first replay
 transaction; preserve prepares none. Replay consumes one fresh monotonic history
 id without rewinding logical retirement state, and acknowledgement happens only
-after the synchronous write returns.
+after the synchronous write returns. `setMainWidth` 切换主区宽度时同样触发
+`beginHistoryReplay()`，与 resize 重放共用防混宽路径。
 
 The renderer never probes the user's scroll position. This keeps updates safe
 while the user is reading older terminal history and avoids terminal- or

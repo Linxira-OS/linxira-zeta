@@ -40,8 +40,10 @@ Browser ── :30141 (Bun.serve, ZetaServer)
 
 ## 网关内部模块（`packages/coding-agent/src/server/web-gateway/`）
 
-- `web-gateway.ts` — 入口：`Bun.serve` 路由分发（按 `URL.pathname` 前缀）、
-  错误包装（JSON `{ error }`，5xx）、SSE 支持。
+- 入口 `../web-gateway.ts`（`packages/coding-agent/src/server/web-gateway.ts`）：
+  `*_RE` 路由常量 + `webGatewayFetch` dispatch（按 `URL.pathname` 前缀）、
+  错误包装（JSON `{ error }`，5xx）、SSE 支持；子目录 `web-gateway/`
+  每资源一个 handler 模块（下列列表非穷尽）。
 - `sessions.ts` — W1：列表（`session-listing.listAllSessions` + 兜底文件扫描）、
   打开（`SessionManager.open` 语义 → DTO）、context（entryIds 配对）、
   state（running/streaming 状态）、thinking、export（`../export/html` + 递归补丁）。
@@ -91,7 +93,7 @@ web-ui 侧类型定义保留（客户端在用），路由文件删除。
 
 - W1 完成：`bun check`（runtime 包）+ `zeta serve --web-only` 起服后
   `curl /api/sessions`、`/api/sessions/<id>/context` 正常；
-  web-ui 删除 sessions 族路由与 `lib/session-reader.ts`、`session-title.ts`(+test)、
+  web-ui 删除 sessions 族路由与 `session-title.ts`(+test)、
   `rpc-manager.ts`（W2 才删）、`skills-service.ts`（W4 才删）——
   每批删除后 web-ui `tsc --noEmit` 的报错只减不增。
 - W2 完成：`bun check` 通过；`zeta serve --web-only` 起服后

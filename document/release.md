@@ -26,9 +26,14 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
   CI-originated publishes. Every published package uses the `@linxiraos/*` name —
   no `@linxiraos/*` or legacy names, and no `.omp` compatibility packages.
 - **The `@linxiraos` publish chain is live** (v1.0.9 published 2026-08-19 via
-  trusted publishing; `web-ui` depends on `@linxiraos/pi-agent-core` etc. at
-  `1.0.0`, which 404s until those are first published — align versions at
-  first web-ui release).
+  trusted publishing).
+- **Trusted-publisher 配置是逐包的**（v1.1.9 教训：`@linxiraos/pi-natives-win32-arm64`
+  首发时 npm 侧无匹配 trusted publisher，OIDC 静默回退到 `NODE_AUTH_TOKEN`，而该
+  token 无新包首发权限 → `PUT 404`）。新包第一次发布前，在 npmjs.com 上为该包
+  （或账号级默认）配置 Publishing access：Repository `Linxira-OS/linxira-zeta`、
+  Workflow filename `.github/workflows/ci.yml`、Environment 留空。逐包清单 =
+  `workspaces.catalog` 的 `@linxiraos/*` 13 个键 + 6 个 `pi-natives-<tag>` leaf +
+  `zeta-web` / `pi-messenger`（独立线）。新 leaf 包出现时同步补 npm 配置。
 - The `check` job also runs the brand-residue guard
   (`bun scripts/brand/brand-check.ts`, see `document/merge-playbook.md`).
 
@@ -40,19 +45,19 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
 - `.github/**` is deliberately **excluded** from the `on.push` /
   `on.pull_request` path filters: CI/workflow config changes never self-trigger
   a full run. They are verified by `workflow_dispatch` instead (using
-  `skip_tests` / `build_only` as needed). Before any dispatch, the change must
+  `skip_npm` as needed). Before any dispatch, the change must
   be functionally complete and locally validated — never dispatch half-done
   work, and never trigger CI for a simple documentation/config push.
 - Release runs are entered only through two channels:
   1. `bun scripts/release-v2.ts <version>` — atomic bump commit + `v*` tag push
      on `main`; the push run detects the tag and runs the full gate
      (tests + build + publish).
-  2. `gh workflow run ci.yml --ref main` with `skip_tests` / `build_only` —
-     release-only dispatches that skip the test suites and/or skip publishing.
+  2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-only
+     dispatch that skips publishing.
 - Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
-  gated on `release_quality_gate` (tests, `skip_tests`-exempt) and
-  `release_build_gate` (all release artifacts present). `build_only=true`
-  builds artifacts without publishing.
+  gated on `release_gate` (full test/build validation) plus
+  `release_binary` / `release_binary_hosted` (all release artifacts present)
+  and `!inputs.skip_npm`.
 - Test-suite failures in a push run are environment flakes (e.g. singleton
   `broker-idle-shutdown`, julia prelude kernel) unless proven otherwise; a
   release run gates on its own test results, never on unrelated push runs.
@@ -96,6 +101,25 @@ conclusions first, `--log-failed` second) — one call, not a loop.
   entry, mirroring the per-package `CHANGELOG.md` requirement.
 - `UPDATE-LOG.md` entries are written at release time and committed with (or
   before) the version bump.
+
+### Release-surface damage checklist (pre-tag gate)
+
+每次 release 合并后、push tag 前逐类核对（v1.1.9 首跑即验证：每一类都曾打断发布链）。
+按 v1.1.9 实际断裂点编码为机械检查，写入 AGENTS.md Post-Merge Checklist 的 release 面补充：
+
+| # | 损伤类别 | 症状 | 机械守卫 |
+|---|---|---|---|
+| 1 | Release asset 名漂移：build 脚本改名（如 `omp-browser-relay-extension.zip` → `zeta-browser-relay-extension.zip`）而 ci.yml 仍引旧名 | `Generate checksums` 步骤 ENOENT，GH Release 不创建，下游 verify/brew/npm 全 skipped | checksums 前的 `Preflight release assets` 步骤；改名任何 release asset 时全库 grep 旧名 |
+| 2 | Artifact 名漂移：upload/download 的 artifact key（`zeta-binary-*`、`native-addons-*`）两侧不一致 | download 步骤空集或 digest 错误 | upload/download `pattern` 成对核对 |
+| 3 | 新 leaf 包（`@linxiraos/pi-natives-<tag>`）首次发布时 npm 侧无 trusted publisher / 无权限 → `PUT 404` | `Publish native leaf packages` 失败；主包因 `optionalDependencies` 锁步被 gating 全部不发 | 发版前 npmjs.com 逐包配置 trusted publisher；本地补发用 `scripts/publish-missing-packages.ts` |
+| 4 | 版本线漂移（旧病，保留）：catalog/manifest/sentinel 版本不一致 | `bun-install` 全 job 死 / `check-version-consistency` 报错 | `bun scripts/check-version-consistency.ts` + `bun run check:ts`（AGENTS.md 门槛已覆盖） |
+
+**发布中断后的补发路径**：CI 发布链任何 job 失败后，未发布的包用
+`bun scripts/publish-missing-packages.ts`（交互式，EOTP 时浏览器授权）在本地补发核心包；
+新 leaf 包在 npmjs.com → package settings → Publishing access 配好 trusted publisher 后，
+用 `gh workflow run ci.yml --ref main`（不打新 tag，HEAD 已带 tag 时视为 release）重跑，
+已发版本会被 preflight 跳过。npm 源若为镜像，先切官方源再发布、发布后切回
+（`npm config set registry https://registry.npmjs.org/` / 回 `https://registry.npmmirror.com/`）。
 
 ### Version line tooling (lockstep bump)
 
@@ -146,7 +170,7 @@ Zeta keeps upstream references minimal so the repository stays lean:
   sync policy, and fetch a specific tag explicitly only when a release sync
   needs it: `git fetch omp-upstream tag v17.2.12`.
 - Local tags are curated: OMP tags only for the two most recent versions
-  (currently `v18.0.10`, `v18.0.11`), plus `baseline/*` markers and Zeta
+  (currently `v18.0.11`, `v18.1.10`), plus `baseline/*` markers and Zeta
   product release tags. All other upstream history is preserved through the
   SHAs recorded in `document/upstream-sync.md`, not through tag refs.
 - `origin` (the GitHub remote) is the product truth: the Zeta `main` branch,
@@ -219,7 +243,7 @@ decide when the branch is stale:
 **Backup retention:**
 
 `backup/omp-tag/<tag>` keeps only the **recent stable OMP release baselines**
-(the same two most recent tags that exist locally, currently `v18.0.10` and
-`v18.0.11`). Older `backup/omp-tag/` entries are removed once the release
+(the same two most recent tags that exist locally, currently `v18.0.11` and
+`v18.1.10`). Older `backup/omp-tag/` entries are removed once the release
 is superseded; full history stays reachable through `backup/omp/main`, which
 mirrors `omp-upstream/main`.

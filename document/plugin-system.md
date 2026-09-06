@@ -91,9 +91,8 @@ plugins/
 - 发布路径：
   - web/CLI：`@linxiraos/*` npm 包（trusted publishing）。
   - 桌面：GitHub release 插件压缩包，或仓库内 vendored 源码打包。
-- pi-messenger 当前：已在 npm（1.1.0/1.1.1），本地源码位于 `temp/pi-messenger`
-  （gitignored，路径不对）。**现有 npm 1.1.1 暂不动**；待迁移到
-  `plugins/official/pi-messenger/`、本地开发逻辑跑通后，随下个 release 版本线重发。
+- pi-messenger 当前：已迁移至 `plugins/official/pi-messenger/`（随 Zeta 发布线
+  版本化），`temp/` 参考克隆已清理。
 - 插件相关支持包：除 pi-messenger 外，后续大概率还会有更多插件依赖的
   支持包，统一走同一套发布/依赖规则。
 
@@ -131,7 +130,8 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
 
 ### 仓库内标准路径（取代 `temp/pi-messenger`）
 
-- 问题：pi-messenger 源码现位于 `temp/pi-messenger`（gitignored，等同未版本化），
+- 问题（当时的事实，2026-08-26 迁移决定）：pi-messenger 源码现位于
+  `temp/pi-messenger`（gitignored，等同未版本化），
   打包路径与逻辑都不对。
 - 决定：官方插件统一收进 `plugins/official/<plugin-id>/`，成为仓库内受管子仓库。
 - `plugins/official/pi-messenger/` 标准模板：

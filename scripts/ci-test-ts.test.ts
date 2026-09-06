@@ -25,7 +25,7 @@ async function runWithWatchdog(script: string, timeoutMs: number): Promise<strin
 }
 
 describe("describeChunkFailure", () => {
-	test("a real SIGKILL that the watchdog did not cause is attributed to the OOM killer", async () => {
+	test.skipIf(process.platform === "win32")("a real SIGKILL that the watchdog did not cause is attributed to the OOM killer", async () => {
 		const exitCode = await spawnExitCode("kill -9 $$");
 		expect(exitCode).toBe(137);
 

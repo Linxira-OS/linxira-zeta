@@ -18,15 +18,16 @@ import * as readline from "node:readline";
  *
  * 用法（新 PowerShell 窗口，先 cd 到仓库根）:
  *   cd C:\Users\ETPau\Documents\GITHUB\zeta
- *   bun scripts/publish-missing-packages.ts                     # 全部（14 包 → zeta-web → pi-messenger）
+ *   bun scripts/publish-missing-packages.ts                     # 全部核心包（web-ui/pi-messenger 需另行确认）
  *   bun scripts/publish-missing-packages.ts --only @linxiraos/pi-channels
  *
  * 行为:
  *   - 已发布版本跳过（npm view 命中；EPUBLISHCONFLICT 视为已发）
- *   - zeta-web: version 1.1.0 + @linxiraos 依赖 ^1.1.0 + npm install（装 fastembed、更新 lock）
- *     + next build + publish；会改动 web-ui/package.json（正式提交前请确认）
- *   - pi-messenger（plugins/official/pi-messenger 常驻源码）: 临时改名 @linxiraos/pi-messenger
- *     + version 1.1.0 + main=index.ts + publish；仅发 npm 模块，不进入 Zeta 主软件打包
+ *   - zeta-web / pi-messenger 不在默认链路里（版本线独立，发布节奏单独决策）；
+ *     如需补发，用 --only @linxiraos/zeta-web / --only @linxiraos/pi-messenger。
+ *   - 1.1.9（v1.1.9 release）: CI native-leaf job 在 win32-arm64 首发时 404 中断，
+ *     主包 14 个 + musl leaf 全部未发；用本脚本补发核心包，musl/win32-arm64 leaf
+ *     由 CI 的 trusted publishing 补（或 npmjs.com 网页端放行后重跑 release run）。
  */
 import { $ } from "bun";
 
@@ -35,7 +36,7 @@ const args = process.argv.slice(2);
 const onlyIdx = args.indexOf("--only");
 const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
 const doDeprecate = args.includes("--deprecate");
-const RELEASE = "1.1.3";
+const RELEASE = "1.1.9";
 const deprecateVersion = (() => {
 	const idx = args.indexOf("--version");
 	return idx >= 0 ? args[idx + 1] : "1.1.0";
@@ -53,7 +54,6 @@ const TARGETS: Array<{
 	{ dir: "packages/catalog", name: "@linxiraos/pi-catalog" },
 	{ dir: "packages/ai", name: "@linxiraos/pi-ai" },
 	{ dir: "packages/tui", name: "@linxiraos/pi-tui" },
-	{ dir: "packages/hashline", name: "@linxiraos/pi-hashline" },
 	{ dir: "packages/mnemopi", name: "@linxiraos/pi-mnemopi" },
 	{ dir: "packages/snapcompact", name: "@linxiraos/pi-snapcompact" },
 	{ dir: "packages/stats", name: "@linxiraos/pi-stats" },
@@ -62,8 +62,10 @@ const TARGETS: Array<{
 	{ dir: "packages/natives", name: "@linxiraos/pi-natives" },
 	{ dir: "packages/omptype", name: "@linxiraos/pi-omptype" },
 	{ dir: "packages/wire", name: "@linxiraos/pi-wire" },
-	{ dir: "web-ui", name: "@linxiraos/zeta-web", build: true, align: true },
-	{ dir: "plugins/official/pi-messenger", name: "@linxiraos/pi-messenger", rename: true },
+	// zeta-web（web-ui）与 pi-messenger 版本线独立（1.1.5 / 1.1.1），不随 RELEASE 走；
+	// 需要时 --only 单发（见头部说明）。
+	// { dir: "web-ui", name: "@linxiraos/zeta-web", build: true, align: true },
+	// { dir: "plugins/official/pi-messenger", name: "@linxiraos/pi-messenger", rename: true },
 ];
 
 interface PkgShape {
@@ -334,7 +336,7 @@ for (const t of TARGETS) {
 			if (dep.startsWith("@linxiraos/")) pkg.dependencies![dep] = `^${version}`;
 		}
 		fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
-		console.log("  (version 对齐 1.1.0 + @linxiraos 依赖 ^1.1.0)");
+		console.log(`  (version 对齐 ${RELEASE} + @linxiraos 依赖 ^${RELEASE})`);
 	}
 
 	if (await alreadyPublished(t.name, version)) {
