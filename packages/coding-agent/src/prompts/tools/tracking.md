@@ -10,27 +10,20 @@ Update project tracking documents in `<project>/.zeta/tracking/`. Use this to ma
 ## Operations
 
 ### `update_status`
-
 Update the project status file (`status.json`). Fields are merged — only provide the fields you want to change.
-
 - `phase`: current project phase (e.g. "planning", "implementation", "testing", "review")
 - `progress`: one-line summary of current progress
 - `blockers`: list of active blockers
 - `decisions`: key decisions made (appended, not replaced)
 
 ### `update_index`
-
 Overwrite the project index (`INDEX.md`) with markdown content. Use this to maintain a structured overview of the project.
 
 ### `log_action`
-
 Append a timestamped action entry to `actions.jsonl`. Each entry records what was done and why.
-
 - `action`: short action description
 - `detail`: optional extended detail
 
 ### `sync_plan`
-
 Copy a plan file from the agent's session directory into the tracking `sessions/` folder so it persists across sessions.
-
 - `plan_path`: absolute path to the plan `.md` file
