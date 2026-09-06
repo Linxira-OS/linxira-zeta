@@ -14,9 +14,9 @@
 	"type": "module",
 	"scripts": {
 		"build": "bun scripts/build-extension.ts",
-		"check": "biome check . && tsgo -p tsconfig.json --noEmit",
-		"lint": "biome lint .",
-		"fix": "biome check --write --unsafe .",
+		"check": "oxlint . && tsgo -p tsconfig.json --noEmit",
+		"lint": "oxlint .",
+		"fix": "oxfmt .",
 		"fmt": "biome format --write ."
 	},
 	"devDependencies": {
