@@ -25,16 +25,19 @@ async function runWithWatchdog(script: string, timeoutMs: number): Promise<strin
 }
 
 describe("describeChunkFailure", () => {
-	test.skipIf(process.platform === "win32")("a real SIGKILL that the watchdog did not cause is attributed to the OOM killer", async () => {
-		const exitCode = await spawnExitCode("kill -9 $$");
-		expect(exitCode).toBe(137);
+	test.skipIf(process.platform === "win32")(
+		"a real SIGKILL that the watchdog did not cause is attributed to the OOM killer",
+		async () => {
+			const exitCode = await spawnExitCode("kill -9 $$");
+			expect(exitCode).toBe(137);
 
-		const message = describeChunkFailure(exitCode, false);
-		expect(message).toContain("OOM killer");
-		expect(message).toContain("chunkSize");
-		// The old wording carried no cause at all; it must not come back.
-		expect(message).not.toBe("failed with exit code 137");
-	});
+			const message = describeChunkFailure(exitCode, false);
+			expect(message).toContain("OOM killer");
+			expect(message).toContain("chunkSize");
+			// The old wording carried no cause at all; it must not come back.
+			expect(message).not.toBe("failed with exit code 137");
+		},
+	);
 
 	test("a watchdog kill is attributed to the watchdog, not to memory", async () => {
 		const message = await runWithWatchdog("sleep 30", 150);

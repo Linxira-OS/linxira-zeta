@@ -135,11 +135,14 @@ describe("published manifest topology", () => {
 			const tarball = path.join(root, "test.tgz");
 			await $`tar -czf ${tarball} -C ${root} package`.quiet();
 
-			await expect(inspectPackedTarball(tarball)).resolves.toEqual({
-				name: "@linxiraos/pi-test",
-				version: "1.2.3",
-				path: tarball,
-			}, 20000);
+			await expect(inspectPackedTarball(tarball)).resolves.toEqual(
+				{
+					name: "@linxiraos/pi-test",
+					version: "1.2.3",
+					path: tarball,
+				},
+				20000,
+			);
 		});
 	});
 
