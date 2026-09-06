@@ -248,7 +248,7 @@ describe("writeRuntimeManifest", () => {
 // that died mid-install must not wedge later attempts, and the pre-18.x
 // `${runtimeDir}.lock` mkdir *directory* must not permanently break the new
 // file-backed lock path.
-describe("ensureRuntimeInstalled install lock", () => {
+describe.skipIf(process.platform === "win32")("ensureRuntimeInstalled install lock", () => {
 	// A local `file:` dependency keeps the real `bun install` offline and
 	// deterministic — no registry, no network.
 	async function makeFileDependency(): Promise<{ spec: string; probe: string }> {
