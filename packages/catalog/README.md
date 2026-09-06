@@ -4,18 +4,18 @@ Model catalog for [Zeta](https://github.com/Linxira-OS/linxira-zeta): bundled mo
 
 ## What's inside
 
-| Module                          | Purpose                                                                                                     |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `models.json` + `models`        | Bundled model database (pricing, context windows, modalities, thinking support)                             |
-| `provider-models`               | Provider catalog descriptors (`CATALOG_PROVIDERS`), per-provider model resolution rules                     |
-| `discovery`                     | Runtime model discovery for OpenAI-compatible endpoints, Gemini, Codex, Cursor, Antigravity, Ollama         |
-| `compat/rules`                  | Checked-in KDL policy tree: taxonomy (classes/families/revisions), class/provider cascade rules, runtime behavior vocabulary; compiled by `bun run gen:compat` into the committed `rules.json` |
+| Module                          | Purpose                                                                                                                                                                                                                                      |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `models.json` + `models`        | Bundled model database (pricing, context windows, modalities, thinking support)                                                                                                                                                              |
+| `provider-models`               | Provider catalog descriptors (`CATALOG_PROVIDERS`), per-provider model resolution rules                                                                                                                                                      |
+| `discovery`                     | Runtime model discovery for OpenAI-compatible endpoints, Gemini, Codex, Cursor, Antigravity, Ollama                                                                                                                                          |
+| `compat/rules`                  | Checked-in KDL policy tree: taxonomy (classes/families/revisions), class/provider cascade rules, runtime behavior vocabulary; compiled by `bun run gen:compat` into the committed `rules.json`                                               |
 | `compat`                        | The rule engine: `classifyModel` (taxonomy), `resolveModelPolicy` (cascade), behavior accessors (`api-routes`, `model-limits`, `exclude-models`, `pricing-peer`), collapse, and OpenAI/Anthropic wire builders that consume resolved records |
-| `identity`                      | Mechanical id utilities: reference resolution against the bundled index, dialects, selection priority, tokenizer families                                |
-| `model-thinking`                | Runtime thinking helpers (`getSupportedEfforts`, effort clamping/mapping, wire-id routing) over resolved model records                                   |
-| `model-manager` / `model-cache` | Runtime model registry with discovery refresh and on-disk caching                                           |
-| `wire`                          | Wire-level helpers: Codex, Gemini headers, GitHub Copilot                                                   |
-| `effort`                        | Reasoning-effort level definitions                                                                          |
+| `identity`                      | Mechanical id utilities: reference resolution against the bundled index, dialects, selection priority, tokenizer families                                                                                                                    |
+| `model-thinking`                | Runtime thinking helpers (`getSupportedEfforts`, effort clamping/mapping, wire-id routing) over resolved model records                                                                                                                       |
+| `model-manager` / `model-cache` | Runtime model registry with discovery refresh and on-disk caching                                                                                                                                                                            |
+| `wire`                          | Wire-level helpers: Codex, Gemini headers, GitHub Copilot                                                                                                                                                                                    |
+| `effort`                        | Reasoning-effort level definitions                                                                                                                                                                                                           |
 
 Import from subpaths (`@linxiraos/pi-catalog/<module>`) or the root barrel.
 

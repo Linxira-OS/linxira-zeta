@@ -117,7 +117,7 @@ function readTinyModelSetting(path: "providers.tinyModelDevice" | "providers.tin
 		const value = settings.get(path);
 		return typeof value === "string" ? value : undefined;
 	} catch {
-		// Settings may be uninitialized (e.g. `omp --smoke-test`); fall back to env/default.
+		// Settings may be uninitialized (e.g. `zeta --smoke-test`); fall back to env/default.
 		return undefined;
 	}
 }
@@ -450,7 +450,7 @@ async function logTail(logPath: string): Promise<string> {
 		const text = await Bun.file(logPath).text();
 		return text
 			.split("\n")
-			.filter(line => !line.startsWith("omp tiny worker listening on "))
+			.filter(line => !line.startsWith("zeta tiny worker listening on "))
 			.join("\n")
 			.trim()
 			.slice(-500);

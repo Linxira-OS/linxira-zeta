@@ -85,7 +85,7 @@ export interface ComposerStatusSnapshot {
 /** Optional dependencies and initial state for a standalone composer. */
 export interface ComposerOptions {
 	readonly terminal?: Terminal;
-	/** Extra TUI construction options (render scheduler injection for tests and `omp render`). */
+	/** Extra TUI construction options (render scheduler injection for tests and `zeta render`). */
 	readonly tuiOptions?: TUIOptions;
 	readonly preferences?: Partial<ComposerPreferences>;
 	readonly welcome?: ComposerWelcomeUpdate;
@@ -500,7 +500,7 @@ export class Composer implements TerminalFrameProvider {
 				reflowed.push("");
 				continue;
 			}
-			for (let column = 0; column < lineWidth; ) {
+			for (let column = 0; column < lineWidth;) {
 				let slice = sliceWithWidth(line, column, columns, true);
 				if (slice.width === 0) slice = sliceWithWidth(line, column, columns);
 				reflowed.push(slice.text);

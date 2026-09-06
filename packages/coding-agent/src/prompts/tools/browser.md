@@ -23,12 +23,13 @@ Drive real Chromium tabs from JavaScript or Python Eval with the global `browser
 - Raw request interception lasts only for the current `tab.run`.
 
 Application modes:
+
 - `app.path`: spawn the specified browser or Electron executable.
 - `app.cdp_url`: attach to an existing CDP endpoint.
 - `app.relay: true`: drive the user's Chrome through the omp relay. `app.target` selects a tab by URL/title substring; without it, the visible tab is adopted. Opening with `url` navigates that adopted tab.
 - Relay sessions are the user's real logged-in browser. Sites attribute actions to the user. Name a target or create a dedicated tab; NEVER navigate the visible tab without authorization.
 - Closing releases the managed tab. It never closes relay/CDP-attached pages. Spawned browsers remain open unless `kill: true`.
-</instruction>
+ </instruction>
 
 <examples>
 ```javascript
@@ -46,6 +47,7 @@ await tab.id(observed["elements"][0]["id"]).click()
 title = await tab.run("return await tab.title();", timeout=30)
 await tab.close()
 ```
+
 </examples>
 
 <critical>

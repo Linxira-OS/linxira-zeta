@@ -1,5 +1,5 @@
 /**
- * `omp browser-relay` implementation: serve the local CDP relay and install
+ * `zeta browser-relay` implementation: serve the local CDP relay and install
  * its Chrome extension. Standalone CLI command — console output here is
  * intentional user-facing output.
  */
@@ -61,8 +61,8 @@ async function runInstall(dirOverride: string | undefined): Promise<void> {
 	console.log(`  2. Click "Load unpacked" and select: ${dir}`);
 	console.log("  3. Enable the mode:  omp config set browser.relay true");
 	console.log("");
-	console.log("omp starts the relay automatically when the browser prelude needs it;");
-	console.log("run `omp browser-relay` yourself only for --token or --no-group.");
+	console.log("zeta starts the relay automatically when the browser prelude needs it;");
+	console.log("run `zeta browser-relay` yourself only for --token or --no-group.");
 	console.log("The extension badge shows 'on' once it reaches a relay.");
 }
 
@@ -80,7 +80,7 @@ async function runServe(args: BrowserRelayCommandArgs): Promise<void> {
 		// broker (or by hand): losing the bind to a live relay is success.
 		if (err instanceof Error && "code" in err && err.code === "EADDRINUSE") {
 			if (await probeRelayServer(`http://127.0.0.1:${args.port}`)) {
-				console.log(`omp browser relay already running on http://127.0.0.1:${args.port}; nothing to do.`);
+				console.log(`zeta browser relay already running on http://127.0.0.1:${args.port}; nothing to do.`);
 				return;
 			}
 			console.error(`Port ${args.port} is in use by something that is not an omp browser relay.`);
@@ -89,7 +89,7 @@ async function runServe(args: BrowserRelayCommandArgs): Promise<void> {
 		throw err;
 	}
 
-	console.log(`omp browser relay listening on http://127.0.0.1:${args.port}`);
+	console.log(`zeta browser relay listening on http://127.0.0.1:${args.port}`);
 	console.log(`  extension endpoint  ws://127.0.0.1:${args.port}/ext${args.token ? "?token=***" : ""}`);
 	if (args.port === DEFAULT_RELAY_PORT) {
 		console.log("  enable with         omp config set browser.relay true");
@@ -98,7 +98,7 @@ async function runServe(args: BrowserRelayCommandArgs): Promise<void> {
 			`  enable with         omp config set browser.relay true && omp config set browser.relayUrl http://127.0.0.1:${args.port}`,
 		);
 	}
-	console.log("Waiting for the OMP Browser Relay extension to connect (omp browser-relay install)...");
+	console.log("Waiting for the OMP Browser Relay extension to connect (zeta browser-relay install)...");
 
 	let announced = false;
 	const readiness = setInterval(() => {

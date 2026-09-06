@@ -1175,11 +1175,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"browser.relay": {
 		label: "浏览器中继（Browser Relay）",
 		description:
-			"通过 omp browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`omp browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
+			"通过 omp browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继地址",
-		description: "omp browser relay 端点（默认 http://127.0.0.1:9224）。",
+		description: "zeta browser relay 端点（默认 http://127.0.0.1:9224）。",
 	},
 	"browser.headless": {
 		label: "无头浏览器",
@@ -1635,7 +1635,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"update.channel": {
 		label: "更新通道",
-		description: "omp update 和启动更新检查使用的更新通道",
+		description: "zeta update 和启动更新检查使用的更新通道",
 	},
 	"edit.blackbox.enabled": {
 		label: "记录解析回归",

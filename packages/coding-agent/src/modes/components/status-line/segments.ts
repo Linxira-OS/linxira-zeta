@@ -157,7 +157,7 @@ const piSegment: StatusLineSegment = {
 		// turn edges; the component samples the tween into `brandFgAnsi`.
 		const fgAnsi = ctx.brandFgAnsi ?? theme.getFgAnsi("dim");
 		// While a turn runs the brand icon becomes a braille spinner plus a
-		// whole-unit turn timer (port of rust omp's status-band active brand).
+		// whole-unit turn timer (port of rust zeta's status-band active brand).
 		const content =
 			ctx.turnElapsedMs != null
 				? `${brandSpinnerFrame(ctx.now?.getTime())} ${statusValue(ctx, brandTimer(ctx.turnElapsedMs))} `
@@ -173,7 +173,7 @@ function brandSpinnerFrame(nowMs = Date.now()): string {
 	return frames[Math.floor(nowMs / SPINNER_ADVANCE_MS) % frames.length] ?? "";
 }
 
-/** Turn timer in omp's brand format: whole seconds → minutes → hours (capped at 99h). */
+/** Turn timer in zeta's brand format: whole seconds → minutes → hours (capped at 99h). */
 function brandTimer(elapsedMs: number): string {
 	const seconds = Math.floor(elapsedMs / 1000);
 	if (seconds < 60) return `${seconds}s`;

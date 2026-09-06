@@ -20,29 +20,11 @@ import type { ChannelSession, ChannelsWebConfig } from "./types";
 import { WeChatChannel, type WeChatQrStatus } from "./wechat";
 
 export type { ChannelId, ChatChannel, ChatImage } from "./channel";
-export {
-	FeishuChannel,
-	type FeishuChannelOptions,
-	type FeishuInboundHandler,
-} from "./feishu";
+export { FeishuChannel, type FeishuChannelOptions, type FeishuInboundHandler } from "./feishu";
 export { ChannelHost } from "./host";
-export {
-	TelegramChannel,
-	type TelegramChannelOptions,
-	type TelegramInboundHandler,
-} from "./telegram";
-export type {
-	ChannelSession,
-	ChannelSessionEvent,
-	ChannelsWebConfig,
-	IrcMessage,
-} from "./types";
-export {
-	WeChatChannel,
-	type WeChatChannelOptions,
-	type WeChatInboundHandler,
-	type WeChatQrStatus,
-} from "./wechat";
+export { TelegramChannel, type TelegramChannelOptions, type TelegramInboundHandler } from "./telegram";
+export type { ChannelSession, ChannelSessionEvent, ChannelsWebConfig, IrcMessage } from "./types";
+export { WeChatChannel, type WeChatChannelOptions, type WeChatInboundHandler, type WeChatQrStatus } from "./wechat";
 
 /**
  * Module-level QR-login state bridge between the running channel and the web

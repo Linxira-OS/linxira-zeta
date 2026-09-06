@@ -30,9 +30,7 @@ import { formatModelStringWithRouting, resolveModelOverride } from "../config/mo
 import type { Settings } from "../config/settings";
 import type { RetryErrorUpdate } from "../extensibility/shared-events";
 import emptyStopRetryTemplate from "../prompts/system/empty-stop-retry.md" with { type: "text" };
-import malformedFunctionCallRetryTemplate from "../prompts/system/malformed-function-call-retry.md" with {
-	type: "text",
-};
+import malformedFunctionCallRetryTemplate from "../prompts/system/malformed-function-call-retry.md" with { type: "text" };
 import thinkingLoopRedirectTemplate from "../prompts/system/thinking-loop-redirect.md" with { type: "text" };
 import unexpectedStopRetryTemplate from "../prompts/system/unexpected-stop-retry.md" with { type: "text" };
 import {
@@ -1476,7 +1474,7 @@ export class TurnRecovery {
 	 * Re-run fallback-chain validation once background discovery has settled and
 	 * reconcile `configWarnings`. Startup validation suppresses "unknown model"
 	 * warnings for selectors whose config-declared discovery provider had not yet
-	 * populated the registry (a cold cache after `omp update` bumps the discovery
+	 * populated the registry (a cold cache after `zeta update` bumps the discovery
 	 * namespace, #10048). With discovery done, drop any startup warning discovery
 	 * resolved and surface warnings for selectors that stayed unknown.
 	 *

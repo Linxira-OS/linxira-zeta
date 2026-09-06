@@ -478,7 +478,7 @@ export const SETTINGS_SCHEMA = {
 	// ────────────────────────────────────────────────────────────────────────
 	setupVersion: { type: "number", default: 0 },
 
-	// Auth broker — credentials proxied through a remote `omp auth-broker serve`
+	// Auth broker — credentials proxied through a remote `zeta auth-broker serve`
 	// host. Hidden from the UI; populate via env vars or hand-edited config.yml.
 	// Env (`OMP_AUTH_BROKER_URL` / `OMP_AUTH_BROKER_TOKEN`) takes precedence so
 	// per-machine overrides remain trivial.
@@ -4647,7 +4647,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Grep & Browser",
 			label: "Browser Relay",
 			description:
-				"Drive your own Chrome tabs through the omp browser relay. Install the extension once (`omp browser-relay install`); the relay server auto-starts when the browser prelude needs it. Takes precedence over Browser CDP URL; set PI_BROWSER_RELAY=0 or PI_BROWSER_RELAY=1 to override.",
+				"Drive your own Chrome tabs through the omp browser relay. Install the extension once (`zeta browser-relay install`); the relay server auto-starts when the browser prelude needs it. Takes precedence over Browser CDP URL; set PI_BROWSER_RELAY=0 or PI_BROWSER_RELAY=1 to override.",
 		},
 	},
 
@@ -4658,7 +4658,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "tools",
 			group: "Grep & Browser",
 			label: "Browser Relay URL",
-			description: "omp browser relay endpoint (default http://127.0.0.1:9224).",
+			description: "zeta browser relay endpoint (default http://127.0.0.1:9224).",
 		},
 	},
 

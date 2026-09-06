@@ -19,11 +19,9 @@ function makeSession(getEvalPreludes: () => EvalPreludeDefinition[]): ToolSessio
 describe("eval prelude host invocation", () => {
 	it("re-resolves live enablement so a captured call loses access when disabled", async () => {
 		let enabled = true;
-		const invoke = vi.fn(
-			async (): Promise<AgentToolResult<unknown>> => ({
-				content: [{ type: "text", text: "ran" }],
-			}),
-		);
+		const invoke = vi.fn(async (): Promise<AgentToolResult<unknown>> => ({
+			content: [{ type: "text", text: "ran" }],
+		}));
 		const definition: EvalPreludeDefinition = {
 			name: "probe",
 			documentation: "Probe documentation",
@@ -47,16 +45,12 @@ describe("eval prelude host invocation", () => {
 	});
 
 	it("dispatches replacements from the current session registry", async () => {
-		const firstInvoke = vi.fn(
-			async (): Promise<AgentToolResult<unknown>> => ({
-				content: [{ type: "text", text: "first" }],
-			}),
-		);
-		const replacementInvoke = vi.fn(
-			async (): Promise<AgentToolResult<unknown>> => ({
-				content: [{ type: "text", text: "replacement" }],
-			}),
-		);
+		const firstInvoke = vi.fn(async (): Promise<AgentToolResult<unknown>> => ({
+			content: [{ type: "text", text: "first" }],
+		}));
+		const replacementInvoke = vi.fn(async (): Promise<AgentToolResult<unknown>> => ({
+			content: [{ type: "text", text: "replacement" }],
+		}));
 		const first: EvalPreludeDefinition = {
 			name: "probe",
 			documentation: "First",
@@ -88,11 +82,9 @@ describe("eval prelude host invocation", () => {
 	});
 
 	it("never executes a handler denied by its approval policy", async () => {
-		const invoke = vi.fn(
-			async (): Promise<AgentToolResult<unknown>> => ({
-				content: [{ type: "text", text: "must not run" }],
-			}),
-		);
+		const invoke = vi.fn(async (): Promise<AgentToolResult<unknown>> => ({
+			content: [{ type: "text", text: "must not run" }],
+		}));
 		const definition: EvalPreludeDefinition = {
 			name: "guarded",
 			documentation: "Guarded",

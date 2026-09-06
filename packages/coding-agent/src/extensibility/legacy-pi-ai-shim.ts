@@ -152,7 +152,7 @@ export function streamSimpleOpenAIResponses(
  * `@linxiraos/pi-ai` barrel no longer forwards. Each symbol still exists in the
  * host graph — only its root re-export was dropped — so bridging it here keeps
  * legacy extensions importing it from the pi-ai root resolving through Bun's
- * static named-export check (e.g. `omp plugin install pi-blackhole`).
+ * static named-export check (e.g. `zeta plugin install pi-blackhole`).
  *
  * This is the full set derived from an audit of the upstream root surface: the
  * error-classification predicate `isContextOverflow` (now under
