@@ -1,10 +1,10 @@
 # Natives Build, Release, and Debugging Runbook
 
-This runbook describes how `@oh-my-pi/pi-natives` produces `.node` addons, generated declarations, and compiled-binary embedded payloads, and how to debug loader/build failures.
+This runbook describes how `@linxiraos/pi-natives` produces `.node` addons, generated declarations, and compiled-binary embedded payloads, and how to debug loader/build failures.
 
 Release addons are built by Bazel (`rules_rust` + `crate_universe` + hermetic cc toolchains) except `win32-arm64`, which is built natively through Cargo/N-API on GitHub's Windows ARM64 runner. The cargo workspace stays authoritative for local Rust iteration (rust-analyzer, `cargo nextest`) and host builds. Runtime loading and embedding are unchanged.
 
-It follows the architecture terms from `docs/natives-architecture.md`:
+It follows the architecture terms from `document/natives-architecture.md`:
 
 - **build-time artifact production** (Bazel `//:natives-<target>` or the Cargo-backed `host` target via `scripts/bazel-natives.ts`)
 - **embedded addon manifest generation** (`scripts/embed-native.ts`)
@@ -142,9 +142,9 @@ build --tls_certificate=infra/bazel-remote/ca.crt
 
 `.github/workflows/ci.yml` separates `rust_validate` from `native_addons`; TypeScript jobs depend only on `native_addons`.
 
-**Pull requests never build or validate Rust.** Native-affecting PRs are rare enough that they don't warrant a PR-side bazel build: `rust_validate` is skipped entirely (`if: github.event_name != 'pull_request'`), and `native_addons` fetches the latest release's Linux x64 addon pair from the `@oh-my-pi/pi-natives-linux-x64` npm leaf, smoke-loads both, and uploads them as the `native-addons` workflow artifact. The loader skips its version sentinel for workspace loads, so release-versioned addons load fine under a newer checkout. A PR whose TypeScript tests depend on changed native behavior fails visibly (and CI emits a notice on any native-touching PR); the Rust side is validated post-merge on main and again at release.
+**Pull requests never build or validate Rust.** Native-affecting PRs are rare enough that they don't warrant a PR-side bazel build: `rust_validate` is skipped entirely (`if: github.event_name != 'pull_request'`), and `native_addons` fetches the latest release's Linux x64 addon pair from the `@linxiraos/pi-natives-linux-x64` npm leaf, smoke-loads both, and uploads them as the `native-addons` workflow artifact. The loader skips its version sentinel for workspace loads, so release-versioned addons load fine under a newer checkout. A PR whose TypeScript tests depend on changed native behavior fails visibly (and CI emits a notice on any native-touching PR); the Rust side is validated post-merge on main and again at release.
 
-On non-PR events both jobs run on `omp-kata` pods against the cluster remote cache. `rust_validate` runs:
+On non-PR events both jobs run on GitHub-hosted runners (`ubuntu-22.04`) with the `bazel-cache` action's disk-cache mode. `rust_validate` runs:
 
 ```bash
 bazelisk --bazelrc="$rc" test //crates/...                 # full Rust suite
@@ -162,7 +162,7 @@ bazelisk --bazelrc="$rc" build --config=rustfmt //crates/...
 
 `native_addons` on main builds the six Linux-hosted targets one at a time to avoid concurrent-link OOMs, then builds `//:natives-linux-all` as an aggregate consistency check. It uploads every `.node` output as the `native-addons` workflow artifact. Downstream jobs use `.github/actions/native-artifacts` to download that artifact and install the requested target set without invoking Bazel.
 
-Bazel native jobs need no toolchain setup: bazelisk is on the GitHub images and baked into the kata runner image, while Bazel fetches Rust/zig/LLVM/xwin hermetically. The Windows ARM64 host build uses the Rust, Ninja, CMake, and Visual Studio ARM64 tools installed on `windows-11-arm`; `rust-toolchain.toml` selects the pinned nightly.
+Bazel native jobs need no toolchain setup: bazelisk is on the GitHub images and baked into the kata runner image (the kata/cluster cache mode is retained for upstream-merge compatibility only and is dead code in this repo — CI is GitHub-hosted disk-cache only), while Bazel fetches Rust/zig/LLVM/xwin hermetically. The Windows ARM64 host build uses the Rust, Ninja, CMake, and Visual Studio ARM64 tools installed on `windows-11-arm`; `rust-toolchain.toml` selects the pinned nightly.
 
 ### Hosted cache warmer
 
@@ -177,7 +177,7 @@ Single source of truth for cache wiring, emitted as a bazelrc fragment (its `rc`
 | omp-kata pod  | A temporary output root, `--config=ci`, the PVC-backed repository/xwin caches, `--config=cache-rw`, the in-cluster TLS remote-cache endpoint and masked Basic-auth header, plus `--remote_download_toplevel` |
 | GitHub-hosted | `--config=ci`, `--disk_cache=$HOME/.cache/omp-bazel-disk`, and `--repository_cache=$HOME/.cache/omp-bazel-repo`                                                                                              |
 
-Hosted disk caches use `bazel-disk-v3-<scope>-<os>-<arch>-<config-hash>-<source-hash>`. The config hash covers Cargo/Bazel/toolchain settings; the source hash covers `crates/**` and root `BUILD.bazel`. Restores fall back from the exact key to the config-scoped prefix, then to a bare `<scope>-<os>-<arch>` prefix — the bare fallback is what keeps release version bumps (which rewrite `Cargo.toml`/`Cargo.lock` and thus the config hash) from rebuilding cold; bazel's content-addressed action keys make a stale archive a partial hit, never a wrong output. An inexact restore permits one refreshed exact-key save. Before a hosted build, disk-cache files untouched for 14 days are pruned; repository-cache contents are deliberately not age-pruned because extracted files retain upstream mtimes. The remote endpoint resolves only inside the cluster.
+The `omp-kata pod` row above is retained for upstream-merge compatibility only and is dead code in this repo — CI is GitHub-hosted disk-cache only. Hosted disk caches use `bazel-disk-v3-<scope>-<os>-<arch>-<config-hash>-<source-hash>`. The config hash covers Cargo/Bazel/toolchain settings; the source hash covers `crates/**` and root `BUILD.bazel`. Restores fall back from the exact key to the config-scoped prefix, then to a bare `<scope>-<os>-<arch>` prefix — the bare fallback is what keeps release version bumps (which rewrite `Cargo.toml`/`Cargo.lock` and thus the config hash) from rebuilding cold; bazel's content-addressed action keys make a stale archive a partial hit, never a wrong output. An inexact restore permits one refreshed exact-key save. Before a hosted build, disk-cache files untouched for 14 days are pruned; repository-cache contents are deliberately not age-pruned because extracted files retain upstream mtimes. The remote endpoint resolves only inside the cluster.
 
 ### Native artifact actions
 
@@ -185,7 +185,7 @@ Hosted disk caches use `bazel-disk-v3-<scope>-<os>-<arch>-<config-hash>-<source-
 
 ### Release binary builds and publishing
 
-Binary builds are build-only and run in parallel with the test fan-out. `release_binary` (Linux plus cross-built win32-x64) needs only `native_addons`, whose workflow artifact supplies its addons. `release_binary_hosted` needs only `release_metadata` and starts when a release is detected: each Darwin leg builds through `bazel-natives` with scope `release-<target_id>` (seeded near HEAD by the warm workflow), while the `windows-11-arm` leg builds its native addon through Cargo/N-API. Every leg then runs `bun run ci:release:build-binaries` and smoke-tests the executable on its target architecture. Publishing is held behind `release_gate`: `release_native_leaves` downloads all built addons and publishes the six `@oh-my-pi/pi-natives-<tag>` leaves from one Linux runner, and the GitHub release / verify / core npm chain runs beside it.
+Binary builds are build-only and run in parallel with the test fan-out. `release_binary` (Linux plus cross-built win32-x64) needs only `native_addons`, whose workflow artifact supplies its addons. `release_binary_hosted` needs only `release_metadata` and starts when a release is detected: each Darwin leg builds through `bazel-natives` with scope `release-<target_id>` (seeded near HEAD by the warm workflow), while the `windows-11-arm` leg builds its native addon through Cargo/N-API. Every leg then runs `bun run ci:release:build-binaries` and smoke-tests the executable on its target architecture. Publishing is held behind `release_gate`: `release_native_leaves` downloads all built addons and publishes the six `@linxiraos/pi-natives-<tag>` leaves from one Linux runner, and the GitHub release / verify / core npm chain runs beside it.
 
 ## Debugging playbook
 
@@ -218,7 +218,7 @@ bazelisk build --nobuild //:natives-win32-x64-baseline
 | musl build "succeeds" but emits no `.node`                                                     | musl defaults to `+crt-static`; rustc silently emits no cdylib                                       | `-Ctarget-feature=-crt-static` select in `crates/pi-natives/BUILD.bazel`                                                                                                       |
 | opus/cmake `try_compile` fails linking UBSan runtime                                           | zig cc enables UBSan by default; cmake's test exe links with the raw wrapper (no toolchain features) | `CFLAGS=-fno-sanitize=undefined` in the `audiopus_sys` annotation (`MODULE.bazel`)                                                                                             |
 | `tree-sitter-just` scanner.c `#error` under opt                                                | scanner hard-errors when `NDEBUG` is set (opt-mode cc default)                                       | `CFLAGS=-UNDEBUG` annotation (cc-rs appends env CFLAGS last, so `-U` wins)                                                                                                     |
-| rstest macro: "Cargo.toml not found" in a vendored test                                        | rstest verifies `Cargo.toml` exists in the manifest dir                                              | `compile_data = ["Cargo.toml"]` on the `rust_test` (see `crates/vendor/uu-tail/BUILD.bazel`)                                                                                   |
+| rstest macro: "Cargo.toml not found" in a vendored test                                        | rstest verifies `Cargo.toml` exists in the manifest dir                                              | `compile_data = ["Cargo.toml"]` on the `rust_test`                                                                                   |
 | vendored tests fail on bare `test_data/...` paths / symlink into srcs                          | tests assume cargo's cwd, incompatible with runfiles execution                                       | `tags = ["manual"]`; run via `cargo nextest` when touching the fork; hermetic sibling test covers the contract                   |
 | blake3 msvc: `ml64.exe` not found                                                              | cc-rs resolves MASM from build-script PATH on non-windows hosts                                      | `bin/ml64.exe → llvm-ml -m64` shim in `@msvc_cc`, prepended via the `blake3` annotation PATH                                                                                   |
 | audiopus_sys msvc: cmake demands VS generator / rc+mt tools; `try_compile` wants `msvcrtd.lib` | cross cmake on linux/mac hosts; Debug config → `/MDd` which the lean xwin splat lacks                | `CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja` + `@msvc_cc`'s `toolchain.cmake` (`CMAKE_TOOLCHAIN_FILE_x86_64_pc_windows_msvc`) pinning wrappers + Release try-compile + `/MT` (static CRT, matches the addon policy) |
@@ -228,7 +228,7 @@ bazelisk build --nobuild //:natives-win32-x64-baseline
 
 ### Cache behavior
 
-- **omp-kata:** read-write gRPC to the in-cluster bazel-remote (`grpcs://bazel-remote.bazel-cache.svc.cluster.local:9092`, TLS via the committed `infra/bazel-remote/ca.crt`, htpasswd user `ci`). `--remote_local_fallback` plus retries make an outage degrade to local execution rather than fail the build.
+- **omp-kata:** read-write gRPC to the in-cluster bazel-remote (`grpcs://bazel-remote.bazel-cache.svc.cluster.local:9092`, TLS via the committed `infra/bazel-remote/ca.crt`, htpasswd user `ci`). `--remote_local_fallback` plus retries make an outage degrade to local execution rather than fail the build. Retained for upstream-merge compatibility only — dead code in this repo; CI is GitHub-hosted disk-cache only.
 - **GitHub-hosted:** no cluster access; only the darwin release/warm jobs build with bazel here. The v3 `actions/cache` disk key separates config and source generations with prefix + bare fallbacks (see the `bazel-cache` action section above); `.github/workflows/bazel-cache-warm.yml` publishes the `release-darwin-*` archives from the same macOS images as the release consumers.
 - **msvc repos:** the ~2 GiB LLVM download is sha256-pinned and repository-cache backed; the ~1 GiB xwin CRT/SDK splat is fetched from the Microsoft CDN inside the repo rule and is **not** repo-cache backed — a cold output base re-downloads it. Microsoft advances the VS channel payload over time, so remote-cache hit rates for win32 actions degrade gracefully after an MS bump (same property the previous cross toolchain had). Win32 link actions also don't share cache entries across host OSes (linux vs mac clang binaries).
 - Server-side operations (deploy, TLS/auth, egress, poisoning boundary): `infra/docs/04-arc-and-caching.md` §5.
@@ -282,7 +282,7 @@ Runtime x64 candidate order also includes the unsuffixed default filename after 
 Typical local loop:
 
 1. Build addon: `bun --cwd=packages/natives run build`.
-2. Loader resolves platform npm leaf-package candidates (`@oh-my-pi/pi-natives-<platform>-<arch>`, when resolvable), then package-local `native/` and executable-dir fallback candidates.
+2. Loader resolves platform npm leaf-package candidates (`@linxiraos/pi-natives-<platform>-<arch>`, when resolvable), then package-local `native/` and executable-dir fallback candidates.
 3. Generated declarations in `native/index.d.ts` describe the public TS API (regenerate with `build:bindings` only when the Rust API surface changes).
 4. On Windows package installs, the loader first copies a `node_modules` addon into the versioned cache so a running process does not lock the file Bun must replace during a later global update.
 5. After a successful load, older semver-shaped version cache directories are removed best-effort; cleanup failures never abort startup.
@@ -296,7 +296,7 @@ In compiled mode (`PI_COMPILED`, Bun embedded URL markers, or populated embedded
 3. Runtime candidate order includes:
    - extracted versioned cache path, if available,
    - versioned cache dir,
-   - legacy compiled-binary dir (`%LOCALAPPDATA%/omp` on Windows, `~/.local/bin` elsewhere),
+   - legacy compiled-binary dir (`%LOCALAPPDATA%/zeta` on Windows, `~/.local/bin` elsewhere),
    - package/executable directories.
 4. First successfully loaded addon with the expected version sentinel is returned.
 

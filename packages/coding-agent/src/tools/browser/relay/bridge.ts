@@ -39,7 +39,7 @@ interface CdpCommand {
 /**
  * Per-pseudo-session Runtime domain state.
  * - `default`: never toggled Runtime — still receives the relay's legacy
- *   root-event fan-out, so omp's own patched-puppeteer client (which
+ *   root-event fan-out, so zeta's own patched-puppeteer client (which
  *   pull-acquires contexts and never sends `Runtime.enable`) keeps getting
  *   `Runtime.executionContextCreated`.
  * - `enabled`: ran `Runtime.enable`; gets the existing-context replay.

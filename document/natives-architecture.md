@@ -13,7 +13,7 @@ This document is the foundation for deeper module-level docs.
 - `packages/natives/native/index.d.ts`
 - `packages/natives/native/loader-state.js`
 - `packages/natives/native/embedded-addon.js`
-- `packages/natives/scripts/build-native.ts`
+- `packages/natives/scripts/build-bindings.ts`
 - `packages/natives/scripts/embed-native.ts`
 - `packages/natives/scripts/gen-enums.ts`
 - `packages/natives/package.json`
@@ -80,11 +80,11 @@ For compiled binaries, loader behavior is:
 
 1. Check versioned user cache path: `<getNativesDir()>/<packageVersion>/...`.
 2. Check legacy compiled-binary location:
-   - Windows: `%LOCALAPPDATA%/omp` (fallback `%USERPROFILE%/AppData/Local/omp`)
+   - Windows: `%LOCALAPPDATA%/zeta` (fallback `%USERPROFILE%/AppData/Local/zeta`)
    - non-Windows: `~/.local/bin`
 3. Fall back to packaged `native/` and executable directory candidates.
 
-`getNativesDir()` uses `$XDG_DATA_HOME/omp/natives` when `$XDG_DATA_HOME/omp` exists; otherwise it uses `~/.zeta/natives`.
+`getNativesDir()` uses `$XDG_DATA_HOME/zeta/natives` when `$XDG_DATA_HOME/zeta` exists; otherwise it uses `~/.zeta/natives`.
 
 If a populated embedded addon manifest is present, it is also treated as a compiled-binary signal. Current embedded manifests point at a gzip-compressed tar archive (`embedded-addons.<tag>.tar.gz`) that contains one or more matching `.node` files. The loader extracts the archive into the versioned cache directory, validates the selected file by size, and prepends that cache path before normal candidate probing.
 
@@ -164,7 +164,7 @@ N-API exports are generated from Rust `#[napi]` functions/classes/objects/enums.
   - user-facing policy and fallbacks that are not built into the native API
   - higher-level rendering, artifact, shell-session, and command behavior
 
-For the contributor-facing crate map covering `pi-natives`, `pi-shell`, `pi-ast`, `pi-iso`, `pi-walker`, `pi_uu_grep`, `pi-uutils-ctx`, and the vendored `brush-*` crates, see [`native-crates.md`](./native-crates.md). The root-docs inclusion policy that keeps internal Rust crates under native architecture docs unless promoted as user-facing also lives in [`user-facing-packages.md`](./user-facing-packages.md).
+For the contributor-facing crate map covering `pi-natives`, `pi-shell`, `pi-ast`, `pi-iso`, `pi-walker`, and the vendored `brush-*` crates, see [`native-crates.md`](./native-crates.md). The root-docs inclusion policy that keeps internal Rust crates under native architecture docs unless promoted as user-facing also lives in [`user-facing-packages.md`](./user-facing-packages.md).
 
 ## Runtime flow (high level)
 
@@ -181,7 +181,7 @@ For the contributor-facing crate map covering `pi-natives`, `pi-shell`, `pi-ast`
 - **Platform tag**: Runtime tuple `platform-arch` (for example `darwin-arm64`).
 - **Platform leaf package**: Per-platform npm package `@linxiraos/pi-natives-<tag>` that carries one platform's prebuilt `.node`. The core depends on every leaf via `optionalDependencies`; the package manager installs only the host-matching one (`os`/`cpu`).
 - **Variant**: x64 CPU-specific build flavor (`modern` AVX2, `baseline` fallback).
-- **Generated binding declaration**: `native/index.d.ts` emitted by napi-rs during `build-native.ts`.
-- **Version sentinel**: Rust export named from the package version (for example `__piNativesV16_0_3`) that lets the loader reject a `.node` from a different release.
+- **Generated binding declaration**: `native/index.d.ts` emitted by napi-rs during `build-bindings.ts`.
+- **Version sentinel**: Rust export named from the package version (for example `__piNativesV1_1_9`) that lets the loader reject a `.node` from a different release.
 - **Compiled binary mode**: Runtime mode where the CLI is bundled and native addons are resolved from embedded/cache paths before package-local paths.
 - **Embedded addon**: Build artifact metadata and archive reference generated into `native/embedded-addon.js` so compiled binaries can extract matching `.node` payloads.

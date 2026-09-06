@@ -1580,11 +1580,11 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 				const displayText = displayLines.join("\n");
 				const truncated = Boolean(
 					fileLimitReached ||
-						perFileLimitReached ||
-						totalMatchLimitReached ||
-						result.limitReached ||
-						truncation.truncated ||
-						linesTruncated,
+					perFileLimitReached ||
+					totalMatchLimitReached ||
+					result.limitReached ||
+					truncation.truncated ||
+					linesTruncated,
 				);
 				const details: GrepToolDetails = {
 					scopePath,

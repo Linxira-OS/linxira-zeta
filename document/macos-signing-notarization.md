@@ -101,7 +101,7 @@ over stdin — no secret is ever printed to the terminal, argv, or shell history
 ```sh
 scripts/ci-macos-upload-secrets.sh ~/zeta-signing --dry-run   # validate first
 scripts/ci-macos-upload-secrets.sh ~/zeta-signing             # upload all five
-gh secret list --repo can1357/linxira-zeta                       # confirm
+gh secret list --repo Linxira-OS/linxira-zeta                       # confirm
 ```
 
 Re-run it whenever the certificate is renewed.

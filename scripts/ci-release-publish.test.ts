@@ -1,8 +1,10 @@
-import { describe, expect, it } from "bun:test";
+import { $ } from "bun";
+import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
+	inspectPackedTarball,
 	legalPayloadFiles,
 	npmDistTag,
 	packages,
@@ -69,6 +71,8 @@ describe("published legal payloads", () => {
 				"native/desktop-adapter.d.ts",
 				"native/loader-state.js",
 				"native/loader-state.d.ts",
+				"native/vcs.js",
+				"native/vcs.d.ts",
 				"native/embedded-addon.js",
 				"README.md",
 				"LICENSE",
@@ -81,6 +85,8 @@ describe("published legal payloads", () => {
 });
 
 describe("published manifest topology", () => {
+	const temporaryDirectories: string[] = [];
+
 	it("repoints omptype runtime entries to dist/js with a bun source condition", async () => {
 		const pkg = packages.find(entry => entry.dir === "packages/omptype");
 		if (!pkg) throw new Error("omptype missing from publish set");
@@ -129,11 +135,14 @@ describe("published manifest topology", () => {
 			const tarball = path.join(root, "test.tgz");
 			await $`tar -czf ${tarball} -C ${root} package`.quiet();
 
-			await expect(inspectPackedTarball(tarball)).resolves.toEqual({
-				name: "@linxiraos/pi-test",
-				version: "1.2.3",
-				path: tarball,
-			});
+			await expect(inspectPackedTarball(tarball)).resolves.toEqual(
+				{
+					name: "@linxiraos/pi-test",
+					version: "1.2.3",
+					path: tarball,
+				},
+				20000,
+			);
 		});
 	});
 
@@ -169,6 +178,7 @@ describe("published manifest topology", () => {
 			JSON.stringify({
 				name: "@linxiraos/pi-natives",
 				version: "1.2.3",
+				license: "MIT",
 				exports: {
 					"./desktop": { types: "./native/desktop.d.ts", import: "./native/desktop.js" },
 				},

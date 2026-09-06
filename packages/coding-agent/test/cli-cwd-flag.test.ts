@@ -96,7 +96,7 @@ describe("parseArgs — --cwd flag", () => {
 
 		try {
 			await expect(applyStartupCwd(parsed)).rejects.toThrow(
-				/operation not permitted\. On macOS, grant omp Files & Folders/,
+				/operation not permitted\. On macOS, grant zeta Files & Folders/,
 			);
 		} finally {
 			chdir.mockRestore();

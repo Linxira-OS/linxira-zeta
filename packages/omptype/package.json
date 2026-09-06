@@ -1,30 +1,49 @@
 {
-	"type": "module",
 	"name": "@linxiraos/pi-omptype",
 	"version": "1.1.9",
 	"description": "ArkType-compatible runtime schema validation with lazy JIT compilation",
+	"keywords": [
+		"arktype",
+		"jit",
+		"schema",
+		"validation"
+	],
 	"homepage": "https://linxira-os.github.io/zeta/",
-	"author": "Can Boluk",
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	},
 	"license": "MIT",
+	"author": "Can Boluk",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/omptype"
 	},
-	"bugs": {
-		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
-	},
-	"keywords": [
-		"schema",
-		"validation",
-		"arktype",
-		"jit"
+	"files": [
+		"src",
+		"README.md",
+		"CHANGELOG.md"
 	],
+	"type": "module",
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"import": "./src/index.ts"
+		},
+		"./*": {
+			"types": "./src/*.ts",
+			"import": "./src/*.ts"
+		},
+		"./*.js": "./src/*.ts"
+	},
 	"scripts": {
-		"check": "tsgo -p tsconfig.json --noEmit",
+		"check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
 		"check:types": "tsgo -p tsconfig.json --noEmit",
+		"lint": "oxlint .",
+		"fix": "oxlint --fix --fix-suggestions . && bun run fmt",
+		"fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'",
 		"test": "bun test --parallel",
 		"bench": "bun bench/bench.ts"
 	},
@@ -38,23 +57,7 @@
 		"arktype": "2.2.3"
 	},
 	"engines": {
-		"node": ">=20",
-		"bun": ">=1.3.14"
-	},
-	"files": [
-		"src",
-		"README.md",
-		"CHANGELOG.md"
-	],
-	"exports": {
-		".": {
-			"types": "./src/index.ts",
-			"import": "./src/index.ts"
-		},
-		"./*": {
-			"types": "./src/*.ts",
-			"import": "./src/*.ts"
-		},
-		"./*.js": "./src/*.ts"
+		"bun": ">=1.3.14",
+		"node": ">=20"
 	}
 }

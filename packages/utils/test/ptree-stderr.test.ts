@@ -17,7 +17,7 @@ function stderrFixture(size: number, exitCode = 0, stdout = ""): string[] {
 	return ["bun", "-e", script];
 }
 
-describe("ptree stderr capture", () => {
+describe.skipIf(process.platform === "win32")("ptree stderr capture", () => {
 	it("requires full stderr capture to be selected before spawning", async () => {
 		using child = spawn(stderrFixture(LARGE_STDERR_SIZE));
 		await child.exited;

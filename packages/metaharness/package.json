@@ -1,33 +1,20 @@
 {
-	"engines": {
-		"bun": ">=1.3.14"
+	"name": "@linxiraos/pi-metaharness",
+	"version": "0.0.1",
+	"private": true,
+	"description": "Unified benchmark runners plus Harbor run storage, REST/SSE APIs, and a live web dashboard",
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"license": "MIT",
+	"author": "Can Boluk",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"directory": "packages/metaharness"
 	},
-	"devDependencies": {
-		"react-refresh": "^0.18.0",
-		"@types/react-dom": "^19.1.0",
-		"@types/react": "^19.1.0",
-		"@types/d3-shape": "^3.1.7",
-		"@types/d3-scale": "^4.0.9",
-		"@types/bun": "catalog:"
+	"bin": {
+		"metaharness": "src/server.ts"
 	},
-	"dependencies": {
-		"@linxiraos/pi-natives": "catalog:",
-		"@linxiraos/typescript-edit-benchmark": "workspace:*",
-		"@linxiraos/pi-utils": "catalog:",
-		"@linxiraos/zeta": "catalog:",
-		"@linxiraos/pi-catalog": "catalog:",
-		"@linxiraos/pi-ai": "catalog:",
-		"@linxiraos/pi-agent-core": "catalog:",
-		"tailwind-merge": "^3.3.0",
-		"react-dom": "^19.1.0",
-		"react": "^19.1.0",
-		"motion": "^12.15.0",
-		"diff": "catalog:",
-		"d3-shape": "^3.2.0",
-		"d3-scale": "^4.0.2",
-		"clsx": "^2.1.1",
-		"@stencil-hq/vibemon": "^0.3.2"
-	},
+	"type": "module",
 	"scripts": {
 		"test": "bun test",
 		"dev": "bun --hot src/server.ts",
@@ -38,20 +25,33 @@
 		"check:types": "tsgo -p tsconfig.json --noEmit && tsgo -p src/tb/tsconfig.json --noEmit && tsgo -p adapters/edit/tsconfig.json --noEmit && tsgo -p scripts/tsconfig.json --noEmit",
 		"check": "tsgo -p tsconfig.json --noEmit"
 	},
-	"bin": {
-		"metaharness": "src/server.ts"
+	"dependencies": {
+		"@linxiraos/pi-agent-core": "catalog:",
+		"@linxiraos/pi-ai": "catalog:",
+		"@linxiraos/pi-catalog": "catalog:",
+		"@linxiraos/pi-natives": "catalog:",
+		"@linxiraos/pi-utils": "catalog:",
+		"@linxiraos/typescript-edit-benchmark": "workspace:*",
+		"@linxiraos/zeta": "catalog:",
+		"@stencil-hq/vibemon": "^0.3.2",
+		"clsx": "^2.1.1",
+		"d3-scale": "^4.0.2",
+		"d3-shape": "^3.2.0",
+		"diff": "catalog:",
+		"motion": "^12.15.0",
+		"react": "^19.1.0",
+		"react-dom": "^19.1.0",
+		"tailwind-merge": "^3.3.0"
 	},
-	"repository": {
-		"directory": "packages/metaharness",
-		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-		"type": "git"
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"@types/d3-scale": "^4.0.9",
+		"@types/d3-shape": "^3.1.7",
+		"@types/react": "^19.1.0",
+		"@types/react-dom": "^19.1.0",
+		"react-refresh": "^0.18.0"
 	},
-	"license": "MIT",
-	"author": "Can Boluk",
-	"homepage": "https://linxira-os.github.io/zeta/",
-	"description": "Unified benchmark runners plus Harbor run storage, REST/SSE APIs, and a live web dashboard",
-	"version": "0.0.1",
-	"name": "@linxiraos/pi-metaharness",
-	"private": true,
-	"type": "module"
+	"engines": {
+		"bun": ">=1.3.14"
+	}
 }

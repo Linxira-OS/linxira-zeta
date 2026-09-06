@@ -11,7 +11,7 @@ export const attachHelp = {
 export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
 
 export const authBrokerHelp = {
-	description: "Manage the omp auth-broker (credential vault)",
+	description: "Manage the zeta auth-broker (credential vault)",
 } satisfies CommandMetadata;
 
 export const authGatewayHelp = {

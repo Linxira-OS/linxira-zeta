@@ -158,7 +158,7 @@ export function getRetryFallbackChains(settings: Settings): RetryFallbackChains 
  *
  * `options.isDiscoveryPending` suppresses "unknown model" warnings for
  * selectors whose config-declared discovery provider has not yet populated the
- * registry (a cold discovery cache after `omp update` bumps the cache
+ * registry (a cold discovery cache after `zeta update` bumps the cache
  * namespace, #10048). Such selectors are re-checked once background discovery
  * settles. Logging is the caller's responsibility so a post-discovery re-run
  * does not double-log persistent warnings.
