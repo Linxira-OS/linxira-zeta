@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ## [1.1.9] - 2026-09-05
+## [18.1.11] - 2026-09-05
+
+### Fixed
+
+- Fixed `extractRetryHint` dropping the longer timing signal when an error body carries both an account reset and an appended retry hint: competing signals now merge by longest window instead of first match, so retries honor the provider's full backoff.
+
+## [18.1.7] - 2026-09-03
 
 - USER_AGENT constant restored to zeta/<version> (the v18.1.10 merge re-introduced the upstream omp/ UA on every provider request); brand wording in path-resolver docs corrected; profile validation error message Zeta'd.
 
@@ -10,6 +17,11 @@
 
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
+### Fixed
+
+- Fixed retry classification for Bun's bare `Socket is closed` transport error.
+
+## [18.1.6] - 2026-09-03
 
 ## [1.1.5] - 2026-08-26
 

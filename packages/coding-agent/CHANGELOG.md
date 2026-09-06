@@ -3,6 +3,37 @@
 ## [Unreleased]
 
 ## [1.1.9] - 2026-09-05
+## [18.1.11] - 2026-09-05
+
+### Added
+
+- Added the `retry.waitForUsageReset` setting: when a provider reports usage-limit exhaustion with a reset time (5-hour or weekly quota windows on any provider), the session sleeps until the reset instead of failing fast past `retry.maxDelayMs`.
+- Added opt-in `bash.allowCompoundCommands` approval for conservative literal `&&` chains, with ordered per-segment rules and normal bash policy fallback for unmatched segments. The opt-in requires a positively classified POSIX-quoting shell; incompatible and unknown shells retain legacy approval. Whole-chain denies take precedence over earlier prompts.
+
+### Fixed
+
+- Report oversized selected lines that cannot fit after read context, with a working raw recovery selector instead of a looping continuation hint ([#10775](https://github.com/can1357/oh-my-pi/issues/10775)).
+- Fixed WorkPool child sessions crashing during startup while constructing their incremental `yield` tool schema.
+- Commit summaries written in Vietnamese, Korean, and other accented scripts are no longer rejected for exceeding the length limit, and keep their accents as typed.
+
+## [18.1.10] - 2026-09-04
+
+### Changed
+
+- Subagent `yield` now takes `data`/`error` directly instead of nesting them under a `result` wrapper.
+
+### Fixed
+
+- Fixed Codex V2 remote compaction rebuilding the request prefix differently from normal turns, restoring prompt-cache reuse ([#10786](https://github.com/can1357/oh-my-pi/issues/10786)).
+- Restored mouse clicks, hover, and wheel scrolling in Plan Review.
+
+## [18.1.9] - 2026-09-04
+
+### Breaking Changes
+
+- Browser and computer automation now use JavaScript/Python evaluation preludes with reusable tab and element handles, replacing the previous standalone tool schemas and object-shaped run APIs.
+- Replaced the `inspect_image` tool and `/vision` controls with `read <image>?q=<question>` for image questions; text-only models now receive image metadata and guidance for using this selector.
+- Renamed `inspect_image.timeoutMs` to `images.questionTimeoutMs`; existing settings are migrated automatically.
 
 ### Added
 
