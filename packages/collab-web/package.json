@@ -39,10 +39,10 @@
 		"gen:tool-views": "bun scripts/build-tool-views.ts",
 		"prepack": "bun run build",
 		"test": "bun test --parallel",
-		"check": "biome check . && bun run check:types",
+		"check": "oxlint . && bun run check:types",
 		"check:types": "tsgo -p tsconfig.json --noEmit",
-		"lint": "biome lint .",
-		"fix": "biome check --write --unsafe .",
+		"lint": "oxlint .",
+		"fix": "oxfmt .",
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {

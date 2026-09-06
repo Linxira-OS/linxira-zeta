@@ -42,10 +42,10 @@
 	"scripts": {
 		"test": "bun test --parallel",
 		"fmt": "biome format --write .",
-		"fix": "biome check --write --unsafe .",
-		"lint": "biome lint .",
+		"fix": "oxfmt .",
+		"lint": "oxlint .",
 		"check:types": "tsgo -p tsconfig.json --noEmit",
-		"check": "biome check . && bun run check:types"
+		"check": "oxlint . && bun run check:types"
 	},
 	"dependencies": {
 		"@larksuiteoapi/node-sdk": "^1.71.1",
