@@ -65,7 +65,7 @@ describe("Chrome-for-Testing layout goldens", () => {
 					buildId: BUILD_ID,
 					cacheDir: "/cache",
 				}),
-			).toBe(golden.executable);
+			).toBe(golden.executable.split("/").join(path.sep));
 		});
 	}
 });
@@ -121,7 +121,7 @@ test("getInstalledBrowsers scans only valid cache installation names", async () 
 	]);
 });
 
-test("install streams and extracts stored, deflated, nested, executable, and symlink entries", async () => {
+test.skipIf(process.platform === "win32")("install streams and extracts stored, deflated, nested, executable, and symlink entries", async () => {
 	const root = await makeRoot();
 	const fixture = Bun.file(path.join(import.meta.dir, "fixtures/browsers/synthetic-chrome.zip"));
 	const server = Bun.serve({ port: 0, fetch: () => new Response(fixture) });
