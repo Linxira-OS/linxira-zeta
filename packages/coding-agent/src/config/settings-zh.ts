@@ -468,6 +468,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "重试模型回退",
 		description: "允许重试恢复切换到已配置的回退模型",
 	},
+	"retry.waitForUsageReset": {
+		label: "等待用量重置",
+		description:
+			"当服务商报告用量耗尽并给出重置时间（5 小时或每周配额窗口）时，等待到重置时间而不是越过 retry.maxDelayMs 快速失败。等待可随时按 Esc 中止，但会同时挂起子代理，无人值守运行请保持关闭。",
+	},
 	"retry.usageAwareFallback": {
 		label: "用量感知回退",
 		description:
