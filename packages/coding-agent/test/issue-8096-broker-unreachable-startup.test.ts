@@ -33,7 +33,7 @@ describe("describeAuthBrokerStartupError", () => {
 		expect(message).toContain("Auth broker request failed after 2 attempt(s)");
 		// Both recovery routes the reporter asked for: start it, or disable it.
 		expect(message).toContain("zeta auth-broker serve");
-		expect(message).toContain("omp config reset auth.broker.url");
+		expect(message).toContain("zeta config reset auth.broker.url");
 		expect(message).toContain("OMP_AUTH_BROKER_URL");
 	});
 
