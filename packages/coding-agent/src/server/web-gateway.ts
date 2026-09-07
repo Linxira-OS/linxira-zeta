@@ -77,6 +77,7 @@ import {
 	handleSkillsSearch,
 	handleSkillsUpdate,
 } from "./web-gateway/skills";
+import { handleGetTracking, handleTrackingEvents } from "./web-gateway/tracking";
 import { handleUpdateCheck, handleUpdateDownload, handleUpdateInstall } from "./web-gateway/update";
 import { handleWebConfigGet, handleWebConfigPut } from "./web-gateway/web-config";
 
@@ -121,6 +122,8 @@ const UPDATE_INSTALL_RE = /^\/api\/update\/install$/;
 const PLUGINS_RE = /^\/api\/plugins$/;
 const SETTINGS_RE = /^\/api\/settings$/;
 const SETTINGS_RELOAD_RE = /^\/api\/settings\/reload$/;
+const TRACKING_RE = /^\/api\/tracking\/?$/;
+const TRACKING_EVENTS_RE = /^\/api\/tracking\/events$/;
 const WEB_CONFIG_RE = /^\/api\/web-config$/;
 const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const BLOB_RE = /^\/api\/blobs\/([^/]+)$/;
@@ -417,6 +420,16 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (PLUGINS_RE.test(pathname)) {
 		if (req.method === "GET") return handlePluginsGet(req);
 		if (req.method === "POST") return handlePluginsPost(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (TRACKING_EVENTS_RE.test(pathname)) {
+		if (req.method === "GET") return handleTrackingEvents(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (TRACKING_RE.test(pathname)) {
+		if (req.method === "GET") return handleGetTracking(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
