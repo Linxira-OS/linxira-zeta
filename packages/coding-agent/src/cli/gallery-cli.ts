@@ -1,5 +1,5 @@
 /**
- * `zeta gallery` — render every built-in tool's renderer across its lifecycle.
+ * `omp gallery` — render every built-in tool's renderer across its lifecycle.
  *
  * For each tool with a registered renderer, the gallery drives a real
  * {@link ToolExecutionComponent} through four states — streaming arguments,

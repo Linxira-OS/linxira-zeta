@@ -31,13 +31,13 @@ describe("SDK workpool yield schema", () => {
 		if (fs.existsSync(registryDir)) removeSyncWithRetries(registryDir);
 	});
 
-	it("reads the dynamic yield schema during construction and switches it before a pooled turn", async () => {
+	it("switches the constructed yield tool before a pooled turn starts", async () => {
 		const { session } = await createAgentSession({
 			cwd: registryDir,
 			agentDir: registryDir,
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
-			settings: Settings.isolated({ inlineToolDescriptors: "on" }),
+			settings: Settings.isolated({}),
 			model: getBundledModel("openai", "gpt-4o-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
@@ -49,17 +49,6 @@ describe("SDK workpool yield schema", () => {
 			skipPythonPreflight: true,
 			requireYieldTool: true,
 			toolNames: ["yield"],
-			outputSchema: {
-				type: "object",
-				properties: { "pool#1": {} },
-				required: ["pool#1"],
-				additionalProperties: false,
-			},
-			parentTaskPrefix: "workpool-worker",
-			agentId: "workpool-worker",
-			agentName: "scout",
-			agentDisplayName: "scout",
-			taskDepth: 1,
 		});
 		sessions.push(session);
 		const tool = session.getToolByName("yield");

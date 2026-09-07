@@ -1,23 +1,26 @@
 {
-	"name": "@linxiraos/typescript-edit-benchmark",
-	"version": "0.0.1",
-	"private": true,
-	"description": "Edit benchmark suite using TypeScript source code mutations",
-	"homepage": "https://linxira-os.github.io/zeta/",
-	"license": "MIT",
-	"author": "Can Boluk",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-		"directory": "packages/typescript-edit-benchmark"
+	"engines": {
+		"bun": ">=1.3.14"
 	},
-	"type": "module",
-	"exports": {
-		"./*.js": "./src/*.ts",
-		"./*": {
-			"import": "./src/*.ts",
-			"types": "./src/*.ts"
-		}
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"@types/babel__traverse": "catalog:",
+		"@types/babel__generator": "catalog:"
+	},
+	"dependencies": {
+		"@linxiraos/pi-tui": "catalog:",
+		"@linxiraos/pi-ai": "catalog:",
+		"@linxiraos/pi-natives": "catalog:",
+		"@linxiraos/pi-utils": "catalog:",
+		"@linxiraos/zeta": "catalog:",
+		"@linxiraos/pi-agent-core": "catalog:",
+		"regexp-tree": "catalog:",
+		"prettier": "catalog:",
+		"diff": "catalog:",
+		"@babel/types": "catalog:",
+		"@babel/traverse": "catalog:",
+		"@babel/parser": "catalog:",
+		"@babel/generator": "catalog:"
 	},
 	"scripts": {
 		"edit-shapes": "bun run src/edit-shape-stats.ts",
@@ -26,27 +29,24 @@
 		"check:types": "tsgo -p tsconfig.json --noEmit",
 		"check": "tsgo -p tsconfig.json --noEmit"
 	},
-	"dependencies": {
-		"@babel/generator": "catalog:",
-		"@babel/parser": "catalog:",
-		"@babel/traverse": "catalog:",
-		"@babel/types": "catalog:",
-		"@linxiraos/pi-agent-core": "catalog:",
-		"@linxiraos/pi-ai": "catalog:",
-		"@linxiraos/pi-natives": "catalog:",
-		"@linxiraos/pi-tui": "catalog:",
-		"@linxiraos/pi-utils": "catalog:",
-		"@linxiraos/zeta": "catalog:",
-		"diff": "catalog:",
-		"prettier": "catalog:",
-		"regexp-tree": "catalog:"
+	"exports": {
+		"./*.js": "./src/*.ts",
+		"./*": {
+			"import": "./src/*.ts",
+			"types": "./src/*.ts"
+		}
 	},
-	"devDependencies": {
-		"@types/babel__generator": "catalog:",
-		"@types/babel__traverse": "catalog:",
-		"@types/bun": "catalog:"
+	"repository": {
+		"directory": "packages/typescript-edit-benchmark",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"type": "git"
 	},
-	"engines": {
-		"bun": ">=1.3.14"
-	}
+	"license": "MIT",
+	"author": "Can Boluk",
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"description": "Edit benchmark suite using TypeScript source code mutations",
+	"version": "0.0.1",
+	"name": "@linxiraos/typescript-edit-benchmark",
+	"private": true,
+	"type": "module"
 }

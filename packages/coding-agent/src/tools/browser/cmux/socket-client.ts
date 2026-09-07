@@ -336,6 +336,7 @@ export class CmuxSocketClient {
 
 	#nextLine(timeoutMs: number): Promise<string> {
 		const { promise, resolve, reject } = Promise.withResolvers<string>();
+		let waiter: LineWaiter;
 		const timer = setTimeout(() => {
 			const index = this.#lineWaiters.indexOf(waiter);
 			if (index >= 0) {
@@ -344,7 +345,7 @@ export class CmuxSocketClient {
 			reject(new ToolError("Timed out waiting for cmux socket response"));
 			this.#destroySocketForDesync();
 		}, timeoutMs);
-		const waiter: LineWaiter = {
+		waiter = {
 			resolve: line => {
 				clearTimeout(timer);
 				resolve(line);

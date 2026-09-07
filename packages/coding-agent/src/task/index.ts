@@ -895,14 +895,15 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		let failedCount = 0;
 		let primaryJobId = asyncSpawns[0].agentId;
 		const syncResults: SingleResult[] = [];
-		const syncOutcome: { usage?: Usage; outputPaths?: string[] } = {};
+		let syncUsage: Usage | undefined;
+		let syncOutputPaths: string[] | undefined;
 		let syncProjectAgentsDir: string | null = null;
 		const buildAsyncDetails = (): TaskToolDetails => ({
 			projectAgentsDir: syncProjectAgentsDir,
 			results: [...syncResults],
 			totalDurationMs: Date.now() - callStartedAt,
-			usage: syncOutcome.usage,
-			outputPaths: syncOutcome.outputPaths,
+			usage: syncUsage,
+			outputPaths: syncOutputPaths,
 			progress: spawns.map(spawn => ({ ...spawn.progress })),
 			async: {
 				state: settledCount < asyncSpawns.length ? "running" : failedCount > 0 ? "failed" : "completed",
@@ -1035,8 +1036,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			payloads,
 		);
 		syncResults.push(...merged.results);
-		syncOutcome.usage = merged.usage;
-		syncOutcome.outputPaths = merged.outputPaths;
+		syncUsage = merged.usage;
+		syncOutputPaths = merged.outputPaths;
 		syncProjectAgentsDir = merged.projectAgentsDir;
 		// Settle the inline spawns' progress rows from their merged results so
 		// post-return job updates carry final statuses, not the last snapshot.

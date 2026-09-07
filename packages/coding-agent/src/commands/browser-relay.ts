@@ -1,5 +1,5 @@
 /**
- * `zeta browser-relay` — drive the user's own Chrome tabs.
+ * `omp browser-relay` — drive the user's own Chrome tabs.
  */
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import {
@@ -34,9 +34,9 @@ export default class BrowserRelay extends Command {
 	};
 
 	static examples = [
-		"zeta browser-relay install    # write the Chrome extension to disk + setup steps",
-		"zeta browser-relay            # serve the relay on the default port",
-		"zeta browser-relay -p 9333 --token s3cret",
+		"omp browser-relay install    # write the Chrome extension to disk + setup steps",
+		"omp browser-relay            # serve the relay on the default port",
+		"omp browser-relay -p 9333 --token s3cret",
 	];
 
 	async run(): Promise<void> {

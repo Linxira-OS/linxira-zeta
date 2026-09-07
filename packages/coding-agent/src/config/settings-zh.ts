@@ -468,11 +468,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "重试模型回退",
 		description: "允许重试恢复切换到已配置的回退模型",
 	},
-	"retry.waitForUsageReset": {
-		label: "等待用量重置",
-		description:
-			"当服务商报告用量耗尽并给出重置时间（5 小时或每周配额窗口）时，等待到重置时间而不是越过 retry.maxDelayMs 快速失败。等待可随时按 Esc 中止，但会同时挂起子代理，无人值守运行请保持关闭。",
-	},
 	"retry.usageAwareFallback": {
 		label: "用量感知回退",
 		description:
@@ -980,10 +975,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "Bash 命令执行",
 		description: "启用 bash 工具执行 shell 命令",
 	},
-	"bash.allowCompoundCommands": {
-		label: "允许复合命令",
-		description: "对字面 && 命令链逐段求值；未匹配的命令沿用普通 bash 审批策略与模式",
-	},
 	"bash.autoBackground.enabled": {
 		label: "Bash 自动后台",
 		description: "自动将长时间运行的 bash 命令放入后台，稍后交付结果",
@@ -1184,11 +1175,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"browser.relay": {
 		label: "浏览器中继（Browser Relay）",
 		description:
-			"通过 omp browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
+			"通过 omp browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`omp browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继地址",
-		description: "zeta browser relay 端点（默认 http://127.0.0.1:9224）。",
+		description: "omp browser relay 端点（默认 http://127.0.0.1:9224）。",
 	},
 	"browser.headless": {
 		label: "无头浏览器",
@@ -1644,7 +1635,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"update.channel": {
 		label: "更新通道",
-		description: "zeta update 和启动更新检查使用的更新通道",
+		description: "omp update 和启动更新检查使用的更新通道",
 	},
 	"edit.blackbox.enabled": {
 		label: "记录解析回归",

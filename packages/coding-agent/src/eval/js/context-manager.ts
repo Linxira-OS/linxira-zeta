@@ -341,7 +341,7 @@ export async function disposeVmContextsByOwner(ownerId: string): Promise<void> {
  * fallback). Catches silent process-load and init-message regressions
  * that otherwise strand every cell on the init timeout in a distribution build —
  * the failure mode that motivated `installWorkerInbox`. Wired into
- * `zeta --smoke-test` so binary / source / tarball installs all exercise it.
+ * `omp --smoke-test` so binary / source / tarball installs all exercise it.
  */
 export async function smokeTestJsEvalWorker(): Promise<void> {
 	const worker = spawnJsWorker();
@@ -466,11 +466,7 @@ async function acquireSession(
 		attachSessionOwner(starting, snapshot.sessionId, ownerId);
 		return await starting.promise;
 	}
-	const startingSession: StartingJsSession = {
-		ownerIds: new Set(),
-		hasFallbackOwner: false,
-		promise: undefined as unknown as Promise<JsSession>,
-	};
+	let startingSession!: StartingJsSession;
 
 	const startup = (async (): Promise<JsSession> => {
 		// Attach the message listener before sending init. Both Bun Worker messages
@@ -524,7 +520,11 @@ async function acquireSession(
 		}
 		return session;
 	})();
-	startingSession.promise = startup;
+	startingSession = {
+		ownerIds: new Set(),
+		hasFallbackOwner: false,
+		promise: startup,
+	};
 	attachSessionOwner(startingSession, snapshot.sessionId, ownerId);
 	startingSessions.set(sessionKey, startingSession);
 	try {

@@ -36,13 +36,13 @@ export default class Cleanse extends Command {
 	};
 
 	static examples = [
-		"zeta cleanse",
-		"zeta cleanse --all",
+		"omp cleanse",
+		"omp cleanse --all",
 		'omp cleanse "ts errors"',
-		"zeta cleanse -n 8",
-		"zeta cleanse -m opus",
-		"zeta cleanse -t",
-		"zeta cleanse --agents 12 --model anthropic/claude-opus-4-6",
+		"omp cleanse -n 8",
+		"omp cleanse -m opus",
+		"omp cleanse -t",
+		"omp cleanse --agents 12 --model anthropic/claude-opus-4-6",
 	];
 
 	async run(): Promise<void> {

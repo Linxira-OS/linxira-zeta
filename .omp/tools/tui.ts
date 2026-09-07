@@ -972,6 +972,7 @@ const factory = (omp: ToolHost) => {
 		// The PTY data callback closes over `session`; Bun.spawn returns
 		// synchronously and the callback fires on the event loop, so the
 		// binding is assigned before the first chunk can arrive.
+		let session: Session;
 		let proc: Child;
 		try {
 			const spawned = Bun.spawn(command, {
@@ -1008,7 +1009,7 @@ const factory = (omp: ToolHost) => {
 		// Route the core's query replies (DA, DECRQSS, OSC color queries) back
 		// to the child: capability probes resolve as on a real terminal.
 		screen.onReply = (bytes) => proc.terminal.write(bytes);
-		const session: Session = {
+		session = {
 			name,
 			target,
 			proc,

@@ -240,37 +240,13 @@ interface ReadLineWindow {
 	lines: string[];
 	totalFileLines: number;
 	collectedBytes: number;
-	selectedBytes: number;
 	stoppedByByteLimit: boolean;
-	/** First source line that could not fit in the remaining byte budget. */
-	byteLimitLine?: { index: number; byteLength: number };
 	firstLinePreview?: { text: string; bytes: number };
 	firstLineByteLength?: number;
 	/** Whether the fully scanned source ended in a newline. */
 	hasTrailingNewline: boolean;
 	/** False when `stopScanAfterCollect` cut the scan short — `totalFileLines` is then a lower bound. */
 	reachedEof: boolean;
-}
-
-function omittedRequestedLine(
-	line: ReadLineWindow["byteLimitLine"],
-	requestedStart: number,
-	rawSelector: boolean,
-	leadingContext: number,
-	collectedLineCount: number,
-): ReadLineWindow["byteLimitLine"] {
-	if (rawSelector || !line || leadingContext === 0) return undefined;
-	return line.index === requestedStart && collectedLineCount === leadingContext ? line : undefined;
-}
-
-function formatOmittedRequestedLineNotice(
-	line: NonNullable<ReadLineWindow["byteLimitLine"]>,
-	maxBytes: number,
-	rawTarget: string,
-): string {
-	return `[Line ${line.index + 1} is ${formatBytes(
-		line.byteLength,
-	)} and could not fit after preceding context in the ${formatBytes(maxBytes)} read budget. Use ${rawTarget} to read that line without context (byte-capped if it exceeds the budget), or widen the requested range to increase the budget.]`;
 }
 
 /**
@@ -301,7 +277,6 @@ function collectLineWindowFromBuffer(
 		lines: [],
 		totalFileLines,
 		collectedBytes: 0,
-		selectedBytes: 0,
 		stoppedByByteLimit: false,
 		hasTrailingNewline: endsWithNewline,
 		reachedEof: true,
@@ -325,10 +300,7 @@ function collectLineWindowFromBuffer(
 		const lineEnd = newlineAt === -1 ? bytes.length : newlineAt;
 		const lineByteLength = lineEnd - lineStart;
 
-		if (selectedLinesSeen < selectedLineLimit) {
-			window.selectedBytes += (selectedLinesSeen > 0 ? 1 : 0) + lineByteLength;
-			selectedLinesSeen++;
-		}
+		if (selectedLinesSeen < selectedLineLimit) selectedLinesSeen++;
 		// Preview covers the first selected line only, capped at the byte budget:
 		// the oversized-first-line branch renders it when no full line fits.
 		if (window.lines.length === 0 && window.firstLinePreview === undefined && lineByteLength > 0) {
@@ -343,12 +315,10 @@ function collectLineWindowFromBuffer(
 				doneCollecting = true;
 			} else if (window.lines.length === 0 && lineByteLength > maxBytes) {
 				window.stoppedByByteLimit = true;
-				window.byteLimitLine = { index, byteLength: lineByteLength };
 				doneCollecting = true;
 				window.firstLineByteLength ??= lineByteLength;
 			} else if (window.lines.length > 0 && window.collectedBytes + separatorBytes + lineByteLength > maxBytes) {
 				window.stoppedByByteLimit = true;
-				window.byteLimitLine = { index, byteLength: lineByteLength };
 				doneCollecting = true;
 			} else {
 				window.lines.push(rawSegments[index] ?? "");
@@ -390,9 +360,7 @@ async function streamLinesFromFile(
 	const collectedLines: string[] = [];
 	let lineIndex = 0;
 	let collectedBytes = 0;
-	let selectedBytes = 0;
 	let stoppedByByteLimit = false;
-	let byteLimitLine: { index: number; byteLength: number } | undefined;
 	let doneCollecting = false;
 	let reachedEof = true;
 	let fileHandle: fs.FileHandle | null = null;
@@ -453,7 +421,6 @@ async function streamLinesFromFile(
 
 	const finalizeLine = () => {
 		if (lineIndex >= startLine && (selectedLineLimit === null || selectedLinesSeen < selectedLineLimit)) {
-			selectedBytes += (selectedLinesSeen > 0 ? 1 : 0) + currentLineLength;
 			selectedLinesSeen++;
 		}
 
@@ -463,14 +430,12 @@ async function streamLinesFromFile(
 				doneCollecting = true;
 			} else if (collectedLines.length === 0 && currentLineLength > maxBytes) {
 				stoppedByByteLimit = true;
-				byteLimitLine = { index: lineIndex, byteLength: currentLineLength };
 				doneCollecting = true;
 				if (firstLineByteLength === undefined) {
 					firstLineByteLength = currentLineLength;
 				}
 			} else if (collectedLines.length > 0 && collectedBytes + separatorBytes + currentLineLength > maxBytes) {
 				stoppedByByteLimit = true;
-				byteLimitLine = { index: lineIndex, byteLength: currentLineLength };
 				doneCollecting = true;
 			} else {
 				const lineText = decodeLine();
@@ -570,9 +535,7 @@ async function streamLinesFromFile(
 		lines: collectedLines,
 		totalFileLines: lineIndex,
 		collectedBytes,
-		selectedBytes,
 		stoppedByByteLimit,
-		byteLimitLine,
 		firstLinePreview,
 		firstLineByteLength,
 		reachedEof,
@@ -1571,10 +1534,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		let sourcePath: string | undefined;
 		let columnTruncated = 0;
 		let truncationInfo:
-			| {
-					result: TruncationResult;
-					options: { direction: "head"; startLine?: number; totalFileLines?: number; nextOffset?: number | null };
-			  }
+			| { result: TruncationResult; options: { direction: "head"; startLine?: number; totalFileLines?: number } }
 			| undefined;
 
 		if (isVideoPath(absolutePath)) {
@@ -1820,9 +1780,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						lines: collectedLines,
 						totalFileLines,
 						collectedBytes,
-						selectedBytes,
 						stoppedByByteLimit,
-						byteLimitLine,
 						firstLinePreview,
 						firstLineByteLength,
 						reachedEof,
@@ -1877,15 +1835,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const userLimitedLines = collectedLines.length;
 
 					const totalSelectedLines = totalFileLines - startLine;
+					const totalSelectedBytes = collectedBytes;
 					const wasTruncated = collectedLines.length < totalSelectedLines || stoppedByByteLimit;
 					const firstLineExceedsLimit = firstLineByteLength !== undefined && firstLineByteLength > maxBytesForRead;
-					const omittedSelectedLine = omittedRequestedLine(
-						byteLimitLine,
-						requestedStart,
-						rawSelector,
-						leadingContext,
-						collectedLines.length,
-					);
 					// A first line larger than the byte budget collects no complete
 					// line, yet the window still renders a byte-capped preview.
 					// Account for that preview so the notice/meta describe the
@@ -1898,7 +1850,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						truncated: wasTruncated,
 						truncatedBy: stoppedByByteLimit ? "bytes" : wasTruncated ? "lines" : undefined,
 						totalLines: totalSelectedLines,
-						totalBytes: firstLineExceedsLimit ? (firstLineByteLength ?? previewBytes) : selectedBytes,
+						totalBytes: firstLineExceedsLimit ? (firstLineByteLength ?? previewBytes) : totalSelectedBytes,
 						outputLines: firstLineExceedsLimit ? (previewBytes > 0 ? 1 : 0) : collectedLines.length,
 						outputBytes: firstLineExceedsLimit ? previewBytes : collectedBytes,
 						lastLinePartial: false,
@@ -2004,14 +1956,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						};
 					} else if (truncation.truncated) {
 						outputText = formatBracketAwareText() ?? formatText(truncation.content, startLineDisplay);
-						if (omittedSelectedLine) {
-							const lineNumber = omittedSelectedLine.index + 1;
-							outputText += `\n\n${formatOmittedRequestedLineNotice(
-								omittedSelectedLine,
-								maxBytesForRead,
-								`:raw:${lineNumber}-${lineNumber}`,
-							)}`;
-						}
 						details = { truncation };
 						sourcePath = absolutePath;
 						truncationInfo = {
@@ -2020,7 +1964,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 								direction: "head",
 								startLine: startLineDisplay,
 								totalFileLines: reachedEof ? totalFileLines : undefined,
-								nextOffset: omittedSelectedLine ? null : undefined,
 							},
 						};
 					} else if (startLine + userLimitedLines < totalFileLines || !reachedEof) {
@@ -2291,9 +2234,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			lines: collectedLines,
 			totalFileLines,
 			collectedBytes,
-			selectedBytes,
 			stoppedByByteLimit,
-			byteLimitLine,
 			firstLinePreview,
 			firstLineByteLength,
 			reachedEof,
@@ -2316,13 +2257,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		const totalSelectedLines = totalFileLines - startLine;
 		const wasTruncated = collectedLines.length < totalSelectedLines || stoppedByByteLimit;
 		const firstLineExceedsLimit = firstLineByteLength !== undefined && firstLineByteLength > maxBytesForRead;
-		const omittedSelectedLine = omittedRequestedLine(
-			byteLimitLine,
-			requestedStart,
-			rawSelector,
-			leadingContext,
-			collectedLines.length,
-		);
 		// Mirror the plain-file path: a preview-only oversized first line must
 		// count as one delivered partial line, not zero.
 		const previewBytes = firstLineExceedsLimit ? (firstLinePreview?.bytes ?? 0) : 0;
@@ -2331,7 +2265,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			truncated: wasTruncated,
 			truncatedBy: stoppedByByteLimit ? "bytes" : wasTruncated ? "lines" : undefined,
 			totalLines: totalSelectedLines,
-			totalBytes: firstLineExceedsLimit ? (firstLineByteLength ?? previewBytes) : selectedBytes,
+			totalBytes: firstLineExceedsLimit ? (firstLineByteLength ?? previewBytes) : collectedBytes,
 			outputLines: firstLineExceedsLimit ? (previewBytes > 0 ? 1 : 0) : collectedLines.length,
 			outputBytes: firstLineExceedsLimit ? previewBytes : collectedBytes,
 			lastLinePartial: false,
@@ -2351,10 +2285,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 
 		let outputText: string;
 		let truncationInfo:
-			| {
-					result: TruncationResult;
-					options: { direction: "head"; startLine?: number; totalFileLines?: number; nextOffset?: number | null };
-			  }
+			| { result: TruncationResult; options: { direction: "head"; startLine?: number; totalFileLines?: number } }
 			| undefined;
 		if (truncation.firstLineExceedsLimit) {
 			const firstLineBytes = firstLineByteLength ?? 0;
@@ -2376,21 +2307,12 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		} else {
 			outputText = formatText(truncation.content, startLineDisplay);
 			if (truncation.truncated) {
-				if (omittedSelectedLine) {
-					const lineNumber = omittedSelectedLine.index + 1;
-					outputText += `\n\n${formatOmittedRequestedLineNotice(
-						omittedSelectedLine,
-						maxBytesForRead,
-						`${artifactUrl}:raw:${lineNumber}-${lineNumber}`,
-					)}`;
-				}
 				truncationInfo = {
 					result: truncation,
 					options: {
 						direction: "head",
 						startLine: startLineDisplay,
 						totalFileLines: reachedEof ? totalFileLines : undefined,
-						nextOffset: omittedSelectedLine ? null : undefined,
 					},
 				};
 			} else if (startLine + collectedLines.length < totalFileLines || !reachedEof) {

@@ -1,7 +1,7 @@
 /**
  * Plugin CLI command handlers.
  *
- * Handles `zeta plugin <command>` subcommands for plugin lifecycle management.
+ * Handles `omp plugin <command>` subcommands for plugin lifecycle management.
  */
 
 import * as path from "node:path";
@@ -389,7 +389,7 @@ async function handleInstall(
 		if (target.type === "local") {
 			// Local paths route to link(): symlink the directory into the plugins
 			// node_modules tree so source edits show up without a reinstall. Matches
-			// `zeta plugin link <path>` so users can use either verb interchangeably.
+			// `omp plugin link <path>` so users can use either verb interchangeably.
 			if (flags.scope) {
 				console.error(
 					chalk.yellow(

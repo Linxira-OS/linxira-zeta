@@ -99,8 +99,6 @@ export interface TruncationOptions {
 	artifactId?: string;
 	/** Byte budget that stopped the read, when truncation is byte-limited. */
 	maxBytes?: number;
-	/** Override the derived continuation line; `null` suppresses an unsafe continuation hint. */
-	nextOffset?: number | null;
 }
 
 export interface TruncationSummaryOptions {
@@ -218,12 +216,7 @@ export class OutputMetaBuilder {
 			maxBytes,
 			shownRange: { start: shownStart, end: shownEnd },
 			artifactId,
-			nextOffset:
-				direction === "head"
-					? options.nextOffset === null
-						? undefined
-						: (options.nextOffset ?? shownEnd + 1)
-					: undefined,
+			nextOffset: direction === "head" ? shownEnd + 1 : undefined,
 		};
 
 		return this;

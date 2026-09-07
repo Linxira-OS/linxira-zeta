@@ -47,7 +47,7 @@ export const CHANGELOG_CATEGORIES: ChangelogCategory[] = [
 	"Security",
 ];
 
-/** Arguments accepted by the `zeta commit` command. */
+/** Arguments accepted by the `omp commit` command. */
 export interface CommitCommandArgs {
 	/** Push after commit */
 	push: boolean;

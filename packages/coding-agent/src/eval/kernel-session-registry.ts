@@ -179,11 +179,7 @@ export function createKernelSessionRegistry<
 			attachSessionOwner(starting, sessionId, options.kernelOwnerId);
 			return await waitForStartup(starting.promise, options);
 		}
-		const startingSession: StartingKernelSession<TSession> = {
-			ownerIds: new Set(),
-			hasFallbackOwner: false,
-			promise: undefined as unknown as Promise<TSession>,
-		};
+		let startingSession!: StartingKernelSession<TSession>;
 		const startup = (async () => {
 			const kernel = await descriptor.startKernel(cwd, options);
 			const session = descriptor.createSession({
@@ -199,7 +195,11 @@ export function createKernelSessionRegistry<
 			}
 			return session;
 		})();
-		startingSession.promise = startup;
+		startingSession = {
+			ownerIds: new Set(),
+			hasFallbackOwner: false,
+			promise: startup,
+		};
 		attachSessionOwner(startingSession, sessionId, options.kernelOwnerId);
 		startingSessions.set(sessionKey, startingSession);
 		try {
