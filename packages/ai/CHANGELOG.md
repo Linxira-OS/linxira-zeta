@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.10] - 2026-09-07
+
 - GitHub Copilot sign-in now requests only basic profile access, restoring login for Enterprise organizations that reject repository, gist, and Codespaces permissions.
 - Transient gateway stream failures are now retried instead of surfacing as session errors.
 

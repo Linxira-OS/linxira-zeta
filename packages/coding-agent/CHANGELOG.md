@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.10] - 2026-09-07
+
 ### Added
 
 - OMP v18.1.11 sync baseline (`e3106be68f`): `retry.waitForUsageReset` — when a provider reports usage-limit exhaustion with a reset time (5-hour or weekly quota windows), the session sleeps until the reset instead of failing fast past `retry.maxDelayMs`; opt-in `bash.allowCompoundCommands` approval evaluates conservative literal `&&` chains per segment (requires a POSIX-quoting shell; whole-chain denies take precedence over earlier prompts).
