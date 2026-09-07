@@ -26,8 +26,7 @@ it("strings", () => {
 			// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 			| BaseTypeProp<"required", "bar", 2, {}>
 			// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
-			| BaseTypeProp<"optional", "baz", 3, {}>
-		>
+			| BaseTypeProp<"optional", "baz", 3, {}>>
 	> = true;
 
 	expect(snapshottableProps(T.props)).toEqual([
