@@ -464,6 +464,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"重试之间的最大等待时间（毫秒）。当服务商要求等待超过此时间且凭据或模型回退均未成功时，请求将快速失败而不是等待（例如 Anthropic 3 小时的限流窗口）。",
 	},
+	"retry.waitForUsageReset": {
+		label: "等待用量重置",
+		description:
+			"当服务商报告用量耗尽并给出重置时间（如 5 小时或每周配额窗口）时，会话将休眠至重置时刻，而不是超过 retry.maxDelayMs 后快速失败。等待可随时中断（Esc），但会一并挂起子代理，无人值守运行时请保持关闭。",
+	},
 	"retry.modelFallback": {
 		label: "重试模型回退",
 		description: "允许重试恢复切换到已配置的回退模型",
@@ -978,6 +983,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"bash.autoBackground.enabled": {
 		label: "Bash 自动后台",
 		description: "自动将长时间运行的 bash 命令放入后台，稍后交付结果",
+	},
+	"bash.allowCompoundCommands": {
+		label: "允许复合命令",
+		description: "按命令逐段评估字面量 && 链；未匹配的段沿用常规 bash 审批策略与模式",
 	},
 	"bash.patterns": {
 		label: "Bash 审批模式",
