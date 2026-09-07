@@ -32,7 +32,7 @@ describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("RPC mode", () => {
 		client = new RpcClient({
 			cliPath: path.join(import.meta.dir, "..", "dist", "cli.js"),
 			cwd: path.join(import.meta.dir, ".."),
-			env: { PI_CODING_AGENT_DIR: sessionDir },
+			env: { ZETA_CODING_AGENT_DIR: sessionDir },
 			provider: "anthropic",
 			model: "claude-sonnet-4-5",
 		});
@@ -319,7 +319,7 @@ describe("RPC fast mode with unsupported Fireworks model and priority tier", () 
 			cliPath: path.join(import.meta.dir, "..", "src", "cli.ts"),
 			cwd: path.join(import.meta.dir, ".."),
 			env: {
-				PI_CODING_AGENT_DIR: sessionDir,
+				ZETA_CODING_AGENT_DIR: sessionDir,
 				FIREWORKS_API_KEY: "test-fireworks-key",
 			},
 			provider: "fireworks",

@@ -93,7 +93,7 @@ export const OMP_PATH_ALLOW = [
 	/utils\/title-generator\.ts$/, // \uE000omp-title-visible\uE000 wire sentinel
 	/legacy-pi-compat\.ts$|legacy-pi-coding-agent-shim\.ts$/,
 	/packages\/browser-relay\//, // chrome.storage keys (ompGroupTitle family)
-	/\.omp-plugin|\.ompshare|omp\.sh|__omp|OMP_PROFILE|ompprurl|@omp-|omp-\$\{/,
+	/\.omp-plugin|\.ompshare|omp\.sh|__omp|ZETA_PROFILE|ompprurl|@omp-|omp-\$\{/,
 	/\.omp[a-zA-Z]*Url|ompPr|ompPersisted|ompToolViews|ompCmd|ompGroup/,
 	/rewrite-changelog\.ts$/, // pre-existing main debt: doc comment on db path
 	/crates\/pi-natives\/src\/oauth_callback\/tests\.rs$/, // negative assertion: .omp must NOT exist

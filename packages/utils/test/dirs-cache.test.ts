@@ -26,23 +26,20 @@ function restoreEnv(key: string, value: string | undefined): void {
 describe("document conversion cache directory", () => {
 	let tempRoot = "";
 	let originalPiCodingAgentDir: string | undefined;
-	let originalOmpProfile: string | undefined;
-	let originalPiProfile: string | undefined;
+	let originalZetaProfile: string | undefined;
 	let originalXdgCacheHome: string | undefined;
 
 	beforeEach(async () => {
-		originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfile = process.env.OMP_PROFILE;
-		originalPiProfile = process.env.PI_PROFILE;
+		originalPiCodingAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+		originalZetaProfile = process.env.ZETA_PROFILE;
 		originalXdgCacheHome = process.env.XDG_CACHE_HOME;
 		tempRoot = path.join(os.tmpdir(), "pi-utils-document-cache", Snowflake.next());
 		await fs.mkdir(tempRoot, { recursive: true });
 	});
 
 	afterEach(async () => {
-		restoreEnv("PI_CODING_AGENT_DIR", originalPiCodingAgentDir);
-		restoreEnv("OMP_PROFILE", originalOmpProfile);
-		restoreEnv("PI_PROFILE", originalPiProfile);
+		restoreEnv("ZETA_CODING_AGENT_DIR", originalPiCodingAgentDir);
+		restoreEnv("ZETA_PROFILE", originalZetaProfile);
 		restoreEnv("XDG_CACHE_HOME", originalXdgCacheHome);
 		__resetDirsFromEnvForTests();
 		await fs.rm(tempRoot, { recursive: true, force: true });
@@ -74,7 +71,7 @@ describe("document conversion cache directory", () => {
 		expect(getComposerCacheDir()).toBe(path.join(process.env.XDG_CACHE_HOME, "zeta", "cache", "composer"));
 	});
 
-	it("stays under a custom PI_CODING_AGENT_DIR", () => {
+	it("stays under a custom ZETA_CODING_AGENT_DIR", () => {
 		const customAgentDir = path.join(tempRoot, "custom-agent");
 
 		setAgentDir(customAgentDir);
@@ -85,23 +82,20 @@ describe("document conversion cache directory", () => {
 
 describe("test directory state cleanup", () => {
 	it("restores the active profile from the current env after setAgentDir mutations", () => {
-		const originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
-		const originalOmpProfile = process.env.OMP_PROFILE;
-		const originalPiProfile = process.env.PI_PROFILE;
+		const originalPiCodingAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+		const originalZetaProfile = process.env.ZETA_PROFILE;
 		const originalXdgCacheHome = process.env.XDG_CACHE_HOME;
 		try {
-			process.env.OMP_PROFILE = "cache-profile";
-			delete process.env.PI_PROFILE;
-			delete process.env.PI_CODING_AGENT_DIR;
+			process.env.ZETA_PROFILE = "cache-profile";
+			delete process.env.ZETA_CODING_AGENT_DIR;
 			delete process.env.XDG_CACHE_HOME;
 			__resetDirsFromEnvForTests();
 
 			setAgentDir(path.join(os.tmpdir(), "pi-utils-document-cache", Snowflake.next(), "agent"));
 			expect(getActiveProfile()).toBeUndefined();
 
-			process.env.OMP_PROFILE = "cache-profile";
-			delete process.env.PI_PROFILE;
-			delete process.env.PI_CODING_AGENT_DIR;
+			process.env.ZETA_PROFILE = "cache-profile";
+			delete process.env.ZETA_CODING_AGENT_DIR;
 			__resetDirsFromEnvForTests();
 
 			expect(getActiveProfile()).toBe("cache-profile");
@@ -109,9 +103,8 @@ describe("test directory state cleanup", () => {
 				path.join(getProfileRootDir("cache-profile"), "agent", "cache", "document-conversions"),
 			);
 		} finally {
-			restoreEnv("PI_CODING_AGENT_DIR", originalPiCodingAgentDir);
-			restoreEnv("OMP_PROFILE", originalOmpProfile);
-			restoreEnv("PI_PROFILE", originalPiProfile);
+			restoreEnv("ZETA_CODING_AGENT_DIR", originalPiCodingAgentDir);
+			restoreEnv("ZETA_PROFILE", originalZetaProfile);
 			restoreEnv("XDG_CACHE_HOME", originalXdgCacheHome);
 			__resetDirsFromEnvForTests();
 		}
@@ -121,16 +114,14 @@ describe("test directory state cleanup", () => {
 describe("legacy file adoption on XDG paths", () => {
 	let tempRoot = "";
 	let originalPiCodingAgentDir: string | undefined;
-	let originalOmpProfile: string | undefined;
-	let originalPiProfile: string | undefined;
+	let originalZetaProfile: string | undefined;
 	let originalXdgStateHome: string | undefined;
 	let originalXdgDataHome: string | undefined;
 	let homedirSpy: Mock<() => string> | undefined;
 
 	beforeEach(async () => {
-		originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfile = process.env.OMP_PROFILE;
-		originalPiProfile = process.env.PI_PROFILE;
+		originalPiCodingAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+		originalZetaProfile = process.env.ZETA_PROFILE;
 		originalXdgStateHome = process.env.XDG_STATE_HOME;
 		originalXdgDataHome = process.env.XDG_DATA_HOME;
 		tempRoot = path.join(os.tmpdir(), "pi-utils-xdg-adoption", Snowflake.next());
@@ -140,9 +131,8 @@ describe("legacy file adoption on XDG paths", () => {
 	afterEach(async () => {
 		homedirSpy?.mockRestore();
 		homedirSpy = undefined;
-		restoreEnv("PI_CODING_AGENT_DIR", originalPiCodingAgentDir);
-		restoreEnv("OMP_PROFILE", originalOmpProfile);
-		restoreEnv("PI_PROFILE", originalPiProfile);
+		restoreEnv("ZETA_CODING_AGENT_DIR", originalPiCodingAgentDir);
+		restoreEnv("ZETA_PROFILE", originalZetaProfile);
 		restoreEnv("XDG_STATE_HOME", originalXdgStateHome);
 		restoreEnv("XDG_DATA_HOME", originalXdgDataHome);
 		__resetDirsFromEnvForTests();
@@ -152,9 +142,8 @@ describe("legacy file adoption on XDG paths", () => {
 	/** Rebuild the resolver with home at tempRoot, the default agent dir, and the given XDG env. */
 	function activateTempHome(xdgEnv: Record<string, string>): void {
 		homedirSpy = spyOn(os, "homedir").mockReturnValue(tempRoot);
-		delete process.env.PI_CODING_AGENT_DIR;
-		delete process.env.OMP_PROFILE;
-		delete process.env.PI_PROFILE;
+		delete process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.ZETA_PROFILE;
 		delete process.env.XDG_STATE_HOME;
 		delete process.env.XDG_DATA_HOME;
 		for (const key in xdgEnv) {

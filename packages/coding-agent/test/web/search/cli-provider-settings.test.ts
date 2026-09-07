@@ -27,9 +27,8 @@ const WEB_SEARCH_ENV_KEYS = [
 	"XAI_API_KEY",
 ] as const;
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
-const originalOmpProfile = process.env.OMP_PROFILE;
-const originalPiProfile = process.env.PI_PROFILE;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalZetaProfile = process.env.ZETA_PROFILE;
 
 let tempAgentDir: TempDir | undefined;
 let originalEnv: Partial<Record<(typeof WEB_SEARCH_ENV_KEYS)[number], string | undefined>> = {};
@@ -104,9 +103,8 @@ afterEach(async () => {
 	for (const key of WEB_SEARCH_ENV_KEYS) {
 		restoreEnv(key, originalEnv[key]);
 	}
-	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
-	restoreEnv("OMP_PROFILE", originalOmpProfile);
-	restoreEnv("PI_PROFILE", originalPiProfile);
+	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
+	restoreEnv("ZETA_PROFILE", originalZetaProfile);
 	__resetDirsFromEnvForTests();
 	if (tempAgentDir) {
 		await tempAgentDir.remove();

@@ -139,20 +139,13 @@ function capture(pathname: string, re: RegExp): string[] | null {
 }
 
 /**
- * Normalize the agent-dir env like the legacy web-ui server did, then rebuild
- * the dirs resolver so `getAgentDir()` honors the result in this process.
- * `ZETA_CODING_AGENT_DIR` → `OMP_CODING_AGENT_DIR` → `PI_CODING_AGENT_DIR` →
- * `~/.zeta/agent` (the runtime default). Idempotent; safe to call repeatedly.
+ * Normalize the agent-dir env, then rebuild the dirs resolver so
+ * `getAgentDir()` honors the result in this process. `ZETA_CODING_AGENT_DIR`
+ * → `~/.zeta/agent` (the runtime default). Idempotent; safe to call repeatedly.
  */
 export function ensureAgentDirEnv(): void {
-	const resolved =
-		process.env.ZETA_CODING_AGENT_DIR ??
-		process.env.OMP_CODING_AGENT_DIR ??
-		process.env.PI_CODING_AGENT_DIR ??
-		path.join(os.homedir(), ".zeta", "agent");
+	const resolved = process.env.ZETA_CODING_AGENT_DIR ?? path.join(os.homedir(), ".zeta", "agent");
 	process.env.ZETA_CODING_AGENT_DIR ??= resolved;
-	process.env.OMP_CODING_AGENT_DIR ??= resolved;
-	process.env.PI_CODING_AGENT_DIR ??= resolved;
 	refreshDirsFromEnv();
 }
 

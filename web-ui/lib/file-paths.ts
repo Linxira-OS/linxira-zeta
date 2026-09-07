@@ -46,19 +46,10 @@ export function joinFilePath(parent: string, child: string): string {
 }
 
 
-export function getOmpAgentDir(): string {
-  const dir = process.env.ZETA_CODING_AGENT_DIR
-    ?? process.env.OMP_CODING_AGENT_DIR
-    ?? process.env.PI_CODING_AGENT_DIR
-    ?? join(homedir(), ".zeta", "agent");
+export function getAgentDir(): string {
+  const dir = process.env.ZETA_CODING_AGENT_DIR ?? join(homedir(), ".zeta", "agent");
   if (!process.env.ZETA_CODING_AGENT_DIR) {
     process.env.ZETA_CODING_AGENT_DIR = dir;
-  }
-  if (!process.env.OMP_CODING_AGENT_DIR) {
-    process.env.OMP_CODING_AGENT_DIR = dir;
-  }
-  if (!process.env.PI_CODING_AGENT_DIR) {
-    process.env.PI_CODING_AGENT_DIR = dir;
   }
   return dir;
 }

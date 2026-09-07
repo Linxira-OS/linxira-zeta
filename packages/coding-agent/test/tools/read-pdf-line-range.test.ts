@@ -111,9 +111,8 @@ describe("read PDF with a line-range selector", () => {
 	});
 
 	it("reuses cached converted markdown across full and selector reads of an unchanged PDF", async () => {
-		const originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
-		const originalOmpProfile = process.env.OMP_PROFILE;
-		const originalPiProfile = process.env.PI_PROFILE;
+		const originalPiCodingAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+		const originalZetaProfile = process.env.ZETA_PROFILE;
 		setAgentDir(path.join(testDir, "agent"));
 		try {
 			const convert = vi
@@ -140,9 +139,8 @@ describe("read PDF with a line-range selector", () => {
 
 			expect(convert).toHaveBeenCalledTimes(1);
 		} finally {
-			restoreEnv("PI_CODING_AGENT_DIR", originalPiCodingAgentDir);
-			restoreEnv("OMP_PROFILE", originalOmpProfile);
-			restoreEnv("PI_PROFILE", originalPiProfile);
+			restoreEnv("ZETA_CODING_AGENT_DIR", originalPiCodingAgentDir);
+			restoreEnv("ZETA_PROFILE", originalZetaProfile);
 			__resetDirsFromEnvForTests();
 		}
 	});
