@@ -1,13 +1,16 @@
 /**
- * `zeta attach` — attach a lightweight REPL to the serve process's shared
+ * `zeta attach` — attach a full session view to the serve process's shared
  * session over the web-gateway protocol.
  *
  * The serve process hosts one coordinator session shared by the web UI's
  * default chat and every IM channel. This command resolves it through
- * `GET /api/agent/current`, prints its AgentState v2 snapshot (model, role,
- * active modes), streams SSE events live, and maps a small command set onto
- * the generic mode protocol (`mode_enter` / `mode_exit` / `set_model_role`).
- * It is a lightweight status + control client, not a full TUI.
+ * `GET /api/agent/current`, renders the initial session transcript
+ * (`GET /api/sessions/:id` — tree/leafId/context), then streams SSE events
+ * live: `message_update` streams in-flight assistant output, `message_end`
+ * finalizes, `session_entry` merges durable writes from other clients
+ * (web, desktop, the agent itself) so every end shows the same session.
+ * A small command set maps onto the generic mode protocol (`mode_enter` /
+ * `mode_exit` / `set_model_role`); anything else is a follow-up message.
  */
 
 import { createInterface } from "node:readline/promises";
@@ -16,6 +19,17 @@ import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { attachHelp as commandHelp } from "../cli/command-help";
 
 const DEFAULT_GATEWAY_URL = "http://127.0.0.1:30142";
+
+/** Minimal shape of the gateway session DTO the renderer needs. */
+interface SessionContextMessage {
+	role?: string;
+	content?: unknown;
+}
+
+interface SessionPayload {
+	leafId?: string;
+	context?: { messages?: SessionContextMessage[] };
+}
 
 interface ModeStateSnapshot {
 	plan?: { enabled: boolean; planFilePath?: string };
@@ -66,6 +80,34 @@ async function postCommand(baseUrl: string, sessionId: string, command: Record<s
 	});
 	const body = (await res.json().catch(() => ({}))) as { error?: string };
 	if (!res.ok || body.error) throw new Error(body.error ?? `HTTP ${res.status}`);
+}
+
+/** Render one context message to the transcript (user/assistant text). */
+function renderContextMessage(msg: SessionContextMessage): void {
+	const role = msg.role;
+	const text = extractText(msg.content);
+	if (!text) return;
+	if (role === "user") {
+		process.stdout.write(`\n[you] ${text.split("\n")[0]}\n`);
+	} else if (role === "assistant") {
+		process.stdout.write(`\n[zeta] ${text}\n`);
+	}
+}
+
+/** Fetch and render the full session transcript (initial attach view). */
+async function loadSessionTranscript(baseUrl: string, sessionId: string): Promise<void> {
+	try {
+		const res = await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}`);
+		if (!res.ok) return; // standalone/session-not-on-disk: live view only
+		const body = (await res.json()) as SessionPayload;
+		const messages = body.context?.messages ?? [];
+		for (const msg of messages) renderContextMessage(msg);
+		if (messages.length > 0) {
+			process.stdout.write(`\n— ${messages.length} message(s) in the shared session —\n`);
+		}
+	} catch {
+		// transcript is best-effort; live stream still works
+	}
 }
 
 /** Extract plain text from an assistant message's content (string or blocks). */
@@ -142,6 +184,10 @@ export default class Attach extends Command {
 		for (const line of describeModes(state?.modes)) {
 			process.stdout.write(`${line}\n`);
 		}
+
+		// Full transcript view: render what's already persisted, then the live
+		// SSE stream keeps every end in step from this point on.
+		await loadSessionTranscript(baseUrl, sessionId);
 
 		const abort = new AbortController();
 		void streamEvents(baseUrl, sessionId, abort.signal).catch(error => {
@@ -249,7 +295,7 @@ export default class Attach extends Command {
 	}
 }
 
-/** Stream the session's SSE event channel and print mode/message changes. */
+/** Stream the session's SSE event channel and print transcript/mode updates. */
 async function streamEvents(baseUrl: string, sessionId: string, signal: AbortSignal): Promise<void> {
 	const res = await fetch(`${baseUrl}/api/agent/${encodeURIComponent(sessionId)}/events`, { signal });
 	if (!res.ok || !res.body) throw new Error(`event stream HTTP ${res.status}`);
@@ -292,7 +338,24 @@ async function streamEvents(baseUrl: string, sessionId: string, signal: AbortSig
 				const message = event.message;
 				if (isRecord(message) && message.role === "assistant") {
 					const text = extractText(message.content);
-					if (text) process.stdout.write(`\n${text}\n`);
+					if (text) process.stdout.write(`\n[zeta] ${text}\n`);
+				}
+				break;
+			}
+			case "session_entry": {
+				// A durable write landed from another end (web, desktop, the
+				// agent's own custom entries). Assistant turns already stream
+				// through message_end; surface incoming user turns so attach
+				// users see cross-client activity.
+				const entry = event.entry;
+				if (
+					isRecord(entry) &&
+					entry.type === "message" &&
+					isRecord(entry.message) &&
+					entry.message.role === "user"
+				) {
+					const text = extractText(entry.message.content);
+					if (text) process.stdout.write(`\n[you] ${text.split("\n")[0]}\n`);
 				}
 				break;
 			}

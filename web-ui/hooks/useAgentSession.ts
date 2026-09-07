@@ -417,6 +417,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const sessionIdRef = useRef<string | null>(session?.id ?? null);
   const agentRunningRef = useRef(false);
+  const lastEntrySeqRef = useRef(0);
   const bashRunningRef = useRef(false);
   const bashRecoveryIdRef = useRef(0);
   const handleAgentEventRef = useRef<((event: AgentEvent) => void) | null>(null);
@@ -703,7 +704,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-    const es = new EventSource(`/api/agent/${encodeURIComponent(sid)}/events`);
+    const es = new EventSource(`/api/agent/${encodeURIComponent(sid)}/events${lastEntrySeqRef.current > 0 ? `?since=${lastEntrySeqRef.current}` : ""}`);
     eventSourceRef.current = es;
 
     return new Promise((resolve) => {
@@ -1155,8 +1156,23 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           if (sessionIdRef.current) loadSession(sessionIdRef.current);
         }
         break;
-      case "extension_ui_request":
-        handleExtensionUiRequest(event as ExtensionUiRequest);
+      case "session_entry": {
+        // Multi-end sync: a durable entry landed on the shared session (CLI
+        // attach, another tab, an agent write). Track the cursor so a
+        // reconnect can replay anything missed via ?since=<seq>, and refresh
+        // to merge the entry into the full context view (loadSession keeps
+        // entry dedup in one place).
+        const seq = typeof event.seq === "number" ? event.seq : 0;
+        if (seq > lastEntrySeqRef.current) lastEntrySeqRef.current = seq;
+        if (sessionIdRef.current) loadSession(sessionIdRef.current);
+        break;
+      }
+      case "resync":
+        // Cursor replay was impossible (ring buffer miss after serve restart).
+        // Same recovery as a reconnect: full refetch. The next reconnect also
+        // drops the unusable cursor.
+        lastEntrySeqRef.current = 0;
+        if (sessionIdRef.current) loadSession(sessionIdRef.current);
         break;
     }
   }, [addNotice, finishPromptWithoutStream, handleExtensionUiRequest, loadSession, onAgentEnd]);

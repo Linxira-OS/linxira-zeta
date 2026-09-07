@@ -210,8 +210,9 @@ type PendingUiResponse = {
 // Registry (module-level: the gateway is a long-lived Bun process)
 // ---------------------------------------------------------------------------
 
-/** Keyed by the persistent (file-header) session id. */
-const sessions = new Map<string, AgentSessionWrapper>();
+/** Keyed by the persistent (file-header) session id. Exported for the
+ * session-sync tests; runtime code must use startRpcSession/getRpcSession. */
+export const sessions = new Map<string, AgentSessionWrapper>();
 /** Per-start-key coalescing promise, mirroring web-ui's `globalThis.__piStartLocks`. */
 const startLocks = new Map<string, Promise<{ session: AgentSessionWrapper; realSessionId: string }>>();
 /**
@@ -259,12 +260,33 @@ export class AgentSessionWrapper {
 	/** Serialized last-seen mode states, used to emit `mode_changed` diffs. */
 	#lastModeStates: Record<ModeId, string> = { plan: "null", goal: "null", vibe: "null" };
 
+	// -- Multi-end session sync (durable-entry replication) ------------------
+	/** Monotonic sequence for durable-entry events; cursor for SSE replay. */
+	#entrySeq = 0;
+	/** Ring buffer of recent `{seq, entry}` frames for `?since=` replay. */
+	#entryBuffer: Array<{ seq: number; entry: unknown }> = [];
+	static #ENTRY_BUFFER_LIMIT = 512;
+
 	constructor(inner: AgentSession, realSessionId: string, sessionFile: string | null) {
 		this.#inner = inner;
 		this.realSessionId = realSessionId;
 		this.sessionFile = sessionFile;
 
 		inner.subscribe(event => this.#onInnerEvent(event));
+
+		// Durable-entry replication: every entry persisted by the session
+		// manager fans out to SSE listeners as a sequenced `session_entry`
+		// event. `#notifyDurableEntries` batch-flushes after atomic writes /
+		// restore; per-entry delivery here keeps consumers ordering-safe.
+		inner.sessionManager.onEntryAppended = (entry): void => {
+			this.#entrySeq += 1;
+			const frame = { seq: this.#entrySeq, entry };
+			this.#entryBuffer.push(frame);
+			if (this.#entryBuffer.length > AgentSessionWrapper.#ENTRY_BUFFER_LIMIT) {
+				this.#entryBuffer.shift();
+			}
+			this.#emit({ type: "session_entry", seq: frame.seq, entry: frame.entry } as unknown as AgentEvent);
+		};
 	}
 
 	isAlive(): boolean {
@@ -296,6 +318,21 @@ export class AgentSessionWrapper {
 
 	isRunning(): boolean {
 		return this.#inner.isStreaming || this.#inner.isCompacting || this.#inner.isBashRunning;
+	}
+
+	/**
+	 * Durable-entry frames with `seq > since`, oldest first. Returns `null`
+	 * when the cursor predates the ring buffer (replay impossible → the SSE
+	 * route emits `resync` and the client refetches the full session).
+	 */
+	getEntryFramesSince(since: number): Array<{ seq: number; entry: unknown }> | null {
+		if (this.#entryBuffer.length === 0) {
+			// Nothing buffered at all: only satisfiable if since >= last seq.
+			return since < this.#entrySeq ? null : [];
+		}
+		const oldest = this.#entryBuffer[0]!.seq;
+		if (since < oldest - 1) return null;
+		return this.#entryBuffer.filter(frame => frame.seq > since);
 	}
 
 	/** Emit `running`/`not-running` when the busy state flips, and mirror it to the registry. */
@@ -1123,15 +1160,37 @@ export async function handleAgentEvents(req: Request, sessionId: string): Promis
 		}
 	}
 
+	// Multi-end sync cursor: `?since=<seq>` replays buffered durable-entry
+	// frames after that sequence before going live. seq missing/0 → live only.
+	// Buffer miss (seq older than the ring) → `resync` frame; the client
+	// refetches the full session like a reconnect.
+	const since = Number(new URL(req.url).searchParams.get("since") ?? 0);
+	const live = session;
+
 	const stream = new ReadableStream({
 		start(controller) {
 			const encode = (data: unknown) => {
 				controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`));
 			};
+			const encodeSeq = (data: { seq?: number } & Record<string, unknown>) => {
+				const seq = data.seq;
+				controller.enqueue(
+					new TextEncoder().encode(`${seq !== undefined ? `id: ${seq}\n` : ""}data: ${JSON.stringify(data)}\n\n`),
+				);
+			};
 
 			encode({ type: "connected", sessionId });
 
-			const unsubscribe = session.onEvent(event => {
+			if (Number.isFinite(since) && since > 0) {
+				const buffered = live.getEntryFramesSince(since);
+				if (buffered === null) {
+					encode({ type: "resync", sessionId });
+				} else {
+					for (const frame of buffered) encodeSeq({ type: "session_entry", seq: frame.seq, entry: frame.entry });
+				}
+			}
+
+			const unsubscribe = live.onEvent(event => {
 				if (
 					event &&
 					typeof event === "object" &&
