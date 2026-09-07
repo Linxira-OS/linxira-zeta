@@ -187,7 +187,7 @@ try {
 						HOME: home,
 						USERPROFILE: home,
 						PI_CONFIG_DIR: ".zeta",
-						OMP_PROFILE: profile,
+						ZETA_PROFILE: profile,
 						OMP_DAEMON_IDLE_GRACE_MS: "200",
 						OMP_TEST_RELAY_URL: cdpUrl,
 						OMP_TEST_READY_MARKER: marker,

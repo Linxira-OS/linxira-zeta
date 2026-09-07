@@ -327,7 +327,7 @@ describe.skipIf(!hasPtyHarness)("interactive startup changelog PTY smoke", () =>
 							XDG_CONFIG_HOME: path.join(root, "xdg-config"),
 							XDG_STATE_HOME: path.join(root, "xdg-state"),
 							XDG_DATA_HOME: path.join(root, "xdg-data"),
-							PI_CODING_AGENT_DIR: agentDir,
+							ZETA_CODING_AGENT_DIR: agentDir,
 							PI_PACKAGE_DIR: packageDir,
 							PI_NO_TITLE: "1",
 							NO_COLOR: "1",

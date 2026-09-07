@@ -5,8 +5,7 @@ import type { SessionEntry, SessionHeader, SessionInfo } from "./types";
 import { sessionPathKey } from "./session-path";
 import { resolveProject, type ProjectInfo } from "./worktree";
 
-import { getOmpAgentDir } from "./file-paths";
-export { getOmpAgentDir as getAgentDir };
+import { getAgentDir } from "./file-paths";
 
 async function loadAllSessions(): Promise<SessionInfo[]> {
   // Session browsing is gateway-owned (see document/web-gateway.md); the web-ui
@@ -23,7 +22,7 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
     firstMessage?: string;
     parentSessionPath?: string;
   }> = [];
-  const sessionsDir = join(getOmpAgentDir(), "sessions");
+  const sessionsDir = join(getAgentDir(), "sessions");
   if (existsSync(sessionsDir)) {
     try {
       const subdirs = readdirSync(sessionsDir);

@@ -19,7 +19,7 @@ import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { loadAllMCPConfigs } from "@linxiraos/zeta/mcp/config";
 import "@linxiraos/zeta/discovery";
 
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 const CONNECTION = { type: "http", url: "https://mcp.example/mcp" } as const;
 
@@ -55,7 +55,7 @@ describe("MCP scope filtering precedes connection-equivalence deduplication", ()
 			setAgentDir(originalAgentDirEnv);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;

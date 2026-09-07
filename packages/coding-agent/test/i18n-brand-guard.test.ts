@@ -7,10 +7,11 @@ import { zh } from "../src/i18n/zh";
  * product self-reference in user-visible catalogue text (zh menu lines saying
  * "OMP 原生安全扫描" shipped unnoticed before). Interop surfaces where the
  * token is a protocol/path identifier, not the product name, are allowlisted
- * by exact substring: env vars (OMP_PROFILE), hosts (omp.sh), plugin manifest
- * dirs (.omp-plugin), native/sentinel prefixes (__omp).
+ * by exact substring: hosts (omp.sh), plugin manifest dirs (.omp-plugin),
+ * native/sentinel prefixes (__omp). Profile env keys are ZETA-owned and are
+ * not allowed to surface in i18n strings at all.
  */
-const OMP_INTEROP_ALLOWLIST: readonly string[] = ["OMP_PROFILE", "omp.sh", ".omp-plugin", "__omp"];
+const OMP_INTEROP_ALLOWLIST: readonly string[] = ["omp.sh", ".omp-plugin", "__omp"];
 
 function catalogueOmpLeaks(name: string, catalogue: Record<string, unknown>): string[] {
 	const leaks: string[] = [];

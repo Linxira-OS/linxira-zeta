@@ -88,13 +88,13 @@ describe("parseEnvFile", () => {
 		});
 	});
 
-	it("mirrors valid OMP_ variables to PI_ variables", () => {
+	it("keeps OMP_ variables verbatim without PI_ mirroring", () => {
 		const filePath = writeTempEnv("OMP_FEATURE=enabled\nOMP_BAD=before\0after\n");
 
 		expect(parseEnvFile(filePath)).toEqual({
 			OMP_FEATURE: "enabled",
-			PI_FEATURE: "enabled",
 		});
+		expect(parseEnvFile(filePath).PI_FEATURE).toBeUndefined();
 	});
 
 	it("matches Bun dotenv syntax for export prefixes and inline comments", () => {

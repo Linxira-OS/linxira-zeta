@@ -462,6 +462,22 @@ describe("update-cli npm rename contract", () => {
 		expect(resolveReleaseRename(undefined)).toBeUndefined();
 	});
 
+	it("prefers the zeta.rename pointer over the upstream omp.rename field", () => {
+		expect(
+			resolveReleaseRename({ zeta: { rename: { package: "@zeta/next", natives: "@zeta/natives-next" } } }),
+		).toEqual({ pkg: "@zeta/next", natives: "@zeta/natives-next" });
+		expect(
+			resolveReleaseRename({
+				zeta: { rename: { package: "@zeta/next" } },
+				omp: { rename: { package: "@new/omp", natives: "@new/natives" } },
+			}),
+		).toEqual({ pkg: "@zeta/next", natives: undefined });
+		expect(resolveReleaseRename({ zeta: {}, omp: { rename: { package: "@new/omp" } } })).toEqual({
+			pkg: "@new/omp",
+			natives: undefined,
+		});
+	});
+
 	it("installs renamed package names in lock-step, with no old-name leftovers in the argv", () => {
 		const packages = { pkg: "@new/omp", natives: "@new/natives" };
 
@@ -1160,6 +1176,13 @@ describe("update-cli binary-only release gating", () => {
 	it("honors an explicit omp.dist field from the registry manifest", () => {
 		expect(resolveReleaseDist({ omp: { dist: "binary" } })).toBe("binary");
 		expect(resolveReleaseDist({ omp: { dist: "npm" } })).toBe("npm");
+	});
+
+	it("prefers the zeta.dist field over the upstream omp.dist field", () => {
+		expect(resolveReleaseDist({ zeta: { dist: "binary" } })).toBe("binary");
+		expect(resolveReleaseDist({ zeta: { dist: "npm" } })).toBe("npm");
+		expect(resolveReleaseDist({ zeta: { dist: "binary" }, omp: { dist: "npm" } })).toBe("binary");
+		expect(resolveReleaseDist({ zeta: {}, omp: { dist: "npm" } })).toBe("npm");
 	});
 
 	it("treats unknown dist values as binary-only", () => {

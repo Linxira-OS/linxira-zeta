@@ -17,7 +17,7 @@ import { WebConfig } from "../../src/config/web-config";
 import { invalidateSessionListCache, listAllSessionsWeb } from "../../src/server/web-gateway/sessions";
 import { SessionManager } from "../../src/session/session-manager";
 
-const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "OMP_CODING_AGENT_DIR", "PI_CODING_AGENT_DIR"];
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "ZETA_CODING_AGENT_DIR", "ZETA_CODING_AGENT_DIR"];
 
 describe("gateway session tag mapping", () => {
 	let agentDir: string;
@@ -41,8 +41,7 @@ describe("gateway session tag mapping", () => {
 		cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
 		for (const key of ENV_KEYS) savedEnv.set(key, process.env[key]);
 		process.env.ZETA_CODING_AGENT_DIR = agentDir;
-		process.env.OMP_CODING_AGENT_DIR = agentDir;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.ZETA_CODING_AGENT_DIR = agentDir;
 		refreshDirsFromEnv();
 		invalidateSessionListCache();
 		return agentDir;

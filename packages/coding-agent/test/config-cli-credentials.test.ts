@@ -77,7 +77,7 @@ describe("credential masking reaches every surface", () => {
 describe("config list output", () => {
 	const SECRET = "credential-value-not-for-output";
 	let agentDir: TempDir | undefined;
-	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 	const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 	beforeEach(() => {
@@ -93,7 +93,7 @@ describe("config list output", () => {
 		if (originalAgentDir) setAgentDir(originalAgentDir);
 		else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		if (agentDir) {
 			try {

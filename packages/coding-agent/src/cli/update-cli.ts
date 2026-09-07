@@ -112,18 +112,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Parse the `omp.dist` field from a published package manifest.
+ * Parse the release-dist field from a published package manifest.
  *
  * Forward-compatibility contract with future releases: a release that is not
  * installable as an npm package (e.g. a native rewrite) publishes
- * `"omp": { "dist": "binary" }` in its package.json. Any value other than
- * "npm" — including values this updater does not know yet — maps to "binary"
- * so already-deployed updaters never run a package-manager install against a
- * release that no longer supports it.
+ * `"zeta": { "dist": "binary" }` (or the legacy upstream `"omp": { "dist":
+ * "binary" }`) in its package.json; the Zeta field wins when both are present.
+ * Any value other than "npm" — including values this updater does not know
+ * yet — maps to "binary" so already-deployed updaters never run a
+ * package-manager install against a release that no longer supports it.
  */
 export function resolveReleaseDist(manifest: unknown): ReleaseDist | undefined {
-	if (!isRecord(manifest) || !isRecord(manifest.omp)) return undefined;
-	const dist = manifest.omp.dist;
+	const container =
+		isRecord(manifest) && isRecord(manifest.zeta) && manifest.zeta.dist !== undefined
+			? manifest.zeta
+			: isRecord(manifest)
+				? manifest.omp
+				: undefined;
+	if (!isRecord(container)) return undefined;
+	const dist = container.dist;
 	if (dist === undefined) return undefined;
 	return dist === "npm" ? "npm" : "binary";
 }
@@ -146,8 +153,14 @@ export function resolveReleaseDist(manifest: unknown): ReleaseDist | undefined {
  * "already up to date" against the running build).
  */
 export function resolveReleaseRename(manifest: unknown): ReleaseRename | undefined {
-	if (!isRecord(manifest) || !isRecord(manifest.omp)) return undefined;
-	const rename = manifest.omp.rename;
+	const container =
+		isRecord(manifest) && isRecord(manifest.zeta) && manifest.zeta.rename !== undefined
+			? manifest.zeta
+			: isRecord(manifest)
+				? manifest.omp
+				: undefined;
+	if (!isRecord(container)) return undefined;
+	const rename = container.rename;
 	if (!isRecord(rename) || typeof rename.package !== "string" || rename.package.length === 0) return undefined;
 	const natives = rename.natives;
 	return {
@@ -164,8 +177,9 @@ function majorVersion(version: string): number {
 /**
  * Whether the update must bypass bun/npm and install the release binary.
  *
- * An explicit `omp.dist` wins in both directions. Without one, a release with
- * a higher major than the running build is assumed not npm-installable: the
+ * An explicit release-dist field (`zeta.dist`, falling back to the upstream
+ * `omp.dist`) wins in both directions. Without one, a release with a higher
+ * major than the running build is assumed not npm-installable: the
  * runtime may have changed out from under the package layout, and the pinned
  * `@linxiraos/pi-natives*` companions ({@link buildBunInstallArgs}) may not
  * exist at that version, which would strand bun/npm-managed installs behind a

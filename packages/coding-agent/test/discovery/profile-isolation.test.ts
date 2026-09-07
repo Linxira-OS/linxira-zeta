@@ -23,7 +23,7 @@ import { type Skill, skillCapability } from "@linxiraos/zeta/capability/skill";
 import { type SlashCommand, slashCommandCapability } from "@linxiraos/zeta/capability/slash-command";
 import { loadCapability } from "@linxiraos/zeta/discovery";
 
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 async function writeFile(filePath: string, content: string): Promise<void> {
@@ -70,7 +70,7 @@ describe("native user-level config discovery follows the active profile", () => 
 			setAgentDir(originalAgentDirEnv);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;
