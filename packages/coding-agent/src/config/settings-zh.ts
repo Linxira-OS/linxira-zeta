@@ -980,6 +980,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "Bash 命令执行",
 		description: "启用 bash 工具执行 shell 命令",
 	},
+	"bash.allowCompoundCommands": {
+		label: "允许复合命令",
+		description:
+			"对字面 && 命令链逐段求值；未匹配的命令沿用普通 bash 审批策略与模式",
+	},
 	"bash.autoBackground.enabled": {
 		label: "Bash 自动后台",
 		description: "自动将长时间运行的 bash 命令放入后台，稍后交付结果",
