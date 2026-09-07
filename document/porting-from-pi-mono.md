@@ -1,20 +1,11 @@
 # Porting From pi-mono: A Practical Merge Guide
 
 This guide is a repeatable checklist for porting changes from pi-mono into this repo.
-Use it for any merge: single file, feature branch, or full release sync.
+It covers semantic feature ports on `port/pi/<scope>` branches; full release syncs
+are a different path — a complete non-squash OMP tag merge governed by `AGENTS.md`
+and `document/upstream-sync.md`.
 
-## Last Sync Point (historical upstream marker)
-
-**Commit:** `b21b42d032919de2f2e6920a76fa9a37c3920c0a`
-**Date:** 2026-03-22
-
-Update this section after each sync; do not reuse the previous range. This commit is an upstream pi-mono marker and may not exist in this repo's local object database.
-
-When starting a new sync, generate patches from this commit forward in a pi-mono checkout or remote that contains the commit:
-
-```bash
-git format-patch b21b42d032919de2f2e6920a76fa9a37c3920c0a..HEAD --stdout > changes.patch
-```
+Live baseline: `document/upstream-sync.md`（当前 OMP `v18.1.10`）— this file no longer tracks sync points.
 
 ## 0) Define the scope
 
@@ -195,7 +186,8 @@ Before porting a file, check if upstream significantly refactored it:
 
 ```bash
 # Compare the file you're about to port against what you have locally
-git diff HEAD upstream/main -- path/to/file.ts
+# (contract baseline is the release tag `v<tag>`, not omp-upstream/main)
+git diff HEAD v<tag> -- path/to/file.ts
 ```
 
 If the diff shows the file was **reworked** (not just patched):
@@ -235,7 +227,7 @@ When upstream reworked a module:
 rg "oldConceptName" --type ts
 
 # Compare default values between versions
-git show upstream/main:path/to/file.ts | rg "default|DEFAULT"
+git show v<tag>:path/to/file.ts | rg "default|DEFAULT"
 
 # Check if all enum/union values have handlers
 rg "case \"" path/to/file.ts

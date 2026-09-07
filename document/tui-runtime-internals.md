@@ -5,7 +5,7 @@ This document maps terminal input and rendering ownership in interactive mode. S
 ## Ownership
 
 - **`packages/tui`** owns terminal lifecycle, input normalization, focus, overlays, image protocols, cursor placement, scheduling, explicit history writes, and mutable viewport painting.
-- **`packages/coding-agent`** owns transcript order, block finality, tool allocation, editor/status chrome, and the `TerminalFrameProvider` implementation in `modes/composer.ts`.
+- **`packages/coding-agent`** owns transcript order, block finality, tool allocation, editor/status chrome, the `TerminalFrameProvider` implementation in `modes/composer.ts`, and the sidebar surface `modes/components/sidebar.ts`（SidebarSources 注入：session/todo/plan/subagents/MCP）经 `interactive-mode.ts` 调 `setMainWidth`/`setGutterComponent`.
 
 The terminal core never interprets messages, tools, transcript blocks, or finality.
 
@@ -75,6 +75,7 @@ A provider frame contains two channels:
 interface TerminalFramePlan {
   history?: { id: number; rows: readonly string[] };
   viewport: readonly string[];
+  kind?: "append" | "replay";
 }
 ```
 

@@ -162,7 +162,7 @@ capabilities that its execution environment can actually provide.
 4. Add the CLI desktop launcher and durable client/automation provenance.
 5. Add AppImage packaging and Linux CI artifact validation; keep AUR deferred.
 6. Recompose the workbench visual system and evaluate any multi-chat-pane UX as
-   a separate Zeta design. **Scheduled for v1.1.7** — approved design: migrate
+   a separate Zeta design. **Scheduled for v1.1.10** — approved design: migrate
    the OpenChamber design language (CSS-var token system, full JSON theme
    engine, shadcn-style primitives, icon sprites) and adopt the three-pane
    Codex/ZCode desktop layout (project-grouped sidebar, surface tabs +
@@ -318,36 +318,9 @@ blocks. Remaining:
   if a real `render_svg` tool is ever warranted, follow the surface-scoped
   sink pattern (see Surface-scoped tool exposure contract below).
 
-### P0 — Channel tool sink wiring regression
+- ~~P0 — Channel tool sink wiring regression~~ 已解决（1.1.9）：`sdk.ts` sinks 接线 + 顶层会话门控随 v18.1.10 同步落地。
 
-The v18.0.9 merge dropped the `channelSend`/`workspaceRun`/`imControl` wiring
-from the `toolSession` literal in `sdk.ts` (originally from `3e043195a4`; the
-restore commit re-added the option declarations, `ToolSession` fields,
-factories and `isToolAllowed` gates but not the wiring lines). All three
-channel tools are inert in every session — serve coordinator and bot sessions
-included. `bun run check:ts` cannot see it (optional fields compile clean) and
-no test exercises the tools, so the regression is silent — a new member of the
-post-merge damage class 4 (Zeta-only session-layer drops). Fix: restore the
-three wiring keys, add a contract test (serve coordinator session exposes the
-trio; CLI sessions never do), and gate sink wiring on the channels runtime
-actually being started so a channel-less `zeta serve` never advertises tools
-that fail at call time.
-
-### P1 — pi-vcs restage race: apply-to-index silently no-ops for new files
-
-`GitRepo::stage_hunks` with `HunkSpec::All` on a newly created (untracked)
-file intermittently stages nothing: `apply_patch(cached)` resolves `Ok` but
-the index is unchanged, so a split-commit restage can silently drop a file.
-Reproduced locally at ~40% per run (7/15) with both dev and release addon
-builds on identical source, and 3/3 on CI runners — an upstream-inherited
-nondeterminism present in v18.0.9 and v18.0.10 alike (v18.0.10's only
-pi-vcs change is the `merge_base` addition). Suspect: gix index
-FileSnapshot staleness across separately-opened handles (mtime/size cache
-key) between the staging write and the subsequent cached read. The
-upstream regression test (`issue-966-repro.test.ts`) is quarantined
-`it.skip` until this is fixed — it gates nothing reliably at a 40% trip
-rate. Fix direction: force an index reload (or share one handle) across
-write-then-read restage sequences, then un-skip the test as the guard.
+- ~~P1 — pi-vcs restage race: apply-to-index silently no-ops for new files~~ 已解决：restage race 已修复，`issue-966-repro.test.ts` 隔离解除（文件内已无 skip，恢复为守卫）。
 
 ### P1 — Memory stability track (Windows OOM / render retention)
 
@@ -355,8 +328,8 @@ Background: v18-era Windows crashes — the process commits 64–72 GB until the
 system commit limit breaks, then whichever native thread allocates first
 panics with os error 1455 and the process dies with no traceback
 (`document/v18-gix-status-oom-triage.md` has the full evidence chain). The
-gix status spike is fixed upstream (c901f632fa, shipped in 18.1.1; arrives via
-the v18.1.x sync branch). What remains is Zeta-owned validation and
+gix status spike is fixed upstream (c901f632fa, shipped in 18.1.1; arrived via
+the v18.1.10 sync, PR #8). What remains is Zeta-owned validation and
 self-protection on the Bun 1.4 base (Rust rewrite: mimalloc-backed JSC,
 `process.on("memoryPressure")` on Windows, smaller binaries). Local dev
 machines are already on Bun 1.4 (done out-of-band); the remaining work is
@@ -388,8 +361,9 @@ repo-side:
 6. **Desktop memory visibility**: periodic per-process + aggregate memory
    sampling in `desktop/src/main.ts` boot/heartbeat logging.
 
-Everything lands as Zeta overlay commits after the v18.1.x sync merges, except
-item 1, which is build-infra and can land independently.
+The v18.1.10 sync has merged (PR #8) and rides the 1.1.9 release; everything
+lands as Zeta overlay commits on that baseline, except item 1, which is
+build-infra and can land independently.
 
 ### P1 — Plan mode detail ceiling (length-bound plans)
 
@@ -464,12 +438,6 @@ The plumbing already shipped: `zeta ssh` CLI, the `/ssh` slash command, and
 agent-callable SSH exec tool via `ctx.registerTool` wrapping the retained
 connection manager — no new protocol work needed.
 
-### P2 — Bing search provider (core provider add, not an extension)
-
-`web/search/providers/` has duckduckgo/google/startpage/ecosia/mojeek/public but
-no `bing.ts`. Mirror `duckduckgo.ts` against the `cn.bing.com` endpoint and add
-`bing` to `SEARCH_PROVIDER_OPTIONS` (`web/search/types.ts`). The extension API has
-no `registerSearchProvider`, so this is a core change, not a plugin.
 ### P3 — Vim input mode extension
 
 `pi-vimmode` (github.com/pekochan069/pi-vimmode, npm `pi-vimmode`, install via
@@ -488,52 +456,12 @@ tool, `/background`, `/shake` summary, oracle/plan subagents, `notebook.enabled`
 git context, shimmer, `plan://`, `jobs://`. Each needs its own scoping pass
 before work starts.
 
-### P1 — Web-ui quick model import (OpenAI-compatible `/models` discovery)
-
-ModelsConfig currently requires manual provider/model entry. Add
-`GET /api/models/import?base=<url>` to the web gateway: fetch
-`<base>/models` (OpenAI-compatible listing), parse `data[].id` (+ context
-window where present), merge into `ModelsConfigFile`
-(`~/.zeta/agent/models.yml`), and surface the discovered models in
-ModelsConfig.tsx with context-window + thinking-effort columns. Reuses
-`web-gateway/models.ts` infrastructure (`ModelRegistry`, `ModelsConfigFile`,
-`getSupportedEfforts`).
-
-### P1 — Web-ui open-in-app buttons (terminal / explorer / editor)
-
-Add `POST /api/open` gateway handler: resolve registered apps via `$which`
-(ported from `temp/openchamber`'s Electron logic — `wt.exe`/`pwsh`/`cmd`
-terminal fallback chain, `explorer`/`xdg-open`/`open` file managers, and
-`code`/`cursor`/`codium`/`windsurf`/`zed` editors), spawn against a
-path validated by `allowed-roots`. AppShell top bar gains an "Open" dropdown
-(terminal / file manager / detected editors) plus an "Update" entry that
-checks `getLatestRelease()` (update-cli.ts), downloads the npm/binary release,
-verifies SHA256, and prompts to restart for overwrite install.
-
 ### P1 — Web-ui settings coverage + refresh button
 
 SettingsPanel now renders the full schema (all tabs/groups mirrored from
 `GET /api/settings`). Remaining: wire a "Reload config" button to the existing
 `POST /api/settings/reload` endpoint (built in `web-gateway/settings.ts`, no
 UI caller yet).
-
-### P1 — Stats dashboard iframe bridge
-
-ZetaServer already reverse-proxies `/api/stats` to the stats dashboard but
-serves the dashboard's static SPA only on its direct port. Add a "Stats" tab
-to AppShell rendering `<iframe src={NEXT_PUBLIC_STATS_URL}>`; inject
-`NEXT_PUBLIC_STATS_URL` from ZetaServer via web-ui-launcher (same pattern as
-`ZETA_WEB_PORT`), and start stats unless `statsOnly` (not `webOnly`).
-
-### P2 — Trajectory view (own session trace UI)
-
-A "聊天 / 轨迹" toggle in the chat area re-layouts the existing
-`SessionContext.messages` into a trace view: turn grouping via parentId,
-step cells (user / assistant message with Think + token columns from
-`usage`, tool call/result folded by `toolCallId` with
-`result.timestamp - call.timestamp` duration), inspector panel with raw
-entry JSON and a reconstructed (labeled "重建") prompt view. Pure-function
-`deriveTrajectory` + React components, no DSH dependency.
 
 ### P1 — Mobile remote control (phone-first web access)
 

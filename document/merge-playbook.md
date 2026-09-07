@@ -19,7 +19,8 @@ triage 表、推送门槛）在根 `AGENTS.md`，本文只放操作步骤与工�
    `sync/omp-release/<release>` 分支（优先在隔离 worktree 里），对核实过的 tag
    做真正的 non-squash merge；合并后 `git merge-base --is-ancestor <tag-commit>
    HEAD` 必须成功，证明完整上游 release 已在历史中。
-2. **结构修复。** 处理损伤类别 1–3：`workspaces.catalog` 全部 14 个键对齐 Zeta
+2. **结构修复。** 处理损伤类别 1–3：`workspaces.catalog` 全部 13 个键（14 个发布
+   包含不在 catalog 的 `@linxiraos/zeta-web`）对齐 Zeta
    键名与版本线；npm scope 按"上游包名 → Zeta 发布名"**映射改写**（`omptype` →
    `@linxiraos/pi-omptype`，不是机械 scope 替换）；Cargo workspace 版本 +
    natives 哨兵 + committed bindings 用 `bun scripts/set-version.ts <当前 Zeta
@@ -169,6 +170,7 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 3. 损伤表第 3 类 grep 扫描通过（每个 `@linxiraos/<name>` import 都能在
    `workspaces.catalog`/npm 找到）
 4. `bun scripts/brand/brand-check.ts` 归零（exit 0）
+5. 动过 `crates/` 时 `cargo fmt --all --check` 归零（品牌缩短会让 rustfmt 折叠决策翻转——v18.1.10 第 8 类损伤）
 
-四关全绿才允许 push。 Feature Branch Workflow 的 merge-main-into-branch 前置
+五关全绿才允许 push。 Feature Branch Workflow 的 merge-main-into-branch 前置
 步骤照旧执行。

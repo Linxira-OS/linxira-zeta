@@ -68,12 +68,12 @@ Consequence: precedence and deduplication are **name-based only**. Two different
 
 ### Native provider (`builtin.ts`)
 
-Loads `.omp` rules from:
+Loads `.zeta` rules from:
 
 - project rules: `<cwd>/.zeta/rules/*.{md,mdc}` when the cwd's `.zeta/` directory is non-empty
 - user rules: `<active-native-agent-dir>/rules/*.{md,mdc}`
 - sticky user rule: `<active-native-agent-dir>/RULES.md`
-- sticky project rule: `RULES.md` from the nearest non-empty `.zeta/` directory selected while walking from cwd toward the repository root; OMP does not continue farther when that directory lacks the file
+- sticky project rule: `RULES.md` from the nearest non-empty `.zeta/` directory selected while walking from cwd toward the repository root; Zeta does not continue farther when that directory lacks the file
 
 The active native agent directory is `~/.zeta/agent` by default, follows named profiles, and honors `PI_CODING_AGENT_DIR`.
 
@@ -146,7 +146,7 @@ Loads `*.instructions.md` recursively from:
 - project: `<cwd>/.github/instructions/`
 - user: `<dir>/.github/instructions/` for every directory in the comma-separated `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`
 
-The filename without `.instructions.md` is the rule name. Shared Markdown parsing still recognizes normal OMP rule metadata, including TTSR fields. GitHub's `applyTo` is additionally normalized as follows:
+The filename without `.instructions.md` is the rule name. Shared Markdown parsing still recognizes normal Zeta rule metadata, including TTSR fields. GitHub's `applyTo` is additionally normalized as follows:
 
 - a comma-separated string (or tolerated YAML array) becomes `globs`;
 - `*`, `**`, or `**/*` makes the rule always-apply and clears `globs`;

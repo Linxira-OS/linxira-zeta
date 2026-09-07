@@ -5,8 +5,9 @@ step 6). This document is the source of truth for details; `roadmap.md`
 carries only the schedule pointer. Amend sections in place — never rewrite
 the whole document.
 
-Status: plan approved 2026-08-29. Branch `feat/web-ui-modern`, based on
-`main` after the OMP v18.0.10 sync (PR #5) lands.
+Status: plan approved 2026-08-29. Remaining steps (3-10) land on fresh
+`feat/<scope>` branches off current `main`（OMP v18.1.10 / 1.1.9 基线），
+per the feature-branch workflow.
 
 ## 0. Decisions (locked with user)
 
