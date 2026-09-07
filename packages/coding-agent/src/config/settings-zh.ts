@@ -982,8 +982,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"bash.allowCompoundCommands": {
 		label: "允许复合命令",
-		description:
-			"对字面 && 命令链逐段求值；未匹配的命令沿用普通 bash 审批策略与模式",
+		description: "对字面 && 命令链逐段求值；未匹配的命令沿用普通 bash 审批策略与模式",
 	},
 	"bash.autoBackground.enabled": {
 		label: "Bash 自动后台",
