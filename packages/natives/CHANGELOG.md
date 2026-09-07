@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- OMP v18.1.11 sync baseline (`e3106be68f`); no package-specific user-visible changes.
+
 ## [1.1.9] - 2026-09-05
 
 - v18.1.10 baseline: new Rust edit engine surface (EditStore/EditSession/DiffStream, editDescription) and hashline mode consolidated into crates/pi-edit; sentinel stays on the Zeta version line.

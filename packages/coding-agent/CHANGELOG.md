@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- OMP v18.1.11 sync baseline (`e3106be68f`): `retry.waitForUsageReset` — when a provider reports usage-limit exhaustion with a reset time (5-hour or weekly quota windows), the session sleeps until the reset instead of failing fast past `retry.maxDelayMs`; opt-in `bash.allowCompoundCommands` approval evaluates conservative literal `&&` chains per segment (requires a POSIX-quoting shell; whole-chain denies take precedence over earlier prompts).
+
+### Fixed
+
+- Oversized selected lines that cannot fit after read context are reported with a working raw recovery selector instead of a looping continuation hint.
+- WorkPool child sessions no longer crash during startup while constructing their incremental `yield` tool schema.
+- Commit summaries written in Vietnamese, Korean, and other accented scripts are no longer rejected for exceeding the length limit, and keep their accents as typed.
+- Transient gateway stream failures are retried instead of surfacing as session errors; range continuation is preserved across read truncation.
+- zh translations added for the restored `retry.waitForUsageReset` and `bash.allowCompoundCommands` settings.
+
 ## [1.1.9] - 2026-09-05
 
 ### Added

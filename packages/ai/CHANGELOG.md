@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- GitHub Copilot sign-in now requests only basic profile access, restoring login for Enterprise organizations that reject repository, gist, and Codespaces permissions.
+- Transient gateway stream failures are now retried instead of surfacing as session errors.
+
 ## [1.1.9] - 2026-09-05
 
 - Z.ai OAuth key name sends zeta (merge restored the upstream oh-my-pi literal in tests); xAI/OpenAI-compatible requests send the zeta User-Agent again.

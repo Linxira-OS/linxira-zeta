@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- OMP v18.1.11 sync baseline (`e3106be68f`); no package-specific user-visible changes.
+
 ## [1.1.9] - 2026-09-05
 
 - Sidebar gutter: provider-render frames now honor the reserved main width and paint the right gutter column (sidebar was dead code in production since the frame-provider refactor); overlay close clears the painted column.

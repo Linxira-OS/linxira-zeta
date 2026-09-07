@@ -1,5 +1,25 @@
 # Zeta 更新日志
-## 下一版本（Unreleased）
+## 1.1.10（2026-09-07）
+
+### OMP 同步基线
+
+- v18.1.11（tag commit `e3106be68f`）完整真合并（PR #9，`sync/omp-release/v18.1.11`）。
+
+### 新增
+
+- `retry.waitForUsageReset`：服务商报告用量耗尽并给出重置时间（5 小时 / 每周配额窗口）时，会话休眠至重置时刻，而不是超过 `retry.maxDelayMs` 后快速失败；等待可中断（Esc），但会挂起子代理。
+- `bash.allowCompoundCommands`（可选开关）：对保守的字面量 `&&` 命令链逐段评估审批规则；要求已识别的 POSIX 引号语义 shell，整链 deny 优先于先前的 prompt，未匹配段沿用常规 bash 审批策略与模式。
+
+### 修复
+
+- 超长选中行无法放入读取上下文时，给出可用的 raw 恢复 selector，而不是无限循环的续读提示。
+- WorkPool 子会话启动时构造增量 `yield` 工具 schema 不再崩溃。
+- 越南语、韩语等带音调文字的 commit 摘要不再因长度上限被拒，且保留原样音调。
+- 瞬态网关流失败重试，不再作为会话错误抛出；`extractRetryHint` 竞争信号按最长窗口合并。
+- GitHub Copilot 登录只申请基础 profile 权限，恢复被拒绝 repo/gist/Codespaces 权限的企业组织登录。
+- v18.1.11 合并损伤清零：复合命令审批功能（`shell-tokenize.ts`/`isPosixShell`/schema/bash.ts）与 zh 翻译（`retry.waitForUsageReset`/`bash.allowCompoundCommands`）在合并适配中被回卷，已逐项恢复并测试。
+
+### 历史（1.1.9）
 
 ### OMP 同步基线
 
