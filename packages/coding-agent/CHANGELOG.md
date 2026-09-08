@@ -2,13 +2,14 @@
 
 ## [Unreleased]
 
+## [1.1.11] - 2026-09-08
+
 ### Added
 
 - Muse Code provider support end to end: subscription sign-in with credential refresh, inference, live account-scoped model discovery, and quota reporting in `/usage` with durable rate-limit backoff; Muse Code sessions send a compact hashline edit description (~3 KB less per request), all other providers keep the full prompt.
 
 ### Changed
 
-- Ranged reads of text without bracket characters skip unnecessary lexical context scanning.
 - The startup update notice now counts every change in a release: bullets above a `###` heading count under Other, `+`/`*` markers and lightly indented bullets count like `-`, and standalone `* * *` / `- - -` separator lines no longer count as changes.
 
 ### Fixed
@@ -29,6 +30,7 @@
 ### Added
 
 - OMP v18.1.12 sync baseline: `memory://` now resolves against the session that issued it: a caller's own memory backend answers `memory://<id>`, so co-located sessions no longer read each other's memory rows, and a caller whose session is no longer live fails closed instead of being answered by a peer. Prompt completion binds to the same caller, so `memory://<memory-id>` stays on offer while a subagent shares the working directory. Advisors retain their owning session's memory access even without a session file.
+- OMP v18.1.11 sync baseline (`e3106be68f`): `retry.waitForUsageReset` — when a provider reports usage-limit exhaustion with a reset time (5-hour or weekly quota windows), the session sleeps until the reset instead of failing fast past `retry.maxDelayMs`; opt-in `bash.allowCompoundCommands` approval evaluates conservative literal `&&` chains per segment (requires a POSIX-quoting shell; whole-chain denies take precedence over earlier prompts).
 
 ### Changed
 
@@ -43,13 +45,6 @@
 - Fixed fullscreen `/copy` outlining only a lazily created grouped Read card, so Enter copies the assistant yield instead of tool output.
 - Fullscreen `/copy` now opens on the recent tail of the branch instead of replaying the whole session, so it appears immediately and steps without lag on long sessions (`a` loads the earlier turns). Both it and the esc-esc rewind selector also cache each transcript row set instead of re-stripping it every frame.
 - Fixed the fullscreen `/copy` and esc-esc rewind selectors repainting the whole frame for a wheel notch that cannot move the viewport; because both open scrolled to the newest turn, wheeling down there made the frame twitch.
-
-### Added
-
-- OMP v18.1.11 sync baseline (`e3106be68f`): `retry.waitForUsageReset` — when a provider reports usage-limit exhaustion with a reset time (5-hour or weekly quota windows), the session sleeps until the reset instead of failing fast past `retry.maxDelayMs`; opt-in `bash.allowCompoundCommands` approval evaluates conservative literal `&&` chains per segment (requires a POSIX-quoting shell; whole-chain denies take precedence over earlier prompts).
-
-### Fixed
-
 - Oversized selected lines that cannot fit after read context are reported with a working raw recovery selector instead of a looping continuation hint.
 - WorkPool child sessions no longer crash during startup while constructing their incremental `yield` tool schema.
 - Fixed `todo` and other tools called through eval rejecting optional `None`/`null` arguments that direct tool calls accept.

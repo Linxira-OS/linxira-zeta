@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.11] - 2026-09-08
+
 ### Added
 
 - Muse Code subscription sign-in, credential refresh, inference, and quota reporting in `/usage`, with durable rate-limit backoff so quota refresh recovers instead of repeatedly retrying.
@@ -11,6 +13,19 @@
 - Reasoning-off requests (e.g. GitHub Copilot `gpt-6-astra`) no longer surface `400 Unsupported value: 'none'`: the reasoning-effort fallback now recognizes `Supported values` phrasing and retries at the lowest allowed effort.
 - Cursor GPT off-tier requests no longer send raw `-none` sibling ids (e.g. `gpt-5.6-sol-none-fast`), which the Run endpoint rejects; they normalize to the base model id with no reasoning parameter.
 - Fixed Codex compaction timeouts triggering prolonged retries instead of advancing to the next compaction method.
+
+## [1.1.10-omp18.1.12] - 2026-09-06
+
+### Added
+
+- Added Muse Code subscription sign-in, credential refresh, inference, and quota reporting in `/usage`, with durable rate-limit backoff so quota refresh recovers instead of repeatedly retrying.
+
+## [1.1.10-omp18.1.11] - 2026-09-05
+
+### Fixed
+
+- Fixed OpenCode Go usage polls (`GET /zen/go/v1/usage`) missing `x-opencode-session` and omp's `User-Agent`: background polls now attribute with the stable install id so the requests OpenCode flags as `Bun fetch` carry the required session header.
+- GitHub Copilot sign-in now requests only basic profile access, restoring login for Enterprise organizations that reject repository, gist, and Codespaces permissions ([#10656](https://github.com/can1357/oh-my-pi/issues/10656)).
 
 ## [1.1.10] - 2026-09-07
 
@@ -34,18 +49,6 @@
 ### Fixed
 
 - Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
-## [1.1.10-omp18.1.12] - 2026-09-06
-
-### Added
-
-- Added Muse Code subscription sign-in, credential refresh, inference, and quota reporting in `/usage`, with durable rate-limit backoff so quota refresh recovers instead of repeatedly retrying.
-
-## [1.1.10-omp18.1.11] - 2026-09-05
-
-### Fixed
-
-- Fixed OpenCode Go usage polls (`GET /zen/go/v1/usage`) missing `x-opencode-session` and omp's `User-Agent`: background polls now attribute with the stable install id so the requests OpenCode flags as `Bun fetch` carry the required session header.
-- GitHub Copilot sign-in now requests only basic profile access, restoring login for Enterprise organizations that reject repository, gist, and Codespaces permissions ([#10656](https://github.com/can1357/oh-my-pi/issues/10656)).
 
 ## [1.1.1] - 2026-08-25
 

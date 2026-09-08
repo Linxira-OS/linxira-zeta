@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.11] - 2026-09-08
+
 ### Fixed
 
 - `extractMarkdownLinks()` returns one-row visible labels for formatted and multiline links, so `/copy` link captions no longer show Markdown delimiters or split across two rows.

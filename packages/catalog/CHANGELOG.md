@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.11] - 2026-09-08
+
 ### Added
 
 - Added Muse Code as a provider with Muse Spark models and live account-scoped discovery; subscriptions resolve a compact edit-prompt variant, cutting recurring per-request tool bytes without touching other providers. Added Meta's `max` reasoning effort tier to Muse Spark 1.3 (standard) on the Meta Model API and Muse Code.
