@@ -25,7 +25,7 @@ import { runChangelogFixer } from "./fix-changelogs";
  * X.Y.Z`) so CI's release-run concurrency group and selectLatestZetaTag both
  * match.
  */
-import { normalizeLockfileVersion } from "./gen-nix-bun";
+import { generateNixBunDeps, normalizeLockfileVersion } from "./gen-nix-bun";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
 // All published packages ride the release version in lock-step.
@@ -380,17 +380,37 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	await $`sd 'badge/zeta-[0-9.]+-' ${`badge/zeta-${version}-`} README.md`;
 	console.log(`  README badge: zeta-${version}`);
 
-	// Step 5: regenerate lockfile and verify.
-	console.log("Regenerating lockfile...");
-	await $`rm -f bun.lock`;
-	await $`bun install`;
+	// Step 5: regenerate lockfile and verify. The install runs with the
+	// canonical npmjs registry — a local mirror override (e.g. ~/.npmrc
+	// registry=npmmirror.com) would otherwise leak mirror URLs into the
+	// committed lockfile and break the flake's bun2nix diff (v1.1.10 sync).
+	console.log("Regenerating lockfile (registry pinned to npmjs.org)...");
+	await $`rm -f bun.lock`.env({ ...process.env, npm_config_registry: "https://registry.npmjs.org/" });
+	await $`bun install`.env({ ...process.env, npm_config_registry: "https://registry.npmjs.org/" });
 	// bun 1.4+ writes lockfileVersion 2, but bun2nix (the flake's bun.lock
 	// consumer) hard-requires v1 — and Bun's v1→v2 change adds parse-time
 	// strictness only, never content. Restamp so the flake check stays green.
 	const lockPath = "bun.lock";
-	await Bun.write(lockPath, normalizeLockfileVersion(await Bun.file(lockPath).text()));
+	const restamped = normalizeLockfileVersion(await Bun.file(lockPath).text());
+	const registryLeak = [...restamped.matchAll(/registry\.[a-z0-9.-]+/g)]
+		.map(m => m[0])
+		.filter(host => host !== "registry.npmjs.org");
+	if (registryLeak.length > 0) {
+		console.error(
+			`Error: regenerated bun.lock carries non-canonical registry hosts: ${[...new Set(registryLeak)].join(", ")}`,
+		);
+		process.exit(1);
+	}
+	await Bun.write(lockPath, restamped);
 	await $`git add bun.lock`;
 	await verifyLockfile(await readCatalog());
+	// The flake's bun-lock check regenerates nix/bun.nix from bun.lock with
+	// the pinned bun2nix and diffs — a stale file (dependency set or format)
+	// fails the tag run. Regenerate here so the bump commit always carries a
+	// matching nix/bun.nix.
+	console.log("Regenerating nix/bun.nix from bun.lock...");
+	await generateNixBunDeps();
+	await $`git add nix/bun.nix`;
 	console.log();
 
 	// Step 6: changelogs for all published packages.
