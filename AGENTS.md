@@ -83,6 +83,11 @@ live in `document/upstream-sync.md` and `document/porting-from-pi-mono.md`.
 brand-overlay.ts`，脚本已入库）→ 逐 bucket 测试契约 resolve → brand-check 归零
 + 全测试绿 → 归纳回规则表/AGENTS。逐阶段执行细节见 `document/merge-playbook.md`。
 
+**合并审阅规则单页**：`document/merge-review.md` — 合并前 checklist、冲突
+决策记录模板、守卫矩阵；Zeta-only 代码哨兵见 `scripts/brand/zeta-sentinels.ts`
+（`bun scripts/check-zeta-sentinels.ts`，CI check job 强制，AGENTS.md 必须链接
+此文件——该链接本身被检查）。
+
 ## Zeta Brand Surface Registry (merge-protected)
 
 Zeta owns its product brand surface. Each upstream OMP merge must re-check

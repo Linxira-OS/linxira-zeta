@@ -123,7 +123,17 @@ function main(): void {
 	const desktopVersion = readVersion("desktop/package.json");
 	if (desktopVersion !== expected) problems.push(`desktop/package.json: ${desktopVersion} != ${expected}`);
 
-	// CHANGELOG structure: each package keeps only the Zeta version line — no
+	// README badge: the product front door carries the release version
+	// (img.shields.io `badge/zeta-<version>`); a merge that resets it to an
+	// upstream number or forgets the bump must fail here, not in the log only.
+	const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+	const badge = readme.match(/badge\/zeta-([0-9]+\.[0-9]+\.[0-9]+)-/);
+	if (!badge) {
+		problems.push("README.md: no zeta version badge (badge/zeta-<version> shield) found");
+	} else if (badge[1] !== expected) {
+		problems.push(`README.md badge: ${badge[1]} != ${expected}`);
+	}
+
 	// upstream OMP version sections ([15.x]–[18.x]) — and has an
 	// [Unreleased] header (the release preflight enforces non-empty bodies).
 	for (const pkg of ALL_PACKAGES) {
@@ -141,7 +151,7 @@ function main(): void {
 		process.exit(1);
 	}
 	console.log(
-		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + sentinel + desktop + README badge`,
+		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + sentinel + desktop + README badge (verified)`,
 	);
 }
 
