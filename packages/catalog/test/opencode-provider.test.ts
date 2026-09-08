@@ -18,7 +18,7 @@ import {
 	opencodeZenModelManagerOptions,
 } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 import type { ModelSpec } from "@linxiraos/pi-catalog/types";
-import type { FetchImpl } from "@linxiraos/pi-utils";
+import { type FetchImpl, USER_AGENT } from "@linxiraos/pi-utils";
 import { mergePreviousSnapshotModels } from "../scripts/generate-models";
 
 const LIVE_FREE_MODEL_IDS = [
@@ -699,6 +699,26 @@ describe("OpenCode provider discovery", () => {
 			api: "openai-responses",
 			baseUrl: "https://opencode.ai/zen/v1",
 		});
+	});
+
+	test("sends attribution headers on live gateway discovery", async () => {
+		// The gateway requires x-opencode-session from 09/06 and uses it for
+		// optimization; without omp's UA the request arrives as "Bun fetch".
+		for (const makeOptions of [opencodeGoModelManagerOptions, opencodeZenModelManagerOptions]) {
+			const seen: Array<Record<string, string>> = [];
+			const options = makeOptions({
+				apiKey: "test-key",
+				fetch: (async (_input: string | URL | Request, init?: RequestInit) => {
+					seen.push(Object.fromEntries(new Headers(init?.headers).entries()));
+					return modelListResponse(["muse-spark-1.4-contributor"]);
+				}) as typeof fetch,
+			});
+			await options.fetchDynamicModels?.();
+			expect(seen).toHaveLength(1);
+			expect(seen[0]?.["user-agent"]).toBe(USER_AGENT);
+			expect(typeof seen[0]?.["x-opencode-session"]).toBe("string");
+			expect(seen[0]?.["x-opencode-session"]?.length).toBeGreaterThan(0);
+		}
 	});
 
 	test("pins gateway-only muse-spark ids to responses in live discovery (#8957)", async () => {

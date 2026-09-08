@@ -569,12 +569,12 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "extended-context",
 		icon: "expand",
-		description: M.cmdTogglePremiumLongContextWindows,
+		description: M.cmdToggleExtendedContextWindows,
 		acpDescription: M.cmdToggleExtendedContext,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: M.cmdEnablePremiumLongContextWindows },
-			{ name: "off", description: M.cmdUseStandardPricingContextWindows },
+			{ name: "on", description: M.cmdEnableLargerContextWindows },
+			{ name: "off", description: M.cmdUseDefaultOrStandardPricingContextWindows },
 			{ name: "status", description: M.cmdShowExtendedContextStatus },
 		],
 		allowArgs: true,

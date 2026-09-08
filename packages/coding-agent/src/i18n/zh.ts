@@ -2041,7 +2041,7 @@ export const zh = {
 	cmdDumpAcp: "以纯文本返回完整对话记录，并附 LLM 请求 JSON 路径",
 	cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents: "检测并用加权并行子代理修复项目诊断",
 	cmdDropAllThinkingBlocks: "丢弃全部思考块",
-	cmdEnablePremiumLongContextWindows: "启用溢价长上下文窗口",
+	cmdEnableLargerContextWindows: "启用更大的上下文窗口",
 	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: "将本会话移入新 worktree（连同更改）",
 	cmdOpenThisSessionsTraceInTheStatsDashboard: "在统计面板打开本会话追踪",
 	cmdOpentheGitUISplitDiffViewerStagingCommitComposer: "打开 Git 界面（分栏 diff、暂存、提交编辑器）",
@@ -2055,10 +2055,10 @@ export const zh = {
 	cmdShowEveryPhaseandTaskintheHUD: "在 HUD 显示所有阶段与任务",
 	cmdShowExtendedContextStatus: "显示扩展上下文状态",
 	cmdShowPendingMemoryDeltasAwaitingConsolidation: "显示待整合的记忆增量",
-	cmdTogglePremiumLongContextWindows: "切换溢价长上下文窗口",
+	cmdToggleExtendedContextWindows: "切换扩展上下文窗口",
 	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor:
 		"\u5207\u6362 ultra \u8ba1\u5212\u6a21\u5f0f\uff08\u6247\u51fa\u4fa6\u5bdf\u3001\u589e\u91cf\u8ba1\u5212\u5199\u5165\u3001\u6700\u6df1\u51b3\u7b56\u4e0b\u9650\uff09",
-	cmdUseStandardPricingContextWindows: "使用标准计费上下文窗口",
+	cmdUseDefaultOrStandardPricingContextWindows: "使用默认或标准计费上下文窗口",
 	cmdValidateOneFindingwithOMPNativeTools: "用 Zeta 原生工具验证单个发现",
 
 	acPlanDisabledInSettings: "计划：设置中已禁用",
