@@ -2056,7 +2056,7 @@ export interface Messages {
 	cmdDumpAcp: string;
 	cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents: string;
 	cmdDropAllThinkingBlocks: string;
-	cmdEnablePremiumLongContextWindows: string;
+	cmdEnableLargerContextWindows: string;
 	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: string;
 	cmdOpentheGitUISplitDiffViewerStagingCommitComposer: string;
 	cmdOpentheLiveAgentHub: string;
@@ -2069,9 +2069,9 @@ export interface Messages {
 	cmdShowEveryPhaseandTaskintheHUD: string;
 	cmdShowExtendedContextStatus: string;
 	cmdShowPendingMemoryDeltasAwaitingConsolidation: string;
-	cmdTogglePremiumLongContextWindows: string;
+	cmdToggleExtendedContextWindows: string;
 	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor: string;
-	cmdUseStandardPricingContextWindows: string;
+	cmdUseDefaultOrStandardPricingContextWindows: string;
 	cmdValidateOneFindingwithOMPNativeTools: string;
 	cmdDetectAndFixProjectDiagnosticsWithWeightedParallelSubagents: string;
 	cmdMoveThisSessionIntoANewWorktreeChangesIncluded: string;

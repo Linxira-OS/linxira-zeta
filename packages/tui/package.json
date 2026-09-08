@@ -1,41 +1,22 @@
 {
-	"exports": {
-		"./*.js": "./src/*.ts",
-		"./components/*": {
-			"import": "./src/components/*.ts",
-			"types": "./src/components/*.ts"
-		},
-		"./*": {
-			"import": "./src/*.ts",
-			"types": "./src/*.ts"
-		},
-		".": {
-			"import": "./src/index.ts",
-			"types": "./src/index.ts"
-		}
-	},
-	"files": [
-		"src",
-		"README.md",
-		"CHANGELOG.md"
+	"type": "module",
+	"name": "@linxiraos/pi-tui",
+	"version": "1.1.10",
+	"description": "Terminal User Interface library with differential rendering for efficient text-based applications",
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"author": "Stencil Labs, Inc.",
+	"contributors": [
+		"Mario Zechner"
 	],
-	"engines": {
-		"bun": ">=1.3.14"
+	"license": "MIT",
+	"repository": {
+		"directory": "packages/tui",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"type": "git"
 	},
-	"devDependencies": {
-		"kitty-vt-wasm": "catalog:"
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
 	},
-	"dependencies": {
-		"@linxiraos/pi-utils": "catalog:",
-		"@linxiraos/pi-natives": "catalog:"
-	},
-	"scripts": {
-		"test": "bun test --parallel test/*.test.ts",
-		"check:types": "tsgo -p tsconfig.json --noEmit",
-		"check": "tsgo -p tsconfig.json --noEmit"
-	},
-	"types": "./src/index.ts",
-	"main": "./src/index.ts",
 	"keywords": [
 		"tui",
 		"terminal",
@@ -45,22 +26,41 @@
 		"typescript",
 		"cli"
 	],
-	"bugs": {
-		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"scripts": {
+		"check": "tsgo -p tsconfig.json --noEmit",
+		"check:types": "tsgo -p tsconfig.json --noEmit",
+		"test": "bun test --parallel test/*.test.ts"
 	},
-	"repository": {
-		"directory": "packages/tui",
-		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-		"type": "git"
+	"dependencies": {
+		"@linxiraos/pi-natives": "catalog:",
+		"@linxiraos/pi-utils": "catalog:"
 	},
-	"license": "MIT",
-	"contributors": [
-		"Mario Zechner"
+	"devDependencies": {
+		"kitty-vt-wasm": "catalog:"
+	},
+	"engines": {
+		"bun": ">=1.3.14"
+	},
+	"files": [
+		"src",
+		"README.md",
+		"CHANGELOG.md"
 	],
-	"author": "Stencil Labs, Inc.",
-	"homepage": "https://linxira-os.github.io/zeta/",
-	"description": "Terminal User Interface library with differential rendering for efficient text-based applications",
-	"version": "1.1.10",
-	"name": "@linxiraos/pi-tui",
-	"type": "module"
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"import": "./src/index.ts"
+		},
+		"./*": {
+			"types": "./src/*.ts",
+			"import": "./src/*.ts"
+		},
+		"./components/*": {
+			"types": "./src/components/*.ts",
+			"import": "./src/components/*.ts"
+		},
+		"./*.js": "./src/*.ts"
+	}
 }

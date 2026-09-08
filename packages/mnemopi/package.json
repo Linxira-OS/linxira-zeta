@@ -1,81 +1,22 @@
 {
-	"exports": {
-		"./*.js": "./src/*.ts",
-		"./*": {
-			"import": "./src/*.ts",
-			"types": "./src/*.ts"
-		},
-		"./cli": {
-			"import": "./src/cli.ts",
-			"types": "./src/cli.ts"
-		},
-		"./mcp": {
-			"import": "./src/mcp-tools.ts",
-			"types": "./src/mcp-tools.ts"
-		},
-		"./diagnose": {
-			"import": "./src/diagnose.ts",
-			"types": "./src/diagnose.ts"
-		},
-		"./beam": {
-			"import": "./src/core/beam/index.ts",
-			"types": "./src/core/beam/index.ts"
-		},
-		"./core/beam": {
-			"import": "./src/core/beam/index.ts",
-			"types": "./src/core/beam/index.ts"
-		},
-		"./core": {
-			"import": "./src/core/index.ts",
-			"types": "./src/core/index.ts"
-		},
-		".": {
-			"import": "./src/index.ts",
-			"types": "./src/index.ts"
-		}
-	},
-	"files": [
-		"src",
-		"README.md",
-		"CHANGELOG.md"
+	"type": "module",
+	"name": "@linxiraos/pi-mnemopi",
+	"version": "1.1.10",
+	"description": "Local SQLite memory engine for Oh My Pi agents",
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"author": "Can Boluk",
+	"contributors": [
+		"Abdias J"
 	],
-	"engines": {
-		"bun": ">=1.3.14"
+	"license": "MIT",
+	"repository": {
+		"directory": "packages/mnemopi",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"type": "git"
 	},
-	"devDependencies": {
-		"onnxruntime-node": "catalog:",
-		"fastembed": "catalog:",
-		"@types/bun": "catalog:"
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
 	},
-	"peerDependenciesMeta": {
-		"onnxruntime-node": {
-			"optional": true
-		},
-		"fastembed": {
-			"optional": true
-		}
-	},
-	"peerDependencies": {
-		"onnxruntime-node": "1.21.0",
-		"fastembed": "2.1.0"
-	},
-	"dependencies": {
-		"@linxiraos/pi-utils": "catalog:",
-		"@linxiraos/pi-natives": "catalog:",
-		"@linxiraos/pi-catalog": "catalog:",
-		"@linxiraos/pi-ai": "catalog:"
-	},
-	"scripts": {
-		"test": "bun test --parallel",
-		"check:types": "tsgo -p tsconfig.json --noEmit",
-		"check": "tsgo -p tsconfig.json --noEmit"
-	},
-	"bin": {
-		"mnemopi": "src/cli.ts"
-	},
-	"types": "./src/index.ts",
-	"module": "./src/index.ts",
-	"main": "./src/index.ts",
 	"keywords": [
 		"memory",
 		"sqlite",
@@ -83,22 +24,81 @@
 		"embeddings",
 		"mcp"
 	],
-	"bugs": {
-		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	"main": "./src/index.ts",
+	"module": "./src/index.ts",
+	"types": "./src/index.ts",
+	"bin": {
+		"mnemopi": "src/cli.ts"
 	},
-	"repository": {
-		"directory": "packages/mnemopi",
-		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-		"type": "git"
+	"scripts": {
+		"check": "tsgo -p tsconfig.json --noEmit",
+		"check:types": "tsgo -p tsconfig.json --noEmit",
+		"test": "bun test --parallel"
 	},
-	"license": "MIT",
-	"contributors": [
-		"Abdias J"
+	"dependencies": {
+		"@linxiraos/pi-ai": "catalog:",
+		"@linxiraos/pi-catalog": "catalog:",
+		"@linxiraos/pi-natives": "catalog:",
+		"@linxiraos/pi-utils": "catalog:"
+	},
+	"peerDependencies": {
+		"fastembed": "2.1.0",
+		"onnxruntime-node": "1.21.0"
+	},
+	"peerDependenciesMeta": {
+		"fastembed": {
+			"optional": true
+		},
+		"onnxruntime-node": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"fastembed": "catalog:",
+		"onnxruntime-node": "catalog:"
+	},
+	"engines": {
+		"bun": ">=1.3.14"
+	},
+	"files": [
+		"src",
+		"README.md",
+		"CHANGELOG.md"
 	],
-	"author": "Can Boluk",
-	"homepage": "https://linxira-os.github.io/zeta/",
-	"description": "Local SQLite memory engine for Oh My Pi agents",
-	"version": "1.1.10",
-	"name": "@linxiraos/pi-mnemopi",
-	"type": "module"
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"import": "./src/index.ts"
+		},
+		"./core": {
+			"types": "./src/core/index.ts",
+			"import": "./src/core/index.ts"
+		},
+		"./core/beam": {
+			"types": "./src/core/beam/index.ts",
+			"import": "./src/core/beam/index.ts"
+		},
+		"./beam": {
+			"types": "./src/core/beam/index.ts",
+			"import": "./src/core/beam/index.ts"
+		},
+		"./diagnose": {
+			"types": "./src/diagnose.ts",
+			"import": "./src/diagnose.ts"
+		},
+		"./mcp": {
+			"types": "./src/mcp-tools.ts",
+			"import": "./src/mcp-tools.ts"
+		},
+		"./cli": {
+			"types": "./src/cli.ts",
+			"import": "./src/cli.ts"
+		},
+		"./*": {
+			"types": "./src/*.ts",
+			"import": "./src/*.ts"
+		},
+		"./*.js": "./src/*.ts"
+	}
 }

@@ -1,6 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { $which, isRecord } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
+import { PYTHON_PRELUDE } from "@linxiraos/zeta/eval/py/prelude";
 import { disposePyToolBridge, ensurePyToolBridge, registerPyToolBridge } from "@linxiraos/zeta/eval/py/tool-bridge";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 
@@ -61,18 +63,114 @@ describe("Python tool bridge HTTP server", () => {
 				session: "test-session-1",
 				run: "run-1",
 				name: "read",
-				args: { path: "foo.ts", [INTENT_FIELD]: "py prelude" },
+				args: { path: "foo.ts" },
 			});
 			const body = await res.json();
 			expect(res.status).toBe(200);
 			expect(body).toEqual({ ok: true, value: "file body" });
 			expect(calls).toHaveLength(1);
-			// `i` survives the bridge round trip so transcript renderers have a label.
-			expect((calls[0]!.args as Record<string, unknown>)[INTENT_FIELD]).toBe("py prelude");
+			expect(calls[0]!.args).toEqual({ path: "foo.ts", [INTENT_FIELD]: "py prelude" });
 		} finally {
 			unregister();
 		}
 	});
+
+	it("preserves explicit caller intent for tools whose schema does not declare it", async () => {
+		const calls: FakeCall[] = [];
+		const tool = makeFakeTool("inspect", calls, {
+			content: [{ type: "text", text: "done" }],
+		});
+		const session = makeSession(new Map([["inspect", tool]]));
+		const info = await ensurePyToolBridge();
+		const unregister = registerPyToolBridge("explicit-intent-session", "explicit-intent-run", {
+			toolSession: session,
+		});
+		try {
+			const res = await call(info, {
+				session: "explicit-intent-session",
+				run: "explicit-intent-run",
+				name: "inspect",
+				args: { target: "value", [INTENT_FIELD]: "caller supplied" },
+			});
+			expect(await res.json()).toEqual({ ok: true, value: "done" });
+			expect(calls[0]!.args).toEqual({ target: "value", [INTENT_FIELD]: "caller supplied" });
+		} finally {
+			unregister();
+		}
+	});
+	it("keeps Python defaults out of schema-owned intent parameters", async () => {
+		let executions = 0;
+		const constrained = {
+			name: "constrained",
+			label: "constrained",
+			description: "Reports the validated tool-owned parameter",
+			parameters: {
+				type: "object",
+				properties: { i: { type: "string", enum: ["allowed"] } },
+				additionalProperties: false,
+			},
+			async execute(_id: string, args: unknown): Promise<AgentToolResult> {
+				executions++;
+				if (!isRecord(args)) throw new Error("Expected object arguments");
+				return { content: [{ type: "text", text: String(args.i ?? "omitted") }] };
+			},
+		} as unknown as AgentTool;
+		const info = await ensurePyToolBridge();
+		const sessionId = `python-intent-${crypto.randomUUID()}`;
+		const unregister = registerPyToolBridge(sessionId, "run", {
+			toolSession: makeSession(new Map([["constrained", constrained]])),
+		});
+		try {
+			const prelude = PYTHON_PRELUDE.replace(
+				"from __future__ import annotations",
+				"from __future__ import annotations\n__omp_display = lambda *args, **kwargs: None",
+			);
+			const script = `${prelude}
+__omp_run_id__ = "run"
+async def check_intent():
+    print(await tool.constrained())
+    print(await tool.constrained(i=None))
+    print(await tool.constrained(i="allowed"))
+    try:
+        await tool.constrained(i="py prelude")
+    except RuntimeError:
+        print("invalid rejected")
+    else:
+        raise AssertionError("Invalid tool-owned intent reached execution")
+asyncio.run(check_intent())
+`;
+			const child = Bun.spawn([Bun.env.PYTHON ?? ($which("python3") ? "python3" : "python"), "-c", script], {
+				stdin: "ignore",
+				stdout: "pipe",
+				stderr: "pipe",
+				signal: AbortSignal.timeout(10_000),
+				env: {
+					...process.env,
+					PI_TOOL_BRIDGE_URL: info.url,
+					PI_TOOL_BRIDGE_TOKEN: info.token,
+					PI_TOOL_BRIDGE_SESSION: sessionId,
+				},
+			});
+			try {
+				const [exitCode, stdout, stderr] = await Promise.all([
+					child.exited,
+					new Response(child.stdout).text(),
+					new Response(child.stderr).text(),
+				]);
+				expect({ exitCode, stdout: stdout.replaceAll("\r\n", "\n"), stderr }).toEqual({
+					exitCode: 0,
+					stdout: "omitted\nomitted\nallowed\ninvalid rejected\n",
+					stderr: "",
+				});
+				expect(executions).toBe(3);
+			} finally {
+				child.kill();
+				await child.exited;
+			}
+		} finally {
+			unregister();
+		}
+	}, 15_000);
 
 	it("returns ok=false when no session is registered for the given id", async () => {
 		const info = await ensurePyToolBridge();

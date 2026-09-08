@@ -2063,7 +2063,7 @@ export const en = {
 	cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents:
 		"Detect and fix project diagnostics with weighted parallel subagents",
 	cmdDropAllThinkingBlocks: "Drop all thinking blocks",
-	cmdEnablePremiumLongContextWindows: "Enable premium long-context windows",
+	cmdEnableLargerContextWindows: "Enable larger context windows",
 	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: "Move this session into a new worktree, changes included",
 	cmdOpentheGitUISplitDiffViewerStagingCommitComposer: "Open the git UI (split diff viewer, staging, commit composer)",
 	cmdOpentheLiveAgentHub: "Open the live Agent Hub",
@@ -2079,10 +2079,10 @@ export const en = {
 	cmdShowEveryPhaseandTaskintheHUD: "Show every phase and task in the HUD",
 	cmdShowExtendedContextStatus: "Show extended context status",
 	cmdShowPendingMemoryDeltasAwaitingConsolidation: "Show pending memory deltas awaiting consolidation",
-	cmdTogglePremiumLongContextWindows: "Toggle premium long-context windows",
+	cmdToggleExtendedContextWindows: "Toggle extended context windows",
 	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor:
 		"Toggle ultra plan mode (fan-out scouting, incremental plan writes, deepest decision floor)",
-	cmdUseStandardPricingContextWindows: "Use standard-pricing context windows",
+	cmdUseDefaultOrStandardPricingContextWindows: "Use default or standard-pricing context windows",
 	cmdValidateOneFindingwithOMPNativeTools: "Validate one finding with Zeta-native tools",
 	cmdDetectAndFixProjectDiagnosticsWithWeightedParallelSubagents:
 		"Detect and fix project diagnostics with weighted parallel subagents",
