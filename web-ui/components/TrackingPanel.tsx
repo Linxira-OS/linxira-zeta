@@ -80,6 +80,26 @@ export function TrackingPanel({ cwd }: Props) {
     fetchData();
   }, [fetchData]);
 
+  // Live sync: the gateway watches <project>/.zeta/tracking/ and pushes a
+  // lightweight `tracking_changed` notification; re-fetch details on event.
+  // The manual refresh button stays as a fallback.
+  useEffect(() => {
+    if (!cwd) return;
+    const es = new EventSource(
+      `/api/tracking/events?cwd=${encodeURIComponent(cwd)}`,
+    );
+    es.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data) as { type?: string };
+        if (event.type === "tracking_changed") fetchData();
+      } catch {
+        // ignore malformed frames
+      }
+    };
+    // EventSource auto-reconnects on recoverable errors; nothing to do here.
+    return () => es.close();
+  }, [cwd, fetchData]);
+
   // ------------------------------------------------------------------
   // Render helpers
   // ------------------------------------------------------------------

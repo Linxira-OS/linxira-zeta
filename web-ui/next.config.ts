@@ -87,6 +87,7 @@ const nextConfig: NextConfig = {
         { source: "/api/plugins/:path*", destination: `${gateway}/api/plugins/:path*` },
         { source: "/api/web-config/:path*", destination: `${gateway}/api/web-config/:path*` },
         { source: "/api/channels/:path*", destination: `${gateway}/api/channels/:path*` },
+        { source: "/api/tracking/:path*", destination: `${gateway}/api/tracking/:path*` },
         { source: "/api/open/:path*", destination: `${gateway}/api/open/:path*` },
         { source: "/api/update/:path*", destination: `${gateway}/api/update/:path*` },
         { source: "/api/docs/:path*", destination: `${gateway}/api/docs/:path*` },
