@@ -1,7 +1,40 @@
 # Zeta 更新日志
 ## 下一版本（Unreleased）
 
-（空 —— 下一个发布周期在此填写。最近发布：1.1.10，2026-09-07。）
+### OMP 同步基线
+
+- v18.1.13（`a1b254047d`）+ v18.1.14（`daf07999c2`）双 tag 连续真合并（PR #14，`sync/omp-release/v18.1.14`）。首次双 tag 串联合并,方法论沉淀于 `document/merge-playbook.md`。
+
+### 新增
+
+- Muse Code 服务商端到端支持:订阅登录与凭据刷新、推理、账号级模型实时发现、`/usage` 配额上报(限流退避可恢复);Muse Code 会话发送紧凑 hashline 编辑描述(每请求约省 3 KB),其它 provider 保持完整提示。Muse Spark 1.3(标准)新增 Meta `max` 推理档位。
+
+### 变更
+
+- 启动更新通知的变更计数与渲染器对齐:写在 `###` 标题之前的条目计入 Other,`+`/`*` 标记与浅缩进条目照常计数,独立的 `* * *` / `- - -` 分隔线不再误计为变更。
+- 无方括号字符的区间文本读取跳过多余词法上下文扫描。
+
+### 修复
+
+- GPT-6 Astra 开或关 `/extended-context` 都保持文档记载的 1.05M 窗口,显式 per-model `contextWindow` 覆盖依旧优先;Codex Astra 默认 272K、显式覆盖钳制到服务端上限,扩展窗口按文档的 2x 输入 / 1.5x 输出长上下文计费档计费(272K 输入以上),Codex 订阅路由豁免且缓存写入免费;扩展窗口输入不再虚报 128K(922K 输入上限)。
+- 无设置来源时(嵌入式 SDK、启动早期)Extended Context 不再静默启用,默认关闭。
+- 全屏 `/copy` 链接标题不再显示 Markdown 定界符、多行标签不再折成两行;分组 Read 卡片正确框选,Enter 复制助手产出而非工具输出。
+- Ask 自定义答案在粘贴后不再要求重复提交、多选题不再卡住;剪贴板待提交文本被保留,单题多选仍走确认。
+- `/loop` 运行中的转向(steering)改为一次性插话,不再覆盖循环体;只有空闲提交才成为新的循环体。
+- `memory://` 解析回发出调用的会话:调用者自己的 memory 后端应答 `memory://<id>`,同目录会话不再互读 memory 行,调用者会话已死则快速失败;prompt completion 绑定同一调用者。
+- 子代理 `yield` 不再因非严格 OpenAI 兼容后端把可选 `error` 字段填成 `""` 而拒绝合法 `data` 载荷。
+- 推理关闭请求(GitHub Copilot `gpt-6-astra`)不再报 `400 Unsupported value: 'none'`:reasoning-effort 回退现在识别 `Supported values` 措辞并按最低允许档重试。
+- Cursor GPT off-tier 请求不再发送原始 `-none` 兄弟 id(Run 端点拒绝),规范为基础模型 id 且不带推理参数。
+- GitHub Copilot 企业专属模型 id 不再继承其它 provider 的线上路由(如 `gpt-5.6-sol-fast` 把所有请求钉死到 `-none` 兄弟 id)。
+- Codex compaction 超时不再触发长时间重试,正常推进到下一个压缩方式。
+- Herdr 面板通知不再丢失:改经 `herdr notification show` 投递(等待提问或错误响 `request`,回合结束响 `done`),面板 id 或 `herdr` 缺失时回退带内写入。
+- `@` 目录路径补全不再插入尾随空格,Tab/Enter 接受目录后补全保持打开;水平滚轮(触控板双指横滑)不再被解码成纵向滚轮,全屏 selector 不再在手势末尾上下跳动。
+- `filterChildShellEnv` 只在过滤存活的 `process.env`/`Bun.env` 时应用启动环境 provenance,调用者显式传入的 env 用自身 `NODE_ENV` 决定 dotenv 模式。
+
+### Zeta 适配
+
+- 双 tag 合并损伤清零:`/plan-ultra` 命令注册与 i18n `M.*` 描述在冲突解决中被回卷,已逐项恢复并补 i18n 契约测试;v14 新增的 changelog 汇总契约测试(source+test 成对)采纳并 rekey 到 Zeta 1.1.10 版本线;`bun.lock`/`Cargo.lock`/`nix/bun.nix` 三件套对齐(后者连同 npmjs.org URL 规范化一起 regen,消除本地 npmmirror 泄漏)。
+
 
 ## 1.1.10（2026-09-07）
 

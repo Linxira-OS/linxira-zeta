@@ -2,14 +2,11 @@
 
 ## [Unreleased]
 
-## [1.1.10] - 2026-09-07
-## [1.1.10-omp18.1.13] - 2026-09-07
-
 ### Fixed
 
-- Fixed `filterChildShellEnv` applying the omp process's own launch-environment provenance (the pre-dotenv `NODE_ENV` and launcher-owned names read from `/proc/self/environ`) to caller-supplied environment objects; launch provenance now only applies when filtering the live `process.env`/`Bun.env`, and an explicit env resolves its dotenv mode from its own `NODE_ENV`.
+- Fixed `filterChildShellEnv` applying the Zeta process's own launch-environment provenance (the pre-dotenv `NODE_ENV` and launcher-owned names read from `/proc/self/environ`) to caller-supplied environment objects; launch provenance now only applies when filtering the live `process.env`/`Bun.env`, and an explicit env resolves its dotenv mode from its own `NODE_ENV`.
 
-## [1.1.10-omp18.1.11] - 2026-09-05
+## [1.1.10] - 2026-09-07
 
 ### Fixed
 

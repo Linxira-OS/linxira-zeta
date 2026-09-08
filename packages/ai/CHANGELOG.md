@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- Muse Code subscription sign-in, credential refresh, inference, and quota reporting in `/usage`, with durable rate-limit backoff so quota refresh recovers instead of repeatedly retrying.
+
+### Fixed
+
+- Reasoning-off requests (e.g. GitHub Copilot `gpt-6-astra`) no longer surface `400 Unsupported value: 'none'`: the reasoning-effort fallback now recognizes `Supported values` phrasing and retries at the lowest allowed effort.
+- Cursor GPT off-tier requests no longer send raw `-none` sibling ids (e.g. `gpt-5.6-sol-none-fast`), which the Run endpoint rejects; they normalize to the base model id with no reasoning parameter.
+- Fixed Codex compaction timeouts triggering prolonged retries instead of advancing to the next compaction method.
+
 ## [1.1.10] - 2026-09-07
 
 - GitHub Copilot sign-in now requests only basic profile access, restoring login for Enterprise organizations that reject repository, gist, and Codespaces permissions.

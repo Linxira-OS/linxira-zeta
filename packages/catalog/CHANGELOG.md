@@ -2,26 +2,26 @@
 
 ## [Unreleased]
 
-## [1.1.10] - 2026-09-07
-## [1.1.10-omp18.1.12] - 2026-09-06
-
 ### Added
 
-- Added Muse Code as a provider with Muse Spark models and live account-scoped discovery.
-- Muse Code subscriptions now resolve a compact edit-prompt variant, cutting recurring per-request tool bytes without touching other providers.
-- Added Meta's new `max` reasoning effort tier to Muse Spark 1.3 (standard) on the Meta Model API and Muse Code.
+- Added Muse Code as a provider with Muse Spark models and live account-scoped discovery; subscriptions resolve a compact edit-prompt variant, cutting recurring per-request tool bytes without touching other providers. Added Meta's `max` reasoning effort tier to Muse Spark 1.3 (standard) on the Meta Model API and Muse Code.
 
 ### Fixed
 
-- Fixed OpenCode Go/Zen live model discovery (`GET /v1/models`) missing `x-opencode-session` and omp's `User-Agent`: discovery requests now attribute with the stable install id so the requests OpenCode flags as `Bun fetch` carry the required session header.
-	- Fixed GPT-6 Astra requests through GitHub Copilot failing with an unsupported endpoint error ([#10874](https://github.com/can1357/oh-my-pi/pull/10874) by [@xpcmdshell](https://github.com/xpcmdshell)).
-	- Fixed GPT-6 Astra showing as free with a 272K-token window in the OpenAI Codex catalog by applying its documented pricing; `/extended-context` enables the wire-advertised 872K-token maximum ([#10980](https://github.com/can1357/oh-my-pi/pull/10980) by [@H4vC](https://github.com/H4vC)).
-	- Fixed GPT-6 Astra compacting early at a 272K-token window with its full window gated behind `/extended-context`: it now defaults to the documented 1.05M-token window.
-	- Made extended-context catalog rebuilds faster by resolving each model's maximum window once per process ([#11039](https://github.com/can1357/oh-my-pi/pull/11039) by [@H4vC](https://github.com/H4vC)).
+- GPT-6 Astra keeps its documented 1.05M-token window with `/extended-context` on or off; Codex Astra defaults to 272K, clamps explicit context-window overrides to the server-honored ceiling, uses the documented 922K input cap inside the 1.05M total, and bills long-context requests at the documented 2x input / 1.5x output tier above 272K input (Codex subscription route exempt with free cache writes).
+- Fixed GitHub Copilot enterprise-only model ids inheriting another provider's wire routing (e.g. `gpt-5.6-sol-fast` pinning every request to the `-none` sibling id regardless of thinking level).
+- Extended-context catalog rebuilds resolve each model's maximum window once per process.
 
-## [1.1.10-omp18.1.9] - 2026-09-04
+## [1.1.10] - 2026-09-07
 
-- OMP v18.1.11 sync baseline (`e3106be68f`); no package-specific user-visible changes.
+### Added
+
+- Muse Code provider baseline from the v18.1.12 sync: provider registration, Spark models, live discovery, `max` reasoning tier.
+
+### Fixed
+
+- Fixed OpenCode Go/Zen live model discovery missing `x-opencode-session` attribution: discovery requests carry the stable install id so requests flagged as `Bun fetch` get the required session header.
+- Fixed GPT-6 Astra requests through GitHub Copilot failing with an unsupported endpoint error.
 
 ## [1.1.9] - 2026-09-05
 

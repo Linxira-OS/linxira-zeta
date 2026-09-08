@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- Muse Code provider support end to end: subscription sign-in with credential refresh, inference, live account-scoped model discovery, and quota reporting in `/usage` with durable rate-limit backoff; Muse Code sessions send a compact hashline edit description (~3 KB less per request), all other providers keep the full prompt.
+
+### Changed
+
+- Ranged reads of text without bracket characters skip unnecessary lexical context scanning.
+- The startup update notice now counts every change in a release: bullets above a `###` heading count under Other, `+`/`*` markers and lightly indented bullets count like `-`, and standalone `* * *` / `- - -` separator lines no longer count as changes.
+
+### Fixed
+
+- GPT-6 Astra keeps its documented 1.05M-token window with `/extended-context` on or off; explicit per-model `contextWindow` overrides still win. Codex Astra defaults to 272K and clamps explicit overrides to the server-honored ceiling; the extended window bills at the documented 2x input / 1.5x output long-context tier above 272K input, while the Codex subscription route stays exempt with free cache writes.
+- Fixed Extended Context silently enabling without a settings source (SDK embedding, early boot); it now matches the off default until opted in.
+- Fixed fullscreen `/copy` link captions showing Markdown delimiters for formatted labels and splitting across two rows for multiline labels; it also outlines grouped Read cards correctly so Enter copies the assistant yield.
+- Fixed Ask custom answers requiring another submission after paste or stalling on multi-select questions; pending clipboard text is preserved, single-question multi-select still goes through review.
+- Fixed `/loop` replacing the repeating prompt with a mid-turn interjection: steering while the agent runs is one-off, and only an idle submission becomes the new loop body.
+- `memory://` resolves against the session that issued it: a caller's own memory backend answers `memory://<id>`, co-located sessions no longer read each other's memory rows, and a dead caller fails closed; prompt completion binds to the same caller.
+- Subagent `yield` no longer rejects a valid `data` payload when a non-strict OpenAI-compatible backend fills the optional `error` field with `""`.
+- Zeta merge adaptation: the `/plan-ultra` command and its registry entry, plus localized slash-command descriptions, are guarded against being dropped by upstream merges (i18n contract test now enforces M.* keys).
+
 ## [1.1.10] - 2026-09-07
 
 - Fixed edit and write results to report the formatted bytes actually committed by LSP writethrough.
