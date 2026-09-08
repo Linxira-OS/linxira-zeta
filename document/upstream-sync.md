@@ -22,6 +22,19 @@
   - brush-core stop detection: `ChildProcess::wait` relied on a tokio SIGCHLD stream that misses signals arriving before registration — a pipeline stage that SIGSTOPs during later-stage spawning stalled `run_string` forever on loaded GH-hosted runners (fast local/upstream machines always win the race, so the upstream test never showed it). Fix in the vendored fork: `waitid` scoped to the caller's pid (`Id::Pid`, no cross-child event consumption) + one entry probe for already-pending stops (`processes.rs`, `sys/unix/signal.rs` incl. macOS shim, `sys/stubs/signal.rs`), regression test `wait_observes_a_stop_that_precedes_the_wait` verified red (5s timeout) without the entry probe and green with it. Upstream test files untouched. Run 3 confirmed on CI: Rust tests + all three clippy scopes green for the first time post-merge.
   - rustfmt collapse flip (damage class #8): the brand replacement shortened `"oh-my-pi"`→`"zeta"`, pulling `pi-vcs/git/mutate.rs`'s `SignatureRef` literal back under `max_width`, so the final `Rustfmt` step (never reached by runs 1–2, skipped on PRs entirely) failed `pi-vcs.rustfmt.ok`. Fixed by `cargo fmt --all`; workspace-wide check reports zero further offenders.
 
+## v18.1.13 + v18.1.14 (Zeta — merged as PR #14, dual-tag serial merge)
+
+- **Baseline**: v18.1.10 (`f241301c8372`, Zeta `e325c888d9`)
+- **Source tags**: `v18.1.13` (peeled `a1b254047d12e143b7c6011536e918c6c35c5906`) merged first, then `v18.1.14` (peeled `daf07999c2fee9b22edc7bf8fea1fb6272e0df5e`) on the same `sync/omp-release/v18.1.14` branch; both verified via `git ls-remote --tags omp-upstream`, both ancestor-checked in HEAD.
+- **Merge commits**: `711d230673` (v13, two-parent) → `e522237bb0` (v14, two-parent on top).
+- **Zeta adaptation commits**: scope rewrite + version line 1.1.10 + brand overlay + i18n/tool-schema contracts + changelog rekey + idle-compaction async-wake guard; methodology in `document/merge-playbook.md` §双 tag 连续合并方法论.
+- **CI rounds and damage found**:
+  - Round 1: `bun install --frozen-lockfile` dead in every job (damage class 1 fingerprint) — merged `bun.lock` carried duplicate workspace keys + stale catalog; regen fixed it.
+  - Round 2: three damage sites: (a) conflict resolution had dropped the Zeta-only `/plan-ultra` registry entry and reverted Zeta i18n `M.*` descriptions to upstream hardcoded strings (class 4, detector: `plan-ultra.test.ts` + `i18n-slash-commands.test.ts`); (b) v14's new `changelog-summary.test.ts` (lexer contract) was silently dropped in a delete/modify resolve (class 4/6 — "tests are contract" violation), and its companion source change (`summarizeChangelogEntries` lexer rewrite) was missing; (c) `Cargo.lock` stale vs v14 manifests (`cargo fetch --locked` / `cargo-deny --locked` red). Fixed: restored registry from main baseline, adopted the v14 test+source pair wholesale with the shipped-notes contract rekeyed to the Zeta 1.1.10 line, consolidated the duplicate `1.1.10` changelog sections (omp18.1.x sync bodies folded in, one uncategorized bullet kept above the headings per the contract), `cargo update` + committed lock.
+  - Round 3: Zeta Nix `bun-lock` check red — the merge had also pulled the **upstream OMP `nix/bun.nix`** back in (old bun2nix format without `name =`, OMP dependency set incl. the removed oxfmt/oxlint), plus locally regenerated `bun.lock` carried `registry.npmmirror.com` URLs from the local mirror config. Fixed by regenerating `nix/bun.nix` with the pinned bun2nix 2.1.2 from the Zeta `bun.lock` and normalizing lock URLs back to npmjs.org.
+  - Round 4: CI 20/20 + Zeta Nix green → merged as PR #14 (`caef3818cc`).
+- **New standing rule** (from this sync): `nix/bun.nix` is Zeta-owned release surface — after any `bun.lock` change, regen with `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix` (bun2nix 2.1.2, same rev as flake.lock) and normalize lock registry URLs to npmjs.org before pushing; the flake's `bun-lock` check is the detector.
+
 ## OMP Release Sync Policy
 
 - Only OMP official release tags are integrated (see AGENTS.md). Never raw commits or `omp-upstream/main`.
@@ -30,5 +43,5 @@
 
 ## Current Baselines
 
-- OMP: `v18.1.10` (fetched tag `f241301c83726afe75a847e919b89977a54dafbe`)
-- Zeta: `1.1.9` (tag on `main`; release run in flight at the time of the brush-core stop-detection repair), version line holds across 14 published `@linxiraos/*` packages.
+- OMP: `v18.1.14` (peeled tag `daf07999c2fee9b22edc7bf8fea1fb6272e0df5e`; v13 `a1b254047d` also in history via the dual-tag serial merge)
+- Zeta: `1.1.10` (version line holds across the published `@linxiraos/*` packages; release tag pending)
