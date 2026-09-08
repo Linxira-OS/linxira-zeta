@@ -5,6 +5,8 @@ on:
       branches: [main]
       paths:
          - "packages/**"
+         - "desktop/**"
+         - "web-ui/**"
          - "crates/**"
          - "scripts/**"
          - "bazel/**"
@@ -34,6 +36,8 @@ on:
       branches: [main]
       paths:
          - "packages/**"
+         - "desktop/**"
+         - "web-ui/**"
          - "crates/**"
          - "scripts/**"
          - "bazel/**"
@@ -476,6 +480,165 @@ jobs:
               OMP_INSTALL_TEST_SKIP_NATIVE_BUILD: "1"
            run: bun run ci:test:install-methods
 
+   # Desktop shells (Electron embedding the standalone web-ui + a compiled
+   # zeta runtime). They run on every CI event like the test fan-out: PR-side
+   # they prove the pipeline compiles and smokes; at release the artifacts
+   # feed release_github as installer assets. Linux/Windows reuse the
+   # native_addons artifact; macOS builds its own addon (no cross-hosted
+   # darwin artifact) from the same warm bazel scope as release_binary_hosted.
+   desktop_linux:
+      name: Build and smoke desktop (Linux)
+      runs-on: ubuntu-22.04
+      needs: [native_addons]
+      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      timeout-minutes: 40
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+         - uses: ./.github/actions/bun-install
+         - uses: ./.github/actions/native-artifacts
+           with:
+              targets: linux-x64-baseline linux-x64-modern
+         - name: Install Web UI dependencies
+           working-directory: web-ui
+           run: npm ci
+         - name: Install desktop dependencies
+           working-directory: desktop
+           run: npm ci
+         - name: Test desktop platform contracts
+           working-directory: desktop
+           run: npm test
+         - name: Build Linux desktop artifact
+           working-directory: desktop
+           run: npm run dist
+         - name: Smoke Linux desktop artifact
+           run: |
+              set -euo pipefail
+              app_dir="$(find temp/desktop/release -mindepth 1 -maxdepth 1 -type d -name 'zeta-desktop-*-linux-x64' -print -quit)"
+              test -n "$app_dir"
+              npm --prefix desktop run smoke -- --app "$(realpath "$app_dir")"
+         - name: Upload Linux desktop artifacts
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: zeta-desktop-linux
+              path: |
+                 temp/desktop/release/*.tar.gz
+                 temp/desktop/release/*.deb
+                 temp/desktop/release/*.AppImage
+              if-no-files-found: error
+              retention-days: 1
+
+   desktop_windows:
+      name: Build and smoke desktop (Windows)
+      runs-on: windows-2022
+      needs: [native_addons]
+      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      timeout-minutes: 40
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+         - uses: ./.github/actions/bun-install
+         - uses: ./.github/actions/native-artifacts
+           with:
+              targets: win32-x64-baseline
+         - name: Verify Bun is available to Windows desktop build
+           shell: pwsh
+           run: bun --version
+         - name: Install Web UI dependencies
+           working-directory: web-ui
+           run: npm ci
+         - name: Install desktop dependencies
+           working-directory: desktop
+           run: npm ci
+         - name: Test desktop platform contracts
+           working-directory: desktop
+           run: npm test
+         - name: Build Windows desktop artifact
+           working-directory: desktop
+           # The runner's junctioned profile dirs (C:\Users\runneradmin\
+           # Application Data -> AppData\Roaming) raise EPERM when webpack
+           # walks them during next build. Point the profile vars at empty
+           # dirs so nothing traces through the junctions.
+           env:
+              APPDATA: ${{ runner.temp }}/desktop-profile
+              USERPROFILE: ${{ runner.temp }}/desktop-profile
+              HOME: ${{ runner.temp }}/desktop-profile
+           run: |
+              New-Item -ItemType Directory -Force "$env:APPDATA" | Out-Null
+              npm run dist
+         - name: Smoke Windows desktop artifact
+           shell: pwsh
+           run: |
+              $app = Get-ChildItem temp/desktop/release -Directory | Where-Object Name -Like "zeta-desktop-*-win-x64" | Select-Object -First 1
+              if ($null -eq $app) { throw "Windows desktop artifact not found" }
+              npm --prefix desktop run smoke -- --app $app.FullName
+         - name: Upload Windows desktop artifacts
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: zeta-desktop-win
+              path: |
+                 temp/desktop/release/*.zip
+                 temp/desktop/release/*.exe
+              if-no-files-found: error
+              retention-days: 1
+
+   desktop_mac:
+      name: "Build and smoke desktop (${{ matrix.target_id }})"
+      runs-on: ${{ matrix.os }}
+      needs: [native_addons]
+      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      timeout-minutes: 45
+      strategy:
+         fail-fast: false
+         matrix:
+            include:
+               - { os: macos-15-intel, target_id: darwin-x64, native_targets: darwin-x64-baseline }
+               - { os: macos-14, target_id: darwin-arm64, native_targets: darwin-arm64 }
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+         - uses: ./.github/actions/bun-install
+         # Darwin runners build their own architecture; there is no
+         # cross-hosted artifact for macOS addons.
+         - name: Build native addon (bazel)
+           uses: ./.github/actions/bazel-natives
+           with:
+              targets: ${{ matrix.native_targets }}
+              cache-scope: release-${{ matrix.target_id }}
+         - name: Install Web UI dependencies
+           working-directory: web-ui
+           run: npm ci
+         - name: Install desktop dependencies
+           working-directory: desktop
+           run: npm ci
+         - name: Test desktop platform contracts
+           working-directory: desktop
+           run: npm test
+         - name: Build macOS desktop artifact
+           working-directory: desktop
+           run: npm run dist
+         - name: Smoke macOS desktop artifact
+           run: |
+              set -euo pipefail
+              app_dir="$(find temp/desktop/release -mindepth 1 -maxdepth 1 -type d -name 'zeta-desktop-*-mac-*' -print -quit)"
+              test -n "$app_dir"
+              npm --prefix desktop run smoke -- --app "$(realpath "$app_dir")"
+         - name: Upload macOS desktop artifacts
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: zeta-desktop-mac-${{ matrix.target_id }}
+              path: |
+                 temp/desktop/release/*.dmg
+                 temp/desktop/release/*.zip
+              if-no-files-found: error
+              retention-days: 1
+
    # Aggregates every validation job so publish-side release jobs gate on one
    # result. Binary BUILDS deliberately do not wait for this gate — they run
    # in parallel with the test fan-out and only publishing is held back.
@@ -491,8 +654,11 @@ jobs:
          needs.test_coding_agent_runtime.result == 'success' &&
          needs.test_coding_agent_native.result == 'success' &&
          needs.test_smoke.result == 'success' && needs.check.result == 'success' &&
-         needs.install_methods.result == 'success' }}
-      needs: [release_metadata, check, rust_validate, native_addons, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods]
+         needs.install_methods.result == 'success' &&
+         needs.desktop_linux.result == 'success' &&
+         needs.desktop_windows.result == 'success' &&
+         needs.desktop_mac.result == 'success' }}
+      needs: [release_metadata, check, rust_validate, native_addons, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods, desktop_linux, desktop_windows, desktop_mac]
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4
@@ -796,8 +962,11 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
-         needs.release_binary_hosted.result == 'success' }}
-      needs: [release_metadata, release_gate, release_binary, release_binary_hosted]
+         needs.release_binary_hosted.result == 'success' &&
+         needs.desktop_linux.result == 'success' &&
+         needs.desktop_windows.result == 'success' &&
+         needs.desktop_mac.result == 'success' }}
+      needs: [release_metadata, release_gate, release_binary, release_binary_hosted, desktop_linux, desktop_windows, desktop_mac]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -820,6 +989,13 @@ jobs:
            with:
               pattern: zeta-binary-*
               path: packages/coding-agent/binaries
+              merge-multiple: true
+         # Desktop installers/archives from the three desktop jobs.
+         - name: Download desktop artifacts
+           uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+           with:
+              pattern: zeta-desktop-*
+              path: temp/desktop/release
               merge-multiple: true
          # Dependency-free build (bun APIs + zip only), so no `bun install`
          # is needed on this runner.
@@ -846,6 +1022,11 @@ jobs:
                 echo "::error::Expected at least 6 zeta-cli-* binaries, found $count"
                 missing=1
               fi
+              desktop_count=$(find temp/desktop/release -type f \( -name 'zeta-desktop-*.dmg' -o -name 'zeta-desktop-*.zip' -o -name 'zeta-desktop-*.exe' -o -name 'zeta-desktop-*.deb' -o -name 'zeta-desktop-*.AppImage' -o -name 'zeta-desktop-*.tar.gz' \) 2>/dev/null | wc -l)
+              if [ "$desktop_count" -lt 5 ]; then
+                echo "::error::Expected at least 5 zeta-desktop-* installers/archives (mac dmg+zip per arch, win zip+exe, linux tar.gz+deb/AppImage), found $desktop_count"
+                missing=1
+              fi
               exit $missing
          # Generated after every other release asset is in place and before
          # the release is created, so SHA256SUMS.txt itself ships as an asset
@@ -855,6 +1036,7 @@ jobs:
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
+                temp/desktop/release/zeta-desktop-* \
                 LICENSE \
                 THIRD-PARTY-NOTICES.txt
          - name: Create GitHub Release
@@ -865,11 +1047,10 @@ jobs:
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
+                 temp/desktop/release/zeta-desktop-*
                  LICENSE
                  THIRD-PARTY-NOTICES.txt
                  SHA256SUMS.txt
-              body_path: release-notes.md
-              generate_release_notes: true
 
    release_github_verify:
       name: Verify published release (macOS)
