@@ -57,7 +57,7 @@ describe("omp read MCP resources", () => {
 				...process.env,
 				HOME: root,
 				NO_COLOR: "1",
-				PI_CODING_AGENT_DIR: agentDir,
+				ZETA_CODING_AGENT_DIR: agentDir,
 			},
 		});
 		const stdout = new Response(proc.stdout).text();

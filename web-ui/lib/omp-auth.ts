@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { getOmpAgentDir } from "./file-paths";
+import { getAgentDir } from "./file-paths";
 
 export interface OmpAuthCredential {
   id?: number;
@@ -66,7 +66,7 @@ export function getUsableOmpRuntimeCredentials(): OmpRuntimeCredential[] {
 }
 
 export function getOmpAuthCredentials(): OmpAuthCredential[] {
-  const dbPath = join(getOmpAgentDir(), "agent.db");
+  const dbPath = join(getAgentDir(), "agent.db");
   if (!existsSync(dbPath)) return [];
 
   // Strategy 1: Try better-sqlite3
@@ -110,7 +110,7 @@ export function getOmpAuthCredentials(): OmpAuthCredential[] {
 }
 
 export function saveOmpApiKeyCredential(provider: string, apiKey: string): void {
-  const dbPath = join(getOmpAgentDir(), "agent.db");
+  const dbPath = join(getAgentDir(), "agent.db");
   if (!existsSync(dbPath)) return;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -129,7 +129,7 @@ export function saveOmpApiKeyCredential(provider: string, apiKey: string): void 
 }
 
 export function deleteOmpCredential(provider: string): void {
-  const dbPath = join(getOmpAgentDir(), "agent.db");
+  const dbPath = join(getAgentDir(), "agent.db");
   if (!existsSync(dbPath)) return;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports

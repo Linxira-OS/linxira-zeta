@@ -10,7 +10,7 @@ import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 let tempDir: string;
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 const storage = new FileSessionStorage();
 
@@ -24,7 +24,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	await fs.rm(tempDir, { recursive: true, force: true });
 });
@@ -176,8 +176,8 @@ describe("/resume slash command", () => {
 		await fs.mkdir(xdgOmpDir, { recursive: true });
 
 		const originalXdgData = process.env.XDG_DATA_HOME;
-		const originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
-		delete process.env.PI_CODING_AGENT_DIR;
+		const originalPiCodingAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 		process.env.XDG_DATA_HOME = xdgDataDir;
 		refreshDirsFromEnv();
 
@@ -203,7 +203,7 @@ describe("/resume slash command", () => {
 		} finally {
 			if (originalXdgData !== undefined) process.env.XDG_DATA_HOME = originalXdgData;
 			else delete process.env.XDG_DATA_HOME;
-			if (originalPiCodingAgentDir !== undefined) process.env.PI_CODING_AGENT_DIR = originalPiCodingAgentDir;
+			if (originalPiCodingAgentDir !== undefined) process.env.ZETA_CODING_AGENT_DIR = originalPiCodingAgentDir;
 			refreshDirsFromEnv();
 		}
 	});

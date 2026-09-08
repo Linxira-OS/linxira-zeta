@@ -11,8 +11,8 @@ import { getAgentDir, getConfigRootDir, getPluginsDir } from "@linxiraos/pi-util
 //    that resolve outside the `agent/extensions/` subtree (e.g. an absolute
 //    or `../`-relative entry pointing somewhere else under `~/.zeta/`), plus
 //    the legacy non-XDG `~/.zeta/plugins` tree on hosts without XDG dirs.
-// 2. `getAgentDir()` (`~/.zeta/agent` or `$PI_CODING_AGENT_DIR`)
-//    Handles `PI_CODING_AGENT_DIR` overrides that relocate the agent dir
+// 2. `getAgentDir()` (`~/.zeta/agent` or `$ZETA_CODING_AGENT_DIR`)
+//    Handles `ZETA_CODING_AGENT_DIR` overrides that relocate the agent dir
 //    (and therefore `agent/extensions/`) out from under the config root.
 // 3. `getPluginsDir()` (XDG-aware: `$XDG_DATA_HOME/zeta/plugins` or legacy)
 //    Handles installed plugin extensions that live outside `~/.zeta` when

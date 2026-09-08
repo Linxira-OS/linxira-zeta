@@ -6,7 +6,7 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 const originalAgentDir = getAgentDir();
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 
 let tempDir: TempDir;
 let authStorage: AuthStorage;
@@ -21,8 +21,8 @@ describe("ModelRegistry default custom models config", () => {
 	afterEach(async () => {
 		authStorage.close();
 		setAgentDir(originalAgentDir);
-		if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+		if (originalAgentDirEnv === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+		else process.env.ZETA_CODING_AGENT_DIR = originalAgentDirEnv;
 		await tempDir.remove().catch(() => {});
 	});
 

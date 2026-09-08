@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from "fs";
 import { join, dirname } from "path";
 import yaml from "yaml";
-import { getOmpAgentDir } from "./file-paths";
+import { getAgentDir } from "./file-paths";
 import { getOmpAuthCredentials } from "./omp-auth";
 
 let isAntiGravityInterceptorInstalled = false;
@@ -170,7 +170,7 @@ export interface OmpConfig {
 }
 
 export function readOmpConfig(): OmpConfig {
-  const configPath = join(getOmpAgentDir(), "config.yml");
+  const configPath = join(getAgentDir(), "config.yml");
   if (!existsSync(configPath)) return {};
   try {
     const content = readFileSync(configPath, "utf8");
@@ -181,7 +181,7 @@ export function readOmpConfig(): OmpConfig {
 }
 
 export function readOmpModelsFromDb(): OmpModelItem[] {
-  const dbPath = join(getOmpAgentDir(), "models.db");
+  const dbPath = join(getAgentDir(), "models.db");
   if (!existsSync(dbPath)) return [];
 
   // Strategy 1: Try better-sqlite3 if available
@@ -288,11 +288,22 @@ function inferContextWindow(modelId: string): number {
   return 128000;
 }
 
-export function syncOmpRuntimeModelsJson(agentDir: string = getOmpAgentDir()): string {
+export function syncOmpRuntimeModelsJson(agentDir: string = getAgentDir()): string {
   setupAntiGravityFetchInterceptor();
-  const runtimeModelsPath = join(agentDir, "omp-web-models.json");
+  const runtimeModelsPath = join(agentDir, "zeta-web-models.json");
   const dbPath = join(agentDir, "models.db");
   const modelsJsonPath = join(agentDir, "models.json");
+
+  // One-time migration from the legacy omp-web-models.json name: read the new
+  // name; if absent and the old file exists, rename it (no permanent dual read).
+  const legacyModelsPath = join(agentDir, "omp-web-models.json");
+  if (!existsSync(runtimeModelsPath) && existsSync(legacyModelsPath)) {
+    try {
+      renameSync(legacyModelsPath, runtimeModelsPath);
+    } catch {
+      // ignore rename failure; the file is regenerated below
+    }
+  }
 
   const providers: Record<string, Record<string, unknown>> = {};
 

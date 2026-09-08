@@ -2,7 +2,7 @@
  * Centralized path helpers for zeta config directories.
  *
  * Uses PI_CONFIG_DIR (default ".zeta") for the config root and
- * PI_CODING_AGENT_DIR to override the agent directory.
+ * ZETA_CODING_AGENT_DIR to override the agent directory.
  *
  * On Linux, if XDG_DATA_HOME / XDG_STATE_HOME / XDG_CACHE_HOME environment
  * variables are set, paths are redirected to XDG-compliant locations under
@@ -36,7 +36,7 @@ export const USER_AGENT = `zeta/${VERSION}`;
 export const MIN_BUN_VERSION: string = engines.bun.replace(/[^0-9.]/g, "");
 
 const PROFILE_NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
-const PROFILE_ENV_KEYS = ["OMP_PROFILE", "PI_PROFILE"] as const;
+const PROFILE_ENV_KEYS = ["ZETA_PROFILE"] as const;
 
 /**
  * Names Windows treats as reserved device aliases. Matches the basename
@@ -76,24 +76,21 @@ export function normalizeProfileName(profile: string | undefined): string | unde
 }
 
 /**
- * Resolve the active profile from the two profile env vars. `OMP_PROFILE` is the
- * canonical variable and takes precedence; `PI_PROFILE` is the legacy
- * compatibility fallback, consulted only when `OMP_PROFILE` is undefined. An
- * explicitly-empty `OMP_PROFILE` therefore selects the default profile rather
- * than silently inheriting `PI_PROFILE`. Delegates validation/normalization to
- * {@link normalizeProfileName} (which throws on a syntactically invalid value).
+ * Resolve the active profile from `ZETA_PROFILE`. Delegates
+ * validation/normalization to {@link normalizeProfileName} (which throws on a
+ * syntactically invalid value).
  */
-export function resolveProfileEnv(omp: string | undefined, pi: string | undefined): string | undefined {
-	return normalizeProfileName(omp !== undefined ? omp : pi);
+export function resolveProfileEnv(profile: string | undefined): string | undefined {
+	return normalizeProfileName(profile);
 }
 
 function getProfileFromEnv(): string | undefined {
-	return resolveProfileEnv(process.env.OMP_PROFILE, process.env.PI_PROFILE);
+	return resolveProfileEnv(process.env.ZETA_PROFILE);
 }
 
 /**
  * Module-load profile resolution. Unlike {@link getProfileFromEnv}, an invalid
- * OMP_PROFILE/PI_PROFILE value does NOT throw here — a bad env var must not
+ * ZETA_PROFILE value does NOT throw here — a bad env var must not
  * crash a bare `import` of this module with an uncaught stack trace before the
  * CLI's error handling is in scope. The default profile is used instead; the
  * CLI re-validates the env (see `runCli` in coding-agent/src/cli.ts) so the
@@ -114,14 +111,6 @@ function getBaseConfigRoot(): string {
 function getProfileConfigRoot(profile: string | undefined): string {
 	const root = getBaseConfigRoot();
 	return profile ? path.join(root, "profiles", profile) : root;
-}
-
-function readPiProfileFromEnvSafe(): string | undefined {
-	try {
-		return normalizeProfileName(process.env.PI_PROFILE);
-	} catch {
-		return undefined;
-	}
 }
 
 function getProfileAgentDir(profile: string): string {
@@ -398,14 +387,14 @@ class DirResolver {
 }
 
 /**
- * Decide which `PI_CODING_AGENT_DIR` value to capture as the pre-profile
+ * Decide which `ZETA_CODING_AGENT_DIR` value to capture as the pre-profile
  * baseline. A value equal to a profile's derived agent dir is profile-derived
  * (propagated by a parent's `setProfile`), so it must NOT be snapshotted as the
  * default-mode baseline — otherwise default mode would resolve to the profile's
- * agent dir. The profile source can be the active profile or a lower-priority
- * `PI_PROFILE` that was bypassed because `OMP_PROFILE` explicitly selected the
- * default profile. Returns `undefined` in those cases so reset falls back to the
- * standard `~/.zeta/agent`.
+ * agent dir. The profile source can be the active profile or an inherited
+ * `ZETA_PROFILE` (for example a parent CLI process that resolved a profile
+ * without exporting it). Returns `undefined` in those cases so reset falls back
+ * to the standard `~/.zeta/agent`.
  */
 function resolvePreProfileAgentDir(
 	profile: string | undefined,
@@ -420,14 +409,21 @@ let activeProfile = readProfileFromEnvSafe();
 /**
  * Resolve the agent-dir override for the current `activeProfile` from the live
  * environment. A named profile derives its own agent dir (no override); default
- * mode honors a non-profile `PI_CODING_AGENT_DIR` (see
+ * mode honors a non-profile `ZETA_CODING_AGENT_DIR` (see
  * {@link resolvePreProfileAgentDir}). Shared by the module-load resolver and
  * {@link refreshDirsFromEnv} so both apply identical logic.
  */
 function resolveActiveAgentDirOverride(): string | undefined {
-	return activeProfile
-		? undefined
-		: resolvePreProfileAgentDir(undefined, process.env.PI_CODING_AGENT_DIR, readPiProfileFromEnvSafe());
+	if (activeProfile) return undefined;
+	// A ZETA_CODING_AGENT_DIR pointing under a profile subtree
+	// (`profiles/<name>/agent`) is derived state inherited from a parent that
+	// activated a profile — with a single profile key there is no second env var
+	// to consult, so the directory shape is the only witness. Treat it as absent
+	// for default-mode resolution (and the pre-profile snapshot), or default mode
+	// would silently resolve into a profile's agent dir.
+	const env = process.env.ZETA_CODING_AGENT_DIR;
+	if (env && /[/\\]profiles[/\\][^/\\]+[/\\]agent$/.test(env.replace(/\\/g, "/"))) return undefined;
+	return resolvePreProfileAgentDir(undefined, env);
 }
 
 let dirs = new DirResolver({
@@ -435,21 +431,16 @@ let dirs = new DirResolver({
 	profile: activeProfile,
 });
 /**
- * Snapshot of `PI_CODING_AGENT_DIR` from before the first named-profile
+ * Snapshot of `ZETA_CODING_AGENT_DIR` from before the first named-profile
  * activation. Reset paths restore this value (or its absence) instead of
  * unconditionally deleting the env var. Without the snapshot, a process started
- * with `PI_CODING_AGENT_DIR=/custom` then `setProfile("work")` then
+ * with `ZETA_CODING_AGENT_DIR=/custom` then `setProfile("work")` then
  * `setProfile(undefined)` would silently lose `/custom` and fall back to
  * `~/.zeta/agent`. Captured at module load — ignoring a profile-derived value
- * inherited from a parent's `setProfile` (see {@link resolvePreProfileAgentDir})
- * — and refreshed on `setAgentDir`, since that call is the user explicitly
- * redefining the baseline.
+ * inherited from a parent's `setProfile` (detected by directory shape in
+ * {@link resolveActiveAgentDirOverride}) — and refreshed on `setAgentDir`.
  */
-let preProfileAgentDirEnv: string | undefined = resolvePreProfileAgentDir(
-	activeProfile,
-	process.env.PI_CODING_AGENT_DIR,
-	activeProfile ?? readPiProfileFromEnvSafe(),
-);
+let preProfileAgentDirEnv: string | undefined = resolveActiveAgentDirOverride();
 // Anchor home for the resolver. Captured at module load to stay stable across
 // test mocks of `os.homedir()`. `getPluginsDir(home)` compares against this so
 // production callers (`home === RESOLVER_HOME`) hit the XDG-aware resolver while
@@ -459,7 +450,7 @@ const RESOLVER_HOME = os.homedir();
 /**
  * Rebuild the dirs resolver from the current environment, reusing the profile
  * resolved at module load. Directory-affecting keys (XDG_*_HOME and, in default
- * mode, `PI_CODING_AGENT_DIR`) loaded from a profile/agent `.env` only reach
+ * mode, `ZETA_CODING_AGENT_DIR`) loaded from a profile/agent `.env` only reach
  * `process.env` *after* this module froze the resolver at import time, so
  * `env.ts` calls this once after applying its `.env` files. The agent `.env`
  * location derives from the profile name + home before this runs, so the
@@ -486,15 +477,14 @@ export function getConfigRootDir(): string {
 export function setAgentDir(dir: string): void {
 	activeProfile = undefined;
 	dirs = new DirResolver({ agentDirOverride: dir });
-	process.env.PI_CODING_AGENT_DIR = dir;
-	preProfileAgentDirEnv = dir;
+	process.env.ZETA_CODING_AGENT_DIR = dir;
 	for (const key of PROFILE_ENV_KEYS) {
 		delete process.env[key];
 	}
 }
 
 /**
- * Test-only: reset the pre-profile `PI_CODING_AGENT_DIR` snapshot to whatever
+ * Test-only: reset the pre-profile `ZETA_CODING_AGENT_DIR` snapshot to whatever
  * the current environment looks like. Cross-suite test pollution can otherwise
  * leak a stale snapshot through `setAgentDir` and corrupt `setProfile(undefined)`
  * restore semantics. Production code MUST NOT call this — the snapshot's
@@ -502,11 +492,7 @@ export function setAgentDir(dir: string): void {
  * no business clearing it.
  */
 export function __resetProfileSnapshotForTests(): void {
-	preProfileAgentDirEnv = resolvePreProfileAgentDir(
-		activeProfile,
-		process.env.PI_CODING_AGENT_DIR,
-		activeProfile ?? readPiProfileFromEnvSafe(),
-	);
+	preProfileAgentDirEnv = resolveActiveAgentDirOverride();
 }
 
 /**
@@ -521,35 +507,29 @@ export function __resetDirsFromEnvForTests(): void {
 	refreshDirsFromEnv();
 }
 
-/** Activate a named profile. Passing undefined or "default" returns to the default profile. */
 export function setProfile(profile: string | undefined): void {
 	const next = normalizeProfileName(profile);
 	if (next && !activeProfile) {
 		// First activation of a named profile in this process: snapshot the
-		// current PI_CODING_AGENT_DIR so a later reset can restore the user's
+		// current ZETA_CODING_AGENT_DIR so a later reset can restore the user's
 		// explicit override. Subsequent profile switches keep the original
 		// snapshot — the "pre-profile" baseline is the state before profiles
 		// entered the picture, not the state between two activations.
-		preProfileAgentDirEnv = resolvePreProfileAgentDir(
-			undefined,
-			process.env.PI_CODING_AGENT_DIR,
-			readPiProfileFromEnvSafe(),
-		);
+		preProfileAgentDirEnv = resolveActiveAgentDirOverride();
 	}
 	activeProfile = next;
 	if (activeProfile) {
 		dirs = new DirResolver({ profile: activeProfile });
-		process.env.OMP_PROFILE = activeProfile;
-		process.env.PI_PROFILE = activeProfile;
-		process.env.PI_CODING_AGENT_DIR = dirs.agentDir;
+		process.env.ZETA_PROFILE = activeProfile;
+		process.env.ZETA_CODING_AGENT_DIR = dirs.agentDir;
 	} else {
 		for (const key of PROFILE_ENV_KEYS) {
 			delete process.env[key];
 		}
 		if (preProfileAgentDirEnv === undefined) {
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		} else {
-			process.env.PI_CODING_AGENT_DIR = preProfileAgentDirEnv;
+			process.env.ZETA_CODING_AGENT_DIR = preProfileAgentDirEnv;
 		}
 		dirs = new DirResolver({ agentDirOverride: preProfileAgentDirEnv });
 	}

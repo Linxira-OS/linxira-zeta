@@ -42,8 +42,7 @@ describe("profile directories", () => {
 	let originalAgentDir = "";
 	let originalProfile: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalOmpProfileEnv: string | undefined;
-	let originalPiProfileEnv: string | undefined;
+	let originalZetaProfileEnv: string | undefined;
 	let originalConfigDir: string | undefined;
 	let originalXdgDataHome: string | undefined;
 	let originalXdgStateHome: string | undefined;
@@ -52,9 +51,8 @@ describe("profile directories", () => {
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
 		originalProfile = getActiveProfile();
-		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.OMP_PROFILE;
-		originalPiProfileEnv = process.env.PI_PROFILE;
+		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
+		originalZetaProfileEnv = process.env.ZETA_PROFILE;
 		originalConfigDir = process.env.PI_CONFIG_DIR;
 		originalXdgDataHome = process.env.XDG_DATA_HOME;
 		originalXdgStateHome = process.env.XDG_STATE_HOME;
@@ -66,8 +64,8 @@ describe("profile directories", () => {
 		// Other suites that run before this one (e.g. dirs-python-gateway) may have
 		// called `setAgentDir`, which permanently mutates the module-level
 		// pre-profile snapshot. Reset it here so each test starts from a clean
-		// `PI_CODING_AGENT_DIR` baseline matching the env we just configured.
-		delete process.env.PI_CODING_AGENT_DIR;
+		// `ZETA_CODING_AGENT_DIR` baseline matching the env we just configured.
+		delete process.env.ZETA_CODING_AGENT_DIR;
 		__resetProfileSnapshotForTests();
 		delete process.env.XDG_DATA_HOME;
 		delete process.env.XDG_STATE_HOME;
@@ -103,15 +101,10 @@ describe("profile directories", () => {
 		} else {
 			setProfile(undefined);
 		}
-		if (originalOmpProfileEnv === undefined) {
-			delete process.env.OMP_PROFILE;
+		if (originalZetaProfileEnv === undefined) {
+			delete process.env.ZETA_PROFILE;
 		} else {
-			process.env.OMP_PROFILE = originalOmpProfileEnv;
-		}
-		if (originalPiProfileEnv === undefined) {
-			delete process.env.PI_PROFILE;
-		} else {
-			process.env.PI_PROFILE = originalPiProfileEnv;
+			process.env.ZETA_PROFILE = originalZetaProfileEnv;
 		}
 		await fs.rm(tempRoot, { recursive: true, force: true });
 		await fs.rm(path.join(os.homedir(), configDir), { recursive: true, force: true });
@@ -198,11 +191,11 @@ describe("profile directories", () => {
 		}
 	});
 
-	it("restores the pre-profile PI_CODING_AGENT_DIR override on reset", () => {
+	it("restores the pre-profile ZETA_CODING_AGENT_DIR override on reset", () => {
 		const customAgentDir = path.join(tempRoot, "custom-agent");
 		setAgentDir(customAgentDir);
 		expect(getAgentDir()).toBe(customAgentDir);
-		expect(process.env.PI_CODING_AGENT_DIR).toBe(customAgentDir);
+		expect(process.env.ZETA_CODING_AGENT_DIR).toBe(customAgentDir);
 
 		setProfile("work");
 		expect(getActiveProfile()).toBe("work");
@@ -211,17 +204,17 @@ describe("profile directories", () => {
 		setProfile(undefined);
 		expect(getActiveProfile()).toBeUndefined();
 		// Critical: reset must restore the user's override, not delete it.
-		expect(process.env.PI_CODING_AGENT_DIR).toBe(customAgentDir);
+		expect(process.env.ZETA_CODING_AGENT_DIR).toBe(customAgentDir);
 		expect(getAgentDir()).toBe(customAgentDir);
 	});
 
-	it("clears PI_CODING_AGENT_DIR on reset when nothing was set originally", () => {
-		delete process.env.PI_CODING_AGENT_DIR;
+	it("clears ZETA_CODING_AGENT_DIR on reset when nothing was set originally", () => {
+		delete process.env.ZETA_CODING_AGENT_DIR;
 		// Force a baseline snapshot of "no override" via setProfile so a stale
 		// module-load snapshot from a previous test cannot leak in.
 		setProfile("work");
 		setProfile(undefined);
-		expect(process.env.PI_CODING_AGENT_DIR).toBeUndefined();
+		expect(process.env.ZETA_CODING_AGENT_DIR).toBeUndefined();
 	});
 
 	it("rejects Windows reserved device names case-insensitively", () => {
@@ -231,39 +224,35 @@ describe("profile directories", () => {
 	});
 
 	it("does not restore a profile-derived agent dir as the default baseline", () => {
-		// Reproduces a child process that inherited OMP_PROFILE=work plus the
-		// profile-derived PI_CODING_AGENT_DIR that setProfile propagates to
+		// Reproduces a child process that inherited ZETA_PROFILE=work plus the
+		// profile-derived ZETA_CODING_AGENT_DIR that setProfile propagates to
 		// children. The module-load snapshot must not capture that profile dir as
 		// the default baseline, or setProfile(undefined) would resolve default
 		// mode into the work profile's agent dir.
 		setProfile("work");
 		const workAgentDir = path.join(os.homedir(), configDir, "profiles", "work", "agent");
 		expect(getAgentDir()).toBe(workAgentDir);
-		expect(process.env.PI_CODING_AGENT_DIR).toBe(workAgentDir);
+		expect(process.env.ZETA_CODING_AGENT_DIR).toBe(workAgentDir);
 
-		// Re-snapshot exactly as module load would, now that OMP_PROFILE and the
-		// profile-derived PI_CODING_AGENT_DIR are present in the environment.
+		// Re-snapshot exactly as module load would, now that ZETA_PROFILE and the
+		// profile-derived ZETA_CODING_AGENT_DIR are present in the environment.
 		__resetProfileSnapshotForTests();
 
 		setProfile(undefined);
 		expect(getActiveProfile()).toBeUndefined();
-		expect(process.env.PI_CODING_AGENT_DIR).toBeUndefined();
+		expect(process.env.ZETA_CODING_AGENT_DIR).toBeUndefined();
 		expect(getAgentDir()).toBe(path.join(os.homedir(), configDir, "agent"));
 	});
 });
 
 describe("profile env + name validation", () => {
-	it("honors OMP_PROFILE precedence and treats empty/default as the default profile", () => {
-		// OMP_PROFILE is canonical and wins over the legacy PI_PROFILE fallback.
-		expect(resolveProfileEnv("work", "other")).toBe("work");
-		// PI_PROFILE is consulted only when OMP_PROFILE is undefined.
-		expect(resolveProfileEnv(undefined, "work")).toBe("work");
-		// An explicitly-empty OMP_PROFILE selects the default profile; it must NOT
-		// fall through to the lower-precedence PI_PROFILE.
-		expect(resolveProfileEnv("", "work")).toBeUndefined();
-		expect(resolveProfileEnv("   ", "work")).toBeUndefined();
-		expect(resolveProfileEnv("default", "work")).toBeUndefined();
-		expect(resolveProfileEnv(undefined, undefined)).toBeUndefined();
+	it("resolves the single ZETA_PROFILE key and treats empty/default as the default profile", () => {
+		expect(resolveProfileEnv("work")).toBe("work");
+		// An explicitly-empty ZETA_PROFILE selects the default profile.
+		expect(resolveProfileEnv("")).toBeUndefined();
+		expect(resolveProfileEnv("   ")).toBeUndefined();
+		expect(resolveProfileEnv("default")).toBeUndefined();
+		expect(resolveProfileEnv(undefined)).toBeUndefined();
 	});
 
 	it("rejects uppercase profile names so isolation is filesystem-independent", () => {
@@ -340,7 +329,7 @@ describe("dirs module import behavior", () => {
 
 			const childEnv: Record<string, string | undefined> = {
 				...process.env,
-				PI_CODING_AGENT_DIR: agentDir,
+				ZETA_CODING_AGENT_DIR: agentDir,
 			};
 			delete childEnv.OMP_WORKER_HOST_PROBE;
 			const proc = Bun.spawn([process.execPath, probePath], {
@@ -364,7 +353,7 @@ describe("dirs module import behavior", () => {
 		}
 	});
 
-	it("ignores inherited profile agent dir when OMP_PROFILE explicitly selects default", async () => {
+	it("ignores inherited profile agent dir when ZETA_PROFILE explicitly selects default", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-utils-dirs-default-profile-"));
 		const probeConfigDir = `.zeta-default-profile-${Snowflake.next()}`;
 		try {
@@ -372,8 +361,8 @@ describe("dirs module import behavior", () => {
 			const workAgentDir = path.join(os.homedir(), probeConfigDir, "profiles", "work", "agent");
 			const defaultAgentDir = path.join(os.homedir(), probeConfigDir, "agent");
 
-			for (const ompProfile of ["", "default"]) {
-				const probePath = path.join(root, `default-profile-${ompProfile || "empty"}.ts`);
+			for (const zetaProfile of ["", "default"]) {
+				const probePath = path.join(root, `default-profile-${zetaProfile || "empty"}.ts`);
 				await Bun.write(
 					probePath,
 					[
@@ -388,9 +377,8 @@ describe("dirs module import behavior", () => {
 				const childEnv: Record<string, string | undefined> = {
 					...process.env,
 					PI_CONFIG_DIR: probeConfigDir,
-					OMP_PROFILE: ompProfile,
-					PI_PROFILE: "work",
-					PI_CODING_AGENT_DIR: workAgentDir,
+					ZETA_PROFILE: zetaProfile,
+					ZETA_CODING_AGENT_DIR: workAgentDir,
 				};
 				const proc = Bun.spawn([process.execPath, probePath], {
 					stdout: "pipe",
@@ -452,10 +440,9 @@ describe("dirs module import behavior", () => {
 				...process.env,
 				HOME: homeDir,
 				PI_CONFIG_DIR: profileConfigDir,
-				OMP_PROFILE: "work",
-				PI_PROFILE: "work",
+				ZETA_PROFILE: "work",
 			};
-			delete childEnv.PI_CODING_AGENT_DIR;
+			delete childEnv.ZETA_CODING_AGENT_DIR;
 			delete childEnv.XDG_DATA_HOME;
 			delete childEnv.XDG_STATE_HOME;
 			delete childEnv.XDG_CACHE_HOME;

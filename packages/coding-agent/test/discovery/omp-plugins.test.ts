@@ -45,7 +45,7 @@ let home: string;
 let project: string;
 let ext: string;
 
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 function writeFile(filePath: string, content: string): void {
@@ -111,7 +111,7 @@ afterEach(() => {
 		setAgentDir(originalAgentDirEnv);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	removeSyncWithRetries(tempDir);
 });

@@ -3,7 +3,7 @@
  *
  * Semantic port of `web-ui/app/api/models*` / `app/api/models-config*`: the
  * OMP web-ui read its own `models.json` + `models.db` caches and a synthesized
- * `omp-web-models.json` (with a global fetch interceptor for AntiGravity); the
+ * `zeta-web-models.json` (with a global fetch interceptor for AntiGravity); the
  * gateway reads the runtime-native `ModelRegistry` and writes the runtime
  * models config file (`ModelsConfigFile`, `~/.zeta/agent/models.yml`), so
  * edits made in the browser take effect for the CLI immediately.

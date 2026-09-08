@@ -71,17 +71,15 @@ describe("listClaudePluginRoots", () => {
 	let testAgentDir: string;
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalOmpProfileEnv: string | undefined;
-	let originalPiProfileEnv: string | undefined;
+	let originalZetaProfileEnv: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
 
 	beforeEach(async () => {
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.OMP_PROFILE;
-		originalPiProfileEnv = process.env.PI_PROFILE;
+		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
+		originalZetaProfileEnv = process.env.ZETA_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-plugins-test-"));
@@ -103,9 +101,8 @@ describe("listClaudePluginRoots", () => {
 		// setAgentDir() clears the profile env vars and snapshots the agent dir,
 		// so restore every env var it can touch before rebuilding the resolver.
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
-		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
-		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("ZETA_PROFILE", originalZetaProfileEnv);
+		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
 		enableProvider("claude-plugins");
 		disableUserSource("claude-plugins");

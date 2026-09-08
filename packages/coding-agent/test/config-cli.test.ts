@@ -6,7 +6,7 @@ import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 
 let testAgentDir: TempDir | undefined;
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 
@@ -42,7 +42,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	if (testAgentDir) {
 		try {
@@ -188,7 +188,7 @@ describe("config CLI schema coverage", () => {
 	it("fully flushes JSON larger than a pipe buffer", async () => {
 		if (!testAgentDir) throw new Error("Test agent directory was not initialized");
 		const { exitCode, output, error } = await runCliProcess(["config", "list", "--json"], {
-			PI_CODING_AGENT_DIR: testAgentDir.path(),
+			ZETA_CODING_AGENT_DIR: testAgentDir.path(),
 		});
 
 		expect(exitCode).toBe(0);
@@ -206,7 +206,7 @@ describe("config CLI schema coverage", () => {
 			Bun.write(finalOverlayPath, "defaultThinkingLevel: max\n"),
 		]);
 		const { exitCode, output, error } = await runCliProcess(["config", "get", "defaultThinkingLevel", "--json"], {
-			PI_CODING_AGENT_DIR: testAgentDir.path(),
+			ZETA_CODING_AGENT_DIR: testAgentDir.path(),
 			PI_CONFIG_FILES: [baseOverlayPath, finalOverlayPath].join(path.delimiter),
 		});
 

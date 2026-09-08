@@ -155,7 +155,7 @@ describe("default bench runtime", () => {
 					...process.env,
 					NO_COLOR: "1",
 					OPENCODE_API_KEY: apiKey,
-					PI_CODING_AGENT_DIR: tempDir.path(),
+					ZETA_CODING_AGENT_DIR: tempDir.path(),
 				},
 				stdout: "pipe",
 				stderr: "pipe",

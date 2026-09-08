@@ -6,7 +6,7 @@ import { getBlobsDir, refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import { webGatewayFetch } from "../../src/server/web-gateway";
 import { BlobStore } from "../../src/session/blob-store";
 
-const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "OMP_CODING_AGENT_DIR", "PI_CODING_AGENT_DIR"];
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "ZETA_CODING_AGENT_DIR", "ZETA_CODING_AGENT_DIR"];
 const savedEnv = new Map<string, string | undefined>();
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -15,8 +15,7 @@ async function setup(token?: string): Promise<void> {
 	cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
 	for (const key of ENV_KEYS) savedEnv.set(key, process.env[key]);
 	process.env.ZETA_CODING_AGENT_DIR = agentDir;
-	process.env.OMP_CODING_AGENT_DIR = agentDir;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.ZETA_CODING_AGENT_DIR = agentDir;
 	if (token) await writeFile(join(agentDir, "web.yml"), `remote:\n  token: ${token}\n`, "utf8");
 	refreshDirsFromEnv();
 }
