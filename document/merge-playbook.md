@@ -174,3 +174,48 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 
 五关全绿才允许 push。 Feature Branch Workflow 的 merge-main-into-branch 前置
 步骤照旧执行。
+
+## 双 tag 连续合并方法论（v18.1.13 → v18.1.14 实战归纳，2026-09-08）
+
+上游连发两个 release 而本地落后两个版本时，**在一个 sync 分支上按 tag 顺序串联合并**
+（v13 双亲 merge → v14 双亲 merge），不要跳过中间 tag 直接合最新——中间 tag 的
+冲突解决结果是后续 merge 的基座，跳过会让 git 的 merge-base 落在更早的共同祖先上，
+把本已解决的 Zeta 适配整批重新变成冲突（v14 直合出现过 604 冲突 vs 串联后的 22+584，
+其中后者几乎全是可机械 resolve 的 scope 噪声）。
+
+### 大批量冲突的分级 resolve
+
+1. **先分类再动手。** 对每个 UU 文件取 ours/theirs 两侧，scope 归一化
+   （`@oh-my-pi/*`↔`@linxiraos/*`、`pi-coding-agent`↔`zeta`、import 排序与空白）
+   后比较：归一化相等的算 **scope 噪声**，整文件取 theirs + 跑 scope 重写
+   （brand-overlay.ts + `@oh-my-pi/ → @linxiraos/pi-`、双前缀 `pi-pi-` 收敛）。
+2. **批量 resolve 用 stage-3 blob 直写**（`git show ":3:<path>" > <path>` +
+   `git add`）。Windows 上 `git checkout --theirs` 在索引含未合并 stage 时不可靠。
+   批量脚本必须 checkout-index 与 add 分两步——checkout-index 只写工作树不动索引。
+3. **整文件取 theirs 的已知盲区**：stage-3 是 v14 全文件，会抹掉 ours 侧
+   **冲突块之外**的 Zeta 独有内容。哨兵检查（`check-zeta-sentinels.ts`）兜住符号级
+   丢失；符号之外还要防 **身份行丢失**（APP_NAME、ZETA_PROFILE、KEY_NAME、
+   biome-ignore 注释、i18n key）。用"Zeta 行计数对比"扫描
+   （main 与工作树逐文件比 `/zeta|Zeta|linxiraos/` 行数差 >5 即嫌疑）收口。
+4. **版本线三件套每次 merge 后必跑**：`set-version.ts` → `package.json` catalog
+   13 键对齐 main → `bun install` → `check-version-consistency.ts`。changelog
+   上游 section 重键（`## [18.x.y]` → `## [1.1.10-omp18.x.y]`）要全前缀匹配
+   （`1[5-8].`），只重键当次版本会漏历史段。
+5. **工具链是 Zeta 资产**：每次 merge 都会被上游 oxlint/oxfmt scripts 覆盖
+   （根 + 12 个 per-package `check`/`lint`/`fmt`/`fix`）。逐文件从 main 恢复
+   `check:tools` 等脚本与 `.oxlintrc.json`/`.oxfmtrc.json`/`biome.json`，
+   然后把上游新代码里的 `oxlint-disable-next-line` 注释批量迁移成
+   `biome-ignore`（noThenable→noThenProperty、no-eval→noGlobalEval、
+   no-template-curly-in-string→noTemplateCurlyInString、
+   no-unused-private-class-members→noUnusedPrivateClassMembers）。
+6. **上游功能性 delta 必须手工移植**，整文件恢复 main 后逐 hunk 补：
+   v14 的 IPC worker 父进程 watchdog（cli.ts +67 行，win32 ppid≤0 分支 +
+   natives Process 探活 + 1s setInterval 兜底）和 idle-compaction async-wake
+   守卫（agent-session.ts runIdleCompaction 首行 `#hasPendingAsyncWake()`）。
+7. **测试契约随实现走，也随我们改过的实现走**：上游测试断言上游 shipped
+   CHANGELOG 的版本号（如 18.1.12 uncategorized bullet），我们 rekey 后地址不可达
+   ——契约不变，改测试的 fixture 寻址方式（读 shipped section body 过 summarize）
+   而不是删断言。
+8. **收口顺序固定**：scope 重写 → set-version/catalog/lockfile → 哨兵 → brand
+   归零 → biome 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
+   已知噪声：natives 5s 加载超时、ENAMETOOLONG、symlink EPERM）。
