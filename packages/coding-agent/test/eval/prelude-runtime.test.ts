@@ -15,7 +15,7 @@ function definition(version: string, calls: unknown[]): EvalPreludeDefinition {
 		javascript: `{
 			globalThis.fixture = {
 				version: ${JSON.stringify(version)},
-				invoke: parameters => __omp_prelude__("fixture", parameters),
+				invoke: parameters => __zeta_prelude__("fixture", parameters),
 			};
 		}`,
 		python: `class _FixturePrelude:
@@ -96,7 +96,7 @@ describe("eval prelude runtime", () => {
 		expect(captured.output).toContain('Eval prelude "fixture" is not enabled');
 		expect(calls).toHaveLength(2);
 
-		const missing = await executeJs("await __omp_prelude__('missing', {})", options);
+		const missing = await executeJs("await __zeta_prelude__('missing', {})", options);
 		expect(missing.exitCode).toBe(1);
 		expect(missing.output).toContain('Eval prelude "missing" is not enabled');
 	});

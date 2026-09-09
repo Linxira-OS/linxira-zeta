@@ -32,20 +32,20 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 
 	it("emits one ES named export per enumerable namespace key", () => {
 		const src = __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/zeta", modules);
-		expect(src).toContain(`const __omp_bundled = globalThis[${JSON.stringify(globalKey)}]["@linxiraos/zeta"];`);
-		expect(src).toContain('export const VERSION = __omp_bundled["VERSION"];');
-		expect(src).toContain('export const defineTool = __omp_bundled["defineTool"];');
-		expect(src).toContain('export const Type = __omp_bundled["Type"];');
+		expect(src).toContain(`const __zeta_bundled = globalThis[${JSON.stringify(globalKey)}]["@linxiraos/zeta"];`);
+		expect(src).toContain('export const VERSION = __zeta_bundled["VERSION"];');
+		expect(src).toContain('export const defineTool = __zeta_bundled["defineTool"];');
+		expect(src).toContain('export const Type = __zeta_bundled["Type"];');
 		// Every named export emerges from a live module lookup — never the FS.
 		expect(src).not.toMatch(/\$bunfs|file:\/\//);
 	});
 
 	it("forwards `default` through `export default` so default imports survive", () => {
 		const src = __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/pi-utils", modules);
-		expect(src).toContain("export default __omp_bundled.default;");
+		expect(src).toContain("export default __zeta_bundled.default;");
 		// Default and named exports coexist on the same module.
-		expect(src).toContain('export const VERSION = __omp_bundled["VERSION"];');
-		expect(src).toContain('export const isCompiledBinary = __omp_bundled["isCompiledBinary"];');
+		expect(src).toContain('export const VERSION = __zeta_bundled["VERSION"];');
+		expect(src).toContain('export const isCompiledBinary = __zeta_bundled["isCompiledBinary"];');
 	});
 
 	it("omits `default` line when the registered namespace has no default export", () => {
@@ -64,7 +64,7 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 		// writes to — a rename of either side breaks every legacy extension
 		// load with a `Cannot read properties of undefined` at first import.
 		const src = __synthesizeLegacyPiBundledSourceWithModules("typebox", modules);
-		expect(src.startsWith(`const __omp_bundled = globalThis[${JSON.stringify(globalKey)}]["typebox"];`)).toBe(true);
+		expect(src.startsWith(`const __zeta_bundled = globalThis[${JSON.stringify(globalKey)}]["typebox"];`)).toBe(true);
 	});
 
 	it("end-to-end: synthesized source resolves named bindings against a runtime globalThis entry", () => {
@@ -77,12 +77,12 @@ describe("legacy-pi bundled virtual module synthesizer (issue #3423)", () => {
 		try {
 			const src = __synthesizeLegacyPiBundledSourceWithModules("@linxiraos/zeta", modules);
 			// Strip the ES export prefix and run the body as a plain script so
-			// we can read `__omp_bundled` from the returned closure.
+			// we can read `__zeta_bundled` from the returned closure.
 			const body = src
 				.split("\n")
-				.filter(line => line.startsWith("const __omp_bundled"))
+				.filter(line => line.startsWith("const __zeta_bundled"))
 				.join("\n");
-			const fn = new Function(`${body}; return __omp_bundled;`);
+			const fn = new Function(`${body}; return __zeta_bundled;`);
 			const live: unknown = fn();
 			if (typeof live !== "object" || live === null) {
 				throw new Error("synthetic module did not resolve an object namespace");

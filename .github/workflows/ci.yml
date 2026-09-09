@@ -230,18 +230,31 @@ jobs:
       steps:
          - uses: actions/checkout@v4
 
-         # ---- PR path: latest release addons from npm ----
+         # ---- PR path: latest Zeta addons from the @linxiraos npm leaves ----
+         # Desktop PR jobs need the full target matrix, so fetch every leaf
+         # (not just linux-x64) and unpack each into its bazel-bin layout.
          - name: Fetch release native addons (npm)
            if: github.event_name == 'pull_request'
            shell: bash
            run: |
               set -euo pipefail
-              tarball="$(npm view @oh-my-pi/pi-natives-linux-x64@latest dist.tarball)"
-              echo "Fetching $tarball"
-              curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
-              mkdir -p bazel-bin/natives-linux-x64-baseline bazel-bin/natives-linux-x64-modern
-              cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" bazel-bin/natives-linux-x64-baseline/
-              cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" bazel-bin/natives-linux-x64-modern/
+              fetch_leaf() {
+                 local pkg="$1" dest="$2" file="$3"
+                 local tarball
+                 tarball="$(npm view "@linxiraos/${pkg}@latest" dist.tarball)"
+                 echo "Fetching ${tarball}"
+                 rm -rf "$RUNNER_TEMP/leaf-package"
+                 mkdir -p "$RUNNER_TEMP/leaf-package" "$dest"
+                 curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP/leaf-package"
+                 cp "$RUNNER_TEMP/leaf-package/package/${file}" "$dest/"
+              }
+              fetch_leaf pi-natives-linux-x64 bazel-bin/natives-linux-x64-baseline pi_natives.linux-x64-baseline.node
+              fetch_leaf pi-natives-linux-x64 bazel-bin/natives-linux-x64-modern pi_natives.linux-x64-modern.node
+              fetch_leaf pi-natives-win32-x64 bazel-bin/natives-win32-x64-baseline pi_natives.win32-x64-baseline.node
+              # Only what the desktop PR jobs consume: linux-x64 (baseline +
+              # modern) for the Linux desktop build and win32-x64-baseline for
+              # the Windows one. musl/arm targets stay on the bazel path (no
+              # musl leaf package exists).
          # A corrupt download must fail here, not as a confusing dlopen error
          # in every downstream test shard.
          - name: Smoke release addons

@@ -126,7 +126,7 @@ describe("Python tool bridge HTTP server", () => {
 				"from __future__ import annotations\n__zeta_display = lambda *args, **kwargs: None",
 			);
 			const script = `${prelude}
-__omp_run_id__ = "run"
+__zeta_run_id__ = "run"
 async def check_intent():
     print(await tool.constrained())
     print(await tool.constrained(i=None))
