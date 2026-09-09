@@ -90,7 +90,16 @@ describe("GlobTool.execute", () => {
 					throw new Error("Missing native cancellation signal");
 				}
 				const nativeSignal = options.signal;
-				nativeSignal.addEventListener("abort", () => timeoutObserved.resolve(), { once: true });
+				// On a loaded runner the 100ms timeout can burn before execute()
+				// reaches the native call, so the signal may already be aborted —
+				// an abort listener registered on an already-aborted signal never
+				// fires and the test would deadlock on `timeoutObserved`. Handle
+				// that case explicitly instead of racing the listener.
+				if (nativeSignal.aborted) {
+					timeoutObserved.resolve();
+				} else {
+					nativeSignal.addEventListener("abort", () => timeoutObserved.resolve(), { once: true });
+				}
 				started.resolve();
 				await timeoutObserved.promise;
 				await release.promise;
