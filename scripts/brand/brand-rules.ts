@@ -71,6 +71,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"package.json", // pre-existing main debt: PI_IMAGE docker tag default + robomp scripts
 	"CONTRIBUTING.md", // pre-existing main debt: upstream-facing contributing doc
 	"packages/coding-agent/CHANGELOG.md", // changelog entries describe the residue itself
+	"scripts/merge-package-json.ts", // merge driver: must name the upstream @oh-my-pi scope to map it back
 ];
 
 /** `oh-my-pi` is allowed when embedded in these patterns (issue/URL provenance). */
