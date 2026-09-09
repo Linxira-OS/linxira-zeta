@@ -174,8 +174,12 @@ function AppShellContent() {
     return subscribeWindowState((state) => setWindowMaximized(state.maximized));
   }, []);
   // Sidebar defaults to closed (user preference, persisted); sessions stay
-  // reachable through the top-bar toggle.
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => readSidebarOpenPref());
+  // reachable through the top-bar toggle. The initializer stays
+  // window-independent for SSR; the preference applies right after mount.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  useEffect(() => {
+    setSidebarOpen(readSidebarOpenPref());
+  }, []);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   // On mobile the sidebar is an overlay drawer; hide it by default so the chat
   // is visible on load. Runs once the breakpoint resolves after hydration.

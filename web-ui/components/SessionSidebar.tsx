@@ -22,6 +22,7 @@ import { StarfieldEmblem } from "./StarfieldEmblem";
 import { FolderPickerModal } from "./FolderPickerModal";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
+import { sendAgentCommand } from "@/lib/agent-client";
 import "@/lib/pi-desktop";
 
 interface Props {
@@ -498,6 +499,48 @@ export function SessionSidebar({
     null,
   );
   const fileExplorerRef = useRef<FileExplorerHandle>(null);
+  // Sidebar extras: today's usage micro-line from the stats dashboard.
+  // Fails silently — the section hides when the stats service is down.
+  const [usage, setUsage] = useState<{
+    totalCost: number;
+    totalTokens: number;
+    totalRequests: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/stats/overview?range=today");
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          overall?: {
+            totalCost?: number;
+            totalInputTokens?: number;
+            totalOutputTokens?: number;
+            totalRequests?: number;
+          };
+        };
+        const o = data.overall;
+        if (!cancelled && o) {
+          setUsage({
+            totalCost: o.totalCost ?? 0,
+            totalTokens: (o.totalInputTokens ?? 0) + (o.totalOutputTokens ?? 0),
+            totalRequests: o.totalRequests ?? 0,
+          });
+        }
+      } catch {
+        // Stats service unreachable: keep the section hidden.
+      }
+    };
+    void load();
+    const timer = setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
 
   const loadSessions = useCallback(async (showLoading = false) => {
     try {
@@ -2241,6 +2284,94 @@ export function SessionSidebar({
             </div>
           </div>
         )}
+      </div>
+
+      {/* RUNNING — live sessions pinned above the tree */}
+      {runningSessionIds.size > 0 && (
+        <div style={{ flexShrink: 0, borderBottom: "1px solid var(--border)", padding: "6px 8px" }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: "var(--text-dim)", marginBottom: 4 }}>
+            {t("sidebar-running")}
+          </div>
+          {allSessions
+            .filter(s => runningSessionIds.has(s.id))
+            .slice(0, 6)
+            .map(s => (
+              <button
+                key={s.id}
+                onClick={() => handleSelectSessionFromList(s)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, width: "100%",
+                  padding: "3px 4px", background: "none", border: "none",
+                  borderRadius: 5, color: "var(--text)", cursor: "pointer",
+                  fontSize: 11.5, textAlign: "left",
+                }}
+                title={s.name ?? s.firstMessage ?? s.id}
+              >
+                <span
+                  style={{
+                    width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                    background: "var(--accent, #22c55e)",
+                    boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent, #22c55e) 22%, transparent)",
+                  }}
+                />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {s.name ?? s.firstMessage ?? s.id}
+                </span>
+              </button>
+            ))}
+        </div>
+      )}
+
+      {/* USAGE — today's cost/token micro-line; hidden while stats is down */}
+      {usage && (
+        <button
+          onClick={() => window.open("/stats/", "_blank")}
+          style={{
+            flexShrink: 0, display: "flex", gap: 10, alignItems: "baseline",
+            padding: "5px 12px", background: "none", border: "none",
+            borderTop: "1px solid var(--border)", cursor: "pointer",
+            color: "var(--text-muted)", fontSize: 10.5, textAlign: "left",
+          }}
+          title={t("sidebar-usage-open")}
+        >
+          <span style={{ fontWeight: 600, color: "var(--text-dim)" }}>{t("sidebar-usage-today")}</span>
+          <span>${usage.totalCost.toFixed(2)}</span>
+          <span>{usage.totalTokens >= 1000 ? `${(usage.totalTokens / 1000).toFixed(1)}k` : usage.totalTokens} tok</span>
+          <span>{usage.totalRequests} {t("sidebar-usage-requests")}</span>
+        </button>
+      )}
+
+      {/* QUICK ACTIONS — new session / compact current */}
+      <div style={{ flexShrink: 0, display: "flex", gap: 4, padding: "4px 8px", borderTop: "1px solid var(--border)" }}>
+        <button
+          onClick={handleNewSession}
+          disabled={!selectedCwd}
+          style={{
+            flex: 1, height: 24, fontSize: 10.5, borderRadius: 6,
+            background: "none", border: "1px solid var(--border)",
+            color: selectedCwd ? "var(--text)" : "var(--text-dim)",
+            cursor: selectedCwd ? "pointer" : "default",
+            opacity: selectedCwd ? 1 : 0.5,
+          }}
+        >
+          + {t("new-session")}
+        </button>
+        <button
+          onClick={() => {
+            if (!selectedSessionId) return;
+            void sendAgentCommand(selectedSessionId, { type: "compact" }).catch(() => {});
+          }}
+          disabled={!selectedSessionId}
+          style={{
+            flex: 1, height: 24, fontSize: 10.5, borderRadius: 6,
+            background: "none", border: "1px solid var(--border)",
+            color: selectedSessionId ? "var(--text)" : "var(--text-dim)",
+            cursor: selectedSessionId ? "pointer" : "default",
+            opacity: selectedSessionId ? 1 : 0.5,
+          }}
+        >
+          {t("sidebar-compact")}
+        </button>
       </div>
 
       {/* Session list */}
