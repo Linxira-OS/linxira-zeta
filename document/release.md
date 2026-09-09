@@ -243,7 +243,7 @@ decide when the branch is stale:
 **Backup retention:**
 
 `backup/omp-tag/<tag>` keeps only the **recent stable OMP release baselines**
-(the same two most recent tags that exist locally, currently `v18.0.11` and
-`v18.1.10`). Older `backup/omp-tag/` entries are removed once the release
+(the same two most recent tags that exist locally, currently `v18.1.13` and
+`v18.1.14`). Older `backup/omp-tag/` entries are removed once the release
 is superseded; full history stays reachable through `backup/omp/main`, which
 mirrors `omp-upstream/main`.
