@@ -90,6 +90,27 @@ class ModalBoundary extends Component<{ children: ReactNode }, { failed: boolean
 	}
 }
 
+const SIDEBAR_OPEN_STORAGE_KEY = "zeta-sidebar-open";
+
+/** Read the persisted sidebar-open preference; closed unless explicitly opened. */
+function readSidebarOpenPref(): boolean {
+	if (typeof window === "undefined") return false;
+	try {
+		return window.localStorage.getItem(SIDEBAR_OPEN_STORAGE_KEY) === "1";
+	} catch {
+		return false;
+	}
+}
+
+/** Persist the sidebar-open preference; storage failures are non-fatal. */
+function writeSidebarOpenPref(open: boolean): void {
+	try {
+		window.localStorage.setItem(SIDEBAR_OPEN_STORAGE_KEY, open ? "1" : "0");
+	} catch {
+		// Private mode / storage disabled: preference just won't survive reloads.
+	}
+}
+
 export function AppShell() {
 	return (
 		<I18nProvider>
@@ -152,7 +173,9 @@ function AppShellContent() {
     void isWindowMaximized().then(setWindowMaximized);
     return subscribeWindowState((state) => setWindowMaximized(state.maximized));
   }, []);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Sidebar defaults to closed (user preference, persisted); sessions stay
+  // reachable through the top-bar toggle.
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => readSidebarOpenPref());
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   // On mobile the sidebar is an overlay drawer; hide it by default so the chat
   // is visible on load. Runs once the breakpoint resolves after hydration.
@@ -368,7 +391,10 @@ function AppShellContent() {
 
   const handleSidebarToggle = useCallback(() => {
     if (isMobile) setActiveTopPanel(null);
-    setSidebarOpen((open) => !open);
+    setSidebarOpen((open) => {
+      writeSidebarOpenPref(!open);
+      return !open;
+    });
   }, [isMobile]);
 
   useEffect(() => {

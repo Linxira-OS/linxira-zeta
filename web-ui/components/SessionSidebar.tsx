@@ -2246,13 +2246,13 @@ export function SessionSidebar({
       {/* Session list */}
       <div
         style={{
-          flex:
-            explorerOpen && (selectedCwdProp || selectedCwd)
-              ? "1 1 0"
-              : "1 1 auto",
+          // flex-basis 0 + minHeight 0: the list must shrink to the space
+          // below the header. With basis auto the natural content height
+          // overflows the column and visually collides with the bottom bar.
+          flex: "1 1 0",
           overflowY: "auto",
           padding: "0",
-          minHeight: 80,
+          minHeight: 0,
         }}
       >
         {loading && (

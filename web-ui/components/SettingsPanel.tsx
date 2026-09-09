@@ -35,7 +35,6 @@ function isTerminalEffect(path: string): boolean {
   return (
     path === "language" ||
     path === "symbolPreset" ||
-    path === "colorBlindMode" ||
     path.startsWith("theme.") ||
     path.startsWith("statusLine.")
   );
