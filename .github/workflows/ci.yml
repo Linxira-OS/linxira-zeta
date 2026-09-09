@@ -591,7 +591,10 @@ jobs:
       runs-on: ${{ matrix.os }}
       needs: [native_addons]
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
-      timeout-minutes: 45
+      # Cold darwin-x64 desktop builds (bazel addon + web-ui next build +
+      # electron-builder) measured 42-45 min; 45 min timed out the release
+      # run (34298570723) at 45m18s.
+      timeout-minutes: 70
       strategy:
          fail-fast: false
          matrix:
