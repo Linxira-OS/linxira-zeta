@@ -134,6 +134,30 @@ capabilities that its execution environment can actually provide.
   colors, and stable panels rather than decorative grids, display fonts, or
   themed feature chrome.
 
+#### Desktop reference projects (upstream GUI clones)
+
+Two upstream desktop shells are kept as local reference clones under `temp/`
+(reference-only, never committed) and are the primary prior art for the next
+batch of desktop work, together with the OMP Web snapshot (`temp/omp-web`):
+
+- `temp/oh-my-pi-gui` — "omp GUI" (`@oh-my-pi/omp-gui`, Electron 35 + React
+  19). Native desktop control center: parallel agent sessions, per-tool-call
+  inspection, model and usage management. Closest match to Zeta's desktop
+  shell ambitions (tray + workbench + session control).
+- `temp/oh-my-pi-UI` — "OMP Codex" (`omp-gui`, Electron 38 beta + Vite +
+  React 18). Codex-style desktop GUI driving the agent over `--mode rpc-ui`
+  NDJSON-over-stdio, one subprocess per session, with a multi-session sidebar
+  and per-directory session archiving. Reference for the rpc-ui transport
+  contract and session-shell UX.
+
+Of the three, the two GUI projects are the same category (desktop shells);
+`omp-web` is the web surface, not a desktop shell. When the desktop track
+starts, mine these for: session lifecycle over rpc-ui vs the gateway HTTP
+contract, the parallel-session process model, tool-call timeline UX, and the
+multi-session sidebar/archive interaction patterns. `temp/` is ignored and
+must never be committed; nothing in these clones gets deleted — they are
+sync sources for upstream work.
+
 #### Linux desktop delivery
 
 - WSL, including an Arch-based environment, is suitable for local functional
