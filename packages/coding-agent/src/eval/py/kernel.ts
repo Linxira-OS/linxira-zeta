@@ -56,7 +56,7 @@ const INTERRUPT_ESCALATION_MS = 5_000;
 
 const PYTHON_RESERVED_PRELUDE_EXPORTS: Record<string, true> = {
 	__zeta_tools__: true,
-	_omp_prelude: true,
+	_zeta_prelude: true,
 	AgentHandle: true,
 	CompletionHandle: true,
 	WorkPool: true,

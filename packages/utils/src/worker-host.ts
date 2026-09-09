@@ -10,7 +10,7 @@ export function isWorkerHostSelector(value: string | undefined): value is string
 
 /**
  * Main-module path declared by self-dispatching CLI entrypoints — entries
- * whose top-level argv handling routes hidden `__omp_*` worker selectors.
+ * whose top-level argv handling routes hidden `__zeta_**` worker selectors.
  * Worker spawn sites re-enter this module via `new Worker(entry, { argv })`,
  * so every distribution (source, npm bundle, compiled binary) needs exactly
  * one JavaScript entrypoint. Never set under `bun test`, SDK embedding, or
