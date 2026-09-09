@@ -166,11 +166,11 @@ echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"
 
 # Capture function definitions into a variable so we can both persist them
 # and scan their bodies for env-var references (issue #3470).
-__omp_funcs=$(
+__zeta_funcs=$(
 ${functionExtractor}
 )
 echo "# Functions" >> "$SNAPSHOT_FILE"
-printf '%s\\n' "$__omp_funcs" >> "$SNAPSHOT_FILE"
+printf '%s\\n' "$__zeta_funcs" >> "$SNAPSHOT_FILE"
 
 # Re-export uppercase identifiers referenced by snapshotted functions whose
 # value is set in the rc-sourced shell. Without this, activation idioms like
@@ -179,9 +179,9 @@ printf '%s\\n' "$__omp_funcs" >> "$SNAPSHOT_FILE"
 # block works for both bash and zsh.
 echo "# Captured function environment" >> "$SNAPSHOT_FILE"
 ${fnEnvHelper}
-printf '%s\\n' "$__omp_funcs" | __omp_emit_referenced_exports >> "$SNAPSHOT_FILE"
-unset -f __omp_sq_quote __omp_emit_export_for __omp_emit_referenced_exports 2>/dev/null
-unset __omp_funcs __omp_qbuf __omp_qout __omp_sq __omp_xv __omp_name 2>/dev/null
+printf '%s\\n' "$__zeta_funcs" | __zeta_emit_referenced_exports >> "$SNAPSHOT_FILE"
+unset -f __zeta_sq_quote __zeta_emit_export_for __zeta_emit_referenced_exports 2>/dev/null
+unset __zeta_funcs __zeta_qbuf __zeta_qout __zeta_sq __zeta_xv __zeta_name 2>/dev/null
 
 ${optionsScript}
 

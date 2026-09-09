@@ -803,7 +803,7 @@ function synthesizeBundledModuleSourceFromModules(moduleKey: string, modules: Bu
 		throw new Error(`omp:legacy-pi-shim: no bundled module registered for ${moduleKey}`);
 	}
 	const lines: string[] = [
-		`const __omp_bundled = globalThis[${JSON.stringify(BUNDLED_MODULES_GLOBAL)}][${JSON.stringify(moduleKey)}];`,
+		`const __zeta_bundled = globalThis[${JSON.stringify(BUNDLED_MODULES_GLOBAL)}][${JSON.stringify(moduleKey)}];`,
 	];
 	let hasDefault = false;
 	for (const exportName in mod) {
@@ -811,10 +811,10 @@ function synthesizeBundledModuleSourceFromModules(moduleKey: string, modules: Bu
 			hasDefault = true;
 			continue;
 		}
-		lines.push(`export const ${exportName} = __omp_bundled[${JSON.stringify(exportName)}];`);
+		lines.push(`export const ${exportName} = __zeta_bundled[${JSON.stringify(exportName)}];`);
 	}
 	if (hasDefault) {
-		lines.push("export default __omp_bundled.default;");
+		lines.push("export default __zeta_bundled.default;");
 	}
 	lines.push("");
 	return lines.join("\n");
@@ -1263,10 +1263,14 @@ function toGraphImportSpecifier(resolvedPath: string, mtimeTag: string | null): 
 	if (isBundledVirtualSpecifier(resolvedPath)) {
 		return resolvedPath;
 	}
-	if (process.platform === "win32" || !mtimeTag) {
+	// Plain slash paths (not `file://`) keep the `?mtime` query alive on
+	// Windows: Bun drops query strings from `file://` specifiers, which would
+	// pin every reload to the first load's cached module. Without a tag the
+	// stable file URL is fine — the module identity never changes.
+	if (!mtimeTag) {
 		return url.pathToFileURL(stripWindowsExtendedLengthPathPrefix(resolvedPath)).href;
 	}
-	return `${stripWindowsExtendedLengthPathPrefix(resolvedPath)}?mtime=${mtimeTag}`;
+	return `${stripWindowsExtendedLengthPathPrefix(resolvedPath).replaceAll("\\", "/")}?mtime=${mtimeTag}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -2654,10 +2658,11 @@ async function installExtensionGraphHook(
 						} else {
 							raw = await Bun.file(sourcePath).text();
 						}
-						return {
+						const out = {
 							contents: await rewriteLegacyExtensionSource(raw, sourcePath, mtimeTag, resolvedImportMtimeTag),
 							loader: getLoader(sourcePath),
 						};
+						return out;
 					})();
 				});
 			},
@@ -2815,13 +2820,14 @@ export async function loadLegacyPiModule(resolvedPath: string): Promise<unknown>
 	const pendingSources = await ensureExtensionGraphHook(entryRealPath);
 	try {
 		// Dynamic import is required: legacy extension entry paths are user/plugin supplied at runtime.
-		// On POSIX, use the raw filesystem path so Bun keys the `?mtime`
-		// suffix as part of the module identity; Bun ignores query strings on
-		// `file://` specifiers, which would serve stale edited source.
-		const entrySpecifier =
-			process.platform === "win32" || isBundledVirtualSpecifier(entryRealPath)
-				? toImportSpecifier(entryRealPath)
-				: entryRealPath;
+		// Use a plain filesystem path so Bun keys the `?mtime` suffix as part of
+		// the module identity. `file://` specifiers would drop the query string,
+		// collapsing every reload onto the first load's cached module — stale
+		// edited source on Windows, where the file:// branch used to be taken.
+		// Bundled virtual specifiers must keep their scheme.
+		const entrySpecifier = isBundledVirtualSpecifier(entryRealPath)
+			? toImportSpecifier(entryRealPath)
+			: stripWindowsExtendedLengthPathPrefix(entryRealPath).replaceAll("\\", "/");
 		return await import(`${entrySpecifier}?mtime=${nextLegacyPiLoadTag()}`);
 	} finally {
 		// Drop whatever the initial import didn't consume: graph modules only
