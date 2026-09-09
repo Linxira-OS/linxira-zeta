@@ -8,9 +8,9 @@ if "__omp_prelude_loaded__" not in globals():
     from urllib.parse import unquote
 
 
-    # __omp_display is injected by runner.py before the prelude executes; it
+    # __zeta_display is injected by runner.py before the prelude executes; it
     # mirrors IPython's display() semantics with the same MIME bundle output.
-    _omp_display = __omp_display  # type: ignore[name-defined]
+    _zeta_display = __zeta_display  # type: ignore[name-defined]
 
     _PRESENTABLE_REPRS = (
         "_repr_mimebundle_",
@@ -26,20 +26,20 @@ if "__omp_prelude_loaded__" not in globals():
     def display(value):
         """Render a value. Falls back to a JSON+text/plain bundle for plain dict/list/tuple."""
         if any(hasattr(value, attr) for attr in _PRESENTABLE_REPRS):
-            _omp_display(value)
+            _zeta_display(value)
             return
         if isinstance(value, (dict, list, tuple)):
             try:
                 bundle = {"application/json": value, "text/plain": repr(value)}
-                _omp_display(bundle, raw=True)
+                _zeta_display(bundle, raw=True)
                 return
             except Exception:
                 pass
-        _omp_display(value)
+        _zeta_display(value)
 
     def _emit_status(op: str, **data):
         """Emit structured status event for TUI rendering."""
-        _omp_display({"application/x-omp-status": {"op": op, **data}}, raw=True)
+        _zeta_display({"application/x-zeta-status": {"op": op, **data}}, raw=True)
 
     def env(key: str | None = None, value: str | None = None):
         """Get/set environment variables."""
@@ -433,7 +433,7 @@ if "__omp_prelude_loaded__" not in globals():
             mime_type = image.get("mimeType")
             if not isinstance(data, str) or not isinstance(mime_type, str):
                 continue
-            _omp_display({mime_type: data}, raw=True)
+            _zeta_display({mime_type: data}, raw=True)
             displayed += 1
         if displayed == 0:
             return value

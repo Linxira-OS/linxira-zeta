@@ -503,7 +503,7 @@ export class JsRuntime {
 				(tableConsole.table as (...a: unknown[]) => void)(...args);
 				hooks.onText(buffer.endsWith("\n") ? buffer : `${buffer}\n`);
 			},
-			__omp_display__: (value: unknown) => this.displayValue(value),
+			__zeta_display__: (value: unknown) => this.displayValue(value),
 			__omp_set_final_expr__: (value: unknown) => {
 				const context = this.#als.getStore();
 				if (!context) {

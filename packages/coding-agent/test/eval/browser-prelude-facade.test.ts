@@ -99,7 +99,7 @@ describe("browser JavaScript facade", () => {
 		const session = makeSession();
 		const prelude = createBrowserPrelude(session);
 		const context = createContext({
-			__omp_display__: (value: unknown) => displays.push(value),
+			__zeta_display__: (value: unknown) => displays.push(value),
 			__omp_prelude__: async (name: string, parameters: unknown) => {
 				expect(name).toBe("browser");
 				calls.push(parameters);
@@ -301,7 +301,7 @@ describe("browser facade Chromium helper E2E", () => {
 			const context = createContext({
 				__name__: name,
 				__url__: `data:text/html,${encodeURIComponent(html)}`,
-				__omp_display__: (value: unknown) => displayed.push(value),
+				__zeta_display__: (value: unknown) => displayed.push(value),
 				__omp_prelude__: async (preludeName: string, parameters: unknown) => {
 					expect(preludeName).toBe("browser");
 					const result = await prelude.invoke(parameters, {

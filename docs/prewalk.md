@@ -9,7 +9,7 @@ Prewalk is off by default. Its default target is the model assigned to the `@smo
 Enable prewalk persistently in the global config:
 
 ```bash
-omp config set prewalk.enabled true
+zeta config set prewalk.enabled true
 ```
 
 The equivalent YAML in `~/.zeta/agent/config.yml` or a project `.zeta/config.yml` is:
@@ -30,9 +30,9 @@ Session flags override the configured value:
 For example:
 
 ```bash
-omp --prewalk
-omp --prewalk-into @smol
-omp --prewalk-into openai/gpt-5-mini
+zeta --prewalk
+zeta --prewalk-into @smol
+zeta --prewalk-into openai/gpt-5-mini
 ```
 
 At startup, OMP resolves the target with the normal model-role and model-matching rules. If the target cannot be resolved or has no configured credentials, OMP prints a warning and starts with prewalk unarmed.

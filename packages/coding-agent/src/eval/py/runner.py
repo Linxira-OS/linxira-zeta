@@ -199,7 +199,7 @@ _CURRENT_RID: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 )
 _CURRENT_DISPLAYED_MATPLOTLIB_FIGURE_IDS: contextvars.ContextVar[set[int] | None] = (
     contextvars.ContextVar(
-        "omp_displayed_matplotlib_figure_ids",
+        "zeta_displayed_matplotlib_figure_ids",
         default=None,
     )
 )
@@ -241,7 +241,7 @@ def _start_capture_drain() -> None:
     if _CAPTURE_READ_FD is None:
         return
     thread = threading.Thread(
-        target=_drain_captured_stdout, name="omp-fd1-capture", daemon=True
+        target=_drain_captured_stdout, name="zeta-fd1-capture", daemon=True
     )
     thread.start()
 
@@ -407,7 +407,7 @@ def cell_magic(
 
 
 def _emit_status(op: str, **data: Any) -> None:
-    bundle = {"application/x-omp-status": {"op": op, **data}}
+    bundle = {"application/x-zeta-status": {"op": op, **data}}
     rid = _CURRENT_RID.get()
     if rid is None:
         return
@@ -986,7 +986,7 @@ def _emit_display(bundle: dict, *, kind: str = "display") -> None:
     _emit({"type": kind, "id": rid, "bundle": bundle})
 
 
-def __omp_display(value: Any, *, raw: bool = False, kind: str = "display") -> None:
+def __zeta_display(value: Any, *, raw: bool = False, kind: str = "display") -> None:
     if raw:
         if not isinstance(value, dict):
             raise TypeError("display(..., raw=True) requires a MIME bundle dict")
@@ -1037,8 +1037,8 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 
 
 def _install_builtins(ns: dict) -> None:
-    ns["display"] = __omp_display
-    ns["__omp_display"] = __omp_display
+    ns["display"] = __zeta_display
+    ns["__zeta_display"] = __zeta_display
     ns["__omp_magic"] = __omp_magic
     ns["__omp_magic_cell"] = __omp_magic_cell
     ns["__omp_shell"] = __omp_shell
@@ -1121,12 +1121,12 @@ def _exec_source(source: str, ns: dict) -> None:
     if has_expr and expr_code is not None:
         value = _run_compiled_sync(expr_code, ns, want_value=True)
         if value is not None:
-            __omp_display(value, kind="result")
+            __zeta_display(value, kind="result")
 
 
 async def _exec_source_async(source: str, ns: dict) -> None:
     """Compile + execute ``source``; if the last node is an expression, route
-    its value through ``__omp_display`` so dataframes/figures render rich.
+    its value through ``__zeta_display`` so dataframes/figures render rich.
     Top-level ``await`` / ``async for`` / ``async with`` is permitted; awaited
     regions yield to other requests in the runner's persistent event loop."""
     body_code, expr_code, has_expr = _compile_source(source)
@@ -1136,7 +1136,7 @@ async def _exec_source_async(source: str, ns: dict) -> None:
     if has_expr and expr_code is not None:
         value = await _run_compiled_async(expr_code, ns, want_value=True)
         if value is not None:
-            __omp_display(value, kind="result")
+            __zeta_display(value, kind="result")
 
 
 # ---------------------------------------------------------------------------
@@ -1227,7 +1227,7 @@ def _start_parent_watchdog() -> None:
                 return
             time.sleep(10)
 
-    thread = threading.Thread(target=watch, name="omp-parent-watchdog", daemon=True)
+    thread = threading.Thread(target=watch, name="zeta-parent-watchdog", daemon=True)
     thread.start()
 
 
@@ -1443,7 +1443,7 @@ def _read_stdin(loop: asyncio.AbstractEventLoop, queue: asyncio.Queue, stdin) ->
             threading.Thread(
                 target=_handle_tool_request,
                 args=(req,),
-                name=f"omp-tool-{req.get('id')}",
+                name=f"zeta-tool-{req.get('id')}",
                 daemon=True,
             ).start()
             continue
@@ -1466,7 +1466,7 @@ async def _serve_posix(loop: asyncio.AbstractEventLoop, stdin) -> None:
     reader = threading.Thread(
         target=_read_stdin,
         args=(loop, queue, stdin),
-        name="omp-stdin-reader",
+        name="zeta-stdin-reader",
         daemon=True,
     )
     reader.start()
@@ -1527,7 +1527,7 @@ async def _serve_windows(loop: asyncio.AbstractEventLoop, stdin) -> None:
             threading.Thread(
                 target=_handle_tool_request,
                 args=(req,),
-                name=f"omp-tool-{req.get('id')}",
+                name=f"zeta-tool-{req.get('id')}",
                 daemon=True,
             ).start()
             continue

@@ -139,7 +139,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 
 - `docs/` — **runtime documentation, packaged with the product**: embedded
   into binaries and the npm bundle (`PI_DOCS_EMBED`), served over
-  `omp://docs/`. Covers tools, skills, protocols, configuration, Zeta
+  `zeta://docs/`. Covers tools, skills, protocols, configuration, Zeta
   features.
 - `document/` — **internal development and process documentation, never
   packaged**: `roadmap.md`, `upstream-sync.md`, porting guides, merge

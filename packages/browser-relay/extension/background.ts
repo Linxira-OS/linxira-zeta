@@ -48,13 +48,13 @@ function snapshot(tab: ChromeTab): TabSnapshot | null {
 	};
 }
 
-/** Title of the omp tab group; mirrored to session storage so a restarted service worker can still dissolve it. */
-let ompGroupTitle: string | null = null;
+/** Title of the zeta tab group; mirrored to session storage so a restarted service worker can still dissolve it. */
+let zetaGroupTitle: string | null = null;
 
 /**
  * Serialize group mutations. Chrome's query→group→set-title sequence is not
  * atomic: two concurrent runs both miss the not-yet-titled group and mint
- * duplicate "omp" groups in the same window.
+ * duplicate "zeta" groups in the same window.
  */
 let groupOps: Promise<unknown> = Promise.resolve();
 function enqueueGroupOp<T>(fn: () => Promise<T>): Promise<T> {
@@ -63,10 +63,10 @@ function enqueueGroupOp<T>(fn: () => Promise<T>): Promise<T> {
 	return result;
 }
 
-/** Move tabs into the per-window omp group, creating or reusing it by title. */
+/** Move tabs into the per-window zeta group, creating or reusing it by title. */
 async function groupTabs(tabIds: number[], title: string, color: string): Promise<{ grouped: Record<string, number> }> {
-	ompGroupTitle = title;
-	void chrome.storage.session.set({ ompGroupTitle: title });
+	zetaGroupTitle = title;
+	void chrome.storage.session.set({ zetaGroupTitle: title });
 	const byWindow = new Map<number, number[]>();
 	for (const tabId of tabIds) {
 		try {
@@ -102,15 +102,15 @@ async function groupTabs(tabIds: number[], title: string, color: string): Promis
 	return { grouped };
 }
 
-/** Dissolve every omp-titled group (relay disconnected or asked us to release tabs). */
+/** Dissolve every zeta-titled group (relay disconnected or asked us to release tabs). */
 async function restoreGroups(): Promise<void> {
-	if (!ompGroupTitle) {
+	if (!zetaGroupTitle) {
 		// Service worker restarted since the last group op; recover the title.
-		const stored = await chrome.storage.session.get({ ompGroupTitle: "" }).catch(() => ({ ompGroupTitle: "" }));
-		ompGroupTitle = typeof stored.ompGroupTitle === "string" && stored.ompGroupTitle ? stored.ompGroupTitle : null;
+		const stored = await chrome.storage.session.get({ zetaGroupTitle: "" }).catch(() => ({ zetaGroupTitle: "" }));
+		zetaGroupTitle = typeof stored.zetaGroupTitle === "string" && stored.zetaGroupTitle ? stored.zetaGroupTitle : null;
 	}
-	if (!ompGroupTitle) return;
-	const groups = await chrome.tabGroups.query({ title: ompGroupTitle }).catch(() => []);
+	if (!zetaGroupTitle) return;
+	const groups = await chrome.tabGroups.query({ title: zetaGroupTitle }).catch(() => []);
 	for (const group of groups) {
 		const tabs = await chrome.tabs.query({ groupId: group.id }).catch(() => []);
 		const ids = tabs.map(tab => tab.id).filter(id => id !== undefined);
@@ -277,9 +277,9 @@ chrome.tabs.onRemoved.addListener(tabId => {
 
 // ---- lifecycle ----------------------------------------------------------------
 
-chrome.alarms.create("omp-relay-keepalive", { periodInMinutes: 0.5 });
+chrome.alarms.create("zeta-relay-keepalive", { periodInMinutes: 0.5 });
 chrome.alarms.onAlarm.addListener(alarm => {
-	if (alarm.name === "omp-relay-keepalive") void connect();
+	if (alarm.name === "zeta-relay-keepalive") void connect();
 });
 
 chrome.storage.onChanged.addListener((_changes, areaName) => {

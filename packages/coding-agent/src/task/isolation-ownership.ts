@@ -2,8 +2,8 @@
  * Ownership marker for task-isolation sandboxes under `~/.zeta/wt/`.
  *
  * Each isolation base dir (`ensureIsolation` in {@link ./worktree}) holds a
- * compact `m` mount plus this marker file naming the omp process that created
- * it. `omp worktree clear` consults the marker so it can distinguish a live
+ * compact `m` mount plus this marker file naming the zeta process that created
+ * it. `zeta worktree clear` consults the marker so it can distinguish a live
  * subagent's sandbox from a crashed run's leftover instead of deleting both.
  */
 import * as path from "node:path";
@@ -14,7 +14,7 @@ export const ISOLATION_OWNER_FILE = ".zeta-isolation-owner.json";
 
 /** Recorded owner of a task-isolation sandbox. */
 export interface IsolationOwner {
-	/** PID of the omp process that created and owns the sandbox. */
+	/** PID of the zeta process that created and owns the sandbox. */
 	pid: number;
 	/** Task id the sandbox was materialised for. */
 	id: string;

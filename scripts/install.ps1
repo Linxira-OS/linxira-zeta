@@ -18,7 +18,7 @@ $ErrorActionPreference = "Stop"
 
 $Repo = "Linxira-OS/linxira-zeta"
 $Package = "@linxiraos/zeta"
-$InstallDir = if ($env:PI_INSTALL_DIR) { $env:PI_INSTALL_DIR } else { "$env:LOCALAPPDATA\omp" }
+$InstallDir = if ($env:PI_INSTALL_DIR) { $env:PI_INSTALL_DIR } else { "$env:LOCALAPPDATA\zeta" }
 $BinaryName = "zeta-cli-windows-x64.exe"
 $MinimumBunVersion = "1.3.14"
 
@@ -151,7 +151,7 @@ function Configure-BashShell {
             Write-Host "[OK] Configured shell path in $settingsFile" -ForegroundColor Green
         } else {
             Write-Host ""
-            Write-Host "No bash shell found - OMP will use its built-in shell." -ForegroundColor Cyan
+            Write-Host "No bash shell found - Zeta will use its built-in shell." -ForegroundColor Cyan
             Write-Host "  For shell snapshots and interactive terminals, install Git for Windows:" -ForegroundColor Cyan
             Write-Host "    https://git-scm.com/download/win" -ForegroundColor Cyan
             Write-Host "  Or set a custom path in:" -ForegroundColor Cyan
@@ -178,7 +178,7 @@ function Install-ViaBun {
             throw "git is required for -Ref when installing from source"
         }
 
-        $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("omp-install-" + [System.Guid]::NewGuid().ToString("N"))
+        $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("zeta-install-" + [System.Guid]::NewGuid().ToString("N"))
         New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null
 
         try {
@@ -231,11 +231,11 @@ function Install-ViaBun {
     }
 
     Write-Host ""
-    Write-Host "[OK] Installed omp via bun" -ForegroundColor Green
+    Write-Host "[OK] Installed zeta via bun" -ForegroundColor Green
 
     Configure-BashShell
 
-    Write-Host "Run 'omp' to get started!"
+    Write-Host "Run 'zeta' to get started!"
 }
 
 function Install-Binary {
@@ -262,11 +262,11 @@ function Install-Binary {
     # Download binary
     $BinaryUrl = "https://github.com/$Repo/releases/download/$Latest/$BinaryName"
     Write-Host "Downloading $BinaryName..."
-    $OutPath = Join-Path $InstallDir "omp.exe"
+    $OutPath = Join-Path $InstallDir "zeta.exe"
     Invoke-WebRequest -Uri $BinaryUrl -OutFile $OutPath -TimeoutSec 900
 
     Write-Host ""
-    Write-Host "[OK] Installed omp to $OutPath" -ForegroundColor Green
+    Write-Host "[OK] Installed zeta to $OutPath" -ForegroundColor Green
 
     # Add to PATH if not already there
     $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -279,9 +279,9 @@ function Install-Binary {
     Configure-BashShell
 
     if ($needsRestart) {
-        Write-Host "Restart your terminal, then run 'omp' to get started!"
+        Write-Host "Restart your terminal, then run 'zeta' to get started!"
     } else {
-        Write-Host "Run 'omp' to get started!"
+        Write-Host "Run 'zeta' to get started!"
     }
 }
 

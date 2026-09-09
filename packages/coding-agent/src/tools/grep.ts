@@ -299,7 +299,7 @@ async function resolveArchiveSearchPaths(
 		}
 
 		if (!tempDir) {
-			tempDir = await mkdtemp(path.join(tmpdir(), "omp-search-archive-"));
+			tempDir = await mkdtemp(path.join(tmpdir(), "zeta-search-archive-"));
 		}
 		// Per-entry filename keeps the scratch path unique even when two selectors
 		// resolve to members with the same basename.
@@ -349,7 +349,7 @@ interface IndexedContentLines {
 	starts: number[];
 }
 
-const OMP_ROOT_URL_RE = /^omp:\/\/(?:\/?|docs\/?)$/i;
+const ZETA_ROOT_URL_RE = /^zeta:\/\/(?:\/?|docs\/?)$/i;
 
 function normalizeSearchLine(line: string): string {
 	return line.endsWith("\r") ? line.slice(0, -1) : line;
@@ -654,7 +654,7 @@ async function searchVirtualResources(
 	// `[[:digit:]]`) behaves identically on virtual/remote resources. The JS helpers
 	// below then rebuild the exact forward-only, range-trimmed context windows the
 	// virtual-search contract requires.
-	const dir = await mkdtemp(path.join(tmpdir(), "omp-search-virtual-"));
+	const dir = await mkdtemp(path.join(tmpdir(), "zeta-search-virtual-"));
 	try {
 		for (let idx = 0; idx < resources.length; idx++) {
 			const resource = resources[idx];
@@ -749,15 +749,15 @@ async function expandVirtualInternalResource(
 	context: ResolveContext,
 	ranges: readonly LineRange[] | undefined,
 ): Promise<VirtualSearchResource[]> {
-	if (OMP_ROOT_URL_RE.test(rawPath)) {
-		const completions = await internalRouter.complete("omp", "");
+	if (ZETA_ROOT_URL_RE.test(rawPath)) {
+		const completions = await internalRouter.complete("zeta", "");
 		if (completions && completions.length > 0) {
 			const resources: VirtualSearchResource[] = [];
 			const seen = new Set<string>();
 			for (const completion of completions) {
 				if (seen.has(completion.value)) continue;
 				seen.add(completion.value);
-				const docUrl = `omp://${completion.value}`;
+				const docUrl = `zeta://${completion.value}`;
 				const doc = await internalRouter.resolve(docUrl, context);
 				if (!doc.sourcePath) {
 					resources.push({ path: docUrl, content: doc.content, ranges });

@@ -100,7 +100,7 @@ Extension packages can also bundle sibling capability directories. When a packag
 
 ## package.json manifest
 
-To package an extension as an installable plugin, add an `zeta` field to `package.json`:
+To package an extension as an installable plugin, add a `zeta` field to `package.json`:
 
 ```json
 {
