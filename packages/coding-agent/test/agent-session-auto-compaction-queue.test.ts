@@ -14,7 +14,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import * as unexpectedStopClassifier from "@linxiraos/zeta/session/unexpected-stop-classifier";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
-const runtimeSignalStoreKey = "__ompRuntimeSignals";
+const runtimeSignalStoreKey = "__zetaRuntimeSignals";
 
 type RuntimeSignalGlobal = typeof globalThis & { [runtimeSignalStoreKey]?: string[] };
 
@@ -53,8 +53,8 @@ describe("AgentSession auto-compaction queue resume", () => {
 			pi => {
 				pi.on("session_before_compact", async event => {
 					getRuntimeSignals().push("before_compact:enter");
-					const gate = (globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> })
-						.__ompManualCompactGate;
+					const gate = (globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> })
+						.__zetaManualCompactGate;
 					if (gate) await gate;
 					return {
 						compaction: {
@@ -134,7 +134,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 				await Bun.sleep(0);
 			} finally {
 				getRuntimeSignals().length = 0;
-				(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+				(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
 					undefined;
 				vi.restoreAllMocks();
 			}
@@ -299,7 +299,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Park compaction inside its awaited hook so we can queue a follow-up while
 		// the session is disconnected and abort has already run its finally.
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
 			gate.promise;
 
 		const compactPromise = session.compact();
@@ -350,7 +350,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// #autoCompactionAbortController stays installed across the manual /compact
 		// startup abort below.
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
 			gate.promise;
 
 		const appendCompactionSpy = vi.spyOn(sessionManager, "appendCompaction");

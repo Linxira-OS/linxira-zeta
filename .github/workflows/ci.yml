@@ -230,18 +230,31 @@ jobs:
       steps:
          - uses: actions/checkout@v4
 
-         # ---- PR path: latest release addons from npm ----
+         # ---- PR path: latest Zeta addons from the @linxiraos npm leaves ----
+         # Desktop PR jobs need the full target matrix, so fetch every leaf
+         # (not just linux-x64) and unpack each into its bazel-bin layout.
          - name: Fetch release native addons (npm)
            if: github.event_name == 'pull_request'
            shell: bash
            run: |
               set -euo pipefail
-              tarball="$(npm view @oh-my-pi/pi-natives-linux-x64@latest dist.tarball)"
-              echo "Fetching $tarball"
-              curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
-              mkdir -p bazel-bin/natives-linux-x64-baseline bazel-bin/natives-linux-x64-modern
-              cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" bazel-bin/natives-linux-x64-baseline/
-              cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" bazel-bin/natives-linux-x64-modern/
+              fetch_leaf() {
+                 local pkg="$1" dest="$2" file="$3"
+                 local tarball
+                 tarball="$(npm view "@linxiraos/${pkg}@latest" dist.tarball)"
+                 echo "Fetching ${tarball}"
+                 rm -rf "$RUNNER_TEMP/leaf-package"
+                 mkdir -p "$RUNNER_TEMP/leaf-package" "$dest"
+                 curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP/leaf-package"
+                 cp "$RUNNER_TEMP/leaf-package/package/${file}" "$dest/"
+              }
+              fetch_leaf pi-natives-linux-x64 bazel-bin/natives-linux-x64-baseline pi_natives.linux-x64-baseline.node
+              fetch_leaf pi-natives-linux-x64 bazel-bin/natives-linux-x64-modern pi_natives.linux-x64-modern.node
+              fetch_leaf pi-natives-win32-x64 bazel-bin/natives-win32-x64-baseline pi_natives.win32-x64-baseline.node
+              # Only what the desktop PR jobs consume: linux-x64 (baseline +
+              # modern) for the Linux desktop build and win32-x64-baseline for
+              # the Windows one. musl/arm targets stay on the bazel path (no
+              # musl leaf package exists).
          # A corrupt download must fail here, not as a confusing dlopen error
          # in every downstream test shard.
          - name: Smoke release addons
@@ -1167,7 +1180,7 @@ jobs:
            if: env.HAS_TAP_KEY == 'true'
            uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
            with:
-              repository: can1357/homebrew-tap
+              repository: Linxira-OS/homebrew-tap
               ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
               path: homebrew-tap
          - name: Regenerate and push the formula
@@ -1175,13 +1188,13 @@ jobs:
            env:
               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
            run: |
-              bun scripts/ci-update-brew-formula.ts "${{ needs.release_metadata.outputs.release-tag }}" --out homebrew-tap/Formula/omp.rb
+              bun scripts/ci-update-brew-formula.ts "${{ needs.release_metadata.outputs.release-tag }}" --out homebrew-tap/Formula/zeta.rb
               cd homebrew-tap
-              if git diff --quiet -- Formula/omp.rb; then
+              if git diff --quiet -- Formula/zeta.rb; then
                 echo "formula already up to date for ${{ needs.release_metadata.outputs.release-tag }}"
                 exit 0
               fi
               git -c user.name="github-actions[bot]" \
                   -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-                  commit -m "omp ${{ needs.release_metadata.outputs.release-tag }}" -- Formula/omp.rb
+                  commit -m "zeta ${{ needs.release_metadata.outputs.release-tag }}" -- Formula/zeta.rb
               git push origin HEAD:main

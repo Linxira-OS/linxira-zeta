@@ -1,5 +1,5 @@
 /**
- * CLI handler for `omp worktree` — list and clean up agent-managed worktrees.
+ * CLI handler for `zeta worktree` — list and clean up agent-managed worktrees.
  *
  * Layout under `~/.zeta/wt/`:
  *
@@ -38,7 +38,7 @@ export interface WorktreeEntry {
 	parentRepo?: string;
 	/** Branch name extracted from the parent's tracking file, when available. */
 	branch?: string;
-	/** When set, the entry is unhealthy and `omp worktree clear` will remove it. */
+	/** When set, the entry is unhealthy and `zeta worktree clear` will remove it. */
 	orphanReason?: string;
 }
 

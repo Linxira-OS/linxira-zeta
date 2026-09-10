@@ -1,6 +1,6 @@
 # Keybindings
 
-Run `/hotkeys` inside an `zeta` session to see the active chords for your current build. The list reflects any remaps loaded from disk and any bindings added by extensions.
+Run `/hotkeys` inside a `zeta` session to see the active chords for your current build. The list reflects any remaps loaded from disk and any bindings added by extensions.
 
 ## Customize keybindings
 

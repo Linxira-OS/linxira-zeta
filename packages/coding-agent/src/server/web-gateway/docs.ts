@@ -1,7 +1,7 @@
 /**
  * Web Gateway — `/api/docs/<path>` handler for the packaged Markdown corpus.
  *
- * Content comes from the same docs index the `omp://docs/` protocol serves
+ * Content comes from the same docs index the `zeta://docs/` protocol serves
  * (`internal-urls/docs-index.ts`): compiled binaries / the npm bundle read the
  * gzip+base64 embed, a dev tree falls back to the source `docs/` directory.
  * Paths are restricted to `[A-Za-z0-9._/-]` and must not contain `..` or be

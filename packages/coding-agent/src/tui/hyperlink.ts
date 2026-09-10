@@ -239,7 +239,7 @@ export async function resolveMarkdownLinkTargets(
  * during the call/streaming phase before a result lands).
  *
  * Async-resolved schemes (`artifact://`, `agent://`, `skill://`, `rule://`,
- * `omp://`) are not handled here — those rely on `details.resolvedPath` set
+ * `zeta://`) are not handled here — those rely on `details.resolvedPath` set
  * by the read tool's router resolution.
  */
 export function tryResolveInternalUrlSync(input: string): string | undefined {

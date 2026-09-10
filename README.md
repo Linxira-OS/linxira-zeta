@@ -81,14 +81,14 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
   argument schemas and full access to the runtime API.
 - **Command marketplace** — install and share slash commands as Bun packages.
 - **ACP collaboration builtins** — Agent Client Protocol session support.
-- **Local stats dashboard** — `omp stats` observability for the coding agent.
+- **Local stats dashboard** — `zeta stats` observability for the coding agent.
 
 ## Documentation
 
 The repository keeps two documentation trees with different audiences:
 
 - [docs/](docs/) — **runtime documentation**, packaged with the product. Agents
-  read it at runtime through `omp://docs/` (embedded in binaries and the npm
+  read it at runtime through `zeta://docs/` (embedded in binaries and the npm
   bundle; from a source checkout it reads the live tree). Covers tools,
   tool-call conversion, skills, protocols, configuration, and Zeta features.
 - [document/](document/) — **internal development and product-process

@@ -12,7 +12,7 @@
 import * as path from "node:path";
 
 /** Hidden CLI selector used to re-enter the LSP mux worker. */
-export const LSP_MUX_WORKER_ARG = "__omp_worker_lsp_mux";
+export const LSP_MUX_WORKER_ARG = "__zeta_worker_lsp_mux";
 
 /** Environment key carrying the socket endpoint the mux must listen on. */
 export const LSP_MUX_SOCKET_ENV = "OMP_LSP_MUX_SOCKET";
@@ -21,21 +21,21 @@ export const LSP_MUX_SOCKET_ENV = "OMP_LSP_MUX_SOCKET";
 export const LSP_MUX_PROJECT_DIR_ENV = "OMP_LSP_MUX_PROJECT_DIR";
 
 /** Stable broker daemon name for the shared LSP mux. */
-export const LSP_MUX_DAEMON_NAME = "omp.lsp.mux";
+export const LSP_MUX_DAEMON_NAME = "zeta.lsp.mux";
 
 /** Broker readiness regex matched against the banner printed by the worker. */
-export const LSP_MUX_READY_PATTERN = String.raw`omp lsp mux listening on \S+`;
+export const LSP_MUX_READY_PATTERN = String.raw`zeta lsp mux listening on \S+`;
 
 /** Banner printed on stdout once the mux socket accepts connections. */
 export function lspMuxReadyBanner(endpoint: string): string {
-	return `omp lsp mux listening on ${endpoint}`;
+	return `zeta lsp mux listening on ${endpoint}`;
 }
 
 /** Resolve the Unix socket or Windows named pipe for one project scope. */
 export function lspMuxEndpoint(projectDir: string, runtimeDir: string): string {
 	if (process.platform === "win32") {
 		const key = Bun.hash.wyhash(path.resolve(projectDir)).toString(16).padStart(16, "0");
-		return `\\\\.\\pipe\\omp-lsp-mux-${key}`;
+		return `\\\\.\\pipe\\zeta-lsp-mux-${key}`;
 	}
 	return path.join(runtimeDir, "lsp-mux.sock");
 }

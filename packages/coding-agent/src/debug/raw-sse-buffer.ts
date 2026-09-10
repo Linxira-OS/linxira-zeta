@@ -4,7 +4,7 @@ import { materializeString } from "@linxiraos/pi-utils";
 const MAX_RAW_SSE_EVENTS = 1_000;
 const MAX_RAW_SSE_CHARS = 512_000;
 const MAX_RAW_SSE_EVENT_CHARS = 64_000;
-// Reserve room for the `: omp-debug-truncated` / `: omp-debug-elided` marker
+// Reserve room for the `: zeta-debug-truncated` / `: zeta-debug-elided` marker
 // lines so a trimmed event stays within MAX_RAW_SSE_EVENT_CHARS overall.
 const TRIM_MARKER_RESERVE = 200;
 // Caps applied to individual tool entries when compacting a `tools` array
@@ -139,7 +139,7 @@ function compactToolLines(raw: readonly string[]): string[] | null {
 
 // Keeps the first and last portions of an over-budget event and drops the
 // middle, so leading fields (id/model/status) AND trailing fields
-// (usage/finish_reason) both stay visible. A `: omp-debug-elided` comment
+// (usage/finish_reason) both stay visible. A `: zeta-debug-elided` comment
 // marks the cut; split lines carry `…` at the cut edge.
 function headTailTrim(lines: string[], budget: number, elidedTotal: number): string[] {
 	const headBudget = budget >> 1;
@@ -176,10 +176,10 @@ function headTailTrim(lines: string[], budget: number, elidedTotal: number): str
 		const tailSlice = lines[j].slice(tailStart);
 		elided -= headSlice.length + tailSlice.length;
 		if (headSlice.length > 0) out.push(`${headSlice}…`);
-		out.push(`: omp-debug-elided chars=${Math.max(0, elided)}`);
+		out.push(`: zeta-debug-elided chars=${Math.max(0, elided)}`);
 		if (tailSlice.length > 0) out.push(`…${tailSlice}`);
 	} else if (elided > 0) {
-		out.push(`: omp-debug-elided chars=${elided}`);
+		out.push(`: zeta-debug-elided chars=${elided}`);
 	}
 	out.push(...tail);
 	return out;
@@ -191,7 +191,7 @@ function headTailTrim(lines: string[], budget: number, elidedTotal: number): str
 //   2. over budget → compact tool schemas inside `data:` JSON payloads;
 //      if that alone fits, the payload stays parseable JSON.
 //   3. still over → head+tail trim (middle elided).
-// Any trimmed result ends with the `: omp-debug-truncated` marker carrying
+// Any trimmed result ends with the `: zeta-debug-truncated` marker carrying
 // the original size.
 function trimRawLines(raw: string[]): TrimResult {
 	const originalChars = countLines(raw);
@@ -209,7 +209,7 @@ function trimRawLines(raw: string[]): TrimResult {
 	}
 	// Kept windows outlive the incoming frame; detach them from its backing storage.
 	lines = lines.map(materializeString);
-	lines.push(`: omp-debug-truncated originalChars=${originalChars}`);
+	lines.push(`: zeta-debug-truncated originalChars=${originalChars}`);
 	return { raw: lines, truncated: true, originalChars, chars: countLines(lines) + 1 };
 }
 

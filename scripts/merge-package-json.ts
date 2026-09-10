@@ -35,7 +35,7 @@ const ZETA_SCOPE = "@linxiraos/";
 // to @linxiraos/* (with RENAME_BY_TAIL for renamed packages) and keeps its own
 // independent versions (1.x product line), so the driver must map upstream
 // keys back to Zeta names before merging.
-const OMP_SCOPE = "@linxiraos/";
+const OMP_SCOPE = "@oh-my-pi/";
 
 // Upstream names whose catalog/tail does not equal the Zeta package tail.
 const RENAME_BY_TAIL: Record<string, string> = {
@@ -139,17 +139,18 @@ function main() {
 		}
 	}
 
-	// Handle workspace catalog entries in root package.json
-	const catalogKey = "catalog";
-	if (catalogKey in result && catalogKey in current) {
-		const currentWorkspaces = current.workspaces as Record<string, unknown> | undefined;
-		const resultWorkspaces = result.workspaces as Record<string, unknown> | undefined;
-		const currentCatalog = currentWorkspaces?.[catalogKey] as Record<string, string> | undefined;
-		const resultCatalog = resultWorkspaces?.[catalogKey] as Record<string, string> | undefined;
+	// Handle workspace catalog entries in root package.json. The catalog
+	// lives at `workspaces.catalog`, not at the top level — a top-level
+	// `in` check never fires, silently shipping upstream `@oh-my-pi/*`
+	// catalog keys and dropping the Zeta `@linxiraos/*` ones on every
+	// merge (the recurring asset-name damage).
+	const currentWorkspaces = current.workspaces as Record<string, unknown> | undefined;
+	const resultWorkspaces = result.workspaces as Record<string, unknown> | undefined;
+	const currentCatalog = currentWorkspaces?.catalog as Record<string, string> | undefined;
+	const upstreamCatalog = resultWorkspaces?.catalog as Record<string, string> | undefined;
 
-		if (currentCatalog && resultCatalog) {
-			(resultWorkspaces as Record<string, unknown>)[catalogKey] = mergeDeps(currentCatalog, resultCatalog);
-		}
+	if (currentCatalog && upstreamCatalog) {
+		resultWorkspaces!.catalog = mergeDeps(currentCatalog, upstreamCatalog);
 	}
 
 	saveJson(currentPath, result);

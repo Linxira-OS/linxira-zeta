@@ -154,11 +154,11 @@ describe("internal-url-autocomplete", () => {
 				"history",
 				"local",
 				"memory",
-				"omp",
 				"rule",
 				"security",
 				"skill",
 				"ssh",
+				"zeta",
 			]);
 		});
 	});

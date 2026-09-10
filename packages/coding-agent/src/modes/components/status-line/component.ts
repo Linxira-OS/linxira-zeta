@@ -48,9 +48,9 @@ import type {
 const JJ_REFRESH_TTL_MS = 5000;
 const JJ_COMMAND_TIMEOUT_MS = 5_000;
 const WATCHER_FAILURE_POLL_TTL_MS = 5000;
-/** Brand-color fade duration across working-state edges (rust omp's `BRAND_FADE`). */
+/** Brand-color fade duration across working-state edges (rust zeta's `BRAND_FADE`). */
 const BRAND_FADE_MS = 450;
-/** Repaint cadence while the brand fade is in flight (rust omp's `FADE_FRAME`). */
+/** Repaint cadence while the brand fade is in flight (rust zeta's `FADE_FRAME`). */
 const BRAND_FADE_FRAME_MS = 40;
 
 /** A displayable limit after provider, account, model, and window filtering. */
@@ -841,7 +841,7 @@ export class StatusLineComponent implements Component {
 	/**
 	 * Foreground ANSI for the `pi` brand segment: dim gray while idle, fading
 	 * to the accent (session accent when enabled, else theme accent) while a
-	 * turn runs — a port of rust omp's status-band brand fade (450ms cubic
+	 * turn runs — a port of rust zeta's status-band brand fade (450ms cubic
 	 * ease-in-out). A working-state edge retargets the tween from the color
 	 * currently on screen, so interrupting a running fade never jumps, and arms
 	 * a 40ms frame timer so the fade keeps animating after the working loader

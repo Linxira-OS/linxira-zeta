@@ -1,5 +1,5 @@
 /**
- * `omp browser-relay` implementation: serve the local CDP relay and install
+ * `zeta browser-relay` implementation: serve the local CDP relay and install
  * its Chrome extension. Standalone CLI command — console output here is
  * intentional user-facing output.
  */
@@ -24,7 +24,7 @@ export interface BrowserRelayCommandArgs {
 	token?: string;
 	/** Install target directory; defaults to ~/.zeta/browser-relay/extension. */
 	dir?: string;
-	/** Gather tabs the agent actively drives into an 'omp' Chrome tab group (default true). */
+	/** Gather tabs the agent actively drives into a 'zeta' Chrome tab group (default true). */
 	group?: boolean;
 	verbose?: boolean;
 }
@@ -59,10 +59,10 @@ async function runInstall(dirOverride: string | undefined): Promise<void> {
 	console.log("Finish setup in Chrome:");
 	console.log("  1. Open chrome://extensions and enable Developer mode.");
 	console.log(`  2. Click "Load unpacked" and select: ${dir}`);
-	console.log("  3. Enable the mode:  omp config set browser.relay true");
+	console.log("  3. Enable the mode:  zeta config set browser.relay true");
 	console.log("");
-	console.log("omp starts the relay automatically when the browser prelude needs it;");
-	console.log("run `omp browser-relay` yourself only for --token or --no-group.");
+	console.log("Zeta starts the relay automatically when the browser prelude needs it;");
+	console.log("run `zeta browser-relay` yourself only for --token or --no-group.");
 	console.log("The extension badge shows 'on' once it reaches a relay.");
 }
 
@@ -80,31 +80,31 @@ async function runServe(args: BrowserRelayCommandArgs): Promise<void> {
 		// broker (or by hand): losing the bind to a live relay is success.
 		if (err instanceof Error && "code" in err && err.code === "EADDRINUSE") {
 			if (await probeRelayServer(`http://127.0.0.1:${args.port}`)) {
-				console.log(`omp browser relay already running on http://127.0.0.1:${args.port}; nothing to do.`);
+				console.log(`zeta browser relay already running on http://127.0.0.1:${args.port}; nothing to do.`);
 				return;
 			}
-			console.error(`Port ${args.port} is in use by something that is not an omp browser relay.`);
+			console.error(`Port ${args.port} is in use by something that is not a zeta browser relay.`);
 			process.exit(1);
 		}
 		throw err;
 	}
 
-	console.log(`omp browser relay listening on http://127.0.0.1:${args.port}`);
+	console.log(`zeta browser relay listening on http://127.0.0.1:${args.port}`);
 	console.log(`  extension endpoint  ws://127.0.0.1:${args.port}/ext${args.token ? "?token=***" : ""}`);
 	if (args.port === DEFAULT_RELAY_PORT) {
-		console.log("  enable with         omp config set browser.relay true");
+		console.log("  enable with         zeta config set browser.relay true");
 	} else {
 		console.log(
-			`  enable with         omp config set browser.relay true && omp config set browser.relayUrl http://127.0.0.1:${args.port}`,
+			`  enable with         zeta config set browser.relay true && zeta config set browser.relayUrl http://127.0.0.1:${args.port}`,
 		);
 	}
-	console.log("Waiting for the OMP Browser Relay extension to connect (omp browser-relay install)...");
+	console.log("Waiting for the OMP Browser Relay extension to connect (zeta browser-relay install)...");
 
 	let announced = false;
 	const readiness = setInterval(() => {
 		if (relay.bridge.ready && !announced) {
 			announced = true;
-			console.log("Extension connected. The omp browser prelude can now drive your tabs.");
+			console.log("Extension connected. The zeta browser prelude can now drive your tabs.");
 		} else if (!relay.bridge.ready && announced) {
 			announced = false;
 			console.log("Extension disconnected; waiting for it to reconnect...");

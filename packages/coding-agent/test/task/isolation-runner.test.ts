@@ -46,7 +46,7 @@ async function git(repoRoot: string, ...args: string[]): Promise<string> {
 }
 
 async function seedFooRepo(finalContent: string): Promise<{ repoRoot: string; patchPath: string }> {
-	const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-merge-"));
+	const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-merge-"));
 	tempRoots.push(repoRoot);
 
 	await git(repoRoot, "init", "-q", "-b", "main");
@@ -79,7 +79,7 @@ describe("runIsolatedSubprocess", () => {
 	});
 
 	it("preserves branch-mode output as a patch when branch transfer fails", async () => {
-		const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-run-"));
+		const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-run-"));
 		tempRoots.push(repoRoot);
 		const isolationDir = path.join(repoRoot, "isolated");
 		const artifactsDir = path.join(repoRoot, "artifacts");
@@ -166,7 +166,7 @@ describe("runIsolatedSubprocess", () => {
 		// working-tree delta. A throw from that trailing step used to delete the
 		// branch while the isolation worktree — the only other copy — was torn
 		// down in `finally`, losing committed work outright.
-		const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-rescue-"));
+		const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-rescue-"));
 		tempRoots.push(repoRoot);
 		const isolationDir = path.join(repoRoot, "isolated");
 		const artifactsDir = path.join(repoRoot, "artifacts");
@@ -302,7 +302,7 @@ describe("runIsolatedSubprocess", () => {
 	});
 
 	it("captures a successful yield's patch when child cleanup is deferred (issue #9670)", async () => {
-		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-defer-ok-"));
+		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-defer-ok-"));
 		tempRoots.push(artifactsDir);
 		const rootPatch = "diff --git a/task.txt b/task.txt\n--- a/task.txt\n+++ b/task.txt\n@@ -1 +1 @@\n-old\n+new\n";
 		const cleanupGate = Promise.withResolvers<void>();

@@ -10,7 +10,7 @@ async function runPrelude(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
 	const prelude = PYTHON_PRELUDE.replace(
 		"from __future__ import annotations",
-		"from __future__ import annotations\n__omp_display = lambda *args, **kwargs: None",
+		"from __future__ import annotations\n__zeta_display = lambda *args, **kwargs: None",
 	);
 	const script = `${prelude}\n${code}`;
 	const proc = Bun.spawn([pythonPath, "-c", script], {
@@ -36,11 +36,11 @@ describe("python prelude", () => {
 				"def word_count(text: Annotated[str, 'Text to split'], sep: Literal[' ', ','] = ' ', limit: Optional[int] = None) -> dict:",
 				'    """Count words in text."""',
 				"    return {'count': len(text.split(sep))}",
-				"first = __omp_tools__['word_count'].describe()",
+				"first = __zeta_tools__['word_count'].describe()",
 				"@tool(name='word_count', description='Replacement')",
 				"def replacement(text: str) -> dict:",
 				"    return {'count': 1}",
-				"print(json.dumps({'first': first, 'current': __omp_tools__['word_count'].describe(), 'defined': tool.defined()}, sort_keys=True))",
+				"print(json.dumps({'first': first, 'current': __zeta_tools__['word_count'].describe(), 'defined': tool.defined()}, sort_keys=True))",
 				"print(tool.undefine('word_count'), tool.defined())",
 			].join("\n"),
 			{},

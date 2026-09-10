@@ -43,7 +43,7 @@ type ModelPerfRow = {
 	ttft_ms: number;
 };
 
-/** Row shape read from an `omp stats` messages table during backfill. */
+/** Row shape read from a `zeta stats` messages table during backfill. */
 type StatsMessageRow = {
 	rowid: number;
 	timestamp: number;
@@ -217,7 +217,7 @@ ON CONFLICT(name) DO UPDATE SET count = command_usage.count + 1, last_used_at = 
 	#initializeSchema(): void {
 		// Install the busy handler BEFORE any lock-taking statement (incl.
 		// `PRAGMA journal_mode=WAL`, which acquires an exclusive lock during WAL
-		// recovery). Without this, concurrent omp startups can crash here with
+		// recovery). Without this, concurrent zeta startups can crash here with
 		// `SQLITE_BUSY` / `SQLITE_BUSY_RECOVERY`. See issue #2421. Headless
 		// hosts bound the wait so lock contention cannot freeze the protocol
 		// loop for the full interactive timeout.
@@ -591,7 +591,7 @@ FROM model_usage_legacy
 
 	/**
 	 * One-time, non-blocking import of historical request timings from the
-	 * `omp stats` database (`~/.zeta/stats.db`) into model_perf. Fire-and-forget:
+	 * `zeta stats` database (`~/.zeta/stats.db`) into model_perf. Fire-and-forget:
 	 * the walk runs in bounded chunks with event-loop yields between them
 	 * (bun:sqlite is synchronous — an unbounded scan here froze the TUI for
 	 * ~30s on multi-million-row stats databases), and the persistent meta
@@ -623,7 +623,7 @@ FROM model_usage_legacy
 	}
 
 	/**
-	 * Imports recent measurable request rows from an `omp stats` database
+	 * Imports recent measurable request rows from a `zeta stats` database
 	 * (`messages` table) into the model_perf aggregates. Walks newest-first
 	 * over the timestamp index in {@link MODEL_PERF_BACKFILL_CHUNK}-row chunks,
 	 * yielding to the event loop between chunks, and keeps at most

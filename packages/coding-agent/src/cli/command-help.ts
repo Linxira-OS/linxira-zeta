@@ -1,7 +1,7 @@
 import type { CommandMetadata } from "@linxiraos/pi-utils/cli";
 
 export const acpHelp = {
-	description: "Run Oh My Pi as an ACP (Agent Client Protocol) server over stdio",
+	description: "Run Zeta as an ACP (Agent Client Protocol) server over stdio",
 } satisfies CommandMetadata;
 
 export const attachHelp = {
@@ -11,7 +11,7 @@ export const attachHelp = {
 export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
 
 export const authBrokerHelp = {
-	description: "Manage the omp auth-broker (credential vault)",
+	description: "Manage the zeta auth-broker (credential vault)",
 } satisfies CommandMetadata;
 
 export const authGatewayHelp = {

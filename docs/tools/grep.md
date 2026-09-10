@@ -63,7 +63,7 @@ The tool returns a single text block in `content[0].text` plus structured `detai
    - readable external URLs (`http(s)://`, collapsed `http(s):/host`, `www.` spellings when no local path exists) are fetched and materialized to immutable local files; `ftp`/`ws`/`wss` and declined fetches fail with an explicit error;
    - resources with `sourcePath` are searched through their backing file;
    - resources without `sourcePath` are searched in memory with JavaScript `RegExp`;
-   - `omp://` expands to every embedded documentation file via URL completion;
+   - `zeta://` expands to every embedded documentation file via URL completion;
    - immutable sources are tracked so output can suppress editable hashline numbered output per file.
 5. For multi-path calls, `partitionExistingPaths()` skips only ENOENT entries. If every filesystem entry is missing and no virtual internal resources remain, the tool errors.
 6. Path resolution branches:
@@ -115,7 +115,7 @@ The tool returns a single text block in `content[0].text` plus structured `detai
 5. **Internal URL paths**
    - Filesystem-backed resources search their resolved `sourcePath`.
    - Virtual resources without `sourcePath` search their resolved content in memory.
-   - `omp://` expands to all embedded documentation files so it can be used as a docs search root.
+   - `zeta://` expands to all embedded documentation files so it can be used as a docs search root.
    - No internal-URL globbing.
    - Immutable and virtual sources suppress editable hashline anchors.
 
