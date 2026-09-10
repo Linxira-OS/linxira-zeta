@@ -71,11 +71,19 @@ function verifyRemoteTag(tag: string): void {
 		stderr: "pipe",
 	});
 	let sha: string;
+	// Resolve the local tag to its commit: `tag^{}` would echo the literal
+	// argument for a missing ref, so verify the object exists first — a
+	// lightweight tag resolves to its commit, an annotated tag peels to it.
+	const localRef = Bun.spawnSync(["git", "cat-file", "-t", tag], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+	const localKind = localRef.stdout.toString().trim();
+	const local =
+		localRef.exitCode === 0 && (localKind === "commit" || localKind === "tag")
+			? git(["rev-parse", `${tag}^{commit}`]).trim()
+			: "";
 	if (ls.exitCode !== 0 || ls.stdout.toString().trim() === "") {
 		// Offline or network-restricted: a locally fetched tag from the upstream
 		// remote still proves provenance — its creation remote is recorded in
 		// the tag object. Fail loudly when we have neither.
-		const local = git(["rev-parse", `${tag}^{}`]).trim();
 		if (!local) {
 			throw new Error(
 				`tag ${tag} not found on ${UPSTREAM_REMOTE} nor locally — refusing to report on an unverified tag`,
@@ -88,7 +96,6 @@ function verifyRemoteTag(tag: string): void {
 		const peeled = lines.find(l => l.endsWith(`refs/tags/${tag}^{}`)) ?? lines[0]!;
 		sha = peeled.split(/\s+/)[0]!;
 		// A local tag disagreeing with the remote means a moved tag — stop.
-		const local = git(["rev-parse", `${tag}^{}`]).trim();
 		if (local && local !== sha) {
 			throw new Error(
 				`local ${tag} (${local}) disagrees with remote (${sha}) — moved release tag, STOP and escalate`,
@@ -137,11 +144,20 @@ function report(opts: Options): void {
 	fs.mkdirSync(opts.out, { recursive: true });
 	verifyRemoteTag(opts.tag);
 
-	const base = mergeBase(opts.tag);
+	// Resolve the tag to a commit ref usable by every later git call — the
+	// local tag may live under a sync prefix (u-v18.1.16) when remote reads
+	// are unavailable.
+	const localTag =
+		Bun.spawnSync(["git", "rev-parse", "--verify", "--quiet", `${opts.tag}^{commit}`], { cwd: ROOT }).exitCode === 0
+			? opts.tag
+			: `u-${opts.tag}`;
+	const tagRef = git(["rev-parse", "--verify", `${localTag}^{commit}`]).trim();
+
+	const base = mergeBase(tagRef);
 	console.log(`merge-base(main, ${opts.tag}) = ${base}`);
 
-	const upstream = diffFiles(base, opts.tag);
-	const conflicts = conflictFiles(opts.tag);
+	const upstream = diffFiles(base, tagRef);
+	const conflicts = conflictFiles(tagRef);
 	const zetaSide = new Set(diffFiles(base, "main"));
 	const intersection = upstream.filter(f => zetaSide.has(f));
 	const silent = intersection.filter(f => !conflicts.includes(f));
@@ -153,15 +169,19 @@ function report(opts: Options): void {
 	if (opts.from) {
 		// Per-release slices between --from and --tag (layered review): each
 		// official release's changes read against its release note.
-		const between = git(["tag", "--merged", opts.tag, "--sort=version:refname"])
+		// Slice tags use the u- prefix too (the --from/--tag names are
+		// upstream-native; the local fetch may have prefixed them).
+		const between = git(["tag", "--merged", tagRef, "--sort=version:refname"])
 			.split("\n")
 			.map(t => t.trim())
-			.filter(t => /^v\d/.test(t));
-		const fromIdx = between.indexOf(opts.from);
+			.filter(t => /^u-v\d/.test(t) || /^v\d/.test(t))
+			.map(t => t.replace(/^u-/, ""));
+		const fromTag = opts.from.replace(/^u-/, "");
 		const toIdx = between.indexOf(opts.tag);
+		const fromIdx = between.indexOf(fromTag);
 		if (fromIdx >= 0 && toIdx > fromIdx) {
 			for (let i = fromIdx + 1; i <= toIdx; i++) {
-				const slice = diffFiles(between[i - 1]!, between[i]!);
+				const slice = diffFiles(`u-${between[i - 1]}`, `u-${between[i]}`);
 				writeList(path.join(opts.out, `upstream-slice-${between[i]}.txt`), slice);
 				console.log(`slice ${between[i - 1]} → ${between[i]}: ${slice.length} files`);
 			}
