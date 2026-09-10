@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- worker 宿主选择器族统一为 `__zeta_worker_*` 前缀(与主 CLI 对齐)。
 ## [1.1.11] - 2026-09-08
 
 ### Fixed

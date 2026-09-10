@@ -3,7 +3,7 @@
 
 ### OMP 同步基线
 
-- v18.1.13（`a1b254047d`）+ v18.1.14（`daf07999c2`）双 tag 连续真合并（PR #14，`sync/omp-release/v18.1.14`）。首次双 tag 串联合并,方法论沉淀于 `document/merge-playbook.md`。
+- 基线不变:v18.1.13(`a1b254047d`)+ v18.1.14(`daf07999c2`)(PR #14)。本版为 Zeta 侧品牌/工具链版本;合并方法论新增机械审阅工具 `scripts/merge-scope-report.ts`(上游改动面/真冲突/静默合并三清单)与 package.json 合并驱动修复(workspaces.catalog 资产名保持)。
 
 ### 新增
 
@@ -11,12 +11,12 @@
 
 ### 变更
 
-- 启动更新通知的变更计数与渲染器对齐:写在 `###` 标题之前的条目计入 Other,`+`/`*` 标记与浅缩进条目照常计数,独立的 `* * *` / `- - -` 分隔线不再误计为变更。
-- 无方括号字符的区间文本读取跳过多余词法上下文扫描。
+- 用户可见品牌面全量清扫:VM 全局协议、eval 内核符号、browser/computer bridge、shell 快照等统一 zeta 命名;桌面/终端标题、欢迎屏、更新横幅、`--resume` 提示、broker 恢复指引、ACP 初始化标题等残留 omp 字样清零(互操作保留面按注册表不动)。
+- web-ui 侧边栏:默认关闭、开关状态持久化,修复与状态行/输入框重叠;新增运行中会话 pin、用量行、快捷操作与色盲友好配色适配。
+- package.json 合并驱动修复:上游 `@oh-my-pi/*` 名不再冲掉 `workspaces.catalog` 的 `@linxiraos/*` 资产名(历史每次合并资产名损伤的根因);新增合并审阅工具 `scripts/merge-scope-report.ts`(上游改动面/真冲突/静默合并三清单)。
 
 ### 修复
-
-- GPT-6 Astra 开或关 `/extended-context` 都保持文档记载的 1.05M 窗口,显式 per-model `contextWindow` 覆盖依旧优先;Codex Astra 默认 272K、显式覆盖钳制到服务端上限,扩展窗口按文档的 2x 输入 / 1.5x 输出长上下文计费档计费(272K 输入以上),Codex 订阅路由豁免且缓存写入免费;扩展窗口输入不再虚报 128K(922K 输入上限)。
+- legacy-pi 扩展 Windows 热重载失效修复(模块 `?mtime` 查询被 `file://` 剥除);desktop PR 构建的 native addon 路径改从 `@linxiraos` leaf 拉取,Windows/Linux desktop PR CI 不再缺件。
 - 无设置来源时(嵌入式 SDK、启动早期)Extended Context 不再静默启用,默认关闭。
 - 全屏 `/copy` 链接标题不再显示 Markdown 定界符、多行标签不再折成两行;分组 Read 卡片正确框选,Enter 复制助手产出而非工具输出。
 - Ask 自定义答案在粘贴后不再要求重复提交、多选题不再卡住;剪贴板待提交文本被保留,单题多选仍走确认。

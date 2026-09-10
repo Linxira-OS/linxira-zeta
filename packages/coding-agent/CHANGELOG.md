@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Brand token sweep across the shipped VM protocol families: eval JS/Python kernel symbols (`__zeta_prelude__`, `__zeta_display__`, `__zeta_magic`/`__zeta_shell`), browser/computer bridge protocol names, and the shell snapshot helper now use the zeta naming; retained interop surfaces (`.omp-plugin`, `mcp__omp__`, the persisted silent-abort marker, `__ompInstallTokioRuntime`) are unchanged per the brand registry.
+- Fixed legacy-pi extension hot reload on Windows: module specifiers now keep the `?mtime` cache-busting query (plain slash paths), so edited extension source takes effect on reload instead of being pinned to the first load.
+- Web UI sidebar: default off with persisted toggle state, overlap with the status line fixed, plus running-session pin, usage line, and quick actions.
+
 ## [1.1.11] - 2026-09-08
 
 ### Added
