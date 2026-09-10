@@ -301,7 +301,7 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 					// highest version segment: retired 3.x/9.x lines sort above
 					// the live 1.1.x line under version sort. Sort by the tag's
 					// commit date (descending) so the newest real release wins.
-					"--sort=-*(committerdate:unix)",
+					"--sort=-*committerdate",
 					"--format",
 					"%(refname:short)%00%(subject)%00%(*subject)",
 					"v*",
