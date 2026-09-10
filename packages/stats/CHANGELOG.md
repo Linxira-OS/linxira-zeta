@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.12] - 2026-09-10
+
 - 同步 worker 选择器与主 CLI 的 `__zeta_worker_*` 家族对齐,修复 stats 子系统无法启动的问题。
+
 ## [1.1.11] - 2026-09-08
 
 - OMP v18.1.13 + v18.1.14 dual-tag sync baseline; no package-specific user-visible changes.
