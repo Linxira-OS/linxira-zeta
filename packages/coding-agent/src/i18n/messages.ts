@@ -985,10 +985,18 @@ export interface Messages {
 	imExitVibeModeFirst: string;
 	imExitPlanModeFirst: string;
 	imPlanModeEnabledFmt: string;
+	cmdLoopLong: string;
+	cmdRenameGenerate: string;
+	imPlanUltraModeEnabledFmt: string;
 	imPlanModePaused: string;
 	imPlanModeDisabled: string;
 	imPlanModeDisabledSetting: string;
 	imExitPlanModeTitle: string;
+	imAttachGoalModeActiveFmt: string;
+	imAttachVibeModeActive: string;
+	imPlanCopiedToClipboard: string;
+	imPlanUpdatedExternal: string;
+	imRefinePlanPrompt: string;
 	imExitPlanModeBody: string;
 	imPlanModeNotActive: string;
 	imNoPlanToReviewFmt: string;

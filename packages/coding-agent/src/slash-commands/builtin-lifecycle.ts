@@ -656,7 +656,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "rename",
 		icon: "pencil",
-		description: "Rename the current session (omit title to generate)",
+		description: M.cmdRenameGenerate,
 		inlineHint: "[title]",
 		allowArgs: true,
 		handle: async (command, runtime) => {

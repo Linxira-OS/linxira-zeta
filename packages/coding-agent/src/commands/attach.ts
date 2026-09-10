@@ -17,6 +17,7 @@ import { createInterface } from "node:readline/promises";
 import { isRecord, readLines } from "@linxiraos/pi-utils";
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { attachHelp as commandHelp } from "../cli/command-help";
+import { M } from "../i18n";
 
 const DEFAULT_GATEWAY_URL = "http://127.0.0.1:30142";
 
@@ -61,13 +62,13 @@ async function resolveSharedSessionId(baseUrl: string): Promise<string> {
 function describeModes(modes: ModeStateSnapshot | undefined): string[] {
 	const lines: string[] = [];
 	if (modes?.plan?.enabled) {
-		lines.push(`Plan mode enabled. Plan file: ${modes.plan.planFilePath ?? "local://PLAN.md"}`);
+		lines.push(M.imPlanModeEnabledFmt.replace("%s", modes.plan.planFilePath ?? "local://PLAN.md"));
 	}
 	if (modes?.goal?.enabled) {
-		lines.push(`Goal mode active: ${modes.goal.goal?.objective ?? ""}`);
+		lines.push(M.imAttachGoalModeActiveFmt.replace("%s", modes.goal.goal?.objective ?? ""));
 	}
 	if (modes?.vibe?.enabled) {
-		lines.push("Vibe mode active");
+		lines.push(M.imAttachVibeModeActive);
 	}
 	return lines;
 }
@@ -319,11 +320,11 @@ async function streamEvents(baseUrl: string, sessionId: string, signal: AbortSig
 				const raw = event.state;
 				if (isRecord(raw) && raw.enabled === true) {
 					if (mode === "plan") {
-						process.stdout.write(`Plan mode enabled. Plan file: ${planFilePathOf(raw)}\n`);
+						process.stdout.write(`${M.imPlanModeEnabledFmt.replace("%s", planFilePathOf(raw))}\n`);
 					} else if (mode === "goal") {
-						process.stdout.write(`Goal mode active: ${goalObjectiveOf(raw)}\n`);
+						process.stdout.write(`${M.imAttachGoalModeActiveFmt.replace("%s", goalObjectiveOf(raw))}\n`);
 					} else {
-						process.stdout.write("Vibe mode active\n");
+						process.stdout.write(`${M.imAttachVibeModeActive}\n`);
 					}
 				} else if (mode === "plan") {
 					process.stdout.write("Plan mode disabled.\n");

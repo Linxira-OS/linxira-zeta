@@ -1006,7 +1006,13 @@ export class SettingsSelectorComponent implements Component {
 
 		switch (def.type) {
 			case "boolean":
-				return { ...item, currentValue: currentValue ? M.ssOn : M.ssOff, values: ["true", "false"] };
+				return {
+					...item,
+					currentValue: currentValue ? "true" : "false",
+					valueLabel: currentValue ? M.ssOn : M.ssOff,
+					valueLabels: [M.ssOn, M.ssOff],
+					values: ["true", "false"],
+				};
 
 			case "enum":
 				return { ...item, currentValue: String(currentValue ?? ""), values: [...def.values] };

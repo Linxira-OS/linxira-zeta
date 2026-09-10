@@ -73,6 +73,10 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			const tag = arg as ZetaLanguage;
 			runtime.ctx.settings.set("language" as SettingPath, tag as SettingValue<SettingPath>);
 			setLanguage(tag);
+			// Descriptions/snapshots for builtins re-resolve on the next
+			// autocomplete rebuild; refresh immediately so the open editor
+			// reflects the new locale without a restart.
+			void runtime.ctx.refreshSlashCommandState();
 			runtime.ctx.showStatus(M.languageChangedFmt.replace("%s", tag));
 			runtime.ctx.editor.setText("");
 		},
