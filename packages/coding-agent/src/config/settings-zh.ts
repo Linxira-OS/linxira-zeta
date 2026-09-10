@@ -665,7 +665,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"compaction.methodOrder": {
 		label: "压缩方法顺序",
 		description:
-			"自动上下文维护的首选回退顺序；不可用或失败的方法会前进到下一个选择（remote、snapcompact、handoff、shake、soft）",
+			"自动上下文维护的首选回退顺序；不可用或失败的方法会前进到下一个选择",
 	},
 	"compaction.thresholdPercent": {
 		label: "压缩阈值",
