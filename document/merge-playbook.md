@@ -117,7 +117,7 @@ bun scripts/brand/brand-check.ts          # gate 模式：有未解决命中 exi
 bun scripts/brand/brand-check.ts --json   # 机器可读报告
 ```
 
-扫描受跟踪产品源码里品牌注册表禁止的上游 OMP 标记（`PI_LOGO`、`@oh-my-pi/`
+扫描受跟踪产品源码里品牌注册表禁止的上游 OMP 标记（`PI_LOGO`、`@linxiraos/`
 scope、越界 `.omp` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断言缺失等），
 任何未解决命中都 exit 1，合并不得静默回退 Zeta 产品面。判断题（语义分歧、
 测试契约）不是它的职责——按本文"逐 bucket 测试契约 resolve"处理。
@@ -129,7 +129,7 @@ scope、越界 `.omp` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断�
 
 | 级别 | 含义 | 落在哪个表 | 动作 |
 |---|---|---|---|
-| **must-replace** | Zeta 规范形无歧义的机械上游 token | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `omp/` ``、`@oh-my-pi/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归 |
+| **must-replace** | Zeta 规范形无歧义的机械上游 token | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `omp/` ``、`@linxiraos/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归 |
 | **allow-interop** | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/omp-plugins、`omp.sh`/`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW` | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表） |
 | **allow-provenance** | 指向上游的出处引用（issue/URL） | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/can1357/oh-my-pi`、`oh-my-pi#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目 | 保留 |
 | **internal-key** | 内部标识符/共享基础设施，改了会静默断功能 | `OMP_PATH_ALLOW` 的 `__omp`/`OMP_PROFILE`/`ompprurl` 等模式；注册表"Native Tokio 安装导出"行 | 保留；勿 sweep 成 `__zeta*`（v18.0.10 Tokio 静默不装教训） |
@@ -186,9 +186,9 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 ### 大批量冲突的分级 resolve
 
 1. **先分类再动手。** 对每个 UU 文件取 ours/theirs 两侧，scope 归一化
-   （`@oh-my-pi/*`↔`@linxiraos/*`、`pi-coding-agent`↔`zeta`、import 排序与空白）
+   （`@linxiraos/*`↔`@linxiraos/*`、`pi-coding-agent`↔`zeta`、import 排序与空白）
    后比较：归一化相等的算 **scope 噪声**，整文件取 theirs + 跑 scope 重写
-   （brand-overlay.ts + `@oh-my-pi/ → @linxiraos/pi-`、双前缀 `pi-pi-` 收敛）。
+   （brand-overlay.ts + `@linxiraos/ → @linxiraos/pi-`、双前缀 `pi-pi-` 收敛）。
 2. **批量 resolve 用 stage-3 blob 直写**（`git show ":3:<path>" > <path>` +
    `git add`）。Windows 上 `git checkout --theirs` 在索引含未合并 stage 时不可靠。
    批量脚本必须 checkout-index 与 add 分两步——checkout-index 只写工作树不动索引。

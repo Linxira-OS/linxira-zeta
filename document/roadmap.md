@@ -140,7 +140,7 @@ Two upstream desktop shells are kept as local reference clones under `temp/`
 (reference-only, never committed) and are the primary prior art for the next
 batch of desktop work, together with the OMP Web snapshot (`temp/omp-web`):
 
-- `temp/oh-my-pi-gui` — "omp GUI" (`@oh-my-pi/omp-gui`, Electron 35 + React
+- `temp/oh-my-pi-gui` — "omp GUI" (`@linxiraos/omp-gui`, Electron 35 + React
   19). Native desktop control center: parallel agent sessions, per-tool-call
   inspection, model and usage management. Closest match to Zeta's desktop
   shell ambitions (tray + workbench + session control).
