@@ -297,14 +297,13 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 				await git([
 					"tag",
 					"--list",
-					"--merged",
-					"HEAD",
-					// Orphaned retired lines (the dead v9 line is not an ancestor
-					// of main) sort above the live 1.x line and would hijack
-					// "latest" — restrict candidates to reachable tags.
+					// 'Latest' must mean the most recent release in time, not the
+					// highest version segment: retired 3.x/9.x lines sort above
+					// the live 1.1.x line under version sort. Sort by the tag's
+					// commit date (descending) so the newest real release wins.
+					"--sort=-*(committerdate:unix)",
 					"--format",
 					"%(refname:short)%00%(subject)%00%(*subject)",
-					"--sort=-v:refname",
 					"v*",
 				]).text()
 			).trim(),
