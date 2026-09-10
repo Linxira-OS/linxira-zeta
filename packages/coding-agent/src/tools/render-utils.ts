@@ -7,11 +7,11 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel, type ToolCallContext } from "@oh/pi-agent-core";
-import type { Ellipsis } from "@oh/pi-natives";
-import type { Component } from "@oh/pi-tui";
-import { getKeybindings, replaceTabs, sliceByColumn, truncateToWidth, visibleWidth } from "@oh/pi-tui";
-import { pluralize, sanitizeText } from "@oh/pi-utils";
+import { ThinkingLevel, type ToolCallContext } from "@linxiraos/pi-agent-core";
+import type { Ellipsis } from "@linxiraos/pi-natives";
+import type { Component } from "@linxiraos/pi-tui";
+import { getKeybindings, replaceTabs, sliceByColumn, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
+import { pluralize, sanitizeText } from "@linxiraos/pi-utils";
 import { formatKeyHints, type KeyId } from "../config/keybindings";
 import { isSettingsInitialized, settings } from "../config/settings";
 import { getDefault } from "../config/settings-schema";

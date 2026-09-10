@@ -6,8 +6,8 @@
  * Enter flips into the classic full per-account report, scrollable in place.
  */
 import * as os from "node:os";
-import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@oh/pi-ai";
-import type { DailyActivityPoint } from "@oh/omp-stats/shared-types";
+import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@linxiraos/pi-ai";
+import type { DailyActivityPoint } from "@linxiraos/omp-stats/shared-types";
 import {
 	type Component,
 	matchesKey,
@@ -15,8 +15,8 @@ import {
 	routeSgrMouseInput,
 	truncateToWidth,
 	visibleWidth,
-} from "@oh/pi-tui";
-import { colorLuma, formatDuration, hexToRgb, rgbToHex, sanitizeText } from "@oh/pi-utils";
+} from "@linxiraos/pi-tui";
+import { colorLuma, formatDuration, hexToRgb, rgbToHex, sanitizeText } from "@linxiraos/pi-utils";
 import { formatProviderName } from "../../slash-commands/helpers/format";
 import { colorToAnsi } from "../theme/color";
 import { theme } from "../theme/theme";

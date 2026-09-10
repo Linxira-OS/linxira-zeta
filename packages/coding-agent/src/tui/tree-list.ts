@@ -2,7 +2,7 @@
  * Hierarchical tree list rendering helper.
  */
 
-import { replaceTabs, visibleWidth } from "@oh/pi-tui";
+import { replaceTabs, visibleWidth } from "@linxiraos/pi-tui";
 import type { Theme } from "../modes/theme/theme";
 import { formatMoreItems } from "../tools/render-utils";
 import type { TreeContext } from "./types";

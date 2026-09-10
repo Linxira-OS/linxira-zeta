@@ -4,9 +4,9 @@
  * running-agents roster for activity with no job entry.
  */
 
-import type { AgentToolResult } from "@oh/pi-agent-core";
-import type { Component } from "@oh/pi-tui";
-import { Text, visibleWidth } from "@oh/pi-tui";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { Component } from "@linxiraos/pi-tui";
+import { Text, visibleWidth } from "@linxiraos/pi-tui";
 import type { AsyncJob, AsyncJobManager, AsyncJobType } from "../../async";
 import type { RenderResultOptions } from "../../extensibility/custom-tools/types";
 import { shimmerEnabled, shimmerText } from "../../modes/theme/shimmer";

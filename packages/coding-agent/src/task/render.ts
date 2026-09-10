@@ -5,9 +5,9 @@
  * task execution in the terminal UI.
  */
 import path from "node:path";
-import type { Component } from "@oh/pi-tui";
-import { Container, Markdown, Text, visibleWidth, wrapTextWithAnsi } from "@oh/pi-tui";
-import { formatNumber, sanitizeText } from "@oh/pi-utils";
+import type { Component } from "@linxiraos/pi-tui";
+import { Container, Markdown, Text, visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
+import { formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { formatContextUsage } from "../modes/components/status-line/context-thresholds";
 import { getMarkdownTheme, type Theme } from "../modes/theme/theme";

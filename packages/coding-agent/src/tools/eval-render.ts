@@ -9,9 +9,9 @@
  * crashed module load with a TDZ `Cannot access 'evalToolRenderer' before
  * initialization`.
  */
-import type { Component } from "@oh/pi-tui";
-import { Markdown, Text, visibleWidth } from "@oh/pi-tui";
-import { formatNumber, sanitizeText } from "@oh/pi-utils";
+import type { Component } from "@linxiraos/pi-tui";
+import { Markdown, Text, visibleWidth } from "@linxiraos/pi-tui";
+import { formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import type { EvalCellResult, EvalLanguage, EvalStatusEvent, EvalToolDetails } from "../eval/types";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { formatContextUsage } from "../modes/components/status-line/context-thresholds";

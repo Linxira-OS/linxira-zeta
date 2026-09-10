@@ -47,14 +47,14 @@ import {
 	pruneSupersededToolResults,
 	pruneToolOutputs,
 	readToolSupersedeKey,
-} from "@oh/pi-agent-core/compaction/pruning";
-import type { ProtectedToolMatcher } from "@oh/pi-agent-core/compaction/tool-protection";
-import type { AssistantMessage, CodexCompactionContext, Message, Model, ProviderSessionState } from "@oh/pi-ai";
-import * as AIError from "@oh/pi-ai/error";
-import { preferredDialect } from "@oh/pi-catalog/identity";
-import { modelsAreEqual } from "@oh/pi-catalog/models";
-import { isRecord, logger, Snowflake } from "@oh/pi-utils";
-import * as snapcompact from "@oh/snapcompact";
+} from "@linxiraos/pi-agent-core/compaction/pruning";
+import type { ProtectedToolMatcher } from "@linxiraos/pi-agent-core/compaction/tool-protection";
+import type { AssistantMessage, CodexCompactionContext, Message, Model, ProviderSessionState } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { isRecord, logger, Snowflake } from "@linxiraos/pi-utils";
+import * as snapcompact from "@linxiraos/snapcompact";
 import type { ModelRegistry } from "../config/model-registry";
 import { MODEL_ROLE_IDS } from "../config/model-roles";
 import type { CompactionSettings as ConfiguredCompactionSettings, Settings } from "../config/settings";

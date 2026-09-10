@@ -31,11 +31,11 @@ import type {
 	ProviderSessionState,
 	ServiceTier,
 	SimpleStreamOptions,
-} from "@oh/pi-ai";
-import { isUsageLimitOutcome, resolveModelServiceTier, streamSimple } from "@oh/pi-ai";
-import * as AIError from "@oh/pi-ai/error";
-import { modelsAreEqual } from "@oh/pi-catalog/models";
-import { extractHttpStatusFromError, extractRetryHint, logger, prompt } from "@oh/pi-utils";
+} from "@linxiraos/pi-ai";
+import { isUsageLimitOutcome, resolveModelServiceTier, streamSimple } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { extractHttpStatusFromError, extractRetryHint, logger, prompt } from "@linxiraos/pi-utils";
 import {
 	ADVISOR_DEFAULT_TOOL_NAMES,
 	ADVISOR_DEFAULT_BUDGET_PER_UPDATE,

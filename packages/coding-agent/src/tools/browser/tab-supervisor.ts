@@ -6,7 +6,7 @@ import {
 	Snowflake,
 	withTimeout,
 	workerHostEntry,
-} from "@oh/pi-utils";
+} from "@linxiraos/pi-utils";
 import type { CDPSession, Page, Target } from "puppeteer-core";
 import { callSessionTool } from "../../eval/js/tool-bridge";
 import { webpExclusionForModel } from "../../utils/image-loading";
