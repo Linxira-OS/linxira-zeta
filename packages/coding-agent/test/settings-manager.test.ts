@@ -1720,13 +1720,13 @@ describe("Settings", () => {
 	});
 
 	describe("compaction method migration", () => {
-		it("defaults to server, snapcompact, handoff, shake, then soft compaction", () => {
+		it("defaults to server, snapcompact, handoff, soft, then shake compaction", () => {
 			expect(Settings.isolated().get("compaction.methodOrder")).toEqual([
 				"remote",
 				"snapcompact",
 				"handoff",
-				"shake",
 				"soft",
+				"shake",
 			]);
 		});
 

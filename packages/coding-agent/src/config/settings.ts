@@ -23,8 +23,8 @@ import {
 	getAgentDbPath,
 	getAgentDir,
 	getLastChangelogVersionPath,
-	getProjectDir,
 	getProjectAgentDir,
+	getProjectDir,
 	isEnoent,
 	logger,
 	MAIN_CONFIG_FILENAMES,
@@ -2170,7 +2170,7 @@ export class Settings {
 		// compaction.strategy / compaction.remoteEnabled → compaction.methodOrder.
 		// The old single strategy could not express a capability-dependent fallback
 		// chain. Preserve explicit legacy intent while new installs use the
-		// server → snapcompact → handoff → shake → soft default.
+		// server → snapcompact → handoff → soft → shake default.
 		const compactionObj = isRecord(raw.compaction) ? raw.compaction : undefined;
 		const configuredMethodOrder = compactionObj?.methodOrder ?? raw["compaction.methodOrder"];
 		const legacyStrategy = compactionObj?.strategy ?? raw["compaction.strategy"];

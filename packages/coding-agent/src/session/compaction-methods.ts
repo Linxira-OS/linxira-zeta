@@ -39,13 +39,14 @@ export const COMPACTION_METHOD_CHOICES = [
 /** One selectable automatic context-maintenance method. */
 export type CompactionMethod = (typeof COMPACTION_METHOD_CHOICES)[number]["value"];
 
-/** Default fallback order: server-native first, portable summary last. */
+/** Default fallback order: server-native first, Shake (content-drop) last so
+ *  providers without server compaction still get a real summary first. */
 export const DEFAULT_COMPACTION_METHOD_ORDER: CompactionMethod[] = [
 	"remote",
 	"snapcompact",
 	"handoff",
-	"shake",
 	"soft",
+	"shake",
 ];
 
 const COMPACTION_METHODS: Record<CompactionMethod, true> = {
