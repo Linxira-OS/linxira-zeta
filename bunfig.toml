@@ -2,7 +2,38 @@ telemetry = false
 
 [install]
 minimumReleaseAge = 259200 # 3 days in seconds
-minimumReleaseAgeExcludes = ["@types/bun", "bun-types", "kitty-vt-wasm", "@stencil-hq/vibemon", "@linxiraos/*"]
+minimumReleaseAgeExcludes = [
+  # First-party packages: published by our own release runs, so a fast
+  # release cadence (leaf@N-1 pinning core@N-1) would always trip the
+  # freshness gate. bun 1.4 matches these names exactly — no globs.
+  "@types/bun",
+  "bun-types",
+  "kitty-vt-wasm",
+  "@stencil-hq/vibemon",
+  "@linxiraos/zeta",
+  "@linxiraos/pi-utils",
+  "@linxiraos/pi-wire",
+  "@linxiraos/pi-omptype",
+  "@linxiraos/pi-natives",
+  "@linxiraos/pi-natives-linux-x64",
+  "@linxiraos/pi-natives-linux-musl-x64",
+  "@linxiraos/pi-natives-linux-arm64",
+  "@linxiraos/pi-natives-linux-musl-arm64",
+  "@linxiraos/pi-natives-darwin-x64",
+  "@linxiraos/pi-natives-darwin-arm64",
+  "@linxiraos/pi-natives-win32-x64",
+  "@linxiraos/pi-natives-win32-arm64",
+  "@linxiraos/pi-catalog",
+  "@linxiraos/pi-ai",
+  "@linxiraos/pi-agent-core",
+  "@linxiraos/pi-tui",
+  "@linxiraos/pi-snapcompact",
+  "@linxiraos/pi-hashline",
+  "@linxiraos/pi-stats",
+  "@linxiraos/pi-mnemopi",
+  "@linxiraos/channels",
+  "@linxiraos/collab-web",
+]
 linker = "hoisted"
 exact = true
 saveTextLockfile = true
