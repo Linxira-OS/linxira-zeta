@@ -7,17 +7,7 @@
 - worker 宿主选择器族统一为 `__zeta_worker_*` 前缀(与主 CLI 对齐)。
 
 ## [1.1.11] - 2026-09-08
-## [18.1.16] - 2026-09-09
 
-### Fixed
-
-- Fixed `$which` capturing `Bun.which` at import on Linux and Windows, so `Bun.which` stubs installed later (e.g. per-test spies) are honoured and PATH-only language servers no longer leak into test results.
-
-## [18.1.13] - 2026-09-07
-
-### Fixed
-
-- Fixed `filterChildShellEnv` applying the Zeta process's own launch-environment provenance (the pre-dotenv `NODE_ENV` and launcher-owned names read from `/proc/self/environ`) to caller-supplied environment objects; launch provenance now only applies when filtering the live `process.env`/`Bun.env`, and an explicit env resolves its dotenv mode from its own `NODE_ENV`.
 
 ## [1.1.10] - 2026-09-07
 

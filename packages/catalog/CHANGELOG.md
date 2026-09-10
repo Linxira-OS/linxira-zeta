@@ -3,13 +3,7 @@
 ## [Unreleased]
 
 ## [1.1.12] - 2026-09-10
-## [18.1.16] - 2026-09-09
 
-- Updated Fire Pass (`firepass`) login validation probe to `accounts/fireworks/routers/glm-5p2-fast` and bundled `glm-5.2-fast` and `kimi-k3-fast` models in place of decommissioned `kimi-k2.6-turbo` ([#10859](https://github.com/can1357/oh-my-pi/pull/10859) by [@olegpulatov](https://github.com/olegpulatov)).
-
-## [18.1.14] - 2026-09-07
-
-- 品牌与合并工具链维护版本;无本包用户可见变更。
 
 ## [1.1.11] - 2026-09-08
 
