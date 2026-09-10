@@ -11,8 +11,8 @@
  *   conflicts.txt        files git actually conflicts on (merge-tree, no
  *                        worktree touched) — resolve per merge-review.md.
  *   silent-merge.txt     both sides changed but git auto-merged — the real
- *                        damage zone (workspaces.catalog, sdk.ts, .omp test
- *                        paths all historically landed here). Run the five
+ *                        damage zone (workspaces.catalog, sdk.ts, upstream
+ *                        config-dir test paths all historically landed here). Run the five
  *                        guards over these files post-merge.
  *
  * Layered review (base several releases back): pass --from <tag> to also
