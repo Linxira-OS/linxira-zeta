@@ -22,6 +22,19 @@
   - brush-core stop detection: `ChildProcess::wait` relied on a tokio SIGCHLD stream that misses signals arriving before registration — a pipeline stage that SIGSTOPs during later-stage spawning stalled `run_string` forever on loaded GH-hosted runners (fast local/upstream machines always win the race, so the upstream test never showed it). Fix in the vendored fork: `waitid` scoped to the caller's pid (`Id::Pid`, no cross-child event consumption) + one entry probe for already-pending stops (`processes.rs`, `sys/unix/signal.rs` incl. macOS shim, `sys/stubs/signal.rs`), regression test `wait_observes_a_stop_that_precedes_the_wait` verified red (5s timeout) without the entry probe and green with it. Upstream test files untouched. Run 3 confirmed on CI: Rust tests + all three clippy scopes green for the first time post-merge.
   - rustfmt collapse flip (damage class #8): the brand replacement shortened `"oh-my-pi"`→`"zeta"`, pulling `pi-vcs/git/mutate.rs`'s `SignatureRef` literal back under `max_width`, so the final `Rustfmt` step (never reached by runs 1–2, skipped on PRs entirely) failed `pi-vcs.rustfmt.ok`. Fixed by `cargo fmt --all`; workspace-wide check reports zero further offenders.
 
+## v18.1.16 (Zeta — offline backup-branch validation merge, release pending)
+
+- **Baseline**: v18.1.14 (`daf07999c2fe`, Zeta `75f5066f51`, release v1.1.12)
+- **Source tag**: `v18.1.16` (peeled `61b1b8aef634334eaf1412afd003a763e1d1b9c1`; verified via `git ls-remote --tags omp-upstream`)
+- **Merge commit**: `8418f8571a` (non-squash two-parent on `backup/pre-sync-v18.1.16`; ancestor check passes)
+- **Scope report**: `bun scripts/merge-scope-report.ts --tag v18.1.16 --from u-v18.1.14` → 270 upstream files, 88 true conflicts (exactly matched the report), 130 silent merges; slices v14→15 (140 files) and v15→16 (162 files) reviewed separately.
+- **Damage found and fixed during validation** (all pre-push, none reached CI):
+  - Mechanical: `@oh-my-pi/*` scope residue from silently merged upstream files (606 hits) → swept to `@linxiraos/*` with the RENAME_BY_TAIL mapping; a bad perl pass truncated some to `@oh/` (12 files) — repaired.
+  - Class-4 variant (lost upstream hunks in conflict resolution): `packages/ai/src/auth-storage.ts` merged-block contract (`priorBlockedUntilMs`/`providerTimed`), `session/turn-recovery.ts` provider-timing params, `ai/src/error/flags.ts` `auth-gateway 5xx` retryable pattern, `utils/src/fetch-retry.ts` longest-wins parser rewrite, `openai-codex-responses.ts` abort-cause chain, `session-advisors.ts` `providerTimed` field, `agent-session-retry-cap.test.ts` (+1480 lines) and `auth-storage-force-refresh-rotate.test.ts` — all restored from v18.1.16 with scope rekey. Systematic hunk-level scan against `u-v18.1.14→u-v18.1.16` additions confirms zero remaining losses (excluding intentional Zeta surfaces).
+  - Tests: `task`/`modes`/`session` buckets show zero HEAD-unique failures vs main; `ai` bucket zero HEAD-unique (6 main flakes fixed); `retry-cap` 51/51. Remaining local failures are Windows-only noise (git-worktree tests writing `:(glob)*` paths, native `.node` stale per class 5) — CI bazel unaffected.
+  - Upstream changelog sections (## [18.x]) dropped from package CHANGELOGs; version line realigned to 1.1.12 via `set-version.ts` + `bun install`.
+- **Note**: upstream replaced biome with oxfmt/oxlint (+oxfmt); Zeta keeps its own check pipeline — `prefer-const` on definite-assignment `let` (8 sites) is a pre-existing main debt, unchanged by this merge.
+
 ## v18.1.13 + v18.1.14 (Zeta — merged as PR #14, dual-tag serial merge)
 
 - **Baseline**: v18.1.10 (`f241301c8372`, Zeta `e325c888d9`)
