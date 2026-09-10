@@ -1,21 +1,21 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { createMockModel, type MockHandler } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { SettingPath } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import { IrcBus, type IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { IrcBridge } from "@oh-my-pi/pi-coding-agent/session/irc-bridge";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { type CoordinationDetails, HubTool, isIrcEnabled } from "@oh-my-pi/pi-coding-agent/tools/hub";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { createMockModel, type MockHandler } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta";
+import { Settings } from "@linxiraos/zeta";
+import type { SettingPath } from "@linxiraos/zeta";
+import { IrcBus, type IrcMessage } from "@linxiraos/zeta";
+import { AgentLifecycleManager } from "@linxiraos/zeta";
+import { AgentRegistry } from "@linxiraos/zeta";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta";
+import { IrcBridge } from "@linxiraos/zeta";
+import { AuthStorage } from "@linxiraos/zeta";
+import type { CustomMessage } from "@linxiraos/zeta";
+import { SessionManager } from "@linxiraos/zeta";
+import type { ToolSession } from "@linxiraos/zeta";
+import { type CoordinationDetails, HubTool, isIrcEnabled } from "@linxiraos/zeta";
+import { TempDir } from "@linxiraos/pi-utils";
 
 interface FakeSession {
 	session: AgentSession;

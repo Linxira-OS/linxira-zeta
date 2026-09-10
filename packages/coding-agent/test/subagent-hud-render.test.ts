@@ -7,27 +7,27 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InteractiveMode, renderSubagentHudLines } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
+import { InteractiveMode, renderSubagentHudLines } from "@linxiraos/zeta";
 import {
 	type ObservableSession,
 	SessionObserverRegistry,
-} from "@oh-my-pi/pi-coding-agent/modes/session-observer-registry";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+} from "@linxiraos/zeta";
+import { initTheme, theme } from "@linxiraos/zeta";
+import { AgentSession } from "@linxiraos/zeta";
+import { AuthStorage } from "@linxiraos/zeta";
+import { SessionManager } from "@linxiraos/zeta";
 import {
 	type AgentProgress,
 	type SubagentLifecyclePayload,
 	type SubagentProgressPayload,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@oh-my-pi/pi-coding-agent/task";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta";
+import { EventBus } from "@linxiraos/zeta";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function makeSession(overrides: Partial<ObservableSession> & { id: string }): ObservableSession {
 	return {

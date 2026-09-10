@@ -18,9 +18,9 @@ import {
 	type GuestSnapshotActivityReconcilerCtx,
 	reconcileGuestIdleHostState,
 	reconcileGuestSnapshotHostState,
-} from "@oh-my-pi/pi-coding-agent/collab/guest";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
+} from "@linxiraos/zeta";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
+import { StatusLineComponent } from "@linxiraos/zeta";
 import { StatusLineTestComponents } from "../helpers/status-line";
 
 const statusLines = new StatusLineTestComponents();

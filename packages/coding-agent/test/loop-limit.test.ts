@@ -4,9 +4,9 @@ import {
 	createLoopLimitRuntime,
 	isLoopDurationExpired,
 	parseLoopArgs,
-} from "@oh-my-pi/pi-coding-agent/modes/loop-limit";
-import type { BuiltinSlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
+} from "@linxiraos/zeta";
+import type { BuiltinSlashCommandRuntime } from "@linxiraos/zeta";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta";
 
 describe("/loop slash command", () => {
 	test("forwards a bare limit argument verbatim", async () => {

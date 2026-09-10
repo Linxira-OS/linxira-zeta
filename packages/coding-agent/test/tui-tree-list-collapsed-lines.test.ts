@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { renderTreeList } from "@oh-my-pi/pi-coding-agent/tui/tree-list";
-import { truncateToWidth, visibleWidth } from "@oh-my-pi/pi-tui";
+import { renderTreeList } from "@linxiraos/zeta";
+import { truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
 
 const stubTheme = {
 	fg: (_color: string, text: string) => text,

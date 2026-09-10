@@ -61,7 +61,7 @@ try {
 			String.raw`
 import assert from "node:assert/strict";
 import { SettingsManager } from "@mariozechner/pi-coding-agent";
-import { hasMatch } from "@oh-my-pi/pi-natives";
+import { hasMatch } from "@linxiraos/pi-natives";
 
 function registerFixtureProvider(api) {
 	// Same registration shape as sdk-default-role-extension-provider.test.ts.

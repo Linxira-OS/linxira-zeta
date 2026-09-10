@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type RenderResultOptions, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { SettingPath, SettingValue } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { taskToolRenderer } from "@oh-my-pi/pi-coding-agent/task/renderer";
-import { subprocessToolRegistry } from "@oh-my-pi/pi-coding-agent/task/subprocess-tool-registry";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@oh-my-pi/pi-coding-agent/task/types";
-import { FEED_MODEL_BADGE_WIDTH } from "@oh-my-pi/pi-coding-agent/tools/render-utils";
-import { visibleWidth } from "@oh-my-pi/pi-tui";
+import { type RenderResultOptions, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { SettingPath, SettingValue } from "@linxiraos/zeta";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta";
+import { taskToolRenderer } from "@linxiraos/zeta";
+import { subprocessToolRegistry } from "@linxiraos/zeta";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/zeta";
+import { FEED_MODEL_BADGE_WIDTH } from "@linxiraos/zeta";
+import { visibleWidth } from "@linxiraos/pi-tui";
 
 function runningProgress(overrides: Partial<AgentProgress> = {}): AgentProgress {
 	return {

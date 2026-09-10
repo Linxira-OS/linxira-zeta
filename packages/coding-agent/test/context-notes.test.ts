@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { Settings } from "@linxiraos/zeta";
 import {
 	CONTEXT_NOTES_ENTRY_TYPE,
 	getContextNotes,
 	MAX_CONTEXT_NOTES_BYTES,
-} from "@oh-my-pi/pi-coding-agent/session/context-notes";
-import type { ContextNotesEntry } from "@oh-my-pi/pi-coding-agent/session/context-notes";
-import type { CustomEntry, ResetBoundaryEntry, SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { ContextNotesTool, NewContextTool } from "@oh-my-pi/pi-coding-agent/tools/context-notes";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta";
+import type { ContextNotesEntry } from "@linxiraos/zeta";
+import type { CustomEntry, ResetBoundaryEntry, SessionEntry } from "@linxiraos/zeta";
+import { SessionManager } from "@linxiraos/zeta";
+import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta";
+import type { ToolSession } from "@linxiraos/zeta";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const NOW = "2026-09-04T00:00:00.000Z";
 

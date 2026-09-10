@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, CompactionCancelledError } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { Agent, CompactionCancelledError } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta";
+import { Settings } from "@linxiraos/zeta";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta";
+import { ExtensionRunner } from "@linxiraos/zeta";
+import { AgentSession } from "@linxiraos/zeta";
+import { AuthStorage } from "@linxiraos/zeta";
+import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta";
+import { SessionManager } from "@linxiraos/zeta";
 import {
 	ContextNotesTool,
 	GrepTool,
@@ -16,9 +16,9 @@ import {
 	ReadTool,
 	type Tool,
 	type ToolSession,
-} from "@oh-my-pi/pi-coding-agent/tools";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta";
+import { EventBus } from "@linxiraos/zeta";
+import { TempDir } from "@linxiraos/pi-utils";
 
 type HookMode = "extension-veto" | "park";
 

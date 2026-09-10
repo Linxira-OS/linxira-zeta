@@ -7,31 +7,31 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, AssistantMessageEvent, ToolCall } from "@oh-my-pi/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, AssistantMessageEvent, ToolCall } from "@linxiraos/pi-ai";
 import {
 	accumulateToolCallArgumentsDelta,
 	finalizeToolCallArgumentsDone,
-} from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { kStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TtsrManager } from "@oh-my-pi/pi-coding-agent/export/ttsr";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { GoalRuntime } from "@oh-my-pi/pi-coding-agent/goals/runtime";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm, shouldRenderAbortReason } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { kStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { AsyncJobManager } from "@linxiraos/zeta";
+import type { Rule } from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta";
+import { Settings } from "@linxiraos/zeta";
+import { TtsrManager } from "@linxiraos/zeta";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta";
+import { ExtensionRunner } from "@linxiraos/zeta";
+import { GoalRuntime } from "@linxiraos/zeta";
+import { AgentSession } from "@linxiraos/zeta";
+import { AuthStorage } from "@linxiraos/zeta";
+import { convertToLlm, shouldRenderAbortReason } from "@linxiraos/zeta";
+import { SessionManager } from "@linxiraos/zeta";
+import { EventBus } from "@linxiraos/zeta";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 // Mock stream that mimics AssistantMessageEventStream
 

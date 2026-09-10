@@ -1,17 +1,17 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AuthStorage, Effort, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { runAgenticCommit } from "@oh-my-pi/pi-coding-agent/commit/agentic";
-import * as agentModule from "@oh-my-pi/pi-coding-agent/commit/agentic/agent";
-import type { CommitAgentInput } from "@oh-my-pi/pi-coding-agent/commit/agentic/agent";
-import type { CommitAgentState } from "@oh-my-pi/pi-coding-agent/commit/agentic/state";
-import * as modelSelection from "@oh-my-pi/pi-coding-agent/commit/model-selection";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import type { VcsGitRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { AuthStorage, Effort, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { runAgenticCommit } from "@linxiraos/zeta";
+import * as agentModule from "@linxiraos/zeta";
+import type { CommitAgentInput } from "@linxiraos/zeta";
+import type { CommitAgentState } from "@linxiraos/zeta";
+import * as modelSelection from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta";
+import { Settings } from "@linxiraos/zeta";
+import * as sdkModule from "@linxiraos/zeta";
+import type { VcsGitRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 
 let authStorage: AuthStorage | undefined;
 

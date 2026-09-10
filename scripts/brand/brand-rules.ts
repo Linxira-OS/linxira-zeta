@@ -154,7 +154,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 
 /**
  * Exact assertions: each token must NOT appear anywhere in scanned sources.
- * The upstream npm scope (`@oh-my-pi/…`) is deliberately NOT here: the merge
+ * The upstream npm scope (`@linxiraos/…`) is deliberately NOT here: the merge
  * driver and its test must name it literally to map it back (they are
  * allow-listed files), and the oh-my-pi token scan in brand-check.ts covers
  * every other file.

@@ -12,22 +12,22 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
+import { Settings } from "@linxiraos/zeta";
+import { InternalUrlRouter } from "@linxiraos/zeta";
 import {
 	formatCurrentBranchFullHistory,
 	HistoryProtocolHandler,
-} from "@oh-my-pi/pi-coding-agent/internal-urls/history-protocol";
+} from "@linxiraos/zeta";
 import {
 	registerArtifactsDir,
 	resetRegisteredArtifactDirsForTests,
-} from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION, type SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta";
+import { AgentRegistry } from "@linxiraos/zeta";
+import type { AgentSession } from "@linxiraos/zeta";
+import { CURRENT_SESSION_VERSION, type SessionEntry } from "@linxiraos/zeta";
+import type { ToolSession } from "@linxiraos/zeta";
+import { ReadTool } from "@linxiraos/zeta";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "history-protocol-"));
