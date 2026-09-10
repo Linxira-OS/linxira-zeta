@@ -310,6 +310,11 @@ async function cmdRelease(versionOrBump: string): Promise<void> {
 				await git([
 					"tag",
 					"--list",
+					"--merged",
+					"HEAD",
+					// Orphaned historical lines (e.g. the retired v9 line, not an
+					// ancestor of main) sort above the live 1.x line and would
+					// hijack "latest" — restrict candidates to reachable tags.
 					"--format",
 					"%(refname:short)%00%(subject)%00%(*subject)",
 					"--sort=-v:refname",
