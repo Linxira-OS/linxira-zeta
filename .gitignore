@@ -108,3 +108,6 @@ HANDOFF.md
 # ZCode session-local planning artifacts (never shipped)
 .zcode/
 .parity/
+
+# In-repo runtime artifacts (merge scope reports etc.)
+.zeta/
