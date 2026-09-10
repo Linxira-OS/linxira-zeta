@@ -336,7 +336,7 @@ export class CmuxSocketClient {
 
 	#nextLine(timeoutMs: number): Promise<string> {
 		const { promise, resolve, reject } = Promise.withResolvers<string>();
-		const waiter: LineWaiter;
+		let waiter: LineWaiter;
 		const timer = setTimeout(() => {
 			const index = this.#lineWaiters.indexOf(waiter);
 			if (index >= 0) {

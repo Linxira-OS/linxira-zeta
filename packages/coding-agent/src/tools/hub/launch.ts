@@ -77,8 +77,8 @@ function registerCompletionSink(
 			if (!delivery) throw new Error("Session cannot accept launch completion delivery");
 			return delivery;
 		});
-		const unregisterDispose: (() => void) | void;
-		const unregisterSessionChange: (() => void) | void;
+		let unregisterDispose: (() => void) | void;
+		let unregisterSessionChange: (() => void) | void;
 		const cleanup = (preservePending = false): void => {
 			if (!registration?.active) return;
 			registration.active = false;

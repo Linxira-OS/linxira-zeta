@@ -466,7 +466,7 @@ async function acquireSession(
 		attachSessionOwner(starting, snapshot.sessionId, ownerId);
 		return await starting.promise;
 	}
-	const startingSession!: StartingJsSession;
+	let startingSession!: StartingJsSession;
 
 	const startup = (async (): Promise<JsSession> => {
 		// Attach the message listener before sending init. Both Bun Worker messages

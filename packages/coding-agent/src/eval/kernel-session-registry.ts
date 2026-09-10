@@ -179,7 +179,7 @@ export function createKernelSessionRegistry<
 			attachSessionOwner(starting, sessionId, options.kernelOwnerId);
 			return await waitForStartup(starting.promise, options);
 		}
-		const startingSession!: StartingKernelSession<TSession>;
+		let startingSession!: StartingKernelSession<TSession>;
 		const startup = (async () => {
 			const kernel = await descriptor.startKernel(cwd, options);
 			const session = descriptor.createSession({
