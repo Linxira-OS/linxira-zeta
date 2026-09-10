@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 上游 v18.1.16 同步:AuthStorage 合并封锁契约——凭据级 `blockedUntilMs` 与 `providerTimed` 时间线合并,先到的更长封锁在短提示到来时保持有效;GitHub Copilot OAuth 拆分公共 GitHub / GHE 双 client-id;Codex WebSocket 传输 abort 携带 cause 链。
+
 ## [1.1.12] - 2026-09-10
 
 - 品牌与合并工具链维护版本;无本包用户可见变更。

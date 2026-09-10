@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 上游 v18.1.16 同步:retry 提示解析升级为 longest-wins 合并(账号重置 + 追加 retry-after 同时出现时取更长窗口);`retry-after-ms` 支持 `:`/` =` 分隔形式;provider 明确要求立即重试(=0 或已过期时间戳)时返回 0 而非 undefined,避免误用启发式退避。
+
 ## [1.1.12] - 2026-09-10
 
 - worker 宿主选择器族统一为 `__zeta_worker_*` 前缀(与主 CLI 对齐)。

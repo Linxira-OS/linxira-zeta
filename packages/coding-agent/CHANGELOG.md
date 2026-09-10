@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- 上游 v18.1.16 同步:任务执行器 AgentBusyError、事件循环 keepalive、idle 封装截止时间、上下文笔记等。
+- 修复中文界面设置布尔项无法关闭的问题(显示文案误入机器值匹配)。
+- `/language` 切换后斜杠命令描述即时刷新,无需重启。
+- Plan/Plan-ultra/Vibe/Goal 模式横幅与 attach 模式提示接入 i18n;`/loop`、`/rename` 描述进目录。
+
 ## [1.1.12] - 2026-09-10
 
 - Brand token sweep across the shipped VM protocol families: eval JS/Python kernel symbols (`__zeta_prelude__`, `__zeta_display__`, `__zeta_magic`/`__zeta_shell`), browser/computer bridge protocol names, and the shell snapshot helper now use the zeta naming; retained interop surfaces (`.omp-plugin`, `mcp__omp__`, the persisted silent-abort marker, `__ompInstallTokioRuntime`) are unchanged per the brand registry.

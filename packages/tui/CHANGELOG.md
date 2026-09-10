@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- SettingsList 新增 `valueLabel`/`valueLabels`:布尔设置的显示文案与机器值分离,中文界面可本地化显示 开/关 且不再破坏循环切换匹配。
+
 ## [1.1.12] - 2026-09-10
 
 

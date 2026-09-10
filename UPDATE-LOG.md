@@ -3,37 +3,18 @@
 
 ### OMP 同步基线
 
-- 基线不变:v18.1.13(`a1b254047d`)+ v18.1.14(`daf07999c2`)(PR #14)。本版为 Zeta 侧品牌/工具链版本;合并方法论新增机械审阅工具 `scripts/merge-scope-report.ts`(上游改动面/真冲突/静默合并三清单)与 package.json 合并驱动修复(workspaces.catalog 资产名保持)。
+- 基线上移:v18.1.16(`61b1b8aef6`,经 `backup/pre-sync-v18.1.16` 离线验证分支全量合并 + 五守卫 + hunk 级丢失扫描后并入)。合并审阅方法论新增 slice 分层审阅(v14→15→16 逐 release 切片)。
 
 ### 新增
 
-- Muse Code 服务商端到端支持:订阅登录与凭据刷新、推理、账号级模型实时发现、`/usage` 配额上报(限流退避可恢复);Muse Code 会话发送紧凑 hashline 编辑描述(每请求约省 3 KB),其它 provider 保持完整提示。Muse Spark 1.3(标准)新增 Meta `max` 推理档位。
-
-### 变更
-
-- 用户可见品牌面全量清扫:VM 全局协议、eval 内核符号、browser/computer bridge、shell 快照等统一 zeta 命名;桌面/终端标题、欢迎屏、更新横幅、`--resume` 提示、broker 恢复指引、ACP 初始化标题等残留 omp 字样清零(互操作保留面按注册表不动)。
-- web-ui 侧边栏:默认关闭、开关状态持久化,修复与状态行/输入框重叠;新增运行中会话 pin、用量行、快捷操作与色盲友好配色适配。
-- package.json 合并驱动修复:上游 `@oh-my-pi/*` 名不再冲掉 `workspaces.catalog` 的 `@linxiraos/*` 资产名(历史每次合并资产名损伤的根因);新增合并审阅工具 `scripts/merge-scope-report.ts`(上游改动面/真冲突/静默合并三清单)。
+- 上游 v18.1.14→v18.1.16 功能面:任务执行器 AgentBusyError 忙碌反馈、事件循环 keepalive、idle 封装截止时间(arming/deadline)、上下文笔记(context-notes)、advisor 每轮建议条数上限设置、GitHub Copilot OAuth 公共 GitHub/GHE 双 client-id、renovate 系配置面、auth-broker wire-schema 资源。
 
 ### 修复
-- legacy-pi 扩展 Windows 热重载失效修复(模块 `?mtime` 查询被 `file://` 剥除);desktop PR 构建的 native addon 路径改从 `@linxiraos` leaf 拉取,Windows/Linux desktop PR CI 不再缺件。
-- 无设置来源时(嵌入式 SDK、启动早期)Extended Context 不再静默启用,默认关闭。
-- 全屏 `/copy` 链接标题不再显示 Markdown 定界符、多行标签不再折成两行;分组 Read 卡片正确框选,Enter 复制助手产出而非工具输出。
-- Ask 自定义答案在粘贴后不再要求重复提交、多选题不再卡住;剪贴板待提交文本被保留,单题多选仍走确认。
-- `/loop` 运行中的转向(steering)改为一次性插话,不再覆盖循环体;只有空闲提交才成为新的循环体。
-- `memory://` 解析回发出调用的会话:调用者自己的 memory 后端应答 `memory://<id>`,同目录会话不再互读 memory 行,调用者会话已死则快速失败;prompt completion 绑定同一调用者。
-- 子代理 `yield` 不再因非严格 OpenAI 兼容后端把可选 `error` 字段填成 `""` 而拒绝合法 `data` 载荷。
-- 推理关闭请求(GitHub Copilot `gpt-6-astra`)不再报 `400 Unsupported value: 'none'`:reasoning-effort 回退现在识别 `Supported values` 措辞并按最低允许档重试。
-- Cursor GPT off-tier 请求不再发送原始 `-none` 兄弟 id(Run 端点拒绝),规范为基础模型 id 且不带推理参数。
-- GitHub Copilot 企业专属模型 id 不再继承其它 provider 的线上路由(如 `gpt-5.6-sol-fast` 把所有请求钉死到 `-none` 兄弟 id)。
-- Codex compaction 超时不再触发长时间重试,正常推进到下一个压缩方式。
-- Herdr 面板通知不再丢失:改经 `herdr notification show` 投递(等待提问或错误响 `request`,回合结束响 `done`),面板 id 或 `herdr` 缺失时回退带内写入。
-- `@` 目录路径补全不再插入尾随空格,Tab/Enter 接受目录后补全保持打开;水平滚轮(触控板双指横滑)不再被解码成纵向滚轮,全屏 selector 不再在手势末尾上下跳动。
-- `filterChildShellEnv` 只在过滤存活的 `process.env`/`Bun.env` 时应用启动环境 provenance,调用者显式传入的 env 用自身 `NODE_ENV` 决定 dotenv 模式。
 
-### Zeta 适配
-
-- 双 tag 合并损伤清零:`/plan-ultra` 命令注册与 i18n `M.*` 描述在冲突解决中被回卷,已逐项恢复并补 i18n 契约测试;v14 新增的 changelog 汇总契约测试(source+test 成对)采纳并 rekey 到 Zeta 1.1.10 版本线;`bun.lock`/`Cargo.lock`/`nix/bun.nix` 三件套对齐(后者连同 npmjs.org URL 规范化一起 regen,消除本地 npmmirror 泄漏)。
+- 中文界面 `/settings` 布尔项无法关闭:显示文案(开/关)被误用于机器值匹配,导致切换恒落 true;现值与显示分离(SettingsList 新增 valueLabel/valueLabels)。
+- `/language` 切换后斜杠命令描述不刷新:内置命令注册表快照在启动语言冻结;现在切换后即时重建命令段与补全提供器,无需重启。
+- Plan/Plan-ultra/Vibe/Goal 模式横幅、attach(`zeta attach`)模式提示此前为英文硬编码;全部接入 i18n 目录(新增 imPlanUltraModeEnabledFmt 等键)。
+- `/loop`、`/rename` 描述入目录(上游新文案 en 保留,zh 补译),i18n 契约测试恢复全绿。
 
 
 ## 1.1.10（2026-09-07）
