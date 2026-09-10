@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.13] - 2026-09-10
+
 - 上游 v18.1.16 同步:任务执行器 AgentBusyError、事件循环 keepalive、idle 封装截止时间、上下文笔记等。
 - 修复中文界面设置布尔项无法关闭的问题(显示文案误入机器值匹配)。
 - `/language` 切换后斜杠命令描述即时刷新,无需重启。
@@ -34,8 +36,6 @@
 - Subagent `yield` no longer rejects a valid `data` payload when a non-strict OpenAI-compatible backend fills the optional `error` field with `""`.
 - Zeta merge adaptation: the `/plan-ultra` command and its registry entry, plus localized slash-command descriptions, are guarded against being dropped by upstream merges (i18n contract test now enforces M.* keys).
 
-
-
 ## [1.1.10] - 2026-09-07
 
 - Fixed edit and write results to report the formatted bytes actually committed by LSP writethrough.
@@ -63,7 +63,6 @@
 - WorkPool child sessions no longer crash during startup while constructing their incremental `yield` tool schema.
 - The default `omp commit` agent now uses its displayed COMMIT model and honors `--model` instead of silently running on SMOL ([#10991](https://github.com/can1357/oh-my-pi/issues/10991)).
 - Fixed JavaScript `eval` `completion()`/`agent()` handles so the documented immediate-handle pattern works: `h.wait()`, `h.status()`, and the other handle methods now work on the un-awaited factory result ([#10986](https://github.com/can1357/oh-my-pi/issues/10986)).
-
 
 ## [1.1.9] - 2026-09-05
 
@@ -152,9 +151,6 @@
 
 - 配置目录统一 `.zeta`，移除 `.zeta` 兼容别名路径。
 
-## [1.0.11] - 2026-08-22
-
-
 ## [1.0.10] - 2026-08-19
 
 ### Added
@@ -198,16 +194,3 @@
 - Fixed parsing of POSIX `$EDITOR` commands that contain quoted arguments or executable paths with spaces.
 - Fixed persisted Agent Hub rows losing the explicit caller model role when a subagent used a model override, preserving role provenance across restarts.
 - Fixed unobserved promise rejections in browser helpers (such as `tab.waitForResponse()`) causing tab workers to hang or crash.
-
-
-
-
-
-
-
-
-
-
-
-
-

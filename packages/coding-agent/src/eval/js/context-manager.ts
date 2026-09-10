@@ -466,6 +466,7 @@ async function acquireSession(
 		attachSessionOwner(starting, snapshot.sessionId, ownerId);
 		return await starting.promise;
 	}
+	// oxlint-disable-next-line prefer-const -- captured by the startup closure before assignment
 	let startingSession!: StartingJsSession;
 
 	const startup = (async (): Promise<JsSession> => {

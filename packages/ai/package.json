@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/pi-ai",
-  "version": "1.1.12",
+  "version": "1.1.13",
   "description": "Unified LLM API with automatic model discovery and provider configuration",
   "keywords": [
     "ai",
