@@ -1,22 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
-import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { IrcBus, type IrcMessage } from "@linxiraos/zeta/irc/bus";
-import { MCPManager } from "@linxiraos/zeta/mcp/manager";
-import { RpcSubagentRegistry } from "@linxiraos/zeta/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import type { AgentRef } from "@linxiraos/zeta/registry/agent-registry";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import type { CustomMessage } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { createPersistedSubagentReviverFactory } from "@linxiraos/zeta/task/persisted-revive";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
+import { RpcSubagentRegistry } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-types";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import type { AgentRef } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { createPersistedSubagentReviverFactory } from "@oh-my-pi/pi-coding-agent/task/persisted-revive";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { IrcBus, type IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/bus";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { createSessionDefaults } from "../helpers/session-defaults";
 
 const tempDirs: TempDir[] = [];
 
@@ -56,6 +57,7 @@ function createRevivedSession(activeToolNames: string[][], extensionRunner?: unk
 	let lastAssistantText: string | undefined;
 	const trackedReplies: Promise<void>[] = [];
 	const session = {
+		...createSessionDefaults(),
 		getMountedXdevToolNames: () => [],
 		setActiveToolsByName: async (names: string[]) => {
 			activeToolNames.push(names);
@@ -67,7 +69,6 @@ function createRevivedSession(activeToolNames: string[][], extensionRunner?: unk
 		trackIrcReply: (pending: Promise<void>) => {
 			trackedReplies.push(pending);
 		},
-		subscribeRunState: () => () => {},
 		getLastAssistantMessage: () =>
 			lastAssistantText === undefined
 				? undefined

@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { StatusLineComponent } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
+import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import { StatusLineTestComponents } from "./helpers/status-line";
 
 const originalProjectDir = getProjectDir();
+const statusLines = new StatusLineTestComponents();
 
 beforeAll(async () => {
 	resetSettingsForTest();
@@ -13,6 +15,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+	statusLines.dispose();
 	resetSettingsForTest();
 	setProjectDir(originalProjectDir);
 });
@@ -52,7 +55,7 @@ function makeSession() {
 }
 
 function buildComponent(transparent: boolean) {
-	const component = new StatusLineComponent(makeSession());
+	const component = statusLines.track(new StatusLineComponent(makeSession()));
 	component.updateSettings({
 		preset: "custom",
 		leftSegments: ["pi"],

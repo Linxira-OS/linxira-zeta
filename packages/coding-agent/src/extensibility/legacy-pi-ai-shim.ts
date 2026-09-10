@@ -1,6 +1,6 @@
 /**
  * Compatibility shim for legacy extensions importing the package root of
- * `@linxiraos/pi-ai` (or one of its aliased scopes like `@earendil-works/pi-ai`
+ * `@oh/pi-ai` (or one of its aliased scopes like `@earendil-works/pi-ai`
  * or `@mariozechner/pi-ai`).
  *
  * pi-ai 15.1.0 removed the historical TypeBox root exports (`Type`, plus the
@@ -8,7 +8,7 @@
  * entrypoint. Legacy extensions still author parameter schemas as
  * `Type.Object({ ... })`, so this file is served by `legacy-pi-compat.ts` in
  * place of the real pi-ai entrypoint whenever a legacy extension imports the
- * bare package root. Subpath imports (`@linxiraos/pi-ai/oauth`, etc.)
+ * bare package root. Subpath imports (`@oh/pi-ai/oauth`, etc.)
  * continue to resolve directly against the bundled pi-ai package.
  *
  * The `Type` runtime and legacy `StringEnum()` helper are borrowed from the
@@ -27,16 +27,16 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	streamSimple,
-} from "@linxiraos/pi-ai";
-import type { Effort } from "@linxiraos/pi-catalog/effort";
-import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+} from "@oh/pi-ai";
+import type { Effort } from "@oh/pi-catalog/effort";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@oh/pi-catalog/model-thinking";
 import {
 	calculateCost,
 	getBundledModel,
 	getBundledModels,
 	getBundledProviders,
 	modelsAreEqual,
-} from "@linxiraos/pi-catalog/models";
+} from "@oh/pi-catalog/models";
 import { type TSchema, Type } from "./legacy-typebox";
 
 export interface StringEnumOptions<T extends string> {
@@ -89,6 +89,20 @@ export function clampThinkingLevel<TApi extends Api>(model: Model<TApi>, level: 
 }
 
 /**
+ * Enumerate the thinking levels a model supports, mirroring historical pi-ai's
+ * `getSupportedThinkingLevels` (`@earendil-works/pi-ai` `models.ts`). Upstream
+ * returns `["off"]` for non-reasoning models and, for reasoning models, `off`
+ * followed by each selectable effort in canonical order; OMP's baked
+ * `getSupportedEfforts` supplies that effort ladder directly. Legacy `/thinking`
+ * menus (e.g. `@companion-ai/feynman`) call this to list the levels a user may
+ * pick for the active model.
+ */
+export function getSupportedThinkingLevels<TApi extends Api>(model: Model<TApi>): (Effort | "off")[] {
+	if (!model.reasoning) return ["off"];
+	return ["off", ...getSupportedEfforts(model)];
+}
+
+/**
  * Provider-error classification patterns ported verbatim from historical pi-ai
  * (`@earendil-works/pi-ai` `utils/retry.ts`). Legacy extensions call
  * {@link isRetryableAssistantError} to decide whether to restart a failed
@@ -115,13 +129,13 @@ export function isRetryableAssistantError(message: AssistantMessage): boolean {
 	return RETRYABLE_PROVIDER_ERROR_PATTERN.test(errorMessage);
 }
 
-export * from "@linxiraos/pi-ai";
+export * from "@oh/pi-ai";
 /**
  * Compatibility re-exports for catalog symbols that pi-ai historically exposed
  * from its own barrel prior to the `refactor(catalog)!: split model catalog
  * from pi-ai` change. Legacy extensions still import these from the pi-ai
  * root, so the shim bridges them through to their new home in
- * `@linxiraos/pi-catalog/models`. `getModel`/`getModels` are the historical
+ * `@oh/pi-catalog/models`. `getModel`/`getModels` are the historical
  * pi-ai names for `getBundledModel`/`getBundledModels`; the remaining symbols
  * kept their names across the move.
  */
@@ -137,7 +151,7 @@ export const getModels = getBundledModels;
  *
  * Transient-failure retry (overload, rate-limit, 5xx) is the **caller's
  * responsibility**. Oneshot callers that collect the full result before acting
- * should wrap with `retryTransientCompletion` from `@linxiraos/pi-ai`.
+ * should wrap with `retryTransientCompletion` from `@oh/pi-ai`.
  */
 export function streamSimpleOpenAIResponses(
 	model: Model<"openai-responses">,
@@ -149,17 +163,17 @@ export function streamSimpleOpenAIResponses(
 /**
  * Compatibility re-exports for runtime helpers that upstream
  * `@earendil-works/pi-ai` exposed from its package root but omp's
- * `@linxiraos/pi-ai` barrel no longer forwards. Each symbol still exists in the
+ * `@oh/pi-ai` barrel no longer forwards. Each symbol still exists in the
  * host graph — only its root re-export was dropped — so bridging it here keeps
  * legacy extensions importing it from the pi-ai root resolving through Bun's
  * static named-export check (e.g. `omp plugin install pi-blackhole`).
  *
  * This is the full set derived from an audit of the upstream root surface: the
  * error-classification predicate `isContextOverflow` (now under
- * `@linxiraos/pi-ai/error`) and the JSON-repair helpers that omp relocated to
- * `@linxiraos/pi-utils`. Upstream root symbols with no omp equivalent are
+ * `@oh/pi-ai/error`) and the JSON-repair helpers that omp relocated to
+ * `@oh/pi-utils`. Upstream root symbols with no omp equivalent are
  * intentionally not shimmed — the package has diverged and there is nothing to
  * forward.
  */
-export { isContextOverflow } from "@linxiraos/pi-ai/error";
-export { parseJsonWithRepair, parseStreamingJson, repairJson } from "@linxiraos/pi-utils";
+export { isContextOverflow } from "@oh/pi-ai/error";
+export { parseJsonWithRepair, parseStreamingJson, repairJson } from "@oh/pi-utils";

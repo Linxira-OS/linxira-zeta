@@ -1,23 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobManager } from "@linxiraos/zeta/async";
-import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
-import { IrcBus } from "@linxiraos/zeta/irc/bus";
-import { RpcSubagentRegistry } from "@linxiraos/zeta/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
-import type { CustomMessage } from "@linxiraos/zeta/session/messages";
-import { resolveSoftRequestBudget, runSubprocess } from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task/types";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
+import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
+import { RpcSubagentRegistry } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-types";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { registerPersistedSubagents } from "@oh-my-pi/pi-coding-agent/registry/persisted-agents";
+import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { resolveSoftRequestBudget, runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@oh-my-pi/pi-coding-agent/task/types";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { createSessionDefaults } from "../helpers/session-defaults";
 
 /**
  * Contracts under test — the soft request budget must degrade gracefully
@@ -63,11 +64,12 @@ function createMockSession(
 		| undefined;
 
 	const emit = (event: AgentSessionEvent) => {
-		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
+		// oxlint-disable-next-line unicorn/no-useless-spread -- listeners may change during dispatch
 		for (const listener of [...listeners]) listener(event);
 	};
 
 	const session: Partial<AgentSession> = {
+		...createSessionDefaults(),
 		state: { messages: [] } as never,
 		agent: { state: { systemPrompt: ["test"] } } as never,
 		model: { api: "anthropic-messages" } as never,
@@ -75,7 +77,6 @@ function createMockSession(
 		sessionManager: { appendSessionInit: () => {} } as never,
 		getActiveToolNames: () => ["read", "yield"],
 		getEnabledToolNames: () => ["read", "yield"],
-		setActiveToolsByName: async () => {},
 		subscribe: (listener: (event: AgentSessionEvent) => void) => {
 			listeners.push(listener);
 			return () => {
@@ -89,14 +90,12 @@ function createMockSession(
 			await onPrompt({ promptIndex, emit, pushMessage: message => messages.push(message) });
 			return true;
 		},
-		waitForIdle: async () => {},
 		getLastAssistantMessage: () => messages[messages.length - 1] as never,
 		sendUserMessage: async () => {},
 		setIrcWakeTurnObserver: observer => {
 			ircWakeTurnObserver = observer;
 		},
 		trackIrcReply: () => {},
-		subscribeRunState: () => () => {},
 		deliverIrcMessage: async msg => {
 			const record: CustomMessage = {
 				role: "custom",
@@ -299,31 +298,56 @@ describe("runSubprocess soft request budget", () => {
 		rpcRegistry.setSubscriptionLevel("progress");
 		const handle = createMockSession(({ promptIndex, emit, pushMessage }) => {
 			if (promptIndex !== 1) return;
+			// Configuration alone must not show an advisor to remote observers.
+			expect(
+				frames.some(frame => frame.type === "subagent_progress" && frame.payload.progress.advisor === true),
+			).toBe(false);
+			// Model discovery can attach the runtime after the monitor subscribes.
+			advisorActive.mockReturnValue(true);
 			// Never yields: budget 2 → stop at 3, grace exhausted at 3 + 5 = 8.
 			for (let i = 1; i <= 8; i++) {
 				const message = assistantText(`burning request ${i}`);
 				pushMessage(message);
 				emit({ type: "message_end", message } as unknown as AgentSessionEvent);
+				if (i === 1) {
+					const advisedProgress = frames.find(
+						frame => frame.type === "subagent_progress" && frame.payload.progress.advisor === true,
+					);
+					expect(advisedProgress).toMatchObject({ payload: { progress: { requests: 0 } } });
+					// Losing the runtime later must not erase this run's advised history.
+					advisorActive.mockReturnValue(false);
+				}
 			}
 		});
+		const advisorActive = vi.spyOn(handle.session, "isAdvisorActive");
 		mockCreateAgentSession(handle.session);
 		registerRunning(id, handle.session);
 
-		const result = await runSubprocess(baseOptions(id, eventBus));
+		const result = await runSubprocess({
+			...baseOptions(id, eventBus),
+			agent: { ...baseAgent, advisor: true },
+		});
 
 		expect(result.aborted).toBe(true);
 		expect(result.abortReason).toMatch(/Soft request budget exceeded/);
+		expect(result.advisor).toBe(true);
 		// Resumable stop, not a terminal kill: the ref stays adopted and live.
 		expect(AgentRegistry.global().get(id)?.status).toBe("idle");
 		expect(AgentLifecycleManager.global().has(id)).toBe(true);
 		expect(handle.disposeCalls()).toBe(0);
 
-		const expectRpcTurn = (): void => {
+		const expectRpcTurn = (advised: boolean): void => {
 			expect(frames[0]).toMatchObject({
 				type: "subagent_lifecycle",
 				payload: { id, status: "started" },
 			});
-			expect(frames.some(frame => frame.type === "subagent_progress")).toBe(true);
+			const firstProgress = frames.find(frame => frame.type === "subagent_progress");
+			expect(firstProgress).toBeDefined();
+			expect(firstProgress?.payload.progress.advisor === true).toBe(advised);
+			if (advised) {
+				// The badge must appear before the awakened agent emits its first request.
+				expect(firstProgress?.payload.progress.requests).toBe(0);
+			}
 			expect(frames.at(-1)).toMatchObject({
 				type: "subagent_lifecycle",
 				payload: { id, status: "completed" },
@@ -331,20 +355,23 @@ describe("runSubprocess soft request budget", () => {
 		};
 
 		frames.length = 0;
+		advisorActive.mockReturnValue(true);
 		const idleTerminal = waitForFollowUpTerminal();
 		const idleReceipt = await new IrcBus().send({ from: "Main", to: id, body: "resume your inventory" });
 		expect(idleReceipt.outcome).toBe("woken");
 		await idleTerminal;
-		expectRpcTurn();
+		expectRpcTurn(true);
 
 		await AgentLifecycleManager.global().park(id);
 		expect(AgentRegistry.global().get(id)?.status).toBe("parked");
 		frames.length = 0;
+		// Parking can rebuild an unadvised session; don't retain the prior turn's marker.
+		advisorActive.mockReturnValue(false);
 		const revivedTerminal = waitForFollowUpTerminal();
 		const revivedReceipt = await new IrcBus().send({ from: "Main", to: id, body: "resume after parking" });
 		expect(revivedReceipt.outcome).toBe("revived");
 		await revivedTerminal;
-		expectRpcTurn();
+		expectRpcTurn(false);
 		rpcRegistry.dispose();
 	});
 

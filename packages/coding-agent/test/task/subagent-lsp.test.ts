@@ -2,23 +2,24 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
-import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
-import { TaskTool } from "@linxiraos/zeta/task";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import type { AgentDefinition, TaskParams } from "@linxiraos/zeta/task/types";
-import type { IsolationHandle, WorktreeBaseline } from "@linxiraos/zeta/task/worktree";
-import * as worktreeModule from "@linxiraos/zeta/task/worktree";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import "@linxiraos/zeta/tools/yield";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import type { AgentDefinition, TaskParams } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { IsolationHandle, WorktreeBaseline } from "@oh-my-pi/pi-coding-agent/task/worktree";
+import * as worktreeModule from "@oh-my-pi/pi-coding-agent/task/worktree";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import "@oh-my-pi/pi-coding-agent/tools/yield";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { createSessionDefaults } from "../helpers/session-defaults";
 
 const TEST_TASK: TaskParams = { agent: "task", name: "CheckLsp", task: "Inspect LSP tools." };
 
@@ -51,6 +52,7 @@ function createYieldingSession(): AgentSession {
 	};
 
 	return {
+		...createSessionDefaults(),
 		state,
 		agent: { state: { systemPrompt: ["test"] } },
 		model: undefined,
@@ -60,7 +62,6 @@ function createYieldingSession(): AgentSession {
 		},
 		getActiveToolNames: () => ["yield"],
 		getEnabledToolNames: () => ["yield"],
-		setActiveToolsByName: async () => {},
 		subscribe: (listener: (event: AgentSessionEvent) => void) => {
 			listeners.push(listener);
 			return () => {
@@ -81,12 +82,7 @@ function createYieldingSession(): AgentSession {
 				isError: false,
 			});
 		},
-		waitForIdle: async () => {},
 		getLastAssistantMessage: () => state.messages[state.messages.length - 1],
-		abort: async () => {},
-		dispose: async () => {},
-		setIrcWakeTurnObserver: () => {},
-		subscribeRunState: () => () => {},
 	} as unknown as AgentSession;
 }
 

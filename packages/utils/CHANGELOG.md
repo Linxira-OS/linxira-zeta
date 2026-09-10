@@ -7,6 +7,13 @@
 - worker 宿主选择器族统一为 `__zeta_worker_*` 前缀(与主 CLI 对齐)。
 
 ## [1.1.11] - 2026-09-08
+## [18.1.16] - 2026-09-09
+
+### Fixed
+
+- Fixed `$which` capturing `Bun.which` at import on Linux and Windows, so `Bun.which` stubs installed later (e.g. per-test spies) are honoured and PATH-only language servers no longer leak into test results.
+
+## [18.1.13] - 2026-09-07
 
 ### Fixed
 

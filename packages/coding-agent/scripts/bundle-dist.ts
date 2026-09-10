@@ -4,6 +4,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { isEnoent } from "@linxiraos/pi-utils";
 import { buildDocsIndexPayload } from "./generate-docs-index";
+import { createLegacyPiVirtualModulePlugin } from "./legacy-pi-virtual-module";
 
 const packageDir = path.join(import.meta.dir, "..");
 const outDir = path.join(packageDir, "dist");
@@ -13,7 +14,7 @@ const legacyHtmlExportAssetPattern = /^(?:template-[^.]+\.(?:css|html|js)|tool-v
 
 // Native / optional / platform-specific deps are loaded from installed files.
 // `omp-legacy-pi-modules` exists only in compiled binaries via the build plugin;
-// the npm bundle never executes that `isCompiledBinary()` branch.
+// the npm bundle never executes that bundled-modules branch.
 const ALWAYS_EXTERNAL = [
 	"@linxiraos/pi-natives",
 	"@huggingface/transformers",
@@ -98,6 +99,7 @@ async function main(): Promise<void> {
 			entrypoints: [path.join(packageDir, "src/cli.ts")],
 			outdir: outDir,
 			target: "bun",
+			plugins: [await createLegacyPiVirtualModulePlugin()],
 			external: [...ALWAYS_EXTERNAL, ...RUNTIME_EXTERNAL],
 			define: {
 				"process.env.PI_BUNDLED": JSON.stringify("true"),

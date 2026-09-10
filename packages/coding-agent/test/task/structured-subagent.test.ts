@@ -2,25 +2,25 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import { Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import {
 	artifactsDirsFromRegistry,
 	resetRegisteredArtifactDirsForTests,
-} from "@linxiraos/zeta/internal-urls/registry-helpers";
-import * as planHandoff from "@linxiraos/zeta/plan-mode/plan-handoff";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import { createEvalCustomTools } from "@linxiraos/zeta/task/eval-tools";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
+} from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
+import * as planHandoff from "@oh-my-pi/pi-coding-agent/plan-mode/plan-handoff";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import { createEvalCustomTools } from "@oh-my-pi/pi-coding-agent/task/eval-tools";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import * as isolationRunner from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
 import {
 	buildStructuredSubagentRecoveryHint,
 	resolveEffectiveSubagentPolicy,
 	runStructuredSubagent,
 	StructuredSubagentError,
 	type StructuredSubagentRequest,
-} from "@linxiraos/zeta/task/structured-subagent";
-import type { AgentDefinition, SingleResult } from "@linxiraos/zeta/task/types";
-import type { ToolSession } from "@linxiraos/zeta/tools";
+} from "@oh-my-pi/pi-coding-agent/task/structured-subagent";
+import type { AgentDefinition, SingleResult } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 
 const AGENT: AgentDefinition = {
 	name: "worker",
@@ -182,11 +182,15 @@ describe("structured subagent primitive", () => {
 		);
 		expect(discover).not.toHaveBeenCalled();
 	});
-	it("reloads model roles before resolving an agent added during the session", async () => {
+	it("reloads project task and retry policy before resolving an agent added during the session", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-task-hot-reload-"));
 		const projectDir = path.join(root, "project");
 		const agentDir = path.join(root, "agent");
 		await fs.mkdir(projectDir, { recursive: true });
+		await Bun.write(
+			path.join(agentDir, "config.yml"),
+			"task:\n  enableEffort: true\nretry:\n  modelFallback: true\n",
+		);
 		const liveSettings = await Settings.loadIsolated({ cwd: projectDir, agentDir });
 		const liveSession = {
 			...session(),
@@ -195,16 +199,20 @@ describe("structured subagent primitive", () => {
 		} as ToolSession;
 
 		try {
-			await Bun.write(path.join(projectDir, ".zeta", "config.yml"), "modelRoles:\n  hot_worker: kimi-code/k3:max\n");
+			await Bun.write(
+				path.join(projectDir, ".zeta", "config.yml"),
+				"task:\n  agentModelOverrides:\n    hot-worker: xai-oauth/grok-4.6:medium\n  enableEffort: false\nretry:\n  modelFallback: false\n",
+			);
 			await Bun.write(
 				path.join(projectDir, ".zeta", "agents", "hot-worker.md"),
-				'---\nname: hot-worker\ndescription: Newly added worker.\nmodel: "@hot_worker"\n---\n\nInspect the assignment.\n',
+				"---\nname: hot-worker\ndescription: Newly added worker.\nmodel: openai/gpt-4o\n---\n\nInspect the assignment.\n",
 			);
 
 			const policy = await resolveEffectiveSubagentPolicy(request({ session: liveSession, agent: "hot-worker" }));
 
-			expect(policy.modelRole).toBe("hot_worker");
-			expect(policy.modelOverride).toEqual(["kimi-code/k3:max"]);
+			expect(policy.modelOverride).toEqual(["xai-oauth/grok-4.6:medium"]);
+			expect(liveSettings.get("task.enableEffort")).toBe(false);
+			expect(liveSettings.get("retry.modelFallback")).toBe(false);
 		} finally {
 			liveSettings.cancelPendingSaves();
 			await fs.rm(root, { recursive: true, force: true });

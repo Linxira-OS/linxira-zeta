@@ -15,15 +15,16 @@
  * flush. Snapshot arrays must also stay immutable after later refreshes.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
-import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { runSubprocess } from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition, AgentProgress } from "@linxiraos/zeta/task/types";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import type { AssistantMessage, TextContent } from "@oh-my-pi/pi-ai";
+import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { AgentDefinition, AgentProgress } from "@oh-my-pi/pi-coding-agent/task/types";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { createSessionDefaults } from "../helpers/session-defaults";
 
 const TAIL_BYTES = 8 * 1024;
 
@@ -161,12 +162,13 @@ function createScriptedSession(
 ): MockSessionControls {
 	const listeners: Array<(event: AgentSessionEvent) => void> = [];
 	const emit = (event: AgentSessionEvent) => {
-		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
+		// oxlint-disable-next-line unicorn/no-useless-spread -- listeners may change during dispatch
 		for (const listener of [...listeners]) listener(event);
 	};
 	const emittedGate = Promise.withResolvers<void>();
 	let aborted = false;
 	const session = {
+		...createSessionDefaults(),
 		state: { messages: [] },
 		agent: { state: { systemPrompt: ["test"] } },
 		model: undefined,
@@ -174,7 +176,6 @@ function createScriptedSession(
 		sessionManager: { appendSessionInit: () => {} },
 		getActiveToolNames: () => ["read", "yield"],
 		getEnabledToolNames: () => ["read", "yield"],
-		setActiveToolsByName: async (_toolNames: string[]) => {},
 		subscribe: (listener: (event: AgentSessionEvent) => void) => {
 			listeners.push(listener);
 			return () => {
@@ -186,17 +187,10 @@ function createScriptedSession(
 			await script(emit);
 			emittedGate.resolve();
 		},
-		waitForIdle: async () => {},
-		prepareForHeadlessAdvisorDrain: () => {},
-		waitForAdvisorCatchup: async () => true,
-		getLastAssistantMessage: () => undefined,
 		abort: async () => {
 			aborted = true;
 		},
 		isAborted: () => aborted,
-		dispose: async () => {},
-		setIrcWakeTurnObserver: () => {},
-		subscribeRunState: () => () => {},
 	};
 	// AgentSession is a concrete class; the executor consumes only this
 	// structural subset. Deliberate documented test-double escape hatch,

@@ -2,11 +2,15 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { disableProvider, enableProvider } from "@linxiraos/zeta/capability";
-import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
-import { clearOmpExtensionCliRoots, injectOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
-import { discoverAgents } from "@linxiraos/zeta/task/discovery";
+import { disableProvider, enableProvider } from "@oh-my-pi/pi-coding-agent/capability";
+import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
+import {
+	clearOmpExtensionCliRoots,
+	injectOmpExtensionCliRoots,
+} from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
+import { clearClaudePluginRootsCache, injectPluginDirRoots } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
+import { discoverAgents } from "@oh-my-pi/pi-coding-agent/task/discovery";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 const OMP_AGENT_MD = [
 	"---",
@@ -36,7 +40,7 @@ const CLAUDE_AGENT_MD = [
 ].join("\n");
 
 async function writeOmpPluginAgent(home: string): Promise<void> {
-	const userPluginsRoot = path.join(home, ".zeta", "plugins");
+	const userPluginsRoot = path.join(home, ".omp", "plugins");
 	const pluginRoot = path.join(userPluginsRoot, "node_modules", "loom");
 	await fs.mkdir(path.join(pluginRoot, "agents"), { recursive: true });
 	await fs.writeFile(
@@ -67,13 +71,15 @@ describe("discoverAgents", () => {
 	afterEach(async () => {
 		enableProvider("omp-plugins");
 		clearOmpExtensionCliRoots();
+		await injectPluginDirRoots(tempHome, []);
+		clearClaudePluginRootsCache();
 		clearFsCache();
 		await removeWithRetries(tempHome);
 	});
 
 	test("loads OMP agents but skips Claude Code custom agents", async () => {
-		await fs.mkdir(path.join(projectDir, ".zeta", "agents"), { recursive: true });
-		await fs.writeFile(path.join(projectDir, ".zeta", "agents", "omp-test-agent.md"), OMP_AGENT_MD);
+		await fs.mkdir(path.join(projectDir, ".omp", "agents"), { recursive: true });
+		await fs.writeFile(path.join(projectDir, ".omp", "agents", "omp-test-agent.md"), OMP_AGENT_MD);
 
 		await fs.mkdir(path.join(tempHome, ".claude", "agents"), { recursive: true });
 		await fs.writeFile(path.join(tempHome, ".claude", "agents", "user-cc-test-agent.md"), CLAUDE_AGENT_MD);
@@ -85,10 +91,10 @@ describe("discoverAgents", () => {
 
 		expect(names).toContain("omp-test-agent");
 		expect(names).not.toContain("cc-test-agent");
-		expect(projectAgentsDir).toBe(path.join(projectDir, ".zeta", "agents"));
+		expect(projectAgentsDir).toBe(path.join(projectDir, ".omp", "agents"));
 	});
 
-	test("loads agents from OMP npm plugins under <home>/.zeta/plugins/node_modules", async () => {
+	test("loads agents from OMP npm plugins under <home>/.omp/plugins/node_modules", async () => {
 		await writeOmpPluginAgent(tempHome);
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
@@ -125,8 +131,8 @@ describe("discoverAgents", () => {
 			["---", "name: collide", "description: from-project-settings", "---", "project body"].join("\n"),
 		);
 
-		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
-		await fs.writeFile(path.join(projectDir, ".zeta", "settings.json"), JSON.stringify({ extensions: [projectExt] }));
+		await fs.mkdir(path.join(projectDir, ".omp"), { recursive: true });
+		await fs.writeFile(path.join(projectDir, ".omp", "settings.json"), JSON.stringify({ extensions: [projectExt] }));
 		injectOmpExtensionCliRoots([cliExt], tempHome, projectDir);
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
@@ -152,11 +158,8 @@ describe("discoverAgents", () => {
 				["---", `name: ${name}`, `description: ${name}`, "---", `${name} body`].join("\n"),
 			);
 		}
-		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
-		await fs.writeFile(
-			path.join(projectDir, ".zeta", "settings.json"),
-			JSON.stringify({ extensions: [settingsExt] }),
-		);
+		await fs.mkdir(path.join(projectDir, ".omp"), { recursive: true });
+		await fs.writeFile(path.join(projectDir, ".omp", "settings.json"), JSON.stringify({ extensions: [settingsExt] }));
 		await writeOmpPluginAgent(tempHome);
 
 		injectOmpExtensionCliRoots([staleExt], tempHome, projectDir);
@@ -170,5 +173,25 @@ describe("discoverAgents", () => {
 
 		expect(names).toContain("explicit-agent");
 		expect(names).not.toEqual(expect.arrayContaining(["stale-agent", "settings-agent", "loom-verify-spec"]));
+	});
+
+	test("discovers agents from a --plugin-dir root with the foreign claude-plugins opt-in off (#11151)", async () => {
+		// `--plugin-dir` roots ride the shared plugin registry as user-scope, origin
+		// "plugin-dir" entries. The claude-plugins foreign opt-in is off by default, so
+		// gating user-scope roots purely on scope (as before) dropped these agents.
+		const pluginDir = path.join(tempHome, "my-plugin");
+		await fs.mkdir(path.join(pluginDir, "agents"), { recursive: true });
+		await fs.writeFile(
+			path.join(pluginDir, "agents", "plugin-dir-agent.md"),
+			["---", "name: plugin-dir-agent", "description: agent shipped in a --plugin-dir plugin.", "---", "body"].join(
+				"\n",
+			),
+		);
+		await injectPluginDirRoots(tempHome, [pluginDir], projectDir);
+
+		const { agents } = await discoverAgents(projectDir, tempHome);
+		const names = agents.map(agent => agent.name);
+
+		expect(names).toContain("plugin-dir-agent");
 	});
 });

@@ -1,18 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, Message, Model } from "@linxiraos/pi-ai";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { computeContextBreakdown } from "@linxiraos/zeta/modes/utils/context-usage";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Agent, type AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, Message, Model } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { StatusLineComponent } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
+import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { computeContextBreakdown } from "@oh-my-pi/pi-coding-agent/modes/utils/context-usage";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { StatusLineTestComponents } from "./helpers/status-line";
 
+const statusLines = new StatusLineTestComponents();
 describe("Context usage consolidation", () => {
 	let sharedDir: TempDir;
 	let authStorage: AuthStorage;
@@ -50,6 +52,7 @@ describe("Context usage consolidation", () => {
 	});
 
 	afterAll(async () => {
+		statusLines.dispose();
 		authStorage.close();
 		try {
 			await sharedDir.remove();
@@ -339,7 +342,7 @@ describe("Context usage consolidation", () => {
 		const cb = computeContextBreakdown(session);
 		expect(cb.usedTokens).toBe(used!);
 
-		const sl = new StatusLineComponent(session);
+		const sl = statusLines.track(new StatusLineComponent(session));
 		expect(sl.getCachedContextBreakdown().usedTokens).toBe(used!);
 
 		const cu = session.getContextUsage();
@@ -374,7 +377,7 @@ describe("Context usage consolidation", () => {
 		sessionManager.appendMessage(assistant);
 		syncSession(session, agent);
 
-		const sl = new StatusLineComponent(session);
+		const sl = statusLines.track(new StatusLineComponent(session));
 		const initialBreakdown = sl.getCachedContextBreakdown();
 
 		const assistantExt = assistant as unknown as { thinkingSignature: string };

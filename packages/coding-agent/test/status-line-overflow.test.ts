@@ -2,17 +2,19 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { visibleWidth } from "@linxiraos/pi-tui";
-import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { StatusLineSegmentId } from "@linxiraos/zeta/config/settings-schema";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/segments";
-import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/zeta/utils/session-color";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { StatusLineSegmentId } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
+import { StatusLineComponent } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
+import type { SegmentContext } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
+import { renderSegment } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
+import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { getSessionAccentAnsi, getSessionAccentHex } from "@oh-my-pi/pi-coding-agent/utils/session-color";
+import { visibleWidth } from "@oh-my-pi/pi-tui";
+import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import { StatusLineTestComponents } from "./helpers/status-line";
 
 const originalProjectDir = getProjectDir();
+const statusLines = new StatusLineTestComponents();
 
 beforeAll(async () => {
 	resetSettingsForTest();
@@ -21,6 +23,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+	statusLines.dispose();
 	resetSettingsForTest();
 	setProjectDir(originalProjectDir);
 });
@@ -137,7 +140,7 @@ function stripAnsi(value: string): string {
 
 describe("status line session accent", () => {
 	function buildComponent(sessionAccent: boolean) {
-		const component = new StatusLineComponent(createStatusLineSession("Named session"));
+		const component = statusLines.track(new StatusLineComponent(createStatusLineSession("Named session")));
 		component.updateSettings({
 			preset: "custom",
 			leftSegments: ["pi"],
@@ -206,7 +209,7 @@ describe("session_name preview-title fallback", () => {
 	});
 
 	it("right-aligns the stand-in title through the box border pipeline", () => {
-		const component = new StatusLineComponent(createStatusLineSession(""));
+		const component = statusLines.track(new StatusLineComponent(createStatusLineSession("")));
 		component.updateSettings({
 			preset: "custom",
 			leftSegments: ["pi"],
@@ -225,7 +228,7 @@ describe("session_name preview-title fallback", () => {
 
 describe("status line focused-agent dimming", () => {
 	it("keeps powerline end caps at full intensity while text stays dimmed", () => {
-		const component = new StatusLineComponent(createStatusLineSession("Focused session"));
+		const component = statusLines.track(new StatusLineComponent(createStatusLineSession("Focused session")));
 		component.updateSettings({
 			preset: "custom",
 			leftSegments: ["pi"],
@@ -461,7 +464,7 @@ describe("overflow: path survives before model", () => {
 
 		const modelName = `MODEL_SHOULD_DROP_${"x".repeat(24)}`;
 		const session = createStatusLineSession("overflow test", modelName);
-		const component = new StatusLineComponent(session);
+		const component = statusLines.track(new StatusLineComponent(session));
 		const pathOptions = {
 			abbreviate: false,
 			maxLength: 32,

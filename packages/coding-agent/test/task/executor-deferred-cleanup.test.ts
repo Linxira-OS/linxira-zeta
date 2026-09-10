@@ -13,14 +13,15 @@
  * teardown and a zero grace, so no wall-clock timers are needed.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { runSubprocess } from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { createSessionDefaults } from "../helpers/session-defaults";
 
 const baseAgent: AgentDefinition = { name: "task", description: "test", systemPrompt: "test", source: "bundled" };
 
@@ -57,10 +58,11 @@ function mockSession(opts: {
 	const listeners: Array<(event: AgentSessionEvent) => void> = [];
 	const state = { messages: [] as AssistantMessage[] };
 	const emit = (event: AgentSessionEvent) => {
-		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
+		// oxlint-disable-next-line unicorn/no-useless-spread -- listeners may change during dispatch
 		for (const l of [...listeners]) l(event);
 	};
 	return {
+		...createSessionDefaults(),
 		state,
 		agent: { state: { systemPrompt: ["test"] } },
 		model: undefined,
@@ -68,7 +70,6 @@ function mockSession(opts: {
 		sessionManager: { appendSessionInit: () => {} },
 		getActiveToolNames: () => ["read", "yield"],
 		getEnabledToolNames: () => ["read", "yield"],
-		setActiveToolsByName: async () => {},
 		subscribe: (l: (event: AgentSessionEvent) => void) => {
 			listeners.push(l);
 			return () => {
@@ -82,17 +83,12 @@ function mockSession(opts: {
 			emit({ type: "message_end", message: msg } as AgentSessionEvent);
 			opts.onPrompt(emit);
 		},
-		waitForIdle: async () => {},
-		prepareForHeadlessAdvisorDrain: () => {},
-		waitForAdvisorCatchup: async () => true,
 		getLastAssistantMessage: () => state.messages[state.messages.length - 1],
 		hasPendingAsyncWork: () => false,
 		getAsyncJobSnapshot: () => ({ running: [], recent: [] }),
 		settleAsyncWork: async () => {},
 		abort: opts.abort ?? (async () => {}),
 		dispose: opts.dispose ?? (async () => {}),
-		setIrcWakeTurnObserver: () => {},
-		subscribeRunState: () => () => {},
 	} as unknown as AgentSession;
 }
 

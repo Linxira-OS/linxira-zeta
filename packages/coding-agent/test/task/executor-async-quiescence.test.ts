@@ -7,15 +7,16 @@
  * the run rather than surface the stale payload as a clean success.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
-import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { runSubprocess } from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { createSessionDefaults } from "../helpers/session-defaults";
 
 const baseAgent: AgentDefinition = { name: "task", description: "test", systemPrompt: "test", source: "bundled" };
 
@@ -75,7 +76,7 @@ function createAsyncSession(
 	let toolCallSeq = 0;
 
 	const emit = (event: AgentSessionEvent) => {
-		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
+		// oxlint-disable-next-line unicorn/no-useless-spread -- listeners may change during dispatch
 		for (const listener of [...listeners]) listener(event);
 	};
 
@@ -129,6 +130,7 @@ function createAsyncSession(
 	};
 
 	const session = {
+		...createSessionDefaults(),
 		state,
 		agent: { state: { systemPrompt: ["test"] } },
 		model: undefined,
@@ -136,7 +138,6 @@ function createAsyncSession(
 		sessionManager: { appendSessionInit: () => {} },
 		getActiveToolNames: () => ["read", "yield"],
 		getEnabledToolNames: () => ["read", "yield"],
-		setActiveToolsByName: async (_toolNames: string[]) => {},
 		subscribe: (listener: (event: AgentSessionEvent) => void) => {
 			listeners.push(listener);
 			return () => {
@@ -148,9 +149,6 @@ function createAsyncSession(
 			prompts.push(text);
 			onPrompt({ text, promptIndex: prompts.length, harness });
 		},
-		waitForIdle: async () => {},
-		prepareForHeadlessAdvisorDrain: () => {},
-		waitForAdvisorCatchup: async () => true,
 		getLastAssistantMessage: () => state.messages[state.messages.length - 1],
 		hasPendingAsyncWork: () => pendingAsync,
 		getAsyncJobSnapshot: () => ({ running: runningJobs, recent: [] }),
@@ -163,8 +161,6 @@ function createAsyncSession(
 			await options.abort?.();
 		},
 		dispose: options.dispose ?? (async () => {}),
-		setIrcWakeTurnObserver: () => {},
-		subscribeRunState: () => () => {},
 	};
 	harness.session = session as unknown as AgentSession;
 	return harness;
