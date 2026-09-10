@@ -72,6 +72,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"CONTRIBUTING.md", // pre-existing main debt: upstream-facing contributing doc
 	"packages/coding-agent/CHANGELOG.md", // changelog entries describe the residue itself
 	"scripts/merge-package-json.ts", // merge driver: must name the upstream @oh-my-pi scope to map it back
+	"scripts/merge-package-json.test.ts", // driver test: fixtures carry the upstream scope to prove the mapping
 ];
 
 /** `oh-my-pi` is allowed when embedded in these patterns (issue/URL provenance). */
@@ -151,14 +152,19 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	},
 ];
 
-/** Exact assertions: each token must NOT appear anywhere in scanned sources. */
+/**
+ * Exact assertions: each token must NOT appear anywhere in scanned sources.
+ * The upstream npm scope (`@oh-my-pi/…`) is deliberately NOT here: the merge
+ * driver and its test must name it literally to map it back (they are
+ * allow-listed files), and the oh-my-pi token scan in brand-check.ts covers
+ * every other file.
+ */
 export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
 	{ needle: /USER_AGENT = `omp\//, why: "upstream UA template" },
 	{ needle: /const PREVIEW_TITLE = "omp"/, why: "shape-preview stand-in title is ζ" },
 	{ needle: /const APP_NAME = "omp"/, why: "init-xdg must import APP_NAME from pi-utils" },
 	{ needle: /display: "omp"/, why: "profile alias default command is zeta" },
-	{ needle: /@oh-my-pi\//, why: "upstream npm scope never appears in product sources" },
 	{
 		needle: /runs-on:.*(omp-kata|\bomp\b)/,
 		why: "Zeta CI runs exclusively on GitHub-hosted runners; upstream runner labels never resolve here and stall release jobs",
