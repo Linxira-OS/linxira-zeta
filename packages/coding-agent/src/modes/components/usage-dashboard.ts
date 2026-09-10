@@ -7,7 +7,7 @@
  */
 import * as os from "node:os";
 import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@linxiraos/pi-ai";
-import type { DailyActivityPoint } from "@linxiraos/omp-stats/shared-types";
+import type { DailyActivityPoint } from "@linxiraos/pi-stats/shared-types";
 import {
 	type Component,
 	matchesKey,

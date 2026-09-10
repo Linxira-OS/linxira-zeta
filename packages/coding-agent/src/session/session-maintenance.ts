@@ -54,7 +54,7 @@ import * as AIError from "@linxiraos/pi-ai/error";
 import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { isRecord, logger, Snowflake } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/snapcompact";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import type { ModelRegistry } from "../config/model-registry";
 import { MODEL_ROLE_IDS } from "../config/model-roles";
 import type { CompactionSettings as ConfiguredCompactionSettings, Settings } from "../config/settings";
