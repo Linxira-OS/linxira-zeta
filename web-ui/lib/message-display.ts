@@ -1,18 +1,41 @@
-import type { AssistantContentBlock, AssistantMessage, ThinkingContent, ToolCallContent } from "./types";
+import type {
+  AssistantContentBlock,
+  AssistantMessage,
+  ThinkingContent,
+  ToolCallContent,
+} from "./types";
 
 interface DisplayOptions {
   isStreaming?: boolean;
 }
 
-export function isEmptyThinkingBlock(block: AssistantContentBlock, options: DisplayOptions = {}): block is ThinkingContent {
-  return block.type === "thinking" && !block.deferred && !options.isStreaming && block.thinking.trim() === "";
+export function isEmptyThinkingBlock(
+  block: AssistantContentBlock,
+  options: DisplayOptions = {},
+): block is ThinkingContent {
+  return (
+    block.type === "thinking" &&
+    !block.deferred &&
+    !options.isStreaming &&
+    block.thinking.trim() === ""
+  );
 }
 
 export function getDisplayableAssistantBlocks(
   message: AssistantMessage,
   options: DisplayOptions = {},
 ): AssistantContentBlock[] {
-  return (message.content ?? []).filter((block) => !isEmptyThinkingBlock(block, options));
+  return (message.content ?? []).filter(
+    (block) => !isEmptyThinkingBlock(block, options),
+  );
+}
+
+export function getAssistantErrorMessage(
+  message: AssistantMessage,
+  options: DisplayOptions = {},
+): string | null {
+  if (options.isStreaming || message.stopReason !== "error") return null;
+  return message.errorMessage?.trim() || "Unknown provider error";
 }
 
 function isFinalAnswerBlock(block: AssistantContentBlock): boolean {
@@ -22,9 +45,14 @@ function isFinalAnswerBlock(block: AssistantContentBlock): boolean {
 export function splitFinalAssistantBlocks(
   message: AssistantMessage,
   options: DisplayOptions = {},
-): { answerBlocks: AssistantContentBlock[]; processBlocks: AssistantContentBlock[] } {
+): {
+  answerBlocks: AssistantContentBlock[];
+  processBlocks: AssistantContentBlock[];
+} {
   const blocks = getDisplayableAssistantBlocks(message, options);
-  const lastProcessIndex = blocks.findLastIndex((block) => !isFinalAnswerBlock(block));
+  const lastProcessIndex = blocks.findLastIndex(
+    (block) => !isFinalAnswerBlock(block),
+  );
   if (lastProcessIndex === -1) {
     return { answerBlocks: blocks, processBlocks: [] };
   }
@@ -35,5 +63,7 @@ export function splitFinalAssistantBlocks(
 }
 
 export function countToolCallBlocks(blocks: AssistantContentBlock[]): number {
-  return blocks.filter((block): block is ToolCallContent => block.type === "toolCall").length;
+  return blocks.filter(
+    (block): block is ToolCallContent => block.type === "toolCall",
+  ).length;
 }

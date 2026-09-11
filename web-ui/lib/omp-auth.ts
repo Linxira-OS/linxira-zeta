@@ -19,33 +19,49 @@ export interface OmpRuntimeCredential {
   credentialType: "api_key" | "oauth";
 }
 
-function parseRuntimeCredential(credential: OmpAuthCredential): OmpRuntimeCredential | null {
+function parseRuntimeCredential(
+  credential: OmpAuthCredential,
+): OmpRuntimeCredential | null {
   const data = credential.data.trim();
   if (!data) return null;
 
   try {
     const parsed = JSON.parse(data) as Record<string, unknown>;
-    const apiKey = typeof parsed.apiKey === "string" ? parsed.apiKey : undefined;
-    const accessToken = typeof parsed.access === "string"
-      ? parsed.access
-      : typeof parsed.access_token === "string"
-        ? parsed.access_token
-        : typeof parsed.accessToken === "string"
-          ? parsed.accessToken
-          : typeof parsed.token === "string"
-            ? parsed.token
-            : undefined;
-    const token = credential.credential_type === "oauth" ? accessToken : apiKey ?? accessToken;
+    const apiKey =
+      typeof parsed.apiKey === "string"
+        ? parsed.apiKey
+        : typeof parsed.key === "string"
+          ? parsed.key
+          : undefined;
+    const accessToken =
+      typeof parsed.access === "string"
+        ? parsed.access
+        : typeof parsed.access_token === "string"
+          ? parsed.access_token
+          : typeof parsed.accessToken === "string"
+            ? parsed.accessToken
+            : typeof parsed.token === "string"
+              ? parsed.token
+              : undefined;
+    const token =
+      credential.credential_type === "oauth"
+        ? accessToken
+        : (apiKey ?? accessToken);
     if (!token?.trim()) return null;
     return {
       provider: credential.provider,
       apiKey: token.trim(),
-      credentialType: credential.credential_type === "oauth" ? "oauth" : "api_key",
+      credentialType:
+        credential.credential_type === "oauth" ? "oauth" : "api_key",
     };
   } catch {
     // API-key credentials written by older OMP versions may be stored as plain text.
     if (credential.credential_type !== "oauth") {
-      return { provider: credential.provider, apiKey: data, credentialType: "api_key" };
+      return {
+        provider: credential.provider,
+        apiKey: data,
+        credentialType: "api_key",
+      };
     }
     return null;
   }
@@ -62,7 +78,9 @@ export function getUsableOmpRuntimeCredentials(): OmpRuntimeCredential[] {
 
   return [...latestByProvider.values()]
     .map(parseRuntimeCredential)
-    .filter((credential): credential is OmpRuntimeCredential => credential !== null);
+    .filter(
+      (credential): credential is OmpRuntimeCredential => credential !== null,
+    );
 }
 
 export function getOmpAuthCredentials(): OmpAuthCredential[] {
@@ -74,7 +92,9 @@ export function getOmpAuthCredentials(): OmpAuthCredential[] {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Database = require("better-sqlite3");
     const db = new Database(dbPath, { readonly: true });
-    const rows = db.prepare("SELECT * FROM auth_credentials WHERE disabled_cause IS NULL").all() as OmpAuthCredential[];
+    const rows = db
+      .prepare("SELECT * FROM auth_credentials WHERE disabled_cause IS NULL")
+      .all() as OmpAuthCredential[];
     db.close();
     if (rows.length > 0) return rows;
   } catch {
@@ -86,12 +106,14 @@ export function getOmpAuthCredentials(): OmpAuthCredential[] {
     const fileBuffer = readFileSync(dbPath);
     const fileStr = fileBuffer.toString("utf8");
     const credentials: OmpAuthCredential[] = [];
-    const jsonMatches = fileStr.match(/\{"access":[\s\S]*?\}|\{"apiKey":[\s\S]*?\}/g);
+    const jsonMatches = fileStr.match(
+      /\{"access":[\s\S]*?\}|\{"apiKey":[\s\S]*?\}|\{"key":[\s\S]*?\}/g,
+    );
     if (jsonMatches) {
       for (const match of jsonMatches) {
         try {
           const parsed = JSON.parse(match) as Record<string, unknown>;
-          if (parsed.access || parsed.apiKey) {
+          if (parsed.access || parsed.apiKey || parsed.key) {
             credentials.push({
               provider: (parsed.provider as string) || "google-antigravity",
               credential_type: parsed.access ? "oauth" : "api_key",
@@ -109,7 +131,10 @@ export function getOmpAuthCredentials(): OmpAuthCredential[] {
   }
 }
 
-export function saveOmpApiKeyCredential(provider: string, apiKey: string): void {
+export function saveOmpApiKeyCredential(
+  provider: string,
+  apiKey: string,
+): void {
   const dbPath = join(getAgentDir(), "agent.db");
   if (!existsSync(dbPath)) return;
   try {

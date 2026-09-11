@@ -1,3 +1,9 @@
+export type ResourceDiagnostic = {
+  type: "error" | "warning" | "info";
+  message: string;
+  path?: string;
+};
+
 export interface SkillSearchResult {
   package: string;
   installs: string;
@@ -46,6 +52,17 @@ export interface SkillInfo {
   install?: SkillInstallInfo;
 }
 
+export interface SkillsResponse {
+  skills: SkillInfo[];
+  diagnostics: ResourceDiagnostic[];
+  projectResourcesLoaded: boolean;
+}
+
+export interface ProjectTrustStatus {
+  requiresTrust: boolean;
+  trusted: boolean;
+}
+
 export type PluginScope = "global" | "project";
 export type PluginResourceKind = "extension" | "skill" | "prompt" | "theme";
 
@@ -88,4 +105,64 @@ export interface PluginsResponse {
   packages: PluginPackageInfo[];
   totals: PluginResourceCounts;
   diagnostics: PluginDiagnostic[];
+  projectResourcesLoaded: boolean;
+}
+
+// ── Models catalog / discovery (/api/models-config/*) ────────────────────────
+
+export interface DiscoveredModel {
+  id: string;
+  name?: string;
+}
+
+export interface ModelCatalogCost {
+  input?: number;
+  output?: number;
+  cacheRead?: number;
+  cacheWrite?: number;
+}
+
+export interface ModelCatalogPreset {
+  name?: string;
+  reasoning?: boolean;
+  input?: string[];
+  contextWindow?: number;
+  maxTokens?: number;
+  cost?: ModelCatalogCost;
+}
+
+export type ModelCatalogMatchMethod =
+  | "provider"
+  | "base-url"
+  | "consensus"
+  | "none";
+
+export type ModelCatalogPriceRecommendation =
+  | {
+      status: "reliable";
+      method: Exclude<ModelCatalogMatchMethod, "none">;
+      cost: ModelCatalogCost;
+      providerId?: string;
+      providerName?: string;
+      support: number;
+      total: number;
+    }
+  | {
+      status: "unreliable";
+      reason:
+        | "no-exact-match"
+        | "no-valid-price"
+        | "insufficient-support"
+        | "conflict";
+      support: number;
+      total: number;
+    };
+
+export interface ModelCatalogRecommendation {
+  exactMatches: number;
+  metadataMethod: ModelCatalogMatchMethod;
+  matchedProviderId?: string;
+  matchedProviderName?: string;
+  preset: ModelCatalogPreset;
+  price: ModelCatalogPriceRecommendation;
 }
