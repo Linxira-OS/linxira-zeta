@@ -30,6 +30,7 @@ import type { ShakeMode } from "../session/shake-types";
 import type { ConfiguredThinkingLevel } from "../thinking";
 import type { LspStartupServerInfo } from "../tools";
 import type { EventBus } from "../utils/event-bus";
+import type { AssistantMessageComponent } from "./components/assistant-message";
 import type { BashExecutionComponent } from "./components/bash-execution";
 import type { CustomEditor } from "./components/custom-editor";
 import type { EvalExecutionComponent } from "./components/eval-execution";

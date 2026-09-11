@@ -256,7 +256,7 @@ describe("handleModelsConfigCatalog", () => {
 			new Request("https://gateway.test/api/models-config/catalog?q=acme-large&provider=acme"),
 		);
 		expect(response.status).toBe(200);
-		const body = await response.json();
+		const body = (await response.json()) as Record<string, any>;
 		expect(body.source).toBe("https://models.dev/api.json");
 		expect(body.models).toHaveLength(2);
 		expect(body.models[0]).toMatchObject({ id: "acme-large", providerId: "acme" });
@@ -314,7 +314,7 @@ describe("handleModelsConfigDiscover", () => {
 		expect(call?.headers.get("anthropic-version")).toBe("2023-06-01");
 		expect(call?.headers.has("authorization")).toBe(false);
 
-		const body = await response.json();
+		const body = (await response.json()) as Record<string, any>;
 		expect(body.endpoint).toBe("https://api.anthropic.com/v1/models?limit=1000");
 		expect(body.models).toEqual([{ id: "claude-sonnet-x" }]);
 	});
@@ -338,7 +338,7 @@ describe("handleModelsConfigDiscover", () => {
 		expect(call?.headers.has("authorization")).toBe(false);
 		expect(call?.headers.has("anthropic-version")).toBe(false);
 
-		const body = await response.json();
+		const body = (await response.json()) as Record<string, any>;
 		expect(body.models).toEqual([{ id: "gemini-x", name: "Gemini X" }]);
 	});
 
@@ -361,7 +361,7 @@ describe("handleModelsConfigDiscover", () => {
 		expect(call?.headers.get("x-custom")).toBe("custom-value");
 		expect(call?.headers.get("accept")).toBe("application/json");
 
-		const body = await response.json();
+		const body = (await response.json()) as Record<string, any>;
 		expect(body.models).toEqual([{ id: "m-1" }, { id: "m-2" }]);
 	});
 

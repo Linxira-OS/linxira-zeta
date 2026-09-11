@@ -3023,6 +3023,7 @@ function AppShellContent() {
 
         {/* Dock window — animated open/close */}
         <div
+          suppressHydrationWarning
           {...rightPanelResizer.separatorProps}
           aria-controls="right-tool-dock"
           className={`panel-resize-handle right-panel-resize-handle${rightPanelResizer.isResizing ? " is-resizing" : ""}`}

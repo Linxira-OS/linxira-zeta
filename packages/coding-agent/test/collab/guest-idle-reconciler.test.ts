@@ -14,8 +14,8 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, type Mock, mock, vi } from "bun:test";
 import {
 	clearGuestTransientStatus,
-	GuestIdleReconcilerCtx,
-	GuestSnapshotActivityReconcilerCtx,
+	type GuestIdleReconcilerCtx,
+	type GuestSnapshotActivityReconcilerCtx,
 	reconcileGuestIdleHostState,
 	reconcileGuestSnapshotHostState,
 } from "@linxiraos/zeta/collab/guest";
