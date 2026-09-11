@@ -436,9 +436,9 @@ function detectOpenAICompat(
 			: facts.is("mimo") && hostMatchesUrl(baseUrl, "xiaomi")
 				? 300_000
 				: spec.reasoning &&
-						facts.is("kimi") &&
-						(facts.family("k3") || facts.family("k2.7-code")) &&
-						hostMatchesUrl(baseUrl, "moonshotNative")
+					  facts.is("kimi") &&
+					  (facts.family("k3") || facts.family("k2.7-code")) &&
+					  hostMatchesUrl(baseUrl, "moonshotNative")
 					? 300_000
 					: spec.reasoning && facts.is("deepseek") && hostMatchesUrl(baseUrl, "deepseekDirect")
 						? 300_000

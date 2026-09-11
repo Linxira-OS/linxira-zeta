@@ -828,6 +828,7 @@ export class SettingsList implements Component {
 			// Cycle through values
 			const currentIndex = item.values.indexOf(item.currentValue);
 			const nextIndex = (currentIndex + 1) % item.values.length;
+			const newValue = item.values[nextIndex];
 			item.currentValue = newValue;
 			// Keep a localized value label in sync with the cycled value.
 			if (item.valueLabel !== undefined) {

@@ -5005,12 +5005,10 @@ function buildAnthropicBaseToolInputSchema(tool: Tool): Record<string, unknown> 
 }
 
 function buildAnthropicToolSchemaPlans(tools: Tool[], disableStrictTools = false): AnthropicToolSchemaPlan[] {
-	const plans = tools.map(
-		(tool): AnthropicToolSchemaPlan => ({
-			inputSchema: buildAnthropicBaseToolInputSchema(tool) as AnthropicToolInputSchema,
-			strict: false,
-		}),
-	);
+	const plans = tools.map((tool): AnthropicToolSchemaPlan => ({
+		inputSchema: buildAnthropicBaseToolInputSchema(tool) as AnthropicToolInputSchema,
+		strict: false,
+	}));
 	if (NO_STRICT || disableStrictTools) return plans;
 
 	const candidateIndexes = tools.flatMap((tool, index) => {
