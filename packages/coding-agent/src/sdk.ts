@@ -1006,6 +1006,9 @@ function isLegacyBuiltinToolDefinition(tool: CustomTool | ToolDefinition): boole
 const TOOL_DEFINITION_MARKER = Symbol("__isToolDefinition");
 /** Matches the truncation applied to per-server instructions inside `rebuildSystemPrompt`. */
 const MAX_MCP_INSTRUCTIONS_LENGTH = 4000;
+/** Construction-phase fallback: the yield tool's metadata is projected before
+ *  `session` exists; the live contract is rebuilt via `setWorkPoolYieldItems`. */
+const EMPTY_WORK_POOL_YIELD_ITEMS: readonly never[] = [];
 
 let sshCleanupRegistered = false;
 
@@ -1903,7 +1906,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			getFileMutationVersion: path => fileMutationVersions.get(path) ?? 0,
 			getTodoPhases: () => session.getTodoPhases(),
 			setTodoPhases: phases => session.setTodoPhases(phases),
-			getWorkPoolYieldItems: () => session.getWorkPoolYieldItems(),
+			getWorkPoolYieldItems: () => session?.getWorkPoolYieldItems() ?? EMPTY_WORK_POOL_YIELD_ITEMS,
 			setWorkPoolYieldItems: items => session.setWorkPoolYieldItems(items),
 			getCheckpointState: () => session.getCheckpointState(),
 			setCheckpointState: state => session.setCheckpointState(state ?? undefined),
