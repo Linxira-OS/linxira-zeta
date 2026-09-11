@@ -1,23 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent, CompactionCancelledError } from "@linxiraos/pi-agent-core";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta";
-import { Settings } from "@linxiraos/zeta";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta";
-import { ExtensionRunner } from "@linxiraos/zeta";
-import { AgentSession } from "@linxiraos/zeta";
-import { AuthStorage } from "@linxiraos/zeta";
-import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta";
-import { SessionManager } from "@linxiraos/zeta";
-import {
-	ContextNotesTool,
-	GrepTool,
-	NewContextTool,
-	ReadTool,
-	type Tool,
-	type ToolSession,
-} from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { ContextNotesTool, GrepTool, NewContextTool, ReadTool, Tool, ToolSession } from "@linxiraos/zeta/tools";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir } from "@linxiraos/pi-utils";
 
 type HookMode = "extension-veto" | "park";

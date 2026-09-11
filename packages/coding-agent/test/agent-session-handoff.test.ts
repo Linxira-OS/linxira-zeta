@@ -965,8 +965,8 @@ describe("AgentSession handoff", () => {
 			"remote",
 			"snapcompact",
 			"handoff",
-			"shake",
 			"soft",
+			"shake",
 		]);
 		expect(session.autoCompactionEnabled).toBe(true);
 	});

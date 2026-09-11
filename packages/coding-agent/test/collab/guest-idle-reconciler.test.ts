@@ -14,13 +14,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, type Mock, mock, vi } from "bun:test";
 import {
 	clearGuestTransientStatus,
-	type GuestIdleReconcilerCtx,
-	type GuestSnapshotActivityReconcilerCtx,
+	GuestIdleReconcilerCtx,
+	GuestSnapshotActivityReconcilerCtx,
 	reconcileGuestIdleHostState,
 	reconcileGuestSnapshotHostState,
-} from "@linxiraos/zeta";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
-import { StatusLineComponent } from "@linxiraos/zeta";
+} from "@linxiraos/zeta/collab/guest";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
 import { StatusLineTestComponents } from "../helpers/status-line";
 
 const statusLines = new StatusLineTestComponents();

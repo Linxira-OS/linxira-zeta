@@ -147,6 +147,26 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "顾问免疫轮次",
 		description: "当顾问的疑虑或阻塞打断后，在接下来的这么多主轮次中以非打断方式路由后续疑虑/阻塞。",
 	},
+	"advisor.maxNotesPerUpdate": {
+		label: "顾问每次更新最多建议数",
+		description: "每次顾问提示更新最多接受的非阻塞建议数（1–32；UI 提供 1–5 快捷选项）。阻塞类建议不受限。",
+	},
+	"advisor.maxNotesPerUpdate::1": {
+		label: "1 条",
+		description: "防刷屏（严格）。",
+	},
+	"advisor.maxNotesPerUpdate::2": {
+		label: "2 条",
+	},
+	"advisor.maxNotesPerUpdate::3": {
+		label: "3 条",
+	},
+	"advisor.maxNotesPerUpdate::4": {
+		label: "4 条",
+	},
+	"advisor.maxNotesPerUpdate::5": {
+		label: "5 条",
+	},
 	"git.enabled": {
 		label: "启用 Git 集成",
 		description: "在 TUI 中显示 git 分支、状态和 PR 信息，并监视仓库元数据。",
@@ -287,6 +307,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tui.sidebar": {
 		label: "侧边栏",
 		description: "显示右侧边栏（上下文、用量、git、模型）",
+	},
+	"tui.sidebarWidgets": {
+		label: "侧边栏小组件",
+		description: "显示扩展注册的第三方侧边栏小组件",
 	},
 	"tui.reactions": {
 		label: "智能体表情回应",
@@ -516,6 +540,23 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "循环模式",
 		description: "重新提交提示词之前，/loop 迭代之间会发生什么",
 	},
+	"loop.conditionTimeoutMs": {
+		label: "循环条件超时（毫秒）",
+		description:
+			"`/loop --while` / `--until` 条件命令的最长等待时间，超时视为条件失效并停止循环。设为 0 表示无限等待",
+	},
+	"loop.conditionTimeoutMs::0": {
+		label: "不限时",
+	},
+	"loop.conditionTimeoutMs::10000": {
+		label: "10 秒",
+	},
+	"loop.conditionTimeoutMs::30000": {
+		label: "30 秒",
+	},
+	"loop.conditionTimeoutMs::120000": {
+		label: "2 分钟",
+	},
 	doubleEscapeAction: {
 		label: "双击 Esc 操作",
 		description: "编辑器为空时连按两次 Esc 的操作",
@@ -662,10 +703,13 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "轮中压缩",
 		description: "在下一次服务商请求之前，在安全的轮中工具循环边界检查阈值",
 	},
+	"compaction.experimentalContextManagement": {
+		label: "基于笔记的上下文窗口（实验性）",
+		description: "跨上下文窗口保留持久笔记与可搜索的原始历史。重启后更新可用工具。",
+	},
 	"compaction.methodOrder": {
 		label: "压缩方法顺序",
-		description:
-			"自动上下文维护的首选回退顺序；不可用或失败的方法会前进到下一个选择",
+		description: "自动上下文维护的首选回退顺序；不可用或失败的方法会前进到下一个选择",
 	},
 	"compaction.thresholdPercent": {
 		label: "压缩阈值",
@@ -1198,6 +1242,16 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "cmux 浏览器",
 		description:
 			"当 cmux socket 可用时，使用 cmux WKWebView 表面进行浏览器自动化。可设置 PI_BROWSER_CMUX=0 或 PI_BROWSER_CMUX=1 覆盖。",
+	},
+	"browser.freezeOnTurnEnd": {
+		label: "轮结束时冻结浏览器标签页",
+		description:
+			"轮次结束后冻结 Zeta 自有的无头浏览器标签页，避免动画页面在空闲时占用 CPU/GPU。下次使用时自动解冻；打开时传 persist:true 可退出冻结。",
+	},
+	"browser.idleCloseSec": {
+		label: "浏览器空闲关闭时限",
+		description:
+			"空闲超过这么多秒的 Zeta 自有无头浏览器标签页将被关闭（0 = 从不；会话销毁时仍会回收）。仅对 Zeta 启动的无头标签页生效，不影响中继/CDP/手动启动的浏览器或其他会话的标签页。",
 	},
 	"browser.screenshotDir": {
 		label: "截图目录",

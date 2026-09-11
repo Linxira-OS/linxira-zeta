@@ -1887,6 +1887,12 @@ export const en = {
 	cmdSecurityCompare: "Compare finding lineage across two scans",
 	cmdSecurityDisposition: "Set a finding disposition with rationale",
 	cmdSettings: "Open settings menu",
+	cmdSettingsReset: "Reset settings to defaults",
+	settingsResetConfirmHint:
+		"This will reset %s configured setting(s) to defaults. Run /settings reset confirm to proceed.",
+	settingsResetDoneFmt: "Reset %s setting(s) to defaults.",
+	settingsResetKeyDoneFmt: 'Reset "%s" to its default.',
+	settingsResetNothing: "No configured settings to reset.",
 	cmdSetup: "Open provider setup",
 	cmdSetupProviders: "Configure sign-in and web search providers",
 	cmdPlan: "Toggle plan mode (agent plans before executing)",

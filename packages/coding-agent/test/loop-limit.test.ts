@@ -4,9 +4,9 @@ import {
 	createLoopLimitRuntime,
 	isLoopDurationExpired,
 	parseLoopArgs,
-} from "@linxiraos/zeta";
-import type { BuiltinSlashCommandRuntime } from "@linxiraos/zeta";
-import { executeBuiltinSlashCommand } from "@linxiraos/zeta";
+} from "@linxiraos/zeta/modes/loop-limit";
+import type { BuiltinSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 describe("/loop slash command", () => {
 	test("forwards a bare limit argument verbatim", async () => {

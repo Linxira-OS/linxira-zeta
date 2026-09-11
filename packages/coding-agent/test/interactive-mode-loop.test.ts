@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta";
-import { InteractiveMode } from "@linxiraos/zeta";
-import * as loopCondition from "@linxiraos/zeta";
-import type { LoopConditionVerdict } from "@linxiraos/zeta";
-import { initTheme } from "@linxiraos/zeta";
-import type { SubmittedUserInput } from "@linxiraos/zeta";
-import { AgentSession } from "@linxiraos/zeta";
-import { AuthStorage } from "@linxiraos/zeta";
-import { SessionManager } from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import * as loopCondition from "@linxiraos/zeta/modes/loop-condition";
+import type { LoopConditionVerdict } from "@linxiraos/zeta/modes/loop-condition";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
 
 async function flushMicrotasks(): Promise<void> {

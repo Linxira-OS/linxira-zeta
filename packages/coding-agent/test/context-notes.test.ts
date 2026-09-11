@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/zeta";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	CONTEXT_NOTES_ENTRY_TYPE,
 	getContextNotes,
 	MAX_CONTEXT_NOTES_BYTES,
-} from "@linxiraos/zeta";
-import type { ContextNotesEntry } from "@linxiraos/zeta";
-import type { CustomEntry, ResetBoundaryEntry, SessionEntry } from "@linxiraos/zeta";
-import { SessionManager } from "@linxiraos/zeta";
-import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta";
-import type { ToolSession } from "@linxiraos/zeta";
+} from "@linxiraos/zeta/session/context-notes";
+import type { ContextNotesEntry } from "@linxiraos/zeta/session/context-notes";
+import type { CustomEntry, ResetBoundaryEntry, SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta/tools/context-notes";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { TempDir } from "@linxiraos/pi-utils";
 
 const NOW = "2026-09-04T00:00:00.000Z";

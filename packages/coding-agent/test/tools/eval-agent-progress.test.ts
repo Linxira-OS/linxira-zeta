@@ -1,10 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta";
-import type { EvalStatusEvent, EvalToolDetails } from "@linxiraos/zeta";
-import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta";
-import { evalToolRenderer } from "@linxiraos/zeta";
-import { thinkingLevelGlyph } from "@linxiraos/zeta";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import type { EvalStatusEvent, EvalToolDetails } from "@linxiraos/zeta/eval/types";
+import { getThemeByName, setThemeInstance, Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { evalToolRenderer } from "@linxiraos/zeta/tools/eval";
+import { thinkingLevelGlyph } from "@linxiraos/zeta/tools/render-utils";
 import { visibleWidth } from "@linxiraos/pi-tui";
 
 /**

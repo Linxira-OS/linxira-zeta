@@ -1,13 +1,13 @@
 import { afterEach, expect, it, vi } from "bun:test";
 import { AuthStorage } from "@linxiraos/pi-ai";
-import { ModelRegistry } from "@linxiraos/zeta";
-import { ExtensionRuntime } from "@linxiraos/zeta";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta";
-import * as sdkModule from "@linxiraos/zeta";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta";
-import { SessionManager } from "@linxiraos/zeta";
-import { runSubprocess } from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 

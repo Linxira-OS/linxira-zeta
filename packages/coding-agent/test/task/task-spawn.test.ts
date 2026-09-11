@@ -14,16 +14,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import { type AsyncJob, AsyncJobManager } from "@linxiraos/zeta";
-import { Settings } from "@linxiraos/zeta";
-import { AgentLifecycleManager } from "@linxiraos/zeta";
-import { AgentRegistry } from "@linxiraos/zeta";
-import { TaskTool } from "@linxiraos/zeta";
-import * as discoveryModule from "@linxiraos/zeta";
-import * as executorModule from "@linxiraos/zeta";
-import type { AgentDefinition, AgentProgress, SingleResult, TaskParams } from "@linxiraos/zeta";
-import type { ToolSession } from "@linxiraos/zeta";
-import { snapshotJobs } from "@linxiraos/zeta";
+import { AsyncJob, AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition, AgentProgress, SingleResult, TaskParams } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { snapshotJobs } from "@linxiraos/zeta/tools/hub/jobs";
 
 const taskAgent: AgentDefinition = {
 	name: "task",

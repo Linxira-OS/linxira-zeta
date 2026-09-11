@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ModelRegistry } from "@linxiraos/zeta";
-import { Settings } from "@linxiraos/zeta";
-import type { LoadExtensionsResult } from "@linxiraos/zeta";
-import { AgentRegistry } from "@linxiraos/zeta";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta";
-import * as sdkModule from "@linxiraos/zeta";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta";
-import { runSubprocess } from "@linxiraos/zeta";
-import type { AgentDefinition } from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 /**

@@ -2,22 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as capability from "@linxiraos/zeta";
-import type { CapabilityResult } from "@linxiraos/zeta";
-import { Settings } from "@linxiraos/zeta";
-import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta";
+import * as capability from "@linxiraos/zeta/capability";
+import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
 import {
-	type InternalResource,
-	type InternalUrl,
+	InternalResource,
+	InternalUrl,
 	InternalUrlRouter,
 	LocalProtocolHandler,
-	type ProtocolHandler,
-} from "@linxiraos/zeta";
-import { AgentRegistry } from "@linxiraos/zeta";
-import type { SessionEntry } from "@linxiraos/zeta";
-import * as sshFileTransfer from "@linxiraos/zeta";
-import type { ToolSession } from "@linxiraos/zeta";
-import { ReadTool } from "@linxiraos/zeta";
+	ProtocolHandler,
+} from "@linxiraos/zeta/internal-urls";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import * as sshFileTransfer from "@linxiraos/zeta/ssh/file-transfer";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { GlobTool } from "../../src/tools/glob";
 import { GrepTool } from "../../src/tools/grep";

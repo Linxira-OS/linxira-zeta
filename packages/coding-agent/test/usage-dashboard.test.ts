@@ -7,8 +7,8 @@ import {
 	buildProviderCards,
 	formatActivityErrorDetail,
 	UsageDashboardComponent,
-} from "@linxiraos/zeta";
-import { initTheme } from "@linxiraos/zeta";
+} from "@linxiraos/zeta/modes/components/usage-dashboard";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 function day(day: string, cost: number, requests = 1): DailyActivityPoint {
 	return { day, cost, requests, totalTokens: 0 };

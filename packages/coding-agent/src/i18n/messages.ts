@@ -1883,6 +1883,11 @@ export interface Messages {
 	cmdSecurityCompare: string;
 	cmdSecurityDisposition: string;
 	cmdSettings: string;
+	cmdSettingsReset: string;
+	settingsResetConfirmHint: string;
+	settingsResetDoneFmt: string;
+	settingsResetKeyDoneFmt: string;
+	settingsResetNothing: string;
 	cmdSetup: string;
 	cmdSetupProviders: string;
 	cmdPlan: string;

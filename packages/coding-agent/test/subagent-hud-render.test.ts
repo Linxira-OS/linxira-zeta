@@ -8,25 +8,22 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
-import { InteractiveMode, renderSubagentHudLines } from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode, renderSubagentHudLines } from "@linxiraos/zeta/modes/interactive-mode";
+import { ObservableSession, SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
-	type ObservableSession,
-	SessionObserverRegistry,
-} from "@linxiraos/zeta";
-import { initTheme, theme } from "@linxiraos/zeta";
-import { AgentSession } from "@linxiraos/zeta";
-import { AuthStorage } from "@linxiraos/zeta";
-import { SessionManager } from "@linxiraos/zeta";
-import {
-	type AgentProgress,
-	type SubagentLifecyclePayload,
-	type SubagentProgressPayload,
+	AgentProgress,
+	SubagentLifecyclePayload,
+	SubagentProgressPayload,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+} from "@linxiraos/zeta/task";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir } from "@linxiraos/pi-utils";
 
 function makeSession(overrides: Partial<ObservableSession> & { id: string }): ObservableSession {

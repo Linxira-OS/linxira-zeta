@@ -139,6 +139,8 @@ export class ExtensionUiController {
 			},
 			setFooter: () => {},
 			setHeader: () => {},
+			registerSidebarWidget: widget => this.ctx.sidebar.registerWidget(widget),
+			unregisterSidebarWidget: id => this.ctx.sidebar.unregisterWidget(id),
 			setEditorComponent: factory => this.ctx.setEditorComponent(factory),
 			getToolsExpanded: () => this.ctx.toolOutputExpanded,
 			setToolsExpanded: expanded => this.ctx.setToolsExpanded(expanded),

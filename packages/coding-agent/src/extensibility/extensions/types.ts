@@ -61,6 +61,7 @@ import type * as PiCodingAgent from "../../index";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
 import type { CustomEditor } from "../../modes/components/custom-editor";
+import type { SegmentContext } from "../../modes/components/status-line/types";
 import type { Theme } from "../../modes/theme/theme";
 import type { AsyncJobSnapshot } from "../../session/agent-session";
 import type { CompactMode } from "../../session/compact-modes";
@@ -245,6 +246,24 @@ export interface ExtensionCustomOptions {
 export type AutocompleteProviderFactory = (current: AutocompleteProvider) => AutocompleteProvider;
 
 /**
+ * A third-party sidebar widget registered through
+ * {@link ExtensionUIContext.registerSidebarWidget}. `render` returns the
+ * widget's full rows (header included when it has one) for the gutter width;
+ * an empty array hides the widget for that frame. It runs synchronously on
+ * every frame the sidebar draws — it must never perform IO.
+ */
+export interface SidebarWidget {
+	/** Stable identity; re-registering the same id replaces the widget. */
+	id: string;
+	/** Display name (settings/listing surfaces); not auto-rendered. */
+	title: string;
+	/** Sort key among all sidebar widgets; lower renders first. */
+	order: number;
+	/** Render the widget's rows for the sidebar's segment context and width. */
+	render(ctx: SegmentContext, width: number): readonly string[];
+}
+
+/**
  * UI context for extensions to request interactive UI.
  * Each mode (interactive, RPC, print) provides its own implementation.
  */
@@ -295,6 +314,18 @@ export interface ExtensionUIContext {
 
 	/** Set a custom header component, or undefined to restore the built-in header. */
 	setHeader(factory: ExtensionUiComponentFactory | undefined): void;
+
+	/**
+	 * Register a third-party sidebar widget. Interactive-TUI only — other
+	 * modes omit this, so guard with `ctx.ui.registerSidebarWidget?.(...)`.
+	 * Registration is synchronous; the widget's `render` runs synchronously on
+	 * every frame the sidebar draws and must never perform IO. Widgets render
+	 * only while the `tui.sidebarWidgets` setting is on.
+	 */
+	registerSidebarWidget?(widget: SidebarWidget): void;
+
+	/** Remove a previously registered sidebar widget by id. */
+	unregisterSidebarWidget?(id: string): void;
 
 	/** Set the terminal window/tab title. */
 	setTitle(title: string): void;

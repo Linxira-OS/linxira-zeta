@@ -2,8 +2,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as os from "node:os";
 import * as path from "node:path";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import { KeybindingsManager, setKeyHintPlatform } from "@linxiraos/zeta";
-import { getThemeByName, initTheme, type Theme, theme } from "@linxiraos/zeta";
+import { KeybindingsManager, setKeyHintPlatform } from "@linxiraos/zeta/config/keybindings";
+import { getThemeByName, initTheme, Theme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import {
 	dedupeParseErrors,
 	expandKeyHint,
@@ -17,7 +17,7 @@ import {
 	sanitizeDisplayLines,
 	shortenPath,
 	truncateDiffByHunk,
-} from "@linxiraos/zeta";
+} from "@linxiraos/zeta/tools/render-utils";
 import {
 	DEFAULT_TAB_WIDTH,
 	getKeybindings,

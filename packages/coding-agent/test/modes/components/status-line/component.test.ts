@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createGallerySegmentContext } from "../../../../src/cli/gallery-fixtures/segments";
-import { Settings } from "../../../../src/config/settings";
+import { Settings, settings } from "../../../../src/config/settings";
 import { StatusLineComponent } from "../../../../src/modes/components/status-line/component";
 import { renderSegment } from "../../../../src/modes/components/status-line/segments";
 import { loadTheme } from "../../../../src/modes/theme/loader";
@@ -266,6 +266,35 @@ describe("StatusLineComponent", () => {
 			expect(stripped).toContain("\u{f067a} 2.67 + \uea70 \u{f067a} 0.41");
 		} finally {
 			setThemeInstance(baseTheme);
+		}
+	});
+});
+
+describe("session_name segment while the sidebar is open", () => {
+	it("hides the session name and restores it when the sidebar closes", () => {
+		const statusLine = statusLines.track(
+			new StatusLineComponent(
+				makeSessionWithLastMessage(null, false, { sessionName: "dedupe-probe" }) as unknown as AgentSession,
+			),
+		);
+		statusLine.updateSettings({
+			preset: "custom",
+			leftSegments: ["pi"],
+			rightSegments: ["session_name"],
+			separator: "none",
+			sessionAccent: false,
+		});
+
+		try {
+			settings.override("tui.sidebar", true);
+			const withSidebar = Bun.stripANSI(statusLine.getTopBorder(200).content);
+			expect(withSidebar).not.toContain("dedupe-probe");
+
+			settings.clearOverride("tui.sidebar");
+			const withoutSidebar = Bun.stripANSI(statusLine.getTopBorder(200).content);
+			expect(withoutSidebar).toContain("dedupe-probe");
+		} finally {
+			settings.clearOverride("tui.sidebar");
 		}
 	});
 });

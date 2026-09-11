@@ -2011,8 +2011,10 @@ export class StatusLineComponent implements Component {
 		const leftSegmentIds = layout === "plain-right" ? [] : effectiveSettings.leftSegments;
 		for (const segId of leftSegmentIds) {
 			if (subagentBadge && segId === "subagents") continue;
-			// The band composer relocates the title to the working row's trailer.
-			if (layout === "band" && segId === "session_name") continue;
+			// The band composer relocates the title to the working row's trailer,
+			// and the sidebar shows the session identity while it is open — the
+			// status row no longer repeats it.
+			if ((layout === "band" || settings.get("tui.sidebar")) && segId === "session_name") continue;
 			const rendered = renderSegment(segId, ctx);
 			if (rendered.visible && rendered.content) {
 				leftParts.push(rendered.content);
@@ -2025,7 +2027,7 @@ export class StatusLineComponent implements Component {
 		const rightSegmentIds = layout === "plain-left" ? [] : effectiveSettings.rightSegments;
 		for (const segId of rightSegmentIds) {
 			if (subagentBadge && segId === "subagents") continue;
-			if (layout === "band" && segId === "session_name") continue;
+			if ((layout === "band" || settings.get("tui.sidebar")) && segId === "session_name") continue;
 			const rendered = renderSegment(segId, ctx);
 			if (rendered.visible && rendered.content) {
 				rightParts.push(rendered.content);

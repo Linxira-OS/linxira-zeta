@@ -724,6 +724,65 @@ export class Settings {
 		this.#fireEffectiveSettingChanged(path, this.get(path), prev);
 	}
 
+	/**
+	 * Reset a setting to its schema default: drop the persisted global value
+	 * and any runtime override, rebuild, and notify listeners and hooks.
+	 * Returns true when a stored value was actually removed (false means the
+	 * setting already sat at its default on every layer).
+	 */
+	reset(path: SettingPath): boolean {
+		const wasConfigured = this.isConfigured(path);
+		if (path === "modelRoles") {
+			this.#savedRuntimeModelRoleOverrides.clear();
+		}
+		const prev = this.get(path);
+		const segments = path.split(".");
+		const globalValue = getByPath(this.#global, segments);
+		const overrideValue = getByPath(this.#overrides, segments);
+		if (globalValue === undefined && overrideValue === undefined) return false;
+		if (globalValue !== undefined) {
+			this.#captureGlobalMutation(path, this.#modifiedPathMutations, globalValue);
+			this.#deleteLeafAndPrune(this.#global, segments);
+			this.#persistedMutationGeneration++;
+			this.#modified.add(path);
+		}
+		if (overrideValue !== undefined) {
+			this.#deleteLeafAndPrune(this.#overrides, segments);
+		}
+		this.#rebuildMerged();
+		if (globalValue !== undefined) {
+			this.#queueSave();
+		}
+		const next = this.get(path);
+		const hook = SETTING_HOOKS[path];
+		if (hook) {
+			hook(next, prev);
+		}
+		this.#fireEffectiveSettingChanged(path, next, prev);
+		return wasConfigured;
+	}
+
+	/** Delete a leaf at `segments`, pruning parent objects the deletion empties. */
+	#deleteLeafAndPrune(obj: RawSettings, segments: string[]): boolean {
+		const chain: Array<{ parent: RawSettings; segment: string }> = [];
+		let current = obj;
+		for (let i = 0; i < segments.length - 1; i++) {
+			const next = current[segments[i]];
+			if (next === undefined || typeof next !== "object" || next === null) return false;
+			chain.push({ parent: current, segment: segments[i] });
+			current = next as RawSettings;
+		}
+		const leaf = segments[segments.length - 1];
+		if (!(leaf in current)) return false;
+		delete current[leaf];
+		for (let i = chain.length - 1; i >= 0; i--) {
+			const { parent, segment } = chain[i];
+			if (Object.keys(parent[segment] as RawSettings).length > 0) break;
+			delete parent[segment];
+		}
+		return true;
+	}
+
 	/** Effective values of every setting that repartitions the Code Mode surface. */
 	#codeModeSignalSnapshot(): unknown[] {
 		return CODE_MODE_SIGNAL_PATHS.map(path => this.get(path));

@@ -1,15 +1,19 @@
 /**
  * Right-hand sidebar rendered into the TUI's gutter column (see
- * `TUI.setGutterComponent`). Surfaces session state the single status row
- * cannot show: a session header, the context gauge, todo/plan progress,
- * detached subagents, and MCP server health. Every panel reads synchronous
- * getters per frame (never IO) and hides itself when empty; the Model, Usage,
- * and Git rows stay owned by the status line.
+ * `TUI.setGutterComponent`). Owns an ordered registry of sidebar widgets: the
+ * four built-ins (context gauge, todo/plan progress, detached subagents, and
+ * MCP server health) plus any third-party widgets extensions register through
+ * `ctx.ui.registerSidebarWidget`. Every widget reads synchronous getters per
+ * frame (never IO) and is skipped when it renders nothing; adjacent widgets
+ * are separated by the dim rule. The Model, Usage, and Git rows stay owned by
+ * the status line.
  */
 import { type Component, Ellipsis, truncateToWidth } from "@linxiraos/pi-tui";
-import { formatDuration, pluralize } from "@linxiraos/pi-utils";
-import { type ThemeColor, theme } from "../../modes/theme/theme";
+import { pluralize } from "@linxiraos/pi-utils";
+import { settings } from "../../config/settings";
+import type { SidebarWidget } from "../../extensibility/extensions";
 import { isClosedTodo, selectCollapsedTodos, type TodoItem, type TodoPhase } from "../../tools/todo";
+import { type ThemeColor, theme } from "../theme/theme";
 import type { ObservableSession } from "../session-observer-registry";
 import type { StatusLineComponent } from "./status-line/component";
 import type { SegmentContext } from "./status-line/types";
@@ -17,11 +21,10 @@ import type { SegmentContext } from "./status-line/types";
 /** Fixed sidebar width in columns (v1: no drag resize). */
 export const SIDEBAR_WIDTH = 36;
 
-/** Session data the sidebar reads; structurally satisfied by AgentSession. */
+export type { SidebarWidget };
+
+/** Session data the sidebar's built-in widgets read; structurally satisfied by AgentSession. */
 export interface SidebarSessionSource {
-	/** Display name when the session has one, undefined otherwise. */
-	readonly sessionName: string | undefined;
-	readonly sessionId: string;
 	/** Current todo phases, synced by the todo tool. */
 	getTodoPhases(): TodoPhase[];
 }
@@ -48,144 +51,193 @@ export interface SidebarSources {
 const SUBAGENT_ROW_LIMIT = 8;
 /** Todo rows previewed for the phase holding the current work. */
 const TODO_ROW_LIMIT = 4;
-/** First active duration cell; mirrors the status line's time_spent segment. */
-const ACTIVE_MS_FLOOR = 1000;
+
+/** Truncate to the gutter width first, then colorize, so escapes stay balanced. */
+function fit(text: string, w: number, color: ThemeColor): string {
+	return theme.fg(color, truncateToWidth(text, w, Ellipsis.Omit));
+}
+
+function subagentDot(session: ObservableSession): string {
+	switch (session.status) {
+		case "active":
+			return theme.styledSymbol("status.running", "success");
+		case "completed":
+			return theme.styledSymbol("status.success", "muted");
+		case "failed":
+			return theme.styledSymbol("status.error", "error");
+		case "aborted":
+			return theme.styledSymbol("status.aborted", "dim");
+	}
+}
+
+function todoLine(todo: TodoItem, w: number): string {
+	const box = todo.status === "completed" ? theme.checkbox.checked : theme.checkbox.unchecked;
+	let text = `${box} ${todo.content}`;
+	if (todo.status === "blocked") text += " (blocked)";
+	switch (todo.status) {
+		case "completed":
+			return fit(text, w, "success");
+		case "in_progress":
+			return fit(text, w, "accent");
+		case "abandoned":
+			return fit(text, w, "error");
+		case "blocked":
+			return fit(text, w, "warning");
+		default:
+			return fit(text, w, "dim");
+	}
+}
+
+/**
+ * The four built-in widgets. `render` returns the widget's full rows — header
+ * included when the widget has one — and an empty array hides the widget for
+ * that frame. Orders space them below any future built-in so third-party
+ * widgets sort deterministically by `order`, then id.
+ */
+function createBuiltinWidgets(sources: SidebarSources): SidebarWidget[] {
+	return [
+		{
+			id: "context",
+			title: "Context",
+			order: 0,
+			render: (ctx, w) => {
+				const pct = ctx.contextPercent;
+				if (pct === null || !ctx.contextWindow) return [];
+				// Single compact gauge row: the sidebar is the gauge's primary display
+				// (the status line compresses it), but token totals stay status-line-only.
+				const gaugeCells = 10;
+				const filled = Math.max(0, Math.min(gaugeCells, Math.round((pct / 100) * gaugeCells)));
+				const gauge = `${"▰".repeat(filled)}${"▱".repeat(gaugeCells - filled)}`;
+				return [fit(`${theme.icon.context} ${gauge} ${Math.round(pct)}%`, w, "muted")];
+			},
+		},
+		{
+			id: "todos",
+			title: "Todos",
+			order: 10,
+			render: (ctx, w) => {
+				const phases = sources.session.getTodoPhases().filter(phase => phase.tasks.length > 0);
+				if (phases.length === 0) return [];
+				const total = phases.reduce((sum, phase) => sum + phase.tasks.length, 0);
+				const closed = phases.reduce((sum, phase) => sum + phase.tasks.filter(isClosedTodo).length, 0);
+				const planMode = ctx.planMode?.enabled === true;
+				const header = `${theme.icon.plan} ${planMode ? "Plan Mode" : "Todos"} · ${closed}/${total}`;
+				const rows = [fit(header, w, planMode ? "accent" : "muted")];
+				// Preview the phase holding the current work: the one with an in-flight
+				// task, else the first with open work, else the last phase.
+				const active =
+					phases.find(phase => phase.tasks.some(task => task.status === "in_progress")) ??
+					phases.find(phase => phase.tasks.some(task => !isClosedTodo(task))) ??
+					phases[phases.length - 1];
+				if (!active) return rows;
+				const selection = selectCollapsedTodos(active.tasks, () => false, TODO_ROW_LIMIT);
+				for (const task of selection.items) rows.push(todoLine(task, w));
+				if (selection.summary) rows.push(fit(selection.summary, w, "dim"));
+				return rows;
+			},
+		},
+		{
+			id: "subagents",
+			title: "Subagents",
+			order: 20,
+			render: (_ctx, w) => {
+				const provider = sources.subagents;
+				if (!provider) return [];
+				const subs = provider().filter(session => session.kind === "subagent");
+				if (subs.length === 0) return [];
+				const running = subs.filter(session => session.status === "active").length;
+				const rows = [fit(`${theme.icon.agents} Subagents · ${running}/${subs.length} running`, w, "muted")];
+				// Active work first so a long completed tail cannot hide it, then the
+				// registry's spawn order for the rest, capped at the row limit.
+				const ordered = [...subs.filter(s => s.status === "active"), ...subs.filter(s => s.status !== "active")];
+				for (const session of ordered.slice(0, SUBAGENT_ROW_LIMIT)) {
+					rows.push(fit(`${subagentDot(session)} ${session.label}`, w, "dim"));
+				}
+				return rows;
+			},
+		},
+		{
+			id: "mcp",
+			title: "MCP",
+			order: 30,
+			render: (_ctx, w) => {
+				const mcp = sources.mcp;
+				if (!mcp) return [];
+				const connected = mcp.connected.size;
+				const pending = mcp.pending.size;
+				const failed = mcp.failed.size;
+				const total = connected + pending + failed;
+				if (total === 0) return [];
+				const rows = [fit(`${theme.icon.extensionMcp} MCP · ${total} ${pluralize("server", total)}`, w, "muted")];
+				const groups: string[] = [];
+				if (connected > 0) groups.push(`${theme.styledSymbol("status.success", "success")}${connected}`);
+				if (pending > 0) groups.push(`${theme.styledSymbol("status.pending", "warning")}${pending}`);
+				if (failed > 0) groups.push(`${theme.styledSymbol("status.error", "error")}${failed}`);
+				rows.push(truncateToWidth(groups.join("  "), w, Ellipsis.Omit));
+				return rows;
+			},
+		},
+	];
+}
+
+interface RegisteredWidget {
+	widget: SidebarWidget;
+	/** Built-ins ignore the `tui.sidebar.widgets` gate. */
+	builtin: boolean;
+}
 
 export class SidebarComponent implements Component {
-	constructor(private readonly sources: SidebarSources) {}
+	readonly #sources: SidebarSources;
+	#widgets = new Map<string, RegisteredWidget>();
+
+	constructor(sources: SidebarSources) {
+		this.#sources = sources;
+		for (const widget of createBuiltinWidgets(sources)) {
+			this.#widgets.set(widget.id, { widget, builtin: true });
+		}
+	}
+
+	/**
+	 * Register a third-party widget (extension API via `ctx.ui`). Registration
+	 * is synchronous and re-registering an id replaces the previous widget;
+	 * `render` runs synchronously on every frame the sidebar draws, so it must
+	 * never perform IO. Third-party widgets render only while the
+	 * `tui.sidebarWidgets` setting is on; the built-ins are unaffected.
+	 */
+	registerWidget(widget: SidebarWidget): void {
+		this.#widgets.set(widget.id, { widget, builtin: false });
+	}
+
+	/** Remove a previously registered widget; unknown ids are ignored. */
+	unregisterWidget(id: string): void {
+		this.#widgets.delete(id);
+	}
 
 	render(width: number): readonly string[] {
 		const w = Math.max(12, width);
-		const ctx = this.sources.statusLine.getSidebarContext(w);
-		const panels: string[][] = [];
-		for (const panel of [
-			this.#sessionRows(ctx, w),
-			this.#contextRows(ctx, w),
-			this.#todoRows(ctx, w),
-			this.#subagentRows(w),
-			this.#mcpRows(w),
-		]) {
-			if (panel.length > 0) panels.push(panel);
-		}
+		const ctx = this.#sources.statusLine.getSidebarContext(w);
+		const thirdPartyAllowed = settings.get("tui.sidebarWidgets");
+		const widgets = [...this.#widgets.values()]
+			.filter(entry => entry.builtin || thirdPartyAllowed)
+			.map(entry => entry.widget)
+			.sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 		const separator = theme.fg("dim", "─".repeat(w));
 		const rows: string[] = [];
-		for (const panel of panels) {
+		for (const widget of widgets) {
+			let rendered: readonly string[];
+			try {
+				rendered = widget.render(ctx, w);
+			} catch {
+				// A throwing third-party widget must not take down the frame;
+				// skip its rows for this render.
+				continue;
+			}
+			if (rendered.length === 0) continue;
 			if (rows.length > 0) rows.push(separator);
-			rows.push(...panel);
+			rows.push(...rendered);
 		}
 		return rows;
 	}
 
 	invalidate(): void {}
-
-	/** Truncate to the gutter width first, then colorize, so escapes stay balanced. */
-	#fit(text: string, w: number, color: ThemeColor): string {
-		return theme.fg(color, truncateToWidth(text, w, Ellipsis.Omit));
-	}
-
-	#sessionRows(ctx: SegmentContext, w: number): string[] {
-		const { session } = this.sources;
-		const name = session.sessionName ?? session.sessionId?.slice(0, 8) ?? "new session";
-		const rows = [this.#fit(`${theme.icon.session} ${name}`, w, "text")];
-		if (ctx.activeMs >= ACTIVE_MS_FLOOR) {
-			rows.push(this.#fit(`${theme.icon.time} ${formatDuration(ctx.activeMs)}`, w, "dim"));
-		}
-		return rows;
-	}
-
-	#contextRows(ctx: SegmentContext, w: number): string[] {
-		const pct = ctx.contextPercent;
-		if (pct === null || !ctx.contextWindow) return [];
-		// Single compact gauge row: the sidebar is the gauge's primary display
-		// (the status line compresses it), but token totals stay status-line-only.
-		const gaugeCells = 10;
-		const filled = Math.max(0, Math.min(gaugeCells, Math.round((pct / 100) * gaugeCells)));
-		const gauge = `${"▰".repeat(filled)}${"▱".repeat(gaugeCells - filled)}`;
-		return [this.#fit(`${theme.icon.context} ${gauge} ${Math.round(pct)}%`, w, "muted")];
-	}
-
-	#todoRows(ctx: SegmentContext, w: number): string[] {
-		const phases = this.sources.session.getTodoPhases().filter(phase => phase.tasks.length > 0);
-		if (phases.length === 0) return [];
-		const total = phases.reduce((sum, phase) => sum + phase.tasks.length, 0);
-		const closed = phases.reduce((sum, phase) => sum + phase.tasks.filter(isClosedTodo).length, 0);
-		const planMode = ctx.planMode?.enabled === true;
-		const header = `${theme.icon.plan} ${planMode ? "Plan Mode" : "Todos"} · ${closed}/${total}`;
-		const rows = [this.#fit(header, w, planMode ? "accent" : "muted")];
-		// Preview the phase holding the current work: the one with an in-flight
-		// task, else the first with open work, else the last phase.
-		const active =
-			phases.find(phase => phase.tasks.some(task => task.status === "in_progress")) ??
-			phases.find(phase => phase.tasks.some(task => !isClosedTodo(task))) ??
-			phases[phases.length - 1];
-		if (!active) return rows;
-		const selection = selectCollapsedTodos(active.tasks, () => false, TODO_ROW_LIMIT);
-		for (const task of selection.items) rows.push(this.#todoLine(task, w));
-		if (selection.summary) rows.push(this.#fit(selection.summary, w, "dim"));
-		return rows;
-	}
-
-	#todoLine(todo: TodoItem, w: number): string {
-		const box = todo.status === "completed" ? theme.checkbox.checked : theme.checkbox.unchecked;
-		let text = `${box} ${todo.content}`;
-		if (todo.status === "blocked") text += " (blocked)";
-		switch (todo.status) {
-			case "completed":
-				return this.#fit(text, w, "success");
-			case "in_progress":
-				return this.#fit(text, w, "accent");
-			case "abandoned":
-				return this.#fit(text, w, "error");
-			case "blocked":
-				return this.#fit(text, w, "warning");
-			default:
-				return this.#fit(text, w, "dim");
-		}
-	}
-
-	#subagentRows(w: number): string[] {
-		const provider = this.sources.subagents;
-		if (!provider) return [];
-		const subs = provider().filter(session => session.kind === "subagent");
-		if (subs.length === 0) return [];
-		const running = subs.filter(session => session.status === "active").length;
-		const rows = [this.#fit(`${theme.icon.agents} Subagents · ${running}/${subs.length} running`, w, "muted")];
-		// Active work first so a long completed tail cannot hide it, then the
-		// registry's spawn order for the rest, capped at the row limit.
-		const ordered = [...subs.filter(s => s.status === "active"), ...subs.filter(s => s.status !== "active")];
-		for (const session of ordered.slice(0, SUBAGENT_ROW_LIMIT)) {
-			rows.push(this.#fit(`${this.#subagentDot(session)} ${session.label}`, w, "dim"));
-		}
-		return rows;
-	}
-
-	#subagentDot(session: ObservableSession): string {
-		switch (session.status) {
-			case "active":
-				return theme.styledSymbol("status.running", "success");
-			case "completed":
-				return theme.styledSymbol("status.success", "muted");
-			case "failed":
-				return theme.styledSymbol("status.error", "error");
-			case "aborted":
-				return theme.styledSymbol("status.aborted", "dim");
-		}
-	}
-
-	#mcpRows(w: number): string[] {
-		const mcp = this.sources.mcp;
-		if (!mcp) return [];
-		const connected = mcp.connected.size;
-		const pending = mcp.pending.size;
-		const failed = mcp.failed.size;
-		const total = connected + pending + failed;
-		if (total === 0) return [];
-		const rows = [this.#fit(`${theme.icon.extensionMcp} MCP · ${total} ${pluralize("server", total)}`, w, "muted")];
-		const groups: string[] = [];
-		if (connected > 0) groups.push(`${theme.styledSymbol("status.success", "success")}${connected}`);
-		if (pending > 0) groups.push(`${theme.styledSymbol("status.pending", "warning")}${pending}`);
-		if (failed > 0) groups.push(`${theme.styledSymbol("status.error", "error")}${failed}`);
-		rows.push(truncateToWidth(groups.join("  "), w, Ellipsis.Omit));
-		return rows;
-	}
 }

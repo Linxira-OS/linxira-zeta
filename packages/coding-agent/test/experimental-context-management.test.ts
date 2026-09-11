@@ -4,29 +4,25 @@ import type { AssistantMessage, UserMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta";
-import { Settings } from "@linxiraos/zeta";
-import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta";
-import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@linxiraos/zeta";
-import {
-	createCustomMessage,
-	convertToLlm,
-	SKILL_PROMPT_MESSAGE_TYPE,
-} from "@linxiraos/zeta";
-import type { CompactionEntry } from "@linxiraos/zeta";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta";
-import { ExtensionRunner } from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
-import { SessionManager } from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@linxiraos/zeta/session/context-notes";
+import { createCustomMessage, convertToLlm, SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
+import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
-import { computeNonMessageTokens } from "@linxiraos/zeta";
-import { mnemopiBackend } from "@linxiraos/zeta";
-import type { Tool, ToolSession } from "@linxiraos/zeta";
-import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta";
-import { BUILTIN_TOOL_NAMES } from "@linxiraos/zeta";
-import { GrepTool } from "@linxiraos/zeta";
-import { EvalTool } from "@linxiraos/zeta";
-import { ReadTool } from "@linxiraos/zeta";
+import { computeNonMessageTokens } from "@linxiraos/zeta/modes/utils/context-usage";
+import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
+import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
+import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta/tools/context-notes";
+import { BUILTIN_TOOL_NAMES } from "@linxiraos/zeta/tools/builtin-names";
+import { GrepTool } from "@linxiraos/zeta/tools/grep";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();
