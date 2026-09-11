@@ -14,11 +14,11 @@
  * asserting `#onBranchChange` never fires post-dispose.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
-import type { StatusLineSettings } from "@linxiraos/zeta";
-import { StatusLineComponent } from "@linxiraos/zeta";
-import { initTheme } from "@linxiraos/zeta";
-import { github } from "@linxiraos/zeta";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { github } from "@linxiraos/zeta/utils/github";
 import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";

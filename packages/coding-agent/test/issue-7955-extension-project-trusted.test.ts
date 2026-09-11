@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ExtensionRunner } from "@linxiraos/zeta";
-import type { ExtensionRuntime } from "@linxiraos/zeta";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import type { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/types";
 
 function createRunner(): ExtensionRunner {
 	const runtime = {

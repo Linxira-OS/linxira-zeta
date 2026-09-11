@@ -17,10 +17,10 @@
  */
 
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { CmuxKind } from "@linxiraos/zeta";
-import { CmuxSocketClient } from "@linxiraos/zeta";
-import { acquireBrowser } from "@linxiraos/zeta";
-import type { BrowserHandle } from "@linxiraos/zeta";
+import type { CmuxKind } from "@linxiraos/zeta/tools/browser/cmux/rpc";
+import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
+import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import type { BrowserHandle } from "@linxiraos/zeta/tools/browser/registry";
 import {
 	acquireTab,
 	armIdleCloseForOwner,
@@ -37,10 +37,10 @@ import {
 	runInTab,
 	setTabFrozenForTest,
 	unfreezeTabSessionForTest,
-} from "@linxiraos/zeta";
-import { ToolAbortError } from "@linxiraos/zeta";
-import type { PendingRun, TabSession } from "@linxiraos/zeta";
-import type { ToolSession } from "@linxiraos/zeta";
+} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import type { PendingRun, TabSession } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

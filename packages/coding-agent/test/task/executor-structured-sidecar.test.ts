@@ -9,15 +9,15 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ModelRegistry } from "@linxiraos/zeta";
-import { Settings } from "@linxiraos/zeta";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta";
-import type { LoadExtensionsResult } from "@linxiraos/zeta";
-import * as sdkModule from "@linxiraos/zeta";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta";
-import { runSubprocess } from "@linxiraos/zeta";
-import type { AgentDefinition } from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 function createMockSession(onPrompt: (params: { emit: (event: AgentSessionEvent) => void }) => void): AgentSession {

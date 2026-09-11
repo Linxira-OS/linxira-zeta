@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { Settings } from "@linxiraos/zeta";
-import type { Skill } from "@linxiraos/zeta";
-import * as skillsModule from "@linxiraos/zeta";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta";
-import * as sdkModule from "@linxiraos/zeta";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta";
-import { runSubprocess } from "@linxiraos/zeta";
-import type { AgentDefinition } from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import * as skillsModule from "@linxiraos/zeta/extensibility/skills";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -59,8 +59,7 @@ function createMockSession(
 function createSessionResult(session: AgentSession): CreateAgentSessionResult {
 	return {
 		session,
-		extensionsResult:
-			{} as unknown as import("@linxiraos/zeta").LoadExtensionsResult,
+		extensionsResult: {} as unknown as import("@linxiraos/zeta").LoadExtensionsResult,
 		setToolUIContext: () => {},
 		eventBus: new EventBus(),
 	};

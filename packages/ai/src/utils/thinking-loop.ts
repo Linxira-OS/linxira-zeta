@@ -187,7 +187,7 @@ export class ThinkingLoopDetector {
 				return null;
 			}
 			// An over-long segment is chunked so each piece stays comparable.
-			for (let rest = raw; rest.length > 0; ) {
+			for (let rest = raw; rest.length > 0;) {
 				const chunk = rest.length > SEGMENT_CHAR_CAP ? rest.slice(0, SEGMENT_CHAR_CAP) : rest;
 				rest = rest.slice(chunk.length);
 				const hit = this.#consumeSegment(chunk);

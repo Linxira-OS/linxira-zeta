@@ -8,21 +8,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import type { ModelRegistry } from "@linxiraos/zeta";
-import { Settings } from "@linxiraos/zeta";
-import type { LoadExtensionsResult } from "@linxiraos/zeta";
-import { AgentLifecycleManager } from "@linxiraos/zeta";
-import { AgentRegistry } from "@linxiraos/zeta";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta";
-import * as sdkModule from "@linxiraos/zeta";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta";
-import { TaskTool } from "@linxiraos/zeta";
-import * as discoveryModule from "@linxiraos/zeta";
-import * as executorModule from "@linxiraos/zeta";
-import { runSubprocess } from "@linxiraos/zeta";
-import type { AgentDefinition, SingleResult } from "@linxiraos/zeta";
-import type { ToolSession } from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition, SingleResult } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 function yieldEmittingSession(

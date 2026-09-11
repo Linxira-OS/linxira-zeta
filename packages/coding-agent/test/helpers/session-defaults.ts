@@ -1,4 +1,4 @@
-import type { AgentSession } from "@linxiraos/zeta";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 /** Spread first in a session fake; keep state and behavior overrides on the fake itself. */
 export function createSessionDefaults() {

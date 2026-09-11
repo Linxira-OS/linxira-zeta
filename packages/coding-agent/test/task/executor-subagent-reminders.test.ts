@@ -1,22 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@linxiraos/pi-agent-core";
 import { type AssistantMessage, Effort } from "@linxiraos/pi-ai";
-import { Settings } from "@linxiraos/zeta";
-import type { ExtensionActions, LoadExtensionsResult } from "@linxiraos/zeta";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta";
-import * as sdkModule from "@linxiraos/zeta";
-import { AgentRegistry } from "@linxiraos/zeta";
-import { AgentLifecycleManager } from "@linxiraos/zeta";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta";
-import type { AuthStorage } from "@linxiraos/zeta";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionActions, LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	finalizeSubprocessOutput,
 	runSubagentFollowUpTurn,
 	runSubprocess,
 	SUBAGENT_WARNING_MISSING_YIELD,
-} from "@linxiraos/zeta";
-import type { AgentDefinition } from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+} from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { logger } from "@linxiraos/pi-utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 

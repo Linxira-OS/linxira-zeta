@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "bun:test";
 import { AuthStorage } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "../../src/config/settings";
 import { createAgentSession } from "../../src/sdk";
 import { SessionManager } from "../../src/session/session-manager";

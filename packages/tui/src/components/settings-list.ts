@@ -25,6 +25,10 @@ export interface SettingItem {
 	/** Current value to display (right side). Kept separate from the cycled
 	 *  machine values so localized displays never break `values` matching. */
 	currentValue: string;
+	/** Optional machine-readable value list cycled on confirm. Localized
+	 *  display text lives in `valueLabel`/`valueLabels`, keeping `values`
+	 *  matching stable across languages. */
+	values?: string[];
 	/** Optional display text overriding `currentValue` in the value column
 	 *  (e.g. a localized on/off label for a boolean whose `values` stay
 	 *  machine-readable). */
@@ -828,6 +832,7 @@ export class SettingsList implements Component {
 			// Cycle through values
 			const currentIndex = item.values.indexOf(item.currentValue);
 			const nextIndex = (currentIndex + 1) % item.values.length;
+			const newValue = item.values[nextIndex];
 			item.currentValue = newValue;
 			// Keep a localized value label in sync with the cycled value.
 			if (item.valueLabel !== undefined) {

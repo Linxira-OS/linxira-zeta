@@ -6,10 +6,10 @@
  * separator while every later gap stayed single (#11103).
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
-import { StatusLineComponent } from "@linxiraos/zeta";
-import { initTheme } from "@linxiraos/zeta";
-import type { AgentSession } from "@linxiraos/zeta";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 beforeAll(async () => {
 	resetSettingsForTest();

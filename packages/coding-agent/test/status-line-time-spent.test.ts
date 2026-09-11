@@ -12,11 +12,11 @@
  *   window so `/clear` and fresh-session flows zero the meter.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
-import { StatusLineComponent } from "@linxiraos/zeta";
-import type { SegmentContext } from "@linxiraos/zeta";
-import { renderSegment } from "@linxiraos/zeta";
-import { initTheme } from "@linxiraos/zeta";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { StatusLineTestComponents } from "./helpers/status-line";
 
 const statusLines = new StatusLineTestComponents();

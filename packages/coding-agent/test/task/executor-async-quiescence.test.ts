@@ -8,14 +8,14 @@
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { AsyncJobManager } from "@linxiraos/zeta";
-import type { LoadExtensionsResult } from "@linxiraos/zeta";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta";
-import * as sdkModule from "@linxiraos/zeta";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta";
-import { runSubprocess } from "@linxiraos/zeta";
-import type { AgentDefinition } from "@linxiraos/zeta";
-import { EventBus } from "@linxiraos/zeta";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 const baseAgent: AgentDefinition = { name: "task", description: "test", systemPrompt: "test", source: "bundled" };

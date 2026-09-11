@@ -4732,7 +4732,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Grep & Browser",
 			label: "Freeze Browser Tabs On Turn End",
 			description:
-				"Freeze OMP-owned headless browser tabs when a turn settles so animated pages stop burning CPU/GPU while idle. Tabs unfreeze automatically on next use; pass persist:true on open to opt a tab out.",
+				"Freeze Zeta-owned headless browser tabs when a turn settles so animated pages stop burning CPU/GPU while idle. Tabs unfreeze automatically on next use; pass persist:true on open to opt a tab out.",
 		},
 	},
 	"browser.idleCloseSec": {
@@ -4743,7 +4743,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Grep & Browser",
 			label: "Browser Idle Close Timeout",
 			description:
-				"Close OMP-owned headless browser tabs idle longer than this many seconds (0 = never; session dispose still reaps). Applies only to OMP-launched headless tabs, never relay/CDP/spawned browsers or other sessions' tabs.",
+				"Close Zeta-owned headless browser tabs idle longer than this many seconds (0 = never; session dispose still reaps). Applies only to Zeta-launched headless tabs, never relay/CDP/spawned browsers or other sessions' tabs.",
 			options: [
 				{ value: "0", label: "Never" },
 				{ value: "900", label: "15 minutes" },
@@ -6194,7 +6194,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Extensions",
 			label: "Tool Call Handler Timeout (ms)",
 			description:
-				"Positive finite active-work timeout for extension tool_call handlers; invalid values use 30000ms, and time awaiting OMP-owned dialogs does not count",
+				"Positive finite active-work timeout for extension tool_call handlers; invalid values use 30000ms, and time awaiting Zeta-owned dialogs does not count",
 		},
 	},
 

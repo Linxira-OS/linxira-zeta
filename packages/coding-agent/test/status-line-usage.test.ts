@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta";
-import { StatusLineComponent } from "@linxiraos/zeta";
-import { renderSegment } from "@linxiraos/zeta";
-import type { SegmentContext } from "@linxiraos/zeta";
-import { initTheme } from "@linxiraos/zeta";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
+import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/types";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import { StatusLineTestComponents } from "./helpers/status-line";
 
 const statusLines = new StatusLineTestComponents();

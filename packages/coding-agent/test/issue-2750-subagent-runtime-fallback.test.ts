@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Api, AssistantMessage, Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { Settings } from "@linxiraos/zeta";
-import * as sdkModule from "@linxiraos/zeta";
-import type { AgentSession } from "@linxiraos/zeta";
-import type { ServingModel } from "@linxiraos/zeta";
-import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta";
-import { runSubprocess } from "@linxiraos/zeta";
-import type { AgentDefinition, AgentProgress } from "@linxiraos/zeta";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { ServingModel } from "@linxiraos/zeta/session/retry-fallback-chains";
+import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta/session/turn-recovery";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition, AgentProgress } from "@linxiraos/zeta/task/types";
 import { createSessionDefaults } from "./helpers/session-defaults";
 
 function model(provider: string, id: string): Model<Api> {

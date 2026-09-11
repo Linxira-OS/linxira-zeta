@@ -17,16 +17,16 @@ import { createMockModel, type MockResponse, registerMockApi } from "@linxiraos/
 import * as aiStream from "@linxiraos/pi-ai/stream";
 import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { SqliteAuthCredentialStore } from "@linxiraos/zeta";
+import { SqliteAuthCredentialStore } from "@linxiraos/zeta/session/auth-storage";
 import { opencodeGoUsageProvider } from "@linxiraos/pi-ai/usage/opencode-go";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import type { Model } from "@linxiraos/pi-catalog/types";
-import { ModelRegistry } from "@linxiraos/zeta";
-import { Settings } from "@linxiraos/zeta";
-import type { ExtensionRunner } from "@linxiraos/zeta";
-import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta";
-import { AuthStorage } from "@linxiraos/zeta";
-import { SessionManager } from "@linxiraos/zeta";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
 
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;

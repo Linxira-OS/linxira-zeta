@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractLeadingCdTarget, readShellWord } from "@linxiraos/zeta";
+import { extractLeadingCdTarget, readShellWord } from "@linxiraos/zeta/tools/shell-tokenize";
 
 describe("extractLeadingCdTarget", () => {
 	it("extracts a bare cd target and returns the remainder", () => {
