@@ -56,6 +56,18 @@ if (process.platform !== "win32") {
 	fs.chmodSync(stagedNode, 0o755);
 }
 
+const nativeDir = path.join(repoRoot, "packages", "natives", "native");
+const nativePrefix = `pi_natives.${platformInfo.nativeTag}`;
+const nativeAddons = fs.existsSync(nativeDir)
+	? fs.readdirSync(nativeDir).filter(f => f.startsWith(`${nativePrefix}.node`) || (f.startsWith(`${nativePrefix}-`) && f.endsWith(".node")))
+	: [];
+if (nativeAddons.length === 0) {
+	throw new Error(`No native addons for ${platformInfo.nativeTag} in ${nativeDir}; run the natives build first.`);
+}
+for (const addon of nativeAddons) {
+	fs.copyFileSync(path.join(nativeDir, addon), path.join(stagingDir, addon));
+}
+
 const stagedWebUi = path.join(stagingDir, "web-ui");
 const stagedStandalone = path.join(stagedWebUi, ".next", "standalone");
 fs.cpSync(standaloneRoot, stagedStandalone, { recursive: true });

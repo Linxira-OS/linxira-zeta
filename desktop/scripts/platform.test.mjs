@@ -10,6 +10,7 @@ test("maps Windows desktop artifacts to executable resource names", () => {
     unpackedDirectory: "win-unpacked",
     zetaBinaryName: "zeta.exe",
     nodeBinaryName: "node.exe",
+    nativeTag: "win32-x64",
   });
 });
 
@@ -20,6 +21,7 @@ test("maps Linux desktop artifacts to extensionless resource names", () => {
     unpackedDirectory: "linux-unpacked",
     zetaBinaryName: "zeta",
     nodeBinaryName: "node",
+    nativeTag: "linux-x64",
   });
 });
 
@@ -30,6 +32,7 @@ test("maps macOS desktop artifacts to extensionless resource names", () => {
     unpackedDirectory: "mac-unpacked",
     zetaBinaryName: "zeta",
     nodeBinaryName: "node",
+    nativeTag: "darwin-x64",
   });
   assert.deepEqual(desktopPlatformInfo("darwin", "arm64"), {
     platformId: "mac",
@@ -37,6 +40,7 @@ test("maps macOS desktop artifacts to extensionless resource names", () => {
     unpackedDirectory: "mac-unpacked",
     zetaBinaryName: "zeta",
     nodeBinaryName: "node",
+    nativeTag: "darwin-arm64",
   });
 });
 
