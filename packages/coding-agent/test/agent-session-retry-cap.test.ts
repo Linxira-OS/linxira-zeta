@@ -24,7 +24,7 @@ import type { Model } from "@linxiraos/pi-catalog/types";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
-import { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";

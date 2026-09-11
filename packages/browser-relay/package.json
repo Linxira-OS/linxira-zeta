@@ -14,10 +14,10 @@
   },
   "scripts": {
     "build": "bun scripts/build-extension.ts",
-    "check": "biome check . && tsgo -p tsconfig.json --noEmit",
-    "lint": "biome lint .",
-    "fix": "biome check --write --unsafe .",
-    "fmt": "biome format --write ."
+    "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '*.ts' && tsgo -p tsconfig.json --noEmit",
+    "lint": "oxlint .",
+    "fmt": "oxfmt 'src/**/*.{ts,tsx}' '*.ts'",
+    "fix": "oxlint --fix . && oxfmt 'src/**/*.{ts,tsx}' '*.ts'"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

@@ -21,7 +21,7 @@ import {
 } from "@linxiraos/zeta/internal-urls/registry-helpers";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { CURRENT_SESSION_VERSION, SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import { CURRENT_SESSION_VERSION, type SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { removeWithRetries } from "@linxiraos/pi-utils";

@@ -31,11 +31,11 @@
 	},
 	"scripts": {
 		"test": "bun test --parallel",
-		"fmt": "biome format --write .",
-		"fix": "biome check --write --unsafe .",
-		"lint": "biome lint .",
+		"fmt": "oxfmt 'src/**/*.{ts,tsx}' '*.{ts,tsx}'",
+		"fix": "oxlint --fix . && oxfmt 'src/**/*.{ts,tsx}' '*.{ts,tsx}'",
+		"lint": "oxlint .",
 		"check:types": "tsgo -p tsconfig.json --noEmit",
-		"check": "biome check . && bun run check:types"
+		"check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '*.{ts,tsx}' && bun run check:types"
 	},
 	"types": "./src/index.ts",
 	"main": "./src/index.ts",

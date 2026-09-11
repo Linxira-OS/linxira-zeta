@@ -6,7 +6,7 @@ import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@linxiraos/zeta/session/context-notes";
 import { createCustomMessage, convertToLlm, SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
 import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";

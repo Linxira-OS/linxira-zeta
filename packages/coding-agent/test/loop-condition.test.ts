@@ -3,7 +3,7 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import {
 	describeLoopCondition,
 	evaluateLoopCondition,
-	LoopConditionVerdict,
+	type LoopConditionVerdict,
 } from "@linxiraos/zeta/modes/loop-condition";
 import { TempDir } from "@linxiraos/pi-utils";
 

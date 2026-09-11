@@ -14,7 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import { AsyncJob, AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { type AsyncJob, AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";

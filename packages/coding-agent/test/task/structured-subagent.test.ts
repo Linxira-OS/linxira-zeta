@@ -17,7 +17,7 @@ import {
 	resolveEffectiveSubagentPolicy,
 	runStructuredSubagent,
 	StructuredSubagentError,
-	StructuredSubagentRequest,
+	type StructuredSubagentRequest,
 } from "@linxiraos/zeta/task/structured-subagent";
 import type { AgentDefinition, SingleResult } from "@linxiraos/zeta/task/types";
 import type { ToolSession } from "@linxiraos/zeta/tools";

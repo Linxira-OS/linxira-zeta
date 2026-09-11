@@ -9,7 +9,14 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { ContextNotesTool, GrepTool, NewContextTool, ReadTool, Tool, ToolSession } from "@linxiraos/zeta/tools";
+import {
+	ContextNotesTool,
+	GrepTool,
+	NewContextTool,
+	ReadTool,
+	type Tool,
+	type ToolSession,
+} from "@linxiraos/zeta/tools";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir } from "@linxiraos/pi-utils";
 

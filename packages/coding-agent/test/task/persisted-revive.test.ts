@@ -15,7 +15,7 @@ import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createPersistedSubagentReviverFactory } from "@linxiraos/zeta/task/persisted-revive";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { IrcBus, IrcMessage } from "@linxiraos/zeta/irc/bus";
+import { IrcBus, type IrcMessage } from "@linxiraos/zeta/irc/bus";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 

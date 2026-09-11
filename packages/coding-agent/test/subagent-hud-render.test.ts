@@ -11,15 +11,15 @@ import { Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode, renderSubagentHudLines } from "@linxiraos/zeta/modes/interactive-mode";
-import { ObservableSession, SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
+import { type ObservableSession, SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
 import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
-	AgentProgress,
-	SubagentLifecyclePayload,
-	SubagentProgressPayload,
+	type AgentProgress,
+	type SubagentLifecyclePayload,
+	type SubagentProgressPayload,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
 } from "@linxiraos/zeta/task";

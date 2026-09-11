@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { runCli } from "../src/cli";
 import * as computerWorkerEntry from "../src/tools/computer/worker-entry";

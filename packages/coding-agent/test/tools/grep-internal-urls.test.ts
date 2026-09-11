@@ -7,11 +7,11 @@ import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
 import {
-	InternalResource,
-	InternalUrl,
+	type InternalResource,
+	type InternalUrl,
 	InternalUrlRouter,
 	LocalProtocolHandler,
-	ProtocolHandler,
+	type ProtocolHandler,
 } from "@linxiraos/zeta/internal-urls";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";

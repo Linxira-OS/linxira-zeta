@@ -151,22 +151,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "顾问每次更新最多建议数",
 		description: "每次顾问提示更新最多接受的非阻塞建议数（1–32；UI 提供 1–5 快捷选项）。阻塞类建议不受限。",
 	},
-	"advisor.maxNotesPerUpdate::1": {
-		label: "1 条",
-		description: "防刷屏（严格）。",
-	},
-	"advisor.maxNotesPerUpdate::2": {
-		label: "2 条",
-	},
-	"advisor.maxNotesPerUpdate::3": {
-		label: "3 条",
-	},
-	"advisor.maxNotesPerUpdate::4": {
-		label: "4 条",
-	},
-	"advisor.maxNotesPerUpdate::5": {
-		label: "5 条",
-	},
+
 	"git.enabled": {
 		label: "启用 Git 集成",
 		description: "在 TUI 中显示 git 分支、状态和 PR 信息，并监视仓库元数据。",
@@ -545,18 +530,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"`/loop --while` / `--until` 条件命令的最长等待时间，超时视为条件失效并停止循环。设为 0 表示无限等待",
 	},
-	"loop.conditionTimeoutMs::0": {
-		label: "不限时",
-	},
-	"loop.conditionTimeoutMs::10000": {
-		label: "10 秒",
-	},
-	"loop.conditionTimeoutMs::30000": {
-		label: "30 秒",
-	},
-	"loop.conditionTimeoutMs::120000": {
-		label: "2 分钟",
-	},
+
 	doubleEscapeAction: {
 		label: "双击 Esc 操作",
 		description: "编辑器为空时连按两次 Esc 的操作",
@@ -1915,6 +1889,34 @@ export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; description?: string }>> = {
+	"loop.conditionTimeoutMs::0": {
+		label: "不限时",
+	},
+	"loop.conditionTimeoutMs::10000": {
+		label: "10 秒",
+	},
+	"loop.conditionTimeoutMs::30000": {
+		label: "30 秒",
+	},
+	"loop.conditionTimeoutMs::120000": {
+		label: "2 分钟",
+	},
+	"advisor.maxNotesPerUpdate::1": {
+		label: "1 条",
+		description: "防刷屏（严格）。",
+	},
+	"advisor.maxNotesPerUpdate::2": {
+		label: "2 条",
+	},
+	"advisor.maxNotesPerUpdate::3": {
+		label: "3 条",
+	},
+	"advisor.maxNotesPerUpdate::4": {
+		label: "4 条",
+	},
+	"advisor.maxNotesPerUpdate::5": {
+		label: "5 条",
+	},
 	"composer.shape::band": {
 		label: "状态带（默认）",
 		description: "柔和封顶的状态带悬浮于弧形提示符上方，无边框",

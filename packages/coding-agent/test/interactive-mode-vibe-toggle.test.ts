@@ -22,7 +22,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm, VIBE_MODE_CONTEXT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { FileSessionStorage, WriteTextAtomicOptions } from "@linxiraos/zeta/session/session-storage";
+import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta/session/session-storage";
 import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
