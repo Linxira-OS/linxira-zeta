@@ -13,6 +13,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createTools, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
+import { setLanguage } from "../../src/i18n";
 
 function createToolSession(cwd: string, settings: Settings, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {
@@ -96,6 +97,7 @@ async function createHarness(options?: { goalEnabled?: boolean }): Promise<Guide
 
 describe("guided goal setup", () => {
 	beforeAll(() => {
+		setLanguage("en");
 		initTheme();
 	});
 

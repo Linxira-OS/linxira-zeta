@@ -1004,7 +1004,7 @@ export const en = {
 	imGoalModePaused: "Goal mode paused.",
 	imGoalModeDisabled: "Goal mode disabled.",
 	imGoalModeDisabledSetting: "Goal mode is disabled. Enable it in settings (goal.enabled).",
-	imGoalAlreadyActiveFmt: "Goal mode is already active. Use %s to manage it, or %s drop to start over.",
+	imGoalAlreadyActiveFmt: "Goal mode is already active. Use %s to manage it, or %s to start over.",
 	imResumeOrDropGoalFirst: "Resume the current goal first, or drop it before setting a new objective.",
 	imGoalObjectiveEditorTitle: "Goal objective",
 	imNoActiveGoal: "No active goal.",
