@@ -156,7 +156,10 @@ describe("discoverAgents", () => {
 			);
 		}
 		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
-		await fs.writeFile(path.join(projectDir, ".zeta", "settings.json"), JSON.stringify({ extensions: [settingsExt] }));
+		await fs.writeFile(
+			path.join(projectDir, ".zeta", "settings.json"),
+			JSON.stringify({ extensions: [settingsExt] }),
+		);
 		await writeOmpPluginAgent(tempHome);
 
 		injectOmpExtensionCliRoots([staleExt], tempHome, projectDir);
