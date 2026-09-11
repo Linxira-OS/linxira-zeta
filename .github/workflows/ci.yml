@@ -526,7 +526,21 @@ jobs:
          - name: Build Linux desktop artifact
            working-directory: desktop
            run: npm run dist
+         - name: Guard smoke against lagging npm natives
+           if: github.event_name == 'pull_request'
+           id: natives_guard
+           shell: bash
+           run: |
+              set -euo pipefail
+              workspace_version="$(node -p "require('./package.json').version")"
+              published_version="$(npm view @linxiraos/pi-natives-linux-x64 version)"
+              if [ "$published_version" != "$workspace_version" ]; then
+                 echo "::warning::npm natives leaf (${published_version}) lags the workspace release line (${workspace_version}); the packaged runtime would fail the loader sentinel check. PR desktop smoke is skipped — push/tag runs build addons from source and stay fully gated."
+              else
+                 echo "run_smoke=1" >> "$GITHUB_OUTPUT"
+              fi
          - name: Smoke Linux desktop artifact
+           if: github.event_name != 'pull_request' || steps.natives_guard.outputs.run_smoke == '1'
            run: |
               set -euo pipefail
               app_dir="$(find temp/desktop/release -mindepth 1 -maxdepth 1 -type d -name 'zeta-desktop-*-linux-x64' -print -quit)"
@@ -583,7 +597,21 @@ jobs:
            run: |
               New-Item -ItemType Directory -Force "$env:APPDATA" | Out-Null
               npm run dist
+         - name: Guard smoke against lagging npm natives
+           if: github.event_name == 'pull_request'
+           id: natives_guard
+           shell: bash
+           run: |
+              set -euo pipefail
+              workspace_version="$(node -p "require('./package.json').version")"
+              published_version="$(npm view @linxiraos/pi-natives-win32-x64 version)"
+              if [ "$published_version" != "$workspace_version" ]; then
+                 echo "::warning::npm natives leaf (${published_version}) lags the workspace release line (${workspace_version}); the packaged runtime would fail the loader sentinel check. PR desktop smoke is skipped — push/tag runs build addons from source and stay fully gated."
+              else
+                 echo "run_smoke=1" >> "$GITHUB_OUTPUT"
+              fi
          - name: Smoke Windows desktop artifact
+           if: github.event_name != 'pull_request' || steps.natives_guard.outputs.run_smoke == '1'
            shell: pwsh
            run: |
               $app = Get-ChildItem temp/desktop/release -Directory | Where-Object Name -Like "zeta-desktop-*-win-x64" | Select-Object -First 1
