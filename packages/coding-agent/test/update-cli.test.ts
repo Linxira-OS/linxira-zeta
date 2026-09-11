@@ -44,7 +44,7 @@ import { getThemeByName, setThemeInstance } from "../src/modes/theme/theme";
 const tempDirs: string[] = [];
 
 async function makeTempDir(): Promise<string> {
-	const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "omp-update-test-")));
+	const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "zeta-update-test-")));
 	tempDirs.push(dir);
 	return dir;
 }
@@ -127,8 +127,8 @@ describe("parseReportedVersion", () => {
 		// Regression: dropping `-canary.1` made a correctly installed canary
 		// build look like a stale `X.Y.Z` launcher, triggering a binary repair
 		// that rejects the prerelease GitHub release.
-		expect(parseReportedVersion("omp/18.0.6-canary.1")).toBe("18.0.6-canary.1");
-		expect(parseReportedVersion("omp/18.0.5")).toBe("18.0.5");
+		expect(parseReportedVersion("zeta/18.0.6-canary.1")).toBe("18.0.6-canary.1");
+		expect(parseReportedVersion("zeta/18.0.5")).toBe("18.0.5");
 		expect(parseReportedVersion("not a version")).toBeUndefined();
 	});
 
@@ -1039,8 +1039,8 @@ describe("update-cli release binary integrity", () => {
 	it("rejects an altered version-reporting executable before replacing the installed binary", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, binaryName);
-		const installed = "#!/bin/sh\necho omp/17.0.8\n";
-		const altered = "#!/bin/sh\necho omp/17.1.2\n";
+		const installed = "#!/bin/sh\necho zeta/17.0.8\n";
+		const altered = "#!/bin/sh\necho zeta/17.1.2\n";
 		const expectedDigest = `sha256:${createHash("sha256")
 			.update("x".repeat(Buffer.byteLength(altered)))
 			.digest("hex")}`;
@@ -1341,7 +1341,7 @@ describe("update-cli script-shim takeover", () => {
 		// Real executable, no injected verifier: the takeover must verify the
 		// exe by explicit path — $which cached the shim path before it was
 		// renamed away, so a PATH re-resolution would fail here.
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zeta/${version}\n`;
 
 		await updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
 			binaryName,
@@ -1360,7 +1360,7 @@ describe("update-cli script-shim takeover", () => {
 	it("installs a canary prerelease binary only when the caller opts in", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zeta/${version}\n`;
 
 		// A canary release is published as a prerelease: without opt-in the
 		// takeover refuses the asset and leaves the shims intact.
@@ -1394,7 +1394,7 @@ describe("update-cli script-shim takeover", () => {
 		const marker = path.join(dir, "zeta.bunx");
 		await Bun.write(targetPath, "bun shim");
 		await Bun.write(marker, "bun launcher metadata");
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zeta/${version}\n`;
 
 		await updateViaBinaryAt(targetPath, version, {
 			binaryName,
@@ -1410,7 +1410,7 @@ describe("update-cli script-shim takeover", () => {
 	it.skipIf(process.platform === "win32")("reports the physical binary path verified after an update", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, "omp");
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zeta/${version}\n`;
 		await Bun.write(targetPath, "old binary");
 		const logSpy = spyOn(console, "log").mockImplementation(() => {});
 
@@ -1431,7 +1431,7 @@ describe("update-cli script-shim takeover", () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Executable runs but reports the previous version -> full rollback.
-		const exe = "#!/bin/sh\necho omp/17.2.12\n";
+		const exe = "#!/bin/sh\necho zeta/17.2.12\n";
 
 		await expect(
 			updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
@@ -1462,7 +1462,7 @@ describe("update-cli script-shim takeover", () => {
 	it("rewrites an immovable precedence-winning shim as a forwarder to the exe", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zeta/${version}\n`;
 		const renameSpy = renameLockingPs1();
 		try {
 			await updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
@@ -1485,7 +1485,7 @@ describe("update-cli script-shim takeover", () => {
 	it("restores a forwarded shim's original body when verification fails", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = "#!/bin/sh\necho omp/17.2.12\n";
+		const exe = "#!/bin/sh\necho zeta/17.2.12\n";
 		const renameSpy = renameLockingPs1();
 		try {
 			await expect(
