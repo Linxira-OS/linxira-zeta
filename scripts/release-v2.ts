@@ -360,7 +360,7 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	// check-version-consistency.ts fails the release while they lag the line.
 	console.log("Updating crates/*/BUILD.bazel bazel-face versions...");
 	for (const buildFile of await Array.fromAsync(new Glob("crates/*/BUILD.bazel"))) {
-		await $`sd '^(\s{4}version = ")[^"]+(")' ${'$1' + version + '$2'} ${buildFile}`;
+		await $`sd '^(\s{4}version = ")[^"]+(")' ${"$1" + version + "$2"} ${buildFile}`;
 	}
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).

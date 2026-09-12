@@ -5,7 +5,10 @@
 // Windows backend drives the registry directly. Cross-compiling the Windows
 // addon target therefore sees them as dead — exempt the module rather than
 // scattering allow(dead_code) over every item.
-#[cfg_attr(target_os = "windows", allow(dead_code))]
+#[cfg_attr(
+	target_os = "windows",
+	allow(dead_code, reason = "command helpers have no Windows callers; the backend drives the registry directly")
+)]
 mod context;
 #[cfg(target_os = "macos")]
 mod darwin;
