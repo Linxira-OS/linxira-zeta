@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.14] - 2026-09-12
+
 - Web 网关新增模型目录三端点(`/api/models-config/catalog|discover|metadata`),ModelsConfig 支持在线模型目录、按 API 类型的发现与元数据;补 `/api/agent/running` 字面路由。
 - CLI 侧边栏改为插件式 widget 注册表(`ctx.ui.registerSidebarWidget`),第三方 widget 由 `tui.sidebarWidgets` 开关控制(默认关);移除与状态行重复的 Session 面板。
 - `/settings reset [confirm|<key>]`:支持全部重置(二次确认)与单键重置。
