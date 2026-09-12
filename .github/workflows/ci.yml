@@ -532,7 +532,10 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              workspace_version="$(node -p "require('./package.json').version")"
+              # The release line's authoritative source is packages/utils/package.json
+              # (same file check-version-consistency.ts reads); the root manifest is a
+              # private workspace and carries no version field.
+              workspace_version="$(node -p "require('./packages/utils/package.json').version")"
               published_version="$(npm view @linxiraos/pi-natives-linux-x64 version)"
               if [ "$published_version" != "$workspace_version" ]; then
                  echo "::warning::npm natives leaf (${published_version}) lags the workspace release line (${workspace_version}); the packaged runtime would fail the loader sentinel check. PR desktop smoke is skipped — push/tag runs build addons from source and stay fully gated."
@@ -603,7 +606,10 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              workspace_version="$(node -p "require('./package.json').version")"
+              # The release line's authoritative source is packages/utils/package.json
+              # (same file check-version-consistency.ts reads); the root manifest is a
+              # private workspace and carries no version field.
+              workspace_version="$(node -p "require('./packages/utils/package.json').version")"
               published_version="$(npm view @linxiraos/pi-natives-win32-x64 version)"
               if [ "$published_version" != "$workspace_version" ]; then
                  echo "::warning::npm natives leaf (${published_version}) lags the workspace release line (${workspace_version}); the packaged runtime would fail the loader sentinel check. PR desktop smoke is skipped — push/tag runs build addons from source and stay fully gated."
