@@ -1,9 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
 import { Container, type OverlayOptions, setKeybindings } from "@linxiraos/pi-tui";
 import { KeybindingsManager } from "../../../src/config/keybindings";
+import { Settings, settings } from "../../../src/config/settings";
 import type { ExtensionAskDialogQuestion, ExtensionUIContext } from "../../../src/extensibility/extensions";
 import { AskDialogComponent } from "../../../src/modes/components/ask-dialog";
 import { CustomEditor } from "../../../src/modes/components/custom-editor";
+import { SidebarComponent } from "../../../src/modes/components/sidebar";
 import { ExtensionUiController } from "../../../src/modes/controllers/extension-ui-controller";
 import { getEditorTheme, getThemeByName, setThemeInstance } from "../../../src/modes/theme/theme";
 import type { InteractiveModeContext } from "../../../src/modes/types";
@@ -18,7 +20,7 @@ beforeAll(async () => {
 	setThemeInstance(dark);
 });
 
-function makeHarness() {
+function makeHarness(sidebar?: SidebarComponent) {
 	const editor = new CustomEditor(getEditorTheme());
 	const editorContainer = new Container();
 	editorContainer.addChild(editor);
@@ -51,6 +53,7 @@ function makeHarness() {
 		},
 		addAutocompleteProvider,
 		syncComposerShape: vi.fn(),
+		sidebar,
 	} as unknown as InteractiveModeContext;
 
 	const controller = new ExtensionUiController(ctx);
@@ -349,5 +352,30 @@ describe("ExtensionUiController custom overlay", () => {
 		expect(component.dispose).toHaveBeenCalledTimes(1);
 		expect(harness.editorContainer.children).toEqual([harness.editor]);
 		expect(harness.editor.getText()).toBe("draft typed while factory is pending");
+	});
+});
+
+describe("ExtensionUiController sidebar widget registration", () => {
+	beforeAll(async () => {
+		await Settings.init({ inMemory: true });
+	});
+
+	it("delegates register and unregister to the live sidebar component", async () => {
+		const sidebar = new SidebarComponent({
+			statusLine: { getSidebarContext: width => ({ width }) as never },
+			session: { getTodoPhases: () => [] },
+		});
+		const ui = await makeHarness(sidebar).init();
+
+		settings.override("tui.sidebarWidgets", true);
+		try {
+			ui.registerSidebarWidget!({ id: "probe", title: "probe", order: 5, render: () => ["[probe-row]"] });
+			expect([...sidebar.render(36)].some(row => row.includes("[probe-row]"))).toBe(true);
+
+			ui.unregisterSidebarWidget!("probe");
+			expect([...sidebar.render(36)].every(row => !row.includes("[probe-row]"))).toBe(true);
+		} finally {
+			settings.clearOverride("tui.sidebarWidgets");
+		}
 	});
 });

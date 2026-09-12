@@ -7,6 +7,7 @@ import {
 	resolveCliModel,
 } from "../config/model-resolver";
 import type { SettingPath, Settings } from "../config/settings";
+import { SETTINGS_SCHEMA } from "../config/settings-schema";
 import { M } from "../i18n";
 import { describeLoopCondition } from "../modes/loop-condition";
 import { describeLoopLimitRuntime } from "../modes/loop-limit";
@@ -98,7 +99,67 @@ function applyExtendedContextCommand(settings: Settings, args: string): string |
 		return "Extended context disabled.";
 	}
 	if (arg === "status") return `Extended context is ${formatExtendedContextStatus(settings)}.`;
+
 	return undefined;
+}
+
+/** Number of settings with a stored value (global config, project config, or runtime override). */
+function configuredSettingCount(settings: Settings): number {
+	let count = 0;
+	for (const key of Object.keys(SETTINGS_SCHEMA) as SettingPath[]) {
+		if (settings.isConfigured(key)) count++;
+	}
+	return count;
+}
+
+/**
+ * `/settings reset`: bare `reset` previews how many stored settings a full
+ * reset would clear and demands the explicit `reset confirm`; `reset <key>`
+ * resets a single setting back to its schema default.
+ */
+function handleSettingsReset(args: string, ctx: InteractiveModeContext): void {
+	const [head, ...rest] = args.split(/\s+/);
+	if (head !== "reset") {
+		ctx.showWarning(`Usage: /settings [reset [confirm|<key>]]`);
+		return;
+	}
+	const settings = ctx.settings;
+	if (rest.length === 0) {
+		const configured = configuredSettingCount(settings);
+		if (configured === 0) {
+			ctx.showStatus(M.settingsResetNothing);
+			return;
+		}
+		ctx.showStatus(M.settingsResetConfirmHint.replace("%s", String(configured)));
+		return;
+	}
+	if (rest.length > 1) {
+		ctx.showWarning(`Usage: /settings reset [confirm|<key>]`);
+		return;
+	}
+	if (rest[0] === "confirm") {
+		const keys = Object.keys(SETTINGS_SCHEMA) as SettingPath[];
+		let resetCount = 0;
+		for (const key of keys) {
+			if (settings.reset(key)) resetCount++;
+		}
+		ctx.applySidebar();
+		refreshStatusLine(ctx);
+		ctx.showStatus(M.settingsResetDoneFmt.replace("%s", String(resetCount)));
+		return;
+	}
+	const key = rest[0];
+	if (!Object.hasOwn(SETTINGS_SCHEMA, key)) {
+		ctx.showWarning(`Unknown setting: ${key}`);
+		return;
+	}
+	if (!settings.reset(key as SettingPath)) {
+		ctx.showStatus(M.settingsResetNothing);
+		return;
+	}
+	ctx.applySidebar();
+	refreshStatusLine(ctx);
+	ctx.showStatus(M.settingsResetKeyDoneFmt.replace("%s", key));
 }
 
 /** Detailed, session-effective `/computer status` diagnostics. */
@@ -179,8 +240,15 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "settings",
 		icon: "settings",
 		description: M.cmdSettings,
-		handleTui: (_command, runtime) => {
-			runtime.ctx.showSettingsSelector();
+		allowArgs: true,
+		subcommands: [{ name: "reset", description: M.cmdSettingsReset }],
+		handleTui: (command, runtime) => {
+			const args = command.args.trim();
+			if (args === "") {
+				runtime.ctx.showSettingsSelector();
+			} else {
+				handleSettingsReset(args, runtime.ctx);
+			}
 			runtime.ctx.editor.setText("");
 		},
 	},

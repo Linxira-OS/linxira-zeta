@@ -151,6 +151,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "顾问每次更新最多建议数",
 		description: "每次顾问提示更新最多接受的非阻塞建议数（1–32；UI 提供 1–5 快捷选项）。阻塞类建议不受限。",
 	},
+
 	"git.enabled": {
 		label: "启用 Git 集成",
 		description: "在 TUI 中显示 git 分支、状态和 PR 信息，并监视仓库元数据。",
@@ -291,6 +292,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tui.sidebar": {
 		label: "侧边栏",
 		description: "显示右侧边栏（上下文、用量、git、模型）",
+	},
+	"tui.sidebarWidgets": {
+		label: "侧边栏小组件",
+		description: "显示扩展注册的第三方侧边栏小组件",
 	},
 	"tui.reactions": {
 		label: "智能体表情回应",
@@ -525,6 +530,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"`/loop --while` / `--until` 条件命令的最长等待时间，超时视为条件失效并停止循环。设为 0 表示无限等待",
 	},
+
 	doubleEscapeAction: {
 		label: "双击 Esc 操作",
 		description: "编辑器为空时连按两次 Esc 的操作",

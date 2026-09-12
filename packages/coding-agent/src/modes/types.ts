@@ -37,6 +37,7 @@ import type { EvalExecutionComponent } from "./components/eval-execution";
 import type { HookEditorComponent } from "./components/hook-editor";
 import type { HookInputComponent } from "./components/hook-input";
 import type { HookSelectorComponent, HookSelectorOptions } from "./components/hook-selector";
+import type { SidebarComponent } from "./components/sidebar";
 import type { StatusLineComponent } from "./components/status-line";
 import type { ToolExecutionHandle } from "./components/tool-execution";
 import type { TranscriptContainer } from "./components/transcript-container";
@@ -133,6 +134,7 @@ export interface InteractiveModeContext {
 	editorContainer: Container;
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
+	sidebar: SidebarComponent;
 	statusLine: StatusLineComponent;
 	/** Re-wire the engine's sidebar/main-width override from the `tui.sidebar` setting. */
 	applySidebar(): void;

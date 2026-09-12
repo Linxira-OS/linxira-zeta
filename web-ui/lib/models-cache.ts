@@ -4,7 +4,11 @@ export interface ModelsData {
   defaultModel: { provider: string; modelId: string } | null;
   thinkingLevels: Record<string, string[]>;
   thinkingLevelMaps: Record<string, Record<string, string | null>>;
+  /** `provider/modelId` → thinking level pinned by an `enabledModels` `:level` suffix. */
+  thinkingLevelPins: Record<string, string>;
   modelError?: string;
+  /** Warnings from resolving the `enabledModels` scope (e.g. a pattern matched nothing). */
+  modelScopeWarnings?: string[];
 }
 
 interface ModelsCacheState {
@@ -38,11 +42,17 @@ export function invalidateModelsCache(): void {
   state.inFlight.clear();
 }
 
-export function withModelRuntimeError(data: ModelsData, modelError: string | undefined): ModelsData {
+export function withModelRuntimeError(
+  data: ModelsData,
+  modelError: string | undefined,
+): ModelsData {
   return modelError ? { ...data, modelError } : data;
 }
 
-export function loadModelsWithCache(cwd: string, loader: () => Promise<ModelsData>): Promise<ModelsData> {
+export function loadModelsWithCache(
+  cwd: string,
+  loader: () => Promise<ModelsData>,
+): Promise<ModelsData> {
   const state = getModelsCacheState();
   const cached = state.entries.get(cwd);
   if (cached) {
@@ -57,7 +67,10 @@ export function loadModelsWithCache(cwd: string, loader: () => Promise<ModelsDat
   const loadPromise: Promise<ModelsData> = Promise.resolve()
     .then(loader)
     .then((data) => {
-      if (state.generation === generation && state.inFlight.get(cwd) === loadPromise) {
+      if (
+        state.generation === generation &&
+        state.inFlight.get(cwd) === loadPromise
+      ) {
         const now = Date.now();
         for (const [key, entry] of state.entries) {
           if (entry.expiresAt <= now) state.entries.delete(key);

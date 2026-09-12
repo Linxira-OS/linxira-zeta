@@ -7,7 +7,9 @@
  */
 import type { AgentEvent, AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Model, ToolExample } from "@linxiraos/pi-ai";
-import type { AgentSession, AgentSessionEvent, AuthStorage, SessionStats } from "@linxiraos/zeta";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session-events";
+import type { SessionStats } from "@linxiraos/zeta/session/agent-session-types";
+import type { AgentSession, AuthStorage } from "@linxiraos/zeta";
 import {
 	AgentRegistry,
 	type CreateAgentSessionResult,

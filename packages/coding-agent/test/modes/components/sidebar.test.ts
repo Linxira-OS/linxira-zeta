@@ -1,13 +1,14 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { visibleWidth } from "@linxiraos/pi-tui";
 import { createGallerySegmentContext } from "../../../src/cli/gallery-fixtures/segments";
-import { Settings } from "../../../src/config/settings";
+import { Settings, settings } from "../../../src/config/settings";
 import {
 	SIDEBAR_WIDTH,
 	SidebarComponent,
 	type SidebarMcpSource,
 	type SidebarSessionSource,
 	type SidebarSources,
+	type SidebarWidget,
 } from "../../../src/modes/components/sidebar";
 import type { SegmentContext } from "../../../src/modes/components/status-line/types";
 import type { ObservableSession } from "../../../src/modes/session-observer-registry";
@@ -31,10 +32,8 @@ function statusLineWith(overrides: Partial<SegmentContext> = {}): SidebarSources
 	};
 }
 
-function sessionWith(phases: TodoPhase[] = [], name?: string): SidebarSessionSource {
+function sessionWith(phases: TodoPhase[] = []): SidebarSessionSource {
 	return {
-		sessionName: name,
-		sessionId: "ab12cd34ef56ab12",
 		getTodoPhases: () => phases,
 	};
 }
@@ -64,27 +63,18 @@ function bareSessionSources(sources: Omit<SidebarSources, "statusLine" | "sessio
 }
 
 describe("SidebarComponent", () => {
-	it("renders a session header with the session name and active duration", () => {
+	it("does not render the removed session header (the status line owns session identity)", () => {
 		const rows = renderSidebar({
 			statusLine: statusLineWith({ activeMs: 90_000, contextPercent: null }),
-			session: sessionWith([], "Refactor parser"),
+			session: sessionWith(),
 		});
-		expect(rows.some(row => row.includes("Refactor parser"))).toBe(true);
-		expect(rows.some(row => row.includes("1m30s"))).toBe(true);
-	});
-
-	it("falls back to the short session id when the session is unnamed", () => {
-		const rows = renderSidebar({
-			statusLine: statusLineWith({ contextPercent: null }),
-			session: sessionWith([]),
-		});
-		expect(rows.some(row => row.includes("ab12cd34"))).toBe(true);
+		expect(rows.every(row => !row.includes("1m30s"))).toBe(true);
 	});
 
 	it("renders the compact context gauge without the legacy token-detail row", () => {
 		const rows = renderSidebar({
 			statusLine: statusLineWith({ contextPercent: 62 }),
-			session: sessionWith([]),
+			session: sessionWith(),
 		});
 		const gaugeRow = rows.find(row => row.includes("62%"));
 		expect(gaugeRow).toBeDefined();
@@ -190,7 +180,7 @@ describe("SidebarComponent", () => {
 	it("never renders the removed status-line duplicate rows (model, usage, git)", () => {
 		const rows = renderSidebar({
 			statusLine: statusLineWith(),
-			session: sessionWith([], "Full session"),
+			session: sessionWith(),
 		});
 		expect(rows.every(row => !row.includes(theme.icon.model))).toBe(true);
 		expect(rows.every(row => !row.includes(theme.icon.branch))).toBe(true);
@@ -207,7 +197,7 @@ describe("SidebarComponent", () => {
 		];
 		const rows = renderSidebar({
 			statusLine: statusLineWith({ contextPercent: 62 }),
-			session: sessionWith(longPhases, `${"long-session-name-".repeat(6)}`),
+			session: sessionWith(longPhases),
 			subagents: () => [subagent("active", `${"y".repeat(120)}`)],
 			mcp: mcpSource(1, 0, 0),
 		});
@@ -215,5 +205,113 @@ describe("SidebarComponent", () => {
 		for (const row of rows) {
 			expect(visibleWidth(row)).toBeLessThanOrEqual(SIDEBAR_WIDTH);
 		}
+	});
+});
+
+describe("SidebarWidget registry", () => {
+	beforeEach(() => {
+		settings.override("tui.sidebarWidgets", true);
+	});
+
+	afterEach(() => {
+		settings.clearOverride("tui.sidebarWidgets");
+	});
+
+	function widget(id: string, order: number, marker: string, rows: string[] = [marker]): SidebarWidget {
+		return {
+			id,
+			title: id,
+			order,
+			render: () => rows,
+		};
+	}
+
+	function orderOf(rows: string[], marker: string): number {
+		const index = rows.findIndex(row => row.includes(marker));
+		expect(index).toBeGreaterThanOrEqual(0);
+		return index;
+	}
+
+	it("renders nothing when every widget's rows are empty", () => {
+		const rows = [...new SidebarComponent(bareSessionSources({})).render(SIDEBAR_WIDTH)];
+		expect(rows.length).toBe(0);
+	});
+
+	it("renders registered widgets between the built-ins by order", () => {
+		const sidebar = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: 50 }),
+			session: sessionWith(),
+		});
+		sidebar.registerWidget(widget("mid", 5, "[mid]"));
+		sidebar.registerWidget(widget("last", 40, "[last]"));
+		const rows = [...sidebar.render(SIDEBAR_WIDTH)];
+		const gauge = orderOf(rows, "50%");
+		const mid = orderOf(rows, "[mid]");
+		const last = orderOf(rows, "[last]");
+		expect(gauge).toBeLessThan(mid);
+		expect(mid).toBeLessThan(last);
+	});
+
+	it("skips widgets that render nothing without leaving a stray separator", () => {
+		const sidebar = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: 50 }),
+			session: sessionWith(),
+		});
+		sidebar.registerWidget(widget("empty", 5, "[never]", []));
+		const rows = [...sidebar.render(SIDEBAR_WIDTH)];
+		expect(rows.some(row => row.includes("[never]"))).toBe(false);
+		const gauge = orderOf(rows, "50%");
+		// The skipped widget is gone entirely: the gauge leads with no leading separator.
+		expect(rows[0]).not.toContain("─");
+		expect(gauge).toBe(0);
+	});
+
+	it("ignores third-party widgets while tui.sidebarWidgets is off", () => {
+		const sidebar = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: null }),
+			session: sessionWith(),
+		});
+		sidebar.registerWidget(widget("third-party", 5, "[third-party]"));
+		// beforeEach enabled the gate; turn it off to prove the default-off behavior.
+		settings.clearOverride("tui.sidebarWidgets");
+		const gated = [...sidebar.render(SIDEBAR_WIDTH)];
+		expect(gated.every(row => !row.includes("[third-party]"))).toBe(true);
+
+		settings.override("tui.sidebarWidgets", true);
+		const allowed = [...sidebar.render(SIDEBAR_WIDTH)];
+		expect(allowed.some(row => row.includes("[third-party]"))).toBe(true);
+	});
+
+	it("replaces a widget re-registered under the same id and drops it on unregister", () => {
+		const sidebar = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: null }),
+			session: sessionWith(),
+		});
+		sidebar.registerWidget(widget("dupe", 5, "[first]"));
+		sidebar.registerWidget(widget("dupe", 5, "[second]"));
+		let rows = [...sidebar.render(SIDEBAR_WIDTH)];
+		expect(rows.some(row => row.includes("[first]"))).toBe(false);
+		expect(rows.some(row => row.includes("[second]"))).toBe(true);
+
+		sidebar.unregisterWidget("dupe");
+		rows = [...sidebar.render(SIDEBAR_WIDTH)];
+		expect(rows.every(row => !row.includes("[second]"))).toBe(true);
+	});
+
+	it("keeps rendering when a third-party widget throws", () => {
+		const sidebar = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: 50 }),
+			session: sessionWith(),
+		});
+		sidebar.registerWidget({
+			id: "boom",
+			title: "boom",
+			order: 5,
+			render: () => {
+				throw new Error("widget crash");
+			},
+		});
+		const rows = [...sidebar.render(SIDEBAR_WIDTH)];
+		expect(orderOf(rows, "50%")).toBeGreaterThanOrEqual(0);
 	});
 });

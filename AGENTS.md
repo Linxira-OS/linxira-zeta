@@ -11,7 +11,10 @@ that OMP updates remain mergeable. Four upstreams, fixed roles:
 - **Pi (`pi-upstream`)** — semantic-port source for feature work, never a raw
   merge source (`port/pi/<scope>` branches; preserve intentional OMP
   divergence).
-- **OMP Web (`omp-web-upstream`)** — source of the `web-ui/` snapshot.
+- **OMP Web (`omp-web-upstream`)** — **frozen**: `web-ui/` diverged from the
+  upstream snapshot in the own-desktop upgrade (`feat/desktop-ui-upgrade`,
+  absorbing omp-web f09920e selectively); no longer a merge source — manual
+  cherry-picks only, recorded in `document/upstream-sync.md`.
 - **Pi Web (`pi-web-upstream`)** — semantic-port source for web features
   (`port/pi-web/<scope>` branches).
 

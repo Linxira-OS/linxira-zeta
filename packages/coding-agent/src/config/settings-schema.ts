@@ -1037,6 +1037,17 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"tui.sidebarWidgets": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "appearance",
+			group: "Display",
+			label: "Sidebar Widgets",
+			description: "Show third-party sidebar widgets registered by extensions",
+		},
+	},
+
 	"statusLine.leftSegments": { type: "array", default: [] as StatusLineSegmentId[] },
 
 	"statusLine.rightSegments": { type: "array", default: [] as StatusLineSegmentId[] },

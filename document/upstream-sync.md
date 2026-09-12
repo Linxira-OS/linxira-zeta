@@ -48,6 +48,31 @@
   - Round 4: CI 20/20 + Zeta Nix green → merged as PR #14 (`caef3818cc`).
 - **New standing rule** (from this sync): `nix/bun.nix` is Zeta-owned release surface — after any `bun.lock` change, regen with `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix` (bun2nix 2.1.2, same rev as flake.lock) and normalize lock registry URLs to npmjs.org before pushing; the flake's `bun-lock` check is the detector.
 
+## OMP Web divergence (Zeta — own-desktop upgrade, upstream frozen)
+
+- **Date**: 2026-09-10; **Branch**: `feat/desktop-ui-upgrade` (from `main@43d39b9f5f`)
+- **Policy change**: `omp-web-upstream` is no longer a merge source. `web-ui/`
+  is Zeta-owned and diverged as of this branch; only manual cherry-picks from
+  `temp/omp-web` hereafter, each recorded here.
+- **Baseline before divergence**: `omp-web@c71edcb2a5` (the snapshot
+  `web-ui/` was carried at since adoption).
+- **Absorbed source**: `omp-web@f09920e` (9/9 overhaul; 136 files,
+  +11742/−2096) — semantic port, not raw copy.
+  - Absorbed: 21 component overhauls (AppShell/ChatInput/ChatMinimap/
+    ModelsConfig/SkillsConfig/FileExplorer/SessionSidebar/…), ExtensionStatusBar
+    extraction, useResizablePanel/useViewportHeight hooks, event-stream
+    hardening + model-scope overrides in useAgentSession, starfield +
+    ViewTransition styling, Windows drive-picker browser helpers,
+    git line-stats, request-security hardening, models-config
+    catalog/discover/metadata gateway endpoints.
+  - Not absorbed (scope boundary): PWA surface (manifest/sw/offline),
+    ProjectTrustDialog + project-trust, upstream useI18n catalog (Zeta's is
+    stronger), rpc-manager (server-only; superseded by gateway), session-title.
+  - Preserved Zeta surfaces: i18n catalog (`lib/i18n` + messages zh-CN/en),
+    theme system (40+ JSON themes), gateway rewrite (`/api/*` → zeta serve).
+- **Ledger discipline**: future omp-web cherry-picks get a dated subsection
+  under this entry.
+
 ## OMP Release Sync Policy
 
 - Only OMP official release tags are integrated (see AGENTS.md). Never raw commits or `omp-upstream/main`.

@@ -6,7 +6,7 @@
  * The system browser is never opened and no terminal window appears.
  */
 
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, shell, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, shell, Tray } from "electron";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -18,11 +18,23 @@ import {
 	validateGatewayOpenTarget,
 	type DesktopOpenTarget,
 } from "./open-bridge";
+import {
+	DEFAULT_DESKTOP_SETTINGS,
+	parseRunningSessions,
+	parseSessionNames,
+	readDesktopSettings,
+	runningTooltip,
+	RunningSessionsTracker,
+	writeDesktopSettingsAtomic,
+	type DesktopSettings,
+	type RunningSessionsResponse,
+} from "./session-monitor";
 
 const WEB_UI_URL = "http://127.0.0.1:30141";
 const STATS_URL = "http://127.0.0.1:3847";
 const READY_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 400;
+const SESSION_POLL_INTERVAL_MS = 5_000;
 const SERVICE_BINARY_NAME = process.platform === "win32" ? "zeta.exe" : "zeta";
 const WEB_RUNTIME_NAME = process.platform === "win32" ? "node.exe" : "node";
 
@@ -44,7 +56,8 @@ function currentWorkspacePath(): string {
 ipcMain.handle("pi:open-targets", (): DesktopOpenTarget[] => listHostOpenTargets());
 
 ipcMain.handle("pi:open-target", async (_event, targetId: unknown, gatewayPath: unknown): Promise<void> => {
-	if (!listHostOpenTargets().some((target) => target.id === targetId)) throw new Error("Rejected untrusted desktop open target");
+	if (!listHostOpenTargets().some(target => target.id === targetId))
+		throw new Error("Rejected untrusted desktop open target");
 	const target = validateGatewayOpenTarget(targetId, gatewayPath, currentWorkspacePath(), desktopOpenSecret);
 	if (!target) throw new Error("Rejected untrusted desktop open target");
 	const editorId = editorIdFromTarget(target.targetId);
@@ -116,6 +129,79 @@ ipcMain.handle("pi:window-state", (): { maximized: boolean } => {
 });
 
 // ---------------------------------------------------------------------------
+// Session completion monitor.
+//
+// Polls the gateway's lightweight /api/agent/running snapshot every few
+// seconds (same shape as the upstream web UI route). A session transitioning
+// running→idle fires a system notification (click → focus the main window);
+// the tray tooltip always mirrors the running-session count. Polling failures
+// (404 / connection refused while the service restarts) retry silently.
+// ---------------------------------------------------------------------------
+
+const runningTracker = new RunningSessionsTracker();
+let desktopSettings: DesktopSettings = { ...DEFAULT_DESKTOP_SETTINGS };
+let sessionPollTimer: NodeJS.Timeout | null = null;
+
+function startSessionMonitor(): void {
+	if (sessionPollTimer) return;
+	runningTracker.reset();
+	void pollRunningSessions();
+	sessionPollTimer = setInterval(() => {
+		void pollRunningSessions();
+	}, SESSION_POLL_INTERVAL_MS);
+}
+
+function stopSessionMonitor(): void {
+	if (!sessionPollTimer) return;
+	clearInterval(sessionPollTimer);
+	sessionPollTimer = null;
+}
+
+async function pollRunningSessions(): Promise<void> {
+	let snapshot: RunningSessionsResponse | null = null;
+	try {
+		const response = await fetch(`${WEB_UI_URL}/api/agent/running`, { headers: { accept: "application/json" } });
+		if (response.ok) snapshot = parseRunningSessions(await response.json());
+	} catch {
+		// Connection refused / aborted (service restarting): silent retry.
+	}
+	if (!snapshot) {
+		// Gateway unreachable or malformed payload: drop the baseline so the
+		// next successful poll re-syncs without replaying offline completions.
+		runningTracker.reset();
+		updateTrayRunningCount(0);
+		return;
+	}
+	const transitions = runningTracker.update(snapshot.runningSessionIds);
+	updateTrayRunningCount(snapshot.runningSessionIds.length);
+	for (const transition of transitions) {
+		if (transition.to !== "idle") continue;
+		void notifySessionCompleted(transition.id);
+	}
+}
+
+async function notifySessionCompleted(sessionId: string): Promise<void> {
+	if (!desktopSettings.notifications || !Notification.isSupported()) return;
+	const notification = new Notification({
+		title: await sessionDisplayName(sessionId),
+		body: "Agent run finished. Click to open the session.",
+	});
+	notification.on("click", () => showMainWindow());
+	notification.show();
+}
+
+/** Resolve a human-readable title for a session id via the gateway's session
+ *  list; falls back to the raw id when the lookup fails or finds nothing. */
+async function sessionDisplayName(sessionId: string): Promise<string> {
+	try {
+		const response = await fetch(`${WEB_UI_URL}/api/sessions`, { headers: { accept: "application/json" } });
+		if (!response.ok) return sessionId;
+		return parseSessionNames(await response.json()).get(sessionId) ?? sessionId;
+	} catch {
+		return sessionId;
+	}
+}
+// ---------------------------------------------------------------------------
 // Service resolution
 // ---------------------------------------------------------------------------
 
@@ -154,7 +240,7 @@ interface ServeCommand {
 }
 
 function parseCommand(command: string): string[] {
-	return (command.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((part) => part.replace(/^("|')|("|')$/g, ""));
+	return (command.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map(part => part.replace(/^("|')|("|')$/g, ""));
 }
 
 function bundledServeCommand(): ServeCommand | null {
@@ -194,7 +280,7 @@ function resolveServeCommand(): ServeCommand | null {
 			return {
 				file,
 				args: args.length > 0 ? args : ["serve"],
-				cwd: (process.env.ZETA_SERVE_CWD ?? repoRoot) ?? process.cwd(),
+				cwd: process.env.ZETA_SERVE_CWD ?? repoRoot ?? process.cwd(),
 				env: { ...process.env, ZETA_DESKTOP: "1" },
 			};
 		}
@@ -318,9 +404,9 @@ function iconPath(): string | undefined {
 	const candidate = app.isPackaged
 		? path.join(process.resourcesPath, "icon.ico")
 		: (() => {
-			const repoRoot = findRepoRoot();
-			return repoRoot ? path.join(repoRoot, "temp", "desktop", "build", "icon.ico") : undefined;
-		})();
+				const repoRoot = findRepoRoot();
+				return repoRoot ? path.join(repoRoot, "temp", "desktop", "build", "icon.ico") : undefined;
+			})();
 	return candidate && fs.existsSync(candidate) ? candidate : undefined;
 }
 
@@ -351,7 +437,7 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 	});
 
 	if (!win.isDestroyed()) void win.loadURL(WEB_UI_URL).catch(() => {});
-	win.on("close", (event) => {
+	win.on("close", event => {
 		// Minimize-to-tray (default): closing the window hides it and keeps the
 		// service + tray alive. Only a real quit (tray menu / Cmd+Q / app.quit)
 		// destroys the window.
@@ -405,6 +491,7 @@ interface DesktopLabels {
 	quit: string;
 	webUi: string;
 	reload: string;
+	notifications: string;
 }
 
 const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
@@ -414,6 +501,7 @@ const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
 	quit: "Quit",
 	webUi: "Web UI",
 	reload: "Reload",
+	notifications: "Notifications",
 };
 /**
  * Read tray/autostart preferences from the gateway's /api/web-config over HTTP.
@@ -483,27 +571,54 @@ function showMainWindow(): void {
 	mainWindow.focus();
 }
 
-function createTray(labels: DesktopLabels): void {
-	if (tray) return;
-	tray = new Tray(trayIcon());
-	const contextMenu = Menu.buildFromTemplate([
-		{
-			label: labels.showWindow,
-			click: () => showMainWindow(),
-		},
-		{ label: labels.statsDashboard, click: () => openStatsWindow() },
-		{ label: labels.openSettings, click: () => mainWindow?.loadURL(`${WEB_UI_URL}/settings`) },
+let trayLabels: DesktopLabels = DEFAULT_DESKTOP_LABELS;
+
+function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
+	return [
+		{ label: trayLabels.showWindow, click: () => showMainWindow() },
+		{ label: trayLabels.statsDashboard, click: () => openStatsWindow() },
+		{ label: trayLabels.openSettings, click: () => mainWindow?.loadURL(`${WEB_UI_URL}/settings`) },
 		{ type: "separator" },
 		{
-			label: labels.quit,
+			label: trayLabels.notifications,
+			type: "checkbox",
+			checked: desktopSettings.notifications,
+			click: () => toggleNotifications(),
+		},
+		{ type: "separator" },
+		{
+			label: trayLabels.quit,
 			click: () => {
 				quitting = true;
 				app.quit();
 			},
 		},
-	]);
-	tray.setToolTip("Zeta");
-	tray.setContextMenu(contextMenu);
+	];
+}
+
+function refreshTrayMenu(): void {
+	if (!tray || tray.isDestroyed()) return;
+	tray.setContextMenu(Menu.buildFromTemplate(trayContextMenu()));
+}
+
+/** Mirror the running-session count in the tray tooltip (0 → plain name). */
+function updateTrayRunningCount(runningCount: number): void {
+	if (!tray || tray.isDestroyed()) return;
+	tray.setToolTip(runningTooltip(runningCount));
+}
+
+function toggleNotifications(): void {
+	desktopSettings = { ...desktopSettings, notifications: !desktopSettings.notifications };
+	writeDesktopSettingsAtomic(app.getPath("userData"), desktopSettings);
+	refreshTrayMenu();
+}
+
+function createTray(labels: DesktopLabels): void {
+	if (tray) return;
+	trayLabels = labels;
+	tray = new Tray(trayIcon());
+	tray.setToolTip(runningTooltip(0));
+	refreshTrayMenu();
 	tray.on("double-click", showMainWindow);
 }
 
@@ -581,14 +696,14 @@ async function boot(): Promise<void> {
 	}
 
 	const child = serveChild;
-	child.once("error", (err) => {
+	child.once("error", err => {
 		if (serveChild !== child) return;
 		serveChild = null;
 		serviceOwned = false;
 		closeServiceLog();
 		showServiceFailure(`Could not start the Zeta service: ${err.message}`);
 	});
-	child.once("exit", (code) => {
+	child.once("exit", code => {
 		if (serveChild !== child) return;
 		serveChild = null;
 		serviceOwned = false;
@@ -613,9 +728,11 @@ async function boot(): Promise<void> {
 
 	const prefs = await readTrayPrefs();
 	applyAutostart(prefs.autostart);
+	desktopSettings = readDesktopSettings(app.getPath("userData"));
 	buildMenu(prefs.desktopLabels);
 	createTray(prefs.desktopLabels);
 	createWindow(prefs);
+	startSessionMonitor();
 }
 
 app.setName("Zeta");
@@ -633,12 +750,15 @@ if (!app.hasSingleInstanceLock()) {
 		}
 	});
 
-	app.whenReady().then(boot).catch((err: unknown) => {
-		showServiceFailure(`The desktop shell could not start: ${err instanceof Error ? err.message : String(err)}`);
-	});
+	app.whenReady()
+		.then(boot)
+		.catch((err: unknown) => {
+			showServiceFailure(`The desktop shell could not start: ${err instanceof Error ? err.message : String(err)}`);
+		});
 
 	app.on("before-quit", () => {
 		quitting = true;
+		stopSessionMonitor();
 		killServe();
 	});
 

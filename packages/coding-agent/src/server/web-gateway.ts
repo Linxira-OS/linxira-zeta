@@ -54,6 +54,12 @@ import {
 	handleModelsDefaultPut,
 	handleModelsImport,
 } from "./web-gateway/models";
+import {
+	handleModelsConfigCatalog,
+	handleModelsConfigDiscover,
+	handleModelsConfigMetadata,
+} from "./web-gateway/models-config";
+import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import {
@@ -108,6 +114,9 @@ const MODELS_IMPORT_RE = /^\/api\/models\/import$/;
 const MODELS_DEFAULT_RE = /^\/api\/models\/default$/;
 const MODELS_CONFIG_RE = /^\/api\/models-config$/;
 const MODELS_CONFIG_TEST_RE = /^\/api\/models-config\/test$/;
+const MODELS_CONFIG_CATALOG_RE = /^\/api\/models-config\/catalog$/;
+const MODELS_CONFIG_DISCOVER_RE = /^\/api\/models-config\/discover$/;
+const MODELS_CONFIG_METADATA_RE = /^\/api\/models-config\/metadata$/;
 const SKILLS_RE = /^\/api\/skills$/;
 const SKILLS_INSTALL_RE = /^\/api\/skills\/install$/;
 const SKILLS_SEARCH_RE = /^\/api\/skills\/search$/;
@@ -286,6 +295,21 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (pathname === "/api/agent/running") {
+		// Lightweight snapshot for shell polling (desktop tray/notification loop);
+		// the SSE variant below serves the web-ui. Must precede AGENT_ID_RE,
+		// which would otherwise capture "running" as a session id.
+		if (req.method === "GET") {
+			return Response.json(
+				{ runningSessionIds: getRunningSessionIds() },
+				{
+					headers: { "Cache-Control": "no-store" },
+				},
+			);
+		}
+		return json({ error: "Method not allowed" }, 405);
+	}
+
 	const agentEvents = capture(pathname, AGENT_EVENTS_RE);
 	if (agentEvents) {
 		if (req.method === "GET") return handleAgentEvents(req, agentEvents[0]);
@@ -360,6 +384,21 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (MODELS_CONFIG_RE.test(pathname)) {
 		if (req.method === "GET") return handleModelsConfigGet();
 		if (req.method === "PUT") return handleModelsConfigPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (MODELS_CONFIG_CATALOG_RE.test(pathname)) {
+		if (req.method === "GET") return handleModelsConfigCatalog(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (MODELS_CONFIG_DISCOVER_RE.test(pathname)) {
+		if (req.method === "POST") return handleModelsConfigDiscover(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (MODELS_CONFIG_METADATA_RE.test(pathname)) {
+		if (req.method === "POST") return handleModelsConfigMetadata(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
