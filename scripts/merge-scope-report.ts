@@ -80,10 +80,10 @@ function verifyRemoteTag(tag: string): void {
 		localRef.exitCode === 0 && (localKind === "commit" || localKind === "tag")
 			? git(["rev-parse", `${tag}^{commit}`]).trim()
 			: "";
-	if (ls.exitCode !== 0 || ls.stdout.toString().trim() === "") {
-		// Offline or network-restricted: a locally fetched tag from the upstream
-		// remote still proves provenance — its creation remote is recorded in
-		// the tag object. Fail loudly when we have neither.
+	if (ls.exitCode !== 0) {
+		// Network failure (DNS, auth, proxy): a locally fetched tag from the
+		// upstream remote still proves provenance — its creation remote is
+		// recorded in the tag object. Fail loudly when we have neither.
 		if (!local) {
 			throw new Error(
 				`tag ${tag} not found on ${UPSTREAM_REMOTE} nor locally — refusing to report on an unverified tag`,
@@ -91,6 +91,12 @@ function verifyRemoteTag(tag: string): void {
 		}
 		console.log(`offline: using locally fetched ${tag} → ${local}`);
 		sha = local;
+	} else if (ls.stdout.toString().trim() === "") {
+		// The remote answered but the refspecs matched nothing: the tag does
+		// not exist upstream. This must NOT fall through to the offline branch
+		// — that would bless any local same-name tag (ours, or a moved/stale
+		// one) as an upstream-verified release tag.
+		throw new Error(`tag ${tag} does not exist on ${UPSTREAM_REMOTE} — refusing an unverified tag`);
 	} else {
 		const lines = ls.stdout.toString().trim().split("\n").filter(Boolean);
 		const peeled = lines.find(l => l.endsWith(`refs/tags/${tag}^{}`)) ?? lines[0]!;

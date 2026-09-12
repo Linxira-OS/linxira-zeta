@@ -1,5 +1,11 @@
 //! Transactional native OAuth callback registration and one-shot delivery.
 
+// The command-execution side of this module (Context::run and its helpers,
+// plus the home field) only has callers in the linux/macOS backends; the
+// Windows backend drives the registry directly. Cross-compiling the Windows
+// addon target therefore sees them as dead — exempt the module rather than
+// scattering allow(dead_code) over every item.
+#[cfg_attr(target_os = "windows", allow(dead_code))]
 mod context;
 #[cfg(target_os = "macos")]
 mod darwin;
