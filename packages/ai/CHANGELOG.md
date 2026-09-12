@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 随 1.1.14 版本线发布:bazel 构建面(crates/*/BUILD.bazel)版本号纳入一致性检查,CI 原生构建与桌面冒烟守卫修复。
+
 ## [1.1.13] - 2026-09-10
 
 - 上游 v18.1.16 同步:AuthStorage 合并封锁契约——凭据级 `blockedUntilMs` 与 `providerTimed` 时间线合并,先到的更长封锁在短提示到来时保持有效;GitHub Copilot OAuth 拆分公共 GitHub / GHE 双 client-id;Codex WebSocket 传输 abort 携带 cause 链。

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 随 1.1.14 版本线发布:bazel 构建面(crates/*/BUILD.bazel)版本号纳入一致性检查,CI 原生构建与桌面冒烟守卫修复。
+
 ## [1.1.13] - 2026-09-10
 
 - SettingsList 新增 `valueLabel`/`valueLabels`:布尔设置的显示文案与机器值分离,中文界面可本地化显示 开/关 且不再破坏循环切换匹配。

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 随 1.1.14 版本线发布:bazel 构建面(crates/*/BUILD.bazel)版本号纳入一致性检查,CI 原生构建与桌面冒烟守卫修复。
+
 ## [1.1.13] - 2026-09-10
 
 - 上游 v18.1.16 同步:compat 规则/模型目录刷新(Kimi K2.7-code 家族识别、moonshot 原生端点匹配等)。

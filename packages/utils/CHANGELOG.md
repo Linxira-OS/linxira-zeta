@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 随 1.1.14 版本线发布:bazel 构建面(crates/*/BUILD.bazel)版本号纳入一致性检查,CI 原生构建与桌面冒烟守卫修复。
+
 ## [1.1.13] - 2026-09-10
 
 - 上游 v18.1.16 同步:retry 提示解析升级为 longest-wins 合并(账号重置 + 追加 retry-after 同时出现时取更长窗口);`retry-after-ms` 支持 `:`/` =` 分隔形式;provider 明确要求立即重试(=0 或已过期时间戳)时返回 0 而非 undefined,避免误用启发式退避。

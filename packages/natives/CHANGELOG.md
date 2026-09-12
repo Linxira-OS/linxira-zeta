@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 随 1.1.14 版本线发布:pi-natives crate 的 bazel 构建面对齐版本线(gn 目标钉 bfd 链接器),Windows 交叉目标死代码告警清理;桌面打包现在收集全部平台 natives 变体。
+
 ## [1.1.13] - 2026-09-10
 
 - 版本线对齐 1.1.13(natives 哨兵同步)。
