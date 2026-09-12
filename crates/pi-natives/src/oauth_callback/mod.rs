@@ -7,7 +7,10 @@
 // scattering allow(dead_code) over every item.
 #[cfg_attr(
 	target_os = "windows",
-	allow(dead_code, reason = "command helpers have no Windows callers; the backend drives the registry directly")
+	allow(
+		dead_code,
+		reason = "command helpers have no Windows callers; the backend drives the registry directly"
+	)
 )]
 mod context;
 #[cfg(target_os = "macos")]
