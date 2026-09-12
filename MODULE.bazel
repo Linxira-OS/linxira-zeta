@@ -45,6 +45,12 @@ rust.toolchain(
         "aarch64-apple-darwin",
         "x86_64-pc-windows-msvc",
     ],
+    # The Ubuntu runners ship binutils-gold and rustc picks it for exec
+    # (host-tool) links, printing a deprecation warning per tool compile;
+    # gold also carries known linker bugs. Pin the GNU bfd linker for
+    # exec-config rustc only — cross-target addons keep their own
+    # toolchains (zig / clang-cl + lld-link) untouched.
+    extra_exec_rustc_flags = ["-Clink-arg=-fuse-ld=bfd"],
     # Pinned archive checksums for every toolchain component. Not (only) a
     # supply-chain nicety: rules_rust marks a toolchain-tools repo as
     # reproducible — and therefore eligible for Bazel's repo contents cache —

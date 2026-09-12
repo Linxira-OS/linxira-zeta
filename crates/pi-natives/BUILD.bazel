@@ -35,6 +35,12 @@ rust_binary(
         "//bazel/variants:modern": ["-Ctarget-cpu=x86-64-v3"],
         "//conditions:default": [],
     }) + select({
+        # rustc picks the runner's gold linker for native gnu links; gold is
+        # deprecated with known bugs - binutils bfd is the safe default.
+        "//bazel/triples:x86_64-unknown-linux-gnu": ["-Clink-arg=-fuse-ld=bfd"],
+        "//bazel/triples:aarch64-unknown-linux-gnu": ["-Clink-arg=-fuse-ld=bfd"],
+        "//conditions:default": [],
+    }) + select({
         "//bazel/triples:x86_64-unknown-linux-musl": ["-Ctarget-feature=-crt-static"],
         "//bazel/triples:aarch64-unknown-linux-musl": ["-Ctarget-feature=-crt-static"],
         "//bazel/triples:x86_64-pc-windows-msvc": ["-Ctarget-feature=+crt-static"],
