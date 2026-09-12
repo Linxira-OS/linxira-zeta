@@ -114,7 +114,7 @@ jobs:
          # tag straight from `github.ref_name`, and fetching `--tags` while
          # checkout uses an explicit tag refspec makes git refuse — so scope
          # fetch-tags to main refs.
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
            with:
               fetch-tags: ${{ github.ref == 'refs/heads/main' }}
          - name: Detect release tag at HEAD
@@ -151,7 +151,7 @@ jobs:
       name: Lint, type check & web build
       runs-on: ubuntu-22.04
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/bun-install
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
@@ -182,7 +182,7 @@ jobs:
       if: github.event_name != 'pull_request'
       runs-on: ubuntu-22.04
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/bun-install
          - id: cache
            uses: ./.github/actions/bazel-cache
@@ -228,7 +228,7 @@ jobs:
       name: Build native addons (bazel)
       runs-on: ubuntu-22.04
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
          # ---- PR path: latest Zeta addons from the @linxiraos npm leaves ----
          # Desktop PR jobs need the full target matrix, so fetch every leaf
@@ -352,7 +352,7 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 20
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
@@ -375,7 +375,7 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 20
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
@@ -393,7 +393,7 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
@@ -411,7 +411,7 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
@@ -429,7 +429,7 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
@@ -449,7 +449,7 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
@@ -467,7 +467,7 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 15
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
@@ -482,7 +482,7 @@ jobs:
       needs: [native_addons]
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
@@ -532,7 +532,10 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              workspace_version="$(node -p "require('./package.json').version")"
+              # The release line's authoritative source is packages/utils/package.json
+              # (same file check-version-consistency.ts reads); the root manifest is a
+              # private workspace and carries no version field.
+              workspace_version="$(node -p "require('./packages/utils/package.json').version")"
               published_version="$(npm view @linxiraos/pi-natives-linux-x64 version)"
               if [ "$published_version" != "$workspace_version" ]; then
                  echo "::warning::npm natives leaf (${published_version}) lags the workspace release line (${workspace_version}); the packaged runtime would fail the loader sentinel check. PR desktop smoke is skipped — push/tag runs build addons from source and stay fully gated."
@@ -603,7 +606,10 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              workspace_version="$(node -p "require('./package.json').version")"
+              # The release line's authoritative source is packages/utils/package.json
+              # (same file check-version-consistency.ts reads); the root manifest is a
+              # private workspace and carries no version field.
+              workspace_version="$(node -p "require('./packages/utils/package.json').version")"
               published_version="$(npm view @linxiraos/pi-natives-win32-x64 version)"
               if [ "$published_version" != "$workspace_version" ]; then
                  echo "::warning::npm natives leaf (${published_version}) lags the workspace release line (${workspace_version}); the packaged runtime would fail the loader sentinel check. PR desktop smoke is skipped — push/tag runs build addons from source and stay fully gated."
@@ -705,7 +711,7 @@ jobs:
       needs: [release_metadata, check, rust_validate, native_addons, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods, desktop_linux, desktop_windows, desktop_mac]
       runs-on: ubuntu-22.04
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/bun-install
          # Generated-config drift gate: bazel/clippy.bazelrc is maintained by
          # scripts/release.ts (like the lockfiles); a stale file only blocks

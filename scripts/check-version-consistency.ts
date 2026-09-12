@@ -112,6 +112,21 @@ function main(): void {
 	const cargoVersion = cargoToml.match(/^\s*version = "([^"]+)"/m)?.[1];
 	if (cargoVersion !== expected) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${expected}`);
 
+	// Bazel-face crate versions: the hand-written crates/*/BUILD.bazel targets
+	// carry a `version` attr printed in bazel logs/cache keys; a stale one is
+	// the ghost-version bug (pi_natives v17.1.5 next to a 1.1.x release).
+	const cratesDir = path.join(root, "crates");
+	if (fs.existsSync(cratesDir)) {
+		for (const dir of fs.readdirSync(cratesDir)) {
+			const buildFile = path.join(cratesDir, dir, "BUILD.bazel");
+			if (!fs.existsSync(buildFile)) continue;
+			const content = fs.readFileSync(buildFile, "utf8");
+			for (const m of content.matchAll(/^ {4}version = "([^"]+)"/gm)) {
+				if (m[1] !== expected) problems.push(`crates/${dir}/BUILD.bazel: ${m[1]} != ${expected}`);
+			}
+		}
+	}
+
 	// pi-natives sentinel.
 	const sentinel = `__piNativesV${expected.replace(/\./g, "_")}`;
 	for (const file of SENTINEL_FILES) {
@@ -151,7 +166,7 @@ function main(): void {
 		process.exit(1);
 	}
 	console.log(
-		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + sentinel + desktop + README badge (verified)`,
+		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + sentinel + desktop + README badge + crates/*/BUILD.bazel (verified)`,
 	);
 }
 

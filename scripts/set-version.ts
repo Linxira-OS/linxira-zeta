@@ -195,6 +195,26 @@ async function main(): Promise<void> {
 	}
 	writeJson("package.json", rootPkg);
 
+	// 6. Bazel-face crate versions: the hand-written crates/*/BUILD.bazel
+	// rust_library/rust_shared_library targets carry a `version` attr that
+	// shows up in bazel build logs and cache keys. Keep it on the line so CI
+	// logs stop printing a ghost version next to the real one.
+	const cratesDir = path.join(repoRoot, "crates");
+	if (fs.existsSync(cratesDir)) {
+		for (const dir of fs.readdirSync(cratesDir)) {
+			const file = path.join(cratesDir, dir, "BUILD.bazel");
+			if (!fs.existsSync(file)) continue;
+			const text = fs.readFileSync(file, "utf8");
+			const next = text.replace(/^(\s{4}version = ")[^"]+(")/gm, `$1${version}$2`);
+			if (next !== text) {
+				if (!DRY_RUN) fs.writeFileSync(file, next);
+				changed.push(`crates/${dir}/BUILD.bazel`);
+			} else {
+				unchanged.push(`crates/${dir}/BUILD.bazel`);
+			}
+		}
+	}
+
 	// 7. README version badge (shields.io `badge/zeta-<version>-…`), kept in
 	// lock-step so the product front door shows the release version.
 	const readmeRel = "README.md";
@@ -203,7 +223,6 @@ async function main(): Promise<void> {
 	} else {
 		unchanged.push(readmeRel);
 	}
-
 	console.log(`${DRY_RUN ? "[dry-run] " : ""}Version ${version} applied:`);
 	console.log(`  changed (${changed.length}):`);
 	for (const rel of changed) console.log(`    ${rel}`);

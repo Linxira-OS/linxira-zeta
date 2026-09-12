@@ -1,7 +1,23 @@
 import { readFileSync } from "fs";
-import { closeSync, existsSync, openSync, readdirSync, readSync, statSync, writeFileSync } from "fs";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import { join, normalize as normalizePath } from "path";
-import type { SessionEntry, SessionHeader, SessionInfo } from "./types";
+import type {
+  AgentMessage,
+  CompactionEntry,
+  ImageContent,
+  SessionContext,
+  SessionEntry,
+  SessionHeader,
+  SessionInfo,
+} from "./types";
 import { sessionPathKey } from "./session-path";
 import { resolveProject, type ProjectInfo } from "./worktree";
 
@@ -42,7 +58,9 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
               id: header.id,
               cwd: header.cwd || "",
               name: header.name || header.title,
-              created: header.timestamp ? new Date(header.timestamp).toISOString() : stat.birthtime.toISOString(),
+              created: header.timestamp
+                ? new Date(header.timestamp).toISOString()
+                : stat.birthtime.toISOString(),
               modified: stat.mtime.toISOString(),
               firstMessage: header.title || "(session)",
               parentSessionPath: header.parentSession,
@@ -59,11 +77,15 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
   for (const s of rawSessions) pathToId.set(sessionPathKey(s.path), s.id);
   // Resolve each unique cwd to its project root (main repo shared by all
   // worktrees). resolveProject caches per-cwd, so this is cheap after warmup.
-  const uniqueCwds = [...new Set(rawSessions.map((s) => s.cwd).filter(Boolean))];
+  const uniqueCwds = [
+    ...new Set(rawSessions.map((s) => s.cwd).filter(Boolean)),
+  ];
   const projectByCwd = new Map<string, ProjectInfo>();
-  await Promise.all(uniqueCwds.map(async (cwd) => {
-    projectByCwd.set(cwd, await resolveProject(cwd));
-  }));
+  await Promise.all(
+    uniqueCwds.map(async (cwd) => {
+      projectByCwd.set(cwd, await resolveProject(cwd));
+    }),
+  );
 
   return rawSessions.map((s) => {
     cacheSessionPath(s.id, s.path);
@@ -77,9 +99,13 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
       modified: s.modified,
       messageCount: 1,
       firstMessage: s.firstMessage || "(no messages)",
-      parentSessionId: s.parentSessionPath ? pathToId.get(sessionPathKey(s.parentSessionPath)) : undefined,
+      parentSessionId: s.parentSessionPath
+        ? pathToId.get(sessionPathKey(s.parentSessionPath))
+        : undefined,
       projectRoot: project?.projectRoot ?? s.cwd,
-      ...(project?.isWorktree && project.branch ? { worktreeBranch: project.branch } : {}),
+      ...(project?.isWorktree && project.branch
+        ? { worktreeBranch: project.branch }
+        : {}),
     };
   });
 }
@@ -89,13 +115,19 @@ export async function listAllSessions(): Promise<SessionInfo[]> {
 
   // Return cached result if still fresh (avoids re-scanning session files
   // and re-spawning git processes on every page load).
-  if (globalThis.__piSessionListCache && Date.now() - globalThis.__piSessionListCache.ts < SESSION_LIST_CACHE_TTL_MS) {
+  if (
+    globalThis.__piSessionListCache &&
+    Date.now() - globalThis.__piSessionListCache.ts < SESSION_LIST_CACHE_TTL_MS
+  ) {
     return globalThis.__piSessionListCache.data;
   }
 
   // Coalescing dedup: concurrent callers share the same in-flight promise
   // only while it belongs to the current cache generation.
-  if (globalThis.__piSessionListPromise && globalThis.__piSessionListPromiseGeneration === generation) {
+  if (
+    globalThis.__piSessionListPromise &&
+    globalThis.__piSessionListPromiseGeneration === generation
+  ) {
     return globalThis.__piSessionListPromise;
   }
 
@@ -134,21 +166,26 @@ declare global {
 const SESSION_LIST_CACHE_TTL_MS = 30_000;
 
 export function invalidateSessionListCache(): void {
-  globalThis.__piSessionListGeneration = (globalThis.__piSessionListGeneration ?? 0) + 1;
+  globalThis.__piSessionListGeneration =
+    (globalThis.__piSessionListGeneration ?? 0) + 1;
   globalThis.__piSessionListCache = undefined;
 }
 
 function getPathCache(): Map<string, string> {
-  if (!globalThis.__piSessionPathCache) globalThis.__piSessionPathCache = new Map();
+  if (!globalThis.__piSessionPathCache)
+    globalThis.__piSessionPathCache = new Map();
   return globalThis.__piSessionPathCache;
 }
 
 function getPathToIdCache(): Map<string, string> {
-  if (!globalThis.__piPathToSessionIdCache) globalThis.__piPathToSessionIdCache = new Map();
+  if (!globalThis.__piPathToSessionIdCache)
+    globalThis.__piPathToSessionIdCache = new Map();
   return globalThis.__piPathToSessionIdCache;
 }
 
-export async function resolveSessionPath(sessionId: string): Promise<string | null> {
+export async function resolveSessionPath(
+  sessionId: string,
+): Promise<string | null> {
   const cached = getPathCache().get(sessionId);
   if (cached) return cached;
 
@@ -157,7 +194,9 @@ export async function resolveSessionPath(sessionId: string): Promise<string | nu
   return getPathCache().get(sessionId) ?? null;
 }
 
-export async function resolveSessionIdByPath(filePath: string): Promise<string | undefined> {
+export async function resolveSessionIdByPath(
+  filePath: string,
+): Promise<string | undefined> {
   const pathKey = sessionPathKey(filePath);
   const cached = getPathToIdCache().get(pathKey);
   if (cached) return cached;
@@ -172,10 +211,18 @@ export function cacheSessionPath(sessionId: string, filePath: string): void {
   const pathCache = getPathCache();
   const reverseCache = getPathToIdCache();
   const previousPath = pathCache.get(sessionId);
-  const previousPathKey = previousPath ? sessionPathKey(previousPath) : undefined;
+  const previousPathKey = previousPath
+    ? sessionPathKey(previousPath)
+    : undefined;
   const previousSessionId = reverseCache.get(pathKey);
-  const previousOwnerPath = previousSessionId ? pathCache.get(previousSessionId) : undefined;
-  if (previousPathKey && previousPathKey !== pathKey && reverseCache.get(previousPathKey) === sessionId) {
+  const previousOwnerPath = previousSessionId
+    ? pathCache.get(previousSessionId)
+    : undefined;
+  if (
+    previousPathKey &&
+    previousPathKey !== pathKey &&
+    reverseCache.get(previousPathKey) === sessionId
+  ) {
     reverseCache.delete(previousPathKey);
   }
   if (
@@ -201,7 +248,9 @@ export function invalidateSessionPathCache(sessionId: string): void {
   }
 }
 
-export function readSessionHeader(filePath: string): (SessionHeader & { name?: string; title?: string }) | null {
+export function readSessionHeader(
+  filePath: string,
+): (SessionHeader & { name?: string; title?: string }) | null {
   let fd: number;
   try {
     fd = openSync(filePath, "r");
@@ -214,14 +263,20 @@ export function readSessionHeader(filePath: string): (SessionHeader & { name?: s
     if (bytesRead === 0) return null;
     const text = buffer.subarray(0, bytesRead).toString("utf8");
     const lines = text.split("\n");
-    let sessionHeader: (SessionHeader & { name?: string; title?: string }) | null = null;
+    let sessionHeader:
+      (SessionHeader & { name?: string; title?: string }) | null = null;
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
         const entry = JSON.parse(line.trim()) as Record<string, unknown>;
         if (entry && entry.type === "session" && !sessionHeader) {
           sessionHeader = entry as unknown as SessionHeader;
-        } else if (entry && entry.type === "session_info" && typeof entry.name === "string" && entry.name.trim()) {
+        } else if (
+          entry &&
+          entry.type === "session_info" &&
+          typeof entry.name === "string" &&
+          entry.name.trim()
+        ) {
           if (sessionHeader) {
             sessionHeader.name = entry.name.trim();
             sessionHeader.title = entry.name.trim();
@@ -240,7 +295,11 @@ export function readSessionHeader(filePath: string): (SessionHeader & { name?: s
 }
 
 function hasSessionType(entry: unknown): boolean {
-  return Boolean(entry && typeof entry === "object" && (entry as { type?: unknown }).type === "session");
+  return Boolean(
+    entry &&
+    typeof entry === "object" &&
+    (entry as { type?: unknown }).type === "session",
+  );
 }
 
 export function loadOmpSessionEntries(filePath: string): SessionEntry[] {
@@ -262,7 +321,8 @@ export function loadOmpSessionEntries(filePath: string): SessionEntry[] {
       const [sessionHeader] = entries.splice(sessionIdx, 1);
       entries.unshift(sessionHeader);
       try {
-        const fixedContent = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
+        const fixedContent =
+          entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
         writeFileSync(filePath, fixedContent, "utf8");
       } catch {
         // ignore write error
@@ -276,4 +336,168 @@ export function loadOmpSessionEntries(filePath: string): SessionEntry[] {
 
 export function getSessionEntries(filePath: string): SessionEntry[] {
   return loadOmpSessionEntries(filePath);
+}
+
+// --- buildSessionContext -----------------------------------------------------
+// Pure compaction-aware context construction for the UI. The tests in
+// session-reader.test.mjs are the contract: they encode the upstream SDK
+// semantics (latest compaction on the active path wins, the selected leaf
+// wins over later compactions, deferred thinking/images, hidden custom
+// messages) without importing the runtime package.
+
+export interface SessionContextOptions {
+  deferThinking?: boolean;
+  deferToolResultImages?: boolean;
+}
+
+function entryTimestamp(entry: SessionEntry): number {
+  const parsed = Date.parse(entry.timestamp);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function isBase64OrFlatImage(block: ImageContent): boolean {
+  if ("source" in block) return block.source.type === "base64";
+  return typeof (block as { data?: unknown }).data === "string";
+}
+
+function imageMediaType(block: ImageContent): string {
+  if ("source" in block) return block.source.media_type ?? "image";
+  return (block as { mimeType?: string }).mimeType ?? "image";
+}
+
+function imageByteSize(block: ImageContent): number {
+  if ("source" in block) return block.source.data?.length ?? 0;
+  return (block as { data?: string }).data?.length ?? 0;
+}
+
+export function buildSessionContext(
+  entries: SessionEntry[],
+  leafId?: string | null,
+  options: SessionContextOptions = {},
+): SessionContext {
+  const messages: AgentMessage[] = [];
+  const entryIds: string[] = [];
+  if (leafId === null)
+    return { messages, entryIds, thinkingLevel: "default", model: null };
+
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  const leaf =
+    leafId !== undefined
+      ? (byId.get(leafId) ?? null)
+      : (entries[entries.length - 1] ?? null);
+
+  // Root-to-leaf path along parent links (guards against cyclic parents).
+  const path: SessionEntry[] = [];
+  const seen = new Set<string>();
+  let cursor: SessionEntry | null = leaf;
+  while (cursor && !seen.has(cursor.id)) {
+    seen.add(cursor.id);
+    path.unshift(cursor);
+    cursor = cursor.parentId ? (byId.get(cursor.parentId) ?? null) : null;
+  }
+
+  // The latest compaction on the active path scopes the context: its summary
+  // replaces everything before firstKeptEntryId, and any earlier compaction
+  // on the same path is superseded by it.
+  let compaction: CompactionEntry | undefined;
+  for (let i = path.length - 1; i >= 0; i--) {
+    const entry = path[i];
+    if (entry.type === "compaction") {
+      compaction = entry;
+      break;
+    }
+  }
+  let selected = path;
+  if (compaction) {
+    const compactionIdx = path.indexOf(compaction);
+    const keptIdx = compaction.firstKeptEntryId
+      ? path.findIndex((entry) => entry.id === compaction.firstKeptEntryId)
+      : compactionIdx + 1;
+    const scoped = path
+      .slice(keptIdx >= 0 ? keptIdx : compactionIdx + 1)
+      .filter((entry) => entry.type !== "compaction");
+    selected = [compaction, ...scoped];
+  }
+
+  for (const entry of selected) {
+    const timestamp = entryTimestamp(entry);
+    let message: AgentMessage | null = null;
+
+    if (entry.type === "compaction") {
+      message = {
+        role: "custom",
+        customType: "compaction",
+        content: entry.summary,
+        display: true,
+        timestamp,
+      };
+    } else if (entry.type === "custom_message") {
+      message = {
+        role: "custom",
+        customType: entry.customType,
+        content: entry.content,
+        display: entry.display,
+        details: entry.details,
+        timestamp,
+      };
+    } else if (entry.type === "message") {
+      const msg = entry.message;
+      if (msg.role === "assistant") {
+        let content = msg.content;
+        if (options.deferThinking === true) {
+          // Copy-on-write: the caller's session entries must stay intact
+          // so live-session rendering still sees the full reasoning.
+          content = content.map((block) =>
+            block.type === "thinking" && block.thinking !== ""
+              ? { ...block, thinking: "", deferred: true }
+              : block,
+          );
+        }
+        message = {
+          role: "assistant",
+          content,
+          model: msg.model,
+          provider: msg.provider,
+          timestamp,
+        };
+      } else if (msg.role === "toolResult") {
+        let content = msg.content;
+        if (options.deferToolResultImages === true) {
+          const omittedTypes: string[] = [];
+          let maxBytes = 0;
+          const kept: typeof content = [];
+          for (const block of content) {
+            if (block.type === "image" && isBase64OrFlatImage(block)) {
+              omittedTypes.push(imageMediaType(block));
+              maxBytes = Math.max(maxBytes, imageByteSize(block));
+              continue;
+            }
+            kept.push(block);
+          }
+          if (omittedTypes.length > 0) {
+            kept.push({
+              type: "text",
+              text: `${omittedTypes.length} tool result images omitted (${omittedTypes.join(", ")}, ~${maxBytes} bytes each)`,
+            });
+          }
+          content = kept;
+        }
+        message = {
+          role: "toolResult",
+          toolCallId: msg.toolCallId,
+          content,
+          timestamp,
+        };
+      } else if (msg.role === "user") {
+        message = { role: "user", content: msg.content, timestamp };
+      }
+    }
+
+    if (message) {
+      messages.push(message);
+      entryIds.push(entry.id);
+    }
+  }
+
+  return { messages, entryIds, thinkingLevel: "default", model: null };
 }
