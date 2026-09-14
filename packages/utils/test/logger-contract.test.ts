@@ -51,7 +51,7 @@ async function runScenario(scenario: string): Promise<ScenarioResult> {
 				// os.homedir() on Windows reads USERPROFILE, not HOME: without
 				// this the default-file scenario logs into the real profile.
 				USERPROFILE: primaryDir,
-				PI_CONFIG_DIR: ".omp",
+				PI_CONFIG_DIR: ".zeta",
 				OMP_PROFILE: "",
 				PI_PROFILE: "",
 				XDG_DATA_HOME: "",
@@ -181,7 +181,7 @@ describe("central logger transport lifecycle", () => {
 		const result = await runScenario("default-file");
 		expect(result.stdout).toBe("");
 		expect(result.stderr).toBe("");
-		const defaultLogsDir = path.join(result.primaryDir, ".omp", "logs");
+		const defaultLogsDir = path.join(result.primaryDir, ".zeta", "logs");
 		const log = await readSingleLog(defaultLogsDir);
 		expect(log.text).toBe(expectedLine(result.pid, "info", "mode-default", { mode: "default" }));
 	});
