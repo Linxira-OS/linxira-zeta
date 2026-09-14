@@ -300,6 +300,8 @@ export interface SessionInfo {
   worktreeBranch?: string;
   /** Default-space bot session tag ("relay" | "bot" | "draft"); absent for ordinary sessions. */
   tag?: string;
+  /** Set only in the archived listing: the original project cwd. */
+  archivedFrom?: string;
 }
 
 export interface SessionContext {

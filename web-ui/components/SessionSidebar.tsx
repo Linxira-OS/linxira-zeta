@@ -20,6 +20,28 @@ import { DirectoryPicker } from "./DirectoryPicker";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { StarfieldEmblem } from "./StarfieldEmblem";
 import { FolderPickerModal } from "./FolderPickerModal";
+import { SidebarHeader } from "./sidebar/SidebarHeader";
+import { SidebarProjectsList } from "./sidebar/SidebarProjectsList";
+import { SessionGroupSection } from "./sidebar/SessionGroupSection";
+import { ArchiveSection } from "./sidebar/ArchiveSection";
+import { PinnedSection } from "./sidebar/PinnedSection";
+import { BulkActionBar } from "./sidebar/BulkActionBar";
+import {
+  loadCollapsedProjects,
+  loadDisplaySettings,
+  loadPinnedSessionIds,
+  savePinnedSessionIds,
+  SIDEBAR_COLLAPSED_PROJECTS_KEY,
+  SIDEBAR_DISPLAY_KEY,
+  type SidebarDisplaySettings,
+} from "./sidebar/sidebar-shared";
+import { useSessionMultiSelect } from "./sidebar/useSessionMultiSelect";
+import {
+  archiveSession,
+  deleteProjectSessions,
+  deleteSessions,
+  fetchArchivedSessions,
+} from "@/lib/session-api";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
 import { sendAgentCommand } from "@/lib/agent-client";
@@ -66,59 +88,7 @@ interface WorktreeState {
 
 const UNREAD_SESSIONS_STORAGE_KEY = "zeta-web:unread-session-ids";
 const RUNNING_SESSIONS_POLL_MS = 2500;
-const SIDEBAR_COLLAPSED_PROJECTS_KEY = "zeta-web:sidebar-collapsed-projects";
-const SIDEBAR_DISPLAY_KEY = "zeta-web:sidebar-display";
 
-type ProjectSort = "manual" | "a-z" | "z-a" | "date-added" | "recent";
-interface SidebarDisplaySettings {
-  projectSort: ProjectSort;
-  sessionGrouping: "by-worktree" | "flat";
-  showRecent: boolean;
-}
-
-const DEFAULT_DISPLAY: SidebarDisplaySettings = {
-  projectSort: "manual",
-  sessionGrouping: "by-worktree",
-  showRecent: true,
-};
-
-function loadCollapsedProjects(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(SIDEBAR_COLLAPSED_PROJECTS_KEY);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function loadDisplaySettings(): SidebarDisplaySettings {
-  if (typeof window === "undefined") return DEFAULT_DISPLAY;
-  try {
-    const raw = window.localStorage.getItem(SIDEBAR_DISPLAY_KEY);
-    if (!raw) return DEFAULT_DISPLAY;
-    const parsed = JSON.parse(raw) as Partial<SidebarDisplaySettings>;
-    const validSorts: ProjectSort[] = [
-      "manual",
-      "a-z",
-      "z-a",
-      "date-added",
-      "recent",
-    ];
-    return {
-      projectSort: validSorts.includes(parsed.projectSort as ProjectSort)
-        ? (parsed.projectSort as ProjectSort)
-        : DEFAULT_DISPLAY.projectSort,
-      sessionGrouping:
-        parsed.sessionGrouping === "flat"
-          ? "flat"
-          : DEFAULT_DISPLAY.sessionGrouping,
-      showRecent: parsed.showRecent ?? DEFAULT_DISPLAY.showRecent,
-    };
-  } catch {
-    return DEFAULT_DISPLAY;
-  }
-}
 
 function loadUnreadSessionIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -437,6 +407,107 @@ function useScramble(target: string, running: boolean): string {
   return display;
 }
 
+
+/**
+ * Hover-revealed project header menu (⋯): destructive project-scoped actions.
+ * Deleting sessions only removes transcripts; "sessions + project entry" also
+ * drops the workspace group row for this session.
+ */
+function ProjectHeaderMenu({
+  project,
+  count,
+  onConfirmDelete,
+}: {
+  project: string;
+  count: number;
+  onConfirmDelete: (project: string, count: number) => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+  return (
+    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title={t("sidebar.worktreeMenu")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 20,
+          height: 20,
+          marginRight: 8,
+          padding: 0,
+          background: "none",
+          border: "none",
+          borderRadius: 5,
+          color: "var(--text-dim)",
+          cursor: "pointer",
+          opacity: open ? 1 : 0,
+          transition: "opacity 0.12s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.opacity = "1";
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="5" cy="12" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="19" cy="12" r="1.8" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 2px)",
+            right: 8,
+            zIndex: 220,
+            minWidth: 190,
+            background: "var(--bg-elevated, var(--bg))",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            boxShadow: "0 6px 20px rgba(0,0,0,0.18)",
+            padding: 4,
+          }}
+        >
+          <button
+            onClick={() => {
+              setOpen(false);
+              onConfirmDelete(project, count);
+            }}
+            disabled={count === 0}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: "6px 8px",
+              fontSize: 12,
+              color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
+              background: "none",
+              border: "none",
+              borderRadius: 5,
+              cursor: count === 0 ? "default" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t("sidebar.deleteProjectSessions")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ZetaWebTitle() {
   const [showVersion, setShowVersion] = useState(false);
   const [scrambling, setScrambling] = useState(false);
@@ -525,6 +596,15 @@ export function SessionSidebar({
   const [showBotSessions, setShowBotSessions] = useState(false);
   const [sessionSearch, setSessionSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const multiSelect = useSessionMultiSelect();
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() =>
+    loadPinnedSessionIds(),
+  );
+  const [archivedSessions, setArchivedSessions] = useState<SessionInfo[]>([]);
+  const [confirmProjectDelete, setConfirmProjectDelete] = useState<{
+    project: string;
+    count: number;
+  } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() =>
     loadCollapsedProjects(),
@@ -1285,6 +1365,104 @@ export function SessionSidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder are stable per-locale constants
   }, [filteredSessions, searching]);
 
+  // ── Pin / archive / bulk-selection glue ──
+  const pinnedIdSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+  const togglePin = useCallback((id: string) => {
+    setPinnedIds((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [id, ...prev];
+      savePinnedSessionIds(next);
+      return next;
+    });
+  }, []);
+  // All session ids visible in the list (across buckets), for shift-range
+  // selection and select-all.
+  const visibleSessionIds = useMemo(
+    () => filteredSessions.map((s) => s.id),
+    [filteredSessions],
+  );
+  const handleArchiveOne = useCallback(
+    async (id: string) => {
+      try {
+        await archiveSession(id);
+        await Promise.all([loadSessions(), loadArchived()]);
+      } catch {
+        // keep the row in place on failure
+      }
+    },
+    [loadSessions],
+  );
+  const loadArchived = useCallback(async () => {
+    try {
+      setArchivedSessions(await fetchArchivedSessions());
+    } catch {
+      setArchivedSessions([]);
+    }
+  }, []);
+  useEffect(() => {
+    void loadArchived();
+  }, [loadArchived, refreshKey]);
+  // Drop selection/pins that no longer resolve to live sessions.
+  useEffect(() => {
+    const existing = new Set(allSessions.map((s) => s.id));
+    multiSelect.prune(existing);
+  }, [allSessions, multiSelect]);
+  const handleBulkDelete = useCallback(async () => {
+    const ids = [...multiSelect.selectedIds];
+    if (ids.length === 0) return;
+    if (
+      !window.confirm(
+        t("sidebar.deleteSelectedConfirm", { count: ids.length }),
+      )
+    )
+      return;
+    try {
+      if (ids.length > 5) {
+        // Large selections collapse to one project-scoped call per project.
+        const byProject = new Map<string, string[]>();
+        for (const s of allSessions) {
+          if (multiSelect.selectedIds.has(s.id)) {
+            const root = s.projectRoot ?? s.cwd;
+            byProject.set(root, [...(byProject.get(root) ?? []), s.id]);
+          }
+        }
+        for (const [root, projectIds] of byProject) {
+          if (projectIds.length > 5) await deleteProjectSessions(root);
+          else await deleteSessions(projectIds);
+        }
+      } else {
+        await deleteSessions(ids);
+      }
+      multiSelect.clear();
+      await loadSessions();
+    } catch {
+      // leave selection intact on failure
+    }
+  }, [multiSelect, allSessions, loadSessions, t]);
+  const handleBulkArchive = useCallback(async () => {
+    const ids = [...multiSelect.selectedIds];
+    try {
+      for (const id of ids) await archiveSession(id);
+      multiSelect.clear();
+      await Promise.all([loadSessions(), loadArchived()]);
+    } catch {
+      // keep selection on failure
+    }
+  }, [multiSelect, loadSessions, loadArchived]);
+  const pinnedSessions = useMemo(
+    () =>
+      pinnedIds
+        .map((id) => allSessions.find((s) => s.id === id))
+        .filter((s): s is SessionInfo => Boolean(s))
+        .filter((s) => filteredSessions.some((f) => f.id === s.id)),
+    [pinnedIds, allSessions, filteredSessions],
+  );
+  const stalePinnedIds = useMemo(
+    () => pinnedIds.filter((id) => !allSessions.some((s) => s.id === id)),
+    [pinnedIds, allSessions],
+  );
+
   return (
     <div
       style={{
@@ -1313,294 +1491,22 @@ export function SessionSidebar({
           flexShrink: 0,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}
-        >
-          <ZetaWebTitle />
-          <div style={{ display: "flex", gap: 6 }}>
-            {/* Folder picker — opens the directory dialog (IDE-style browser) */}
-            <button
-              onClick={() => setFolderPickerModalOpen(true)}
-              title={t("browse-folder-ide-style")}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "var(--bg-hover)",
-                border: "1px solid var(--border)",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                width: 32,
-                height: 32,
-                borderRadius: 7,
-                padding: 0,
-                flexShrink: 0,
-                transition: "background 0.12s, color 0.12s, border-color 0.12s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--bg-selected)";
-                e.currentTarget.style.color = "var(--accent)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.color = "var(--text-muted)";
-              }}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-            </button>
-
-            {/* Display settings dropdown — sort/group/recent controls (openchamber SidebarHeader) */}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button
-                  title={t("sidebar.display.title")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "var(--bg-hover)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text-muted)",
-                    cursor: "pointer",
-                    width: 32,
-                    height: 32,
-                    borderRadius: 7,
-                    padding: 0,
-                    flexShrink: 0,
-                    transition:
-                      "background 0.12s, color 0.12s, border-color 0.12s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--bg-selected)";
-                    e.currentTarget.style.color = "var(--accent)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "var(--bg-hover)";
-                    e.currentTarget.style.color = "var(--text-muted)";
-                  }}
-                >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  >
-                    <line x1="4" y1="6" x2="20" y2="6" />
-                    <line x1="4" y1="12" x2="16" y2="12" />
-                    <line x1="4" y1="18" x2="12" y2="18" />
-                  </svg>
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  align="end"
-                  sideOffset={4}
-                  style={{
-                    minWidth: 200,
-                    background: "var(--bg)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    boxShadow: "0 6px 20px rgba(0,0,0,0.14)",
-                    padding: 4,
-                    zIndex: 200,
-                  }}
-                >
-                  <DropdownMenu.Label
-                    style={{
-                      padding: "6px 8px 2px",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      color: "var(--text-dim)",
-                    }}
-                  >
-                    {t("sidebar.display.projectSort")}
-                  </DropdownMenu.Label>
-                  {(
-                    [
-                      ["manual", "sidebar.display.sort.manual"],
-                      ["a-z", "sidebar.display.sort.a-z"],
-                      ["z-a", "sidebar.display.sort.z-a"],
-                      ["date-added", "sidebar.display.sort.date-added"],
-                      ["recent", "sidebar.display.sort.recent"],
-                    ] as const
-                  ).map(([value, key]) => (
-                    <DropdownMenu.Item
-                      key={value}
-                      onSelect={() => updateDisplay({ projectSort: value })}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "6px 8px",
-                        fontSize: 12,
-                        color:
-                          display.projectSort === value
-                            ? "var(--accent)"
-                            : "var(--text)",
-                        borderRadius: 5,
-                        cursor: "pointer",
-                        outline: "none",
-                      }}
-                    >
-                      <span style={{ width: 12 }}>
-                        {display.projectSort === value ? "✓" : ""}
-                      </span>
-                      {t(key)}
-                    </DropdownMenu.Item>
-                  ))}
-                  <DropdownMenu.Separator
-                    style={{
-                      height: 1,
-                      background: "var(--border)",
-                      margin: "4px 0",
-                    }}
-                  />
-                  <DropdownMenu.Label
-                    style={{
-                      padding: "6px 8px 2px",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      color: "var(--text-dim)",
-                    }}
-                  >
-                    {t("sidebar.display.sessionGrouping")}
-                  </DropdownMenu.Label>
-                  {(
-                    [
-                      ["by-worktree", "sidebar.display.grouping.by-worktree"],
-                      ["flat", "sidebar.display.grouping.flat"],
-                    ] as const
-                  ).map(([value, key]) => (
-                    <DropdownMenu.Item
-                      key={value}
-                      onSelect={() => updateDisplay({ sessionGrouping: value })}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "6px 8px",
-                        fontSize: 12,
-                        color:
-                          display.sessionGrouping === value
-                            ? "var(--accent)"
-                            : "var(--text)",
-                        borderRadius: 5,
-                        cursor: "pointer",
-                        outline: "none",
-                      }}
-                    >
-                      <span style={{ width: 12 }}>
-                        {display.sessionGrouping === value ? "✓" : ""}
-                      </span>
-                      {t(key)}
-                    </DropdownMenu.Item>
-                  ))}
-                  <DropdownMenu.Separator
-                    style={{
-                      height: 1,
-                      background: "var(--border)",
-                      margin: "4px 0",
-                    }}
-                  />
-                  <DropdownMenu.Item
-                    onSelect={() =>
-                      updateDisplay({ showRecent: !display.showRecent })
-                    }
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "6px 8px",
-                      fontSize: 12,
-                      color: "var(--text)",
-                      borderRadius: 5,
-                      cursor: "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    {t("sidebar.display.showRecent")}
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: display.showRecent
-                          ? "var(--accent)"
-                          : "var(--text-dim)",
-                      }}
-                    >
-                      {display.showRecent ? "ON" : "OFF"}
-                    </span>
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-
-            {/* Search toggle — expands the inline search row below */}
-            <button
-              onClick={() => {
-                setSearchOpen((v) => {
-                  if (v) setSessionSearch("");
-                  return !v;
-                });
-                setTimeout(() => searchInputRef.current?.focus(), 0);
-              }}
-              title={t("sidebar.display.search")}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: searchOpen
-                  ? "var(--bg-selected)"
-                  : "var(--bg-hover)",
-                border: `1px solid ${searchOpen ? "var(--interactive-border-focus)" : "var(--border)"}`,
-                color: searchOpen ? "var(--accent)" : "var(--text-muted)",
-                cursor: "pointer",
-                width: 32,
-                height: 32,
-                borderRadius: 7,
-                padding: 0,
-                flexShrink: 0,
-                transition: "background 0.12s, color 0.12s, border-color 0.12s",
-              }}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </button>
-          </div>
-        </div>
+        <SidebarHeader
+          title={<ZetaWebTitle />}
+          display={display}
+          searchOpen={searchOpen}
+          editMode={multiSelect.enabled}
+          onToggleSearch={() =>
+            setSearchOpen((v) => {
+              const next = !v;
+              if (!next) setSessionSearch("");
+              return next;
+            })
+          }
+          onToggleEditMode={() => multiSelect.setEnabled(!multiSelect.enabled)}
+          onOpenFolderPicker={() => setFolderPickerModalOpen(true)}
+          onUpdateDisplay={updateDisplay}
+        />
 
         {/* CWD picker */}
         <div ref={dropdownRef} style={{ position: "relative" }}>
@@ -2717,6 +2623,25 @@ export function SessionSidebar({
         )}
       </div>
 
+      {/* PINNED — order-preserving pinned sessions, stale ids grayed out */}
+      <PinnedSection
+        pinnedSessions={pinnedSessions}
+        stalePinnedIds={stalePinnedIds}
+        selectedSessionId={selectedSessionId}
+        runningSessionIds={runningSessionIds}
+        unreadSessionIds={unreadSessionIds}
+        editMode={multiSelect.enabled}
+        selectedIds={multiSelect.selectedIds}
+        onSelectSession={handleSelectSessionFromList}
+        onToggleSelect={multiSelect.toggleItem}
+        visibleIds={visibleSessionIds}
+        onUnpin={togglePin}
+        onArchive={(id) => void handleArchiveOne(id)}
+        onDeleted={(id) => {
+          onSessionDeleted?.(id);
+          loadSessions();
+        }}
+      />
       {/* RUNNING — live sessions pinned above the tree */}
       {runningSessionIds.size > 0 && (
         <div
@@ -2933,159 +2858,102 @@ export function SessionSidebar({
               No sessions match &ldquo;{sessionSearch.trim()}&rdquo;
             </div>
           )}
-        {!loading && !error && groupedTree !== null
-          ? workspaceGroups.map((pg) => {
-              const isCurrent = pg.project === selectedProject;
-              return (
-                <div key={pg.project}>
-                  {/* Workspace group header — chevron toggles collapse; name switches workspace */}
-                  <button
-                    onClick={() => {
-                      if (!isCurrent) {
-                        setSelectedCwd(pg.project);
-                        setDropdownOpen(false);
-                      } else {
-                        toggleProjectCollapsed(pg.project);
-                      }
+        {!loading && !error && groupedTree !== null ? (
+          <SidebarProjectsList
+            groups={workspaceGroups}
+            selectedProject={selectedProject}
+            collapsedProjects={collapsedProjects}
+            onToggleCollapse={toggleProjectCollapsed}
+            onSwitchProject={(project) => {
+              setSelectedCwd(project);
+              setDropdownOpen(false);
+            }}
+            renderProjectMenu={(project) =>
+              confirmProjectDelete === null ? (
+                <ProjectHeaderMenu
+                  project={project}
+                  count={
+                    visibleSessions.filter(
+                      (s) => (s.projectRoot ?? s.cwd) === project,
+                    ).length
+                  }
+                  onConfirmDelete={(p, count) =>
+                    setConfirmProjectDelete({ project: p, count })
+                  }
+                />
+              ) : null
+            }
+            renderProjectSessions={() => (
+              <>
+                {groupedTree.map((group) => (
+                  <SessionGroupSection
+                    key={group.bucket}
+                    groups={[group]}
+                    bucketLabels={BUCKET_LABELS}
+                    selectedSessionId={selectedSessionId}
+                    runningSessionIds={runningSessionIds}
+                    unreadSessionIds={unreadSessionIds}
+                    editMode={multiSelect.enabled}
+                    selectedIds={multiSelect.selectedIds}
+                    onSelectSession={handleSelectSessionFromList}
+                    onRenamed={loadSessions}
+                    onSessionDeleted={(id) => {
+                      onSessionDeleted?.(id);
+                      loadSessions();
                     }}
-                    title={pg.project}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      width: "100%",
-                      padding: "9px 14px 5px",
-                      background: "none",
-                      border: "none",
-                      cursor: isCurrent ? "default" : "pointer",
-                      textAlign: "left",
-                    }}
-                  >
-                    <svg
-                      width="11"
-                      height="11"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke={isCurrent ? "var(--accent)" : "var(--text-dim)"}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ flexShrink: 0 }}
-                    >
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                    </svg>
-                    <span
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: isCurrent ? "var(--text)" : "var(--text-muted)",
-                      }}
-                    >
-                      {getFileName(pg.project)}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: "var(--text-dim)",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {pg.count > 0 ? pg.count : ""}
-                    </span>
-                    <svg
-                      width="9"
-                      height="9"
-                      viewBox="0 0 10 10"
-                      fill="none"
-                      stroke="var(--text-dim)"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{
-                        flexShrink: 0,
-                        transform: collapsedProjects.has(pg.project)
-                          ? "rotate(-90deg)"
-                          : "rotate(0deg)",
-                        transition: "transform 0.12s",
-                      }}
-                    >
-                      <polyline points="2 3.5 5 6.5 8 3.5" />
-                    </svg>
-                  </button>
-                  {isCurrent &&
-                    pg.count === 0 &&
-                    !collapsedProjects.has(pg.project) && (
-                      <div
-                        style={{
-                          padding: "2px 14px 8px",
-                          fontSize: 11,
-                          color: "var(--text-dim)",
-                        }}
-                      >
-                        {t("sidebar.no-sessions-in-workspace")}
-                      </div>
-                    )}
-                  {isCurrent &&
-                    !collapsedProjects.has(pg.project) &&
-                    groupedTree.map((group) => (
-                      <div key={group.bucket}>
-                        <div
-                          style={{
-                            padding: "10px 14px 4px",
-                            color: "var(--text-dim)",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {BUCKET_LABELS[group.bucket]}
-                        </div>
-                        {group.nodes.map((node) => (
-                          <SessionTreeItem
-                            key={node.session.id}
-                            node={node}
-                            selectedSessionId={selectedSessionId}
-                            runningSessionIds={runningSessionIds}
-                            unreadSessionIds={unreadSessionIds}
-                            onSelectSession={handleSelectSessionFromList}
-                            onRenamed={loadSessions}
-                            onSessionDeleted={(id) => {
-                              onSessionDeleted?.(id);
-                              loadSessions();
-                            }}
-                            depth={0}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                </div>
-              );
-            })
-          : !loading &&
-            !error &&
-            searchTree.map((node) => (
-              <SessionTreeItem
-                key={node.session.id}
-                node={node}
-                selectedSessionId={selectedSessionId}
-                runningSessionIds={runningSessionIds}
-                unreadSessionIds={unreadSessionIds}
-                onSelectSession={handleSelectSessionFromList}
-                onRenamed={loadSessions}
-                onSessionDeleted={(id) => {
-                  onSessionDeleted?.(id);
-                  loadSessions();
-                }}
-                depth={0}
-              />
-            ))}
+                    onToggleSelect={multiSelect.toggleItem}
+                    visibleIds={visibleSessionIds}
+                    onArchive={(id) => void handleArchiveOne(id)}
+                    pinnedIds={pinnedIdSet}
+                    onPinToggle={togglePin}
+                  />
+                ))}
+              </>
+            )}
+          />
+        ) : (
+          !loading &&
+          !error &&
+          searchTree.map((node) => (
+            <SessionGroupSection
+              key={node.session.id}
+              groups={[{ bucket: "earlier" as const, nodes: [node] }]}
+              bucketLabels={BUCKET_LABELS}
+              selectedSessionId={selectedSessionId}
+              runningSessionIds={runningSessionIds}
+              unreadSessionIds={unreadSessionIds}
+              editMode={multiSelect.enabled}
+              selectedIds={multiSelect.selectedIds}
+              onSelectSession={handleSelectSessionFromList}
+              onRenamed={loadSessions}
+              onSessionDeleted={(id) => {
+                onSessionDeleted?.(id);
+                loadSessions();
+              }}
+              onToggleSelect={multiSelect.toggleItem}
+              visibleIds={visibleSessionIds}
+              onArchive={(id) => void handleArchiveOne(id)}
+              pinnedIds={pinnedIdSet}
+              onPinToggle={togglePin}
+            />
+          ))
+        )}
       </div>
+
+      {/* Bulk action bar (edit mode, non-empty selection) */}
+      <BulkActionBar
+        count={multiSelect.selectedIds.size}
+        visibleCount={visibleSessionIds.length}
+        onSelectAllVisible={() => multiSelect.selectAll(visibleSessionIds)}
+        onBulkDelete={() => void handleBulkDelete()}
+        onBulkArchive={() => void handleBulkArchive()}
+        onExit={() => multiSelect.setEnabled(false)}
+      />
+      {/* ARCHIVED — in-sidebar collapsed archive with restore/delete */}
+      <ArchiveSection
+        archivedSessions={archivedSessions}
+        onChanged={() => void Promise.all([loadSessions(), loadArchived()])}
+      />
 
       {/* File Explorer section */}
       {(selectedCwdProp || selectedCwd) && (
@@ -3252,6 +3120,85 @@ export function SessionSidebar({
               />
             </div>
           )}
+        </div>
+      )}
+      {confirmProjectDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setConfirmProjectDelete(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 400,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "var(--surface-overlay)",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              minWidth: 320,
+              maxWidth: 420,
+              background: "var(--bg-elevated, var(--bg))",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: 16,
+              boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
+              {t("sidebar.deleteProjectSessions")}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
+              {t("sidebar.deleteProjectConfirm", { count: confirmProjectDelete.count })}
+              <div
+                title={confirmProjectDelete.project}
+                style={{ marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                {confirmProjectDelete.project}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setConfirmProjectDelete(null)}
+                style={{
+                  padding: "6px 12px",
+                  background: "var(--bg-hover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  color: "var(--text-muted)",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {t("cancel")}
+              </button>
+              <button
+                onClick={() => {
+                  const target = confirmProjectDelete.project;
+                  setConfirmProjectDelete(null);
+                  void deleteProjectSessions(target)
+                    .then(() => loadSessions())
+                    .catch(() => {});
+                }}
+                style={{
+                  padding: "6px 12px",
+                  background: "var(--status-error)",
+                  border: "none",
+                  borderRadius: 6,
+                  color: "var(--status-error-foreground)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {t("sidebar.delete")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       <FolderPickerModal
