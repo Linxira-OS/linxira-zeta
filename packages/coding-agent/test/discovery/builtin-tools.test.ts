@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import { type CustomTool, toolCapability } from "@oh-my-pi/pi-coding-agent/capability/tool";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initializeWithSettings, loadCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { clearClaudePluginRootsCache } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { discoverCustomToolPaths, loadCustomTools } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/loader";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { type CustomTool, toolCapability } from "@linxiraos/zeta/capability/tool";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
+import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
+import { discoverCustomToolPaths, loadCustomTools } from "@linxiraos/zeta/extensibility/custom-tools/loader";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 function toolSource(name: string): string {

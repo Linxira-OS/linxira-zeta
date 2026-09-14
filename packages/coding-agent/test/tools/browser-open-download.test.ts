@@ -9,14 +9,14 @@
  */
 
 import { afterAll, afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import { releaseAllTabs } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
-import * as launch from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { ToolAbortError, ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import * as launch from "@linxiraos/zeta/tools/browser/launch";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { ToolAbortError, ToolError } from "@linxiraos/zeta/tools/tool-errors";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

@@ -1,16 +1,16 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ToolCall, ToolResultMessage, Usage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { ReadToolGroupComponent } from "@oh-my-pi/pi-coding-agent/modes/components/read-tool-group";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { type Component, TERMINAL } from "@oh-my-pi/pi-tui";
+import { type } from "@linxiraos/pi-omptype";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ToolCall, ToolResultMessage, Usage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { type Component, TERMINAL } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 const TOOL_CALL_A_ID = "toolu_mixed_text_order_a";

@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { clearCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { __providerInFlightForTesting, streamSimple } from "@oh-my-pi/pi-ai/stream";
-import type { Context } from "@oh-my-pi/pi-ai/types";
+import { Effort } from "@linxiraos/pi-ai";
+import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { __providerInFlightForTesting, streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context } from "@linxiraos/pi-ai/types";
 import {
 	__physicalTargetSegmentsForTesting,
 	onAppendOnlyModeChanged,
@@ -16,13 +16,13 @@ import {
 	resetSettingsForTest,
 	type SettingPath,
 	Settings,
-} from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as discovery from "@oh-my-pi/pi-coding-agent/discovery";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { AUTO_IMAGE_PROVIDER_ORDER } from "@oh-my-pi/pi-coding-agent/tools/image-providers";
-import { SEARCH_PROVIDER_ORDER } from "@oh-my-pi/pi-coding-agent/web/search/types";
-import { getProjectAgentDir, logger, TempDir } from "@oh-my-pi/pi-utils";
-import * as fileLock from "@oh-my-pi/pi-utils/file-lock";
+} from "@linxiraos/zeta/config/settings";
+import * as discovery from "@linxiraos/zeta/discovery";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { AUTO_IMAGE_PROVIDER_ORDER } from "@linxiraos/zeta/tools/image-providers";
+import { SEARCH_PROVIDER_ORDER } from "@linxiraos/zeta/web/search/types";
+import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
+import * as fileLock from "@linxiraos/pi-utils/file-lock";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

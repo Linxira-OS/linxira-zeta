@@ -1,15 +1,15 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { CollabController } from "@oh-my-pi/pi-coding-agent/collab/controller";
-import { CollabHost } from "@oh-my-pi/pi-coding-agent/collab/host";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { CollabController } from "@linxiraos/zeta/collab/controller";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import {
 	type BuiltinSlashCommandRuntime,
 	executeBuiltinSlashCommand,
-} from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import { CollabQrCodeComponent } from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/collab-qrcode";
-import { Text, visibleWidth } from "@oh-my-pi/pi-tui";
+} from "@linxiraos/zeta/slash-commands/builtin-registry";
+import { CollabQrCodeComponent } from "@linxiraos/zeta/slash-commands/helpers/collab-qrcode";
+import { Text, visibleWidth } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();

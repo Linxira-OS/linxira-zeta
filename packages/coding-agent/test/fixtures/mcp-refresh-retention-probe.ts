@@ -1,9 +1,9 @@
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { MCPTool } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
-import type { MCPServerConnection, MCPToolDefinition } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { SessionTools, type SessionToolsHost } from "@oh-my-pi/pi-coding-agent/session/session-tools";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { MCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
+import type { MCPServerConnection, MCPToolDefinition } from "@linxiraos/zeta/mcp/types";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { SessionTools, type SessionToolsHost } from "@linxiraos/zeta/session/session-tools";
 
 interface V8HeapSnapshot {
 	snapshot: {

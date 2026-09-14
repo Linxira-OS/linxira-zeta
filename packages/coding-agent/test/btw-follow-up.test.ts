@@ -2,16 +2,16 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage, Message, Usage } from "@oh-my-pi/pi-ai";
-import { BtwHistoryPanel } from "@oh-my-pi/pi-coding-agent/modes/components/btw-history-panel";
-import { BtwController } from "@oh-my-pi/pi-coding-agent/modes/controllers/btw-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { type BtwHistoryRecord, BtwHistoryStore, getBtwTurns } from "@oh-my-pi/pi-coding-agent/session/btw-history";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TRUNCATE_LENGTHS } from "@oh-my-pi/pi-coding-agent/tools/render-utils";
-import * as clipboard from "@oh-my-pi/pi-coding-agent/utils/clipboard";
-import { Container, type TUI } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage, Message, Usage } from "@linxiraos/pi-ai";
+import { BtwHistoryPanel } from "@linxiraos/zeta/modes/components/btw-history-panel";
+import { BtwController } from "@linxiraos/zeta/modes/controllers/btw-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { type BtwHistoryRecord, BtwHistoryStore, getBtwTurns } from "@linxiraos/zeta/session/btw-history";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TRUNCATE_LENGTHS } from "@linxiraos/zeta/tools/render-utils";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
+import { Container, type TUI } from "@linxiraos/pi-tui";
 
 interface TurnArgs {
 	promptText: string;

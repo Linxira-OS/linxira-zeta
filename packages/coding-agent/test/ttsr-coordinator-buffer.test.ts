@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { Agent, AgentEvent, AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, AssistantMessageEvent } from "@oh-my-pi/pi-ai";
-import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { TtsrManager } from "@oh-my-pi/pi-coding-agent/export/ttsr";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session-events";
-import { TtsrCoordinator, type TtsrCoordinatorHost } from "@oh-my-pi/pi-coding-agent/session/ttsr-coordinator";
-import type { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { Agent, AgentEvent, AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, AssistantMessageEvent } from "@linxiraos/pi-ai";
+import type { Settings } from "@linxiraos/zeta/config/settings";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { TtsrManager } from "@linxiraos/zeta/export/ttsr";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session-events";
+import { TtsrCoordinator, type TtsrCoordinatorHost } from "@linxiraos/zeta/session/ttsr-coordinator";
+import type { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const CONDITION = "FORBIDDEN";
 

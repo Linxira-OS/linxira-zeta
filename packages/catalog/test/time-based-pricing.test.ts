@@ -3,8 +3,8 @@ import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { applyCatalogCorrections, buildModel } from "@oh-my-pi/pi-catalog/build";
-import { resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
+import { applyCatalogCorrections, buildModel } from "@linxiraos/pi-catalog/build";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
 import {
 	calculateCost,
 	calculateUncachedInputCost,
@@ -13,9 +13,9 @@ import {
 	getBundledModels,
 	getNextTimeBasedPricingTransition,
 	getTimeBasedPricingPeriod,
-} from "@oh-my-pi/pi-catalog/models";
-import type { ModelCost, ModelSpec, Usage } from "@oh-my-pi/pi-catalog/types";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+} from "@linxiraos/pi-catalog/models";
+import type { ModelCost, ModelSpec, Usage } from "@linxiraos/pi-catalog/types";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 import { isTimeBasedCost, materializeTimeBasedCost } from "../src/pricing";
 
 function spec(id = "deepseek-v4-flash", provider = "deepseek"): ModelSpec<"openai-completions"> {

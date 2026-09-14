@@ -630,7 +630,6 @@ async function runInteractiveMode(
 		throw error;
 	}
 
-
 	if (initialMessage !== undefined) {
 		session.maybeStartTitleGeneration(initialMessage);
 		try {

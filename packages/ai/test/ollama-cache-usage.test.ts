@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Context } from "@oh-my-pi/pi-ai";
-import { streamOllama } from "@oh-my-pi/pi-ai/providers/ollama";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import type { Context } from "@linxiraos/pi-ai";
+import { streamOllama } from "@linxiraos/pi-ai/providers/ollama";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 function createOllamaModel() {
 	return buildModel({

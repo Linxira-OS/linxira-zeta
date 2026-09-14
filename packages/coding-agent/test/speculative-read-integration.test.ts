@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AgentMessage, agentLoop } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Context, Message } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CodingAgentSpeculativeExecutionHost } from "@oh-my-pi/pi-coding-agent/speculation/host";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { type AgentMessage, agentLoop } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Context, Message } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { CodingAgentSpeculativeExecutionHost } from "@linxiraos/zeta/speculation/host";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const temporaryDirectories: string[] = [];
 

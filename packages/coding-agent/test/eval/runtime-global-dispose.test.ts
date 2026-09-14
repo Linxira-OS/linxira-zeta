@@ -4,7 +4,7 @@ import {
 	type RuntimeCallIdentity,
 	type RuntimeHooks,
 	shadowSnapshotDigest,
-} from "@oh-my-pi/pi-coding-agent/eval/js/shared/runtime";
+} from "@linxiraos/zeta/eval/js/shared/runtime";
 
 const GLOBAL_KEYS = ["__omp_import__", "read"] as const;
 
@@ -94,7 +94,7 @@ describe("JsRuntime global disposal", () => {
 					"JSON.stringify": true,
 					"Array.prototype.join": true,
 					"Object.prototype.toString": true,
-					__omp_call_tool__: true,
+					__zeta_call_tool__: true,
 				},
 			});
 
@@ -158,7 +158,7 @@ describe("JsRuntime global disposal", () => {
 			// The dispatcher is an owned global installed by every runtime, so
 			// the identity flag is always present; the exact-shape assertion
 			// above pins the full key set.
-			expect(runtime.snapshotUserGlobals().initialGlobals).toMatchObject({ __omp_call_tool__: true });
+			expect(runtime.snapshotUserGlobals().initialGlobals).toMatchObject({ __zeta_call_tool__: true });
 		} finally {
 			runtime.dispose();
 		}

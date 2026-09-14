@@ -9,20 +9,20 @@ import {
 	agentLoop,
 	type SpeculativeOperationSink,
 	type SpeculativePhysicalOutcome,
-} from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Context, Message } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { setStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as jsContextManager from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { disposeAllKernelSessions } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import { EvalShadowCellSession } from "@oh-my-pi/pi-coding-agent/eval/speculation/cell-session";
-import { CodingAgentSpeculativeExecutionHost } from "@oh-my-pi/pi-coding-agent/speculation/host";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Context, Message } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { setStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as jsContextManager from "@linxiraos/zeta/eval/js/context-manager";
+import { disposeAllKernelSessions } from "@linxiraos/zeta/eval/py/executor";
+import { EvalShadowCellSession } from "@linxiraos/zeta/eval/speculation/cell-session";
+import { CodingAgentSpeculativeExecutionHost } from "@linxiraos/zeta/speculation/host";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const temporaryDirectories: string[] = [];
 const pythonIt = process.env.PI_PYTHON_INTEGRATION === "1" ? it : it.skip;

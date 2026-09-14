@@ -11,7 +11,6 @@ import browserDeclarations from "./browser/declarations.d.ts" with { type: "text
 // @ts-expect-error Bun imports this JavaScript source as text instead of evaluating its module shape.
 import browserJavascript from "./browser/prelude.js" with { type: "text" };
 import browserPython from "./browser/prelude.py" with { type: "text" };
-import { resolveCmuxKind } from "./browser/cmux/rpc";
 import { resolveSpawnArgs } from "./browser/attach";
 import {
 	acquireBrowser,

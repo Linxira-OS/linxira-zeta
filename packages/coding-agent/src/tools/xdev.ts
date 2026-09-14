@@ -282,7 +282,7 @@ export function resolveMountedXdevTool(state: XdevState, name: string): Tool | u
  * Resolve a mounted tool with its execution-only permission decorator.
  *
  * Mounted-only, matching {@link resolveMountedXdevTool}, and a published export
- * under `@oh-my-pi/pi-coding-agent/tools/xdev`, so its semantics must not
+ * under `@linxiraos/zeta/tools/xdev`, so its semantics must not
  * drift. `sdk.ts` composes this with the calling agent's advertised tools to
  * recover a Claude Code-spelled MCP name: the union has to be resolved in one
  * pass for the ambiguity rule to hold, so that composition lives with the

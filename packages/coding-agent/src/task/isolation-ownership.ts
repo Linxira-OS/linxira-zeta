@@ -7,7 +7,7 @@
  * subagent's sandbox from a crashed run's leftover instead of deleting both.
  */
 import * as path from "node:path";
-import * as natives from "@oh-my-pi/pi-natives";
+import * as natives from "@linxiraos/pi-natives";
 import { $ } from "bun";
 
 const { IsoBackendKind } = natives;

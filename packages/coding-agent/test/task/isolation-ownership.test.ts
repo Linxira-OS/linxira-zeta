@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import * as natives from "@oh-my-pi/pi-natives";
-import { needsNativeTeardown } from "@oh-my-pi/pi-coding-agent/task/isolation-ownership";
+import * as natives from "@linxiraos/pi-natives";
+import { needsNativeTeardown } from "@linxiraos/zeta/task/isolation-ownership";
 
 const { IsoBackendKind } = natives;
 

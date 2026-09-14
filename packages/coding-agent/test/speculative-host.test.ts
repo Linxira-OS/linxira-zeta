@@ -7,15 +7,15 @@ import type {
 	AgentLoopConfig,
 	SpeculativeCommitContext,
 	SpeculativeOperationContext,
-} from "@oh-my-pi/pi-agent-core";
-import { SpeculativeOperationCoordinator } from "@oh-my-pi/pi-agent-core";
-import type { Message } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CodingAgentSpeculativeExecutionHost } from "@oh-my-pi/pi-coding-agent/speculation/host";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { SpeculativeOperationCoordinator } from "@linxiraos/pi-agent-core";
+import type { Message } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { CodingAgentSpeculativeExecutionHost } from "@linxiraos/zeta/speculation/host";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const temporaryDirectories: string[] = [];
 

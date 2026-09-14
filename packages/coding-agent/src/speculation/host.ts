@@ -10,8 +10,8 @@ import type {
 	SpeculativeExecutionHost,
 	SpeculativeOperationContext,
 	SpeculativeToolExecutionConfig,
-} from "@oh-my-pi/pi-agent-core";
-import { BINARY_SNIFF_BYTES, isProbablyBinaryHeader, readImageMetadata } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { BINARY_SNIFF_BYTES, isProbablyBinaryHeader, readImageMetadata } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { normalizeToLF } from "../edit/normalize";
 import type { ToolSession } from "../tools";

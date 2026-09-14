@@ -8,15 +8,15 @@ import {
 	type BrowserHandle,
 	holdBrowser,
 	releaseBrowser,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-protocol";
+} from "@linxiraos/zeta/tools/browser/registry";
+import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
 import {
 	acquireTab,
 	initializeTabWorkerForTest,
 	releaseTab,
 	runInTab,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { chromiumAvailable, visibleBrowserAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

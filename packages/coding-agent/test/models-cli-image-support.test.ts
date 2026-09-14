@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { Api, Model, ModelSpec } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { renderProviderModels } from "@oh-my-pi/pi-coding-agent/cli/models-cli";
+import type { Api, Model, ModelSpec } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { renderProviderModels } from "@linxiraos/zeta/cli/models-cli";
 
 afterEach(() => {
 	vi.restoreAllMocks();

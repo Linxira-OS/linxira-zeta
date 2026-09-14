@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { SingleResult, TaskToolDetails } from "@oh-my-pi/pi-coding-agent/task";
-import { taskToolRenderer } from "@oh-my-pi/pi-coding-agent/task/renderer";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import type { SingleResult, TaskToolDetails } from "@linxiraos/zeta/task";
+import { taskToolRenderer } from "@linxiraos/zeta/task/renderer";
 
 // Regression for PR #11343 review: sanitizing the isolation artifact rows
 // (shortenPath + width bound) dropped the `Patch:` / `Branch:` /

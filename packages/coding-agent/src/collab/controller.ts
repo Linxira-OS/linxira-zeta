@@ -10,7 +10,7 @@
  * is started, so a card that names generation N can never reach session N+1.
  */
 import { randomBytes } from "node:crypto";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { sanitizeDisplayLine } from "../modes/components/extensions/display-text";
 import type { InteractiveModeContext } from "../modes/types";
 import { TRUNCATE_LENGTHS, truncateToWidth } from "../tools/render-utils";

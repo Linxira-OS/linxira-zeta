@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, setDefaultTimeout, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { type } from "@linxiraos/pi-omptype";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	disposeAllVmContexts,
 	invokeJsTool,
 	runIfSnapshotMatches,
 	shadowPlanIfPresent,
 	snapshotVmContext,
-} from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { executeJs, type JsResult } from "@oh-my-pi/pi-coding-agent/eval/js/executor";
-import { describeEvalTools } from "@oh-my-pi/pi-coding-agent/task/eval-tools";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/zeta/eval/js/context-manager";
+import { executeJs, type JsResult } from "@linxiraos/zeta/eval/js/executor";
+import { describeEvalTools } from "@linxiraos/zeta/task/eval-tools";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { TempDir } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 // JS eval cold-starts a Bun worker; under --isolate + high CI concurrency that startup
 // can exceed Bun's 5s default per-test timeout, flaking the suite. Give the worker-backed

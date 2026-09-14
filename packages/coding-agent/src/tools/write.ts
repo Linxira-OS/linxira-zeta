@@ -11,6 +11,7 @@ import type {
 import type { HighlightStream } from "@linxiraos/pi-natives";
 import { type Component, Text } from "@linxiraos/pi-tui";
 import { isEnoent, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	type ArchiveMemberContent,
 	archiveFormatFromPath,

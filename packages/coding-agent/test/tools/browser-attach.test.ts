@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
 import {
 	findFreeCdpPort,
 	findReusableCdp,
@@ -13,16 +13,16 @@ import {
 	resolveSpawnArgs,
 	shouldPreserveConnectedBrowserFocus,
 	waitForCdp,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import { ensureChromiumExecutable } from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
+} from "@linxiraos/zeta/tools/browser/attach";
+import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
 import {
 	acquireBrowser,
 	type BrowserHandle,
 	normalizeConnectedCdpUrl,
 	releaseBrowser,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { acquireTab } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import { Process, ProcessStatus } from "@oh-my-pi/pi-natives";
+} from "@linxiraos/zeta/tools/browser/registry";
+import { acquireTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { Process, ProcessStatus } from "@linxiraos/pi-natives";
 import type { Browser, HTTPRequest, Page, Target } from "puppeteer-core";
 import { chromiumAvailable } from "./chromium-probe";
 

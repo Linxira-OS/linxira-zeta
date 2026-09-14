@@ -1,11 +1,11 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AgentMessage, type AgentTool, agentLoop } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Context, Message } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { setStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { type AgentMessage, type AgentTool, agentLoop } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Context, Message } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { setStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { Settings } from "../src/config/settings";
 import { disposeAllVmContexts } from "../src/eval/js/context-manager";
 import { CodingAgentSpeculativeExecutionHost } from "../src/speculation/host";

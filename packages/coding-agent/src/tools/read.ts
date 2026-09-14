@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { type EditStore, notebookToEditableText } from "@linxiraos/pi-natives";
+import { splitAddressableFileLines } from "./hashline-format";
 import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
@@ -15,8 +16,6 @@ import type {
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
 import { completeSimple, type ImageContent, type TextContent } from "@linxiraos/pi-ai";
-import { notebookToEditableText } from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/pi-omptype";
 import {
 	BINARY_SNIFF_BYTES,
 	type ImageMetadata,

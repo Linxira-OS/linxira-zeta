@@ -2,24 +2,24 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { sendsImageInputOnWire } from "@oh-my-pi/pi-ai/providers/vision-guard";
-import { resolveModelPolicy } from "@oh-my-pi/pi-catalog/compat/resolve";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { readModelCache, writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import { PROVIDER_DESCRIPTORS } from "@oh-my-pi/pi-catalog/provider-models/descriptors";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
+import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { readModelCache, writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
+import { PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
 import {
 	fetchWellKnownModels,
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	modelsDevCatalogFallback,
 	opencodeGoModelManagerOptions,
 	opencodeZenModelManagerOptions,
-} from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
-import { USER_AGENT, type FetchImpl } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
+import { USER_AGENT, type FetchImpl } from "@linxiraos/pi-utils";
 import { mergePreviousSnapshotModels } from "../scripts/generate-models";
 
 const LIVE_FREE_MODEL_IDS = [

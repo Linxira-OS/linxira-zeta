@@ -1,15 +1,11 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { PYTHON_PRELUDE } from "@oh-my-pi/pi-coding-agent/eval/py/prelude";
-import {
-	disposePyToolBridge,
-	ensurePyToolBridge,
-	registerPyToolBridge,
-} from "@oh-my-pi/pi-coding-agent/eval/py/tool-bridge";
-import type { EvalShadowCellSession } from "@oh-my-pi/pi-coding-agent/eval/speculation/cell-session";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { $which, isRecord } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { PYTHON_PRELUDE } from "@linxiraos/zeta/eval/py/prelude";
+import { disposePyToolBridge, ensurePyToolBridge, registerPyToolBridge } from "@linxiraos/zeta/eval/py/tool-bridge";
+import type { EvalShadowCellSession } from "@linxiraos/zeta/eval/speculation/cell-session";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { $which, isRecord } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 interface FakeCall {
 	id: string;

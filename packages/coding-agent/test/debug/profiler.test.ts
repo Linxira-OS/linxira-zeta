@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { generateHeapSnapshotData, startCpuProfile } from "@oh-my-pi/pi-coding-agent/debug/profiler";
+import { generateHeapSnapshotData, startCpuProfile } from "@linxiraos/zeta/debug/profiler";
 
 afterEach(() => {
 	vi.restoreAllMocks();

@@ -3,7 +3,7 @@
  * Listing returns metadata only; capabilities travel over authenticated IPC
  * only when a caller requests a link.
  */
-import { formatAge } from "@oh-my-pi/pi-utils";
+import { formatAge } from "@linxiraos/pi-utils";
 import chalk from "chalk";
 import {
 	COLLAB_REGISTRY_VERSION,

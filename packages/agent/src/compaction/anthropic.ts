@@ -22,10 +22,10 @@ import type {
 	SimpleStreamOptions,
 	Tool,
 	Usage,
-} from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { supportsAnthropicCompaction } from "@oh-my-pi/pi-ai/providers/anthropic";
-import { isRecord, prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { supportsAnthropicCompaction } from "@linxiraos/pi-ai/providers/anthropic";
+import { isRecord, prompt } from "@linxiraos/pi-utils";
 import { type InstrumentedChatSpanOptions, instrumentedCompleteSimple } from "../telemetry";
 import anthropicCompactionInstructionsPrompt from "./prompts/anthropic-compaction-instructions.md" with { type: "text" };
 

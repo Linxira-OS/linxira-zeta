@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { TUI } from "@oh-my-pi/pi-tui";
+import type { TUI } from "@linxiraos/pi-tui";
 import type { WatchdogConfigDoc } from "../../../src/advisor/config";
 import type { ModelRegistry } from "../../../src/config/model-registry";
 import { Settings } from "../../../src/config/settings";

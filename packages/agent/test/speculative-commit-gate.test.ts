@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { SpeculativeOperationCoordinator } from "@oh-my-pi/pi-agent-core/speculative-execution";
-import type { AgentContext, AgentLoopConfig, AgentTool } from "@oh-my-pi/pi-agent-core/types";
-import type { Message } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { type } from "@linxiraos/pi-omptype";
+import { SpeculativeOperationCoordinator } from "@linxiraos/pi-agent-core/speculative-execution";
+import type { AgentContext, AgentLoopConfig, AgentTool } from "@linxiraos/pi-agent-core/types";
+import type { Message } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 
 const schema = type({ path: "string" });
 

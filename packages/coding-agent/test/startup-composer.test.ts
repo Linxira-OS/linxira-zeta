@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import * as registry from "@oh-my-pi/pi-coding-agent/collab/registry";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getDefault } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import * as pluginHelpers from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import { COMPOSER_DEFAULTS, Composer, type ComposerPreferences } from "@oh-my-pi/pi-coding-agent/modes/composer";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
+import * as registry from "@linxiraos/zeta/collab/registry";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getDefault } from "@linxiraos/zeta/config/settings-schema";
+import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import { COMPOSER_DEFAULTS, Composer, type ComposerPreferences } from "@linxiraos/zeta/modes/composer";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	applyStartupComposerPreferences,
 	beginStartupComposer,
@@ -20,11 +20,11 @@ import {
 	setStartupComposerLspServers,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
-} from "@oh-my-pi/pi-coding-agent/modes/startup-composer";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/modes/startup-composer";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./collab/helpers/in-memory-relay";
 import { createTestSession } from "./utilities";

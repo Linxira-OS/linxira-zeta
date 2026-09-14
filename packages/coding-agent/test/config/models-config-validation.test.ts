@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { OmpErrors } from "@oh-my-pi/omptype";
-import { getModelsConfigSchema } from "@oh-my-pi/pi-coding-agent/config/models-config-schema-bundle";
-import { validateProviderConfiguration } from "@oh-my-pi/pi-coding-agent/config/models-config";
+import { OmpErrors } from "@linxiraos/pi-omptype";
+import { getModelsConfigSchema } from "@linxiraos/zeta/config/models-config-schema-bundle";
+import { validateProviderConfiguration } from "@linxiraos/zeta/config/models-config";
 
 const models = [{ id: "grok-4", api: "openai-completions" as const }];
 const baseUrl = "https://api.example.invalid/v1";

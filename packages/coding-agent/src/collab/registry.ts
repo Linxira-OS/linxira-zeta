@@ -25,7 +25,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
-import { getBaseConfigRoot, isEnoent } from "@oh-my-pi/pi-utils";
+import { getBaseConfigRoot, isEnoent } from "@linxiraos/pi-utils";
 
 /** Discovery metadata / IPC protocol version. Mixed omp versions fail safely. */
 export const COLLAB_REGISTRY_VERSION = 1;
@@ -146,7 +146,7 @@ export class CollabLinkError extends Error {
 
 /**
  * Discovery metadata directory. Deliberately under the profile-independent
- * config root (`~/.omp/run/collab-hosts`) — unlike the launch broker's
+ * config root (`~/.zeta/run/collab-hosts`) — unlike the launch broker's
  * profile-scoped runtime dir — so hosts started under any profile are
  * discoverable from any other (issue #6099 user story 18).
  */

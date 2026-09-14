@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { CustomEditor } from "@oh-my-pi/pi-coding-agent/modes/components/custom-editor";
-import { chipLabel } from "@oh-my-pi/pi-coding-agent/modes/composer-attachments";
-import { getEditorTheme, initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
+import { chipLabel } from "@linxiraos/zeta/modes/composer-attachments";
+import { getEditorTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 const image: ImageContent = { type: "image", data: "aGVsbG8=", mimeType: "image/png" };
 

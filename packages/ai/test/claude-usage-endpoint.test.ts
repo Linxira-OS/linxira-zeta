@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import type { UsageFetchContext } from "@oh-my-pi/pi-ai/usage";
-import { claudeUsageProvider } from "@oh-my-pi/pi-ai/usage/claude";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import type { UsageFetchContext } from "@linxiraos/pi-ai/usage";
+import { claudeUsageProvider } from "@linxiraos/pi-ai/usage/claude";
 
 const CANONICAL_USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
 

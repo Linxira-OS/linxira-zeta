@@ -742,14 +742,14 @@ mod tests {
 	#[test]
 	fn command_rewrites_canonicalized_verbatim_paths_the_shell_cannot_launch() {
 		let command = relay_command(
-			Path::new(r"\\?\C:\Users\dev\.omp\oauth\callback-helper.exe"),
-			Path::new(r"\\?\C:\Users\dev\.omp\oauth\callback.url"),
+			Path::new(r"\\?\C:\Users\dev\.zeta\oauth\callback-helper.exe"),
+			Path::new(r"\\?\C:\Users\dev\.zeta\oauth\callback.url"),
 		)
 		.unwrap();
 		assert_eq!(
 			command,
 			OsString::from(
-				r#""C:\Users\dev\.omp\oauth\callback-helper.exe" "C:\Users\dev\.omp\oauth\callback.url" "%1""#
+				r#""C:\Users\dev\.zeta\oauth\callback-helper.exe" "C:\Users\dev\.zeta\oauth\callback.url" "%1""#
 			)
 		);
 	}

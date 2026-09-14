@@ -9,7 +9,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import {
 	type BtwHistoryRecord,
 	type BtwHistoryTurn,
