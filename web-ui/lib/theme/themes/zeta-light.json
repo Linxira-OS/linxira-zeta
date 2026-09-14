@@ -2,7 +2,7 @@
   "metadata": {
     "id": "zeta-light",
     "name": "Zeta",
-    "description": "Zeta light theme",
+    "description": "Zeta light theme — neutral paper, no blue accent",
     "variant": "light",
     "tags": [
       "light",
@@ -11,51 +11,52 @@
   },
   "colors": {
     "primary": {
-      "base": "#2563eb",
-      "hover": "rgb(37 99 235 / 0.84)",
-      "active": "rgb(37 99 235 / 0.68)",
-      "foreground": "#ffffff",
-      "muted": "rgb(37 99 235 / 0.14)"
+      "base": "#1A1A1A",
+      "hover": "rgb(26 26 26 / 0.85)",
+      "active": "rgb(26 26 26 / 0.7)",
+      "foreground": "#FAFAFA",
+      "muted": "rgb(26 26 26 / 0.14)",
+      "emphasis": "#000000"
     },
     "surface": {
-      "background": "#ffffff",
-      "foreground": "#172033",
-      "muted": "#f5f7fb",
-      "mutedForeground": "#64748b",
-      "elevated": "#ffffff",
-      "elevatedForeground": "#172033",
-      "overlay": "rgb(15 23 42 / 0.18)",
-      "subtle": "rgb(37 99 235 / 0.06)"
+      "background": "#FAFAFA",
+      "foreground": "#1F1F1F",
+      "muted": "#F0F0F0",
+      "mutedForeground": "#616161",
+      "elevated": "#FFFFFF",
+      "elevatedForeground": "#1F1F1F",
+      "overlay": "rgb(0 0 0 / 0.18)",
+      "subtle": "rgb(0 0 0 / 0.04)"
     },
     "interactive": {
-      "border": "#d9e1ee",
-      "borderHover": "rgb(37 99 235 / 0.62)",
-      "borderFocus": "#2563eb",
-      "selection": "#dbeafe",
-      "selectionForeground": "#172033",
-      "focus": "#2563eb",
-      "focusRing": "rgb(37 99 235 / 0.42)",
-      "cursor": "#172033",
-      "hover": "#edf2ff",
-      "active": "#dbeafe"
+      "border": "#E0E0E0",
+      "borderHover": "#C8C8C8",
+      "borderFocus": "#1A1A1A",
+      "selection": "rgb(0 0 0 / 0.08)",
+      "selectionForeground": "#1F1F1F",
+      "focus": "#1A1A1A",
+      "focusRing": "rgb(26 26 26 / 0.35)",
+      "cursor": "#1F1F1F",
+      "hover": "rgb(0 0 0 / 0.04)",
+      "active": "rgb(0 0 0 / 0.07)"
     },
     "status": {
-      "error": "#dc2626",
-      "errorForeground": "#991b1b",
-      "errorBackground": "rgb(220 38 38 / 0.12)",
-      "errorBorder": "rgb(220 38 38 / 0.48)",
-      "warning": "#b45309",
-      "warningForeground": "#92400e",
-      "warningBackground": "rgb(180 83 9 / 0.13)",
-      "warningBorder": "rgb(180 83 9 / 0.48)",
-      "success": "#15803d",
-      "successForeground": "#166534",
-      "successBackground": "rgb(21 128 61 / 0.12)",
-      "successBorder": "rgb(21 128 61 / 0.48)",
-      "info": "#2563eb",
-      "infoForeground": "#1d4ed8",
-      "infoBackground": "rgb(37 99 235 / 0.12)",
-      "infoBorder": "rgb(37 99 235 / 0.48)"
+      "error": "#E45649",
+      "errorForeground": "#B03A30",
+      "errorBackground": "rgb(228 86 73 / 0.12)",
+      "errorBorder": "rgb(228 86 73 / 0.45)",
+      "warning": "#986801",
+      "warningForeground": "#7A5301",
+      "warningBackground": "rgb(152 104 1 / 0.12)",
+      "warningBorder": "rgb(152 104 1 / 0.45)",
+      "success": "#50A14F",
+      "successForeground": "#377338",
+      "successBackground": "rgb(80 161 79 / 0.12)",
+      "successBorder": "rgb(80 161 79 / 0.45)",
+      "info": "#4078C0",
+      "infoForeground": "#2F5C94",
+      "infoBackground": "rgb(64 120 192 / 0.12)",
+      "infoBorder": "rgb(64 120 192 / 0.45)"
     },
     "syntax": {
       "background": "#f5f7fb",
@@ -73,21 +74,21 @@
       "lineNumber": "#64748b"
     },
     "chart": [
-      "#2563eb",
-      "#7c3aed",
-      "#db2777",
-      "#ea580c",
-      "#16a34a",
-      "#0891b2",
-      "#ca8a04",
-      "#4f46e5"
+      "#1A1A1A",
+      "#E45649",
+      "#986801",
+      "#50A14F",
+      "#4078C0",
+      "#A626A4",
+      "#C18401",
+      "#0E8A8A"
     ],
     "chat": {
-      "userBackground": "rgb(37 99 235 / 0.1)",
-      "userBorder": "rgb(37 99 235 / 0.32)",
-      "assistantBackground": "#ffffff",
-      "toolBackground": "rgb(37 99 235 / 0.05)",
-      "toolBorder": "rgb(37 99 235 / 0.24)"
+      "userBackground": "rgb(0 0 0 / 0.05)",
+      "userBorder": "rgb(0 0 0 / 0.12)",
+      "assistantBackground": "#FAFAFA",
+      "toolBackground": "rgb(0 0 0 / 0.03)",
+      "toolBorder": "rgb(0 0 0 / 0.09)"
     }
   }
 }

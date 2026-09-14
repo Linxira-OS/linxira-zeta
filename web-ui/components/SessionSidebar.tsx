@@ -1574,7 +1574,7 @@ export function SessionSidebar({
                 background: searchOpen
                   ? "var(--bg-selected)"
                   : "var(--bg-hover)",
-                border: `1px solid ${searchOpen ? "rgba(37,99,235,0.35)" : "var(--border)"}`,
+                border: `1px solid ${searchOpen ? "var(--interactive-border-focus)" : "var(--border)"}`,
                 color: searchOpen ? "var(--accent)" : "var(--text-muted)",
                 cursor: "pointer",
                 width: 32,
@@ -1614,10 +1614,10 @@ export function SessionSidebar({
               padding: "6px 10px",
               background: selectedCwd
                 ? "var(--bg-hover)"
-                : "rgba(37,99,235,0.06)",
+                : "var(--bg-subtle)",
               border: selectedCwd
                 ? "1px solid var(--border)"
-                : "1px solid rgba(37,99,235,0.4)",
+                : "1px solid var(--interactive-border-focus)",
               borderRadius: 7,
               cursor: "pointer",
               fontSize: 12,
@@ -2212,10 +2212,10 @@ export function SessionSidebar({
                               disabled={wtBusy}
                               style={{
                                 padding: "3px 9px",
-                                background: "#ef4444",
+                                background: "var(--status-error)",
                                 border: "none",
                                 borderRadius: 5,
-                                color: "#fff",
+                                color: "var(--status-error-foreground)",
                                 fontSize: 11,
                                 fontWeight: 600,
                                 cursor: "pointer",
@@ -2336,9 +2336,9 @@ export function SessionSidebar({
                                 transition: "color 0.12s, background 0.12s",
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.color = "#ef4444";
+                                e.currentTarget.style.color = "var(--status-error)";
                                 e.currentTarget.style.background =
-                                  "rgba(239,68,68,0.08)";
+                                  "var(--status-error-background)";
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.color = "var(--text-dim)";
@@ -2466,7 +2466,7 @@ export function SessionSidebar({
                             background: "var(--accent)",
                             border: "none",
                             borderRadius: 5,
-                            color: "#fff",
+                            color: "var(--primary-foreground)",
                             fontSize: 11,
                             fontWeight: 600,
                             cursor:
@@ -2592,7 +2592,7 @@ export function SessionSidebar({
             if (!selectedCwd) return;
             e.currentTarget.style.background = "var(--bg-selected)";
             e.currentTarget.style.color = "var(--accent)";
-            e.currentTarget.style.borderColor = "rgba(37,99,235,0.35)";
+            e.currentTarget.style.borderColor = "var(--interactive-border-focus)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "var(--bg-hover)";
@@ -3201,9 +3201,9 @@ export function SessionSidebar({
               }}
               title={t("sidebar.refreshExplorer")}
               skipHover={explorerRefreshDone}
-              color={explorerRefreshDone ? "#4ade80" : "var(--text-dim)"}
+              color={explorerRefreshDone ? "var(--status-success)" : "var(--text-dim)"}
               background={
-                explorerRefreshDone ? "rgba(74,222,128,0.18)" : "none"
+                explorerRefreshDone ? "var(--status-success-background)" : "none"
               }
               marginRight={6}
             >
@@ -3213,7 +3213,7 @@ export function SessionSidebar({
                   height="13"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#4ade80"
+                  stroke="var(--status-success)"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -3399,7 +3399,7 @@ function UnreadSessionIndicator() {
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
-        color: "#0891b2",
+        color: "var(--status-info)",
       }}
     >
       <svg
@@ -3556,14 +3556,14 @@ function SessionItem({
         paddingRight: 8,
         cursor: confirmDelete || renaming ? "default" : "pointer",
         background: confirmDelete
-          ? "rgba(239,68,68,0.06)"
+          ? "var(--status-error-background)"
           : isSelected
             ? "var(--bg-selected)"
             : hovered
               ? "var(--bg-hover)"
               : "transparent",
         borderLeft: confirmDelete
-          ? "2px solid #ef4444"
+          ? "2px solid var(--status-error)"
           : isSelected
             ? "2px solid var(--accent)"
             : "2px solid transparent",
@@ -3601,10 +3601,10 @@ function SessionItem({
                 gap: 4,
                 height: 30,
                 padding: "0 11px",
-                background: "#ef4444",
+                background: "var(--status-error)",
                 border: "none",
                 borderRadius: 6,
-                color: "#fff",
+                color: "var(--status-error-foreground)",
                 cursor: "pointer",
                 fontSize: 12,
                 fontWeight: 600,
@@ -3892,7 +3892,7 @@ function SessionItem({
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "var(--bg-selected)";
                 e.currentTarget.style.color = "var(--accent)";
-                e.currentTarget.style.borderColor = "rgba(37,99,235,0.35)";
+                e.currentTarget.style.borderColor = "var(--interactive-border-focus)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "var(--bg-hover)";
@@ -3932,9 +3932,9 @@ function SessionItem({
                 transition: "background 0.12s, color 0.12s, border-color 0.12s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(239,68,68,0.08)";
-                e.currentTarget.style.color = "#ef4444";
-                e.currentTarget.style.borderColor = "rgba(239,68,68,0.35)";
+                e.currentTarget.style.background = "var(--status-error-background)";
+                e.currentTarget.style.color = "var(--status-error)";
+                e.currentTarget.style.borderColor = "var(--status-error-border)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "var(--bg-hover)";
