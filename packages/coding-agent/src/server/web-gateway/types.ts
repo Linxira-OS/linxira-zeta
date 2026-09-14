@@ -205,6 +205,8 @@ export interface SessionInfo {
 	parentSessionId?: string;
 	projectRoot?: string;
 	worktreeBranch?: string;
+	/** Set only for archived listings: the original project cwd. */
+	archivedFrom?: string;
 	/** Default-space bot session tag ("relay" | "bot" | "draft"); absent for ordinary sessions. */
 	tag?: string;
 }
