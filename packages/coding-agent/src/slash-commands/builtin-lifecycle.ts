@@ -475,7 +475,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "btw",
 		icon: "question",
-		description: "Ask a side question, or browse this session's BTW history",
+		description: M.cmdBtwHistory,
 		inlineHint: "[question]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {

@@ -5443,12 +5443,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#cancelLoopAutoSubmit();
 
 		// Surface progress before any asynchronous cleanup, including live commands
-		// and BTW history writes, so the user sees a reason for the pause while
-		// `session.dispose()` flushes memory consolidate and other cleanups.
-		this.#btwController.dispose();
-		this.#omfgController.dispose();
-		this.#cleanseController.dispose();
-		this.#focusController.dispose();
+		// and BTW history writes, so the user sees a reason for the pause.
 		this.showStatus(M.imClosingSession);
 
 		const stillClosingTimer = setTimeout(() => {

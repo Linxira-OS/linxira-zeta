@@ -38,8 +38,6 @@
   },
   "dependencies": {
     "@linxiraos/pi-natives": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:"
   },
   "devDependencies": {

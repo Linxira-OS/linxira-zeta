@@ -105,6 +105,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "编辑器形状",
 		description: "输入编辑器和状态行的视觉布局",
 	},
+	"composer.recallClearedDrafts": {
+		label: "找回已清除的草稿",
+		description: "用 Ctrl+C 清除的草稿在退出前仍可通过本地上/下方向键找回；关闭后影响后续清除操作",
+	},
 	"statusLine.contextLine": {
 		label: "上下文响应行",
 		description: "左右分段之间的行如何反映上下文使用情况（仅限 box 编辑器形状）",
@@ -227,6 +231,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "工件尾部行数",
 		description: "输出溢出到工件时保留的内联尾部内容最大行数",
 	},
+	"tools.speculativeExecution.enabled": {
+		label: "实验性投机执行",
+		description:
+			"启用可丢弃安全的首批切片：通过直接读取调用和嵌套 eval 执行经过验证的本地读取。网络请求、提供商补全和真实文件系统写入不在此基线范围内。",
+	},
+	"tools.speculativeExecution.maxInFlight": {
+		label: "投机执行并发数",
+		description: "常规分发前允许并行运行的已验证本地读取数量上限。",
+	},
 	"statusLine.showHookStatus": {
 		label: "显示钩子状态",
 		description: "在状态栏下方显示钩子状态消息",
@@ -289,6 +302,20 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description: "移除终端输出左右两侧的 1 字符水平内边距",
 	},
 
+	"tui.mouse": {
+		label: "鼠标点击聚焦",
+		description:
+			"捕获主会话中的鼠标点击，使活跃的子智能体卡片和 HUD 行可以点击聚焦，目标上会显示悬停高亮。启用时原生的文本选择变为 Shift+拖拽，滚轮滚动变为 Shift+滚轮",
+	},
+	"tui.vimMode": {
+		label: "Vim 编辑模式",
+		description:
+			"模态提示编辑。Escape 离开 Insert 模式；Normal 模式支持 hjkl、0、$、^、w、b、e、gg、G、计数、x/D/C、dd/yy、p 和 u；操作符可接动作或文本对象（diw、ca(、dap）；v/V 开始 Visual 选择，y 复制，d 删除",
+	},
+	"tui.vimModeDisplay": {
+		label: "Vim 模式指示器",
+		description: "当前 Vim 模式在状态行中的呈现方式",
+	},
 	"tui.sidebar": {
 		label: "侧边栏",
 		description: "显示右侧边栏（上下文、用量、git、模型）",
@@ -312,6 +339,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"display.hideToolActivity": {
 		label: "隐藏工具活动",
 		description: "从记录中隐藏模型发起的工具调用和结果",
+	},
+	"display.pinnedAgents": {
+		label: "固定智能体",
+		description: "编辑器上方的固定活跃智能体跳转列表（off 隐藏；collapsed 显示数行并可展开；full 列出全部）",
 	},
 	"display.showTokenUsage": {
 		label: "显示 token 用量",
@@ -627,6 +658,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"collab.displayName": {
 		label: "显示名称",
 		description: "向其他协作参与者显示的名称（默认：操作系统用户名）",
+	},
+	"collab.autoStart": {
+		label: "自动开启",
+		description:
+			"会话启动时即通过 collab.relayUrl 发布每个交互式会话并登记到本地注册表（zeta collab list）；切换会话时房间随之切换",
 	},
 	"share.serverUrl": {
 		label: "分享服务器",
@@ -1297,6 +1333,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "以计划模式启动",
 		description: "在每个新会话开始时自动进入计划模式",
 	},
+	"plan.autosave": {
+		label: "自动保存计划",
+		description: "计划模式完成时自动将已批准的计划保存到磁盘",
+	},
+	"plan.autosaveDir": {
+		label: "自动保存目录",
+		description: "自动保存计划的目录。支持 ~、绝对路径和相对当前目录的路径。留空使用 <project>/.zeta/plans/",
+	},
 	"goal.enabled": {
 		label: "目标模式",
 		description: "启用每会话目标模式和隐藏的 goal 工具",
@@ -1913,6 +1957,30 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"advisor.maxNotesPerUpdate::4": {
 		label: "4 条",
+	},
+	"tui.vimModeDisplay::text": {
+		label: "文本",
+		description: "完整模式名 — NORMAL、INSERT、VISUAL、V-LINE",
+	},
+	"tui.vimModeDisplay::icon": {
+		label: "图标",
+		description: "每种模式显示一个紧凑字形",
+	},
+	"tui.vimModeDisplay::none": {
+		label: "隐藏",
+		description: "不在状态行显示模式",
+	},
+	"display.pinnedAgents::off": {
+		label: "关闭",
+		description: "隐藏固定跳转列表",
+	},
+	"display.pinnedAgents::collapsed": {
+		label: "折叠",
+		description: "显示数行并提供展开按钮",
+	},
+	"display.pinnedAgents::full": {
+		label: "完整",
+		description: "始终列出每个活跃智能体",
 	},
 	"advisor.maxNotesPerUpdate::5": {
 		label: "5 条",

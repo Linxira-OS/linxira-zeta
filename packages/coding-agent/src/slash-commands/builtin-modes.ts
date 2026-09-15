@@ -712,11 +712,11 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "prewalk",
 		icon: "prewalk",
-		description: "Arm or restart a one-shot model handoff",
+		description: M.cmdPrewalk,
 		allowArgs: true,
-		acpDescription: "Arm or restart prewalk",
+		acpDescription: M.cmdPrewalkAcp,
 		acpInputHint: "[restart]",
-		subcommands: [{ name: "restart", description: "Return to @default and re-arm the handoff to @smol" }],
+		subcommands: [{ name: "restart", description: M.cmdPrewalkRestart }],
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg && arg !== "restart") return usage("Usage: /prewalk [restart]", runtime);

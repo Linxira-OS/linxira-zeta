@@ -291,7 +291,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		inlineHint: "[start|view|list|stop|status] [relayUrl]",
 		subcommands: [
 			{ name: "view", description: M.cmdCollabView },
-			{ name: "list", description: "List active local Collab hosts (no links; use `zeta collab link`)" },
+			{ name: "list", description: M.cmdCollabList },
 			{ name: "status", description: M.cmdCollabStatus },
 			{ name: "stop", description: M.cmdCollabStop },
 		],

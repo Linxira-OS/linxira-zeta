@@ -48,10 +48,7 @@
     "react": "catalog:",
     "react-chartjs-2": "catalog:",
     "react-dom": "catalog:",
-    "tailwindcss": "catalog:",
-    "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-catalog": "catalog:",
-    "@linxiraos/pi-utils": "catalog:"
+    "tailwindcss": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
