@@ -88,9 +88,10 @@ describe("gateway session archive", () => {
 
 		const archivedId = [...before.entries()].find(([, p]) => p === goneFile)?.[0];
 		expect(archivedId).toBeTruthy();
+		if (!archivedId) throw new Error("Expected to resolve archived session id");
 
 		// Archive
-		const archiveRes = await handleArchiveSession(archivedId!);
+		const archiveRes = await handleArchiveSession(archivedId);
 		expect(archiveRes.status).toBe(200);
 		const { ok, archivePath } = (await archiveRes.json()) as { ok: boolean; archivePath: string };
 		expect(ok).toBe(true);
@@ -100,7 +101,7 @@ describe("gateway session archive", () => {
 
 		// Live list no longer contains it; the untouched session remains.
 		const afterArchive = await listIds();
-		expect(afterArchive.has(archivedId!)).toBe(false);
+		expect(afterArchive.has(archivedId)).toBe(false);
 		expect(afterArchive.size).toBe(1);
 		expect([...afterArchive.values()][0]).toBe(keepFile);
 		// The jsonl really left the sessions tree.
@@ -117,13 +118,13 @@ describe("gateway session archive", () => {
 		expect(sessions[0].archivedFrom).toBe(cwd);
 
 		// Unarchive restores it to the live tree at the same relative layout.
-		const unarchiveRes = await handleUnarchiveSession(archivedId!);
+		const unarchiveRes = await handleUnarchiveSession(archivedId);
 		expect(unarchiveRes.status).toBe(200);
 		const restored = (await unarchiveRes.json()) as { ok: boolean; path: string };
 		expect(restored.ok).toBe(true);
 
 		const afterRestore = await listIds();
-		expect(afterRestore.has(archivedId!)).toBe(true);
+		expect(afterRestore.has(archivedId)).toBe(true);
 		// Original relative layout reconstructed: same dir name, same file name.
 		expect(restored.path.endsWith("archived-session.jsonl")).toBe(true);
 		expect(
