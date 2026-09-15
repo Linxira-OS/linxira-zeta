@@ -127,7 +127,7 @@ describe("Python tool bridge HTTP server", () => {
 				"from __future__ import annotations\n__omp_display = lambda *args, **kwargs: None",
 			);
 			const script = `${prelude}
-__omp_run_id__ = "run"
+__zeta_run_id__ = "run"
 async def check_intent():
     print(await tool.constrained())
     print(await tool.constrained(i=None))
@@ -327,7 +327,7 @@ asyncio.run(check_intent())
 			// Mirror the runner rewrite shape: `await tool.read({...})` becomes
 			// `await __omp_with_call_site__(siteId, tool.read, {...})`.
 			const script = `${prelude}
-__omp_run_id__ = "run"
+__zeta_run_id__ = "run"
 async def check_identity():
     print(await __omp_with_call_site__("py:0", tool.read, {"path": "foo.txt"}))
     print(await __omp_with_call_site__("py:0", tool.read, {"path": "foo.txt"}))

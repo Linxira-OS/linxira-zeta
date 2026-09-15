@@ -322,7 +322,7 @@ describe("WorkerCore", () => {
 			first.send({
 				type: "run",
 				runId: "hold-for-first-init",
-				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait; __omp_session__.sessionId;",
+				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait; __zeta_session__.sessionId;",
 				filename: "[first-init-live-first].js",
 				snapshot: { cwd, sessionId: "first-init-live-first", localRoots: {} },
 			});

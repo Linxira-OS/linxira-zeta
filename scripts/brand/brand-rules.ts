@@ -150,6 +150,11 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: 'const DEFAULT_TERMINAL_TITLE = "ζ";',
 		why: "terminal title brand character (registry row 1)",
 	},
+	{
+		file: "packages/utils/src/logger.ts",
+		needle: 'filenamePrefix: "zeta",',
+		why: "rotating log file identity (upstream v18.1.17+ writes omp.*.log; test pair must match)",
+	},
 ];
 
 /**
