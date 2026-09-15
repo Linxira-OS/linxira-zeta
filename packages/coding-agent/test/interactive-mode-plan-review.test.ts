@@ -4,19 +4,18 @@ import * as path from "node:path";
 import { Agent, AgentBusyError, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
-import { setKeybindings } from "@linxiraos/pi-tui";
-import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
 import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
 import type { HookSelectorSlider } from "@linxiraos/zeta/modes/components/hook-selector";
-import type {
-	PlanReviewAnnotationState,
+import {
+	type PlanReviewAnnotationState,
 	PlanReviewOverlay,
 } from "@linxiraos/zeta/modes/components/plan-review-overlay";
-import { InteractiveMode, planSaveFileName } from "@linxiraos/zeta/modes/interactive-mode";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { planSaveFileName } from "@linxiraos/zeta/plan-mode/plan-autosave";
 import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -25,6 +24,8 @@ import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/sessi
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 import * as clipboard from "@linxiraos/zeta/utils/clipboard";
+import { setKeybindings } from "@linxiraos/pi-tui";
+import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Matches the plan-approved synthetic-prompt dispatch. `#approvePlan` calls
@@ -1643,6 +1644,61 @@ describe("InteractiveMode plan review rendering", () => {
 			planFilePath,
 			reentry: true,
 		});
+	});
+	it("autosaves the approved plan when plan.autosave is enabled", async () => {
+		const planFilePath = "local://PLAN.md";
+		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		});
+		await Bun.write(resolvedPlanPath, "# Plan\n\nAutosave me.");
+
+		await mode.handlePlanModeCommand();
+		session.settings.set("plan.autosave", true);
+
+		vi.spyOn(mode, "showPlanReview").mockResolvedValue("Approve and execute");
+		vi.spyOn(mode, "handleClearCommand").mockResolvedValue();
+		vi.spyOn(session, "prompt").mockResolvedValue(undefined as never);
+		const status = vi.spyOn(mode, "showStatus");
+
+		await mode.handlePlanApproval({
+			planFilePath,
+			planExists: true,
+			title: "AUTOSAVE",
+		});
+
+		const saved = path.join(tempDir.path(), ".zeta", "plans", "AUTOSAVE_PLAN.md");
+		expect(await Bun.file(saved).text()).toBe("# Plan\n\nAutosave me.");
+		expect(status).toHaveBeenCalledWith(expect.stringContaining("Saved plan to"));
+	});
+
+	it("continues approval with a warning when autosave fails", async () => {
+		const planFilePath = "local://PLAN.md";
+		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		});
+		await Bun.write(resolvedPlanPath, "# Plan\n\nAutosave me.");
+
+		await mode.handlePlanModeCommand();
+		session.settings.set("plan.autosave", true);
+		const blocker = path.join(tempDir.path(), "blocker");
+		await Bun.write(blocker, "x");
+		session.settings.set("plan.autosaveDir", path.join(blocker, "sub"));
+
+		vi.spyOn(mode, "showPlanReview").mockResolvedValue("Approve and execute");
+		vi.spyOn(mode, "handleClearCommand").mockResolvedValue();
+		const promptSpy = vi.spyOn(session, "prompt").mockResolvedValue(undefined as never);
+		const warning = vi.spyOn(mode, "showWarning");
+
+		await mode.handlePlanApproval({
+			planFilePath,
+			planExists: true,
+			title: "AUTOSAVE",
+		});
+
+		expect(promptSpy.mock.calls.some(isPlanApprovedCall)).toBe(true);
+		expect(warning).toHaveBeenCalledWith(expect.stringContaining("Failed to autosave plan"));
 	});
 
 	it("Approve and compact context: ok outcome dispatches plan-approved after compaction", async () => {

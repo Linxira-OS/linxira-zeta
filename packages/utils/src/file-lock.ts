@@ -17,6 +17,11 @@ export interface FileLockOptions {
 	staleMs?: number;
 }
 
+/** An exclusive OS-backed lease. Releasing an already released handle is safe. */
+export interface FileLockHandle {
+	release(): void;
+}
+
 const DEFAULT_OPTIONS: Required<FileLockOptions> = {
 	retries: 50,
 	retryDelayMs: 100,
@@ -32,7 +37,8 @@ function tryAcquireLock(lockPath: string): NativeFileLock | null {
 	return lock.acquired ? lock : null;
 }
 
-async function acquireLock(filePath: string, options: FileLockOptions = {}): Promise<NativeFileLock> {
+/** Acquire an exclusive lease; callers must release it when their operation ends. */
+export async function acquireFileLock(filePath: string, options: FileLockOptions = {}): Promise<FileLockHandle> {
 	const opts = { ...DEFAULT_OPTIONS, ...options };
 	const lockPath = getLockPath(filePath);
 
@@ -51,7 +57,7 @@ export async function withFileLock<T>(
 	fn: () => Promise<T>,
 	options: FileLockOptions = {},
 ): Promise<T> {
-	const lock = await acquireLock(filePath, options);
+	const lock = await acquireFileLock(filePath, options);
 	try {
 		return await fn();
 	} finally {

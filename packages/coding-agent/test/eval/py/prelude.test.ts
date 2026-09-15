@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { $which } from "@linxiraos/pi-utils";
+import { $which, TempDir } from "@linxiraos/pi-utils";
 import { PYTHON_PRELUDE } from "../../../src/eval/py/prelude";
-
 const pythonPath = Bun.env.PYTHON ?? ($which("python3") ? "python3" : "python");
 
 async function runPrelude(
@@ -10,21 +9,30 @@ async function runPrelude(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
 	const prelude = PYTHON_PRELUDE.replace(
 		"from __future__ import annotations",
-		"from __future__ import annotations\n__zeta_display = lambda *args, **kwargs: None",
+		"from __future__ import annotations\n__omp_display = lambda *args, **kwargs: None",
 	);
 	const script = `${prelude}\n${code}`;
-	const proc = Bun.spawn([pythonPath, "-c", script], {
-		stdout: "pipe",
-		stderr: "pipe",
-		env: { ...process.env, ...env },
-	});
-	const [stdout, stderr, exitCode] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-		proc.exited,
-	]);
-	// Python's text-mode stdout emits \r\n on Windows.
-	return { stdout: stdout.replaceAll("\r\n", "\n"), stderr: stderr.replaceAll("\r\n", "\n"), exitCode };
+	// The full prelude exceeds Windows' ~32k `python -c` command-line limit
+	// (ENAMETOOLONG); a script file behaves identically on every platform.
+	const dir = await TempDir.create("omp-py-prelude-");
+	try {
+		const scriptPath = dir.join("script.py");
+		await Bun.write(scriptPath, script);
+		const proc = Bun.spawn([pythonPath, scriptPath], {
+			stdout: "pipe",
+			stderr: "pipe",
+			env: { ...process.env, ...env },
+		});
+		const [stdout, stderr, exitCode] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+		// Python's text-mode stdout emits \r\n on Windows.
+		return { stdout: stdout.replaceAll("\r\n", "\n"), stderr: stderr.replaceAll("\r\n", "\n"), exitCode };
+	} finally {
+		await dir.remove();
+	}
 }
 
 describe("python prelude", () => {
@@ -36,11 +44,11 @@ describe("python prelude", () => {
 				"def word_count(text: Annotated[str, 'Text to split'], sep: Literal[' ', ','] = ' ', limit: Optional[int] = None) -> dict:",
 				'    """Count words in text."""',
 				"    return {'count': len(text.split(sep))}",
-				"first = __zeta_tools__['word_count'].describe()",
+				"first = __omp_tools__['word_count'].describe()",
 				"@tool(name='word_count', description='Replacement')",
 				"def replacement(text: str) -> dict:",
 				"    return {'count': 1}",
-				"print(json.dumps({'first': first, 'current': __zeta_tools__['word_count'].describe(), 'defined': tool.defined()}, sort_keys=True))",
+				"print(json.dumps({'first': first, 'current': __omp_tools__['word_count'].describe(), 'defined': tool.defined()}, sort_keys=True))",
 				"print(tool.undefine('word_count'), tool.defined())",
 			].join("\n"),
 			{},

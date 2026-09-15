@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentTool, AgentToolContext, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
-import { INTENT_FIELD } from "@linxiraos/pi-wire";
+import type { AgentTool, AgentToolContext, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { callSessionTool } from "@linxiraos/zeta/eval/js/tool-bridge";
+import type { EvalShadowCellSession } from "@linxiraos/zeta/eval/speculation/cell-session";
 import { type TodoPhase, TodoTool, type ToolSession } from "@linxiraos/zeta/tools";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 function createTool(name: string, execute: AgentTool["execute"]): AgentTool {
 	return {
@@ -94,6 +95,43 @@ describe("callSessionTool", () => {
 			undefined,
 			context,
 		);
+	});
+
+	it("settles an interrupted speculative wait without starting ordinary tool execution", async () => {
+		const started = Promise.withResolvers<void>();
+		const controller = new AbortController();
+		const lateClaim = Promise.withResolvers<undefined>();
+		const execute = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ordinary" }] });
+		const shadowCell = {
+			async claim(
+				_name: string,
+				_args: unknown,
+				_identity: { siteId: string; occurrence: number },
+				_remainingTimeoutMs: number,
+				_signal?: AbortSignal,
+			) {
+				started.resolve();
+				return await lateClaim.promise;
+			},
+		} as unknown as EvalShadowCellSession;
+		const call = callSessionTool(
+			"read",
+			{ path: "/tmp/waiting.txt" },
+			{
+				session: createSession([createTool("read", execute)]),
+				signal: controller.signal,
+				identity: { siteId: "site-1", occurrence: 0 },
+				shadowCell,
+			},
+		);
+
+		await started.promise;
+		controller.abort();
+
+		await expect(call).rejects.toThrow();
+		expect(execute).not.toHaveBeenCalled();
+		lateClaim.reject(new Error("late speculative failure"));
+		await Promise.resolve();
 	});
 
 	it("validates optional nulls before executing a real todo tool", async () => {
@@ -439,7 +477,7 @@ describe("callSessionTool", () => {
 				properties: { mode: { const: "intent" } },
 				required: ["mode"],
 			},
-			// biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then/else keyword
+			// oxlint-disable-next-line unicorn/no-thenable -- JSON Schema if/then/else keyword
 			then: {
 				properties: { [INTENT_FIELD]: { type: "number" } },
 				required: [INTENT_FIELD],
@@ -481,7 +519,7 @@ describe("callSessionTool", () => {
 		const tool = createSchemaTool("intent-predicate", {
 			type: "object",
 			if: { properties: { i: { const: "strict" } }, required: ["i"] },
-			// biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then/else keyword
+			// oxlint-disable-next-line unicorn/no-thenable -- JSON Schema if/then/else keyword
 			then: { properties: { value: { type: "number" } }, required: ["value"] },
 		});
 		await expect(
@@ -546,7 +584,7 @@ describe("callSessionTool", () => {
 		const tool = createSchemaTool("false-intent-predicate", {
 			type: "object",
 			if: { properties: { i: false } },
-			// biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then/else keyword
+			// oxlint-disable-next-line unicorn/no-thenable -- JSON Schema if/then/else keyword
 			then: false,
 			else: true,
 		});

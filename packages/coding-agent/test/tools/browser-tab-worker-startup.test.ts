@@ -10,7 +10,13 @@ import {
 	releaseBrowser,
 } from "@linxiraos/zeta/tools/browser/registry";
 import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
-import { acquireTab, initializeTabWorkerForTest, releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import {
+	acquireTab,
+	initializeTabWorkerForTest,
+	releaseTab,
+	runInTab,
+} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { chromiumAvailable, visibleBrowserAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
@@ -215,6 +221,52 @@ describe("browser init deadline carry-over", () => {
 		30_000,
 	);
 });
+describe("OMP-owned browser input", () => {
+	it.skipIf(!CHROMIUM_AVAILABLE)(
+		"clicks background tabs through selector, observed handle, and raw Puppeteer actions",
+		async () => {
+			const browser = await acquireBrowser({ kind: "headless", headless: true }, { cwd: process.cwd() });
+			if (!("browser" in browser)) throw new Error("Expected a Puppeteer browser");
+			const name = `background-input-${process.pid}`;
+			const session = {
+				cwd: process.cwd(),
+				hasUI: false,
+				settings: { get: () => undefined },
+				getSessionFile: () => null,
+			} as unknown as ToolSession;
+			try {
+				await acquireTab(name, browser, {
+					url: `data:text/html,${encodeURIComponent("<button onclick=\"document.querySelector('output').textContent++\">Increment</button><output>0</output>")}`,
+					timeoutMs: 30_000,
+				});
+				const foreground = await browser.browser.newPage();
+				try {
+					await foreground.bringToFront();
+					const result = await runInTab(name, {
+						code: `
+							await wait(500);
+							await tab.click("button");
+							const observation = await tab.observe();
+							await (await tab.id(observation.elements[0].id)).click();
+							await page.click("button");
+							return await page.$eval("output", element => element.textContent);
+						`,
+						timeoutMs: 15_000,
+						session,
+					});
+					expect(result.returnValue).toBe("3");
+				} finally {
+					await foreground.close();
+				}
+			} finally {
+				await releaseTab(name, { kill: true });
+				if (browser.browser.connected) await releaseBrowser(browser, { kill: true });
+			}
+		},
+		45_000,
+	);
+});
+
 describe("visible OMP-owned browser tabs", () => {
 	it.skipIf(!VISIBLE_BROWSER_AVAILABLE)(
 		"creates independent pages without pinning the resizable window viewport",
