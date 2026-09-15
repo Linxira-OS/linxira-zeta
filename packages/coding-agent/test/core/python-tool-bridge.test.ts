@@ -124,7 +124,7 @@ describe("Python tool bridge HTTP server", () => {
 		try {
 			const prelude = PYTHON_PRELUDE.replace(
 				"from __future__ import annotations",
-				"from __future__ import annotations\n__omp_display = lambda *args, **kwargs: None",
+				"from __future__ import annotations\n__zeta_display = lambda *args, **kwargs: None",
 			);
 			const script = `${prelude}
 __zeta_run_id__ = "run"
@@ -322,7 +322,7 @@ asyncio.run(check_intent())
 		try {
 			const prelude = PYTHON_PRELUDE.replace(
 				"from __future__ import annotations",
-				"from __future__ import annotations\n__omp_display = lambda *args, **kwargs: None",
+				"from __future__ import annotations\n__zeta_display = lambda *args, **kwargs: None",
 			);
 			// Mirror the runner rewrite shape: `await tool.read({...})` becomes
 			// `await __omp_with_call_site__(siteId, tool.read, {...})`.

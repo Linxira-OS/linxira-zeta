@@ -614,7 +614,7 @@ describe("listClaudePluginRoots", () => {
 	for (const catalogDir of [".claude-plugin", ".omp-plugin"]) {
 		test(`marketplace-root ${catalogDir} entry limits shared skills to declared paths`, async () => {
 			const pluginPath = path.join(tempDir, "plugins", "anthropic-skills");
-			const registryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
+			const registryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
 			await Promise.all([
 				fs.mkdir(path.join(pluginPath, "skills", "xlsx"), { recursive: true }),
 				fs.mkdir(path.join(pluginPath, "skills", "skill-creator"), { recursive: true }),
