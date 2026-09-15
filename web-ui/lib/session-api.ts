@@ -57,7 +57,7 @@ export async function deleteSessions(ids: readonly string[]): Promise<void> {
 export async function deleteProjectSessions(
   projectRoot: string,
 ): Promise<void> {
-  const res = await fetch("/api/sessions/project", {
+  const res = await fetch("/api/projects", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path: projectRoot }),
