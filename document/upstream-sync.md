@@ -1,5 +1,24 @@
 # Upstream Sync Ledger
 
+## v18.1.17–v18.1.21 batch (Zeta — feature-branch integration, PR pending)
+
+- **Baseline**: v18.1.16 (`61b1b8aef634`, Zeta `56b2cc6eee`, version line 1.1.14)
+- **Source tag**: `v18.1.21` (peeled `a2501722aa05670eeab327ea1325e3fde55e51a9`; verified via `git ls-remote --tags omp-upstream`; the batch covers upstream v18.1.17→v18.1.21, 757 files)
+- **Zeta starting commit**: `56b2cc6eee` (main) → work carried on `feat/web-ui-next` (web-ui rework + sync in one train).
+- **Merge commit**: `bdb0e04e22` (non-squash two-parent; `merge-tree` pre-report 116 conflict files; resolved by 6 parallel slices: locks/native bindings → upstream; 60 test files → upstream + `.omp`→`.zeta` rewrites preserving `my.omp.sh` relay URLs; README kept Zeta-owned; 8 mode/session files kept Zeta session-layer mode API (`flushPendingModelSwitch`, `restorePlanPreviousModel`, `enterVibeMode`, `#stateVersion`) + upstream i18n `M.imClosingSession`; 35-file hand merges (anthropic.ts redact+cache-key, settings-schema Zeta `turn_stats` + upstream `vim`); install.ps1 upstream structure + Zeta brand). `git merge-base --is-ancestor v18.1.21 HEAD` passes.
+- **Zeta adaptation commits**:
+  - `b237c10071` (A3) structural: `set-version.ts 1.1.14`, dropped upstream 18.1.21 root manifest block, 9 package manifest renames (`omptype`→`pi-omptype`, `omp-stats`→`pi-stats`, `snapcompact`→`pi-snapcompact`), 130-file scope sweep, README restore from main, CHANGELOG `## [18.` prune, `__omp_call_tool__`→`__zeta_call_tool__`, `.omp`→`.zeta` in crates/pi-natives oauth callback + collab registry + plan autosave + utils/dirs.
+  - `bc858c7751` (A4) mechanical brand overlay over 13 upstream test files (36 tokens).
+  - `86bead6ed7` (A5) test-contract resolution + damage fixes (below).
+- **Damage found and fixed (pre-push, none reached CI)**:
+  - Astra window policy (class 4): merge kept upstream `contextWindowFloor 1050000` KDL/rules.json but Zeta main owns the gated variant (`limitsPatch 272000` + `maxContextWindow 1050000` behind extended-context); resolved by taking main's `openai-codex.kdl` + `context-window.test.ts` + `codex-discovery.test.ts` pair and regenerating `rules.json` — the model-registry extended-context bucket then matched main's test pair wholesale.
+  - Manifest duplicate keys (new damage class; detector: `Duplicate key in object literal` warnings breaking stderr-asserting tests): the mechanical `@oh-my-pi/*`→`@linxiraos/*` scope rewrite appended renamed keys instead of replacing, leaving 2–7 duplicate keys in 10 package manifests → deduped, `bun.lock`/`Cargo.lock` refreshed.
+  - v21 hardcoded `/prewalk` rewrite + `/collab list` + `/btw` descriptions tripped the i18n guard (`i18n-slash-commands.test.ts`): added `cmdPrewalk`/`cmdPrewalkAcp`/`cmdPrewalkRestart`/`cmdCollabList`/`cmdBtwHistory` keys (en+zh+messages) and wired the registry back to catalogue keys, preserving v21's one-shot-handoff behavior.
+  - v21's new settings (`tui.mouse`, `tui.vimMode*`, `display.pinnedAgents*`, `plan.autosave*`, `tools.speculativeExecution.*`, `collab.autoStart`, `composer.recallClearedDrafts`) lacked zh texts → added to `settings-zh.ts` (`ZH_SETTING_TEXTS` vs `ZH_OPTION_TEXTS` split per key type).
+  - InteractiveMode `#teardown` carried a duplicated pre-dispose block (early `#btwController.dispose()` etc. before `showStatus`), failing the still-closing progress test → reduced to upstream 90b6315a28 shape with `M.imClosingSession`.
+- **Checks (local, pre-PR)**: `check-version-consistency` OK (1.1.14), `check:ts` OK, brand-check 0 hits, zeta-sentinels 46 OK, `cargo fmt --all --check` OK; bucket suites green: catalog 951+ (2 Windows-only `issue-8867` quarantine flakes identical on main), agent 583/583, ai = main baseline (12 Windows-env failures, zero branch-unique after manifest dedupe), coding-agent failure set = main's 134 baseline ±3 timing-flaky (re-runs flip); web-gateway 30/30 incl. archive. Local native addon for tests copied from the main checkout (class-5 workaround; win32 MSVC link blocked by Git's GNU `link.exe` shadowing PATH — GNU toolchain works; msvc needs VS Build Tools).
+- **Merge into feature branch**: `ac09144ec9` (`sync/omp-release/v18.1.21` → `feat/web-ui-next`, non-squash; v21 + release branch both ancestors). Post-merge gates re-run green.
+
 ## v18.1.10 (Zeta — merged, released as 1.1.9)
 
 - **Baseline**: v18.1.5 (OMP tag `62b674e73b...`, Zeta sync commit `515dfdf2073be9dc4df0299b3a493201dc19ec2b`)
