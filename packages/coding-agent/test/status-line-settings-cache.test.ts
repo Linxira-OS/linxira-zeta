@@ -3,13 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { visibleWidth } from "@linxiraos/pi-tui";
-import { removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { StatusLineComponent, type StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
 import { STATUS_LINE_PRESETS } from "@linxiraos/zeta/modes/components/status-line/presets";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { visibleWidth } from "@linxiraos/pi-tui";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 import { StatusLineTestComponents } from "./helpers/status-line";
 
@@ -170,8 +170,8 @@ describe("StatusLineComponent effective settings cache", () => {
 		component.setRunningSubagents(["sub-1", "sub-2"]);
 
 		const content = stripVTControlCharacters(component.getTopBorder(120).content);
-		expect(content).toContain("2 agents");
-		expect(content).not.toContain("running");
+		expect(content).toContain(`${theme.icon.agents} 2`);
+		expect(content).not.toContain("agents");
 	});
 
 	it("keeps plan and hook state dynamic without settings invalidation", () => {

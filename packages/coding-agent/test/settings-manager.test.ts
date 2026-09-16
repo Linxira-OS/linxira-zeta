@@ -7,8 +7,6 @@ import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
 import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
 import { __providerInFlightForTesting, streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Context } from "@linxiraos/pi-ai/types";
-import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
-import * as fileLock from "@linxiraos/pi-utils/file-lock";
 import {
 	__physicalTargetSegmentsForTesting,
 	onAppendOnlyModeChanged,
@@ -23,6 +21,8 @@ import * as discovery from "@linxiraos/zeta/discovery";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { AUTO_IMAGE_PROVIDER_ORDER } from "@linxiraos/zeta/tools/image-providers";
 import { SEARCH_PROVIDER_ORDER } from "@linxiraos/zeta/web/search/types";
+import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
+import * as fileLock from "@linxiraos/pi-utils/file-lock";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
@@ -1720,13 +1720,13 @@ describe("Settings", () => {
 	});
 
 	describe("compaction method migration", () => {
-		it("defaults to server, snapcompact, handoff, soft, then shake compaction", () => {
+		it("defaults to server, snapcompact, handoff, shake, then soft compaction", () => {
 			expect(Settings.isolated().get("compaction.methodOrder")).toEqual([
 				"remote",
 				"snapcompact",
 				"handoff",
-				"soft",
 				"shake",
+				"soft",
 			]);
 		});
 
@@ -2363,6 +2363,85 @@ describe("Settings", () => {
 
 			settings.override("extensions", ["../override-ext"]);
 			expect(settings.extensionsSourceLevel()).toBe("user");
+		});
+	});
+
+	describe("project .claude/settings.json parse warnings", () => {
+		it("logs capability warnings when project settings.json fails to parse", async () => {
+			const claudeSettings = path.join(projectDir, ".claude", "settings.json");
+			await Bun.write(claudeSettings, '{ "symbolPreset": "ascii", }');
+
+			const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+			const settings = await Settings.init({ cwd: projectDir, agentDir, inMemory: true });
+			expect(settings.get("symbolPreset")).toBe("unicode");
+			expect(warnSpy).toHaveBeenCalledWith(
+				expect.stringMatching(/Settings: \[Claude Code\] Failed to parse JSON in .*settings\.json/),
+			);
+
+			warnSpy.mockRestore();
+		});
+
+		it("drops user-level warnings that #readProjectSettings does not merge", async () => {
+			const projectSettingsJson = path.join(projectDir, ".claude", "settings.json");
+			vi.spyOn(discovery, "loadCapability").mockResolvedValue({
+				items: [],
+				all: [],
+				warnings: [
+					`[Claude Code] Failed to parse JSON in ${path.join(tempDir.path(), "home", ".claude", "settings.json")}`,
+					"[Claude Code] Failed to load: boom",
+					`[Claude Code] Failed to parse JSON in ${projectSettingsJson}`,
+				],
+				providers: [],
+			});
+			const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+			await Settings.init({ cwd: projectDir, agentDir, inMemory: true });
+			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(projectSettingsJson));
+			expect(warnSpy.mock.calls.filter(args => String(args[0]).includes("home"))).toEqual([]);
+			expect(warnSpy.mock.calls.filter(args => String(args[0]).includes("Failed to load"))).toEqual([]);
+		});
+
+		it("logs project warnings when the cwd is a filesystem root", async () => {
+			const root = path.parse(projectDir).root;
+			const rootSettingsJson = path.join(root, ".claude", "settings.json");
+			vi.spyOn(discovery, "loadCapability").mockResolvedValue({
+				items: [],
+				all: [],
+				warnings: [`[Claude Code] Failed to parse JSON in ${rootSettingsJson}`],
+				providers: [],
+			});
+			const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+			await Settings.init({ cwd: root, agentDir, inMemory: true });
+			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(rootSettingsJson));
+		});
+
+		it("logs a persistently malformed project file once across reloads", async () => {
+			const claudeSettings = path.join(projectDir, ".claude", "settings.json");
+			await Bun.write(claudeSettings, '{ "symbolPreset": "ascii", }');
+
+			const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+			const settings = await Settings.init({ cwd: projectDir, agentDir });
+			expect(warnSpy.mock.calls.filter(args => String(args[0]).includes("Failed to parse JSON"))).toHaveLength(1);
+
+			await settings.reloadFromDisk();
+			expect(warnSpy.mock.calls.filter(args => String(args[0]).includes("Failed to parse JSON"))).toHaveLength(1);
+		});
+
+		it("surfaces a project file that becomes malformed after startup", async () => {
+			const claudeSettings = path.join(projectDir, ".claude", "settings.json");
+
+			const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+			const settings = await Settings.init({ cwd: projectDir, agentDir });
+			expect(warnSpy.mock.calls.filter(args => String(args[0]).includes("Failed to parse JSON"))).toHaveLength(0);
+
+			await Bun.write(claudeSettings, '{ "symbolPreset": "ascii", }');
+			await settings.reloadFromDisk();
+
+			expect(settings.get("symbolPreset")).toBe("unicode");
+			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(claudeSettings));
 		});
 	});
 });

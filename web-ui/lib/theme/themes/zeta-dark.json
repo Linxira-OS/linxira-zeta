@@ -2,7 +2,7 @@
   "metadata": {
     "id": "zeta-dark",
     "name": "Zeta",
-    "description": "Zeta dark theme",
+    "description": "Zeta dark theme — neutral graphite, no blue accent",
     "variant": "dark",
     "tags": [
       "dark",
@@ -11,51 +11,52 @@
   },
   "colors": {
     "primary": {
-      "base": "#60a5fa",
-      "hover": "rgb(96 165 250 / 0.84)",
-      "active": "rgb(96 165 250 / 0.68)",
-      "foreground": "#111827",
-      "muted": "rgb(96 165 250 / 0.2)"
+      "base": "#EAEAEA",
+      "hover": "rgb(234 234 234 / 0.85)",
+      "active": "rgb(234 234 234 / 0.7)",
+      "foreground": "#161616",
+      "muted": "rgb(234 234 234 / 0.18)",
+      "emphasis": "#FFFFFF"
     },
     "surface": {
-      "background": "#111827",
-      "foreground": "#e5edf9",
-      "muted": "#172033",
-      "mutedForeground": "#98a8c2",
-      "elevated": "#1d2940",
-      "elevatedForeground": "#e5edf9",
+      "background": "#161616",
+      "foreground": "#F5F5F5",
+      "muted": "#1E1E1E",
+      "mutedForeground": "#9D9D9D",
+      "elevated": "#232323",
+      "elevatedForeground": "#F5F5F5",
       "overlay": "rgb(0 0 0 / 0.64)",
-      "subtle": "rgb(96 165 250 / 0.08)"
+      "subtle": "rgb(255 255 255 / 0.05)"
     },
     "interactive": {
-      "border": "#31415e",
-      "borderHover": "rgb(96 165 250 / 0.62)",
-      "borderFocus": "#60a5fa",
-      "selection": "#2d3d59",
-      "selectionForeground": "#e5edf9",
-      "focus": "#60a5fa",
-      "focusRing": "rgb(96 165 250 / 0.42)",
-      "cursor": "#e5edf9",
-      "hover": "#26334b",
-      "active": "#2d3d59"
+      "border": "#2E2E2E",
+      "borderHover": "#3C3C3C",
+      "borderFocus": "#EAEAEA",
+      "selection": "rgb(255 255 255 / 0.09)",
+      "selectionForeground": "#F5F5F5",
+      "focus": "#EAEAEA",
+      "focusRing": "rgb(234 234 234 / 0.35)",
+      "cursor": "#F5F5F5",
+      "hover": "rgb(255 255 255 / 0.06)",
+      "active": "rgb(255 255 255 / 0.1)"
     },
     "status": {
-      "error": "#fb7185",
-      "errorForeground": "#fecdd3",
-      "errorBackground": "rgb(251 113 133 / 0.18)",
-      "errorBorder": "rgb(251 113 133 / 0.48)",
-      "warning": "#fbbf24",
-      "warningForeground": "#fde68a",
-      "warningBackground": "rgb(251 191 36 / 0.18)",
-      "warningBorder": "rgb(251 191 36 / 0.48)",
-      "success": "#4ade80",
-      "successForeground": "#bbf7d0",
-      "successBackground": "rgb(74 222 128 / 0.18)",
-      "successBorder": "rgb(74 222 128 / 0.48)",
-      "info": "#60a5fa",
-      "infoForeground": "#dbeafe",
-      "infoBackground": "rgb(96 165 250 / 0.18)",
-      "infoBorder": "rgb(96 165 250 / 0.48)"
+      "error": "#F07178",
+      "errorForeground": "#F8B4B8",
+      "errorBackground": "rgb(240 113 120 / 0.18)",
+      "errorBorder": "rgb(240 113 120 / 0.48)",
+      "warning": "#E5C07B",
+      "warningForeground": "#F2DCAE",
+      "warningBackground": "rgb(229 192 123 / 0.18)",
+      "warningBorder": "rgb(229 192 123 / 0.48)",
+      "success": "#98C379",
+      "successForeground": "#C6E3B0",
+      "successBackground": "rgb(152 195 121 / 0.18)",
+      "successBorder": "rgb(152 195 121 / 0.48)",
+      "info": "#61AFEF",
+      "infoForeground": "#B5D5F9",
+      "infoBackground": "rgb(97 175 239 / 0.18)",
+      "infoBorder": "rgb(97 175 239 / 0.48)"
     },
     "syntax": {
       "background": "#172033",
@@ -73,21 +74,21 @@
       "lineNumber": "#98a8c2"
     },
     "chart": [
-      "#60a5fa",
-      "#a78bfa",
-      "#f472b6",
-      "#fb923c",
-      "#4ade80",
-      "#22d3ee",
-      "#facc15",
-      "#818cf8"
+      "#EAEAEA",
+      "#F07178",
+      "#E5C07B",
+      "#98C379",
+      "#61AFEF",
+      "#C678DD",
+      "#D19A66",
+      "#56B6C2"
     ],
     "chat": {
-      "userBackground": "rgb(96 165 250 / 0.16)",
-      "userBorder": "rgb(96 165 250 / 0.32)",
-      "assistantBackground": "#111827",
-      "toolBackground": "rgb(96 165 250 / 0.07)",
-      "toolBorder": "rgb(96 165 250 / 0.24)"
+      "userBackground": "rgb(255 255 255 / 0.07)",
+      "userBorder": "rgb(255 255 255 / 0.14)",
+      "assistantBackground": "#161616",
+      "toolBackground": "rgb(255 255 255 / 0.04)",
+      "toolBorder": "rgb(255 255 255 / 0.1)"
     }
   }
 }

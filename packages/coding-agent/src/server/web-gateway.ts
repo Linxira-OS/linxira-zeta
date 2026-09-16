@@ -33,6 +33,7 @@ import {
 	handleGlobalExtensionUiResponse,
 	handleRunningEvents,
 } from "./web-gateway/agents";
+import { handleArchiveSession, handleListArchivedSessions, handleUnarchiveSession } from "./web-gateway/archive";
 import {
 	handleAllProviders,
 	handleApiKeyDelete,
@@ -59,9 +60,9 @@ import {
 	handleModelsConfigDiscover,
 	handleModelsConfigMetadata,
 } from "./web-gateway/models-config";
-import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
+import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import {
 	handleDeleteProject,
 	handleDeleteSession,
@@ -93,6 +94,11 @@ const SESSION_ID_PART = "[A-Za-z0-9-]+";
 const PROVIDER_PART = "[A-Za-z0-9_.-]+";
 
 const SESSION_LIST_RE = /^\/api\/sessions$/;
+// Literal `archived` routes must precede SESSION_ID_RE or the id pattern
+// swallows the literal path segment.
+const ARCHIVED_SESSIONS_RE = /^\/api\/sessions\/archived$/;
+const SESSION_ARCHIVE_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/archive$`);
+const SESSION_UNARCHIVE_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/unarchive$`);
 const SESSION_ID_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})$`);
 const SESSION_CONTEXT_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/context$`);
 const SESSION_STATE_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/state$`);
@@ -227,6 +233,24 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (SESSION_LIST_RE.test(pathname)) {
 		if (req.method === "GET") return handleListSessions();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const archivedList = capture(pathname, ARCHIVED_SESSIONS_RE);
+	if (archivedList) {
+		if (req.method === "GET") return handleListArchivedSessions();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const archiveTarget = capture(pathname, SESSION_ARCHIVE_RE);
+	if (archiveTarget) {
+		if (req.method === "POST") return handleArchiveSession(archiveTarget[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const unarchiveTarget = capture(pathname, SESSION_UNARCHIVE_RE);
+	if (unarchiveTarget) {
+		if (req.method === "POST") return handleUnarchiveSession(unarchiveTarget[0]);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

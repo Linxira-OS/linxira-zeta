@@ -224,8 +224,14 @@ function ModeBanner({
     tone?: "default" | "danger";
   }[];
 }) {
+  // Goal/vibe banners: plan rides the theme accent; goal uses the theme
+  // warning token; vibe uses the theme info token — no hardcoded hexes.
   const accent =
-    mode === "plan" ? "var(--accent)" : mode === "goal" ? "#f59e0b" : "#8b5cf6";
+    mode === "plan"
+      ? "var(--accent)"
+      : mode === "goal"
+        ? "var(--status-warning)"
+        : "var(--status-info)";
   return (
     <div
       style={{
@@ -258,7 +264,8 @@ function ModeBanner({
             border: "1px solid var(--border)",
             borderRadius: 5,
             background: "none",
-            color: action.tone === "danger" ? "#f87171" : "var(--text-muted)",
+            color:
+              action.tone === "danger" ? "var(--status-error)" : "var(--text-muted)",
             cursor: "pointer",
             fontSize: 11.5,
             whiteSpace: "nowrap",
@@ -803,12 +810,12 @@ export function ChatWindow({
       onDrop={handleDrop}
     >
       {isDragOver && !sessionBusy && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex animate-[drop-zone-in_0.15s_ease_both] items-center justify-center bg-[rgba(37,99,235,0.06)] backdrop-blur-[1px]">
+        <div className="pointer-events-none absolute inset-0 z-50 flex animate-[drop-zone-in_0.15s_ease_both] items-center justify-center bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] backdrop-blur-[1px]">
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             {[0, 0.8, 1.6].map((delay) => (
               <div
                 key={delay}
-                className="absolute h-[720px] w-[720px] rounded-full border-[1.5px] border-solid border-[rgba(37,99,235,0.5)] animate-[drop-ripple_2.4s_ease-out_infinite_backwards]"
+                className="absolute h-[720px] w-[720px] rounded-full border-[1.5px] border-solid border-[color-mix(in_srgb,var(--accent)_50%,transparent)] animate-[drop-ripple_2.4s_ease-out_infinite_backwards]"
                 style={{
                   transformOrigin: "center",
                   animationDelay: `${delay}s`,
@@ -822,7 +829,7 @@ export function ChatWindow({
             viewBox="0 0 140 140"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="drop-shadow-[0_6px_18px_rgba(37,99,235,0.18)]"
+            className="drop-shadow-[0_6px_18px_color-mix(in_srgb,var(--accent)_18%,transparent)]"
           >
             <rect
               x="28"
@@ -830,14 +837,14 @@ export function ChatWindow({
               width="84"
               height="60"
               rx="8"
-              fill="rgba(37,99,235,0.08)"
-              stroke="rgba(37,99,235,0.50)"
+              fill="color-mix(in srgb, var(--accent) 8%, transparent)"
+              stroke="color-mix(in srgb, var(--accent) 50%, transparent)"
               strokeWidth="1.8"
             />
             <path
               d="M36 100 L54 72 L68 88 L80 74 L104 100Z"
-              fill="rgba(37,99,235,0.16)"
-              stroke="rgba(37,99,235,0.40)"
+              fill="color-mix(in srgb, var(--accent) 16%, transparent)"
+              stroke="color-mix(in srgb, var(--accent) 40%, transparent)"
               strokeWidth="1.4"
               strokeLinejoin="round"
             />
@@ -845,12 +852,12 @@ export function ChatWindow({
               cx="96"
               cy="58"
               r="8"
-              fill="rgba(37,99,235,0.22)"
-              stroke="rgba(37,99,235,0.55)"
+              fill="color-mix(in srgb, var(--accent) 22%, transparent)"
+              stroke="color-mix(in srgb, var(--accent) 55%, transparent)"
               strokeWidth="1.6"
             />
             <g
-              stroke="rgba(37,99,235,0.45)"
+              stroke="color-mix(in srgb, var(--accent) 45%, transparent)"
               strokeWidth="1.4"
               strokeLinecap="round"
             >
@@ -1711,8 +1718,8 @@ function NoticeShelf({
               width: "fit-content",
               maxWidth: "min(100%, 620px)",
               boxShadow: floating
-                ? "0 1px 2px rgba(15,23,42,0.05), 0 10px 28px -14px rgba(15,23,42,0.24)"
-                : "0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)",
+                ? "0 1px 2px var(--surface-shadow), 0 10px 28px -14px var(--surface-shadow)"
+                : "0 1px 2px var(--surface-shadow), 0 8px 24px -12px var(--surface-shadow)",
               fontSize: 18,
               lineHeight: 1.45,
               transformOrigin: "top center",
@@ -1792,7 +1799,7 @@ function ExtensionDialog({
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
-        background: "rgba(0,0,0,0.18)",
+        background: "var(--surface-shadow)",
       }}
     >
       <div
@@ -1803,7 +1810,7 @@ function ExtensionDialog({
           border: "1px solid var(--border)",
           borderRadius: 8,
           background: "var(--bg)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.28)",
+          boxShadow: "0 20px 60px var(--surface-shadow)",
           overflow: "hidden",
         }}
       >
@@ -1945,7 +1952,7 @@ function ExtensionDialog({
                 borderRadius: 6,
                 border: "1px solid var(--accent)",
                 background: "var(--accent)",
-                color: "#fff",
+                color: "var(--primary-foreground)",
                 cursor: "pointer",
               }}
             >
@@ -1959,7 +1966,7 @@ function ExtensionDialog({
                 borderRadius: 6,
                 border: "1px solid var(--accent)",
                 background: "var(--accent)",
-                color: "#fff",
+                color: "var(--primary-foreground)",
                 cursor: "pointer",
               }}
             >
@@ -2012,7 +2019,7 @@ function ExtensionCustomPanel({
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
-        background: "rgba(0,0,0,0.18)",
+        background: "var(--surface-shadow)",
       }}
     >
       <div
@@ -2029,7 +2036,7 @@ function ExtensionCustomPanel({
           border: "1px solid var(--border)",
           borderRadius: 8,
           background: "var(--bg)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.28)",
+          boxShadow: "0 20px 60px var(--surface-shadow)",
           overflow: "hidden",
           outline: "none",
         }}

@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import { postmortem } from "@linxiraos/pi-utils";
+import { shadowSnapshotDigest } from "@linxiraos/zeta/eval/js/shared/runtime";
 import { WorkerCore } from "@linxiraos/zeta/eval/js/worker-core";
 import type {
 	SessionSnapshot,
@@ -11,6 +11,7 @@ import type {
 	WorkerInbound,
 	WorkerOutbound,
 } from "@linxiraos/zeta/eval/js/worker-protocol";
+import { postmortem } from "@linxiraos/pi-utils";
 
 interface WorkerHarness {
 	send(message: WorkerInbound): void;
@@ -101,7 +102,7 @@ describe("WorkerCore", () => {
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_core_gate = {
+		(globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_core_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -109,7 +110,7 @@ describe("WorkerCore", () => {
 			first.send({
 				type: "run",
 				runId: "hold-first-runtime",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait;",
+				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait;",
 				filename: "[same-realm-first].js",
 				snapshot: { cwd, sessionId: "same-realm-first", localRoots: {} },
 			});
@@ -135,8 +136,8 @@ describe("WorkerCore", () => {
 			});
 		} finally {
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_core_gate;
+			delete (globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_core_gate;
 			first.send({ type: "close" });
 			second.send({ type: "close" });
 		}
@@ -151,7 +152,7 @@ describe("WorkerCore", () => {
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_core_gate = {
+		(globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_core_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -161,7 +162,7 @@ describe("WorkerCore", () => {
 			first.send({
 				type: "run",
 				runId: "hold-for-reinit",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait;",
+				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait;",
 				filename: "[reinit-first].js",
 				snapshot: { cwd, sessionId: "reinit-first", localRoots: {} },
 			});
@@ -200,8 +201,8 @@ describe("WorkerCore", () => {
 		} finally {
 			uninstall();
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_core_gate;
+			delete (globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_core_gate;
 			first.send({ type: "close" });
 			second.send({ type: "close" });
 		}
@@ -218,7 +219,7 @@ describe("WorkerCore", () => {
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_core_gate = {
+		(globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_core_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -228,7 +229,7 @@ describe("WorkerCore", () => {
 			first.send({
 				type: "run",
 				runId: "hold-for-multi-init",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait;",
+				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait;",
 				filename: "[init-live-first].js",
 				snapshot: { cwd, sessionId: "init-live-first", localRoots: {} },
 			});
@@ -287,8 +288,8 @@ describe("WorkerCore", () => {
 		} finally {
 			uninstall();
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_core_gate;
+			delete (globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_core_gate;
 			first.send({ type: "close" });
 			second.send({ type: "close" });
 			third.send({ type: "close" });
@@ -303,7 +304,7 @@ describe("WorkerCore", () => {
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_core_gate = {
+		(globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_core_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -321,7 +322,7 @@ describe("WorkerCore", () => {
 			first.send({
 				type: "run",
 				runId: "hold-for-first-init",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait; __zeta_session__.sessionId;",
+				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait; __zeta_session__.sessionId;",
 				filename: "[first-init-live-first].js",
 				snapshot: { cwd, sessionId: "first-init-live-first", localRoots: {} },
 			});
@@ -355,8 +356,8 @@ describe("WorkerCore", () => {
 		} finally {
 			uninstall();
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_core_gate;
+			delete (globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_core_gate;
 			first.send({ type: "close" });
 			second.send({ type: "close" });
 		}
@@ -395,7 +396,7 @@ describe("WorkerCore", () => {
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_cwd_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_cwd_gate = {
+		(globalThis as { __omp_worker_cwd_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_cwd_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -410,7 +411,7 @@ describe("WorkerCore", () => {
 			harness.send({
 				type: "run",
 				runId: "cwd-hold",
-				code: "globalThis.__zeta_worker_cwd_gate.entered(); await globalThis.__zeta_worker_cwd_gate.wait;",
+				code: "globalThis.__omp_worker_cwd_gate.entered(); await globalThis.__omp_worker_cwd_gate.wait;",
 				filename: "[cwd-race-hold].js",
 				snapshot: { cwd: dirA, sessionId: "cwd-race", localRoots: {} },
 			});
@@ -456,8 +457,8 @@ describe("WorkerCore", () => {
 			expect(chdirs.at(-1)).toBe(dirB);
 		} finally {
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_cwd_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_cwd_gate;
+			delete (globalThis as { __omp_worker_cwd_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_cwd_gate;
 			harness.send({ type: "close" });
 			await fs.rm(dirA, { recursive: true, force: true });
 			await fs.rm(dirB, { recursive: true, force: true });
@@ -544,5 +545,90 @@ process.exit(0);
 		} finally {
 			await fs.rm(root, { recursive: true, force: true });
 		}
+	});
+
+	it("returns a safe snapshot only while the JavaScript runtime is idle", async () => {
+		const harness = createWorkerHarness();
+		const snapshot = { cwd: process.cwd(), sessionId: "shadow-snapshot-worker" };
+		await initializeWorker(harness, snapshot);
+		const reply = waitForMessage(
+			harness,
+			message => message.type === "shadow-snapshot" && message.id === "snapshot-1",
+		);
+		harness.send({ type: "shadow-snapshot", id: "snapshot-1", snapshot });
+		const message = await reply;
+		if (message.type !== "shadow-snapshot") throw new Error("expected shadow snapshot reply");
+		expect(message.eligible).toBe(true);
+		expect(message.snapshot?.revision).toBe(0);
+	});
+
+	it("starts a real cell only when the retained snapshot still matches", async () => {
+		const harness = createWorkerHarness();
+		const snapshot = { cwd: process.cwd(), sessionId: "atomic-shadow-worker" };
+		await initializeWorker(harness, snapshot);
+		const snapshotReply = waitForMessage(
+			harness,
+			message => message.type === "shadow-snapshot" && message.id === "atomic-snapshot",
+		);
+		harness.send({ type: "shadow-snapshot", id: "atomic-snapshot", snapshot });
+		const captured = await snapshotReply;
+		if (captured.type !== "shadow-snapshot" || !captured.snapshot) throw new Error("expected snapshot");
+		const admission = waitForMessage(
+			harness,
+			message => message.type === "shadow-run" && message.id === "atomic-run",
+		);
+		const result = waitForMessage(harness, message => message.type === "result" && message.runId === "atomic-run-id");
+		harness.send({
+			type: "run-if-snapshot-matches",
+			id: "atomic-run",
+			runId: "atomic-run-id",
+			code: "globalThis.atomicShadowValue = true;",
+			filename: "atomic-shadow.ts",
+			snapshot,
+			expectedRevision: captured.snapshot.revision,
+			expectedDigest: shadowSnapshotDigest(captured.snapshot),
+		});
+		await expect(admission).resolves.toMatchObject({ eligible: true });
+		await expect(result).resolves.toMatchObject({ ok: true });
+	});
+
+	it("rejects an atomic run after retained state changes", async () => {
+		const harness = createWorkerHarness();
+		const snapshot = { cwd: process.cwd(), sessionId: "atomic-shadow-mismatch" };
+		await initializeWorker(harness, snapshot);
+		const capturedReply = waitForMessage(
+			harness,
+			message => message.type === "shadow-snapshot" && message.id === "mismatch-snapshot",
+		);
+		harness.send({ type: "shadow-snapshot", id: "mismatch-snapshot", snapshot });
+		const captured = await capturedReply;
+		if (captured.type !== "shadow-snapshot" || !captured.snapshot) throw new Error("expected snapshot");
+		const mutationResult = waitForMessage(
+			harness,
+			message => message.type === "result" && message.runId === "mutation",
+		);
+		harness.send({
+			type: "run",
+			runId: "mutation",
+			code: "globalThis.atomicMismatch = true;",
+			filename: "mutation.ts",
+			snapshot,
+		});
+		await mutationResult;
+		const rejected = waitForMessage(
+			harness,
+			message => message.type === "shadow-run" && message.id === "mismatch-run",
+		);
+		harness.send({
+			type: "run-if-snapshot-matches",
+			id: "mismatch-run",
+			runId: "should-not-run",
+			code: "throw new Error('must not execute');",
+			filename: "mismatch.ts",
+			snapshot,
+			expectedRevision: captured.snapshot.revision,
+			expectedDigest: shadowSnapshotDigest(captured.snapshot),
+		});
+		await expect(rejected).resolves.toMatchObject({ eligible: false, reason: "snapshot changed" });
 	});
 });

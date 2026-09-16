@@ -1,7 +1,13 @@
 import * as path from "node:path";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { type AutocompleteProvider, matchesKey, type PasteOptions, type SlashCommand } from "@linxiraos/pi-tui";
+import {
+	type AutocompleteProvider,
+	matchesKey,
+	parseSgrMouse,
+	type PasteOptions,
+	type SlashCommand,
+} from "@linxiraos/pi-tui";
 import { isEnoent, logger, sanitizeText } from "@linxiraos/pi-utils";
 import { isSettingsInitialized, settings } from "../../config/settings";
 import { resolveLocalRoot } from "../../internal-urls";
@@ -21,7 +27,10 @@ import { parseQueueShorthand, splitQueuedMessages } from "../../modes/queue-inpu
 import { buildSkillCommandPrompt, isKnownSkillCommand } from "../../modes/skill-command";
 import type { InteractiveModeContext } from "../../modes/types";
 import manualContinuePrompt from "../../prompts/system/manual-continue.md" with { type: "text" };
+import { AgentRegistry } from "../../registry/agent-registry";
 import { USER_INTERRUPT_LABEL } from "../../session/messages";
+import { PINNED_HUD_TOGGLE_ID } from "../composer";
+import { pickRecentFocusableAgentId } from "./session-focus-controller";
 import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
 import { parseSlashCommand } from "../../slash-commands/helpers/parse";
 import { isTinyTitleLocalModelKey } from "../../tiny/models";
@@ -93,6 +102,8 @@ function isExpandable(obj: unknown): obj is Expandable {
 /** Minimal contract for any component that can receive a paste payload directly. */
 interface PasteTarget {
 	pasteText(text: string): void;
+	/** Reserve delivery before an async clipboard read; undefined releases it without text. */
+	beginPaste?(): (text: string | undefined) => boolean;
 }
 
 function hasPasteText(value: unknown): value is PasteTarget {
@@ -195,6 +206,10 @@ export class InputController {
 	#btwBranchListenerInstalled = false;
 	#btwCopyListenerInstalled = false;
 	#expandToolsListenerInstalled = false;
+	#inlineMouseListenerInstalled = false;
+
+	/** Click-candidate id the hover band currently tracks; repaint only on change. */
+	#lastHoverClickId: string | undefined;
 
 	/** Return the last full editor snapshot delivered by its change contract. */
 	getDraftText(): string {
@@ -289,10 +304,13 @@ export class InputController {
 		if (!this.#btwCopyListenerInstalled) {
 			this.#btwCopyListenerInstalled = true;
 			this.ctx.ui.addInputListener(data => {
-				if (!matchesKey(data, "c")) return undefined;
-				if (!this.ctx.canCopyBtw()) return undefined;
 				if (this.ctx.ui.getFocused() !== this.ctx.editor) return undefined;
 				if (this.ctx.editor.getText().trim()) return undefined;
+				if (matchesKey(data, "f") && this.ctx.canFollowUpBtw()) {
+					this.ctx.handleBtwFollowUpKey();
+					return { consume: true };
+				}
+				if (!matchesKey(data, "c") || !this.ctx.canCopyBtw()) return undefined;
 				void this.ctx.handleBtwCopyKey();
 				return { consume: true };
 			});
@@ -332,6 +350,14 @@ export class InputController {
 				return { consume: true };
 			});
 		}
+		if (!this.#inlineMouseListenerInstalled) {
+			this.#inlineMouseListenerInstalled = true;
+			// Inline click-to-focus (`tui.mouse`): SGR reports only arrive while
+			// the setting has tracking enabled, so this stays inert otherwise.
+			// Defers to fullscreen overlays, which own mouse handling on the
+			// alternate screen.
+			this.ctx.ui.addInputListener(data => this.#handleInlineMouse(data));
+		}
 		this.ctx.editor.onEscape = () => {
 			// `/mcp test` advertises Esc until each owner's post-settlement grace expires.
 			// Cancel every overlapping test before any main-turn or side-channel action.
@@ -345,8 +371,8 @@ export class InputController {
 				return;
 			}
 
-			// Side-channel panels are the topmost view. Esc dismisses them before
-			// touching loop mode, maintenance, or the underlying main turn.
+			// Side-channel panels own Esc for cancellation or closing before
+			// loop mode, maintenance, or the underlying main turn.
 			// Active context maintenance owns Esc: auto/manual compaction,
 			// handoff generation, and auto-retry backoff all advertise
 			// "(esc to cancel)". Dispatch on live session state instead of
@@ -634,6 +660,93 @@ export class InputController {
 		if (this.#detectLeftDoubleTap()) {
 			void this.ctx.unfocusSession();
 		}
+	}
+
+	/**
+	 * Inline click-to-focus (`tui.mouse`): left-clicks on live subagent cards
+	 * and HUD rows focus that agent in one action, and pointer motion lights up
+	 * the hover band on the target under the cursor. Every SGR report is consumed
+	 * while inline tracking owns the terminal so button/wheel bytes never reach
+	 * the editor as typed input; clicks on chrome simply swallow.
+	 */
+	#handleInlineMouse(data: string): { consume?: boolean; data?: string } | undefined {
+		if (!data.startsWith("\x1b[<")) return undefined;
+		if (!settings.get("tui.mouse")) return undefined;
+		if (this.ctx.ui.hasOverlay()) return undefined;
+		const event = parseSgrMouse(data);
+		if (!event) return undefined;
+		if (event.motion) this.#updateHoverHighlight(event.row);
+		else if (event.leftClick) this.#focusClickedAgent(event.row);
+		return { consume: true };
+	}
+
+	/**
+	 * Track the hovered click target, repainting only when it changes. The band
+	 * is id-anchored in the composer, so it follows an agent whose rows shift
+	 * while streaming; pointing at chrome clears it.
+	 */
+	#updateHoverHighlight(screenRow: number): void {
+		const hovered = this.#viewportCandidates(screenRow)[0];
+		if (hovered === this.#lastHoverClickId) return;
+		this.#lastHoverClickId = hovered;
+		this.ctx.setClickHoverId(hovered);
+		this.ctx.ui.requestRender();
+	}
+
+	// Candidates under a screen row, or none when the published viewport is
+	// empty (resize transactions) or the row falls outside it: routing stale
+	// spans would highlight or focus an unrelated agent from old rows.
+	#viewportCandidates(screenRow: number): string[] {
+		const viewport = this.ctx.ui.getMutableViewport();
+		const local = screenRow - viewport.top;
+		if (viewport.length === 0 || local < 0 || local >= viewport.length) return [];
+		return this.ctx.resolveViewportClickCandidates(local);
+	}
+
+	/**
+	 * Forget the last hovered target without repainting. Disabling mouse
+	 * capture clears the composer's band, but with reporting off no motion
+	 * event will ever refresh this cache — so a re-enable plus motion over
+	 * the same card would look unchanged and skip restoring the band.
+	 */
+	clearHoverHighlight(): void {
+		this.#lastHoverClickId = undefined;
+	}
+
+	#focusClickedAgent(screenRow: number): void {
+		const candidates = this.#viewportCandidates(screenRow);
+		if (candidates.length === 0) return;
+		const refs = AgentRegistry.global().list();
+		const scoped = refs.filter(ref => candidates.includes(ref.id));
+		// A live agent wins over the expander sentinel: task names are
+		// user-controlled, so an agent id can equal the toggle id. The toggle
+		// row itself names no agent and still toggles.
+		if (candidates.includes(PINNED_HUD_TOGGLE_ID) && scoped.length === 0) {
+			this.ctx.togglePinnedHudExpanded();
+			return;
+		}
+		// No global fallback: when every candidate is gone (aborted, released),
+		// focusing an unrelated recent agent would open something other than
+		// what the click displayed.
+		const nextId = pickRecentFocusableAgentId(scoped, this.ctx.focusedAgentId);
+		if (nextId === undefined) {
+			this.ctx.showStatus("That subagent is gone — open the hub for live agents");
+			return;
+		}
+		this.#focusResolvedAgent(nextId);
+	}
+
+	/** Focus a resolved agent id, ignoring already-viewing and surfacing errors as status. */
+	#focusResolvedAgent(nextId: string): void {
+		if (nextId === this.ctx.focusedAgentId) {
+			// Reaffirming the current view is still the user's latest click: a
+			// parked agent reviving from an older click must not land over it.
+			this.ctx.invalidatePendingFocus();
+			return;
+		}
+		void this.ctx.focusAgentSession(nextId).catch((error: unknown) => {
+			this.ctx.showStatus(error instanceof Error ? error.message : String(error));
+		});
 	}
 
 	/**
@@ -1786,6 +1899,7 @@ export class InputController {
 	}
 
 	async handleImagePaste(): Promise<boolean> {
+		let finishPaste: ((text: string | undefined) => boolean) | undefined;
 		try {
 			// When a modal paste-capable prompt (login/API-key Input) owns focus,
 			// only clipboard text may land there. Image payloads must not mutate
@@ -1794,6 +1908,7 @@ export class InputController {
 			const focusedNow = this.ctx.ui.getFocused();
 			const promptTarget =
 				focusedNow && focusedNow !== this.ctx.editor && hasPasteText(focusedNow) ? focusedNow : null;
+			finishPaste = promptTarget?.beginPaste?.();
 			// #8769: On macOS, Finder `Cmd+C` on an image file puts BOTH a
 			// `public.file-url` representation and a generated 1024x1024
 			// file-icon bitmap on the pasteboard. `arboard::get_image()`
@@ -1862,15 +1977,23 @@ export class InputController {
 				await this.handleImagePathPaste(imagePath);
 				return true;
 			}
-			// Route to the focused component when it accepts pastes (modal
-			// Input prompts), matching the enhanced-paste text path (#2127).
-			const target = promptTarget ?? this.ctx.editor;
-			target.pasteText(text);
+			// Keep the initiating prompt as the only possible modal destination.
+			if (promptTarget && this.ctx.ui.getFocused() !== promptTarget) return false;
+			if (finishPaste) {
+				const accepted = finishPaste(text);
+				finishPaste = undefined;
+				if (!accepted) return false;
+			} else {
+				const target = promptTarget ?? this.ctx.editor;
+				target.pasteText(text);
+			}
 			this.ctx.ui.requestRender();
 			return true;
 		} catch {
 			this.ctx.showStatus("Failed to read clipboard");
 			return false;
+		} finally {
+			finishPaste?.(undefined);
 		}
 	}
 
@@ -2149,7 +2272,8 @@ export class InputController {
 		this.ctx.chatContainer.setToolActivityVisible(!this.ctx.hideToolActivity);
 
 		if (this.ctx.hideToolActivity) this.ctx.ui.clearInlineImages();
-		this.ctx.ui.requestRender(true);
+		// A viewport-only repaint leaves tool rows already retired to terminal history unchanged.
+		this.ctx.ui.resetDisplay();
 		this.ctx.showStatus(`Tool activity: ${this.ctx.hideToolActivity ? "hidden" : "visible"}`);
 	}
 

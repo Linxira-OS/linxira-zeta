@@ -2,6 +2,7 @@
 
 import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionPreparation } from "@linxiraos/pi-agent-core/compaction";
+import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
 import type {
 	AssistantMessage,
 	ImageContent,
@@ -10,8 +11,8 @@ import type {
 	SimpleStreamOptions,
 	TextContent,
 } from "@linxiraos/pi-ai";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { isRecord, logger } from "@linxiraos/pi-utils";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
@@ -235,7 +236,7 @@ export class SessionProviderBoundary {
 		const model = this.#host.model();
 		const shouldDescribe =
 			!!model &&
-			!model.input.includes("image") &&
+			!sendsImageInputOnWire(model) &&
 			!this.#host.settings.get("images.blockImages") &&
 			this.#host.settings.get("images.describeForTextModels");
 		if (!shouldDescribe || !model) return undefined;

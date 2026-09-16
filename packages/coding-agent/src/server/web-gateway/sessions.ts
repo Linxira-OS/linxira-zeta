@@ -52,7 +52,7 @@ let sessionListPromiseGeneration = -1;
 const pathCache = new Map<string, string>();
 const pathToIdCache = new Map<string, string>();
 
-function sessionPathKey(filePath: string): string {
+export function sessionPathKey(filePath: string): string {
 	const normalized = process.platform === "win32" ? path.win32.normalize(filePath) : path.posix.normalize(filePath);
 	return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }
@@ -422,7 +422,7 @@ async function openSessionManager(filePath: string): Promise<SessionManager> {
 }
 
 /** Read the session header without opening the manager (no lock). */
-function readSessionHeader(filePath: string): SessionHeader | null {
+export function readSessionHeader(filePath: string): SessionHeader | null {
 	try {
 		const content = fs.readFileSync(filePath, "utf8");
 		const { entries } = parseSessionContent(content);
@@ -637,20 +637,13 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 		const sessionCwd = readSessionHeader(filePath)?.cwd;
 
 		// Default-space bot sessions are registry-managed: the relay transcript is
-		// undeletable, and deleting a bot/draft session must drop its registry
-		// entry + chat pointers so `!session` and the sidebar stay consistent.
+		// undeletable, and deleting/archiving a bot/draft session must drop its
+		// registry entry + chat pointers so `!session` and the sidebar stay
+		// consistent.
 		const webConfig = await WebConfig.load();
-		const fileKey = sessionPathKey(filePath);
-		const botEntry = webConfig.getBotSessions().find(entry => sessionPathKey(entry.sessionFile) === fileKey);
-		if (botEntry?.tag === "relay") {
+		const disposed = await disposeSessionRegistryEntry(webConfig, filePath);
+		if (disposed === "relay-protected") {
 			return json({ error: "relay 会话不可删除" }, 400);
-		}
-		if (botEntry) {
-			await webConfig.removeBotSession(botEntry.id);
-			await webConfig.clearChatSessionReferences(botEntry.id);
-			// Dispose the live runtime session (the router owns the handle); the
-			// router's delete path is idempotent for the config/file parts.
-			await notifyBotSessionDeleted(botEntry.id);
 		}
 
 		// Read only the bounded header before deleting.
@@ -695,6 +688,32 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 		logger.error("web-gateway: delete session failed", { sessionId, error: String(error) });
 		return json({ error: String(error) }, 500);
 	}
+}
+
+/** Result of a registry disposal attempt. */
+export type DisposeRegistryResult = "disposed" | "relay-protected" | "not-registered";
+
+/**
+ * Drop the default-space bot registry entry + chat pointers for a session
+ * file, if any. `relay` sessions are protected: callers refuse both delete
+ * and archive (the live relay runtime still points at the transcript).
+ * Shared by handleDeleteSession and the archive handlers so both paths keep
+ * the exact cleanup contract.
+ */
+export async function disposeSessionRegistryEntry(
+	webConfig: WebConfig,
+	filePath: string,
+): Promise<DisposeRegistryResult> {
+	const fileKey = sessionPathKey(filePath);
+	const botEntry = webConfig.getBotSessions().find(entry => sessionPathKey(entry.sessionFile) === fileKey);
+	if (!botEntry) return "not-registered";
+	if (botEntry.tag === "relay") return "relay-protected";
+	await webConfig.removeBotSession(botEntry.id);
+	await webConfig.clearChatSessionReferences(botEntry.id);
+	// Dispose the live runtime session (the router owns the handle); the
+	// router's delete path is idempotent for the config/file parts.
+	await notifyBotSessionDeleted(botEntry.id);
+	return "disposed";
 }
 
 function normalizeCwdForCompare(cwd: string): string {
@@ -1051,7 +1070,6 @@ export async function handleExportSession(req: Request, sessionId: string): Prom
 		if (!filePath) {
 			return json({ error: "Session not found" }, 404);
 		}
-
 		const tempDir = path.join(os.tmpdir(), "zeta-web-export");
 		fs.mkdirSync(tempDir, { recursive: true });
 

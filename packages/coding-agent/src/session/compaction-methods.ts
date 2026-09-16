@@ -11,8 +11,9 @@ import type { CompactionSettings } from "../config/settings-schema";
 export const COMPACTION_METHOD_CHOICES = [
 	{
 		value: "remote",
-		label: "OpenAI server compaction",
-		description: "Use provider-native OpenAI-compatible server compaction when the active route supports it",
+		label: "Server compaction",
+		description:
+			"Use provider-native server compaction (OpenAI Responses compact, Anthropic compaction beta) when the active route supports it",
 	},
 	{
 		value: "snapcompact",
@@ -39,14 +40,13 @@ export const COMPACTION_METHOD_CHOICES = [
 /** One selectable automatic context-maintenance method. */
 export type CompactionMethod = (typeof COMPACTION_METHOD_CHOICES)[number]["value"];
 
-/** Default fallback order: server-native first, Shake (content-drop) last so
- *  providers without server compaction still get a real summary first. */
+/** Default fallback order: server-native first, portable summary last. */
 export const DEFAULT_COMPACTION_METHOD_ORDER: CompactionMethod[] = [
 	"remote",
 	"snapcompact",
 	"handoff",
-	"soft",
 	"shake",
+	"soft",
 ];
 
 const COMPACTION_METHODS: Record<CompactionMethod, true> = {

@@ -106,7 +106,7 @@ class ModalBoundary extends Component<
           style={{
             padding: 16,
             fontSize: 12.5,
-            color: "#f87171",
+            color: "var(--status-error)",
             background: "var(--bg-panel)",
             border: "1px solid var(--border)",
             borderRadius: 8,
@@ -1157,21 +1157,21 @@ function AppShellContent() {
           opacity: 0;
           transform: translateY(-24px);
           filter: blur(6px);
-          box-shadow: 0 2px 8px rgba(0,0,0,0);
+          box-shadow: 0 2px 8px transparent;
         }
         55% {
           opacity: 1;
           transform: translateY(0);
           filter: blur(0);
           background: color-mix(in srgb, var(--accent) 8%, var(--bg-panel));
-          box-shadow: 0 18px 44px rgba(37,99,235,0.16);
+          box-shadow: 0 18px 44px color-mix(in srgb, var(--accent) 16%, transparent);
         }
         100% {
           opacity: 1;
           transform: translateY(0);
           filter: blur(0);
           background: var(--bg-panel);
-          box-shadow: 0 10px 28px rgba(0,0,0,0.10);
+          box-shadow: 0 10px 28px var(--surface-shadow);
         }
       }
       @keyframes session-info-light-wash {
@@ -1305,7 +1305,7 @@ function AppShellContent() {
           width: min(560px, calc(100vw - 48px));
           min-width: 300px;
           overflow: hidden;
-          box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18);
+          box-shadow: -12px 0 32px var(--surface-shadow);
           transition: transform 0.2s ease;
         }
         .right-panel-container.right-panel-open {
@@ -1413,7 +1413,7 @@ function AppShellContent() {
             position: "fixed",
             inset: 0,
             zIndex: 199,
-            background: "rgba(0,0,0,0.4)",
+            background: "color-mix(in srgb, var(--bg) 40%, transparent)",
             opacity: sidebarOpen ? 1 : 0,
             pointerEvents: sidebarOpen ? "auto" : "none",
             transition: "opacity 0.25s ease",
@@ -1697,7 +1697,7 @@ function AppShellContent() {
                       background: "var(--bg-panel)",
                       border: "1px solid var(--border)",
                       borderRadius: 8,
-                      boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                      boxShadow: "0 4px 16px color-mix(in srgb, var(--bg) 20%, transparent)",
                       padding: "8px 12px",
                       fontSize: 12,
                       color: "var(--text)",
@@ -1716,7 +1716,7 @@ function AppShellContent() {
                       background: "var(--bg-panel)",
                       border: "1px solid var(--border)",
                       borderRadius: 8,
-                      boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                      boxShadow: "0 4px 16px color-mix(in srgb, var(--bg) 20%, transparent)",
                       padding: 6,
                       minWidth: 180,
                       display: "flex",
@@ -2255,7 +2255,7 @@ function AppShellContent() {
                     style={{
                       background: "var(--bg-panel)",
                       borderBottom: "1px solid var(--border)",
-                      boxShadow: "0 10px 28px rgba(0,0,0,0.10)",
+                      boxShadow: "0 10px 28px color-mix(in srgb, var(--bg) 10%, transparent)",
                       padding: "12px 16px",
                     }}
                   >
@@ -3284,16 +3284,8 @@ function TitlebarButton({
           padding: 0,
           border: "none",
           cursor: "pointer",
-          color: hovered
-            ? danger
-              ? "#fff"
-              : "var(--text)"
-            : "var(--text-muted)",
-          background: hovered
-            ? danger
-              ? "#e81123"
-              : "var(--bg-hover)"
-            : "transparent",
+          color: hovered ? (danger ? "var(--primary-foreground)" : "var(--text)") : "var(--text-muted)",
+          background: hovered ? (danger ? "var(--status-error)" : "var(--bg-hover)") : "transparent",
           transition: "background 0.12s, color 0.12s",
           WebkitAppRegion: "no-drag",
         } as React.CSSProperties

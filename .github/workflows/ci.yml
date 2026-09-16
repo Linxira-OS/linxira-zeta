@@ -458,6 +458,12 @@ jobs:
          - name: Test coding-agent native/unit bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
+              # Hosted runners resolve system Chrome but CDP never comes up in the
+              # real-browser pickElectronTarget trio (upstream ubuntu-22.04 PR runs
+              # fail identically; upstream gates on self-hosted omp-kata). Zeta has
+              # no self-hosted runner, so the trio self-skips here; local runs keep
+              # full coverage.
+              ZETA_SKIP_REAL_BROWSER: "1"
            run: bun run ci:test:coding-agent:native
 
    test_smoke:

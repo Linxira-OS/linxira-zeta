@@ -1853,6 +1853,7 @@ export interface Messages {
 	cmdHandoff: string;
 	cmdResume: string;
 	cmdBtw: string;
+	cmdBtwHistory: string;
 	cmdTan: string;
 	cmdOmfg: string;
 	cmdRetry: string;
@@ -1911,6 +1912,7 @@ export interface Messages {
 	cmdDumpTranscript: string;
 	cmdShare: string;
 	cmdCollab: string;
+	cmdCollabList: string;
 	cmdCollabView: string;
 	cmdCollabStatus: string;
 	cmdCollabStop: string;
@@ -2057,6 +2059,7 @@ export interface Messages {
 	cmdComputerAcp: string;
 	cmdVisionAcp: string;
 	cmdPrewalkAcp: string;
+	cmdPrewalkRestart: string;
 	cmdTodoAcp: string;
 	cmdSessionAcp: string;
 	cmdJobsAcp: string;
