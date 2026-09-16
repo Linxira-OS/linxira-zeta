@@ -34,6 +34,17 @@ import { SessionGroupSection } from "./sidebar/SessionGroupSection";
 import { ArchiveSection } from "./sidebar/ArchiveSection";
 import { PinnedSection } from "./sidebar/PinnedSection";
 import { BulkActionBar } from "./sidebar/BulkActionBar";
+import { FloatingMenu, type FloatingMenuItem } from "./sidebar/FloatingMenu";
+import { SessionHoverCard } from "./sidebar/SessionHoverCard";
+import { SearchDialog } from "./SearchDialog";
+import {
+  loadSidebarPrefs,
+  updatePrefs,
+  markSessionRead,
+  type SessionSort,
+  type ProjectSort,
+} from "@/lib/sidebar-prefs";
+import { sortSessions, sortProjects } from "@/lib/sidebar-groups";
 import {
   loadCollapsedProjects,
   loadDisplaySettings,
@@ -49,6 +60,7 @@ import {
   deleteProjectSessions,
   deleteSessions,
   fetchArchivedSessions,
+  renameSession,
 } from "@/lib/session-api";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
@@ -739,6 +751,61 @@ export function SessionSidebar({
     loadPinnedProjects(),
   );
 
+  // P2 interaction port: unified palette + floating menus + sort modes.
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
+  const [sessionSort, setSessionSort] = useState<SessionSort>(
+    () => loadSidebarPrefs().sessionView.sort,
+  );
+  const [projSort, setProjSort] = useState<ProjectSort>(
+    () => loadSidebarPrefs().projectSort,
+  );
+  const [rowMenu, setRowMenu] = useState<{
+    session: SessionInfo;
+    point: { x: number; y: number } | null;
+    anchorRect: DOMRect | null;
+  } | null>(null);
+  const [projMenu, setProjMenu] = useState<{
+    project: string;
+    point: { x: number; y: number } | null;
+    anchorRect: DOMRect | null;
+  } | null>(null);
+  const [tempSortMenu, setTempSortMenu] = useState<{
+    anchorRect: DOMRect | null;
+  } | null>(null);
+  const [projSortMenu, setProjSortMenu] = useState<{
+    anchorRect: DOMRect | null;
+  } | null>(null);
+  const [hovered, setHovered] = useState<{
+    session: SessionInfo;
+    rect: DOMRect;
+  } | null>(null);
+
+  // Mod+K opens the aggregated search palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchDialogOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const branchForProject = useCallback(
+    (project: string): string | null => {
+      const wt = worktreeState;
+      if (wt && wt.projectRoot === project) {
+        const cur =
+          wt.worktrees.find((w) => w.path === selectedCwd) ??
+          wt.worktrees.find((w) => w.isMain);
+        return cur?.branch ?? null;
+      }
+      return null;
+    },
+    [worktreeState, selectedCwd],
+  );
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -1393,22 +1460,24 @@ export function SessionSidebar({
       );
     }
     let ordered: string[];
-    switch (display.projectSort) {
-      case "a-z":
+    const firstSeen = new Map<string, number>();
+    allSessions.forEach((s, idx) => {
+      const root = s.projectRoot ?? s.cwd;
+      if (root && !firstSeen.has(root)) firstSeen.set(root, idx);
+    });
+    switch (projSort) {
+      case "name":
         ordered = [...recentProjects].sort((a, b) => a.localeCompare(b));
         break;
-      case "z-a":
-        ordered = [...recentProjects].sort((a, b) => b.localeCompare(a));
-        break;
-      case "date-added": {
+      case "created":
         // First session appearance order (stable per id order in allSessions).
-        const firstSeen = new Map<string, number>();
-        allSessions.forEach((s, idx) => {
-          const root = s.projectRoot ?? s.cwd;
-          if (root && !firstSeen.has(root)) firstSeen.set(root, idx);
-        });
         ordered = [...recentProjects].sort(
           (a, b) => (firstSeen.get(a) ?? 1e9) - (firstSeen.get(b) ?? 1e9),
+        );
+        break;
+      case "oldest": {
+        ordered = [...recentProjects].sort(
+          (a, b) => (firstSeen.get(b) ?? 1e9) - (firstSeen.get(a) ?? 1e9),
         );
         break;
       }
@@ -1427,11 +1496,22 @@ export function SessionSidebar({
         );
         break;
       }
-      default:
-        // "manual": current project first, then recency order from recentProjects.
-        ordered = [...recentProjects].sort((a, b) =>
-          a === selectedProject ? -1 : b === selectedProject ? 1 : 0,
+      case "manual": {
+        // Pinned first (prefs order), then current project, then recency.
+        const prefsNow = loadSidebarPrefs();
+        const pinRank = (p: string) => {
+          const m = prefsNow.projectMeta[p];
+          return m?.pinned ? m.order ?? 0 : 1e9;
+        };
+        ordered = [...recentProjects].sort(
+          (a, b) =>
+            pinRank(a) - pinRank(b) ||
+            (a === selectedProject ? -1 : b === selectedProject ? 1 : 0),
         );
+        break;
+      }
+      default:
+        ordered = [...recentProjects];
     }
     return ordered.map((project) => ({
       project,
@@ -1441,7 +1521,7 @@ export function SessionSidebar({
     recentProjects,
     selectedProject,
     visibleSessions,
-    display.projectSort,
+    projSort,
     allSessions,
   ]);
 
@@ -1460,7 +1540,7 @@ export function SessionSidebar({
 
   // Time-group headings (Today / Yesterday / Earlier) around the tree — only
   // when not searching, so the search result stays a flat list.
-  type TimeBucket = "today" | "yesterday" | "earlier";
+  type TimeBucket = "today" | "yesterday" | "thisWeek" | "earlier";
   const bucketOf = (dateStr: string): TimeBucket => {
     const d = new Date(dateStr);
     const now = new Date();
@@ -1471,22 +1551,44 @@ export function SessionSidebar({
     if (diff < 0) return "today";
     if (diff < dayMs) return "today";
     if (diff < 2 * dayMs) return "yesterday";
+    if (diff < 7 * dayMs) return "thisWeek";
     return "earlier";
   };
   const BUCKET_LABELS: Record<TimeBucket, string> = {
     today: t("sidebar.bucket.today"),
     yesterday: t("sidebar.bucket.yesterday"),
+    thisWeek: t("sidebar.bucket.thisWeek"),
     earlier: t("sidebar.bucket.earlier"),
   };
-  const bucketOrder: TimeBucket[] = ["today", "yesterday", "earlier"];
+  const bucketOrder: TimeBucket[] = ["today", "yesterday", "thisWeek", "earlier"];
   const groupedTree = useMemo(() => {
     if (searching) return null;
     const byBucket: Record<TimeBucket, SessionTreeNode[]> = {
       today: [],
       yesterday: [],
+      thisWeek: [],
       earlier: [],
     };
-    const tree = buildSessionTree(filteredSessions);
+    const sortedForTree =
+      sessionSort === "recent"
+        ? filteredSessions
+        : sortSessions(
+            filteredSessions.map((s) => ({
+              ...s,
+              title: s.name ?? s.firstMessage,
+              projectKey: s.projectRoot ?? s.cwd,
+              updatedAt: Date.parse(s.modified) || 0,
+              createdAt: Date.parse(s.created) || 0,
+              temp: s.temp === true,
+            })),
+            sessionSort,
+            (id) => loadSidebarPrefs().sessionMeta[id],
+          );
+    const tree = buildSessionTree(
+      sessionSort === "recent"
+        ? filteredSessions
+        : (sortedForTree as unknown as typeof filteredSessions),
+    );
     for (const node of tree) {
       byBucket[bucketOf(node.session.modified)].push(node);
     }
@@ -1970,6 +2072,35 @@ export function SessionSidebar({
             <span
               role="button"
               tabIndex={0}
+              aria-label={t("sidebar.sessionSort")}
+              onClick={(e) => {
+                e.stopPropagation();
+                setTempSortMenu({ anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect() });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.stopPropagation();
+              }}
+              style={{ color: "var(--text-dim)", cursor: "pointer" }}
+            >
+              ↑↓
+            </span>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                openDraft(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.stopPropagation();
+              }}
+              style={{ color: "var(--text-dim)", cursor: "pointer" }}
+            >
+              +
+            </span>
+            <span
+              role="button"
+              tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation();
                 void purgeTempSessions();
@@ -1985,6 +2116,11 @@ export function SessionSidebar({
               {t("sidebar.tempClear")}
             </span>
           </button>
+          {tempOpen && tempSessions.length === 0 && (
+            <div style={{ padding: "6px 12px", color: "var(--text-dim)", fontSize: 11 }}>
+              {t("sidebar.tempEmpty")}
+            </div>
+          )}
           {tempOpen && (
             <div style={{ maxHeight: "30vh", overflowY: "auto" }}>
               {tempSessions.map((s) => (
@@ -2006,6 +2142,14 @@ export function SessionSidebar({
       )}
 
       <div
+        onMouseOver={(e) => {
+          const row = (e.target as HTMLElement).closest<HTMLElement>("[data-session-row]");
+          if (!row) return;
+          const id = row.dataset.sessionRow;
+          const s = allSessions.find((x) => x.id === id);
+          if (s && hovered?.session.id !== id) setHovered({ session: s, rect: row.getBoundingClientRect() });
+        }}
+        onMouseLeave={() => setHovered(null)}
         style={{
           // flex-basis 0 + minHeight 0: the list must shrink to the space
           // below the header. With basis auto the natural content height
@@ -2081,6 +2225,13 @@ export function SessionSidebar({
             	return null;
             }}
             onNewSessionInProject={(project) => openDraft(project)}
+            onProjectContextMenu={(e, project) => {
+              e.preventDefault();
+              setProjMenu({ project, point: { x: e.clientX, y: e.clientY }, anchorRect: null });
+            }}
+            onProjectSortClick={(e) =>
+              setProjSortMenu({ anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect() })
+            }
             onDeleteProjectSessions={(project) => requestProjectDelete(project)}
             onOpenTerminal={(project) => {
             	void fetch("/api/open", {
@@ -2135,6 +2286,9 @@ export function SessionSidebar({
                     onArchive={(id) => void handleArchiveOne(id)}
                     pinnedIds={pinnedIdSet}
                     onPinToggle={togglePin}
+                    onRowContextMenu={(e, session) =>
+                      setRowMenu({ session, point: { x: e.clientX, y: e.clientY }, anchorRect: null })
+                    }
                   />
                 ))}
               </>
@@ -2791,6 +2945,98 @@ export function SessionSidebar({
         }}
       />
 
+      {/* P2 floating menus + palette + hover card (portal-rendered) */}
+      <FloatingMenu
+        open={rowMenu !== null}
+        point={rowMenu?.point ?? null}
+        anchorRect={rowMenu?.anchorRect ?? null}
+        onClose={() => setRowMenu(null)}
+        label={t("sidebar.worktreeMenu")}
+        items={(() => {
+          const s = rowMenu?.session;
+          if (!s) return [] as FloatingMenuItem[];
+          return [
+            { key: "rename", label: t("sidebar.rename"), onSelect: () => void renameSession(s.id, s.name ?? "").then(() => loadSessions()).catch(() => {}) },
+            { key: "pin", label: pinnedIdSet.has(s.id) ? t("sidebar.unpin") : t("sidebar.pin"), onSelect: () => togglePin(s.id) },
+            { key: "archive", label: t("sidebar.archive"), onSelect: () => void handleArchiveOne(s.id) },
+            { key: "copyid", label: t("sidebar.copySessionId"), onSelect: () => void navigator.clipboard?.writeText(s.id).catch(() => {}) },
+            { key: "delete", label: t("sidebar.delete"), danger: true, onSelect: () => void deleteSessions([s.id]).then(() => { onSessionDeleted?.(s.id); loadSessions(); }).catch(() => {}) },
+          ];
+        })()}
+      />
+      <FloatingMenu
+        open={projMenu !== null}
+        point={projMenu?.point ?? null}
+        anchorRect={projMenu?.anchorRect ?? null}
+        onClose={() => setProjMenu(null)}
+        label={t("sidebar.worktreeMenu")}
+        items={(() => {
+          const project = projMenu?.project;
+          if (!project) return [] as FloatingMenuItem[];
+          return [
+            { key: "terminal", label: t("sidebar.openTerminal"), onSelect: () => void fetch("/api/open", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target: "terminal", path: project }) }).catch(() => {}) },
+            { key: "rename", label: t("sidebar.renameProject"), onSelect: () => setProjectAlias(project) },
+            { key: "pin", label: pinnedProjects.includes(project) ? t("sidebar.unpinProject") : t("sidebar.pinProject"), onSelect: () => toggleProjectPin(project) },
+            { key: "delete", label: t("sidebar.deleteProjectSessions"), danger: true, onSelect: () => requestProjectDelete(project) },
+          ];
+        })()}
+      />
+      <FloatingMenu
+        open={tempSortMenu !== null}
+        anchorRect={tempSortMenu?.anchorRect ?? null}
+        onClose={() => setTempSortMenu(null)}
+        label={t("sidebar.sessionSort")}
+        items={(["recent", "created", "oldest", "name"] as SessionSort[]).map((mode) => ({
+          key: mode,
+          label: t(`sidebar.sort.${mode}`),
+          checked: sessionSort === mode,
+          onSelect: () => {
+            setSessionSort(mode);
+            updatePrefs((p) => {
+              p.sessionView.sort = mode;
+            });
+          },
+        }))}
+      />
+      <FloatingMenu
+        open={projSortMenu !== null}
+        anchorRect={projSortMenu?.anchorRect ?? null}
+        onClose={() => setProjSortMenu(null)}
+        label={t("sidebar.display.projectSort")}
+        items={(["recent", "created", "oldest", "name", "manual"] as ProjectSort[]).map((mode) => ({
+          key: mode,
+          label: t(`sidebar.sort.${mode}`),
+          checked: projSort === mode,
+          onSelect: () => {
+            setProjSort(mode);
+            updatePrefs((p) => {
+              p.projectSort = mode;
+            });
+          },
+        }))}
+      />
+      <SessionHoverCard
+        session={hovered?.session ?? null}
+        anchorRect={hovered?.rect ?? null}
+        branch={hovered ? branchForProject(hovered.session.projectRoot ?? hovered.session.cwd) : null}
+        selected={hovered?.session.id === selectedSessionId}
+        running={hovered ? runningSessionIds.has(hovered.session.id) : false}
+      />
+      <SearchDialog
+        open={searchDialogOpen}
+        sessions={allSessions}
+        commands={[
+          { key: "workspace", label: t("sidebar.openWorkspace"), run: () => setDropdownOpen(true) },
+          ...(onOpenSkills ? [{ key: "skills", label: t("skills"), run: () => onOpenSkills() }] : []),
+          { key: "draft", label: t("sidebar.newTempSession"), run: () => openDraft(null) },
+        ]}
+        onClose={() => setSearchDialogOpen(false)}
+        onSelectSession={(s) => {
+          setSelectedCwd(s.cwd);
+          onSelectSession(s, false);
+        }}
+        onNewSession={() => openDraft(selectedProject)}
+      />
     </div>
   );
 }

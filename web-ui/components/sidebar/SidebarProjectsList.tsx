@@ -34,6 +34,10 @@ interface SidebarProjectsListProps {
 	onDeleteProjectSessions?: (project: string) => void;
 	/** Open the project root in a terminal. */
 	onOpenTerminal?: (project: string) => void;
+	/** Right-click on a group header → portal menu. */
+	onProjectContextMenu?: (e: React.MouseEvent, project: string) => void;
+	/** Sort button on a group header → project-sort popover. */
+	onProjectSortClick?: (e: React.MouseEvent) => void;
 }
 
 export function SidebarProjectsList({
@@ -49,6 +53,8 @@ export function SidebarProjectsList({
 	onNewSessionInProject,
 	onDeleteProjectSessions,
 	onOpenTerminal,
+	onProjectContextMenu,
+	onProjectSortClick,
 }: SidebarProjectsListProps) {
 	const { t } = useI18n();
 	return (
@@ -57,7 +63,25 @@ export function SidebarProjectsList({
 				const isCurrent = pg.project === selectedProject;
 				return (
 					<div key={pg.project}>
-						<div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+						<div
+							style={{ display: "flex", alignItems: "center", width: "100%" }}
+							onContextMenu={(e) => onProjectContextMenu?.(e, pg.project)}
+						>
+							{onProjectSortClick && (
+								<span
+									role="button"
+									tabIndex={0}
+									aria-label={t("sidebar.display.projectSort")}
+									onClick={(e) => {
+										e.stopPropagation();
+										onProjectSortClick(e);
+									}}
+									onKeyDown={(e) => e.stopPropagation()}
+									style={{ color: "var(--text-dim)", cursor: "pointer", fontSize: 10, padding: "0 2px", flexShrink: 0 }}
+								>
+									↑↓
+								</span>
+							)}
 							<button
 								onClick={() => {
 									if (!isCurrent) onSwitchProject(pg.project);
