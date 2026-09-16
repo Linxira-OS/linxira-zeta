@@ -47,6 +47,7 @@ import {
 import { handleBlobGet } from "./web-gateway/blobs";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
+import { handleGitBranch, handleGitBranches, handleGitCheckout } from "./web-gateway/git";
 import {
 	handleModels,
 	handleModelsConfigGet,
@@ -256,6 +257,23 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (pathname === "/api/projects") {
 		if (req.method === "DELETE") return handleDeleteProject(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/branches") {
+		if (req.method === "GET") return handleGitBranches(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Literal /api/git routes (sidebar project switcher); matched before any
+	// generic captures, like /api/agent/running above.
+	if (pathname === "/api/git/checkout") {
+		if (req.method === "POST") return handleGitCheckout(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/branch") {
+		if (req.method === "POST") return handleGitBranch(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
