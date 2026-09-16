@@ -25,8 +25,6 @@ const TOOL_BUTTON_STYLE: CSSProperties = {
 	display: "flex",
 	alignItems: "center",
 	justifyContent: "center",
-	background: "var(--bg-hover)",
-	border: "1px solid var(--border)",
 	color: "var(--text-muted)",
 	cursor: "pointer",
 	width: 32,
@@ -34,7 +32,6 @@ const TOOL_BUTTON_STYLE: CSSProperties = {
 	borderRadius: 7,
 	padding: 0,
 	flexShrink: 0,
-	transition: "background 0.12s, color 0.12s, border-color 0.12s",
 };
 
 function hoverAccent(e: React.MouseEvent<HTMLButtonElement>) {
@@ -70,7 +67,7 @@ export function SidebarHeader({
 			{title}
 			<div style={{ display: "flex", gap: 6 }}>
 				{/* Folder picker — opens the directory dialog (IDE-style browser) */}
-				<button
+				<button className="ze-btn"
 					onClick={onOpenFolderPicker}
 					title={t("browse-folder-ide-style")}
 					style={TOOL_BUTTON_STYLE}
@@ -94,7 +91,7 @@ export function SidebarHeader({
 				{/* Display settings dropdown — sort/group/recent controls */}
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger asChild>
-						<button title={t("sidebar.display.title")} style={TOOL_BUTTON_STYLE} onMouseEnter={hoverAccent} onMouseLeave={hoverReset}>
+						<button title={t("sidebar.display.title")} className="ze-btn" style={TOOL_BUTTON_STYLE} onMouseEnter={hoverAccent} onMouseLeave={hoverReset}>
 							<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
 								<line x1="4" y1="6" x2="20" y2="6" />
 								<line x1="4" y1="12" x2="16" y2="12" />
@@ -225,12 +222,12 @@ export function SidebarHeader({
 
 				{/* Search toggle */}
 				<button
+					className="ze-btn"
+					aria-pressed={searchOpen}
 					onClick={onToggleSearch}
 					title={t("sidebar.display.search")}
 					style={{
 						...TOOL_BUTTON_STYLE,
-						background: searchOpen ? "var(--bg-selected)" : "var(--bg-hover)",
-						border: `1px solid ${searchOpen ? "var(--interactive-border-focus)" : "var(--border)"}`,
 						color: searchOpen ? "var(--accent)" : "var(--text-muted)",
 					}}
 					onMouseEnter={hoverAccent}
@@ -253,12 +250,12 @@ export function SidebarHeader({
 
 				{/* Edit mode (multi-select) toggle */}
 				<button
+					className="ze-btn"
+					aria-pressed={editMode}
 					onClick={onToggleEditMode}
 					title={editMode ? t("sidebar.exitEditMode") : t("sidebar.editMode")}
 					style={{
 						...TOOL_BUTTON_STYLE,
-						background: editMode ? "var(--bg-selected)" : "var(--bg-hover)",
-						border: `1px solid ${editMode ? "var(--interactive-border-focus)" : "var(--border)"}`,
 						color: editMode ? "var(--accent)" : "var(--text-muted)",
 					}}
 					onMouseEnter={hoverAccent}

@@ -4,6 +4,7 @@
    See document/web-ui-modernization.md §2. */
 @import "../styles/design-system.css";
 @import "../styles/typography.css";
+@import "../styles/elevation.css";
 
 html.zeta-theme-switching *,
 html.zeta-theme-switching *::before,

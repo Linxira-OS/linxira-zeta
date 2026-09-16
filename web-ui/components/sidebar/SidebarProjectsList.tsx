@@ -77,7 +77,8 @@ export function SidebarProjectsList({
 										onProjectSortClick(e);
 									}}
 									onKeyDown={(e) => e.stopPropagation()}
-									style={{ color: "var(--text-dim)", cursor: "pointer", fontSize: 10, padding: "0 2px", flexShrink: 0 }}
+									className="ze-quiet"
+									style={{ fontSize: 10, padding: "1px 4px", flexShrink: 0 }}
 								>
 									↑↓
 								</span>

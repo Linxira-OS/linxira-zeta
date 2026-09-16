@@ -1751,6 +1751,7 @@ export function SessionSidebar({
           }}
         >
           <button
+            className="ze-btn-hero"
             onClick={() => openDraft(selectedProject)}
             style={{
               flex: 2,
@@ -1759,11 +1760,7 @@ export function SessionSidebar({
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              background: "var(--bg-selected)",
-              border: "1px solid var(--interactive-border-focus)",
               borderRadius: 7,
-              color: "var(--accent)",
-              cursor: "pointer",
               fontSize: 12,
               fontWeight: 600,
             }}
@@ -1775,6 +1772,7 @@ export function SessionSidebar({
             {t("sidebar.actions.newSession")}
           </button>
           <button
+            className="ze-btn"
             onClick={() => setDropdownOpen((v) => !v)}
             style={{
               flex: 1.4,
@@ -1783,11 +1781,8 @@ export function SessionSidebar({
               alignItems: "center",
               justifyContent: "center",
               gap: 5,
-              background: "var(--bg-hover)",
-              border: "1px solid var(--border)",
               borderRadius: 7,
               color: "var(--text-muted)",
-              cursor: "pointer",
               fontSize: 11.5,
             }}
           >
@@ -1798,6 +1793,7 @@ export function SessionSidebar({
           </button>
           {onOpenSkills && (
             <button
+              className="ze-btn"
               onClick={onOpenSkills}
               title={t("skills")}
               style={{
@@ -1806,11 +1802,8 @@ export function SessionSidebar({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "var(--bg-hover)",
-                border: "1px solid var(--border)",
                 borderRadius: 7,
                 color: "var(--text-muted)",
-                cursor: "pointer",
               }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2080,7 +2073,8 @@ export function SessionSidebar({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.stopPropagation();
               }}
-              style={{ color: "var(--text-dim)", cursor: "pointer" }}
+              className="ze-quiet"
+              style={{ padding: "1px 5px" }}
             >
               ↑↓
             </span>
@@ -2094,7 +2088,8 @@ export function SessionSidebar({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.stopPropagation();
               }}
-              style={{ color: "var(--text-dim)", cursor: "pointer" }}
+              className="ze-quiet"
+              style={{ padding: "1px 6px" }}
             >
               +
             </span>
