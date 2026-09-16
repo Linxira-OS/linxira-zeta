@@ -244,12 +244,11 @@ export function SidebarProjectsList({
 							)}
 							{isCurrent && renderProjectMenu?.(pg.project)}
 						</div>
-						{isCurrent &&
-							pg.count === 0 &&
+						{pg.count === 0 &&
 							!collapsedProjects.has(pg.project) && (
 								<div
 									style={{
-										padding: "2px 14px 8px",
+										padding: "2px 14px 8px 38px",
 										fontSize: 11,
 										color: "var(--text-dim)",
 									}}
@@ -257,8 +256,8 @@ export function SidebarProjectsList({
 									{t("sidebar.no-sessions-in-workspace")}
 								</div>
 							)}
-						{isCurrent &&
-							!collapsedProjects.has(pg.project) &&
+						{!collapsedProjects.has(pg.project) &&
+							pg.count > 0 &&
 							renderProjectSessions(pg.project)}
 					</div>
 				);

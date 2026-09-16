@@ -779,6 +779,14 @@ export function SessionSidebar({
     session: SessionInfo;
     rect: DOMRect;
   } | null>(null);
+  // Two-level confirmation for every destructive action (delete/archive/clear).
+  const [dangerConfirm, setDangerConfirm] = useState<{
+    title: string;
+    body: string;
+    detail?: string;
+    confirmLabel: string;
+    action: () => Promise<void> | void;
+  } | null>(null);
 
   // Mod+K opens the aggregated search palette.
   useEffect(() => {
@@ -1598,6 +1606,38 @@ export function SessionSidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder are stable per-locale constants
   }, [filteredSessions, searching]);
 
+  // Per-project session trees: EVERY project renders its own conversations
+  // inline as children of the project row (parent folds → children hide).
+  const projectTrees = useMemo(() => {
+    const byProject = new Map<string, SessionInfo[]>();
+    for (const s of nonTempSessions) {
+      const root = s.projectRoot ?? s.cwd;
+      const list = byProject.get(root) ?? [];
+      list.push(s);
+      byProject.set(root, list);
+    }
+    const trees = new Map<string, { bucket: TimeBucket; nodes: SessionTreeNode[] }[]>();
+    for (const [project, sessions] of byProject) {
+      const byBucket: Record<TimeBucket, SessionTreeNode[]> = {
+        today: [],
+        yesterday: [],
+        thisWeek: [],
+        earlier: [],
+      };
+      for (const node of buildSessionTree(sessions)) {
+        byBucket[bucketOf(node.session.modified)].push(node);
+      }
+      trees.set(
+        project,
+        bucketOrder
+          .map((b) => ({ bucket: b, nodes: byBucket[b] }))
+          .filter((g) => g.nodes.length > 0),
+      );
+    }
+    return trees;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder stable per locale
+  }, [nonTempSessions]);
+
   // ── Pin / archive / bulk-selection glue ──
   const pinnedIdSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
   const togglePin = useCallback((id: string) => {
@@ -1737,7 +1777,6 @@ export function SessionSidebar({
             })
           }
           onToggleEditMode={() => multiSelect.setEnabled(!multiSelect.enabled)}
-          onOpenFolderPicker={() => setFolderPickerModalOpen(true)}
           onUpdateDisplay={updateDisplay}
         />
 
@@ -2098,12 +2137,22 @@ export function SessionSidebar({
               tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation();
-                void purgeTempSessions();
+                setDangerConfirm({
+                  title: t("sidebar.tempClear"),
+                  body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
+                  confirmLabel: t("sidebar.tempClear"),
+                  action: () => purgeTempSessions(),
+                });
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.stopPropagation();
-                  void purgeTempSessions();
+                  setDangerConfirm({
+                    title: t("sidebar.tempClear"),
+                    body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
+                    confirmLabel: t("sidebar.tempClear"),
+                    action: () => purgeTempSessions(),
+                  });
                 }
               }}
               style={{ color: "var(--status-error)", cursor: "pointer" }}
@@ -2258,9 +2307,9 @@ export function SessionSidebar({
                 />
               ) : null
             }
-            renderProjectSessions={() => (
+            renderProjectSessions={(project) => (
               <>
-                {groupedTree.map((group) => (
+                {(projectTrees.get(project) ?? []).map((group) => (
                   <SessionGroupSection
                     key={group.bucket}
                     groups={[group]}
@@ -2574,6 +2623,83 @@ export function SessionSidebar({
                 }}
               >
                 {t("sidebar.delete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {dangerConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setDangerConfirm(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 410,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "var(--surface-overlay)",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              minWidth: 320,
+              maxWidth: 420,
+              background: "var(--bg-elevated, var(--bg))",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: 16,
+              boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
+              {dangerConfirm.title}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
+              {dangerConfirm.body}
+              {dangerConfirm.detail && (
+                <div
+                  title={dangerConfirm.detail}
+                  style={{ marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {dangerConfirm.detail}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setDangerConfirm(null)}
+                style={{
+                  padding: "6px 12px",
+                  background: "var(--bg-hover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  color: "var(--text-muted)",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {t("cancel")}
+              </button>
+              <button
+                className="ze-btn"
+                onClick={() => {
+                  const action = dangerConfirm.action;
+                  setDangerConfirm(null);
+                  void action();
+                }}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: "var(--status-error)",
+                  borderColor: "color-mix(in srgb, var(--status-error) 50%, var(--border))",
+                }}
+              >
+                {dangerConfirm.confirmLabel}
               </button>
             </div>
           </div>
@@ -2953,9 +3079,35 @@ export function SessionSidebar({
           return [
             { key: "rename", label: t("sidebar.rename"), onSelect: () => void renameSession(s.id, s.name ?? "").then(() => loadSessions()).catch(() => {}) },
             { key: "pin", label: pinnedIdSet.has(s.id) ? t("sidebar.unpin") : t("sidebar.pin"), onSelect: () => togglePin(s.id) },
-            { key: "archive", label: t("sidebar.archive"), onSelect: () => void handleArchiveOne(s.id) },
+            {
+              key: "archive",
+              label: t("sidebar.archive"),
+              onSelect: () =>
+                setDangerConfirm({
+                  title: t("sidebar.archiveSession"),
+                  body: t("sidebar.archiveSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
+                  confirmLabel: t("sidebar.archive"),
+                  action: () => handleArchiveOne(s.id),
+                }),
+            },
             { key: "copyid", label: t("sidebar.copySessionId"), onSelect: () => void navigator.clipboard?.writeText(s.id).catch(() => {}) },
-            { key: "delete", label: t("sidebar.delete"), danger: true, onSelect: () => void deleteSessions([s.id]).then(() => { onSessionDeleted?.(s.id); loadSessions(); }).catch(() => {}) },
+            {
+              key: "delete",
+              label: t("sidebar.delete"),
+              danger: true,
+              onSelect: () =>
+                setDangerConfirm({
+                  title: t("sidebar.deleteSessionTitle"),
+                  body: t("sidebar.deleteSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
+                  detail: s.id,
+                  confirmLabel: t("sidebar.delete"),
+                  action: async () => {
+                    await deleteSessions([s.id]);
+                    onSessionDeleted?.(s.id);
+                    await loadSessions();
+                  },
+                }),
+            },
           ];
         })()}
       />
