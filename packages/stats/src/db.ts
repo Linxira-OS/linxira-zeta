@@ -1634,6 +1634,67 @@ export function markSessionBackfillsComplete(): void {
 	apply();
 }
 
+/** Tables keyed by transcript path; orphans are purged from all of them. */
+const SESSION_FILE_TABLES = ["messages", "user_messages", "tool_calls", "file_offsets"] as const;
+
+export interface PruneOrphanResult {
+	/** Distinct session files whose rows were removed. */
+	prunedFiles: number;
+	/** Total rows removed across all session-keyed tables. */
+	deletedRows: number;
+}
+
+/**
+ * Delete every row whose `session_file` no longer exists on disk. Deleted
+ * projects (tmp test suites, wiped transcripts) otherwise keep surfacing in
+ * the Operational Feed and models list forever. Runs in one transaction; the
+ * existing-file set is collected by the caller before any DELETE so the
+ * comparison is a single in-memory set probe per stored path.
+ */
+export function pruneOrphanSessionsInDb(database: Database, existingFiles: readonly string[]): PruneOrphanResult {
+	const existing = new Set(existingFiles.map(normalizeSessionFilePath));
+	const orphans = new Set<string>();
+	for (const table of SESSION_FILE_TABLES) {
+		const rows = database.prepare(`SELECT DISTINCT session_file FROM ${table}`).all() as {
+			session_file: string;
+		}[];
+		for (const row of rows) {
+			if (!existing.has(normalizeSessionFilePath(row.session_file))) orphans.add(row.session_file);
+		}
+	}
+	if (orphans.size === 0) return { prunedFiles: 0, deletedRows: 0 };
+
+	let deletedRows = 0;
+	const apply = database.transaction(() => {
+		for (const sessionFile of orphans) {
+			for (const table of SESSION_FILE_TABLES) {
+				const result = database.prepare(`DELETE FROM ${table} WHERE session_file = ?`).run(sessionFile);
+				deletedRows += Number(result.changes);
+			}
+		}
+	});
+	apply();
+	return { prunedFiles: orphans.size, deletedRows };
+}
+
+/**
+ * {@link pruneOrphanSessionsInDb} against the module DB handle. No-op when
+ * {@link initDb} has not run.
+ */
+export function pruneOrphanSessions(existingFiles: readonly string[]): PruneOrphanResult {
+	if (!db) return { prunedFiles: 0, deletedRows: 0 };
+	return pruneOrphanSessionsInDb(db, existingFiles);
+}
+
+/**
+ * Comparison key for stored transcript paths: separators unified and case
+ * folded on Windows, where lookups are case-insensitive.
+ */
+function normalizeSessionFilePath(sessionFile: string): string {
+	const unified = sessionFile.replaceAll("\\", "/");
+	return process.platform === "win32" ? unified.toLowerCase() : unified;
+}
+
 /**
  * Insert user-message stats. Idempotent via UNIQUE(session_file, entry_id).
  * The `WHERE NOT EXISTS` clause matches {@link insertMessageStats}: forks

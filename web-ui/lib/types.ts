@@ -302,6 +302,8 @@ export interface SessionInfo {
   tag?: string;
   /** Set only in the archived listing: the original project cwd. */
   archivedFrom?: string;
+  /** True when cwd is inside the OS temp dir (test/throwaway sessions). */
+  temp?: boolean;
 }
 
 export interface SessionContext {

@@ -91,6 +91,8 @@ const nextConfig: NextConfig = {
         { source: "/api/open/:path*", destination: `${gateway}/api/open/:path*` },
         { source: "/api/update/:path*", destination: `${gateway}/api/update/:path*` },
         { source: "/api/docs/:path*", destination: `${gateway}/api/docs/:path*` },
+        { source: "/api/projects/:path*", destination: `${gateway}/api/projects/:path*` },
+        { source: "/api/git/:path*", destination: `${gateway}/api/git/:path*` },
         // Stats Dashboard is a separate service (default :3847). Under
         // `zeta serve` the unified listener already routes /api/stats; this
         // rewrite covers `next dev` / standalone `next start` against the

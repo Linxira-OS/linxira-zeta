@@ -1,0 +1,161 @@
+/*
+ * Elevation system — depth for interactive surfaces (user feedback: buttons
+ * sat flatter than flat). Three tiers:
+ *   .ze-btn      raised chrome (secondary buttons, icon tools)
+ *   .ze-btn-hero primary action (new session)
+ *   .ze-quiet    ghost triggers (sort ↑↓, clear) — borderless until hover
+ *
+ * Technique: top-lit gradient + inset rim light + layered drop shadow.
+ * Hover raises (bigger shadow, lighter face), :active presses (shadow in,
+ * face darkens, 0.5px sink). Works on dark and light: rim uses white alpha,
+ * shadow black alpha, face color-mix over var(--bg).
+ *
+ * Reduced motion: transforms/shadow transitions collapse to instant.
+ */
+
+.ze-btn,
+.ze-btn-hero {
+	position: relative;
+	border: 1px solid var(--border);
+	color: var(--text);
+	cursor: pointer;
+	transition:
+		box-shadow 0.14s ease,
+		background-color 0.14s ease,
+		border-color 0.14s ease,
+		transform 0.06s ease;
+	background:
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--bg-hover) 88%, #fff 12%) 0%,
+			var(--bg-hover) 100%
+		);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.07),
+		0 1px 2px rgba(0, 0, 0, 0.5),
+		0 2px 5px rgba(0, 0, 0, 0.28);
+}
+
+.ze-btn:hover,
+.ze-btn-hero:hover {
+	background:
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--bg-selected) 82%, #fff 18%) 0%,
+			var(--bg-selected) 100%
+		);
+	border-color: color-mix(in srgb, var(--border) 55%, var(--text-muted) 45%);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.09),
+		0 2px 4px rgba(0, 0, 0, 0.5),
+		0 5px 12px rgba(0, 0, 0, 0.32);
+}
+
+.ze-btn:active,
+.ze-btn-hero:active {
+	transform: translateY(0.5px);
+	background: var(--bg-selected);
+	box-shadow:
+		inset 0 2px 4px rgba(0, 0, 0, 0.35),
+		inset 0 1px 0 rgba(255, 255, 255, 0.04),
+		0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.ze-btn:focus-visible,
+.ze-btn-hero:focus-visible {
+	outline: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+	outline-offset: 1px;
+}
+
+/* Hero (primary action): accent face, stronger lift. */
+.ze-btn-hero {
+	background:
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--bg-selected) 78%, var(--accent) 22%) 0%,
+			color-mix(in srgb, var(--bg-selected) 90%, var(--accent) 10%) 100%
+		);
+	border-color: color-mix(in srgb, var(--accent) 45%, var(--border) 55%);
+	color: var(--accent);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.1),
+		inset 0 0 12px color-mix(in srgb, var(--accent) 8%, transparent),
+		0 1px 2px rgba(0, 0, 0, 0.55),
+		0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ze-btn-hero:hover {
+	background:
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--bg-selected) 66%, var(--accent) 34%) 0%,
+			color-mix(in srgb, var(--bg-selected) 82%, var(--accent) 18%) 100%
+		);
+	border-color: color-mix(in srgb, var(--accent) 70%, var(--border) 30%);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.12),
+		inset 0 0 14px color-mix(in srgb, var(--accent) 12%, transparent),
+		0 2px 4px rgba(0, 0, 0, 0.55),
+		0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* Quiet ghost triggers: invisible chrome until hover, then a raised chip. */
+.ze-quiet {
+	color: var(--text-dim);
+	cursor: pointer;
+	border: 1px solid transparent;
+	border-radius: 5px;
+	background: none;
+	box-shadow: none;
+	transition:
+		background-color 0.12s ease,
+		box-shadow 0.12s ease,
+		color 0.12s ease,
+		border-color 0.12s ease;
+}
+
+.ze-quiet:hover {
+	color: var(--text);
+	background:
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--bg-hover) 85%, #fff 15%) 0%,
+			var(--bg-hover) 100%
+		);
+	border-color: var(--border);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.06),
+		0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.ze-quiet:active {
+	background: var(--bg-selected);
+	box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ze-btn,
+	.ze-btn-hero,
+	.ze-quiet {
+		transition: none;
+	}
+	.ze-btn:active,
+	.ze-btn-hero:active {
+		transform: none;
+	}
+}
+
+/* Toggled state (aria-pressed): pressed-in accent chip. */
+.ze-btn[aria-pressed="true"] {
+	background:
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--bg-selected) 80%, var(--accent) 20%) 0%,
+			var(--bg-selected) 100%
+		);
+	border-color: color-mix(in srgb, var(--accent) 55%, var(--border) 45%);
+	box-shadow:
+		inset 0 2px 4px rgba(0, 0, 0, 0.3),
+		inset 0 1px 0 rgba(255, 255, 255, 0.05),
+		0 1px 2px rgba(0, 0, 0, 0.35);
+}

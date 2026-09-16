@@ -64,3 +64,62 @@ export function savePinnedSessionIds(ids: readonly string[]): void {
 		// storage unavailable — pins stay session-only
 	}
 }
+
+export const SIDEBAR_PROJECT_ALIASES_KEY = "zeta-web:sidebar-project-aliases";
+export const SIDEBAR_PINNED_PROJECTS_KEY = "zeta-web:sidebar-pinned-projects";
+
+/** cwd → display alias. UI-only overlay; never renames anything on disk. */
+export function loadProjectAliases(): Record<string, string> {
+	try {
+		const raw = window.localStorage.getItem(SIDEBAR_PROJECT_ALIASES_KEY);
+		if (!raw) return {};
+		const parsed: unknown = JSON.parse(raw);
+		if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+			const out: Record<string, string> = {};
+			for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+				if (typeof v === "string" && v.trim()) out[k] = v.trim();
+			}
+			return out;
+		}
+	} catch {
+		// storage unavailable — aliases stay session-only
+	}
+	return {};
+}
+
+export function saveProjectAliases(aliases: Record<string, string>): void {
+	try {
+		window.localStorage.setItem(SIDEBAR_PROJECT_ALIASES_KEY, JSON.stringify(aliases));
+	} catch {
+		// ignore
+	}
+}
+
+/** Pinned project roots (cwd-keyed), order-preserving. */
+export function loadPinnedProjects(): string[] {
+	try {
+		const raw = window.localStorage.getItem(SIDEBAR_PINNED_PROJECTS_KEY);
+		if (!raw) return [];
+		const parsed: unknown = JSON.parse(raw);
+		if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === "string");
+	} catch {
+		// ignore
+	}
+	return [];
+}
+
+export function savePinnedProjects(projects: string[]): void {
+	try {
+		window.localStorage.setItem(SIDEBAR_PINNED_PROJECTS_KEY, JSON.stringify(projects));
+	} catch {
+		// ignore
+	}
+}
+
+export function saveCollapsedProjects(projects: readonly string[]): void {
+	try {
+		window.localStorage.setItem(SIDEBAR_COLLAPSED_PROJECTS_KEY, JSON.stringify(projects));
+	} catch {
+		// storage unavailable — collapse state stays session-only
+	}
+}

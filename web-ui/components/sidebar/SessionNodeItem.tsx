@@ -35,6 +35,8 @@ export interface SessionNodeItemProps {
 	isChecked?: boolean;
 	onToggleSelect?: (opts?: { shift?: boolean; visibleIds?: readonly string[] }) => void;
 	visibleIds?: readonly string[];
+	/** External right-click handler (portal menu); overrides the inline menu. */
+	onRowContextMenu?: (e: React.MouseEvent) => void;
 }
 
 function formatElapsed(startedMs: number, nowMs: number): string {
@@ -136,6 +138,7 @@ export function SessionNodeItem({
 	editMode = false,
 	isChecked = false,
 	onToggleSelect,
+	onRowContextMenu,
 	visibleIds,
 }: SessionNodeItemProps) {
 	const { t } = useI18n();
@@ -220,11 +223,17 @@ export function SessionNodeItem({
 
 	return (
 		<div
+			data-session-row={session.id}
 			onClick={confirmDelete || renaming ? undefined : editMode ? e => onToggleSelect?.({ shift: e.shiftKey, visibleIds }) : onClick}
 			onContextMenu={
 				editMode || confirmDelete || renaming
 					? undefined
-					: e => {
+					: (e) => {
+							if (onRowContextMenu) {
+								e.preventDefault();
+								onRowContextMenu(e);
+								return;
+							}
 							e.preventDefault();
 							setMenuOpen(v => !v);
 						}

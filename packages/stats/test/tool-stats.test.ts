@@ -9,7 +9,7 @@ import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-tool-stats-");
 
-const FOLDER_SLUG = "--tmp--tool-stats";
+const FOLDER_SLUG = "--zeta-fixtures--tool-stats";
 const MODEL = "gpt-5.4";
 const PROVIDER = "openai";
 

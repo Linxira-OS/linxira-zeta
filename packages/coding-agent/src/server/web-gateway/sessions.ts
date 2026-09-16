@@ -141,6 +141,14 @@ export async function listAllSessionsWeb(): Promise<SessionInfo[]> {
 	return tracked;
 }
 
+/** True when `cwd` sits inside the OS temp dir (scratch sessions, eval harnesses). */
+function isTempCwd(cwd: string): boolean {
+	const rel = path.relative(os.tmpdir(), cwd);
+	// Empty relative path means cwd *is* the tmpdir root — not "inside" it.
+	if (rel === "" || rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) return false;
+	return true;
+}
+
 async function loadAllSessions(): Promise<SessionInfo[]> {
 	// The runtime listing scans the full agent sessions dir (title-slot aware)
 	// with an mtime/size memoized cache, so no extra fallback scan is needed.
@@ -184,6 +192,7 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 			projectRoot: project?.projectRoot ?? s.cwd,
 			...(project?.isWorktree && project.branch ? { worktreeBranch: project.branch } : {}),
 			...(tag ? { tag } : {}),
+			...(s.cwd && isTempCwd(s.cwd) ? { temp: true } : {}),
 		} satisfies SessionInfo;
 	});
 }

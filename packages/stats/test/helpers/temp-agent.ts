@@ -47,6 +47,9 @@ export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 
 	afterEach(() => {
 		closeDb();
+		// bun:sqlite releases file locks only when the GC finalizes its
+		// handles; without this, Windows cannot remove the temp dir.
+		Bun.gc(true);
 		if (originalConfigDir === undefined) {
 			delete process.env.PI_CONFIG_DIR;
 		} else {

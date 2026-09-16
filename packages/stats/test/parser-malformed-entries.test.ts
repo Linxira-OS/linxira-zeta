@@ -43,7 +43,7 @@ function assistantEntry(id: string, message: Record<string, unknown>): string {
 }
 
 async function writeSession(lines: string[]): Promise<string> {
-	const dir = path.join(getSessionsDir(), "--tmp--malformed");
+	const dir = path.join(getSessionsDir(), "--zeta-fixtures--malformed");
 	await fs.mkdir(dir, { recursive: true });
 	const file = path.join(dir, "session.jsonl");
 	await Bun.write(file, `${lines.join("\n")}\n`);

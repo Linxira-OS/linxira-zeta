@@ -10,7 +10,7 @@ installStatsTestIsolation("@pi-stats-model-usage-");
 
 describe("model usage session entries", () => {
 	it("parses and aggregates non-transcript model calls", async () => {
-		const dir = path.join(getSessionsDir(), "--tmp--model-usage");
+		const dir = path.join(getSessionsDir(), "--zeta-fixtures--model-usage");
 		await fs.mkdir(dir, { recursive: true });
 		const file = path.join(dir, "session.jsonl");
 		await Bun.write(

@@ -110,7 +110,7 @@ describe("stats sync deduplicates forked-session entries", () => {
 		const assistantEntry = buildAssistantEntry({ entryId: "asst01ab", parentId: "user01ab", timestamp: ts });
 
 		const parentFile = await writeSessionFile(
-			"--tmp--fork-dedup",
+			"--zeta-fixtures--fork-dedup",
 			"01_parent.jsonl",
 			{ id: "parent00", cwd: "/tmp/project" },
 			[userEntry, assistantEntry],
@@ -122,7 +122,7 @@ describe("stats sync deduplicates forked-session entries", () => {
 		// entry_id), so both files contributed the same provider request to
 		// every aggregate.
 		await writeSessionFile(
-			"--tmp--fork-dedup",
+			"--zeta-fixtures--fork-dedup",
 			"02_fork.jsonl",
 			{ id: "fork0000", cwd: "/tmp/project", parentSession: parentFile },
 			[userEntry, assistantEntry],
@@ -146,7 +146,7 @@ describe("stats sync deduplicates forked-session entries", () => {
 		const assistantEntry = buildAssistantEntry({ entryId: "asst01ab", parentId: "user01ab", timestamp: ts });
 
 		const parentFile = await writeSessionFile(
-			"--tmp--fork-dedup",
+			"--zeta-fixtures--fork-dedup",
 			"01_parent.jsonl",
 			{ id: "parent00", cwd: "/tmp/project" },
 			[userEntry, assistantEntry],
@@ -162,7 +162,7 @@ describe("stats sync deduplicates forked-session entries", () => {
 			timestamp: newTs,
 		});
 		await writeSessionFile(
-			"--tmp--fork-dedup",
+			"--zeta-fixtures--fork-dedup",
 			"02_fork.jsonl",
 			{ id: "fork0000", cwd: "/tmp/project", parentSession: parentFile },
 			[userEntry, assistantEntry, newUserEntry, newAssistantEntry],

@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 async function writeSessionFile(options?: { includeCost?: boolean }): Promise<void> {
-	const sessionDir = path.join(getSessionsDir(), "--tmp--sync-serial");
+	const sessionDir = path.join(getSessionsDir(), "--zeta-fixtures--sync-serial");
 	await fs.mkdir(sessionDir, { recursive: true });
 	const timestamp = new Date().toISOString();
 	const sessionFile = path.join(sessionDir, "session.jsonl");

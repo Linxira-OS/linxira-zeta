@@ -209,6 +209,8 @@ export interface SessionInfo {
 	archivedFrom?: string;
 	/** Default-space bot session tag ("relay" | "bot" | "draft"); absent for ordinary sessions. */
 	tag?: string;
+	/** True when the session's cwd resolves inside the OS temp dir (scratch sessions). */
+	temp?: boolean;
 }
 
 export interface SessionContext {

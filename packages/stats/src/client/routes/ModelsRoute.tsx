@@ -441,7 +441,7 @@ function PerformanceChart({
 				{
 					label: "TTFT",
 					data: data.map(d => d.avgTtftSeconds ?? null),
-					...lineSeriesStyle("#5ad8e6"),
+					...lineSeriesStyle("#61afef"),
 					yAxisID: "y" as const,
 				},
 				{

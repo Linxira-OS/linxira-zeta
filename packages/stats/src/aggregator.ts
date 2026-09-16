@@ -29,6 +29,7 @@ import {
 	insertToolCalls,
 	insertUserMessageStats,
 	markSessionBackfillsComplete,
+	pruneOrphanSessions,
 	setFileOffset,
 	updateToolResults,
 	updateUserMessageLinks,
@@ -223,6 +224,9 @@ export async function syncAllSessions(opts?: SyncOptions): Promise<{ processed: 
 	await initDb();
 
 	const files = await listAllSessionFiles();
+	// Drop rows for transcripts that no longer exist on disk (deleted temp/test
+	// projects) before parsing, so every aggregate reflects live files only.
+	pruneOrphanSessions(files);
 	let totalProcessed = 0;
 	let filesProcessed = 0;
 	let completed = 0;
