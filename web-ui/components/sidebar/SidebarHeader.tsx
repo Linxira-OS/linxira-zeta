@@ -17,7 +17,7 @@ interface SidebarHeaderProps {
 	editMode: boolean;
 	onToggleSearch: () => void;
 	onToggleEditMode: () => void;
-	onOpenFolderPicker: () => void;
+	onOpenFolderPicker?: () => void;
 	onUpdateDisplay: (patch: Partial<SidebarDisplaySettings>) => void;
 }
 

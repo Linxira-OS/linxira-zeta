@@ -693,53 +693,14 @@ function AppShellContent() {
   }, [initialNavigation]);
 
   const handleCwdChange = useCallback(
-    (cwd: string | null, projectRoot?: string | null) => {
+    (cwd: string | null, _projectRoot?: string | null) => {
+      // Session-centric model: the active session defines the context. The
+      // sidebar no longer drives a global cwd switch, so there is nothing to
+      // close or remount here — cross-project session activation is handled by
+      // handleSelectSession, and concurrent agents keep running per session.
       setActiveCwd(cwd);
-      // Skip if cwd is null (initial mount).
-      if (!cwd) return;
-      const newProject = projectRoot ?? cwd;
-      const currentProject =
-        activeProjectRootRef.current ??
-        (selectedSession
-          ? (selectedSession.projectRoot ?? selectedSession.cwd)
-          : null);
-      activeProjectRootRef.current = newProject;
-
-      // Keep the project identity in sync during the initial URL restore without
-      // remounting the just-created or restored chat.
-      if (suppressCwdBumpRef.current) {
-        suppressCwdBumpRef.current = false;
-        return;
-      }
-      // Worktrees of one repo share a project root. Moving the effective cwd
-      // within the same project (e.g. switching worktree, or clicking a session
-      // that lives in another worktree) must not close the open session.
-      if (currentProject === newProject) {
-        return;
-      }
-      // Close any session that belongs to a different project — it no longer
-      // matches the selected project directory.
-      setSelectedSession(null);
-      setNewSessionCwd((prev) => {
-        if (prev && prev !== cwd) return null;
-        return prev;
-      });
-      setSessionKey((k) => k + 1);
-      setBranchTree([]);
-      setBranchActiveLeafId(null);
-      setSystemPrompt(null);
-      setActiveTopPanel(null);
-      // File tabs are keyed by absolute path, so tabs opened in the previous
-      // project would otherwise linger after switching to a different project.
-      // Reached only past the same-project early return above, so worktrees of
-      // one repo keep their open tabs. Mirror handleCloseFileTab and close the
-      // now-empty right panel.
-      setFileTabs([]);
-      setActiveFileTabId(null);
-      setDockTool(null);
-      router.replace("/", { scroll: false });
     },
-    [router, selectedSession],
+    [],
   );
 
   const handleSelectSession = useCallback(
@@ -1001,6 +962,7 @@ function AppShellContent() {
         onSessionDeleted={handleSessionDeleted}
         selectedCwd={selectedSession?.cwd ?? newSessionCwd ?? null}
         onCwdChange={handleCwdChange}
+                onOpenSkills={() => setSkillsConfigOpen(true)}
         onOpenFile={handleOpenFile}
         explorerRefreshKey={explorerRefreshKey}
         onExplorerRefresh={handleExplorerRefresh}
