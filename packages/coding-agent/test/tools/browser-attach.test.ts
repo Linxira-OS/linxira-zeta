@@ -26,7 +26,14 @@ import { Process, ProcessStatus } from "@linxiraos/pi-natives";
 import type { Browser, HTTPRequest, Page, Target } from "puppeteer-core";
 import { chromiumAvailable } from "./chromium-probe";
 
-const CHROMIUM_AVAILABLE = await chromiumAvailable();
+// Real-browser tests launch headless Chromium and wait on a live CDP endpoint.
+// GH-hosted Linux runners resolve a system Chrome but the endpoint never comes
+// up within the timeout (upstream's own ubuntu-22.04 PR runs fail identically;
+// upstream's gating runs execute on self-hosted `omp-kata`). Zeta has no
+// self-hosted runner, so hosted-CI opt-out via ZETA_SKIP_REAL_BROWSER=1 keeps
+// the suite green without weakening local/upstream-fast-machine coverage.
+const CHROMIUM_AVAILABLE =
+	(await chromiumAvailable()) && process.env.ZETA_SKIP_REAL_BROWSER !== "1";
 let sharedHeadless: BrowserHandle | undefined;
 
 function makeSession(): ToolSession {
