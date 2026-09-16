@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { Process, ProcessStatus } from "@linxiraos/pi-natives";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/sdk";
 import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
@@ -22,7 +23,6 @@ import {
 	releaseBrowser,
 } from "@linxiraos/zeta/tools/browser/registry";
 import { acquireTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
-import { Process, ProcessStatus } from "@linxiraos/pi-natives";
 import type { Browser, HTTPRequest, Page, Target } from "puppeteer-core";
 import { chromiumAvailable } from "./chromium-probe";
 
@@ -32,8 +32,7 @@ import { chromiumAvailable } from "./chromium-probe";
 // upstream's gating runs execute on self-hosted `omp-kata`). Zeta has no
 // self-hosted runner, so hosted-CI opt-out via ZETA_SKIP_REAL_BROWSER=1 keeps
 // the suite green without weakening local/upstream-fast-machine coverage.
-const CHROMIUM_AVAILABLE =
-	(await chromiumAvailable()) && process.env.ZETA_SKIP_REAL_BROWSER !== "1";
+const CHROMIUM_AVAILABLE = (await chromiumAvailable()) && process.env.ZETA_SKIP_REAL_BROWSER !== "1";
 let sharedHeadless: BrowserHandle | undefined;
 
 function makeSession(): ToolSession {
