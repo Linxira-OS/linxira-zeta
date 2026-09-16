@@ -16,7 +16,7 @@ import { installStatsTestIsolation } from "./helpers/temp-agent";
 installStatsTestIsolation("@pi-stats-trace-");
 
 const T = 1_700_000_000_000;
-const PROJECT = "--tmp--proj--";
+const PROJECT = "--zeta-fixtures--proj--";
 const ROOT_BASE = "1700000000000_test.jsonl";
 
 const iso = (ms: number) => new Date(ms).toISOString();

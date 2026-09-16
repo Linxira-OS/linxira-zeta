@@ -1,5 +1,5 @@
 /**
- * Shared chart primitives for the dashboard timeline charts: the OMP color
+ * Shared chart primitives for the dashboard timeline charts: the Zeta color
  * palette, light/dark chart chrome, legend/tooltip + scale plumbing, dataset
  * styling, and the top-N-by-model / aggregate bucketing used by the cost and
  * behavior series.
@@ -7,17 +7,17 @@
 
 import { format } from "@linxiraos/pi-utils/dates";
 
-// OMP brand palette (packages/collab-web/src/styles/tokens.css): pink/purple/cyan.
-// Categorical series lead with the brand gradient hues (pink -> purple -> cyan).
+// Zeta palette (web-ui/lib/theme/themes/zeta-dark.json): neutral graphite lead
+// plus the zeta categorical chart colors. Mid-tone series read on both themes.
 export const MODEL_COLORS = [
-	"#ed4abf", // brand pink (accent)
-	"#9b4dff", // brand violet
-	"#5ad8e6", // brand cyan
-	"#62d394", // green
-	"#c77dff", // light purple
-	"#ff8fd1", // light pink
-	"#f5c14b", // amber
-	"#ff6b7d", // rose
+	"#9d9d9d", // zeta neutral (surface.mutedForeground)
+	"#f07178", // zeta red
+	"#e5c07b", // zeta amber
+	"#98c379", // zeta green
+	"#61afef", // zeta blue
+	"#c678dd", // zeta violet
+	"#d19a66", // zeta orange
+	"#56b6c2", // zeta cyan
 ];
 
 export function buildModelColorLookup(
@@ -38,22 +38,22 @@ export function buildModelColorLookup(
 
 export const CHART_THEMES = {
 	dark: {
-		legendLabel: "#a89fb3",
-		tooltipBackground: "#241a2e",
-		tooltipTitle: "#eae5ef",
-		tooltipBody: "#a89fb3",
+		legendLabel: "#9d9d9d",
+		tooltipBackground: "#232323",
+		tooltipTitle: "#f5f5f5",
+		tooltipBody: "#9d9d9d",
 		tooltipBorder: "rgba(255, 255, 255, 0.12)",
 		grid: "rgba(255, 255, 255, 0.06)",
-		tick: "#867a93",
+		tick: "#7a7a7a",
 	},
 	light: {
-		legendLabel: "#5a5462",
+		legendLabel: "#616161",
 		tooltipBackground: "#ffffff",
-		tooltipTitle: "#241a2e",
-		tooltipBody: "#5a5462",
-		tooltipBorder: "rgba(20, 12, 28, 0.15)",
-		grid: "rgba(20, 12, 28, 0.08)",
-		tick: "#6a6275",
+		tooltipTitle: "#1f1f1f",
+		tooltipBody: "#616161",
+		tooltipBorder: "rgba(0, 0, 0, 0.15)",
+		grid: "rgba(0, 0, 0, 0.08)",
+		tick: "#8c8c8c",
 	},
 } as const;
 

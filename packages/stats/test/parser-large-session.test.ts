@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 async function writeLargeSessionFile(): Promise<string> {
-	const sessionDir = path.join(getSessionsDir(), "--tmp--large-session");
+	const sessionDir = path.join(getSessionsDir(), "--zeta-fixtures--large-session");
 	await fs.mkdir(sessionDir, { recursive: true });
 	const sessionFile = path.join(sessionDir, "session.jsonl");
 	const timestamp = new Date().toISOString();
@@ -53,7 +53,7 @@ async function writeLargeSessionFile(): Promise<string> {
 
 describe("large session parsing", () => {
 	it("parses a JSONL chunk with more entries than the JavaScript argument limit", async () => {
-		const dir = path.join(getSessionsDir(), "--tmp--large-session");
+		const dir = path.join(getSessionsDir(), "--zeta-fixtures--large-session");
 		await fs.mkdir(dir, { recursive: true });
 		const sessionFile = path.join(dir, "large.jsonl");
 		const entry = `${JSON.stringify({ type: "session", id: "s", timestamp: "2026-06-28T00:00:00.000Z", cwd: "/tmp" })}\n`;

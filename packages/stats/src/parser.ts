@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import {
 	type AssistantMessage,
@@ -60,6 +61,53 @@ export function extractFolderFromPath(sessionPath: string): string {
 	const projectDir = rel.split(path.sep)[0];
 	// Convert --work--pi-- to /work/pi
 	return projectDir.replace(/^--/, "/").replace(/--/g, "/");
+}
+
+/**
+ * Decode a session project folder name back to its source cwd, mirroring the
+ * encoder in the coding agent's session-paths module: home-relative cwds
+ * encode as `-<segments>`, temp-relative ones as `-tmp<segments>`, and legacy
+ * absolute ones as `--<absolute>--`, with `/`, `\`, and `:` collapsed to `-`.
+ * Returns null when the name carries no decodable cwd.
+ */
+export function decodeProjectFolderCwd(projectDir: string): string | null {
+	if (projectDir === "-tmp" || projectDir.startsWith("-tmp-")) return os.tmpdir();
+	if (projectDir.startsWith("--")) {
+		const inner = projectDir.replace(/^--/, "").replace(/--$/, "");
+		if (!inner) return path.resolve("/");
+		// POSIX legacy names had their leading `/` stripped, so restore it;
+		// Windows names collapsed a drive letter's `:` into a dash too
+		// (`C--Users` decodes to `C:\Users`), so re-attach the colon.
+		if (path.sep === "/") return path.resolve(`/${inner.replaceAll("-", "/")}`);
+		return path.resolve(inner.replaceAll("-", "\\").replace(/^([A-Za-z])\\/, "$1:\\"));
+	}
+	if (projectDir.startsWith("-")) {
+		const inner = projectDir.replace(/^-/, "");
+		return path.resolve(os.homedir(), inner.replaceAll("-", path.sep));
+	}
+	// Folder names without the leading marker predate the encoder; no cwd is
+	// recoverable, so they are never treated as temp.
+	return null;
+}
+
+/**
+ * Whether a session project folder decodes to a cwd inside the OS temp dir.
+ * Test suites spawn agents under `os.tmpdir()` and re-create their transcripts
+ * on every run; those sessions are throwaway usage that must not reach the
+ * stats DB. The `-` collapse in the encoder is lossy (a literal `-` inside a
+ * path segment is indistinguishable from a separator), which can only produce
+ * false positives here — a skipped ingestion, never a misattributed row.
+ */
+export function isTempProjectFolder(projectDir: string): boolean {
+	const decoded = decodeProjectFolderCwd(projectDir);
+	if (!decoded) return false;
+	const tmp = path.resolve(os.tmpdir());
+	const candidate = path.resolve(decoded);
+	// NTFS comparisons are case-insensitive; resolve() normalizes separators.
+	const caseFold = process.platform === "win32";
+	const normalizedTmp = caseFold ? tmp.toLowerCase() : tmp;
+	const normalizedCandidate = caseFold ? candidate.toLowerCase() : candidate;
+	return normalizedCandidate === normalizedTmp || normalizedCandidate.startsWith(normalizedTmp + path.sep);
 }
 
 /**
@@ -588,6 +636,9 @@ export async function listAllSessionFiles(): Promise<string[]> {
 	const allFiles: string[] = [];
 
 	for (const folder of folders) {
+		// Skip at enumeration: temp-cwd project folders re-create their
+		// transcripts on every test run and must never reach the parser or DB.
+		if (isTempProjectFolder(path.basename(folder))) continue;
 		const files = await listSessionFiles(folder);
 		allFiles.push(...files);
 	}

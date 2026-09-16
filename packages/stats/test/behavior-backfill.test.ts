@@ -10,7 +10,7 @@ import { installStatsTestIsolation } from "./helpers/temp-agent";
 installStatsTestIsolation("@pi-stats-behavior-backfill-");
 
 async function writeSessionFile(): Promise<string> {
-	const sessionDir = path.join(getAgentDir(), "sessions", "--tmp--behavior-backfill");
+	const sessionDir = path.join(getAgentDir(), "sessions", "--zeta-fixtures--behavior-backfill");
 	await fs.mkdir(sessionDir, { recursive: true });
 	const sessionFile = path.join(sessionDir, "session.jsonl");
 	const timestamp = new Date().toISOString();
