@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 随 1.1.15 版本线发布:auth-broker wire schema 资源随上游 v18.1.17–v18.1.21 同步。
+
 ## [1.1.14] - 2026-09-12
 
 - 随 1.1.14 版本线发布:bazel 构建面(crates/*/BUILD.bazel)版本号纳入一致性检查,CI 原生构建与桌面冒烟守卫修复。

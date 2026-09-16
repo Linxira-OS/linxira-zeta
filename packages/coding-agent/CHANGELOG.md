@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Web 网关新增 git 端点:`GET /api/git/branches`、`POST /api/git/checkout`(脏工作树返回 409 与脏文件列表)、`POST /api/git/branch`;会话列表新增 `temp` 标记(cwd 位于系统临时目录的草稿会话)。
+- 上游 v18.1.17–v18.1.21 同步:受管 Chromium 启动与 headless 超时修复、后台标签交互焦点仿真恢复、git hook 查找失败按缺失处理、grep 字面量范围路径修复、自定义工具元数据发现修复、内核零退出时正常关闭、上下文笔记、idle 封装截止时间、AgentBusyError 忙碌反馈、advisor 每轮建议条数上限、Copilot OAuth 公共 GitHub/GHE 双 client-id、renovate 系配置面、auth-broker wire schema 资源、状态行子代理徽章改为图标+计数。
+- 中文 `/settings` 布尔项无法关闭修复(显示值与机器值分离)、`/language` 切换后斜杠命令描述即时刷新、Plan/Vibe/Goal 模式横幅与 attach 提示全部接入 i18n。
+
 ## [1.1.14] - 2026-09-12
 
 - Web 网关新增模型目录三端点(`/api/models-config/catalog|discover|metadata`),ModelsConfig 支持在线模型目录、按 API 类型的发现与元数据;补 `/api/agent/running` 字面路由。

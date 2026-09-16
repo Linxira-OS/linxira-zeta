@@ -16,6 +16,16 @@
 - Plan/Plan-ultra/Vibe/Goal 模式横幅、attach(`zeta attach`)模式提示此前为英文硬编码;全部接入 i18n 目录(新增 imPlanUltraModeEnabledFmt 等键)。
 - `/loop`、`/rename` 描述入目录(上游新文案 en 保留,zh 补译),i18n 契约测试恢复全绿。
 
+### Web UI 侧栏重构(feat/sidebar-redesign,PR #19)
+
+- 项目=父节点、会话=子节点:每个项目行内联展示自己的对话(今天/昨天/本周/更早 分桶,超 10 条折叠),折叠父级收起全部子会话;箭头折叠、点名称切换项目。
+- ⌘K 聚合面板:新建会话 + 会话(五档时间分组/标题匹配) + 命令,全键盘导航;悬浮预览卡承载重元数据(id/项目/分支/相对时间)。
+- 排序体系:会话排序与项目排序 popover(含手动序),统一持久化;`lib/sidebar-prefs` 单 schema 自动迁移旧键。
+- 破坏性操作二级确认:浮动菜单删除会话、归档、TEMP 清除全部需显式确认对话框;项目删除保留原对话框。
+- 立体层次:ze-btn/ze-btn-hero/ze-quiet 三档 elevation(顶部受光+内嵌高光+分层阴影)。
+- 移除与"打开工作区"语义重复的头部文件夹按钮;临时会话区补排序/新建/空态。
+- 网关新增 git 端点(branches/checkout/branch)与会话 temp 标记;stats 孤儿行修剪、临时目录摄入过滤、Zeta 品牌/主题。
+
 
 ## 1.1.10（2026-09-07）
 
