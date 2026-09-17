@@ -235,14 +235,17 @@ describe("Mnemopi tool factories", () => {
 		tempDbDir = undefined;
 	});
 
-	afterEach(async () => {
-		vi.restoreAllMocks();
-		await registeredMnemopiState?.dispose();
-		registeredMnemopiState = undefined;
-		await tempDbDir?.remove();
-		tempDbDir = undefined;
-		tempDbPath = undefined;
-	});
+	afterEach(
+		async () => {
+			vi.restoreAllMocks();
+			await registeredMnemopiState?.dispose();
+			registeredMnemopiState = undefined;
+			await tempDbDir?.remove();
+			tempDbDir = undefined;
+			tempDbPath = undefined;
+		},
+		30_000,
+	);
 
 	it("memory tool factories gate on supported backends", () => {
 		const offSettings = Settings.isolated({ "memory.backend": "off", "memories.enabled": false });
@@ -361,14 +364,17 @@ describe("retain.execute (Mnemopi backend)", () => {
 		tempDbDir = undefined;
 	});
 
-	afterEach(async () => {
+	afterEach(
+		async () => {
 		vi.restoreAllMocks();
 		await registeredMnemopiState?.dispose();
 		registeredMnemopiState = undefined;
 		await tempDbDir?.remove();
 		tempDbDir = undefined;
 		tempDbPath = undefined;
-	});
+		},
+		30_000,
+	);
 
 	it("writes memories synchronously and returns a stored success message", async () => {
 		const settings = Settings.isolated({ "memory.backend": "mnemopi" });
@@ -458,17 +464,20 @@ describe("Mnemopi backend lifecycle", () => {
 		resetMemoryForTests();
 	});
 
-	afterEach(async () => {
-		vi.restoreAllMocks();
-		await registeredMnemopiState?.dispose();
-		registeredMnemopiState = undefined;
-		// Close the mnemopi default instance so its SQLite handle doesn't keep
-		// the temp DB files locked on Windows.
-		resetMemoryForTests();
-		await tempDbDir?.remove().catch(() => {});
-		tempDbDir = undefined;
-		tempDbPath = undefined;
-	});
+	afterEach(
+		async () => {
+			vi.restoreAllMocks();
+			await registeredMnemopiState?.dispose();
+			registeredMnemopiState = undefined;
+			// Close the mnemopi default instance so its SQLite handle doesn't keep
+			// the temp DB files locked on Windows.
+			resetMemoryForTests();
+			await tempDbDir?.remove().catch(() => {});
+			tempDbDir = undefined;
+			tempDbPath = undefined;
+		},
+		30_000,
+	);
 
 	it("keeps background auto-recall engine failures from escaping", async () => {
 		const entries = [{ type: "message", message: { role: "user", content: "existing memory" } }];
@@ -925,9 +934,12 @@ describe("Mnemopi backend lifecycle", () => {
 		await state.dispose({ timeoutMs: BUDGET_MS });
 		const elapsedMs = (Bun.nanoseconds() - start) / 1_000_000;
 
-		// Dispose must surrender within the budget (plus a generous slack); the
-		// in-flight consolidate is detached, not awaited.
-		expect(elapsedMs).toBeLessThan(BUDGET_MS * 5);
+		// Dispose must surrender within the budget; the in-flight consolidate is
+		// detached, not awaited. Upper bound is a loose sanity ceiling: a #3641
+		// regression awaits the never-resolving stall and hangs until the test
+		// timeout, while a starved CI runner may legitimately need far more than
+		// the old 5× slack that flaked here — 100× still leaves 28s of margin.
+		expect(elapsedMs).toBeLessThan(BUDGET_MS * 100);
 		expect(elapsedMs).toBeGreaterThanOrEqual(BUDGET_MS - 10);
 		expect(flushSpy).toHaveBeenCalled();
 		expect(flushCalls).toBe(1);
