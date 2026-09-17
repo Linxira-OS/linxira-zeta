@@ -40,6 +40,7 @@ import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-inpu
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TokenRateMeter } from "@linxiraos/zeta/utils/token-rate";
 import { type Component, Container } from "@linxiraos/pi-tui";
 
 type AnyFn = (...args: never[]) => unknown;
@@ -253,6 +254,7 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 		streamingMessage: undefined,
 		lastAssistantUsage: undefined,
 		servedModelTracker: new ServedModelTracker(),
+		tokenRate: new TokenRateMeter(text => text.length),
 		loadingAnimation: undefined,
 		autoCompactionLoader: undefined,
 		retryLoader: undefined,

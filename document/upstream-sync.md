@@ -1,5 +1,14 @@
 # Upstream Sync Ledger
 
+## v18.2.4 + squash-sync reset (Zeta — history reset authorized by maintainer, PR pending)
+
+- **Baseline**: v18.2.3 chain (sync branch carried 1de9977e28 -> cbf0cc5158 -> 509f6b45cb, full two-parent merges, gates green)
+- **v18.2.4**: tag 1c0303b1f2ec515cbf4b44a9a49d68a029531aac (verified vs remote), merged as 509f6b45cb (6 upstream commits, 79 files, 13 conflicts — all upstream-rewrite takes + scope map)
+- **History reset**: maintainer authorized squash-sync (AGENTS.md §超大量上游同步): new main = backup/omp/main (856d9375e0, origin anchor) + 2 squashed commits — (1) v18.1.16..v18.2.3 content [skip ci], (2) v18.2.4 + policy docs. Old main preserved remotely as main-old-20260917. Upstream commit-level detail lives at github.com/can1357/oh-my-pi (fork provenance).
+- **Deviation note**: this overrides the standing non-squash/ancestor-check rule for this window (transfer-layer constraint: multi-hundred-MB pack vs proxy/direct-link instability, evidence: remote unpack failed: index-pack failed on every full-pack attempt; 593/721 hops uploaded fine).
+- **backup/omp/main**: retained on origin + local, fast-forwarded to v18.2.4 as the standing fast-sync anchor.
+- **Gates**: re-run green on the squash tree (identical content to the verified merge tree).
+
 ## v18.2.1 + v18.2.3 chained (Zeta — sync branch `sync/omp-release/v18.2.1`, PR pending)
 
 - **Baseline**: v18.1.21 (`acf943d3c8` parent of Zeta 1.1.15 line; Zeta start `45dbc74458`, main post-PR-#20, version line 1.1.15)
