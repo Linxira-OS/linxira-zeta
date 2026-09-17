@@ -219,3 +219,54 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 8. **收口顺序固定**：scope 重写 → set-version/catalog/lockfile → 哨兵 → brand
    归零 → biome 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
    已知噪声：natives 5s 加载超时、ENAMETOOLONG、symlink EPERM）。
+
+## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
+
+squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶分诊结论与
+新增教训——**每类先在"旧 main 基线 worktree"跑同一测试分清三态：Windows
+本地噪声 / 确定性内容回归 / 程序性步骤缺失**，不要对着 CI 日志盲修：
+
+### 新损伤类别 #10：manifest 重复 JSON 键 → 子进程 stderr 污染
+
+- **指纹**：子进程 spawn 型测试成批失败（logger 字节契约、DailyRotateFile、
+  ptree stderr、stderr guard、任何断言 `stderr === ""` 的测试），断言 diff
+  里出现 `warn: Duplicate key "@linxiraos/xxx" in package.json:N`。
+- **根因**：合并 driver union 把上游 `@oh-my-pi/*` 依赖与 Zeta
+  `@linxiraos/*` 同名键并存的 manifest，再经 scope sweep 字符串改名后
+  同一对象内出现重复键。bun 每次进程启动都向 stderr 打警告。
+- **修复**：`object_pairs_hook` 计数去重全部 `packages/*/package.json`；
+  预防：scope sweep 之后必须跑"重复键扫描"，合并 driver 改为按
+  scope-mapped 名合并而非字符串 union。
+- 本次规模：11 个 manifest / 48 个重复键。
+
+### 程序性步骤缺失（非损伤）
+
+- `committed rules.json matches a fresh compile` → 跑 `bun run gen:compat`。
+- CHANGELOG `## [18.x]` 段随每个新 tag 合并重新出现 → 重跑折叠脚本。
+- catalog/Astra、Codex discovery 96 连挂（本地）→ 大头是**本地陈旧
+  natives `.node`**（类 5：`Failed to load pi_natives native addon for
+  win32-x64`），本地 `packages/natives` 重建即消；CI bazel 现场构建无此问题。
+
+### 分段快进推送的必然产物
+
+- squash 分支是"重建的树"，**不继承完整合并分支已通过的任何清扫**——
+  每个 tag 合并带进来的 CHANGELOG 段/scope/`.omp` 残留在 squash 树上要
+  **全部重扫一遍**（本次 CHANGELOG 311 段、scope 14 文件）。
+- browser-launch 的 CfT buildId 适配：不能拍脑袋 pin 版本号，必须从
+  启动器同源读取（browsers.ts 内部的 revision 常量/导出），否则
+  `chrome/linux-151.0.7666.0` vs 实际 `150.0.7871.24` 的路径断言红。
+- `[skip ci]` 在**多提交 push 事件里会抑制整次推送的 CI**（不只 HEAD）：
+  "首提交 skip + 次提交触发"的计划落空——改用 workflow_dispatch 手动
+  触发（`gh workflow run ci.yml --ref main`）。
+
+### 待修复清单（按本分诊，修复 PR 内容）
+
+1. manifest 去重（48 键）→ 消灭 logger/ptree/stderr 全家。
+2. `bun run gen:compat` → rules.json 对齐。
+3. browser-launch.test buildId 从启动器同源读取。
+4. tui terminal-capabilities Warp/Paseo 6 连挂（CI Linux 确定性红）→
+   对照 v18.2.3/v18.2.4 上游实现逐 hunk 核对 CorePkgs 的手工合并。
+5. sdk-mcp-instructions（xd:// inventory 空）/ rules-reload ×3 /
+   main-interactive-input：旧 main 本地同样红 = Windows 噪声；但 CI
+   Linux 上红的部分需在 Linux 语境复核（rules-reload 的 `.zeta/rules`
+   fixture 路径与 discovery 顺序是首要嫌疑）。
