@@ -235,17 +235,14 @@ describe("Mnemopi tool factories", () => {
 		tempDbDir = undefined;
 	});
 
-	afterEach(
-		async () => {
-			vi.restoreAllMocks();
-			await registeredMnemopiState?.dispose();
-			registeredMnemopiState = undefined;
-			await tempDbDir?.remove();
-			tempDbDir = undefined;
-			tempDbPath = undefined;
-		},
-		30_000,
-	);
+	afterEach(async () => {
+		vi.restoreAllMocks();
+		await registeredMnemopiState?.dispose();
+		registeredMnemopiState = undefined;
+		await tempDbDir?.remove();
+		tempDbDir = undefined;
+		tempDbPath = undefined;
+	}, 30_000);
 
 	it("memory tool factories gate on supported backends", () => {
 		const offSettings = Settings.isolated({ "memory.backend": "off", "memories.enabled": false });
@@ -364,17 +361,14 @@ describe("retain.execute (Mnemopi backend)", () => {
 		tempDbDir = undefined;
 	});
 
-	afterEach(
-		async () => {
+	afterEach(async () => {
 		vi.restoreAllMocks();
 		await registeredMnemopiState?.dispose();
 		registeredMnemopiState = undefined;
 		await tempDbDir?.remove();
 		tempDbDir = undefined;
 		tempDbPath = undefined;
-		},
-		30_000,
-	);
+	}, 30_000);
 
 	it("writes memories synchronously and returns a stored success message", async () => {
 		const settings = Settings.isolated({ "memory.backend": "mnemopi" });
@@ -464,20 +458,17 @@ describe("Mnemopi backend lifecycle", () => {
 		resetMemoryForTests();
 	});
 
-	afterEach(
-		async () => {
-			vi.restoreAllMocks();
-			await registeredMnemopiState?.dispose();
-			registeredMnemopiState = undefined;
-			// Close the mnemopi default instance so its SQLite handle doesn't keep
-			// the temp DB files locked on Windows.
-			resetMemoryForTests();
-			await tempDbDir?.remove().catch(() => {});
-			tempDbDir = undefined;
-			tempDbPath = undefined;
-		},
-		30_000,
-	);
+	afterEach(async () => {
+		vi.restoreAllMocks();
+		await registeredMnemopiState?.dispose();
+		registeredMnemopiState = undefined;
+		// Close the mnemopi default instance so its SQLite handle doesn't keep
+		// the temp DB files locked on Windows.
+		resetMemoryForTests();
+		await tempDbDir?.remove().catch(() => {});
+		tempDbDir = undefined;
+		tempDbPath = undefined;
+	}, 30_000);
 
 	it("keeps background auto-recall engine failures from escaping", async () => {
 		const entries = [{ type: "message", message: { role: "user", content: "existing memory" } }];
