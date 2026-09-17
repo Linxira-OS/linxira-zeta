@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { encodeResponse, encodeStream, parseRequest } from "@oh-my-pi/pi-ai/providers/openai-chat-server";
+import { encodeResponse, encodeStream, parseRequest } from "@linxiraos/pi-ai/providers/openai-chat-server";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
 	ToolCall,
-} from "@oh-my-pi/pi-ai/types";
+} from "@linxiraos/pi-ai/types";
 
 function makeEventStream(events: AssistantMessageEvent[], final: AssistantMessage): AssistantMessageEventStream {
 	async function* iter() {
@@ -145,6 +145,34 @@ describe("auth-gateway openai-chat: parseRequest", () => {
 		expect(parsed.options.toolChoice).toEqual({ name: "lookup" });
 		expect(parsed.options.responseFormat).toEqual({ type: "json_object" });
 		expect(parsed.options.extra).toEqual({ includeStreamingUsage: true });
+	});
+
+	it("coerces content:null to empty content for non-function roles (Codex #10956)", () => {
+		const parsed = parseRequest({
+			model: "gpt-5.2",
+			messages: [
+				{ role: "user", content: "hi" },
+				{ role: "user", content: null },
+			],
+		});
+		expect(parsed.context.messages).toHaveLength(2);
+		const empty = parsed.context.messages[1];
+		expect(empty.role).toBe("user");
+		if (empty.role !== "user") throw new Error("unreachable");
+		expect(empty.content).toEqual([]);
+	});
+
+	it("leaves legacy function-role content:null on the string path (Codex #10956)", () => {
+		const parsed = parseRequest({
+			model: "gpt-5.2",
+			messages: [{ role: "function", name: "lookup", content: null }],
+		});
+		expect(parsed.context.messages).toHaveLength(1);
+		const result = parsed.context.messages[0];
+		expect(result.role).toBe("toolResult");
+		if (result.role !== "toolResult") throw new Error("unreachable");
+		expect(result.toolName).toBe("lookup");
+		expect(result.content).toEqual([{ type: "text", text: "" }]);
 	});
 
 	it("rejects raw explicit prompt-cache controls instead of silently dropping them", () => {

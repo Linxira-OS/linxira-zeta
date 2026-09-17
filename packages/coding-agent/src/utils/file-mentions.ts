@@ -7,11 +7,10 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import type { EditStore } from "@oh-my-pi/pi-natives";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@oh-my-pi/pi-utils";
-import { formatHashlineHeader, formatNumberedLines, splitAddressableFileLines } from "../tools/hashline-format";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import type { EditStore } from "@linxiraos/pi-natives";
+import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@linxiraos/pi-utils";
 import { normalizeToLF } from "../edit/normalize";
 import type { FileMentionMessage } from "../session/messages";
 import {
@@ -20,15 +19,16 @@ import {
 	truncateHead,
 	truncateHeadBytes,
 } from "../session/streaming-output";
+import { formatHashlineHeader, formatNumberedLines, splitAddressableFileLines } from "../tools/hashline-format";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, resizeImage } from "./image-resize";
 import {
-	VideoError,
 	buildVideoContactSheetPng,
 	createVideoPreviewImage,
 	formatVideoDetails,
 	isVideoPath,
 	probeVideo,
+	VideoError,
 	videoMimeForPath,
 } from "./video";
 
@@ -57,22 +57,21 @@ function sanitizeMentionPath(rawPath: string): string | null {
 	return cleaned.length > 0 ? cleaned : null;
 }
 
-async function pathExists(filePath: string): Promise<boolean> {
-	try {
-		await Bun.file(filePath).stat();
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-async function resolveMentionPath(filePath: string, cwd: string): Promise<string | null> {
+async function resolveMentionPath(
+	filePath: string,
+	cwd: string,
+): Promise<{ resolvedPath: string; absolutePath: string } | null> {
 	// Exact resolution only. The TUI @-selector inserts the real, complete path, so a
 	// mention that does not resolve to an existing file or directory is prose, not a file
 	// reference. Fuzzy/prefix guessing here previously dragged in unrelated same-named
 	// files; that disambiguation belongs to the selector's display, not post-send.
 	const absolutePath = resolveReadPath(filePath, cwd);
-	return (await pathExists(absolutePath)) ? filePath : null;
+	try {
+		await Bun.file(absolutePath).stat();
+		return { resolvedPath: filePath, absolutePath };
+	} catch {
+		return null;
+	}
 }
 
 function buildTextOutput(textContent: string): { output: string; lineCount: number } {
@@ -205,11 +204,11 @@ export async function generateFileMentionMessages(
 	const files: FileMentionMessage["files"] = [];
 
 	for (const filePath of filePaths) {
-		const resolvedPath = await resolveMentionPath(filePath, cwd);
-		if (!resolvedPath) {
+		const resolved = await resolveMentionPath(filePath, cwd);
+		if (!resolved) {
 			continue;
 		}
-		const absolutePath = resolveReadPath(resolvedPath, cwd);
+		const { resolvedPath, absolutePath } = resolved;
 		try {
 			const stat = await Bun.file(absolutePath).stat();
 			if (stat.isDirectory()) {

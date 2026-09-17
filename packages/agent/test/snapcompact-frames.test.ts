@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { createCompactionSummaryMessage, defaultConvertToLlm } from "../src/compaction/messages";
 import { Tokenizer } from "../src/tokenizer";
 

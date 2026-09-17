@@ -11,12 +11,12 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { expandPromptTemplate, type PromptTemplate } from "@oh-my-pi/pi-coding-agent/config/prompt-templates";
-import { expandSlashCommand, type FileSlashCommand } from "@oh-my-pi/pi-coding-agent/extensibility/slash-commands";
-import { AgentRegistry, MAIN_AGENT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { collectIrcPeerRoster } from "@oh-my-pi/pi-coding-agent/task/executor";
-import { parseCommandArgs, substituteArgs } from "@oh-my-pi/pi-coding-agent/utils/command-args";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
+import { expandPromptTemplate, type PromptTemplate } from "@linxiraos/zeta/config/prompt-templates";
+import { expandSlashCommand, type FileSlashCommand } from "@linxiraos/zeta/extensibility/slash-commands";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import { collectIrcPeerRoster } from "@linxiraos/zeta/task/executor";
+import { parseCommandArgs, substituteArgs } from "@linxiraos/zeta/utils/command-args";
 
 // ============================================================================
 // substituteArgs

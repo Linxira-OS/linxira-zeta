@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 
 it("imports the CLI entry graph without loading dotenv before profile bootstrap", async () => {
 	using tempDir = TempDir.createSync("@omp-js-process-import-");
@@ -30,7 +30,7 @@ it("imports the CLI entry graph without loading dotenv before profile bootstrap"
 async function pingComputerWorker(
 	entry: string,
 	id: string,
-	argv: string[] = ["__omp_worker_computer"],
+	argv: string[] = ["__zeta_worker_computer"],
 ): Promise<unknown> {
 	const worker = new Worker(entry, {
 		type: "module",
@@ -96,7 +96,7 @@ it("dispatches the computer worker from a single npm-style host bundle", async (
 			outdir: outDir,
 			naming: "cli.js",
 			target: "bun",
-			external: ["@oh-my-pi/pi-natives"],
+			external: ["@linxiraos/pi-natives"],
 			define: { "process.env.PI_BUNDLED": JSON.stringify("true") },
 			throw: false,
 		});

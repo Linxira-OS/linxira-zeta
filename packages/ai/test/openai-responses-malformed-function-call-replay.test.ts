@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
-import { buildParams } from "@oh-my-pi/pi-ai/providers/openai-responses";
-import type { AssistantMessage, Model, ModelSpec } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { buildParams } from "@linxiraos/pi-ai/providers/openai-responses";
+import type { AssistantMessage, Model, ModelSpec } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const model: Model<"openai-responses"> = buildModel({
 	id: "gpt-5",

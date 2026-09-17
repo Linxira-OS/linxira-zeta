@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype/ark";
+import { type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "../type-assert";
 
 // by default because of the toJSON method, it wouldn't be clear
@@ -21,8 +21,11 @@ it("strings", () => {
 	const _type1: Eq<
 		typeof T.props,
 		array<
+			// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 			| BaseTypeProp<"required", "foo", 1, {}>
+			// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 			| BaseTypeProp<"required", "bar", 2, {}>
+			// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 			| BaseTypeProp<"optional", "baz", 3, {}>
 		>
 	> = true;

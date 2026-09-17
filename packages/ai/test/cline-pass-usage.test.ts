@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import type { UsageFetchContext, UsageFetchParams } from "@oh-my-pi/pi-ai/usage";
-import { clinePassUsageProvider } from "@oh-my-pi/pi-ai/usage/cline-pass";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import type { UsageFetchContext, UsageFetchParams } from "@linxiraos/pi-ai/usage";
+import { clinePassUsageProvider } from "@linxiraos/pi-ai/usage/cline-pass";
 
 const CREDENTIAL: UsageFetchParams["credential"] = {
 	type: "api_key",

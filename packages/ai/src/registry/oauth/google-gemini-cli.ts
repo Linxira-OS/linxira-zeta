@@ -3,12 +3,13 @@
  * Standard Gemini models only (gemini-2.0-flash, gemini-2.5-*)
  */
 
-import { getGeminiCliHeaders } from "@oh-my-pi/pi-catalog/wire/gemini-headers";
-import { $env } from "@oh-my-pi/pi-utils";
+import { getGeminiCliHeaders } from "@linxiraos/pi-catalog/wire/gemini-headers";
+import { $env } from "@linxiraos/pi-utils";
 import * as AIError from "../../error";
 import { extractGoogleValidationUrl, formatGoogleValidationRequiredMessage } from "../../utils/google-validation";
 import type { AfterExchangeHook } from "../hooks/types";
 import { oauthFetch, throwIfLoginCancelled } from "./google-oauth-shared";
+
 const CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com";
 
 interface LoadCodeAssistPayload {

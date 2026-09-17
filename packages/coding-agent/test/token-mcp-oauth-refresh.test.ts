@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { refreshStoredManagedMcpOAuthCredential } from "@oh-my-pi/pi-coding-agent/mcp/oauth-credentials";
-import type { MCPStoredOAuthCredential } from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { refreshStoredManagedMcpOAuthCredential } from "@linxiraos/zeta/mcp/oauth-credentials";
+import type { MCPStoredOAuthCredential } from "@linxiraos/zeta/mcp/oauth-flow";
 
 /** Capture the `resource` form field of the single refresh_token grant a helper call makes. */
 async function captureRefreshResource(
@@ -99,7 +99,7 @@ test("token refreshes and persists a rotating local MCP OAuth grant", async () =
 				NO_COLOR: "1",
 				OMP_AUTH_BROKER_TOKEN: undefined,
 				OMP_AUTH_BROKER_URL: undefined,
-				PI_CODING_AGENT_DIR: tempDir.path(),
+				ZETA_CODING_AGENT_DIR: tempDir.path(),
 			},
 			stdout: "pipe",
 			stderr: "pipe",
@@ -157,9 +157,8 @@ test("token refuses a managed MCP id scoped to another profile", async () => {
 			NO_COLOR: "1",
 			OMP_AUTH_BROKER_TOKEN: undefined,
 			OMP_AUTH_BROKER_URL: undefined,
-			OMP_PROFILE: undefined,
-			PI_PROFILE: undefined,
-			PI_CODING_AGENT_DIR: tempDir.path(),
+			ZETA_PROFILE: undefined,
+			ZETA_CODING_AGENT_DIR: tempDir.path(),
 		},
 		stdout: "pipe",
 		stderr: "pipe",

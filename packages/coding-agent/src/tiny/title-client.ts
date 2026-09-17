@@ -11,8 +11,8 @@
 import * as fs from "node:fs";
 import type * as net from "node:net";
 import * as path from "node:path";
+import { $env, getTinyWorkerRuntimeDir, logger, prompt } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
-import { $env, getTinyWorkerRuntimeDir, logger, prompt } from "@oh-my-pi/pi-utils";
 import packageJson from "../../package.json" with { type: "json" };
 import { settings } from "../config/settings";
 import { stageRunnerScript } from "../eval/runner-cache";
@@ -57,7 +57,7 @@ const TITLE_CLOSE = "</title>";
 const TITLE_MAX_NEW_TOKENS = 20;
 const MEMORY_COMPLETION_DEFAULT_MAX_NEW_TOKENS = 256;
 const COMPLETION_MAX_NEW_TOKENS = 1024;
-const TINY_TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt, { includeExamples: false });
+const TINY_TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
 const MLX_IDLE_SECONDS = 15 * 60;
 
 const CONNECT_TIMEOUT_MS = 3_000;
@@ -117,7 +117,7 @@ function readTinyModelSetting(path: "providers.tinyModelDevice" | "providers.tin
 		const value = settings.get(path);
 		return typeof value === "string" ? value : undefined;
 	} catch {
-		// Settings may be uninitialized (e.g. `omp --smoke-test`); fall back to env/default.
+		// Settings may be uninitialized (e.g. `zeta --smoke-test`); fall back to env/default.
 		return undefined;
 	}
 }
@@ -349,7 +349,7 @@ export interface WorkerLaunch {
 	spawn(endpoint: string, logPath: string): Promise<SpawnedWorker>;
 }
 
-/** Detach a worker so it outlives this omp process; its output goes to a per-worker log file. */
+/** Detach a worker so it outlives this zeta process; its output goes to a per-worker log file. */
 function spawnDetached(
 	cmd: string[],
 	cwd: string | undefined,
@@ -405,7 +405,7 @@ function mlxLaunch(modelKey: TinyLocalModelKey, emitProgress: (event: TinyTitleP
 			const python = await ensureTinyMlxRuntime(phase =>
 				emitProgress({ modelKey, status: phase, name: `mlx-lm@${MLX_LM_VERSION}` }),
 			);
-			const script = await stageRunnerScript("omp-tiny-mlx", "py", MLX_SERVER_SCRIPT);
+			const script = await stageRunnerScript("zeta-tiny-mlx", "py", MLX_SERVER_SCRIPT);
 			const env = inferenceWorkerEnv({
 				PYTHONUNBUFFERED: "1",
 				PYTHONIOENCODING: "utf-8",
@@ -450,7 +450,7 @@ async function logTail(logPath: string): Promise<string> {
 		const text = await Bun.file(logPath).text();
 		return text
 			.split("\n")
-			.filter(line => !line.startsWith("omp tiny worker listening on "))
+			.filter(line => !line.startsWith("zeta tiny worker listening on "))
 			.join("\n")
 			.trim()
 			.slice(-500);

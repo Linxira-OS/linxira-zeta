@@ -1,10 +1,10 @@
 /**
  * Projects one compiled auth policy (`rules/auth/<id>.kdl`) plus the
  * provider's optional TypeScript transport hooks into the
- * {@link ProviderDefinition} the rest of `@oh-my-pi/pi-ai` consumes.
+ * {@link ProviderDefinition} the rest of `@linxiraos/pi-ai` consumes.
  */
-import type { CompiledAuthProvider } from "@oh-my-pi/pi-catalog/compat/types";
-import { $pickenv } from "@oh-my-pi/pi-utils";
+import type { CompiledAuthProvider } from "@linxiraos/pi-catalog/compat/types";
+import { $pickenv } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import { createApiKeyLogin } from "./engine/api-key";
 import { loadLoginHook } from "./engine/common";
@@ -62,6 +62,7 @@ export function buildProviderDefinition(
 		...transport,
 		...(envKeys !== undefined ? { envKeys } : {}),
 		...(policy.allowsMissingApiKey !== undefined ? { allowsMissingApiKey: policy.allowsMissingApiKey } : {}),
+		...(policy.nativeAuthApis !== undefined ? { nativeAuthApis: policy.nativeAuthApis } : {}),
 		...(policy.available !== undefined ? { available: policy.available } : {}),
 		...(policy.showInLoginList !== undefined ? { showInLoginList: policy.showInLoginList } : {}),
 		...(policy.storeAs !== undefined ? { storeCredentialsAs: policy.storeAs } : {}),

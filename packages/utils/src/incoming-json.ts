@@ -265,6 +265,7 @@ function selectValue(
 		return mismatch(typeof segment === "string" ? "object" : "array", charName(c));
 	}
 	if (depth >= MAX_DEPTH) return PENDING;
+	// biome-ignore lint/suspicious/noAssignInExpressions: parser state machine relies on the inline memoized slot
 	const index = (slot.child ??= new ContainerIndex(lex.pos + 1));
 	if (typeof segment === "string") {
 		lex.pos = index.keys.get(segment)?.offset ?? index.frontier;
@@ -368,6 +369,7 @@ function selectIndex(
 			lex.pos++;
 			continue;
 		}
+		// biome-ignore lint/suspicious/noAssignInExpressions: parser state machine relies on the inline memoized slot
 		const slot = index.elements[element] ?? (index.tail ??= { offset: lex.pos });
 		if (element === wanted) return selectValue(lex, path, at, ended, depth + 1, slot);
 		const skipped = scanValue(lex, ended, depth + 1);

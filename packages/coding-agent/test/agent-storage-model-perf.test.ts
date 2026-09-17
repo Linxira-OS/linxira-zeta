@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { createSubagentSettings } from "@oh-my-pi/pi-coding-agent/task/executor";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { createSubagentSettings } from "@linxiraos/zeta/task/executor";
 
 const MODEL_PERF_FLUSH_DELAY_MS = 100;
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
@@ -238,9 +238,9 @@ describe("AgentStorage model perf aggregates", () => {
 		const env = {
 			...process.env,
 			HOME: homeDir,
-			OMP_PROFILE: "",
-			PI_CODING_AGENT_DIR: agentDir,
-			PI_PROFILE: "",
+			USERPROFILE: homeDir,
+			ZETA_PROFILE: "",
+			ZETA_CODING_AGENT_DIR: agentDir,
 			XDG_CACHE_HOME: tempDir.join("xdg-cache"),
 			XDG_CONFIG_HOME: tempDir.join("xdg-config"),
 			XDG_DATA_HOME: tempDir.join("xdg-data"),
@@ -251,7 +251,7 @@ describe("AgentStorage model perf aggregates", () => {
 				'import { Database } from "bun:sqlite";',
 				'import * as fs from "node:fs";',
 				'import * as path from "node:path";',
-				'import { getStatsDbPath } from "@oh-my-pi/pi-utils";',
+				'import { getStatsDbPath } from "@linxiraos/pi-utils";',
 				`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 				"const statsPath = getStatsDbPath();",
 				"fs.mkdirSync(path.dirname(statsPath), { recursive: true });",

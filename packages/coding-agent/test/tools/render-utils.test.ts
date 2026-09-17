@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { KeybindingsManager, setKeyHintPlatform } from "@oh-my-pi/pi-coding-agent/config/keybindings";
-import { getThemeByName, initTheme, type Theme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { KeybindingsManager, setKeyHintPlatform } from "@linxiraos/zeta/config/keybindings";
+import { getThemeByName, initTheme, Theme, theme } from "@linxiraos/zeta/modes/theme/theme";
 import {
 	dedupeParseErrors,
 	expandKeyHint,
@@ -14,16 +14,21 @@ import {
 	formatParseErrors,
 	formatFeedModelBadge,
 	formatScreenshot,
+	PREVIEW_LIMITS,
 	sanitizeDisplayLines,
+	sanitizeDisplayWarning,
+	sanitizeDisplayWarnings,
+	shortenEmbeddedPaths,
 	shortenPath,
+	TRUNCATE_LENGTHS,
 	truncateDiffByHunk,
-} from "@oh-my-pi/pi-coding-agent/tools/render-utils";
+} from "@linxiraos/zeta/tools/render-utils";
 import {
 	DEFAULT_TAB_WIDTH,
 	getKeybindings,
 	setKeybindings,
 	type KeybindingsManager as TuiKeybindingsManager,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 
 describe("feed model badges", () => {
 	let uiTheme: Theme;
@@ -524,5 +529,55 @@ describe("sanitizeDisplayLines", () => {
 
 	it("collapses carriage-return progress overwrites to the final segment", () => {
 		expect(sanitizeDisplayLines("50%\r100%")).toEqual(["100%"]);
+	});
+});
+
+describe("sanitizeDisplayWarning", () => {
+	it("strips terminal controls, expands tabs, flattens lines, and shortens home paths", () => {
+		const filePath = path.join(os.homedir(), ".zeta", "WATCHDOG.yml");
+		const warning = sanitizeDisplayWarning(`${filePath}: advisor "\x1b[31mBad\tName\x1b[0m\nfollow-up" dropped`);
+
+		expect(warning).toContain("~/.zeta/WATCHDOG.yml");
+		expect(warning).toContain('advisor "Bad   Name follow-up" dropped');
+		expect(warning).not.toContain(filePath);
+		expect(warning).not.toContain("\x1b");
+		expect(warning).not.toContain("\t");
+		expect(warning).not.toContain("\n");
+	});
+});
+
+describe("shortenEmbeddedPaths", () => {
+	it("shortens home paths containing spaces before tokenizing", () => {
+		expect(shortenEmbeddedPaths("/Users/Jane Smith/.zeta/WATCHDOG.yml: failed", "/Users/Jane Smith")).toBe(
+			"~/.zeta/WATCHDOG.yml: failed",
+		);
+	});
+
+	it("preserves sibling paths outside the home boundary", () => {
+		const home = "/Users/Jane";
+		const sibling = "/Users/Jane2/.zeta/WATCHDOG.yml: failed";
+		expect(shortenEmbeddedPaths(sibling, home)).toBe(sibling);
+	});
+
+	it("normalizes shortened Windows paths", () => {
+		const home = String.raw`C:\Users\Jane`;
+		const filePath = String.raw`C:\Users\Jane\projects\demo: failed`;
+		expect(shortenEmbeddedPaths(filePath, home)).toBe("~/projects/demo: failed");
+	});
+});
+
+describe("sanitizeDisplayWarnings", () => {
+	it("caps warning count and reports omitted warnings", () => {
+		const warnings = Array.from({ length: PREVIEW_LIMITS.COLLAPSED_ITEMS + 2 }, (_, index) => `warning-${index}`);
+		const displayed = sanitizeDisplayWarnings(warnings);
+
+		expect(displayed).toHaveLength(PREVIEW_LIMITS.COLLAPSED_ITEMS + 1);
+		expect(displayed.at(-1)).toBe("… 2 more warnings");
+	});
+
+	it("truncates each warning before display", () => {
+		const displayed = sanitizeDisplayWarnings(["warning ".repeat(TRUNCATE_LENGTHS.LONG)]);
+
+		expect(Bun.stringWidth(displayed[0])).toBeLessThanOrEqual(TRUNCATE_LENGTHS.LONG);
 	});
 });

@@ -1,8 +1,9 @@
 import * as fs from "node:fs";
-import * as path from "node:path";
-import { getStatsDbPath, workerHostEntry } from "@oh-my-pi/pi-utils";
-import { withFileLock } from "@oh-my-pi/pi-utils/file-lock";
+import * as fsp from "node:fs/promises";
+import { getStatsDbPath, workerHostEntry } from "@linxiraos/pi-utils";
 import {
+	applySessionParseResult,
+	completeSessionSync,
 	getRecentErrors as dbGetRecentErrors,
 	getRecentRequests as dbGetRecentRequests,
 	getBehaviorByModel,
@@ -26,19 +27,22 @@ import {
 	getToolStatsByModel,
 	getToolTimeSeries,
 	initDb,
-	insertMessageStats,
-	insertToolCalls,
-	insertUserMessageStats,
 	markSessionBackfillsComplete,
-	setFileOffset,
-	updateToolResults,
-	updateUserMessageLinks,
+	prepareSessionSync,
+	pruneOrphanSessions,
 } from "./db";
-import { getSessionEntry, listAllSessionFiles, type ParseSessionResult, parseSessionFile } from "./parser";
+import {
+	getSessionEntry,
+	listAllSessionFiles,
+	matchesSessionFile,
+	type ParseSessionResult,
+	parseSessionFile,
+	type SessionParserState,
+} from "./parser";
 import type { SyncWorkerRequest, SyncWorkerResponse } from "./sync-worker";
 // Coding-agent binary/bundle workers route through the CLI entrypoint with a
 // hidden argv mode, so the compiled binary and npm bundle only need one
-// JavaScript entry. Standalone source `omp-stats` keeps using this package's
+// JavaScript entry. Standalone source `zeta-stats` keeps using this package's
 // own sync-worker source file.
 import type {
 	BehaviorDashboardStats,
@@ -50,38 +54,6 @@ import type {
 	ToolDashboardStats,
 } from "./types";
 import { computeUsageWindowStats, fetchUsageData } from "./usage-windows";
-
-const STATS_SYNC_LOCK_RETRY_MS = 25;
-const STATS_SYNC_LOCK_WAIT_MS = 60 * 60 * 1000;
-
-/**
- * Serialize stats ingestion and archive reconciliation across processes.
- * The lock covers file discovery, parsing, and the final SQLite write so a
- * parse result for a session moved by GC can never commit after cleanup.
- * The native lock is owned by an operating-system primitive, so an interrupted
- * owner is released automatically and a live owner is never displaced.
- */
-export async function withStatsSyncLock<T>(dbPath: string, fn: () => Promise<T>): Promise<T> {
-	await fs.promises.mkdir(path.dirname(dbPath), { recursive: true });
-	return await withFileLock(`${dbPath}.sync`, fn, {
-		retryDelayMs: STATS_SYNC_LOCK_RETRY_MS,
-		retries: Math.ceil(STATS_SYNC_LOCK_WAIT_MS / STATS_SYNC_LOCK_RETRY_MS),
-	});
-}
-
-/**
- * Apply a freshly parsed result to the database. Runs entirely on the
- * main thread so the single SQLite handle owns every write.
- */
-function applyParseResult(sessionFile: string, lastModified: number, result: ParseSessionResult): number {
-	if (result.stats.length > 0) insertMessageStats(result.stats);
-	if (result.userStats.length > 0) insertUserMessageStats(result.userStats);
-	if (result.userLinks.length > 0) updateUserMessageLinks(result.userLinks);
-	if (result.toolCalls.length > 0) insertToolCalls(result.toolCalls);
-	if (result.toolResults.length > 0) updateToolResults(result.toolResults);
-	setFileOffset(sessionFile, result.newOffset, lastModified);
-	return result.stats.length + result.userStats.length;
-}
 
 /**
  * Progress event emitted after each session file is fully processed.
@@ -132,12 +104,12 @@ interface WorkerHandle {
  * self-dispatching CLI entry (omp in source, npm-bundle, or compiled form),
  * re-enter that entry with a worker argv selector; otherwise (standalone
  * omp-stats, bun test, SDK embedding) load the worker module directly, so this
- * package keeps zero runtime dependency on `@oh-my-pi/pi-coding-agent`.
+ * package keeps zero runtime dependency on `@linxiraos/zeta`.
  */
 function createSyncWorker(): Worker {
 	const hostEntry = workerHostEntry();
 	if (hostEntry) {
-		return new Worker(hostEntry, { type: "module", argv: ["__omp_worker_stats_sync"] });
+		return new Worker(hostEntry, { type: "module", argv: ["__zeta_worker_stats_sync"] });
 	}
 	return new Worker(new URL("./sync-worker.ts", import.meta.url).href, { type: "module" });
 }
@@ -239,20 +211,37 @@ export async function smokeTestSyncWorker({ timeoutMs = 5_000 }: { timeoutMs?: n
  * bar walks at a steady rate).
  */
 export async function syncAllSessions(opts?: SyncOptions): Promise<{ processed: number; files: number }> {
-	return withStatsSyncLock(getStatsDbPath(), () => syncAllSessionsLocked(opts));
+	return withStatsSyncLock(getStatsDbPath(), async () => {
+		let processed = 0;
+		let files = 0;
+		while (true) {
+			const result = await syncAllSessionsLocked(opts);
+			processed += result.processed;
+			files += result.files;
+			if (!result.reconcile) return { processed, files };
+		}
+	});
 }
 
-async function syncAllSessionsLocked(opts?: SyncOptions): Promise<{ processed: number; files: number }> {
+async function syncAllSessionsLocked(
+	opts?: SyncOptions,
+): Promise<{ processed: number; files: number; reconcile: boolean }> {
 	await initDb();
+	const replay = prepareSessionSync();
 
 	const files = await listAllSessionFiles();
+	// Drop rows for transcripts that no longer exist on disk (deleted temp/test
+	// projects) before parsing, so every aggregate reflects live files only.
+	pruneOrphanSessions(files);
 	let totalProcessed = 0;
 	let filesProcessed = 0;
 	let completed = 0;
 	let cursor = 0;
+	let reconcile = false;
 	const finish = () => {
+		completeSessionSync(reconcile);
 		markSessionBackfillsComplete();
-		return { processed: totalProcessed, files: filesProcessed };
+		return { processed: totalProcessed, files: filesProcessed, reconcile };
 	};
 	if (files.length === 0) return finish();
 
@@ -268,7 +257,12 @@ async function syncAllSessionsLocked(opts?: SyncOptions): Promise<{ processed: n
 
 	const processFile = async (
 		sessionFile: string,
-		parse: (sessionFile: string, fromOffset: number) => Promise<ParseSessionResult>,
+		parse: (
+			sessionFile: string,
+			fromOffset: number,
+			state?: SessionParserState,
+			replay?: boolean,
+		) => Promise<ParseSessionResult>,
 	): Promise<void> => {
 		let fileStats: fs.Stats;
 		try {
@@ -279,14 +273,24 @@ async function syncAllSessionsLocked(opts?: SyncOptions): Promise<{ processed: n
 		}
 		const lastModified = fileStats.mtimeMs;
 		const stored = getFileOffset(sessionFile);
-		if (stored && stored.lastModified >= lastModified) {
+		if (
+			!replay &&
+			stored?.parserState &&
+			stored.lastModified === lastModified &&
+			stored.parserState.size === fileStats.size &&
+			matchesSessionFile(stored.parserState, fileStats)
+		) {
 			report(sessionFile);
 			return;
 		}
 
-		const fromOffset = stored?.offset ?? 0;
-		const result = await parse(sessionFile, fromOffset);
-		const inserted = applyParseResult(sessionFile, lastModified, result);
+		const unknownIdentity = stored !== null && !stored.parserState;
+		const fromOffset = unknownIdentity ? 0 : (stored?.offset ?? 0);
+		const result = await parse(sessionFile, fromOffset, stored?.parserState, replay);
+		if (unknownIdentity && result.parserState) result.reset = true;
+		const applied = applySessionParseResult(sessionFile, result, replay || !stored?.parserState);
+		const inserted = applied.processed;
+		if (applied.reconcile) reconcile = true;
 		if (inserted > 0) {
 			totalProcessed += inserted;
 			filesProcessed++;
@@ -312,7 +316,9 @@ async function syncAllSessionsLocked(opts?: SyncOptions): Promise<{ processed: n
 			const idx = cursor++;
 			if (idx >= files.length) return;
 			const sessionFile = files[idx];
-			await processFile(sessionFile, (file, fromOffset) => dispatch(handle, { sessionFile: file, fromOffset }));
+			await processFile(sessionFile, (file, fromOffset, parserState, replay) =>
+				dispatch(handle, { sessionFile: file, fromOffset, parserState, replay }),
+			);
 		}
 	}
 
@@ -571,4 +577,80 @@ export async function getProviderDashboardStats(range?: string | null): Promise<
 		usageSeries,
 		windowInsights,
 	};
+}
+
+const STATS_LOCK_TIMEOUT_MS = 30_000;
+const STATS_LOCK_STALE_MS = 60_000;
+
+async function statIfPresent(path: string) {
+	try {
+		return await fsp.stat(path);
+	} catch (error) {
+		const code =
+			typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
+		if (code === "ENOENT") return null;
+		throw error;
+	}
+}
+
+function processExists(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		const code =
+			typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
+		if (code === "ESRCH" || code === "EINVAL") return false;
+		return true;
+	}
+}
+
+async function isStatsLockStale(lockPath: string): Promise<boolean> {
+	const stat = await statIfPresent(lockPath);
+	if (!stat) return false;
+	const pid = Number.parseInt((await Bun.file(lockPath).text()).split(/\r?\n/, 1)[0] ?? "", 10);
+	if (Number.isSafeInteger(pid) && pid > 0) return !processExists(pid);
+	return Date.now() - stat.mtimeMs > STATS_LOCK_STALE_MS;
+}
+
+/**
+ * Acquire an exclusive lock on the stats database and execute `fn`.
+ * Used by GC to prevent stats row cleanup from racing with stats sync.
+ */
+export async function withStatsSyncLock<T>(dbPath: string, fn: () => Promise<T>): Promise<T> {
+	const lockPath = `${dbPath}.lock`;
+	const deadline = Date.now() + STATS_LOCK_TIMEOUT_MS;
+
+	while (Date.now() < deadline) {
+		try {
+			const handle = await fsp.open(lockPath, "wx");
+			try {
+				await handle.writeFile(`${process.pid}\n${new Date().toISOString()}\n`);
+				return await fn();
+			} finally {
+				await handle.close();
+				await fsp.unlink(lockPath).catch(() => {});
+			}
+		} catch (error) {
+			const code =
+				typeof error === "object" && error !== null && "code" in error
+					? (error as { code: string }).code
+					: undefined;
+			if (code !== "EEXIST") throw error;
+		}
+		if (await isStatsLockStale(lockPath)) {
+			try {
+				await fsp.unlink(lockPath);
+			} catch (error) {
+				const code =
+					typeof error === "object" && error !== null && "code" in error
+						? (error as { code: string }).code
+						: undefined;
+				if (code !== "ENOENT") throw error;
+			}
+		}
+		await Bun.sleep(100);
+	}
+
+	throw new Error(`timed out waiting for stats lock: ${lockPath}`);
 }

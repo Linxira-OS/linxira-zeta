@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getThemeByName } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
 import { grepToolRenderer } from "../../src/tools/grep";
 
 function extractLinkUris(text: string): string[] {
@@ -144,12 +144,10 @@ describe("grepToolRenderer", () => {
 			.render(240)
 			.join("\n");
 		const fileUri = url.pathToFileURL(path.resolve(filePath)).href;
-		const lineUri = new URL(fileUri);
-		lineUri.searchParams.set("line", "12");
 		const uris = extractLinkUris(rendered);
 
 		expect(uris).toContain(fileUri);
-		expect(uris).toContain(lineUri.href);
+		expect(uris.filter(uri => uri === fileUri)).toHaveLength(2);
 	});
 
 	it("links single-file code-frame lines to the searched file", async () => {
@@ -175,9 +173,8 @@ describe("grepToolRenderer", () => {
 			.render(240)
 			.join("\n");
 
-		const lineUri = new URL(url.pathToFileURL(path.resolve(filePath)).href);
-		lineUri.searchParams.set("line", "7");
-		expect(extractLinkUris(rendered)).toContain(lineUri.href);
+		const fileUri = url.pathToFileURL(path.resolve(filePath)).href;
+		expect(extractLinkUris(rendered)).toEqual([fileUri, fileUri]);
 	});
 
 	it("bounds the expanded single-file view instead of dumping every match", async () => {

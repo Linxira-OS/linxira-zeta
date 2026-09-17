@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { extractPrintableText } from "@oh-my-pi/pi-tui/keys";
-import { ProcessTerminal } from "@oh-my-pi/pi-tui/terminal";
+import { extractPrintableText } from "@linxiraos/pi-tui/keys";
+import { ProcessTerminal } from "@linxiraos/pi-tui/terminal";
 import {
 	type CellDimensions,
 	getCellDimensions,
 	getTerminalInfo,
 	setCellDimensions,
-} from "@oh-my-pi/pi-tui/terminal-capabilities";
-import { setTerminalHeadless } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui/terminal-capabilities";
+import { setTerminalHeadless } from "@linxiraos/pi-utils";
 
 const stdinIsTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
 const stdoutIsTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
@@ -673,6 +673,22 @@ describe("ProcessTerminal OSC 11 appearance detection", () => {
 		expect(writes).toContain("\x1b[>3u");
 		expect(writes).not.toContain("\x1b[>7u");
 		terminal.stop();
+	});
+
+	it("routes resize by the injected ConPTY override, not the ambient platform", () => {
+		// The override must gate every ConPTY-dependent path uniformly. Reading
+		// isConPTYHosted() here instead made a { conpty: false } terminal report
+		// non-ConPTY writes and kitty flags but ConPTY resize routing on Windows
+		// and WSL, so no test could model the opposite host.
+		Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+		const posix = setupTerminal({ conpty: false });
+		expect(posix.terminal.hostOwnsGridOnResize).toBe(false);
+		posix.terminal.stop();
+
+		Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+		const conpty = setupTerminal({ conpty: true });
+		expect(conpty.terminal.hostOwnsGridOnResize).toBe(true);
+		conpty.terminal.stop();
 	});
 
 	it("shutdown balances the single kitty push performed on detection", () => {

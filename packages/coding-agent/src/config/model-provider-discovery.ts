@@ -1,10 +1,10 @@
-import type { Api, Model } from "@oh-my-pi/pi-ai/types";
-import type { ModelResolutionSource } from "@oh-my-pi/pi-catalog/model-manager";
+import type { Api, Model } from "@linxiraos/pi-ai/types";
+import type { ModelResolutionSource } from "@linxiraos/pi-catalog/model-manager";
 import {
 	MODELS_DEV_CATALOG_PROVIDER_IDS,
 	type OpenAICodexAccount,
 	PROVIDER_DESCRIPTORS,
-} from "@oh-my-pi/pi-catalog/provider-models";
+} from "@linxiraos/pi-catalog/provider-models";
 import type { AuthStorage, OAuthCredential } from "../session/auth-storage";
 
 /**
@@ -76,6 +76,8 @@ export async function withModelDiscoveryTimeout<T>(timeoutMs: number, run: () =>
 export interface BuiltInDiscoveryResult {
 	models: Model<Api>[];
 	authoritativeProviders: Set<string>;
+	/** Providers whose successful endpoint refresh replaces their prior dynamic discovery slice. */
+	replaceRuntimeProviders: Set<string>;
 }
 
 export type ProviderDiscoveryStatus = "idle" | "ok" | "empty" | "cached" | "unavailable" | "unauthenticated";

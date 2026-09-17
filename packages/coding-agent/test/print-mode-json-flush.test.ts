@@ -13,8 +13,8 @@
  * fires (so `process.exit` can't discard it), and the full record is delivered.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { runPrintMode } from "@oh-my-pi/pi-coding-agent/modes/print-mode";
-import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { runPrintMode } from "@linxiraos/zeta/modes/print-mode";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 
 interface FlushHarness {
 	session: AgentSession;
@@ -36,8 +36,10 @@ function createFlushHarness(): FlushHarness {
 			getHeader: () => undefined,
 			buildSessionContext: () => ({ messages: [] }),
 			getEntries: () => [],
+			onPersistenceError: () => () => {},
 		},
 		settings: { get: () => false },
+		getLastAssistantMessage: () => undefined,
 		extensionRunner: undefined,
 		subscribe: (listener: (event: AgentSessionEvent) => void) => {
 			subscriber = listener;
@@ -135,7 +137,7 @@ describe("print-mode JSON flush (#7635)", () => {
 		expect(harness.disposed()).toBe(false);
 
 		releaseAgentEnd?.();
-		await run;
+		expect(await run).toBe(0);
 
 		expect(settled).toBe(true);
 		expect(harness.disposed()).toBe(true);

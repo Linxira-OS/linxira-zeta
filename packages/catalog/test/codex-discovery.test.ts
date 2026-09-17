@@ -3,15 +3,15 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { fetchCodexModels } from "@oh-my-pi/pi-catalog/discovery/codex";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { openaiCodexModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/special";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
-import { resolveProviderModelReference } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { fetchCodexModels } from "@linxiraos/pi-catalog/discovery/codex";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { openaiCodexModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/special";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
+import { resolveProviderModelReference } from "@linxiraos/zeta/config/model-resolver";
 
 describe("Codex model discovery", () => {
 	it("normalizes optional maximum context windows separately from the default window", async () => {
@@ -250,13 +250,15 @@ describe("Codex model discovery", () => {
 			expect(model.cost).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
 			expect(model.contextWindow).toBe(272_000);
 			const builtModel = buildModel(model);
-			// Codex credits have no long-context pricing tier. Catalog composition
-			// retains the standard window; the registry expands it only when
-			// extended context is enabled.
+			// Codex credits keep this base rate and do not charge for cache
+			// writes; unlike the API card, there is no long-context tier. The
+			// stale 272K wire window floors to the documented 1.05M at build
+			// time — live traffic succeeds past the wire's 872K maximum — so
+			// Astra is not gated behind `/extended-context`.
 			expect(builtModel.cost).toEqual({ input: 10, output: 50, cacheRead: 1, cacheWrite: 0 });
 			expect(builtModel.serviceTierCost).toEqual({ flex: 0.5, priority: 2.5 });
 			expect(builtModel).toMatchObject({
-				contextWindow: 272_000,
+				contextWindow: 1_050_000,
 				maxTokens: 128_000,
 			});
 		}

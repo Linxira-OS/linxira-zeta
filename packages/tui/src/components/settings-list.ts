@@ -22,11 +22,20 @@ export interface SettingItem {
 	description?: string;
 	/** Optional risk note shown in warning styling above the description, with a glyph on the row. */
 	warning?: string;
-	/** Current value to display (right side) */
+	/** Current value to display (right side). Kept separate from the cycled
+	 *  machine values so localized displays never break `values` matching. */
 	currentValue: string;
-	/** If provided, Enter/Space cycles through these values */
+	/** Optional machine-readable value list cycled on confirm. Localized
+	 *  display text lives in `valueLabel`/`valueLabels`, keeping `values`
+	 *  matching stable across languages. */
 	values?: string[];
-	/** If provided, Enter opens this submenu. Receives current value and done callback. */
+	/** Optional display text overriding `currentValue` in the value column
+	 *  (e.g. a localized on/off label for a boolean whose `values` stay
+	 *  machine-readable). */
+	valueLabel?: string;
+	/** Display labels aligned with `values`; consumed whenever `valueLabel`
+	 *  is set so cycled values keep their localized text. */
+	valueLabels?: string[];
 	submenu?: (currentValue: string, done: (selectedValue?: string) => void) => Component;
 	/** True when the displayed setting differs from its default value. */
 	changed?: boolean;
@@ -533,7 +542,11 @@ export class SettingsList implements Component {
 		const labelPad = padding(Math.max(0, maxLabelWidth - visibleWidth(labelPlain)));
 		const separator = "  ";
 		const valueMaxWidth = rowWidth - prefixWidth - maxLabelWidth - visibleWidth(separator) - 2;
-		const valuePlain = truncateToWidth(String(item.currentValue ?? ""), valueMaxWidth, Ellipsis.Omit);
+		const valuePlain = truncateToWidth(
+			String(item.valueLabel ?? item.currentValue ?? ""),
+			valueMaxWidth,
+			Ellipsis.Omit,
+		);
 		const hovered = !isSelected && this.#theme.hovered !== undefined && item.id === this.#hoveredItemId;
 		// De-emphasized rows (outside the active section) render as plain text
 		// under one dim wash so inner label/value colors don't fight it.
@@ -821,6 +834,11 @@ export class SettingsList implements Component {
 			const nextIndex = (currentIndex + 1) % item.values.length;
 			const newValue = item.values[nextIndex];
 			item.currentValue = newValue;
+			// Keep a localized value label in sync with the cycled value.
+			if (item.valueLabel !== undefined) {
+				const labels = item.valueLabels;
+				item.valueLabel = labels?.[nextIndex] ?? newValue;
+			}
 			this.#onChange(item.id, newValue);
 		}
 	}

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { TodoReminderComponent } from "@oh-my-pi/pi-coding-agent/modes/components/todo-reminder";
-import { ToolActivityContainer } from "@oh-my-pi/pi-coding-agent/modes/components/tool-activity";
-import { TranscriptContainer } from "@oh-my-pi/pi-coding-agent/modes/components/transcript-container";
-import { TtsrNotificationComponent } from "@oh-my-pi/pi-coding-agent/modes/components/ttsr-notification";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { Text } from "@oh-my-pi/pi-tui";
+import { Text } from "@linxiraos/pi-tui";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { TodoReminderComponent } from "@linxiraos/zeta/modes/components/todo-reminder";
+import { ToolActivityContainer } from "@linxiraos/zeta/modes/components/tool-activity";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { TtsrNotificationComponent } from "@linxiraos/zeta/modes/components/ttsr-notification";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
 
 const darkTheme = await getThemeByName("dark");
 

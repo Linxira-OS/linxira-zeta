@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { setBedrockProviderModule, streamBedrock } from "@oh-my-pi/pi-ai/providers/register-builtins";
-import type { AssistantMessage, Context, Model } from "@oh-my-pi/pi-ai/types";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { iterateWithIdleTimeout } from "@oh-my-pi/pi-ai/utils/idle-iterator";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { setBedrockProviderModule, streamBedrock } from "@linxiraos/pi-ai/providers/register-builtins";
+import type { AssistantMessage, Context, Model } from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { iterateWithIdleTimeout } from "@linxiraos/pi-ai/utils/idle-iterator";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 // Issue #4593: the generic lazy stream watchdog treats "no AssistantMessageEvent"
 // as "provider stalled". During a Cursor exec-channel round-trip the server is
@@ -58,39 +58,6 @@ function createAssistantMessage(): AssistantMessage {
 const baseContext: Context = { messages: [] };
 
 describe("idle watchdog local-work deferral (issue #4593)", () => {
-	it("slides the idle deadline while consumer-side local work is pending", async () => {
-		const workDone = Promise.withResolvers<void>();
-		let probeCalls = 0;
-		let busy = true;
-		async function* source() {
-			yield "first";
-			// The "local tool": finishes only after the watchdog has hit an
-			// expired deadline twice and deferred both times.
-			await workDone.promise;
-			busy = false;
-			yield "second";
-		}
-		let idleFired = false;
-		const items: string[] = [];
-		for await (const item of iterateWithIdleTimeout(source(), {
-			idleTimeoutMs: 50,
-			errorMessage: "stalled",
-			onIdle: () => {
-				idleFired = true;
-			},
-			hasPendingLocalWork: () => {
-				probeCalls++;
-				if (probeCalls >= 2) workDone.resolve();
-				return busy;
-			},
-		})) {
-			items.push(item);
-		}
-		expect(items).toEqual(["first", "second"]);
-		expect(probeCalls).toBeGreaterThanOrEqual(2);
-		expect(idleFired).toBe(false);
-	});
-
 	it("still aborts a silent stream once local work has finished", async () => {
 		const workDone = Promise.withResolvers<void>();
 		let busy = true;

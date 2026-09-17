@@ -1,21 +1,21 @@
 {
   "type": "module",
-  "name": "@oh-my-pi/pi-tui",
-  "version": "18.1.15",
+  "name": "@linxiraos/pi-tui",
+  "version": "1.1.15",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
-  "homepage": "https://omp.sh",
+  "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Stencil Labs, Inc.",
   "contributors": [
     "Mario Zechner"
   ],
   "license": "MIT",
   "repository": {
-    "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
-    "directory": "packages/tui"
+    "directory": "packages/tui",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+    "type": "git"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
     "tui",
@@ -37,8 +37,10 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:"
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:"
   },
   "devDependencies": {
     "kitty-vt-wasm": "catalog:"

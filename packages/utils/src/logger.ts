@@ -1,7 +1,7 @@
 /**
- * Centralized logger for omp.
+ * Centralized logger for zeta.
  *
- * Default: rotating `~/.omp/logs/omp.<DATE>.<PID>.log`, no console output (writing
+ * Default: rotating `~/.zeta/logs/zeta.<DATE>.<PID>.log`, no console output (writing
  * to stdout/stderr would corrupt the TUI). Long-running headless services
  * (the auth broker, etc.) call {@link setTransports} to swap in a console
  * transport so a process supervisor (pm2, journald, k8s) captures the logs.
@@ -53,8 +53,8 @@ function emitToSinks(level: LogLevel, message: string, context: Record<string, u
 	}
 }
 
-const PROCESS_LOG_PATTERN = /^omp\.(\d{4}-\d{2}-\d{2})\.(\d+)\.log(?:\.(\d+))?$/;
-const PROCESS_AUDIT_PATTERN = /^\.omp\.(\d+)-audit\.json$/;
+const PROCESS_LOG_PATTERN = /^zeta\.(\d{4}-\d{2}-\d{2})\.(\d+)\.log(?:\.(\d+))?$/;
+const PROCESS_AUDIT_PATTERN = /^\.zeta\.(\d+)-audit\.json$/;
 const RETAINED_STALE_LOGS_PER_PROCESS_DAY = 1;
 const RETAINED_STALE_AUDIT_FILES = 0;
 const RETAINED_STALE_LOG_DAYS = 5;
@@ -152,6 +152,19 @@ function pruneStaleProcessLogs(dir: string): void {
 	}
 }
 
+const scheduledPruneDirs = new Set<string>();
+
+/** Run shared retention only after logger construction has returned to the event loop. */
+function schedulePruneStaleProcessLogs(dir: string): void {
+	if (scheduledPruneDirs.has(dir)) return;
+	scheduledPruneDirs.add(dir);
+	const immediate = setImmediate(() => {
+		scheduledPruneDirs.delete(dir);
+		pruneStaleProcessLogs(dir);
+	});
+	immediate.unref();
+}
+
 /** Ensure a logs directory exists; return the resolved path. */
 function ensureDir(dir: string): string {
 	if (!fs.existsSync(dir)) {
@@ -237,14 +250,14 @@ function formatLogInfo(info: NormalizedLogInfo): string {
 /** Build a rotating file sink with process-local rotation and shared retention. */
 function makeFileTransport(dir?: string): RotatingFileSink {
 	const logsDir = ensureDir(dir ?? getLogsDir());
-	pruneStaleProcessLogs(logsDir);
+	schedulePruneStaleProcessLogs(logsDir);
 	return new RotatingFileSink({
 		directory: logsDir,
-		filenamePrefix: "omp",
+		filenamePrefix: "zeta",
 		filenameSuffix: String(process.pid),
 		maxBytes: 10 * 1024 * 1024,
 		maxFiles: 5,
-		auditFile: path.join(logsDir, `.omp.${process.pid}-audit.json`),
+		auditFile: path.join(logsDir, `.zeta.${process.pid}-audit.json`),
 	});
 }
 
@@ -276,12 +289,11 @@ function getLocalTransports(): LocalTransports {
 
 function emitLocally(level: LogLevel, message: string, context: Record<string, unknown> | undefined): void {
 	const transports = getLocalTransports();
-	const info = normalizeLogInfo(level, message, context);
 	if (!transports.file && !transports.console) return;
-
+	const info = normalizeLogInfo(level, message, context);
 	const line = formatLogInfo(info);
 	if (transports.file) transports.file.write(line);
-	if (transports.console) fs.writeSync(1, `${formatLogInfo(info)}${os.EOL}`);
+	if (transports.console) fs.writeSync(1, `${line}${os.EOL}`);
 }
 
 /**

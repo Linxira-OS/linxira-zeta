@@ -11,12 +11,14 @@ import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { HindsightApi } from "@oh-my-pi/pi-coding-agent/hindsight/client";
-import type { HindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
-import { HindsightSessionState } from "@oh-my-pi/pi-coding-agent/hindsight/state";
-import { mnemopiBackend } from "@oh-my-pi/pi-coding-agent/mnemopi/backend";
-import { loadMnemopiConfig, type MnemopiBackendConfig } from "@oh-my-pi/pi-coding-agent/mnemopi/config";
+import { resetMemoryForTests } from "@linxiraos/pi-mnemopi";
+import { logger, TempDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { HindsightApi } from "@linxiraos/zeta/hindsight/client";
+import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
+import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
+import { loadMnemopiConfig, type MnemopiBackendConfig } from "@linxiraos/zeta/mnemopi/config";
 import {
 	getMnemopiScopedDbPaths,
 	getMnemopiSessionState,
@@ -24,15 +26,13 @@ import {
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@oh-my-pi/pi-coding-agent/mnemopi/state";
-import type { AgentSessionEventListener } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { MemoryEditTool } from "@oh-my-pi/pi-coding-agent/tools/memory-edit";
-import { MemoryRecallTool } from "@oh-my-pi/pi-coding-agent/tools/memory-recall";
-import { MemoryReflectTool } from "@oh-my-pi/pi-coding-agent/tools/memory-reflect";
-import { MemoryRetainTool } from "@oh-my-pi/pi-coding-agent/tools/memory-retain";
-import { resetMemoryForTests } from "@oh-my-pi/pi-mnemopi";
-import { logger, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/mnemopi/state";
+import type { AgentSessionEventListener } from "@linxiraos/zeta/session/agent-session";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { MemoryEditTool } from "@linxiraos/zeta/tools/memory-edit";
+import { MemoryRecallTool } from "@linxiraos/zeta/tools/memory-recall";
+import { MemoryReflectTool } from "@linxiraos/zeta/tools/memory-reflect";
+import { MemoryRetainTool } from "@linxiraos/zeta/tools/memory-retain";
 
 // Mnemopi is lazy-loaded at runtime; preload it for synchronous state construction.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);
@@ -71,7 +71,6 @@ function makeConfig(overrides: Partial<HindsightConfig> = {}): HindsightConfig {
 		retainTimeoutMs: 60_000,
 		mentalModelsEnabled: false,
 		mentalModelAutoSeed: false,
-		mentalModelRefreshIntervalMs: 5 * 60 * 1000,
 		mentalModelMaxRenderChars: 16_000,
 		...overrides,
 	};
@@ -218,8 +217,11 @@ describe("Hindsight tool factories", () => {
 		expect(MemoryReflectTool.createIf(session)).toBeNull();
 	});
 
-	it("retain/recall/reflect factories return tool instances when memory.backend === hindsight", () => {
-		const settings = Settings.isolated({ "memory.backend": "hindsight" });
+	it("retain/recall/reflect factories return tool instances when Hindsight is configured", () => {
+		const settings = Settings.isolated({
+			"memory.backend": "hindsight",
+			"hindsight.apiUrl": "http://localhost:8888",
+		});
 		const session = makeSession(settings);
 		expect(MemoryRetainTool.createIf(session)).toBeInstanceOf(MemoryRetainTool);
 		expect(MemoryRecallTool.createIf(session)).toBeInstanceOf(MemoryRecallTool);
@@ -242,7 +244,7 @@ describe("Mnemopi tool factories", () => {
 		await tempDbDir?.remove();
 		tempDbDir = undefined;
 		tempDbPath = undefined;
-	});
+	}, 30_000);
 
 	it("memory tool factories gate on supported backends", () => {
 		const offSettings = Settings.isolated({ "memory.backend": "off", "memories.enabled": false });
@@ -368,7 +370,7 @@ describe("retain.execute (Mnemopi backend)", () => {
 		await tempDbDir?.remove();
 		tempDbDir = undefined;
 		tempDbPath = undefined;
-	});
+	}, 30_000);
 
 	it("writes memories synchronously and returns a stored success message", async () => {
 		const settings = Settings.isolated({ "memory.backend": "mnemopi" });
@@ -468,7 +470,7 @@ describe("Mnemopi backend lifecycle", () => {
 		await tempDbDir?.remove().catch(() => {});
 		tempDbDir = undefined;
 		tempDbPath = undefined;
-	});
+	}, 30_000);
 
 	it("keeps background auto-recall engine failures from escaping", async () => {
 		const entries = [{ type: "message", message: { role: "user", content: "existing memory" } }];
@@ -925,9 +927,10 @@ describe("Mnemopi backend lifecycle", () => {
 		await state.dispose({ timeoutMs: BUDGET_MS });
 		const elapsedMs = (Bun.nanoseconds() - start) / 1_000_000;
 
-		// Dispose must surrender within the budget (plus a generous slack); the
-		// in-flight consolidate is detached, not awaited.
-		expect(elapsedMs).toBeLessThan(BUDGET_MS * 5);
+		// Dispose must surrender within the budget; the in-flight consolidate is
+		// detached, not awaited. The ceiling is only there to catch a hang, so
+		// it absorbs a full second of timer/scheduling delay on a loaded runner.
+		expect(elapsedMs).toBeLessThan(BUDGET_MS + 1_000);
 		expect(elapsedMs).toBeGreaterThanOrEqual(BUDGET_MS - 10);
 		expect(flushSpy).toHaveBeenCalled();
 		expect(flushCalls).toBe(1);
@@ -995,24 +998,27 @@ describe("Mnemopi backend lifecycle", () => {
 		}
 	});
 
-	it("dispose with no timeoutMs retains, flushes, and closes without sleeping (#3641)", async () => {
-		const state = registerMnemopiState();
-		const retainMemory = state.getScopedRetainTarget().memory;
-		const flushSpy = vi.spyOn(retainMemory, "flushExtractions").mockResolvedValue();
-		const sleepSpy = vi.spyOn(retainMemory, "sleep");
-		const closeSpy = vi.spyOn(retainMemory, "close");
+	it.each([{}, { retain: false }])(
+		"unbounded dispose drains and closes without sleeping (options: %j)",
+		async options => {
+			const state = registerMnemopiState();
+			const retainMemory = state.getScopedRetainTarget().memory;
+			const flushSpy = vi.spyOn(retainMemory, "flushExtractions").mockResolvedValue();
+			const sleepSpy = vi.spyOn(retainMemory, "sleep");
+			const closeSpy = vi.spyOn(retainMemory, "close");
 
-		await state.dispose();
+			await state.dispose(options);
 
-		// Unbounded dispose still runs the consolidate-then-close pipeline, but
-		// skips the synchronous bank sleep so the interactive shutdown path stays
-		// fast (#3641). Full consolidation remains reachable via `/memory enqueue`.
-		expect(flushSpy).toHaveBeenCalledTimes(1);
-		expect(sleepSpy).not.toHaveBeenCalled();
-		expect(closeSpy).toHaveBeenCalledTimes(1);
+			// Unbounded dispose still runs the consolidate-then-close pipeline, but
+			// skips the synchronous bank sleep so the interactive shutdown path stays
+			// fast (#3641). Full consolidation remains reachable via `/memory enqueue`.
+			expect(flushSpy).toHaveBeenCalledTimes(1);
+			expect(sleepSpy).not.toHaveBeenCalled();
+			expect(closeSpy).toHaveBeenCalledTimes(1);
 
-		registeredMnemopiState = undefined;
-	});
+			registeredMnemopiState = undefined;
+		},
+	);
 
 	it("dispose retains the current session without scheduling LLM fact extraction", async () => {
 		const state = registerMnemopiState();
@@ -1269,6 +1275,48 @@ describe("Mnemopi backend lifecycle", () => {
 			source: "test-source",
 			score: expect.any(Number),
 		});
+	});
+
+	it("redacts credentials in saved content and metadata context before they reach the bank", async () => {
+		const config = makeMnemopiConfig({ bank: "project-alpha", retainBank: "project-alpha" });
+		const state = registerMnemopiState(config, { cwd: "/work/project-alpha" });
+		const session = state.session;
+		setMnemopiSessionState(session, state);
+		const dbPath = state.memory.dbPath;
+		if (!dbPath) throw new Error("Expected a file-backed Mnemopi database");
+
+		const token = `npm_${"aB3dEfGh1JkLmN0pQrStUvWxYz2345678901".slice(0, 36)}`;
+		const save = await mnemopiBackend.save!(
+			{ agentDir: path.dirname(config.dbPath), cwd: "/work/project-alpha", session },
+			{
+				content: `publish the package with ${token}`,
+				source: "test-source",
+				context: `registry auth uses ${token}`,
+				importance: 0.8,
+			},
+		);
+		expect(save).toMatchObject({ backend: "mnemopi", stored: 1 });
+
+		const db = new Database(dbPath, { readonly: true });
+		const row = db
+			.prepare<{ content: string; embed_text: string | null; metadata_json: string | null }, []>(`
+				SELECT content, embed_text, metadata_json
+				FROM working_memory
+				WHERE source = 'test-source'
+			`)
+			.get();
+		const ftsHits = db
+			.prepare<{ count: number }, [string]>(`
+				SELECT COUNT(*) AS count FROM fts_working WHERE fts_working MATCH ?
+			`)
+			.get(token);
+		db.close();
+
+		expect(row).toBeDefined();
+		expect(row?.content).toBe("publish the package with [REDACTED]");
+		expect(row?.embed_text ?? "").not.toContain("npm_");
+		expect(JSON.parse(row?.metadata_json ?? "{}").context).toBe("registry auth uses [REDACTED]");
+		expect(ftsHits?.count ?? 0).toBe(0);
 	});
 
 	it("reports aborted searches and save-without-id failures", async () => {

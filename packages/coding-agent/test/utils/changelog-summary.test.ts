@@ -191,12 +191,12 @@ An intervening paragraph closes the list.
 		);
 	});
 
-	test("keeps the uncategorized bullet of the released 18.1.12 notes in the count", async () => {
+	test("keeps the uncategorized bullet of the released 1.1.10 notes in the count", async () => {
 		const entries = await parseChangelog(shippedChangelogPath);
-		const release = entries.find(entry => entry.major === 18 && entry.minor === 1 && entry.patch === 12);
+		const release = entries.find(entry => entry.major === 1 && entry.minor === 1 && entry.patch === 10);
 		expect(release).toBeDefined();
 
-		const selection = selectStartupChangelog([release as ChangelogEntry], "18.1.11", "18.1.12");
+		const selection = selectStartupChangelog([release as ChangelogEntry], "1.1.9", "1.1.10");
 		const breakdown = Object.values(selection.categoryCounts).reduce((total, count) => total + count, 0);
 		expect(selection.changeCount).toBe(breakdown);
 		// The released section is immutable, so its bullet above `### Changed` stays uncategorized rather than lost.

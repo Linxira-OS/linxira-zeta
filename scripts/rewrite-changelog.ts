@@ -8,7 +8,7 @@
  * the final shipped behavior belongs in release notes.
  *
  * For every non-empty `[Unreleased]` section this script hands the whole section
- * to a small model (default `openai-codex/gpt-5.6-luna` via `@oh-my-pi/pi-ai`),
+ * to a small model (default `openai-codex/gpt-5.6-luna` via `@linxiraos/pi-ai`),
  * and asks for a complete replacement grouped by changelog category. The model
  * returns structured sections/items; markdown is rendered locally so only the
  * Unreleased section changes and formatting stays deterministic.
@@ -26,15 +26,15 @@
  *   bun scripts/rewrite-changelog.ts --model google/gemini-3.5-flash
  *
  * Auth: resolves the provider API key through omp's auth storage
- * (~/.omp/agent/agent.db: stored key, OAuth, or env var fallback).
+ * (~/.zeta/agent/agent.db: stored key, OAuth, or env var fallback).
  */
 
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { type } from "@oh-my-pi/omptype";
-import { type Api, completeSimple, Effort, type Model, type Tool, type ToolCall } from "@oh-my-pi/pi-ai";
-import { discoverAuthStorage } from "@oh-my-pi/pi-ai/auth-broker";
-import { type GeneratedProvider, getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { type Api, completeSimple, Effort, type Model, type Tool, type ToolCall } from "@linxiraos/pi-ai";
+import { discoverAuthStorage } from "@linxiraos/pi-ai/auth-broker";
+import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	type ChangelogDocument,
 	changelogPaths,
@@ -338,7 +338,7 @@ async function run(options: RunOptions): Promise<RunResult> {
 		throw lastError;
 	}
 	const concurrency = options.concurrency ?? 4;
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const results: Array<RewrittenFile | undefined> = new Array(paths.length);
 
 	let pathIndex = 0;

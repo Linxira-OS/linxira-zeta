@@ -7,10 +7,10 @@
  * background jobs and subagents".
  */
 import { afterEach, describe, expect, test } from "bun:test";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 import { type CoordinationDetails, HubTool } from "../src/tools/hub";
 
 const managers: AsyncJobManager[] = [];
@@ -31,7 +31,7 @@ function createToolSession(options: {
 		cwd: process.cwd(),
 		hasUI: false,
 		settings: {
-			get: (key: string) => (key === "async.pollWaitDuration" ? "5s" : undefined),
+			get: () => undefined,
 		},
 		getSessionFile: () => null,
 		getSessionSpawns: () => null,

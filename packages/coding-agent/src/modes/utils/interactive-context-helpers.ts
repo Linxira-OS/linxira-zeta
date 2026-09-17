@@ -3,8 +3,8 @@
  * {@link UiHelpers} and the input/event controllers, so the live chat surfaces
  * construct components and reset editor state identically.
  */
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { getMarkdownLinkUrls } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { getMarkdownLinkUrls } from "@linxiraos/pi-tui";
 import type { AgentSession } from "../../session/agent-session";
 import { resolveMarkdownLinkTargets } from "../../tui/hyperlink";
 import { AssistantMessageComponent } from "../components/assistant-message";
@@ -114,5 +114,11 @@ export function createAssistantMessageComponent(
 	component.setImagesVisible(ctx.settings.get("terminal.showImages"));
 	component.setToolResultImagesVisible(!ctx.hideToolActivity);
 	component.setExpanded(ctx.toolOutputExpanded);
+	// A wire the `stream-revision` axis marks `possible` can rewrite text it has
+	// already streamed; published rows are unrecoverable once they reach native
+	// scrollback, so those wires keep finished lines in the live viewport.
+	const compat = ctx.viewSession.model?.compat;
+	const wireRevisable = compat !== undefined && "streamRevision" in compat && compat.streamRevision === "possible";
+	component.setMidStreamPublication(!wireRevisable);
 	return component;
 }

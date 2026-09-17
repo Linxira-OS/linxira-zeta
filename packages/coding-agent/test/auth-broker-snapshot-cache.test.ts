@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import {
 	type AuthBrokerServerHandle,
 	readAuthBrokerSnapshotCache,
 	type SnapshotResponse,
 	startAuthBroker,
 	writeAuthBrokerSnapshotCache,
-} from "@oh-my-pi/pi-ai/auth-broker";
-import { discoverAuthStorage } from "@oh-my-pi/pi-coding-agent/sdk";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/auth-broker";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { discoverAuthStorage } from "@linxiraos/zeta/sdk";
 
 const ENV_KEYS = [
 	"OMP_AUTH_BROKER_URL",

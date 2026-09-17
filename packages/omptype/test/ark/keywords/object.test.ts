@@ -1,10 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype/ark";
+import { type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "../type-assert";
 
 it("Function", () => {
 	// should not be treated as a morph
 	const fnType = type("Function");
+	// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 	const _0: Eq<typeof fnType.infer, Function> = true;
 });
 

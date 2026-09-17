@@ -1,18 +1,18 @@
 {
   "type": "module",
-  "name": "@oh-my-pi/omp-stats",
-  "version": "18.1.15",
+  "name": "@linxiraos/pi-stats",
+  "version": "1.1.15",
   "description": "Local observability dashboard for pi AI usage statistics",
-  "homepage": "https://omp.sh",
-  "author": "Stencil Labs, Inc.",
+  "homepage": "https://linxira-os.github.io/zeta/",
+  "author": "Can Boluk",
   "license": "MIT",
   "repository": {
-    "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
-    "directory": "packages/stats"
+    "directory": "packages/stats",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+    "type": "git"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
     "ai",
@@ -25,7 +25,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "bin": {
-    "omp-stats": "./src/index.ts"
+    "zeta-stats": "./src/index.ts"
   },
   "scripts": {
     "gen:stats": "bun scripts/generate-client-bundle.ts --generate",
@@ -39,16 +39,19 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@oh-my-pi/pi-ai": "catalog:",
-    "@oh-my-pi/pi-catalog": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
     "@tailwindcss/node": "catalog:",
     "chart.js": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-chartjs-2": "catalog:",
     "react-dom": "catalog:",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-utils": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

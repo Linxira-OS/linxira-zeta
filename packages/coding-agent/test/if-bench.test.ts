@@ -7,11 +7,11 @@ import type {
 	AssistantMessageEventStream,
 	Context,
 	Model,
-} from "@oh-my-pi/pi-ai";
-import type { BenchModelRegistry } from "@oh-my-pi/pi-coding-agent/cli/bench-runtime";
-import { runIfBenchCommand } from "@oh-my-pi/pi-coding-agent/if-bench";
-import { applyActions, initialArray, makeActions } from "@oh-my-pi/pi-coding-agent/if-bench/actions";
-import { assessResponse, buildTurnPrompt } from "@oh-my-pi/pi-coding-agent/if-bench/protocol";
+} from "@linxiraos/pi-ai";
+import type { BenchModelRegistry } from "@linxiraos/zeta/cli/bench-runtime";
+import { runIfBenchCommand } from "@linxiraos/zeta/if-bench";
+import { applyActions, initialArray, makeActions } from "@linxiraos/zeta/if-bench/actions";
+import { assessResponse, buildTurnPrompt } from "@linxiraos/zeta/if-bench/protocol";
 
 const LENGTH = 24;
 const NYA_MAX = 8;

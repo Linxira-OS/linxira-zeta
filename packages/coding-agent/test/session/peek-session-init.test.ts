@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { FileSessionStorage, MemorySessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage, MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 const tempDirs: TempDir[] = [];
 const LARGE_SESSION_BYTES = 9 * 1024 * 1024;

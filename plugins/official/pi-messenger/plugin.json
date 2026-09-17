@@ -1,0 +1,11 @@
+{
+  "id": "pi-messenger",
+  "name": "Messenger",
+  "description": "Inter-agent messaging and file reservation system for pi coding agent",
+  "source": "https://github.com/nicobailon/pi-messenger",
+  "publish": "@linxiraos/pi-messenger",
+  "install": "npm",
+  "compat": { "zeta": "^1.1.0" },
+  "unuse": false,
+  "category": "official"
+}

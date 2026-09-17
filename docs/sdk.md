@@ -1,6 +1,6 @@
 # SDK
 
-The SDK is the in-process integration surface for `@oh-my-pi/pi-coding-agent`.
+The SDK is the in-process integration surface for `@linxiraos/zeta`.
 Use it when you want direct access to agent state, event streaming, tool wiring, and session control from a Bun process.
 
 If you need cross-language/process isolation, use RPC mode instead.
@@ -8,7 +8,7 @@ If you need cross-language/process isolation, use RPC mode instead.
 ## Installation
 
 ```bash
-bun add @oh-my-pi/pi-coding-agent
+bun add @linxiraos/zeta
 ```
 
 Requires Bun 1.3.14 or newer. Before the first model-backed prompt, configure
@@ -18,7 +18,7 @@ available model, but prompting cannot.
 
 ## Entry points
 
-The package root, `@oh-my-pi/pi-coding-agent`, is the complete embedding surface. It includes `createAgentSession` and the focused `/sdk` exports, plus lower-level session, auth, model, mode, extension, and tool APIs.
+The package root, `@linxiraos/zeta`, is the complete embedding surface. It includes `createAgentSession` and the focused `/sdk` exports, plus lower-level session, auth, model, mode, extension, and tool APIs.
 
 Import these core embedding APIs from the package root:
 
@@ -32,12 +32,12 @@ Import these core embedding APIs from the package root:
 - Discovery helpers (`discoverExtensions`, `discoverSkills`, `discoverContextFiles`, `discoverPromptTemplates`, `discoverSlashCommands`, `discoverCustomTSCommands`, `discoverMCPServers`)
 - Tool factory surface (`createTools`, `BUILTIN_TOOLS`, tool classes)
 
-The narrower `@oh-my-pi/pi-coding-agent/sdk` subpath exports `createAgentSession`, its option/result types, `Settings`, `AgentRegistry`, discovery and system-prompt helpers, workspace-tree helpers, selected extension/MCP/tool types, and selected tool classes/factories. It does **not** export `SessionManager`, `AuthStorage`, or `ModelRegistry`; import those three from the package root as the examples below do.
+The narrower `@linxiraos/zeta` subpath exports `createAgentSession`, its option/result types, `Settings`, `AgentRegistry`, discovery and system-prompt helpers, workspace-tree helpers, selected extension/MCP/tool types, and selected tool classes/factories. It does **not** export `SessionManager`, `AuthStorage`, or `ModelRegistry`; import those three from the package root as the examples below do.
 
 ## Quick start (auto-discovery defaults)
 
 ```ts
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent";
+import { createAgentSession } from "@linxiraos/zeta";
 
 const { session, modelFallbackMessage } = await createAgentSession();
 
@@ -66,7 +66,7 @@ await session.dispose();
 If omitted, it resolves:
 
 - `cwd`: `getProjectDir()`
-- `agentDir`: `~/.omp/agent` (via `getAgentDir()`)
+- `agentDir`: `~/.zeta/agent` (via `getAgentDir()`)
 - `authStorage`: `discoverAuthStorage(agentDir)`
 - `modelRegistry`: `new ModelRegistry(authStorage)` + background `refreshInBackground()` when the registry is not provided
 - `settings`: `await Settings.init({ cwd, agentDir })`
@@ -105,7 +105,7 @@ only one `"Main"` identity per generation.
 ### File-backed (default)
 
 ```ts
-import { createAgentSession, SessionManager } from "@oh-my-pi/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@linxiraos/zeta";
 
 const { session } = await createAgentSession({
   sessionManager: SessionManager.create(process.cwd()),
@@ -121,7 +121,7 @@ console.log(session.sessionFile); // absolute .jsonl path
 ### In-memory
 
 ```ts
-import { createAgentSession, SessionManager } from "@oh-my-pi/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@linxiraos/zeta";
 
 const { session } = await createAgentSession({
   sessionManager: SessionManager.inMemory(),
@@ -137,7 +137,7 @@ console.log(session.sessionFile); // undefined
 ### Resume/open/list helpers
 
 ```ts
-import { SessionManager } from "@oh-my-pi/pi-coding-agent";
+import { SessionManager } from "@linxiraos/zeta";
 
 const recent = await SessionManager.continueRecent(process.cwd());
 const listed = await SessionManager.list(process.cwd());
@@ -160,7 +160,7 @@ import {
   discoverAuthStorage,
   ModelRegistry,
   SessionManager,
-} from "@oh-my-pi/pi-coding-agent";
+} from "@linxiraos/zeta";
 
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);
@@ -200,6 +200,8 @@ If restore fails, `modelFallbackMessage` explains fallback.
 5. provider environment variables
 6. other stored API-key credential in `agent.db` / broker-backed storage
 7. custom-provider resolver fallback
+
+Configured values are resolved asynchronously through the registry-installed resolver; catalog construction does not execute credential commands. `ModelRegistry.getProviderHeaders(provider)` and `resolveModelHeaders(model, signal?)` return promises. For direct provider requests, await the latter instead of reading config-backed values from `model.headers`. The AI client's `stream()` and `streamSimple()` materialize `model.resolveHeaders` automatically for each request attempt, including authentication retries.
 
 ## Event subscription model
 
@@ -258,9 +260,9 @@ Behavior:
 
 Related APIs:
 
-- `sendUserMessage(content, { deliverAs? })`
-- `steer(text, images?)`
-- `followUp(text, images?)`
+- `sendUserMessage(content, { deliverAs?, attribution? })`
+- `steer(text, images?, { attribution? })`
+- `followUp(text, images?, { synthetic?, attribution? })`
 - `sendCustomMessage({ customType, content, ... }, { deliverAs?, triggerTurn? })`
 - `abort()`
 
@@ -273,7 +275,7 @@ Call `await session.dispose()` when the embedder is completely done with a sessi
 `beginDispose()` is the synchronous admission barrier for wrappers that must await their own teardown before calling `dispose()`. Call it before the wrapper's first `await`; otherwise deferred work can enter the gap. It immediately marks the session disposed, cancels memory startup, title generation, and auto-learn capture, clears queued yield/asides, stops advisor runtime, detaches aside delivery, and rejects new eval executions. Deferred session work checks the disposed state and is dropped or skipped. `beginDispose()` is also idempotent, and the later `dispose()` call remains required to finish asynchronous cleanup.
 
 ```ts
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent";
+import type { AgentSession } from "@linxiraos/zeta";
 
 async function closeEmbeddedSession(
   session: AgentSession,
@@ -299,6 +301,9 @@ Only after work capable of appending session entries has settled does disposal c
 - Set `restrictToolNames: true` to limit the session to the names in
   `toolNames`. Restricted sessions disable ambient MCP, extensions, custom
   commands, and LSP by default.
+- Restricted children retain hooks/providers from the parent's
+  `preloadedPreparedExtensions`, rebound to their own session. Contributed tools
+  cannot extend or replace the restricted tool set, even when registered later.
 - In a restricted session, SDK-supplied `customTools` are excluded unless
   `allowRestrictedCustomTools: true` and their names also appear in
   `toolNames`.
@@ -320,8 +325,13 @@ const { session } = await createAgentSession({
   inline factories still load
 - `preloadedExtensions`: reuse an extension set loaded early by the same
   session-owning process. Never pass loaded extension instances from a parent
-  to another session; use `preloadedExtensionPaths` so each session gets its
+  to another session; use `preloadedPreparedExtensions` so each session gets its
   own `ExtensionAPI` binding.
+- `preloadedPreparedExtensions`: already-imported factories to rebind, including
+  in restricted children; does not reevaluate the module graph.
+- `extensionRoots`: a live owner-root provider for child discovery and revival.
+  Its explicit roots, discovery mode, and configured roots take precedence over
+  the child's local extension-loading inputs.
 
 ### Runtime tool set changes
 
@@ -402,7 +412,7 @@ import {
   ModelRegistry,
   SessionManager,
   Settings,
-} from "@oh-my-pi/pi-coding-agent";
+} from "@linxiraos/zeta";
 
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);

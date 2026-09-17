@@ -1,5 +1,5 @@
 /**
- * Issue #2462: prompt templates discovered from `cwd/.omp/prompts/` were never
+ * Issue #2462: prompt templates discovered from `cwd/.zeta/prompts/` were never
  * surfaced in the slash-command autocomplete picker. The runtime expansion in
  * `AgentSession.prompt()` worked, but `InteractiveMode.refreshSlashCommandState`
  * never passed `session.promptTemplates` into the autocomplete provider.
@@ -8,19 +8,19 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { type Api, Effort, type Model } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { PromptTemplate } from "@oh-my-pi/pi-coding-agent/config/prompt-templates";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { AutocompleteProvider } from "@oh-my-pi/pi-tui";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import type { AutocompleteProvider } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { PromptTemplate } from "@linxiraos/zeta/config/prompt-templates";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -178,6 +178,31 @@ describe("InteractiveMode prompt-template autocomplete (#2462)", () => {
 		created.session.setFastMode(true);
 		const onFast = (await fetchSlashItems(providerSlot.current!, "/fast")).find(item => item.value === "fast");
 		expect(onFast?.description).toBe("Fast: on");
+	});
+
+	it("normalizes file-command hints before autocomplete renders them", async () => {
+		const created = createHarness([]);
+		const providerSlot = captureAutocompleteProvider(created.mode);
+
+		await created.mode.refreshSlashCommandState(tempDir.path(), [
+			{
+				name: "git-sync",
+				description: "Sync branches",
+				content: "body",
+				source: "test",
+				argumentHint: "[base\tbranch]\n[next]",
+			},
+		]);
+
+		const provider = providerSlot.current;
+		expect(provider).toBeDefined();
+		const item = (await fetchSlashItems(provider!, "/git-sync")).find(candidate => candidate.value === "git-sync");
+		const inlineHint = provider!.getInlineHint?.(["/git-sync "], 0, "/git-sync ".length);
+
+		expect(item?.description).toContain("[next] - Sync branches");
+		expect(item?.description).not.toMatch(/[\t\r\n]/);
+		expect(inlineHint).toContain("[next]");
+		expect(inlineHint).not.toMatch(/[\t\r\n]/);
 	});
 
 	it("does not duplicate templates whose names collide with builtin slash commands", async () => {

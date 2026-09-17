@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { resolveModelTokenizer } from "@oh-my-pi/pi-catalog/model-tokenizer";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { resolveModelTokenizer } from "@linxiraos/pi-catalog/model-tokenizer";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 function spec(id: string): ModelSpec<"openai-completions"> {
 	return {

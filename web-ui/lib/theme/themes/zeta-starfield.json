@@ -1,0 +1,100 @@
+{
+  "metadata": {
+    "id": "zeta-starfield",
+    "name": "Zeta Starfield",
+    "description": "Zeta deep-space HUD theme",
+    "variant": "dark",
+    "tags": [
+      "dark",
+      "zeta",
+      "starfield"
+    ]
+  },
+  "colors": {
+    "primary": {
+      "base": "#d99b26",
+      "hover": "rgb(217 155 38 / 0.84)",
+      "active": "rgb(217 155 38 / 0.68)",
+      "foreground": "#08090d",
+      "muted": "rgb(217 155 38 / 0.2)"
+    },
+    "surface": {
+      "background": "#08090d",
+      "foreground": "#e8eeff",
+      "muted": "#0d1117",
+      "mutedForeground": "#8fa3c0",
+      "elevated": "#0b0f18",
+      "elevatedForeground": "#e8eeff",
+      "overlay": "rgb(0 0 0 / 0.64)",
+      "subtle": "rgb(217 155 38 / 0.08)"
+    },
+    "interactive": {
+      "border": "#1e2d45",
+      "borderHover": "rgb(217 155 38 / 0.62)",
+      "borderFocus": "#d99b26",
+      "selection": "#1a2540",
+      "selectionForeground": "#e8eeff",
+      "focus": "#d99b26",
+      "focusRing": "rgb(217 155 38 / 0.42)",
+      "cursor": "#e8eeff",
+      "hover": "#161d2e",
+      "active": "#1a2540"
+    },
+    "status": {
+      "error": "#fb7185",
+      "errorForeground": "#fecdd3",
+      "errorBackground": "rgb(251 113 133 / 0.18)",
+      "errorBorder": "rgb(251 113 133 / 0.48)",
+      "warning": "#fbbf24",
+      "warningForeground": "#fde68a",
+      "warningBackground": "rgb(251 191 36 / 0.18)",
+      "warningBorder": "rgb(251 191 36 / 0.48)",
+      "success": "#4ade80",
+      "successForeground": "#bbf7d0",
+      "successBackground": "rgb(74 222 128 / 0.18)",
+      "successBorder": "rgb(74 222 128 / 0.48)",
+      "info": "#d99b26",
+      "infoForeground": "#dbeafe",
+      "infoBackground": "rgb(217 155 38 / 0.18)",
+      "infoBorder": "rgb(217 155 38 / 0.48)"
+    },
+    "syntax": {
+      "background": "#0d1117",
+      "foreground": "#e8eeff",
+      "comment": "#62748f",
+      "keyword": "#f0b840",
+      "string": "#8bd4a0",
+      "number": "#38bdf8",
+      "function": "#d6a7ff",
+      "variable": "#f0b840",
+      "type": "#8bd4a0",
+      "operator": "#f87171",
+      "property": "#38bdf8",
+      "header": "#0b0f18",
+      "lineNumber": "#8fa3c0"
+    },
+    "chart": [
+      "#d99b26",
+      "#38bdf8",
+      "#e05a2b",
+      "#22c55e",
+      "#c81d25",
+      "#a78bfa",
+      "#f0b840",
+      "#1b365d"
+    ],
+    "chat": {
+      "userBackground": "rgb(217 155 38 / 0.16)",
+      "userBorder": "rgb(217 155 38 / 0.32)",
+      "assistantBackground": "#08090d",
+      "toolBackground": "rgb(217 155 38 / 0.07)",
+      "toolBorder": "rgb(217 155 38 / 0.24)"
+    }
+  },
+  "config": {
+    "fonts": {
+      "display": "ui-sans-serif, system-ui, 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans CJK SC', sans-serif",
+      "mono": "ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace"
+    }
+  }
+}

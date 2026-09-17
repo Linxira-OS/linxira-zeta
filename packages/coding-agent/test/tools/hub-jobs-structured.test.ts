@@ -6,13 +6,13 @@
  * carrying data must advertise the `agent://<id>` handle (PR #10625 review).
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import type { AsyncJobRunResult } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { StructuredSubagentOutput } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { HubTool } from "@oh-my-pi/pi-coding-agent/tools/hub";
+import type { AsyncJobRunResult } from "@linxiraos/zeta/async/job-manager";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { StructuredSubagentOutput } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { HubTool } from "@linxiraos/zeta/tools/hub";
 
 const SELF_ID = "Main";
 
@@ -21,7 +21,6 @@ function makeSession(manager: AsyncJobManager): ToolSession {
 		cwd: process.cwd(),
 		settings: {
 			get(key: string): unknown {
-				if (key === "async.pollWaitDuration") return "5m";
 				if (key === "irc.timeoutMs") return 120_000;
 				return undefined;
 			},

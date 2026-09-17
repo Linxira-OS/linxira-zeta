@@ -1,16 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getRecentRequests, initDb, insertMessageStats } from "@oh-my-pi/omp-stats/db";
-import { parseSessionFile } from "@oh-my-pi/omp-stats/parser";
-import { getSessionsDir } from "@oh-my-pi/pi-utils";
+import { getRecentRequests, initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
+import { parseSessionFile } from "@linxiraos/pi-stats/parser";
+import { getSessionsDir } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-model-usage-");
 
 describe("model usage session entries", () => {
 	it("parses and aggregates non-transcript model calls", async () => {
-		const dir = path.join(getSessionsDir(), "--tmp--model-usage");
+		const dir = path.join(getSessionsDir(), "--zeta-fixtures--model-usage");
 		await fs.mkdir(dir, { recursive: true });
 		const file = path.join(dir, "session.jsonl");
 		await Bun.write(

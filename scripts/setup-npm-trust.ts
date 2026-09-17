@@ -42,7 +42,7 @@ import { packages } from "./ci-release-publish.ts";
 const repoRoot = path.join(import.meta.dir, "..");
 const MIN_NPM = "11.16.0";
 const DEFAULT_WORKFLOW = "ci.yml";
-const FALLBACK_REPO = "can1357/oh-my-pi";
+const FALLBACK_REPO = "Linxira-OS/linxira-zeta";
 const PLACEHOLDER_VERSION = "0.0.0";
 
 interface NativeLeafTarget {
@@ -146,13 +146,6 @@ function parseRepo(repository: { url?: string } | string | undefined): string | 
 	return match ? `${match[1]}/${match[2]}` : null;
 }
 
-interface ManifestShape {
-	name?: string;
-	private?: boolean;
-	repository?: { url?: string } | string;
-}
-
-/** The npm package names to configure, plus a repo slug inferred from a manifest. */
 async function collectTargets(): Promise<{ names: string[]; repoFromManifest: string | null }> {
 	const seen = new Set<string>();
 	const names: string[] = [];
@@ -169,12 +162,21 @@ async function collectTargets(): Promise<{ names: string[]; repoFromManifest: st
 		// own published package and needs its own trusted-publisher link.
 		if (pkg.kind === "native") {
 			for (const target of LEAF_TARGETS) {
-				const leaf = `@oh-my-pi/pi-natives-${target.tag}`;
+				const leaf = `@linxiraos/pi-natives-${target.tag}`;
 				if (!seen.has(leaf)) {
 					seen.add(leaf);
 					names.push(leaf);
 				}
 			}
+		}
+	}
+	// Published outside ci-release-publish (web-ui builds via its own job;
+	// pi-messenger is the ported multi-agent extension, npm-only for now).
+	// They still need trusted-publisher links so CI can publish them with OIDC.
+	for (const extra of ["@linxiraos/zeta-web", "@linxiraos/pi-messenger"]) {
+		if (!seen.has(extra)) {
+			seen.add(extra);
+			names.push(extra);
 		}
 	}
 	return { names, repoFromManifest };
@@ -236,7 +238,7 @@ async function waitForPackageExists(name: string): Promise<boolean> {
 }
 
 function nativeLeafName(tag: string): string {
-	return `@oh-my-pi/pi-natives-${tag}`;
+	return `@linxiraos/pi-natives-${tag}`;
 }
 
 function nativeLeafTargetForPackage(name: string): NativeLeafTarget | null {
@@ -254,7 +256,7 @@ function placeholderManifest(name: string, target: NativeLeafTarget, repo: strin
 	return {
 		name,
 		version: PLACEHOLDER_VERSION,
-		description: `Placeholder for the ${target.tag} native addon of @oh-my-pi/pi-natives. The real binary is published during release.`,
+		description: `Placeholder for the ${target.tag} native addon of @linxiraos/pi-natives. The real binary is published during release.`,
 		license: "MIT",
 		os: [target.os],
 		cpu: [target.cpu],
@@ -276,7 +278,7 @@ function placeholderReadme(name: string, target: NativeLeafTarget): string {
 	return [
 		`# ${name}`,
 		"",
-		`Placeholder package reserving the npm name for the \`${target.tag}\` native addon of \`@oh-my-pi/pi-natives\`.`,
+		`Placeholder package reserving the npm name for the \`${target.tag}\` native addon of \`@linxiraos/pi-natives\`.`,
 		"",
 		`This \`${PLACEHOLDER_VERSION}\` release ships no binary. The real, versioned platform addon is generated during release and installed as an optional dependency of the core package.`,
 		"",

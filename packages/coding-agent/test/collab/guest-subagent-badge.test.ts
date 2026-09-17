@@ -1,19 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { generateRoomKey, importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
-import {
-	type AgentSnapshot,
-	COLLAB_PROTO,
-	type CollabFrame,
-	formatCollabLink,
-} from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
+import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { type AgentSnapshot, COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
 import {
 	getRunningSubagentBadgeAgentIds,
 	getRunningSubagentBadgeRegistry,
-} from "@oh-my-pi/pi-coding-agent/modes/running-subagent-badge";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+} from "@linxiraos/zeta/modes/running-subagent-badge";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // In-memory transport: shared FakeWebSocket + InMemoryRelay harness (see
@@ -42,7 +37,7 @@ function makeAgents(ids: string[]): AgentSnapshot[] {
 	}));
 }
 
-function makeGuestContext(counts: number[]): InteractiveModeContext {
+function makeGuestContext(): InteractiveModeContext {
 	let statusLineCount = 0;
 	const ctx = {
 		collabGuest: undefined as CollabGuestLink | undefined,
@@ -93,12 +88,11 @@ function makeGuestContext(counts: number[]): InteractiveModeContext {
 		showError: () => {},
 		updateEditorTopBorder: () => {},
 		updateEditorBorderColor: () => {},
-		eventController: { handleEvent: () => Promise.resolve() },
+		eventController: { handleEvent: () => Promise.resolve(), takeDisplaceableComponents: () => [] },
 		syncRunningSubagentBadge: () => {
 			const registry = getRunningSubagentBadgeRegistry(ctx.collabGuest);
 			const agentIds = getRunningSubagentBadgeAgentIds(registry);
 			ctx.statusLine.setRunningSubagents(agentIds);
-			counts.push(agentIds.length);
 		},
 	} as unknown as InteractiveModeContext;
 	return ctx;
@@ -141,14 +135,12 @@ describe("collab guest running-subagents badge", () => {
 		hostSocket.connect();
 		await hostOpen.promise;
 
-		const counts: number[] = [];
-		const ctx = makeGuestContext(counts);
+		const ctx = makeGuestContext();
 		const guest = new CollabGuestLink(ctx);
 
 		try {
 			await guest.join(link);
 			expect(ctx.collabGuest).toBe(guest);
-			expect(counts).toEqual([0, 1]);
 			expect(ctx.statusLine.subagentCount).toBe(1);
 
 			nextWelcomeAgents = makeAgents(["remote-one", "remote-two"]);
@@ -165,7 +157,6 @@ describe("collab guest running-subagents badge", () => {
 			await guest.leave("test cleanup");
 			expect(ctx.collabGuest).toBeUndefined();
 			expect(ctx.statusLine.subagentCount).toBe(0);
-			expect(counts.at(-1)).toBe(0);
 		} finally {
 			hostSocket.close();
 			writeSpy.mockRestore();

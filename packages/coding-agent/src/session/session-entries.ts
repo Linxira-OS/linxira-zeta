@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type {
 	ImageContent,
 	MessageAttribution,
@@ -6,7 +6,7 @@ import type {
 	StopReason,
 	TextContent,
 	Usage,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import type { StructuredSubagentSchemaMode } from "../task/types";
 import type { CompactionMethod } from "./compaction-methods";
 
@@ -195,7 +195,7 @@ export interface TitleChangeEntry extends SessionEntryBase {
 	trigger?: string;
 }
 
-declare module "@oh-my-pi/pi-agent-core/compaction/entries" {
+declare module "@linxiraos/pi-agent-core/compaction/entries" {
 	interface CustomCompactionSessionEntries {
 		titleChange: TitleChangeEntry;
 		credentialPin: CredentialPinEntry;
@@ -257,6 +257,8 @@ export interface SessionInitEntry extends SessionEntryBase {
 	readSummarize?: boolean;
 	/** Effective advisor for this subagent: `"on"` = advisor-role model, else an explicit model pattern; absent = unadvised. */
 	advisor?: string;
+	/** True when the subagent ran inside an isolation worktree: never revivable, transcript-only after park. Absent on older files. */
+	isolated?: boolean;
 }
 
 /** Mode change entry - tracks agent mode transitions (e.g. plan mode). */

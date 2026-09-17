@@ -9,9 +9,9 @@
  * model into the worker's cache.
  */
 
-import { getProjectDir } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
-import { Args, Command, Flags } from "@oh-my-pi/pi-utils/cli";
+import { getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { sayHelp as commandHelp } from "../cli/command-help";
 import { Settings, settings } from "../config/settings";
 import { TTS_LOCAL_VOICE_VALUES } from "../tts/models";
@@ -34,9 +34,9 @@ export default class Say extends Command {
 	};
 
 	static examples = [
-		'omp say "hello world"',
-		"omp say --file notes.md --voice bm_fable",
-		'omp say "hello world" --out /tmp/hello.wav',
+		'zeta say "hello world"',
+		"zeta say --file notes.md --voice bm_fable",
+		'zeta say "hello world" --out /tmp/hello.wav',
 	];
 
 	async run(): Promise<void> {
@@ -139,7 +139,7 @@ export default class Say extends Command {
 	#synthesisFailed(model: string): void {
 		process.stderr.write(
 			chalk.red(
-				`error: could not synthesize with local TTS model "${model}". Run \`omp setup speech\` to install it.\n`,
+				`error: could not synthesize with local TTS model "${model}". Run \`zeta setup speech\` to install it.\n`,
 			),
 		);
 	}

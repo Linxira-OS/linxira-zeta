@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { createSessionRuntime } from "@oh-my-pi/pi-coding-agent/autoresearch/state";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { TempDir } from "@linxiraos/pi-utils";
+import { createSessionRuntime } from "@linxiraos/zeta/autoresearch/state";
 import {
 	type AutoresearchStorage,
 	closeAllAutoresearchStorages,
 	openAutoresearchStorage,
 	type SessionRow,
-} from "@oh-my-pi/pi-coding-agent/autoresearch/storage";
-import { createInitExperimentTool } from "@oh-my-pi/pi-coding-agent/autoresearch/tools/init-experiment";
-import { createLogExperimentTool } from "@oh-my-pi/pi-coding-agent/autoresearch/tools/log-experiment";
-import { createRunExperimentTool } from "@oh-my-pi/pi-coding-agent/autoresearch/tools/run-experiment";
-import { createUpdateNotesTool } from "@oh-my-pi/pi-coding-agent/autoresearch/tools/update-notes";
-import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@oh-my-pi/pi-coding-agent/autoresearch/types";
-import type { ExtensionAPI, ExtensionContext } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/autoresearch/storage";
+import { createInitExperimentTool } from "@linxiraos/zeta/autoresearch/tools/init-experiment";
+import { createLogExperimentTool } from "@linxiraos/zeta/autoresearch/tools/log-experiment";
+import { createRunExperimentTool } from "@linxiraos/zeta/autoresearch/tools/run-experiment";
+import { createUpdateNotesTool } from "@linxiraos/zeta/autoresearch/tools/update-notes";
+import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@linxiraos/zeta/autoresearch/types";
+import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta/extensibility/extensions";
 import { $ } from "bun";
 
 afterEach(() => {

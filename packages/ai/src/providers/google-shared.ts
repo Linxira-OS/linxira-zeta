@@ -3,8 +3,8 @@
  */
 
 import { scheduler } from "node:timers/promises";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
-import { readSseJson } from "@oh-my-pi/pi-utils";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
+import { readSseJson } from "@linxiraos/pi-utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import { ThinkingFenceStripper } from "../dialect/thinking-fence-strip";
 import * as AIError from "../error";
@@ -755,7 +755,7 @@ export async function consumeGoogleStream<T extends GoogleApiType>(args: {
 					total: 0,
 				},
 			};
-			calculateCost(model, output.usage);
+			calculateCost(model, output.usage, output.timestamp);
 		}
 	}
 

@@ -8,20 +8,21 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@oh-my-pi/pi-agent-core";
-import type { Model, ToolExample } from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-agent-core";
+import type { Model, ToolExample } from "@linxiraos/pi-ai";
 import {
-	EditSession,
-	editDescription,
-	editGrammar,
-	editInspect,
+	type EditApplyOutcome,
 	type EditFileOutcome,
 	type EditInspection,
 	type EditPolicy,
+	EditSession,
 	type EditWriteRequest,
 	type EditWriteResponse,
-} from "@oh-my-pi/pi-natives";
-import { isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
+	editDescription,
+	editGrammar,
+	editInspect,
+} from "@linxiraos/pi-natives";
+import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { resolveLocalRoot } from "../internal-urls";
 import { cachedVaultRoots, isVaultEnabled } from "../internal-urls/vault-protocol";
 import {
@@ -72,10 +73,10 @@ import {
 } from "./schemas";
 import { getEditStore } from "./store";
 
+export { DEFAULT_EDIT_MODE, type EditMode, normalizeEditMode } from "../utils/edit-mode";
 export * from "./renderer";
 export * from "./schemas";
 export * from "./store";
-export { DEFAULT_EDIT_MODE, type EditMode, normalizeEditMode } from "../utils/edit-mode";
 
 type TInput =
 	| typeof replaceEditSchema
@@ -340,6 +341,7 @@ export class EditTool implements AgentTool<TInput> {
 	readonly #editMode?: EditMode;
 	readonly #deferredDiagnostics: DeferredDiagnostics;
 	readonly #sessions = new Map<string, EditSession>();
+	readonly #streamedArgs = new Map<string, string>();
 
 	constructor(
 		private readonly session: ToolSession,
@@ -381,6 +383,10 @@ export class EditTool implements AgentTool<TInput> {
 				return hashlineEditParamsSchema;
 			case "sloppy":
 				return sloppyEditSchema;
+			default: {
+				this.mode satisfies never;
+				return replaceEditSchema;
+			}
 		}
 	}
 
@@ -433,6 +439,7 @@ export class EditTool implements AgentTool<TInput> {
 	openArgStream(init: AgentToolArgStreamInit): AgentToolArgStream {
 		const existing = this.#sessions.get(init.toolCallId);
 		if (existing) existing.close();
+		this.#streamedArgs.delete(init.toolCallId);
 		// A call that arrived through the custom-tool wire streams the payload
 		// verbatim; JSON function calls stream JSON text.
 		const rawInput = init.customWireName !== undefined;
@@ -450,13 +457,18 @@ export class EditTool implements AgentTool<TInput> {
 			if (oldestId === undefined) break;
 			this.#sessions.get(oldestId)?.close();
 			this.#sessions.delete(oldestId);
+			this.#streamedArgs.delete(oldestId);
 		}
 		return {
 			push: delta => editSession.push(delta),
-			end: () => editSession.finish(),
+			end: args => {
+				editSession.finish();
+				this.#streamedArgs.set(init.toolCallId, JSON.stringify(args));
+			},
 			cancel: () => {
 				editSession.close();
 				if (this.#sessions.get(init.toolCallId) === editSession) this.#sessions.delete(init.toolCallId);
+				this.#streamedArgs.delete(init.toolCallId);
 			},
 		};
 	}
@@ -469,15 +481,23 @@ export class EditTool implements AgentTool<TInput> {
 		context?: AgentToolContext,
 	): Promise<AgentToolResult<EditToolDetails, TInput>> {
 		let editSession = this.#sessions.get(toolCallId);
+		const argsJson = JSON.stringify(params);
+		if (editSession && this.#streamedArgs.get(toolCallId) !== argsJson) {
+			editSession.close();
+			this.#sessions.delete(toolCallId);
+			editSession = undefined;
+		}
+		this.#streamedArgs.delete(toolCallId);
 		if (!editSession) {
 			// No deltas were streamed (non-streaming provider, inline recovery,
-			// Cursor batch frames): the parsed args are the whole payload.
+			// Cursor batch frames), or a pre-execution hook revised the arguments:
+			// the parsed args are the whole effective payload.
 			editSession = new EditSession(getEditStore(this.session), this.#policy(false));
-			editSession.setArgsJson(JSON.stringify(params));
+			editSession.setArgsJson(argsJson);
 			editSession.finish();
 		}
 		const batch = getLspBatchRequest(context?.toolCall);
-		let outcome;
+		let outcome: EditApplyOutcome;
 		try {
 			outcome = await editSession.apply(
 				{ lspBatchId: batch?.id, lspFlush: batch?.flush ?? false },
@@ -492,6 +512,7 @@ export class EditTool implements AgentTool<TInput> {
 		} finally {
 			editSession.close();
 			if (this.#sessions.get(toolCallId) === editSession) this.#sessions.delete(toolCallId);
+			this.#streamedArgs.delete(toolCallId);
 		}
 
 		if (outcome.isError) {

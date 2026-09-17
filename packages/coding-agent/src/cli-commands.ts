@@ -8,7 +8,7 @@
  * `launch` — see #1496 for the original "args silently leak to the LLM"
  * regression that motivated the split.
  */
-import type { CommandEntry } from "@oh-my-pi/pi-utils/cli";
+import type { CommandEntry } from "@linxiraos/pi-utils/cli";
 import * as commandHelp from "./cli/command-help";
 import {
 	EXTENSION_SHADOWABLE_STRING_FLAGS,
@@ -17,10 +17,21 @@ import {
 	STRING_VALUE_FLAGS,
 	VALUELESS_FLAGS,
 } from "./cli/flag-tables";
-import { launchHelp } from "./commands/launch-help";
+import type * as LaunchHelp from "./commands/launch-help";
+
+function loadLaunchHelp(): typeof LaunchHelp.launchHelp {
+	const module: typeof LaunchHelp = require("./commands/launch-help");
+	return module.launchHelp;
+}
 
 export const commands: CommandEntry[] = [
-	{ name: "launch", load: () => import("./commands/launch").then(m => m.default), help: launchHelp },
+	{
+		name: "launch",
+		load: () => import("./commands/launch").then(m => m.default),
+		get help() {
+			return loadLaunchHelp();
+		},
+	},
 	{
 		name: "acp",
 		load: () => import("./commands/acp").then(m => m.default),
@@ -42,6 +53,11 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.agentsHelp,
 	},
 	{
+		name: "attach",
+		load: () => import("./commands/attach").then(m => m.default),
+		help: commandHelp.attachHelp,
+	},
+	{
 		name: "bench",
 		load: () => import("./commands/bench").then(m => m.default),
 		help: commandHelp.benchHelp,
@@ -55,6 +71,13 @@ export const commands: CommandEntry[] = [
 		name: "cleanse",
 		load: () => import("./commands/cleanse").then(m => m.default),
 		help: commandHelp.cleanseHelp,
+	},
+	{
+		name: "collab",
+		// Keep implementation imports behind the command boundary: this table is
+		// also imported before profile bootstrap and by native-free worker entries.
+		load: () => import("./commands/collab").then(m => m.default),
+		help: commandHelp.collabHelp,
 	},
 	{
 		name: "commit",
@@ -140,6 +163,7 @@ export const commands: CommandEntry[] = [
 	{
 		name: "plugin",
 		load: () => import("./commands/plugin").then(m => m.default),
+		aliases: ["plugins"],
 		help: commandHelp.pluginHelp,
 	},
 	{
@@ -183,9 +207,20 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.sshHelp,
 	},
 	{
+		name: "serve",
+		load: () => import("./commands/serve").then(m => m.default),
+		help: commandHelp.serveHelp,
+	},
+	{
 		name: "stats",
 		load: () => import("./commands/stats").then(m => m.default),
 		help: commandHelp.statsHelp,
+	},
+	{
+		name: "web",
+		load: () => import("./commands/web").then(m => m.default),
+		aliases: ["web-ui"],
+		help: commandHelp.webHelp,
 	},
 	{
 		name: "update",
@@ -226,36 +261,53 @@ export const commands: CommandEntry[] = [
 	},
 ];
 
+const SUBCOMMAND_NAMES = new Set<string>();
+for (const command of commands) {
+	SUBCOMMAND_NAMES.add(command.name);
+	if (command.aliases) {
+		for (const alias of command.aliases) SUBCOMMAND_NAMES.add(alias);
+	}
+}
+
+/** Commands that accept launch-global flags before their command token. */
+export const LAUNCH_FLAG_COMMANDS: Readonly<Record<string, true>> = { launch: true, acp: true };
+
+/** Whether a token names a registered top-level command or alias. */
+export function isSubcommand(first: string | undefined): boolean {
+	if (!first || first.startsWith("-") || first.startsWith("@")) return false;
+	return SUBCOMMAND_NAMES.has(first);
+}
+
 // Documented-looking plugin/marketplace verbs that are NOT registered top-level
-// commands. Without a guard `resolveCliArgv` rewrites e.g. `omp marketplace add
-// xyz` to `omp launch marketplace add xyz`, silently forwarding the argv to the
+// commands. Without a guard `resolveCliArgv` rewrites e.g. `zeta marketplace add
+// xyz` to `zeta launch marketplace add xyz`, silently forwarding the argv to the
 // model as a prompt instead of managing plugins (#4845; same class as the
 // `list`/`remove` leak fixed in #2935 and the `install` leak in #1496/#1498).
-// The real commands live under `omp plugin <action>`; each entry maps a verb to
+// The real commands live under `zeta plugin <action>`; each entry maps a verb to
 // a hint pointing there. See {@link reservedTopLevelWordMessage} for when a hint
 // fires vs. when the argv still falls through to `launch`.
 const RESERVED_TOP_LEVEL_WORDS: Record<string, string> = {
 	extensions:
-		'`omp extensions` is not a management command. Use `omp plugin list` / `omp plugin install`, or run `omp launch extensions` if you meant to send "extensions" as a prompt.',
-	list: '`omp list` is not a top-level command. Use `omp plugin list` to list installed plugins, or run `omp launch list` if you meant to send "list" as a prompt.',
+		'`zeta extensions` is not a management command. Use `zeta plugin list` / `zeta plugin install`, or run `zeta launch extensions` if you meant to send "extensions" as a prompt.',
+	list: '`zeta list` is not a top-level command. Use `zeta plugin list` to list installed plugins, or run `zeta launch list` if you meant to send "list" as a prompt.',
 	remove:
-		'`omp remove` is not a top-level command. Use `omp plugin uninstall <name>` to remove a plugin, or run `omp launch remove` if you meant to send "remove" as a prompt.',
+		'`zeta remove` is not a top-level command. Use `zeta plugin uninstall <name>` to remove a plugin, or run `zeta launch remove` if you meant to send "remove" as a prompt.',
 	uninstall:
-		'`omp uninstall` is not a top-level command. Use `omp plugin uninstall <name@marketplace>` to remove a plugin, or run `omp launch uninstall` if you meant to send "uninstall" as a prompt.',
+		'`zeta uninstall` is not a top-level command. Use `zeta plugin uninstall <name@marketplace>` to remove a plugin, or run `zeta launch uninstall` if you meant to send "uninstall" as a prompt.',
 	marketplace:
-		'`omp marketplace` is not a top-level command. Use `omp plugin marketplace <add|remove|update|list>` to manage marketplaces, or run `omp launch marketplace` if you meant to send "marketplace" as a prompt.',
+		'`zeta marketplace` is not a top-level command. Use `zeta plugin marketplace <add|remove|update|list>` to manage marketplaces, or run `zeta launch marketplace` if you meant to send "marketplace" as a prompt.',
 	discover:
-		'`omp discover` is not a top-level command. Use `omp plugin discover [marketplace]` to browse available plugins, or run `omp launch discover` if you meant to send "discover" as a prompt.',
+		'`zeta discover` is not a top-level command. Use `zeta plugin discover [marketplace]` to browse available plugins, or run `zeta launch discover` if you meant to send "discover" as a prompt.',
 	upgrade:
-		'`omp upgrade` is not a top-level command. Use `omp plugin upgrade [name@marketplace]` to upgrade plugins, or run `omp launch upgrade` if you meant to send "upgrade" as a prompt.',
+		'`zeta upgrade` is not a top-level command. Use `zeta plugin upgrade [name@marketplace]` to upgrade plugins, or run `zeta launch upgrade` if you meant to send "upgrade" as a prompt.',
 	enable:
-		'`omp enable` is not a top-level command. Use `omp plugin enable <name@marketplace>` to enable a plugin, or run `omp launch enable` if you meant to send "enable" as a prompt.',
+		'`zeta enable` is not a top-level command. Use `zeta plugin enable <name@marketplace>` to enable a plugin, or run `zeta launch enable` if you meant to send "enable" as a prompt.',
 	disable:
-		'`omp disable` is not a top-level command. Use `omp plugin disable <name@marketplace>` to disable a plugin, or run `omp launch disable` if you meant to send "disable" as a prompt.',
+		'`zeta disable` is not a top-level command. Use `zeta plugin disable <name@marketplace>` to disable a plugin, or run `zeta launch disable` if you meant to send "disable" as a prompt.',
 };
 
-// Sub-actions that make `omp marketplace <sub>` unambiguously a management
-// command even when multi-word (the reporter's `omp marketplace add xyz`,
+// Sub-actions that make `zeta marketplace <sub>` unambiguously a management
+// command even when multi-word (the reporter's `zeta marketplace add xyz`,
 // #4845). Mirrors the switch in `handleMarketplace` (cli/plugin-cli.ts).
 const MARKETPLACE_SUBCOMMANDS: Record<string, true> = { add: true, remove: true, rm: true, update: true, list: true };
 
@@ -263,11 +315,11 @@ const MARKETPLACE_SUBCOMMANDS: Record<string, true> = { add: true, remove: true,
  * Hint for a reserved plugin/marketplace verb used as a top-level command, or
  * `undefined` when the argv should fall through to `launch`.
  *
- * A bare verb (`omp marketplace`) always hints. A multi-word invocation only
+ * A bare verb (`zeta marketplace`) always hints. A multi-word invocation only
  * hints when the arguments follow the documented plugin grammar — a marketplace
- * sub-action (`omp marketplace add …`) or a `name@marketplace` plugin id
- * (`omp uninstall foo@bar`) — so genuine prompts that merely begin with one of
- * these words (`omp list all my files`, `omp upgrade the deps`) still launch.
+ * sub-action (`zeta marketplace add …`) or a `name@marketplace` plugin id
+ * (`zeta uninstall foo@bar`) — so genuine prompts that merely begin with one of
+ * these words (`zeta list all my files`, `zeta upgrade the deps`) still launch.
  *
  * Flags (`-…`) and `@file` arguments in the verb slot are never management
  * commands; those fall through to the default `launch` command.
@@ -285,17 +337,6 @@ export function reservedTopLevelWordMessage(argv: readonly string[]): string | u
 		if (!arg.startsWith("-") && arg.includes("@")) return hint;
 	}
 	return undefined;
-}
-
-/**
- * Return true when `first` matches a registered subcommand name or alias.
- *
- * Flags (`-…`) and `@file` arguments are never subcommands; for those the CLI
- * runner skips ahead to the default `launch` command.
- */
-export function isSubcommand(first: string | undefined): boolean {
-	if (!first || first.startsWith("-") || first.startsWith("@")) return false;
-	return commands.some(entry => entry.name === first || entry.aliases?.includes(first));
 }
 
 export type ResolvedCliArgv = { argv: string[] } | { error: string };
@@ -316,14 +357,6 @@ function leadingSubcommandIndex(argv: string[]): number {
 	}
 	return -1;
 }
-
-/**
- * Subcommands that share the launch flag surface, so leading global flags
- * (`--cwd`, `--model`, `--approval-mode`, …) placed before them are meaningful
- * and must be forwarded ({@link resolveCliArgv}, #2970). Every other subcommand
- * parses only its own flags.
- */
-export const LAUNCH_FLAG_COMMANDS: Record<string, true> = { launch: true, acp: true };
 
 /** Whether `arg` names a flag from the launch surface (bare or `--flag=value`). */
 function isLaunchGlobalFlag(arg: string): boolean {
@@ -375,11 +408,11 @@ export function resolveCliArgv(argv: string[]): ResolvedCliArgv {
 	}
 	if (isSubcommand(first)) return { argv };
 	// A subcommand can hide behind leading global option flags
-	// (`omp --approval-mode=yolo acp`). `run` dispatches strictly on argv[0], so
+	// (`zeta --approval-mode=yolo acp`). `run` dispatches strictly on argv[0], so
 	// hoist the subcommand to the front. Launch-shaped commands share the launch
 	// flag surface, so their leading flags are forwarded and applied; every other
 	// subcommand parses only its own flags, so launch-global flags placed before
-	// it (`omp --cwd <dir> update`) are stripped rather than forwarded into a
+	// it (`zeta --cwd <dir> update`) are stripped rather than forwarded into a
 	// crash (#8891). Genuine launch prompts (no trailing subcommand) are untouched.
 	const subIndex = leadingSubcommandIndex(argv);
 	if (subIndex >= 0) {

@@ -1,8 +1,8 @@
-import type { Model } from "@oh-my-pi/pi-ai";
-import type { ModelTokenizer } from "@oh-my-pi/pi-catalog/types";
-import * as natives from "@oh-my-pi/pi-natives";
-import { stringifyJson } from "@oh-my-pi/pi-utils";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+import type { Model } from "@linxiraos/pi-ai";
+import type { ModelTokenizer } from "@linxiraos/pi-catalog/types";
+import * as natives from "@linxiraos/pi-natives";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { stringifyJson } from "@linxiraos/pi-utils";
 import { isEstimateCacheable, messageEstimateVersion } from "./compaction/message-cache";
 import type { AgentMessage } from "./types";
 
@@ -219,14 +219,22 @@ export class Tokenizer {
 		}
 
 		switch (message.role) {
-			case "user": {
-				const content: string | Array<{ type: string; text?: string }> = message.content;
+			case "user":
+			case "developer": {
+				// Both roles carry `string | (TextContent | ImageContent)[]` and both are
+				// sent to the provider -- convertMessageToLlm handles developer alongside
+				// user -- so they are counted alike. Without the developer case the switch
+				// fell through to `default: return 0`, and the old annotation narrowed the
+				// blocks to text-only, hiding the image charge the toolResult arm applies.
+				const content = message.content;
 				if (typeof content === "string") {
 					fragments.push(content);
 				} else if (Array.isArray(content)) {
 					for (const block of content) {
 						if (block.type === "text" && block.text) {
 							fragments.push(block.text);
+						} else if (block.type === "image") {
+							extra += IMAGE_TOKEN_ESTIMATE;
 						}
 					}
 				}
@@ -266,6 +274,7 @@ export class Tokenizer {
 				}
 				break;
 			}
+			case "custom":
 			case "hookMessage":
 			case "toolResult": {
 				if (typeof message.content === "string") {

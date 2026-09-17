@@ -31,15 +31,16 @@
  * that also import the module-level `settings` need the global initialized.
  */
 import { vi } from "bun:test";
-import { isSettingsInitialized, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPServerConnection } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { TranscriptContainer } from "@oh-my-pi/pi-coding-agent/modes/components/transcript-container";
-import { OAuthManualInputManager } from "@oh-my-pi/pi-coding-agent/modes/oauth-manual-input";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { type Component, Container } from "@oh-my-pi/pi-tui";
+import { isSettingsInitialized, Settings, settings } from "@linxiraos/zeta/config/settings";
+import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPServerConnection } from "@linxiraos/zeta/mcp/types";
+import { ServedModelTracker } from "@linxiraos/zeta/modes/components/served-model-marker";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-input";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { type Component, Container } from "@linxiraos/pi-tui";
 
 type AnyFn = (...args: never[]) => unknown;
 
@@ -110,6 +111,11 @@ export function createSessionStub(
 		getToolByName: () => undefined,
 		hasBuiltInTool: () => true,
 		getLastAssistantMessage: () => undefined,
+		agent: {
+			state: { streamMessage: null },
+			getPendingToolResults: () => [],
+			metadataForProvider: () => undefined,
+		},
 		getEvalPreludes: () => [],
 		getEnabledToolNames: () => [],
 		getContextUsage: () => undefined,
@@ -246,6 +252,7 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 		streamingComponent: undefined,
 		streamingMessage: undefined,
 		lastAssistantUsage: undefined,
+		servedModelTracker: new ServedModelTracker(),
 		loadingAnimation: undefined,
 		autoCompactionLoader: undefined,
 		retryLoader: undefined,
@@ -274,6 +281,7 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 		setWorkingMessage: vi.fn(),
 		syncRetryHintRow: vi.fn(),
 		clearTransientSessionUi: vi.fn(),
+		prepareSessionSwitch: vi.fn(async () => {}),
 		clearOptimisticUserMessage: vi.fn(),
 		replaceOptimisticUserMessage: vi.fn(),
 		reconcileOptimisticSkillMessage: vi.fn(),

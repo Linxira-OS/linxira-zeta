@@ -1,16 +1,16 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth-storage";
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
-import type { OAuthController } from "@oh-my-pi/pi-ai/oauth/types";
-import { stream } from "@oh-my-pi/pi-ai/stream";
-import type { FetchImpl, Model } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import type { OAuthController } from "@linxiraos/pi-ai/oauth/types";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import { stream } from "@linxiraos/pi-ai/stream";
+import type { FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import {
 	CLOUDFLARE_AI_GATEWAY_ANTHROPIC_BASE_URL,
 	parseCloudflareAiGatewayCredential,
 	serializeCloudflareAiGatewayCredential,
-} from "@oh-my-pi/pi-catalog/wire/cloudflare-ai-gateway";
+} from "@linxiraos/pi-catalog/wire/cloudflare-ai-gateway";
 import { withEnv } from "./helpers";
 
 const ANTHROPIC_MODEL = buildModel({

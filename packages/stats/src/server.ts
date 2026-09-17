@@ -2,7 +2,7 @@ import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { isEnoent } from "@linxiraos/pi-utils";
 import { $, type Server } from "bun";
 import {
 	getBehaviorDashboardStats,
@@ -180,7 +180,7 @@ const ensureClientBuild = async () => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Usage Statistics</title>
+    <title>Zeta Stats</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>

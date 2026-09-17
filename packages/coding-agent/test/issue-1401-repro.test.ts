@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { processFileArguments } from "@oh-my-pi/pi-coding-agent/cli/file-processor";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { processFileArguments } from "@linxiraos/zeta/cli/file-processor";
 
 function createPdfWithText(text: string): string {
 	const chunks: string[] = [];

@@ -1,25 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import * as ai from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import {
-	renderSharpshooterSessions,
-	runSharpshooterConsolidation,
-} from "@oh-my-pi/pi-coding-agent/sharpshooter/consolidate";
+import * as ai from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { renderSharpshooterSessions, runSharpshooterConsolidation } from "@linxiraos/zeta/sharpshooter/consolidate";
 import {
 	readSharpshooterState,
 	sharpshooterBankDir,
 	sharpshooterMemoryFilePath,
 	writeSharpshooterState,
-} from "@oh-my-pi/pi-coding-agent/sharpshooter/paths";
+} from "@linxiraos/zeta/sharpshooter/paths";
 import {
 	appendSharpshooterDelta,
 	listSharpshooterDeltas,
 	type SharpshooterSessionDeltas,
-} from "@oh-my-pi/pi-coding-agent/sharpshooter/queue";
-import type { SharpshooterDelta } from "@oh-my-pi/pi-coding-agent/sharpshooter/types";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/sharpshooter/queue";
+import type { SharpshooterDelta } from "@linxiraos/zeta/sharpshooter/types";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 interface Harness {

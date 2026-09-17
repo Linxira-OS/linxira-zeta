@@ -2,7 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { COMPOSER_DEFAULTS, type ComposerStatusSnapshot } from "@oh-my-pi/pi-coding-agent/modes/composer";
+import { getComposerCacheDir } from "@linxiraos/pi-utils/dirs";
+import { COMPOSER_DEFAULTS, type ComposerStatusSnapshot } from "@linxiraos/zeta/modes/composer";
 import {
 	readComposerStartupCache,
 	writeComposerLspCache,
@@ -10,8 +11,7 @@ import {
 	writeComposerStatusCache,
 	writeComposerUiCache,
 	writeComposerWelcomeCache,
-} from "@oh-my-pi/pi-coding-agent/modes/composer-cache";
-import { getComposerCacheDir } from "@oh-my-pi/pi-utils/dirs";
+} from "@linxiraos/zeta/modes/composer-cache";
 
 describe("composer startup cache", () => {
 	it("round-trips per-project UI, status, recent-session JSONL, and LSP speculation", async () => {
@@ -105,7 +105,7 @@ describe("composer startup cache", () => {
 		try {
 			await Promise.all([
 				fs.mkdir(home, { recursive: true }),
-				fs.mkdir(path.join(xdgCache, "omp"), { recursive: true }),
+				fs.mkdir(path.join(xdgCache, "zeta"), { recursive: true }),
 			]);
 			await Bun.write(path.join(home, ".env"), `XDG_CACHE_HOME=${xdgCache}\n`);
 
@@ -116,7 +116,7 @@ describe("composer startup cache", () => {
 				`const project = ${JSON.stringify(project)};`,
 				'await writeComposerWelcomeCache(project, { modelName: "model", providerName: "provider" });',
 				'const key = Bun.hash.wyhash(path.resolve(project)).toString(16).padStart(16, "0");',
-				`const expected = path.join(${JSON.stringify(xdgCache)}, "omp", "cache", "composer", key, "welcome.json");`,
+				`const expected = path.join(${JSON.stringify(xdgCache)}, "zeta", "cache", "composer", key, "welcome.json");`,
 				"process.stdout.write(String(await Bun.file(expected).exists()));",
 			].join("\n");
 			const proc = Bun.spawn([process.execPath, "--no-env-file", "--no-install", "--eval", script], {
@@ -125,9 +125,8 @@ describe("composer startup cache", () => {
 					...process.env,
 					HOME: home,
 					XDG_CACHE_HOME: undefined,
-					PI_CODING_AGENT_DIR: undefined,
-					OMP_PROFILE: undefined,
-					PI_PROFILE: undefined,
+					ZETA_CODING_AGENT_DIR: undefined,
+					ZETA_PROFILE: undefined,
 				},
 				stdout: "pipe",
 				stderr: "pipe",

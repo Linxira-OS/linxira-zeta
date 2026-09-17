@@ -10,11 +10,7 @@
  * protobuf POST at /v1/traces.
  */
 
-import {
-	flushTelemetryExport,
-	initTelemetryExport,
-	isTelemetryExportEnabled,
-} from "@oh-my-pi/pi-coding-agent/telemetry-export";
+import { flushTelemetryExport, initTelemetryExport, isTelemetryExportEnabled } from "@linxiraos/zeta/telemetry-export";
 import { trace } from "@opentelemetry/api";
 
 let received = false;
@@ -38,6 +34,7 @@ const server = Bun.serve({
 });
 
 process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = `http://localhost:${server.port}/v1/traces`;
+process.env.OTEL_TRACES_EXPORTER = "OTLP";
 process.env.OTEL_SERVICE_NAME = "oh-my-pi-export-probe";
 
 await initTelemetryExport();
@@ -47,7 +44,7 @@ if (!isTelemetryExportEnabled()) {
 	process.exit(2);
 }
 
-const span = trace.getTracer("@oh-my-pi/pi-agent-core").startSpan("agent.llm_call");
+const span = trace.getTracer("@linxiraos/pi-agent-core").startSpan("agent.llm_call");
 span.setAttribute("gen_ai.system", "probe");
 span.setAttribute("gen_ai.request.model", "claude-haiku-4-5");
 span.end();

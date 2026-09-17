@@ -1,19 +1,19 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, RESCUE_SHAKE_CONFIG } from "@oh-my-pi/pi-agent-core";
-import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import type { CompactionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, TempDir } from "@oh-my-pi/pi-utils";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+import { Agent, RESCUE_SHAKE_CONFIG } from "@linxiraos/pi-agent-core";
+import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 /**
  * Regression test for the snapcompact frame dead-end.
@@ -237,13 +237,15 @@ describe("AgentSession snapcompact frame dead-end rescue", () => {
 		};
 	}
 
-	async function triggerMaintenance(): Promise<void> {
+	async function triggerMaintenance(options: { appendAssistant?: boolean } = {}): Promise<void> {
 		const { promise: compactionDone, resolve: onCompactionDone } = Promise.withResolvers<void>();
 		session.subscribe(event => {
 			if (event.type === "auto_compaction_end") onCompactionDone();
 		});
 		const assistantMsg = highUsageAssistant();
-		session.agent.emitExternalEvent({ type: "message_end", message: assistantMsg });
+		// Resume maintenance without extending the archived branch. Appending an
+		// assistant would make the retained user turn legitimately compactable.
+		if (options.appendAssistant) session.agent.emitExternalEvent({ type: "message_end", message: assistantMsg });
 		session.agent.emitExternalEvent({ type: "agent_end", messages: [assistantMsg] });
 		await compactionDone;
 		await session.waitForIdle();
@@ -349,7 +351,7 @@ describe("AgentSession snapcompact frame dead-end rescue", () => {
 
 		const notices = collectNotices();
 		const emitSpy = vi.spyOn(ExtensionRunner.prototype, "emit");
-		await triggerMaintenance();
+		await triggerMaintenance({ appendAssistant: true });
 
 		expect(compactSpy).toHaveBeenCalledTimes(1);
 		const compactions = sessionManager

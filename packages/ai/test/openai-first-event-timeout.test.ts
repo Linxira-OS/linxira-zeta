@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "bun:test";
-import { streamAzureOpenAIResponses } from "@oh-my-pi/pi-ai/providers/azure-openai-responses";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@oh-my-pi/pi-ai/providers/openai-responses";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
-import type { Context, FetchImpl, Model, TextContent } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { streamAzureOpenAIResponses } from "@linxiraos/pi-ai/providers/azure-openai-responses";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context, FetchImpl, Model, TextContent } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { waitForDelayOrAbort } from "./helpers";
 
 const openAIResponsesModel = getBundledModel("openai", "gpt-5-mini") as Model<"openai-responses">;
@@ -655,6 +655,41 @@ describe("OpenAI-family first-event timeouts", () => {
 				}).result(),
 			() => createOpenAICompletionsSuccessResponse(openAICompletionsModel.id),
 		);
+	});
+
+	it("disarms the completions first-event watchdog before onResponse runs", async () => {
+		let releaseHook: (() => void) | undefined;
+		vi.useFakeTimers();
+		try {
+			const hookEntered = Promise.withResolvers<void>();
+			const gate = Promise.withResolvers<void>();
+			releaseHook = gate.resolve;
+			const fetchMock: FetchImpl = () =>
+				Promise.resolve(createOpenAICompletionsSuccessResponse(openAICompletionsModel.id));
+			const resultPromise = streamOpenAICompletions(openAICompletionsModel, baseContext(), {
+				apiKey: "test-key",
+				streamFirstEventTimeoutMs: 20,
+				fetch: fetchMock,
+				onResponse: async () => {
+					hookEntered.resolve();
+					await gate.promise;
+				},
+			}).result();
+
+			await hookEntered.promise;
+			for (let i = 0; i < 10; i++) await Promise.resolve();
+			// A still-armed timer would abort the connected body while the hook
+			// below is parked; nothing else in this path arms a timer, so zero
+			// here proves the headers-arrival disarm ran before the hook.
+			expect(vi.getTimerCount()).toBe(0);
+			releaseHook();
+			const result = await resultPromise;
+			expect(result.stopReason).toBe("stop");
+			expect(getFirstTextContent(result)).toMatchObject({ type: "text", text: "Hello delayed" });
+		} finally {
+			releaseHook?.();
+			vi.useRealTimers();
+		}
 	});
 
 	it("does not arm the first-event watchdog before Azure OpenAI responses setup finishes", async () => {

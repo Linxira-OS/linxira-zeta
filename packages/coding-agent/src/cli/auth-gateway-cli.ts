@@ -1,5 +1,5 @@
 /**
- * `omp auth-gateway` command handlers.
+ * `zeta auth-gateway` command handlers.
  *
  * Boots a forward-proxy server that lets less-trusted clients (the macOS
  * usage widget, robomp containers, …) make provider API calls without ever
@@ -23,17 +23,17 @@ import {
 	type CredentialCompletionResult,
 	completeSimple,
 	type Model,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	AuthBrokerClient,
 	loadAuthBrokerAccountPool,
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
-} from "@oh-my-pi/pi-ai/auth-broker";
-import { DEFAULT_AUTH_GATEWAY_BIND, startAuthGateway } from "@oh-my-pi/pi-ai/auth-gateway";
-import { type GeneratedProvider, getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import { getConfigRootDir, isEnoent, logger, VERSION } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+} from "@linxiraos/pi-ai/auth-broker";
+import { DEFAULT_AUTH_GATEWAY_BIND, startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
+import { type GeneratedProvider, getBundledModels } from "@linxiraos/pi-catalog/models";
+import { getConfigRootDir, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { type AuthBrokerClientConfig, resolveAuthBrokerConfig } from "../session/auth-broker-config";
 
@@ -150,6 +150,17 @@ async function fetchBrokerSnapshot(client: AuthBrokerClient): Promise<SnapshotRe
 const CATALOG_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 
 /**
+ * How often a long-lived `serve` polls the broker-backed store for credential
+ * changes made by another process (a `login`/`logout` on the host). Kept below
+ * {@link RemoteAuthCredentialStore}'s background idle window so the poll's
+ * activity ping keeps the snapshot stream warm and new generations arrive
+ * promptly. When the poll reports a change, the served catalog is rebuilt so a
+ * newly-credentialed provider becomes routable and a removed one stops being
+ * advertised.
+ */
+const CREDENTIAL_SYNC_INTERVAL_MS = 10 * 1000;
+
+/**
  * Index resolvable models by the request ids clients may send: the
  * provider-qualified `provider/id` (always) and the bare `id` (first-write-wins
  * fallback for legacy clients). Scoped to providers the gateway holds broker
@@ -168,11 +179,45 @@ export function indexModelsByRequestId(
 	return modelById;
 }
 
+/**
+ * Serialize catalog rebuilds so `registry.refresh()` passes never overlap,
+ * while guaranteeing a forced rebuild requested mid-flight runs a forced pass
+ * afterward. Without the follow-up pass a credential change arriving during a
+ * weaker cached rebuild would piggyback on it and miss an account-scoped
+ * catalog change. Non-forced requests during an in-flight rebuild simply
+ * coalesce onto it. Returns `rebuild(force?)`; its promise resolves once the
+ * catalog reflects that call's requirement.
+ */
+export function createSerializedRebuilder(run: (force: boolean) => Promise<void>): (force?: boolean) => Promise<void> {
+	let inFlight: Promise<void> | null = null;
+	let forcedQueued = false;
+	const rebuild = (force = false): Promise<void> => {
+		if (inFlight) {
+			if (force) forcedQueued = true;
+			return inFlight;
+		}
+		inFlight = (async () => {
+			try {
+				await run(force);
+				while (forcedQueued) {
+					forcedQueued = false;
+					await run(true);
+				}
+			} finally {
+				inFlight = null;
+				forcedQueued = false;
+			}
+		})();
+		return inFlight;
+	};
+	return rebuild;
+}
+
 async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	const brokerConfig = await resolveAuthBrokerConfig();
 	if (!brokerConfig) {
 		throw new Error(
-			"`omp auth-gateway serve` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). The gateway is itself a broker client.",
+			"`zeta auth-gateway serve` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). The gateway is itself a broker client.",
 		);
 	}
 	const bind = flags.bind ?? DEFAULT_AUTH_GATEWAY_BIND;
@@ -200,7 +245,7 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	// Build the model resolver + catalog from the ModelRegistry — the same
 	// component the TUI/CLI use — scoped to providers we hold credentials for.
 	// `getAll()` is a superset of the bundled catalog (bundled first, then
-	// cached + broker-discovered), so the discovery-only models omp itself
+	// cached + broker-discovered), so the discovery-only models zeta itself
 	// reaches become routable through the gateway instead of freezing on the
 	// compiled snapshot. `ignoreLocalModelConfig` keeps the host's `models.yml`
 	// out of the picture: client-side provider overrides (baseUrl/apiKey/headers/
@@ -208,12 +253,29 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	// shadow broker credentials. Format handlers ask `resolveModel` to translate
 	// a client-requested `model` field into a pi-ai `Model<Api>` before dispatch;
 	// `listModels` powers `/v1/models`.
-	const snapshot = storage.exportSnapshot();
-	const providersWithCreds = new Set<string>();
-	for (const entry of snapshot.credentials) providersWithCreds.add(entry.provider);
 	const registry = new ModelRegistry(storage, undefined, { ignoreLocalModelConfig: true });
-	await registry.refresh();
-	let modelById = indexModelsByRequestId(registry.getAll(), providersWithCreds);
+	// Providers the gateway can route right now, derived live from the store on
+	// every rebuild. Captured once at boot it would freeze the served catalog:
+	// a provider logged in later stays unroutable and one logged out keeps being
+	// advertised until restart.
+	const providersWithCreds = (): Set<string> => {
+		const providers = new Set<string>();
+		for (const entry of storage.exportSnapshot().credentials) providers.add(entry.provider);
+		return providers;
+	};
+	let modelById = new Map<string, Model<Api>>();
+	// Rebuild the served catalog (a `registry.refresh()` pass, then re-index
+	// against the current credential set). Credential-triggered rebuilds force
+	// `online` discovery: an account added to or removed from an
+	// already-authenticated provider (e.g. Codex, whose discovery unions
+	// per-account catalogs) leaves that provider's model cache fresh, so the
+	// default `online-if-uncached` pass would skip the fetch and miss the change
+	// for up to a cache TTL. Periodic rebuilds stay cached.
+	const rebuildCatalog = createSerializedRebuilder(async force => {
+		await registry.refresh(force ? "online" : "online-if-uncached");
+		modelById = indexModelsByRequestId(registry.getAll(), providersWithCreds());
+	});
+	await rebuildCatalog();
 
 	const handle = startAuthGateway({
 		storage,
@@ -232,22 +294,37 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	process.stdout.write(`upstream broker: ${brokerConfig.url}\n`);
 
 	// `serve` is long-lived: rebuild the catalog periodically so models
-	// discovered after boot become routable without a restart. A failed refresh
-	// keeps serving the previous catalog. `unref()` so the timer never keeps the
-	// process alive on its own.
+	// discovered after boot (for providers we already hold credentials for)
+	// become routable without a restart. A failed rebuild keeps serving the
+	// previous catalog. `unref()` so the timer never keeps the process alive on
+	// its own.
 	const catalogRefresh = setInterval(() => {
-		void registry
-			.refresh()
-			.then(() => {
-				modelById = indexModelsByRequestId(registry.getAll(), providersWithCreds);
-			})
-			.catch(error => {
-				logger.warn("auth-gateway catalog refresh failed", {
-					error: error instanceof Error ? error.message : String(error),
-				});
+		void rebuildCatalog().catch(error => {
+			logger.warn("auth-gateway catalog refresh failed", {
+				error: error instanceof Error ? error.message : String(error),
 			});
+		});
 	}, CATALOG_REFRESH_INTERVAL_MS);
 	catalogRefresh.unref();
+
+	// Poll the broker-backed store for credential changes made by another
+	// process (host `login`/`logout`). `pollExternalChanges()` reloads the
+	// storage's credential view so selection stops 401ing (or stops using a
+	// removed credential); the forced rebuild then refetches account-scoped
+	// catalogs and updates `/v1/models` and `resolveModel`. `unref()` for the
+	// same reason as above.
+	const credentialSync = setInterval(() => {
+		void (async () => {
+			try {
+				if (await storage.pollExternalChanges()) await rebuildCatalog(true);
+			} catch (error) {
+				logger.warn("auth-gateway credential sync failed", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		})();
+	}, CREDENTIAL_SYNC_INTERVAL_MS);
+	credentialSync.unref();
 
 	const stopped = Promise.withResolvers<void>();
 	let shutdownStarted = false;
@@ -256,6 +333,7 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 		shutdownStarted = true;
 		process.stdout.write(`\nReceived ${signal}, shutting down...\n`);
 		clearInterval(catalogRefresh);
+		clearInterval(credentialSync);
 		let closeError: unknown;
 		try {
 			await handle.close();
@@ -357,7 +435,7 @@ async function runStatus(flags: AuthGatewayCommandArgs["flags"]): Promise<void> 
 			);
 			if (!tokenPresent) {
 				process.stdout.write(
-					"Run `omp auth-gateway token` or `omp auth-gateway serve` to create a bearer token.\n",
+					"Run `zeta auth-gateway token` or `zeta auth-gateway serve` to create a bearer token.\n",
 				);
 			}
 		}
@@ -576,7 +654,7 @@ function formatCompletionStatus(completion: CredentialCompletionResult | undefin
 }
 
 /**
- * `omp auth-gateway check` — probe each broker-supplied credential and print
+ * `zeta auth-gateway check` — probe each broker-supplied credential and print
  * per-credential auth health. Use this when the gateway is returning 401s and
  * you need to find which row in a multi-account pool is the bad one. The
  * aggregate `/v1/usage` endpoint silently drops failed credentials, so a
@@ -591,7 +669,7 @@ async function runCheck(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	const brokerConfig = await resolveAuthBrokerConfig();
 	if (!brokerConfig) {
 		throw new Error(
-			"`omp auth-gateway check` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). It probes the same credentials the gateway would serve.",
+			"`zeta auth-gateway check` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). It probes the same credentials the gateway would serve.",
 		);
 	}
 

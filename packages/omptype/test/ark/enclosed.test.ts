@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { type Out, type Type, type } from "@oh-my-pi/omptype/ark";
+import { type Out, type Type, type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "./type-assert";
 
 type RegexExecArray<captures extends readonly string[], groups extends object, input extends string> = captures & {
@@ -56,6 +56,7 @@ it("invalid regex", () => {
 
 it("regex exec literal", () => {
 	const T = type("x/^a(b)c$/");
+	// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 	const _type: Eq<typeof T, Type<(In: "abc") => Out<RegexExecArray<["abc", "b"], {}, "">>>> = true;
 	expect(_type).toBe(true);
 	expect(T("abc")).toEqual(["abc", "b"]);

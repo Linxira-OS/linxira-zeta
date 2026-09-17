@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { getAgentDir, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 const originalAgentDir = getAgentDir();
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 
 let tempDir: TempDir;
 let authStorage: AuthStorage;
@@ -21,8 +21,8 @@ describe("ModelRegistry default custom models config", () => {
 	afterEach(async () => {
 		authStorage.close();
 		setAgentDir(originalAgentDir);
-		if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+		if (originalAgentDirEnv === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+		else process.env.ZETA_CODING_AGENT_DIR = originalAgentDirEnv;
 		await tempDir.remove().catch(() => {});
 	});
 
@@ -73,6 +73,7 @@ describe("ModelRegistry default custom models config", () => {
 			// Reasoning-tier Bedrock stream-stall watchdog widening applies to
 			// overrides too (model compat generation).
 			streamIdleTimeoutMs: 900000,
+			streamRevision: "possible",
 		});
 	});
 
@@ -148,6 +149,7 @@ interface ModelSnapshot {
 		promptCacheMinimumTokens: number;
 		promptCacheMaximumCheckpoints: number;
 		streamIdleTimeoutMs?: number;
+		streamRevision?: "possible";
 	};
 }
 

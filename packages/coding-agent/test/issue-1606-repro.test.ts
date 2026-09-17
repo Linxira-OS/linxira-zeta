@@ -8,7 +8,7 @@
  * in the parent's address space and crashed the CLI on exit.
  *
  * The fix relocates the worker to its own process: `title-client.ts` spawns
- * `process.execPath … __omp_worker_tiny_inference` (detached, owning a
+ * `process.execPath … __zeta_worker_tiny_inference` (detached, owning a
  * per-model socket), `cli.ts` dispatches that flag into `runTinyWorker`, and
  * the omp process only ever holds a socket to it — the native finalizer never
  * runs in an omp address space. These tests pin that contract so a future
@@ -23,7 +23,7 @@ import {
 	onnxLaunch,
 	smokeTestTinyTitleWorker,
 	TINY_WORKER_CLOSED,
-} from "@oh-my-pi/pi-coding-agent/tiny/title-client";
+} from "@linxiraos/zeta/tiny/title-client";
 
 describe("issue #1606 — tiny model lives in an isolated process", () => {
 	it("ping/pongs through the spawned worker process and tears it down cleanly", async () => {

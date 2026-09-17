@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { logger, postmortem, Snowflake, untilAborted } from "@oh-my-pi/pi-utils";
+import { logger, postmortem, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 import { JsRuntime, type RuntimeHooks } from "../../../eval/js/shared/runtime";
 import { callSessionTool } from "../../../eval/js/tool-bridge";
 import { resizeImage } from "../../../utils/image-resize";
@@ -194,7 +194,7 @@ const setValue = (target, value, append = false) => {
 
 const RESPONSE_OBSERVER_SCRIPT = String.raw`
 (() => {
-	const key = "__ompCmuxResponses";
+	const key = "__zetaCmuxResponses";
 	if (globalThis[key]) return true;
 	const state = { nextId: 1, records: [] };
 	Object.defineProperty(globalThis, key, { value: state, configurable: true });
@@ -1035,14 +1035,14 @@ export class CmuxTab {
 
 	async #responseCursor(): Promise<number> {
 		const value = await this.#evalScript<unknown>(
-			"(() => Math.max(0, ((globalThis.__ompCmuxResponses && globalThis.__ompCmuxResponses.nextId) || 1) - 1))()",
+			"(() => Math.max(0, ((globalThis.__zetaCmuxResponses && globalThis.__zetaCmuxResponses.nextId) || 1) - 1))()",
 		);
 		return numberFrom(value, 0);
 	}
 
 	async #responseRecordsAfter(id: number): Promise<CmuxResponseRecord[]> {
 		const value = await this.#evalScript<unknown>(
-			`(() => ((globalThis.__ompCmuxResponses && globalThis.__ompCmuxResponses.records) || []).filter(record => record.id > ${JSON.stringify(id)}))()`,
+			`(() => ((globalThis.__zetaCmuxResponses && globalThis.__zetaCmuxResponses.records) || []).filter(record => record.id > ${JSON.stringify(id)}))()`,
 		);
 		if (!Array.isArray(value)) return [];
 		const records: CmuxResponseRecord[] = [];

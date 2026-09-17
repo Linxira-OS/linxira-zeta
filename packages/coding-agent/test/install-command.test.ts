@@ -15,9 +15,9 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { commands, isSubcommand, resolveCliArgv } from "@oh-my-pi/pi-coding-agent/cli-commands";
-import { looksLikeLocalPath } from "@oh-my-pi/pi-coding-agent/commands/install";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { commands, isSubcommand, resolveCliArgv } from "@linxiraos/zeta/cli-commands";
+import { looksLikeLocalPath } from "@linxiraos/zeta/commands/install";
 
 describe("install command is registered as a top-level subcommand", () => {
 	test("CLI runner sees `install` as a known command", () => {
@@ -27,7 +27,7 @@ describe("install command is registered as a top-level subcommand", () => {
 
 	test("CLI runner rejects only bare reserved management words", () => {
 		expect(resolveCliArgv(["extensions"])).toEqual({
-			error: '`omp extensions` is not a management command. Use `omp plugin list` / `omp plugin install`, or run `omp launch extensions` if you meant to send "extensions" as a prompt.',
+			error: '`zeta extensions` is not a management command. Use `zeta plugin list` / `zeta plugin install`, or run `zeta launch extensions` if you meant to send "extensions" as a prompt.',
 		});
 		expect(resolveCliArgv(["extensions", "are", "not", "loading"])).toEqual({
 			argv: ["launch", "extensions", "are", "not", "loading"],
@@ -54,7 +54,7 @@ describe("looksLikeLocalPath", () => {
 	});
 
 	test("npm specs and marketplace refs are remote", () => {
-		expect(looksLikeLocalPath("@oh-my-pi/exa")).toBe(false);
+		expect(looksLikeLocalPath("@linxiraos/exa")).toBe(false);
 		expect(looksLikeLocalPath("my-pkg")).toBe(false);
 		expect(looksLikeLocalPath("my-pkg@1.2.3")).toBe(false);
 		expect(looksLikeLocalPath("name@marketplace")).toBe(false);

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getOrCreateSnapshot, sanitizeSnapshotForBrush } from "@oh-my-pi/pi-coding-agent/utils/shell-snapshot";
+import { getOrCreateSnapshot, sanitizeSnapshotForBrush } from "@linxiraos/zeta/utils/shell-snapshot";
 import fnEnvHelper from "../src/utils/shell-snapshot-fn-env.sh" with { type: "text" };
 
 // macOS ships bash at `/bin/bash`, not `/usr/bin/bash`; resolve a real bash the
@@ -100,7 +100,7 @@ describe("sanitizeSnapshotForBrush", () => {
 	});
 });
 
-// `__omp_emit_referenced_exports` (shell-snapshot-fn-env.sh) re-exports env
+// `__zeta_emit_referenced_exports` (shell-snapshot-fn-env.sh) re-exports env
 // vars that snapshotted functions reference. mise activates a `mise()` shell
 // function whose body expands `$__MISE_EXE`; the snapshot used to persist the
 // function but discard the sidecar var, so the replay shell ran
@@ -115,7 +115,7 @@ describe("shell-snapshot fn-env helper", () => {
 	it("emits export lines for env vars referenced by captured functions, skips unset and shell-internal names", async () => {
 		const funcs = [
 			`mise () { command "$__MISE_EXE" "$@"; }`,
-			// oxlint-disable-next-line no-template-curly-in-string -- literal shell parameter expansion `${FOO_TEST_DIR}`
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: literal shell parameter expansion `${FOO_TEST_DIR}`
 			'my_fn () { echo "$FOO_TEST_DIR ${FOO_TEST_DIR}"; }',
 			`uses_path () { echo "$PATH"; }`,
 			`uses_locale () { echo "$LC_ALL"; }`,
@@ -123,7 +123,7 @@ describe("shell-snapshot fn-env helper", () => {
 			``,
 		].join("\n");
 
-		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__omp_emit_referenced_exports`], {
+		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__zeta_emit_referenced_exports`], {
 			env: {
 				PATH: process.env.PATH ?? "/usr/bin:/bin",
 				__MISE_EXE: "/opt/echo",
@@ -164,7 +164,7 @@ describe("shell-snapshot fn-env helper", () => {
 			``,
 		].join("\n");
 
-		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__omp_emit_referenced_exports`], {
+		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__zeta_emit_referenced_exports`], {
 			env: {
 				PATH: process.env.PATH ?? "/usr/bin:/bin",
 				GITHUB_TOKEN: "ghp_REDACTED",
@@ -210,7 +210,7 @@ describe("shell-snapshot fn-env helper", () => {
 
 	it("single-quote-escapes values containing apostrophes and preserves newlines", async () => {
 		const funcs = `shout () { echo "$TRICKY_VAL $NL_VAL"; }\n`;
-		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__omp_emit_referenced_exports`], {
+		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__zeta_emit_referenced_exports`], {
 			env: {
 				PATH: process.env.PATH ?? "/usr/bin:/bin",
 				TRICKY_VAL: "it's 'tricky'",

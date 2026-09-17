@@ -1,4 +1,4 @@
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import type { JsonRpcError } from "./types";
 
 /** MCP transport used by a failed operation. */

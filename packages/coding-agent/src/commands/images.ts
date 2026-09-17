@@ -1,6 +1,6 @@
 /** Inspect and maintain image publication backends. */
 
-import { Args, Command, Flags } from "@oh-my-pi/pi-utils/cli";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { imagesHelp as commandHelp } from "../cli/command-help";
 import { IMAGES_ACTIONS, type ImagesAction, type ImagesCommandArgs, runImagesCommand } from "../cli/images-cli";
 
@@ -22,12 +22,12 @@ export default class Images extends Command {
 		timeout: Flags.integer({ description: "External health probe timeout in seconds" }),
 	};
 	static examples = [
-		"omp images",
-		"omp images status --json",
-		"omp images doctor",
-		"omp images probe --timeout 15",
-		"omp images purge",
-		"omp images purge --all --apply",
+		"zeta images",
+		"zeta images status --json",
+		"zeta images doctor",
+		"zeta images probe --timeout 15",
+		"zeta images purge",
+		"zeta images purge --all --apply",
 	];
 
 	async run(): Promise<void> {

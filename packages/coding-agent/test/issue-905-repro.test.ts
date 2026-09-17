@@ -15,10 +15,10 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { AuthStorage } from "@oh-my-pi/pi-ai";
-import { runModelsListing } from "@oh-my-pi/pi-coding-agent/cli/models-cli";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { getProjectAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { AuthStorage } from "@linxiraos/pi-ai";
+import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { runModelsListing } from "@linxiraos/zeta/cli/models-cli";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 
 let tmp: TempDir;
 let extPath: string;

@@ -396,9 +396,9 @@ function WindowInsightsPanel({ insights }: { insights: ProviderWindowInsight[] }
 // ---------------------------------------------------------------------------
 
 const UTILIZATION_COLORS = {
-	ok: "#62d394",
-	warning: "#f5c14b",
-	exhausted: "#ff6b7d",
+	ok: "#98c379",
+	warning: "#e5c07b",
+	exhausted: "#f07178",
 } as const;
 
 function WindowUtilizationPanel({ usageSeries }: { usageSeries: UsageWindowSeries[] }) {

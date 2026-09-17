@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type ArkErrors, scope, type Type, type } from "@oh-my-pi/omptype/ark";
+import { type ArkErrors, scope, type Type, type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "./type-assert";
 
 type Out<T> = T;
@@ -403,6 +403,7 @@ it("deep union", () => {
 		b: { a: "Function" },
 		c: "a|b",
 	}).export();
+	// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 	const _type43: Eq<typeof types.c.t, { a: (In: number) => Out<string> } | { a: Function }> = true;
 
 	expect(types.c({ a: 2 })).toEqual({ a: "2" });

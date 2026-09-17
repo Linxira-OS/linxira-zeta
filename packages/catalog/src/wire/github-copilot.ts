@@ -4,7 +4,7 @@ import { isRecord } from "../utils";
 /**
  * GitHub Copilot wire metadata: API-key envelope parsing and endpoint
  * derivation shared by catalog discovery and the pi-ai OAuth flow. The device
- * login / token refresh flow lives in `@oh-my-pi/pi-ai`'s registry.
+ * login / token refresh flow lives in `@linxiraos/pi-ai`'s registry.
  */
 
 const COPILOT_CLI_VERSION = "1.0.82";
@@ -23,6 +23,17 @@ export const COPILOT_CAPI_IDENTITY_HEADERS = {
 	"Copilot-Harness-Id": "copilot-sdk",
 	"Openai-Intent": "conversation-agent",
 } as const;
+
+/**
+ * Chat-surface identity for Copilot chat and model-policy requests.
+ * Some Business organizations gate premium models per client surface and
+ * block the CLI identity while allowing chat (issue #11372), so chat traffic
+ * defaults to this id with `COPILOT_INTEGRATION_ID` as an explicit pin and a
+ * one-shot CLI retry on denial. Model discovery keeps the CLI identity above:
+ * it unlocks enterprise/experimental models and listing is not policy-gated
+ * the way chat completions are.
+ */
+export const COPILOT_CHAT_INTEGRATION_ID = "copilot-chat" as const;
 
 /**
  * Copilot API version sent on `api.githubcopilot.com` requests (`/models`,
@@ -70,6 +81,21 @@ export function mergeCopilotApiHeaders(headers?: Readonly<Record<string, string>
 		}
 	}
 	return { ...merged, ...COPILOT_API_HEADERS };
+}
+
+/**
+ * Validate an explicit `Copilot-Integration-Id` override.
+ * omp identifies as the Copilot CLI (`copilot-developer-cli`); some Business
+ * organizations allow Chat clients but block CLI/agentic ones, rejecting every
+ * model with HTTP 403 on an otherwise valid token (issue #11372). Callers pass
+ * the raw `COPILOT_INTEGRATION_ID` value; blank or CR/LF-bearing values are
+ * rejected so the header stays well-formed and the default identity applies.
+ */
+export function normalizeCopilotIntegrationId(value: unknown): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const trimmed = value.trim();
+	if (!trimmed || /[\r\n]/.test(trimmed)) return undefined;
+	return trimmed;
 }
 
 type GitHubCopilotApiKeyPayload = {

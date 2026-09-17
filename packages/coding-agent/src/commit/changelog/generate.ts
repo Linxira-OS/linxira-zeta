@@ -1,8 +1,8 @@
-import { type } from "@oh-my-pi/omptype";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, ApiKey, AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import { completeSimple, retryTransientCompletion, validateToolCall } from "@oh-my-pi/pi-ai";
-import { prompt } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, ApiKey, AssistantMessage, Model } from "@linxiraos/pi-ai";
+import { completeSimple, retryTransientCompletion, validateToolCall } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import { prompt } from "@linxiraos/pi-utils";
 import changelogSystemPrompt from "../../commit/prompts/changelog-system.md" with { type: "text" };
 import changelogUserPrompt from "../../commit/prompts/changelog-user.md" with { type: "text" };
 import type { ChangelogGenerationResult } from "../../commit/types";
@@ -57,16 +57,18 @@ export async function generateChangelogEntries({
 		stat,
 		diff,
 	});
-	const response = await retryTransientCompletion(() =>
-		completeSimple(
-			model,
-			{
-				systemPrompt: [prompt.render(changelogSystemPrompt)],
-				messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
-				tools: [changelogTool],
-			},
-			{ apiKey, sessionId, maxTokens: 1200, reasoning: toReasoningEffort(thinkingLevel) },
-		),
+	const response = await retryTransientCompletion(
+		() =>
+			completeSimple(
+				model,
+				{
+					systemPrompt: [prompt.render(changelogSystemPrompt)],
+					messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
+					tools: [changelogTool],
+				},
+				{ apiKey, sessionId, maxTokens: 1200, reasoning: toReasoningEffort(thinkingLevel) },
+			),
+		{ provider: model.provider },
 	);
 
 	if (response.stopReason === "error") {

@@ -12,7 +12,7 @@
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { logger, ptree } from "@oh-my-pi/pi-utils";
+import { logger, ptree } from "@linxiraos/pi-utils";
 import { MessageFramer } from "../../jsonrpc/message-framing";
 import { daemonClientForProject } from "../../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../../launch/ensure";
@@ -78,21 +78,27 @@ function requestOnSocket(
 		reject(new Error(`LSP mux ${request.method} timed out`));
 	}, timeoutMs);
 	const onData = (chunk: Buffer) => {
-		framer.push(chunk);
-		for (const text of framer.drain(() => {})) {
-			let message: LspJsonRpcResponse;
-			try {
-				message = JSON.parse(text);
-			} catch (error) {
+		try {
+			framer.push(chunk);
+			for (const text of framer.drain(() => {})) {
+				let message: LspJsonRpcResponse;
+				try {
+					message = JSON.parse(text);
+				} catch (error) {
+					cleanup();
+					reject(error instanceof Error ? error : new Error(String(error)));
+					return;
+				}
+				if (message.id !== request.id) continue;
 				cleanup();
-				reject(error instanceof Error ? error : new Error(String(error)));
+				if (message.error) reject(new Error(`LSP mux ${request.method} failed: ${message.error.message}`));
+				else resolve({ response: message, leftover: framer.remainder() });
 				return;
 			}
-			if (message.id !== request.id) continue;
+		} catch (error) {
 			cleanup();
-			if (message.error) reject(new Error(`LSP mux ${request.method} failed: ${message.error.message}`));
-			else resolve({ response: message, leftover: framer.remainder() });
-			return;
+			socket.destroy();
+			reject(error instanceof Error ? error : new Error(String(error)));
 		}
 	};
 	const onClose = () => {
@@ -317,8 +323,8 @@ export async function connectSharedLspTransport(opts: {
 export async function smokeTestLspMux(): Promise<void> {
 	const endpoint =
 		process.platform === "win32"
-			? `\\\\.\\pipe\\omp-lsp-mux-smoke-${process.pid.toString(16)}`
-			: path.join(os.tmpdir(), `omp-lsp-mux-smoke-${process.pid.toString(36)}.sock`);
+			? `\\\\.\\pipe\\zeta-lsp-mux-smoke-${process.pid.toString(16)}`
+			: path.join(os.tmpdir(), `zeta-lsp-mux-smoke-${process.pid.toString(36)}.sock`);
 	const spawn = resolveWorkerSpawnCmd(LSP_MUX_WORKER_ARG);
 	const proc = ptree.spawn(spawn.cmd, {
 		cwd: spawn.cwd,

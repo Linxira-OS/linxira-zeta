@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { ToolCall } from "@oh-my-pi/pi-ai";
-import { extractMarkdownLinks } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ToolCall } from "@linxiraos/pi-ai";
+import { extractMarkdownLinks } from "@linxiraos/pi-tui";
 
 /** A fenced code block extracted from assistant markdown. */
 export interface CodeBlock {
@@ -108,7 +108,7 @@ export function extractQuoteBlocks(text: string): QuoteBlock[] {
 
 /** A hyperlink found in assistant markdown: inline `[text](href)`, `<autolink>`, bare URL, or reference link. */
 export interface LinkTarget {
-	/** Visible link label flattened to one display row; falls back to `href` when empty. */
+	/** Visible link text; equals `href` for autolinks and bare URLs. */
 	text: string;
 	/** Absolute http(s) URL as marked resolved it. */
 	href: string;

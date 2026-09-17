@@ -99,6 +99,15 @@ impl ChildProcess {
 		#[allow(unused_mut, reason = "only mutated on some platforms")]
 		let mut sigchld = sys::signal::chld_signal_listener()?;
 
+		// The SIGCHLD stream below only reports signals that arrive after this
+		// point, but the child may already be stopped: pipeline stages stop
+		// themselves right after spawn, routinely while later stages are still
+		// spawning. Probe for an already-pending stop once on entry so the
+		// wait does not stall until some unrelated child produces a signal.
+		if sys::signal::poll_for_stopped_child(self.pid)? {
+			return Ok(ProcessWaitResult::Stopped);
+		}
+
 		let cancelled = async {
 			match &cancel_token {
 				Some(token) => token.cancelled().await,
@@ -126,7 +135,7 @@ impl ChildProcess {
 					break Ok(ProcessWaitResult::Stopped)
 				},
 				_ = sigchld.recv() => {
-					if sys::signal::poll_for_stopped_children()? {
+					if sys::signal::poll_for_stopped_child(self.pid)? {
 						break Ok(ProcessWaitResult::Stopped);
 					}
 				},
@@ -309,4 +318,38 @@ pub enum ProcessWaitResult {
 	Stopped,
 	/// The process was killed due to cancellation.
 	Cancelled,
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+	use super::*;
+
+	/// A child that stopped before `wait` was called must still be observed:
+	/// the SIGCHLD stream inside `wait` only reports signals that arrive
+	/// after its registration, and pipeline stages routinely stop while later
+	/// stages are still spawning.
+	#[tokio::test]
+	async fn wait_observes_a_stop_that_precedes_the_wait() {
+		let mut command = tokio::process::Command::new("sh");
+		command.arg("-c").arg("kill -STOP $$");
+		let mut child = command.spawn().expect("spawn self-stopping sh");
+		let pid = child.id().expect("child pid") as i32;
+
+		// Give the child time to stop; its SIGCHLD fires while no wait is
+		// registered anywhere in this process.
+		tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+		let mut process = ChildProcess::new(child, Some(pid), None);
+		let waited = tokio::time::timeout(std::time::Duration::from_secs(5), process.wait(None))
+			.await
+			.expect("wait must not stall on a stop that precedes the wait");
+		assert!(matches!(waited, Ok(ProcessWaitResult::Stopped)));
+
+		// Resume and reap the stopped child so no stopped process outlives
+		// the test.
+		use nix::sys::signal::{kill, Signal};
+		use nix::unistd::Pid;
+		let _ = kill(Pid::from_raw(pid), Signal::SIGCONT);
+		let _ = kill(Pid::from_raw(pid), Signal::SIGKILL);
+	}
 }

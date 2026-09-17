@@ -2,11 +2,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ToolCall } from "@oh-my-pi/pi-ai";
-import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { ToolCall } from "@linxiraos/pi-ai";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import type { VcsGitRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { getAgentDir, hashPath, normalizePathForComparison, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 import {
 	buildSearchDateQualifier,
 	GithubTool,
@@ -14,13 +17,11 @@ import {
 	parsePrUnifiedDiff,
 	parseSearchDateBound,
 	resolveDefaultRepoMemoized,
-} from "@oh-my-pi/pi-coding-agent/tools/gh";
-import { parseIssueUrl, parsePullRequestUrl } from "@oh-my-pi/pi-coding-agent/tools/gh-common";
-import { github } from "@oh-my-pi/pi-coding-agent/utils/github";
-import { withRepoLock } from "@oh-my-pi/pi-coding-agent/utils/repo-lock";
-import type { VcsGitRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { getAgentDir, hashPath, normalizePathForComparison, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/tools/gh";
+import { parseIssueUrl, parsePullRequestUrl } from "@linxiraos/zeta/tools/gh-common";
+import { github } from "@linxiraos/zeta/utils/github";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { withRepoLock } from "@linxiraos/zeta/utils/repo-lock";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
@@ -182,7 +183,7 @@ async function createPrFixture(): Promise<PrFixture> {
 /**
  * Stub `os.homedir()` AND rebuild the cached `dirs` resolver in pi-utils so
  * `getWorktreesDir()` resolves under an isolated temp home instead of the
- * user's real `~/.omp/wt`. Returns the temp home and a cleanup hook.
+ * user's real `~/.zeta/wt`. Returns the temp home and a cleanup hook.
  */
 interface TempHome {
 	home: string;
@@ -193,7 +194,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 	const home = await fs.mkdtemp(path.join(os.tmpdir(), "gh-pr-tool-home-"));
 	vi.spyOn(os, "homedir").mockReturnValue(home);
 	// Clear XDG_*_HOME so the rebuilt resolver routes `dirs.rootSubdir("wt", "data")`
-	// through the spied homedir instead of `$XDG_DATA_HOME/omp/wt` (CI sets these).
+	// through the spied homedir instead of `$XDG_DATA_HOME/zeta/wt` (CI sets these).
 	const xdgKeys = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
 	const xdgPrevious: Partial<Record<(typeof xdgKeys)[number], string | undefined>> = {};
 	for (const key of xdgKeys) {
@@ -204,7 +205,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 	// we must rebuild the resolver after the spy + env scrub are in place.
 	// `setAgentDir` recreates it; we point it at the temp home's default agent dir.
 	const originalAgentDir = getAgentDir();
-	setAgentDir(path.join(home, ".omp", "agent"));
+	setAgentDir(path.join(home, ".zeta", "agent"));
 	return {
 		home,
 		cleanup: async () => {
@@ -228,7 +229,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 async function expectedWorktreePath(home: string, primaryRoot: string, localBranch: string): Promise<string> {
 	const prNumber = localBranch.replace(/^pr-/, "");
 	const segment = `${prNumber}-${hashPath(primaryRoot)}`;
-	return fs.realpath(path.join(home, ".omp", "wt", segment));
+	return fs.realpath(path.join(home, ".zeta", "wt", segment));
 }
 
 describe("parsePrUnifiedDiff", () => {
@@ -393,6 +394,84 @@ describe("getOrFetchPrDiff diff-too-large fallback", () => {
 	});
 });
 
+describe("GitHub command runner", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("preserves structured API validation details hidden by generic stderr", async () => {
+		vi.spyOn(github, "run").mockResolvedValue({
+			exitCode: 1,
+			stdout: JSON.stringify({
+				message: "Validation Failed",
+				errors: [
+					{
+						message:
+							"The search contains only logical operators without search terms. " +
+							"Logical operators only apply to text, not to qualifiers.",
+					},
+				],
+			}),
+			stderr: "gh: Validation Failed (HTTP 422)",
+		});
+
+		await expect(github.json("/tmp", ["api", "-X", "GET", "/search/issues"])).rejects.toThrow(
+			"gh: Validation Failed (HTTP 422)\n" +
+				"GitHub details:\n" +
+				"- The search contains only logical operators without search terms. " +
+				"Logical operators only apply to text, not to qualifiers.",
+		);
+	});
+
+	it("formats structured API field errors that carry no message", async () => {
+		vi.spyOn(github, "run").mockResolvedValue({
+			exitCode: 1,
+			stdout: JSON.stringify({
+				message: "Validation Failed",
+				errors: [{ resource: "Search", field: "q", code: "missing" }],
+			}),
+			stderr: "gh: Validation Failed (HTTP 422)",
+		});
+
+		await expect(github.json("/tmp", ["api", "-X", "GET", "/search/issues"])).rejects.toThrow(
+			"gh: Validation Failed (HTTP 422)\nGitHub details:\n- Search.q: missing",
+		);
+	});
+
+	it("does not duplicate structured details already rendered by gh", async () => {
+		const detail = "Field 'fieldThatDoesNotExist' doesn't exist on type 'Repository'";
+		vi.spyOn(github, "run").mockResolvedValue({
+			exitCode: 1,
+			stdout: JSON.stringify({ errors: [{ message: detail }] }),
+			stderr: `gh: ${detail}`,
+		});
+
+		await expect(github.json("/tmp", ["api", "graphql"])).rejects.toThrow(new RegExp(`^gh: ${detail}$`));
+	});
+
+	it("retains the existing error when stdout is not structured JSON", async () => {
+		vi.spyOn(github, "run").mockResolvedValue({
+			exitCode: 1,
+			stdout: "upstream proxy returned HTML",
+			stderr: "gh: request failed (HTTP 502)",
+		});
+
+		await expect(github.json("/tmp", ["api", "-X", "GET", "/user"])).rejects.toThrow("gh: request failed (HTTP 502)");
+	});
+
+	it("preserves translated authentication failures without extra API details", async () => {
+		vi.spyOn(github, "run").mockResolvedValue({
+			exitCode: 1,
+			stdout: JSON.stringify({ message: "Bad credentials" }),
+			stderr: "gh: To authenticate, run gh auth login",
+		});
+
+		await expect(github.json("/tmp", ["api", "/user"])).rejects.toThrow(
+			/^GitHub CLI is not authenticated\. Run `gh auth login`\.$/,
+		);
+	});
+});
+
 describe("github tool", () => {
 	beforeAll(async () => {
 		prFixtureTemplate = await buildPrFixtureTemplate();
@@ -474,6 +553,20 @@ describe("github tool", () => {
 			undefined,
 			{ repoProvided: true, trimOutput: false },
 		);
+	});
+
+	it("adds repository, revision, and path context to file-read failures", async () => {
+		vi.spyOn(github, "json").mockRejectedValue(new ToolError("gh: Not Found (HTTP 404)"));
+		const tool = new GithubTool(createSession());
+
+		await expect(
+			tool.execute("file-read", {
+				op: "file_read",
+				repo: "openai/codex",
+				branch: "main",
+				path: "Cargo.toml",
+			}),
+		).rejects.toThrow("GitHub file read failed for 'openai/codex@main:Cargo.toml': gh: Not Found (HTTP 404)");
 	});
 
 	it("returns GitHub images as model image content", async () => {

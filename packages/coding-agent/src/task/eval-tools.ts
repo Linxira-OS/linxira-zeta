@@ -1,10 +1,10 @@
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { EvalKernelNotRunningError } from "../eval/executor-base";
-import { invokeJsTool } from "../eval/js/context-manager";
 import { resolveJsKernelIdentity } from "../eval/js";
-import { callPythonTool, describePythonTools } from "../eval/py/executor";
+import { invokeJsTool } from "../eval/js/context-manager";
 import { resolvePythonKernelIdentity } from "../eval/py";
+import { callPythonTool, describePythonTools } from "../eval/py/executor";
 import type { EvalToolDescriptor, EvalToolInvokeResult } from "../eval/types";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import type { ToolSession } from "../tools";
@@ -138,6 +138,7 @@ function errorResult(
 	return {
 		content: [{ type: "text", text: error }],
 		details: { evalTool: name, language, isError: true },
+		isError: true,
 	};
 }
 

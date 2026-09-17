@@ -8,8 +8,10 @@
  * anything timestamp-shaped is a seek position.
  */
 import * as path from "node:path";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { $which, TempDir, untilAborted } from "@oh-my-pi/pi-utils";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { untilAborted } from "@linxiraos/pi-utils/abortable";
+import { TempDir } from "@linxiraos/pi-utils/temp";
+import { $which } from "@linxiraos/pi-utils/which";
 
 /** Container extensions treated as video. Mirrors the video subset of the local-protocol binary list. */
 const VIDEO_EXTENSION_LOOKUP: Record<string, true> = {

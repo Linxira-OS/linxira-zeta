@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as evalIndex from "@oh-my-pi/pi-coding-agent/eval";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as evalIndex from "@linxiraos/zeta/eval";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
 
 function makeSession(settings: Settings, asyncJobManager: AsyncJobManager): ToolSession {
 	return {

@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isSqliteBusyError, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth-storage";
+import { isSqliteBusyError, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
 import { removeWithRetries } from "../../utils/src/temp";
 
 interface SqliteBusyShape extends Error {
@@ -170,21 +170,23 @@ db.close();`,
 		const dbPath = path.join(tempDir, "fatal.db");
 		const realRun = Database.prototype.run;
 		let runCalls = 0;
+		// SQLITE_IOERR is neither BUSY (retried) nor CORRUPT (quarantined and
+		// recreated by `open()`), so it must surface on the first attempt.
 		vi.spyOn(Database.prototype, "run").mockImplementation(function (
 			this: Database,
 			...args: Parameters<typeof realRun>
 		) {
 			runCalls++;
 			if (runCalls === 1) {
-				const err = new Error("disk image malformed") as SqliteBusyShape;
-				err.code = "SQLITE_CORRUPT";
-				err.errno = 11;
+				const err = new Error("disk I/O error") as SqliteBusyShape;
+				err.code = "SQLITE_IOERR";
+				err.errno = 10;
 				throw err;
 			}
 			return realRun.apply(this, args);
 		});
 
-		await expect(SqliteAuthCredentialStore.open(dbPath)).rejects.toThrow("disk image malformed");
+		await expect(SqliteAuthCredentialStore.open(dbPath)).rejects.toThrow("disk I/O error");
 		// Single attempt: the retry loop must NOT keep banging on a fatal error.
 		expect(runCalls).toBe(1);
 	});

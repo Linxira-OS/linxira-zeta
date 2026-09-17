@@ -1,4 +1,4 @@
-import type { FetchImpl } from "@oh-my-pi/pi-ai";
+import type { FetchImpl } from "@linxiraos/pi-ai";
 
 export interface CompleteOptions {
 	maxTokens?: number;

@@ -1,6 +1,6 @@
-# MCP configuration in OMP
+# MCP configuration in Zeta
 
-This guide explains how to add, edit, and validate MCP servers for the OMP coding agent.
+This guide explains how to add, edit, and validate MCP servers for the Zeta coding agent.
 
 Source of truth in code:
 
@@ -12,19 +12,19 @@ Source of truth in code:
 
 ## Preferred config locations
 
-OMP can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for OMP-native configuration you should usually use one of these primary files:
+Zeta can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for Zeta-native configuration you should usually use one of these primary files:
 
-- Project: `.omp/mcp.json`
-- User: `~/.omp/agent/mcp.json` (or `~/.omp/profiles/<name>/agent/mcp.json` when a named profile is active — see [Profiles](#profiles))
+- Project: `.zeta/mcp.json`
+- User: `~/.zeta/agent/mcp.json` (or `~/.zeta/profiles/<name>/agent/mcp.json` when a named profile is active — see [Profiles](#profiles))
 
-The native provider also reads `.omp/.mcp.json` and `~/.omp/agent/.mcp.json` for compatibility, but OMP writes to the primary `mcp.json` paths above.
+The native provider also reads `.zeta/.mcp.json` and `~/.zeta/agent/.mcp.json` for compatibility, but Zeta writes to the primary `mcp.json` paths above.
 
-OMP also accepts fallback standalone files in the project root:
+Zeta also accepts fallback standalone files in the project root:
 
 - `mcp.json`
 - `.mcp.json`
 
-Use `.omp/mcp.json` or `~/.omp/agent/mcp.json` when you want OMP to own the configuration. Use root `mcp.json` / `.mcp.json` only when you want a portable fallback file that other MCP clients may also read.
+Use `.zeta/mcp.json` or `~/.zeta/agent/mcp.json` when you want OMP to own the configuration. Use root `mcp.json` / `.mcp.json` only when you want a portable fallback file that other MCP clients may also read.
 
 ### Imported tool configs
 
@@ -43,14 +43,14 @@ For Claude Code, Codex, Gemini CLI, Cursor, and Windsurf, the project entry is e
 
 ### Profiles
 
-Named profiles (`omp --profile <name>`, the `--alias` shortcut, or `OMP_PROFILE`/`PI_PROFILE`) isolate user-level MCP config. When a profile is active, the **user** scope resolves to the profile's agent directory instead of the default one:
+Named profiles (`zeta --profile <name>`, the `--alias` shortcut, or `OMP_PROFILE`/`PI_PROFILE`) isolate user-level MCP config. When a profile is active, the **user** scope resolves to the profile's agent directory instead of the default one:
 
-- Default profile: `~/.omp/agent/mcp.json`
-- Profile `<name>`: `~/.omp/profiles/<name>/agent/mcp.json`
+- Default profile: `~/.zeta/agent/mcp.json`
+- Profile `<name>`: `~/.zeta/profiles/<name>/agent/mcp.json`
 
-Discovery, the `/mcp` commands, and the config writer all follow the active profile, so a profile sees **only** its own user-level servers — never the default profile's `~/.omp/agent/mcp.json`. Add a server to a profile by launching under it (`omp --profile <name>`) and running `/mcp add` → User level, or by editing `~/.omp/profiles/<name>/agent/mcp.json` directly.
+Discovery, the `/mcp` commands, and the config writer all follow the active profile, so a profile sees **only** its own user-level servers — never the default profile's `~/.zeta/agent/mcp.json`. Add a server to a profile by launching under it (`zeta --profile <name>`) and running `/mcp add` → User level, or by editing `~/.zeta/profiles/<name>/agent/mcp.json` directly.
 
-Project-scoped MCP config (`.omp/mcp.json`) is keyed to the working directory, not the profile, so it applies under every profile. External-tool configs (`.claude/`, `.cursor/`, etc.) are also profile-independent because they belong to those tools rather than to an OMP profile.
+Project-scoped MCP config (`.zeta/mcp.json`) is keyed to the working directory, not the profile, so it applies under every profile. External-tool configs (`.claude/`, `.cursor/`, etc.) are also profile-independent because they belong to those tools rather than to an OMP profile.
 
 MCP follows the same profile rules as the rest of OMP-native config; see [Configuration Discovery → Profiles](./config-usage.md#profiles).
 
@@ -60,7 +60,7 @@ Add this line at the top of the file for editor autocomplete and validation:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {}
 }
 ```
@@ -73,7 +73,7 @@ OMP supports this top-level structure:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "server-name": {
       "type": "stdio",
@@ -106,6 +106,8 @@ Shared fields for every transport:
 
 `OMP_MCP_TIMEOUT_MS` has process-wide precedence over every per-server `timeout`. Set it to `0` to disable client-side timeouts, or to a positive millisecond value such as `120000`. If it is unset or invalid, OMP uses the server value and then the 30-second default; invalid values are logged and ignored.
 
+Remote HTTP and SSE transports do not impose an additional socket-idle timeout. Without an applicable MCP deadline, a silent connection can wait indefinitely; cancel the call or close the transport to stop it. A quiet stream alone does not prove that its peer is still reachable.
+
 ### `stdio` transport
 
 `stdio` is the default when `type` is omitted.
@@ -125,7 +127,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "filesystem": {
       "command": "npx",
@@ -157,7 +159,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "github": {
       "type": "http",
@@ -184,7 +186,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "legacy-remote": {
       "type": "sse",
@@ -260,7 +262,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "slack": {
       "type": "http",
@@ -292,7 +294,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "filesystem": {
       "command": "npx",
@@ -311,7 +313,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "github": {
       "type": "http",
@@ -325,7 +327,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "github": {
       "command": "docker",
@@ -351,7 +353,7 @@ This matches GitHub's official local Docker image `ghcr.io/github/github-mcp-ser
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "slack": {
       "type": "http",
@@ -432,7 +434,7 @@ The active profile's user file supplies two cross-source overrides:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
   "disabledServers": ["github"],
   "enabledServers": ["tool-owned-server"]
 }
@@ -490,9 +492,9 @@ OMP loads providers in descending priority. The MCP-capable order is:
 
 The first definition wins. Duplicate names are not merged. A differently named definition is also shadowed when its transport, endpoint/command inputs, auth, and request-id mode are equivalent to a higher-priority definition.
 
-Within OMP native config, project `.omp/mcp.json` precedes `.omp/.mcp.json`, then the active profile's user `mcp.json` and `.mcp.json`. Root fallback `mcp.json` precedes root `.mcp.json`. In practice:
+Within OMP native config, project `.zeta/mcp.json` precedes `.zeta/.mcp.json`, then the active profile's user `mcp.json` and `.mcp.json`. Root fallback `mcp.json` precedes root `.mcp.json`. In practice:
 
-- prefer `.omp/mcp.json` or the active profile's user `mcp.json` for an OMP-specific override
+- prefer `.zeta/mcp.json` or the active profile's user `mcp.json` for an OMP-specific override
 - keep names and endpoint definitions unique across tools when possible
 - use the user `disabledServers` list when a third-party config keeps reintroducing an unwanted server
 - set `mcp.enableProjectConfig: false` to exclude every project-level source before deduplication, allowing a same-named user entry to survive

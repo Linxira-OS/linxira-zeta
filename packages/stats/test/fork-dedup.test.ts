@@ -2,10 +2,10 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncAllSessions } from "@oh-my-pi/omp-stats/aggregator";
-import { closeDb, getOverallStats, getRecentRequests, initDb, insertMessageStats } from "@oh-my-pi/omp-stats/db";
-import type { MessageStats } from "@oh-my-pi/omp-stats/types";
-import { getSessionsDir, getStatsDbPath } from "@oh-my-pi/pi-utils";
+import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
+import { closeDb, getOverallStats, getRecentRequests, initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
+import { getSessionsDir, getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-fork-dedup-");
@@ -110,7 +110,7 @@ describe("stats sync deduplicates forked-session entries", () => {
 		const assistantEntry = buildAssistantEntry({ entryId: "asst01ab", parentId: "user01ab", timestamp: ts });
 
 		const parentFile = await writeSessionFile(
-			"--tmp--fork-dedup",
+			"--zeta-fixtures--fork-dedup",
 			"01_parent.jsonl",
 			{ id: "parent00", cwd: "/tmp/project" },
 			[userEntry, assistantEntry],
@@ -122,7 +122,7 @@ describe("stats sync deduplicates forked-session entries", () => {
 		// entry_id), so both files contributed the same provider request to
 		// every aggregate.
 		await writeSessionFile(
-			"--tmp--fork-dedup",
+			"--zeta-fixtures--fork-dedup",
 			"02_fork.jsonl",
 			{ id: "fork0000", cwd: "/tmp/project", parentSession: parentFile },
 			[userEntry, assistantEntry],
@@ -146,7 +146,7 @@ describe("stats sync deduplicates forked-session entries", () => {
 		const assistantEntry = buildAssistantEntry({ entryId: "asst01ab", parentId: "user01ab", timestamp: ts });
 
 		const parentFile = await writeSessionFile(
-			"--tmp--fork-dedup",
+			"--zeta-fixtures--fork-dedup",
 			"01_parent.jsonl",
 			{ id: "parent00", cwd: "/tmp/project" },
 			[userEntry, assistantEntry],
@@ -162,7 +162,7 @@ describe("stats sync deduplicates forked-session entries", () => {
 			timestamp: newTs,
 		});
 		await writeSessionFile(
-			"--tmp--fork-dedup",
+			"--zeta-fixtures--fork-dedup",
 			"02_fork.jsonl",
 			{ id: "fork0000", cwd: "/tmp/project", parentSession: parentFile },
 			[userEntry, assistantEntry, newUserEntry, newAssistantEntry],

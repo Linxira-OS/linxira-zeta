@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { $which, removeWithRetries } from "@linxiraos/pi-utils";
 import {
 	InternalUrlRouter,
 	parseInternalUrl,
 	parseVaultUrl,
 	resolveVaultUrlToPath,
 	VaultProtocolHandler,
-} from "@oh-my-pi/pi-coding-agent/internal-urls";
-import * as vaultProtocol from "@oh-my-pi/pi-coding-agent/internal-urls/vault-protocol";
-import { $which, removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/internal-urls";
+import * as vaultProtocol from "@linxiraos/zeta/internal-urls/vault-protocol";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vault-protocol-"));

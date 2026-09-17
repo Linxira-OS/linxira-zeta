@@ -26,7 +26,7 @@ Full-featured example demonstrating:
 omp --tool examples/custom-tools/todo/index.ts
 
 # Or copy entire folder to tools directory for persistent use
-cp -r todo ~/.omp/agent/tools/
+cp -r todo ~/.zeta/agent/tools/
 ```
 
 Then in omp:
@@ -47,8 +47,8 @@ See [docs/custom-tools.md](../../docs/custom-tools.md) for full documentation.
 **Factory pattern:**
 
 ```typescript
-import { Text } from "@oh-my-pi/pi-tui";
-import type { CustomToolFactory } from "@oh-my-pi/pi-coding-agent";
+import { Text } from "@linxiraos/pi-tui";
+import type { CustomToolFactory } from "@linxiraos/zeta";
 
 const factory: CustomToolFactory = (pi) => ({
 	name: "my_tool",

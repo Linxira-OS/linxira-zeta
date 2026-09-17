@@ -1,21 +1,21 @@
 {
   "type": "module",
-  "name": "@oh-my-pi/pi-mnemopi",
-  "version": "18.1.15",
+  "name": "@linxiraos/pi-mnemopi",
+  "version": "1.1.15",
   "description": "Local SQLite memory engine for Oh My Pi agents",
-  "homepage": "https://omp.sh",
-  "author": "Stencil Labs, Inc.",
+  "homepage": "https://linxira-os.github.io/zeta/",
+  "author": "Can Boluk",
   "contributors": [
     "Abdias J"
   ],
   "license": "MIT",
   "repository": {
-    "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
-    "directory": "packages/mnemopi"
+    "directory": "packages/mnemopi",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+    "type": "git"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
     "memory",
@@ -39,10 +39,14 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@oh-my-pi/pi-ai": "catalog:",
-    "@oh-my-pi/pi-catalog": "catalog:",
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:"
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:"
   },
   "peerDependencies": {
     "fastembed": "2.1.0",

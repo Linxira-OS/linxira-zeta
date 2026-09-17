@@ -8,8 +8,8 @@ import {
 	matchesSite,
 	parseDateValue,
 	parseSearchQuery,
-} from "@oh-my-pi/pi-coding-agent/web/search/query";
-import type { SearchSource } from "@oh-my-pi/pi-coding-agent/web/search/types";
+} from "@linxiraos/zeta/web/search/query";
+import type { SearchSource } from "@linxiraos/zeta/web/search/types";
 
 describe("parseSearchQuery", () => {
 	it("leaves plain queries untouched", () => {

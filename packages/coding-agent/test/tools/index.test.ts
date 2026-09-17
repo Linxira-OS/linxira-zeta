@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type SettingPath, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { ImControlParams } from "@linxiraos/zeta/channels/im-control";
+import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 
@@ -111,10 +112,7 @@ describe("createTools", () => {
 
 	it("still exposes eval when python kernel is unavailable (dispatches to js)", async () => {
 		const session = createTestSession();
-		vi.spyOn(
-			await import("@oh-my-pi/pi-coding-agent/eval/py/kernel"),
-			"checkPythonKernelAvailability",
-		).mockResolvedValue({
+		vi.spyOn(await import("@linxiraos/zeta/eval/py/kernel"), "checkPythonKernelAvailability").mockResolvedValue({
 			ok: false,
 			reason: "missing python",
 		});
@@ -324,6 +322,34 @@ describe("createTools", () => {
 		const tools = await createTools(session, ["read", "write"]);
 
 		expect(tools.map(tool => tool.name)).toEqual(["read", "write"]);
+	});
+
+	it("advertises channel tools only for a top-level session", async () => {
+		const sinks = {
+			channelSend: async (_opts: { text: string; to?: string; channel?: string }) => {},
+			workspaceRun: async (_opts: { workspace: string; task: string }) => ({ reply: "done" }),
+			imControl: async (_params: ImControlParams) => ({ text: "ok" }),
+		};
+		const names = ["channel_send", "workspace_run", "im_control"];
+
+		const topLevel = await createTools(createTestSession(sinks), names);
+		const nested = await createTools(createTestSession({ ...sinks, taskDepth: 1 }), names);
+
+		expect(topLevel.map(tool => tool.name)).toEqual(names);
+		expect(nested.map(tool => tool.name)).toEqual([]);
+	});
+
+	it("does not advertise channel tools when channels are disabled", async () => {
+		const session = createTestSession({
+			channelSend: async () => {},
+			workspaceRun: async () => ({ reply: "done" }),
+			imControl: async () => ({ text: "ok" }),
+			settings: createSettingsWithOverrides({ "channels.enabled": false }),
+		});
+
+		const tools = await createTools(session, ["channel_send", "workspace_run", "im_control"]);
+
+		expect(tools.map(tool => tool.name)).toEqual([]);
 	});
 
 	it("records active tools on the original session object", async () => {

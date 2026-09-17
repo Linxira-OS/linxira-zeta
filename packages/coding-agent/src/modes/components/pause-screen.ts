@@ -11,7 +11,7 @@
  * Use case: freeze a busy session, hand-edit the repo, resume, then explain
  * the change via a normal steering message.
  */
-import { agentPauseGate } from "@oh-my-pi/pi-agent-core";
+import { agentPauseGate } from "@linxiraos/pi-agent-core";
 import {
 	type Component,
 	matchesKey,
@@ -19,7 +19,7 @@ import {
 	type OverlayHandle,
 	type OverlayOptions,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import { formatDuration } from "../../slash-commands/helpers/format";
 import { theme } from "../theme/theme";
 import { matchesAppInterrupt } from "../utils/keybinding-matchers";
@@ -114,7 +114,7 @@ export function renderPauseScreen(width: number, height: number, elapsedMs: numb
 	}
 
 	const topPad = Math.max(0, Math.floor((height - content.length) / 2));
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const lines: string[] = new Array(topPad).fill("");
 	lines.push(...content);
 	while (lines.length < height) lines.push("");

@@ -1,5 +1,5 @@
-import { parseMuseCodeCredential } from "./oauth/muse-code";
 import type { ProviderTransport } from "./build";
+import { parseMuseCodeCredential } from "./oauth/muse-code";
 
 /** Muse stores both the Meta account token and its subscription-minted Model API key in one OAuth bearer. */
 export const museCodeTransport: ProviderTransport = {

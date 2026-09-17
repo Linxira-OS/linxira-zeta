@@ -118,7 +118,7 @@ export function planFileUrlForSlug(slug: string): string {
 /** Derive a `<slug>` from an agent-supplied `extra.title`, or `undefined` when
  *  the title is missing/non-string/unsanitizable. A trailing `-plan` is stripped
  *  so a supplied "auth-plan" maps to `auth-plan.md`, not `auth-plan-plan.md`. */
-function planSlugFromSupplied(suppliedTitle: unknown): string | undefined {
+export function planSlugFromSupplied(suppliedTitle: unknown): string | undefined {
 	if (typeof suppliedTitle !== "string" || !suppliedTitle.trim()) return undefined;
 	try {
 		const { title } = normalizePlanTitle(suppliedTitle);

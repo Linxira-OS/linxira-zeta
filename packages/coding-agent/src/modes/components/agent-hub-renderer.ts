@@ -1,6 +1,6 @@
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { Ellipsis, padding, visibleWidth } from "@oh-my-pi/pi-tui";
-import { formatDuration, formatNumber, sanitizeText } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { Ellipsis, padding, visibleWidth } from "@linxiraos/pi-tui";
+import { formatDuration, formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import { getRoleInfo } from "../../config/model-roles";
 import type { Settings } from "../../config/settings";
 import { type AgentRef, MAIN_AGENT_ID } from "../../registry/agent-registry";
@@ -70,7 +70,7 @@ export function statusText(status: AgentRef["status"], text: string): string {
 function formatModelBadge(modelId: string, level: ThinkingLevel | undefined): string {
 	const model = theme.fg("muted", sanitizeDisplayText(modelId));
 	if (!level || level === ThinkingLevel.Off || level === ThinkingLevel.Inherit) return model;
-	const display = theme.thinking[level as keyof typeof theme.thinking] ?? level;
+	const display = theme.thinking[level] ?? level;
 	return `${model} ${theme.getThinkingBorderColor(level)(display)}`;
 }
 

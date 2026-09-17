@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import * as capability from "@oh-my-pi/pi-coding-agent/capability";
-import type { SSHHost } from "@oh-my-pi/pi-coding-agent/capability/ssh";
-import type { CapabilityResult } from "@oh-my-pi/pi-coding-agent/capability/types";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls/router";
-import { SshProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/ssh-protocol";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { GrepTool } from "@oh-my-pi/pi-coding-agent/tools/grep";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
+import * as capability from "@linxiraos/zeta/capability";
+import type { SSHHost } from "@linxiraos/zeta/capability/ssh";
+import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
+import { SshProtocolHandler } from "@linxiraos/zeta/internal-urls/ssh-protocol";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { GrepTool } from "@linxiraos/zeta/tools/grep";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
 
 // Live integration against `ssh localhost`. Skips automatically where key-based
 // localhost SSH is unavailable (CI without sshd). Capability lookup is mocked
@@ -142,7 +142,7 @@ describe.skipIf(!SSH_OK)("ssh:// handler against a real localhost ssh", () => {
 		expect(kind.trim()).toBe("dir"); // directory intact, not clobbered into a file
 		// The dir-error path must remove the temp it created beside the destination.
 		const leftovers =
-			await Bun.$`ssh -o BatchMode=yes localhost ls -A ${TMP} | grep -c "wdir.omp-tmp" || true`.text();
+			await Bun.$`ssh -o BatchMode=yes localhost ls -A ${TMP} | grep -c "wdir.zeta-tmp" || true`.text();
 		expect(leftovers.trim()).toBe("0");
 	});
 

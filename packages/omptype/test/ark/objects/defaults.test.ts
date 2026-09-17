@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { scope, type } from "@oh-my-pi/omptype/ark";
+import { scope, type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "../type-assert";
 
 describe("parsing and traversal", () => {
@@ -678,6 +678,7 @@ describe("functions", () => {
 			}),
 		});
 
+		// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 		const _typeFunctionFactory: Eq<typeof T.t, { bar: Default<Function, () => number> }> = true;
 		expect(T.assert({}).bar()).toEqual(3);
 		expect(T.assert({}).bar()).toEqual(4);

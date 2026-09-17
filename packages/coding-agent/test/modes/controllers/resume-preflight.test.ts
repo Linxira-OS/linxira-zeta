@@ -2,12 +2,12 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as SessionSelector from "@oh-my-pi/pi-coding-agent/modes/components/session-selector";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionInfo } from "@oh-my-pi/pi-coding-agent/session/session-listing";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import * as SessionSelector from "@linxiraos/zeta/modes/components/session-selector";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 beforeAll(async () => {
 	await initTheme();
@@ -45,6 +45,8 @@ function createResumeContext(opts: { flushFails?: boolean; sourceCwd?: string; p
 			moveTo,
 		},
 		settings: { flush },
+		prepareSessionSwitch: vi.fn(async () => {}),
+		resetObserverRegistry: vi.fn(),
 		clearTransientSessionUi: vi.fn(),
 		applyCwdChange,
 		updateEditorBorderColor: vi.fn(),

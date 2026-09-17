@@ -10,7 +10,7 @@
  * touching the persisted settings file.
  */
 
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 
 export type HindsightScoping = "global" | "per-project" | "per-project-tagged";
@@ -53,7 +53,6 @@ export interface HindsightConfig {
 
 	mentalModelsEnabled: boolean;
 	mentalModelAutoSeed: boolean;
-	mentalModelRefreshIntervalMs: number;
 	mentalModelMaxRenderChars: number;
 }
 
@@ -160,7 +159,7 @@ export function loadHindsightConfig(settings: Settings, env: NodeJS.ProcessEnv =
 		retainMode: retainModeEnv ?? settingsRetainMode ?? "full-session",
 		retainEveryNTurns: retainEveryNTurnsEnv ?? settings.get("hindsight.retainEveryNTurns"),
 		retainOverlapTurns: settings.get("hindsight.retainOverlapTurns"),
-		retainContext: settings.get("hindsight.retainContext") ?? "omp",
+		retainContext: settings.get("hindsight.retainContext") ?? "zeta",
 
 		recallBudget: recallBudgetEnv ?? settingsRecallBudget ?? "mid",
 		recallMaxTokens: recallMaxTokensEnv ?? settings.get("hindsight.recallMaxTokens"),
@@ -178,7 +177,6 @@ export function loadHindsightConfig(settings: Settings, env: NodeJS.ProcessEnv =
 
 		mentalModelsEnabled: settings.get("hindsight.mentalModelsEnabled"),
 		mentalModelAutoSeed: settings.get("hindsight.mentalModelAutoSeed"),
-		mentalModelRefreshIntervalMs: settings.get("hindsight.mentalModelRefreshIntervalMs"),
 		mentalModelMaxRenderChars: settings.get("hindsight.mentalModelMaxRenderChars"),
 	};
 

@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Context, ImageContent, Message, Model, ProviderPayload, TextContent } from "@oh-my-pi/pi-ai";
-import { rasterizeSvg } from "@oh-my-pi/pi-natives";
+import type { Context, ImageContent, Message, Model, ProviderPayload, TextContent } from "@linxiraos/pi-ai";
+import { rasterizeSvg } from "@linxiraos/pi-natives";
 import {
 	formatBytes,
 	isRecord,
@@ -9,8 +9,8 @@ import {
 	parseImageMetadata,
 	readImageMetadata,
 	SUPPORTED_IMAGE_MIME_TYPES,
-} from "@oh-my-pi/pi-utils";
-import { LRUCache } from "@oh-my-pi/pi-utils/lru";
+} from "@linxiraos/pi-utils";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, type ImageResizeOptions, resizeImage } from "./image-resize";
 

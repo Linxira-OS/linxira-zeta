@@ -1,12 +1,13 @@
-import { getReadToolPath, type ProtectedToolContext } from "@oh-my-pi/pi-agent-core/compaction/tool-protection";
+import { getReadToolPath, type ProtectedToolContext } from "@linxiraos/pi-agent-core/compaction/tool-protection";
 import { normalizeLocalScheme } from "../tools/path-utils";
 
 /** Canonical plan alias every session's `local://` root resolves. */
 const LOCAL_PLAN_ALIAS = "local://PLAN.md";
 
 /** True when `readPath` targets `planTarget`, ignoring `local:/` vs `local://`
- *  scheme spelling and any trailing read selector (`:1-50`, `:raw`, …). */
-function readTargetsPlan(readPath: string, planTarget: string): boolean {
+ *  scheme spelling and any trailing read selector (`:1-50`, `:raw`, …).
+ *  Exported for the read tool's plan-aware default window. */
+export function readTargetsPlan(readPath: string, planTarget: string): boolean {
 	const read = normalizeLocalScheme(readPath);
 	const target = normalizeLocalScheme(planTarget);
 	return read === target || read.startsWith(`${target}:`);

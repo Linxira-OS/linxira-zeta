@@ -10,7 +10,7 @@ The theme system drives:
 - markdown styling adapters (`getMarkdownTheme()`)
 - selector/editor/settings list adapters (`getSelectListTheme()`, `getEditorTheme()`, `getSettingsListTheme()`)
 - symbol preset + symbol overrides (`unicode`, `nerd`, `ascii`)
-- syntax highlighting colors used by native highlighter (`@oh-my-pi/pi-natives`)
+- syntax highlighting colors used by native highlighter (`@linxiraos/pi-natives`)
 - status line segment colors
 
 Primary implementation: `src/modes/theme/theme.ts`.
@@ -114,7 +114,7 @@ Theme lookup order (`loadThemeJson`):
 
 Custom themes directory comes from `getCustomThemesDir()`:
 
-- default: `~/.omp/agent/themes`
+- default: `~/.zeta/agent/themes`
 - overridden by `PI_CODING_AGENT_DIR` (`$PI_CODING_AGENT_DIR/themes`)
 
 `getAvailableThemes()` returns merged built-in + custom names, sorted, with built-ins taking precedence on name collision.
@@ -158,6 +158,14 @@ Conversion behavior:
 
 ## Runtime switching behavior
 
+The `theme` export is a live binding, including in bundled extensions. Read it inside rendering callbacks rather than retaining a theme instance across switches. Extension renderer callbacks may also use their supplied theme argument.
+
+```ts
+import { theme } from "@linxiraos/zeta";
+
+const renderStatus = () => theme.fg("accent", "Ready");
+```
+
 ### Initial theme (`initTheme`)
 
 `main.ts` initializes theme with settings:
@@ -184,7 +192,7 @@ Current defaults from settings schema:
 ### Explicit switching (`setTheme`)
 
 - loads selected theme
-- updates global `theme` singleton
+- updates the live `theme` export
 - optionally starts watcher
 - triggers `onThemeChange` callback
 
@@ -195,7 +203,7 @@ On failure:
 
 ### Preview switching (`previewTheme`)
 
-- applies temporary preview theme to global `theme`
+- applies the preview to the live `theme` export
 - does **not** change persisted settings by itself
 - returns success/error without fallback replacement
 
@@ -226,8 +234,8 @@ Other tokens are unchanged.
 Theme-related settings are persisted by `Settings` to global config YAML:
 
 - path: `<agentDir>/config.yml`
-- default agent dir: `~/.omp/agent`
-- effective default file: `~/.omp/agent/config.yml`
+- default agent dir: `~/.zeta/agent`
+- effective default file: `~/.zeta/agent/config.yml`
 
 Persisted keys:
 
@@ -240,7 +248,7 @@ Legacy migration exists: old flat `theme: "name"` is migrated to nested `theme.d
 
 ## Creating a custom theme (practical)
 
-1. Create file in custom themes dir, e.g. `~/.omp/agent/themes/my-theme.json`.
+1. Create file in custom themes dir, e.g. `~/.zeta/agent/themes/my-theme.json`.
 2. Include `name`, optional `vars`, and **all required** `colors` tokens.
 3. Optionally include `symbols` and `export`.
 4. Select the theme in Settings (`Appearance -> Dark Theme` or `Appearance -> Light Theme`) depending on which auto slot you want.

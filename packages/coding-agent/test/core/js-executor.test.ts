@@ -1,14 +1,20 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, setDefaultTimeout, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { disposeAllVmContexts, invokeJsTool } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { executeJs, type JsResult } from "@oh-my-pi/pi-coding-agent/eval/js/executor";
-import { describeEvalTools } from "@oh-my-pi/pi-coding-agent/task/eval-tools";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import { type } from "@linxiraos/pi-omptype";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import {
+	disposeAllVmContexts,
+	invokeJsTool,
+	runIfSnapshotMatches,
+	shadowPlanIfPresent,
+	snapshotVmContext,
+} from "@linxiraos/zeta/eval/js/context-manager";
+import { executeJs, type JsResult } from "@linxiraos/zeta/eval/js/executor";
+import { createEvalCustomTools, describeEvalTools } from "@linxiraos/zeta/task/eval-tools";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { TempDir } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 // JS eval cold-starts a Bun worker; under --isolate + high CI concurrency that startup
 // can exceed Bun's 5s default per-test timeout, flaking the suite. Give the worker-backed
@@ -94,6 +100,85 @@ describe("executeJs", () => {
 		expect(resetResult.output.trim()).toBe("undefined");
 	});
 
+	it("captures retained JSON-safe bindings without executing another cell", async () => {
+		await executeJs("globalThis.shadowSnapshotValue = { nested: ['safe'] };", {
+			sessionId,
+			session,
+			sessionFile,
+		});
+
+		const snapshot = await snapshotVmContext({ sessionKey: sessionId, cwd: session.cwd, sessionId });
+		expect(snapshot?.values.shadowSnapshotValue).toEqual({ nested: ["safe"] });
+		expect(snapshot?.revision).toBeGreaterThan(0);
+	});
+
+	it("plans only against an already-retained JavaScript runtime", async () => {
+		await expect(
+			shadowPlanIfPresent({ sessionKey: "missing", cwd: session.cwd, sessionId: "missing", code: "tool.read({})" }),
+		).resolves.toBeNull();
+		await executeJs("globalThis.shadowPlanValue = true;", { sessionId, session, sessionFile });
+		const planned = await shadowPlanIfPresent({
+			sessionKey: sessionId,
+			cwd: session.cwd,
+			sessionId,
+			code: 'tool.read({ path: "src/a.ts" });',
+		});
+		expect(planned?.snapshot.values.shadowPlanValue).toBe(true);
+		expect(planned?.plan.operations[0]?.call.name).toBe("read");
+	});
+
+	it("runs through the retained atomic admission path when the snapshot matches", async () => {
+		const planned = await shadowPlanIfPresent({
+			sessionKey: sessionId,
+			cwd: session.cwd,
+			sessionId,
+			code: 'tool.read({ path: "src/a.ts" });',
+		});
+		if (!planned) throw new Error("expected retained session");
+		await expect(
+			runIfSnapshotMatches({
+				sessionKey: sessionId,
+				sessionId,
+				cwd: session.cwd,
+				session,
+				code: "globalThis.atomicContextManagerValue = 42;",
+				filename: "atomic-context.ts",
+				runState: {},
+				expectedRevision: planned.snapshot.revision,
+				expectedDigest: planned.digest,
+			}),
+		).resolves.not.toBeNull();
+		const result = await executeJs("return atomicContextManagerValue;", { sessionId, session, sessionFile });
+		expect(result.output.trim()).toBe("42");
+	});
+
+	it("rejects stale retained snapshots before executing JavaScript", async () => {
+		await executeJs("globalThis.atomicStaleGuard = 1;", { sessionId, session, sessionFile });
+		const planned = await shadowPlanIfPresent({
+			sessionKey: sessionId,
+			cwd: session.cwd,
+			sessionId,
+			code: "globalThis.atomicStaleGuard = 3;",
+		});
+		if (!planned) throw new Error("expected retained session");
+		await executeJs("globalThis.atomicStaleGuard = 2;", { sessionId, session, sessionFile });
+		await expect(
+			runIfSnapshotMatches({
+				sessionKey: sessionId,
+				sessionId,
+				cwd: session.cwd,
+				session,
+				code: "globalThis.atomicStaleGuard = 3;",
+				filename: "atomic-stale-context.ts",
+				runState: {},
+				expectedRevision: planned.snapshot.revision,
+				expectedDigest: planned.digest,
+			}),
+		).resolves.toBeNull();
+		const result = await executeJs("return atomicStaleGuard;", { sessionId, session, sessionFile });
+		expect(result.output.trim()).toBe("2");
+	});
+
 	it("describes and invokes tools defined in the retained JavaScript kernel", async () => {
 		const evalSessionId = `${sessionId}:defined-tools`;
 		const evalSession: ToolSession = {
@@ -157,6 +242,14 @@ describe("executeJs", () => {
 			{ sessionKey: toolSessionId, session: evalSession },
 		);
 		expect(failed).toEqual({ ok: false, error: "kaboom" });
+		const [boomTool] = createEvalCustomTools(evalSession, await describeEvalTools(evalSession, ["boom"]));
+		if (!boomTool) throw new Error("Expected the defined eval tool");
+		const bridgedFailure = await Reflect.apply(boomTool.execute, boomTool, ["call-boom", {}, undefined, undefined]);
+		expect(bridgedFailure).toMatchObject({
+			content: [{ type: "text", text: "kaboom" }],
+			details: { evalTool: "boom", language: "js", isError: true },
+			isError: true,
+		});
 		const alive = await executeJs("return 'still here';", {
 			sessionId: toolSessionId,
 			session: evalSession,
@@ -322,7 +415,7 @@ describe("executeJs", () => {
 			[
 				"const uuid = crypto.randomUUID();",
 				"const digest = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode('ok'));",
-				"const base = __omp_session__.cwd;",
+				"const base = __zeta_session__.cwd;",
 				"fs.mkdirSync(base + '/nested', { recursive: true });",
 				"fs.writeFileSync(base + '/nested/value.txt', 'hello');",
 				"await fs.promises.copyFile(base + '/nested/value.txt', base + '/nested/copy.txt');",
@@ -481,6 +574,43 @@ describe("executeJs", () => {
 		expect(execute).toHaveBeenCalledTimes(2);
 		expect(execute.mock.calls[0]?.[1]).toEqual({ path: "package.json", [INTENT_FIELD]: "js prelude" });
 		expect(execute.mock.calls[1]?.[1]).toEqual({ path: "agent://agent-42", [INTENT_FIELD]: "js prelude" });
+	});
+
+	it("preserves nested await expressions in instrumented tool-call arguments", async () => {
+		const execute = vi.fn(async (_toolCallId: string, args: unknown): Promise<AgentToolResult> => ({
+			content: [{ type: "text", text: (args as { path: string }).path }],
+		}));
+		const toolSession: ToolSession = {
+			...session,
+			getToolByName: name => (name === "read" ? createTool("read", execute) : undefined),
+		};
+
+		const result = await executeJs(
+			'async function resolvePath() { return "package.json"; }\nreturn await tool.read({ path: await resolvePath() });',
+			{ sessionId, session: toolSession, sessionFile },
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.output.trim()).toBe("package.json");
+	});
+
+	it("preserves direct eval bindings around an instrumented tool read", async () => {
+		const execute = vi.fn(async (_toolCallId: string, args: unknown): Promise<AgentToolResult> => ({
+			content: [{ type: "text", text: (args as { path: string }).path }],
+		}));
+		const toolSession: ToolSession = {
+			...session,
+			getToolByName: name => (name === "read" ? createTool("read", execute) : undefined),
+		};
+
+		const result = await executeJs(`await tool.read({ path: eval('var p = "note.txt"; p') }); p;`, {
+			sessionId,
+			session: toolSession,
+			sessionFile,
+		});
+
+		expect(result.exitCode).toBe(0);
+		expect(result.output.trim()).toBe("note.txt");
 	});
 
 	it("auto-displays the final awaited expression result", async () => {

@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { EvalToolDetails } from "@oh-my-pi/pi-coding-agent/eval/types";
-import { getThemeByName, setThemeInstance, type Theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { EvalTool, evalToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalToolDetails } from "@linxiraos/zeta/eval/types";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { EvalTool, evalToolRenderer } from "@linxiraos/zeta/tools/eval";
 
 describe("eval renderer: display-only streaming formatting", () => {
 	let theme: Theme;

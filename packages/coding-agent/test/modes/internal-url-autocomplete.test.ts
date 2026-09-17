@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as capability from "@oh-my-pi/pi-coding-agent/capability";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { resetActiveRulesForTests, setActiveRules } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import type { SSHHost } from "@oh-my-pi/pi-coding-agent/capability/ssh";
-import type { CapabilityResult } from "@oh-my-pi/pi-coding-agent/capability/types";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { resetActiveSkillsForTests, setActiveSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls/router";
+import * as capability from "@linxiraos/zeta/capability";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { resetActiveRulesForTests, setActiveRules } from "@linxiraos/zeta/capability/rule";
+import type { SSHHost } from "@linxiraos/zeta/capability/ssh";
+import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
 import {
 	applyInternalUrlCompletion,
 	extractInternalUrlContext,
 	getInternalUrlSuggestions,
 	isInternalUrlPrefix,
-} from "@oh-my-pi/pi-coding-agent/modes/internal-url-autocomplete";
-import { PromptActionAutocompleteProvider } from "@oh-my-pi/pi-coding-agent/modes/prompt-action-autocomplete";
+} from "@linxiraos/zeta/modes/internal-url-autocomplete";
+import { PromptActionAutocompleteProvider } from "@linxiraos/zeta/modes/prompt-action-autocomplete";
 
 function skill(name: string, description = ""): Skill {
 	return { name, description, filePath: `/skills/${name}/SKILL.md`, baseDir: `/skills/${name}`, source: "test" };
@@ -154,11 +154,11 @@ describe("internal-url-autocomplete", () => {
 				"history",
 				"local",
 				"memory",
-				"omp",
 				"rule",
 				"security",
 				"skill",
 				"ssh",
+				"zeta",
 			]);
 		});
 	});

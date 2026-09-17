@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { PROVIDER_DESCRIPTORS, resolveModelCacheProviderId } from "@oh-my-pi/pi-catalog/provider-models";
+import { PROVIDER_DESCRIPTORS, resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
 
 test("lightweight cache resolver matches every descriptor default", () => {
 	for (const descriptor of PROVIDER_DESCRIPTORS) {
@@ -43,6 +43,12 @@ test("Muse Code cache scope changes with subscription credentials and endpoints"
 			baseUrl: "https://proxy.example/meta/v1",
 		}),
 	);
+});
+
+test("canonical-reference consumers invalidate pre-isolation cache rows", () => {
+	for (const providerId of ["gmi-cloud", "siliconflow", "siliconflow-cn"]) {
+		expect(resolveModelCacheProviderId(providerId)).toBe(`${providerId}:models-v1`);
+	}
 });
 
 test("ollama cache scope preserves reverse-proxy path prefixes", () => {

@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { DapClient } from "@oh-my-pi/pi-coding-agent/dap/client";
-import { DapSessionManager } from "@oh-my-pi/pi-coding-agent/dap/session";
+import { type ChildProcess, ptree } from "@linxiraos/pi-utils";
+import { DapClient } from "@linxiraos/zeta/dap/client";
+import { DapSessionManager } from "@linxiraos/zeta/dap/session";
 import type {
 	DapCapabilities,
 	DapClientState,
 	DapEventMessage,
 	DapResolvedAdapter,
 	DapThread,
-} from "@oh-my-pi/pi-coding-agent/dap/types";
-import { type ChildProcess, ptree } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/dap/types";
 
 const TEST_ADAPTER: DapResolvedAdapter = {
 	name: "js-debug-adapter",

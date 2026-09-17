@@ -1,4 +1,4 @@
-import { $env, ptree, USER_AGENT } from "@oh-my-pi/pi-utils";
+import { $env, ptree, USER_AGENT } from "@linxiraos/pi-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatMediaDuration, loadPage } from "./types";
 

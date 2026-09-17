@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { toolWireSchema } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { toolWireSchema } from "@linxiraos/pi-ai";
+import { type } from "@linxiraos/pi-omptype";
+import type { Component } from "@linxiraos/pi-tui";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 import {
 	markdownToPhases,
 	nextActionableTask,
@@ -18,8 +19,7 @@ import {
 	TodoTool,
 	todoMatchesAnyDescription,
 	todoToolRenderer,
-} from "@oh-my-pi/pi-coding-agent/tools";
-import type { Component } from "@oh-my-pi/pi-tui";
+} from "@linxiraos/zeta/tools";
 
 function createSession(initialPhases: TodoPhase[] = []): ToolSession {
 	let phases = initialPhases;
@@ -864,7 +864,7 @@ describe("todoToolRenderer.renderCall malformed-args regression (#2005)", () => 
 	it("renders op summary metadata for a well-formed flat call", () => {
 		const args = { op: "init", items: ["a", "b", "c"] };
 		const component = todoToolRenderer.renderCall(args, renderOptions, theme);
-		// `Text(text, 0, 0)` from `@oh-my-pi/pi-tui` exposes the content via .render().
+		// `Text(text, 0, 0)` from `@linxiraos/pi-tui` exposes the content via .render().
 		const rendered = Bun.stripANSI(component.render(120).join("\n"));
 		expect(rendered).toContain("init");
 		expect(rendered).toContain("3 items");

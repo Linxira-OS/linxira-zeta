@@ -8,11 +8,11 @@
  * ask toolResults).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionEntry, SessionTreeNode } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 
 beforeAll(async () => {
 	await initTheme();
@@ -109,6 +109,7 @@ function createCtx(leafEntry: SessionEntry, navigateTreeResult: unknown = { canc
 		session: { navigateTree, resumeAfterAskReanswer },
 		ui: {
 			setFocus: vi.fn(),
+			getFocused: () => undefined,
 			requestRender: vi.fn(),
 			terminal: { rows: 24 },
 		},

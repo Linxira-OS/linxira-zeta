@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentMessage, type AgentOptions, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@oh-my-pi/pi-ai";
-import { streamGoogle } from "@oh-my-pi/pi-ai/providers/google";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { AutoLearnController, buildAutoLearnInstructions } from "@oh-my-pi/pi-coding-agent/autolearn/controller";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAutoLearnCaptureRunner } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { Agent, type AgentMessage, type AgentOptions, type AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@linxiraos/pi-ai";
+import { streamGoogle } from "@linxiraos/pi-ai/providers/google";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { AutoLearnController, buildAutoLearnInstructions } from "@linxiraos/zeta/autolearn/controller";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAutoLearnCaptureRunner } from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
 
 class FakeSession {
 	readonly listeners: Array<(event: AgentSessionEvent) => void> = [];
@@ -41,7 +41,7 @@ class FakeSession {
 	}
 
 	emit(event: AgentSessionEvent): void {
-		// oxlint-disable-next-line unicorn/no-useless-spread -- listeners may change during dispatch
+		//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: listeners may change during dispatch
 		for (const listener of [...this.listeners]) listener(event);
 	}
 

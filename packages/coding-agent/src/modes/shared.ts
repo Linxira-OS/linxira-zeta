@@ -1,5 +1,5 @@
-import type { TabBarTheme } from "@oh-my-pi/pi-tui";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { TabBarTheme } from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { theme } from "./theme/theme";
 
 // ═══════════════════════════════════════════════════════════════════════════

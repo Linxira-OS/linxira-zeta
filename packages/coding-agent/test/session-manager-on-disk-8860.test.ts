@@ -8,8 +8,8 @@
  */
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { MemorySessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 function freshSession(): SessionManager {
 	const cwd = join("/tmp", `omp-on-disk-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);

@@ -28,8 +28,8 @@ import {
 	ScrollView,
 	truncateToWidth,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { sanitizeStatusText } from "../shared";
 import { getMarkdownTheme, theme } from "../theme/theme";
 import {
@@ -976,7 +976,7 @@ export class PlanReviewOverlay implements Component {
 	#buildBody(bodyContentWidth: number): string[] {
 		const lines: string[] = [];
 		const anchors: BodyRowAnchor[] = [];
-		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+		// [suppressed] length preallocation
 		const offsets: number[] = new Array(this.#sections.length);
 		for (let sectionIndex = 0; sectionIndex < this.#sections.length; sectionIndex++) {
 			const section = this.#sections[sectionIndex]!;

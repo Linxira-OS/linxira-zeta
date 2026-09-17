@@ -5,7 +5,7 @@
  * tool that queues a follow-up command to trigger reload.
  */
 
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function (pi: ExtensionAPI) {
 	const z = pi.zod;
@@ -28,7 +28,7 @@ export default function (pi: ExtensionAPI) {
 		description: "Reload extensions, skills, prompts, and themes",
 		parameters: z.object({}),
 		async execute() {
-			pi.sendUserMessage("/reload-runtime", { deliverAs: "followUp" });
+			pi.sendUserMessage("/reload-runtime", { deliverAs: "followUp", attribution: "agent" });
 			return {
 				content: [{ type: "text", text: "Queued /reload-runtime as a follow-up command." }],
 				details: {},

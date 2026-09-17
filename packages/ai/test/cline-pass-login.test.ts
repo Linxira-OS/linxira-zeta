@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 
 const loginClinePass = getProviderDefinition("cline-pass")?.login;
 if (!loginClinePass) throw new Error("ClinePass login is not registered");

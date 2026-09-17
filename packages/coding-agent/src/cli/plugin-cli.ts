@@ -1,12 +1,12 @@
 /**
  * Plugin CLI command handlers.
  *
- * Handles `omp plugin <command>` subcommands for plugin lifecycle management.
+ * Handles `zeta plugin <command>` subcommands for plugin lifecycle management.
  */
 
 import * as path from "node:path";
-import { APP_NAME, getPluginsNodeModules, getProjectDir } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { APP_NAME, getPluginsNodeModules, getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { resolveOrDefaultProjectRegistryPath } from "../discovery/helpers";
 import { PluginManager, parseSettingValue, validateSetting } from "../extensibility/plugins";
 import {
@@ -138,7 +138,7 @@ export function parsePluginArgs(args: string[]): PluginCommandArgs | undefined {
 	return result;
 }
 
-import { classifyInstallTarget } from "./classify-install-target";
+import { classifyInstallTarget, handleMarketplaceInstall } from "./classify-install-target";
 
 export { classifyInstallTarget } from "./classify-install-target";
 
@@ -309,8 +309,19 @@ async function handleDiscover(args: string[], _flags: PluginCommandArgs["flags"]
 }
 
 async function handleUpgrade(args: string[], flags: PluginCommandArgs["flags"]): Promise<void> {
-	const manager = await makeMarketplaceManager();
 	const pluginId = args[0];
+	// `upgrade` targets marketplace plugins, whose IDs are `name@marketplace`.
+	// An npm-installed plugin (e.g. a scoped `@scope/pkg`) never parses as one,
+	// so steer the user to the force-reinstall that actually upgrades it instead
+	// of the bare "Expected name@marketplace" parse error (#11090).
+	if (pluginId && !parsePluginId(pluginId)) {
+		console.error(chalk.red(`Invalid plugin ID: "${pluginId}". Marketplace plugins upgrade as "name@marketplace".`));
+		console.error(
+			chalk.yellow(`For an npm-installed plugin, upgrade with: ${APP_NAME} plugin install ${pluginId} --force`),
+		);
+		process.exit(1);
+	}
+	const manager = await makeMarketplaceManager();
 	try {
 		if (pluginId) {
 			if (flags.scope) {
@@ -326,7 +337,7 @@ async function handleUpgrade(args: string[], flags: PluginCommandArgs["flags"]):
 			if (flags.scope) {
 				console.error(
 					chalk.yellow(
-						`Warning: --scope is ignored when upgrading all plugins. Use 'omp plugin upgrade <id> --scope ${flags.scope}' to target a specific plugin and scope.`,
+						`Warning: --scope is ignored when upgrading all plugins. Use 'zeta plugin upgrade <id> --scope ${flags.scope}' to target a specific plugin and scope.`,
 					),
 				);
 			}
@@ -353,7 +364,7 @@ async function handleInstall(
 	if (packages.length === 0) {
 		console.error(chalk.red(`Usage: ${APP_NAME} plugin install <source>[features] ...`));
 		console.error(chalk.dim("Examples:"));
-		console.error(chalk.dim(`  ${APP_NAME} plugin install @oh-my-pi/exa`));
+		console.error(chalk.dim(`  ${APP_NAME} plugin install @linxiraos/exa`));
 		console.error(chalk.dim(`  ${APP_NAME} plugin install name@marketplace`));
 		console.error(chalk.dim(`  ${APP_NAME} plugin install github:user/repo`));
 		console.error(chalk.dim(`  ${APP_NAME} plugin install https://github.com/user/repo#v1.0`));
@@ -369,6 +380,24 @@ async function handleInstall(
 		const target = classifyInstallTarget(spec, knownMarketplaces);
 
 		if (target.type === "marketplace") {
+			try {
+				const handled = await handleMarketplaceInstall(
+					mktMgr,
+					target,
+					{ dryRun: flags.dryRun ?? false, force: flags.force, scope: flags.scope },
+					preview => {
+						if (flags.json) {
+							console.log(JSON.stringify(preview, null, 2));
+						} else {
+							console.log(chalk.dim(`[dry-run] Would install ${spec}`));
+						}
+					},
+				);
+				if (handled) continue;
+			} catch (err) {
+				console.error(chalk.red(`${theme.status.error} Failed to install ${spec}: ${err}`));
+				process.exit(1);
+			}
 			try {
 				const entry = await mktMgr.installPlugin(target.name, target.marketplace, {
 					force: flags.force,
@@ -389,7 +418,7 @@ async function handleInstall(
 		if (target.type === "local") {
 			// Local paths route to link(): symlink the directory into the plugins
 			// node_modules tree so source edits show up without a reinstall. Matches
-			// `omp plugin link <path>` so users can use either verb interchangeably.
+			// `zeta plugin link <path>` so users can use either verb interchangeably.
 			if (flags.scope) {
 				console.error(
 					chalk.yellow(
@@ -1068,7 +1097,7 @@ ${chalk.bold("Options:")}
   -l, --local      Use project-local overrides
 
 ${chalk.bold("Examples:")}
-  ${APP_NAME} plugin install @oh-my-pi/exa[search]
+  ${APP_NAME} plugin install @linxiraos/exa[search]
   ${APP_NAME} plugin list --json
   ${APP_NAME} plugin features my-plugin --enable search,web
   ${APP_NAME} plugin config set my-plugin apiKey sk-xxx

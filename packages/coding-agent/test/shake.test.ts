@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent, type AgentMessage, RESCUE_SHAKE_CONFIG, Tokenizer } from "@oh-my-pi/pi-agent-core";
-import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
-import type { AssistantMessage, ImageContent, ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentMessage, RESCUE_SHAKE_CONFIG, Tokenizer } from "@linxiraos/pi-agent-core";
+import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, ImageContent, ToolResultMessage } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const usage = {
 	input: 16,
@@ -129,6 +129,25 @@ describe("AgentSession shake", () => {
 			const text = tr.content.map(b => (b.type === "text" ? b.text : "")).join("");
 			expect(text).toContain(`artifact://${result.artifactId}`);
 			expect(text).toContain("shaken");
+		});
+
+		it("continues artifact-less when ordinary shake cannot allocate an artifact", async () => {
+			seedHeavyToolResult("X".repeat(4000));
+			appendRecentProtectedTail();
+			const allocateArtifactPath = vi
+				.spyOn(sessionManager, "allocateArtifactPath")
+				.mockRejectedValue(new Error("artifact directory unavailable"));
+			const saveArtifact = vi.spyOn(sessionManager, "saveArtifact").mockResolvedValue(undefined);
+
+			const result = await session.shake("elide");
+
+			expect(result.toolResultsDropped).toBe(1);
+			expect(result.artifactId).toBeUndefined();
+			const [toolResult] = branchToolResults();
+			expect(toolResult.content).toEqual([{ type: "text", text: expect.stringContaining("[shaken ~") }]);
+			expect(toolResult.content).not.toEqual([{ type: "text", text: expect.stringContaining("artifact://") }]);
+			saveArtifact.mockRestore();
+			allocateArtifactPath.mockRestore();
 		});
 
 		it("preserves mixed tool-result images while eliding only recoverable text", async () => {

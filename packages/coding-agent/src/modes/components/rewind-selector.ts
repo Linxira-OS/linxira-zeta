@@ -22,7 +22,7 @@
  * variants at a fork and jump between user turns elsewhere, Enter rewinds to
  * the outlined item, Esc cancels.
  */
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	type Component,
 	matchesKey,
@@ -32,9 +32,9 @@ import {
 	sliceByColumn,
 	type TUI,
 	truncateToWidth,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import type { MessageRenderer } from "../../extensibility/extensions/types";
-import type { SessionMessageEntry } from "../../session/session-entries";
+import type { TranscriptEntry } from "../../session/session-context";
 import { theme } from "../theme/theme";
 import {
 	matchesAppToolsExpand,
@@ -51,16 +51,16 @@ import {
 	composeOutlineColumn,
 	OutlineRowCache,
 	type OutlineTarget,
+	isUserTurnEntry,
 	outlineVisibility,
 	positionRail,
-	userMessageHasText,
-	userMessageText,
+	userTurnLabel,
 } from "./transcript-outline";
 
 /** One alternate branch at a divergence: its root and message path root → most-recent leaf. */
 export interface BranchVariantPath {
 	rootId: string;
-	entries: SessionMessageEntry[];
+	entries: TranscriptEntry[];
 }
 
 export interface RewindSelectorDeps {
@@ -123,7 +123,7 @@ export class RewindSelectorComponent implements Component {
 	#slideTimer: NodeJS.Timeout | undefined;
 
 	constructor(
-		entries: SessionMessageEntry[],
+		entries: TranscriptEntry[],
 		private readonly deps: RewindSelectorDeps,
 	) {
 		this.#builder = this.#newBuilder();
@@ -187,11 +187,8 @@ export class RewindSelectorComponent implements Component {
 			const builder = this.#newBuilder();
 			builder.setExpanded(this.#expanded);
 			const targets = appendOutlineEntries(builder, sibling.entries);
-			const firstUser = sibling.entries.find(
-				entry => entry.message.role === "user" && userMessageHasText(entry.message),
-			);
-			const label =
-				firstUser && firstUser.message.role === "user" ? userMessageText(firstUser.message) : sibling.rootId;
+			const firstUser = sibling.entries.find(isUserTurnEntry);
+			const label = (firstUser && userTurnLabel(firstUser)) || sibling.rootId;
 			columns.push({ rootId: sibling.rootId, builder, targets, label });
 		}
 		this.#variantCache.set(target.turnId, columns);

@@ -1,16 +1,19 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import * as jsc from "bun:jsc";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createReportBundle } from "@oh-my-pi/pi-coding-agent/debug/report-bundle";
-import { getConfigRootDir, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { collectMemoryStats } from "@linxiraos/zeta/debug/profiler";
+import { createReportBundle } from "@linxiraos/zeta/debug/report-bundle";
+import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalXdgStateHome = process.env.XDG_STATE_HOME;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 let cleanupRoot: string | undefined;
 
 afterEach(async () => {
+	vi.restoreAllMocks();
 	if (originalXdgStateHome === undefined) {
 		delete process.env.XDG_STATE_HOME;
 	} else {
@@ -20,7 +23,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	if (cleanupRoot) {
 		await removeWithRetries(cleanupRoot);
@@ -33,15 +36,51 @@ async function archiveMembers(archivePath: string): Promise<string[]> {
 	return [...(await archive.files()).keys()].sort();
 }
 
-describe("report bundle sessions", () => {
-	it("bundles only the current session's subtree, not unrelated co-located sessions", async () => {
-		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-report-sessions-"));
-		const xdgStateHome = path.join(cleanupRoot, "state");
-		await fs.mkdir(path.join(xdgStateHome, "omp"), { recursive: true });
-		process.env.XDG_STATE_HOME = xdgStateHome;
-		setAgentDir(fallbackAgentDir);
+async function setupReportDirectory(): Promise<string> {
+	cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-report-"));
+	const xdgStateHome = path.join(cleanupRoot, "state");
+	await fs.mkdir(path.join(xdgStateHome, "omp"), { recursive: true });
+	process.env.XDG_STATE_HOME = xdgStateHome;
+	setAgentDir(fallbackAgentDir);
+	return cleanupRoot;
+}
 
-		const sessionsDir = path.join(cleanupRoot, "sessions");
+describe("report bundle privacy", () => {
+	it("exports numeric memory diagnostics without live credentials or runtime type names", async () => {
+		await setupReportDirectory();
+		const credential = `sk-ant-ort01-${crypto.randomUUID()}`;
+		const heap = jsc.heapStats();
+		vi.spyOn(jsc, "heapStats").mockReturnValue({
+			...heap,
+			objectTypeCounts: { [credential]: 1 },
+			protectedObjectTypeCounts: { [credential]: 1 },
+		});
+
+		const result = await createReportBundle({ sessionFile: undefined, memoryStats: collectMemoryStats() });
+		const archive = new Bun.Archive(await Bun.file(result.path).bytes());
+		const members = await archive.files();
+
+		expect(members.has("heap.heapsnapshot")).toBe(false);
+		const memory = members.get("memory.json");
+		if (!memory) throw new Error("Memory report missing numeric diagnostics");
+		const stats: { process: Record<string, unknown>; heap: Record<string, unknown> } = await memory.json();
+		for (const section of [stats.process, stats.heap]) {
+			for (const key in section) {
+				const value = section[key];
+				expect(typeof value).toBe("number");
+				expect(Number.isFinite(value)).toBe(true);
+			}
+		}
+		expect(stats.process.rss).toBeGreaterThan(0);
+		expect(stats.heap.heapSize).toBeGreaterThan(0);
+		for (const member of members.values()) {
+			expect(await member.text()).not.toContain(credential);
+		}
+	});
+
+	it("bundles only the current session's subtree, not unrelated co-located sessions", async () => {
+		const root = await setupReportDirectory();
+		const sessionsDir = path.join(root, "sessions");
 		await fs.mkdir(sessionsDir, { recursive: true });
 
 		// Current session and its artifacts subtree: a genuine subagent transcript

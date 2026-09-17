@@ -6,10 +6,10 @@
   ...
 }:
 let
-  cfg = config.programs.omp;
+  cfg = config.programs.zeta;
 in
 {
-  options.programs.omp = {
+  options.programs.zeta = {
     enable = lib.mkEnableOption "OMP coding agent";
 
     package = lib.mkOption {

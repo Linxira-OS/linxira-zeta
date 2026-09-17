@@ -13,7 +13,7 @@
  *
  * Replaces the old SessionObserverOverlayComponent (ctrl+s observer).
  */
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	Container,
 	matchesKey,
@@ -25,8 +25,8 @@ import {
 	type TUI,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@oh-my-pi/pi-tui";
-import { formatAge, formatNumber, getProjectDir, logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui";
+import { formatAge, formatNumber, getProjectDir, logger } from "@linxiraos/pi-utils";
 import {
 	AgentActivityIndex,
 	type AgentActivityKind,
@@ -1111,6 +1111,7 @@ export class AgentHubOverlayComponent extends Container implements SelectListMou
 		const artifacts = ref.history;
 		if (artifacts?.outputPath) addWrapped(`Output ${shortenPath(artifacts.outputPath)}`);
 		if (artifacts?.patchPath) addWrapped(`Patch ${shortenPath(artifacts.patchPath)}`);
+		for (const nestedPath of artifacts?.nestedPatchPaths ?? []) addWrapped(`Nested patch ${shortenPath(nestedPath)}`);
 		if (artifacts?.branchName) addWrapped(`Worktree branch ${artifacts.branchName}`);
 
 		if (lines.length < rows) add();

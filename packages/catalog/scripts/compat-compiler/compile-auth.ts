@@ -1,7 +1,7 @@
 /**
  * Compiles `rules/auth/*.kdl` into {@link CompiledAuth}: one `auth "<id>"`
  * node per provider describing display metadata, env-var fallbacks and the
- * declarative login / refresh flow interpreted by `@oh-my-pi/pi-ai`'s
+ * declarative login / refresh flow interpreted by `@linxiraos/pi-ai`'s
  * registry engines. `auth/_order.kdl` pins `/login` display order.
  */
 import type {
@@ -697,6 +697,13 @@ function provider(node: KdlNodeView): CompiledAuthProvider {
 			case "allows-missing-api-key":
 				result.allowsMissingApiKey = singleBool(child);
 				break;
+			case "native-auth-api": {
+				leaf(child, []);
+				const apis = positionalStrings(child);
+				if (apis.length === 0 || apis.some(api => !api)) malformed(child);
+				result.nativeAuthApis = apis;
+				break;
+			}
 			case "available":
 				result.available = singleBool(child);
 				break;

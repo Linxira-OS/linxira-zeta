@@ -71,12 +71,20 @@ pub(crate) fn mask_sigttou() -> Result<(), error::Error> {
 	Ok(())
 }
 
-pub(crate) fn poll_for_stopped_children() -> Result<bool, error::Error> {
+/// Polls for a not-yet-reported stop of the direct child identified by
+/// `pid` (`None` drains the whole process, the legacy behavior).
+///
+/// A stop event is reported exactly once per child, so the query must stay
+/// scoped to the caller's own child: an `Id::All` drain here would consume
+/// sibling pipeline stages' stop events out from under their own wait loops.
+pub(crate) fn poll_for_stopped_child(pid: Option<i32>) -> Result<bool, error::Error> {
 	let mut found_stopped = false;
 
 	loop {
-		let wait_status =
-			waitid_all(nix::sys::wait::WaitPidFlag::WUNTRACED | nix::sys::wait::WaitPidFlag::WNOHANG);
+		let wait_status = waitid_pid(
+			pid,
+			nix::sys::wait::WaitPidFlag::WUNTRACED | nix::sys::wait::WaitPidFlag::WNOHANG,
+		);
 		match wait_status {
 			Ok(nix::sys::wait::WaitStatus::Stopped(_stopped_pid, _signal)) => {
 				found_stopped = true;
@@ -91,10 +99,17 @@ pub(crate) fn poll_for_stopped_children() -> Result<bool, error::Error> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn waitid_all(
+fn waitid_pid(
+	pid: Option<i32>,
 	flags: nix::sys::wait::WaitPidFlag,
 ) -> Result<nix::sys::wait::WaitStatus, nix::errno::Errno> {
-	nix::sys::wait::waitid(nix::sys::wait::Id::All, flags)
+	match pid {
+		Some(pid) => nix::sys::wait::waitid(
+			nix::sys::wait::Id::Pid(nix::unistd::Pid::from_raw(pid)),
+			flags,
+		),
+		None => nix::sys::wait::waitid(nix::sys::wait::Id::All, flags),
+	}
 }
 
 //
@@ -104,9 +119,15 @@ fn waitid_all(
 //
 
 #[cfg(target_os = "macos")]
-fn waitid_all(
+fn waitid_pid(
+	pid: Option<i32>,
 	flags: nix::sys::wait::WaitPidFlag,
 ) -> Result<nix::sys::wait::WaitStatus, nix::errno::Errno> {
+	let (idtype, idval) = match pid {
+		Some(pid) => (nix::libc::P_PID, pid as nix::libc::id_t),
+		None => (nix::libc::P_ALL, 0),
+	};
+
 	// SAFETY:
 	// Code copied from nix::sys::wait implementation of waitid for other platforms.
 	// The siginfo structure is valid when filled with zeroes. Memory is zeroed
@@ -117,7 +138,7 @@ fn waitid_all(
 	// SAFETY:
 	// Code copied from nix::sys::wait implementation of waitid for other platforms.
 	nix::errno::Errno::result(unsafe {
-		nix::libc::waitid(nix::libc::P_ALL, 0, &raw mut siginfo, flags.bits())
+		nix::libc::waitid(idtype, idval, &raw mut siginfo, flags.bits())
 	})?;
 
 	siginfo_to_wait_status(siginfo)

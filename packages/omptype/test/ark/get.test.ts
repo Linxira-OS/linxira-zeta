@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype/ark";
+import { type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "./type-assert";
 
 it("can get shallow roots by path", () => {

@@ -1,16 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 
 describe("issue #5879: legacy provider compatibility", () => {
 	it("creates a fresh agent database while loading historical auth exports", async () => {
 		const projectDir = TempDir.createSync("@issue-5879-");
 		const freshAgentDir = projectDir.join("fresh", "agent");
 		const originalDirEnv: Record<string, string | undefined> = {
-			PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
-			OMP_PROFILE: process.env.OMP_PROFILE,
-			PI_PROFILE: process.env.PI_PROFILE,
+			ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
+			ZETA_PROFILE: process.env.ZETA_PROFILE,
 		};
 		const extensionPath = path.join(projectDir.path(), "pi-provider-like-plugin", "index.ts");
 		await Bun.write(

@@ -1,7 +1,7 @@
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 
 /**
- * High-performance, zero-builder protobuf wire codecs for @oh-my-pi/pi-catalog.
+ * High-performance, zero-builder protobuf wire codecs for @linxiraos/pi-catalog.
  *
  * Schemas are declared as static IR descriptors with near-zero module load overhead
  * and lazy compilation on first encode/decode/create invocation.

@@ -173,7 +173,7 @@ export function preservesTokens(rewritten: string, tokens: readonly string[]): b
  * otherwise read as prose and get rewritten.
  */
 export function blockSkipMask(lines: readonly string[]): boolean[] {
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const skip = new Array<boolean>(lines.length).fill(false);
 	let start = 0;
 	// Leading YAML frontmatter: `---` on the first line, closed by the next `---`.
@@ -238,7 +238,7 @@ async function mapPool<T, R>(
 	limit: number,
 	fn: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const results = new Array<R>(items.length);
 	let next = 0;
 	const width = Math.max(1, Math.min(limit, items.length));
@@ -417,8 +417,8 @@ export function makeOpenRouterRewriter(opts: OpenRouterOptions): RewriteChunk {
 					headers: {
 						Authorization: `Bearer ${opts.apiKey}`,
 						"Content-Type": "application/json",
-						"HTTP-Referer": "https://omp.sh/",
-						"X-Title": "omp",
+						"HTTP-Referer": "https://linxira-os.github.io/zeta/",
+						"X-Title": "zeta",
 					},
 					body,
 				});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { canonicalizeMessage, formatThinkingForDisplay } from "@oh-my-pi/pi-coding-agent/utils/thinking-display";
+import { canonicalizeMessage, formatThinkingForDisplay } from "@linxiraos/zeta/utils/thinking-display";
 
 describe("canonicalizeMessage", () => {
 	it("returns empty string for undefined, empty, or whitespace-only", () => {
@@ -193,7 +193,7 @@ describe("formatThinkingForDisplay seam-transition battery", () => {
 		it(`byte-identical at every split point across cap/fence/marker transitions (mode=${proseOnly ? "prose" : "raw"})`, () => {
 			const fixture = `${"x".repeat(8300)}\n\`\`\`js\nstep one\nstep two\n\`\`\`\ntail prose.\n<!-- -->\nappended`;
 			const n = fixture.length;
-			// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+			// [suppressed] length preallocation
 			const refs: string[] = new Array(n + 1);
 			for (let i = 0; i <= n; i++) {
 				formatThinkingForDisplay(POISON_BATTERY, proseOnly);

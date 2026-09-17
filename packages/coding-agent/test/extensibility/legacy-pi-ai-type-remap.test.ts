@@ -3,22 +3,26 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
+import { registerCustomApi, unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions } from "@linxiraos/pi-ai";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import {
 	calculateCost,
 	getBundledModel,
 	getBundledModels,
 	getBundledProviders,
 	modelsAreEqual,
-} from "@oh-my-pi/pi-catalog/models";
-import { Type as TypeBoxShimType } from "@oh-my-pi/pi-coding-agent/extensibility/legacy-typebox";
+} from "@linxiraos/pi-catalog/models";
+import { Type as TypeBoxShimType } from "@linxiraos/zeta/extensibility/legacy-typebox";
 import {
 	__resetLegacyPiResolutionCache,
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
-// pi-ai 15.1.0 removed the runtime `Type` export from `@oh-my-pi/pi-ai`'s
+// pi-ai 15.1.0 removed the runtime `Type` export from `@linxiraos/pi-ai`'s
 // package root. Legacy extensions (and their aliased-scope variants such as
 // `@earendil-works/pi-ai`) still author parameter schemas as
 // `import { Type } from "@earendil-works/pi-ai"` and then `Type.Object(...)`.
@@ -28,10 +32,16 @@ import { removeWithRetries } from "@oh-my-pi/pi-utils";
 // `@sinclair/typebox` is served from.
 installLegacyPiSpecifierShim();
 
+// Use a unique API name as well as a unique source ID: registrations are keyed
+// by API name, so registering the shared `mock` API would replace another
+// suite's module-scoped owner before source-scoped cleanup could run.
+const COMPLETE_API = "legacy-pi-ai-type-remap-complete";
+const COMPLETE_API_SOURCE_ID = "legacy-pi-ai-type-remap.test";
 const tempRoots: string[] = [];
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	unregisterCustomApis(COMPLETE_API_SOURCE_ID);
 });
 
 afterAll(async () => {
@@ -88,22 +98,22 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		expect(loaded.completeType).toBe("function");
 	});
 
-	it('redirects `import { Type } from "@oh-my-pi/pi-ai"` for plugins published against the canonical scope', async () => {
+	it('redirects `import { Type } from "@linxiraos/pi-ai"` for plugins published against the canonical scope', async () => {
 		const entry = await writeFixtureExtension(
-			['import { Type } from "@oh-my-pi/pi-ai";', "export const probe = Type;"].join("\n"),
+			['import { Type } from "@linxiraos/pi-ai";', "export const probe = Type;"].join("\n"),
 		);
 
 		const loaded = (await loadLegacyPiModule(entry)) as { probe: typeof TypeBoxShimType };
 		expect(loaded.probe).toBe(TypeBoxShimType);
 	});
 
-	it("does not redirect subpath imports such as @oh-my-pi/pi-ai/utils/schema", async () => {
+	it("does not redirect subpath imports such as @linxiraos/pi-ai/utils/schema", async () => {
 		const entry = await writeFixtureExtension(
 			[
 				// `arkToWireSchema` is only exported from the subpath, not the root,
 				// so a successful import proves the subpath still resolves directly
 				// against the bundled pi-ai package rather than the shim.
-				'import { arkToWireSchema } from "@oh-my-pi/pi-ai/utils/schema";',
+				'import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";',
 				"export const fn = arkToWireSchema;",
 			].join("\n"),
 		);
@@ -116,7 +126,7 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		const loaded = (await loadLegacyPiModule(
 			await writeFixtureExtension(
 				[
-					'import { calculateCost, clampThinkingLevel, getBundledModel, getBundledModels, getBundledProviders, getModel, getModels, modelsAreEqual, StringEnum } from "@oh-my-pi/pi-ai";',
+					'import { calculateCost, clampThinkingLevel, getBundledModel, getBundledModels, getBundledProviders, getModel, getModels, modelsAreEqual, StringEnum } from "@linxiraos/pi-ai";',
 					"export const helpers = { calculateCost, getBundledModel, getBundledModels, getBundledProviders, getModel, getModels, modelsAreEqual };",
 					"export const supported = clampThinkingLevel({ reasoning: true, thinking: { efforts: ['low', 'high'] } }, 'high');",
 					"export const disabled = clampThinkingLevel({ reasoning: false }, 'high');",
@@ -174,13 +184,33 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		expect(loaded.quota).toBe(false);
 		expect(loaded.ok).toBe(false);
 	});
+
+	it("exports getSupportedThinkingLevels for legacy thinking menus (issue #10800)", async () => {
+		// `@earendil-works/pi-ai` exports getSupportedThinkingLevels from its
+		// package root (models.ts). Plugins such as `@companion-ai/feynman`
+		// import it to build their `/thinking` level menu, so a missing shim
+		// export surfaced as a plain
+		// `Export named 'getSupportedThinkingLevels' not found` at load time.
+		const loaded = (await loadLegacyPiModule(
+			await writeFixtureExtension(
+				[
+					'import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";',
+					"export const reasoning = getSupportedThinkingLevels({ reasoning: true, thinking: { efforts: ['low', 'high', 'max'] } });",
+					"export const nonReasoning = getSupportedThinkingLevels({ reasoning: false });",
+				].join("\n"),
+			),
+		)) as { reasoning: string[]; nonReasoning: string[] };
+
+		expect(loaded.reasoning).toEqual(["off", "low", "high", "max"]);
+		expect(loaded.nonReasoning).toEqual(["off"]);
+	});
 });
 
 describe("legacy pi package root remaps (issue #1474)", () => {
 	it("loads @earendil-works/pi-coding-agent root imports when host package resolution is unavailable", async () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@oh-my-pi/pi-coding-agent" && from.endsWith(path.join("src", "extensibility", "plugins"))) {
+			if (specifier === "@linxiraos/zeta" && from.endsWith(path.join("src", "extensibility", "plugins"))) {
 				throw new Error("compiled binary host package resolution unavailable");
 			}
 			return realResolveSync(specifier, from);
@@ -308,7 +338,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("falls back to legacy-scoped subpath peers for direct plugin imports", async () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@oh-my-pi/pi-ai/oauth") {
+			if (specifier === "@linxiraos/pi-ai/oauth") {
 				throw new Error(`canonical peer unavailable from ${from}`);
 			}
 			return realResolveSync(specifier, from);
@@ -340,7 +370,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("routes @earendil-works/pi-utils through canonical Bun.resolveSync in non-compiled mode", async () => {
 		// Regression: when omp runs from a node_modules install (not the monorepo
 		// and not a compiled binary), the bundled packages live at
-		// `node_modules/@oh-my-pi/pi-*`, not next to the source tree. Hardcoding
+		// `node_modules/@linxiraos/pi-*`, not next to the source tree. Hardcoding
 		// a sibling `packages/<pkg>/src/index.ts` path would miss them, so the
 		// non-compiled branch must delegate to `Bun.resolveSync` against the
 		// canonical specifier.
@@ -351,7 +381,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		let canonicalLookupSeen = false;
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@oh-my-pi/pi-utils") {
+			if (specifier === "@linxiraos/pi-utils") {
 				canonicalLookupSeen = true;
 			}
 			return realResolveSync(specifier, from);
@@ -366,5 +396,95 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 		const loaded = (await loadLegacyPiModule(entry)) as { probe: () => boolean };
 		expect(typeof loaded.probe).toBe("function");
 		expect(canonicalLookupSeen).toBe(true);
+	});
+});
+it("runs the legacy pi-ai compat `complete` export with SoL-Pi's reducer call shape", async () => {
+	const entry = await writeFixtureExtension(
+		[
+			'import { StringEnum, complete, type Model } from "@earendil-works/pi-ai/compat";',
+			'export const schema = StringEnum(["red", "green"] as const);',
+			"export const completeCompat = complete;",
+			"export type LegacyModel = Model;",
+		].join("\n"),
+	);
+
+	const loaded = (await loadLegacyPiModule(entry)) as {
+		schema: { safeParse: (input: unknown) => { success: boolean } };
+		completeCompat: (
+			model: Model<Api>,
+			context: { systemPrompt?: string; messages: Context["messages"] },
+			options?: SimpleStreamOptions & { timeoutMs?: number },
+		) => Promise<AssistantMessage>;
+	};
+	let callCount = 0;
+	let capturedOptions: SimpleStreamOptions | undefined;
+	registerCustomApi(
+		COMPLETE_API,
+		(model, _context, options) => {
+			callCount++;
+			capturedOptions = options;
+			const stream = new AssistantMessageEventStream();
+			queueMicrotask(() => {
+				const message: AssistantMessage = {
+					role: "assistant",
+					content: [{ type: "text", text: "reduced output" }],
+					api: model.api,
+					provider: model.provider,
+					model: model.id,
+					usage: {
+						input: 1,
+						output: 2,
+						cacheRead: 0,
+						cacheWrite: 0,
+						totalTokens: 3,
+						cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+					},
+					stopReason: "stop",
+					timestamp: Date.now(),
+				};
+				stream.push({ type: "start", partial: message });
+				stream.push({ type: "done", reason: "stop", message });
+			});
+			return stream;
+		},
+		COMPLETE_API_SOURCE_ID,
+	);
+	const model = buildModel({
+		id: "reducer",
+		name: "Reducer",
+		api: COMPLETE_API,
+		provider: "legacy-pi-ai-type-remap",
+		baseUrl: "",
+		reasoning: false,
+		input: ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 4096,
+		maxTokens: 1024,
+	});
+	const response = await loaded.completeCompat(
+		model,
+		{
+			systemPrompt: "Reduce",
+			messages: [{ role: "user", content: [{ type: "text", text: "payload" }], timestamp: 0 }],
+		},
+		{
+			apiKey: "test-key",
+			cacheRetention: "none",
+			maxTokens: 321,
+			sessionId: "sol-pi-run",
+			signal: AbortSignal.timeout(1000),
+			timeoutMs: 1000,
+		},
+	);
+
+	expect(loaded.schema.safeParse("red").success).toBe(true);
+	expect(loaded.schema.safeParse("blue").success).toBe(false);
+	expect(response.content).toEqual([{ type: "text", text: "reduced output" }]);
+	expect(callCount).toBe(1);
+	expect(capturedOptions).toMatchObject({
+		apiKey: "test-key",
+		cacheRetention: "none",
+		maxTokens: 321,
+		sessionId: "sol-pi-run",
 	});
 });

@@ -6,9 +6,10 @@
  *
  * Two rules under test:
  * - `blocked-account` (trigger `blocked` only): eligibility comes from the
- *   exact exhausted chat windows — 5h primary and/or weekly secondary; a
- *   banked reset also clears a 5h-only block (openai/codex#28525). The
- *   natural unblock is the LATEST reset among the exhausted windows.
+ *   exact exhausted normalized chat windows — 5h and/or weekly, regardless of
+ *   which base limit slot carries them; a banked reset also clears a 5h-only
+ *   block (openai/codex#28525). The natural unblock is the LATEST reset among
+ *   the exhausted windows.
  *   Candidates span ALL accounts, active first.
  * - `expiring-credit` (any trigger): use-it-or-lose-it salvage of credits
  *   whose `expiresAt` falls inside the horizon, gated only by the window
@@ -17,9 +18,9 @@
  *   ({@link isTerminalRedeemOutcome}).
  */
 import { describe, expect, it } from "bun:test";
-import type { UsageReport } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SETTINGS_SCHEMA } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { SETTINGS_SCHEMA } from "@linxiraos/zeta/config/settings-schema";
 import {
 	blockedAttemptKey,
 	type CodexResetPlanInput,
@@ -29,7 +30,7 @@ import {
 	salvageAttemptKey,
 	shouldEvaluateCodexAutoRedeem,
 	shouldPromptCodexAutoRedeem,
-} from "@oh-my-pi/pi-coding-agent/session/codex-auto-reset";
+} from "@linxiraos/zeta/session/codex-auto-reset";
 
 // Epoch ms divisible by 60_000 so minute-boundary reset/expiry times let the
 // debounce-jitter cases reason about bucket crossings precisely.
@@ -51,6 +52,10 @@ interface AccountOpts {
 	primaryUsed?: number;
 	/** Primary `resetsAt = NOW + this`; `undefined` omits the timestamp. */
 	primaryResetInMs?: number | undefined;
+	/** Normalized primary window id; defaults to `5h`. */
+	primaryWindowId?: string;
+	/** Normalized primary window duration, when reported. */
+	primaryWindowDurationMs?: number;
 	/** `availableCount`; `undefined` omits `resetCredits` (older broker / parse failure). */
 	credits?: number | undefined;
 	/** Per-credit `expiresAt = NOW + offset` (ISO). */
@@ -69,14 +74,16 @@ function report(opts: AccountOpts = {}): UsageReport {
 	const weeklyResetInMs = "weeklyResetInMs" in opts ? opts.weeklyResetInMs : 3 * DAY;
 	const primaryResetInMs = "primaryResetInMs" in opts ? opts.primaryResetInMs : 2 * HOUR;
 	const credits = "credits" in opts ? opts.credits : 1;
+	const primaryWindowId = opts.primaryWindowId ?? "5h";
 	const limits: UsageReport["limits"] = [
 		{
 			id: "openai-codex:primary",
-			label: "5 Hour",
-			scope: { provider: "openai-codex", accountId },
+			label: primaryWindowId === "7d" ? "7 Days" : "5 Hour",
+			scope: { provider: "openai-codex", accountId, windowId: primaryWindowId },
 			window: {
-				id: "5h",
-				label: "5 Hour",
+				id: primaryWindowId,
+				label: primaryWindowId === "7d" ? "7 Days" : "5 Hour",
+				...(opts.primaryWindowDurationMs === undefined ? {} : { durationMs: opts.primaryWindowDurationMs }),
 				...(primaryResetInMs === undefined ? {} : { resetsAt: NOW + primaryResetInMs }),
 			},
 			amount: { usedFraction: opts.primaryUsed ?? 0.5, unit: "percent" },
@@ -147,6 +154,27 @@ describe("planCodexResetRedemptions: blocked-account", () => {
 				blockedWindows: ["weekly"],
 				active: true,
 			},
+		]);
+	});
+
+	it("restores a weekly block reported in the primary limit slot", () => {
+		const plan = planCodexResetRedemptions(
+			input([
+				report({
+					primaryUsed: 1,
+					primaryResetInMs: 42 * HOUR,
+					primaryWindowId: "7d",
+					primaryWindowDurationMs: 7 * DAY,
+					weeklyUsed: undefined,
+				}),
+			]),
+		);
+		expect(plan.actions).toEqual([
+			expect.objectContaining({
+				remainingMs: 42 * HOUR,
+				blockedWindows: ["weekly"],
+				weeklyUsedFraction: 1,
+			}),
 		]);
 	});
 

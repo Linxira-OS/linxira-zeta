@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 describe("InputController tool output expansion", () => {
 	it("expands children and forces a full repaint so every live block re-renders", () => {
@@ -62,7 +62,7 @@ describe("InputController tool activity visibility", () => {
 		const rebuildChatFromMessages = vi.fn();
 		const set = vi.fn();
 		const clearInlineImages = vi.fn();
-		const requestRender = vi.fn();
+		const resetDisplay = vi.fn();
 		const showStatus = vi.fn();
 		const setToolActivityVisible = vi.fn();
 		const ctx = {
@@ -72,7 +72,7 @@ describe("InputController tool activity visibility", () => {
 			chatContainer: { children, clear, addChild, setToolActivityVisible },
 			rebuildChatFromMessages,
 			showStatus,
-			ui: { clearInlineImages, requestRender },
+			ui: { clearInlineImages, resetDisplay },
 		};
 		const controller = new InputController(ctx as unknown as InteractiveModeContext) as unknown as InputController & {
 			toggleToolActivityVisibility(): void;
@@ -87,8 +87,8 @@ describe("InputController tool activity visibility", () => {
 		expect(addChild).not.toHaveBeenCalled();
 		expect(rebuildChatFromMessages).not.toHaveBeenCalled();
 		expect(clearInlineImages).toHaveBeenCalledTimes(1);
-		expect(requestRender).toHaveBeenCalledTimes(1);
-		expect(clearInlineImages.mock.invocationCallOrder[0]).toBeLessThan(requestRender.mock.invocationCallOrder[0]);
+		expect(resetDisplay).toHaveBeenCalledTimes(1);
+		expect(clearInlineImages.mock.invocationCallOrder[0]).toBeLessThan(resetDisplay.mock.invocationCallOrder[0]);
 		expect(showStatus).toHaveBeenLastCalledWith("Tool activity: hidden");
 		expect(setToolResultImagesVisible).toHaveBeenLastCalledWith(false);
 		expect(setToolActivityVisible).toHaveBeenLastCalledWith(false);
@@ -103,7 +103,7 @@ describe("InputController tool activity visibility", () => {
 		expect(addChild).not.toHaveBeenCalled();
 		expect(rebuildChatFromMessages).not.toHaveBeenCalled();
 		expect(clearInlineImages).toHaveBeenCalledTimes(1);
-		expect(requestRender).toHaveBeenCalledTimes(2);
+		expect(resetDisplay).toHaveBeenCalledTimes(2);
 		expect(showStatus).toHaveBeenLastCalledWith("Tool activity: visible");
 		expect(setToolResultImagesVisible).toHaveBeenLastCalledWith(true);
 		expect(setToolActivityVisible).toHaveBeenLastCalledWith(true);

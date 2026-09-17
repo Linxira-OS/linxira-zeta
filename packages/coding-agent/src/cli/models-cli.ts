@@ -1,20 +1,22 @@
 /**
- * `omp models` — list, search, and refresh available models.
+ * `zeta models` — list, search, and refresh available models.
  *
  * Subcommands:
  * - `ls` (default): list every available model grouped by provider.
  * - `find <substring>`: list models whose provider, id, or name contains the substring.
  * - `refresh`: force an online catalog re-fetch (ignoring the model cache TTL),
- *   then list. This is the supported replacement for `rm -rf ~/.omp/models.db`
+ *   then list. This is the supported replacement for `rm -rf ~/.zeta/models.db`
  *   when a provider ships a new model that the 24h cache has not picked up yet.
  *
  * `ls`/`find` use the cache when fresh (`online-if-uncached`); only `refresh`
  * forces the network (`online`).
  */
-import type { Api, Effort, Model } from "@oh-my-pi/pi-ai";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { formatNumber, getProjectDir } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import type { Api, Effort, Model } from "@linxiraos/pi-ai";
+import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { formatNumber, getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import type { ConfigError } from "../config/config-file";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAndLoadExtensions, ExtensionRunner, emitSessionShutdownEvent } from "../extensibility/extensions";
@@ -42,7 +44,7 @@ export interface ModelsCommandArgs {
 /**
  * Known action keywords. Any other first token (e.g. `openai-codex`) is treated
  * as a provider/substring filter for the default `ls` view, so every provider
- * name doubles as an `omp models <provider>` shortcut.
+ * name doubles as a `zeta models <provider>` shortcut.
  */
 const KNOWN_ACTIONS: Record<string, ModelsAction> = {
 	ls: "ls",
@@ -165,14 +167,23 @@ function boxTable(columns: BoxColumn[], rows: string[][]): string[] {
 	return lines;
 }
 
-/** `omp models ls`/`find`: provider-grouped listing (one box table per provider). */
-function renderProviderModels(
-	modelRegistry: ModelRegistry,
+/**
+ * The two registry reads the listing performs. Structural so the renderer can be
+ * exercised without booting a full {@link ModelRegistry}.
+ */
+export interface ModelsListingSource {
+	getAvailable(): Model<Api>[];
+	getError(): ConfigError | undefined;
+}
+
+/** `zeta models ls`/`find`: provider-grouped listing (one box table per provider). */
+export function renderProviderModels(
+	source: ModelsListingSource,
 	action: ModelsAction,
 	pattern: string | undefined,
 	json: boolean,
 ): void {
-	const available = modelRegistry.getAvailable();
+	const available = source.getAvailable();
 	const needle = pattern?.toLowerCase();
 	let filtered = available;
 
@@ -196,7 +207,7 @@ function renderProviderModels(
 		}
 	}
 
-	const configError = modelRegistry.getError();
+	const configError = source.getError();
 
 	if (json) {
 		if (configError) {
@@ -243,7 +254,9 @@ function renderProviderModels(
 			formatLimit(model.contextWindow),
 			formatLimit(model.maxTokens),
 			model.thinking ? getSupportedEfforts(model).join(",") : model.reasoning ? "yes" : "-",
-			model.input.includes("image") ? "yes" : "no",
+			// Wire truth, not the declared `input`: the transport drops image parts for
+			// models the catalog marks text-only (`compat.stripImageInput`, #9697).
+			sendsImageInputOnWire(model) ? "yes" : "no",
 		]);
 		for (const line of boxTable(
 			[
@@ -342,7 +355,7 @@ export async function runModelsListing(options: RunModelsListingOptions): Promis
 }
 
 /**
- * Entry point for the standalone `omp models` command: bootstraps auth storage,
+ * Entry point for the standalone `zeta models` command: bootstraps auth storage,
  * settings, and the model registry, force/cache-refreshes built-in providers per
  * the chosen action, then delegates to {@link runModelsListing}.
  */
@@ -351,7 +364,7 @@ export async function runModelsCommand(command: ModelsCommandArgs): Promise<void
 	const json = command.flags.json ?? false;
 
 	if (action === "find" && (!pattern || pattern.trim().length === 0)) {
-		process.stderr.write("`omp models find` requires a search substring, e.g. `omp models find minimax`\n");
+		process.stderr.write("`zeta models find` requires a search substring, e.g. `zeta models find minimax`\n");
 		process.exitCode = 1;
 		return;
 	}
@@ -365,7 +378,10 @@ export async function runModelsCommand(command: ModelsCommandArgs): Promise<void
 		if (action === "refresh" && !json && process.stderr.isTTY) {
 			process.stderr.write("Refreshing models from all providers…\n");
 		}
-		await modelRegistry.refresh(action === "refresh" ? "online" : "online-if-uncached");
+		await modelRegistry.refresh(
+			action === "refresh" ? "online" : "online-if-uncached",
+			action === "refresh" ? { refreshCommandCredentials: true } : undefined,
+		);
 
 		const cliExtensionPaths = command.flags.extensions ?? [];
 		await runModelsListing({

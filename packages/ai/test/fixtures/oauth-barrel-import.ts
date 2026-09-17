@@ -1,13 +1,13 @@
 import {
 	getOAuthProviders as rootGetOAuthProviders,
 	refreshOAuthToken as rootRefreshOAuthToken,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	getOAuthProviders as oauthGetOAuthProviders,
 	refreshOAuthToken as oauthRefreshOAuthToken,
-} from "@oh-my-pi/pi-ai/registry/oauth";
-import "@oh-my-pi/pi-ai/providers/anthropic";
-import "@oh-my-pi/pi-ai/auth-storage";
+} from "@linxiraos/pi-ai/registry/oauth";
+import "@linxiraos/pi-ai/providers/anthropic";
+import "@linxiraos/pi-ai/auth-storage";
 
 const publicExports = [rootGetOAuthProviders, rootRefreshOAuthToken, oauthGetOAuthProviders, oauthRefreshOAuthToken];
 

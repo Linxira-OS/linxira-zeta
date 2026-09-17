@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disableUserSource, enableUserSource, loadCapability } from "@oh-my-pi/pi-coding-agent/capability";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import { clearClaudePluginRootsCache } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { disableUserSource, enableUserSource, loadCapability } from "@linxiraos/zeta/capability";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
 import { restoreEnvValue } from "./helpers/settings-test-state";
-import "@oh-my-pi/pi-coding-agent/discovery/claude-plugins";
-import type { MCPServer } from "@oh-my-pi/pi-coding-agent/capability/mcp";
+import "@linxiraos/zeta/discovery/claude-plugins";
+import type { MCPServer } from "@linxiraos/zeta/capability/mcp";
 
 describe("issue-851: claude-plugins loads flat .mcp.json shape", () => {
 	let tempDir: string;

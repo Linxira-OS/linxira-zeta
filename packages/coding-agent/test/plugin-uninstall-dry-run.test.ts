@@ -11,11 +11,11 @@
  * rendered success or error output initialize it explicitly.
  */
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
-import { runPluginCommand } from "@oh-my-pi/pi-coding-agent/cli/plugin-cli";
-import { PluginManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/manager";
-import type { InstalledPluginSummary } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import { MarketplaceManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
+import type { InstalledPluginSummary } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 describe("runPluginCommand({ action: 'uninstall', flags: { dryRun } })", () => {
 	beforeEach(async () => {

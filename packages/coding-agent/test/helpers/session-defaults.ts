@@ -1,4 +1,4 @@
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 /** Spread first in a session fake; keep state and behavior overrides on the fake itself. */
 export function createSessionDefaults() {
@@ -7,6 +7,7 @@ export function createSessionDefaults() {
 		waitForIdle: async () => {},
 		prepareForHeadlessAdvisorDrain: () => {},
 		waitForAdvisorCatchup: async () => true,
+		getToolByName: () => undefined,
 		getLastAssistantMessage: () => undefined,
 		abort: async () => {},
 		dispose: async () => {},

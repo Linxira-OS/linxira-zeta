@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { MarketplacePluginEntry } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import { resolvePluginSource } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import type { MarketplacePluginEntry } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { resolvePluginSource, validatePluginSource } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // Fixture: a cloned marketplace with a single plugin at ./plugins/hello-plugin
 const FIXTURE_DIR = path.resolve(import.meta.dir, "fixtures/valid-marketplace");
@@ -33,6 +33,33 @@ describe("resolvePluginSource", () => {
 		});
 		expect(resolved.dir).toBe(path.resolve(FIXTURE_DIR, "plugins/hello-plugin"));
 		expect(resolved.tempCloneRoot).toBeUndefined();
+	});
+
+	it("validates relative sources without mutating or cloning", async () => {
+		await expect(
+			validatePluginSource(makeEntry("./plugins/hello-plugin"), { marketplaceClonePath: FIXTURE_DIR }),
+		).resolves.toBe(path.resolve(FIXTURE_DIR, "plugins/hello-plugin"));
+	});
+
+	it("rejects unsupported npm sources during validation", async () => {
+		await expect(validatePluginSource(makeEntry({ source: "npm", package: "hello-plugin" }), {})).rejects.toThrow(
+			/npm plugin sources are not yet supported/,
+		);
+	});
+
+	it("rejects git-subdir traversal during validation", async () => {
+		await expect(
+			validatePluginSource(makeEntry({ source: "git-subdir", url: "owner/repo", path: "../../escape" }), {}),
+		).rejects.toThrow(/escapes the cloned repository/);
+	});
+
+	it("allows git-subdir parent segments that remain contained", async () => {
+		await expect(
+			validatePluginSource(
+				makeEntry({ source: "git-subdir", url: "owner/repo", path: "packages/../plugins/foo" }),
+				{},
+			),
+		).resolves.toBeUndefined();
 	});
 
 	it("throws when source string would escape marketplace root", async () => {

@@ -2,11 +2,11 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { AuthStorage, type Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { AuthStorage, type Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import { EVAL_AGENT_BRIDGE_NAME } from "../src/eval/agent-bridge";
@@ -373,6 +373,15 @@ describe("Code Mode session reconciliation", () => {
 		expect(session.getEnabledToolNames()).toEqual(["read"]);
 		expect(session.getActiveToolNames()).toEqual(["read"]);
 		expect(session.codeModeNamespacesInfo).toBeUndefined();
+	});
+
+	test("retains the startup tools array when reconciliation keeps the exact roster", async () => {
+		const { session } = createSession(Settings.isolated({ "providers.openai-codex.codeMode": "off" }));
+		const startupTools = session.agent.state.tools;
+
+		await session.setActiveToolsByName(["eval", "read"]);
+
+		expect(session.agent.state.tools).toBe(startupTools);
 	});
 
 	test("startup reconcile survives a transiently narrow live tool set", async () => {

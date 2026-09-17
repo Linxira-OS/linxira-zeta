@@ -4,13 +4,17 @@ import {
 	highlightCode as nativeHighlightCode,
 	supportsLanguage as nativeSupportsLanguage,
 	warmHighlighter as nativeWarmHighlighter,
-} from "@oh-my-pi/pi-natives";
-import type { EditorTheme, MarkdownTheme, SelectListTheme, SettingsListTheme, SymbolTheme } from "@oh-my-pi/pi-tui";
-import chalk from "@oh-my-pi/pi-utils/chalk";
-import { LRUCache } from "@oh-my-pi/pi-utils/lru";
+} from "@linxiraos/pi-natives";
+import type { EditorTheme } from "@linxiraos/pi-tui/components/editor";
+import type { MarkdownTheme } from "@linxiraos/pi-tui/components/markdown";
+import type { SelectListTheme } from "@linxiraos/pi-tui/components/select-list";
+import type { SettingsListTheme } from "@linxiraos/pi-tui/components/settings-list";
+import type { SymbolTheme } from "@linxiraos/pi-tui/symbols";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { resolveMermaidAscii } from "./mermaid-cache";
 import type { SlashCommandIconName } from "./symbols";
-import { theme } from "./theme";
+import { ensureThemeSync, theme } from "./theme";
 import type { Theme } from "./theme-class";
 
 // ============================================================================
@@ -175,6 +179,7 @@ export function setMarkdownMermaidRendering(enabled: boolean): void {
 }
 
 export function getMarkdownTheme(): MarkdownTheme {
+	ensureThemeSync();
 	if (cachedMarkdownTheme !== undefined && cachedMarkdownThemeRef === theme) {
 		return cachedMarkdownTheme;
 	}

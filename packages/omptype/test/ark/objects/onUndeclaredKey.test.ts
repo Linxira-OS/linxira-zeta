@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype/ark";
+import { type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "../type-assert";
 
 it("can parse an undeclared restriction", () => {
 	const T = type({ "+": "reject" });
+	// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 	const _type1: Eq<typeof T.infer, {}> = true;
 	expect(T({ extra: true }).toString()).toBe("extra must be removed");
 });

@@ -2,10 +2,10 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncAllSessions } from "@oh-my-pi/omp-stats/aggregator";
-import { closeDb, getOverallStats, getRecentRequests } from "@oh-my-pi/omp-stats/db";
-import { parseSessionFile } from "@oh-my-pi/omp-stats/parser";
-import { getSessionsDir, getStatsDbPath } from "@oh-my-pi/pi-utils";
+import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
+import { closeDb, getOverallStats, getRecentRequests } from "@linxiraos/pi-stats/db";
+import { parseSessionFile } from "@linxiraos/pi-stats/parser";
+import { getSessionsDir, getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-priority-");
@@ -58,7 +58,7 @@ function assistantEntry(opts: {
 
 describe("priority service-tier premium-request backfill", () => {
 	it("derives premium_requests from service_tier_change entries for providers that honor priority", async () => {
-		await writeSession("--tmp--proj", "01.jsonl", {
+		await writeSession("--zeta-fixtures--proj", "01.jsonl", {
 			lines: [
 				{ type: "session", version: 1, id: "s1", timestamp: new Date().toISOString(), cwd: "/tmp/proj" },
 				{ type: "service_tier_change", id: "stc1", timestamp: new Date().toISOString(), serviceTier: "priority" },
@@ -81,7 +81,7 @@ describe("priority service-tier premium-request backfill", () => {
 	});
 
 	it("preserves an existing non-zero premiumRequests value (Copilot multiplier) even under priority tier", async () => {
-		await writeSession("--tmp--proj", "02.jsonl", {
+		await writeSession("--zeta-fixtures--proj", "02.jsonl", {
 			lines: [
 				{ type: "session", version: 1, id: "s2", timestamp: new Date().toISOString(), cwd: "/tmp/proj" },
 				{ type: "service_tier_change", id: "stc", timestamp: new Date().toISOString(), serviceTier: "priority" },
@@ -102,7 +102,7 @@ describe("priority service-tier premium-request backfill", () => {
 		// the new backfill sentinel is absent, so `file_offsets` is wiped and
 		// the parser re-reads the session — this time deriving the priority
 		// count from the recorded `service_tier_change` and upserting the row.
-		const sessionFile = await writeSession("--tmp--proj", "03.jsonl", {
+		const sessionFile = await writeSession("--zeta-fixtures--proj", "03.jsonl", {
 			lines: [
 				{ type: "session", version: 1, id: "s3", timestamp: new Date().toISOString(), cwd: "/tmp/proj" },
 				{ type: "service_tier_change", id: "stc", timestamp: new Date().toISOString(), serviceTier: "priority" },
@@ -172,7 +172,7 @@ describe("priority service-tier premium-request backfill", () => {
 		// Session opens with priority, then a reply lands after we've already
 		// advanced `fromOffset` past the tier-change entry. The parser must
 		// replay the prefix and still attribute the reply as a premium request.
-		const sessionFile = await writeSession("--tmp--proj", "04.jsonl", {
+		const sessionFile = await writeSession("--zeta-fixtures--proj", "04.jsonl", {
 			lines: [
 				{ type: "session", version: 1, id: "s4", timestamp: new Date().toISOString(), cwd: "/tmp/proj" },
 				{ type: "service_tier_change", id: "stc", timestamp: new Date().toISOString(), serviceTier: "priority" },

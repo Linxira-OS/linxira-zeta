@@ -11,13 +11,13 @@
  * are stubbed.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
-import { CollabHost } from "@oh-my-pi/pi-coding-agent/collab/host";
-import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
+import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // In-memory transport: shared FakeWebSocket + InMemoryRelay harness (see
@@ -105,6 +105,7 @@ function makeFailingGuestContext(failure: Error): InteractiveModeContext {
 		streamingMessage: undefined,
 		transcriptMessageComponents: new WeakMap(),
 		pendingTools: new Map(),
+		eventController: { handleEvent: () => Promise.resolve(), takeDisplaceableComponents: () => [] },
 		loadingAnimation: undefined,
 		statusLine: {
 			setCollabStatus: () => {},
@@ -116,6 +117,7 @@ function makeFailingGuestContext(failure: Error): InteractiveModeContext {
 		resetObserverRegistry: () => {},
 		renderInitialMessages: () => {},
 		reloadTodos: () => Promise.resolve(),
+		syncRunningSubagentBadge: () => {},
 		showStatus: () => {},
 		updateEditorTopBorder: () => {},
 		updateEditorBorderColor: () => {},
@@ -152,6 +154,7 @@ function makeCancelledSwitchGuestContext(
 		streamingMessage: undefined,
 		transcriptMessageComponents: new WeakMap(),
 		pendingTools: new Map(),
+		eventController: { handleEvent: () => Promise.resolve(), takeDisplaceableComponents: () => [] },
 		loadingAnimation: undefined,
 		statusLine: {
 			setCollabStatus: () => {},
@@ -194,6 +197,25 @@ afterEach(() => {
 });
 
 describe("collab chunked welcome (#3144)", () => {
+	it("releases join ownership when the transport constructor rejects", async () => {
+		const original = globalThis.WebSocket;
+		const failure = new Error("transport setup failed");
+		globalThis.WebSocket = class {
+			constructor() {
+				throw failure;
+			}
+		} as unknown as typeof WebSocket;
+		const ctx = makeCancelledSwitchGuestContext(async () => true, []);
+		const guest = new CollabGuestLink(ctx);
+		try {
+			await expect(guest.join(host.link)).rejects.toBe(failure);
+			expect(ctx.collabGuest).toBeUndefined();
+		} finally {
+			globalThis.WebSocket = original;
+			await guest.leave("test cleanup").catch(() => {});
+		}
+	});
+
 	it("delivers a small welcome before chunking the transcript across multiple frames", async () => {
 		const parsed = parseCollabLink(host.link);
 		if ("error" in parsed) throw new Error(parsed.error);

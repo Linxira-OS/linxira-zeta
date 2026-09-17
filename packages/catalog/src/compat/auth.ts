@@ -1,7 +1,7 @@
 /**
  * Typed accessors over the compiled auth stratum (`rules/auth/*.kdl`): per
  * provider display metadata, env-var fallbacks and the declarative login /
- * refresh flow that `@oh-my-pi/pi-ai`'s registry engines interpret.
+ * refresh flow that `@linxiraos/pi-ai`'s registry engines interpret.
  */
 import rules from "./rules.json";
 import type { CompiledAuthProvider } from "./types";
@@ -24,6 +24,7 @@ export function authHookNames(): Record<string, string[]> {
 	const names: Record<string, string[]> = {};
 	const add = (kind: string, name: string | undefined) => {
 		if (!name) return;
+		// biome-ignore lint/suspicious/noAssignInExpressions: destructuring default with assignment inside the compiled stratum walker
 		(names[kind] ??= []).push(name);
 	};
 	for (const p of providers) {

@@ -7,10 +7,10 @@ import {
 	resetEmbeddingProviderForTests,
 	setEmbeddingProviderForTests,
 	setLocalModelInitializerForTests,
-} from "@oh-my-pi/pi-mnemopi/core/embeddings";
-import { Mnemopi } from "@oh-my-pi/pi-mnemopi/core/memory";
-import { withMnemopiRuntimeOptions } from "@oh-my-pi/pi-mnemopi/core/runtime-options";
-import { getFastembedCacheDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-mnemopi/core/embeddings";
+import { Mnemopi } from "@linxiraos/pi-mnemopi/core/memory";
+import { withMnemopiRuntimeOptions } from "@linxiraos/pi-mnemopi/core/runtime-options";
+import { getFastembedCacheDir } from "@linxiraos/pi-utils";
 import packageJson from "../package.json" with { type: "json" };
 
 const ENV_KEYS = [
@@ -132,9 +132,9 @@ describe("optional embeddings", () => {
 			fetch: async request => {
 				requests += 1;
 				expect(request.headers.get("content-type")).toBe("application/json");
-				expect(request.headers.get("user-agent")).toBe(`omp/${packageJson.version}`);
-				expect(request.headers.get("http-referer")).toBe("https://omp.sh/");
-				expect(request.headers.get("x-openrouter-title")).toBe("omp");
+				expect(request.headers.get("user-agent")).toBe(`zeta/${packageJson.version}`);
+				expect(request.headers.get("http-referer")).toBe("https://linxira-os.github.io/zeta/");
+				expect(request.headers.get("x-openrouter-title")).toBe("zeta");
 				expect(request.headers.get("x-openrouter-categories")).toBe("cli-agent");
 				expect(request.headers.get("x-title")).toBeNull();
 				expect(request.headers.get("authorization")).toBeNull();

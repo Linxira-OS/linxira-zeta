@@ -7,7 +7,7 @@ This document describes the **current hook subsystem code** in `packages/coding-
 The default CLI runtime initializes the **extension runner** path. In current startup flow:
 
 - `--hook` is treated as an alias for `--extension` (CLI paths are merged into `additionalExtensionPaths`)
-- JS/TS hook factories discovered through `hookCapability` (for example `.omp/hooks/pre/*.ts`) are loaded as extension modules so their `pi.on(...)` handlers bind to the runtime event bus
+- JS/TS hook factories discovered through `hookCapability` (for example `.zeta/hooks/pre/*.ts`) are loaded as extension modules so their `pi.on(...)` handlers bind to the runtime event bus
 - tools are wrapped by `ExtensionToolWrapper`, not `HookToolWrapper`
 - context transforms and lifecycle emissions go through `ExtensionRunner`
 
@@ -26,7 +26,7 @@ So this file documents the legacy hook subsystem implementation itself (types/lo
 A hook module must default-export a factory:
 
 ```ts
-import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
 
 export default function hook(pi: HookAPI): void {
   pi.on("tool_call", async (event, ctx) => {
@@ -58,6 +58,15 @@ Default sessions load JS/TS hook factories discovered by `hookCapability` throug
 2. Load importable `.ts`/`.js` hook factories from the hook capability registry
 3. Append plugin extension entry points
 4. Append explicitly configured paths
+
+### Native discovery location
+
+The native provider scans only two subdirectories per config root — a factory placed **directly** in `hooks/` is not discovered:
+
+- Project: `<cwd>/.omp/hooks/pre/*.{ts,js}` and `<cwd>/.omp/hooks/post/*.{ts,js}`
+- User: `<agentDir>/hooks/pre/*.{ts,js}` and `<agentDir>/hooks/post/*.{ts,js}` (default `~/.omp/agent/hooks/...`; profile- and `PI_CODING_AGENT_DIR`-aware)
+
+So `<cwd>/.omp/hooks/psy-guards.ts` (no `pre/`/`post/` subdirectory) loads nothing and reports no error — move it into `pre/` or `post/`, e.g. `<cwd>/.omp/hooks/pre/psy-guards.ts`. This mirrors `.claude/hooks/pre|post/`. Only `.ts`/`.js` factories are appended to the extension pipeline and bound through the extension runner. See [Extension Loading](./extension-loading.md) for the shared module pipeline these factories flow through (native `.omp/extensions/` roots, plugin entries, configured paths, load order, and disable controls).
 
 The legacy `discoverAndLoadHooks(configuredPaths, cwd)` helper still exists and does:
 
@@ -257,7 +266,7 @@ Hook status text set via `ctx.ui.setStatus(key, text)` is:
 ### Block unsafe bash commands
 
 ```ts
-import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
 
 export default function (pi: HookAPI): void {
   pi.on("tool_call", async (event, ctx) => {
@@ -275,7 +284,7 @@ export default function (pi: HookAPI): void {
 ### Redact tool output on post-execution
 
 ```ts
-import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
 
 export default function (pi: HookAPI): void {
   pi.on("tool_result", async (event) => {
@@ -297,7 +306,7 @@ export default function (pi: HookAPI): void {
 ### Modify model context per LLM call
 
 ```ts
-import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
 
 export default function (pi: HookAPI): void {
   pi.on("context", async (event) => {
@@ -312,7 +321,7 @@ export default function (pi: HookAPI): void {
 ### Register slash command with command-safe context methods
 
 ```ts
-import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
 
 export default function (pi: HookAPI): void {
   pi.registerCommand("handoff", {
@@ -338,11 +347,11 @@ export default function (pi: HookAPI): void {
 
 ## Export surface
 
-`packages/coding-agent/src/extensibility/hooks/index.ts` and the package subpath `@oh-my-pi/pi-coding-agent/extensibility/hooks` export:
+`packages/coding-agent/src/extensibility/hooks/index.ts` and the package subpath `@linxiraos/zeta/extensibility/hooks` export:
 
 - loading APIs (`discoverAndLoadHooks`, `loadHooks`)
 - runner and wrapper (`HookRunner`, `HookToolWrapper`)
 - all hook types
 - `execCommand` re-export
 
-The package root (`@oh-my-pi/pi-coding-agent`) does not re-export `HookAPI`; import legacy hook types from the hooks subpath.
+The package root (`@linxiraos/zeta`) does not re-export `HookAPI`; import legacy hook types from the hooks subpath.

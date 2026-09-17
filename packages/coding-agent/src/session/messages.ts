@@ -4,16 +4,16 @@
  * Extends the base AgentMessage type with coding-agent specific message types,
  * and provides a transformer to convert them to LLM-compatible messages.
  */
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	invalidateMessageCache,
 	registerMessageCacheInvalidator,
-} from "@oh-my-pi/pi-agent-core/compaction/message-cache";
+} from "@linxiraos/pi-agent-core/compaction/message-cache";
 import {
 	type BranchSummaryMessage,
 	type CompactionSummaryMessage,
 	convertMessageToLlm,
-} from "@oh-my-pi/pi-agent-core/compaction/messages";
+} from "@linxiraos/pi-agent-core/compaction/messages";
 import type {
 	AssistantMessage,
 	ImageContent,
@@ -21,10 +21,11 @@ import type {
 	MessageAttribution,
 	TextContent,
 	UserMessage,
-} from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { isRecord, logger, prompt } from "@oh-my-pi/pi-utils";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { copyPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
+import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
 
@@ -34,7 +35,7 @@ export {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "@oh-my-pi/pi-agent-core/compaction/messages";
+} from "@linxiraos/pi-agent-core/compaction/messages";
 
 import type { OutputMeta } from "../tools/output-meta";
 import { formatOutputNotice } from "../tools/output-meta";
@@ -254,6 +255,7 @@ function normalizeSessionMessageForProviderReplay(message: AgentMessage): unknow
 				meta: message.meta
 					? {
 							truncation: normalizeProviderReplayValue(message.meta.truncation),
+							artifactError: message.meta.artifactError,
 							limits: normalizeProviderReplayValue(message.meta.limits),
 							diagnostics: message.meta.diagnostics
 								? normalizeProviderReplayValue({
@@ -275,6 +277,7 @@ function normalizeSessionMessageForProviderReplay(message: AgentMessage): unknow
 				meta: message.meta
 					? {
 							truncation: normalizeProviderReplayValue(message.meta.truncation),
+							artifactError: message.meta.artifactError,
 							limits: normalizeProviderReplayValue(message.meta.limits),
 							diagnostics: message.meta.diagnostics
 								? normalizeProviderReplayValue({
@@ -437,6 +440,10 @@ export interface SkillPromptDetails {
 	name: string;
 	path: string;
 	args?: string;
+	/** The draft as submitted with its `/skill:<name>` token in place. A leading
+	 *  token renders as a skill callout, a mid-prompt token as an inline chip in
+	 *  a plain user bubble. Absent on sessions recorded before chips existed. */
+	prompt?: string;
 	lineCount: number;
 	/** Internal: compact label shown for a queued custom message. Optional —
 	 *  non-streaming skill prompts never set it. Stripped from persisted
@@ -756,6 +763,7 @@ function wrapSteeringUserMessage(message: SteeringUserMessage): UserMessage {
 					attribution: "user",
 					timestamp: message.timestamp,
 				};
+	copyPerCallContextMessage(userMessage, message);
 	if (typeof message.content === "string") {
 		if (message.content.length === 0) return message.role === "user" ? message : userMessage;
 		return { ...userMessage, content: renderSteeringEnvelope(message.content) };
@@ -1014,7 +1022,7 @@ export interface FileMentionMessage {
 
 // Extend CustomAgentMessages via declaration merging
 // Legacy hookMessage is kept for migration; new code should use custom.
-declare module "@oh-my-pi/pi-agent-core" {
+declare module "@linxiraos/pi-agent-core" {
 	interface CustomAgentMessages {
 		bashExecution: BashExecutionMessage;
 		pythonExecution: PythonExecutionMessage;
@@ -1191,6 +1199,11 @@ interface ConvertArrayMemo {
 let convertGeneration = 0;
 const convertArrayCache = new WeakMap<AgentMessage[], ConvertArrayMemo>();
 
+/** Drop the outer-array shortcut when an owner replaces a live history in place. */
+export function invalidateConvertToLlmArrayCache(messages: AgentMessage[]): void {
+	convertArrayCache.delete(messages);
+}
+
 registerMessageCacheInvalidator(message => {
 	convertCache.delete(message);
 	convertGeneration++;
@@ -1324,6 +1337,7 @@ function convertOneCached(m: AgentMessage, interruptedNext: boolean): Message[] 
 	const cached = convertCache.get(m);
 	if (cached !== undefined && cached.interruptedNext === interruptedNext) return cached.fragment;
 	const fragment = convertOne(m, interruptedNext);
+	for (const message of fragment) copyPerCallContextMessage(message, m);
 	convertCache.set(m, { interruptedNext, fragment });
 	return fragment;
 }

@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Model, ProviderSessionState } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model, ProviderSessionState } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const originalSchedulerWait = scheduler.wait.bind(scheduler);
 
@@ -154,7 +154,7 @@ describe("AgentSession context promotion", () => {
 		await session.waitForIdle();
 	}
 	it("clears codex provider session state on manual setModel switch away from codex", async () => {
-		const codexModel = modelRegistry.find("openai-codex", "gpt-5.4");
+		const codexModel = modelRegistry.find("openai-codex", "gpt-5.5");
 		const nonCodexModel = modelRegistry.getAll().find(model => model.api !== "openai-codex-responses");
 		if (!codexModel || !nonCodexModel) {
 			throw new Error("Expected codex and non-codex models to exist");
@@ -191,7 +191,7 @@ describe("AgentSession context promotion", () => {
 	});
 
 	it("clears codex provider session state on manual temporary switch into codex", async () => {
-		const codexModel = modelRegistry.find("openai-codex", "gpt-5.4");
+		const codexModel = modelRegistry.find("openai-codex", "gpt-5.5");
 		const nonCodexModel = modelRegistry.getAll().find(model => model.api !== "openai-codex-responses");
 		if (!codexModel || !nonCodexModel) {
 			throw new Error("Expected codex and non-codex models to exist");
@@ -228,7 +228,7 @@ describe("AgentSession context promotion", () => {
 	});
 
 	it("clears codex provider session state when branching rewrites history", async () => {
-		const codexModel = modelRegistry.find("openai-codex", "gpt-5.4");
+		const codexModel = modelRegistry.find("openai-codex", "gpt-5.5");
 		if (!codexModel) {
 			throw new Error("Expected codex model to exist");
 		}
@@ -269,7 +269,7 @@ describe("AgentSession context promotion", () => {
 	});
 
 	it("clears codex provider session state when tree navigation rewrites history", async () => {
-		const codexModel = modelRegistry.find("openai-codex", "gpt-5.4");
+		const codexModel = modelRegistry.find("openai-codex", "gpt-5.5");
 		if (!codexModel) {
 			throw new Error("Expected codex model to exist");
 		}

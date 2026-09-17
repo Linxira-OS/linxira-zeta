@@ -1,4 +1,4 @@
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { throwIfAborted } from "../tools/tool-errors";
 import {
 	getActiveClients,
@@ -9,6 +9,7 @@ import {
 	notifySaved,
 	sendNotification,
 	sendRequest,
+	setIdleTimeout,
 	shutdownClientInstance,
 	syncContent,
 	WARMUP_TIMEOUT_MS,
@@ -74,6 +75,7 @@ export function discoverStartupLspServers(
  */
 export async function warmupLspServers(cwd: string, options?: LspWarmupOptions): Promise<LspWarmupResult> {
 	const config = loadConfig(cwd);
+	setIdleTimeout(config.idleTimeoutMs);
 	const servers: LspWarmupResult["servers"] = [];
 	const lspServers = getLspServers(config);
 
@@ -187,6 +189,19 @@ export async function notifyFileSaved(
 		}),
 	);
 	throwIfAborted(signal);
+}
+
+// Cache config per cwd to avoid repeated file I/O
+export const configCache = new Map<string, LspConfig>();
+
+export function getConfig(cwd: string): LspConfig {
+	let config = configCache.get(cwd);
+	if (!config) {
+		config = loadConfig(cwd);
+		configCache.set(cwd, config);
+	}
+	setIdleTimeout(config.idleTimeoutMs);
+	return config;
 }
 
 function isCustomLinter(serverConfig: ServerConfig): boolean {

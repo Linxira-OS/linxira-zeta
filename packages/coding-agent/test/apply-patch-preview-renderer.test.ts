@@ -1,10 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import {
-	type EditRenderContext,
-	editToolRenderer,
-	type PerFileDiffPreview,
-} from "@oh-my-pi/pi-coding-agent/edit/renderer";
-import * as themeModule from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { type EditRenderContext, editToolRenderer, type PerFileDiffPreview } from "@linxiraos/zeta/edit/renderer";
+import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
 
 let uiTheme: themeModule.Theme;
 

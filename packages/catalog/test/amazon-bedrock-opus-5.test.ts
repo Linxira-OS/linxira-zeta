@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { resolveModelPolicy } from "@oh-my-pi/pi-catalog/compat/resolve";
-import { MODELS_DEV_PROVIDER_DESCRIPTORS, mapModelsDevToModels } from "@oh-my-pi/pi-catalog/provider-models";
-import { filterModelsDevCatalogRows } from "@oh-my-pi/pi-catalog/provider-models/models-dev-policies";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
+import { MODELS_DEV_PROVIDER_DESCRIPTORS, mapModelsDevToModels } from "@linxiraos/pi-catalog/provider-models";
+import { filterModelsDevCatalogRows } from "@linxiraos/pi-catalog/provider-models/models-dev-policies";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 // AWS's Bedrock model card for Claude Opus 5 lists these commercial/geo
 // Programmatic Access IDs — the bare model ID plus the us./eu./au. Geo and
@@ -144,6 +144,7 @@ describe("Amazon Bedrock Claude Opus 5", () => {
 				promptCacheMaximumCheckpoints: 4,
 				// reasoning:true adaptive-thinking family → 900s keepalive-free idle floor.
 				streamIdleTimeoutMs: 900_000,
+				streamRevision: "possible",
 			});
 		}
 	});

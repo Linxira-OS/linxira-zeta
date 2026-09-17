@@ -1,4 +1,4 @@
-import type { ResolvedThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { ResolvedThinkingLevel } from "@linxiraos/pi-agent-core";
 import type {
 	Api,
 	ApiKeyResolver,
@@ -10,12 +10,12 @@ import type {
 	ProviderSessionState,
 	ServiceTier,
 	ServiceTierByFamily,
-} from "@oh-my-pi/pi-ai";
-import { resolveModelServiceTier, streamSimple } from "@oh-my-pi/pi-ai";
-import { replaceTabs, truncateToWidth } from "@oh-my-pi/pi-tui";
-import { formatDuration, formatNumber, prompt } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
-import { formatModelSelectorValue, formatModelString } from "../config/model-resolver";
+} from "@linxiraos/pi-ai";
+import { resolveModelServiceTier, streamSimple } from "@linxiraos/pi-ai";
+import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
+import { formatDuration, formatNumber, prompt } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { formatModelSelectorValue, formatModelStringWithRouting } from "../config/model-resolver";
 import { buildServiceTierByFamily, serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/service-tier";
 import cachePrefixTemplate from "../prompts/bench/cache-prefix.md" with { type: "text" };
 import cachePrefixChunk from "../prompts/bench/cache-prefix-chunk.md" with { type: "text" };
@@ -518,7 +518,7 @@ async function runWithConcurrency<T>(
 	concurrency: number,
 	run: (index: number) => Promise<T>,
 ): Promise<T[]> {
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const results = new Array<T>(count);
 	let next = 0;
 	const worker = async (): Promise<void> => {
@@ -696,7 +696,7 @@ function buildModelReport(
 	}
 	return {
 		selector,
-		model: formatModelString(model),
+		model: formatModelStringWithRouting(model),
 		thinking,
 		results,
 		stats: successes.length === 0 ? null : computeBenchStats(successes),
@@ -918,7 +918,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 	const now = deps.now ?? (() => performance.now());
 	const interactive = deps.stdoutIsTTY ?? process.stdout.isTTY === true;
 	if (command.models.length === 0) {
-		throw new Error("Pass at least one model selector, e.g. `omp bench opus gpt-5.2`");
+		throw new Error("Pass at least one model selector, e.g. `zeta bench opus gpt-5.2`");
 	}
 	let progress: BenchLiveProgress | undefined;
 	const board = json
@@ -943,7 +943,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 
 	const runtime = await (deps.createRuntime ?? createDefaultBenchRuntime)();
 	try {
-		const targets = resolveBenchTargets(command.models, runtime.modelRegistry, runtime.settings, writeStderr);
+		const targets = await resolveBenchTargets(command.models, runtime.modelRegistry, runtime.settings, writeStderr);
 		if (cacheMode) assertCacheModeSupported(targets);
 		// Explicit `--service-tier` (a single value broadcast across families) wins;
 		// otherwise fall back to the configured per-family `tier.*` settings. Each
@@ -960,7 +960,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 		const reports: BenchModelReport[] = [];
 		for (const { selector, model, thinking } of targets) {
 			if (!json) {
-				const resolvedModel = formatModelSelectorValue(formatModelString(model), thinking);
+				const resolvedModel = formatModelSelectorValue(formatModelStringWithRouting(model), thinking);
 				const resolvedNote = selector === resolvedModel ? "" : chalk.dim(` (${selector})`);
 				print(`${chalk.bold(resolvedModel)}${resolvedNote}`);
 				progress = {

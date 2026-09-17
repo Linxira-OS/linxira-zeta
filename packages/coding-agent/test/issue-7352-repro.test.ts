@@ -3,7 +3,7 @@
  *
  * A headless `omp --mode json --no-session -p @<file>` run with
  * `memory.backend: mnemopi` hung after its turn completed and left an
- * unreaped `__omp_worker_mnemopi_embed` child. The embed-worker IPC request
+ * unreaped `__zeta_worker_mnemopi_embed` child. The embed-worker IPC request
  * (`embed`) had no timeout, so a wedged native runtime (fastembed /
  * onnxruntime hanging, cf. #4792) blocked whatever awaited the embed — the
  * turn's memory recall or the shutdown consolidation — forever. #5753 only
@@ -17,11 +17,8 @@
  * exercised without fastembed/onnxruntime.
  */
 import { describe, expect, it, vi } from "bun:test";
-import { MnemopiEmbedClient, type MnemopiEmbedWorkerHandle } from "@oh-my-pi/pi-coding-agent/mnemopi/embed-client";
-import type {
-	MnemopiEmbedWorkerInbound,
-	MnemopiEmbedWorkerOutbound,
-} from "@oh-my-pi/pi-coding-agent/mnemopi/embed-protocol";
+import { MnemopiEmbedClient, type MnemopiEmbedWorkerHandle } from "@linxiraos/zeta/mnemopi/embed-client";
+import type { MnemopiEmbedWorkerInbound, MnemopiEmbedWorkerOutbound } from "@linxiraos/zeta/mnemopi/embed-protocol";
 
 /** A fake worker that answers `init` but never answers `embed`. */
 function silentEmbedWorker(state: { spawns: number; terminated: number }): () => MnemopiEmbedWorkerHandle {
@@ -46,6 +43,8 @@ function silentEmbedWorker(state: { spawns: number; terminated: number }): () =>
 			onError() {
 				return () => {};
 			},
+			ref() {},
+			unref() {},
 			async terminate() {
 				state.terminated += 1;
 				handler = undefined;
@@ -136,6 +135,8 @@ describe("issue #7352 — mnemopi embed requests are bounded and reap a wedged w
 				onError() {
 					return () => {};
 				},
+				ref() {},
+				unref() {},
 				async terminate() {
 					state.terminated += 1;
 					handler = undefined;

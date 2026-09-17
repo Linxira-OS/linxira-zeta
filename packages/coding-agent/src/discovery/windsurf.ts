@@ -11,15 +11,15 @@
  * - Legacy .windsurfrules file
  */
 
-import { tryParseJson } from "@oh-my-pi/pi-utils";
+import { tryParseJson } from "@linxiraos/pi-utils";
 import { registerProvider } from "../capability";
 import { readFile } from "../capability/fs";
 import { type MCPServer, mcpCapability } from "../capability/mcp";
 import { type Rule, ruleCapability } from "../capability/rule";
 import type { LoadContext, LoadResult } from "../capability/types";
 import {
-	discoverRuleFromMarkdown,
 	createSourceMeta,
+	discoverRuleFromMarkdown,
 	expandEnvVarsDeep,
 	getProjectPath,
 	getUserPath,

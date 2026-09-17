@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { SegmentContext } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();
@@ -29,6 +29,7 @@ function createModelContext(advisorActive: boolean): SegmentContext {
 		prewalk: null,
 		goalMode: null,
 		vibeMode: null,
+		vim: null,
 		collab: null,
 		usageStats: {
 			input: 0,

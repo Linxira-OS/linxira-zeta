@@ -1,17 +1,15 @@
 import { describe, expect, test, vi } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { clampThinkingLevelForModel } from "@oh-my-pi/pi-catalog/model-thinking";
-import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@oh-my-pi/pi-catalog/provider-models/descriptors";
-import {
-	ABLITERATION_STATIC_MODELS,
-	abliterationModelManagerOptions,
-} from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl, Model } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
+import { seedModels } from "@linxiraos/pi-catalog/compat/providers";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
+import { abliterationModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl, Model } from "@linxiraos/pi-catalog/types";
 
 function seed(id: string): Model<"openai-responses"> {
-	const spec = ABLITERATION_STATIC_MODELS.find(model => model.id === id);
+	const spec = seedModels<"openai-responses">("abliteration").find(model => model.id === id);
 	if (!spec) throw new Error(`missing abliteration seed ${id}`);
 	return buildModel(spec);
 }
@@ -50,7 +48,7 @@ describe("Abliteration provider support", () => {
 	test("derives the documented reasoning surface from the GLM lineage rules", () => {
 		// The gateway never returns encrypted reasoning items and streams long
 		// reasoning turns without keepalives.
-		for (const model of ABLITERATION_STATIC_MODELS.map(spec => buildModel(spec))) {
+		for (const model of seedModels<"openai-responses">("abliteration").map(spec => buildModel(spec))) {
 			expect(model.reasoning).toBe(true);
 			expect(model.compat.includeEncryptedReasoning).toBe(false);
 			expect(model.compat.streamIdleTimeoutMs).toBe(0);

@@ -441,7 +441,7 @@ fn legacy_recovery_path(context: &Context) -> PathBuf {
 		.get("PI_CONFIG_DIR")
 		.map(|value| value.trim())
 		.filter(|value| !value.is_empty())
-		.unwrap_or(".omp");
+		.unwrap_or(".zeta");
 	context
 		.home
 		.join(config_directory)
@@ -502,9 +502,9 @@ fn read_legacy_recovery(context: &Context) -> Result<Option<LegacyRecoveryRecord
 
 #[cfg(unix)]
 fn process_is_alive(pid: i32) -> bool {
-	// A zero signal only probes process ownership/existence and does not alter it.
-	// SAFETY: `kill` accepts every integer PID and a zero signal has no side
-	// effect.
+	// A zero signal only probes process ownership/existence and does not alter
+	// it. SAFETY: `kill` accepts every integer PID and a zero signal has no
+	// side effect.
 	let result = unsafe { libc::kill(pid, 0) };
 	result == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
@@ -919,7 +919,7 @@ mod tests {
 		let captured_path = root.0.join("Previous.app");
 		let moved_path = root.0.join("Moved Previous.app");
 		let previous = found(&captured_path, "com.example.previous");
-		let (context, state) = context(&root, previous.clone());
+		let (context, state) = context(&root, previous);
 		let snapshot = prepare(&context).unwrap();
 		state
 			.lock()

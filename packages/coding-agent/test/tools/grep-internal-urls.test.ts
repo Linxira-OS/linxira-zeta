@@ -2,23 +2,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as capability from "@oh-my-pi/pi-coding-agent/capability";
-import type { CapabilityResult } from "@oh-my-pi/pi-coding-agent/capability/types";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resetActiveSkillsForTests, setActiveSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import * as capability from "@linxiraos/zeta/capability";
+import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
 import {
 	type InternalResource,
 	type InternalUrl,
 	InternalUrlRouter,
 	LocalProtocolHandler,
 	type ProtocolHandler,
-} from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import * as sshFileTransfer from "@oh-my-pi/pi-coding-agent/ssh/file-transfer";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/internal-urls";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import * as sshFileTransfer from "@linxiraos/zeta/ssh/file-transfer";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { formatOutputNotice } from "@linxiraos/zeta/tools/output-meta";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { GlobTool } from "../../src/tools/glob";
 import { GrepTool } from "../../src/tools/grep";
 
@@ -322,6 +323,24 @@ describe("GrepTool internal URL resolution", () => {
 		expect(getResultText(result)).toContain("needle");
 	});
 
+	it("truncates a multibyte virtual match by UTF-8 bytes and labels the notice bytes", async () => {
+		// Regression for #10888: virtual-resource matches must truncate in the
+		// same unit as native on-disk matches (bytes), and the notice must say so.
+		// "needle " + "é"*300 is 307 chars but 607 bytes; a char cap of 512 would
+		// leave it whole, the byte cap trims it.
+		const line = `needle ${"é".repeat(300)}`;
+		registerVirtualDocs(new Map([["mb.md", `${line}\n`]]));
+		const result = await new GrepTool(createSession()).execute("mb-virtual", {
+			pattern: "needle",
+			path: "virtual://mb.md",
+		});
+		const text = getResultText(result);
+		expect(text).toContain("…");
+		expect((text.match(/é/g) ?? []).length).toBeLessThan(300);
+		expect(result.details?.meta?.limits?.columnTruncated).toEqual({ maxColumn: 512, unit: "bytes" });
+		expect(formatOutputNotice(result.details?.meta)).toContain("Some lines truncated to 512 bytes");
+	});
+
 	it("rejects a malformed selector on a selector-capable internal URL instead of widening the search", async () => {
 		const session = createSession();
 		const tool = new GrepTool(session);
@@ -356,31 +375,31 @@ describe("GrepTool internal URL resolution", () => {
 		);
 	});
 
-	it("expands omp:// root to grep embedded documentation files", async () => {
+	it("expands zeta:// root to grep embedded documentation files", async () => {
 		const session = createSession();
 		const tool = new GrepTool(session);
 
 		const result = await tool.execute("test-call", {
 			pattern: "Grep file contents with a regex across files",
-			path: "omp://",
+			path: "zeta://",
 		});
 
 		const text = getResultText(result);
-		expect(text).toContain("# omp://tools/grep.md");
+		expect(text).toContain("# zeta://tools/grep.md");
 		expect(text).toContain("Grep file contents with a regex across files");
 	});
 
-	it("expands omp://docs to grep embedded documentation files", async () => {
+	it("expands zeta://docs to grep embedded documentation files", async () => {
 		const session = createSession();
 		const tool = new GrepTool(session);
 
 		const result = await tool.execute("test-call", {
 			pattern: "Read files, directories, archives",
-			path: "omp://docs",
+			path: "zeta://docs",
 		});
 
 		const text = getResultText(result);
-		expect(text).toContain("# omp://tools/read.md");
+		expect(text).toContain("# zeta://tools/read.md");
 		expect(text).toContain("Read files, directories, archives");
 	});
 

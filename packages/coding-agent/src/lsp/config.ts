@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, isRecord, logger, pathIsWithin, type WhichOptions } from "@oh-my-pi/pi-utils";
+import { $which, isRecord, logger, pathIsWithin, type WhichOptions } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { getConfigDirPaths } from "../config";
 import { type ClaudePluginRoot, getPreloadedPluginRoots } from "../discovery/helpers";
@@ -424,7 +424,7 @@ function getConfigSources(cwd: string): ConfigSource[] {
 		sources.push(fileConfigSource(path.join(cwd, filename)));
 	}
 
-	// Project config directories (.omp/, .pi/, .claude/)
+	// Project config directories (.zeta/, .pi/, .claude/)
 	const projectDirs = getConfigDirPaths("", { user: false, project: true, cwd });
 	for (const dir of projectDirs) {
 		for (const filename of filenames) {
@@ -432,7 +432,7 @@ function getConfigSources(cwd: string): ConfigSource[] {
 		}
 	}
 
-	// User config directories (~/.omp/agent/, ~/.pi/agent/, ~/.claude/)
+	// User config directories (~/.zeta/agent/, ~/.pi/agent/, ~/.claude/)
 	const userDirs = getConfigDirPaths("", { user: true, project: false });
 	for (const dir of userDirs) {
 		for (const filename of filenames) {
@@ -462,8 +462,8 @@ function getConfigSources(cwd: string): ConfigSource[] {
  *
  * Priority (highest to lowest):
  * 1. Project root: lsp.json/.lsp.json/lsp.yml/.lsp.yml/lsp.yaml/.lsp.yaml
- * 2. Project config dirs: .omp/lsp.*, .pi/lsp.*, .claude/lsp.* (+ hidden variants)
- * 3. User config dirs: ~/.omp/agent/lsp.*, ~/.pi/agent/lsp.*, ~/.claude/lsp.* (+ hidden variants)
+ * 2. Project config dirs: .zeta/lsp.*, .pi/lsp.*, .claude/lsp.* (+ hidden variants)
+ * 3. User config dirs: ~/.zeta/agent/lsp.*, ~/.pi/agent/lsp.*, ~/.claude/lsp.* (+ hidden variants)
  * 4. User home root: ~/lsp.*, ~/.lsp.*
  * 5. Auto-detect from project markers + available binaries
  *
@@ -518,18 +518,6 @@ export function loadConfig(cwd: string): LspConfig {
 	selectTypescriptServer(servers);
 
 	return { servers, idleTimeoutMs };
-}
-
-// Cache config per cwd to avoid repeated file I/O
-export const configCache = new Map<string, LspConfig>();
-
-export function getConfig(cwd: string): LspConfig {
-	let config = configCache.get(cwd);
-	if (!config) {
-		config = loadConfig(cwd);
-		configCache.set(cwd, config);
-	}
-	return config;
 }
 
 // =============================================================================

@@ -1,11 +1,11 @@
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import type { TextContent } from "@oh-my-pi/pi-ai";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { TextContent } from "@linxiraos/pi-ai";
 import {
 	type ArchiveReader,
 	formatArchiveEntryLines,
 	openArchive,
 	parseArchivePathCandidates,
-} from "@oh-my-pi/pi-utils/ar";
+} from "@linxiraos/pi-utils/ar";
 import type { ToolSession } from "../sdk";
 import { truncateHead } from "../session/streaming-output";
 import { applyListLimit } from "./list-limit";
@@ -16,6 +16,7 @@ import {
 	decodeUtf8Text,
 	markMarkdownContentType,
 	prependSuffixResolutionNotice,
+	toReadTruncationStats,
 } from "./read-format";
 import {
 	findSuffixMatchCached,
@@ -111,7 +112,7 @@ async function readArchiveDirectory(
 	const resultBuilder = toolResult<ReadToolDetails>(directoryDetails).text(truncation.content);
 	resultBuilder.sourcePath(archivePath).limits({ resultLimit: limitMeta.resultLimit?.reached });
 	if (truncation.truncated) {
-		directoryDetails.truncation = truncation;
+		directoryDetails.truncation = toReadTruncationStats(truncation);
 		resultBuilder.truncation(truncation, { direction: "head" });
 	}
 	return resultBuilder.done();

@@ -29,16 +29,21 @@
  * queued/planning until `tool_execution_start`, and only then delegate to the
  * wrapped tool's own renderer with the decoded inner args.
  */
-import type { AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolLoadMode } from "@oh-my-pi/pi-agent-core";
-import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema, validateToolArguments } from "@oh-my-pi/pi-ai";
-import { type Component, Container, Text } from "@oh-my-pi/pi-tui";
-import { parseStreamingJson } from "@oh-my-pi/pi-utils";
-import { schemaDeclaresIntentField } from "../utils/tool-schema";
+import type {
+	AgentToolContext,
+	AgentToolResult,
+	AgentToolUpdateCallback,
+	ToolLoadMode,
+} from "@linxiraos/pi-agent-core";
+import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema, validateToolArguments } from "@linxiraos/pi-ai";
+import { type Component, Container, Text } from "@linxiraos/pi-tui";
+import { parseStreamingJson } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { stripXdUrlPrefix, XD_URL_PREFIX } from "../internal-urls/xd-protocol";
 import { parseMCPToolName } from "../mcp/tool-bridge";
 import type { Theme } from "../modes/theme/theme";
 import { truncateHeadBytes } from "../session/streaming-output";
+import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { resolveToolTier, type ToolTier } from "./approval";
 import { renderDefaultToolExecution } from "./default-renderer";
 import type { Tool } from "./index";
@@ -52,11 +57,13 @@ import { renderError, ToolAbortError, ToolError } from "./tool-errors";
  * model's user-interaction affordance, `grep` is the redirect target of the
  * bash interceptor rules, and `web_search` is invoked directly by most models
  * (which have no notion of the `xd://` protocol) so hiding it behind dispatch
- * makes it unreachable in practice (issue #5973) — each loses its harness
+ * makes it unreachable in practice (issue #5973). `yield` terminates structured
+ * subagent runs and must stay directly callable — each loses its harness
  * integration or usability if hidden behind dispatch.
  */
 export const XDEV_KEEP_TOP_LEVEL: Record<string, true> = {
 	todo: true,
+	yield: true,
 	ask: true,
 	grep: true,
 	web_search: true,
@@ -265,23 +272,29 @@ export function resolveXdevTool(state: XdevState, name: string): Tool | undefine
 }
 
 /**
- * Resolve a mounted tool for top-level fallback execution.
- *
- * A model may reach a mounted device by emitting a direct tool call instead of
- * a `write`; the fallback in `sdk.ts` routes that here. Names arrive both bare
- * (`github`) and carrying the very `xd://` prefix the device docs advertise
- * (`xd://github`) — strip it so both spellings resolve to the same device.
+ * Resolve a mounted tool by name. Presentation-only: `xd://` docs and renderer
+ * lookup ask for names they already hold in canonical form.
  */
 export function resolveMountedXdevTool(state: XdevState, name: string): Tool | undefined {
 	const canonicalName = stripXdUrlPrefix(name);
 	return state.mountedNames.has(canonicalName) ? state.tools.get(canonicalName) : undefined;
 }
 
-/** Resolve a mounted tool with its execution-only permission decorator. */
+/**
+ * Resolve a mounted tool with its execution-only permission decorator.
+ *
+ * Mounted-only, matching {@link resolveMountedXdevTool}, and a published export
+ * under `@linxiraos/zeta/tools/xdev`, so its semantics must not
+ * drift. `sdk.ts` composes this with the calling agent's advertised tools to
+ * recover a Claude Code-spelled MCP name: the union has to be resolved in one
+ * pass for the ambiguity rule to hold, so that composition lives with the
+ * caller that knows both presentation sets rather than here.
+ */
 export function resolveMountedXdevExecutable(state: XdevState, name: string): Tool | undefined {
 	const tool = resolveMountedXdevTool(state, name);
 	return tool && state.decorateExecution ? state.decorateExecution(tool) : tool;
 }
+
 /** Mounted tools in presentation order, resolved from the canonical map. */
 export function listXdevTools(state: XdevState): Tool[] {
 	return [...state.mountedNames].flatMap(name => {

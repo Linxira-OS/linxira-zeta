@@ -2,35 +2,10 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AgentBusyError } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ExtensionUIContext } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import {
-	ACP_BOOTSTRAP_RACE_GUARD_MS,
-	AcpAgent,
-	createAcpExtensionUiContext,
-} from "@oh-my-pi/pi-coding-agent/modes/acp/acp-agent";
-import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
-import type {
-	AgentSession,
-	AgentSessionEvent,
-	UsageFallbackConfirmation,
-} from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@oh-my-pi/pi-coding-agent/stt/models";
-import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import {
-	DEFAULT_TTS_LOCAL_MODEL_KEY,
-	DEFAULT_TTS_VOICE,
-	TTS_LOCAL_MODELS,
-	TTS_LOCAL_VOICE_OPTIONS,
-} from "@oh-my-pi/pi-coding-agent/tts/models";
-import { getConfigRootDir, setAgentDir } from "@oh-my-pi/pi-utils";
+import { AgentBusyError } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import type {
 	AgentSideConnection,
 	ClientCapabilities,
@@ -39,7 +14,7 @@ import type {
 	PromptRequest,
 	SessionNotification,
 	Validator,
-} from "@oh-my-pi/pi-utils/acp";
+} from "@linxiraos/pi-utils/acp";
 import {
 	RequestError,
 	zForkSessionResponse,
@@ -47,7 +22,28 @@ import {
 	zNewSessionResponse,
 	zPromptResponse,
 	zSessionNotification,
-} from "@oh-my-pi/pi-utils/acp";
+} from "@linxiraos/pi-utils/acp";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import {
+	ACP_BOOTSTRAP_RACE_GUARD_MS,
+	AcpAgent,
+	createAcpExtensionUiContext,
+} from "@linxiraos/zeta/modes/acp/acp-agent";
+import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
+import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@linxiraos/zeta/stt/models";
+import { TaskTool } from "@linxiraos/zeta/task";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import {
+	DEFAULT_TTS_LOCAL_MODEL_KEY,
+	DEFAULT_TTS_VOICE,
+	TTS_LOCAL_MODELS,
+	TTS_LOCAL_VOICE_OPTIONS,
+} from "@linxiraos/zeta/tts/models";
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */
@@ -462,7 +458,7 @@ function expectAcpNotifications(updates: SessionNotification[]): void {
 }
 
 const cleanupRoots: string[] = [];
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 afterEach(async () => {
@@ -471,7 +467,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	resetSettingsForTest();
 
@@ -756,6 +752,76 @@ describe("ACP agent", () => {
 			| { currentValue?: unknown }
 			| undefined;
 		expect(modeConfig?.currentValue).toBe("default");
+
+		harness.abortController.abort();
+		await Bun.sleep(0);
+	});
+	it("plan-proposal handler autosaves the approved plan without leaking the path", async () => {
+		const harness = await createHarness();
+		Settings.instance.set("plan.enabled", true);
+		Settings.instance.set("plan.autosave", true);
+
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId)!;
+		await harness.agent.setSessionMode({ sessionId: created.sessionId, modeId: "plan" });
+
+		const localOptions = {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		};
+		cleanupRoots.push(resolveLocalUrlToPath("local://", localOptions));
+		const planPath = resolveLocalUrlToPath("local://words-counter-plan.md", localOptions);
+		await Bun.write(planPath, "# Words Counter\n\nFile contents.");
+
+		const handler = session.planProposalHandler!;
+		const result = (await handler("words-counter")) as {
+			content: Array<{ type: string; text: string }>;
+			details: { planFilePath: string; title: string; planExists: boolean };
+		};
+
+		expect(result.details.planExists).toBe(true);
+		expect(result.content[0]?.text).toMatch(/Plan approved/);
+		expect(result.content[0]?.text).not.toContain(harness.cwdA);
+		expect(result.content[0]?.text).not.toContain("autosaved to");
+		const saved = path.join(harness.cwdA, ".zeta", "plans", "WORDS_COUNTER_PLAN.md");
+		expect(await Bun.file(saved).text()).toBe("# Words Counter\n\nFile contents.");
+		expect(session.planModeState).toBeUndefined();
+
+		harness.abortController.abort();
+		await Bun.sleep(0);
+	});
+
+	it("plan-proposal handler approves and notes autosave failure without the path", async () => {
+		const harness = await createHarness();
+		Settings.instance.set("plan.enabled", true);
+		const blocker = path.join(harness.cwdA, "blocker");
+		await Bun.write(blocker, "x");
+		Settings.instance.set("plan.autosave", true);
+		Settings.instance.set("plan.autosaveDir", path.join(blocker, "sub"));
+
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId)!;
+		await harness.agent.setSessionMode({ sessionId: created.sessionId, modeId: "plan" });
+
+		const localOptions = {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		};
+		cleanupRoots.push(resolveLocalUrlToPath("local://", localOptions));
+		const planPath = resolveLocalUrlToPath("local://words-counter-plan.md", localOptions);
+		await Bun.write(planPath, "# Words Counter\n\nFile contents.");
+
+		const handler = session.planProposalHandler!;
+		const result = (await handler("words-counter")) as {
+			content: Array<{ type: string; text: string }>;
+		};
+		const text = result.content[0]?.text ?? "";
+
+		expect(text).toMatch(/Plan approved/);
+		expect(text).toMatch(/autosave failed/);
+		expect(text).not.toContain(harness.cwdA);
+		expect(session.planModeState).toBeUndefined();
+		expect(session.planReferencePath).toBe("local://words-counter-plan.md");
 
 		harness.abortController.abort();
 		await Bun.sleep(0);
@@ -1718,7 +1784,7 @@ describe("ACP agent", () => {
 
 	it("refreshes task agent descriptions on ACP /reload-plugins", async () => {
 		const harness = await createHarness();
-		const agentDir = path.join(harness.cwdA, ".omp", "agents");
+		const agentDir = path.join(harness.cwdA, ".zeta", "agents");
 		const agentFile = path.join(agentDir, "acp-reload-agent.md");
 		await fs.promises.mkdir(agentDir, { recursive: true });
 		await fs.promises.writeFile(
@@ -1789,7 +1855,7 @@ describe("ACP agent", () => {
 		expect(names).toContain("handoff");
 		expect(names).not.toContain("fork");
 		expect(names).not.toContain("btw");
-		expect(names).not.toContain("drop");
+		expect(names).not.toContain("delete");
 		expect(names).not.toContain("resume");
 		expect(names).not.toContain("agents");
 		expect(names).not.toContain("extensions");
@@ -2391,6 +2457,89 @@ describe("ACP agent", () => {
 
 		harness.abortController.abort();
 		await Bun.sleep(0);
+	});
+
+	it("keeps a cancelled bare rename from updating or settling its successor", async () => {
+		const harness = await createHarness();
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId)!;
+		const inferences = [
+			{ started: Promise.withResolvers<void>(), title: Promise.withResolvers<string | null>() },
+			{ started: Promise.withResolvers<void>(), title: Promise.withResolvers<string | null>() },
+		];
+		const titleSignals: Array<AbortSignal | undefined> = [];
+		let inferenceIndex = 0;
+		try {
+			await session.sessionManager.setSessionName("Original title", "user");
+			session.sessionManager.appendMessage({
+				role: "user",
+				content: "Investigate why cancelling a generated session title interrupts the next rename request.",
+				timestamp: Date.now(),
+			});
+			Object.assign(session, {
+				messages: session.sessionManager.buildSessionContext().messages,
+				titleGenerationSignal: new AbortController().signal,
+				notifyTitleGenerationStart: () => undefined,
+				generateTitle: (_context: string, _systemPrompt?: string, signal?: AbortSignal) => {
+					const inference = inferences[inferenceIndex++];
+					titleSignals.push(signal);
+					inference.started.resolve();
+					// Deliberately ignore abort so a cancelled inference can return late.
+					return inference.title.promise;
+				},
+			});
+
+			const firstPrompt = harness.agent.prompt({
+				sessionId: created.sessionId,
+				prompt: [{ type: "text", text: "/rename" }],
+			});
+			await Promise.race([inferences[0].started.promise, firstPrompt]);
+			await harness.agent.cancel({ sessionId: created.sessionId });
+			expect((await firstPrompt).stopReason).toBe("cancelled");
+			expect(titleSignals[0]?.aborted).toBe(true);
+
+			const secondPrompt = harness.agent.prompt({
+				sessionId: created.sessionId,
+				prompt: [{ type: "text", text: "/rename" }],
+			});
+			await Promise.race([inferences[1].started.promise, secondPrompt]);
+			expect(titleSignals[1]?.aborted).toBe(false);
+			const beforeLateResult = harness.updates.length;
+
+			inferences[0].title.resolve("Cancelled title");
+			const settledByOldRename = await Promise.race([secondPrompt.then(() => true), Bun.sleep(0).then(() => false)]);
+			expect(settledByOldRename).toBe(false);
+			expect(session.sessionManager.getSessionName()).toBe("Original title");
+			expect(
+				harness.updates
+					.slice(beforeLateResult)
+					.filter(
+						update =>
+							update.sessionId === created.sessionId &&
+							(update.update.sessionUpdate === "session_info_update" ||
+								update.update.sessionUpdate === "agent_message_chunk"),
+					),
+			).toEqual([]);
+
+			inferences[1].title.resolve("Rename cancellation isolation");
+			expect((await secondPrompt).stopReason).toBe("end_turn");
+			expect(session.sessionManager.getSessionName()).toBe("Rename cancellation isolation");
+			expect(harness.updates.slice(beforeLateResult)).toContainEqual({
+				sessionId: created.sessionId,
+				update: {
+					sessionUpdate: "session_info_update",
+					title: "Rename cancellation isolation",
+					updatedAt: expect.any(String),
+				},
+			});
+		} finally {
+			for (const inference of inferences) {
+				inference.started.resolve();
+				inference.title.resolve(null);
+			}
+			harness.abortController.abort();
+			await Bun.sleep(0);
+		}
 	});
 
 	it("closes the ACP session when cancel cleanup times out", async () => {

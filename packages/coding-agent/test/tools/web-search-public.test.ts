@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@oh-my-pi/pi-ai";
-import { setExcludedSearchProviders } from "@oh-my-pi/pi-coding-agent/web/search/provider";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchPublicWeb } from "@oh-my-pi/pi-coding-agent/web/search/providers/public";
-import { SearchProviderError, type SearchProviderId } from "@oh-my-pi/pi-coding-agent/web/search/types";
+import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { setExcludedSearchProviders } from "@linxiraos/zeta/web/search/provider";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import { searchPublicWeb } from "@linxiraos/zeta/web/search/providers/public";
+import { SearchProviderError, type SearchProviderId } from "@linxiraos/zeta/web/search/types";
 
 const fakeAuthStorage = {
 	async getApiKey() {
@@ -18,7 +18,7 @@ const fakeAuthStorage = {
 } as unknown as AuthStorage;
 
 /** Restrict the fan-out to the two engines these tests provide fixtures for. */
-const NON_TEST_ENGINES: readonly SearchProviderId[] = ["ecosia", "startpage", "mojeek"];
+const NON_TEST_ENGINES: readonly SearchProviderId[] = ["bing", "ecosia", "startpage", "mojeek"];
 
 function makeParams(query: string, fetch: FetchImpl): SearchParams {
 	return {

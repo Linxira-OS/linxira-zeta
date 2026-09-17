@@ -1,10 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { handleCratesIo } from "@oh-my-pi/pi-coding-agent/web/scrapers/crates-io";
-import { handleGoPkg } from "@oh-my-pi/pi-coding-agent/web/scrapers/go-pkg";
-import { handleHex } from "@oh-my-pi/pi-coding-agent/web/scrapers/hex";
-import { handleNpm } from "@oh-my-pi/pi-coding-agent/web/scrapers/npm";
-import { handlePubDev } from "@oh-my-pi/pi-coding-agent/web/scrapers/pub-dev";
-import { handlePyPI } from "@oh-my-pi/pi-coding-agent/web/scrapers/pypi";
+import { handleCratesIo } from "@linxiraos/zeta/web/scrapers/crates-io";
+import { handleGoPkg } from "@linxiraos/zeta/web/scrapers/go-pkg";
+import { handleHex } from "@linxiraos/zeta/web/scrapers/hex";
+import { handleNpm } from "@linxiraos/zeta/web/scrapers/npm";
+import { handleOllama } from "@linxiraos/zeta/web/scrapers/ollama";
+import { handlePubDev } from "@linxiraos/zeta/web/scrapers/pub-dev";
+import { handlePyPI } from "@linxiraos/zeta/web/scrapers/pypi";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 
@@ -255,5 +256,44 @@ describe.skipIf(SKIP)("handleCratesIo", () => {
 		const result = await handleCratesIo("https://www.crates.io/crates/serde", 20000);
 		expect(result).not.toBeNull();
 		expect(result?.method).toBe("crates.io");
+	});
+});
+
+describe.skipIf(SKIP)("handleOllama", () => {
+	it("returns null for non-Ollama URLs", async () => {
+		const result = await handleOllama("https://example.com", 10000);
+		expect(result).toBeNull();
+	});
+
+	it("returns null for invalid Ollama URLs", async () => {
+		const result = await handleOllama("https://ollama.com/", 10000);
+		expect(result).toBeNull();
+	});
+
+	it("returns null for reserved root URLs", async () => {
+		const result = await handleOllama("https://ollama.com/library", 10000);
+		expect(result).toBeNull();
+	});
+
+	it("fetches llama3 model", async () => {
+		const result = await handleOllama("https://ollama.com/library/llama3", 20000);
+		expect(result).not.toBeNull();
+		expect(result?.method).toBe("ollama");
+		expect(result?.contentType).toBe("text/markdown");
+		expect(result?.content).toContain("llama3");
+		expect(result?.notes).toContain("Fetched via Ollama API");
+	});
+
+	it("fetches model via root URL", async () => {
+		const result = await handleOllama("https://ollama.com/llama3", 20000);
+		expect(result).not.toBeNull();
+		expect(result?.method).toBe("ollama");
+		expect(result?.content).toContain("llama3");
+	});
+
+	it("handles model with tag", async () => {
+		const result = await handleOllama("https://ollama.com/library/llama3:8b", 20000);
+		expect(result).not.toBeNull();
+		expect(result?.content).toMatch(/Tag:\*\*\s*llama3:8b/);
 	});
 });

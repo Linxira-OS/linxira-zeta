@@ -8,7 +8,7 @@
  *
  * Navigation:
  * - Tab/Shift+Tab or ←/→: switch provider tab
- * - Up/Down/j/k or wheel: move list selection
+ * - Up/Down or wheel: move list selection
  * - Space/Enter or click: toggle selected item (or provider master switch)
  * - Wheel over the inspector, or PageUp/PageDown when the inspector overflows: scroll the detail pane
  * - Esc: clear search (if active) then close
@@ -23,8 +23,8 @@ import {
 	TabBar,
 	truncateToWidth,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
-import { getMCPConfigPath, logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui";
+import { getMCPConfigPath, logger } from "@linxiraos/pi-utils";
 import { Settings } from "../../../config/settings";
 import type { CustomTool } from "../../../extensibility/custom-tools/types";
 import { setMcpServerEnabled } from "../../../mcp/config-writer";
@@ -326,8 +326,11 @@ export class ExtensionDashboard implements Component {
 
 	/**
 	 * Provider disable is discovery-only: do not rewrite mcp.json. Disconnect
-	 * live MCP servers owned by this provider so their tools leave the session.
-	 * Re-enable does not auto-connect — startup/reload still owns that.
+	 * the MCP servers owned by this provider so their tools leave the session.
+	 * Every server, not only the connected ones: a lost remote server reads
+	 * "disconnected" between its scheduled reconnects, and only
+	 * `disconnectServer` ends that schedule. Re-enable does not auto-connect —
+	 * startup/reload still owns that.
 	 */
 	async #disconnectProviderMcpServers(providerId: string, level?: "user" | "project"): Promise<void> {
 		const names = [
@@ -338,8 +341,7 @@ export class ExtensionDashboard implements Component {
 							ext.kind === "mcp" &&
 							ext.source.provider === providerId &&
 							(level === undefined || ext.source.level === level) &&
-							!isShadowedExtension(ext) &&
-							this.mcpManager?.getConnectionStatus(ext.name) !== "disconnected",
+							!isShadowedExtension(ext),
 					)
 					.map(ext => ext.name),
 			),
@@ -373,7 +375,7 @@ export class ExtensionDashboard implements Component {
 		if (!sm) return;
 
 		// MCP toggles route through the canonical denylist in
-		// `~/.omp/agent/mcp.json` so `/mcp list`, the MCP runtime, and this
+		// `~/.zeta/agent/mcp.json` so `/mcp list`, the MCP runtime, and this
 		// dashboard agree on every server's enabled state (issue #3827).
 		if (extensionId.startsWith("mcp:")) {
 			void this.#toggleMcpExtension(extensionId, enabled, sm);

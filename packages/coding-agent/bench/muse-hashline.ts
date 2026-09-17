@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Context, Model, ModelSpec, Tool } from "@oh-my-pi/pi-ai";
-import { buildParams } from "@oh-my-pi/pi-ai/providers/openai-responses";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { EditSession, EditStore, editDescription, type EditPolicy } from "@oh-my-pi/pi-natives";
-import { type } from "@oh-my-pi/omptype";
+import type { Context, Model, ModelSpec, Tool } from "@linxiraos/pi-ai";
+import { buildParams } from "@linxiraos/pi-ai/providers/openai-responses";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type EditPolicy, EditSession, EditStore, editDescription } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
 import { editDescriptionCompact } from "../src/edit/index";
 
 const WARMUP = 10;
@@ -14,11 +14,10 @@ const SAMPLES = 41;
 const REQUEST_REPETITIONS = 100;
 const root = path.join(os.tmpdir(), "omp-bench-muse-hashline");
 const target = path.join(root, "fixture.ts");
-const fixture =
-	Array.from(
-		{ length: 1_200 },
-		(_, index) => `export const value${index + 1} = ${index + 1}; // deterministic hashline benchmark payload`,
-	).join("\n") + "\n";
+const fixture = `${Array.from(
+	{ length: 1_200 },
+	(_, index) => `export const value${index + 1} = ${index + 1}; // deterministic hashline benchmark payload`,
+).join("\n")}\n`;
 const replacement = "export const value600 = 600_000; // deterministic hashline benchmark payload";
 
 // Resolve the real bundled muse-code catalog row, then re-resolve it through

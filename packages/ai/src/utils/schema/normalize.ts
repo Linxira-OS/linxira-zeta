@@ -6,7 +6,7 @@
  * exposes one option-driven core plus thin dispatchers that pin the option set
  * for each target.
  */
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import * as AIError from "../../error";
 import { dereferenceJsonSchema } from "./dereference";
 import { upgradeJsonSchemaTo202012 } from "./draft";
@@ -100,7 +100,7 @@ const SUBSCHEMA_VALUE_KEYS: Record<string, true> = {
 	unevaluatedItems: true,
 	not: true,
 	if: true,
-	// oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+	// biome-ignore lint/suspicious/noThenProperty: schema then keyword is intentional
 	then: true,
 	else: true,
 	contains: true,
@@ -1507,7 +1507,7 @@ const GRAMMAR_SCHEMA_VALUE_KEYS: Record<string, true> = {
 	contentSchema: true,
 	propertyNames: true,
 	if: true,
-	// oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+	// biome-ignore lint/suspicious/noThenProperty: schema then keyword is intentional
 	then: true,
 	else: true,
 	not: true,
@@ -1877,9 +1877,9 @@ function inferStrictPrimitiveTypeFromEnumOrConst(node: Record<string, unknown>):
 }
 
 /**
- * Per-schema-object memoization slot. The result of `tryEnforceStrictSchema`
- * is stamped directly onto the input via `stamp(target, kStrictSchema, …)`
- * so repeated calls (different providers, retries, batching) reuse the same
+ * Per-schema-object memoization key. The result of `tryEnforceStrictSchema`
+ * is memoized against the input via `stamp(target, kStrictSchema, …)` so
+ * repeated calls (different providers, retries, batching) reuse the same
  * computed pair without re-walking the tree.
  */
 const kStrictSchema = Symbol("pi.schema.strict");

@@ -2,11 +2,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, mock, spyOn, test }
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { runPluginCommand } from "@oh-my-pi/pi-coding-agent/cli/plugin-cli";
-import { PluginManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/manager";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import * as piUtils from "@oh-my-pi/pi-utils";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import * as piUtils from "@linxiraos/pi-utils";
+import { removeWithRetries, symlinkDirectorySync } from "@linxiraos/pi-utils";
+import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme(false);
@@ -83,7 +83,7 @@ describe("plugin config", () => {
 			}),
 		);
 		await fs.mkdir(path.dirname(pluginPath), { recursive: true });
-		await fs.symlink(installPath, pluginPath, "dir");
+		symlinkDirectorySync(installPath, pluginPath);
 		await Bun.write(
 			path.join(pluginsDir, "installed_plugins.json"),
 			JSON.stringify({
@@ -132,7 +132,7 @@ describe("plugin config", () => {
 			}),
 		);
 		await fs.mkdir(path.dirname(pluginPath), { recursive: true });
-		await fs.symlink(installPath, pluginPath, "dir");
+		symlinkDirectorySync(installPath, pluginPath);
 		await Bun.write(
 			path.join(pluginsDir, "installed_plugins.json"),
 			JSON.stringify({
@@ -157,7 +157,7 @@ describe("plugin config", () => {
 				settings: {},
 			}),
 		);
-		const projectPluginsDir = path.join(tmpRoot, ".omp", "plugins");
+		const projectPluginsDir = path.join(tmpRoot, ".zeta", "plugins");
 		const projectInstallPath = path.join(tmpRoot, "project-cache", pluginName);
 		const projectPluginPath = path.join(projectPluginsDir, "node_modules", pluginName);
 		await Bun.write(
@@ -169,7 +169,7 @@ describe("plugin config", () => {
 			}),
 		);
 		await fs.mkdir(path.dirname(projectPluginPath), { recursive: true });
-		await fs.symlink(projectInstallPath, projectPluginPath, "dir");
+		symlinkDirectorySync(projectInstallPath, projectPluginPath);
 		await Bun.write(
 			path.join(projectPluginsDir, "omp-plugins.lock.json"),
 			JSON.stringify({
@@ -209,9 +209,13 @@ describe("plugin config", () => {
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: schemaDefault } },
 			},
 		});
-		const projectRoot = path.join(tmpRoot, ".omp", "plugins");
+		const projectRoot = path.join(tmpRoot, ".zeta", "plugins");
 		await fs.mkdir(path.join(projectRoot, "node_modules"), { recursive: true });
-		await fs.symlink(installPath, path.join(projectRoot, "node_modules", "omp-commit"), "dir");
+		await fs.symlink(
+			installPath,
+			path.join(projectRoot, "node_modules", "omp-commit"),
+			process.platform === "win32" ? "junction" : "dir",
+		);
 		await Bun.write(
 			path.join(projectRoot, "omp-plugins.lock.json"),
 			JSON.stringify({

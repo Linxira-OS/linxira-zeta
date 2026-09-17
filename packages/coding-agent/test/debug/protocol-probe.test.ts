@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { getImageDimensions, ImageBudget, ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import {
 	buildLargeTextLines,
 	buildSampleImage,
 	encodeRgbPng,
 	ProtocolProbeComponent,
-} from "@oh-my-pi/pi-coding-agent/debug/protocol-probe";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { getImageDimensions, ImageBudget, ImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
+} from "@linxiraos/zeta/debug/protocol-probe";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	// buildLargeTextLines styles the OSC 66 span through the global theme singleton.

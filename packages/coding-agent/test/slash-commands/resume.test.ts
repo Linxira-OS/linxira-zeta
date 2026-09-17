@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { listAllSessions, resolveResumableSession } from "@oh-my-pi/pi-coding-agent/session/session-listing";
-import { computeDefaultSessionDir } from "@oh-my-pi/pi-coding-agent/session/session-paths";
-import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import { getConfigRootDir, refreshDirsFromEnv, setAgentDir } from "@oh-my-pi/pi-utils";
+import { getConfigRootDir, refreshDirsFromEnv, setAgentDir } from "@linxiraos/pi-utils";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { listAllSessions, resolveResumableSession } from "@linxiraos/zeta/session/session-listing";
+import { computeDefaultSessionDir } from "@linxiraos/zeta/session/session-paths";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 let tempDir: string;
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 const storage = new FileSessionStorage();
 
@@ -24,7 +24,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	await fs.rm(tempDir, { recursive: true, force: true });
 });
@@ -172,12 +172,12 @@ describe("/resume slash command", () => {
 
 	it.skipIf(process.platform === "win32")("lists and resumes sessions stored in XDG_DATA_HOME", async () => {
 		const xdgDataDir = path.join(tempDir, "xdg-data");
-		const xdgOmpDir = path.join(xdgDataDir, "omp");
+		const xdgOmpDir = path.join(xdgDataDir, "zeta");
 		await fs.mkdir(xdgOmpDir, { recursive: true });
 
 		const originalXdgData = process.env.XDG_DATA_HOME;
-		const originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
-		delete process.env.PI_CODING_AGENT_DIR;
+		const originalPiCodingAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 		process.env.XDG_DATA_HOME = xdgDataDir;
 		refreshDirsFromEnv();
 
@@ -203,7 +203,7 @@ describe("/resume slash command", () => {
 		} finally {
 			if (originalXdgData !== undefined) process.env.XDG_DATA_HOME = originalXdgData;
 			else delete process.env.XDG_DATA_HOME;
-			if (originalPiCodingAgentDir !== undefined) process.env.PI_CODING_AGENT_DIR = originalPiCodingAgentDir;
+			if (originalPiCodingAgentDir !== undefined) process.env.ZETA_CODING_AGENT_DIR = originalPiCodingAgentDir;
 			refreshDirsFromEnv();
 		}
 	});

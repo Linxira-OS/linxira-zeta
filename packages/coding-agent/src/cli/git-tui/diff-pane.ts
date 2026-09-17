@@ -13,10 +13,10 @@
  * the visible viewport brightened; clicking it seeks. Long lines either pan
  * horizontally (`←`/`→`) or soft-wrap when word wrap is enabled.
  */
-import type { DiffStreamResult, HighlightStream } from "@oh-my-pi/pi-natives";
-import { diffWords, structuredPatchHunks } from "@oh-my-pi/pi-natives";
-import { Image, type ImageBudget, replaceTabs, sliceWithWidth, truncateToWidth, visibleWidth } from "@oh-my-pi/pi-tui";
-import { formatBytes, sanitizeText } from "@oh-my-pi/pi-utils";
+import type { DiffStreamResult, HighlightStream } from "@linxiraos/pi-natives";
+import { diffWords, structuredPatchHunks } from "@linxiraos/pi-natives";
+import { Image, type ImageBudget, replaceTabs, sliceWithWidth, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
+import { formatBytes, sanitizeText } from "@linxiraos/pi-utils";
 import { createHighlightStream, getLanguageFromPath, theme } from "../../modes/theme/theme";
 import { bgAnsi, canvasHex, fgAnsi, mixHex, pill, selectionBgAnsi, textHex, withBg } from "./colors";
 import { DIFF_CONTEXT_LINES, type FileAssetSide, type FileStreamUpdate } from "./state";
@@ -398,7 +398,7 @@ export function buildDiffDocument(
 
 	const fileLines = newPlain.map(line => ({ text: line, width: visibleWidth(line) }));
 	const gutterWidth = Math.max(3, String(Math.max(oldLines.length, newLines.length)).length);
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const rowIndexByNewLine: number[] = new Array(newLines.length + 1).fill(-1);
 	rows.forEach((row, index) => {
 		if (row.newNum !== undefined && rowIndexByNewLine[row.newNum] === -1) rowIndexByNewLine[row.newNum] = index;
@@ -511,7 +511,8 @@ function palette(): DiffPalette {
 	const added = theme.getColorHex("toolDiffAdded");
 	const removed = theme.getColorHex("toolDiffRemoved");
 	const accent = theme.getColorHex("accent");
-	const dark = theme.statusLineLuminance === undefined || theme.statusLineLuminance <= 0.5;
+	const luminance = theme.statusLineLuminance;
+	const dark = luminance === undefined || luminance <= 0.5;
 	const canvas = canvasHex();
 	const text = textHex();
 	const key = `${added}\u0000${removed}\u0000${accent}\u0000${dark}\u0000${canvas}\u0000${text}`;
@@ -668,9 +669,9 @@ export class DiffPane {
 		if (!oldStream && !newStream) return;
 
 		const highlights: SyntaxHighlights = {
-			// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+			// [suppressed] length preallocation
 			old: new Array(doc.oldDisplayLines.length),
-			// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+			// [suppressed] length preallocation
 			new: new Array(doc.newDisplayLines.length),
 		};
 		this.#highlights = highlights;
@@ -1031,7 +1032,7 @@ export class DiffPane {
 	render(width: number, height: number): string[] {
 		this.#lastWidth = width;
 		this.#lastHeight = height;
-		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+		// [suppressed] length preallocation
 		this.#hits = new Array(height);
 		const doc = this.#doc;
 		if (this.state === "streaming" && this.#streaming) return this.#renderStreaming(width, height);

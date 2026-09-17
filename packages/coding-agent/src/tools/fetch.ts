@@ -2,12 +2,12 @@ import type { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { type FetchImpl, getEnvApiKey, type ImageContent, type TextContent } from "@oh-my-pi/pi-ai";
-import { htmlToMarkdown, notebookToEditableText } from "@oh-my-pi/pi-natives";
-import { type Component, Text } from "@oh-my-pi/pi-tui";
-import { $which, ptree, truncate } from "@oh-my-pi/pi-utils";
-import { type ArchiveFormat, listArchiveRoot, sniffArchiveFormat } from "@oh-my-pi/pi-utils/ar";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type FetchImpl, getEnvApiKey, type ImageContent, type TextContent } from "@linxiraos/pi-ai";
+import { htmlToMarkdown, notebookToEditableText } from "@linxiraos/pi-natives";
+import { type Component, Text } from "@linxiraos/pi-tui";
+import { $which, ptree, truncate } from "@linxiraos/pi-utils";
+import { type ArchiveFormat, listArchiveRoot, sniffArchiveFormat } from "@linxiraos/pi-utils/ar";
 import type { Settings } from "../config/settings";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { type Theme, theme } from "../modes/theme/theme";
@@ -406,23 +406,32 @@ function getHtmlAttribute(tag: string, attribute: string): string | null {
 }
 
 /**
- * Extract bounded <head> markup to avoid expensive whole-page parsing
+ * Extract bounded <head> markup to avoid expensive whole-page parsing.
+ * Case-insensitive scan over a bounded prefix: the previous version lowercased
+ * the entire page (0.3ms/MB) before searching for two markers.
  */
 function extractHeadHtml(html: string): string {
-	const lower = html.toLowerCase();
-	const headStart = lower.indexOf("<head");
+	const SCAN_LIMIT = 256 * 1024;
+	const window = html.length > SCAN_LIMIT ? html.slice(0, SCAN_LIMIT) : html;
+	const headStart = window.search(/<head[\s>]/i);
 	if (headStart === -1) {
 		return html.slice(0, 32 * 1024);
 	}
 
 	const headTagEnd = html.indexOf(">", headStart);
-	if (headTagEnd === -1) {
+	if (headTagEnd === -1 || headTagEnd - headStart > 4096) {
 		return html.slice(headStart, headStart + 32 * 1024);
 	}
 
-	const headEnd = lower.indexOf("</head>", headTagEnd + 1);
-	const fallbackEnd = Math.min(html.length, headTagEnd + 1 + 32 * 1024);
-	return html.slice(headStart, headEnd === -1 ? fallbackEnd : headEnd + 7);
+	const tail = html.slice(headTagEnd + 1, headTagEnd + 1 + 128 * 1024);
+	const relativeEnd = tail.search(/<\/head\s*>/i);
+	if (relativeEnd === -1) {
+		// No close tag inside the scanned window: the head may legitimately
+		// run longer, so return everything scanned rather than shrinking to
+		// the first 32 KiB and dropping valid alternate links.
+		return html.slice(headStart, headTagEnd + 1 + tail.length);
+	}
+	return html.slice(headStart, headTagEnd + 1 + relativeEnd + 7);
 }
 
 /**
@@ -515,7 +524,7 @@ function cleanFeedText(text: string): string {
  * Parse RSS/Atom feed to markdown
  */
 async function parseFeedToMarkdown(content: string, maxItems = 10): Promise<string> {
-	const { parseHTML } = await import("@oh-my-pi/pi-utils/dom");
+	const { parseHTML } = await import("@linxiraos/pi-utils/dom");
 	try {
 		const doc = parseHTML(content).document;
 

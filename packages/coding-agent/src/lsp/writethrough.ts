@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
-import { isEnoent, logger, once, untilAborted } from "@oh-my-pi/pi-utils";
+import { isEnoent, logger, once, untilAborted } from "@linxiraos/pi-utils";
 import type { BunFile } from "bun";
 import { isPermissionDeniedError, writeFileWithFallback } from "../tools/file-write-fallback";
-import { FileChangeType, notifyWorkspaceWatchedFiles } from "./client";
-import { getConfig, getServersForFile } from "./config";
+import { beginPendingDiskWrite, endPendingDiskWrite, FileChangeType, notifyWorkspaceWatchedFiles } from "./client";
+import { getServersForFile } from "./config";
 import {
 	captureDiagnosticVersions,
 	captureOpenFileVersions,
@@ -16,7 +16,7 @@ import {
 	limitDiagnosticMessages,
 	type ServerVersionMap,
 } from "./diagnostics";
-import { notifyFileSaved, splitServers, syncFileContent } from "./servers";
+import { getConfig, notifyFileSaved, splitServers, syncFileContent } from "./servers";
 import type { ServerConfig } from "./types";
 import { summarizeDiagnosticMessages } from "./utils";
 
@@ -362,6 +362,10 @@ async function runLspWritethrough(
 	let timedOut = false;
 	let synced = false;
 	let operationSignal: AbortSignal | undefined;
+	// The overlay leads disk from the first sync below until the write commits;
+	// bar disk-reconciliation for the file so a concurrent semantic query cannot
+	// revert the server to pre-write content.
+	beginPendingDiskWrite(dst);
 	try {
 		const timeoutSignal = AbortSignal.timeout(5_000);
 		timeoutSignal.addEventListener(
@@ -450,6 +454,8 @@ async function runLspWritethrough(
 		// announce it on the caller's signal — the dead `operationSignal` would
 		// abort the notify before it ever reaches the server.
 		await notifyWriteCommitted();
+	} finally {
+		endPendingDiskWrite(dst);
 	}
 
 	if (synced && enableDiagnostics) {

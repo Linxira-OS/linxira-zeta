@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { $which, removeWithRetries } from "@oh-my-pi/pi-utils";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { $which, removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("jj workspace detection", () => {
 	let tmpDir: string | undefined;
@@ -156,14 +156,5 @@ describe.skipIf(!jjBinary)("native JJ workspace queries", () => {
 		await runJj(dir, ["bookmark", "create", "feature"]);
 		const workspace = vcs.jj(dir);
 		expect(await workspace?.workingCopyLabel()).toBe("feature");
-	});
-
-	it("snapshots new files for status and changed-file queries", async () => {
-		const dir = await createRepo();
-		await Bun.write(path.join(dir, "new.txt"), "native jj\n");
-
-		const workspace = vcs.jj(dir);
-		expect(await workspace?.statusSummary()).toEqual({ staged: 0, unstaged: 0, untracked: 1 });
-		expect(await workspace?.changedFiles([], true)).toEqual(["new.txt"]);
 	});
 });

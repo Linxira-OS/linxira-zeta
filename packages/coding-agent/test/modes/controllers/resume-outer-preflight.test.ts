@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import * as core from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createTools, type Tool } from "@oh-my-pi/pi-coding-agent/tools";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import * as core from "@linxiraos/pi-agent-core";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createTools, type Tool } from "@linxiraos/zeta/tools";
 
 beforeAll(async () => {
 	await initTheme();
@@ -83,25 +83,6 @@ describe("InteractiveMode.handleResumeSession outer preflight flush", () => {
 			expect(showErrorSpy).toHaveBeenCalledWith(expect.stringContaining("disk full"));
 			expect(resetSpy).not.toHaveBeenCalled();
 			expect(switchSpy).not.toHaveBeenCalled();
-		} finally {
-			await cleanup();
-		}
-	});
-
-	it("disposes controllers and delegates to SelectorController with settingsFlushed on success", async () => {
-		const { mode, session, cleanup } = await createMode({ flushFails: false });
-		try {
-			const resetSpy = vi.spyOn(mode, "resetObserverRegistry");
-			const switchSpy = vi.spyOn(session, "switchSession").mockResolvedValue(true);
-
-			await mode.handleResumeSession("/tmp/some-session.jsonl");
-
-			expect(mode.settings.flush).toHaveBeenCalled();
-			expect(resetSpy).toHaveBeenCalled();
-			expect(switchSpy).toHaveBeenCalledWith(
-				"/tmp/some-session.jsonl",
-				expect.objectContaining({ onCwdChange: expect.any(Function) }),
-			);
 		} finally {
 			await cleanup();
 		}

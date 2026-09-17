@@ -1,17 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { OPENAI_DAYBREAK_CURATED_FALLBACK_MODELS } from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { Api, ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { seedModels } from "@linxiraos/pi-catalog/compat/providers";
+import type { Api, ModelSpec } from "@linxiraos/pi-catalog/types";
 import { applyGeneratedModelPolicies } from "../scripts/generated-policies";
 
 const DAYBREAK_EFFORTS = [Effort.Low, Effort.Medium, Effort.High, Effort.XHigh, Effort.Max];
+const DAYBREAK_MODELS = seedModels<"openai-responses">("openai");
 
 describe("OpenAI Daybreak and GPT-5.6 models", () => {
 	test("curates the documented aliases and Cyber snapshot with standard API pricing", () => {
-		const byId = Object.fromEntries(OPENAI_DAYBREAK_CURATED_FALLBACK_MODELS.map(model => [model.id, model]));
+		const byId = Object.fromEntries(DAYBREAK_MODELS.map(model => [model.id, model]));
 		expect(Object.keys(byId)).toEqual(["daybreak-blue-latest", "daybreak-red-latest", "gpt-5.6-cyber"]);
 		expect(byId["daybreak-blue-latest"]).toMatchObject({
 			name: "Daybreak Blue",
@@ -66,7 +67,7 @@ describe("OpenAI Daybreak and GPT-5.6 models", () => {
 	});
 
 	test("exposes off and every GPT-5.6 wire effort on all Daybreak IDs", () => {
-		const generated: ModelSpec<Api>[] = OPENAI_DAYBREAK_CURATED_FALLBACK_MODELS.map(model => ({
+		const generated: ModelSpec<Api>[] = DAYBREAK_MODELS.map(model => ({
 			...model,
 			cost: { ...model.cost },
 		}));

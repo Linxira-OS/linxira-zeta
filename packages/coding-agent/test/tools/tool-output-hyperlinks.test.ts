@@ -3,14 +3,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { editToolRenderer } from "@oh-my-pi/pi-coding-agent/edit/renderer";
-import { getThemeByName, initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { astGrepToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/ast-grep";
-import { ReadTool, readToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { WriteTool, writeToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { editToolRenderer } from "@linxiraos/zeta/edit/renderer";
+import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { astGrepToolRenderer } from "@linxiraos/zeta/tools/ast-grep";
+import { ReadTool, readToolRenderer } from "@linxiraos/zeta/tools/read";
+import { WriteTool, writeToolRenderer } from "@linxiraos/zeta/tools/write";
 import { grepToolRenderer } from "../../src/tools/grep";
 
 // 1x1 PNG so the read tool takes its image branch.
@@ -134,11 +134,8 @@ describe("tool output OSC 8 file:// hyperlinks", () => {
 			.render(240)
 			.join("\n");
 		const interactiveModeUri = url.pathToFileURL(path.resolve(interactiveModePath)).href;
-		const interactiveModeLineUri = new URL(interactiveModeUri);
-		interactiveModeLineUri.searchParams.set("line", "12");
 		const uris = extractLinkUris(rendered);
-		expect(uris).toContain(interactiveModeUri);
-		expect(uris).toContain(interactiveModeLineUri.href);
+		expect(uris.filter(uri => uri === interactiveModeUri)).toHaveLength(2);
 		expect(uris.some(uri => uri.includes("/src/src/"))).toBe(false);
 	});
 

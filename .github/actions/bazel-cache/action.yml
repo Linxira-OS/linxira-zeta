@@ -55,12 +55,13 @@ runs:
         run: |
            set -euo pipefail
            remote=false
-           if [ -n "${BAZEL_REMOTE_USER:-}" ] || [ -n "${BAZEL_REMOTE_PASSWORD:-}" ]; then
-             if [ -z "${BAZEL_REMOTE_USER:-}" ] || [ -z "${BAZEL_REMOTE_PASSWORD:-}" ]; then
-               echo "::error::BAZEL_REMOTE_USER and BAZEL_REMOTE_PASSWORD must both be set"
-               exit 1
-             fi
+           if [ -n "${BAZEL_REMOTE_USER:-}" ] && [ -n "${BAZEL_REMOTE_PASSWORD:-}" ]; then
              remote=true
+           elif [ -n "${BAZEL_REMOTE_USER:-}" ] || [ -n "${BAZEL_REMOTE_PASSWORD:-}" ]; then
+             # Single-sided credential config (e.g. one repo secret set, the
+             # other missing) must not fail the warm/seed runs — fall back to
+             # the actions/cache-backed disk cache instead of erroring out.
+             echo "::warning::BAZEL_REMOTE_USER/PASSWORD partially configured; using disk cache"
            fi
            key="bazel-disk-v3-${{ inputs.scope }}-${{ runner.os }}-${{ runner.arch }}-$CONFIG_HASH-$SOURCE_HASH"
            prefix="bazel-disk-v3-${{ inputs.scope }}-${{ runner.os }}-${{ runner.arch }}-$CONFIG_HASH-"

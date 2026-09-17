@@ -3,13 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import * as mcpClient from "@oh-my-pi/pi-coding-agent/mcp/client";
-import * as oauthFlow from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
-import type { SourceMeta } from "@oh-my-pi/pi-coding-agent/capability/types";
-import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -17,7 +11,13 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
+import type { SourceMeta } from "@linxiraos/zeta/capability/types";
+import * as mcpClient from "@linxiraos/zeta/mcp/client";
+import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 import {
 	createInteractiveModeContext,
 	createMcpManagerStub,
@@ -35,7 +35,7 @@ type TestConfigFile = {
 };
 
 const originalProjectDir = getProjectDir();
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 function restoreEnvValue(name: string, value: string | undefined): void {
@@ -47,33 +47,6 @@ function restoreEnvValue(name: string, value: string | undefined): void {
 	Bun.env[name] = value;
 	process.env[name] = value;
 }
-/**
- * Resolve when the controller installs its `editor.onEscape` hook.
- *
- * The hook is installed part-way through an async flow, so a test that needs
- * it has to wait. Polling to a wall-clock deadline would make that wait a
- * timing budget rather than a synchronisation point: on a loaded runner the
- * deadline can expire before correct code has installed the hook, and the
- * assertion then fails on a value that was merely late. Intercepting the
- * assignment bounds the wait by the event it is actually waiting for, leaving
- * `bun test --timeout` as the only backstop for a genuine hang.
- */
-function whenEscapeInstalled(editor: { onEscape?: (() => void) | undefined }): Promise<void> {
-	const installed = Promise.withResolvers<void>();
-	let current = editor.onEscape;
-	if (typeof current === "function") installed.resolve();
-	Object.defineProperty(editor, "onEscape", {
-		configurable: true,
-		enumerable: true,
-		get: () => current,
-		set: (value: (() => void) | undefined) => {
-			current = value;
-			if (typeof value === "function") installed.resolve();
-		},
-	});
-	return installed.promise;
-}
-
 function createController(authStorage: AuthStorage, mcpManagerOverrides: McpManagerOverrides = {}) {
 	const prepareConfig = vi.fn(async (config: MCPServerConfig) => config);
 	const mcpManager = createMcpManagerStub({ prepareConfig, ...mcpManagerOverrides });
@@ -143,13 +116,28 @@ describe("/mcp auth commands", () => {
 			setAgentDir(originalAgentDir);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		await removeWithRetries(projectDir);
 		await removeWithRetries(agentDir);
 	});
 
 	test("stores definition-only OAuth credentials under the expanded URL key", async () => {
+		await Bun.write(
+			configPath,
+			`${JSON.stringify(
+				{
+					mcpServers: {
+						"MaaS Slack": {
+							type: "http",
+							url: RAW_SERVER_URL,
+						},
+					},
+				},
+				null,
+				2,
+			)}\n`,
+		);
 		const authStorage = freshAuthStorage();
 		await authStorage.reload();
 		const connectToServer = vi.spyOn(mcpClient, "connectToServer").mockRejectedValue(AUTH_ERROR);
@@ -160,7 +148,7 @@ describe("/mcp auth commands", () => {
 		});
 		const { controller, showError, prepareConfig } = createController(authStorage);
 
-		await controller.handle("/mcp reauth envserver");
+		await controller.handle("/mcp reauth MaaS Slack");
 
 		expect(showError).not.toHaveBeenCalled();
 		expect(prepareConfig).toHaveBeenCalledWith(
@@ -180,7 +168,7 @@ describe("/mcp auth commands", () => {
 		expect(authStorage.get(oauthFlow.mcpOAuthCredentialId(RAW_SERVER_URL))).toBeUndefined();
 
 		const saved = JSON.parse(await Bun.file(configPath).text()) as TestConfigFile;
-		const savedServer = saved.mcpServers?.envserver;
+		const savedServer = saved.mcpServers?.["MaaS Slack"];
 		const savedUrl = savedServer?.type === "http" || savedServer?.type === "sse" ? savedServer.url : undefined;
 		expect(savedUrl).toBe(RAW_SERVER_URL);
 		expect(savedServer?.auth).toBeUndefined();
@@ -836,21 +824,27 @@ describe("/mcp auth commands", () => {
 
 		const { controller, showError, showStatus, editor } = createController(authStorage);
 
-		// Gate on #handleOAuthFlow installing its editor.onEscape hook.
-		const escapeInstalled = whenEscapeInstalled(editor);
 		const reauthPromise = controller.handle("/mcp reauth envserver");
-		await escapeInstalled;
+
+		// Wait for #handleOAuthFlow to install its editor.onEscape hook.
+		const deadline = Date.now() + 1_000;
+		while (typeof editor.onEscape !== "function" && Date.now() < deadline) {
+			await Bun.sleep(10);
+		}
 		expect(typeof editor.onEscape).toBe("function");
 
 		const installedEscape = editor.onEscape;
 		editor.onEscape?.();
 
-		// Cancellation must resolve the reauth promise (well under the 5-minute
-		// production timeout). Awaited directly rather than raced against a 2s
-		// timer: a hung flow is already a failure via `bun test --timeout`, which
-		// reports the test name, whereas a wall-clock race also fails correct code
-		// that merely resolved late on a loaded runner.
-		await reauthPromise;
+		// Cancellation must resolve the reauth promise promptly (well under the
+		// 5-minute production timeout); a 2s race exposes a hung flow as a test
+		// failure rather than a suite hang.
+		await Promise.race([
+			reauthPromise,
+			Bun.sleep(2_000).then(() => {
+				throw new Error("reauth did not resolve within 2s of Esc");
+			}),
+		]);
 
 		expect(showError).not.toHaveBeenCalled();
 		expect(showStatus).toHaveBeenCalledWith(expect.stringMatching(/cancel/i));
@@ -888,26 +882,27 @@ describe("/mcp auth commands", () => {
 		});
 
 		const { controller, ctx, showError, showStatus, editor, oauthManualInput } = createController(authStorage);
-		// Event-gate the claim instead of polling to a wall-clock deadline: on a
-		// loaded runner the old 1s budget could expire before the flow claimed the
-		// manual-input slot, and the assertion below then read `undefined` from a
-		// slot that was merely late. Resolving off `tryClaimInput` itself makes the
-		// wait bounded by the event it is actually waiting for.
-		const claimed = Promise.withResolvers<void>();
-		const tryClaimInput = oauthManualInput.tryClaimInput.bind(oauthManualInput);
-		vi.spyOn(oauthManualInput, "tryClaimInput").mockImplementation(providerId => {
-			const result = tryClaimInput(providerId);
-			if (result) claimed.resolve();
-			return result;
-		});
 		const firstReauth = controller.handle("/mcp reauth envserver");
-		await claimed.promise;
+		const claimDeadline = Date.now() + 1_000;
+		while (!oauthManualInput.hasPending() && Date.now() < claimDeadline) {
+			await Bun.sleep(10);
+		}
 		expect(oauthManualInput.pendingProviderId).toBe("mcp");
 
 		const replacementReauth = new MCPCommandController(ctx).handle("/mcp reauth envserver");
-		await replacementReauth;
+		await Promise.race([
+			replacementReauth,
+			Bun.sleep(2_000).then(() => {
+				throw new Error("replacement reauth did not resolve within 2s");
+			}),
+		]);
 		if (oauthManualInput.hasPending()) editor.onEscape?.();
-		await firstReauth;
+		await Promise.race([
+			firstReauth,
+			Bun.sleep(2_000).then(() => {
+				throw new Error("superseded reauth did not resolve within 2s");
+			}),
+		]);
 
 		expect(loginAttempt).toBe(2);
 		expect(showError).not.toHaveBeenCalled();
@@ -930,13 +925,20 @@ describe("/mcp auth commands", () => {
 		vi.spyOn(oauthFlow.MCPOAuthFlow.prototype, "login").mockReturnValue(Promise.withResolvers<never>().promise);
 		const { controller, showError, showStatus, editor } = createController(authStorage);
 
-		const escapeInstalled = whenEscapeInstalled(editor);
 		const reauthPromise = controller.handle("/mcp reauth envserver");
-		await escapeInstalled;
+		const deadline = Date.now() + 1_000;
+		while (typeof editor.onEscape !== "function" && Date.now() < deadline) {
+			await Bun.sleep(10);
+		}
 		expect(typeof editor.onEscape).toBe("function");
 		editor.onEscape?.();
 
-		await reauthPromise;
+		await Promise.race([
+			reauthPromise,
+			Bun.sleep(2_000).then(() => {
+				throw new Error("reauth did not resolve within 2s of pre-wait Esc");
+			}),
+		]);
 
 		expect(showError).not.toHaveBeenCalled();
 		expect(showStatus).toHaveBeenCalledWith(expect.stringMatching(/cancel/i));
@@ -1044,8 +1046,10 @@ describe("/mcp auth commands", () => {
 							url: RAW_SERVER_URL,
 							oauth: {
 								// oxlint-disable-next-line no-template-curly-in-string -- test placeholder string for env expansion
+								// biome-ignore lint/suspicious/noTemplateCurlyInString: literal env placeholder written to config
 								clientId: "${MCP_OAUTH_CLIENT_ID}",
 								// oxlint-disable-next-line no-template-curly-in-string -- test placeholder string for env expansion
+								// biome-ignore lint/suspicious/noTemplateCurlyInString: literal env placeholder written to config
 								clientSecret: "${MCP_OAUTH_CLIENT_SECRET}",
 							},
 						},
@@ -1088,8 +1092,10 @@ describe("/mcp auth commands", () => {
 			const saved = JSON.parse(await Bun.file(configPath).text()) as TestConfigFile;
 			const savedServer = saved.mcpServers?.envserver;
 			// oxlint-disable-next-line no-template-curly-in-string -- test placeholder string for env expansion
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: literal env placeholder
 			expect(savedServer?.oauth?.clientSecret).toBe("${MCP_OAUTH_CLIENT_SECRET}");
 			// oxlint-disable-next-line no-template-curly-in-string -- test placeholder string for env expansion
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: literal env placeholder
 			expect(savedServer?.oauth?.clientId).toBe("${MCP_OAUTH_CLIENT_ID}");
 		} finally {
 			restoreEnvValue("MCP_OAUTH_CLIENT_ID", originalClientId);

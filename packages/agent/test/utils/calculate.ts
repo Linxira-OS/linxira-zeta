@@ -1,5 +1,5 @@
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core/types";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core/types";
+import { type } from "@linxiraos/pi-omptype";
 
 export interface CalculateResult extends AgentToolResult<undefined> {
 	content: Array<{ type: "text"; text: string }>;

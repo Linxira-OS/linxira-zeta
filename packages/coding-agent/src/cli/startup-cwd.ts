@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { directoryExists, getProjectDir, normalizePathForComparison, setProjectDir } from "@oh-my-pi/pi-utils";
+import { directoryExists, getProjectDir, normalizePathForComparison, setProjectDir } from "@linxiraos/pi-utils";
 import type { Args } from "./args";
 
 async function maybeAutoChdir(parsed: Args): Promise<void> {
@@ -21,7 +21,8 @@ async function maybeAutoChdir(parsed: Args): Promise<void> {
 		return;
 	}
 
-	const candidates = [path.join(home, "tmp"), "/tmp", "/var/tmp"];
+	const candidates =
+		process.platform === "win32" ? [path.join(home, "tmp")] : [path.join(home, "tmp"), "/tmp", "/var/tmp"];
 	for (const candidate of candidates) {
 		try {
 			if (!(await directoryExists(candidate))) {

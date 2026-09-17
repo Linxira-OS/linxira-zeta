@@ -10,10 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Markit } from "@oh-my-pi/pi-coding-agent/markit";
-import { convertBufferWithMarkit, convertFileWithMarkit } from "@oh-my-pi/pi-coding-agent/utils/markit";
-import { pruneMarkitConversionCache } from "@oh-my-pi/pi-coding-agent/utils/markit-cache";
-import { __resetDirsFromEnvForTests, getAgentDir, Snowflake, setAgentDir } from "@oh-my-pi/pi-utils";
+import { __resetDirsFromEnvForTests, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
+import { Markit } from "@linxiraos/zeta/markit";
+import { convertBufferWithMarkit, convertFileWithMarkit } from "@linxiraos/zeta/utils/markit";
+import { pruneMarkitConversionCache } from "@linxiraos/zeta/utils/markit-cache";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -26,14 +26,12 @@ function restoreEnv(key: string, value: string | undefined): void {
 describe("document conversion cache", () => {
 	let testDir: string;
 	let originalPiCodingAgentDir: string | undefined;
-	let originalOmpProfile: string | undefined;
-	let originalPiProfile: string | undefined;
+	let originalZetaProfile: string | undefined;
 	let originalXdgCacheHome: string | undefined;
 
 	beforeEach(async () => {
-		originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfile = process.env.OMP_PROFILE;
-		originalPiProfile = process.env.PI_PROFILE;
+		originalPiCodingAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+		originalZetaProfile = process.env.ZETA_PROFILE;
 		originalXdgCacheHome = process.env.XDG_CACHE_HOME;
 		testDir = path.join(os.tmpdir(), `markit-cache-${Snowflake.next()}`);
 		await fs.mkdir(testDir, { recursive: true });
@@ -42,9 +40,8 @@ describe("document conversion cache", () => {
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
-		restoreEnv("PI_CODING_AGENT_DIR", originalPiCodingAgentDir);
-		restoreEnv("OMP_PROFILE", originalOmpProfile);
-		restoreEnv("PI_PROFILE", originalPiProfile);
+		restoreEnv("ZETA_CODING_AGENT_DIR", originalPiCodingAgentDir);
+		restoreEnv("ZETA_PROFILE", originalZetaProfile);
 		restoreEnv("XDG_CACHE_HOME", originalXdgCacheHome);
 		__resetDirsFromEnvForTests();
 		await fs.rm(testDir, { recursive: true, force: true });

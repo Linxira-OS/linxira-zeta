@@ -1,7 +1,7 @@
 /**
  * Shared test isolation for stats Bun tests.
  *
- * The default profile's stats.db is redirected to `$XDG_DATA_HOME/omp/stats.db`
+ * The default profile's stats.db is redirected to `$XDG_DATA_HOME/zeta/stats.db`
  * by {@link DirResolver} whenever `agentDirOverride === defaultAgent`. Tests
  * that only set `PI_CONFIG_DIR` + `setAgentDir(<home>/<config>/agent)` resolve
  * to that default and silently share `stats.db` across files when an XDG
@@ -17,8 +17,8 @@
 import { afterEach, beforeEach } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeDb } from "@oh-my-pi/omp-stats/db";
-import { getAgentDir, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { closeDb } from "@linxiraos/pi-stats/db";
+import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 const XDG_KEYS = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
 
@@ -47,6 +47,9 @@ export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 
 	afterEach(() => {
 		closeDb();
+		// bun:sqlite releases file locks only when the GC finalizes its
+		// handles; without this, Windows cannot remove the temp dir.
+		Bun.gc(true);
 		if (originalConfigDir === undefined) {
 			delete process.env.PI_CONFIG_DIR;
 		} else {

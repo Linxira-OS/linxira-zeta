@@ -1,6 +1,6 @@
 /**
  * Compatibility shim for legacy extensions importing the package root of
- * `@oh-my-pi/pi-coding-agent` (or one of its aliased scopes like
+ * `@linxiraos/zeta` (or one of its aliased scopes like
  * `@earendil-works/pi-coding-agent` or `@mariozechner/pi-coding-agent`).
  *
  * The coding-agent package's own barrel (`./src/index.ts`) cannot be listed
@@ -9,7 +9,7 @@
  * Routing legacy plugin imports through this sibling shim sidesteps that
  * conflict: bun bundles a distinct entry whose path differs from the CLI
  * entry, while still re-exporting the canonical surface so plugins observe
- * the same module identity as a direct `@oh-my-pi/pi-coding-agent` import.
+ * the same module identity as a direct `@linxiraos/zeta` import.
  */
 
 import { Database } from "bun:sqlite";
@@ -21,17 +21,24 @@ import {
 	type AgentToolUpdateCallback,
 	type MessageCountOptions,
 	Tokenizer,
-} from "@oh-my-pi/pi-agent-core";
-import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@oh-my-pi/pi-ai";
-import { piEscapeRegexLiteral, piJoinPath } from "@oh-my-pi/pi-ai/providers/cursor-pi-args";
-import { getKeybindings, type Keybinding, Text } from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-agent-core";
+import { findCutPoint as computeCutPoint, type CutPointResult } from "@linxiraos/pi-agent-core/compaction";
+import type { SessionEntry as CompactionSessionEntry } from "@linxiraos/pi-agent-core/compaction/entries";
+import {
+	createBranchSummaryMessage,
+	createCompactionSummaryMessage,
+	createCustomMessage,
+} from "@linxiraos/pi-agent-core/compaction/messages";
+import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@linxiraos/pi-ai";
+import { piEscapeRegexLiteral, piJoinPath } from "@linxiraos/pi-ai/providers/cursor-pi-args";
+import { getKeybindings, type Keybinding, Text } from "@linxiraos/pi-tui";
 import {
 	getAgentDbPath,
 	getAgentDir,
 	getProjectDir,
 	isCompiledBinary,
 	parseFrontmatter as parseOmpFrontmatter,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { getPackageDir as getOmpPackageDir } from "../config";
 import { formatKeyHints } from "../config/keybindings";
 import type { PromptTemplate } from "../config/prompt-templates";
@@ -52,6 +59,7 @@ import {
 	truncateHead,
 	truncateTail,
 } from "../session/streaming-output";
+import type { SessionEntry } from "../session/session-entries";
 import type { Tool, ToolSession } from "../tools";
 import { BashTool } from "../tools/bash";
 import { GlobTool } from "../tools/glob";
@@ -1462,10 +1470,10 @@ export function readStoredCredential(provider: string): AuthCredential | undefin
 }
 
 // Pi SDK path helpers. `export * from "../index"` above only forwards
-// `getAgentDir`; `getProjectDir` (a `@oh-my-pi/pi-utils` helper) and
+// `getAgentDir`; `getProjectDir` (a `@linxiraos/pi-utils` helper) and
 // `getPackageDir` are absent from that barrel, so legacy extensions importing
 // either fail Bun's static export check during validation (issue #5968).
-export { getProjectDir } from "@oh-my-pi/pi-utils";
+export { getProjectDir } from "@linxiraos/pi-utils";
 
 /**
  * Coding-agent package install directory, matching pi's string-valued
@@ -1488,10 +1496,10 @@ export function getPackageDir(): string {
 // Legacy pi's `@earendil-works/pi-coding-agent` re-exported `estimateTokens`,
 // `compact`, `serializeConversation`, and `calculateContextTokens` from its
 // package root (via `./core/compaction/index.ts`). In omp these live in
-// `@oh-my-pi/pi-agent-core/compaction`, and the coding-agent barrel below does
+// `@linxiraos/pi-agent-core/compaction`, and the coding-agent barrel below does
 // not forward them, so legacy extensions importing them fail Bun's static
 // export check during validation (issues #6583, #7174, #7403, #10278).
-export { calculateContextTokens, compact, serializeConversation } from "@oh-my-pi/pi-agent-core/compaction";
+export { calculateContextTokens, compact, serializeConversation } from "@linxiraos/pi-agent-core/compaction";
 
 const legacyTokenizer = new Tokenizer();
 
@@ -1506,12 +1514,80 @@ export function estimateTokens(message: AgentMessage, tokenizer?: Tokenizer, opt
 	return (tokenizer ?? legacyTokenizer).countMessage(message, options);
 }
 
+// Legacy pi's `@earendil-works/pi-coding-agent` also exported `findCutPoint` and
+// `sessionEntryToContextMessages` from its package root (upstream Pi 0.84.2
+// public API). In omp `findCutPoint` moved to `@linxiraos/pi-agent-core/compaction`
+// AND grew a required `Tokenizer` parameter, and `sessionEntryToContextMessages`
+// has no canonical equivalent, so neither reaches the barrel below and legacy
+// extensions importing them (e.g. NVlabs/SoL-Pi's online-context-compact) fail
+// Bun's static export check during validation (issue #11796).
+
+/**
+ * Legacy `findCutPoint(entries, startIndex, endIndex, keepRecentTokens)` export.
+ * The canonical helper now requires an explicit `Tokenizer`; legacy callers use
+ * the tokenizer-less 4-arg shape, so adapt it with the shared model-agnostic
+ * tokenizer (mirroring `estimateTokens`). A raw re-export would instead misread
+ * the caller's `startIndex` as the tokenizer argument at runtime.
+ */
+export function findCutPoint(
+	entries: SessionEntry[],
+	startIndex: number,
+	endIndex: number,
+	keepRecentTokens: number,
+): CutPointResult {
+	// The coding-agent `SessionEntry` union is a superset of the compaction
+	// module's (the package split makes them nominally distinct); findCutPoint
+	// only walks message entries, so the extra variants are inert.
+	return computeCutPoint(entries as CompactionSessionEntry[], legacyTokenizer, startIndex, endIndex, keepRecentTokens);
+}
+
+/**
+ * Legacy `sessionEntryToContextMessages(entry)` export: project one session entry
+ * into its LLM/runtime messages. Plain custom/state entries do not participate in
+ * context and yield `[]`. omp's `buildSessionContext` only projects whole branches,
+ * so this ports upstream Pi's per-entry mapper.
+ */
+export function sessionEntryToContextMessages(entry: SessionEntry): AgentMessage[] {
+	if (entry.type === "message") {
+		const message = entry.message;
+		if (
+			(message.role === "user" ||
+				message.role === "assistant" ||
+				message.role === "toolResult" ||
+				message.role === "custom") &&
+			message.content == null
+		) {
+			return [{ ...message, content: [] }];
+		}
+		return [message];
+	}
+	if (entry.type === "custom_message") {
+		return [
+			createCustomMessage(
+				entry.customType,
+				entry.content ?? [],
+				entry.display,
+				entry.details,
+				entry.timestamp,
+				entry.attribution,
+			),
+		];
+	}
+	if (entry.type === "branch_summary" && entry.summary) {
+		return [createBranchSummaryMessage(entry.summary, entry.fromId, entry.timestamp)];
+	}
+	if (entry.type === "compaction") {
+		return [createCompactionSummaryMessage(entry.summary, entry.tokensBefore, entry.timestamp)];
+	}
+	return [];
+}
+
 // Same barrel gap for two more legacy package-root exports: pi re-exported the
 // `CONFIG_DIR_NAME` constant and the CLI parser `parseArgs`. In omp
-// `CONFIG_DIR_NAME` lives in `@oh-my-pi/pi-utils` and `parseArgs` in
+// `CONFIG_DIR_NAME` lives in `@linxiraos/pi-utils` and `parseArgs` in
 // `../cli/args`, neither of which the barrel below forwards, so legacy
 // extensions importing either fail Bun's static export check during validation.
-export { CONFIG_DIR_NAME } from "@oh-my-pi/pi-utils";
+export { CONFIG_DIR_NAME } from "@linxiraos/pi-utils";
 export { parseArgs } from "../cli/args";
 
 export * from "../index";

@@ -2,39 +2,82 @@
 
 ## [Unreleased]
 
-## [16.3.0] - 2026-07-02
+## [1.1.15] - 2026-09-16
 
-### Breaking Changes
+- 随 1.1.15 版本线发布:auth-broker wire schema 资源随上游 v18.1.17–v18.1.21 同步。
 
-- Upgraded the collaboration protocol to version 3. Guests using version 2 will now be rejected during the handshake with a protocol-mismatch error.
+## [1.1.14] - 2026-09-12
 
-### Added
+- 随 1.1.14 版本线发布:bazel 构建面(crates/*/BUILD.bazel)版本号纳入一致性检查,CI 原生构建与桌面冒烟守卫修复。
 
-- Added support for interactive UI request and response frames, enabling browser guests to respond to prompts initiated by the host.
+## [1.1.13] - 2026-09-10
 
-## [16.1.8] - 2026-06-20
+- 上游 v18.1.16 同步,内部修复。
 
-### Breaking Changes
+## [1.1.12] - 2026-09-10
 
-- Bumped `COLLAB_PROTO` to `2`. The `welcome` host frame now carries metadata only (`header`, `state`, `agents`, `entryCount`, optional `readOnly`) — the transcript moves to a new `snapshot-chunk` host frame (`{ entries: SessionEntry[]; final: boolean }`) sent immediately after the welcome. Hosts split large snapshots into multiple chunks; the last chunk carries `final: true`. Old guests speaking proto v1 are rejected with the existing protocol-mismatch error. ([#3144](https://github.com/can1357/oh-my-pi/issues/3144))
+- 品牌与合并工具链维护版本;无本包用户可见变更。
 
-## [15.12.4] - 2026-06-13
+## [1.1.11] - 2026-09-08
+
+- OMP v18.1.13 + v18.1.14 dual-tag sync baseline; no package-specific user-visible changes.
+
+## [1.1.10] - 2026-09-07
+
+- OMP v18.1.11 sync baseline (`e3106be68f`); no package-specific user-visible changes.
+
+## [1.1.9] - 2026-09-05
+
+- v18.1.10 sync baseline; COLLAB_PROTO unchanged.
+
+## [1.1.8] - 2026-09-04
+
+- OMP sync v18.1.2–v18.1.5: Codex wire protocol updates aligned with upstream.
+
+## [1.1.7] - 2026-09-01
+
+- 版本线随 1.1.7 发布对齐（随本体 v18.0.11 同步与主题/网关更新），包内无独立变更。
+
+## [1.1.6] - 2026-08-30
+
+- 同步上游 OMP v18.0.9（`cc14e04f075d`）。
+
+## [1.1.5] - 2026-08-26
+
+- 随 1.1.5 版本线对齐发布：OMP v18.0.6 同步未触及本包，无独立功能变更。
+
+## [1.1.4] - 2026-08-26
 
 ### Changed
 
-- Changed `WireModel.contextWindow` and `ContextUsage.contextWindow` to `number | null` to allow representing unavailable context-window values
+- 同步 1.1.4 发布线（与 1.1.3 无功能差异）。
 
-## [15.12.0] - 2026-06-12
+## [1.1.3] - 2026-08-25
 
-### Added
+### Fixed
 
-- Added `readOnly` flags to participant and session payload types to indicate when a guest is connected via a read-only (view) link
-- Added `writeToken` to `GuestFrame` hello payloads and parsed collaboration links so full-access links can carry and expose a write-capability token
-- Added `ROOM_KEY_BYTES` and `WRITE_TOKEN_BYTES` constants for room key and write-token sizing in the wire protocol
-- Added `DEFAULT_SHARE_URL` (`https://my.omp.sh/s`), the default share viewer/upload base for `/share` links
+- Republished as 1.1.3 to reset the latest tag after the broken 1.1.2 (no functional change over 1.1.1).
 
-## [15.11.8] - 2026-06-12
+## [1.1.2] - 2026-08-25
 
-### Added
+### Fixed
 
-- Added shared collab live-session wire contracts for the host CLI and browser guest client.
+- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
+
+## [1.1.1] - 2026-08-25
+
+### Fixed
+
+- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
+
+## [1.1.0] - 2026-08-25
+
+### Changed
+
+- 同步上游 OMP v18.0.3 / v18.0.4（内部运行时与构建改进，无独立用户可见变更）。
+
+## [1.0.0] - 2026-08-13
+
+### Changed
+
+- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.

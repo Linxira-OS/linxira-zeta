@@ -1,4 +1,4 @@
-export { type Type, type } from "@oh-my-pi/omptype";
+export { type Type, type } from "@linxiraos/pi-omptype";
 export * from "./api-registry";
 export type * from "./auth-broker";
 export type { AuthGatewayBootOptions, ModelResolver } from "./auth-gateway/server";
@@ -8,6 +8,7 @@ export * from "./auth-storage";
 export * from "./error/rate-limit";
 export * from "./oneshot-retry";
 export * from "./provider-details";
+export * from "./provider-session-state";
 export * from "./providers/anthropic";
 export * from "./providers/anthropic-client";
 export * from "./providers/azure-openai-responses";

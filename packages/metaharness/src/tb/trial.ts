@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { RpcClient } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-client";
+import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 
 import { installAgent } from "./agent";
 import type { AgentBinaries, GatewayConfig, TbTask, TrialResult, TrialUsage, VmonConfig } from "./types";
@@ -127,7 +127,7 @@ export async function runTrial(opts: {
 			args: ["--no-session", "--auto-approve", "--tools", TERMINAL_BENCH_TOOLS],
 		});
 		let turns = 0;
-		const unsubscribe = client.onEvent(event => {
+		const unsubscribe = client.onEvent((event: { type: string }) => {
 			if (event.type === "turn_start") turns++;
 		});
 		let agentCollectionError: string | null = null;

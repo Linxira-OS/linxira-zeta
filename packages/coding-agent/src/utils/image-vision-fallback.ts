@@ -17,9 +17,10 @@ import {
 	type AgentTelemetryConfig,
 	instrumentedCompleteSimple,
 	resolveTelemetry,
-} from "@oh-my-pi/pi-agent-core";
-import type { Api, completeSimple, ImageContent, Model, TextContent } from "@oh-my-pi/pi-ai";
-import { logger, prompt, toError } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
+import type { Api, completeSimple, ImageContent, Model, TextContent } from "@linxiraos/pi-ai";
+import { logger, prompt, toError } from "@linxiraos/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { expandRoleAlias, getModelMatchPreferences, resolveModelFromString } from "../config/model-resolver";
@@ -108,13 +109,13 @@ function resolveVisionModel(deps: DescribeAttachedImagesDeps): Model<Api> | unde
 		if (!pattern) return undefined;
 		const expanded = expandRoleAlias(pattern, deps.settings);
 		const model = resolveModelFromString(expanded, available, preferences);
-		return model?.input.includes("image") ? model : undefined;
+		return model && sendsImageInputOnWire(model) ? model : undefined;
 	};
 	return (
 		resolvePattern("@vision") ??
 		resolvePattern("@default") ??
 		resolvePattern(deps.activeModelString) ??
-		available.find(model => model.input.includes("image"))
+		available.find(model => sendsImageInputOnWire(model))
 	);
 }
 

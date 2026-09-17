@@ -7,7 +7,7 @@ This document describes how slash commands are discovered, deduplicated, surface
 - [`src/extensibility/slash-commands.ts`](../packages/coding-agent/src/extensibility/slash-commands.ts)
 - [`src/capability/slash-command.ts`](../packages/coding-agent/src/capability/slash-command.ts)
 - [`src/discovery/builtin.ts`](../packages/coding-agent/src/discovery/builtin.ts)
-- [`src/discovery/omp-plugins.ts`](../packages/coding-agent/src/discovery/omp-plugins.ts)
+- [`src/discovery/zeta-plugins.ts`](../packages/coding-agent/src/discovery/zeta-plugins.ts)
 - [`src/discovery/claude.ts`](../packages/coding-agent/src/discovery/claude.ts)
 - [`src/discovery/codex.ts`](../packages/coding-agent/src/discovery/codex.ts)
 - [`src/discovery/claude-plugins.ts`](../packages/coding-agent/src/discovery/claude-plugins.ts)
@@ -34,7 +34,7 @@ The capability registry loads all registered providers, sorted by provider prior
 Current slash-command providers and priorities:
 
 1. `native` (OMP) — priority `100`
-2. `omp-plugins` (extension packages) — priority `90`
+2. `zeta-plugins` (extension packages) — priority `90`
 3. `claude` — priority `80`
 4. `claude-plugins` — priority `70`
 5. `agents` (`.agent`/`.agents` standard dirs) — priority `70`
@@ -68,14 +68,14 @@ So hidden files/directories are not loaded, ignored paths are skipped, and file 
 
 ## `native` provider (`builtin.ts`)
 
-Search roots come from `.omp` directories:
+Search roots come from `.zeta` directories:
 
-- project: `<cwd>/.omp/commands/*.md`
-- user: active profile agent directory `commands/*.md` (`~/.omp/agent/commands/*.md` for the default profile; `~/.omp/profiles/<name>/agent/commands/*.md` for a named profile)
+- project: `<cwd>/.zeta/commands/*.md`
+- user: active profile agent directory `commands/*.md` (`~/.zeta/agent/commands/*.md` for the default profile; `~/.zeta/profiles/<name>/agent/commands/*.md` for a named profile)
 
 `getConfigDirs()` returns project first, then user, so **project native commands beat user native commands** when names collide.
 
-## `omp-plugins` provider (`omp-plugins.ts`)
+## `zeta-plugins` provider (`zeta-plugins.ts`)
 
 Scans `commands/*.md` in configured extension-package roots and enabled npm/link plugins. Root precedence is invocation/CLI, project settings, user settings, then installed plugins. Marketplace roots are excluded here to avoid duplicate discovery and are handled by `claude-plugins`.
 
@@ -112,7 +112,7 @@ Both sides are loaded then flattened in user-first order, so **user OpenCode com
 
 ## `claude-plugins` provider (`claude-plugins.ts`)
 
-Loads plugin command roots via `listClaudePluginRoots(...)`, which reads `~/.claude/plugins/installed_plugins.json`, `~/.omp/plugins/installed_plugins.json`, and the nearest project-scoped registry resolved from cwd. For each root it scans `<pluginRoot>/commands/*.md` (the directory can be remapped by plugin config keys `commands`/`slash-commands`), and command names are prefixed with the plugin name: `<plugin>:<command>`.
+Loads plugin command roots via `listClaudePluginRoots(...)`, which reads `~/.claude/plugins/installed_plugins.json`, `~/.zeta/plugins/installed_plugins.json`, and the nearest project-scoped registry resolved from cwd. For each root it scans `<pluginRoot>/commands/*.md` (the directory can be remapped by plugin config keys `commands`/`slash-commands`), and command names are prefixed with the plugin name: `<plugin>:<command>`.
 
 Across the three registries, roots are merged by precedence rather than sorted: `--plugin-dir` injected roots come first, then project-scoped entries (which shadow user entries for the same plugin id), then user entries, with the OMP registry authoritative over Claude's for the same plugin id. Within each registry, per-plugin entry order from the JSON data is preserved; there is no additional sort step.
 
@@ -271,3 +271,125 @@ TUI and ACP/RPC dispatch the shared built-in registry before `session.prompt(...
 `/pause` is available only in the interactive TUI. It engages a process-global gate for the main agent, in-process subagents, and the advisor. Each agent parks at its next safe boundary: in-flight calls finish, nothing is aborted, and no new work starts until the gate is released.
 
 From the pause screen, press Esc, Enter, Space, or Ctrl+C to resume. Ctrl+C resumes rather than aborting any agent.
+
+## 11) Built-in command note: `/btw`
+
+`/btw <question>` asks an independent side question using the current session
+context. Bare `/btw` opens this session's history, with the newest question selected.
+Saved side questions are not appended to the main transcript or sent as history
+to unrelated turns. Each new `/btw <question>` remains independent; explicit
+follow-ups include only the selected side conversation alongside the current
+main-session context.
+
+Previous questions and answers are replayed as separate `user` and `assistant`
+messages, followed by the new user question, rather than embedded in one prompt.
+The original question template stays in the same position across follow-ups.
+History is snapshotted before asynchronous conversion and uses the normal
+provider normalization and secret-obfuscation pipeline.
+
+The main prompt-cache key and static system/tool prefix are retained. Each BTW
+topic has its own stable provider-side conversation identity, separate from the
+main conversation and other topics. Successful serialized follow-ups reuse it;
+after a cancelled, failed, or interrupted turn the next request uses a new
+transport generation, so an unwinding request cannot share its state.
+Standalone ephemeral callers without a conversation key keep per-request IDs.
+Actual cache hits depend on the provider. The main-session context is still
+current, not frozen at the first question; advancing or compacting it can change
+the prefix.
+Saved BTW records contain visible answer text, not opaque provider reasoning or
+replay signatures, so restoration preserves the dialogue roles and text rather
+than a byte-for-byte native provider transcript.
+
+- While an inline BTW is running, `Esc` cancels the request and keeps its partial
+  answer visible as `Cancelled`. Press `Esc` again to close the panel.
+- In history, `Esc` cancels the selected running topic without closing history;
+  otherwise it closes history. If another topic is still running, its inline
+  panel is restored rather than leaving it hidden in the background.
+- Completed, cancelled, and failed panels close with `Esc`; their history stays
+  saved. There is no hide-and-continue action or separate `x` cancellation key.
+- `c` copies the completed inline answer, or the selected topic's latest nonempty answer.
+- After an inline BTW answer completes, `f` opens that topic's follow-up input
+  directly, without requiring `/btw` first. The main editor must be empty and focused.
+- In history, `f` or `Enter` opens a native follow-up input for the selected topic.
+  Inside the input, `Enter` sends a nonempty question and `Esc` cancels the draft
+  and returns to history; `f`, `c`, and `x` are ordinary text.
+  Escape also cancels a submitted follow-up while its startup writes are pending,
+  without starting a model request. If its initial checkpoint was already underway,
+  the turn is saved as cancelled before another follow-up can start.
+- Follow-ups append to the same topic, retain prior answers and cancelled partial
+  output, and survive resume. The original question remains the history-list title;
+  `Details` shows every question and answer in chronological order.
+- In history, `Up`/`Down` select topics; `Tab` switches between history and
+  details. `Right` focuses details, `Left` returns to history.
+- Focused details support scrolling, `Page Up`/`Page Down`, and `Home`/`End`.
+  Narrow terminals show one pane at a time.
+- New questions and follow-ups are refused while any BTW request is running.
+  There is no implicit cancellation or queue.
+- A refused follow-up submission keeps the draft for retry; repeated Enter while
+  submission is pending cannot create duplicate requests.
+
+History is saved as private per-topic files under the session artifact
+directory's `btw-history/` subdirectory. This changes `/btw` from transient-only
+display to local retention alongside the session. Even a session containing only
+side questions is made resumable. `--no-session` keeps history in memory only.
+Ordinary transcript export/share does not include these sidecar records.
+
+Each topic uses an OS-backed cross-process lease and a revision check before an
+atomic replacement. Running turns keep their lease until a terminal checkpoint;
+another process cannot overwrite a live owner or a stale topic snapshot. A
+conflicting follow-up is rejected before any model request, and reopening or
+retrying reads the latest saved history. Rejected writes never replace the
+committed in-memory view.
+Root and follow-up timestamps must be nonnegative and within JavaScript's supported
+Date range (at most `8.64e15` milliseconds); invalid records are rejected before
+history rendering.
+
+Migration is non-destructive until the destination has been selected and
+validated. `/move`, `/wt`, and standalone persistent `!cd` refuse relocation while
+a BTW request is starting or running, asking the operator to finish or cancel it explicitly.
+For `/move`, the same gate is acquired before confirming or creating a missing
+destination directory and remains held through relocation. A busy request or
+unsaved checkpoint therefore leaves neither a new directory nor a moved session.
+The `/wt` gate is acquired before creating a branch or checkout and remains held
+through session relocation and configured source cleanup, so a busy refusal does
+not leave an unused worktree.
+The `!cd` guard runs before shell execution and remains held through cwd adoption
+or rollback, so a refused command cannot leave the shell in a different directory.
+Cancelled pickers, invalid destinations, and failed moves retain the BTW conversation.
+Successful relocation clears the old view only after moving the saved artifacts.
+
+Resuming from a path, the session picker, or an imported session cancels BTW and
+waits for its terminal checkpoint before switching. Confirmed deletion of the
+active session uses the same cleanup before detaching and removing its artifacts.
+Failed BTW persistence leaves the source session and its artifacts intact.
+Declining deletion or deleting an inactive session does not cancel the current BTW.
+Extension commands using `context.newSession`, `context.switchSession`, or
+`context.branch` also run this cleanup before changing session state or clearing
+extension UI. This applies both when extensions initialize and when their command
+context is reinitialized.
+
+Session operations wait at most 10 seconds for outstanding BTW persistence.
+A timeout stops the operation and leaves the current session in place; it does
+not cancel the underlying filesystem write or allow migration/deletion to run
+later when that write completes. A failed terminal checkpoint also stops these
+operations after its pending promise has settled; the unsaved answer remains
+available to view and copy. Retrying the operation retries the retained snapshot
+against its original disk revision. Transient I/O failures can recover, but a
+conflict never silently rebases over another writer's changes. An initial
+checkpoint rejection still prevents model dispatch and can reload history normally.
+Visible BTW errors use bounded, single-line text with control sequences removed
+and embedded home paths shortened; original errors remain available in diagnostic
+logs and exception causes for troubleshooting.
+
+Starting a question saves its running state. Completion, error, and explicit
+cancellation save a final checkpoint; cancelled answers retain text already
+received. A crash can lose uncheckpointed streaming text, but a saved running
+record reopens as `Interrupted` and is never automatically resubmitted.
+History remains attached to the session artifacts and follows operations that
+copy or remove those artifacts; it does not move the conversation leaf.
+
+The existing inline `b` action promotes a completed single-turn answer to a chat
+branch only when the original session/leaf is unchanged and the main session is
+idle. Multi-turn side conversations remain in BTW history; promoting only their
+latest pair would discard earlier context. History browsing does not promote
+answers or relax these branch guards.

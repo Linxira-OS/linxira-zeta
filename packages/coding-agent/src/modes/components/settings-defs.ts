@@ -9,7 +9,7 @@
  * (or `options: "runtime"` for runtime-injected lists like themes).
  */
 
-import { TERMINAL } from "@oh-my-pi/pi-tui";
+import { TERMINAL } from "@linxiraos/pi-tui";
 import { Settings } from "../../config/settings";
 import {
 	type AnyUiMetadata,
@@ -25,6 +25,8 @@ import {
 	type SubmenuOption,
 	TAB_GROUPS,
 } from "../../config/settings-schema";
+import { ZH_OPTION_TEXTS, ZH_SETTING_TEXTS } from "../../config/settings-zh";
+import { currentLanguage } from "../../i18n";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // UI Definition Types
@@ -105,6 +107,13 @@ const CONDITIONS: Record<string, () => boolean> = {
 			return false;
 		}
 	},
+	vimModeEnabled: () => {
+		try {
+			return Settings.instance.get("tui.vimMode") === true;
+		} catch {
+			return false;
+		}
+	},
 	hindsightActive: () => {
 		try {
 			return Settings.instance.get("memory.backend") === "hindsight";
@@ -143,6 +152,13 @@ const CONDITIONS: Record<string, () => boolean> = {
 	planModeEnabled: () => {
 		try {
 			return Settings.instance.get("plan.enabled");
+		} catch {
+			return false;
+		}
+	},
+	planAutosaveEnabled: () => {
+		try {
+			return Settings.instance.get("plan.enabled") && Settings.instance.get("plan.autosave");
 		} catch {
 			return false;
 		}
@@ -237,12 +253,13 @@ function pathToSettingDef(path: SettingPath): SettingDef | null {
 // Public API
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Cache of generated definitions */
+/** Cache of generated definitions, keyed by language. */
 let cachedDefs: SettingDef[] | null = null;
+let cachedDefsLang: string | null = null;
 
 /** Get all setting definitions with UI */
 export function getAllSettingDefs(): SettingDef[] {
-	if (cachedDefs) return cachedDefs;
+	if (cachedDefs && cachedDefsLang === currentLanguage()) return cachedDefs;
 
 	const defs: SettingDef[] = [];
 	for (const tab of SETTING_TABS) {
@@ -251,7 +268,25 @@ export function getAllSettingDefs(): SettingDef[] {
 			if (def) defs.push(def);
 		}
 	}
+	if (currentLanguage() === "zh") {
+		for (const def of defs) {
+			const zh = ZH_SETTING_TEXTS[def.path];
+			if (zh) {
+				if (zh.label) def.label = zh.label;
+				if (zh.description !== undefined) def.description = zh.description;
+			}
+			if (def.type === "submenu" || def.type === "multiselect") {
+				def.options = def.options.map(option => {
+					const texts = ZH_OPTION_TEXTS[`${def.path}::${option.value}`];
+					return texts
+						? { ...option, label: texts.label, description: texts.description ?? option.description }
+						: option;
+				});
+			}
+		}
+	}
 	cachedDefs = defs;
+	cachedDefsLang = currentLanguage();
 	return defs;
 }
 

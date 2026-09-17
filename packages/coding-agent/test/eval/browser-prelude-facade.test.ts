@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { executeJs } from "@oh-my-pi/pi-coding-agent/eval/js/executor";
-import type { EvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval/preludes";
-import { disposeAllKernelSessions, executePython } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
+import { executeJs } from "@linxiraos/zeta/eval/js/executor";
+import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
 import { chromiumAvailable } from "../tools/chromium-probe";
 
 interface FacadeResponse {
@@ -99,8 +99,8 @@ describe("browser JavaScript facade", () => {
 		const session = makeSession();
 		const prelude = createBrowserPrelude(session);
 		const context = createContext({
-			__omp_display__: (value: unknown) => displays.push(value),
-			__omp_prelude__: async (name: string, parameters: unknown) => {
+			__zeta_display__: (value: unknown) => displays.push(value),
+			__zeta_prelude__: async (name: string, parameters: unknown) => {
 				expect(name).toBe("browser");
 				calls.push(parameters);
 				return responseFor(parameters);
@@ -162,7 +162,7 @@ describe("browser JavaScript facade", () => {
 				chain: [
 					{
 						method: "evaluate",
-						args: [{ __omp_fn: "value => value.length" }, "save", { __omp_re: { source: "save", flags: "i" } }],
+						args: [{ __zeta_fn: "value => value.length" }, "save", { __zeta_re: { source: "save", flags: "i" } }],
 					},
 				],
 			},
@@ -213,7 +213,7 @@ describe("browser facade in real Eval runtimes", () => {
 			chain: [
 				{
 					method: "evaluate",
-					args: [{ __omp_fn: "value => value.length" }, "abc", { __omp_re: { source: "a", flags: "i" } }],
+					args: [{ __zeta_fn: "value => value.length" }, "abc", { __zeta_re: { source: "a", flags: "i" } }],
 				},
 			],
 		});
@@ -266,7 +266,7 @@ describe("browser facade in real Eval runtimes", () => {
 			chain: [
 				{
 					method: "evaluate",
-					args: ["abc", { matcher: { __omp_re: { source: "a", flags: "i" } } }],
+					args: ["abc", { matcher: { __zeta_re: { source: "a", flags: "i" } } }],
 				},
 			],
 		});
@@ -324,8 +324,8 @@ describe("browser facade Chromium helper E2E", () => {
 			const context = createContext({
 				__name__: name,
 				__url__: `data:text/html,${encodeURIComponent(html)}`,
-				__omp_display__: (value: unknown) => displayed.push(value),
-				__omp_prelude__: async (preludeName: string, parameters: unknown) => {
+				__zeta_display__: (value: unknown) => displayed.push(value),
+				__zeta_prelude__: async (preludeName: string, parameters: unknown) => {
 					expect(preludeName).toBe("browser");
 					const result = await prelude.invoke(parameters, {
 						session,

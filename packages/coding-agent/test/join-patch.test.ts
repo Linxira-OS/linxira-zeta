@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parseFileDiffs } from "@oh-my-pi/pi-coding-agent/commit/git/diff";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { parseFileDiffs } from "@linxiraos/zeta/commit/git/diff";
 
 describe("joinPatch", () => {
 	test("preserves space character in empty context line at end of patch", () => {

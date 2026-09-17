@@ -1,8 +1,10 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { $ } from "bun";
 import {
+	inspectPackedTarball,
 	legalPayloadFiles,
 	npmDistTag,
 	packages,
@@ -52,7 +54,7 @@ describe("published legal payloads", () => {
 			await Bun.write(
 				path.join(pkgDir, "package.json"),
 				JSON.stringify({
-					name: "@oh-my-pi/pi-natives",
+					name: "@linxiraos/pi-natives",
 					version: "15.5.15",
 					license: "MIT",
 				}),
@@ -67,8 +69,12 @@ describe("published legal payloads", () => {
 				"native/desktop.d.ts",
 				"native/desktop-adapter.js",
 				"native/desktop-adapter.d.ts",
+				"native/version-sentinel.js",
+				"native/version-sentinel.d.ts",
 				"native/loader-state.js",
 				"native/loader-state.d.ts",
+				"native/vcs.js",
+				"native/vcs.d.ts",
 				"native/embedded-addon.js",
 				"README.md",
 				"LICENSE",
@@ -81,6 +87,8 @@ describe("published legal payloads", () => {
 });
 
 describe("published manifest topology", () => {
+	const temporaryDirectories: string[] = [];
+
 	it("repoints omptype runtime entries to dist/js with a bun source condition", async () => {
 		const pkg = packages.find(entry => entry.dir === "packages/omptype");
 		if (!pkg) throw new Error("omptype missing from publish set");
@@ -112,6 +120,34 @@ describe("published manifest topology", () => {
 		});
 	});
 
+	afterEach(async () => {
+		await Promise.all(temporaryDirectories.splice(0).map(dir => fs.rm(dir, { recursive: true, force: true })));
+	});
+
+	describe("release publish", () => {
+		it("uses the packed manifest identity for an exact-version registry preflight", async () => {
+			const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-release-publish-test-"));
+			temporaryDirectories.push(root);
+			const packageDir = path.join(root, "package");
+			await fs.mkdir(packageDir);
+			await Bun.write(
+				path.join(packageDir, "package.json"),
+				JSON.stringify({ name: "@linxiraos/pi-test", version: "1.2.3" }),
+			);
+			const tarball = path.join(root, "test.tgz");
+			await $`tar -czf ${tarball} -C ${root} package`.quiet();
+
+			await expect(inspectPackedTarball(tarball)).resolves.toEqual(
+				{
+					name: "@linxiraos/pi-test",
+					version: "1.2.3",
+					path: tarball,
+				},
+				20000,
+			);
+		});
+	});
+
 	it("keeps source-runtime packages on src with only types repointed", async () => {
 		const pkg = packages.find(entry => entry.dir === "packages/utils");
 		if (!pkg) throw new Error("utils missing from publish set");
@@ -134,5 +170,24 @@ describe("published manifest topology", () => {
 				import: "./src/ar/index.ts",
 			},
 		});
+	});
+
+	it("ships every file required by the lazy desktop export in the native core", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-native-core-publish-test-"));
+		temporaryDirectories.push(root);
+		await Bun.write(
+			path.join(root, "package.json"),
+			JSON.stringify({
+				name: "@linxiraos/pi-natives",
+				version: "1.2.3",
+				license: "MIT",
+				exports: {
+					"./desktop": { types: "./native/desktop.d.ts", import: "./native/desktop.js" },
+				},
+			}),
+		);
+
+		const manifest = await prepareNativeCorePackage(root, false);
+		expect(manifest.files).toEqual(expect.arrayContaining(["native/desktop.js", "native/desktop.d.ts"]));
 	});
 });

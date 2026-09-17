@@ -1,7 +1,7 @@
-import type { AgentMessage, AgentTurnEndContext } from "@oh-my-pi/pi-agent-core";
-import type { UserMessage } from "@oh-my-pi/pi-ai";
-import { ToolCallLoopGuard } from "@oh-my-pi/pi-ai/utils/tool-call-loop-guard";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AgentMessage, AgentTurnEndContext } from "@linxiraos/pi-agent-core";
+import type { UserMessage } from "@linxiraos/pi-ai";
+import { ToolCallLoopGuard } from "@linxiraos/pi-ai/utils/tool-call-loop-guard";
+import { logger } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { renderToolCallLoopRedirect } from "../session/tool-call-loop-redirect";
 

@@ -1,12 +1,14 @@
 import * as path from "node:path";
 import {
-	expandRoleAlias,
 	formatModelString,
 	getModelMatchPreferences,
-	resolveCliModel,
 	type ResolveCliModelResult,
+	resolveCliModel,
 } from "../config/model-resolver";
 import type { SettingPath, Settings } from "../config/settings";
+import { SETTINGS_SCHEMA } from "../config/settings-schema";
+import { M } from "../i18n";
+import { describeLoopCondition } from "../modes/loop-condition";
 import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
 import type { AgentSession } from "../session/agent-session";
@@ -96,7 +98,67 @@ function applyExtendedContextCommand(settings: Settings, args: string): string |
 		return "Extended context disabled.";
 	}
 	if (arg === "status") return `Extended context is ${formatExtendedContextStatus(settings)}.`;
+
 	return undefined;
+}
+
+/** Number of settings with a stored value (global config, project config, or runtime override). */
+function configuredSettingCount(settings: Settings): number {
+	let count = 0;
+	for (const key of Object.keys(SETTINGS_SCHEMA) as SettingPath[]) {
+		if (settings.isConfigured(key)) count++;
+	}
+	return count;
+}
+
+/**
+ * `/settings reset`: bare `reset` previews how many stored settings a full
+ * reset would clear and demands the explicit `reset confirm`; `reset <key>`
+ * resets a single setting back to its schema default.
+ */
+function handleSettingsReset(args: string, ctx: InteractiveModeContext): void {
+	const [head, ...rest] = args.split(/\s+/);
+	if (head !== "reset") {
+		ctx.showWarning(`Usage: /settings [reset [confirm|<key>]]`);
+		return;
+	}
+	const settings = ctx.settings;
+	if (rest.length === 0) {
+		const configured = configuredSettingCount(settings);
+		if (configured === 0) {
+			ctx.showStatus(M.settingsResetNothing);
+			return;
+		}
+		ctx.showStatus(M.settingsResetConfirmHint.replace("%s", String(configured)));
+		return;
+	}
+	if (rest.length > 1) {
+		ctx.showWarning(`Usage: /settings reset [confirm|<key>]`);
+		return;
+	}
+	if (rest[0] === "confirm") {
+		const keys = Object.keys(SETTINGS_SCHEMA) as SettingPath[];
+		let resetCount = 0;
+		for (const key of keys) {
+			if (settings.reset(key)) resetCount++;
+		}
+		ctx.applySidebar();
+		refreshStatusLine(ctx);
+		ctx.showStatus(M.settingsResetDoneFmt.replace("%s", String(resetCount)));
+		return;
+	}
+	const key = rest[0];
+	if (!Object.hasOwn(SETTINGS_SCHEMA, key)) {
+		ctx.showWarning(`Unknown setting: ${key}`);
+		return;
+	}
+	if (!settings.reset(key as SettingPath)) {
+		ctx.showStatus(M.settingsResetNothing);
+		return;
+	}
+	ctx.applySidebar();
+	refreshStatusLine(ctx);
+	ctx.showStatus(M.settingsResetKeyDoneFmt.replace("%s", key));
 }
 
 /** Detailed, session-effective `/computer status` diagnostics. */
@@ -109,9 +171,12 @@ function formatComputerUseStatus(session: AgentSession): string {
 		maxHeight: session.settings.get("computer.maxHeight"),
 	};
 	return [
-		`Computer use: ${enabled ? "enabled" : "disabled"}`,
-		`prelude: ${active ? "active" : "inactive"}`,
-		`configured: display=${configured.display}, maxWidth=${configured.maxWidth}, maxHeight=${configured.maxHeight}`,
+		M.ccComputerUseStateFmt.replace("%s", enabled ? M.stateEnabled : M.stateDisabled),
+		M.ccPreludeStateFmt.replace("%s", active ? M.stateActive : M.stateInactive),
+		M.ccComputerConfiguredFmt
+			.replace("%s", String(configured.display))
+			.replace("%s", String(configured.maxWidth))
+			.replace("%s", String(configured.maxHeight)),
 	].join(" · ");
 }
 
@@ -152,30 +217,37 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "security",
 		icon: "shield",
-		description: "Plan, run, inspect, import, and compare OMP-native security scans",
+		description: M.cmdSecurity,
 		allowArgs: true,
 		acpInputHint: "<plan|scan|status|cancel|scans|show|import|export|validate|compare|disposition>",
 		subcommands: [
-			{ name: "plan", description: "Create an immutable security scan plan" },
-			{ name: "scan", description: "Start a planned or newly planned native scan" },
-			{ name: "status", description: "Show native scan operation status" },
-			{ name: "cancel", description: "Cancel a running native scan" },
-			{ name: "scans", description: "List stored project security scans" },
-			{ name: "show", description: "Render a scan or security:// resource" },
-			{ name: "import", description: "Import SARIF or a Codex Security bundle" },
-			{ name: "export", description: "Export a canonical bundle, SARIF, or report" },
-			{ name: "validate", description: "Validate one finding with OMP-native tools" },
-			{ name: "compare", description: "Compare finding lineage across two scans" },
-			{ name: "disposition", description: "Set a finding disposition with rationale" },
+			{ name: "plan", description: M.cmdSecurityPlan },
+			{ name: "scan", description: M.cmdSecurityScan },
+			{ name: "status", description: M.cmdSecurityStatus },
+			{ name: "cancel", description: M.cmdSecurityCancel },
+			{ name: "scans", description: M.cmdSecurityScans },
+			{ name: "show", description: M.cmdSecurityShow },
+			{ name: "import", description: M.cmdSecurityImport },
+			{ name: "export", description: M.cmdSecurityExport },
+			{ name: "validate", description: M.cmdSecurityValidate },
+			{ name: "compare", description: M.cmdSecurityCompare },
+			{ name: "disposition", description: M.cmdSecurityDisposition },
 		],
 		handle: handleSecurityCommand,
 	},
 	{
 		name: "settings",
 		icon: "settings",
-		description: "Open settings menu",
-		handleTui: (_command, runtime) => {
-			runtime.ctx.showSettingsSelector();
+		description: M.cmdSettings,
+		allowArgs: true,
+		subcommands: [{ name: "reset", description: M.cmdSettingsReset }],
+		handleTui: (command, runtime) => {
+			const args = command.args.trim();
+			if (args === "") {
+				runtime.ctx.showSettingsSelector();
+			} else {
+				handleSettingsReset(args, runtime.ctx);
+			}
 			runtime.ctx.editor.setText("");
 		},
 	},
@@ -183,9 +255,9 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "setup",
 		aliases: ["providers"],
 		icon: "gear",
-		description: "Open provider setup",
+		description: M.cmdSetup,
 		allowArgs: true,
-		subcommands: [{ name: "providers", description: "Configure sign-in and web search providers" }],
+		subcommands: [{ name: "providers", description: M.cmdSetupProviders }],
 		handleTui: async (command, runtime) => {
 			const args = command.args.trim().toLowerCase();
 			const opensProviders = args === "" || args === "providers";
@@ -200,17 +272,17 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "plan",
 		icon: "plan",
-		description: "Toggle plan mode (agent plans before executing)",
+		description: M.cmdPlan,
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.settings.get("plan.enabled" as SettingPath)) return "Plan: disabled in settings";
+			if (!runtime.ctx.settings.get("plan.enabled" as SettingPath)) return M.acPlanDisabledInSettings;
 			if (runtime.ctx.planModeEnabled) {
 				const planFile = runtime.ctx.planModePlanFilePath;
-				return `Plan: on${planFile ? ` (${path.basename(planFile)})` : ""}`;
+				return M.acPlanOnFmt.replace("%s", planFile ? ` (${path.basename(planFile)})` : "");
 			}
-			if (runtime.ctx.goalModeEnabled) return "Plan: blocked by goal mode";
-			return "Plan: off";
+			if (runtime.ctx.goalModeEnabled) return M.acPlanBlockedByGoalMode;
+			return M.acPlanOff;
 		},
 		handleTui: async (command, runtime) => {
 			await runWithDetachedModeDraft(command, runtime, () =>
@@ -219,11 +291,34 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 	},
 	{
+		name: "plan-ultra",
+		icon: "plan",
+		description: M.cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor,
+		inlineHint: "[prompt]",
+		allowArgs: true,
+		getTuiAutocompleteDescription: runtime => {
+			if (!runtime.ctx.settings.get("plan.enabled" as SettingPath)) return M.acPlanUltraDisabledInSettings;
+			const workflow = runtime.ctx.session.getPlanModeState?.()?.workflow;
+			if (runtime.ctx.planModeEnabled && workflow === "ultra") {
+				const planFile = runtime.ctx.planModePlanFilePath;
+				return M.acPlanUltraOnFmt.replace("%s", planFile ? ` (${path.basename(planFile)})` : "");
+			}
+			if (runtime.ctx.planModeEnabled) return M.acPlanUltraAlreadyActive;
+			if (runtime.ctx.goalModeEnabled) return M.acPlanUltraBlockedByGoalMode;
+			return M.acPlanUltraOff;
+		},
+		handleTui: async (command, runtime) => {
+			await runWithDetachedModeDraft(command, runtime, () =>
+				runtime.ctx.handlePlanUltraCommand(command.args || undefined, runtime.input),
+			);
+		},
+	},
+	{
 		name: "plan-review",
 		icon: "plan",
-		description: "Re-open the plan review for the latest plan (plan mode only)",
+		description: M.cmdPlanReview,
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.planModeEnabled ? "Plan review: available" : "Plan review: plan mode inactive",
+			runtime.ctx.planModeEnabled ? M.acPlanReviewAvailable : M.acPlanReviewInactive,
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.openPlanReview();
 			runtime.ctx.editor.setText("");
@@ -232,14 +327,14 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "vibe",
 		icon: "wave",
-		description: "Toggle vibe mode (direct persistent fast/good worker sessions; read-only toolset)",
+		description: M.cmdVibe,
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (runtime.ctx.vibeModeEnabled) return "Vibe: on";
-			if (runtime.ctx.planModeEnabled) return "Vibe: blocked by plan mode";
-			if (runtime.ctx.goalModeEnabled) return "Vibe: blocked by goal mode";
-			return "Vibe: off";
+			if (runtime.ctx.vibeModeEnabled) return M.acVibeOn;
+			if (runtime.ctx.planModeEnabled) return M.acVibeBlockedByPlanMode;
+			if (runtime.ctx.goalModeEnabled) return M.acVibeBlockedByGoalMode;
+			return M.acVibeOff;
 		},
 		handleTui: async (command, runtime) => {
 			await runWithDetachedModeDraft(command, runtime, () =>
@@ -250,22 +345,24 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "goal",
 		icon: "goal",
-		description: "Toggle goal mode (persistent autonomous objective for this session)",
+		description: M.cmdGoal,
 		subcommands: [
-			{ name: "set", description: "Set or replace the goal", usage: "<objective>" },
-			{ name: "show", description: "Show current goal details" },
-			{ name: "pause", description: "Pause the current goal" },
-			{ name: "resume", description: "Resume a paused goal" },
-			{ name: "drop", description: "Drop the current goal" },
-			{ name: "budget", description: "Adjust the token budget", usage: "<N|off>" },
+			{ name: "set", description: M.cmdGoalSet, usage: "<objective>" },
+			{ name: "show", description: M.cmdGoalShow },
+			{ name: "pause", description: M.cmdGoalPause },
+			{ name: "resume", description: M.cmdGoalResume },
+			{ name: "drop", description: M.cmdGoalDrop },
+			{ name: "budget", description: M.cmdGoalBudget, usage: "<N|off>" },
 		],
 		inlineHint: "[objective]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.settings.get("goal.enabled" as SettingPath)) return "Goal: disabled in settings";
-			if (runtime.ctx.planModeEnabled) return "Goal: blocked by plan mode";
+			if (!runtime.ctx.settings.get("goal.enabled" as SettingPath)) return M.acGoalDisabledInSettings;
+			if (runtime.ctx.planModeEnabled) return M.acGoalBlockedByPlanMode;
 			const state = runtime.ctx.session.getGoalModeState();
-			return state ? `Goal: ${state.goal.status} (${shortDetail(state.goal.objective)})` : "Goal: off";
+			return state
+				? M.acGoalOnFmt.replace("%s", state.goal.status).replace("%s", shortDetail(state.goal.objective))
+				: M.acGoalOff;
 		},
 		handleTui: async (command, runtime) => {
 			await runWithDetachedModeDraft(command, runtime, () =>
@@ -276,7 +373,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "guided-goal",
 		icon: "compass",
-		description: "Have the agent interview you in chat, then set up goal mode",
+		description: M.cmdGuidedGoal,
 		inlineHint: "[rough objective]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -288,14 +385,17 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "loop",
 		icon: "loop",
-		description:
-			"Toggle loop mode. While enabled, the next prompt you send re-submits after every yield. Esc cancels the current iteration; /loop again to disable.",
-		inlineHint: "[count|duration] [prompt]",
+		description: M.cmdLoopLong,
+		inlineHint: "[count|duration] [--while|--until '<cmd>'] [prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			if (!runtime.ctx.loopModeEnabled) return "Loop: off";
 			if (runtime.ctx.loopModePaused) return "Loop: paused";
-			if (runtime.ctx.loopLimit) return `Loop: on (${describeLoopLimitRuntime(runtime.ctx.loopLimit)})`;
+			const bounds = [
+				runtime.ctx.loopLimit ? describeLoopLimitRuntime(runtime.ctx.loopLimit) : undefined,
+				runtime.ctx.loopCondition ? describeLoopCondition(runtime.ctx.loopCondition) : undefined,
+			].filter((part): part is string => part !== undefined);
+			if (bounds.length > 0) return `Loop: on (${bounds.join(", ")})`;
 			if (runtime.ctx.loopPrompt) return "Loop: on (repeating prompt)";
 			return "Loop: on (waiting for next prompt)";
 		},
@@ -310,7 +410,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "queue",
 		icon: "inbox",
-		description: "Queue a message for after the agent yields",
+		description: M.cmdQueue,
 		inlineHint: "<message>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -321,11 +421,11 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "model",
 		aliases: ["models"],
 		icon: "model",
-		description: "Switch model for this session",
-		acpDescription: "Show current model selection",
+		description: M.cmdModel,
+		acpDescription: M.cmdModelAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const model = runtime.ctx.session.model;
-			return model ? `Model: ${model.provider}/${model.id}` : "Model: none selected";
+			return model ? M.acModelFmt.replace("%s", model.provider).replace("%s", model.id) : M.acModelNone;
 		},
 		handle: async (command, runtime) => {
 			if (command.args) {
@@ -364,14 +464,14 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "switch",
 		icon: "swap",
-		description: "Switch model for this session (same as alt+p); accepts fuzzy ids, provider/id, @role, :level",
-		acpDescription: "Switch model for this session only",
+		description: M.cmdSwitchModelWithSelectors,
+		acpDescription: M.cmdSwitchModelSessionOnly,
 		acpInputHint: "[model]",
 		inlineHint: "[model]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const model = runtime.ctx.session.model;
-			return model ? `Model: ${model.provider}/${model.id}` : "Model: none selected";
+			return model ? M.acModelFmt.replace("%s", model.provider).replace("%s", model.id) : M.acModelNone;
 		},
 		handle: async (command, runtime) => {
 			const selector = command.args.trim();
@@ -413,16 +513,17 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "fast",
 		icon: "fast",
-		description: "Toggle priority service tier (OpenAI service_tier=priority, Anthropic speed=fast)",
-		acpDescription: "Toggle fast mode",
+		description: M.cmdFast,
+		acpDescription: M.cmdFastAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: "Enable fast mode" },
-			{ name: "off", description: "Disable fast mode" },
-			{ name: "status", description: "Show fast mode status" },
+			{ name: "on", description: M.cmdFastOn },
+			{ name: "off", description: M.cmdFastOff },
+			{ name: "status", description: M.cmdFastStatus },
 		],
 		allowArgs: true,
-		getTuiAutocompleteDescription: runtime => `Fast: ${formatFastModeStatus(runtime.ctx.session)}`,
+		getTuiAutocompleteDescription: runtime =>
+			M.acFastFmt.replace("%s", runtime.ctx.session.isFastModeEnabled() ? M.stateOn : M.stateOff),
 		handle: async (command, runtime) => {
 			const arg = command.args.toLowerCase();
 			if (!arg || arg === "toggle") {
@@ -483,17 +584,17 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "skillful",
 		icon: "compass",
-		description: "Toggle listing available skills in the system prompt (session only)",
-		acpDescription: "Toggle skill listing",
+		description: M.cmdSkillful,
+		acpDescription: M.cmdSkillfulAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: "List skills in the prompt for this session" },
-			{ name: "off", description: "Omit the skills listing for this session" },
-			{ name: "status", description: "Show skill listing status" },
+			{ name: "on", description: M.cmdSkillfulOn },
+			{ name: "off", description: M.cmdSkillfulOff },
+			{ name: "status", description: M.cmdSkillfulStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
-			`Skill listing: ${runtime.ctx.session.settings.get("skillful") ? "on" : "off"}`,
+			M.acSkillfulFmt.replace("%s", runtime.ctx.session.settings.get("skillful") ? M.stateOn : M.stateOff),
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg === "status") {
@@ -539,17 +640,17 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "extended-context",
 		icon: "expand",
-		description: "Toggle extended context windows",
-		acpDescription: "Toggle extended context",
+		description: M.cmdToggleExtendedContextWindows,
+		acpDescription: M.cmdToggleExtendedContext,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: "Enable larger context windows" },
-			{ name: "off", description: "Use default or standard-pricing context windows" },
-			{ name: "status", description: "Show extended context status" },
+			{ name: "on", description: M.cmdEnableLargerContextWindows },
+			{ name: "off", description: M.cmdUseDefaultOrStandardPricingContextWindows },
+			{ name: "status", description: M.cmdShowExtendedContextStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
-			`Extended context: ${formatExtendedContextStatus(runtime.ctx.settings)}`,
+			M.acExtendedContextFmt.replace("%s", runtime.ctx.settings.get("extendedContext") ? M.stateOn : M.stateOff),
 		handle: async (command, runtime) => {
 			const output = applyExtendedContextCommand(runtime.settings, command.args);
 			if (!output) return usage("Usage: /extended-context [on|off|status]", runtime);
@@ -566,17 +667,17 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "computer",
 		icon: "computer",
-		description: "Toggle the native computer-use eval prelude for this session",
-		acpDescription: "Toggle computer use",
+		description: M.cmdToggleTheNativeComputerUseEvalPreludeForThisSession,
+		acpDescription: M.cmdComputerAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: "Enable computer use for this session" },
-			{ name: "off", description: "Disable computer use for this session" },
-			{ name: "status", description: "Show computer use status" },
+			{ name: "on", description: M.cmdComputerOn },
+			{ name: "off", description: M.cmdComputerOff },
+			{ name: "status", description: M.cmdComputerStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
-			`Computer: ${runtime.ctx.session.settings.get("computer.enabled") ? "on" : "off"}`,
+			M.acComputerFmt.replace("%s", runtime.ctx.session.settings.get("computer.enabled") ? M.stateOn : M.stateOff),
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg === "status") {
@@ -611,25 +712,48 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "prewalk",
 		icon: "prewalk",
-		description: "Switch to a fast/cheap model at the next action (works even without --prewalk)",
-		acpDescription: "Prewalk at the next action",
-		handle: async (_command, runtime) => {
-			const rolePattern = expandRoleAlias("@smol", runtime.settings);
-			const resolved = resolveCliModel({
-				cliModel: rolePattern,
-				modelRegistry: runtime.session.modelRegistry,
-				preferences: getModelMatchPreferences(runtime.settings),
-			});
-			if (resolved.error || !resolved.model) {
-				return usage(resolved.error ?? `Model "${rolePattern}" not found`, runtime);
+		description: M.cmdPrewalk,
+		allowArgs: true,
+		acpDescription: M.cmdPrewalkAcp,
+		acpInputHint: "[restart]",
+		subcommands: [{ name: "restart", description: M.cmdPrewalkRestart }],
+		handle: async (command, runtime) => {
+			const arg = command.args.trim().toLowerCase();
+			if (arg && arg !== "restart") return usage("Usage: /prewalk [restart]", runtime);
+			const target = resolveSessionModelSelector("@smol", runtime.session, runtime.settings);
+			if (target.error || !target.model) {
+				return usage(target.error ?? 'Model "@smol" not found', runtime);
 			}
-			if (!runtime.session.modelRegistry.hasConfiguredAuth(resolved.model)) {
-				return usage(`No API key for ${resolved.model.provider}/${resolved.model.id}`, runtime);
+			if (!runtime.session.modelRegistry.hasConfiguredAuth(target.model)) {
+				return usage(`No API key for ${target.model.provider}/${target.model.id}`, runtime);
 			}
-			const armed = runtime.session.armPrewalk(resolved.model, resolved.thinkingLevel);
+			if (arg === "restart") {
+				const source = resolveSessionModelSelector("@default", runtime.session, runtime.settings);
+				if (source.error || !source.model) {
+					return usage(source.error ?? 'Model "@default" not found', runtime);
+				}
+				if (!runtime.session.modelRegistry.hasConfiguredAuth(source.model)) {
+					return usage(`No API key for ${source.model.provider}/${source.model.id}`, runtime);
+				}
+				const result = await runtime.session.restartPrewalk(
+					source.model,
+					source.thinkingLevel,
+					target.model,
+					target.thinkingLevel,
+				);
+				if (result === "rejected") return commandConsumed();
+				const restartSource = `${source.model.provider}/${source.model.id}`;
+				await runtime.output(
+					result === "armed"
+						? `Prewalk restarted: using @default (${restartSource}) for planning, then switching to @smol (${target.model.provider}/${target.model.id}) at the next edit/write (todo-gated).`
+						: `Prewalk reset: using @default (${restartSource}); @smol resolves to the same model and thinking level, so no handoff was armed.`,
+				);
+				return commandConsumed();
+			}
+			const armed = runtime.session.armPrewalk(target.model, target.thinkingLevel);
 			if (armed) {
 				await runtime.output(
-					`Prewalk on: switching to ${resolved.model.provider}/${resolved.model.id} at the next edit/write (todo-gated).`,
+					`Prewalk on: switching to ${target.model.provider}/${target.model.id} at the next edit/write (todo-gated).`,
 				);
 			}
 			return commandConsumed();

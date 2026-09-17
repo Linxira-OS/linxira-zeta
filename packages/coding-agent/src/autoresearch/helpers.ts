@@ -1,4 +1,4 @@
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import type { ASIData, ASIValue, MetricDirection, NumericMetricMap } from "./types";
 
 export const METRIC_LINE_PREFIX = "METRIC";

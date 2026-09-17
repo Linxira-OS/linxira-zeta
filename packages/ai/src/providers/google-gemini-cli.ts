@@ -5,14 +5,14 @@
  */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { scheduler } from "node:timers/promises";
-import { type } from "@oh-my-pi/omptype";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import {
 	getAntigravityModelWireProfile,
 	getAntigravityUserAgent,
 	getGeminiCliHeaders,
-} from "@oh-my-pi/pi-catalog/wire/gemini-headers";
-import { extractHttpStatusFromError, fetchWithRetry, readSseJson } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/wire/gemini-headers";
+import { type } from "@linxiraos/pi-omptype";
+import { extractHttpStatusFromError, fetchWithRetry, readSseJson } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type {
 	Api,
@@ -894,7 +894,7 @@ export const streamGoogleGeminiCli: StreamFunction<"google-gemini-cli"> = (
 								total: 0,
 							},
 						};
-						calculateCost(model, output.usage);
+						calculateCost(model, output.usage, output.timestamp);
 					}
 				}
 

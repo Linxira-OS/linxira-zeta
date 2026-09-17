@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 function createTool(name: string): AgentTool {
 	return {
@@ -86,7 +86,7 @@ describe("AgentSession.getAllToolInfos", () => {
 		}
 	});
 
-	it("reports the originating custom-tool file path instead of a synthetic stub", async () => {
+	it("uses stored registered provenance instead of re-deriving a relative extension path", async () => {
 		const tempDir = TempDir.createSync("@getalltools-sourcepath-");
 		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
@@ -122,8 +122,14 @@ describe("AgentSession.getAllToolInfos", () => {
 				getRegisteredTool: (name: string) =>
 					name === "git"
 						? {
-								extensionPath: "<inline-0>",
-								definition: { sourcePath },
+								extensionPath: "./extension.ts",
+								definition: { sourcePath: "./tools/git.ts" },
+								sourceInfo: {
+									path: sourcePath,
+									source: "extension",
+									scope: "temporary",
+									origin: "top-level",
+								},
 							}
 						: undefined,
 			} as never,

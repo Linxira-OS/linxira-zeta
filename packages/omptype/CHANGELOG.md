@@ -2,69 +2,73 @@
 
 ## [Unreleased]
 
-## [17.3.1] - 2026-08-13
+## [1.1.15] - 2026-09-16
+## [1.1.14] - 2026-09-12
 
-### Fixed
+- 随 1.1.14 版本线发布:bazel 构建面(crates/*/BUILD.bazel)版本号纳入一致性检查,CI 原生构建与桌面冒烟守卫修复。
 
-- Fixed TypeBox adapter omitting pattern, non-URL format, and multipleOf constraints from the emitted JSON Schema.
+## [1.1.13] - 2026-09-10
 
-## [17.3.0] - 2026-08-13
+- 上游 v18.1.16 同步,内部修复。
 
-### Added
+## [1.1.12] - 2026-09-10
 
-- Added `type.withJsonSchema(schema, json)` to wrap a validation-only schema, ensuring JSON Schema emission yields the provided `json` verbatim even when nested inside objects, arrays, or unions. Schemas with defaults or output-changing morphs are rejected to prevent transformed outputs from being discarded.
+- 品牌与合并工具链维护版本;无本包用户可见变更。
 
-## [17.2.10] - 2026-08-06
+## [1.1.11] - 2026-09-08
 
-### Changed
+- OMP v18.1.13 + v18.1.14 dual-tag sync baseline; no package-specific user-visible changes.
 
-- Reimplemented the Zod compatibility facade (`@oh-my-pi/omptype/zod`) to run purely on internal mechanics, removing the dependency on `zod`.
+## [1.1.10] - 2026-09-07
 
-## [17.2.9] - 2026-08-05
+- OMP v18.1.11 sync baseline (`e3106be68f`); no package-specific user-visible changes.
 
-### Fixed
+## [1.1.9] - 2026-09-05
 
-- Fixed the TypeBox adapter emitting an invalid left-bound-only DSL for min-only numeric schemas (e.g. `Type.Integer({ minimum: 1 })`), which threw `left bound requires a corresponding right bound` and broke extension tool loading ([#7648](https://github.com/can1357/oh-my-pi/issues/7648)).
+- v18.1.10 sync baseline (published as @linxiraos/pi-omptype; zod/typebox subpaths intact).
 
-## [17.2.8] - 2026-08-04
+## [1.1.8] - 2026-09-04
 
-### Added
+- OMP sync v18.1.2–v18.1.5: schema validation runtime maintenance aligned with upstream.
 
-- Added `io: 'input'` and `io: 'output'` options to `toJsonSchema()`, supporting input validation shapes and piped `.to()` target types
-- Added Standard Schema V1 interop: every schema exposes `~standard` with synchronous validation, enabling direct use with `@t3-oss/env`, tRPC, and other Standard Schema consumers.
-- Added `fromJsonSchema()`, rebuilding callable schemas from JSON Schema documents (draft-07 / draft-2020-12 structural keywords, string formats, `$defs` recursion, enums, and `anyOf`/`oneOf`/`allOf` composition) — the inverse of `Type.toJsonSchema()`.
-- Added `$defs`/`$ref` emission for recursive alias schemas in `toJsonSchema()` (draft-07 converts to `definitions`), preventing unbounded recursion on cyclic scopes.
-- Added `AnyType`, a minimal structural constraint for generic functions accepting any schema without descending the recursive fluent surface.
-- Root `.default()` values now materialize for `undefined` input in direct calls and at the Standard Schema boundary (factories run per call).
-- `.narrow()`/`.filter()` boolean overloads accept `OmpErrors` returns, so `cond || ctx.reject(...)` recipes typecheck.
+## [1.1.7] - 2026-09-01
 
-### Changed
+- 版本线随 1.1.7 发布对齐（随本体 v18.0.11 同步与主题/网关更新），包内无独立变更。
 
-- Restored low-overhead schema construction by lazily activating advanced normalization and compatibility machinery.
-- `.default()` is typed input-side (`i | (() => i)`) and marks the schema's input as optional (`i | undefined`).
-- Parse keywords (`string.integer.parse`, `parse.number`, ...) now infer their morph output inside union strings, and input-side inference is union-aware.
-- Object-literal inference for `.merge()`/`.or()`/`.and()` unwraps embedded schema values (output and input sides).
+## [1.1.6] - 2026-08-30
 
-### Fixed
+- 同步上游 OMP v18.0.9（`cc14e04f075d`）。
 
-- Alias intersections defer through memoized lazy nodes, so cyclic scope schemas no longer overflow the stack in `.and()` or morph-union determinism checks.
+## [1.1.5] - 2026-08-26
 
-## [17.2.7] - 2026-08-03
+- 随 1.1.5 版本线对齐发布：OMP v18.0.6 同步未触及本包，无独立功能变更。
 
-### Added
-
-- Introduced omptype, an ArkType-compatible schema validation library featuring a lazy JIT runtime that compiles specialized validators on the third call for ultra-fast hot-path validation and low construction overhead.
-- Added support for a rich string definition DSL (primitives, literals, unions, arrays, bounds, inline defaults, and optional keys), object definitions (including index signatures and strict key rejection/deletion), and comprehensive composition methods (.or, .and, .array, .pipe, .narrow, .describe, .default, .allows, .assert).
-- Added TypeBox-style (@oh-my-pi/omptype/typebox) and Zod-style (@oh-my-pi/omptype/zod) authoring adapters that produce native omptype schemas.
-- Added support for recursive named scopes, modules, runtime generics, fixed/optional/variadic tuples, Date literals/bounds, disjointness-aware intersections, separate input/output inference, and draft-2020-12 JSON Schema emission.
-- Shipped transpiled ESM and TypeScript declarations in the npm package to support plain Node.js environments, while preserving TS source resolution for Bun consumers.
+## [1.1.4] - 2026-08-26
 
 ### Changed
 
-- Optimized the lazy JIT compiler to support tuples, refinements, morphs, intersections, instances, and recursive aliases, while reducing schema construction overhead.
+- 同步 1.1.4 发布线（与 1.1.3 无功能差异）。
+
+## [1.1.3] - 2026-08-25
 
 ### Fixed
 
-- Fixed a TypeScript compiler error (TS2589: "type instantiation is excessively deep") when using generic fluent composition methods on nested schemas.
-- Fixed type.raw() results (BaseType) to correctly expose fluent composition methods like .array(), .or(), and .pipe().
-- Fixed an issue in the TypeBox adapter where keyword-carrying schemas (e.g., uniqueItems arrays) would throw an error during JSON Schema emission.
+- Republished as 1.1.3 to reset the latest tag after the broken 1.1.2 (no functional change over 1.1.1).
+
+## [1.1.2] - 2026-08-25
+
+### Fixed
+
+- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
+
+## [1.1.1] - 2026-08-25
+
+### Fixed
+
+- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
+
+## [1.1.0] - 2026-08-25
+
+### Changed
+
+- 同步上游 OMP v18.0.3 / v18.0.4（内部运行时与构建改进，无独立用户可见变更）。

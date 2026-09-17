@@ -18,6 +18,10 @@ target/
 # Environment
 .env
 
+# WSL-local toolchain (bun/bazel/rustup homes) for building natives without
+# VS Build Tools; never committed
+.wsl-env/
+
 # Editors
 .vscode/
 .zed/
@@ -44,8 +48,7 @@ coverage/
 packages/ai/test/.temp-images/
 
 # Project specific
-!.omp/
-.omp/plugins/
+.omp/
 .pi_config/
 .opencode/
 .worktrees/
@@ -55,6 +58,8 @@ changes/
 __pycache__/
 
 # Scratch files
+temp/
+/modernization-plan*.md
 syntax.jsonl
 out.jsonl
 out.html
@@ -92,4 +97,16 @@ packages/coding-agent/bench/boot-baseline.json
 /bazel-oh-my-pi
 /.bazelrc.user
 
+# Local-only session handoff notes (never commit)
+HANDOFF.md
+
+# Agent / IDE local state (never commit)
+.mimosa/
+.workbuddy/
+
+# ZCode session-local planning artifacts (never shipped)
+.zcode/
 .parity/
+
+# In-repo runtime artifacts (merge scope reports etc.)
+.zeta/

@@ -24,13 +24,13 @@
  *   ... --synth openrouter/openai/gpt-oss-120b
  *
  * Auth: provider API keys resolve through omp's auth storage
- * (~/.omp/agent/agent.db: stored key, OAuth, or env var fallback).
+ * (~/.zeta/agent/agent.db: stored key, OAuth, or env var fallback).
  */
 
 import { parseArgs } from "node:util";
-import { type Api, AuthStorage, completeSimple, type Model, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { type GeneratedProvider, getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { getAgentDbPath } from "@oh-my-pi/pi-utils";
+import { type Api, AuthStorage, completeSimple, type Model, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getAgentDbPath } from "@linxiraos/pi-utils";
 
 const DEFAULT_TINY = "openrouter/inclusionai/ling-2.6-flash";
 const DEFAULT_SYNTH = "openrouter/openai/gpt-oss-120b";
@@ -202,7 +202,7 @@ function turnPrompt(turn: Extract<LogItem, { kind: "turn" }>): string {
 
 /** Map `items` through `worker` with at most `limit` in flight, order preserved. */
 async function mapPool<T, R>(items: T[], limit: number, worker: (item: T, index: number) => Promise<R>): Promise<R[]> {
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const results = new Array<R>(items.length);
 	let next = 0;
 	const lanes = Array.from({ length: Math.min(limit, items.length) }, async () => {

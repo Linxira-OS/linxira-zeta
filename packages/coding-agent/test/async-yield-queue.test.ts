@@ -4,11 +4,11 @@ import {
 	ASIDE_MESSAGE_COMMIT,
 	ASIDE_MESSAGE_DISCARD,
 	type CommittableAsideMessage,
-} from "@oh-my-pi/pi-agent-core";
-import { type AsyncJob, AsyncJobManager, type AsyncJobType } from "@oh-my-pi/pi-coding-agent/async";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { YieldQueue } from "@oh-my-pi/pi-coding-agent/session/yield-queue";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+} from "@linxiraos/pi-agent-core";
+import { type AsyncJob, AsyncJobManager, type AsyncJobType } from "@linxiraos/zeta/async";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import { YieldQueue } from "@linxiraos/zeta/session/yield-queue";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 import { type CoordinationDetails, HubTool } from "../src/tools/hub";
 
 type AsyncEntry = {
@@ -57,7 +57,7 @@ function createToolSession(asyncJobManager?: AsyncJobManager): ToolSession {
 		cwd: process.cwd(),
 		hasUI: false,
 		settings: {
-			get: (key: string) => (key === "async.pollWaitDuration" ? "5s" : undefined),
+			get: () => undefined,
 		},
 		getSessionFile: () => null,
 		getSessionSpawns: () => null,

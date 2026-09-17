@@ -12,14 +12,14 @@
  * rejection so the segment never wedges after a single failure.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { StatusLineSettings } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
-import { StatusLineComponent } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { github } from "@oh-my-pi/pi-coding-agent/utils/github";
-import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { github } from "@linxiraos/zeta/utils/github";
 
 const originalProjectDir = getProjectDir();
 
@@ -102,13 +102,17 @@ beforeEach(() => {
 		linkedWorktree: () => null,
 	} as unknown as VcsGitRepo;
 	vi.spyOn(vcs, "git").mockReturnValue(gitRepository);
-	vi.spyOn(vcs, "repo").mockReturnValue({
+	const repository = {
 		kind: () => "git",
 		asGit: () => gitRepository,
 		asJj: () => null,
 		root: () => fakeRepoInfo.repoRoot,
 		watchTarget: () => fakeRepoInfo.headPath,
-	} as unknown as VcsRepo);
+	} as unknown as VcsRepo;
+	vi.spyOn(vcs, "repo").mockReturnValue(repository);
+	// The render path resolves the branch through the display detector first;
+	// left unstubbed it finds the real checkout and caches its branch.
+	vi.spyOn(vcs, "repoForDisplay").mockReturnValue(repository);
 	// Bypass the delayed default-branch resolver used by `#isDefaultBranch`;
 	// synchronous seed of "main" is enough to make the check return false.
 });

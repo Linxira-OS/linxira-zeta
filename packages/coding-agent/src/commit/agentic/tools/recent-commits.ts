@@ -1,5 +1,5 @@
-import { type } from "@oh-my-pi/omptype";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { type } from "@linxiraos/pi-omptype";
 import type { CustomTool } from "../../../extensibility/custom-tools/types";
 
 const recentCommitsSchema = type({

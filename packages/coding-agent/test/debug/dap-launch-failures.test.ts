@@ -2,19 +2,14 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as dapModule from "@oh-my-pi/pi-coding-agent/dap";
-import { connectSocket, DapClient, waitForTcpServerListening } from "@oh-my-pi/pi-coding-agent/dap/client";
-import { DapSessionManager } from "@oh-my-pi/pi-coding-agent/dap/session";
-import type {
-	DapCapabilities,
-	DapClientState,
-	DapEventMessage,
-	DapResolvedAdapter,
-} from "@oh-my-pi/pi-coding-agent/dap/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { DebugTool } from "@oh-my-pi/pi-coding-agent/tools/debug";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as dapModule from "@linxiraos/zeta/dap";
+import { connectSocket, DapClient, waitForTcpServerListening } from "@linxiraos/zeta/dap/client";
+import { DapSessionManager } from "@linxiraos/zeta/dap/session";
+import type { DapCapabilities, DapClientState, DapEventMessage, DapResolvedAdapter } from "@linxiraos/zeta/dap/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { DebugTool } from "@linxiraos/zeta/tools/debug";
+import { removeWithRetries, withTimeout } from "@linxiraos/pi-utils";
 
 const TEST_ADAPTER: DapResolvedAdapter = {
 	name: "lldb-dap",
@@ -29,6 +24,42 @@ const TEST_ADAPTER: DapResolvedAdapter = {
 	connectMode: "stdio",
 	acceptsDirectoryProgram: false,
 };
+
+it("rejects pending DAP work and terminates an adapter with invalid framing", async () => {
+	const client = await DapClient.spawn({
+		adapter: {
+			...TEST_ADAPTER,
+			command: process.execPath,
+			resolvedCommand: process.execPath,
+			args: ["run", path.join(import.meta.dir, "../fixtures/malformed-jsonrpc-peer.ts")],
+		},
+		cwd: process.cwd(),
+	});
+	try {
+		const request = client.sendRequest("initialize", {}, undefined, 60_000);
+		const event = client.waitForEvent("stopped", undefined, undefined, 60_000);
+		const results = await withTimeout(
+			Promise.allSettled([request, event]),
+			5_000,
+			"Invalid framing did not reject pending DAP work",
+		);
+		for (const result of results) {
+			expect(result.status).toBe("rejected");
+			if (result.status === "rejected") {
+				expect(result.reason).toBeInstanceOf(Error);
+				expect((result.reason as Error).message).toMatch(/Content-Length.*limit/);
+			}
+		}
+		await expect(client.sendRequest("threads", {})).rejects.toThrow(/not running/);
+		await withTimeout(
+			client.proc.exited.catch(() => {}),
+			5_000,
+			"Malformed adapter remained alive",
+		);
+	} finally {
+		await client.dispose();
+	}
+}, 10_000);
 
 const DELAYED_UNIX_SOCKET_ADAPTER = `
 const listenPrefix = "--listen=unix:";
@@ -563,7 +594,7 @@ await Bun.sleep(60_000);
 		await fs.writeFile(adapterPath, source);
 		const adapter: DapResolvedAdapter = {
 			...TCP_ADAPTER_BASE,
-			// oxlint-disable-next-line no-template-curly-in-string -- literal DAP `${port}` placeholder substituted by the adapter launcher
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: literal DAP `${port}` placeholder substituted by the adapter launcher
 			args: [adapterPath, "${port}", "127.0.0.1"],
 		};
 		try {

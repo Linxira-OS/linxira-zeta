@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { registerPersistedSubagents } from "@oh-my-pi/pi-coding-agent/registry/persisted-agents";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({

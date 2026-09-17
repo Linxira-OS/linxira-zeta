@@ -16,13 +16,13 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { StatusLineSettings } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
-import { StatusLineComponent } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 type GitStatus = { staged: number; unstaged: number; untracked: number };
 
@@ -149,6 +149,16 @@ beforeEach(() => {
 	vi.spyOn(vcs, "gitInfo").mockReturnValue(fakeRepoInfo);
 	vi.spyOn(vcs, "git").mockReturnValue(fakeRepository);
 	vi.spyOn(vcs, "repo").mockReturnValue(fakeVcsRepository);
+	// Presentation now resolves a second handle: forward to the operational
+	// double's current implementation without recording an extra `repo` call,
+	// so these scenarios keep display == operational (pure git / pure jj)
+	// while call-count assertions on the operational detector keep meaning.
+	const operational = vi.spyOn(vcs, "repo") as unknown as {
+		getMockImplementation(): ((dir: string) => VcsRepo | null) | undefined;
+	};
+	vi.spyOn(vcs, "repoForDisplay").mockImplementation(
+		(dir: string) => operational.getMockImplementation()?.(dir) ?? null,
+	);
 });
 
 function useReftable(info: Partial<VcsGitRepoInfo> = {}): void {

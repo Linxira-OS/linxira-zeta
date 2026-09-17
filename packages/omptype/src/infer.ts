@@ -37,6 +37,7 @@ interface PrimitiveMap {
 	Key: PropertyKey;
 	Date: Date;
 	Array: unknown[];
+	// biome-ignore lint/complexity/noBannedTypes: omptype mirrors ArkType public API surface
 	Function: Function;
 	RegExp: RegExp;
 	File: File;

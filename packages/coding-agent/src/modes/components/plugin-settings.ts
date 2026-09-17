@@ -16,8 +16,8 @@ import {
 	SettingsList,
 	Spacer,
 	Text,
-} from "@oh-my-pi/pi-tui";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui";
+import { logger } from "@linxiraos/pi-utils";
 import { clearPluginRootsAndCaches, resolveOrDefaultProjectRegistryPath } from "../../discovery/helpers";
 import { PluginManager } from "../../extensibility/plugins/manager";
 import {
@@ -179,9 +179,9 @@ export class PluginListComponent extends OverlayPanel {
 		if (entries.length === 0) {
 			this.addChild(new Text(theme.fg("muted", "No plugins installed"), 0, 0));
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("dim", "Install npm plugins:        omp plugin install <package>"), 0, 0));
+			this.addChild(new Text(theme.fg("dim", "Install npm plugins:        zeta plugin install <package>"), 0, 0));
 			this.addChild(
-				new Text(theme.fg("dim", "Install marketplace plugins: omp plugin install <name>@<marketplace>"), 0, 0),
+				new Text(theme.fg("dim", "Install marketplace plugins: zeta plugin install <name>@<marketplace>"), 0, 0),
 			);
 			this.addChild(new Spacer(1));
 
@@ -623,15 +623,15 @@ interface InputHandler {
  * Manages navigation between plugin list and plugin detail views.
  */
 export class PluginSettingsComponent extends Container {
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
+	#currentView: "list" | "npm-detail" | "marketplace-detail" = "list";
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
+	#currentPlugin: InstalledPlugin | null = null;
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: state tracking for view management
+	#currentMarketplacePlugin: InstalledPluginSummary | null = null;
 	#cwd: string;
 	#manager: PluginManager;
 	#viewComponent: (Component & InputHandler) | null = null;
-	// oxlint-disable-next-line no-unused-private-class-members -- state tracking for view management
-	#currentView: "list" | "npm-detail" | "marketplace-detail" = "list";
-	// oxlint-disable-next-line no-unused-private-class-members -- state tracking for view management
-	#currentPlugin: InstalledPlugin | null = null;
-	// oxlint-disable-next-line no-unused-private-class-members -- state tracking for view management
-	#currentMarketplacePlugin: InstalledPluginSummary | null = null;
 
 	constructor(
 		cwd: string,

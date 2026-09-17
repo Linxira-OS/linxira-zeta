@@ -1,16 +1,16 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import type { ToolInfo } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { ExtensionList } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/extension-list";
-import { liveToolsForExtension } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/inspector-model";
-import { InspectorPanel } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/inspector-panel";
+import type { ToolInfo } from "@linxiraos/zeta/extensibility/extensions/types";
+import { ExtensionList } from "@linxiraos/zeta/modes/components/extensions/extension-list";
+import { liveToolsForExtension } from "@linxiraos/zeta/modes/components/extensions/inspector-model";
+import { InspectorPanel } from "@linxiraos/zeta/modes/components/extensions/inspector-panel";
 import {
 	type LiveToolSessionLookup,
 	listLiveToolRecords,
 	liveToolRecordFromSession,
 	snapshotToolRuntimeSource,
-} from "@oh-my-pi/pi-coding-agent/modes/components/extensions/live-tool-session";
-import type { Extension } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/types";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/zeta/modes/components/extensions/live-tool-session";
+import type { Extension } from "@linxiraos/zeta/modes/components/extensions/types";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 function info(
 	name: string,
@@ -165,7 +165,7 @@ describe("listLiveToolRecords snapshot", () => {
 	});
 
 	test("joins factory siblings on a UNC source path", () => {
-		const unc = "\\\\server\\share\\.omp\\tools\\systemd.ts";
+		const unc = "\\\\server\\share\\.zeta\\tools\\systemd.ts";
 		const infos = [info("systemd_inspect", "extension", unc), info("systemd_control", "extension", unc)];
 		const session = fakeSession(infos, [tool("systemd_inspect"), tool("systemd_control")]);
 		const listed = listLiveToolRecords(session);

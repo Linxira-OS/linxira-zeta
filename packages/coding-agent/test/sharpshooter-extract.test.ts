@@ -2,18 +2,15 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import {
-	buildSharpshooterEnvelope,
-	maybeStartSharpshooterExtraction,
-} from "@oh-my-pi/pi-coding-agent/sharpshooter/extract";
-import { listSharpshooterDeltas } from "@oh-my-pi/pi-coding-agent/sharpshooter/queue";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { Settings } from "@linxiraos/zeta/config/settings";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { buildSharpshooterEnvelope, maybeStartSharpshooterExtraction } from "@linxiraos/zeta/sharpshooter/extract";
+import { listSharpshooterDeltas } from "@linxiraos/zeta/sharpshooter/queue";
 
 function message(role: "user" | "assistant", content: unknown): AgentMessage {
 	return { role, content, timestamp: Date.now() } as unknown as AgentMessage;

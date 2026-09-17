@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { CURSOR_MARKER } from "@oh-my-pi/pi-tui";
-import { Input } from "@oh-my-pi/pi-tui/components/input";
-import { setKittyProtocolActive } from "@oh-my-pi/pi-tui/keys";
+import { CURSOR_MARKER } from "@linxiraos/pi-tui";
+import { Input } from "@linxiraos/pi-tui/components/input";
+import { setKittyProtocolActive } from "@linxiraos/pi-tui/keys";
 import {
 	resetHangulCompatibilityJamoWidthForTests,
 	setHangulCompatibilityJamoWidth,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui/utils";
-import { DEFAULT_TAB_WIDTH } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui/utils";
+import { DEFAULT_TAB_WIDTH } from "@linxiraos/pi-utils";
 
 function renderedWidth(input: Input, width: number): number {
 	const [line] = input.render(width);
@@ -222,6 +222,16 @@ describe("Input component", () => {
 		};
 		input.handleInput("\n");
 		expect(submitted).toBe("a😀e\u0301z");
+	});
+
+	it("does not disclose masked input through debug inspection", () => {
+		const value = crypto.randomUUID();
+		const input = new Input();
+		input.mask = true;
+		input.setValue(value);
+
+		expect(JSON.stringify(input.debugState())).not.toContain(value);
+		expect(input.getValue()).toBe(value);
 	});
 
 	it("keeps masked Unicode input within narrow viewports", () => {

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { classifyModel, compareRevision, parseRevision } from "@oh-my-pi/pi-catalog/identity";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { classifyModel, compareRevision, parseRevision } from "@linxiraos/pi-catalog/identity";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 function bedrockSpec(
 	overrides: Partial<ModelSpec<"bedrock-converse-stream">> = {},
@@ -110,6 +110,9 @@ describe("Bedrock prompt-cache compat", () => {
 				// bedrockSpec is reasoning:true → keepalive-free idle floor applies
 				// (900s for the adaptive-thinking family, 600s otherwise).
 				streamIdleTimeoutMs: expectsAdaptiveDisplay(id) ? 900_000 : 600_000,
+				// Converse positions content blocks by wire index, so a block can land
+				// above already-rendered text; the TUI must not retire streamed rows early.
+				streamRevision: "possible",
 			});
 		}
 	});
@@ -120,6 +123,7 @@ describe("Bedrock prompt-cache compat", () => {
 			supportsLongPromptCacheRetention: false,
 			promptCacheMinimumTokens: 1024,
 			promptCacheMaximumCheckpoints: 4,
+			streamRevision: "possible",
 		} as const;
 
 		for (const id of [

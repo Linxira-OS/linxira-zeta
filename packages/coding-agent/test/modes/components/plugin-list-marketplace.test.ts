@@ -1,19 +1,16 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as os from "node:os";
 import { stripVTControlCharacters } from "node:util";
-import { PluginManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins";
-import {
-	type InstalledPluginSummary,
-	MarketplaceManager,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import type { InstalledPlugin } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/types";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins";
+import { type InstalledPluginSummary, MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import type { InstalledPlugin } from "@linxiraos/zeta/extensibility/plugins/types";
 import {
 	MarketplacePluginDetailComponent,
 	PluginListComponent,
 	type PluginListEntry,
 	PluginSettingsComponent,
-} from "@oh-my-pi/pi-coding-agent/modes/components/plugin-settings";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+} from "@linxiraos/zeta/modes/components/plugin-settings";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();
@@ -118,8 +115,8 @@ describe("PluginListComponent", () => {
 
 		const text = stripVTControlCharacters(component.render(120).join("\n"));
 		expect(text).toContain("No plugins installed");
-		expect(text).toContain("omp plugin install <package>");
-		expect(text).toContain("omp plugin install <name>@<marketplace>");
+		expect(text).toContain("zeta plugin install <package>");
+		expect(text).toContain("zeta plugin install <name>@<marketplace>");
 	});
 
 	it("routes enter on a marketplace entry to onMarketplaceSelect", () => {
@@ -361,7 +358,7 @@ describe("MarketplacePluginDetailComponent", () => {
 
 	it("shortens home-relative install paths to ~ before rendering", async () => {
 		const home = os.homedir();
-		const installPath = `${home}/.omp/cache/plugins/sample@mkt`;
+		const installPath = `${home}/.zeta/cache/plugins/sample@mkt`;
 		const plugin = marketplace("sample@mkt", { entry: { installPath } });
 		const manager = new PluginManager(process.cwd());
 		spyOn(manager, "getPlugin").mockResolvedValue(undefined);
@@ -372,7 +369,7 @@ describe("MarketplacePluginDetailComponent", () => {
 			onBack: () => {},
 		});
 
-		const text = await renderMarketplaceDetail(component, "~/.omp/cache/plugins/sample@mkt");
+		const text = await renderMarketplaceDetail(component, "~/.zeta/cache/plugins/sample@mkt");
 		expect(text).not.toContain(home);
 	});
 });

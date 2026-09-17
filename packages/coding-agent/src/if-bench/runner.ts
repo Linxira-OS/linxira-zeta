@@ -16,8 +16,8 @@ import type {
 	Message,
 	Model,
 	ProviderSessionState,
-} from "@oh-my-pi/pi-ai";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import type { BenchRuntime, BenchTarget, StreamSimpleFn } from "../cli/bench-runtime";
 import { formatModelSelectorValue, formatModelString } from "../config/model-resolver";
 import { shouldDisableReasoning, toReasoningEffort } from "../thinking";
@@ -119,7 +119,7 @@ const REFUSAL_MAX_ATTEMPTS = 8;
 const REFUSAL_BACKOFF_MS = [0, 5_000, 15_000, 30_000, 60_000, 90_000, 120_000, 180_000];
 
 function isCyberRefusal(error: string | undefined): boolean {
-	return error !== undefined && error.startsWith("Refusal (");
+	return error !== undefined && /^Refusal \(/.test(error);
 }
 
 function assistantText(message: AssistantMessage): string {
@@ -138,7 +138,7 @@ function errorText(error: unknown): string {
 export async function runIfBench(options: IfBenchRunOptions): Promise<IfBenchSummary> {
 	const reports: IfBenchModelReport[] = [];
 	const queue = options.targets.map((target, index) => ({ target, index }));
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const ordered: IfBenchModelReport[] = new Array(options.targets.length);
 
 	const worker = async (): Promise<void> => {

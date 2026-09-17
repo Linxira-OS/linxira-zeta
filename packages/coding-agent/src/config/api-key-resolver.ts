@@ -1,5 +1,8 @@
-import { type Api, type ApiKeyResolver, type AuthStorage, isUsageLimitOutcome, type Model } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
+import type { ApiKeyResolver } from "@linxiraos/pi-ai/auth-retry";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { isUsageLimitOutcome } from "@linxiraos/pi-ai/error/rate-limit";
+import type { AuthStorage } from "@linxiraos/pi-ai/auth-storage";
+import type { Api, Model } from "@linxiraos/pi-ai/types";
 
 /** Model slice accepted by the model-form `resolver(model, sessionId)` overload. */
 export type ApiKeyResolverModel = Pick<Model<Api>, "provider" | "baseUrl" | "id">;

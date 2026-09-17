@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
-import { type ExtensionModule, extensionModuleCapability } from "@oh-my-pi/pi-coding-agent/capability/extension-module";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getCapability, initializeWithSettings } from "@oh-my-pi/pi-coding-agent/discovery";
+import { getProjectAgentDir, symlinkDirectorySync, TempDir } from "@linxiraos/pi-utils";
+import { type ExtensionModule, extensionModuleCapability } from "@linxiraos/zeta/capability/extension-module";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getCapability, initializeWithSettings } from "@linxiraos/zeta/discovery";
 import {
 	discoverAndLoadExtensions,
 	discoverExtensionPaths,
 	loadExtensions,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { discoverSessionExtensionPaths } from "@oh-my-pi/pi-coding-agent/sdk";
-import { getProjectAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions/loader";
+import { discoverSessionExtensionPaths } from "@linxiraos/zeta/sdk";
 import { filterUserScoped } from "./utils/filter-user-extensions";
 
 describe("extensions discovery", () => {
@@ -190,6 +190,57 @@ describe("extensions discovery", () => {
 		]);
 	});
 
+	it("uses inherited roots instead of local extension inputs during cold discovery", async () => {
+		const inherited = tempDir.join("inherited.ts");
+		const configured = tempDir.join("configured.ts");
+		const unwanted = path.join(extensionsDir, "unwanted.ts");
+		await Bun.write(inherited, extensionCodeWithTool("inherited-tool"));
+		await Bun.write(configured, extensionCodeWithTool("configured-tool"));
+		await Bun.write(unwanted, extensionCodeWithTool("unwanted-tool"));
+		const settings = Settings.isolated({ extensions: [unwanted] });
+		const paths = await discoverSessionExtensionPaths(
+			{
+				additionalExtensionPaths: [unwanted],
+				extensionRoots: () => ({
+					explicit: [inherited],
+					mode: "explicit-only",
+					configured: [configured],
+					configuredLevel: "project",
+				}),
+			},
+			tempDir.path(),
+			settings,
+		);
+		const result = await loadExtensions(paths, tempDir.path());
+		expect(result.extensions.flatMap(extension => [...extension.tools.keys()])).toEqual(["inherited-tool"]);
+	});
+
+	it("uses the inherited configured lane when merging cold extension discovery", async () => {
+		const inherited = tempDir.join("inherited.ts");
+		const unwanted = tempDir.join("unwanted.ts");
+		await Bun.write(inherited, extensionCodeWithTool("inherited-tool"));
+		await Bun.write(unwanted, extensionCodeWithTool("unwanted-tool"));
+		const settings = Settings.isolated({ extensions: [unwanted] });
+		const paths = await discoverSessionExtensionPaths(
+			{
+				disableExtensionDiscovery: true,
+				additionalExtensionPaths: [unwanted],
+				extensionRoots: () => ({
+					explicit: [],
+					mode: "merge",
+					configured: [inherited],
+					configuredLevel: "project",
+				}),
+			},
+			tempDir.path(),
+			settings,
+		);
+		const result = await loadExtensions(paths, tempDir.path());
+		const tools = result.extensions.flatMap(extension => [...extension.tools.keys()]);
+		expect(tools).toContain("inherited-tool");
+		expect(tools).not.toContain("unwanted-tool");
+	});
+
 	it("explicit-only discovery ignores unreadable optional hook directories", async () => {
 		const packageDir = path.join(tempDir.path(), "explicit-package");
 		const sourceDir = path.join(packageDir, "src");
@@ -230,7 +281,7 @@ describe("extensions discovery", () => {
 				},
 			}),
 		);
-		fs.symlinkSync(packageDir, path.join(extensionsDir, "linked-package"), "dir");
+		symlinkDirectorySync(packageDir, path.join(extensionsDir, "linked-package"));
 
 		const result = await discoverForTest();
 
@@ -243,7 +294,7 @@ describe("extensions discovery", () => {
 		const packageDir = path.join(tempDir.path(), "linked-index-ts");
 		fs.mkdirSync(packageDir);
 		fs.writeFileSync(path.join(packageDir, "index.ts"), extensionCode);
-		fs.symlinkSync(packageDir, path.join(extensionsDir, "linked-index-ts"), "dir");
+		symlinkDirectorySync(packageDir, path.join(extensionsDir, "linked-index-ts"));
 
 		const result = await discoverForTest();
 
@@ -256,7 +307,7 @@ describe("extensions discovery", () => {
 		const packageDir = path.join(tempDir.path(), "linked-index-js");
 		fs.mkdirSync(packageDir);
 		fs.writeFileSync(path.join(packageDir, "index.js"), extensionCode);
-		fs.symlinkSync(packageDir, path.join(extensionsDir, "linked-index-js"), "dir");
+		symlinkDirectorySync(packageDir, path.join(extensionsDir, "linked-index-js"));
 
 		const result = await discoverForTest();
 
@@ -384,7 +435,7 @@ describe("extensions discovery", () => {
 		const realDir = path.join(tempDir.path(), "external", "shared-ext");
 		fs.mkdirSync(realDir, { recursive: true });
 		fs.writeFileSync(path.join(realDir, "index.ts"), extensionCode);
-		fs.symlinkSync(realDir, path.join(extensionsDir, "linked-ext"), "dir");
+		symlinkDirectorySync(realDir, path.join(extensionsDir, "linked-ext"));
 
 		const result = await discoverForTest();
 
@@ -404,7 +455,7 @@ describe("extensions discovery", () => {
 			path.join(realDir, "package.json"),
 			JSON.stringify({ name: "ctk", omp: { extensions: ["./index.ts"] } }),
 		);
-		fs.symlinkSync(realDir, path.join(extensionsDir, "ctk"), "dir");
+		symlinkDirectorySync(realDir, path.join(extensionsDir, "ctk"));
 
 		const result = await discoverForTest();
 
@@ -416,7 +467,7 @@ describe("extensions discovery", () => {
 		expect(result.extensions[0].tools.has("ctk-tool")).toBe(true);
 	});
 
-	it("discovers a symlinked extension file", async () => {
+	it.skipIf(process.platform === "win32")("discovers a symlinked extension file", async () => {
 		// Symlinked *files* resolve through the native file-type filter; guards that
 		// the directory fallback does not regress the file case.
 		const realFile = path.join(tempDir.path(), "external", "shared.ts");
@@ -435,7 +486,7 @@ describe("extensions discovery", () => {
 		// A profile symlink pointing at a since-deleted shared extension. The fallback
 		// reads the (missing) target, gets [], and must yield no extension and no
 		// error rather than throwing.
-		fs.symlinkSync(path.join(tempDir.path(), "external", "gone"), path.join(extensionsDir, "broken"), "dir");
+		symlinkDirectorySync(path.join(tempDir.path(), "external", "gone"), path.join(extensionsDir, "broken"));
 
 		const result = await discoverForTest();
 
@@ -451,7 +502,7 @@ describe("extensions discovery", () => {
 		const realDir = path.join(tempDir.path(), "external", "weird");
 		fs.mkdirSync(realDir, { recursive: true });
 		fs.writeFileSync(path.join(realDir, "index.ts"), extensionCode);
-		fs.symlinkSync(realDir, path.join(extensionsDir, "weird.ts"), "dir");
+		symlinkDirectorySync(realDir, path.join(extensionsDir, "weird.ts"));
 
 		const result = await discoverForTest([], true);
 
@@ -479,6 +530,20 @@ describe("extensions discovery", () => {
 		expect(result.errors).toHaveLength(0);
 		expect(result.extensions).toHaveLength(1);
 		expect(result.extensions[0].path).toContain("exists.ts");
+	});
+
+	it("does not fall back to index.ts when a configured manifest only declares missing entries", async () => {
+		const configuredDir = path.join(tempDir.path(), "configured-package");
+		fs.mkdirSync(configuredDir);
+		fs.writeFileSync(path.join(configuredDir, "index.ts"), extensionCodeWithTool("decoy-index"));
+		fs.writeFileSync(
+			path.join(configuredDir, "package.json"),
+			JSON.stringify({ omp: { extensions: ["./missing.ts"] } }),
+		);
+
+		const paths = await discoverExtensionPaths([configuredDir], tempDir.path(), undefined, { ambient: false });
+
+		expect(paths).toEqual([]);
 	});
 
 	it("loads extensions and registers commands", async () => {

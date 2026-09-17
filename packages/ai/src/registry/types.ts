@@ -2,13 +2,13 @@
  * Single-source provider auth model. Every provider — model providers,
  * gateways, search/tool credentials, and login-only flows — is described by
  * one {@link ProviderDefinition}, built by `./build.ts` from the compiled
- * `rules/auth/<id>.kdl` policy in `@oh-my-pi/pi-catalog` plus optional
+ * `rules/auth/<id>.kdl` policy in `@linxiraos/pi-catalog` plus optional
  * TypeScript transport hooks. The legacy scattered structures (the
  * `OAuthProvider` union, `serviceProviderMap`, `builtInOAuthProviders`, the
  * refresh/login switches, and the CLI callback maps) are all *derived* from
  * the registry of these definitions. Adding a provider is one new
  * `auth/<id>.kdl`. Model-catalog metadata (default model, model-manager
- * factory, catalog discovery) lives in `@oh-my-pi/pi-catalog`'s descriptor
+ * factory, catalog discovery) lives in `@linxiraos/pi-catalog`'s descriptor
  * table.
  */
 
@@ -69,6 +69,8 @@ export interface ProviderDefinition {
 	readonly envKeys?: KeyResolver;
 	/** Provider transport can authenticate without a resolved API-key string. */
 	readonly allowsMissingApiKey?: boolean;
+	/** APIs whose provider transport resolves credentials without a stored account. */
+	readonly nativeAuthApis?: readonly string[];
 	/** Provider-owned model normalization that must run before API-specific option mapping. */
 	readonly prepareModel?: ProviderModelPreparer;
 	/** Provider-owned request shaping applied before generic API dispatch. */

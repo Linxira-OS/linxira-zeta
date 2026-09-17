@@ -32,17 +32,12 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { CmuxKind } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/rpc";
-import { CmuxSocketClient } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/socket-client";
-import { acquireBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import {
-	acquireTab,
-	getTabsMapForTest,
-	releaseTab,
-	runInTab,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import * as logger from "@oh-my-pi/pi-utils/logger";
+import * as logger from "@linxiraos/pi-utils/logger";
+import type { CmuxKind } from "@linxiraos/zeta/tools/browser/cmux/rpc";
+import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
+import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import { acquireTab, getTabsMapForTest, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 
 function makeKind(socketSuffix: string): CmuxKind {
 	return {
@@ -64,7 +59,7 @@ function makeSession(cwd: string, screenshotDir?: string): ToolSession {
 }
 
 async function drainAllTabs(): Promise<void> {
-	// oxlint-disable-next-line unicorn/no-useless-spread -- releasing tabs mutates the map
+	//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: releasing tabs mutates the map
 	for (const name of [...getTabsMapForTest().keys()]) {
 		await releaseTab(name, { kill: false }).catch(() => undefined);
 	}

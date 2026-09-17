@@ -2,14 +2,15 @@
  * Edit tool renderer and LSP batching helpers.
  */
 
-import { editInspect } from "@oh-my-pi/pi-natives";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "@oh-my-pi/pi-tui";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { editInspect } from "@linxiraos/pi-natives";
+import type { Component } from "@linxiraos/pi-tui";
+import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { FileDiagnosticsResult } from "../lsp";
 import { renderDiff as renderDiffColored } from "../modes/components/diff";
 import { getLanguageFromPath, type Theme } from "../modes/theme/theme";
+import { HL_FILE_PREFIX, HL_FILE_SUFFIX, HL_MOVE_KEYWORD, HL_REM_KEYWORD } from "../tools/hashline-format";
 import type { OutputMeta } from "../tools/output-meta";
 import {
 	cachedRenderedString,
@@ -39,7 +40,6 @@ import {
 	WidthAwareText,
 } from "../tui";
 import type { EditMode } from "../utils/edit-mode";
-import { HL_FILE_PREFIX, HL_FILE_SUFFIX, HL_MOVE_KEYWORD, HL_REM_KEYWORD } from "../tools/hashline-format";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LSP Batching

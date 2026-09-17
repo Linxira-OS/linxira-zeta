@@ -1,11 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-	generateRoomKey,
-	generateWriteToken,
-	importRoomKey,
-	open,
-	seal,
-} from "@oh-my-pi/pi-coding-agent/collab/crypto";
+import { generateRoomKey, generateWriteToken, importRoomKey, open, seal } from "@linxiraos/zeta/collab/crypto";
 import {
 	type CollabFrame,
 	DEFAULT_RELAY_URL,
@@ -16,7 +10,7 @@ import {
 	parseCollabLink,
 	rewriteEnvelopePeer,
 	unpackEnvelope,
-} from "@oh-my-pi/pi-coding-agent/collab/protocol";
+} from "@linxiraos/zeta/collab/protocol";
 
 describe("collab crypto", () => {
 	it("round-trips a frame through seal/open", async () => {

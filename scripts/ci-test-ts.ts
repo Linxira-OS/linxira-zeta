@@ -145,7 +145,7 @@ const codingAgentRuntimePathPatterns = [
 ];
 
 const codingAgentNativeContentMarkers = [
-	"@oh-my-pi/pi-natives",
+	"@linxiraos/pi-natives",
 	"pi-natives",
 	"native",
 	"readImageMetadata",
@@ -181,7 +181,7 @@ const codingAgentSingletonContentPatterns = [
 ];
 
 const codingAgentUiContentMarkers = [
-	"@oh-my-pi/pi-tui",
+	"@linxiraos/pi-tui",
 	"InteractiveMode",
 	"InputController",
 	"StatusLine",

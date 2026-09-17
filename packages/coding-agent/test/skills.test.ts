@@ -2,19 +2,20 @@ import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disableUserSource, enableUserSource } from "@oh-my-pi/pi-coding-agent/capability";
-import { type Skill as CapabilitySkill, skillCapability } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import { getCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { getWslWindowsHomeCandidate, runHostProbe } from "@oh-my-pi/pi-coding-agent/discovery/agents";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { disableUserSource, enableUserSource } from "@linxiraos/zeta/capability";
+import { type Skill as CapabilitySkill, skillCapability } from "@linxiraos/zeta/capability/skill";
+import { getCapability } from "@linxiraos/zeta/discovery";
+import { getWslWindowsHomeCandidate, runHostProbe } from "@linxiraos/zeta/discovery/agents";
 import {
 	type LoadSkillsResult,
 	loadSkills,
 	loadSkillsFromDir,
 	parseSkillInvocation,
 	type Skill,
-} from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/skills";
 import { restoreEnvValue } from "./helpers/settings-test-state";
+
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");
 
@@ -602,13 +603,22 @@ describe("collision handling", () => {
 describe("parseSkillInvocation", () => {
 	describe("leading `/skill:<name>` form", () => {
 		it("parses a bare leading command", () => {
-			expect(parseSkillInvocation("/skill:foo")).toEqual({ name: "foo", args: "" });
+			expect(parseSkillInvocation("/skill:foo")).toEqual({ name: "foo", args: "", prompt: "/skill:foo" });
 		});
 
 		it("captures everything after the first space as args", () => {
 			expect(parseSkillInvocation("/skill:foo focus on auth")).toEqual({
 				name: "foo",
 				args: "focus on auth",
+				prompt: "/skill:foo focus on auth",
+			});
+		});
+
+		it("terminates the name at a newline so a multi-line draft still invokes the skill", () => {
+			expect(parseSkillInvocation("/skill:foo\nfocus on auth")).toEqual({
+				name: "foo",
+				args: "focus on auth",
+				prompt: "/skill:foo\nfocus on auth",
 			});
 		});
 
@@ -616,6 +626,7 @@ describe("parseSkillInvocation", () => {
 			expect(parseSkillInvocation("  /skill:foo focus on auth")).toEqual({
 				name: "foo",
 				args: "focus on auth",
+				prompt: "/skill:foo focus on auth",
 			});
 		});
 
@@ -629,6 +640,7 @@ describe("parseSkillInvocation", () => {
 			expect(parseSkillInvocation("fix the auth bug /skill:security-scan ")).toEqual({
 				name: "security-scan",
 				args: "fix the auth bug",
+				prompt: "fix the auth bug /skill:security-scan",
 			});
 		});
 
@@ -636,6 +648,7 @@ describe("parseSkillInvocation", () => {
 			expect(parseSkillInvocation("leading /skill:foo trailing")).toEqual({
 				name: "foo",
 				args: "leading trailing",
+				prompt: "leading /skill:foo trailing",
 			});
 		});
 
@@ -643,6 +656,7 @@ describe("parseSkillInvocation", () => {
 			expect(parseSkillInvocation("explain this\nthen use /skill:security-scan ")).toEqual({
 				name: "security-scan",
 				args: "explain this\nthen use",
+				prompt: "explain this\nthen use /skill:security-scan",
 			});
 		});
 
@@ -669,12 +683,15 @@ describe("parseSkillInvocation", () => {
 			expect(parseSkillInvocation("$echo /skill:reviewer")).toEqual({
 				name: "reviewer",
 				args: "$echo",
+				prompt: "$echo /skill:reviewer",
 			});
-			// oxlint-disable-next-line no-template-curly-in-string -- testing literal string containing shell variable
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: testing literal string containing shell variable
 			expect(parseSkillInvocation("${HOME}/bin /skill:foo")).toEqual({
 				name: "foo",
-				// oxlint-disable-next-line no-template-curly-in-string -- testing literal string containing shell variable
+				// biome-ignore lint/suspicious/noTemplateCurlyInString: testing literal string containing shell variable
 				args: "${HOME}/bin",
+				// oxlint-disable-next-line no-template-curly-in-string -- testing literal string containing shell variable
+				prompt: "${HOME}/bin /skill:foo",
 			});
 		});
 

@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { AsyncJobType } from "@oh-my-pi/pi-coding-agent/async";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { AsyncJobSnapshotItem } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AsyncJobType } from "@linxiraos/zeta/async";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AsyncJobSnapshotItem } from "@linxiraos/zeta/session/agent-session";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
+import { StatusLineTestComponents } from "./helpers/status-line";
 
 let settingsState: SettingsTestState | undefined;
+const statusLines = new StatusLineTestComponents();
 
 beforeEach(async () => {
 	settingsState = beginSettingsTest();
@@ -16,6 +18,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+	statusLines.dispose();
 	restoreSettingsTestState(settingsState);
 	settingsState = undefined;
 });
@@ -69,7 +72,7 @@ function makeComponent(running: AsyncJobSnapshotItem[]): StatusLineComponent {
 		},
 		getContextUsage: () => undefined,
 	} as unknown as ConstructorParameters<typeof StatusLineComponent>[0];
-	const component = new StatusLineComponent(session);
+	const component = statusLines.track(new StatusLineComponent(session));
 	component.updateSettings({
 		preset: "custom",
 		leftSegments: [],
@@ -87,7 +90,7 @@ describe("status-line background-job badge", () => {
 		component.setRunningSubagents(["task-0"]);
 
 		const content = stripVTControlCharacters(component.getTopBorder(120).content);
-		expect(content).toContain(`${theme.icon.agents} 1 agent`);
+		expect(content).toContain(`${theme.icon.agents} 1`);
 		expect(content).toContain(`${theme.icon.job} 2`);
 	});
 

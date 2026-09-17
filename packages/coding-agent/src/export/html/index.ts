@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentState } from "@oh-my-pi/pi-agent-core";
-import { APP_NAME, isEnoent } from "@oh-my-pi/pi-utils";
+import type { AgentState } from "@linxiraos/pi-agent-core";
+import { APP_NAME, isEnoent } from "@linxiraos/pi-utils";
 import { getResolvedThemeColors, getThemeExportColors } from "../../modes/theme/theme";
 import type { SessionEntry, SessionHeader } from "../../session/session-entries";
 import { loadEntriesFromFile } from "../../session/session-loader";
@@ -295,7 +295,10 @@ export async function exportFromFile(inputPath: string, options?: ExportOptions 
 
 	let sm: SessionManager;
 	try {
-		sm = await SessionManager.open(inputPath, undefined, undefined, { suppressBreadcrumb: true });
+		sm = await SessionManager.open(inputPath, undefined, undefined, {
+			suppressBreadcrumb: true,
+			throwIfMissing: true,
+		});
 	} catch (err) {
 		if (isEnoent(err)) throw new Error(`File not found: ${inputPath}`);
 		throw err;

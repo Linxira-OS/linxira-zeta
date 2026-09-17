@@ -16,7 +16,7 @@
  * - skills: <name>/SKILL.md in .github/skills/ (GitHub Agent Skills layout)
  */
 import * as path from "node:path";
-import { parseFrontmatter } from "@oh-my-pi/pi-utils";
+import { parseFrontmatter } from "@linxiraos/pi-utils";
 import { isUserSourceEnabled, registerProvider } from "../capability";
 import { type ContextFile, contextFileCapability } from "../capability/context-file";
 import { readFile } from "../capability/fs";
@@ -27,9 +27,9 @@ import { type Skill, skillCapability } from "../capability/skill";
 import type { LoadContext, LoadResult, SourceMeta } from "../capability/types";
 
 import {
-	discoverRuleFromMarkdown,
 	calculateDepth,
 	createSourceMeta,
+	discoverRuleFromMarkdown,
 	getProjectPath,
 	loadFilesFromDir,
 	parseCSV,

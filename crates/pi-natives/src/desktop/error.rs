@@ -50,7 +50,13 @@ impl DesktopError {
 		Self { code, message: message.into() }
 	}
 
-	#[cfg_attr(windows, allow(dead_code, reason = "used by unix desktop backends"))]
+	// Only the wayland-pipewire backend produces permission-denied desktop
+	// errors; with the feature off (default for addon builds) rustc sees no
+	// callers — keep the constructor tied to the feature's lifecycle.
+	#[cfg_attr(
+		not(feature = "wayland-pipewire"),
+		allow(dead_code, reason = "constructor is only called by the wayland-pipewire backend")
+	)]
 	pub(crate) fn permission_denied(message: impl Into<String>) -> Self {
 		Self::new(ErrorCode::PermissionDenied, message)
 	}

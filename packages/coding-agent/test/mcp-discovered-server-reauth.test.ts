@@ -21,7 +21,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import type { SourceMeta } from "../src/capability/types";
 import { readMCPConfigFile, updateMCPServer, validateServerName } from "../src/mcp/config-writer";
 import { MCPManager } from "../src/mcp/manager";
@@ -77,8 +77,10 @@ describe("MCP discovered-server reauth", () => {
 	describe("config writer persists namespaced plugin server names", () => {
 		it("validateServerName accepts a colon-namespaced name", () => {
 			expect(validateServerName(NAMESPACED_NAME)).toBeUndefined();
-			// Sanity: genuinely invalid characters are still rejected.
-			expect(validateServerName("has space")).toBeDefined();
+			// Colons and spaces are allowed (namespaced plugins + display labels);
+			// sanity: genuinely invalid characters are still rejected.
+			expect(validateServerName("has space")).toBeUndefined();
+			expect(validateServerName("has/slash")).toBeDefined();
 		});
 
 		it("updateMCPServer round-trips a namespaced HTTP server with an oauth auth block", async () => {

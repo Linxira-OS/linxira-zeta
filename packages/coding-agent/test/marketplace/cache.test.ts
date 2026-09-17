@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import {
 	cachePlugin,
 	cleanOrphanedCache,
@@ -10,8 +11,7 @@ import {
 	isCached,
 	isValidVersionForCache,
 	removeCachedPlugin,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/marketplace";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -62,16 +62,22 @@ describe("isValidVersionForCache", () => {
 // ── getCachedPluginPath ──────────────────────────────────────────────────────
 
 describe("getCachedPluginPath", () => {
-	it("throws on invalid marketplace name (uppercase)", () => {
-		expect(() => getCachedPluginPath("/cache", "My-Market", "plugin", "1.0.0")).toThrow(/Invalid marketplace name/);
+	it("accepts a mixed-case marketplace name", () => {
+		expect(getCachedPluginPath("/cache", "HexRaysSA", "plugin", "1.0.0")).toBe(
+			path.join("/cache", "HexRaysSA___plugin___1.0.0"),
+		);
 	});
 
 	it("throws on invalid marketplace name (space)", () => {
-		expect(() => getCachedPluginPath("/cache", "bad market", "plugin", "1.0.0")).toThrow();
+		expect(() => getCachedPluginPath("/cache", "bad market", "plugin", "1.0.0")).toThrow(/Invalid marketplace name/);
 	});
 
-	it("throws on invalid plugin name (uppercase)", () => {
-		expect(() => getCachedPluginPath("/cache", "market", "My-Plugin", "1.0.0")).toThrow(/Invalid plugin name/);
+	it("throws on invalid marketplace name (slash)", () => {
+		expect(() => getCachedPluginPath("/cache", "a/b", "plugin", "1.0.0")).toThrow(/Invalid marketplace name/);
+	});
+
+	it("throws on invalid plugin name (space)", () => {
+		expect(() => getCachedPluginPath("/cache", "market", "bad plugin", "1.0.0")).toThrow(/Invalid plugin name/);
 	});
 
 	it("throws on invalid version containing ..", () => {

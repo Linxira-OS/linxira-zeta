@@ -14,7 +14,7 @@
  * - settings: From settings.json if present
  */
 
-import { tryParseJson } from "@oh-my-pi/pi-utils";
+import { tryParseJson } from "@linxiraos/pi-utils";
 import { registerProvider } from "../capability";
 import { readFile } from "../capability/fs";
 import { type MCPServer, mcpCapability } from "../capability/mcp";
@@ -24,8 +24,8 @@ import type { Settings } from "../capability/settings";
 import { settingsCapability } from "../capability/settings";
 import type { LoadContext, LoadResult, SourceMeta } from "../capability/types";
 import {
-	discoverRuleFromMarkdown,
 	createSourceMeta,
+	discoverRuleFromMarkdown,
 	expandEnvVarsDeep,
 	getProjectPath,
 	getUserPath,

@@ -2,14 +2,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { buildSessionOptions } from "@oh-my-pi/pi-coding-agent/main";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { buildSessionOptions } from "@linxiraos/zeta/main";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 // Regression: `--model` used to record the `default` role without its effort,
 // so cycling back into that role with ctrl+p ran at the previous role's effort.
@@ -71,5 +71,70 @@ describe("--model role override thinking suffix", () => {
 		expect(await overriddenDefaultRole(["--model", "anthropic/claude-opus-4-5", "--thinking", "high"])).toBe(
 			"anthropic/claude-opus-4-5:high",
 		);
+	});
+
+	test("prewalk @default resolves the configured default before --model overrides the session role", async () => {
+		const startupModel = getBundledModel("anthropic", "claude-opus-4-5");
+		const configuredDefault = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!startupModel || !configuredDefault) throw new Error("expected bundled models");
+
+		authStorage.setRuntimeApiKey("anthropic", "test-key");
+
+		const settings = Settings.isolated({ defaultThinkingLevel: "auto" });
+		settings.setModelRole("default", `${configuredDefault.provider}/${configuredDefault.id}`);
+
+		const options = await buildSessionOptions(
+			parseArgs(["--model", `${startupModel.provider}/${startupModel.id}`, "--prewalk-into", "@default"]),
+			[],
+			SessionManager.inMemory(),
+			modelRegistry,
+			settings,
+		);
+
+		expect(options.model?.id).toBe(startupModel.id);
+		expect(options.prewalk?.target.id).toBe(configuredDefault.id);
+	});
+
+	test("prewalk bare default resolves the configured default before --model overrides the session role", async () => {
+		const startupModel = getBundledModel("anthropic", "claude-opus-4-5");
+		const configuredDefault = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!startupModel || !configuredDefault) throw new Error("expected bundled models");
+
+		authStorage.setRuntimeApiKey("anthropic", "test-key");
+
+		const settings = Settings.isolated({ defaultThinkingLevel: "auto" });
+		settings.setModelRole("default", `${configuredDefault.provider}/${configuredDefault.id}`);
+
+		const options = await buildSessionOptions(
+			parseArgs(["--model", `${startupModel.provider}/${startupModel.id}`, "--prewalk-into", "default"]),
+			[],
+			SessionManager.inMemory(),
+			modelRegistry,
+			settings,
+		);
+
+		expect(options.model?.id).toBe(startupModel.id);
+		expect(options.prewalk?.target.id).toBe(configuredDefault.id);
+	});
+
+	test("prewalk @default preserves configured fallback candidates before --model override", async () => {
+		const startupModel = getBundledModel("anthropic", "claude-opus-4-5");
+		const fallbackModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!startupModel || !fallbackModel) throw new Error("expected bundled models");
+
+		authStorage.setRuntimeApiKey("anthropic", "test-key");
+
+		const settings = Settings.isolated({ defaultThinkingLevel: "auto" });
+		settings.setModelRole("default", `runtime-provider/missing,${fallbackModel.provider}/${fallbackModel.id}`);
+
+		const options = await buildSessionOptions(
+			parseArgs(["--model", `${startupModel.provider}/${startupModel.id}`, "--prewalk-into", "@default"]),
+			[],
+			SessionManager.inMemory(),
+			modelRegistry,
+			settings,
+		);
+
+		expect(options.prewalk?.target.id).toBe(fallbackModel.id);
 	});
 });

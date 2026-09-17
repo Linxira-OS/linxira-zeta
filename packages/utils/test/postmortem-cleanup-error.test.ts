@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { postmortem } from "@oh-my-pi/pi-utils";
+import { postmortem } from "@linxiraos/pi-utils";
 
 const postmortemModuleUrl = pathToFileURL(join(import.meta.dir, "../src/index.ts")).href;
 
@@ -330,7 +330,7 @@ describe("postmortem expected cleanup errors", () => {
 		expect(result.stdout).toContain('["outer","late","settled"]');
 	});
 
-	it("finishes an async late registration before a SIGTERM exit", async () => {
+	it.skipIf(process.platform === "win32")("finishes an async late registration before a SIGTERM exit", async () => {
 		const result = await runPostmortemProbe(`
 			import { postmortem } from "${postmortemModuleUrl}";
 

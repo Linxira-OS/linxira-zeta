@@ -1,4 +1,4 @@
-import type { AuthStorage } from "@oh-my-pi/pi-ai";
+import type { AuthStorage } from "@linxiraos/pi-ai";
 import { formatSearchProviderFailures, getSearchProvider, isSearchProviderExcluded } from "../provider";
 import type { SearchProviderId, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../types";
@@ -11,13 +11,15 @@ import { withHardTimeout } from "./utils";
  * Credential-free engines the Public Web aggregate fans out to. Order is the
  * tiebreak for merged ranking (earlier engines win equal consensus/rank), so
  * engines with the best ranking quality when they answer come first:
- * Google-index engines (startpage, google) lead, and Mojeek's independent
- * index breaks remaining ties (measured 2026-07).
+ * Google-index engines (startpage, google) lead, Bing and DuckDuckGo provide
+ * additional coverage, and Mojeek's independent index breaks remaining ties
+ * (measured 2026-07).
  */
 const PUBLIC_ENGINE_IDS = [
 	"startpage",
 	"google",
 	"duckduckgo",
+	"bing",
 	"ecosia",
 	"mojeek",
 ] as const satisfies readonly SearchProviderId[];
@@ -132,7 +134,7 @@ export async function searchPublicWeb(
 	const straggler = new AbortController();
 	const signal = AbortSignal.any([withHardTimeout(params.signal, params.timeoutMs), straggler.signal]);
 
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const responses: (SearchResponse | undefined)[] = new Array(engineIds.length);
 	const failures: { provider: { id: SearchProviderId; label: string }; error: unknown }[] = [];
 	const firstSuccess = Promise.withResolvers<void>();

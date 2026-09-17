@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const repoRoot = path.resolve(import.meta.dir, "..", "..", "..");
 const cliEntry = path.join(repoRoot, "packages", "coding-agent", "src", "cli.ts");
@@ -42,7 +42,7 @@ describe.skipIf(!hasPtyHarness)("CLI initial-message title generation", () => {
 					HOME: root,
 					NO_COLOR: "1",
 					OMP_TITLE_PROBE_PATH: outputPath,
-					PI_CODING_AGENT_DIR: agentDir,
+					ZETA_CODING_AGENT_DIR: agentDir,
 					PI_NO_TITLE: "",
 					TERM: "xterm-256color",
 				},

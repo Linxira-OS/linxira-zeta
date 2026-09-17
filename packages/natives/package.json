@@ -1,18 +1,18 @@
 {
-  "name": "@oh-my-pi/pi-natives",
-  "version": "18.1.15",
+  "name": "@linxiraos/pi-natives",
+  "version": "1.1.15",
   "description": "Native Rust bindings for PDF conversion, audio, WebRTC, grep, clipboard, image processing, syntax highlighting, PTY, and shell operations via N-API",
   "type": "module",
-  "homepage": "https://omp.sh",
-  "author": "Stencil Labs, Inc.",
+  "homepage": "https://linxira-os.github.io/zeta/",
+  "author": "Can Boluk",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
     "directory": "packages/natives"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
     "napi",
@@ -79,8 +79,7 @@
     "./clipboard": {
       "types": "./native/clipboard.d.ts",
       "import": "./native/clipboard.js"
-    }
-    ,
+    },
     "./vcs": {
       "types": "./native/vcs.d.ts",
       "import": "./native/vcs.js"

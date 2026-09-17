@@ -1,5 +1,5 @@
-import * as path from "node:path";
 import { describe, expect, it } from "bun:test";
+import * as path from "node:path";
 import { colorToAnsi, detectColorMode } from "../src/modes/theme/color";
 
 describe("theme color mode", () => {

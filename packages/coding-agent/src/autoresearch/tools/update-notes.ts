@@ -1,6 +1,6 @@
-import { type } from "@oh-my-pi/omptype";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { Text } from "@oh-my-pi/pi-tui";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { type } from "@linxiraos/pi-omptype";
+import { Text } from "@linxiraos/pi-tui";
 import type { ToolDefinition } from "../../extensibility/extensions";
 import type { Theme } from "../../modes/theme/theme";
 import { replaceTabs, truncateToWidth } from "../../tools/render-utils";

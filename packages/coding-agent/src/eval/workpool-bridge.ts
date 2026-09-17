@@ -1,7 +1,7 @@
 import { MAIN_AGENT_ID } from "../registry/agent-registry";
 import { createEvalCustomTools, describeEvalTools } from "../task/eval-tools";
 import { resolveEffectiveSubagentPolicy } from "../task/structured-subagent";
-import { type WorkPoolPeekResult, type WorkPoolStatus, WorkPoolRegistry } from "../task/workpool";
+import { type WorkPoolPeekResult, WorkPoolRegistry, type WorkPoolStatus } from "../task/workpool";
 import type { ToolSession } from "../tools";
 import { ToolError } from "../tools/tool-errors";
 import type { JsStatusEvent } from "./js/shared/types";

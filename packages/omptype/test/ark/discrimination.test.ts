@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { scope, type } from "@oh-my-pi/omptype/ark";
+import { scope, type } from "@linxiraos/pi-omptype/ark";
 
 it("2 literal branches", () => {
 	// should not use a switch with <=2 branches to avoid needless convolution
@@ -247,11 +247,11 @@ it("discriminate bounded array and tuple", () => {
 
 	expect(T.allows(false)).toBe(true);
 	expect(T.allows([null, null, null])).toBe(true);
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	expect(T.allows(new Array(10).fill(null))).toBe(true);
 	expect(T.allows([undefined])).toBe(true);
 	expect(T.allows([null, null])).toBe(false);
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	expect(T.allows(new Array(11).fill(null))).toBe(false);
 });
 

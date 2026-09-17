@@ -3,22 +3,23 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { MODEL_ROLE_IDS } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { ReadToolGroupComponent } from "@oh-my-pi/pi-coding-agent/modes/components/read-tool-group";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { ResolvedRoleModel } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking";
-import { setTerminalHyperlinks, TERMINAL } from "@oh-my-pi/pi-tui";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { setTerminalHyperlinks, TERMINAL } from "@linxiraos/pi-tui";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { MODEL_ROLE_IDS } from "@linxiraos/zeta/config/model-roles";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { ResolvedRoleModel } from "@linxiraos/zeta/session/agent-session";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 let settingsState: SettingsTestState | undefined;
@@ -183,12 +184,12 @@ describe("selector setting side effects", () => {
 			const assistant = Object.create(AssistantMessageComponent.prototype) as AssistantMessageComponent;
 			assistant.setToolResultImagesVisible = setToolResultImagesVisible;
 			const clearInlineImages = vi.fn();
-			const requestRender = vi.fn();
+			const resetDisplay = vi.fn();
 			const ctx = {
 				hideToolActivity: !hidden,
 				toolOutputExpanded: true,
 				chatContainer: { children: [tool, readGroup, assistant], setToolActivityVisible },
-				ui: { clearInlineImages, requestRender },
+				ui: { clearInlineImages, resetDisplay },
 			};
 			const controller = new SelectorController(ctx as unknown as InteractiveModeContext);
 
@@ -201,10 +202,10 @@ describe("selector setting side effects", () => {
 			expect(setReadExpanded).toHaveBeenCalledTimes(hidden ? 0 : 1);
 			expect(ctx.toolOutputExpanded).toBe(hidden);
 			expect(clearInlineImages).toHaveBeenCalledTimes(hidden ? 1 : 0);
-			expect(requestRender).toHaveBeenCalledTimes(1);
+			expect(resetDisplay).toHaveBeenCalledTimes(1);
 			if (hidden) {
 				expect(clearInlineImages.mock.invocationCallOrder[0]).toBeLessThan(
-					requestRender.mock.invocationCallOrder[0],
+					resetDisplay.mock.invocationCallOrder[0],
 				);
 			}
 		});
@@ -243,6 +244,7 @@ describe("selector setting side effects", () => {
 			modelRoles: { default: `${previousModel.provider}/${previousModel.id}:high` },
 		});
 		const setModel = vi.fn(async () => ({ switched: true }));
+		const assignmentApplied = Promise.withResolvers<void>();
 		const autoApplied = Promise.withResolvers<void>();
 		const setThinkingLevel = vi.fn((level: ThinkingLevel | typeof AUTO_THINKING, persist: boolean) => {
 			if (level === AUTO_THINKING && persist) {
@@ -284,7 +286,7 @@ describe("selector setting side effects", () => {
 			statusLine: { invalidate: vi.fn() },
 			updateEditorBorderColor: vi.fn(),
 			keybindings: { getKeys: () => [], getDisplayString: () => "" },
-			showStatus: vi.fn(),
+			showStatus: vi.fn(() => assignmentApplied.resolve()),
 			showError: vi.fn(),
 		} as unknown as InteractiveModeContext);
 
@@ -298,6 +300,8 @@ describe("selector setting side effects", () => {
 			hub.handleInput("\n"); // Enter the role rows.
 			hub.handleInput("\n"); // Assign DEFAULT.
 			hub.handleInput("\n"); // Pick the scoped replacement model.
+			await assignmentApplied.promise;
+			await Promise.resolve();
 
 			const levels = [ThinkingLevel.Inherit, ThinkingLevel.Off, AUTO_THINKING, ...getSupportedEfforts(nextModel)];
 			const highIndex = levels.indexOf(ThinkingLevel.High);
@@ -566,6 +570,7 @@ describe("selector setting side effects", () => {
 			hub.handleInput("\x1b[B"); // Project scope → global scope.
 			hub.handleInput("\n");
 			await assignmentApplied.promise;
+			await Promise.resolve();
 
 			expect(setModel).not.toHaveBeenCalled();
 			expect(settings.getGlobalModelRole("default")).toBe(globalSelector);
@@ -585,6 +590,7 @@ describe("selector setting side effects", () => {
 			hub.handleInput("\x1b[B"); // Project scope → global scope.
 			hub.handleInput("\n");
 			await capturedRuntimeAssignmentApplied.promise;
+			await Promise.resolve();
 
 			expect(setModel).not.toHaveBeenCalled();
 			expect(settings.getGlobalModelRole("default")).toBe(globalSelector);
@@ -689,8 +695,8 @@ describe("selector setting side effects", () => {
 		const globalSelector = `${globalModel.provider}/${globalModel.id}`;
 		const testDir = path.join(os.tmpdir(), `selector-runtime-identical-${Snowflake.next()}`);
 		const projectDir = path.join(testDir, "project");
-		fs.mkdirSync(path.join(projectDir, ".omp"), { recursive: true });
-		fs.writeFileSync(path.join(projectDir, ".omp", "config.yml"), `modelRoles:\n  default: ${projectSelector}\n`);
+		fs.mkdirSync(path.join(projectDir, ".zeta"), { recursive: true });
+		fs.writeFileSync(path.join(projectDir, ".zeta", "config.yml"), `modelRoles:\n  default: ${projectSelector}\n`);
 
 		try {
 			const settings = await Settings.loadIsolated({
@@ -779,7 +785,14 @@ describe("selector setting side effects", () => {
 				hub.dispose();
 			}
 		} finally {
-			if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			AgentStorage.close();
+			await Bun.sleep(750);
+			try {
+				if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			} catch {
+				// Windows can hold the SQLite handle past our retry window; the
+				// snowflake-named temp dir is inert and the OS reclaims it.
+			}
 		}
 	});
 
@@ -874,6 +887,7 @@ describe("selector setting side effects", () => {
 				hub.handleInput("\n"); // Pick the project model.
 				hub.handleInput("\n"); // Save to project scope.
 				await projectAssignmentApplied.promise;
+				await Promise.resolve();
 				hub.handleInput("\x1b[C"); // Inherit → off.
 				hub.handleInput("\x1b[C"); // Off → auto.
 				hub.handleInput("\n");
@@ -885,7 +899,7 @@ describe("selector setting side effects", () => {
 				expect(settings.getGlobalModelRole("default")).toBeUndefined();
 				expect(settings.getModelRole("default")).toBe(overlaySelector);
 				expect(settings.getModelRoleProvenance("default")).toBe("overlay");
-				expect(await Bun.file(path.join(projectDir, ".omp", "config.yml")).text()).toContain(
+				expect(await Bun.file(path.join(projectDir, ".zeta", "config.yml")).text()).toContain(
 					`default: ${projectSelector}`,
 				);
 				expect(setModel).not.toHaveBeenCalled();
@@ -899,6 +913,7 @@ describe("selector setting side effects", () => {
 				hub.handleInput("\x1b[B"); // Project scope → global scope.
 				hub.handleInput("\n"); // Save the hidden global fallback.
 				await globalAssignmentApplied.promise;
+				await Promise.resolve();
 
 				expect(settings.getGlobalModelRole("default")).toBe(projectSelector);
 				expect(settings.getModelRole("default")).toBe(overlaySelector);
@@ -908,7 +923,14 @@ describe("selector setting side effects", () => {
 				hub.dispose();
 			}
 		} finally {
-			if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			AgentStorage.close();
+			await Bun.sleep(750);
+			try {
+				if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			} catch {
+				// Windows can hold the SQLite handle past our retry window; the
+				// snowflake-named temp dir is inert and the OS reclaims it.
+			}
 		}
 	});
 
@@ -1591,7 +1613,14 @@ describe("selector setting side effects", () => {
 				hub.dispose();
 			}
 		} finally {
-			if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			AgentStorage.close();
+			await Bun.sleep(750);
+			try {
+				if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			} catch {
+				// Windows can hold the SQLite handle past our retry window; the
+				// snowflake-named temp dir is inert and the OS reclaims it.
+			}
 		}
 	});
 
@@ -1698,7 +1727,14 @@ describe("selector setting side effects", () => {
 				hub.dispose();
 			}
 		} finally {
-			if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			AgentStorage.close();
+			await Bun.sleep(750);
+			try {
+				if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
+			} catch {
+				// Windows can hold the SQLite handle past our retry window; the
+				// snowflake-named temp dir is inert and the OS reclaims it.
+			}
 		}
 	});
 

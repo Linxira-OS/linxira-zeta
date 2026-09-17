@@ -13,12 +13,12 @@
  *      generator regenerates.
  */
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import {
 	clampFireworksKimiMaxTokens,
 	FIREWORKS_KIMI_MAX_TOKENS,
 	isFireworksKimiK2ModelId,
-} from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 describe("Fireworks Kimi K2 maxTokens cap (#1849)", () => {
 	it("recognizes Kimi K2.x public and wire ids", () => {
@@ -65,9 +65,8 @@ describe("Fireworks Kimi K2 maxTokens cap (#1849)", () => {
 		expect(clampFireworksKimiMaxTokens("glm-5.1", 65_536)).toBe(65_536);
 	});
 
-	it("ships the capped maxTokens in the bundled Fireworks/Fire Pass catalog", () => {
-		const entries: Array<["fireworks" | "firepass", string]> = [
-			["firepass", "kimi-k2.6-turbo"],
+	it("ships the capped maxTokens in the bundled Fireworks catalog", () => {
+		const entries: Array<["fireworks", string]> = [
 			["fireworks", "kimi-k2.5"],
 			["fireworks", "kimi-k2.6"],
 		];

@@ -2,13 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const BASE_SETTINGS = {
 	"async.enabled": false,
@@ -94,6 +94,20 @@ describe("tools.approvalMode setting", () => {
 			settings,
 		} as AgentToolContext);
 		expect(textOf(result)).toContain("ok");
+	});
+
+	it("omitted execute-time context inherits the session runner settings", async () => {
+		const result = await bashTool().execute("inherit-session", { command: "echo inherited" });
+		expect(textOf(result)).toContain("inherited");
+	});
+
+	it("missing execute-time context fails closed for an exec-tier tool", async () => {
+		// Explicit empty context: no settings and no --auto-approve. Omitting the
+		// argument inherits the session runner's settings (schema default yolo),
+		// which is the live-session path used by direct execute() callers.
+		await expect(
+			bashTool().execute("no-context", { command: "echo leaked" }, undefined, undefined, {} as AgentToolContext),
+		).rejects.toThrow(/requires approval but no interactive UI available/);
 	});
 
 	it("always-ask mode rejects exec tools when no UI is available", async () => {
@@ -226,6 +240,69 @@ describe("tools.approvalMode setting", () => {
 				xdevApproved: true,
 			} as AgentToolContext),
 		).rejects.toThrow(/blocked by user policy/);
+	});
+
+	it("ACP-approved arguments satisfy explicit user and tool-override prompts", async () => {
+		const promptSettings = approvalSettings({
+			"tools.approvalMode": "always-ask",
+			"tools.approval": { bash: "prompt" },
+		});
+		const explicitResult = await bashTool().execute(
+			"acp-explicit-prompt",
+			{ command: "echo acp-explicit" },
+			undefined,
+			undefined,
+			{
+				settings: promptSettings,
+				acpApprovedArgs: { command: "echo acp-explicit" },
+			} as AgentToolContext,
+		);
+		expect(textOf(explicitResult)).toContain("acp-explicit");
+
+		const overrideSettings = approvalSettings({ "tools.approvalMode": "always-ask" });
+		const overrideResult = await bashTool().execute(
+			"acp-tool-override",
+			{ command: "rm -f /tmp/bun-fake-timer-probe.test.ts" },
+			undefined,
+			undefined,
+			{
+				settings: overrideSettings,
+				acpApprovedArgs: { command: "rm -f /tmp/bun-fake-timer-probe.test.ts" },
+			} as AgentToolContext,
+		);
+		expect(textOf(overrideResult)).toContain("(no output)");
+	});
+
+	it("ACP-approved arguments do not bypass deny policies", async () => {
+		const settings = approvalSettings({ "tools.approvalMode": "always-ask" });
+		await expect(
+			bashTool().execute("acp-denied", { command: "rm -rf /tmp/never-run" }, undefined, undefined, {
+				settings,
+				acpApprovedArgs: { command: "rm -rf /tmp/never-run" },
+			} as AgentToolContext),
+		).rejects.toThrow(/blocked by tool policy/);
+	});
+
+	it("ACP-approved arguments do not bypass provider safety checks", async () => {
+		const settings = approvalSettings({ "tools.approvalMode": "always-ask" });
+		await expect(
+			bashTool().execute("acp-safety", { command: "echo blocked" }, undefined, undefined, {
+				settings,
+				acpApprovedArgs: { command: "echo blocked" },
+				toolCall: {
+					batchId: "safety-batch",
+					index: 0,
+					total: 1,
+					toolCalls: [],
+					providerMetadata: {
+						type: "computer",
+						providerItemId: "computer-call",
+						actions: [],
+						pendingSafetyChecks: [{ id: "safety-check" }],
+					},
+				},
+			} as never),
+		).rejects.toThrow(/pending provider safety checks but no interactive UI/);
 	});
 
 	it("constructs an extensionRunner unconditionally so the approval gate is always installed", async () => {

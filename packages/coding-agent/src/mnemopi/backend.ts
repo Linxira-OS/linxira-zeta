@@ -1,12 +1,12 @@
 import { rm } from "node:fs/promises";
 import * as path from "node:path";
-import { type ApiKeyResolver, completeSimple, retryTransientCompletion } from "@oh-my-pi/pi-ai";
-import { hostMatchesUrl } from "@oh-my-pi/pi-catalog/hosts";
-import type { Mnemopi } from "@oh-my-pi/pi-mnemopi";
-import type { MnemopiLlmCompleteOptions } from "@oh-my-pi/pi-mnemopi/core/runtime-options";
-import type * as MnemopiDiagnoseNs from "@oh-my-pi/pi-mnemopi/diagnose";
-import type { DiagnosticSummary } from "@oh-my-pi/pi-mnemopi/diagnose";
-import { logger } from "@oh-my-pi/pi-utils";
+import { type ApiKeyResolver, completeSimple, retryTransientCompletion } from "@linxiraos/pi-ai";
+import { hostMatchesUrl } from "@linxiraos/pi-catalog/hosts";
+import type { Mnemopi } from "@linxiraos/pi-mnemopi";
+import type { MnemopiLlmCompleteOptions } from "@linxiraos/pi-mnemopi/core/runtime-options";
+import type * as MnemopiDiagnoseNs from "@linxiraos/pi-mnemopi/diagnose";
+import type { DiagnosticSummary } from "@linxiraos/pi-mnemopi/diagnose";
+import { logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { resolveRoleSelection } from "../config/model-resolver";
 import type {
@@ -15,6 +15,7 @@ import type {
 	MemoryBackendSearchItem,
 	MemoryBackendStartOptions,
 	MemoryBackendStatus,
+	MemoryPromptPreparation,
 } from "../memory-backend/types";
 import memoryConsolidationPrompt from "../prompts/system/memory-consolidation-system.md" with { type: "text" };
 import memoryExtractionPrompt from "../prompts/system/memory-extraction-system.md" with { type: "text" };
@@ -46,7 +47,7 @@ let mnemopiDiagnoseMod: typeof MnemopiDiagnoseNs | undefined;
 
 async function loadMnemopiDiagnose(): Promise<typeof MnemopiDiagnoseNs> {
 	if (!mnemopiDiagnoseMod) {
-		mnemopiDiagnoseMod = await import("@oh-my-pi/pi-mnemopi/diagnose");
+		mnemopiDiagnoseMod = await import("@linxiraos/pi-mnemopi/diagnose");
 	}
 	return mnemopiDiagnoseMod;
 }
@@ -145,9 +146,23 @@ export const mnemopiBackend: MemoryBackend = {
 		return truncateApproxTokens(rendered, settings.get("mnemopi.injectionTokenLimit"));
 	},
 
-	async beforeAgentStartPrompt(session, promptText): Promise<string | undefined> {
+	async beforeAgentStartPrompt(session, promptText): Promise<MemoryPromptPreparation | undefined> {
 		const state = getMnemopiSessionState(session);
-		return await state?.beforeAgentStartPrompt(promptText);
+		const preparation = await state?.beforeAgentStartPrompt(promptText);
+		if (!preparation) return undefined;
+		if (preparation.context) {
+			// Match the canonical memory block's budget while the recall is staged
+			// separately from its static instructions. Commit still caches the full snippet.
+			const rendered = [STATIC_INSTRUCTIONS, preparation.context].join("\n\n").trim();
+			preparation.context =
+				truncateApproxTokens(rendered, session.settings.get("mnemopi.injectionTokenLimit"))
+					.slice(STATIC_INSTRUCTIONS.length)
+					.trim() || undefined;
+		}
+		return {
+			context: preparation.context,
+			commit: () => getMnemopiSessionState(session) === state && preparation.commit(),
+		};
 	},
 
 	async clear(agentDir, _cwd, session): Promise<void> {
@@ -579,20 +594,22 @@ async function resolveMnemopiProviderOptions(
 					});
 					return null;
 				}
-				const message = await retryTransientCompletion(() =>
-					completeSimple(
-						model,
-						{
-							...(request.systemPrompt ? { systemPrompt: [request.systemPrompt] } : {}),
-							messages: [{ role: "user", content: request.prompt, timestamp: Date.now() }],
-						},
-						{
-							apiKey: modelRegistry.resolver(model, sessionId),
-							sessionId,
-							maxTokens: opts?.maxTokens,
-							temperature: opts?.temperature,
-						},
-					),
+				const message = await retryTransientCompletion(
+					() =>
+						completeSimple(
+							model,
+							{
+								...(request.systemPrompt ? { systemPrompt: [request.systemPrompt] } : {}),
+								messages: [{ role: "user", content: request.prompt, timestamp: Date.now() }],
+							},
+							{
+								apiKey: modelRegistry.resolver(model, sessionId),
+								sessionId,
+								maxTokens: opts?.maxTokens,
+								temperature: opts?.temperature,
+							},
+						),
+					{ provider: model.provider },
 				);
 				return message.content
 					.filter(

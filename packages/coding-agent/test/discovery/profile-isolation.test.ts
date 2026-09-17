@@ -1,14 +1,14 @@
 /**
  * Regression: OMP-native user-level config discovery must follow the active
- * profile. A profile relocates the agent directory to ~/.omp/profiles/<name>/agent;
+ * profile. A profile relocates the agent directory to ~/.zeta/profiles/<name>/agent;
  * the native provider used to read user config (commands, skills, rules, etc.)
- * from the literal home (~/.omp/agent) via `ctx.home`, leaking the default
+ * from the literal home (~/.zeta/agent) via `ctx.home`, leaking the default
  * profile's config into every profile. Discovery now resolves the user scope
  * through getAgentDir(), so a profile sees only its own config.
  *
  * Covers two code paths: getConfigDirs() (slash commands) and a direct
  * getAgentDir() join (skills). `os.homedir()` is mocked so the old code path
- * (ctx.home + ".omp/agent") points at the tempdir decoys below; without the fix
+ * (ctx.home + ".zeta/agent") points at the tempdir decoys below; without the fix
  * each test would load the default-profile fixture instead of the profile one.
  *
  * MCP has its own regression in mcp-profile.test.ts (separate paths array).
@@ -17,13 +17,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import { type Skill, skillCapability } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import { type SlashCommand, slashCommandCapability } from "@oh-my-pi/pi-coding-agent/capability/slash-command";
-import { loadCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { getConfigRootDir, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { type Skill, skillCapability } from "@linxiraos/zeta/capability/skill";
+import { type SlashCommand, slashCommandCapability } from "@linxiraos/zeta/capability/slash-command";
+import { loadCapability } from "@linxiraos/zeta/discovery";
 
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 async function writeFile(filePath: string, content: string): Promise<void> {
@@ -58,7 +58,7 @@ describe("native user-level config discovery follows the active profile", () => 
 		await writeSkill(path.join(profileAgentDir, "skills"), "profile-skill");
 
 		// Decoy: default profile's config at the literal-home path the old loader read.
-		const defaultAgentDir = path.join(tempHome, ".omp", "agent");
+		const defaultAgentDir = path.join(tempHome, ".zeta", "agent");
 		await writeFile(path.join(defaultAgentDir, "commands", "default-cmd.md"), "Default command.\n");
 		await writeSkill(path.join(defaultAgentDir, "skills"), "default-skill");
 	});
@@ -70,7 +70,7 @@ describe("native user-level config discovery follows the active profile", () => 
 			setAgentDir(originalAgentDirEnv);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;

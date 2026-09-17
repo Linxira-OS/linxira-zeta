@@ -12,7 +12,7 @@ def _make_computer():
                 flags += "m"
             if value.flags & re.DOTALL:
                 flags += "s"
-            return {"__omp_re": {"source": value.pattern, "flags": flags}}
+            return {"__zeta_re": {"source": value.pattern, "flags": flags}}
         return value
 
     def _arguments(args, kwargs):
@@ -41,6 +41,8 @@ def _make_computer():
                 "action": action,
             },
         )
+        if isinstance(response, str):
+            return {}
         if not isinstance(response, dict):
             raise RuntimeError("computer returned an invalid response")
         text = response.get("text")

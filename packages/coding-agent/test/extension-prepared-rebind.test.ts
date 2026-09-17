@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { bindPreparedExtensions, loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { bindPreparedExtensions, loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import type { ExtensionAPI } from "@linxiraos/zeta/extensibility/extensions/types";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 const temporaryDirectories: string[] = [];
 
@@ -22,7 +22,7 @@ describe("prepared extension rebinding", () => {
 		const childDirectory = path.join(directory, "child");
 		await Promise.all([fs.mkdir(parentDirectory), fs.mkdir(childDirectory)]);
 		const extensionPath = path.join(directory, "counter.ts");
-		const counterKey = `__omp_prepared_extension_${crypto.randomUUID().replaceAll("-", "")}`;
+		const counterKey = `__zeta_prepared_extension_${crypto.randomUUID().replaceAll("-", "")}`;
 		const bindingsKey = `${counterKey}_bindings`;
 		await Bun.write(
 			extensionPath,

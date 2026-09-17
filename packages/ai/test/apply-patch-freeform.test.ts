@@ -1,24 +1,24 @@
 import { describe, expect, test } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
 import {
 	buildTransformedCodexRequestBody,
 	convertOpenAICodexResponsesTools as convertCodexTools,
 	normalizeCodexToolChoice,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import {
 	buildParams,
 	convertTools,
 	mapOpenAIResponsesToolChoiceForTools,
 	supportsFreeformApplyPatch,
-} from "@oh-my-pi/pi-ai/providers/openai-responses";
-import type { ResponseStreamEvent } from "@oh-my-pi/pi-ai/providers/openai-responses-wire";
+} from "@linxiraos/pi-ai/providers/openai-responses";
+import type { ResponseStreamEvent } from "@linxiraos/pi-ai/providers/openai-responses-wire";
 import {
 	appendResponsesToolResultMessages,
 	convertResponsesAssistantMessage,
 	processResponsesStream,
-} from "@oh-my-pi/pi-ai/providers/openai-shared";
-import type { AssistantMessage, Model, ModelSpec, Tool, ToolResultMessage } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import type { AssistantMessage, Model, ModelSpec, Tool, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type } from "@linxiraos/pi-omptype";
 
 const GRAMMAR = [
 	"// top-level comment",
@@ -212,7 +212,20 @@ describe("convertTools: freeform emission", () => {
 		// distinguish it from an omitted flag when generating optional-arg values.
 		expect(out.strict).toBe(false);
 		expect(items.oneOf).toBeUndefined();
-		expect(items.anyOf).toEqual(unionBranches);
+		// Normalization adds the `enum`-implied `type`; the input fixture is no longer
+		// mutated in place, so the wire shape is asserted explicitly.
+		expect(items.anyOf).toEqual([
+			{
+				type: "object",
+				properties: { type: { enum: ["insert"], type: "string" }, text: { type: "string" } },
+				required: ["type", "text"],
+			},
+			{
+				type: "object",
+				properties: { type: { enum: ["delete"], type: "string" }, start: { type: "integer" } },
+				required: ["type", "start"],
+			},
+		]);
 	});
 
 	test("rewrites oneOf to anyOf before strict schema enforcement", () => {

@@ -7,19 +7,19 @@ import {
 	renderGalleryState,
 	renderGallerySurfaceSections,
 	resolveFixture,
-} from "@oh-my-pi/pi-coding-agent/cli/gallery-cli";
+} from "@linxiraos/zeta/cli/gallery-cli";
 import {
 	type GalleryFixture,
 	getComposerGalleryEntries,
 	getComposerGalleryInventory,
 	getSegmentGalleryEntries,
 	getSegmentGalleryInventory,
-} from "@oh-my-pi/pi-coding-agent/cli/gallery-fixtures";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getComposerShapeOptions } from "@oh-my-pi/pi-coding-agent/modes/components/composer-shape-registry";
-import { ALL_SEGMENT_IDS } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { toolRenderers } from "@oh-my-pi/pi-coding-agent/tools/renderers";
+} from "@linxiraos/zeta/cli/gallery-fixtures";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getComposerShapeOptions } from "@linxiraos/zeta/modes/components/composer-shape-registry";
+import { ALL_SEGMENT_IDS } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
 
 beforeAll(async () => {
 	resetSettingsForTest();

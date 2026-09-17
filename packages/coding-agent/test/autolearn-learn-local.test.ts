@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	buildMemoryToolDeveloperInstructions,
 	getMemoryRoot,
 	refreshMemoryToolDeveloperInstructionsCacheAfterStartup,
 	saveLearnedLesson,
-} from "@oh-my-pi/pi-coding-agent/memories";
-import { localBackend } from "@oh-my-pi/pi-coding-agent/memory-backend/local-backend";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { LearnTool } from "@oh-my-pi/pi-coding-agent/tools/learn";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/memories";
+import { localBackend } from "@linxiraos/zeta/memory-backend/local-backend";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { LearnTool } from "@linxiraos/zeta/tools/learn";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 

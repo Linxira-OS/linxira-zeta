@@ -1,7 +1,7 @@
 /**
  * End-to-end regression for broker-backed MCP OAuth refresh (issue #8933).
  *
- * Topology mirrors `omp auth-broker serve` fronting a sandboxed client:
+ * Topology mirrors `zeta auth-broker serve` fronting a sandboxed client:
  *   client (RemoteAuthCredentialStore) → broker (SqliteAuthCredentialStore
  *   + refreshBrokerOAuthCredential override) → MCP token endpoint.
  *
@@ -19,18 +19,23 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, type OAuthCredential, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
+import {
+	AuthStorage,
+	type OAuthCredential,
+	REMOTE_REFRESH_SENTINEL,
+	SqliteAuthCredentialStore,
+} from "@linxiraos/pi-ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
 	RemoteAuthCredentialStore,
 	startAuthBroker,
-} from "@oh-my-pi/pi-ai/auth-broker";
-import { refreshBrokerOAuthCredential } from "@oh-my-pi/pi-coding-agent/cli/auth-broker-cli";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import { mcpOAuthCredentialId } from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/auth-broker";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { refreshBrokerOAuthCredential } from "@linxiraos/zeta/cli/auth-broker-cli";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { mcpOAuthCredentialId } from "@linxiraos/zeta/mcp/oauth-flow";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
 import type { Server } from "bun";
 
 const SERVER_URL = "https://mcp.granola.ai/mcp";
@@ -78,9 +83,9 @@ describe("broker-backed MCP OAuth refresh", () => {
 		// vault holds it. Spread bypasses the excess-property check for the
 		// MCP-only extension fields the base OAuthCredential type omits.
 		const credential: OAuthCredential = {
-			// oxlint-disable-next-line unicorn/no-useless-spread -- spread bypasses excess-property checking
+			//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: spread bypasses excess-property checking
 			...{ type: "oauth", access: "stale-access", refresh: "real-refresh-token", expires: Date.now() - 60_000 },
-			// oxlint-disable-next-line unicorn/no-useless-spread -- spread bypasses excess-property checking
+			//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: spread bypasses excess-property checking
 			...{ tokenUrl, clientId: "client-xyz" },
 		};
 		await serverStorage.set(MCP_PROVIDER, credential);

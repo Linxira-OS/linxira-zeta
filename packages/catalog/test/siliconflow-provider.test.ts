@@ -1,20 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/registry/oauth";
-import { getEnvApiKey } from "@oh-my-pi/pi-ai/stream";
-import { getBundledModelReferenceIndex } from "@oh-my-pi/pi-catalog/identity/bundled";
-import { resolveModelReference } from "@oh-my-pi/pi-catalog/identity/reference";
-import type { ProviderCatalogEntry } from "@oh-my-pi/pi-catalog/provider-models/descriptor-types";
-import {
-	CATALOG_PROVIDERS,
-	DEFAULT_MODEL_PER_PROVIDER,
-	PROVIDER_DESCRIPTORS,
-} from "@oh-my-pi/pi-catalog/provider-models/descriptors";
+import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
+import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
+import { getBundledModelReferenceIndex } from "@linxiraos/pi-catalog/identity/bundled";
+import { resolveModelReference } from "@linxiraos/pi-catalog/identity/reference";
+import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
 import {
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	siliconflowCnModelManagerOptions,
 	siliconflowModelManagerOptions,
-} from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@oh-my-pi/pi-catalog/types";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@linxiraos/pi-catalog/types";
 
 function withEnv(key: string, value: string, run: () => void): void {
 	const previous = Bun.env[key];
@@ -74,13 +70,13 @@ describe("siliconflow built-in providers", () => {
 
 	test("ships no bundled catalog — the model list is discovered live", () => {
 		// Source of truth: the catalog table owns generator participation via
-		// `catalogDiscovery` — the SiliconFlow entries are dynamic-authoritative
+		// `discovery` — the SiliconFlow entries are dynamic-authoritative
 		// and deliberately carry no catalog discovery config.
 		for (const providerId of ["siliconflow", "siliconflow-cn"] as const) {
-			const entry: ProviderCatalogEntry | undefined = CATALOG_PROVIDERS.find(item => item.id === providerId);
+			const entry = providerEntry(providerId);
 			expect(entry).toBeDefined();
 			expect(entry?.dynamicModelsAuthoritative).toBe(true);
-			expect(entry?.catalogDiscovery).toBeUndefined();
+			expect(entry?.discovery).toBeUndefined();
 		}
 		// Runtime: no stencil.so mapping may feed the generator either.
 		expect(MODELS_DEV_PROVIDER_DESCRIPTORS.some(d => d.providerId === "siliconflow")).toBe(false);

@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { TranscriptContainer } from "@oh-my-pi/pi-coding-agent/modes/components/transcript-container";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { TRUNCATE_LENGTHS } from "@oh-my-pi/pi-coding-agent/tools/render-utils";
-import type { Component } from "@oh-my-pi/pi-tui";
+import type { Component } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { TRUNCATE_LENGTHS } from "@linxiraos/zeta/tools/render-utils";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 beforeAll(async () => {
@@ -254,5 +254,75 @@ describe("EventController + Cursor todo bridge", () => {
 		expect(f.blocks).toHaveLength(1);
 		expect(f.ctx.pendingTools.size).toBe(0);
 		expect(f.ctx.setTodos).toHaveBeenCalledWith(phases);
+	});
+
+	it("restores buffered results as held completions after transcript reset", async () => {
+		const pending = {
+			role: "toolResult" as const,
+			toolCallId: "grep-restore-1",
+			toolName: "grep",
+			content: [{ type: "text" as const, text: "RESTORE_MATCH_LINE" }],
+			isError: false,
+			timestamp: 1,
+		};
+		const ctx = createInteractiveModeContext({
+			streamingComponent: new AssistantMessageComponent(),
+			session: {
+				agent: {
+					getPendingToolResults: () => [pending],
+				},
+			},
+		});
+		const blocks: Component[] = [];
+		const addChild = ctx.chatContainer.addChild.bind(ctx.chatContainer);
+		vi.spyOn(ctx.chatContainer, "addChild").mockImplementation(block => {
+			blocks.push(block);
+			addChild(block);
+		});
+		const controller = new EventController(ctx);
+		const showWarning = vi.spyOn(ctx, "showWarning");
+
+		controller.resetTranscriptAnchors();
+		await controller.handleEvent(streamedToolBlock("grep-restore-1", "grep", { pattern: "restore" }));
+		await controller.handleEvent(streamedToolBlock("grep-restore-1", "grep", { pattern: "restore" }));
+
+		expect(blocks).toHaveLength(1);
+		expect(ctx.pendingTools.size).toBe(0);
+		expect(Bun.stripANSI(blocks[0]!.render(120).join("\n"))).toContain("RESTORE_MATCH_LINE");
+		expect(showWarning).not.toHaveBeenCalled();
+	});
+
+	it("reseeds held completions from buffered results at agent_start", async () => {
+		const pending = {
+			role: "toolResult" as const,
+			toolCallId: "grep-restore-2",
+			toolName: "grep",
+			content: [{ type: "text" as const, text: "AGENT_START_MATCH" }],
+			isError: false,
+			timestamp: 1,
+		};
+		const ctx = createInteractiveModeContext({
+			streamingComponent: new AssistantMessageComponent(),
+			session: {
+				agent: {
+					getPendingToolResults: () => [pending],
+				},
+			},
+		});
+		const blocks: Component[] = [];
+		const addChild = ctx.chatContainer.addChild.bind(ctx.chatContainer);
+		vi.spyOn(ctx.chatContainer, "addChild").mockImplementation(block => {
+			blocks.push(block);
+			addChild(block);
+		});
+		const controller = new EventController(ctx);
+
+		await controller.handleEvent({ type: "agent_start" } as Extract<AgentSessionEvent, { type: "agent_start" }>);
+		await controller.handleEvent(streamedToolBlock("grep-restore-2", "grep", { pattern: "start" }));
+		await controller.handleEvent(streamedToolBlock("grep-restore-2", "grep", { pattern: "start" }));
+
+		expect(blocks).toHaveLength(1);
+		expect(ctx.pendingTools.size).toBe(0);
+		expect(Bun.stripANSI(blocks[0]!.render(120).join("\n"))).toContain("AGENT_START_MATCH");
 	});
 });

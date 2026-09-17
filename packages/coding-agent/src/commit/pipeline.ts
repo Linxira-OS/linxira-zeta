@@ -1,5 +1,5 @@
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { getProjectDir } from "@oh-my-pi/pi-utils";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { getProjectDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";

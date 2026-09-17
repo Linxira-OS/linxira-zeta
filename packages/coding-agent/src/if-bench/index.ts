@@ -7,8 +7,8 @@
  * the depth it reaches before it either loses the array or drops the cat sound,
  * which makes the two failure modes separable from a single reply.
  */
-import { streamSimple } from "@oh-my-pi/pi-ai";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { streamSimple } from "@linxiraos/pi-ai";
+import chalk from "@linxiraos/pi-utils/chalk";
 import {
 	type BenchRuntime,
 	createDefaultBenchRuntime,
@@ -106,7 +106,7 @@ export async function runIfBenchCommand(
 
 	const runtime = await (deps.createRuntime ?? createDefaultBenchRuntime)();
 	try {
-		const targets = resolveBenchTargets(command.models, runtime.modelRegistry, runtime.settings, writeStderr);
+		const targets = await resolveBenchTargets(command.models, runtime.modelRegistry, runtime.settings, writeStderr);
 		board?.log(
 			chalk.dim(
 				`if-bench · ${targets.length} model${targets.length === 1 ? "" : "s"} · up to ${maxTurns} turns · array ${arrayLength} · nya{1,${nyaMax}} · temperature 0`,

@@ -392,7 +392,7 @@ class LeakedThinkingProjector {
 	 * dropped so it never reaches the stored turn.
 	 */
 	#closeImpliedThinking(srcIndex: number): void {
-		if (!this.#text || this.#text.index !== 0 || this.#partial.content.length !== 1) return;
+		if (this.#text?.index !== 0 || this.#partial.content.length !== 1) return;
 		const text = (this.#partial.content[0] as TextContent).text;
 		if (text.trim().length === 0) return;
 		this.#closeText();

@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { Tokenizer } from "@oh-my-pi/pi-agent-core";
+import { Tokenizer } from "@linxiraos/pi-agent-core";
 import {
 	estimateTranscriptTokens,
 	findTranscriptUsageAnchor,
 	isTranscriptUsageAnchor,
-} from "@oh-my-pi/pi-agent-core/compaction";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core/types";
-import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-agent-core/compaction";
+import type { AgentMessage } from "@linxiraos/pi-agent-core/types";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 
 const tokenizer = new Tokenizer();
 

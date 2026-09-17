@@ -12,7 +12,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	type Component,
 	Editor,
@@ -26,8 +26,8 @@ import {
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@oh-my-pi/pi-tui";
-import { isEnoent, prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui";
+import { isEnoent, prompt } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import type { EffectiveExtensionRoots } from "../../capability/types";
 import { getConfigDirs } from "../../config";

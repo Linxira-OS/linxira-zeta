@@ -71,7 +71,7 @@ describe("tiny runtime CUDA provider repair", () => {
 		await ensureOnnxRuntimeCudaProviders(runtimeDir, "cuda");
 
 		const diagnostic = await formatOnnxRuntimeCudaDiagnostics(
-			{ __ompRuntimeNodeModules: path.join(runtimeDir, "node_modules") },
+			{ __zetaRuntimeNodeModules: path.join(runtimeDir, "node_modules") },
 			"cuda",
 			new Error(
 				"CUDA failure 100: no CUDA-capable device is detected ; GPU=-1 ; expr=cudaSetDevice(info_.device_id);",
@@ -95,8 +95,8 @@ describe("tiny runtime CUDA provider repair", () => {
 
 		const diagnostic = await formatOnnxRuntimeCudaDiagnostics(
 			{
-				__ompRuntimeNodeModules: path.join(runtimeDir, "node_modules"),
-				__ompCudaRepairError:
+				__zetaRuntimeNodeModules: path.join(runtimeDir, "node_modules"),
+				__zetaCudaRepairError:
 					"Failed to install ONNX Runtime CUDA provider binaries: connect ENETUNREACH api.nuget.org",
 			},
 			"cuda",

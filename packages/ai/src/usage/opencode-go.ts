@@ -1,4 +1,4 @@
-import { USER_AGENT, getInstallId } from "@oh-my-pi/pi-utils";
+import { getInstallId, USER_AGENT } from "@linxiraos/pi-utils";
 import { ProviderHttpError } from "../error";
 import type {
 	CredentialRankingStrategy,

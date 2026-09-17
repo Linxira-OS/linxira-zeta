@@ -1,4 +1,4 @@
-# @oh-my-pi/pi-ai
+# @linxiraos/pi-ai
 
 Unified LLM API with automatic model discovery, provider configuration, token and cost tracking, and simple context persistence and hand-off to other models mid-session.
 
@@ -89,13 +89,13 @@ Unified LLM API with automatic model discovery, provider configuration, token an
 ## Installation
 
 ```bash
-npm install @oh-my-pi/pi-ai
+npm install @linxiraos/pi-ai
 ```
 
 ## Quick Start
 
 ```typescript
-import { getModel, stream, complete, Context, Tool, type } from "@oh-my-pi/pi-ai";
+import { getModel, stream, complete, Context, Tool, type } from "@linxiraos/pi-ai";
 
 // Fully typed with auto-complete support for both providers and models
 const model = getModel("openai", "gpt-4o-mini");
@@ -224,7 +224,7 @@ Tools enable LLMs to interact with external systems. Omptype schemas provide typ
 ### Defining Tools
 
 ```typescript
-import { type Tool, type } from "@oh-my-pi/pi-ai";
+import { type Tool, type } from "@linxiraos/pi-ai";
 
 const weatherTool: Tool = {
 	name: "get_weather",
@@ -347,7 +347,7 @@ When using `agentLoop`, tool arguments are automatically validated against their
 When implementing your own tool execution loop with `stream()` or `complete()`, use `validateToolCall` to validate arguments before passing them to your tools:
 
 ```typescript
-import { stream, validateToolCall, Tool } from "@oh-my-pi/pi-ai";
+import { stream, validateToolCall, Tool } from "@linxiraos/pi-ai";
 
 const tools: Tool[] = [weatherTool, calculatorTool];
 const s = stream(model, { messages, tools });
@@ -401,7 +401,7 @@ Models with vision capabilities can process images. You can check if a model sup
 
 ```typescript
 import * as fs from "node:fs";
-import { getModel, complete } from "@oh-my-pi/pi-ai";
+import { getModel, complete } from "@linxiraos/pi-ai";
 
 const model = getModel("openai", "gpt-4o-mini");
 
@@ -440,7 +440,7 @@ Many models support thinking/reasoning capabilities where they can show their in
 ### Unified Interface (streamSimple/completeSimple)
 
 ```typescript
-import { getModel, streamSimple, completeSimple } from "@oh-my-pi/pi-ai";
+import { getModel, streamSimple, completeSimple } from "@linxiraos/pi-ai";
 
 // Many models across providers support thinking/reasoning
 const model = getModel("anthropic", "claude-sonnet-4-20250514");
@@ -482,7 +482,7 @@ for (const block of response.content) {
 For fine-grained control, use the provider-specific options:
 
 ```typescript
-import { getModel, complete } from "@oh-my-pi/pi-ai";
+import { getModel, complete } from "@linxiraos/pi-ai";
 
 // OpenAI Reasoning (o1, o3, gpt-5)
 const openaiModel = getModel("openai", "gpt-5-mini");
@@ -569,7 +569,7 @@ if (message.stopReason === "error" || message.stopReason === "aborted") {
 The abort signal allows you to cancel in-progress requests. Aborted requests have `stopReason === 'aborted'`:
 
 ```typescript
-import { getModel, stream } from "@oh-my-pi/pi-ai";
+import { getModel, stream } from "@linxiraos/pi-ai";
 
 const model = getModel("openai", "gpt-4o-mini");
 
@@ -670,7 +670,7 @@ A **provider** offers models through a specific API. For example:
 ### Querying Providers and Models
 
 ```typescript
-import { getProviders, getModels, getModel } from "@oh-my-pi/pi-ai";
+import { getProviders, getModels, getModel } from "@linxiraos/pi-ai";
 
 // Get all available providers
 const providers = getProviders();
@@ -698,7 +698,7 @@ You can create custom models for local inference servers or custom endpoints.
 For local Ollama, `OLLAMA_API_KEY` is optional and mainly needed for authenticated/self-hosted gateways. `ollama` remains the local OpenAI-compatible runtime integration.
 
 ```typescript
-import { Model, stream } from "@oh-my-pi/pi-ai";
+import { Model, stream } from "@linxiraos/pi-ai";
 
 // Example: local Ollama using the OpenAI-compatible API
 const ollamaModel: Model<"openai-completions"> = {
@@ -824,7 +824,7 @@ When messages from one provider are sent to a different provider, the library au
 ### Example: Multi-Provider Conversation
 
 ```typescript
-import { getModel, complete, Context } from "@oh-my-pi/pi-ai";
+import { getModel, complete, Context } from "@linxiraos/pi-ai";
 
 // Start with Claude
 const claude = getModel("anthropic", "claude-sonnet-4-20250514");
@@ -871,7 +871,7 @@ This enables flexible workflows where you can:
 The `Context` object can be easily serialized and deserialized using standard JSON methods, making it simple to persist conversations, implement chat history, or transfer contexts between services:
 
 ```typescript
-import { Context, getModel, complete } from "@oh-my-pi/pi-ai";
+import { Context, getModel, complete } from "@linxiraos/pi-ai";
 
 // Create and use a context
 const context: Context = {
@@ -906,7 +906,7 @@ const continuation = await complete(newModel, restored);
 The library supports browser environments. You must pass the API key explicitly since environment variables are not available in browsers:
 
 ```typescript
-import { getModel, complete } from "@oh-my-pi/pi-ai";
+import { getModel, complete } from "@linxiraos/pi-ai";
 
 // API key must be passed explicitly in browser
 const model = getModel("anthropic", "claude-haiku-4-5-20251001");
@@ -1013,7 +1013,7 @@ const response = await complete(model, context, {
 ### Checking Environment Variables
 
 ```typescript
-import { getEnvApiKey } from "@oh-my-pi/pi-ai";
+import { getEnvApiKey } from "@linxiraos/pi-ai";
 
 // Check if an API key is set in environment variables
 const key = getEnvApiKey("openai"); // checks OPENAI_API_KEY
@@ -1054,7 +1054,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 ```
 
 ```typescript
-import { getModel, complete } from "@oh-my-pi/pi-ai";
+import { getModel, complete } from "@linxiraos/pi-ai";
 
 (async () => {
 	const model = getModel("google-vertex", "gemini-2.5-flash");
@@ -1072,17 +1072,19 @@ Official docs: [Application Default Credentials](https://cloud.google.com/docs/a
 
 ### CLI Login
 
-Authenticate via the [`omp`](https://omp.sh) coding-agent CLI, which drives this library's OAuth/API-key flows in-process and persists into `agent.db`:
+Authenticate via the [`zeta`](https://linxira-os.github.io/zeta/) coding-agent CLI, which drives this library's OAuth/API-key flows in-process and persists into `agent.db`:
 
 ```bash
-omp auth-broker login              # interactive provider selection
-omp auth-broker login anthropic    # login to a specific provider
-omp auth-broker login vllm         # store vLLM API key (or placeholder for local no-auth)
-omp auth-broker list               # list supported providers
-omp auth-broker logout             # interactive — pick a stored credential to remove
+zeta auth-broker login            # interactive provider selection
+zeta auth-broker login anthropic  # login to a specific provider
+zeta auth-broker login vllm       # store vLLM API key (or placeholder for local no-auth)
+zeta auth-broker list             # list supported providers
+zeta auth-broker logout           # interactive — pick a stored credential to remove
 ```
 
 Credentials are saved to `agent.db` in the agent directory. `/login qianfan` opens the Qianfan console and stores the pasted API key.
+
+If SQLite reports corruption during startup, the damaged database and remaining journal sidecars are preserved beside it as private `agent.db.corrupt-<timestamp>-<id>*` backups before a fresh database is created. The log records the backup path. This restores startup, not unreadable credentials: log in again; retain the backups for manual data recovery. Lock contention and other non-corruption errors never reset the database.
 
 `login` supports OAuth providers (Anthropic, OpenAI Codex, GitHub Copilot, Gemini CLI, Antigravity) and API-key onboarding flows.
 
@@ -1090,31 +1092,56 @@ For the current API-key onboarding flows, the library covers Together, Moonshot,
 
 ### Programmatic OAuth
 
-Provider login and refresh behavior is exposed through the registry. Credential storage is the caller's responsibility.
+The library provides login and token refresh functions. Credential storage is the caller's responsibility.
 
 ```typescript
 import {
-	getProviderDefinition,
+	// Login functions (return credentials, do not store)
+	loginAnthropic,
+	loginOpenAICodex,
+	loginGitHubCopilot,
+	loginGeminiCli,
+	loginAntigravity,
+	loginCloudflareAiGateway,
+	loginHuggingface,
+	loginLiteLLM,
+	loginMoonshot,
+	loginNvidia,
+	loginNanoGPT,
+	loginQianfan,
+	loginQwenPortal,
+	loginTogether,
+	loginVenice,
+	loginVllm,
+	loginXiaomi,
+
+	// Token management
 	refreshOAuthToken, // (provider, credentials) => new credentials
 	getOAuthApiKey, // (provider, credentialsMap) => { newCredentials, apiKey } | null
-	type OAuthProvider,
-	type OAuthCredentials,
-} from "@oh-my-pi/pi-ai";
 
-const provider = getProviderDefinition("openai-codex");
-const credentials = await provider?.login?.({
+	// Types
+	type OAuthProvider, // includes 'anthropic', 'openai-codex', 'github-copilot', 'google-gemini-cli', 'google-antigravity', 'together', 'moonshot', 'qianfan', 'nvidia', 'nanogpt', 'novita', 'huggingface', 'venice', 'xiaomi', 'vllm', 'litellm', 'cloudflare-ai-gateway', 'qwen-portal', ...
+	type OAuthCredentials,
+} from "@linxiraos/pi-ai";
+```
+
+`loginOpenAICodex` accepts an optional `originator` value used in the OAuth flow:
+
+```typescript
+await loginOpenAICodex({
 	onAuth: ({ url }) => console.log(url),
+	originator: "my-cli",
 });
 ```
 
 ### Login Flow Example
 
 ```typescript
-import { getProviderDefinition } from "@oh-my-pi/pi-ai";
+import { loginGitHubCopilot } from "@linxiraos/pi-ai";
 import * as fs from "node:fs";
 
-const credentials = await getProviderDefinition("github-copilot")?.login?.({
-	onAuth: ({ url, instructions }) => {
+const credentials = await loginGitHubCopilot({
+	onAuth: (url, instructions) => {
 		console.log(`Open: ${url}`);
 		if (instructions) console.log(instructions);
 	},
@@ -1134,7 +1161,7 @@ fs.writeFileSync("credentials.json", JSON.stringify(auth, null, 2));
 Use `getOAuthApiKey()` to get an API key, automatically refreshing if expired:
 
 ```typescript
-import { getModel, complete, getOAuthApiKey } from "@oh-my-pi/pi-ai";
+import { getModel, complete, getOAuthApiKey } from "@linxiraos/pi-ai";
 import * as fs from "node:fs";
 
 // Load your stored credentials

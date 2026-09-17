@@ -1,13 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
-import {
-	type BashInterceptorRule,
-	DEFAULT_BASH_INTERCEPTOR_RULES,
-} from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool, type BashToolInput } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { checkBashInterception } from "@oh-my-pi/pi-coding-agent/tools/bash-interceptor";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { type BashInterceptorRule, DEFAULT_BASH_INTERCEPTOR_RULES } from "@linxiraos/zeta/config/settings-schema";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool, type BashToolInput } from "@linxiraos/zeta/tools/bash";
+import { checkBashInterception } from "@linxiraos/zeta/tools/bash-interceptor";
 
 function createBashTool(rules: BashInterceptorRule[]): BashTool {
 	const session = {
@@ -133,7 +130,7 @@ describe("compound command interception", () => {
 		for (const command of [
 			'echo "$(git commit -m message)"',
 			"echo `git commit -m message`",
-			// oxlint-disable-next-line no-template-curly-in-string -- literal shell parameter expansion under test
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: literal shell parameter expansion under test
 			"echo ${x:-foo;git commit -m message}",
 			"( git commit -m message )",
 			"echo start; { true; git commit -m message; }",

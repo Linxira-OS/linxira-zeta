@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { readTerminalBreadcrumbEntry } from "@oh-my-pi/pi-coding-agent/session/session-paths";
-import { getTerminalId } from "@oh-my-pi/pi-tui";
-import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@oh-my-pi/pi-utils";
+import { getTerminalId } from "@linxiraos/pi-tui";
+import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@linxiraos/pi-utils";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { readTerminalBreadcrumbEntry } from "@linxiraos/zeta/session/session-paths";
 
 import { makeAssistantMessage } from "./helpers";
 
@@ -30,6 +30,7 @@ async function writeSubagentSession(parentFile: string, agentId: string, userTex
 	const sub = await SessionManager.open(subFile, undefined, undefined, {
 		initialCwd: path.dirname(parentFile),
 		suppressBreadcrumb: true,
+		parentSession: parentFile,
 	});
 	sub.appendMessage({ role: "user", content: userText, timestamp: 2 });
 	sub.appendMessage(makeAssistantMessage());
@@ -41,7 +42,7 @@ async function writeSubagentSession(parentFile: string, agentId: string, userTex
 describe("SessionManager subagent breadcrumb isolation", () => {
 	let testAgentDir: string;
 	let cwd: string;
-	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 	const originalTmuxPane = process.env.TMUX_PANE;
 	const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
@@ -61,7 +62,7 @@ describe("SessionManager subagent breadcrumb isolation", () => {
 			setAgentDir(originalAgentDir);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		await fsp.rm(testAgentDir, { recursive: true, force: true });
 	});
@@ -95,6 +96,38 @@ describe("SessionManager subagent breadcrumb isolation", () => {
 			expect(dump).not.toContain("subagent work");
 		} finally {
 			await resumed.close();
+		}
+	});
+
+	it("records the parent file only when opening a fresh subagent session", async () => {
+		const mainFile = await createParentSession();
+		const subFile = await writeSubagentSession(mainFile, "HeaderWorker", "subagent work");
+
+		const freshHeader = JSON.parse((await Bun.file(subFile).text()).split("\n")[1] ?? "null") as {
+			parentSession?: string;
+		};
+		expect(freshHeader.parentSession).toBe(mainFile);
+
+		const resumed = await SessionManager.open(subFile, undefined, undefined, {
+			parentSession: `${mainFile}.replacement`,
+		});
+		try {
+			expect(resumed.getHeader()?.parentSession).toBe(mainFile);
+		} finally {
+			await resumed.close();
+		}
+	});
+
+	it("omits parentSession when a fresh child has no persisted parent", async () => {
+		const childFile = path.join(testAgentDir, "memory-parent-child.jsonl");
+		const child = await SessionManager.open(childFile, undefined, undefined, {
+			initialCwd: cwd,
+			parentSession: undefined,
+		});
+		try {
+			expect(child.getHeader()?.parentSession).toBeUndefined();
+		} finally {
+			await child.close();
 		}
 	});
 

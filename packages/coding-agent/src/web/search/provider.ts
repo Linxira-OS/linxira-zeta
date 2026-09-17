@@ -8,7 +8,7 @@
 // Provider modules are loaded lazily; display metadata lives in types.ts so UI
 // listings can share it without importing provider implementations.
 
-import type { AuthStorage } from "@oh-my-pi/pi-ai";
+import type { AuthStorage } from "@linxiraos/pi-ai";
 import type { SearchProvider } from "./providers/base";
 import { SEARCH_PROVIDER_LABELS, SEARCH_PROVIDER_ORDER, SearchProviderError, type SearchProviderId } from "./types";
 
@@ -104,6 +104,11 @@ const PROVIDER_META: Record<SearchProviderId, ProviderMeta> = {
 		label: SEARCH_PROVIDER_LABELS.synthetic,
 		load: async () => new (await import("./providers/synthetic")).SyntheticProvider(),
 	},
+	ollama: {
+		id: "ollama",
+		label: SEARCH_PROVIDER_LABELS.ollama,
+		load: async () => new (await import("./providers/ollama")).OllamaProvider(),
+	},
 	searxng: {
 		id: "searxng",
 		label: SEARCH_PROVIDER_LABELS.searxng,
@@ -113,6 +118,11 @@ const PROVIDER_META: Record<SearchProviderId, ProviderMeta> = {
 		id: "duckduckgo",
 		label: SEARCH_PROVIDER_LABELS.duckduckgo,
 		load: async () => new (await import("./providers/duckduckgo")).DuckDuckGoProvider(),
+	},
+	bing: {
+		id: "bing",
+		label: SEARCH_PROVIDER_LABELS.bing,
+		load: async () => new (await import("./providers/bing")).BingProvider(),
 	},
 	google: {
 		id: "google",

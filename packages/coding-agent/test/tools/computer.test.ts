@@ -1,23 +1,5 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval/preludes";
-import { disposeAllKernelSessions, executePython } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { computerApproval, createComputerPrelude } from "@oh-my-pi/pi-coding-agent/tools/computer";
-import { isReadOnlyComputerCall, renderComputerCall } from "@oh-my-pi/pi-coding-agent/tools/computer/call";
-import type {
-	ComputerSessionSnapshot,
-	ComputerWorkerInbound,
-	ComputerWorkerOutbound,
-	ComputerWorkerTransport,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/protocol";
-import {
-	type ComputerController,
-	ComputerSupervisor,
-	type ComputerWorkerHandle,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/supervisor";
-import { ComputerWorkerCore, type NativeDesktopSession } from "@oh-my-pi/pi-coding-agent/tools/computer/worker";
 import type {
 	AxNode,
 	AxQuery,
@@ -27,7 +9,25 @@ import type {
 	DesktopPoint,
 	DesktopWindow,
 	PointerOptions,
-} from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-natives";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { computerApproval, createComputerPrelude } from "@linxiraos/zeta/tools/computer";
+import { isReadOnlyComputerCall, renderComputerCall } from "@linxiraos/zeta/tools/computer/call";
+import type {
+	ComputerSessionSnapshot,
+	ComputerWorkerInbound,
+	ComputerWorkerOutbound,
+	ComputerWorkerTransport,
+} from "@linxiraos/zeta/tools/computer/protocol";
+import {
+	type ComputerController,
+	ComputerSupervisor,
+	type ComputerWorkerHandle,
+} from "@linxiraos/zeta/tools/computer/supervisor";
+import { ComputerWorkerCore, type NativeDesktopSession } from "@linxiraos/zeta/tools/computer/worker";
 
 /** Method name of the last step in a facade call chain, or "" when the chain is malformed. */
 function terminalMethod(chain: unknown): string {
@@ -454,8 +454,8 @@ describe("computer prelude", () => {
 			"clipboard.read": "copied",
 		};
 		const realm = createContext({
-			__omp_display__: (value: unknown) => displays.push(value),
-			__omp_prelude__: async (name: unknown, parameters: unknown) => {
+			__zeta_display__: (value: unknown) => displays.push(value),
+			__zeta_prelude__: async (name: unknown, parameters: unknown) => {
 				expect(name).toBe("computer");
 				calls.push(parameters);
 				if (parameters === null || typeof parameters !== "object" || !("action" in parameters)) return undefined;
@@ -511,7 +511,7 @@ describe("computer prelude", () => {
 			{
 				action: "run",
 				fn: String(fn),
-				args: [7, { __omp_re: { source: "save", flags: "gi" } }, { __omp_fn: String(argFn) }],
+				args: [7, { __zeta_re: { source: "save", flags: "gi" } }, { __zeta_fn: String(argFn) }],
 				read_only: true,
 				timeout: 5,
 			},
@@ -696,6 +696,44 @@ describe("computer prelude", () => {
 				],
 			},
 		]);
+	});
+
+	it("treats text-only Python host responses as unavailable capabilities", async () => {
+		const calls: unknown[] = [];
+		let definitions: readonly EvalPreludeDefinition[] = [];
+		const session: ToolSession = {
+			...toolSession(),
+			getEvalPreludes: () => definitions,
+		};
+		const shipped = createComputerPrelude(session, () => ({
+			async run() {
+				return { displays: [], returnValue: undefined, screenshots: [] };
+			},
+			async capabilities() {
+				return undefined;
+			},
+			async close() {},
+		}));
+		definitions = [
+			{
+				...shipped,
+				async invoke(parameters) {
+					calls.push(parameters);
+					return { content: [{ type: "text", text: "Computer capabilities unavailable" }] };
+				},
+			},
+		];
+
+		const result = await executePython("print(await computer.capabilities())", {
+			cwd: process.cwd(),
+			sessionId: `computer-unavailable-py-${crypto.randomUUID()}`,
+			toolSession: session,
+			kernelMode: "per-call",
+		});
+
+		expect(result.exitCode).toBe(0);
+		expect(result.output.trim()).toBe("None");
+		expect(calls).toEqual([{ action: "capabilities" }]);
 	});
 
 	it("reflects the live enabled setting", () => {
@@ -1007,6 +1045,42 @@ describe("computer worker round trips", () => {
 		expect(second.ok).toBe(true);
 		if (second.ok) expect(second.payload.returnValue).toEqual({ x: 7, y: 8, width: 9, height: 10 });
 	});
+
+	it("answers a direct capabilities request without a prior run", async () => {
+		const transport = new MemoryTransport();
+		new ComputerWorkerCore(transport, () => new FakeNativeSession());
+		transport.inbound({ type: "capabilities", id: "caps", session: snapshot(true) });
+		const reply = await transport.waitFor(message => message.type === "capabilities" && message.id === "caps");
+		expect(reply.type).toBe("capabilities");
+		if (reply.type !== "capabilities" || !reply.ok) throw new Error("expected a successful capabilities reply");
+		expect(reply.capabilities).toEqual(capabilities);
+	});
+
+	it("creates the native session once when a run and capabilities race a cold worker", async () => {
+		const transport = new MemoryTransport();
+		const native = new FakeNativeSession();
+		let creations = 0;
+		const release = Promise.withResolvers<void>();
+		// Async factory reproduces the real `import(...)` suspension so both
+		// handlers reach session creation before it resolves.
+		new ComputerWorkerCore(transport, async () => {
+			creations += 1;
+			await release.promise;
+			return native;
+		});
+
+		transport.inbound({ type: "run", id: "race-run", code: "42", timeoutMs: 2_000, session: snapshot(true) });
+		transport.inbound({ type: "capabilities", id: "race-caps", session: snapshot(true) });
+		release.resolve();
+
+		const runReply = await transport.waitFor(message => message.type === "result" && message.id === "race-run");
+		const capsReply = await transport.waitFor(
+			message => message.type === "capabilities" && message.id === "race-caps",
+		);
+		expect(runReply.type === "result" && runReply.ok).toBe(true);
+		expect(capsReply.type === "capabilities" && capsReply.ok).toBe(true);
+		expect(creations).toBe(1);
+	});
 });
 
 class SupervisorWorker implements ComputerWorkerHandle {
@@ -1027,6 +1101,8 @@ class SupervisorWorker implements ComputerWorkerHandle {
 					payload: { displays: [], returnValue: "fresh", screenshots: [], capabilities },
 				}),
 			);
+		} else if (message.type === "capabilities" && this.#respond) {
+			queueMicrotask(() => this.#emit({ type: "capabilities", id: message.id, ok: true, capabilities }));
 		} else if (message.type === "close") {
 			queueMicrotask(() => this.#emit({ type: "closed" }));
 		}
@@ -1064,6 +1140,18 @@ describe("computer supervisor recovery", () => {
 		const result = await supervisor.run("41 + 1", 1_000, snapshot());
 		expect(result.returnValue).toBe("fresh");
 		expect(workers).toBe(2);
+		await supervisor.close();
+	});
+
+	it("resolves direct capabilities before any run instead of a stale cache", async () => {
+		const supervisor = new ComputerSupervisor(toolSession(), () => new SupervisorWorker(true), {
+			startMs: 200,
+			closeMs: 200,
+		});
+		// Regression (#11169): capabilities() used to return the run-populated
+		// cache, so a fresh session yielded undefined until a run happened.
+		const direct = await supervisor.capabilities(snapshot(true));
+		expect(direct).toEqual(capabilities);
 		await supervisor.close();
 	});
 });

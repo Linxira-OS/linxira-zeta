@@ -1,21 +1,21 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { createMockModel, type MockHandler } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { SettingPath } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import { IrcBus, type IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { IrcBridge } from "@oh-my-pi/pi-coding-agent/session/irc-bridge";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { type CoordinationDetails, HubTool, isIrcEnabled } from "@oh-my-pi/pi-coding-agent/tools/hub";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { createMockModel, type MockHandler } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { SettingPath } from "@linxiraos/zeta/config/settings-schema";
+import { IrcBus, type IrcMessage } from "@linxiraos/zeta/irc/bus";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { IrcBridge } from "@linxiraos/zeta/session/irc-bridge";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { type CoordinationDetails, HubTool, isIrcEnabled } from "@linxiraos/zeta/tools/hub";
+import { TempDir } from "@linxiraos/pi-utils";
 
 interface FakeSession {
 	session: AgentSession;
@@ -172,6 +172,7 @@ describe("IRC", () => {
 	});
 	afterEach(async () => {
 		vi.restoreAllMocks();
+		vi.useRealTimers();
 		for (const session of sessions.splice(0)) {
 			await session.dispose();
 		}
@@ -833,14 +834,15 @@ describe("IRC", () => {
 			const sub = makeFakeSession();
 			registry.register({ id: "0-Sub", displayName: "task", kind: "sub", session: sub.session });
 
-			const tool = new HubTool(makeToolSession(registry, "0-Main"));
+			const session = makeToolSession(registry, "0-Main");
+			session.settings.set("irc.timeoutMs", 5);
+			const tool = new HubTool(session);
 			const result = await tool.execute("call-1", {
 				op: "send",
 				to: "0-Sub",
 				message: "ping",
 				// Real 5ms timeout — exercises the timeout path; no reply ever arrives.
 				await: true,
-				timeoutMs: 5,
 			});
 			expect(result.isError).toBeFalsy();
 			const details = result.details as CoordinationDetails | undefined;
@@ -866,7 +868,7 @@ describe("IRC", () => {
 
 			const result = await tool.execute(
 				"call-1",
-				{ op: "send", to: "0-Sub", message: "ping", await: true, timeoutMs: 30_000 },
+				{ op: "send", to: "0-Sub", message: "ping", await: true },
 				controller.signal,
 			);
 
@@ -901,7 +903,6 @@ describe("IRC", () => {
 				to: "0-Sub",
 				message: "ping",
 				await: true,
-				timeoutMs: 120_000,
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -930,7 +931,6 @@ describe("IRC", () => {
 				to: "0-Sub",
 				message: "ping",
 				await: true,
-				timeoutMs: 120_000,
 			});
 
 			const details = result.details as CoordinationDetails | undefined;
@@ -994,7 +994,6 @@ describe("IRC", () => {
 					to: "0-Sub",
 					message: "answer on the side channel",
 					await: true,
-					timeoutMs: 5_000,
 				});
 				let settled = false;
 				void resultP.then(() => {
@@ -1091,11 +1090,21 @@ describe("IRC", () => {
 			expect(details?.receipts?.[0]?.outcome).toBe("failed");
 		});
 
-		it("op=wait returns a clean non-error timeout result", async () => {
+		it("op=wait returns a clean non-error timeout after the ladder floor", async () => {
 			const fake = makeFakeSession();
 			registry.register({ id: "0-Sub", displayName: "sub", kind: "sub", session: fake.session, status: "running" });
 			const tool = new HubTool(makeToolSession(registry, "0-Main"));
-			const result = await tool.execute("call-1", { op: "wait", timeoutMs: 5 });
+			vi.useFakeTimers();
+			let settled = false;
+			const pending = tool.execute("call-1", { op: "wait" }).then(result => {
+				settled = true;
+				return result;
+			});
+			vi.advanceTimersByTime(4_999);
+			for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+			expect(settled).toBe(false);
+			vi.advanceTimersByTime(1);
+			const result = await pending;
 			expect(result.isError).toBeFalsy();
 			const details = result.details as CoordinationDetails | undefined;
 			expect(details?.waited).toBeNull();
@@ -1105,7 +1114,7 @@ describe("IRC", () => {
 
 		it("op=wait returns a clean result if no active agents exist", async () => {
 			const tool = new HubTool(makeToolSession(registry, "0-Main"));
-			const result = await tool.execute("call-1", { op: "wait", timeoutMs: 5 });
+			const result = await tool.execute("call-1", { op: "wait" });
 			expect(result.isError).toBeFalsy();
 			const text = result.content[0]?.type === "text" ? result.content[0].text : "";
 			expect(text).toContain("No running background jobs to wait for.");
@@ -1114,7 +1123,7 @@ describe("IRC", () => {
 		it("op=wait returns an error if the requested specific 'from' agent is not active", async () => {
 			registry.register({ id: "0-Sub", displayName: "sub", kind: "sub", session: null, status: "parked" });
 			const tool = new HubTool(makeToolSession(registry, "0-Main"));
-			const result = await tool.execute("call-1", { op: "wait", from: "0-Sub", timeoutMs: 5 });
+			const result = await tool.execute("call-1", { op: "wait", from: "0-Sub" });
 			expect(result.isError).toBe(true);
 			const text = result.content[0]?.type === "text" ? result.content[0].text : "";
 			expect(text).toContain('agent "0-Sub" is not running');
@@ -1138,7 +1147,7 @@ describe("IRC", () => {
 			const tool = new HubTool(makeToolSession(registry, "0-Running"));
 			const controller = new AbortController();
 			controller.abort(new Error("queued IRC interrupt"));
-			const result = await tool.execute("call-1", { op: "wait", timeoutMs: 30_000 }, controller.signal);
+			const result = await tool.execute("call-1", { op: "wait" }, controller.signal);
 
 			expect(result.isError).toBeFalsy();
 			const details = result.details as CoordinationDetails | undefined;

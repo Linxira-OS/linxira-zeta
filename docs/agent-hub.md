@@ -12,7 +12,7 @@ The Hub also discovers parked subagents from the current session's persisted art
 | `Ctrl+S`       | Open or close the same Hub through the legacy `app.session.observe` action.                    |
 | Double-tap `←` | Open the Hub from an empty main-session editor when the current session has an agent to show.  |
 
-Run `/hotkeys` to see the active chords. Remap either action in `~/.omp/agent/keybindings.yml`:
+Run `/hotkeys` to see the active chords. Remap either action in `~/.zeta/agent/keybindings.yml`:
 
 ```yaml
 app.agents.hub: Alt+A
@@ -67,6 +67,16 @@ For a normal local subagent, `Enter` or click focuses the main TUI on that agent
 Steering uses the normal prompt path, so the message and response are written to the subagent's persisted session history. While a subagent is focused, `Esc` returns to the main session; it does not interrupt the subagent.
 
 Contexts without a local focusable session use the Hub's full-screen transcript viewer instead. This includes collab guests and advisor rows. The viewer incrementally tails the file-backed transcript and provides an input line only when the selected agent can be messaged. Sending there has the same semantics: revive if parked, steer if running, and prompt if idle.
+
+## Pinned jump list and click to focus
+
+While subagents run, a pinned `Subagents` block above the editor lists every live agent — sync task calls and detached background spawns alike.
+
+The list stays short: it shows a few rows plus an expander (`display.pinnedAgents: collapsed`, the default), lists everything (`full`), or hides entirely (`off`). Clicking the expander toggles between the two while `tui.mouse` is on.
+
+Enable `tui.mouse` to click live subagent cards and jump-list rows directly in the main session, without opening the Hub first. A click focuses that card's most recent agent (a jump-list row focuses its exact agent); focusing a parked agent revives it. Hovering a live target lights it up first, so you can see what a click will open.
+
+Only rows currently in the live viewport are clickable — retired transcript rows live in terminal scrollback, where clicks cannot map back to content. Enabling capture changes terminal gestures while on: text selection becomes Shift+drag and wheel scroll becomes Shift+wheel. Off by default.
 
 ## Persisted agents and advisors
 

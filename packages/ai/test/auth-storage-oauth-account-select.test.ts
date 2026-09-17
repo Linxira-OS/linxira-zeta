@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { withOAuthAccess } from "@oh-my-pi/pi-ai/auth-retry";
-import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth-storage";
-import * as oauthUtils from "@oh-my-pi/pi-ai/registry/oauth";
+import { withOAuthAccess } from "@linxiraos/pi-ai/auth-retry";
+import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import * as oauthUtils from "@linxiraos/pi-ai/registry/oauth";
 
 const PROVIDER = "unit-oauth-select";
 
@@ -91,6 +91,37 @@ describe("AuthStorage OAuth account selection", () => {
 		expect(restored.listOAuthAccounts(PROVIDER, "session-pin").find(account => account.active)?.credentialId).toBe(
 			target.credentialId,
 		);
+	});
+
+	test("inherited session affinity keeps usage rotation on the selected account", async () => {
+		const storage = authStorage;
+		if (!storage) throw new Error("test setup failed");
+		vi.spyOn(oauthUtils, "getOAuthApiKey").mockImplementation(async (provider, credentials) => {
+			const credential = credentials[provider];
+			return credential ? { newCredentials: credential, apiKey: credential.access } : null;
+		});
+		await storage.set(PROVIDER, [oauthCredential("a"), oauthCredential("b")]);
+		const accountB = storage.listOAuthAccounts(PROVIDER)[1];
+		if (!accountB) throw new Error("expected second OAuth account");
+		expect(storage.pinSessionOAuthAccount(PROVIDER, "parent-session", accountB.credentialId)).toBe(true);
+
+		expect(storage.inheritSessionCredentials("parent-session", "child-session")).toBe(1);
+		expect(storage.listOAuthAccounts(PROVIDER, "child-session").find(account => account.active)?.email).toBe(
+			"b@example.com",
+		);
+		expect(
+			await withOAuthAccess(storage, PROVIDER, access => Promise.resolve(access.email), {
+				sessionId: "child-session",
+			}),
+		).toBe("b@example.com");
+
+		const outcome = await storage.markUsageLimitReached(PROVIDER, "child-session", { retryAfterMs: 60_000 });
+		expect(outcome.switched).toBe(true);
+		expect(
+			await withOAuthAccess(storage, PROVIDER, access => Promise.resolve(access.email), {
+				sessionId: "child-session",
+			}),
+		).toBe("a@example.com");
 	});
 
 	test("getOAuthAccessAt resolves the credential at the requested position and touches only that one", async () => {

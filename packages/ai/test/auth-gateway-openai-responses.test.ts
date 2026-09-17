@@ -2,16 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { startAuthGateway } from "@oh-my-pi/pi-ai/auth-gateway";
-import { AuthStorage } from "@oh-my-pi/pi-ai/auth-storage";
-import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { encodeResponse, encodeStream, parseRequest } from "@oh-my-pi/pi-ai/providers/openai-responses-server";
-import { buildResponsesInput } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import type { AssistantMessage, Context, ModelSpec } from "@oh-my-pi/pi-ai/types";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
+import { AuthStorage } from "@linxiraos/pi-ai/auth-storage";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { encodeResponse, encodeStream, parseRequest } from "@linxiraos/pi-ai/providers/openai-responses-server";
+import { buildResponsesInput } from "@linxiraos/pi-ai/providers/openai-shared";
+import type { AssistantMessage, Context, ModelSpec } from "@linxiraos/pi-ai/types";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 
 function zeroUsage(): AssistantMessage["usage"] {
 	return {
@@ -175,6 +175,27 @@ describe("openai-responses parseRequest", () => {
 		// `store` and `previous_response_id` are accepted by the schema but not
 		// plumbed through pi-ai — they no longer leak into options.extra.
 		expect(parsed.options.extra).toBeUndefined();
+	});
+
+	it("coerces a message item with content:null to an empty content array (Codex #10956)", () => {
+		const parsed = parseRequest({
+			model: "gpt-5.3-codex-spark",
+			input: [
+				{ type: "message", role: "user", content: [{ type: "input_text", text: "again" }] },
+				{ type: "message", role: "user", content: null },
+			],
+			max_output_tokens: 16,
+		});
+
+		const msgs = parsed.context.messages;
+		expect(msgs).toHaveLength(2);
+		const empty = msgs[1]!;
+		if (empty.role !== "user") throw new Error("expected user");
+		expect(empty.content).toEqual([]);
+		// The null must not survive into the native history-replay clone — it
+		// carries `[]` so downstream providers see the same shape as content:[].
+		const replay = empty.providerPayload as { items: Array<{ content?: unknown }> };
+		expect(replay.items[0]!.content).toEqual([]);
 	});
 
 	it("preserves canonical multimodal order and nullable fallback sources", () => {

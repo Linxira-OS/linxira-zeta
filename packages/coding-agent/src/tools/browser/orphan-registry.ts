@@ -1,8 +1,8 @@
 /**
  * Durable ownership registry for targets in the project-shared broker-owned
- * Chromium (`omp.browser.headless`/`omp.browser.headed`).
+ * Chromium (`zeta.browser.headless`/`zeta.browser.headed`).
  *
- * The shared browser outlives any single omp process, but tab ownership is
+ * The shared browser outlives any single zeta process, but tab ownership is
  * otherwise tracked only in that process's memory (`tab-supervisor`'s `tabs`
  * map). When a session ends abnormally (crash, SIGKILL, cleanup timeout) its
  * in-process map dies with it and the pages it opened stay open in the shared
@@ -22,7 +22,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { isEnoent, logger } from "@linxiraos/pi-utils";
 import type { Browser } from "puppeteer-core";
 import { daemonRuntimeDir } from "../../launch/paths";
 
@@ -30,7 +30,7 @@ import { daemonRuntimeDir } from "../../launch/paths";
 export interface SharedTargetScope {
 	/** Canonical project directory owning the broker (as stamped on the handle). */
 	projectDir: string;
-	/** Broker daemon name, e.g. `omp.browser.headless`. */
+	/** Broker daemon name, e.g. `zeta.browser.headless`. */
 	daemonName: string;
 }
 

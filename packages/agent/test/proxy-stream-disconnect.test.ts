@@ -7,11 +7,11 @@
  * event — it must NOT silently complete with default stopReason='stop'.
  */
 import { describe, expect, it } from "bun:test";
-import type { ProxyAssistantMessageEvent } from "@oh-my-pi/pi-agent-core/proxy";
-import { type ProxyMessageEventStream, streamProxy } from "@oh-my-pi/pi-agent-core/proxy";
-import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, ToolCall } from "@oh-my-pi/pi-ai";
-import { getStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import type { ProxyAssistantMessageEvent } from "@linxiraos/pi-agent-core/proxy";
+import { type ProxyMessageEventStream, streamProxy } from "@linxiraos/pi-agent-core/proxy";
+import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, ToolCall } from "@linxiraos/pi-ai";
+import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const mockModel: Model = buildModel({
 	id: "test-model",
@@ -195,6 +195,32 @@ describe("streamProxy — server disconnect without terminal event", () => {
 		const result = await stream.result();
 		expect(result.stopReason).toBe("stop");
 		expect(result.content).toEqual([{ type: "text", text: "Hello" }]);
+	});
+
+	it("preserves server-priced usage for both terminal events, including a zero charge", async () => {
+		const model = { ...mockModel, cost: { input: 10, output: 20, cacheRead: 1, cacheWrite: 5 } };
+		for (const total of [0, 0.75]) {
+			const usage = {
+				...baseUsage,
+				input: 1_000_000,
+				totalTokens: 1_000_000,
+				cost: { input: total, output: 0, cacheRead: 0, cacheWrite: 0, total },
+			};
+			const terminalEvents: ProxyAssistantMessageEvent[] = [
+				{ type: "done", reason: "stop", usage },
+				{ type: "error", reason: "error", errorMessage: "provider disconnected", usage },
+			];
+			for (const terminal of terminalEvents) {
+				const fetchMock: FetchImpl = async () =>
+					new Response(buildSseBody([{ type: "start" }, terminal]), { status: 200 });
+				const result = await streamProxy(model, mockContext, {
+					proxyUrl: "http://localhost:0",
+					authToken: "test",
+					fetch: fetchMock,
+				}).result();
+				expect(result.usage.cost).toEqual(usage.cost);
+			}
+		}
 	});
 
 	it("restores terminal blocks that have no proxy stream events", async () => {

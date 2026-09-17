@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import type { IsoBackendKind, VcsGitRepo, VcsWorktreeEntry } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { getWorktreeDir, hashPath, isEnoent, logger } from "@oh-my-pi/pi-utils";
-import { github } from "../utils/github";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { IsoBackendKind, VcsGitRepo, VcsWorktreeEntry } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { getWorktreeDir, hashPath, isEnoent, logger } from "@linxiraos/pi-utils";
 import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree";
+import { github } from "../utils/github";
 import { withRepoLock } from "../utils/repo-lock";
 import type { ToolSession } from ".";
 import type { GhPrCheckoutSummary, GhToolDetails } from "./gh";

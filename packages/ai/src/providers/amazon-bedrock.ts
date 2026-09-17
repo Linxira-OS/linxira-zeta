@@ -5,11 +5,14 @@
  * SigV4 signing and decodes the `application/vnd.amazon.eventstream` response.
  * No `@aws-sdk/*`, no `@smithy/*`, no `proxy-agent`. Proxies are honored via
  * Bun's native `HTTPS_PROXY` support.
+ *
+ * A `models.yml` `baseUrl` is the request origin verbatim (VPC endpoint, gateway, …);
+ * only AWS's own regional host is re-pointed at the resolved region. SigV4 unaffected.
  */
 
-import type { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@oh-my-pi/pi-catalog/model-thinking";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
+import type { Effort } from "@linxiraos/pi-catalog/effort";
+import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@linxiraos/pi-catalog/model-thinking";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import {
 	$flag,
 	fetchWithRetry,
@@ -17,7 +20,7 @@ import {
 	parseStreamingJson,
 	parseStreamingJsonThrottled,
 	USER_AGENT,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";
 import { resolveAwsBearerToken } from "../registry/aws";
@@ -49,10 +52,10 @@ import { AssistantMessageEventStream } from "../utils/event-stream";
 import type { RawHttpRequestDump } from "../utils/http-inspector";
 import { armPreResponseTimeout, getStreamFirstEventTimeoutMs } from "../utils/idle-iterator";
 import { toolWireSchema } from "../utils/schema/wire";
+import { parseAnthropicInputTransformations, THINKING_BINDING_CONTROLS_BETA } from "./anthropic-wire";
 import { invalidateAwsCredentialCache, resolveAwsCredentials } from "./aws-credentials";
 import { decodeEventStream } from "./aws-eventstream";
 import { signRequest } from "./aws-sigv4";
-import { parseAnthropicInputTransformations, THINKING_BINDING_CONTROLS_BETA } from "./anthropic-wire";
 import { transformMessages } from "./transform-messages";
 
 /**
@@ -144,6 +147,13 @@ const INFERENCE_PROFILE_GEO_DEFAULT_REGION: Record<string, string> = {
 	au: "ap-southeast-2",
 	jp: "ap-northeast-1",
 };
+
+/**
+ * AWS's own regional host, which every bundled catalog entry carries as a required
+ * placeholder `baseUrl` — no routing info, so its region segment is re-derived.
+ * FIPS, VPC-endpoint and gateway hosts don't match and are used as configured.
+ */
+const AWS_REGIONAL_BEDROCK_HOST = /^bedrock-runtime\.[a-z0-9-]+\.amazonaws\.com$/;
 
 /** Geo prefix of a cross-region inference-profile id, e.g. `eu.anthropic.…` → `eu`. */
 function inferenceProfileGeo(modelId: string): string | undefined {
@@ -453,9 +463,15 @@ export const streamBedrock: StreamFunction<"bedrock-converse-stream"> = (
 			// raw dump so the inspector shows exactly what was sent.
 			commandInput = { ...commandInput, requestMetadata: sanitizeRequestMetadata(commandInput.requestMetadata) };
 
-			const host = `bedrock-runtime.${region}.amazonaws.com`;
-			const url = `https://${host}/model/${encodeURIComponent(model.id)}/converse-stream`;
-			const urlPath = `/model/${encodeURIComponent(model.id)}/converse-stream`;
+			// `baseUrl` is the origin verbatim, path prefix (and query, for gateways
+			// that authenticate via a query parameter) included, so a gateway mounted
+			// under a path works. AWS's own host is re-pointed: the catalog can't know the region.
+			const base = new URL(model.baseUrl || `https://bedrock-runtime.${region}.amazonaws.com`);
+			if (AWS_REGIONAL_BEDROCK_HOST.test(base.host)) base.host = `bedrock-runtime.${region}.amazonaws.com`;
+			const host = base.host;
+			const urlPath = `${base.pathname.replace(/\/+$/, "")}/model/${encodeURIComponent(model.id)}/converse-stream`;
+			const query = base.search.slice(1) || undefined;
+			const url = `${base.origin}${urlPath}${base.search}`;
 			rawRequestDump = {
 				provider: model.provider,
 				api: output.api,
@@ -527,6 +543,7 @@ export const streamBedrock: StreamFunction<"bedrock-converse-stream"> = (
 					method: "POST",
 					host,
 					path: urlPath,
+					query,
 					body,
 					region,
 					service: "bedrock",
@@ -836,7 +853,7 @@ function handleMetadata(event: MetadataEvent, model: Model<"bedrock-converse-str
 		output.usage.cacheRead = event.usage.cacheReadInputTokens || 0;
 		output.usage.cacheWrite = event.usage.cacheWriteInputTokens || 0;
 		output.usage.totalTokens = event.usage.totalTokens || output.usage.input + output.usage.output;
-		calculateCost(model, output.usage);
+		calculateCost(model, output.usage, output.timestamp);
 	}
 }
 
@@ -922,6 +939,34 @@ function buildSystemPrompt(
 	if (cachePoint) blocks.push(cachePoint);
 
 	return blocks;
+}
+
+function buildToolResultBlock(
+	message: ToolResultMessage,
+	model: Model<"bedrock-converse-stream">,
+	hoistedImages: ImageBlockWire[],
+): ToolResultBlockWire {
+	const content: Array<TextBlockWire | ImageBlockWire> = [];
+	for (const block of message.content) {
+		if (block.type === "image") {
+			const image: ImageBlockWire = { image: createImageBlock(block.mimeType, block.data) };
+			if (model.requiresToolResultImageHoisting) {
+				content.push({ text: "(see attached image)" });
+				hoistedImages.push(image);
+			} else {
+				content.push(image);
+			}
+		} else {
+			content.push({ text: block.text.toWellFormed() });
+		}
+	}
+	return {
+		toolResult: {
+			toolUseId: normalizeToolCallId(message.toolCallId),
+			content,
+			status: message.isError ? "error" : "success",
+		},
+	};
 }
 
 function convertMessages(
@@ -1022,38 +1067,20 @@ function convertMessages(
 			case "toolResult": {
 				// Collect all consecutive toolResult messages into a single user message —
 				// Bedrock requires all tool results to be in one message.
-				const toolResults: ToolResultBlockWire[] = [];
-				toolResults.push({
-					toolResult: {
-						toolUseId: normalizeToolCallId(m.toolCallId),
-						content: m.content.map(c =>
-							c.type === "image"
-								? { image: createImageBlock(c.mimeType, c.data) }
-								: { text: c.text.toWellFormed() },
-						),
-						status: m.isError ? "error" : "success",
-					},
-				});
+				const contentBlocks: UserContent[] = [];
+				const hoistedImages: ImageBlockWire[] = [];
+				contentBlocks.push(buildToolResultBlock(m, model, hoistedImages));
 
 				let j = i + 1;
 				while (j < transformedMessages.length && transformedMessages[j].role === "toolResult") {
 					const nextMsg = transformedMessages[j] as ToolResultMessage;
-					toolResults.push({
-						toolResult: {
-							toolUseId: normalizeToolCallId(nextMsg.toolCallId),
-							content: nextMsg.content.map(c =>
-								c.type === "image"
-									? { image: createImageBlock(c.mimeType, c.data) }
-									: { text: c.text.toWellFormed() },
-							),
-							status: nextMsg.isError ? "error" : "success",
-						},
-					});
+					contentBlocks.push(buildToolResultBlock(nextMsg, model, hoistedImages));
 					j++;
 				}
 				i = j - 1;
 
-				result.push({ role: "user", content: toolResults });
+				contentBlocks.push(...hoistedImages);
+				result.push({ role: "user", content: contentBlocks });
 				break;
 			}
 			default:

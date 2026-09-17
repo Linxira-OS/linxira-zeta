@@ -4,12 +4,12 @@ const NON_SERIALIZABLE_RUN_ARGUMENT = "Run argument is not JSON-serializable; pa
 
 /** Marker that renders a serialized function as an executable run argument. */
 export interface FnArgMarker {
-	__omp_fn: string;
+	__zeta_fn: string;
 }
 
 /** Marker that renders a serialized regular expression as an executable run argument. */
 export interface RegExpArgMarker {
-	__omp_re: {
+	__zeta_re: {
 		source: string;
 		flags?: string;
 	};
@@ -30,12 +30,12 @@ function hasSoleOwnKey(value: Record<string, unknown>, key: string): boolean {
 export function renderRunArg(value: unknown): string {
 	if (value === undefined) return "undefined";
 
-	if (isPlainObject(value) && hasSoleOwnKey(value, "__omp_fn") && typeof value.__omp_fn === "string") {
-		return `(${value.__omp_fn})`;
+	if (isPlainObject(value) && hasSoleOwnKey(value, "__zeta_fn") && typeof value.__zeta_fn === "string") {
+		return `(${value.__zeta_fn})`;
 	}
 
-	if (isPlainObject(value) && hasSoleOwnKey(value, "__omp_re")) {
-		const marker = value.__omp_re;
+	if (isPlainObject(value) && hasSoleOwnKey(value, "__zeta_re")) {
+		const marker = value.__zeta_re;
 		if (
 			isPlainObject(marker) &&
 			typeof marker.source === "string" &&
@@ -53,6 +53,11 @@ export function renderRunArg(value: unknown): string {
 	}
 	if (rendered === undefined) throw new ToolError(NON_SERIALIZABLE_RUN_ARGUMENT);
 	return rendered;
+}
+
+/** Renders a helper call chain (`id(5).click()`) with arguments as JavaScript literals. */
+export function renderCallChain(chain: readonly { method: string; args: readonly unknown[] }[]): string {
+	return chain.map(step => `${step.method}(${step.args.map(renderRunArg).join(", ")})`).join(".");
 }
 
 /** Renders a function invocation with the requested run scope and positional arguments. */

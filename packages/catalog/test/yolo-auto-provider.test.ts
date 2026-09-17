@@ -1,10 +1,10 @@
 import { describe, expect, test, vi } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { createModelManager } from "@oh-my-pi/pi-catalog/model-manager";
-import * as modelsModule from "@oh-my-pi/pi-catalog/models";
-import { yoloAutoModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { createModelManager } from "@linxiraos/pi-catalog/model-manager";
+import * as modelsModule from "@linxiraos/pi-catalog/models";
+import { yoloAutoModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@linxiraos/pi-catalog/types";
 
 /**
  * Fixture mirrors the live `https://yolo-auto.com/v1/models` surface: an
@@ -48,7 +48,8 @@ describe("Yolo-Auto provider discovery", () => {
 			input: ["text", "image"],
 			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 			contextWindow: 131072,
-			maxTokens: null,
+			// Canonical DeepSeek Flash family cap clamped to the provider-specific contextWindow.
+			maxTokens: 131072,
 		});
 		// The documented wire surface flows from the bundled reference into
 		// discovered models: generic chat-template thinking, effort steering, and
@@ -167,7 +168,7 @@ describe("Yolo-Auto provider discovery", () => {
 	test("prefers curated metadata over a stale previous bundle", async () => {
 		// A credentialed `gen:models` run bakes live discovery into
 		// models.json; that previous bundle row must not shadow later
-		// corrections to YOLO_AUTO_STATIC_MODELS. Simulate a stale bundle row
+		// corrections to the yolo-auto seed. Simulate a stale bundle row
 		// (262K context, no template dialect) and require the curated surface.
 		const originalGetBundledModels = modelsModule.getBundledModels;
 		vi.spyOn(modelsModule, "getBundledModels").mockImplementation((provider => {

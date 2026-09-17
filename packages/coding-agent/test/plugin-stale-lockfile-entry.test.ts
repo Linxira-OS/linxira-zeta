@@ -2,9 +2,9 @@ import { afterEach, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearClaudePluginRootsCache } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { getEnabledPlugins } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/loader";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
+import { getEnabledPlugins } from "@linxiraos/zeta/extensibility/plugins/loader";
 
 const tempRoots: string[] = [];
 
@@ -31,7 +31,7 @@ test("stale lockfile-only directory plugin is skipped while declared and linked 
 	tempRoots.push(root);
 	const home = path.join(root, "home");
 	const cwd = path.join(root, "project");
-	const pluginsDir = path.join(home, ".omp", "plugins");
+	const pluginsDir = path.join(home, ".zeta", "plugins");
 	const nodeModules = path.join(pluginsDir, "node_modules");
 	await fs.mkdir(cwd, { recursive: true });
 
@@ -61,7 +61,13 @@ test("stale lockfile-only directory plugin is skipped while declared and linked 
 		version: "0.2.0",
 		omp: { extensions: ["ext.ts"] },
 	});
-	await fs.symlink(linkedSource, path.join(nodeModules, "linked-plugin"));
+	// Windows requires the junction type for directory links without elevated
+	// privileges (EPERM on plain symlinks); junctions work on POSIX too via type arg.
+	await fs.symlink(
+		linkedSource,
+		path.join(nodeModules, "linked-plugin"),
+		process.platform === "win32" ? "junction" : undefined,
+	);
 
 	await writeJson(path.join(pluginsDir, "package.json"), {
 		dependencies: { "declared-plugin": "1.0.0" },
@@ -86,7 +92,7 @@ test("manifest-less project roots retain lockfile-only directory plugins", async
 	tempRoots.push(root);
 	const home = path.join(root, "home");
 	const cwd = path.join(root, "project");
-	const pluginsDir = path.join(cwd, ".omp", "plugins");
+	const pluginsDir = path.join(cwd, ".zeta", "plugins");
 	const installedDir = path.join(pluginsDir, "node_modules", "project-plugin");
 	await fs.mkdir(installedDir, { recursive: true });
 	await writeJson(path.join(installedDir, "package.json"), {

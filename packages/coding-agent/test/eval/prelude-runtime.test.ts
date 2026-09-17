@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval/preludes";
-import { executeJs } from "@oh-my-pi/pi-coding-agent/eval/js/executor";
-import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { disposeAllKernelSessions, executePython } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
+import { executeJs } from "@linxiraos/zeta/eval/js/executor";
+import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const IMAGE_DATA = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64");
 
@@ -15,7 +15,7 @@ function definition(version: string, calls: unknown[]): EvalPreludeDefinition {
 		javascript: `{
 			globalThis.fixture = {
 				version: ${JSON.stringify(version)},
-				invoke: parameters => __omp_prelude__("fixture", parameters),
+				invoke: parameters => __zeta_prelude__("fixture", parameters),
 			};
 		}`,
 		python: `class _FixturePrelude:
@@ -96,7 +96,7 @@ describe("eval prelude runtime", () => {
 		expect(captured.output).toContain('Eval prelude "fixture" is not enabled');
 		expect(calls).toHaveLength(2);
 
-		const missing = await executeJs("await __omp_prelude__('missing', {})", options);
+		const missing = await executeJs("await __zeta_prelude__('missing', {})", options);
 		expect(missing.exitCode).toBe(1);
 		expect(missing.output).toContain('Eval prelude "missing" is not enabled');
 	});

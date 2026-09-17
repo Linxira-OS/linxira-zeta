@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, CompactionCancelledError } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { Agent, CompactionCancelledError } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
 	ContextNotesTool,
 	GrepTool,
@@ -16,9 +16,9 @@ import {
 	ReadTool,
 	type Tool,
 	type ToolSession,
-} from "@oh-my-pi/pi-coding-agent/tools";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/tools";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
 type HookMode = "extension-veto" | "park";
 
@@ -198,6 +198,34 @@ describe.each([false, true])("AgentSession compaction cancellation source (exper
 		await compaction;
 		await promptPromise;
 		expect(agentPrompt).toHaveBeenCalledTimes(1);
+	});
+
+	it("resumes the interrupted turn when compaction rejects after the entry is appended", async () => {
+		// The entry lands, then post-append bookkeeping in #commitCompactionEntry
+		// throws. The compaction is committed from the transcript's point of view,
+		// so the turn the abort cut must still resume; otherwise a manual /compact
+		// mid-turn leaves the agent idle exactly as before the fix.
+		session = await createSession("park");
+		session.settings.override("compaction.autoContinue", true);
+		session.agent.state.isStreaming = true;
+		vi.spyOn(session, "abort").mockImplementation(async () => {
+			session.agent.state.isStreaming = false;
+		});
+		vi.spyOn(session.agent, "replaceMessages").mockImplementationOnce(() => {
+			throw new Error("post-append bookkeeping failed");
+		});
+		type Dispatched = { role: string; synthetic?: boolean };
+		const prompted: Dispatched[][] = [];
+		vi.spyOn(session.agent, "prompt").mockImplementation(async message => {
+			prompted.push((Array.isArray(message) ? message : [message]) as Dispatched[]);
+		});
+
+		await expect(session.compact()).rejects.toThrow("post-append bookkeeping failed");
+		expect(session.sessionManager.getEntries().filter(entry => entry.type === "compaction")).toHaveLength(1);
+		await session.waitForIdle();
+
+		expect(prompted).toHaveLength(1);
+		expect(prompted[0]?.some(message => message.role === "developer" && message.synthetic === true)).toBe(true);
 	});
 	if (experimental) {
 		for (const mutation of ["branch", "disable"] as const) {

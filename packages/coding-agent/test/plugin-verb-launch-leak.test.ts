@@ -16,7 +16,7 @@
  * genuine prose prompts that merely begin with one of these words still fall
  * through to `launch`.
  *
- * Imported via a relative path (not the `@oh-my-pi/pi-coding-agent` alias) so the
+ * Imported via a relative path (not the `@linxiraos/zeta` alias) so the
  * assertions exercise this checkout's `cli-commands.ts` directly.
  */
 import { describe, expect, test } from "bun:test";
@@ -30,7 +30,7 @@ describe("documented-but-unregistered plugin verbs do not leak to launch (#2935)
 		expect(result).not.toHaveProperty("argv");
 		// Must point at the real command.
 		expect(result).toHaveProperty("error");
-		expect("error" in result && result.error).toContain("omp plugin list");
+		expect("error" in result && result.error).toContain("zeta plugin list");
 	});
 
 	test("bare `omp remove` hints at `omp plugin uninstall` instead of launching with 'remove' as the prompt", () => {
@@ -38,7 +38,7 @@ describe("documented-but-unregistered plugin verbs do not leak to launch (#2935)
 		expect(result).not.toEqual({ argv: ["launch", "remove"] });
 		expect(result).not.toHaveProperty("argv");
 		expect(result).toHaveProperty("error");
-		expect("error" in result && result.error).toContain("omp plugin uninstall");
+		expect("error" in result && result.error).toContain("zeta plugin uninstall");
 	});
 
 	test("genuine multi-word prompts beginning with these verbs still route to launch", () => {
@@ -62,17 +62,17 @@ describe("documented-but-unregistered plugin verbs do not leak to launch (#2935)
 		expect(result).not.toEqual({ argv: ["launch", "marketplace", "add", "xyz"] });
 		expect(result).not.toHaveProperty("argv");
 		expect(result).toHaveProperty("error");
-		expect("error" in result && result.error).toContain("omp plugin marketplace");
+		expect("error" in result && result.error).toContain("zeta plugin marketplace");
 	});
 
 	test("bare marketplace-family verbs hint at their `omp plugin` command (#4845)", () => {
 		for (const [verb, hint] of [
-			["marketplace", "omp plugin marketplace"],
-			["discover", "omp plugin discover"],
-			["upgrade", "omp plugin upgrade"],
-			["uninstall", "omp plugin uninstall"],
-			["enable", "omp plugin enable"],
-			["disable", "omp plugin disable"],
+			["marketplace", "zeta plugin marketplace"],
+			["discover", "zeta plugin discover"],
+			["upgrade", "zeta plugin upgrade"],
+			["uninstall", "zeta plugin uninstall"],
+			["enable", "zeta plugin enable"],
+			["disable", "zeta plugin disable"],
 		] as const) {
 			const result = resolveCliArgv([verb]);
 			expect(result).not.toHaveProperty("argv");
@@ -104,5 +104,20 @@ describe("documented-but-unregistered plugin verbs do not leak to launch (#2935)
 		expect(resolveCliArgv(["marketplace", "research", "for", "me"])).toEqual({
 			argv: ["launch", "marketplace", "research", "for", "me"],
 		});
+	});
+});
+
+describe("`omp plugins` is a registered alias of `omp plugin`", () => {
+	// The TUI builtin is `/plugins` while the CLI command is `plugin`. Dispatch
+	// resolves `CommandEntry.aliases`, not the command class's `static aliases`,
+	// so dropping the registry entry would make `omp plugins list` stop reaching
+	// the plugin command again.
+	test("`omp plugins list` routes to the plugin command instead of launch", () => {
+		expect(isSubcommand("plugins")).toBe(true);
+		expect(resolveCliArgv(["plugins", "list"])).toEqual({ argv: ["plugins", "list"] });
+	});
+
+	test("bare `omp plugins` routes to the plugin command, which defaults to list", () => {
+		expect(resolveCliArgv(["plugins"])).toEqual({ argv: ["plugins"] });
 	});
 });

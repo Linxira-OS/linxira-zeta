@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
-import type { Context } from "@oh-my-pi/pi-ai";
+import type { Context } from "@linxiraos/pi-ai";
 import {
 	clearGitLabDuoDirectAccessCache,
 	getGitLabDuoModels,
 	streamGitLabDuo,
-} from "@oh-my-pi/pi-ai/providers/gitlab-duo";
-import * as registerBuiltins from "@oh-my-pi/pi-ai/providers/register-builtins";
-import { apiRouteFor } from "@oh-my-pi/pi-catalog/compat/behavior";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { resolveGitLabDuoModelIdentity } from "@oh-my-pi/pi-catalog/provider-models";
+} from "@linxiraos/pi-ai/providers/gitlab-duo";
+import * as registerBuiltins from "@linxiraos/pi-ai/providers/register-builtins";
+import { apiRouteFor } from "@linxiraos/pi-catalog/compat/behavior";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { resolveGitLabDuoModelIdentity } from "@linxiraos/pi-catalog/provider-models";
 
 const context: Context = {
 	systemPrompt: ["You are helpful."],

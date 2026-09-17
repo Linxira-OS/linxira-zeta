@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { Type, type } from "@oh-my-pi/omptype";
-import * as wireSchemas from "@oh-my-pi/pi-ai/auth-broker/wire-schemas";
+import * as wireSchemas from "@linxiraos/pi-ai/auth-broker/wire-schemas";
+import { Type, type } from "@linxiraos/pi-omptype";
 
 const REFRESHER = {
 	enabled: false,
@@ -64,7 +64,13 @@ const USAGE_REPORT = {
 		{
 			id: "rolling",
 			label: "Rolling window",
-			scope: { provider: "anthropic", windowId: "rolling", providerExtension: true },
+			scope: {
+				provider: "anthropic",
+				windowId: "rolling",
+				shared: true,
+				sharedGroup: "3p:rolling",
+				providerExtension: true,
+			},
 			window: { id: "rolling", label: "5 hour", durationMs: 18_000_000 },
 			amount: { used: 1, limit: 10, remaining: 9, unit: "tokens", providerExtension: "kept" },
 			status: "ok",
@@ -213,6 +219,7 @@ describe("auth-broker public wire schemas", () => {
 	test("exports all 31 real callable ArkType values with canonical behavior", () => {
 		expect(Object.keys(wireSchemas).sort()).toEqual([...schemaNames].sort());
 		for (const name of schemaNames) {
+			// biome-ignore lint/performance/noDynamicNamespaceImportAccess: namespace object access required for dynamic schema namesAccess
 			const schema = wireSchemas[name];
 			expect(typeof schema).toBe("function");
 			expect(schema).toBeInstanceOf(Type);

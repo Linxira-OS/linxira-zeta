@@ -2,10 +2,10 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SegmentContext } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { getProjectDir, pathIsWithin, removeSyncWithRetries, setProjectDir } from "@oh-my-pi/pi-utils";
+import { getProjectDir, pathIsWithin, removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
+import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
+import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
 
 const originalProjectDir = getProjectDir();
 const SCRATCH_ROOT_PREFIXES: readonly string[] = [
@@ -42,6 +42,7 @@ function createPathContext(): SegmentContext {
 		prewalk: null,
 		goalMode: null,
 		vibeMode: null,
+		vim: null,
 		collab: null,
 		usageStats: {
 			input: 0,
@@ -155,6 +156,24 @@ describe("status line path segment", () => {
 			// Display is just the scratch-relative tail — no leading tmpdir, no ancestor segments.
 			expectContentToContainPath(rendered.content, path.basename(getProjectDir()));
 			expect(rendered.content).not.toContain(os.tmpdir());
+		} finally {
+			setProjectDir(originalProjectDir);
+			removeSyncWithRetries(scratchDir);
+		}
+	});
+
+	it("normalizes and classifies a project directory only once", () => {
+		const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-status-line-classify-"));
+		try {
+			setProjectDir(scratchDir);
+			const realpath = vi.spyOn(fs, "realpathSync");
+			renderSegment("path", createPathContext());
+			renderSegment("path", createPathContext());
+
+			const projectRealpaths = realpath.mock.calls.filter(
+				([input]) => path.resolve(String(input)) === path.resolve(scratchDir),
+			);
+			expect(projectRealpaths).toHaveLength(1);
 		} finally {
 			setProjectDir(originalProjectDir);
 			removeSyncWithRetries(scratchDir);

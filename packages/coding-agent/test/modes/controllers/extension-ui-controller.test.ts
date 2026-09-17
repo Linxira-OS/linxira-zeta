@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
-import { type Component, Container, isFocusable, type OverlayOptions, setKeybindings } from "@oh-my-pi/pi-tui";
+import { type Component, Container, isFocusable, type OverlayOptions, setKeybindings } from "@linxiraos/pi-tui";
 import { KeybindingsManager } from "../../../src/config/keybindings";
 import type { ExtensionAskDialogQuestion, ExtensionUIContext } from "../../../src/extensibility/extensions";
 import { AskDialogComponent } from "../../../src/modes/components/ask-dialog";
@@ -94,7 +94,7 @@ function makeHarness() {
 	};
 }
 
-describe("ExtensionUiController clipboard input", () => {
+describe("ExtensionUiController Ask dialog input", () => {
 	const questions: ExtensionAskDialogQuestion[] = [
 		{ id: "answer", question: "Choose an answer?", options: [{ label: "Default" }] },
 	];
@@ -135,6 +135,27 @@ describe("ExtensionUiController clipboard input", () => {
 		});
 		expect(harness.editor.getText()).toBe("");
 		expect(harness.getFocused()).toBe(harness.editor);
+	});
+
+	it("does not expose the Ask dialog before a custom answer is applied", async () => {
+		const harness = makeHarness();
+		const pending = harness.controller.showAskDialog([
+			{ id: "answer", question: "Choose several?", options: [{ label: "Alpha" }], multi: true },
+		]);
+		harness.handleInput("\x1b[B");
+		harness.handleInput("\r");
+		harness.handleInput("custom answer");
+
+		harness.handleInput("\r");
+
+		expect(harness.getFocused()).toBeInstanceOf(HookEditorComponent);
+		await Promise.resolve();
+		expect(harness.getFocused()).toBeInstanceOf(AskDialogComponent);
+		harness.handleInput("\r");
+		expect(await pending).toMatchObject({
+			kind: "submit",
+			results: [{ id: "answer", selectedOptions: [], customInput: "custom answer" }],
+		});
 	});
 
 	it("discards a cancelled prompt's late paste after a new custom editor opens", async () => {
@@ -387,13 +408,11 @@ describe("ExtensionUiController editor UI", () => {
 		// open, re-blocking the guard.
 		harness.editor.setText("half typed prompt");
 
-		// Cancelling the nested prompt restores the ask surface; the draft editor
-		// must be remounted so routed input lands on a visible surface.
+		// Cancelling the nested prompt settles its awaited state before restoring
+		// the ask surface and remounting the guarded draft editor.
 		promptEditor?.handleInput?.("\x1b");
-		expect(harness.editorContainer.children).toEqual([ask, harness.editor]);
-		// The dialog's prompt-active latch clears when the awaited onPrompt
-		// promise settles; yield a microtask before routing the next key.
 		await Promise.resolve();
+		expect(harness.editorContainer.children).toEqual([ask, harness.editor]);
 		ask?.handleInput?.("!");
 		expect(harness.editor.getText()).toBe("half typed prompt!");
 	});

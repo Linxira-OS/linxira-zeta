@@ -1,0 +1,267 @@
+# Zeta 更新日志
+## 下一版本（Unreleased）
+
+### OMP 同步基线
+
+- 基线上移:v18.1.16(`61b1b8aef6`,经 `backup/pre-sync-v18.1.16` 离线验证分支全量合并 + 五守卫 + hunk 级丢失扫描后并入)。合并审阅方法论新增 slice 分层审阅(v14→15→16 逐 release 切片)。
+
+### 新增
+
+- 上游 v18.1.14→v18.1.16 功能面:任务执行器 AgentBusyError 忙碌反馈、事件循环 keepalive、idle 封装截止时间(arming/deadline)、上下文笔记(context-notes)、advisor 每轮建议条数上限设置、GitHub Copilot OAuth 公共 GitHub/GHE 双 client-id、renovate 系配置面、auth-broker wire-schema 资源。
+
+### 修复
+
+- 中文界面 `/settings` 布尔项无法关闭:显示文案(开/关)被误用于机器值匹配,导致切换恒落 true;现值与显示分离(SettingsList 新增 valueLabel/valueLabels)。
+- `/language` 切换后斜杠命令描述不刷新:内置命令注册表快照在启动语言冻结;现在切换后即时重建命令段与补全提供器,无需重启。
+- Plan/Plan-ultra/Vibe/Goal 模式横幅、attach(`zeta attach`)模式提示此前为英文硬编码;全部接入 i18n 目录(新增 imPlanUltraModeEnabledFmt 等键)。
+- `/loop`、`/rename` 描述入目录(上游新文案 en 保留,zh 补译),i18n 契约测试恢复全绿。
+
+### Web UI 侧栏重构(feat/sidebar-redesign,PR #19)
+
+- 项目=父节点、会话=子节点:每个项目行内联展示自己的对话(今天/昨天/本周/更早 分桶,超 10 条折叠),折叠父级收起全部子会话;箭头折叠、点名称切换项目。
+- ⌘K 聚合面板:新建会话 + 会话(五档时间分组/标题匹配) + 命令,全键盘导航;悬浮预览卡承载重元数据(id/项目/分支/相对时间)。
+- 排序体系:会话排序与项目排序 popover(含手动序),统一持久化;`lib/sidebar-prefs` 单 schema 自动迁移旧键。
+- 破坏性操作二级确认:浮动菜单删除会话、归档、TEMP 清除全部需显式确认对话框;项目删除保留原对话框。
+- 立体层次:ze-btn/ze-btn-hero/ze-quiet 三档 elevation(顶部受光+内嵌高光+分层阴影)。
+- 移除与"打开工作区"语义重复的头部文件夹按钮;临时会话区补排序/新建/空态。
+- 网关新增 git 端点(branches/checkout/branch)与会话 temp 标记;stats 孤儿行修剪、临时目录摄入过滤、Zeta 品牌/主题。
+
+
+## 1.1.10（2026-09-07）
+
+### OMP 同步基线
+
+- v18.1.11（tag commit `e3106be68f`）完整真合并（PR #9，`sync/omp-release/v18.1.11`）。
+
+### 新增
+
+- `retry.waitForUsageReset`：服务商报告用量耗尽并给出重置时间（5 小时 / 每周配额窗口）时，会话休眠至重置时刻，而不是超过 `retry.maxDelayMs` 后快速失败；等待可中断（Esc），但会挂起子代理。
+- `bash.allowCompoundCommands`（可选开关）：对保守的字面量 `&&` 命令链逐段评估审批规则；要求已识别的 POSIX 引号语义 shell，整链 deny 优先于先前的 prompt，未匹配段沿用常规 bash 审批策略与模式。
+
+### 修复
+
+- 超长选中行无法放入读取上下文时，给出可用的 raw 恢复 selector，而不是无限循环的续读提示。
+- WorkPool 子会话启动时构造增量 `yield` 工具 schema 不再崩溃。
+- 越南语、韩语等带音调文字的 commit 摘要不再因长度上限被拒，且保留原样音调。
+- 瞬态网关流失败重试，不再作为会话错误抛出；`extractRetryHint` 竞争信号按最长窗口合并。
+- GitHub Copilot 登录只申请基础 profile 权限，恢复被拒绝 repo/gist/Codespaces 权限的企业组织登录。
+- v18.1.11 合并损伤清零：复合命令审批功能（`shell-tokenize.ts`/`isPosixShell`/schema/bash.ts）与 zh 翻译（`retry.waitForUsageReset`/`bash.allowCompoundCommands`）在合并适配中被回卷，已逐项恢复并测试。
+
+### 历史（1.1.9）
+
+### OMP 同步基线
+
+- v18.1.10（tag commit `f241301c83726afe75a847e919b89977a54dafbe`）完整真合并（PR #8，`sync/omp-release/v18.1.10`）：原生 Rust 编辑引擎（EditStore/EditSession/DiffStream）、`skillful` 技能列示、智能体表情回应、安全扫描命令族、发现/插件系统强化。
+
+### 新增
+
+- TUI 设置页全量汉化：顶部标签、分组标题、选项值、底部提示条、预览 chrome、斜杠命令描述全部跟随语言设置，`/language` 即时生效；修复侧边栏设置开启后 TUI 不渲染的回归，侧边栏内容重构（会话头/待办进度/子代理状态/MCP 健康，空面板隐藏）。
+
+### 修复
+
+- v18.1.10 合并损伤清零：UA 常量（全 provider 请求回到 `zeta/<version>`）、基础系统提示字节守卫、计划文件读取窗口、扩展检查器配置目录键、channel 工具顶层会话独占门控、`tracking_update` 门控、Windows 安装器（install.ps1）包名/仓库/二进制名还原。
+- Rust 作业控制修复：管道子进程在等待注册前自行 SIGSTOP 时，brush-core 的停机检测永久失明（`run_string` 挂死）——`waitid` 改按 pid 查询 + wait 入口预检查已停子进程，附红绿回归测试；GitHub 托管 runner 首次执行 Rust 门禁即触发的环境潜伏缺陷。
+- 品牌残留清零并进入 CI 守卫（`scripts/brand/brand-check.ts`，check job 每次运行）：oh-my-pi/.omp/π 家族标记五级分类规则表 + 品牌 overlay 脚本（`brand-overlay.ts`），后续 OMP 合并的机械替换一步完成。
+- i18n：zh 目录 OMP 自指清零（守卫测试固定）、设置项占位假翻译 74 处换真文案、上游 issue 链接等合法引用入册豁免。
+
+### 1.1.8（历史）
+
+- v18.1.5 合并损伤修复（六类清单第 4 类）：plan-ultra 模板选择、`.zeta/agents` 项目代理发现、每会话 `AsyncJobManager`、prompt-cache 守卫、模式状态版本通知、Z.ai OAuth 键名品牌。
+- CI：bun-install action 改为安装 `packageManager` 钉住的版本（1.3.14 硬编码曾与 1.4.0 lockfileVersion 2 冲突）；`bun.lock` 重新生成为 lockfileVersion 1（bun2nix 只解析 v1）+ `nix/bun.nix` 同步重生成。
+- 测试卫生中心化：`symlinkDirectorySync`（win32 junction）、temp 清理重试窗口 7.5s、locale 钉住策略。
+
+### 新增（1.1.7 补充，随 OMP v18.1.2–v18.1.5 同步）
+
+- OMP 同步基线更新：v18.1.2（`86bf72f52947`）+ v18.1.4（`39cf639c7b`）+ v18.1.5（`2b8471bc33`）三 tag 一串真合并（`sync/omp-release/v18.1.2`）。Agent Hub 活动流（`/hub` activity 分区 + `src/activity/` 模块）、`/trace` 命令 + stats 追踪面板、声明式 provider 认证注册表（registry/engine/hooks/oauth 重构）、Copilot 认证标准化、selector 转录回滚过滤、welcome tip latch、`boxDotted.*`/`icon.advisorClosed` 符号预设。
+- 品牌覆盖：状态栏 `icon.omp` unicode 预设 π→ζ（ascii `pi`→`zeta`，nerd 保留 + 决议注释）；`ZETA_LOGO` 换 ζ 描边版（用户选定 B）；AGENTS.md 品牌登记表新增 `icon.omp` 守卫行。
+
+### 新增（1.1.7，随 OMP v18.0.11 同步）
+
+- OMP 同步基线：v18.0.11（`b8ce33a58911c26bed1d84f0db9a5e2e727c49a2`）。gallery 预览 CLI、状态栏紧凑思考档位图标、MCP OAuth 嵌套路径发现（Keycloak realm 等）、工具调用后传输错误安全重试与 fallback、损坏/截断图片可行动报错不再卡死会话、聊天链接 OSC 8 超链接、空闲 CPU 降低；pi-vcs 索引刷新（`load_index_or_head`/`status_with_fresh_index`）取代临时 gix_fresh 方案。
+- Web UI 主题系统：43 套完整浅/深预设（背景/面板/语法/图表 8 色板全量变量，主题 JSON 入库）、VS Code 风格中性 zeta-dark（`#1E1E1E` 底 + 灰阶面板）、预水合主题引导（首屏即正确主题，不闪白）。
+- 桌面信任打开桥：web-ui 经 HMAC 网关令牌 + 目标 ID 白名单 + 工作区包含检查安全唤起桌面 shell 打开本地目录。
+- `zeta serve --host` 自定义绑定地址（远程访问 URL 统一展示）；blob 网关端点（外部客户端上传/拉取会话二进制）；Bing 搜索 provider；IM 频道转发任务深度守卫（嵌套任务不重复投递）。
+- 追踪面板 compaction 摘要持久化；提示缓存仅在内容字节变化时刷新；增量 plan-ultra 工作流（plan 文件按完整默认窗口读取）。
+
+### 新增（1.1.6，随 OMP v18.0.9 同步）
+
+- Web UI 改造：右侧工具坞（会话 / 文件 / 追踪 / 插件四窗格常驻导轨，插件管理器 PluginsManager 上线）、左侧 Default Space 常驻首组、消息"涉及文件"下拉与 ⚡ 推理强度 / ⏱ 耗时元信息、三平台统一 frameless 自绘标题栏（桌面壳 IPC 控制窗口）。
+- 插件平台落地：`plugins/official/` 与 `plugins/community/` 目录结构、pi-messenger 纳入版本管理。
+- Zeta CLI 品牌恢复：v18.0.3 合并回退的 `ZETA_LOGO`、终端标题 `ζ`、`/language` `/tracking` 图标等逐项恢复，AGENTS.md 新增品牌登记表护栏。
+- 下线 web-ui-next（Vite）UI 线：`zeta serve` 只托管一套 Web UI。
+- v18.0.10 同步项：原生进程替换（支持 CLI `/restart`）、`VcsGitRepo.mergeBase`（PR 式 diff 以 merge-base 为基准）、`execReplace`、设置新增 Sharpshooter 记忆组。
+- OMP 同步基线：v18.0.10（`33cc6b9a043a`，v18.0.9 经由其历史一并并入）。git/jj 工具迁入新 Rust crate `pi-vcs`，经 `@linxiraos/pi-natives/vcs` 暴露；Zeta 自有 web 网关（上游无此目录）同步移植到新 API。v18.0.9 合并提交 `842390f707`，v18.0.10 合并提交 `c1ee701735`。
+
+### 修复
+
+- v18.0.9/v18.0.10 合并损伤修复：恢复 AgentSession 会话层 mode API（plan/goal/vibe，web 网关与 ACP 外部客户端恢复可用）、channel 工具（`channel_send`/`workspace_run`/`im_control`）接线、root catalog `@linxiraos/*` 键与版本线（1.1.5）、包名规范与 `.zeta` 测试契约。
+- 修复扩展发现读不到项目级配置：原生扩展根解析把项目配置目录写死为 `.omp`，`<project>/.zeta/` 下的扩展注册失效。
+- CI 门禁修复：PR 不再拉取 npm 最新发布 addon 充当测试产物（同步分支因旧 addon 缺新原生导出而必红），所有事件一律从源码构建；隔离上游继承的 issue-966 restage 竞态测试并立项（roadmap P1）。
+- 发布链修复：1.1.0 各 `@linxiraos/*` 包依赖误带 Bun `catalog:` 协议（npm 无法解析、安装即报错），1.1.1 起发布时重写为实际版本并重发全部包。
+- 1.1.2 空涨重发：重置 `latest` 指向，彻底排除坏的 1.1.0（内容与 1.1.1 无功能差异）。
+- CLI 汉化自动检测修复：`language` 未显式设置时不再用 schema 默认值（`"en"`）顶掉环境检测，`LC_ALL` / `Intl` 区域设置生效——中文系统开箱即中文界面；显式 `/language` 设置仍优先。
+- release 资产命名系统化：CLI 二进制统一 `zeta-cli-*`（不再与桌面产物混排），桌面安装包统一 `zeta-desktop-<version>-<os>-<arch>.<ext>`（electron-builder `artifactName`），release 正文自动附带桌面/CLI 资产索引分节。
+- CI/发布链修复：release 发布串行化与幂等（darwin x64→arm64 串行、zeta-web 幂等发布、native_addons 超时 50→90min、warm 只预热 natives 缓存）。
+
+### 新增（1.1.5，随 OMP v18.0.5 / v18.0.6 同步）
+
+- `/language`、`/tracking` 斜杠指令恢复：v18.0.3 合并时上游重构遗漏了 Zeta 自定义指令注册，输入被当作普通消息；现已恢复注册并新增合并护栏测试。中文用户可直接 `/language zh` 切换界面语言。
+- git TUI 内置 conventional commit 生成与 `commit --legacy` 统一生成入口、`if-bench` 基准框架。
+- `read`/`inspect_image` 新增 `:img` 选择器：SVG 自动栅格化为 PNG 附件送视觉模型；git TUI 资产预览同步支持 SVG/PNG 媒体渲染与 Git LFS 指针解析。
+- 新增 Yolo-Auto / OpenRouter 浏览器登录与 DeepInfra image_gen/tts 接入。
+- canary 更新通道：更新器支持安装 prerelease 二进制（显式 opt-in），草稿/预发布校验更精确。
+
+- OMP 同步基线：v18.0.6（`b4e8e856ad40`，v18.0.5 经由其历史一并并入）；PR #3 合并提交 `8043ec175c`。
+
+---
+
+## v1.1.0（2026-08-25）
+
+### 网络与安全
+
+- 网关访问控制：`zeta serve` 的 web 网关与 stats 现在**仅允许 loopback 访问**；通过非本机 IP/隧道/反代到达的请求必须携带配置的 `remote.token`（`X-Zeta-Token` 或 `Authorization: Bearer`），未配置令牌时一律 403 —— 端口即使被暴露也无法无鉴权操控。
+- CSRF 防护：网关拒绝非本机 Origin 的浏览器请求（跨站简单 POST 不再能删凭据/控通道）。
+- 点击劫持防护：web-ui 增加 `X-Frame-Options: DENY` 与 `frame-ancestors 'none'`。
+- `remote.token` 从死配置变为真实访问令牌：设置面板保存后写入浏览器本地存储，LAN/隧道访问自动携带。
+- Stats 仪表盘品牌修正（`OMP Stats` → `Zeta Stats`）。
+
+### 微信 / 飞书连接
+
+- 新增 IM 指令：`!workspace`（飞书可用，`@` 被飞书占用）、`!plan`、`!hello`（按平台回复验证绑定）、`*别名` 直达 / `*relay` 切回中转。
+- 修复消息路由 bug（此前入站消息被丢弃、无回复）：`!workspace`/普通消息现在正确投递到协调者。
+- 飞书消息清理 `@` 提及占位符（`@_user_N`）；裸 `@workspace`/`!workspace` 显示帮助而非报错。
+- 飞书渠道凭据改为显式"保存"按钮（保存中…/已保存 ✓/错误反馈）；微信状态文案汉化。
+- 微信二维码在 legacy iLink 返回页面 URL 时自动回退为二维码渲染。
+
+### 中转委派（多工作区）
+
+- 协调者（默认工作区）会话持久化并命名 **"Zeta Bot (Relay)"**，出现在会话列表、重启保留。
+- 工作区别名（`remote.workspaces: [{alias,path}]`）、每聊天持久绑定（`remote.sessionMappings`）、通道默认仓库（`channels.*.workspaceRoot`）、直达/中转双模式。
+- 远程计划审批增加 30 分钟超时。
+
+### 服务商
+
+- `models.yml` 定义的服务商在 Web 面板始终显示完整编辑卡片（不再被 auth 卡片隐藏）；模型编辑补全 `thinking`（思考强度）、headers、compat、per-model baseUrl 等字段。
+
+### 设置面板
+
+- Escape 在输入框内不再关闭整个面板；面板渲染崩溃时 ErrorBoundary 兜底（不再拖垮整个应用）。
+
+
+
+### 同步基线
+
+- 当前基于 **OMP v18.0.4**（`5eef8a2386`；v18.0.3 `160ed439ac` 亦已合并，`git merge-base --is-ancestor` 均验证通过）。
+- **OMP v18.0.3 合并**：TUI 采用上游新渲染架构（provider window / resize replay），streaming edit guard 改为异步增量验证，Julia 内核可用性探测加固（超时上限 + 进程组击杀）；Zeta 侧保留 web-gateway / i18n / `.zeta` 路径与 scrollback 扩展（tui.ts 三方融合）。
+- **OMP v18.0.4 合并**：update-cli 异步增量重构、streaming guard 漂移下限放宽（CI 抖动，上游 `4854db856c`）、zh 本地化 overlay（`38a7dff556`）。
+- **Zeta 品牌适配**：14 包统一 `@linxiraos/*` 版本线 1.0.11、`@oh-my-pi` 残留清零、`.omp` → `.zeta` 路径、desktop / web-ui 版本号识别单源（desktop `package.json`）。
+
+### 版本与发布流程（v1.1.0）
+
+- 各包 CHANGELOG 统一 Zeta 版本线：移除上游 OMP `[15.x]`-`[18.x]` 段（OMP 日志为 Zeta 子集，上游变更并入 `[Unreleased]`），恢复 Zeta 早期版本记录。
+- 发布日志门禁：`release-v2` 发布前校验（无上游段 + 每包 `[Unreleased]` 非空 + UPDATE-LOG 非空）；CI 加版本一致性 + CHANGELOG 结构校验（`scripts/check-version-consistency.ts`）。
+- README 徽章（版本 / Bun / TypeScript / Rust / CI）；版本号脚本体系 `scripts/set-version.ts`（14 包 + catalog + Cargo + sentinel + desktop + web-ui + README badge 一键对齐）。
+
+- 当前基于 **OMP 17.3.8**（`858f7dd91f`）。
+- 完整合并 OMP 17.3.8 官方 tag（分支 `zeta/v1.1.10-17.3.8`，合并提交 `2bf455c9c3`，`git merge-base --is-ancestor` 已验证），59 个冲突按 AGENTS.md 政策表解决：
+  - 保留 Zeta 包名/版本（`@linxiraos/*` @ 1.0.9、workspace 1.0.9、native sentinel `__piNativesV1_0_9`）。
+  - 接受上游依赖图（`bun.lock` 以 `@linxiraos/*` 名重新生成、`Cargo.lock` 经 `cargo metadata` 对齐）。
+  - 上游实现 + Zeta 覆盖（i18n 键、`.zeta` 路径、`@linxiraos` 导入、Zeta 特性）逐文件保留；测试按 tests-as-contract 成对接受并适配 `.omp` → `.zeta`。
+  - `issue-887-repro.test.ts` 保留（上游删除），其 qwen3.7-max 断言随 17.3.8 `models.json` 路由更新。
+- 合并分支已并入 `main`（合并提交 `76588be094`，无冲突；跟随修复提交 `82309f384d` 在其上保留）。
+- 跟随修复（Phase 1-8，见各包 `CHANGELOG.md`）：stats 独立窗口导航、更新流程（checking 态 / 已是最新提示 / CLI 交互确认与 `--yes`）、微信 v1 API 登录与 peer 持久化及解绑、飞书首聊 onboarding、`allowedPeers` 白名单、web-ui `/plan` 进入计划模式、models 配置卡片去重、desktop 二次点击恢复、桌面菜单 i18n、设置面板新增可编辑项。
+
+### 发布与 CI
+
+- v1.0.10 已发布：13 个 `@linxiraos/*` 包全量 1.0.10（trusted publishing），GitHub Release `v1.0.10` 含 18 个二进制/桌面/checksum 资产。
+- 发布门新增修复（release-v2 工具）：`selectLatestZetaTag` 现在排除上游 OMP 17.x tag（其自带 `chore: bump version to 17.x` subject，会误判为 Zeta tag 阻断发布）；Cargo.toml `[workspace.package]` 缩进版本格式适配。
+- 发布 CI 首轮暴露并修复：`retry.enabled` 设置分组错放（interaction → model）、9 个新增 `ui:` 块补全 zh 文案（含 17.3.8 新增的 `providers.cacheRetention` 及选项）、`structured-subagent.test.ts` 的 `.omp` 路径适配 `.zeta`。
+
+### 版本准备（1.0.11）
+
+- 全部 14 个 `@linxiraos/*` 包、根 workspace catalog、`Cargo.toml` workspace、pi-natives sentinel（`__piNativesV1_0_11`，含提交的 native 绑定）、desktop `package.json`/`package-lock.json` 统一 1.0.10 → **1.0.11**；`bun.lock` 重新生成并通过一致性核对。
+- 安装测试（`run-ci.sh`、tarball 镜像）与 brew 公式更新脚本随 14 包清单同步。
+
+### 渠道包提取（新发布包 `@linxiraos/pi-channels`）
+
+- WeChat / 飞书 / Telegram 通道运行时自 `coding-agent/src/channels` 抽出为独立包 `packages/channels`（原 `channel.ts`、`feishu.ts`、`host.ts`、`telegram.ts`、`wechat.ts` 移出删除）；`im-control.ts`、`session-router.ts`、`channels/index.ts` 改引 `@linxiraos/pi-channels`。
+- `release-v2.ts` 的 `ALL_PACKAGES`/`CATALOG_KEYS` 与 CI 发布门从 13 包扩展到 **14 包**（catalog 键数校验改为按清单长度断言）。
+- IRC 总线（`irc/bus.ts`）精简为直接复用通道包导出。
+
+### 品牌与身份清理
+
+- GitLab Duo Workflow：inline agent/prompt 标识 `omp_agent`→`zeta_agent`、`omp_inline_prompt`→`zeta_inline_prompt`，MCP `serverName` omp→zeta（工具注册改用裸名，注释同步）；OpenAI 兼容 User-Agent 测试随动。
+- Z.ai OAuth 持久化键名 `oh-my-pi`→`zeta`（登录不再误写 ZCode 键）。
+- OpenRouter 请求头：`HTTP-Referer`/`X-OpenRouter-Title` 改为 Zeta 官方值。
+- 主题符号 `icon.pi`：unicode π→**ζ**、ascii `pi`→`zeta`；poimandres 双主题品牌色修正；web-ui favicon 更换。
+- 其余 `omp`→`zeta` 字符串清理：SARIF 输出、json-tree、`dirs.ts` 路径常量、`rewrite-system-prompt.ts`、zeta-server 日志等。
+
+### Web UI
+
+- 用户消息彩虹关键词：消息以独立散文包含 `ultrathink` / `orchestrate` / `workflowz` 时，关键词行按行渲染彩虹渐变（代码 span 内不触发），其余行保持 Markdown 渲染。
+- 全局样式补充（globals.css）。
+
+### TUI
+
+- `normalizeTerminalOutput` 折叠裸 `\r`（回车不换行）：进度条类输出不再把单行拆成多终端行导致重叠/粘连；新增回归测试（text-utils、issue-2115 复现用例加固）。
+
+### CLI 侧边栏、回合遥测与桌面入口（功能批次）
+
+- **read 工具目录列表文件图标**：非目录条目按当前符号预设的语言图标表（`lang.*`，与 glob 文件列表同源）加图标前缀；系统提示词工作区树保持无图标（KV 缓存字节稳定）。`theme-class.ts` 导出共享解析器 `resolveLangSymbolKey()`。
+- **回合遥测**：新状态栏片段 `turn_stats`（吞吐 ⚡、首 token 延迟 ⇄、时长 ⏱、输入/输出 token、费用），加入 full/nerd 预设；`statusLine.turnTelemetry` 设置（默认开）在每回合结束后于编辑器上方显示一行暗色遥测，下一回合开始自动清除。数据面统一在 `status-line/turn-stats.ts`。
+- **CLI 右侧边栏**：`tui.sidebar` 设置（默认关）+ `/sidebar` 命令 + `app.sidebar.toggle` 键位。启用后引擎主区按 `columns-36` 合成绘制，右侧 36 列由每帧重绘的 gutter 面板填充（Context 用量仪表 / Token 与费用 / Git 分支脏状态 / 当前模型，数据与状态栏同源）；gutter 不进入合成帧与 scrollback；<100 列或 overlay 可见时自动隐藏。引擎新增 `setMainWidth`/`setGutterComponent` API 与滚动路径的 gutter 擦除保护。
+- **桌面入口 `zeta-d` 与 `--desktop`**：桌面包新增 `resources/bin/zeta-d` shim（Windows `.cmd` / POSIX sh），NSIS 安装器把该目录写入用户 PATH（PowerShell 辅助脚本，卸载时移除），Linux 安装器 symlink 到 `~/.local/bin`。裸 `zeta` 永远属于 npm 安装；`zeta-d -d [cwd]` 打开桌面 GUI 并以指定目录启动服务；npm 侧 `zeta --desktop [cwd]` 探测桌面安装后打开 GUI，未找到列出探测路径退出。捆绑二进制拒绝独立自更新（防破坏捆绑布局）。
+- **原生目录选择器**：桌面壳新增 preload 桥 `window.piDesktop.selectDirectory()`（sandbox 兼容）与 `pi:select-directory` IPC handler；网关新增 `GET /api/desktop/info` 能力探测。web-ui 目录选择器在桌面壳内显示 Browse… 按钮直开 OS 对话框，纯浏览器保持手填 + File System Access API 回退。
+
+### Web UI 会话侧面板
+
+- 新增右侧会话面板（设置 → Display → "会话侧面板"开关，localStorage 持久化，<1024px 自动隐藏）：当前模型与思考级别、上下文用量（百分比 + 窗口）、token 进/出与缓存读写、累计费用；数据复用 AppShell 已有订阅，新增 ChatWindow 模型回调，无新增轮询端点。
+
+### 双端同览调查（设计）
+
+- 完成 pi / pi-web / opencode-v2 三方跨进程会话共享机制调查，设计文档落盘 `local://dual-plane-live-session-design.md`：采纳"TUI 富客户端化 + serve 托管会话"方向（opencode 形态），四阶段实施另立计划。
+
+
+### Web UI 工作区列表无法删除（问题调查，修复另行安排）
+
+- **成因**：侧栏的"工作区/仓库"列表不是独立注册表，而是 `GET /api/sessions` 的派生结果——网关扫描 `~/.zeta/agent/sessions/<编码cwd>/*.jsonl`，每个会话携带 cwd，按 projectRoot 去重后得到项目列表。因此只要某个目录开过一次会话，它就会永久出现在选择器里，目前没有任何删除入口。
+- **现状量化**：本机 `~/.zeta/agent/sessions` 共 127 个按 cwd 编码的目录，其中 **120 个是 `-AppData-Local-Temp-*`**（advisor-toggle 探针、bot 草稿 cwd、自动化测试遗留）；真实仓库仅约 7 个。总量约 2.4 MB——问题不在磁盘占用，而在选择器被垃圾路径淹没。
+- **拟议方案（两级删除）**：
+  1. *隐藏*：纯前端 localStorage 隐藏清单（按 projectRoot），列表过滤展示；不删任何文件，重新打开该仓库即恢复连接。
+  2. *彻底删除*：新增网关 `DELETE` 工作区端点，级联清理该 cwd 名下全部状态——`~/.zeta/agent/sessions/<编码cwd>/` 整目录、`terminal-sessions/` 中引用这些会话的面包屑（否则 `--continue` 悬挂）、指向该 cwd 的 bot/draft 注册表绑定（`remote.sessionMappings`/`botSessions`）、运行中会话拒绝删除或先注销；未发现 per-workspace 锁文件，所谓"隐藏锁文件"实质就是 sessions 目录与面包屑残留。
+- 附带建议：对 `-AppData-Local-Temp-*` 这类短命临时目录的会话提供一键清扫（其会话价值为零）。
+
+## v1.0.9（2026-08-19）
+
+### 新增
+
+- 远程 `@plan <题目>`：IM 渠道（Telegram / 飞书 / 微信）向协调者发起计划模式，计划完成后以图片（无 Chromium 环境降级为文本）发送到手机，回复 1 执行 / 2 压缩后执行 / 3 新会话执行 / 4 取消。
+- Web UI 设置面板新增"关于 / 使用"文档页：用户手册、Web UI 架构、网关 API 三份文档，语言跟随界面，章节目录可点击定位。
+- 网关新增 `GET /api/docs/<path>`：随包 Markdown 文档（编译二进制 / npm 包内嵌，源码目录开发兜底）。
+- Web UI 会话新增计划审批卡片（PlanApproval）：`get_state` 返回计划内容，可在界面上直接选择执行方式。
+- 随包中英双语文档：`docs/web-ui/architecture`、`docs/web-ui/api`、`docs/user-guide`。
+
+### 修复
+
+- CI `setup-system-deps` apt 镜像挂死：改用规范镜像、带 kill-after 的超时、有界重试；`install_methods` 任务设超时上限。
+- `update-cli` 恢复提示对齐 Zeta 安装地址。
+- **CI 发布链拆分修复**：`release_gate` 拆为 `release_quality_gate`（测试门，`skip_tests` 时豁免）与 `release_build_gate`（产物门），发布作业分别受两门控制；`build_only` 新增（只构建不发布）。
+- **browser-relay 扩展包文件名修复**：构建输出从 `omp-browser-relay-extension.zip` 改为 `zeta-browser-relay-extension.zip`，修复 GitHub Release 生成时 checksums 找不到文件（ENOENT）导致发布失败的问题。
+
+### 发布与 CI 纪律
+
+- 触发纪律（已写入 `AGENTS.md`）：`push` 只做质量检查、永不发布；`.github/**` 不再自我触发完整 CI（CI 改动走 `workflow_dispatch` 手动验证）；发布只走 `release-v2` 原子推送或 `workflow_dispatch`（`skip_tests` / `build_only`）。
+- 凡发布 tag 必须同步更新本文件（`UPDATE-LOG.md`），与各包 `CHANGELOG.md` 同等级别的发布门禁。
+- v1.0.9 npm 包已发布（trusted publishing）；GitHub Release 资产在修复后重新发布中。
+
+### 同步基线
+
+- 当前基于 **OMP 17.3.5**。
+- **尚未同步 OMP 17.3.7 / 17.3.8**（OMP Release Sync Policy 要求官方 tag 完整验证后合并，待后续版本跟进）。
+
+## 早期版本（v1.0.8）
+
+- 桌面版与系统托盘（关闭窗口后常驻托盘）。
+- 独立的追踪文档功能（默认关闭，`tracking.enabled`）。
+
+更早版本记录见各包 `packages/*/CHANGELOG.md`。

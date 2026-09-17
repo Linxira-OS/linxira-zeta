@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Message, Model, Usage, UserMessage } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Message, Model, Usage, UserMessage } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("AgentSession session stats", () => {
 	let authStorage: AuthStorage;
@@ -92,6 +92,70 @@ describe("AgentSession session stats", () => {
 		expect(stats.cost).toBe(6);
 		expect(stats.totalMessages).toBe(0);
 		expect(stats.assistantMessages).toBe(0);
+	});
+
+	it("keeps mixed peak and off-peak charges in session and footer totals after resume", async () => {
+		const target = modelRegistry.find("deepseek", "deepseek-v4-flash");
+		if (!target) throw new Error("Expected bundled DeepSeek Flash");
+		using tempDir = TempDir.createSync("@omp-session-mixed-cost-");
+		const manager = SessionManager.create(tempDir.path(), tempDir.path());
+		manager.appendMessage({ role: "user", content: "First request", timestamp: 1 });
+		for (const [timestamp, inputCost, outputCost] of [
+			[Date.parse("2026-09-10T03:59:59Z"), 0.3, 1.2],
+			[Date.parse("2026-09-10T04:00:00Z"), 0.15, 0.6],
+		]) {
+			manager.appendMessage({
+				role: "assistant",
+				content: [{ type: "text", text: "Recorded response" }],
+				api: target.api,
+				provider: target.provider,
+				model: target.id,
+				timestamp,
+				stopReason: "stop",
+				usage: {
+					input: 1_000_000,
+					output: 1_000_000,
+					cacheRead: 0,
+					cacheWrite: 0,
+					totalTokens: 2_000_000,
+					cost: {
+						input: inputCost,
+						output: outputCost,
+						cacheRead: 0,
+						cacheWrite: 0,
+						total: inputCost + outputCost,
+					},
+				},
+			});
+		}
+		session = createStatsSession(manager, target);
+		expect(session.getSessionStats().cost).toBeCloseTo(2.25, 8);
+		// This is the production status line's cumulative usage aggregator.
+		expect(manager.getUsageStatistics().cost).toBeCloseTo(2.25, 8);
+		await manager.flush();
+		const file = manager.getSessionFile();
+		if (!file) throw new Error("Expected persisted session file");
+		await session.dispose();
+		session = undefined;
+		await manager.close();
+
+		const resumed = await SessionManager.open(file, undefined, undefined, {
+			initialCwd: tempDir.path(),
+			suppressBreadcrumb: true,
+		});
+		session = createStatsSession(resumed, target);
+		try {
+			expect(session.getSessionStats().cost).toBeCloseTo(2.25, 8);
+			expect(resumed.getUsageStatistics()).toMatchObject({
+				input: 2_000_000,
+				output: 2_000_000,
+				cost: 2.25,
+			});
+		} finally {
+			await session.dispose();
+			session = undefined;
+			await resumed.close();
+		}
 	});
 
 	it.each([

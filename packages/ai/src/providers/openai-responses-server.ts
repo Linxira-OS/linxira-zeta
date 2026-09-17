@@ -9,8 +9,8 @@
  * Inverse direction (source-of-truth for item shapes): ../../providers/openai-responses.ts
  */
 
-import { type } from "@oh-my-pi/omptype";
-import { logger, structuredCloneJSON } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import { logger, structuredCloneJSON } from "@linxiraos/pi-utils";
 import { resolvePromptCacheKey } from "../auth-gateway/http";
 import type { AuthGatewayStreamControl, AuthGatewayParsedRequest as ParsedRequest } from "../auth-gateway/types";
 import * as AIError from "../error";
@@ -43,7 +43,7 @@ import {
 	type OpenAIResponsesTool,
 	openaiResponsesRequestSchema,
 } from "./openai-responses-server-schema";
-import { encodeTextSignatureV1, parseTextSignature } from "./openai-shared";
+import { coerceNullMessageContentInPlace, encodeTextSignatureV1, parseTextSignature } from "./openai-shared";
 
 export type { ParsedRequest };
 
@@ -365,6 +365,7 @@ export function parseRequest(body: unknown, headers?: Headers): ParsedRequest {
 	// `resolvePromptCacheKey` call further down.
 
 	rejectUnsupportedExplicitPromptCacheFields(body);
+	coerceNullMessageContentInPlace(isObj(body) ? body.input : undefined);
 	const data = openaiResponsesRequestSchema(body);
 	if (data instanceof type.errors) {
 		throw new AIError.ValidationError(`openai-responses: ${data.summary}`);

@@ -14,7 +14,7 @@
 // mutated by scenarios A/B/F, so its presence proves the whole history was
 // re-rendered (full replay); absence means only the new tail shipped.
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 
 import { type AdvisorAgent, AdvisorRuntime, type AdvisorRuntimeHost } from "../../src/advisor/runtime";
 
@@ -52,7 +52,6 @@ async function runScenario(
 	} as unknown as AdvisorAgent;
 	const host: AdvisorRuntimeHost = {
 		snapshotMessages: () => messages,
-		enqueueAdvice: () => {},
 	} as unknown as AdvisorRuntimeHost;
 	const runtime = new AdvisorRuntime(agent, host);
 	runtime.onTurnEnd();
@@ -134,7 +133,6 @@ describe("fingerprint: field-selective fingerprint (applied)", () => {
 		} as unknown as AdvisorAgent;
 		const host: AdvisorRuntimeHost = {
 			snapshotMessages: () => messages,
-			enqueueAdvice: () => {},
 		} as unknown as AdvisorRuntimeHost;
 		const runtime = new AdvisorRuntime(agent, host);
 		runtime.onTurnEnd();

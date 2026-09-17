@@ -5,7 +5,7 @@
  * that toggles the entire provider. All items below are dimmed when the
  * master switch is off.
  */
-import { type Component, matchesKey, padding, truncateToWidth, visibleWidth } from "@oh-my-pi/pi-tui";
+import { type Component, matchesKey, padding, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
 import { isForeignUserProvider, isProviderEnabled, isUserSourceEnabled } from "../../../discovery";
 import { theme } from "../../../modes/theme/theme";
 import { matchesSelectDown, matchesSelectUp } from "../../utils/keybinding-matchers";
@@ -548,13 +548,15 @@ export class ExtensionList implements Component {
 	}
 
 	handleInput(data: string): void {
-		// Navigation
-		if (matchesSelectUp(data) || matchesKey(data, "k")) {
+		// Navigation (arrow keys / configurable tui.select.up/down). Bare j/k are
+		// intentionally NOT navigation here: the search filter is always active, so
+		// those letters must reach the query (e.g. searching for "jira"/"json").
+		if (matchesSelectUp(data)) {
 			this.#moveSelectionUp();
 			return;
 		}
 
-		if (matchesSelectDown(data) || matchesKey(data, "j")) {
+		if (matchesSelectDown(data)) {
 			this.#moveSelectionDown();
 			return;
 		}

@@ -1,9 +1,9 @@
 /**
- * List and clean up agent-managed git worktrees under `~/.omp/wt`.
+ * List and clean up agent-managed git worktrees under `~/.zeta/wt`.
  */
 
-import { getProjectDir } from "@oh-my-pi/pi-utils";
-import { Args, Command, Flags } from "@oh-my-pi/pi-utils/cli";
+import { getProjectDir } from "@linxiraos/pi-utils";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { worktreeHelp as commandHelp } from "../cli/command-help";
 import { addWorktree, clearWorktrees, listWorktrees } from "../cli/worktree-cli";
 import { Settings } from "../config/settings";
@@ -13,7 +13,7 @@ export default class Worktree extends Command {
 	static aliases = ["wt"];
 
 	static args = {
-		// A positional action keeps `omp worktree` (the no-arg form) useful.
+		// A positional action keeps `zeta worktree` (the no-arg form) useful.
 		action: Args.string({
 			description: "list (default), clear, or add",
 			required: false,
@@ -68,20 +68,20 @@ export default class Worktree extends Command {
 	};
 
 	static examples = [
-		"omp worktree",
-		"omp worktree list --json",
-		"omp worktree add ../feature",
-		"omp worktree add -b feature ../feature origin/main",
-		"omp worktree add --detach ../review HEAD~2",
-		"omp worktree clear",
-		"omp worktree clear --dry-run",
-		"omp worktree clear --all",
+		"zeta worktree",
+		"zeta worktree list --json",
+		"zeta worktree add ../feature",
+		"zeta worktree add -b feature ../feature origin/main",
+		"zeta worktree add --detach ../review HEAD~2",
+		"zeta worktree clear",
+		"zeta worktree clear --dry-run",
+		"zeta worktree clear --all",
 	];
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Worktree);
 		// Load settings so the `worktree.base` override is applied before we scan
-		// — otherwise this command would inspect ~/.omp/wt while the agent created
+		// — otherwise this command would inspect ~/.zeta/wt while the agent created
 		// its worktrees under the configured base.
 		if (args.action === "add") {
 			if (!args.path) {
@@ -108,11 +108,12 @@ export default class Worktree extends Command {
 
 		await Settings.init({ cwd: getProjectDir() });
 		if (args.action === "clear") {
-			await clearWorktrees({
+			const { failed } = await clearWorktrees({
 				all: flags.all ?? false,
 				dryRun: flags["dry-run"] ?? false,
 				json: flags.json ?? false,
 			});
+			if (failed > 0) process.exitCode = 1;
 			return;
 		}
 		await listWorktrees({ json: flags.json ?? false });

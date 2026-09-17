@@ -2,10 +2,10 @@
  * Generate commit messages from diffs using a smol, fast model.
  * Follows the same pattern as title-generator.ts.
  */
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
-import { completeSimple, retryTransientCompletion } from "@oh-my-pi/pi-ai";
-import { logger, prompt } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, Model } from "@linxiraos/pi-ai";
+import { completeSimple, retryTransientCompletion } from "@linxiraos/pi-ai";
+import { logger, prompt } from "@linxiraos/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";
@@ -106,20 +106,22 @@ export async function generateCommitMessage(
 
 		try {
 			const maxTokens = COMMIT_MAX_TOKENS;
-			const response = await retryTransientCompletion(() =>
-				completeSimple(
-					candidate.model,
-					{
-						systemPrompt: [COMMIT_SYSTEM_PROMPT],
-						messages: [{ role: "user", content: userMessage, timestamp: Date.now() }],
-					},
-					{
-						apiKey: registry.resolver(candidate.model, sessionId),
-						sessionId,
-						maxTokens,
-						reasoning: toReasoningEffort(candidate.thinkingLevel),
-					},
-				),
+			const response = await retryTransientCompletion(
+				() =>
+					completeSimple(
+						candidate.model,
+						{
+							systemPrompt: [COMMIT_SYSTEM_PROMPT],
+							messages: [{ role: "user", content: userMessage, timestamp: Date.now() }],
+						},
+						{
+							apiKey: registry.resolver(candidate.model, sessionId),
+							sessionId,
+							maxTokens,
+							reasoning: toReasoningEffort(candidate.thinkingLevel),
+						},
+					),
+				{ provider: candidate.model.provider },
 			);
 
 			if (response.stopReason === "error") {

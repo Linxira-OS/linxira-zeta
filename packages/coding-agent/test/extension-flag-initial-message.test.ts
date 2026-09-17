@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { applyExtensionFlags, type ExtensionFlagSink } from "@oh-my-pi/pi-coding-agent/cli/extension-flags";
-import { buildInitialMessage } from "@oh-my-pi/pi-coding-agent/cli/initial-message";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { normalizeContinueSessionArgs } from "@oh-my-pi/pi-coding-agent/main";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { applyExtensionFlags, type ExtensionFlagSink } from "@linxiraos/zeta/cli/extension-flags";
+import { buildInitialMessage } from "@linxiraos/zeta/cli/initial-message";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { normalizeContinueSessionArgs } from "@linxiraos/zeta/main";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
 // Regression coverage for extension-registered flags leaking into the initial
 // prompt. The CLI parses argv twice: once at startup (before extensions load,
@@ -263,6 +263,24 @@ describe("applyExtensionFlags (single-parser flag resolution)", () => {
 		expect(runner.values.get("plan")).toBe(true);
 		expect(args?.messages).toEqual(["review the diff"]);
 		expect(args?.plan).toBeUndefined();
+	});
+	it("lets an extension own --resume before native persistence validation", () => {
+		const runner = fakeRunner({ resume: "boolean" });
+		const args = applyExtensionFlags(runner, ["--no-session", "--resume", "do the task"]);
+
+		expect(runner.values.get("resume")).toBe(true);
+		expect(args?.noSession).toBe(true);
+		expect(args?.resume).toBeUndefined();
+		expect(args?.messages).toEqual(["do the task"]);
+	});
+	it("lets an extension own --continue before native persistence validation", () => {
+		const runner = fakeRunner({ continue: "boolean" });
+		const args = applyExtensionFlags(runner, ["--no-session", "--continue", "do the task"]);
+
+		expect(runner.values.get("continue")).toBe(true);
+		expect(args?.noSession).toBe(true);
+		expect(args?.continue).toBeUndefined();
+		expect(args?.messages).toEqual(["do the task"]);
 	});
 	it("does not deliver a colliding flag that was not passed", () => {
 		const runner = fakeRunner({ plan: "boolean" });

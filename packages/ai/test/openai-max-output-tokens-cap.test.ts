@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { type Context, type Model, type ModelSpec, OPENAI_MAX_OUTPUT_TOKENS } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { type Context, type Model, type ModelSpec, OPENAI_MAX_OUTPUT_TOKENS } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 // Output-token wire policy for OpenAI-family providers:
 //   - Non-aggregator completions + non-OpenRouter responses: clamp to
@@ -162,6 +162,23 @@ function directCompletionsModel(maxTokens: number): Model<"openai-completions"> 
 	});
 }
 
+// First-party DeepSeek Flash: synthetic spec exercises the KDL clamp rule via
+// buildModel instead of the bundled snapshot.
+function deepseekFlashModel(id: string): Model<"openai-completions"> {
+	return buildModel({
+		id,
+		name: id,
+		api: "openai-completions",
+		provider: "deepseek",
+		baseUrl: "https://api.deepseek.com",
+		reasoning: false,
+		input: ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 1_000_000,
+		maxTokens: 384_000,
+	});
+}
+
 // Kimi via OpenRouter stays exempt from the omit (TPM rate limits need max_tokens).
 function kimiOpenRouterModel(maxTokens: number): Model<"openai-completions"> {
 	return buildModel({
@@ -209,6 +226,15 @@ describe("OpenAI-family output-token cap", () => {
 		const body = await drainResponses(openRouterResponsesModel(131_072), 2_048);
 		expect(body.max_output_tokens).toBe(2_048);
 	});
+
+	it.each(["deepseek-flash", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"])(
+		"lets first-party DeepSeek %s requests use the documented 384k output cap",
+		async id => {
+			const model = deepseekFlashModel(id);
+			const body = await captureCompletionsBody(model, model.maxTokens ?? undefined);
+			expect(body.max_tokens).toBe(384_000);
+		},
+	);
 
 	it("clamps non-aggregator completions output to the 64k ceiling", async () => {
 		const body = await captureCompletionsBody(directCompletionsModel(131_072), 131_072);

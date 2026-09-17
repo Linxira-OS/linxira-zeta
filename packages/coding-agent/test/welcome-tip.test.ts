@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { renderWelcomeTip, WelcomeComponent } from "@oh-my-pi/pi-coding-agent/modes/components/welcome";
-import { initTheme, setSymbolPreset, setTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { visibleWidth } from "@oh-my-pi/pi-tui";
+import { visibleWidth } from "@linxiraos/pi-tui";
+import { renderWelcomeTip, WelcomeComponent } from "@linxiraos/zeta/modes/components/welcome";
+import { initTheme, setSymbolPreset, setTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { M } from "../src/i18n";
 
 describe("renderWelcomeTip", () => {
 	beforeAll(async () => {
@@ -98,9 +99,9 @@ describe("renderWelcomeTip", () => {
 		const rand = spyOn(Math, "random").mockReturnValue(0.05);
 		try {
 			const welcome = new WelcomeComponent("1.0.0", "model", "provider");
-			expect(welcome.tip).toBe("Please use nerdfont 😭.");
+			expect(welcome.tip).toBe(M.welcomeNerdFontJoke);
 			await setSymbolPreset("nerd");
-			expect(welcome.tip).not.toBe("Please use nerdfont 😭.");
+			expect(welcome.tip).not.toBe(M.welcomeNerdFontJoke);
 		} finally {
 			rand.mockRestore();
 			await setSymbolPreset("unicode");

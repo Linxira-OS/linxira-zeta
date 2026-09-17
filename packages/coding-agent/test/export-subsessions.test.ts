@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { collectSubSessions, exportFromFile } from "../src/export/html";
 
 /**
@@ -87,6 +87,15 @@ describe("collectSubSessions", () => {
 		expect(data.subSessions.Alpha.header.previousSessionFiles).toBeUndefined();
 		expect(html).not.toContain(mainPreviousPath);
 		expect(html).not.toContain(subPreviousPath);
+	});
+
+	test("rejects a missing input without creating session or export files", async () => {
+		const missingInput = path.join(root, "missing.jsonl");
+		const outputPath = path.join(root, "export.html");
+
+		await expect(exportFromFile(missingInput, { outputPath })).rejects.toThrow(`File not found: ${missingInput}`);
+		expect(await Bun.file(missingInput).exists()).toBe(false);
+		expect(await Bun.file(outputPath).exists()).toBe(false);
 	});
 
 	test("skips corrupt, empty, backup, and non-jsonl files", async () => {

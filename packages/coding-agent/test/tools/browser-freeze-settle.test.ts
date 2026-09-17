@@ -17,10 +17,10 @@
  */
 
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { CmuxKind } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/rpc";
-import { CmuxSocketClient } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/socket-client";
-import { acquireBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import type { BrowserHandle } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
+import type { CmuxKind } from "@linxiraos/zeta/tools/browser/cmux/rpc";
+import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
+import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import type { BrowserHandle } from "@linxiraos/zeta/tools/browser/registry";
 import {
 	acquireTab,
 	armIdleCloseForOwner,
@@ -37,10 +37,10 @@ import {
 	runInTab,
 	setTabFrozenForTest,
 	unfreezeTabSessionForTest,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import type { PendingRun, TabSession } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import type { PendingRun, TabSession } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
@@ -577,6 +577,47 @@ describe("browser settle — lifecycle freeze via CDP", () => {
 			).rejects.toThrow(ToolAbortError);
 			expect(tab.pending.size).toBe(0);
 			expect(getTabsMapForTest().has("settle-cancelled")).toBe(true);
+		});
+
+		it("contains a tab-worker termination race when an in-flight run is aborted", async () => {
+			const name = "settle-terminated-worker";
+			const messages: string[] = [];
+			const worker = {
+				mode: "worker",
+				send(message: { type: string }): void {
+					messages.push(message.type);
+					if (message.type === "abort") {
+						throw new DOMException("Worker has been terminated", "InvalidStateError");
+					}
+				},
+				onMessage: (): (() => void) => () => {},
+				onError: (): (() => void) => () => {},
+				terminate: async (): Promise<void> => undefined,
+			};
+			const { tab } = makeStubTab({ name, worker, activateForScreenshot: false });
+			getTabsMapForTest().set(name, tab);
+			const controller = new AbortController();
+
+			try {
+				const run = runInTab(name, {
+					code: "await Promise.withResolvers().promise;",
+					timeoutMs: 60_000,
+					session: makeSession("/tmp"),
+					signal: controller.signal,
+				});
+				await Promise.resolve();
+				expect(messages).toEqual(["run"]);
+				const pending = tab.pending.values().next().value;
+				expect(pending).toBeDefined();
+
+				controller.abort(new ToolAbortError("cell timeout"));
+				pending?.reject(new ToolAbortError("cell timeout"));
+
+				await expect(run).rejects.toThrow("cell timeout");
+				expect(messages).toEqual(["run", "abort"]);
+			} finally {
+				getTabsMapForTest().delete(name);
+			}
 		});
 
 		it("double release is idempotent for concurrent sweep losers", async () => {

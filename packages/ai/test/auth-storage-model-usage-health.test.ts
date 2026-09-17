@@ -5,10 +5,10 @@ import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type StoredAuthCredential,
-} from "@oh-my-pi/pi-ai/auth-storage";
-import type { CredentialRankingStrategy, UsageLimit, UsageProvider, UsageReport } from "@oh-my-pi/pi-ai/usage";
-import { claudeRankingStrategy } from "@oh-my-pi/pi-ai/usage/claude";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/auth-storage";
+import type { CredentialRankingStrategy, UsageLimit, UsageProvider, UsageReport } from "@linxiraos/pi-ai/usage";
+import { claudeRankingStrategy } from "@linxiraos/pi-ai/usage/claude";
+import { logger } from "@linxiraos/pi-utils";
 
 interface CacheEntry {
 	value: string;

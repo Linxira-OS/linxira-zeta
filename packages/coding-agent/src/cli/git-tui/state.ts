@@ -1,21 +1,21 @@
 /**
- * Git data model for the `omp git` fullscreen TUI.
+ * Git data model for the `zeta git` fullscreen TUI.
  *
  * Owns porcelain status parsing into staged/unstaged file lists, HEAD commit
  * metadata for the clean-tree view, per-file old/new content resolution for
  * the split diff pane, and the staging/commit actions the sidebar triggers.
  */
 import * as path from "node:path";
-import type { VcsGitRepo, VcsNumstatEntry } from "@oh-my-pi/pi-natives";
+import type { VcsGitRepo, VcsNumstatEntry } from "@linxiraos/pi-natives";
 import {
 	DiffSide,
 	DiffStream,
 	type DiffStreamProgress,
 	type DiffStreamResult,
 	rasterizeSvg,
-} from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { BINARY_SNIFF_BYTES, isEnoent, isProbablyBinaryHeader } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { BINARY_SNIFF_BYTES, isEnoent, isProbablyBinaryHeader } from "@linxiraos/pi-utils";
 import type { NumstatEntry } from "../../commit/types";
 
 /** SHA of git's canonical empty tree: diff base for a root commit. */
@@ -297,7 +297,7 @@ function mapNumstat(entries: VcsNumstatEntry[]): NumstatEntry[] {
 export class GitModel {
 	readonly cwd: string;
 	readonly #repo: VcsGitRepo;
-	/** Resolved SHA when the TUI is pinned to one commit (`omp git <rev>`). */
+	/** Resolved SHA when the TUI is pinned to one commit (`zeta git <rev>`). */
 	readonly pinnedSha: string | null;
 	branch: string | null = null;
 	unstaged: ChangedFile[] = [];
@@ -762,6 +762,34 @@ export class GitModel {
 	/** Unstage the given files (or everything when omitted). */
 	async unstage(files?: readonly ChangedFile[]): Promise<void> {
 		await this.#repo.unstage(files?.map(file => file.path) ?? []);
+	}
+
+	/**
+	 * Throw away the given files' changes. Unstaged entries revert the
+	 * worktree to the index (untracked files are deleted); staged entries
+	 * reset both index and worktree to HEAD, which also drops any unstaged
+	 * edits on the same path. Conflicted entries are skipped.
+	 */
+	async discard(files: readonly ChangedFile[]): Promise<void> {
+		const worktree: string[] = [];
+		const untracked: string[] = [];
+		const staged: string[] = [];
+		const stagedNew: string[] = [];
+		for (const file of files) {
+			if (file.kind === "conflicted") continue;
+			if (file.area === "unstaged") {
+				(file.kind === "untracked" ? untracked : worktree).push(file.path);
+			} else if (file.area === "staged") {
+				staged.push(file.path);
+				if (file.origPath) staged.push(file.origPath);
+				// Paths absent from HEAD stay on disk after the index reset; clean them like untracked files.
+				if (file.kind === "added" || file.kind === "renamed") stagedNew.push(file.path);
+			}
+		}
+		if (worktree.length > 0) await this.#repo.restore({ files: worktree, worktree: true });
+		if (staged.length > 0) await this.#repo.restore({ files: staged, source: "HEAD", staged: true, worktree: true });
+		const toClean = [...untracked, ...stagedNew];
+		if (toClean.length > 0) await this.#repo.clean({ paths: toClean });
 	}
 
 	/** Create (or amend) a commit from the staged changes. */

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncAllSessions } from "@oh-my-pi/omp-stats/aggregator";
-import { getOverallStats } from "@oh-my-pi/omp-stats/db";
-import { getSessionsDir } from "@oh-my-pi/pi-utils";
+import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
+import { getOverallStats } from "@linxiraos/pi-stats/db";
+import { getSessionsDir } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-sync-serial-");
@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 async function writeSessionFile(options?: { includeCost?: boolean }): Promise<void> {
-	const sessionDir = path.join(getSessionsDir(), "--tmp--sync-serial");
+	const sessionDir = path.join(getSessionsDir(), "--zeta-fixtures--sync-serial");
 	await fs.mkdir(sessionDir, { recursive: true });
 	const timestamp = new Date().toISOString();
 	const sessionFile = path.join(sessionDir, "session.jsonl");

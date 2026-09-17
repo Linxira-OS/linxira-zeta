@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import { theme as activeTheme, getThemeByName, initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { readToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/read";
-import type { TUI } from "@oh-my-pi/pi-tui";
+import type { TUI } from "@linxiraos/pi-tui";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { theme as activeTheme, getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { readToolRenderer } from "@linxiraos/zeta/tools/read";
 
 function extractLinkUris(text: string): string[] {
 	return [...text.matchAll(/\x1b\]8;[^;]*;([^\x1b]+)\x1b\\/g)].map(match => match[1]!);
@@ -55,9 +55,8 @@ describe("readToolRenderer hyperlinks", () => {
 		const rendered = component.render(200).join("\n");
 		expect(rendered).toContain("local://handoff.md");
 		expect(rendered).toContain(":2");
-		const handoffUri = new URL(url.pathToFileURL(path.resolve(handoffPath)).href);
-		handoffUri.searchParams.set("line", "2");
-		expect(extractLinkUris(rendered)).toContain(handoffUri.href);
+		const handoffUri = url.pathToFileURL(path.resolve(handoffPath)).href;
+		expect(extractLinkUris(rendered)).toContain(handoffUri);
 		expect(extractLinkTexts(rendered)).toContain("local://handoff.md");
 		expect(extractLinkTexts(rendered)).not.toContain("local://handoff.md:2");
 	});
@@ -76,9 +75,8 @@ describe("readToolRenderer hyperlinks", () => {
 
 		const rendered = component.render(200).join("\n");
 		expect(Bun.stripANSI(rendered)).toContain(`${examplePath}:10-12`);
-		const exampleUri = new URL(url.pathToFileURL(path.resolve(examplePath)).href);
-		exampleUri.searchParams.set("line", "10");
-		expect(extractLinkUris(rendered)).toContain(exampleUri.href);
+		const exampleUri = url.pathToFileURL(path.resolve(examplePath)).href;
+		expect(extractLinkUris(rendered)).toContain(exampleUri);
 		expect(extractLinkTexts(rendered)).toContain(examplePath);
 		expect(extractLinkTexts(rendered)).not.toContain(`${examplePath}:10-12`);
 	});

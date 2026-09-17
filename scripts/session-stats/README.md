@@ -1,15 +1,15 @@
 # session-stats
 
 Ad-hoc analyses over the local agent session corpus
-(`~/.omp/agent/sessions/`). SQLite-backed; data is synced once into the same
-`~/.omp/stats.db` that `packages/stats` uses, then queried by short Python
+(`~/.zeta/agent/sessions/`). SQLite-backed; data is synced once into the same
+`~/.zeta/stats.db` that `packages/stats` uses, then queried by short Python
 scripts.
 
 ## Layout
 
 ```
 scripts/session-stats/
-  sync.py          # walks ~/.omp/agent/sessions/ and populates ss_* tables
+  sync.py          # walks ~/.zeta/agent/sessions/ and populates ss_* tables
   analyze.py       # tools | edits | followups subcommands over the synced db
   audit.ts         # LLM-assisted token-usage audit (no sync needed)
   audit-prompt.md  # system prompt for the audit classifier
@@ -41,15 +41,15 @@ within ~5–10% of Claude's BPE in aggregate.
 
 All tables are prefixed `ss_` to avoid collision with `packages/stats`.
 
-|Table|Granularity|
-|---|---|
-|`ss_sessions`|one row per `.jsonl`; carries sync state + session metadata|
-|`ss_tool_calls`|one row per `toolCall` content block (`arg_json`, `arg_tokens`)|
-|`ss_tool_results`|one row per `toolResult` message (`result_text`, `result_tokens`, `is_error`)|
-|`ss_assistant_msgs`|per assistant message text + thinking blobs and token counts|
-|`ss_user_msgs`|per user message text and token count|
-|`ss_edit_calls`|per `edit` call: `success`, `warnings`, `raw_input_len`|
-|`ss_edit_sections`|per `¶PATH` section in an edit; precomputed `longest_repeat_*`, `dup_anchors`. Legacy `§PATH` sections from pre-2026-05 sessions still parse.|
+| Table               | Granularity                                                                                                                                   |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ss_sessions`       | one row per `.jsonl`; carries sync state + session metadata                                                                                   |
+| `ss_tool_calls`     | one row per `toolCall` content block (`arg_json`, `arg_tokens`)                                                                               |
+| `ss_tool_results`   | one row per `toolResult` message (`result_text`, `result_tokens`, `is_error`)                                                                 |
+| `ss_assistant_msgs` | per assistant message text + thinking blobs and token counts                                                                                  |
+| `ss_user_msgs`      | per user message text and token count                                                                                                         |
+| `ss_edit_calls`     | per `edit` call: `success`, `warnings`, `raw_input_len`                                                                                       |
+| `ss_edit_sections`  | per `¶PATH` section in an edit; precomputed `longest_repeat_*`, `dup_anchors`. Legacy `§PATH` sections from pre-2026-05 sessions still parse. |
 
 Indexes on `(tool_name, timestamp)` and `(session_file, seq)` make per-tool
 aggregations and ordered session walks cheap.
@@ -75,7 +75,7 @@ signal and decodes hashline op kinds (`replace`, `insert after`, `delete`,
 ## Usage audit (`audit.ts`)
 
 Standalone Bun script — reads session JSONL directly (no `sync.py` / tiktoken
-needed) and uses the *real* per-request usage recorded in each assistant
+needed) and uses the _real_ per-request usage recorded in each assistant
 message (input/output/cacheRead/cacheWrite + nominal cost) instead of
 re-tokenizing.
 
@@ -91,18 +91,18 @@ bun run stats:audit -- --no-cache                  # force fresh LLM verdicts
 
 The scan phase reports the main-vs-subagent usage split, per-folder and
 per-session cost, per-tool traffic (estimated arg/result tokens plus a
-*context-residency* metric: result tokens × subsequent requests), repeated
+_context-residency_ metric: result tokens × subsequent requests), repeated
 reads of the same file, the largest single tool results, compactions, and
 edit-failure churn.
 
-The LLM phase (default `anthropic/claude-sonnet-4-6` via `@oh-my-pi/pi-ai`,
+The LLM phase (default `anthropic/claude-sonnet-4-6` via `@linxiraos/pi-ai`,
 credentials resolved through omp's auth storage — stored key, OAuth, or env
 var) classifies the costliest sessions: multi-topic sessions that should have
 been split or handed off, task spawns that were wasteful or failed to transfer
 context, and the biggest waste sources with concrete fixes. A final aggregate
 call distills systemic findings and quick wins across sessions.
 
-Verdicts are cached in `~/.omp/stats-audit-cache.json` (keyed by session id +
+Verdicts are cached in `~/.zeta/stats-audit-cache.json` (keyed by session id +
 digest hash + model + prompt hash, so any change to the transcript, digest
 format, or `audit-prompt.md` invalidates the entry automatically). Re-runs
 reuse cached verdicts for free; `--no-cache` bypasses reads but still writes

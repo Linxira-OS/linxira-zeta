@@ -6,8 +6,8 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import { isEnoent, isFsError, logger, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { isEnoent, isFsError, logger, prompt, untilAborted } from "@linxiraos/pi-utils";
 import { type Theme, theme } from "../modes/theme/theme";
 import lspDescription from "../prompts/tools/lsp.md" with { type: "text" };
 import type { ToolSession } from "../tools";
@@ -19,12 +19,11 @@ import { clampTimeout } from "../tools/tool-timeouts";
 import {
 	applyWorkspaceEditWithLsp,
 	clearInitializationFailure,
-	ensureFileOpen,
 	getActiveClients,
 	getOrCreateClient,
 	isRustAnalyzerClient,
 	type LspServerStatus,
-	reconcileIdleChecker,
+	reconcileFileFromDisk,
 	refreshFile,
 	sendNotification,
 	sendRequest,
@@ -32,7 +31,7 @@ import {
 	waitForProjectLoaded,
 } from "./client";
 import { getLinterClient } from "./clients";
-import { configCache, getConfig, getServersForFile } from "./config";
+import { getServersForFile } from "./config";
 import {
 	BATCH_DIAGNOSTICS_WAIT_TIMEOUT_MS,
 	formatLocationWithContext,
@@ -58,6 +57,8 @@ import {
 } from "./edits";
 import { detectLspmux } from "./lspmux";
 import {
+	configCache,
+	getConfig,
 	getLspServerForFile,
 	getLspServers,
 	getLspServersForFile,
@@ -931,7 +932,7 @@ export class LspTool implements AgentTool<typeof lspSchema, LspToolDetails, Them
 			try {
 				const client = await getOrCreateClient(chosenConfig, this.session.cwd, undefined, signal);
 				if (resolvedTarget) {
-					await ensureFileOpen(client, resolvedTarget, signal);
+					await reconcileFileFromDisk(client, resolvedTarget, signal);
 				}
 				const result = await sendRequest(client, method, requestParams, signal);
 				const formatted =
@@ -1087,13 +1088,12 @@ export class LspTool implements AgentTool<typeof lspSchema, LspToolDetails, Them
 
 		if (action === "reload" && (isWorkspace || !resolvedFile)) {
 			// `reload *` is the user's explicit request to re-read config from
-			// disk. Drop the per-cwd cache entry so `.omp/lsp.json`, root markers,
+			// disk. Drop the per-cwd cache entry so `.zeta/lsp.json`, root markers,
 			// and plugin configs added after the first LSP call become visible —
 			// otherwise `getConfig` returns the first observation for the rest of
 			// the process lifetime (#3546).
 			configCache.delete(this.session.cwd);
 			const refreshedConfig = getConfig(this.session.cwd);
-			reconcileIdleChecker();
 			const servers = getLspServers(refreshedConfig);
 			// Identity-aware client keys make a changed server resolve to a fresh
 			// client below, but the process spawned from the superseded config
@@ -1160,8 +1160,9 @@ export class LspTool implements AgentTool<typeof lspSchema, LspToolDetails, Them
 			const rustWorkspaceWait =
 				needsProjectIndex && isRustAnalyzerServer && targetFile !== null && hasRustWorkspaceAncestor(targetFile);
 
+			let reconciledFromDisk = false;
 			if (targetFile) {
-				await ensureFileOpen(client, targetFile, signal);
+				reconciledFromDisk = await reconcileFileFromDisk(client, targetFile, signal);
 			}
 			if (rustWorkspaceWait) {
 				await waitForProjectLoaded(client, signal);
@@ -1347,7 +1348,30 @@ export class LspTool implements AgentTool<typeof lspSchema, LspToolDetails, Them
 				}
 
 				case "code_actions": {
-					const diagnostics = client.diagnostics.get(uri)?.diagnostics ?? [];
+					let diagnostics = client.diagnostics.get(uri)?.diagnostics ?? [];
+					// A reconcile dropped the stale diagnostics and pushed a didChange;
+					// the server re-publishes (or a pull answers) asynchronously, so read
+					// the map now and quick-fix providers see an empty context.diagnostics.
+					// Wait for diagnostics matching the reconciled document version first.
+					// Non-diagnostic actions (refactors, source actions) still return if the
+					// wait cannot complete, so a diagnostics failure never breaks code_actions.
+					if (reconciledFromDisk) {
+						try {
+							diagnostics = await waitForDiagnostics(client, uri, {
+								timeoutMs: Math.min(
+									isProjectAwareLspServer(serverConfig)
+										? PROJECT_DIAGNOSTICS_WAIT_TIMEOUT_MS
+										: SINGLE_DIAGNOSTICS_WAIT_TIMEOUT_MS,
+									timeoutSec * 1000,
+								),
+								signal,
+								expectedDocumentVersion: client.openFiles.get(uri)?.version,
+							});
+						} catch (err) {
+							if (err instanceof ToolAbortError || signal?.aborted) throw err;
+							diagnostics = client.diagnostics.get(uri)?.diagnostics ?? [];
+						}
+					}
 					const context: CodeActionContext = {
 						diagnostics,
 						only: !apply && query ? [query] : undefined,

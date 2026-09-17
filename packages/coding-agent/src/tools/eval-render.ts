@@ -9,9 +9,9 @@
  * crashed module load with a TDZ `Cannot access 'evalToolRenderer' before
  * initialization`.
  */
-import type { Component } from "@oh-my-pi/pi-tui";
-import { Markdown, Text, visibleWidth } from "@oh-my-pi/pi-tui";
-import { formatNumber, sanitizeText } from "@oh-my-pi/pi-utils";
+import type { Component } from "@linxiraos/pi-tui";
+import { Markdown, Text, visibleWidth } from "@linxiraos/pi-tui";
+import { formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import type { EvalCellResult, EvalLanguage, EvalStatusEvent, EvalToolDetails } from "../eval/types";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { formatContextUsage } from "../modes/components/status-line/context-thresholds";
@@ -263,8 +263,10 @@ function renderAgentProgressEvents(
 function formatStatusEvent(event: EvalStatusEvent, theme: Theme): string {
 	const { op, ...data } = event;
 
-	type AvailableIcon = "icon.file" | "icon.folder" | "icon.git" | "icon.package";
+	type AvailableIcon = "icon.file" | "icon.folder" | "icon.git" | "icon.package" | "cmd.globe" | "cmd.computer";
 	const opIcons: Record<string, AvailableIcon> = {
+		browser: "cmd.globe",
+		computer: "cmd.computer",
 		read: "icon.file",
 		write: "icon.file",
 		cat: "icon.file",
@@ -377,6 +379,9 @@ function formatStatusEvent(event: EvalStatusEvent, theme: Theme): string {
 			parts.push(String(data.title ?? ""));
 			break;
 		default:
+			if (data.detail !== undefined) {
+				parts.push(truncateToWidth(replaceTabs(String(data.detail)), 80));
+			}
 			if (data.count !== undefined) {
 				parts.push(String(data.count));
 			}
@@ -617,7 +622,7 @@ export const evalToolRenderer = {
 				? uiTheme.fg("dim", wrapBrackets(`Timeout: ${timeoutSeconds}s`, uiTheme))
 				: undefined;
 		let warningLine: string | undefined;
-		if (details?.meta?.truncation) {
+		if (details?.meta?.truncation || details?.meta?.artifactError) {
 			warningLine = formatStyledTruncationWarning(details.meta, uiTheme) ?? undefined;
 		}
 		const noticeLine = details?.notice ? uiTheme.fg("dim", wrapBrackets(details.notice, uiTheme)) : undefined;

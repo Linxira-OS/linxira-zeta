@@ -5,11 +5,11 @@
  * by providing authorization URL, token URL, and client credentials.
  */
 
-import type { OAuthCallbackFlowOptions } from "@oh-my-pi/pi-ai/oauth/callback-server";
-import { OAuthCallbackFlow } from "@oh-my-pi/pi-ai/oauth/callback-server";
-import type { OAuthController, OAuthCredentials } from "@oh-my-pi/pi-ai/oauth/types";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { getActiveProfile } from "@oh-my-pi/pi-utils/dirs";
+import type { OAuthCallbackFlowOptions } from "@linxiraos/pi-ai/oauth/callback-server";
+import { OAuthCallbackFlow } from "@linxiraos/pi-ai/oauth/callback-server";
+import type { OAuthController, OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { getActiveProfile } from "@linxiraos/pi-utils/dirs";
 import type { OAuthCredential } from "../session/auth-storage";
 import { buildWellKnownUrls } from "./oauth-discovery";
 

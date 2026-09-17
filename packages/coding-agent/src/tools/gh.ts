@@ -1,12 +1,12 @@
-import { type } from "@oh-my-pi/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { IsoBackendKind } from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-agent-core";
+import type { IsoBackendKind } from "@linxiraos/pi-natives";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	BINARY_SNIFF_BYTES,
 	formatBytes,
@@ -14,7 +14,7 @@ import {
 	parseImageMetadata,
 	prompt,
 	untilAborted,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import githubDescription from "../prompts/tools/github.md" with { type: "text" };
 import { github } from "../utils/github";
 import { loadImageAttachmentInput, webpExclusionForModel } from "../utils/image-loading";
@@ -288,10 +288,21 @@ async function executeFileRead(
 	if (branch) {
 		args.push("-f", `ref=${branch}`);
 	}
-	const response = await github.json<GitHubContentsResponse>(session.cwd, args, signal, {
-		repoProvided: true,
-		trimOutput: false,
-	});
+	let response: GitHubContentsResponse;
+	try {
+		response = await github.json<GitHubContentsResponse>(session.cwd, args, signal, {
+			repoProvided: true,
+			trimOutput: false,
+		});
+	} catch (error) {
+		if (!(error instanceof ToolError)) throw error;
+		// Contents API 404s conflate repository, revision, path, and access failures; identify the request without guessing.
+		const revision = branch ?? "HEAD";
+		throw new ToolError(
+			`GitHub file read failed for '${repo}@${revision}:${filePath}': ${error.message}`,
+			error.context,
+		);
+	}
 	if (!isGitHubContentsFile(response)) {
 		throw new ToolError(`GitHub path '${filePath}' is not a file.`);
 	}

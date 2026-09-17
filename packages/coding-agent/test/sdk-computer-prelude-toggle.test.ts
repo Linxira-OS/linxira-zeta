@@ -2,15 +2,15 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { AuthStorage } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 // Guards the SDK/session boundary: browser and computer stay outside the tool
 // registry while their eval preludes follow live, session-local settings.
@@ -83,6 +83,34 @@ describe("AgentSession eval preludes", () => {
 		expect(session.getEvalPreludes().map(definition => definition.name)).toEqual(["browser"]);
 	});
 
+	it("exposes enabled host preludes to user-initiated Python cells", async () => {
+		const settings = Settings.isolated({
+			"browser.enabled": false,
+			"computer.enabled": true,
+		});
+		const { session } = await createAgentSession({
+			cwd: registryDir,
+			agentDir: registryDir,
+			modelRegistry,
+			sessionManager: SessionManager.inMemory(),
+			settings,
+			model: getBundledModel("openai", "gpt-4o-mini"),
+			disableExtensionDiscovery: true,
+			skills: [],
+			contextFiles: [],
+			promptTemplates: [],
+			slashCommands: [],
+			enableMCP: false,
+			enableLsp: false,
+			skipPythonPreflight: true,
+		});
+		sessions.push(session);
+
+		const result = await session.executePython("print(computer is not None)");
+		expect(result.exitCode).toBe(0);
+		expect(result.output.trim()).toBe("True");
+	});
+
 	it("reconciles browser MCP filtering on live browser toggles", async () => {
 		const manager = new MCPManager(registryDir, null, async () => ({
 			configs: {},
@@ -112,6 +140,7 @@ describe("AgentSession eval preludes", () => {
 		settings.override("browser.enabled", true);
 		expect(reconcile).toHaveBeenLastCalledWith(true);
 		const enableReconcile = reconcile.mock.results.at(-1);
+		// biome-ignore lint/complexity/useOptionalChain: value guard before narrowing
 		if (!enableReconcile || enableReconcile.type !== "return") throw new Error("Expected browser MCP reconcile");
 		await enableReconcile.value;
 		await session.runToolRegistryMutation(async () => undefined);
@@ -120,6 +149,7 @@ describe("AgentSession eval preludes", () => {
 		settings.override("browser.enabled", false);
 		expect(reconcile).toHaveBeenLastCalledWith(false);
 		const disableReconcile = reconcile.mock.results.at(-1);
+		// biome-ignore lint/complexity/useOptionalChain: value guard before narrowing
 		if (!disableReconcile || disableReconcile.type !== "return") throw new Error("Expected browser MCP reconcile");
 		await disableReconcile.value;
 		await session.runToolRegistryMutation(async () => undefined);

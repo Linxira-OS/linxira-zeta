@@ -1,5 +1,5 @@
-import { type } from "@oh-my-pi/omptype";
-import { once } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import { once } from "@linxiraos/pi-utils";
 
 export const getSecurityContractSchemas = once(() => {
 	const stringRecordSchema = type({ "[string]": "string" });
@@ -133,6 +133,18 @@ export const getSecurityContractSchemas = once(() => {
 		treeDigest: "string > 0",
 	});
 
+	const securityAccountSchema = type({
+		provider: "string > 0",
+		credentialId: "number.integer >= 1",
+		"accountId?": "string",
+		"email?": "string",
+		"organizationId?": "string",
+		"organizationName?": "string",
+	}).or({
+		provider: "string > 0",
+		api: "string > 0",
+	});
+
 	const securityScanPlanSchema = type({
 		documentType: "'omp-security.scan-plan'",
 		schemaVersion: "'1.0'",
@@ -147,14 +159,7 @@ export const getSecurityContractSchemas = once(() => {
 			existingState: "'absent' | 'empty' | 'archivable'",
 		},
 		model: { provider: "string > 0", modelId: "string > 0", "thinkingLevel?": "string" },
-		account: {
-			provider: "string > 0",
-			credentialId: "number.integer >= 1",
-			"accountId?": "string",
-			"email?": "string",
-			"organizationId?": "string",
-			"organizationName?": "string",
-		},
+		account: securityAccountSchema,
 		configFingerprint: "string > 0",
 		workflowFingerprint: "string > 0",
 		fingerprint: "string > 0",

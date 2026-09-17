@@ -23,7 +23,7 @@ export interface TraceTheme {
 	tick: string;
 	/** Span label text drawn inside blocks. */
 	spanText: string;
-	/** Selection outline (brand cyan focus ring). */
+	/** Selection outline (theme focus accent). */
 	selection: string;
 	tooltipBackground: string;
 	tooltipTitle: string;
@@ -45,12 +45,12 @@ export const TRACE_THEMES: Record<"dark" | "light", TraceTheme> = {
 		turnBand: "rgba(255, 255, 255, 0.035)",
 		surface: "transparent",
 		grid: "rgba(255, 255, 255, 0.06)",
-		tick: "#867a93",
-		spanText: "#16121c",
-		selection: "#5ad8e6",
-		tooltipBackground: "#241a2e",
-		tooltipTitle: "#eae5ef",
-		tooltipBody: "#a89fb3",
+		tick: "#7a7a7a",
+		spanText: "#161616",
+		selection: "#eaeaea",
+		tooltipBackground: "#232323",
+		tooltipTitle: "#f5f5f5",
+		tooltipBody: "#9d9d9d",
 		tooltipBorder: "rgba(255, 255, 255, 0.12)",
 	},
 	light: {
@@ -65,13 +65,13 @@ export const TRACE_THEMES: Record<"dark" | "light", TraceTheme> = {
 		marker: "#ca8a04",
 		turnBand: "rgba(0, 0, 0, 0.04)",
 		surface: "transparent",
-		grid: "rgba(20, 12, 28, 0.08)",
-		tick: "#6a6275",
+		grid: "rgba(0, 0, 0, 0.08)",
+		tick: "#8c8c8c",
 		spanText: "#ffffff",
-		selection: "#0e7490",
+		selection: "#1a1a1a",
 		tooltipBackground: "#ffffff",
-		tooltipTitle: "#241a2e",
-		tooltipBody: "#5a5462",
-		tooltipBorder: "rgba(20, 12, 28, 0.15)",
+		tooltipTitle: "#1f1f1f",
+		tooltipBody: "#616161",
+		tooltipBorder: "rgba(0, 0, 0, 0.15)",
 	},
 };

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval";
-import { getEnabledEvalPreludes, invokeEvalPrelude } from "@oh-my-pi/pi-coding-agent/eval";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { AgentToolContext, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval";
+import { getEnabledEvalPreludes, invokeEvalPrelude } from "@linxiraos/zeta/eval";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 function makeSession(getEvalPreludes: () => EvalPreludeDefinition[]): ToolSession {
 	return {
@@ -79,6 +79,36 @@ describe("eval prelude host invocation", () => {
 		expect(result.content).toEqual([{ type: "text", text: "replacement" }]);
 		expect(firstInvoke).toHaveBeenCalledTimes(1);
 		expect(replacementInvoke).toHaveBeenCalledTimes(1);
+	});
+
+	it("fails closed when the execute-time context is present but empty", async () => {
+		const invoke = vi.fn(async (): Promise<AgentToolResult<unknown>> => ({
+			content: [{ type: "text", text: "must not run" }],
+		}));
+		const definition: EvalPreludeDefinition = {
+			name: "guarded",
+			documentation: "Guarded",
+			javascript: "globalThis.guarded = {};",
+			python: "guarded = object()",
+			exports: ["guarded"],
+			approval: "exec",
+			invoke,
+		};
+		const session = makeSession(() => [definition]);
+
+		await expect(
+			invokeEvalPrelude(
+				"guarded",
+				{},
+				{
+					session,
+					toolCallId: "empty-context",
+					// Execute-time context with no settings and no grant: must fail closed.
+					context: {} as unknown as AgentToolContext,
+				},
+			),
+		).rejects.toThrow(/requires approval but no interactive UI is available/);
+		expect(invoke).not.toHaveBeenCalled();
 	});
 
 	it("never executes a handler denied by its approval policy", async () => {

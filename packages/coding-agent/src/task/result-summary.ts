@@ -5,7 +5,7 @@
  * when a woken subagent re-yields, so a parent reads the same shape (status,
  * preview, `agent://` pointer) regardless of which path delivered it.
  */
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { AgentRegistry } from "../registry/agent-registry";
 import { formatBytes, formatDuration } from "../tools/render-utils";
@@ -54,9 +54,11 @@ export function formatTaskResultSummary(
 	const truncated = outputCharCount > FULL_OUTPUT_THRESHOLD && result.outputPath !== undefined;
 	const preview = truncated ? previewHead(output) : output;
 	// A stopped-but-adopted agent (soft-budget stop) stays messageable; tell
-	// the parent so it can resume via irc instead of redoing the work.
+	// the parent so it can resume via irc instead of redoing the work. Isolated
+	// runs are parked without a reviver (their worktree is gone), so their
+	// "parked" status must not read as resumable.
 	const refStatus = AgentRegistry.global().get(result.id)?.status;
-	const resumable = result.aborted && (refStatus === "idle" || refStatus === "parked");
+	const resumable = result.aborted && !result.isolated && (refStatus === "idle" || refStatus === "parked");
 	return prompt.render(taskSummaryTemplate, {
 		agentName: result.agent,
 		id: result.id,

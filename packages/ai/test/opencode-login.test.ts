@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { OAuthAuthInfo, OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/registry/oauth/types";
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry/registry";
+import type { OAuthAuthInfo, OAuthLoginCallbacks } from "@linxiraos/pi-ai/registry/oauth/types";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry/registry";
 
 const loginOpenCodeGo = getProviderDefinition("opencode-go")!.login!;
 const loginOpenCodeZen = getProviderDefinition("opencode-zen")!.login!;

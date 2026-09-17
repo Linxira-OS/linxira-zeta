@@ -10,14 +10,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import * as attach from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import { CmuxSocketClient } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/socket-client";
-import * as registry from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { getTabsMapForTest, releaseTab } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { ToolAbortError, ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import * as attach from "@linxiraos/zeta/tools/browser/attach";
+import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
+import * as registry from "@linxiraos/zeta/tools/browser/registry";
+import { getTabsMapForTest, releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { ToolAbortError, ToolError } from "@linxiraos/zeta/tools/tool-errors";
 
 function makeSession(): ToolSession {
 	return {
@@ -175,7 +175,7 @@ describe("browser open — failed spawned-app acquisition reaps its owned proces
 				pages: async () => [],
 			},
 			pid: 4242,
-			subprocess: {},
+			subprocess: { pid: 4242, exitCode: null },
 			stealth: { browserSession: null, override: null },
 		} as unknown as registry.BrowserHandle;
 		spyOn(registry, "acquireBrowser").mockResolvedValue(browser);

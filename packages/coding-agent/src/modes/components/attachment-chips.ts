@@ -1,4 +1,4 @@
-import type { ImageContent } from "@oh-my-pi/pi-ai";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import {
 	type Component,
 	getImageDimensions,
@@ -10,7 +10,7 @@ import {
 	TERMINAL,
 	truncateToWidth,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import { fileHyperlink } from "../../tui/hyperlink";
 import { convertImageToPng } from "../../utils/image-loading";
 import { attachmentSgr } from "../composer-attachments";

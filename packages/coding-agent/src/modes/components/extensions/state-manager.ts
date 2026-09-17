@@ -3,8 +3,8 @@
  * Handles data loading, tree building, filtering, and toggle persistence.
  */
 import * as path from "node:path";
-import { fuzzyMatch } from "@oh-my-pi/pi-tui";
-import { getMCPConfigPath, logger } from "@oh-my-pi/pi-utils";
+import { fuzzyMatch } from "@linxiraos/pi-tui";
+import { getMCPConfigPath, logger } from "@linxiraos/pi-utils";
 import type { ContextFile } from "../../../capability/context-file";
 import type { ExtensionModule } from "../../../capability/extension-module";
 import type { Hook } from "../../../capability/hook";
@@ -74,7 +74,8 @@ function resolveState(
  */
 export async function loadAllExtensions(cwd?: string, disabledIds?: string[]): Promise<Extension[]> {
 	const extensions: Extension[] = [];
-	const disabledExtensions = new Set<string>(disabledIds ?? []);
+	const effectiveDisabledIds = disabledIds ?? [];
+	const disabledExtensions = new Set<string>(effectiveDisabledIds);
 
 	// Helper to convert capability items to extensions
 	function addItems<T extends { name: string; path: string; _source: SourceMeta }>(
@@ -111,7 +112,9 @@ export async function loadAllExtensions(cwd?: string, disabledIds?: string[]): P
 		}
 	}
 
-	const loadOpts = cwd ? { cwd, includeDisabled: true } : { includeDisabled: true };
+	const loadOpts = cwd
+		? { cwd, includeDisabled: true, disabledExtensions: effectiveDisabledIds }
+		: { includeDisabled: true, disabledExtensions: effectiveDisabledIds };
 
 	// Load skills
 	try {

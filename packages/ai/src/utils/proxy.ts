@@ -1,6 +1,6 @@
 import * as net from "node:net";
 import * as tls from "node:tls";
-import * as logger from "@oh-my-pi/pi-utils/logger";
+import * as logger from "@linxiraos/pi-utils/logger";
 import { AbortError } from "../error/abort";
 import { StreamTimeoutError, ValidationError } from "../error/validation";
 import type { FetchImpl } from "../types";
@@ -380,14 +380,15 @@ export async function connectProxiedSocket(
 		}
 
 		const tlsOptions = options?.tls;
-		tunnelSocket = tls.connect({
+		const newTunnelSocket: tls.TLSSocket = tls.connect({
 			...tlsOptions,
 			socket: rawSocket,
 			servername: tlsOptions?.servername ?? targetHost,
 			ALPNProtocols: tlsOptions?.ALPNProtocols ?? ["h2"],
 		});
-		tunnelSocket.once("secureConnect", onTunnelReady);
-		tunnelSocket.once("error", onTunnelError);
+		tunnelSocket = newTunnelSocket;
+		newTunnelSocket.once("secureConnect", onTunnelReady);
+		newTunnelSocket.once("error", onTunnelError);
 	};
 	const onProxyReady = (): void => {
 		if (!rawSocket) return;

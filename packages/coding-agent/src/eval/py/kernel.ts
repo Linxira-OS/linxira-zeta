@@ -8,7 +8,7 @@
  * timeout.
  */
 import * as path from "node:path";
-import { $flag, isBunTestRuntime, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { $flag, isBunTestRuntime, logger, Snowflake } from "@linxiraos/pi-utils";
 import { Settings } from "../../config/settings";
 import {
 	BaseKernel,
@@ -19,6 +19,8 @@ import {
 } from "../kernel-base";
 import { type BackendProbeOptions, probeCandidates } from "../probe";
 import { stageRunnerScript } from "../runner-cache";
+import type { PythonToolRequest } from "./executor";
+import type { ShadowPlan } from "../speculation/types";
 import { PYTHON_PRELUDE } from "./prelude";
 import RUNNER_SCRIPT from "./runner.py" with { type: "text" };
 import {
@@ -29,7 +31,6 @@ import {
 	resolvePythonRuntime,
 } from "./runtime";
 import { hostHasInheritableConsole, shouldDetachKernel, shouldHideKernelWindow } from "./spawn-options";
-import type { PythonToolRequest } from "./executor";
 
 export type {
 	KernelExecuteOptions,
@@ -55,8 +56,8 @@ const STARTUP_TIMEOUT_MS = 10_000;
 const INTERRUPT_ESCALATION_MS = 5_000;
 
 const PYTHON_RESERVED_PRELUDE_EXPORTS: Record<string, true> = {
-	__omp_tools__: true,
-	_omp_prelude: true,
+	__zeta_tools__: true,
+	_zeta_prelude: true,
 	AgentHandle: true,
 	CompletionHandle: true,
 	WorkPool: true,
@@ -87,6 +88,21 @@ export interface PythonPreludeSource {
 	name: string;
 	exports: string[];
 	source: string;
+}
+
+export interface PythonShadowSnapshot {
+	revision: number;
+	values: Readonly<Record<string, unknown>>;
+	digest: string;
+}
+
+export interface PythonShadowPlan extends ShadowPlan {
+	snapshot: PythonShadowSnapshot;
+}
+
+interface PythonKernelExecuteOptions extends KernelExecuteOptions {
+	expectedShadowRevision?: number;
+	expectedShadowDigest?: string;
 }
 
 // Cache successful probes per resolved cwd + explicit interpreter: every cell
@@ -154,7 +170,7 @@ async function probePythonKernelAvailability(
 	}
 }
 
-export class PythonKernel extends BaseKernel {
+export class PythonKernel extends BaseKernel<PythonKernelExecuteOptions> {
 	#installedPreludes = new Map<string, PythonPreludeSource>();
 
 	private constructor(id: string) {
@@ -172,6 +188,8 @@ export class PythonKernel extends BaseKernel {
 					env: opts?.env,
 					silent: opts?.silent ?? false,
 					storeHistory: opts?.storeHistory ?? !(opts?.silent ?? false),
+					expectedShadowRevision: opts?.expectedShadowRevision,
+					expectedShadowDigest: opts?.expectedShadowDigest,
 				}),
 		});
 	}
@@ -234,8 +252,8 @@ export class PythonKernel extends BaseKernel {
 		const source: string[] = [];
 		if (removedExports.length > 0) {
 			source.push(
-				`for __omp_export in ${JSON.stringify(removedExports)}:\n    globals().pop(__omp_export, None)`,
-				'globals().pop("__omp_export", None)',
+				`for __zeta_export in ${JSON.stringify(removedExports)}:\n    globals().pop(__zeta_export, None)`,
+				'globals().pop("__zeta_export", None)',
 			);
 		}
 		for (const prelude of changed) source.push(prelude.source);
@@ -310,16 +328,70 @@ export class PythonKernel extends BaseKernel {
 			throw err;
 		}
 	}
+
+	/**
+	 * Captures the runner's JSON-safe user namespace only when no Python cell is
+	 * executing. Ineligible or malformed responses deliberately fall back.
+	 */
+	async snapshotUserNamespace(timeoutMs?: number): Promise<PythonShadowSnapshot | null> {
+		const id = Snowflake.next();
+		const frame = await this.requestControl(JSON.stringify({ type: "shadow_snapshot", id }), id, timeoutMs);
+		if (
+			frame.type !== "shadow_snapshot" ||
+			frame.eligible !== true ||
+			typeof frame.revision !== "number" ||
+			typeof frame.digest !== "string"
+		) {
+			return null;
+		}
+		return { revision: frame.revision, digest: frame.digest, values: Object.freeze(frame.values ?? {}) };
+	}
+
+	/** Projects a candidate against an already-running, idle Python kernel. */
+	async shadowPlan(code: string, timeoutMs?: number): Promise<PythonShadowPlan | null> {
+		const id = Snowflake.next();
+		const frame = await this.requestControl(JSON.stringify({ type: "shadow_plan", id, code }), id, timeoutMs);
+		if (
+			frame.type !== "shadow_plan" ||
+			frame.eligible !== true ||
+			typeof frame.revision !== "number" ||
+			typeof frame.digest !== "string" ||
+			!Array.isArray(frame.operations)
+		) {
+			return null;
+		}
+		return {
+			snapshot: { revision: frame.revision, digest: frame.digest, values: Object.freeze(frame.values ?? {}) },
+			operations: frame.operations,
+			...(frame.controls && frame.controls.length > 0 ? { controls: frame.controls } : {}),
+			...(frame.barrier ? { barrier: frame.barrier } : {}),
+		};
+	}
+
+	/** Atomically starts a cell only if its retained shadow snapshot is still current. */
+	async executeIfSnapshotMatches(
+		code: string,
+		snapshot: Pick<PythonShadowSnapshot, "revision" | "digest">,
+		options?: KernelExecuteOptions,
+	): Promise<KernelExecuteResult | null> {
+		const result = await this.execute(code, {
+			...options,
+			expectedShadowRevision: snapshot.revision,
+			expectedShadowDigest: snapshot.digest,
+		});
+		return result.admissionRejected ? null : result;
+	}
 }
+
 function buildInitScript(cwd: string, env?: Record<string, string | undefined>): string {
 	const envEntries = Object.entries(env ?? {}).filter(([, value]) => value !== undefined);
 	const envPayload = Object.fromEntries(envEntries);
 	return [
 		"import os, sys",
-		`__omp_cwd = ${JSON.stringify(cwd)}`,
-		"os.chdir(__omp_cwd)",
-		`__omp_env = ${JSON.stringify(envPayload)}`,
-		"for __omp_key, __omp_val in __omp_env.items():\n    os.environ[__omp_key] = __omp_val",
-		"if __omp_cwd not in sys.path:\n    sys.path.insert(0, __omp_cwd)",
+		`__zeta_cwd = ${JSON.stringify(cwd)}`,
+		"os.chdir(__zeta_cwd)",
+		`__zeta_env = ${JSON.stringify(envPayload)}`,
+		"for __zeta_key, __zeta_val in __zeta_env.items():\n    os.environ[__zeta_key] = __zeta_val",
+		"if __zeta_cwd not in sys.path:\n    sys.path.insert(0, __zeta_cwd)",
 	].join("\n");
 }

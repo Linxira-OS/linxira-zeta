@@ -6,17 +6,15 @@
  * / `write xd://<tool>`).
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CustomToolAdapter } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/wrapper";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { RegisteredToolAdapter } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/wrapper";
-import { BUILTIN_TOOLS, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import {
-	defaultLoadModeForToolName,
-	ESSENTIAL_BUILTIN_TOOL_NAMES,
-} from "@oh-my-pi/pi-coding-agent/tools/essential-tools";
-import { isMountableUnderXdev } from "@oh-my-pi/pi-coding-agent/tools/xdev";
+import { type } from "@linxiraos/pi-omptype";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { CustomToolAdapter } from "@linxiraos/zeta/extensibility/custom-tools/wrapper";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { RegisteredToolAdapter } from "@linxiraos/zeta/extensibility/extensions/wrapper";
+import { extensionToolSourceInfo } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { BUILTIN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
+import { defaultLoadModeForToolName, ESSENTIAL_BUILTIN_TOOL_NAMES } from "@linxiraos/zeta/tools/essential-tools";
+import { isMountableUnderXdev } from "@linxiraos/zeta/tools/xdev";
 
 function makeSession(): ToolSession {
 	return {
@@ -66,6 +64,7 @@ describe("issue #5764: registerTool loadMode default", () => {
 					execute: noopExecute,
 				},
 				extensionPath: "<test>",
+				sourceInfo: extensionToolSourceInfo({ name: "read" }, "<test>"),
 			},
 			runner,
 		);
@@ -85,6 +84,7 @@ describe("issue #5764: registerTool loadMode default", () => {
 					execute: noopExecute,
 				},
 				extensionPath: "<test>",
+				sourceInfo: extensionToolSourceInfo({ name: "my_ext_tool" }, "<test>"),
 			},
 			runner,
 		);

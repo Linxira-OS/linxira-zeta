@@ -10,13 +10,16 @@ import {
 	resolveExecHandler,
 	streamCursor,
 	type ToolCallState,
-} from "@oh-my-pi/pi-ai/providers/cursor";
-import { streamCursor as lazyStreamCursor, setCursorProviderModule } from "@oh-my-pi/pi-ai/providers/register-builtins";
-import type { AssistantMessage, Context, CursorExecHandlers, Model, ToolResultMessage } from "@oh-my-pi/pi-ai/types";
-import { kCursorExecResolved } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { McpResult, ReadResult } from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
+} from "@linxiraos/pi-ai/providers/cursor";
+import {
+	streamCursor as lazyStreamCursor,
+	setCursorProviderModule,
+} from "@linxiraos/pi-ai/providers/register-builtins";
+import type { AssistantMessage, Context, CursorExecHandlers, Model, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { McpResult, ReadResult } from "@linxiraos/pi-catalog/discovery/cursor-proto";
 import {
 	type AgentRunRequest,
 	AgentServerMessageSchema,
@@ -32,9 +35,9 @@ import {
 	ReadRejectedSchema,
 	ReadResultSchema,
 	ReadSuccessSchema,
-} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
-import { create, encodeJsonValue } from "@oh-my-pi/pi-catalog/discovery/protobuf";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { create, encodeJsonValue } from "@linxiraos/pi-catalog/discovery/protobuf";
+import { logger } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

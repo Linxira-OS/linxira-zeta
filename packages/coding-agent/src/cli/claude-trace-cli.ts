@@ -9,8 +9,8 @@ import * as net from "node:net";
 import * as path from "node:path";
 import * as tls from "node:tls";
 import * as zlib from "node:zlib";
-import { PtySession } from "@oh-my-pi/pi-natives";
-import xterm from "@oh-my-pi/pi-utils/vterm";
+import { PtySession } from "@linxiraos/pi-natives";
+import xterm from "@linxiraos/pi-utils/vterm";
 
 const DEFAULT_PROXY_HOST = "127.0.0.1";
 const DEFAULT_PROXY_PORT = 8080;
@@ -639,15 +639,16 @@ export class ClaudeMessagesProxy {
 		if (rest.length > 0) {
 			clientTls.unshift(rest);
 		}
-		const upstreamTls = this.#track(
-			tls.connect({
-				host: target.host,
-				port: target.port,
-				servername: net.isIP(target.host) ? undefined : target.host,
-				rejectUnauthorized: this.#upstreamTlsRejectUnauthorized,
-				ALPNProtocols: ["http/1.1"],
-			}),
-		);
+		const upstreamTlsSocket: tls.TLSSocket = tls.connect({
+			host: target.host,
+			port: target.port,
+			servername: net.isIP(target.host) ? undefined : target.host,
+			rejectUnauthorized: this.#upstreamTlsRejectUnauthorized,
+			ALPNProtocols: ["http/1.1"],
+		});
+		// Annotate: `tls.connect` infers `any` under some @types/node versions,
+		// which would leave the "data" listener parameter untyped below.
+		const upstreamTls = this.#track(upstreamTlsSocket);
 		const requestParser = new HttpMessageParser("request");
 		const responseParser = new HttpMessageParser("response");
 		const responseQueue: Array<PendingCapturedRequest | null> = [];
@@ -762,7 +763,7 @@ export async function runClaudeMessagesCapture(args: ClaudeTraceCommandArgs = {}
 			try {
 				session.write(`${message}\r`);
 			} catch (error) {
-				ptyOutput += `\n[omp input write failed: ${errorMessage(error)}]\n`;
+				ptyOutput += `\n[zeta input write failed: ${errorMessage(error)}]\n`;
 			}
 		})();
 		const captureRace = proxy.waitForCapture(timeoutMs).then(

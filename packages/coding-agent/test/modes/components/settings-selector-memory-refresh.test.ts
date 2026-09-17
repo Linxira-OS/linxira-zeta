@@ -1,10 +1,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { loadHindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
-import { SettingsSelectorComponent } from "@oh-my-pi/pi-coding-agent/modes/components/settings-selector";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { loadHindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import { SettingsSelectorComponent } from "@linxiraos/zeta/modes/components/settings-selector";
+import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { setLanguage } from "../../../src/i18n";
 
 beforeAll(async () => {
+	// The localized selector renders zh chrome under zh locales; pin en so the
+	// English row-text assertions below are environment-independent.
+	setLanguage("en");
 	await initTheme();
 });
 

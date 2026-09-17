@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import type { Args } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { buildInitialMessage } from "@oh-my-pi/pi-coding-agent/cli/initial-message";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import type { Args } from "@linxiraos/zeta/cli/args";
+import { buildInitialMessage } from "@linxiraos/zeta/cli/initial-message";
 
 function createArgs(messages: string[]): Args {
 	return {

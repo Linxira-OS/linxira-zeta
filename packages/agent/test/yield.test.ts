@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { YieldGate } from "@oh-my-pi/pi-agent-core/utils/yield";
+import { YieldGate } from "@linxiraos/pi-agent-core/utils/yield";
 
 const YIELD_INTERVAL_MS = 50;
 
@@ -81,7 +81,7 @@ describe("ExponentialYield.race", () => {
 				`,
 			],
 			{
-				cwd: import.meta.dir + "/..",
+				cwd: `${import.meta.dir}/..`,
 				stdin: "ignore",
 				stdout: "ignore",
 				stderr: "inherit",
