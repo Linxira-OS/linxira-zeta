@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
 import { computeExecutablePath, detectBrowserPlatform } from "@linxiraos/pi-utils/browsers";
+import { PUPPETEER_REVISIONS } from "puppeteer-core/internal/revisions.js";
 import { APP_NAME } from "@linxiraos/pi-utils/dirs";
 import {
 	chromiumExecutableProbeForTest,
@@ -247,10 +248,9 @@ describe("browser executable selection", () => {
 			const cacheDir = path.join(xdgCache, APP_NAME, "puppeteer");
 			const platform = detectBrowserPlatform();
 			if (!platform) throw new Error("unsupported host platform for Chrome-for-Testing selection test");
-			// The buildId only parameterizes the cache layout; pin one instead of
-			// resolving via puppeteer's revision metadata (dropped in the 18.2.x
-			// browsers.ts refactor).
-			const buildId = "151.0.7666.0";
+			// Same revision source as the launcher (launch.ts) so the seeded cache
+			// path matches what the probe resolves.
+			const buildId = PUPPETEER_REVISIONS.chrome;
 			const chromeForTesting = computeExecutablePath({ buildId, cacheDir, platform });
 			await Bun.write(chromeForTesting, "#!/bin/sh\necho 'Chrome for Testing'\n");
 			fs.chmodSync(chromeForTesting, 0o755);
