@@ -139,7 +139,7 @@ describe("collab host registry (two-process smoke)", () => {
 		delete env.PI_CONFIG_DIR;
 		delete env.PI_PROFILE;
 		delete env.OMP_PROFILE;
-		delete env.PI_CODING_AGENT_DIR;
+		delete env.ZETA_CODING_AGENT_DIR;
 
 		const { child, stderr } = spawnHelper([], env);
 		const ready = await readUntil(child.stdout, "READY", READY_TIMEOUT_MS);

@@ -46,7 +46,7 @@ describe("omp read skill resources", () => {
 				HOME: root,
 				USERPROFILE: root,
 				NO_COLOR: "1",
-				PI_CODING_AGENT_DIR: agentDir,
+				ZETA_CODING_AGENT_DIR: agentDir,
 			},
 		});
 		const stdout = new Response(proc.stdout).text();
@@ -64,6 +64,9 @@ describe("omp read skill resources", () => {
 	}, 60_000);
 
 	it("honors the codex opt-in when reading a user skill through the standalone CLI", async () => {
+		// Upstream fixture omits this: the probe spawns with cwd=projectDir, which
+		// only exists once a project-scope scenario has created it.
+		await fs.mkdir(projectDir, { recursive: true });
 		const skillDir = path.join(root, ".codex", "skills", "codex-user-skill");
 		await fs.mkdir(skillDir, { recursive: true });
 		await Bun.write(

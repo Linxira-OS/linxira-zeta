@@ -37,7 +37,7 @@ function buildLocalModel(api: string): Model<Api> {
 
 // User-scope `RULES.md` resolves through the process-global agent dir (getAgentDir()),
 // not the createAgentSession `agentDir` option, so a user-scope case must redirect it.
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 function restoreAgentDir(): void {
@@ -45,7 +45,7 @@ function restoreAgentDir(): void {
 		setAgentDir(originalAgentDirEnv);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 }
 

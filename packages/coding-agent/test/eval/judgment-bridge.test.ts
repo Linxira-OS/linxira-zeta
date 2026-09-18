@@ -166,7 +166,7 @@ describe("eval js judge() prelude", () => {
 	it("returns a JudgmentHandle whose wait() yields the structured answers", async () => {
 		const calls: Array<{ name: string; args: unknown }> = [];
 		const sandbox: Record<string, unknown> = {
-			__omp_call_tool__: async (name: string, args: unknown) => {
+			__zeta_call_tool__: async (name: string, args: unknown) => {
 				calls.push({ name, args });
 				if (name === "__judge__") return { id: "jdg-1" };
 				if (name === "__wait__") {

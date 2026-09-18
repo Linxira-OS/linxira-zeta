@@ -71,7 +71,7 @@ describe("omp read <image>?q=", () => {
 					env: {
 						...process.env,
 						HOME: home,
-						PI_CODING_AGENT_DIR: agentDir,
+						ZETA_CODING_AGENT_DIR: agentDir,
 						PI_TEST_RUNTIME: "1",
 					},
 					stdout: "pipe",
