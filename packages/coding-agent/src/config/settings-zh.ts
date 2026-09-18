@@ -105,6 +105,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "编辑器形状",
 		description: "输入编辑器和状态行的视觉布局",
 	},
+	"composer.tokenRate": {
+		label: "生成速率",
+		description:
+			"在工作行上实时显示生成 tok/s 读数，紧靠会话标题右侧；依据流式增量估算，并在每条消息完成时按服务商的计费输出数校正",
+	},
 	"composer.recallClearedDrafts": {
 		label: "找回已清除的草稿",
 		description: "用 Ctrl+C 清除的草稿在退出前仍可通过本地上/下方向键找回；关闭后影响后续清除操作",
@@ -291,6 +296,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "终端标题运行状态",
 		description:
 			"在终端标题的分隔符中显示智能体运行状态——工作时为动画加载符（Windows 上为静态 ':'），轮到您时为 '>'，智能体等待您时为 '!'",
+	},
+	"tui.titleSpinner": {
+		label: "终端标题加载符",
+		description: "终端标题中工作状态加载符使用的字形集——盲文扫掠、月相填充、单点循环或 ASCII 安全线条",
 	},
 	"tui.hyperlinks": {
 		label: "终端超链接",
@@ -1531,6 +1540,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "语音朗读音色",
 		description: "朗读助手输出时使用的 Kokoro 音色",
 	},
+	"providers.judgmentProvider": {
+		label: "判定服务商",
+		description:
+			"类型化判定（自动思考难度、智能意外停止检测、git AI 暂存、eval judge()）的首选后端。auto 在已认证时使用 TypeSafe；TypeSafe 请求失败时依次回退到 tiny、smol、default，最后是当前会话模型",
+	},
 	"providers.tinyModel": {
 		label: "微型模型",
 		description: "会话标题模型：默认为在线（/models 中的 TINY 角色，否则 @smol），或本地设备端模型",
@@ -1960,6 +1974,22 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tui.vimModeDisplay::none": {
 		label: "隐藏",
 		description: "不在状态行显示模式",
+	},
+	"tui.titleSpinner::braille": {
+		label: "盲文",
+		description: "经典 ⠋⠙⠹ 扫掠（默认）",
+	},
+	"tui.titleSpinner::pulse": {
+		label: "月相",
+		description: "月亮填充 ○◑● 后再亏缺",
+	},
+	"tui.titleSpinner::dots": {
+		label: "单点",
+		description: "单个盲文点循环",
+	},
+	"tui.titleSpinner::line": {
+		label: "线条",
+		description: "ASCII - \\ | /，适用于无盲文点阵覆盖的字体",
 	},
 	"display.pinnedAgents::off": {
 		label: "关闭",
@@ -3895,6 +3925,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"speech.voice::bm_fable": {
 		label: "Fable（英式男声）",
+	},
+	"providers.judgmentProvider::auto": {
+		label: "自动",
+		description: "已认证时使用 TypeSafe，否则使用 LLM 桥接（默认）",
+	},
+	"providers.judgmentProvider::typesafe": {
+		label: "TypeSafe",
+		description: "优先 TypeSafe；失败时按在线模型角色依次回退",
+	},
+	"providers.judgmentProvider::llm": {
+		label: "LLM",
+		description: "从不使用 TypeSafe；以关键词提示调用 tiny/smol 或本地模型",
 	},
 	"providers.tinyModel::online": {
 		label: "在线（TINY 角色，否则 @smol）",

@@ -1129,10 +1129,17 @@ export class SessionTools {
 				? this.#computeCodeModeDirectWireSignature(appliedNames)
 				: undefined;
 			if (rebuiltSystemPrompt && rebuiltSignature) {
-				if (this.#lastAppliedToolSignature !== undefined) this.#host.clearInheritedProviderPromptCacheKey();
-				this.#baseSystemPrompt = rebuiltSystemPrompt;
-				this.#host.clearMemoryPromotionSnapshot();
-				this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
+				// Byte-identical rebuilds keep the applied prompt (and any inherited
+				// provider cache lineage) untouched; only bookkeeping refreshes.
+				const promptChanged =
+					this.#baseSystemPrompt.length !== rebuiltSystemPrompt.length ||
+					this.#baseSystemPrompt.some((part, index) => part !== rebuiltSystemPrompt[index]);
+				if (promptChanged) {
+					if (this.#lastAppliedToolSignature !== undefined) this.#host.clearInheritedProviderPromptCacheKey();
+					this.#baseSystemPrompt = rebuiltSystemPrompt;
+					this.#host.clearMemoryPromotionSnapshot();
+					this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
+				}
 				invalidateToolSchemaMetadata(this.#host.agent.state.tools);
 				this.#lastAppliedToolSignature = rebuiltSignature;
 				this.#promptModelKey = this.#currentPromptModelKey();
@@ -1686,16 +1693,16 @@ export class SessionTools {
 				if (this.#host.isDisposed() || isCurrent?.() === false) return false;
 				// A handler may have rebuilt policy while this preparation was awaiting its final commit.
 				if (this.#baseSystemPrompt !== previousBaseSystemPrompt) return true;
+				const promptChanged =
+					previousBaseSystemPrompt.length !== built.systemPrompt.length ||
+					previousBaseSystemPrompt.some((part, index) => part !== built.systemPrompt[index]);
 				this.#baseSystemPrompt = built.systemPrompt;
 				this.#setBasePromptXdevNames(built.xdevCatalogNames);
 				this.#host.clearMemoryPromotionSnapshot();
-				if (
-					previousBaseSystemPrompt.length !== this.#baseSystemPrompt.length ||
-					previousBaseSystemPrompt.some((part, index) => part !== this.#baseSystemPrompt[index])
-				) {
+				if (promptChanged) {
 					this.#host.clearInheritedProviderPromptCacheKey();
+					this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 				}
-				this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 				invalidateToolSchemaMetadata(this.#host.agent.state.tools);
 				// The rebuilt prompt is a fresh roster snapshot. Keep the complete pending
 				// delta for a turn override that hides it, while separately tracking any

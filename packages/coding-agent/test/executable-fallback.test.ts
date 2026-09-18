@@ -26,72 +26,77 @@ describe("executable fallback on unlinked binary", () => {
 		});
 	}
 
+	// POSIX-style fixtures are not fully qualified on win32 (isFullyQualifiedPath
+	// requires a drive letter / UNC), so launcher tests qualify them per platform.
+	const launcherFixture = (posix: string, win32: string): string =>
+		process.platform === "win32" ? win32 : posix;
+
 	it("launches the healthy compiled binary without invoking fallback lookups", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
 		vi.spyOn(utils, "isExecutable").mockReturnValue(true);
 		const whichSpy = vi.spyOn(utils, "$which");
 
 		expect(resolveCliEntryCmd()).toEqual([process.execPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [process.execPath, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__zeta_worker_test")).toEqual({
+			cmd: [process.execPath, "__zeta_worker_test"],
 		});
 		expect(whichSpy).not.toHaveBeenCalled();
 	});
 
 	it("prefers original absolute launcher path over generic PATH match when executable", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
-		const originalLauncher = "/opt/homebrew/bin/omp";
-		const otherOmpInPath = "/usr/local/bin/omp";
+		const missingPath = launcherFixture("/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta", "C:\\opt\\homebrew\\Cellar\\zeta\\18.1.8\\bin\\zeta.exe");
+		const originalLauncher = launcherFixture("/opt/homebrew/bin/zeta", "C:\\opt\\homebrew\\bin\\zeta.exe");
+		const otherZetaInPath = launcherFixture("/usr/local/bin/zeta", "C:\\usr\\local\\bin\\zeta.exe");
 
 		setProcessProp("execPath", missingPath);
 		setProcessProp("argv0", originalLauncher);
 
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
-			if (cmd === "omp") return otherOmpInPath;
+			if (cmd === "zeta") return otherZetaInPath;
 			return null;
 		});
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
-			return p === originalLauncher || p === otherOmpInPath;
+			return p === originalLauncher || p === otherZetaInPath;
 		});
 
 		expect(resolveCliEntryCmd()).toEqual([originalLauncher]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [originalLauncher, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__zeta_worker_test")).toEqual({
+			cmd: [originalLauncher, "__zeta_worker_test"],
 		});
 	});
 
 	it("falls back to PATH when original absolute launcher exists but is not executable", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
-		const originalLauncher = "/opt/homebrew/bin/omp";
-		const otherOmpInPath = "/usr/local/bin/omp";
+		const missingPath = launcherFixture("/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta", "C:\\opt\\homebrew\\Cellar\\zeta\\18.1.8\\bin\\zeta.exe");
+		const originalLauncher = launcherFixture("/opt/homebrew/bin/zeta", "C:\\opt\\homebrew\\bin\\zeta.exe");
+		const otherZetaInPath = launcherFixture("/usr/local/bin/zeta", "C:\\usr\\local\\bin\\zeta.exe");
 
 		setProcessProp("execPath", missingPath);
 		setProcessProp("argv0", originalLauncher);
 
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
-			if (cmd === "omp") return otherOmpInPath;
+			if (cmd === "zeta") return otherZetaInPath;
 			return null;
 		});
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
 			// Launcher is not executable (e.g. root-owned, mode 0644, or directory)
-			return p === otherOmpInPath;
+			return p === otherZetaInPath;
 		});
 
-		expect(resolveCliEntryCmd()).toEqual([otherOmpInPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [otherOmpInPath, "__omp_worker_test"],
+		expect(resolveCliEntryCmd()).toEqual([otherZetaInPath]);
+		expect(resolveWorkerSpawnCmd("__zeta_worker_test")).toEqual({
+			cmd: [otherZetaInPath, "__zeta_worker_test"],
 		});
 	});
 
 	it("does not resolve relative argv0 against the working tree", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
+		const missingPath = "/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta";
 		setProcessProp("execPath", missingPath);
-		setProcessProp("argv0", "./omp");
+		setProcessProp("argv0", "./zeta");
 
-		const cwdRogueBinary = path.resolve("./omp");
+		const cwdRogueBinary = path.resolve("./zeta");
 		vi.spyOn(utils, "$which").mockReturnValue(null);
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
 			return p === cwdRogueBinary;
@@ -101,11 +106,11 @@ describe("executable fallback on unlinked binary", () => {
 		expect(resolveExecutablePath()).toBe(missingPath);
 	});
 
-	it("does not treat Windows drive-relative paths (e.g. C:omp) as bare commands", () => {
+	it("does not treat Windows drive-relative paths (e.g. C:zeta) as bare commands", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "C:\\Tools\\omp.exe";
+		const missingPath = "C:\\Tools\\zeta.exe";
 		setProcessProp("execPath", missingPath);
-		setProcessProp("argv0", "C:omp");
+		setProcessProp("argv0", "C:zeta");
 
 		let whichCalledWith: string | undefined;
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
@@ -116,19 +121,19 @@ describe("executable fallback on unlinked binary", () => {
 
 		resolveExecutablePath();
 
-		// Should not pass "C:omp" to which as a bare name; only "omp" generic fallback is queried
-		expect(whichCalledWith).toBe("omp");
+		// Should not pass "C:zeta" to which as a bare name; only "zeta" generic fallback is queried
+		expect(whichCalledWith).toBe("zeta");
 	});
 
-	it("falls back to $which('omp') when original execPath was unlinked and argv0 has no path", () => {
+	it("falls back to $which('zeta') when original execPath was unlinked and argv0 has no path", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
+		const missingPath = "/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta";
 		setProcessProp("execPath", missingPath);
-		setProcessProp("argv0", "omp");
+		setProcessProp("argv0", "zeta");
 
-		const mockUpgradedPath = "/opt/homebrew/bin/omp";
+		const mockUpgradedPath = "/opt/homebrew/bin/zeta";
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
-			if (cmd === "omp") return mockUpgradedPath;
+			if (cmd === "zeta") return mockUpgradedPath;
 			return null;
 		});
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
@@ -136,20 +141,20 @@ describe("executable fallback on unlinked binary", () => {
 		});
 
 		expect(resolveCliEntryCmd()).toEqual([mockUpgradedPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [mockUpgradedPath, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__zeta_worker_test")).toEqual({
+			cmd: [mockUpgradedPath, "__zeta_worker_test"],
 		});
 	});
 
-	it("falls back to process.argv0 when $which('omp') is unavailable", () => {
+	it("falls back to process.argv0 when $which('zeta') is unavailable", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/custom/install/bin/omp";
+		const missingPath = "/custom/install/bin/zeta";
 		setProcessProp("execPath", missingPath);
-		setProcessProp("argv0", "my-omp");
+		setProcessProp("argv0", "my-zeta");
 
-		const mockCustomPath = "/usr/local/bin/my-omp";
+		const mockCustomPath = "/usr/local/bin/my-zeta";
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
-			if (cmd === "my-omp") return mockCustomPath;
+			if (cmd === "my-zeta") return mockCustomPath;
 			return null;
 		});
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
@@ -161,7 +166,7 @@ describe("executable fallback on unlinked binary", () => {
 
 	it("does not perform fallback lookup when isCompiledBinary is false", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(false);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
+		const missingPath = "/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta";
 		setProcessProp("execPath", missingPath);
 
 		const whichSpy = vi.spyOn(utils, "$which");
@@ -174,7 +179,7 @@ describe("executable fallback on unlinked binary", () => {
 
 	it("returns original execPath gracefully if no fallback candidate exists", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/nonexistent/omp";
+		const missingPath = "/nonexistent/zeta";
 		setProcessProp("execPath", missingPath);
 		vi.spyOn(utils, "$which").mockReturnValue(null);
 		vi.spyOn(utils, "isExecutable").mockReturnValue(false);
