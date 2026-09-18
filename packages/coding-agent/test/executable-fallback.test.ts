@@ -28,8 +28,7 @@ describe("executable fallback on unlinked binary", () => {
 
 	// POSIX-style fixtures are not fully qualified on win32 (isFullyQualifiedPath
 	// requires a drive letter / UNC), so launcher tests qualify them per platform.
-	const launcherFixture = (posix: string, win32: string): string =>
-		process.platform === "win32" ? win32 : posix;
+	const launcherFixture = (posix: string, win32: string): string => (process.platform === "win32" ? win32 : posix);
 
 	it("launches the healthy compiled binary without invoking fallback lookups", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
@@ -45,7 +44,10 @@ describe("executable fallback on unlinked binary", () => {
 
 	it("prefers original absolute launcher path over generic PATH match when executable", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = launcherFixture("/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta", "C:\\opt\\homebrew\\Cellar\\zeta\\18.1.8\\bin\\zeta.exe");
+		const missingPath = launcherFixture(
+			"/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta",
+			"C:\\opt\\homebrew\\Cellar\\zeta\\18.1.8\\bin\\zeta.exe",
+		);
 		const originalLauncher = launcherFixture("/opt/homebrew/bin/zeta", "C:\\opt\\homebrew\\bin\\zeta.exe");
 		const otherZetaInPath = launcherFixture("/usr/local/bin/zeta", "C:\\usr\\local\\bin\\zeta.exe");
 
@@ -68,7 +70,10 @@ describe("executable fallback on unlinked binary", () => {
 
 	it("falls back to PATH when original absolute launcher exists but is not executable", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = launcherFixture("/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta", "C:\\opt\\homebrew\\Cellar\\zeta\\18.1.8\\bin\\zeta.exe");
+		const missingPath = launcherFixture(
+			"/opt/homebrew/Cellar/zeta/18.1.8/bin/zeta",
+			"C:\\opt\\homebrew\\Cellar\\zeta\\18.1.8\\bin\\zeta.exe",
+		);
 		const originalLauncher = launcherFixture("/opt/homebrew/bin/zeta", "C:\\opt\\homebrew\\bin\\zeta.exe");
 		const otherZetaInPath = launcherFixture("/usr/local/bin/zeta", "C:\\usr\\local\\bin\\zeta.exe");
 
