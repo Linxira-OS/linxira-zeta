@@ -247,6 +247,31 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
   natives `.node`**（类 5：`Failed to load pi_natives native addon for
   win32-x64`），本地 `packages/natives` 重建即消；CI bazel 现场构建无此问题。
 
+### 全局符号 sweep 不能按扩展名白名单（v18.2.4 教训之二）
+
+- `__omp_*` → `__zeta_*` 的 sweep 用 `--include="*.ts"` 执行，漏掉了
+  `src/eval/js/shared/prelude.txt`（16 处桥调用改了 15 处，judge() 的
+  `__omp_call_tool__` 残留，本地绿、CI 红——vm 注入的字符串源码 ts 扫描
+  天生看不见）与 `src/eval/py/prelude.py` 的符号对。
+- 规则：全局符号改名的收口扫描一律 `git grep -n "__omp_<name>" -- .`
+  （无后缀过滤），资源文件（.txt/.py/.js/.json/.kdl）逐命中判定。
+
+### bun 1.4.0 bytecode 与上游 bun@>=1.4 的分歧（v18.2.4 教训之三）
+
+- 上游 `compile-binary.ts` 新增 `bytecode: true`，上游 CI 按
+  `packageManager: bun@>=1.4` 拉最新 bun 编译，正常；Zeta pin
+  `bun@1.4.0`，该版本 bytecode 编译产物启动即崩
+  （`SyntaxError: import.meta is only valid inside modules`，全平台，
+  `--version` 就炸）——desktop smoke ×4 与 install-method smoke 同源。
+- 修复：`bytecode: false` + 代码内注释记录分歧；bun pin 升级时回归验证。
+
+### CI 日志判读：`::error::` 回显不是错误（v18.2.4 教训之四）
+
+- GitHub Actions 会整段回显 `run: |` 脚本文本；`echo "::error::..."`
+  出现在回显里不代表触发。定位真失败只认 `##[error]` 注解 +
+  `Process completed with exit code`，再向上找具体 step 输出
+  （packageManager、native addon target 两次误判都是回显坑）。
+
 ### 冲突标记扫描必须覆盖全部文本类型（v18.2.4 教训）
 
 - 收口扫描的路径清单漏了 `nix/`（和任何非 packages/crates/scripts/docs 的
