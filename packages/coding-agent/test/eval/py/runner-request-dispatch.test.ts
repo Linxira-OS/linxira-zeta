@@ -142,7 +142,7 @@ describe("Python runner request dispatch", () => {
 				code: [
 					"identities = []",
 					"occurrences = {}",
-					"def __omp_reset_call_occurrences__():",
+					"def __zeta_reset_call_occurrences__():",
 					"    occurrences.clear()",
 					"def __omp_with_call_site__(site_id, action, args):",
 					"    occurrence = occurrences.get(site_id, 0)",
@@ -183,7 +183,7 @@ describe("Python runner request dispatch", () => {
 				code: [
 					"identities = []",
 					"occurrences = {}",
-					"def __omp_reset_call_occurrences__():",
+					"def __zeta_reset_call_occurrences__():",
 					"    occurrences.clear()",
 					"def __omp_with_call_site__(site_id, action, args):",
 					"    occurrence = occurrences.get(site_id, 0)",

@@ -314,7 +314,7 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 			if (questions === null || typeof questions !== "object" || Array.isArray(questions)) {
 				throw new TypeError("judge(state, questions) expects questions as an object keyed by id");
 			}
-			const result = await globalThis.__omp_call_tool__("__judge__", { state, questions });
+			const result = await globalThis.__zeta_call_tool__("__judge__", { state, questions });
 			if (!result || typeof result.id !== "string") throw new Error("judge() did not return a handle");
 			return new JudgmentHandle(result.id);
 		})();

@@ -384,7 +384,7 @@ if "__zeta_prelude_loaded__" not in globals():
     _OMP_CALL_IDENTITY = contextvars.ContextVar("omp_call_identity", default=None)
     _OMP_CALL_OCCURRENCES = contextvars.ContextVar("omp_call_occurrences", default=None)
 
-    def __omp_reset_call_occurrences__():
+    def __zeta_reset_call_occurrences__():
         _OMP_CALL_OCCURRENCES.set(None)
 
     async def __omp_with_call_site__(site_id: str, action, args):

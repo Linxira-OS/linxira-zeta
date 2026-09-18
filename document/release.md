@@ -72,19 +72,26 @@ intermediate decisions.
 
 Allowed patterns, in order of preference:
 
-1. **Blocking watch, then detach.** Fire `gh run watch <run-id> --exit-status`
+1. **`run_watch` device (preferred).** In agent sessions with the GitHub
+   tool device available, write `{"op": "run_watch", "run": "<run-id>"}` to
+   `xd://github` (`{"op": "run_watch", "branch": "main"}` resolves the latest
+   run on a branch). It fast-fails on the first failed job and saves full
+   failed-job logs to a session artifact for immediate triage — no shell
+   polling at all. Retry once on transient `HTTP 502`.
+2. **Blocking watch, then detach.** Fire `gh run watch <run-id> --exit-status`
    once (optionally in a background task), stop attending, and act on its
    final output. `gh run watch` long-polls server-side and exits the moment
-   the run completes — that is the sanctioned "stare" tool.
-2. **Deferred one-shot checks.** If a delay-based approach is used, it must be
+   the run completes — the sanctioned "stare" tool when the device is not
+   available.
+3. **Deferred one-shot checks.** If a delay-based approach is used, it must be
    coarse: at most **two ~3500 s deferred tasks per run**, each waking to read
    the run state exactly once (`gh run view --json status,conclusion`) — never
    a repeating short-interval loop.
-3. **Respect the tool's real cap.** If the runtime reports that long-delay or
+4. **Respect the tool's real cap.** If the runtime reports that long-delay or
    long-running background tasks are not permitted, chain multiple single
    delays at the maximum duration the tool actually allows (same one-read
    rule per wake), or skip watching entirely.
-4. **Default: don't watch at all.** CI failure notifications arrive by email;
+5. **Default: don't watch at all.** CI failure notifications arrive by email;
    the human forwards the verdict. After dispatching or pushing a release,
    report what is in flight and stop. Re-engage only on the human's report or
    the completion of a sanctioned watch.

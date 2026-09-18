@@ -2024,7 +2024,7 @@ async def _handle_request_async(req: dict) -> None:
     token = _CURRENT_RID.set(rid)
     displayed_matplotlib_token = _CURRENT_DISPLAYED_MATPLOTLIB_FIGURE_IDS.set(set())
     _STATE.capture_rid = rid
-    reset_call_occurrences = _STATE.user_ns.get("__omp_reset_call_occurrences__")
+    reset_call_occurrences = _STATE.user_ns.get("__zeta_reset_call_occurrences__")
     if callable(reset_call_occurrences):
         reset_call_occurrences()
     _STATE.namespace_revision += 1
