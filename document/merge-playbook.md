@@ -247,6 +247,17 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
   natives `.node`**（类 5：`Failed to load pi_natives native addon for
   win32-x64`），本地 `packages/natives` 重建即消；CI bazel 现场构建无此问题。
 
+### 冲突标记扫描必须覆盖全部文本类型（v18.2.4 教训）
+
+- 收口扫描的路径清单漏了 `nix/`（和任何非 packages/crates/scripts/docs 的
+  目录）+ 非 ts/json/md 后缀（`.nix`/`.toml`/`.lock`/`.yml`）——
+  `nix/bun.nix` 带着三处冲突标记进了两个提交，直到 Nix flake 评估红才暴露。
+- 规则：标记扫描改为 `git grep -lE "^(<<<<<<<|>>>>>>>) " -- .`（全树、全
+  文本类型，仅排除二进制），任何新目录加入仓库都要重新过一遍清单。
+- bun.lock 变更后的配套动作再次确认：`bunx bun2nix -l bun.lock -c ../ -o
+  nix/bun.nix`（bun2nix 2.1.2），lockfile 重复键去重后 bun install 不会
+  自动重写 lock 文本，bun.nix 必须手动重生成。
+
 ### 分段快进推送的必然产物
 
 - squash 分支是"重建的树"，**不继承完整合并分支已通过的任何清扫**——
