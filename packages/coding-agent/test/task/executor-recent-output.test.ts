@@ -22,7 +22,8 @@ import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import * as sdkModule from "@linxiraos/zeta/sdk";
 import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { runSubprocess } from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition, AgentProgress } from "@linxiraos/zeta/task/types";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 

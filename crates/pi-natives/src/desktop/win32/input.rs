@@ -593,8 +593,8 @@ mod foreground {
 	impl ForegroundGuard {
 		fn activate(id: &str) -> CoreResult<Self> {
 			let target = background::hwnd(id)?;
-			// SAFETY: both calls access process-global foreground state; target was
-			// validated.
+			// SAFETY: GetForegroundWindow accesses process-global foreground
+			// state.
 			let previous = unsafe { GetForegroundWindow() };
 			if previous != target && unsafe { SetForegroundWindow(target) } == 0 {
 				return Err(DesktopError::input_failed(format!(

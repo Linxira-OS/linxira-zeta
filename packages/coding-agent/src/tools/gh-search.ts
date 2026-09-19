@@ -1,7 +1,7 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { github } from "../utils/github";
 import type { ToolSession } from ".";
-import type { GhToolDetails } from "./gh";
+import type { GhToolDetails } from "@linxiraos/pi-tui/tools/github";
 import {
 	buildTextResult,
 	formatAuthor,
@@ -9,11 +9,11 @@ import {
 	normalizeOptionalString,
 	normalizeText,
 	parseRepoRef,
-	pushLine,
 	requireNonEmpty,
 	tryResolveCurrentRepo,
 } from "./gh-common";
-import { formatShortSha } from "./gh-format";
+import { pushLine } from "@linxiraos/pi-tui/tools/gh-format";
+import { formatShortSha } from "@linxiraos/pi-tui/tools/gh-format";
 import type {
 	GhApiLabel,
 	GhApiSearchCodeItem,
@@ -30,7 +30,7 @@ import type {
 	GhUser,
 	GithubInput,
 } from "./gh-types";
-import { ToolError } from "./tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 export const SEARCH_LIMIT_DEFAULT = 10;
 export const SEARCH_LIMIT_MAX = 50;

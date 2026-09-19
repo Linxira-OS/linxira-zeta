@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseFindingDetails } from "@linxiraos/zeta/tools/review";
+import { parseFindingDetails } from "@linxiraos/pi-tui/tools/task";
 
 describe("parseFindingDetails", () => {
 	it("returns undefined for malformed finding details", () => {

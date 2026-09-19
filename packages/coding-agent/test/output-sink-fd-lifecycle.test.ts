@@ -2,10 +2,11 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
-import { OutputSink } from "@linxiraos/zeta/session/streaming-output";
-import { bashToolRenderer } from "@linxiraos/zeta/tools/bash";
-import { formatOutputNotice, outputMeta } from "@linxiraos/zeta/tools/output-meta";
+import { getThemeByName } from "@linxiraos/pi-tui/theme";
+import { OutputSink } from "@linxiraos/pi-tui/tools/streaming-output";
+import { bashToolRenderer } from "@linxiraos/pi-tui/tools/bash";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { outputMeta } from "@linxiraos/zeta/tools/output-meta";
 import { removeWithRetries, sanitizeText } from "@linxiraos/pi-utils";
 
 const createdTempDirs: string[] = [];

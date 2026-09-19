@@ -1835,7 +1835,7 @@ export const zh = {
 	cmdCompactElide: "剥离工具结果与大段内容（默认）",
 	cmdCompactImages: "剥离图片块",
 	cmdShake: "从上下文移除重内容（工具结果、大段内容）",
-	cmdHandoff: "将会话上下文移交给新会话",
+	cmdHandoff: "将会话总结为交接文档并原地压缩",
 	cmdResume: "恢复另一个会话",
 	cmdBtw: "基于当前会话上下文问一个临时问题",
 	cmdBtwHistory: "问一个旁支问题，或浏览本会话的 BTW 历史",

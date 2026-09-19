@@ -15,7 +15,7 @@ import chalk from "@linxiraos/pi-utils/chalk";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { $ } from "bun";
 import { settings } from "../config/settings";
-import { theme } from "../modes/theme/theme";
+import { theme } from "@linxiraos/pi-tui/theme";
 import {
 	isTimeoutError,
 	isUnsupportedProxyError,

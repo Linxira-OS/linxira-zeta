@@ -22,6 +22,11 @@ export interface FileLockHandle {
 	release(): void;
 }
 
+/** An exclusive OS-backed lease. Releasing an already released handle is safe. */
+export interface FileLockHandle {
+	release(): void;
+}
+
 const DEFAULT_OPTIONS: Required<FileLockOptions> = {
 	retries: 50,
 	retryDelayMs: 100,

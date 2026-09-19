@@ -31,7 +31,7 @@
  */
 
 import { isServiceTierOpenAISettingValue, SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
-import type { ConfiguredThinkingLevel } from "../thinking";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { Args } from "./args";
 import { CliUsageError } from "./usage-error";
 

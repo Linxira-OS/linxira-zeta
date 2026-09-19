@@ -14,14 +14,14 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
-import { type Component, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
-import type { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { type Component, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(async () => {

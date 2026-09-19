@@ -11,7 +11,8 @@ import type { ToolSession } from "@linxiraos/zeta/tools";
 import { buildOutputValidator } from "@linxiraos/zeta/tools/output-schema-validator";
 import { YieldTool } from "@linxiraos/zeta/tools/yield";
 import { buildWorkPoolOutputSchema } from "../../src/task/workpool-yield";
-import { arrayValuedLabels, assembleYieldResult } from "../../src/task/yield-assembly";
+import { arrayValuedLabels } from "../../src/task/yield-assembly";
+import { assembleYieldResult } from "@linxiraos/pi-tui/tools/task-yield-assembly";
 
 function createSession(overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

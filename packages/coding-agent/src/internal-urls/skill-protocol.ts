@@ -13,7 +13,7 @@ import * as path from "node:path";
 import { isEnoent } from "@linxiraos/pi-utils";
 import { resolveContainedPath } from "../discovery/contained-path";
 import { getActiveSkills } from "../extensibility/skills";
-import { isMarkdownPath } from "../utils/lang-from-path";
+import { isMarkdownPath } from "@linxiraos/pi-tui/lang-from-path";
 import { buildDirectoryResource } from "./filesystem-resource";
 import type { InternalResource, InternalUrl, ProtocolHandler, ResolveContext, UrlCompletion } from "./types";
 

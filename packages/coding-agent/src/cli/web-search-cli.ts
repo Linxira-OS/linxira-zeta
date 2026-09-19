@@ -8,11 +8,11 @@ import { APP_NAME, getProjectDir } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
 import { Settings } from "../config/settings";
-import { initTheme, theme } from "../modes/theme/theme";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import { runSearchQuery, type SearchQueryParams } from "../web/search/index";
 import { SEARCH_PROVIDER_ORDER } from "../web/search/provider";
-import { renderSearchResult } from "../web/search/render";
-import type { SearchProviderId } from "../web/search/types";
+import { renderSearchResult } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
 
 export interface SearchCommandArgs {
 	query: string;

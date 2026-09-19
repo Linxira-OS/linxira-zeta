@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { pathTargetsSsh, peelWriteUrlSelector, splitInternalUrlSel } from "@linxiraos/zeta/tools/path-utils";
+import { pathTargetsSsh, peelWriteUrlSelector } from "@linxiraos/zeta/tools/path-utils";
+import { splitInternalUrlSel } from "@linxiraos/pi-tui/tools/read";
 
 describe("splitInternalUrlSel", () => {
 	it("returns the input unchanged when there is no selector tail", () => {

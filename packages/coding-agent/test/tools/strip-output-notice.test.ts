@@ -8,7 +8,9 @@
  * string twice — once from the body content, once as the styled warning line.
  */
 import { describe, expect, it } from "bun:test";
-import { formatOutputNotice, type OutputMeta, outputMeta, stripOutputNotice } from "@linxiraos/zeta/tools/output-meta";
+import { type OutputMeta, stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { outputMeta } from "@linxiraos/zeta/tools/output-meta";
 
 const truncation: OutputMeta = {
 	truncation: {

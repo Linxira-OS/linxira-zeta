@@ -5,12 +5,8 @@ import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModels } from "@linxiraos/pi-catalog/models";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { SessionProviderBoundary } from "@linxiraos/zeta/session/session-provider-boundary";
-import {
-	modelLacksWebpSupport,
-	normalizeModelContextImages,
-	normalizeModelContextMessages,
-	webpExclusionForModel,
-} from "@linxiraos/zeta/utils/image-loading";
+import { normalizeModelContextImages, normalizeModelContextMessages } from "@linxiraos/zeta/utils/image-loading";
+import { modelLacksWebpSupport, webpExclusionForModel } from "@linxiraos/pi-tui/chat/image-loading";
 
 // 1x1 red PNG seed, upscaled + re-encoded as WebP at test time so no binary
 // fixture is checked in. Bun.Image sniffs format from bytes.

@@ -4,7 +4,7 @@ import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
-import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 type RequestLine = {
 	id?: unknown;

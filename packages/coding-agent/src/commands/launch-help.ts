@@ -1,6 +1,6 @@
 import { Args, type CommandMetadata, Flags } from "@linxiraos/pi-utils/cli";
 import { APP_NAME } from "@linxiraos/pi-utils/dirs";
-import { CLI_THINKING_LEVELS } from "../cli/thinking-levels";
+import { CLI_THINKING_LEVELS } from "@linxiraos/pi-tui/thinking";
 import { SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
 
 export const launchHelp = {

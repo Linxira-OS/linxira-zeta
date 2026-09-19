@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/zeta/modes/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";

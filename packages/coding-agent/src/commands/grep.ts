@@ -6,7 +6,7 @@ import { GrepOutputMode } from "@linxiraos/pi-natives";
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { grepHelp as commandHelp } from "../cli/command-help";
 import { type GrepCommandArgs, runGrepCommand } from "../cli/grep-cli";
-import { initTheme } from "../modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 
 export default class Grep extends Command {
 	static description = commandHelp.description;

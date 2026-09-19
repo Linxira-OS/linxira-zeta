@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { $which, TempDir } from "@linxiraos/pi-utils";
 import { applyDirenvPreflight, executeBash } from "@linxiraos/zeta/exec/bash-executor";
-import { findEnvrc, loadDirenvEnv, parseDirenvExport } from "@linxiraos/zeta/exec/direnv";
+import {
+	cleanSpawnEnvForTests,
+	clearDirenvCachesForTests,
+	findEnvrc,
+	loadDirenvEnv,
+	parseDirenvExport,
+} from "@linxiraos/zeta/exec/direnv";
+import { $which, TempDir } from "@linxiraos/pi-utils";
 
 /** Real-direnv cases need the binary on PATH; skip cleanly when it's absent so
  *  the graceful-degradation code path (returns `null`) isn't asserted against. */
@@ -18,6 +24,7 @@ function tmp(): string {
 
 afterEach(async () => {
 	for (const dir of tmpDirs.splice(0)) await dir.remove();
+	clearDirenvCachesForTests();
 });
 
 /** Explicitly `direnv allow` an `.envrc` (against the test-isolated HOME/XDG
@@ -59,6 +66,25 @@ describe("findEnvrc", () => {
 		await fs.mkdir(nested, { recursive: true });
 
 		expect(await findEnvrc(nested)).toBeNull();
+	});
+});
+
+describe("cleanSpawnEnv versioning", () => {
+	it("picks up Bun.env mutations after the first cached call", () => {
+		const marker = `OMP_DIRENV_TEST_${process.pid}`;
+		delete Bun.env[marker];
+		clearDirenvCachesForTests();
+		expect(cleanSpawnEnvForTests()[marker]).toBeUndefined();
+		// Deferred MCP discovery mutates Bun.env mid-process (sdk.ts sets
+		// EXA_API_KEY after the session is usable); a permanently cached
+		// baseline would spawn direnv with stale values forever.
+		Bun.env[marker] = "v1";
+		try {
+			expect(cleanSpawnEnvForTests()[marker]).toBe("v1");
+		} finally {
+			delete Bun.env[marker];
+			clearDirenvCachesForTests();
+		}
 	});
 });
 

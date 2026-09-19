@@ -1,11 +1,12 @@
 import { sanitizeText } from "@linxiraos/pi-utils";
+
 import {
 	replaceTabs,
 	shortenEmbeddedPaths,
 	shortenPath,
 	TRUNCATE_LENGTHS,
 	truncateToWidth,
-} from "../tools/render-utils";
+} from "@linxiraos/pi-tui/render/render-utils";
 
 export const MCP_CONNECTION_STATUS_EVENT_CHANNEL = "mcp:connection-status";
 

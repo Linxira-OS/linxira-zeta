@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { FileDiagnosticsResult } from "@linxiraos/zeta/lsp";
+import type { FileDiagnosticsResult } from "@linxiraos/pi-tui/tools/lsp";
 import { DiagnosticsLedger, diagnosticIdentity } from "@linxiraos/zeta/lsp/diagnostics-ledger";
 
 const FILE_A = "/repo/src/a.ts";

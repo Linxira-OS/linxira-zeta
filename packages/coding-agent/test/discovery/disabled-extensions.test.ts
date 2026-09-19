@@ -5,7 +5,8 @@ import * as path from "node:path";
 import { type ContextFile, contextFileCapability } from "@linxiraos/zeta/capability/context-file";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
-import { isShadowedExtension, loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
+import { isShadowedExtension } from "@linxiraos/pi-tui/overlays/extensions/types";
+import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
 import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 function restoreEnvValue(key: string, value: string | undefined): void {

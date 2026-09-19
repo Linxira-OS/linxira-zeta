@@ -1,18 +1,19 @@
+import { type Type, type } from "@linxiraos/pi-omptype";
 import type { AgentToolResult, ToolApprovalDecision } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { classifyModel } from "@linxiraos/pi-catalog/identity";
 import type { DesktopCapabilities } from "@linxiraos/pi-natives";
-import { type Type, type } from "@linxiraos/pi-omptype";
 import { once } from "@linxiraos/pi-utils";
 import { callSessionTool } from "../eval/js/tool-bridge";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
-import { enforceInlineByteCap } from "../session/streaming-output";
+import { enforceInlineByteCap } from "@linxiraos/pi-tui/tools/streaming-output";
 import { type ComputerCallStep, isReadOnlyComputerCall, renderComputerCall } from "./computer/call";
 import type { ComputerScreenshot, ComputerSessionSnapshot } from "./computer/protocol";
 import { type ComputerController, ComputerSupervisor, registerComputerController } from "./computer/supervisor";
 import type { ToolSession } from "./index";
 import { renderCallChain, renderFunctionRun } from "./run-code";
-import { ToolError, throwIfAborted } from "./tool-errors";
+import { throwIfAborted } from "./tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { clampTimeout } from "./tool-timeouts";
 
 // Image transports that cannot preserve native screenshot detail resize frames

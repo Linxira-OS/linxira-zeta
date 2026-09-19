@@ -33,7 +33,7 @@ import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions";
 import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool } from "@linxiraos/zeta/tools/bash";
-import type { TruncationMeta } from "@linxiraos/zeta/tools/output-meta";
+import type { TruncationMeta } from "@linxiraos/pi-tui/tools/output-meta";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { AdviseTool } from "../src/advisor/advise-tool";
 

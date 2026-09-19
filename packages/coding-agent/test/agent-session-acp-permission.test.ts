@@ -16,7 +16,6 @@ import { EditTool } from "@linxiraos/zeta/edit";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { TempDir } from "@linxiraos/pi-utils";
 import type {
 	ClientBridge,
 	ClientBridgePermissionOutcome,
@@ -26,6 +25,7 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@linxiraos/zeta/tools/xdev";
+import { TempDir } from "@linxiraos/pi-utils";
 
 // ---------------------------------------------------------------------------
 // Shared setup

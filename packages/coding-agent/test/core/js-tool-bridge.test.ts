@@ -4,7 +4,8 @@ import type { AgentTool, AgentToolContext, AgentToolResult } from "@linxiraos/pi
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { callSessionTool } from "@linxiraos/zeta/eval/js/tool-bridge";
 import type { EvalShadowCellSession } from "@linxiraos/zeta/eval/speculation/cell-session";
-import { type TodoPhase, TodoTool, type ToolSession } from "@linxiraos/zeta/tools";
+import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import { TodoTool, type ToolSession } from "@linxiraos/zeta/tools";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 function createTool(name: string, execute: AgentTool["execute"]): AgentTool {

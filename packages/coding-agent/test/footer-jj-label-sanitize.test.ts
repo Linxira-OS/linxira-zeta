@@ -5,8 +5,9 @@
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { FooterComponent } from "@linxiraos/zeta/modes/components/footer";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { FooterComponent } from "@linxiraos/pi-tui/status-line/footer";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { VcsRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
@@ -80,7 +81,7 @@ describe("FooterComponent jj label sanitization", () => {
 		vi.spyOn(vcs, "repoForDisplay").mockReturnValue(jj);
 		vi.spyOn(vcs, "watch").mockImplementation((() => () => {}) as unknown as typeof vcs.watch);
 
-		const component = new FooterComponent(makeSession());
+		const component = new FooterComponent(makeSession(), statusLineHost);
 		component.watchBranch(() => {});
 		try {
 			component.render(80);

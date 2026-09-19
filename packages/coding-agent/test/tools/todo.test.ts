@@ -1,25 +1,27 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { toolWireSchema } from "@linxiraos/pi-ai";
 import { type } from "@linxiraos/pi-omptype";
-import type { Component } from "@linxiraos/pi-tui";
+import { toolWireSchema } from "@linxiraos/pi-ai";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import {
 	markdownToPhases,
 	nextActionableTask,
 	phasesToMarkdown,
 	resolveTodoMarkdownPath,
+	TodoTool,
+} from "@linxiraos/zeta/tools";
+import {
 	selectCollapsedTodos,
 	TODO_STRIKE_HOLD_FRAMES,
 	TODO_STRIKE_TOTAL_FRAMES,
 	type TodoItem,
 	type TodoPhase,
-	TodoTool,
 	todoMatchesAnyDescription,
 	todoToolRenderer,
-} from "@linxiraos/zeta/tools";
+} from "@linxiraos/pi-tui/tools/todo";
+import type { Component } from "@linxiraos/pi-tui";
 
 function createSession(initialPhases: TodoPhase[] = []): ToolSession {
 	let phases = initialPhases;

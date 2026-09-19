@@ -7,7 +7,8 @@ import type {
 	TextContent,
 	Usage,
 } from "@linxiraos/pi-ai";
-import type { StructuredSubagentSchemaMode } from "../task/types";
+import type { StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
+
 import type { CompactionMethod } from "./compaction-methods";
 
 export const CURRENT_SESSION_VERSION = 3;

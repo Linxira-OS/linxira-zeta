@@ -15,7 +15,7 @@ import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
-import { computeNonMessageTokens } from "@linxiraos/zeta/modes/utils/context-usage";
+import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
 import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
 import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta/tools/context-notes";
@@ -565,7 +565,7 @@ describe("experimental context management", () => {
 			.find((candidate): candidate is CompactionEntry => candidate.type === "compaction");
 		if (!entry) throw new Error("Expected a rollover boundary");
 		const expected =
-			computeNonMessageTokens(session, agent.tokenizer) +
+			computeNonMessageTokens(session, agent.tokenizer, session.settings.revision) +
 			agent.tokenizer.countMessages(convertToLlm(manager.buildSessionContext().messages));
 		expect(entry.tokensAfter).toBe(expected);
 		expect(entry.tokensAfter).toBeGreaterThan(agent.tokenizer.countMessages(manager.buildSessionContext().messages));

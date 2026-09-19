@@ -11,7 +11,8 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";
 import * as executorModule from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition, SingleResult } from "@linxiraos/zeta/task/types";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 

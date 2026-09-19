@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { AsyncJobManager } from "@linxiraos/zeta/async";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { type EvalAgentBridgeOptions, type EvalAgentResult, runEvalAgent } from "@linxiraos/zeta/eval/agent-bridge";
+import { runEvalAgent, type EvalAgentBridgeOptions, type EvalAgentResult } from "@linxiraos/zeta/eval/agent-bridge";
 import { runEvalWait } from "@linxiraos/zeta/eval/handle-bridge";
 import type { LocalProtocolOptions } from "@linxiraos/zeta/internal-urls";
 import type { MCPManager } from "@linxiraos/zeta/mcp";
@@ -10,7 +10,8 @@ import * as taskDiscovery from "@linxiraos/zeta/task/discovery";
 import * as taskExecutor from "@linxiraos/zeta/task/executor";
 import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
 import { runStructuredSubagent } from "@linxiraos/zeta/task/structured-subagent";
-import type { AgentDefinition, SingleResult, StructuredSubagentOutput } from "@linxiraos/zeta/task/types";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { SingleResult, StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const jobManagers = new Set<AsyncJobManager>();

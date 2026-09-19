@@ -17,13 +17,13 @@ import type { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { SessionFocusController } from "@linxiraos/zeta/modes/controllers/session-focus-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
-import type { AgentProgress, TaskToolDetails } from "@linxiraos/zeta/task/types";
+import type { AgentProgress, TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 const usage = {

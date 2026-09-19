@@ -8,6 +8,7 @@ import {
 	resetRegisteredArtifactDirsForTests,
 } from "@linxiraos/zeta/internal-urls/registry-helpers";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { formatTruncationMetaNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 function getTextOutput(result: { content: Array<{ type: string; text?: string }> }): string {

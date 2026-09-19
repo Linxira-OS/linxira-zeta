@@ -10,7 +10,7 @@ import type {
 	ExtensionUIContext,
 } from "@linxiraos/zeta/extensibility/extensions";
 import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext, RenderSessionContextOptions } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { buildSessionContext, type SessionContext } from "@linxiraos/zeta/session/session-context";

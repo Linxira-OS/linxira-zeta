@@ -7,7 +7,7 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { expandModelMentionTags } from "@linxiraos/zeta/session/model-mention-syntax";
+import { expandModelMentionTags } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
 import {
 	MODEL_MENTION_ENTRY_TYPE,
 	ModelMentionRegistry,

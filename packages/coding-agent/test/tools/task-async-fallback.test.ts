@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { TaskTool } from "@linxiraos/zeta/task";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import type { TaskParams } from "@linxiraos/zeta/task/types";
+import type { TaskParams } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 
 function createSession(overrides: Partial<Record<string, unknown>> = {}): ToolSession {

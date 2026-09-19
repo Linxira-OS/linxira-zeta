@@ -1,6 +1,6 @@
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import { parseHTML } from "@linxiraos/pi-utils/dom";
-import type { SearchResponse, SearchSource } from "../../../web/search/types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatScraperQuery } from "../query";
 import { clampNumResults } from "../utils";

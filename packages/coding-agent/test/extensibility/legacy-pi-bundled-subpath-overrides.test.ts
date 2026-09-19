@@ -226,6 +226,6 @@ export const observed = [
 		expect(bundledModuleKeys.has("@linxiraos/zeta/slash-commands/helpers/active-oauth-account")).toBe(true);
 		// Directory index modules stay excluded: `./x/*` must not serve `x/y`
 		// from `y/index.ts`, which Node would not resolve either.
-		expect(bundledModuleKeys.has("@linxiraos/zeta/modes/theme/defaults/index")).toBe(false);
+		expect(bundledModuleKeys.has("@linxiraos/pi-tui/theme/defaults/index")).toBe(false);
 	});
 });

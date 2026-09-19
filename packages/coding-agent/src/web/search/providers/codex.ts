@@ -17,7 +17,7 @@ import {
 } from "@linxiraos/pi-catalog/wire/codex";
 import { $env, readSseJson, USER_AGENT } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../../../config/model-registry";
-import type { SearchResponse, SearchSource } from "../../../web/search/types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";
 import type { SearchParams } from "./base";

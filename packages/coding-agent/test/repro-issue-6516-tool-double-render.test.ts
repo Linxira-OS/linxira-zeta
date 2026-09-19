@@ -1,17 +1,17 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { ReadToolGroupComponent } from "@linxiraos/zeta/modes/components/read-tool-group";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { buildSessionContext } from "@linxiraos/zeta/session/session-context";
 import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 /**
  * Regression for issue #6516 — a tool call renders twice in the transcript.

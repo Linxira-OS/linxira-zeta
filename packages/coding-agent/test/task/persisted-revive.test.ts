@@ -22,9 +22,10 @@ import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import * as executorModule from "@linxiraos/zeta/task/executor";
 import { createPersistedSubagentReviverFactory } from "@linxiraos/zeta/task/persisted-revive";
 import { buildWakeRelayBody } from "@linxiraos/zeta/task/executor";
-import type { SingleResult } from "@linxiraos/zeta/task/types";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { IrcBus, type IrcMessage } from "@linxiraos/zeta/irc/bus";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { type IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 

@@ -4,7 +4,8 @@ import * as logger from "@linxiraos/pi-utils/logger";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { workerHostEntry } from "@linxiraos/pi-utils/worker-host";
 import type { ToolSession } from "../index";
-import { ToolAbortError, ToolError } from "../tool-errors";
+import { ToolAbortError } from "../tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import {
 	COMPUTER_WORKER_ARG,
 	type ComputerRunOk,

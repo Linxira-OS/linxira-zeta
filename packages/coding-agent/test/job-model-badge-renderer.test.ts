@@ -3,11 +3,12 @@ import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { visibleWidth } from "@linxiraos/pi-tui";
 import { AsyncJobManager } from "../src/async/job-manager";
 import { resetSettingsForTest, Settings, settings } from "../src/config/settings";
-import { getThemeByName, setThemeInstance, type Theme } from "../src/modes/theme/theme";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "../src/tools";
-import { jobsRenderResult, snapshotJobs } from "../src/tools/hub/jobs";
-import type { CoordinationDetails } from "../src/tools/hub/types";
-import { formatDuration, thinkingLevelGlyph } from "../src/tools/render-utils";
+import { jobsRenderResult } from "@linxiraos/pi-tui/tools/hub";
+import { snapshotJobs } from "../src/tools/hub/jobs";
+import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
+import { formatDuration, thinkingLevelGlyph } from "@linxiraos/pi-tui/render/render-utils";
 
 const ansiPattern = /\x1b\[[0-9;]*m/g;
 const hyperlinkPattern = /\x1b\]8;[^\x1b\x07]*(?:\x07|\x1b\\)/g;

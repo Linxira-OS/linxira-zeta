@@ -1,8 +1,8 @@
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { type Component, getSegmenter } from "@linxiraos/pi-tui";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
-import { formatThinkingForDisplay, hasDisplayableThinking } from "../../utils/thinking-display";
-import type { AssistantMessageComponent } from "../components/assistant-message";
+import { formatThinkingForDisplay, hasDisplayableThinking } from "@linxiraos/pi-tui/chat/thinking-display";
+import type { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 
 export const STREAMING_REVEAL_FRAME_MS = 1000 / 30;
 export const MIN_STEP = 3;

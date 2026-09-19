@@ -17,7 +17,7 @@ import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import * as sshFileTransfer from "@linxiraos/zeta/ssh/file-transfer";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { formatOutputNotice } from "@linxiraos/zeta/tools/output-meta";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { GlobTool } from "../../src/tools/glob";

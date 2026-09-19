@@ -2,9 +2,9 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as SessionSelector from "@linxiraos/zeta/modes/components/session-selector";
+import * as SessionSelector from "@linxiraos/pi-tui/overlays/session-selector";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -227,9 +227,9 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 				onSelect: (session: SessionInfo) => void,
 				onCancel: () => void,
 				onExit: () => void,
-				options: SessionSelector.SessionSelectorOptions,
+				options: SessionSelector.SessionSelectorOptions<SessionInfo>,
 			) =>
-				new OriginalSelector(
+				new OriginalSelector<SessionInfo>(
 					sessions,
 					selected => {
 						selectionPromises.push(onSelect(selected) as unknown as Promise<void>);
@@ -283,9 +283,9 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 				onSelect: (session: SessionInfo) => void,
 				onCancel: () => void,
 				onExit: () => void,
-				options: SessionSelector.SessionSelectorOptions,
+				options: SessionSelector.SessionSelectorOptions<SessionInfo>,
 			) =>
-				new OriginalSelector(
+				new OriginalSelector<SessionInfo>(
 					sessions,
 					selected => {
 						selectionPromise = onSelect(selected) as unknown as Promise<void>;

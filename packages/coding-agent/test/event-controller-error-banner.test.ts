@@ -10,13 +10,13 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
-import { Loader } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import { ErrorBannerComponent } from "@linxiraos/zeta/modes/components/error-banner";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { ErrorBannerComponent } from "@linxiraos/pi-tui/overlays/error-banner";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { Loader } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {

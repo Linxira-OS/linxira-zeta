@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 
 beforeAll(async () => {

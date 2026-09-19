@@ -12,8 +12,8 @@ import {
 	extractInternalUrlContext,
 	getInternalUrlSuggestions,
 	isInternalUrlPrefix,
-} from "@linxiraos/zeta/modes/internal-url-autocomplete";
-import { PromptActionAutocompleteProvider } from "@linxiraos/zeta/modes/prompt-action-autocomplete";
+} from "@linxiraos/pi-tui/prompt/internal-url-autocomplete";
+import { PromptActionAutocompleteProvider } from "@linxiraos/pi-tui/prompt/prompt-action-autocomplete";
 
 function skill(name: string, description = ""): Skill {
 	return { name, description, filePath: `/skills/${name}/SKILL.md`, baseDir: `/skills/${name}`, source: "test" };

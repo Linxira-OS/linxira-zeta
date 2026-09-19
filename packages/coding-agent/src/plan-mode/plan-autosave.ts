@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getProjectAgentDir } from "@linxiraos/pi-utils";
+
 import type { Settings } from "../config/settings";
 import { expandTilde } from "../tools/path-utils";
 
@@ -28,6 +29,7 @@ export function planSaveFileName(title: string): string {
 }
 
 /** Default autosave location: `<project>/.zeta/plans/`. */
+
 export function defaultPlanAutosaveDir(cwd: string): string {
 	return path.join(getProjectAgentDir(cwd), "plans");
 }

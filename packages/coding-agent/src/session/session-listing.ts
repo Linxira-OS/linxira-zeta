@@ -2,11 +2,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Message } from "@linxiraos/pi-ai";
+import { textContent } from "@linxiraos/pi-tui/chat/transcript-entry";
 import { getSessionsDir } from "@linxiraos/pi-utils/dirs";
 import * as logger from "@linxiraos/pi-utils/logger";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { parseJsonlLenient } from "@linxiraos/pi-utils/stream";
 import { toError } from "@linxiraos/pi-utils/type-guards";
+
 import { computeDefaultSessionDir } from "./session-paths";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
 import { lookupSessionTitle, recordSessionTitle } from "./title-index";
@@ -148,15 +150,6 @@ function sessionDisplayName(info: SessionInfo): string {
 	const date = new Date(ts);
 	const time = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 	return `Untitled · ${time}`;
-}
-
-function extractTextFromContent(content: Message["content"]): string {
-	if (typeof content === "string") return content;
-	const text: string[] = [];
-	for (const block of content) {
-		if (block.type === "text") text.push(block.text);
-	}
-	return text.join(" ");
 }
 
 /**
@@ -447,13 +440,13 @@ async function scanSessionFile(
 				parsedMessageCount++;
 
 				if (entry.message.role === "user" || entry.message.role === "assistant") {
-					const textContent = extractTextFromContent(entry.message.content);
+					const messageText = textContent(entry.message.content, " ");
 
-					if (textContent) {
-						allMessages.push(textContent);
+					if (messageText) {
+						allMessages.push(messageText);
 
 						if (!firstMessage && entry.message.role === "user") {
-							firstMessage = textContent;
+							firstMessage = messageText;
 						}
 					}
 				}

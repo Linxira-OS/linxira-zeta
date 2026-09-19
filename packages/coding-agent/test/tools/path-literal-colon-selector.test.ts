@@ -9,15 +9,15 @@ import {
 	expandPath,
 	probeLiteralPathExists,
 	resolveToCwd,
-	splitPathAndSel,
 	splitPathAndSelPreferringLiteral,
 	splitPathAndSelPreferringLiteralSync,
 } from "@linxiraos/zeta/tools/path-utils";
+import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { GrepOutputMode } from "@linxiraos/pi-natives";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { runGrepCommand } from "../../src/cli/grep-cli";
-import { initTheme } from "../../src/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { GrepTool } from "../../src/tools/grep";
 
 function getText(result: { content: Array<{ type: string; text?: string }> }): string {

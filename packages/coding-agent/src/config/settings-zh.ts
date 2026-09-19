@@ -13,7 +13,8 @@
  * Keep this file in lockstep with the schema: the completeness script asserts
  * that every tab, group, ui-blocked path, and ui.options entry is covered.
  */
-import type { SettingPath, SettingTab } from "./settings-schema";
+import type { SettingTab } from "@linxiraos/pi-tui/overlays/settings-defs";
+import type { SettingPath } from "./settings-schema";
 
 /** Tab labels for the settings tab bar (zh). */
 export const ZH_TAB_LABELS: Record<SettingTab, string> = {

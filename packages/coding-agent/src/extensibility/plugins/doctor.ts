@@ -1,5 +1,5 @@
 import { $which } from "@linxiraos/pi-utils";
-import { theme } from "../../modes/theme/theme";
+import { theme } from "@linxiraos/pi-tui/theme";
 import type { DoctorCheck } from "./types";
 
 export async function runDoctorChecks(): Promise<DoctorCheck[]> {

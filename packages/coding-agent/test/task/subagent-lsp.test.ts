@@ -12,12 +12,13 @@ import * as sdkModule from "@linxiraos/zeta/sdk";
 import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
 import { TaskTool } from "@linxiraos/zeta/task";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import type { AgentDefinition, TaskParams } from "@linxiraos/zeta/task/types";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { TaskParams } from "@linxiraos/pi-tui/tools/task";
 import type { IsolationHandle, WorktreeBaseline } from "@linxiraos/zeta/task/worktree";
 import * as worktreeModule from "@linxiraos/zeta/task/worktree";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { removeWithRetries } from "@linxiraos/pi-utils";
-import "@linxiraos/zeta";
+import "@linxiraos/zeta/tools/yield";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 

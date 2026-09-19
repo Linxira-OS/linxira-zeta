@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { rankSessionSearchMatches, SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { rankSessionSearchMatches, SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 
 /**
@@ -45,7 +45,7 @@ function makeCorpus(): SessionInfo[] {
 }
 
 interface Harness {
-	selector: SessionSelectorComponent;
+	selector: SessionSelectorComponent<SessionInfo>;
 	type: (text: string) => void;
 	/** Sessions currently in the filtered list, probed through the public selection surface. */
 	filtered: () => SessionInfo[];

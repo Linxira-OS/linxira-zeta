@@ -14,7 +14,7 @@ import {
 	isPersistentShellCdCommand,
 } from "@linxiraos/zeta/exec/bash-executor";
 import * as direnvModule from "@linxiraos/zeta/exec/direnv";
-import { DEFAULT_MAX_BYTES } from "@linxiraos/zeta/session/streaming-output";
+import { DEFAULT_MAX_BYTES } from "@linxiraos/pi-tui/tools/streaming-output";
 import * as shellSnapshot from "@linxiraos/zeta/utils/shell-snapshot";
 import { encodeTerminalImage } from "@linxiraos/zeta/utils/terminal-graphics";
 

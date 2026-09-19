@@ -13,7 +13,7 @@ import { parseCloudflareAiGatewayCredential } from "@linxiraos/pi-catalog/wire/c
 import { getAntigravityUserAgent, getGeminiCliHeaders } from "@linxiraos/pi-catalog/wire/gemini-headers";
 import { fetchWithRetry, USER_AGENT } from "@linxiraos/pi-utils";
 
-import type { SearchCitation, SearchResponse, SearchSource } from "../../../web/search/types";
+import type { SearchCitation, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery, type StructuredQuery } from "../query";
 import type { SearchParams } from "./base";

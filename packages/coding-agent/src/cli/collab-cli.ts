@@ -13,8 +13,8 @@ import {
 	listCollabHosts,
 	resolveCollabHostLink,
 } from "../collab/registry";
-import { sanitizeDisplayLine } from "../modes/components/extensions/display-text";
-import { shortenPath } from "../tools/render-utils";
+import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
+import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 
 export interface CollabListCommandArgs {
 	/** Emit deterministic machine-readable JSON. */

@@ -1,13 +1,8 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
-import type { OutputSummary, TruncationResult } from "../session/streaming-output";
-import type {
-	LimitsInput,
-	OutputMeta,
-	TruncationOptions,
-	TruncationSummaryOptions,
-	TruncationTextOptions,
-} from "./output-meta";
+import type { OutputSummary, TruncationResult } from "@linxiraos/pi-tui/tools/streaming-output";
+import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import type { LimitsInput, TruncationMetaInput, TruncationSummaryOptions, TruncationTextOptions } from "./output-meta";
 import { outputMeta } from "./output-meta";
 
 type ToolContent = Array<TextContent | ImageContent>;
@@ -35,7 +30,7 @@ export class ToolResultBuilder<TDetails extends DetailsWithMeta> {
 		return this;
 	}
 
-	truncation(result: TruncationResult, options: TruncationOptions): this {
+	truncation(result: TruncationResult, options: TruncationMetaInput): this {
 		this.#meta.truncation(result, options);
 		return this;
 	}

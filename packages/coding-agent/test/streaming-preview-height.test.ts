@@ -3,15 +3,15 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { theme as activeTheme, initTheme } from "@linxiraos/pi-tui/theme";
+import { previewWindowRows } from "@linxiraos/pi-tui/render/render-utils";
 import { editDiffString } from "@linxiraos/pi-natives";
 import { TUI, visibleWidth } from "@linxiraos/pi-tui";
 import { removeWithRetries } from "@linxiraos/pi-utils";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
-import { theme as activeTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { previewWindowRows } from "@linxiraos/zeta/tools/render-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
-import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
+import { withoutTerminalMultiplexer } from "../../tui/test/terminal-multiplexer-environment";
 
 // The streaming edit preview is a fixed-height tail window ("cursor"): the last
 // EDIT_STREAMING_PREVIEW_LINES rows of the recomputed diff are pinned to the

@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { isEexist, isEnoent, logger } from "@linxiraos/pi-utils";
 import { formatPathRelativeToCwd } from "../tools/path-utils";
-import { ToolError } from "../tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type {
 	CreateFile,
 	CreateFileOptions,

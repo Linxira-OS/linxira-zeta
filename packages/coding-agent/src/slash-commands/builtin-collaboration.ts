@@ -1,5 +1,6 @@
 import { Spacer } from "@linxiraos/pi-tui";
 import { APP_NAME, formatAge } from "@linxiraos/pi-utils";
+
 import { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import { type CollabHostSnapshot, listCollabHosts } from "../collab/registry";
@@ -8,17 +9,17 @@ import { settings } from "../config/settings";
 import { parseExportArgs } from "../export/html/args";
 import { shareSession } from "../export/share";
 import { M } from "../i18n";
-import { theme } from "../modes/theme/theme";
+import { theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "../modes/types";
-import { sanitizeDisplayLine } from "../modes/components/extensions/display-text";
-import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "../modes/utils/copy-targets";
+import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
+import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@linxiraos/pi-tui/overlays/copy-targets";
 import { restartBrowserForModeChange } from "../tools/browser";
-import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "../tools/render-utils";
+import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
+import { openPath } from "../utils/open";
 
 import { copyToClipboard } from "../utils/clipboard";
-import { openPath } from "../utils/open";
 import { refreshStatusLine } from "./builtin-modes";
-import { CollabQrCodeComponent, collabBrowserLink } from "./helpers/collab-qrcode";
+import { CollabQrCodeComponent, collabBrowserLink } from "@linxiraos/pi-tui/chrome/collab-qrcode";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
 
@@ -341,6 +342,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			if (verb === "list") {
 				// Same registry as `zeta collab list`: metadata only, never a link. A
 				// link is a deliberate per-host act (`zeta collab link <id> [--view]`),
+
 				// so a listing can be shown or logged without granting anything.
 				if (rest.trim()) {
 					ctx.showError(`Usage: /collab list — for links or JSON use \`${APP_NAME} collab link|list\``);

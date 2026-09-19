@@ -15,7 +15,7 @@ import { providerImageBudget } from "@linxiraos/pi-snapcompact";
 import { isRecord } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { supportsRemoteImageUrls } from "../blob-broker/context-images";
-import { imageDecodeFailureReason } from "../utils/image-loading";
+import { imageDecodeFailureReason } from "@linxiraos/pi-tui/chat/image-loading";
 
 const TOOL_RESULT_IMAGE_OMISSION: TextContent = {
 	type: "text",

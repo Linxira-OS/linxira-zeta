@@ -41,13 +41,14 @@ import * as AIError from "@linxiraos/pi-ai/error";
 import { extractProviderRetryHint } from "@linxiraos/pi-ai/utils/retry-after";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { extractHttpStatusFromError, logger, prompt } from "@linxiraos/pi-utils";
+import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
+
 import {
 	ADVISOR_DEFAULT_TOOL_NAMES,
 	ADVISOR_DEFAULT_BUDGET_PER_UPDATE,
 	ADVISOR_MAX_BUDGET_PER_UPDATE,
 	AdviseTool,
 	type AdvisorAgent,
-	type AdvisorConfig,
 	AdvisorEmissionGuard,
 	AdvisorLoopGuard,
 	type AdvisorMessageDetails,
@@ -79,7 +80,7 @@ import { serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/s
 import type { Settings } from "../config/settings";
 import { CursorExecHandlers, type CursorMcpResourceAdapter } from "../cursor";
 import { bridgeToolMap } from "../cursor-bridge-tools";
-import { estimateToolSchemaTokens } from "../modes/utils/context-usage";
+import { estimateToolSchemaTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 import type { PlanModeState } from "../plan-mode/state";
 import advisorSystemPrompt from "../prompts/advisor/system.md" with { type: "text" };
 import type { SecretObfuscator } from "../secrets/obfuscator";
@@ -88,7 +89,7 @@ import {
 	resolveThinkingLevelForModel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "../thinking";
+} from "@linxiraos/pi-tui/thinking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ClientBridge } from "./client-bridge";
 import { resolveCompactionMethodOrder, resolveMethodSettings } from "./compaction-methods";

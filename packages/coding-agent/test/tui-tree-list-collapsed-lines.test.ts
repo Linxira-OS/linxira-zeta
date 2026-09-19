@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderTreeList } from "@linxiraos/zeta/tui/tree-list";
+import { renderTreeList } from "@linxiraos/pi-tui/render/tree-list";
 import { truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
 
 const stubTheme = {

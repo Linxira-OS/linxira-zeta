@@ -26,7 +26,7 @@ import * as path from "node:path";
 import type { ChannelId } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
-import type { IrcMessage } from "../irc/bus";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 import { createAgentSession } from "../sdk";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionEvent } from "../session/agent-session-events";

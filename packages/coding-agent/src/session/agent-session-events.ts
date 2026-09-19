@@ -3,9 +3,10 @@ import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { Effort } from "@linxiraos/pi-ai";
 import type { Rule } from "../capability/rule";
 import type { RetryErrorUpdate } from "../extensibility/shared-events";
-import type { Goal, GoalModeState } from "../goals/state";
-import type { ConfiguredThinkingLevel } from "../thinking";
-import type { TodoItem } from "../tools/todo";
+import type { Goal } from "@linxiraos/pi-tui/tools/goal";
+import type { GoalModeState } from "../goals/state";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { TodoItem } from "@linxiraos/pi-tui/tools/todo";
 import type { CustomMessage } from "./messages";
 
 /** Session-specific events that extend the core AgentEvent. */

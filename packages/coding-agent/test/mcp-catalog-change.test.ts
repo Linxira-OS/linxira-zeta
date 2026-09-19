@@ -2,13 +2,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import type { MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
-import { ExtensionDashboard } from "@linxiraos/zeta/modes/components/extensions/extension-dashboard";
-import { snapshotMcpRuntime } from "@linxiraos/zeta/modes/components/extensions/mcp-runtime";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { ExtensionDashboard } from "@linxiraos/pi-tui/overlays/extensions/extension-dashboard";
+import { snapshotMcpRuntime } from "@linxiraos/pi-tui/overlays/extensions/mcp-runtime";
+import { createExtensionDashboardRuntime } from "@linxiraos/zeta/modes/components/extensions/dashboard-runtime";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { PROMPT_NAME, RESOURCE_NAME, RESOURCE_URI, TOOL_NAME } from "./fixtures/delayed-catalog-mcp";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "delayed-catalog-mcp.ts");
@@ -113,9 +114,7 @@ describe("MCP catalog-change after connect", () => {
 	it("repaints after reconnect catalogs finish, then stops after dashboard dispose", async () => {
 		const settings = await Settings.init({ inMemory: true, cwd: workDir });
 		const dashboard = await ExtensionDashboard.create({
-			cwd: workDir,
-			settings,
-			mcpManager: manager,
+			runtime: createExtensionDashboardRuntime({ cwd: workDir, settings, mcpManager: manager }),
 		});
 		let paints = 0;
 		dashboard.onRequestRender = () => {

@@ -3,12 +3,12 @@ import { type Api, Effort, type Model, type ModelSpec } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models";
+import { parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
 	expandRoleAlias,
 	extractExplicitThinkingSelector,
 	filterAvailableModelsByEnabledPatterns,
 	parseModelPattern,
-	parseModelString,
 	pickDefaultAvailableModel,
 	resolveAgentAdvisorSelection,
 	resolveAgentModelPatterns,

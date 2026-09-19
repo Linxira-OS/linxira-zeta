@@ -10,9 +10,9 @@ import {
 	buildLineSelectionPatch,
 	type DiffBuildOptions,
 	DiffPane,
-} from "../src/cli/git-tui/diff-pane";
+} from "@linxiraos/pi-tui/apps/git/diff-pane";
 import { GitModel } from "../src/cli/git-tui/state";
-import { initTheme } from "../src/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 
 // PR CI tests against the latest release addons by design (native changes are
 // validated post-merge on main and at release). DiffStream arrived upstream in

@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
-import { chipLabel } from "@linxiraos/zeta/modes/composer-attachments";
-import { getEditorTheme, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { chipLabel } from "@linxiraos/pi-tui/prompt/composer-attachments";
+import { getEditorTheme, initTheme } from "@linxiraos/pi-tui/theme";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";

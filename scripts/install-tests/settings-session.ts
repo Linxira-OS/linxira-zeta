@@ -191,7 +191,7 @@ export default function (api) {
 				PATH: process.env.PATH,
 				HOME: path.join(work, "home"),
 				XDG_DATA_HOME: path.join(work, "xdg"),
-				PI_CODING_AGENT_DIR: agentDir,
+				ZETA_CODING_AGENT_DIR: agentDir,
 				TMPDIR: work,
 			},
 			stdin: "ignore",

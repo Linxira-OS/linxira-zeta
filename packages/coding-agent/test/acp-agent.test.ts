@@ -5,24 +5,6 @@ import * as path from "node:path";
 import { AgentBusyError } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
-import type {
-	AgentSideConnection,
-	ClientCapabilities,
-	CreateElicitationRequest,
-	CreateElicitationResponse,
-	PromptRequest,
-	SessionNotification,
-	Validator,
-} from "@linxiraos/pi-utils/acp";
-import {
-	RequestError,
-	zForkSessionResponse,
-	zLoadSessionResponse,
-	zNewSessionResponse,
-	zPromptResponse,
-	zSessionNotification,
-} from "@linxiraos/pi-utils/acp";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
@@ -44,6 +26,24 @@ import {
 	TTS_LOCAL_MODELS,
 	TTS_LOCAL_VOICE_OPTIONS,
 } from "@linxiraos/zeta/tts/models";
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
+import type {
+	AgentSideConnection,
+	ClientCapabilities,
+	CreateElicitationRequest,
+	CreateElicitationResponse,
+	PromptRequest,
+	SessionNotification,
+	Validator,
+} from "@linxiraos/pi-utils/acp";
+import {
+	RequestError,
+	zForkSessionResponse,
+	zLoadSessionResponse,
+	zNewSessionResponse,
+	zPromptResponse,
+	zSessionNotification,
+} from "@linxiraos/pi-utils/acp";
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */

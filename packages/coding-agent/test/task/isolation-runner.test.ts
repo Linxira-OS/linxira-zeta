@@ -15,7 +15,7 @@ import {
 	retainIsolationWorkspace,
 	runIsolatedSubprocess,
 } from "@linxiraos/zeta/task/isolation-runner";
-import type { SingleResult } from "@linxiraos/zeta/task/types";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import * as worktreeModule from "@linxiraos/zeta/task/worktree";
 import * as natives from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";

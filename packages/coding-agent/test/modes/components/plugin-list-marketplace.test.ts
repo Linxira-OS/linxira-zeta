@@ -2,15 +2,21 @@ import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as os from "node:os";
 import { stripVTControlCharacters } from "node:util";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins";
-import { type InstalledPluginSummary, MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import {
+	type InstalledPluginSummary,
+	MarketplaceManager,
+	parsePluginId,
+} from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/settings-host";
 import type { InstalledPlugin } from "@linxiraos/zeta/extensibility/plugins/types";
 import {
+	type InstalledPluginSummary as MarketplaceSettingsPlugin,
 	MarketplacePluginDetailComponent,
 	PluginListComponent,
 	type PluginListEntry,
 	PluginSettingsComponent,
-} from "@linxiraos/zeta/modes/components/plugin-settings";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+} from "@linxiraos/pi-tui/overlays/plugin-settings";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 
 beforeAll(async () => {
 	await initTheme();
@@ -121,7 +127,7 @@ describe("PluginListComponent", () => {
 
 	it("routes enter on a marketplace entry to onMarketplaceSelect", () => {
 		const target = marketplace("pick@mkt");
-		let selected: InstalledPluginSummary | null = null;
+		let selected: MarketplaceSettingsPlugin | null = null;
 		const component = new PluginListComponent(
 			[
 				{ kind: "npm", plugin: npm("filler") },
@@ -161,7 +167,7 @@ describe("PluginSettingsComponent", () => {
 		);
 
 		try {
-			const component = new PluginSettingsComponent(process.cwd(), {
+			const component = new PluginSettingsComponent(createPluginSettingsHost(process.cwd()), {
 				onClose: () => {},
 				onPluginChanged: async () => {
 					order.push("reload");
@@ -196,7 +202,7 @@ describe("PluginSettingsComponent", () => {
 		try {
 			const mounted = Promise.withResolvers<void>();
 			let renders = 0;
-			const component = new PluginSettingsComponent(process.cwd(), {
+			const component = new PluginSettingsComponent(createPluginSettingsHost(process.cwd()), {
 				onClose: () => {},
 				onPluginChanged: () => {},
 				requestRender: () => {
@@ -224,7 +230,7 @@ describe("PluginSettingsComponent", () => {
 
 		try {
 			let closed = 0;
-			const component = new PluginSettingsComponent(process.cwd(), {
+			const component = new PluginSettingsComponent(createPluginSettingsHost(process.cwd()), {
 				onClose: () => {
 					closed++;
 				},
@@ -253,7 +259,7 @@ describe("PluginSettingsComponent", () => {
 
 		try {
 			let closed = 0;
-			const component = new PluginSettingsComponent(process.cwd(), {
+			const component = new PluginSettingsComponent(createPluginSettingsHost(process.cwd()), {
 				onClose: () => {
 					closed++;
 				},
@@ -294,6 +300,7 @@ describe("MarketplacePluginDetailComponent", () => {
 		spyOn(manager, "getPlugin").mockResolvedValue(undefined);
 
 		const component = new MarketplacePluginDetailComponent(plugin, manager, {
+			parsePluginId,
 			onEnabledChange: () => {},
 			onConfigChange: () => {},
 			onBack: () => {},
@@ -312,6 +319,7 @@ describe("MarketplacePluginDetailComponent", () => {
 		const manager = new PluginManager(process.cwd());
 		spyOn(manager, "getPlugin").mockResolvedValue(undefined);
 		const component = new MarketplacePluginDetailComponent(marketplace("toggle@mkt"), manager, {
+			parsePluginId,
 			onEnabledChange: enabled => calls.push(enabled),
 			onConfigChange: () => {},
 			onBack: () => {},
@@ -341,6 +349,7 @@ describe("MarketplacePluginDetailComponent", () => {
 		const changes: Array<[string, string, unknown]> = [];
 		let renderRequests = 0;
 		const component = new MarketplacePluginDetailComponent(marketplace("omp-commit@market"), manager, {
+			parsePluginId,
 			onEnabledChange: () => {},
 			onConfigChange: (pluginName, key, value) => changes.push([pluginName, key, value]),
 			requestRender: () => renderRequests++,
@@ -364,6 +373,7 @@ describe("MarketplacePluginDetailComponent", () => {
 		spyOn(manager, "getPlugin").mockResolvedValue(undefined);
 
 		const component = new MarketplacePluginDetailComponent(plugin, manager, {
+			parsePluginId,
 			onEnabledChange: () => {},
 			onConfigChange: () => {},
 			onBack: () => {},

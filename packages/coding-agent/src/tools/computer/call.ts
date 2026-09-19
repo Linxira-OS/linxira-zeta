@@ -1,5 +1,5 @@
 import { renderCallChain } from "../run-code";
-import { ToolError } from "../tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 /** One allowlisted method invocation in a computer call chain. */
 export interface ComputerCallStep {

@@ -1,11 +1,18 @@
 import type { Model } from "@linxiraos/pi-ai";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
+
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import modelMentionDescription from "../prompts/agents/model-mention.md" with { type: "text" };
 import { getBundledAgent } from "../task/agents";
 import type { AgentDefinition } from "../task/types";
-import { MODEL_MENTION_RE, type ModelMention, modelMentionDisplayName, modelMentionTag } from "./model-mention-syntax";
+import {
+	MODEL_MENTION_RE,
+	type ModelMention,
+	modelMentionDisplayName,
+	modelMentionTag,
+} from "@linxiraos/pi-tui/prompt/model-mention-syntax";
+
 import type { SessionEntry } from "./session-entries";
 import type { SessionManager } from "./session-manager";
 

@@ -15,7 +15,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { createVideoPreviewImage } from "@linxiraos/zeta/utils/video";
+import { createVideoPreviewImage } from "@linxiraos/pi-tui/prompt/video";
 
 const TINY_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
 const SOURCE_PATH = "/tmp/private-project/demo.mp4";

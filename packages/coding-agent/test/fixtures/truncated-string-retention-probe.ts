@@ -1,5 +1,5 @@
-import { RawSseDebugBuffer } from "@linxiraos/zeta/debug/raw-sse-buffer";
-import { truncateHead, truncateTail } from "@linxiraos/zeta/session/streaming-output";
+import { RawSseDebugBuffer } from "@linxiraos/pi-tui/apps/debug/raw-sse-buffer";
+import { truncateHead, truncateTail } from "@linxiraos/pi-tui/tools/streaming-output";
 
 const EVENTS = 16;
 const PARENT_BYTES = 8 * 1024 * 1024;

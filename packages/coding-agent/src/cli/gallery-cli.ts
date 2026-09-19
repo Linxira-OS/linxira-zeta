@@ -11,9 +11,9 @@ import type { AgentTool } from "@linxiraos/pi-agent-core";
 import type { TUI } from "@linxiraos/pi-tui";
 import { getProjectDir } from "@linxiraos/pi-utils";
 import { Settings } from "../config/settings";
-import { ToolExecutionComponent } from "../modes/components/tool-execution";
-import { initTheme, theme } from "../modes/theme/theme";
-import { toolRenderers } from "../tools/renderers";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
+import { toolRenderers } from "@linxiraos/pi-tui/tools";
 import {
 	type GalleryFixture,
 	type GalleryPreviewEntry,

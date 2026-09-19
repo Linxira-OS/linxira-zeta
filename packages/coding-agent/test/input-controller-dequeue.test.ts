@@ -18,7 +18,7 @@
  */
 import { beforeAll, describe, expect, mock, test } from "bun:test";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { CompactionQueuedMessage, InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { RestoredQueuedMessage } from "@linxiraos/zeta/session/agent-session";
 

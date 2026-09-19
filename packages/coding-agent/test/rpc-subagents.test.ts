@@ -13,8 +13,8 @@ import {
 } from "@linxiraos/zeta/modes/rpc/rpc-mode";
 import { RpcSubagentRegistry, readRpcSubagentTranscript } from "@linxiraos/zeta/modes/rpc/rpc-subagents";
 import type { RpcSubagentFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
+import { type AgentProgress } from "@linxiraos/pi-tui/tools/task";
 import {
-	type AgentProgress,
 	type SubagentEventPayload,
 	type SubagentLifecyclePayload,
 	type SubagentProgressPayload,

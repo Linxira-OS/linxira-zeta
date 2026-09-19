@@ -16,8 +16,10 @@ import {
 	truncateMiddle,
 	truncateTail,
 	truncateTailBytes,
-} from "@linxiraos/zeta/session/streaming-output";
-import { formatOutputNotice, outputMeta, stripOutputNotice } from "@linxiraos/zeta/tools/output-meta";
+} from "@linxiraos/pi-tui/tools/streaming-output";
+import { stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { outputMeta } from "@linxiraos/zeta/tools/output-meta";
 
 const createdTempDirs: string[] = [];
 const originalForceProtocol = Bun.env.PI_FORCE_IMAGE_PROTOCOL;

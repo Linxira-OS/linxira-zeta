@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { prompt, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentProtocolHandler } from "@linxiraos/zeta/internal-urls/agent-protocol";
 import { HistoryProtocolHandler } from "@linxiraos/zeta/internal-urls/history-protocol";
@@ -15,12 +14,9 @@ import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries
 import { collectIrcPeerRoster } from "@linxiraos/zeta/task/executor";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { HubTool } from "@linxiraos/zeta/tools/hub";
-import {
-	DEFAULT_HUB_LIST_LIMIT,
-	executeList,
-	executeSend,
-	MAX_HUB_LIST_LIMIT,
-} from "@linxiraos/zeta/tools/hub/messaging";
+import { executeList, executeSend } from "@linxiraos/zeta/tools/hub/messaging";
+import { DEFAULT_HUB_LIST_LIMIT, MAX_HUB_LIST_LIMIT } from "@linxiraos/pi-tui/tools/hub";
+import { prompt, TempDir } from "@linxiraos/pi-utils";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({

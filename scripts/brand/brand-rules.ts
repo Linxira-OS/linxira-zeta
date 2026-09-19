@@ -109,7 +109,7 @@ export const OMP_PATH_ALLOW = [
  */
 export const PI_FREE_FILES = [
 	"packages/coding-agent/src/utils/title-generator.ts",
-	"packages/coding-agent/src/modes/components/welcome.ts",
+	"packages/tui/src/prompt/welcome.ts",
 	"packages/coding-agent/src/modes/setup-wizard/scenes/splash.ts",
 	"packages/coding-agent/src/modes/setup-wizard/scenes/outro.ts",
 	"packages/coding-agent/src/modes/setup-wizard/wizard-overlay.ts",
@@ -136,12 +136,12 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "app name identity",
 	},
 	{
-		file: "packages/coding-agent/src/modes/components/welcome.ts",
+		file: "packages/tui/src/prompt/welcome.ts",
 		needle: "ZETA_LOGO",
 		why: "ζ char-art is the product logo surface (v18.0.3 lesson)",
 	},
 	{
-		file: "packages/coding-agent/src/modes/theme/symbols.ts",
+		file: "packages/tui/src/theme/symbols.ts",
 		needle: '"icon.omp": "ζ",',
 		why: "status-line brand icon (registry: icon.omp=ζ; nerd U+F0D57 preserved separately)",
 	},

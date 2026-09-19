@@ -8,6 +8,7 @@ import { clearClaudePluginRootsCache } from "../discovery/helpers";
 import { loadSlashCommands } from "../extensibility/slash-commands";
 import { rebindMemoryBackendForCwd } from "../hindsight/backend";
 import { M } from "../i18n";
+
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-backend";
 import type { AgentSession, FreshSessionResult, HandoffResult } from "../session/agent-session";
 import { COMPACT_MODES, parseCompactArgs } from "../session/compact-modes";
@@ -347,7 +348,8 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "handoff",
 		icon: "handoff",
-		description: M.cmdHandoff,
+		description: "Summarize the session into a handoff document and compact in place",
+
 		acpDescription: "Summarize the session into a handoff document and compact in place",
 		inlineHint: "[focus instructions]",
 		allowArgs: true,
@@ -477,6 +479,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "btw",
 		icon: "question",
 		description: M.cmdBtwHistory,
+
 		inlineHint: "[question]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -658,6 +661,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "rename",
 		icon: "pencil",
 		description: M.cmdRenameGenerate,
+
 		inlineHint: "[title]",
 		allowArgs: true,
 		handle: async (command, runtime) => {

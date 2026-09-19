@@ -18,19 +18,19 @@
  *     follow-up stays queued for the next explicit resume rather than auto-running.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { ToolCall } from "@linxiraos/pi-ai";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
-import { Snowflake, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { IrcMessage } from "@linxiraos/zeta/irc/bus";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Snowflake, TempDir } from "@linxiraos/pi-utils";
 
 interface MockYieldDetails {
 	status: "success";
@@ -333,7 +333,7 @@ describe("AgentSession advisor auto-resume suppression", () => {
 		expect(mock.calls.length).toBe(1);
 	});
 
-	it("waits for preserved advisor card hooks and persistence before reporting catch-up", async () => {
+	it("persists a preserved advisor card immediately but holds catch-up until its hooks settle", async () => {
 		const hookStarted = Promise.withResolvers<void>();
 		const releaseHook = Promise.withResolvers<void>();
 		const extensionRunner: AdvisorTestExtensionRunner = {
@@ -352,8 +352,10 @@ describe("AgentSession advisor auto-resume suppression", () => {
 		await session.prompt("answer with exactly one line");
 		await hookStarted.promise;
 
+		// Persistence is committed in emission order and never waits on extension
+		// listeners, so the card is already durable while its hook is still held.
+		expect(persisted.at(-1)).toContain("Fixture verdict confirmed");
 		expect(await session.waitForAdvisorCatchup(0)).toBe(false);
-		expect(persisted).toEqual([]);
 
 		let catchupSettled = false;
 		const catchup = session.waitForAdvisorCatchup(1000).then(caughtUp => {
@@ -362,11 +364,10 @@ describe("AgentSession advisor auto-resume suppression", () => {
 		});
 		await Promise.resolve();
 		expect(catchupSettled).toBe(false);
-		expect(persisted).toEqual([]);
 
 		releaseHook.resolve();
 		expect(await catchup).toBe(true);
-		expect(persisted.at(-1)).toContain("Fixture verdict confirmed");
+		expect(persisted).toHaveLength(1);
 		expect(mock.calls).toHaveLength(1);
 	});
 

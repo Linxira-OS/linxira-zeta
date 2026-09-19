@@ -30,18 +30,14 @@ import {
 } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import { FALLBACK_DIALECT, preferredDialect } from "@linxiraos/pi-catalog/identity";
 import type { Component } from "@linxiraos/pi-tui";
-import {
-	$env,
-	$flag,
-	getAgentDir,
-	getModelDbPath,
-	getProjectDir,
-	logger,
-	postmortem,
-	prompt,
-	Snowflake,
-} from "@linxiraos/pi-utils";
+import { $env, $flag } from "@linxiraos/pi-utils/env";
+import { getAgentDir, getModelDbPath, getProjectDir } from "@linxiraos/pi-utils/dirs";
+import * as logger from "@linxiraos/pi-utils/logger";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import * as prompt from "@linxiraos/pi-utils/prompt";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
+
 import {
 	discoverAdvisorConfigs,
 	discoverWatchdogFiles,
@@ -66,18 +62,17 @@ import { shouldEnableAppendOnlyContext } from "./config/append-only-context-mode
 import { shouldInlineToolDescriptors } from "./config/inline-tool-descriptors-mode";
 import { isAuthenticated, kNoAuth, ModelRegistry } from "./config/model-registry";
 import {
-	formatModelSelectorValue,
 	formatModelString,
 	formatModelStringWithRouting,
 	getModelMatchPreferences,
 	parseModelPattern,
-	parseModelString,
 	pickDefaultAvailableModel,
 	resolveAllowedModels,
 	resolveCliModel,
 	resolveConfiguredModelPatterns,
 	resolveModelRoleValue,
 } from "./config/model-resolver";
+import { formatModelSelectorValue, parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
 import { loadPromptTemplates as loadPromptTemplatesInternal, type PromptTemplate } from "./config/prompt-templates";
 import { applyProviderGlobalsFromSettings } from "./config/provider-globals";
 import { buildServiceTierByFamily } from "./config/service-tier";
@@ -90,11 +85,12 @@ import { wrapStreamFnWithBlobUrlFallback } from "./blob-broker/stream-fallback";
 import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { initializeWithSettings } from "./discovery";
 import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/omp-extension-roots";
-import type { EditMode } from "./edit";
 import { disposeVmContextsByOwner } from "./eval/js/context-manager";
 import { type EvalPreludeDefinition, getEnabledEvalPreludes } from "./eval/preludes";
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";
 import { defaultEvalSessionId } from "./eval/session-id";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
+
 import {
 	type CustomCommandsLoadResult,
 	type LoadedCustomCommand,
@@ -129,7 +125,9 @@ import {
 } from "./extensibility/skills";
 import { type FileSlashCommand, loadSlashCommands as loadSlashCommandsInternal } from "./extensibility/slash-commands";
 import type { HindsightSessionState } from "./hindsight/state";
-import { LocalProtocolHandler, type LocalProtocolOptions, stripXdUrlPrefix } from "./internal-urls";
+import { LocalProtocolHandler, type LocalProtocolOptions } from "./internal-urls";
+import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
+
 import { setSharedLspEnabled } from "./lsp/client";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "./lsp/startup-events";
 import {
@@ -140,9 +138,9 @@ import {
 	MCPManager,
 	MCPToolCache,
 	type MCPToolsLoadResult,
-	parseMCPToolName,
 	shouldFilterBrowserMCPForPrelude,
 } from "./mcp";
+import { parseMCPToolName } from "@linxiraos/pi-tui/tools/mcp";
 import { MCP_CONNECTION_STATUS_EVENT_CHANNEL, type McpConnectionStatusEvent } from "./mcp/startup-events";
 import { resolveMCPToolAlias } from "./mcp/tool-bridge";
 import { createSessionMemoryRuntimeContext, resolveMemoryBackend } from "./memory-backend";
@@ -201,7 +199,7 @@ import { AgentOutputManager } from "./task/output-manager";
 import { sessionDelegationBias } from "./task/prompt-policy";
 import { wrapStreamFnWithProviderConcurrency } from "./task/provider-concurrency";
 import { isScoutSpawnable } from "./task/spawn-policy";
-import type { StructuredSubagentSchemaMode } from "./task/types";
+import type { StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -212,7 +210,7 @@ import {
 	resolveThinkingLevelForModel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "./thinking";
+} from "@linxiraos/pi-tui/thinking";
 import {
 	BashTool,
 	BUILTIN_TOOLS,
@@ -256,7 +254,7 @@ import { ttsTool } from "./tools/tts";
 import { resolveActiveRepoContext } from "./utils/active-repo-context";
 import { EventBus } from "./utils/event-bus";
 import { normalizeProviderContextImagesForModel } from "./utils/image-loading";
-import { formatLocalCalendarDate } from "./utils/local-date";
+import { formatLocalCalendarDate } from "@linxiraos/pi-tui/chrome/local-date";
 import { normalizePromptPath } from "./utils/prompt-path";
 import { buildNamedToolChoice } from "./utils/tool-choice";
 import { VibeSessionRegistry } from "./vibe/runtime";
@@ -1788,7 +1786,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	// Only the first top-level session in a process owns an AsyncJobManager.
 	// Subagents inherit the parent's manager via `AsyncJobManager.instance()`
 	// (set below), and any additional top-level session spun up in-process
-	// (e.g. the agent-creation architect in `agents-hub.ts`) must share
+	// (e.g. the agent-creation architect in `agents-hub-deps.ts`) must share
 	// the live singleton — otherwise its dispose path would clobber the
 	// owning session's manager and break the `task`/`bash` async paths
 	// (issue #1923). The `instance()` guard means later sessions also skip
@@ -1863,6 +1861,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			channelSend: options.channelSend,
 			workspaceRun: options.workspaceRun,
 			imControl: options.imControl,
+
 			getCredentialSourceSessionId: options.getApiKey ? undefined : () => agent.sessionId,
 			get additionalDirectories() {
 				return sessionManager.getAdditionalDirectories();
@@ -1950,6 +1949,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			setTodoPhases: phases => session.setTodoPhases(phases),
 			persistTodoPhases: phases => sessionManager.appendCustomEntry(USER_TODO_EDIT_CUSTOM_TYPE, { phases }),
 			getWorkPoolYieldItems: () => session?.getWorkPoolYieldItems() ?? EMPTY_WORK_POOL_YIELD_ITEMS,
+
 			getLastAssistantText: () => session?.getLastAssistantText(),
 			setWorkPoolYieldItems: items => session.setWorkPoolYieldItems(items),
 			getCheckpointState: () => session.getCheckpointState(),
@@ -3212,6 +3212,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// Re-discover rules from disk on every session-scoped rebuild, mirroring the
 			// context-file refresh above. The rule buckets are otherwise frozen at
 			// session creation, so a `RULES.md` (or any rule) created or edited while zeta
+
 			// runs never reaches the prompt on /clear or /new until restart (issue #10940).
 			// resetCapabilities() clears the fs cache at those boundaries, so this observes
 			// the current file. TTSR registrations are replaced from the new snapshot while

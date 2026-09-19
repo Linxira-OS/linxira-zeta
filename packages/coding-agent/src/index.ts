@@ -8,7 +8,8 @@ export { z } from "@linxiraos/pi-omptype/zod";
 export { Container, Markdown, Spacer, Text } from "@linxiraos/pi-tui";
 // Logging
 export { getAgentDir, logger, VERSION } from "@linxiraos/pi-utils";
-export * from "./config/keybindings";
+export * from "@linxiraos/pi-tui/app-keybindings";
+
 export * from "./config/model-registry";
 // Prompt templates
 export type * from "./config/prompt-templates";
@@ -17,7 +18,6 @@ export type { RetrySettings, SkillsSettings } from "./config/settings";
 export { Settings, settings } from "./config/settings";
 // Custom commands
 export type * from "./extensibility/custom-commands/types";
-export type * from "./extensibility/custom-tools";
 // Custom tools
 export * from "./extensibility/custom-tools";
 export type * from "./extensibility/extensions";
@@ -35,7 +35,7 @@ export * from "./main";
 export * from "./modes";
 export * from "./modes/components";
 // Theme utilities for custom tools
-export * from "./modes/theme/theme";
+export * from "@linxiraos/pi-tui/theme";
 // SDK for programmatic usage
 export * from "./sdk";
 export * from "./session/agent-session";
@@ -55,6 +55,22 @@ export * from "./session/session-storage";
 export * from "./session/sql-session-storage";
 export * from "./task/executor";
 export type * from "./task/types";
+export type {
+	AgentSource,
+	StructuredSubagentSchemaMode,
+	StructuredSubagentSchemaSource,
+	StructuredSubagentValidationStatus,
+	StructuredSubagentOutput,
+	TaskItem,
+	TaskParams,
+	ReviewFinding,
+	ReviewSummary,
+	ReviewData,
+	YieldItem,
+	AgentProgress,
+	SingleResult,
+	TaskToolDetails,
+} from "@linxiraos/pi-tui/tools/task";
 // Tools (detail types and utilities)
 export * from "./tools";
 export * from "./utils/github";

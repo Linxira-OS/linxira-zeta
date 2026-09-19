@@ -3,15 +3,15 @@ import type { Api, Context, Message, Model, ModelSpec } from "@linxiraos/pi-ai";
 import { clearCustomApis, registerCustomApi } from "@linxiraos/pi-ai";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { DateCwdReminderInjector, renderDateCwdReminder } from "@linxiraos/zeta/session/date-cwd-reminder";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { formatLocalCalendarDate } from "@linxiraos/zeta/utils/local-date";
+import { formatLocalCalendarDate } from "@linxiraos/pi-tui/chrome/local-date";
 import { normalizePromptPath } from "@linxiraos/zeta/utils/prompt-path";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("date-cwd-reminder", () => {

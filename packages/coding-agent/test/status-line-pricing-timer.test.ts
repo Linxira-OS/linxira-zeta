@@ -3,8 +3,9 @@ import { stripVTControlCharacters } from "node:util";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import type { Model } from "@linxiraos/pi-catalog/types";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 beforeAll(async () => {
@@ -52,7 +53,7 @@ function fixture() {
 		getContextUsage: () => undefined,
 		contextUsageRevision: 0,
 	} as unknown as AgentSession;
-	const component = new StatusLineComponent(session);
+	const component = new StatusLineComponent(session, statusLineHost);
 	const showCost = () =>
 		component.updateSettings({
 			preset: "custom",

@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { ComposerPreferences } from "@linxiraos/zeta/modes/composer";
+import type { ComposerPreferences } from "@linxiraos/pi-tui/prompt/composer";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	beginStartupComposer,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
 } from "@linxiraos/zeta/modes/startup-composer";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { assistantMsg, createTestSession, userMsg } from "./utilities";
 

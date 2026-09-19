@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
 import { Markdown } from "@linxiraos/pi-tui";
 import { Settings } from "../../../src/config/settings";
-import { getMarkdownTheme, getThemeByName, setThemeInstance } from "../../../src/modes/theme/theme";
+import { getMarkdownTheme, getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 beforeAll(async () => {
 	await Settings.init({ inMemory: true });

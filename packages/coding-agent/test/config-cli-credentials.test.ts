@@ -5,7 +5,8 @@ import { runConfigCommand } from "@linxiraos/zeta/cli/config-cli";
 import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { isCredential, SETTINGS_SCHEMA, type SettingPath } from "../src/config/settings-schema";
-import { getSettingDef } from "../src/modes/components/settings-defs";
+import { getSettingDef } from "@linxiraos/pi-tui/overlays/settings-defs";
+import { createSettingsHost } from "../src/config/settings-ui";
 
 const paths = Object.keys(SETTINGS_SCHEMA) as SettingPath[];
 
@@ -51,7 +52,7 @@ describe("credential masking reaches every surface", () => {
 		// a credential cannot render as plain text on one surface and dots on the
 		// other.
 		for (const path of ["hindsight.apiToken", "mnemopi.embeddingApiKey", "mnemopi.llmApiKey"] as const) {
-			const def = getSettingDef(path);
+			const def = getSettingDef(createSettingsHost().entries, path);
 			expect(def?.type).toBe("text");
 			expect(def && "secret" in def ? def.secret : undefined).toBe(true);
 		}
@@ -59,12 +60,12 @@ describe("credential masking reaches every surface", () => {
 
 	it("keeps credentials with no panel entry out of the panel entirely", () => {
 		for (const path of ["auth.broker.token", "searxng.token", "dev.autoqaPush.token"] as const) {
-			expect(getSettingDef(path)).toBeUndefined();
+			expect(getSettingDef(createSettingsHost().entries, path)).toBeUndefined();
 		}
 	});
 
 	it("leaves ordinary text settings unmasked", () => {
-		const def = getSettingDef("shellPath");
+		const def = getSettingDef(createSettingsHost().entries, "shellPath");
 		if (def?.type === "text") expect(def.secret).toBe(false);
 	});
 });

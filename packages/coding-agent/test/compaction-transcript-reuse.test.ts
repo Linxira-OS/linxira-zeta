@@ -1,8 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { Message } from "@linxiraos/pi-ai";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 
@@ -11,8 +10,6 @@ function buildContext(): InteractiveModeContext {
 	return {
 		chatContainer,
 		transcriptMessageComponents: new WeakMap(),
-		getUserMessageText: (message: Message) =>
-			message.role === "user" && typeof message.content === "string" ? message.content : "",
 		viewSession: {
 			extensionRunner: undefined,
 			sessionManager: { putBlobSync: () => "unused" },

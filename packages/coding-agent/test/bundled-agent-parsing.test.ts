@@ -9,7 +9,7 @@ import {
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { getBundledAgent } from "@linxiraos/zeta/task/agents";
 import { buildOutputValidator } from "@linxiraos/zeta/tools/output-schema-validator";
-import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
+import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
 
 describe("bundled agent parsing", () => {
 	it("defaults the task agent to the auto thinking selector", () => {

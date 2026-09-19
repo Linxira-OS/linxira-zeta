@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
 import type { AsyncJobType } from "@linxiraos/zeta/async";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { AsyncJobSnapshotItem } from "@linxiraos/zeta/session/agent-session";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 import { StatusLineTestComponents } from "./helpers/status-line";
@@ -72,7 +73,7 @@ function makeComponent(running: AsyncJobSnapshotItem[]): StatusLineComponent {
 		},
 		getContextUsage: () => undefined,
 	} as unknown as ConstructorParameters<typeof StatusLineComponent>[0];
-	const component = statusLines.track(new StatusLineComponent(session));
+	const component = statusLines.track(new StatusLineComponent(session, statusLineHost));
 	component.updateSettings({
 		preset: "custom",
 		leftSegments: [],

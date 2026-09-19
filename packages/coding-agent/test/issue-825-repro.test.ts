@@ -20,7 +20,7 @@
 
 import { beforeAll, describe, expect, mock, test } from "bun:test";
 import { AgentBusyError } from "@linxiraos/pi-agent-core";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { CompactionQueuedMessage, InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 

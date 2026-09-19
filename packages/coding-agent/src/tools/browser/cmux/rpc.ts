@@ -1,5 +1,5 @@
 import { parseFlag } from "@linxiraos/pi-utils";
-import { ToolError } from "../../tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { Observation, ObservationEntry } from "../tab-protocol";
 
 export interface CmuxKind {

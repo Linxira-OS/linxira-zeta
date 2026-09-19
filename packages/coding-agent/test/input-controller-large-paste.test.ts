@@ -10,9 +10,9 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
+import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
-import { getEditorTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { getEditorTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 function createContext(options?: {

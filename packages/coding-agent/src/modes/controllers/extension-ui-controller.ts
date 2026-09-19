@@ -2,7 +2,8 @@ import type { Component, OverlayHandle, TUI } from "@linxiraos/pi-tui";
 import { Container, Spacer, Text } from "@linxiraos/pi-tui";
 import type { CollabUiRequestDraft, CollabUiSelectItem } from "@linxiraos/pi-wire";
 import type { CollabHost } from "../../collab/host";
-import { KeybindingsManager } from "../../config/keybindings";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+
 import type {
 	CompactOptions,
 	ExtensionActions,
@@ -23,22 +24,29 @@ import type {
 	TerminalInputHandler,
 } from "../../extensibility/extensions";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
-import { AskDialogComponent, boundPromptTitle, normalizeDialogQuestions } from "../../modes/components/ask-dialog";
-import { installExtensionComposerShape } from "../../modes/components/composer-shape-registry";
-import { EditorTopGap } from "../../modes/components/editor-top-gap";
-import { HookEditorComponent } from "../../modes/components/hook-editor";
-import { HookInputComponent } from "../../modes/components/hook-input";
-import { HookSelectorComponent, type HookSelectorSlider } from "../../modes/components/hook-selector";
-import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "../../modes/theme/theme";
+import { AskDialogComponent, boundPromptTitle, normalizeDialogQuestions } from "@linxiraos/pi-tui/overlays/ask-dialog";
+import { installExtensionComposerShape } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
+import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
+import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
+import { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
+import { HookSelectorComponent, type HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
+import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "../../modes/types";
 import { normalizeCustomMessagePayload, USER_INTERRUPT_LABEL } from "../../session/messages";
-import { disambiguateDisplayLabels, sanitizeCarriageReturns } from "../../tools/render-utils";
+import { disambiguateDisplayLabels, sanitizeCarriageReturns } from "@linxiraos/pi-tui/render/render-utils";
+
 import { setExtensionTerminalTitle, setSessionTerminalTitle } from "../../utils/title-generator";
+import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 
 const MAX_WIDGET_LINES = 10;
 const ASK_OTHER_OPTION = "Other (type your own)";
 const ASK_CHAT_OPTION = "Chat about this";
 const ASK_NEXT_OPTION = "Next →";
+
+async function editDialogExternally(text: string): Promise<string | null> {
+	const command = getEditorCommand();
+	return command ? openInEditor(command, text) : null;
+}
 
 interface CollabDialogWinner {
 	source: "local" | "remote";
@@ -699,7 +707,7 @@ export class ExtensionUiController {
 					prefill,
 					value => finishPrompt(value),
 					() => finishPrompt(undefined),
-					{ promptStyle: true },
+					{ promptStyle: true, externalEditor: editDialogExternally },
 				);
 				this.ctx.editorContainer.clear();
 				this.ctx.editorContainer.addChild(promptEditor);
@@ -1060,7 +1068,7 @@ export class ExtensionUiController {
 				prefill,
 				value => settle(value),
 				() => settle(undefined),
-				editorOptions,
+				{ ...editorOptions, externalEditor: editDialogExternally },
 			);
 			this.ctx.editorContainer.clear();
 			this.ctx.editorContainer.addChild(this.ctx.hookEditor);

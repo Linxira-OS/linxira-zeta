@@ -4,17 +4,17 @@ import * as path from "node:path";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { Editor } from "@linxiraos/pi-tui";
 import { Settings } from "../src/config/settings";
-import { AssistantMessageComponent } from "../src/modes/components/assistant-message";
-import { TranscriptContainer } from "../src/modes/components/transcript-container";
-import { truncateToVisualLines } from "../src/modes/components/visual-truncate";
-import { WelcomeComponent } from "../src/modes/components/welcome";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { truncateToVisualLines } from "@linxiraos/pi-tui/chrome/visual-truncate";
+import { WelcomeComponent } from "@linxiraos/pi-tui/prompt/welcome";
 import {
 	BlockUnitCounter,
 	buildDisplayMessage,
 	nextStep,
 	visibleUnits,
 } from "../src/modes/controllers/streaming-reveal";
-import { getEditorTheme, initTheme } from "../src/modes/theme/theme";
+import { getEditorTheme, initTheme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "../src/tools";
 import { ReadTool } from "../src/tools/read";
 

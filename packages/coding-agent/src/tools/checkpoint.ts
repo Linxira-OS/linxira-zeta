@@ -4,8 +4,8 @@ import { prompt } from "@linxiraos/pi-utils";
 import checkpointDescription from "../prompts/tools/checkpoint.md" with { type: "text" };
 import rewindDescription from "../prompts/tools/rewind.md" with { type: "text" };
 import type { ToolSession } from ".";
-import type { OutputMeta } from "./output-meta";
-import { ToolError } from "./tool-errors";
+import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 export interface CheckpointState {

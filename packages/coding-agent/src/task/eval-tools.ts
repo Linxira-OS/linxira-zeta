@@ -8,7 +8,7 @@ import { callPythonTool, describePythonTools } from "../eval/py/executor";
 import type { EvalToolDescriptor, EvalToolInvokeResult } from "../eval/types";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import type { ToolSession } from "../tools";
-import { ToolError } from "../tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 
 interface EvalToolQueryResult {

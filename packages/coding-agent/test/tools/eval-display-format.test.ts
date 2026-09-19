@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { EvalToolDetails } from "@linxiraos/zeta/eval/types";
-import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/zeta/modes/theme/theme";
-import { EvalTool, evalToolRenderer } from "@linxiraos/zeta/tools/eval";
+import type { EvalToolDetails } from "@linxiraos/pi-tui/tools/eval";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
+import { evalToolRenderer } from "@linxiraos/pi-tui/tools/eval";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
 
 describe("eval renderer: display-only streaming formatting", () => {
 	let theme: Theme;

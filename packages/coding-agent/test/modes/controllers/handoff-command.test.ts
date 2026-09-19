@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
-import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 function createContainer() {

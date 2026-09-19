@@ -14,6 +14,7 @@ import {
 } from "@linxiraos/pi-ai";
 import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
 import { writeThroughActiveTerminal } from "@linxiraos/pi-tui";
+import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
 import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 
@@ -669,7 +670,7 @@ export type TerminalTitleSpinnerStyle = "braille" | "pulse" | "dots" | "line";
  * title.
  */
 export const TERMINAL_TITLE_SPINNER_STYLES: Record<TerminalTitleSpinnerStyle, readonly string[]> = {
-	braille: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+	braille: SPINNER_FRAMES.unicode.activity,
 	pulse: ["○", "◔", "◑", "◕", "●", "◕", "◑", "◔"],
 	dots: ["⠁", "⠂", "⠄", "⠠", "⠐", "⠈"],
 	line: ["-", "\\", "|", "/"],

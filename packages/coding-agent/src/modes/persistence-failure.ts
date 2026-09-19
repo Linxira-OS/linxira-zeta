@@ -1,5 +1,5 @@
 import { sanitizeText } from "@linxiraos/pi-utils";
-import { replaceTabs, TRUNCATE_LENGTHS, truncateToWidth } from "../tools/render-utils";
+import { replaceTabs, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 
 /**
  * First-failure notice. The store keeps the unlanded entries in memory and

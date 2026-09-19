@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { LogoutAccountSelectorComponent } from "@linxiraos/zeta/modes/components/logout-account-selector";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { LogoutAccountSelectorComponent } from "@linxiraos/pi-tui/overlays/logout-account-selector";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { StoredAuthCredential } from "@linxiraos/zeta/session/auth-storage";
 import { toLogoutAccounts } from "@linxiraos/zeta/slash-commands/helpers/logout";
 

@@ -17,7 +17,8 @@ import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-clie
 import * as registry from "@linxiraos/zeta/tools/browser/registry";
 import { getTabsMapForTest, releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
-import { ToolAbortError, ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 function makeSession(): ToolSession {
 	return {

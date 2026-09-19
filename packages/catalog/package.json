@@ -40,8 +40,8 @@
 	},
 	"devDependencies": {
 		"@bgotink/kdl": "0.4.0",
-		"@linxiraos/pi-ai": "catalog:",
-		"@types/bun": "catalog:"
+		"@types/bun": "catalog:",
+		"@linxiraos/pi-ai": "catalog:"
 	},
 	"engines": {
 		"bun": ">=1.3.14"

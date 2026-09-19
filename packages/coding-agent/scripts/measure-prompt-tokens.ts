@@ -1,6 +1,6 @@
 import { Tokenizer } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { estimateToolSchemaTokens } from "@linxiraos/zeta/modes/utils/context-usage";
+import { estimateToolSchemaTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 import { buildSystemPrompt } from "@linxiraos/zeta/system-prompt";
 import { createTools, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
 

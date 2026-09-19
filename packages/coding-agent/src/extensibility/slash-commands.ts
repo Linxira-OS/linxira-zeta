@@ -1,5 +1,6 @@
 import { parseFrontmatter, prompt } from "@linxiraos/pi-utils";
-import { slashCommandCapability, slashCommandFrontmatterDisplay } from "../capability/slash-command";
+import { slashCommandCapability } from "../capability/slash-command";
+import { slashCommandFrontmatterDisplay } from "@linxiraos/pi-tui/overlays/extensions/inspector-model";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { appendInlineArgsFallback, templateUsesInlineArgPlaceholders } from "../config/prompt-templates";
 import type { SlashCommand } from "../discovery";

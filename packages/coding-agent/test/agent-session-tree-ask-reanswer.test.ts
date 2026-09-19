@@ -21,7 +21,7 @@ import type { ExtensionRunner, ExtensionUIContext } from "@linxiraos/zeta/extens
 import { SecretObfuscator } from "@linxiraos/zeta/secrets/obfuscator";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { AskToolDetails } from "@linxiraos/zeta/tools/ask";
+import type { AskToolDetails } from "@linxiraos/pi-tui/tools/ask";
 
 const TEST_MODEL = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 

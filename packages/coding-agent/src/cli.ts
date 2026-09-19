@@ -16,6 +16,7 @@ try {
  */
 import type * as WorkerThreads from "node:worker_threads";
 import type { MessagePort } from "node:worker_threads";
+import type { Process, ProcessStatus } from "@linxiraos/pi-natives";
 import type { CliConfig, CommandMetadata } from "@linxiraos/pi-utils/cli";
 import type * as Postmortem from "@linxiraos/pi-utils/postmortem";
 import {

@@ -6,13 +6,12 @@ import { createAutoresearchExtension } from "@linxiraos/zeta/autoresearch";
 import {
 	buildExperimentState,
 	computeConfidence,
-	findBaselineMetric,
-	findBaselineRunNumber,
 	findBestKeptMetric,
 	reconstructControlState,
 } from "@linxiraos/zeta/autoresearch/state";
 import { AutoresearchStorage, closeAllAutoresearchStorages } from "@linxiraos/zeta/autoresearch/storage";
-import type { ExperimentResult } from "@linxiraos/zeta/autoresearch/types";
+import type { ExperimentResult } from "@linxiraos/pi-tui/tools/autoresearch";
+import { findBaselineMetric, findBaselineRunNumber } from "@linxiraos/pi-tui/apps/autoresearch-data";
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,

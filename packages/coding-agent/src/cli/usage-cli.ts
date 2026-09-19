@@ -19,12 +19,13 @@ import {
 } from "@linxiraos/pi-ai";
 import { AuthBrokerClient } from "@linxiraos/pi-ai/auth-broker";
 import type { ClientUsageClientSummary } from "@linxiraos/pi-ai/usage";
+import { formatProviderName } from "@linxiraos/pi-tui/chrome/format";
 import { formatDuration, formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { discoverAuthStorage } from "../sdk";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";
-import { collapseSharedUsageReports } from "../utils/usage-display";
+import { collapseSharedUsageReports } from "@linxiraos/pi-tui/overlays/usage-display";
 
 const BAR_WIDTH = 28;
 
@@ -198,13 +199,6 @@ function aggregateStatus(limits: UsageLimit[]): LimitStatus {
 	if (statuses.includes("warning")) return "warning";
 	if (statuses.includes("ok")) return "ok";
 	return "unknown";
-}
-
-function formatProviderName(provider: string): string {
-	return provider
-		.split(/[-_]/g)
-		.map(part => (part ? part[0].toUpperCase() + part.slice(1) : ""))
-		.join(" ");
 }
 
 function formatUnitValue(value: number, unit: UsageUnit): string {

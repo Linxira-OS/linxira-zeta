@@ -7,10 +7,10 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { CopySelectorComponent } from "@linxiraos/zeta/modes/components/copy-selector";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { CopySelectorComponent } from "@linxiraos/pi-tui/overlays/copy-selector";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
 import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
 

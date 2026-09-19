@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 
 beforeAll(async () => {

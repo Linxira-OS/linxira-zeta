@@ -24,7 +24,7 @@ import type {
 import { isRecord } from "@linxiraos/pi-utils";
 import { resolveJudge } from "../judgment";
 import { ONLINE_MEMORY_MODEL_KEY } from "../tiny/models";
-import { ToolError } from "../tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import {
 	type EvalCompletionBridgeOptions,
 	type EvalCompletionHandleResult,

@@ -5,10 +5,17 @@ import * as path from "node:path";
 import { FileLock, Process, type PtyRunResult, PtySession } from "@linxiraos/pi-natives";
 import { isEnoent, logger, postmortem, procmgr, sanitizeText, setProcessName } from "@linxiraos/pi-utils";
 import { TerminalQueryResponder } from "@linxiraos/pi-utils/vterm";
+
 import { hostHasInheritableConsole } from "../eval/py/spawn-options";
-import { truncateHead, truncateHeadBytes, truncateTail, truncateTailBytes } from "../session/streaming-output";
+import {
+	truncateHead,
+	truncateHeadBytes,
+	truncateTail,
+	truncateTailBytes,
+} from "@linxiraos/pi-tui/tools/streaming-output";
 import { workerEnvFromParent } from "../subprocess/worker-client";
 import { daemonBrokerEndpoint, writeDaemonScopeMeta } from "./paths";
+import type { DaemonReadySpec, DaemonSnapshot, DaemonSpec } from "@linxiraos/pi-tui/tools/hub";
 import { hasLiveDaemonProjectPresence, pruneDeadDaemonRuntimeDirs } from "./presence";
 import {
 	DAEMON_IDLE_GRACE_ENV,
@@ -18,11 +25,8 @@ import {
 	DAEMON_RUNTIME_DIR_ENV,
 	type DaemonCompletionNotification,
 	type DaemonOperation,
-	type DaemonReadySpec,
 	type DaemonRpcResult,
 	type DaemonSignal,
-	type DaemonSnapshot,
-	type DaemonSpec,
 	type DaemonWireRequest,
 	parseDaemonSnapshot,
 	parseDaemonSpec,
@@ -347,6 +351,7 @@ async function holdsLiveForeignLease(pidPath: string, endpoint: string): Promise
  * the OS releases it however the broker dies — a crashed broker can never wedge
  * the scope behind a stale lease again (issue #11080). `broker.pid` stays as
  * human-readable metadata for `zeta ps` and dead-scope pruning.
+
  */
 async function acquireBrokerLease(runtimeDir: string, endpoint: string): Promise<BrokerLease | null> {
 	const pidPath = path.join(runtimeDir, PID_FILE);

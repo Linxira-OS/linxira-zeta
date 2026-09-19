@@ -3,7 +3,7 @@
  */
 import type { AgentTool, AgentToolUpdateCallback, ToolLoadMode } from "@linxiraos/pi-agent-core";
 import type { Static, TSchema } from "@linxiraos/pi-ai";
-import type { Theme } from "../../modes/theme/theme";
+import type { Theme } from "@linxiraos/pi-tui/theme";
 import { defaultLoadModeForToolName } from "../../tools/essential-tools";
 import { applyToolProxy } from "../tool-proxy";
 import type { CustomTool, CustomToolContext } from "./types";

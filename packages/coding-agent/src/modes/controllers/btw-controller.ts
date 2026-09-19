@@ -1,6 +1,7 @@
 import type { AssistantMessage, Message } from "@linxiraos/pi-ai";
 import { type OverlayHandle, replaceTabs } from "@linxiraos/pi-tui";
 import { logger, prompt, Snowflake, toError, withTimeout } from "@linxiraos/pi-utils";
+
 import btwUserPrompt from "../../prompts/system/btw-user.md" with { type: "text" };
 import {
 	type BtwHistoryRecord,
@@ -10,11 +11,12 @@ import {
 	getBtwLatestTurn,
 	getBtwTurns,
 } from "../../session/btw-history";
-import { TRUNCATE_LENGTHS } from "../../tools/render-utils";
+import { TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
 import { copyToClipboard } from "../../utils/clipboard";
-import { BtwHistoryPanel } from "../components/btw-history-panel";
-import { BtwPanelComponent } from "../components/btw-panel";
-import { sanitizeErrorLine } from "../components/error-block";
+import { BtwHistoryPanel } from "@linxiraos/pi-tui/overlays/btw-history-panel";
+import { BtwPanelComponent } from "@linxiraos/pi-tui/overlays/btw-panel";
+import { sanitizeErrorLine } from "@linxiraos/pi-tui/chrome/error-block";
+
 import type { InteractiveModeContext } from "../types";
 
 interface BtwRequest {

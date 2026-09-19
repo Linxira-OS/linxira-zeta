@@ -3,7 +3,8 @@ import { type } from "@linxiraos/pi-omptype";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { TaskTool, taskSchema } from "@linxiraos/zeta/task";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import { getTaskSchema, oneLineLabel } from "@linxiraos/zeta/task/types";
+import { getTaskSchema } from "@linxiraos/zeta/task/types";
+import { oneLineLabel } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 
 // Contract: the task tool's wire shape is flat `{ name?, agent?, task, isolated? }`

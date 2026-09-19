@@ -11,7 +11,7 @@ import type { AssistantMessage, Model, ToolExample, TSchema } from "@linxiraos/p
 import { renderDelimitedThinking, renderToolInventory } from "@linxiraos/pi-ai/dialect";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { YAML } from "bun";
-import { canonicalizeMessage } from "../utils/thinking-display";
+import { canonicalizeMessage } from "@linxiraos/pi-tui/chat/thinking-display";
 import {
 	type BashExecutionMessage,
 	type BranchSummaryMessage,

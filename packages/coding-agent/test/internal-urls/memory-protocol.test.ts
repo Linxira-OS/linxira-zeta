@@ -6,20 +6,20 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
 import { splitMemoryGlobPattern } from "@linxiraos/zeta/internal-urls/memory-protocol";
 import { getMemoryRoot } from "@linxiraos/zeta/memories";
-import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import {
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
 } from "@linxiraos/zeta/mnemopi/state";
-import { getInternalUrlSuggestions } from "@linxiraos/zeta/modes/internal-url-autocomplete";
+import { getInternalUrlSuggestions } from "@linxiraos/pi-tui/prompt/internal-url-autocomplete";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { GlobTool } from "@linxiraos/zeta/tools/glob";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 // Mnemopi state is loaded lazily; preload so `new MnemopiSessionState(...)` can
 // resolve the module synchronously in the fixtures below.

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 
 beforeAll(async () => {
@@ -36,7 +36,7 @@ function makeSelector(
 	sessions: SessionInfo[],
 	onSelect: (s: SessionInfo) => void,
 	rows = 40,
-): SessionSelectorComponent {
+): SessionSelectorComponent<SessionInfo> {
 	return new SessionSelectorComponent(
 		sessions,
 		onSelect,

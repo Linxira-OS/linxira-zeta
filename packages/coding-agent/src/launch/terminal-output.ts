@@ -1,6 +1,7 @@
 import { logger } from "@linxiraos/pi-utils";
 import xterm, { type Terminal as XtermTerminal } from "@linxiraos/pi-utils/vterm";
-import { readTerminalRows } from "../tools/terminal-output";
+import { readTerminalRows } from "@linxiraos/pi-tui/tools/terminal-output";
+
 import { DAEMON_PTY_COLUMNS, DAEMON_PTY_ROWS } from "./protocol";
 
 const VIRTUAL_SCROLLBACK_ROWS = 4_096;

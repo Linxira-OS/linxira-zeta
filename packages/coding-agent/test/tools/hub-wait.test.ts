@@ -9,7 +9,8 @@ import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { type CoordinationDetails, HubTool } from "@linxiraos/zeta/tools/hub";
+import { type CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
+import { HubTool } from "@linxiraos/zeta/tools/hub";
 
 const SELF_ID = "Main";
 

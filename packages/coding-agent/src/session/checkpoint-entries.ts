@@ -1,7 +1,8 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import { stringProperty } from "@linxiraos/pi-utils";
-import { stripXdUrlPrefix } from "../internal-urls/xd-protocol";
+import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
+
 import type { CompletedRewindState } from "../tools/checkpoint";
 import { writeDeviceDispatch } from "../tools/resolve";
 import type { SessionEntry } from "./session-entries";

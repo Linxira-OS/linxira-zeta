@@ -7,8 +7,8 @@ import {
 	type PauseScreenHost,
 	renderPauseScreen,
 	runPauseScreen,
-} from "../../../src/modes/components/pause-screen";
-import { getThemeByName, setThemeInstance } from "../../../src/modes/theme/theme";
+} from "@linxiraos/pi-tui/overlays/pause-screen";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 // Strip SGR colors so assertions see visible text only.
 const stripAnsi = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, "");

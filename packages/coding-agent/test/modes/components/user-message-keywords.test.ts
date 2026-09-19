@@ -3,11 +3,11 @@ import * as path from "node:path";
 import * as url from "node:url";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
-import { UserMessageComponent } from "@linxiraos/zeta/modes/components/user-message";
-import { chipLabel, modelChipStyle, modelMentionChipLabel } from "@linxiraos/zeta/modes/composer-attachments";
-import { imageReferenceHyperlink } from "@linxiraos/zeta/modes/image-references";
-import { getEditorTheme, initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
+import { chipLabel, modelChipStyle, modelMentionChipLabel } from "@linxiraos/pi-tui/prompt/composer-attachments";
+import { imageReferenceHyperlink } from "@linxiraos/pi-tui/prompt/image-references";
+import { getEditorTheme, initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { Container } from "@linxiraos/pi-tui";
@@ -151,7 +151,6 @@ describe("UserMessageComponent magic-keyword highlighting", () => {
 		};
 		const helpers = new UiHelpers({
 			chatContainer,
-			getUserMessageText: () => "please inspect [Image #1]",
 			sessionManager: sessionManagerMock,
 			viewSession: { sessionManager: sessionManagerMock },
 			transcriptMessageComponents: new WeakMap(),

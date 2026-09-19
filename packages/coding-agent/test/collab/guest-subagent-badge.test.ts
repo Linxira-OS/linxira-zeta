@@ -6,7 +6,7 @@ import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
 import {
 	getRunningSubagentBadgeAgentIds,
 	getRunningSubagentBadgeRegistry,
-} from "@linxiraos/zeta/modes/running-subagent-badge";
+} from "@linxiraos/pi-tui/overlays/running-subagent-badge";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
@@ -90,7 +90,7 @@ function makeGuestContext(): InteractiveModeContext {
 		updateEditorBorderColor: () => {},
 		eventController: { handleEvent: () => Promise.resolve(), takeDisplaceableComponents: () => [] },
 		syncRunningSubagentBadge: () => {
-			const registry = getRunningSubagentBadgeRegistry(ctx.collabGuest);
+			const registry = getRunningSubagentBadgeRegistry(ctx.collabGuest, AgentRegistry.global());
 			const agentIds = getRunningSubagentBadgeAgentIds(registry);
 			ctx.statusLine.setRunningSubagents(agentIds);
 		},

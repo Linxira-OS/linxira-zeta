@@ -16,7 +16,8 @@ import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import { EvalTool } from "@linxiraos/zeta/tools/eval";
 import * as launch from "@linxiraos/zeta/tools/browser/launch";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
-import { ToolAbortError, ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

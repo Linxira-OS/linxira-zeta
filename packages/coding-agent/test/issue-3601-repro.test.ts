@@ -25,9 +25,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { CustomEditor } from "@linxiraos/zeta/modes/components/custom-editor";
+import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
-import { getEditorTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { getEditorTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 const BRACKETED_PASTE_START = "\x1b[200~";

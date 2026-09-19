@@ -1,7 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { SettingsSelectorComponent } from "@linxiraos/zeta/modes/components/settings-selector";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
+import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
+import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/settings-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { SEARCH_PROVIDER_CHOICES } from "@linxiraos/zeta/web/search/types";
 
 beforeAll(async () => {
@@ -46,7 +48,8 @@ function createSelector(): SettingsSelectorComponent {
 			thinkingLevel: undefined,
 			availableThemes: ["dark"],
 			providers: [],
-			cwd: process.cwd(),
+			settings: createSettingsHost(),
+			plugins: createPluginSettingsHost(process.cwd()),
 		},
 		{
 			onChange: () => {},

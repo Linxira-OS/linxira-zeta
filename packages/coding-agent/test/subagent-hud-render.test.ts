@@ -9,20 +9,20 @@ import * as path from "node:path";
 import { Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/zeta/modes/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
 import {
 	InteractiveMode,
 	layoutPinnedHud,
 	renderSubagentHudLines,
 	SubagentHudComponent,
 } from "@linxiraos/zeta/modes/interactive-mode";
-import { type ObservableSession, SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { type ObservableSession, SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { type AgentProgress } from "@linxiraos/pi-tui/tools/task";
 import {
-	type AgentProgress,
 	type SubagentLifecyclePayload,
 	type SubagentProgressPayload,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,

@@ -31,7 +31,7 @@ import { createAgentSession } from "../../sdk";
 import type { AgentSession, ModeId } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import { SessionManager } from "../../session/session-manager";
-import type { ConfiguredThinkingLevel } from "../../thinking";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { VibeModeState } from "../../vibe/state";
 import {
 	addRunningSession,

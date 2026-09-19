@@ -5,13 +5,13 @@ import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
 import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
 import * as registry from "@linxiraos/zeta/collab/registry";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
-import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { getDefault } from "@linxiraos/zeta/config/settings-schema";
 import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
 import { runRootCommand } from "@linxiraos/zeta/main";
-import { COMPOSER_DEFAULTS, Composer, type ComposerPreferences } from "@linxiraos/zeta/modes/composer";
+import { COMPOSER_DEFAULTS, Composer, type ComposerPreferences } from "@linxiraos/pi-tui/prompt/composer";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	applyStartupComposerPreferences,
@@ -21,7 +21,7 @@ import {
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
 } from "@linxiraos/zeta/modes/startup-composer";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";

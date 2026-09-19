@@ -1,14 +1,15 @@
+import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { beforeAll, describe, expect, type Mock, test, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import type { TUI } from "@linxiraos/pi-tui";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { ModelPickerComponent, type ModelPickerOptions } from "@linxiraos/zeta/modes/components/model-picker";
-import { resolveSegmentPalette } from "@linxiraos/zeta/modes/components/segment-track";
-import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { ModelPickerComponent, type ModelPickerOptions } from "@linxiraos/pi-tui/overlays/model-picker";
+import { resolveSegmentPalette } from "@linxiraos/pi-tui/chrome/segment-track";
+import { getThemeByName, setThemeInstance, theme } from "@linxiraos/pi-tui/theme";
 import type { ResolvedRoleModel } from "@linxiraos/zeta/session/agent-session";
+import type { TUI } from "@linxiraos/pi-tui";
 
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();
@@ -71,7 +72,7 @@ function createPicker(options: {
 	const onCancel = vi.fn();
 	const picker = new ModelPickerComponent(
 		ui,
-		settings,
+		createModelBrowserSource(settings),
 		registry,
 		options.scoped ? modelsFn().map(model => ({ model })) : [],
 		{ onPick, onPickRole, onCancel },

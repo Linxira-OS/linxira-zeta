@@ -1,5 +1,5 @@
 import { tryParseJson } from "@linxiraos/pi-utils";
-import { formatBytes } from "../../tools/render-utils";
+import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatIsoDate, formatNumber, loadPage } from "./types";
 

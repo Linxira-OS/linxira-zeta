@@ -1,3 +1,4 @@
+import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -5,14 +6,14 @@ import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import type { TUI } from "@linxiraos/pi-tui";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import type { ModelRegistry, ProviderDiscoveryState } from "@linxiraos/zeta/config/model-registry";
 import { ModelRegistry as ModelRegistryImpl } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { ModelHubComponent } from "@linxiraos/zeta/modes/components/model-hub";
-import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { ModelHubComponent } from "@linxiraos/pi-tui/overlays/model-hub";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { TUI } from "@linxiraos/pi-tui";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 function normalizeRenderedText(text: string): string {
 	return stripVTControlCharacters(text).replace(/\s+/g, " ").trim();
@@ -39,7 +40,7 @@ async function createHub(state: ProviderDiscoveryState): Promise<ModelHubCompone
 		authStorage: { hasAuth: () => false },
 	} as unknown as ModelRegistry;
 	const ui = { requestRender: vi.fn(), terminal: { rows: 40 } } as unknown as TUI;
-	const hub = new ModelHubComponent(ui, Settings.isolated({}), modelRegistry, [], {
+	const hub = new ModelHubComponent(ui, createModelBrowserSource(Settings.isolated({})), modelRegistry, [], {
 		onAssign: () => {},
 		onUnassign: () => {},
 		onCancel: () => {},

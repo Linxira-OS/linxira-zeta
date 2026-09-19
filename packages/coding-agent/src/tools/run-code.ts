@@ -1,4 +1,4 @@
-import { ToolError } from "./tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 const NON_SERIALIZABLE_RUN_ARGUMENT = "Run argument is not JSON-serializable; pass plain data";
 

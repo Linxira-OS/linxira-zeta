@@ -19,7 +19,8 @@ import {
 	StructuredSubagentError,
 	type StructuredSubagentRequest,
 } from "@linxiraos/zeta/task/structured-subagent";
-import type { AgentDefinition, SingleResult } from "@linxiraos/zeta/task/types";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const AGENT: AgentDefinition = {

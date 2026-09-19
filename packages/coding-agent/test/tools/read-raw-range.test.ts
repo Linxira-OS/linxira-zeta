@@ -4,8 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { formatTruncationMetaNotice } from "@linxiraos/zeta/tools/output-meta";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { formatTruncationMetaNotice } from "@linxiraos/pi-tui/tools/output-meta";
 
 function getTextOutput(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content

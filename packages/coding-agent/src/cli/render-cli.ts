@@ -17,13 +17,13 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { Terminal, TerminalAppearance, TerminalAppearanceRequestToken } from "@linxiraos/pi-tui/terminal";
 import type { RenderScheduler } from "@linxiraos/pi-tui/tui";
-import { getProjectDir, isEnoent, logger, TempDir } from "@linxiraos/pi-utils";
+import { formatBytes, getProjectDir, isEnoent, logger, TempDir } from "@linxiraos/pi-utils";
 import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
-import { Composer } from "../modes/composer";
+import { Composer } from "@linxiraos/pi-tui/prompt/composer";
 import { InteractiveMode } from "../modes/interactive-mode";
-import { initTheme } from "../modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "../session/agent-session";
 import { AuthStorage, SqliteAuthCredentialStore } from "../session/auth-storage";
 import { findMostRecentSession, resolveResumableSession } from "../session/session-listing";
@@ -152,12 +152,6 @@ async function resolveTargetSession(sessionArg: string | undefined, cwd: string)
 	const recent = await findMostRecentSession(SessionManager.getDefaultSessionDir(cwd));
 	if (!recent) throw new Error(`No sessions found for ${cwd}. Pass a session file or id.`);
 	return recent;
-}
-
-function formatBytes(bytes: number): string {
-	if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
-	if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
-	return `${bytes} B`;
 }
 
 function formatMs(ms: number): string {

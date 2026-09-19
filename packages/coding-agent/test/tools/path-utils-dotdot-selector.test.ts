@@ -1,11 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import {
-	isFilesystemSourcePath,
-	parseLineRangeChunk,
-	parseLineRanges,
-	splitPathAndSel,
-} from "@linxiraos/zeta/tools/path-utils";
-import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { isFilesystemSourcePath } from "@linxiraos/zeta/tools/path-utils";
+import { parseLineRangeChunk, parseLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
+import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 describe("`..` range selector alias", () => {
 	it("treats `N..M` as the inclusive range `N-M`", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { buildCoordinationAdvisory, composeSpawnAdvisory } from "@linxiraos/zeta/task";
-import type { TaskItem } from "@linxiraos/zeta/task/types";
+import type { TaskItem } from "@linxiraos/pi-tui/tools/task";
 
 // Contract: a multi-sibling spawn with spawn capacity and IRC available draws
 // a proactive coordinate-via-irc suggestion.

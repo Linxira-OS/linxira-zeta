@@ -6,6 +6,7 @@
  */
 import type { FetchImpl } from "@linxiraos/pi-ai";
 import { isRecord, logger, readSseEvents } from "@linxiraos/pi-utils";
+
 import type { JsonRpcResponse } from "./types";
 
 /** Hard ceiling on a single MCP HTTP request when the caller provides no signal. */

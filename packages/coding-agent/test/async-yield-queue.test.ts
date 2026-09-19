@@ -9,7 +9,8 @@ import { type AsyncJob, AsyncJobManager, type AsyncJobType } from "@linxiraos/ze
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { YieldQueue } from "@linxiraos/zeta/session/yield-queue";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { type CoordinationDetails, HubTool } from "../src/tools/hub";
+import { type CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
+import { HubTool } from "../src/tools/hub";
 
 type AsyncEntry = {
 	jobId: string;

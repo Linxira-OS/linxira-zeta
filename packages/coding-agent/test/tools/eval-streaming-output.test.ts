@@ -5,13 +5,15 @@ import * as path from "node:path";
 import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as evalIndex from "@linxiraos/zeta/eval";
-import type { EvalToolDetails } from "@linxiraos/zeta/eval/types";
-import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+import type { EvalToolDetails } from "@linxiraos/pi-tui/tools/eval";
+import { getThemeByName } from "@linxiraos/pi-tui/theme";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { EvalTool } from "@linxiraos/zeta/tools/eval";
-import { evalToolRenderer } from "@linxiraos/zeta/tools/eval-render";
-import { formatOutputNotice, stripOutputNotice, wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
+import { evalToolRenderer } from "@linxiraos/pi-tui/tools/eval";
+import { stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
 import { removeWithRetries, sanitizeText } from "@linxiraos/pi-utils";
 
 function makeSession(settings = Settings.isolated()): ToolSession {

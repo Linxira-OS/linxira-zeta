@@ -4,9 +4,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { StatusLineComponent, type StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
-import { STATUS_LINE_PRESETS } from "@linxiraos/zeta/modes/components/status-line/presets";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { StatusLineComponent, type StatusLineSettings } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { STATUS_LINE_PRESETS } from "@linxiraos/pi-tui/status-line/presets";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import { visibleWidth } from "@linxiraos/pi-tui";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
@@ -74,7 +75,7 @@ function makeSession(sessionName = "Cache Session") {
 }
 
 function makeComponent(statusLineSettings: StatusLineSettings): StatusLineComponent {
-	const component = statusLines.track(new StatusLineComponent(makeSession()));
+	const component = statusLines.track(new StatusLineComponent(makeSession(), statusLineHost));
 	component.updateSettings(statusLineSettings);
 	return component;
 }
@@ -112,7 +113,7 @@ describe("StatusLineComponent effective settings cache", () => {
 			snapshotCalls++;
 			return getSnapshot();
 		};
-		const component = statusLines.track(new StatusLineComponent(session));
+		const component = statusLines.track(new StatusLineComponent(session, statusLineHost));
 		component.updateSettings({
 			preset: "custom",
 			leftSegments: ["model", "mode"],

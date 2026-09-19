@@ -3,8 +3,8 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import {
 	createHandoffSummaryMessageComponent,
 	HandoffSummaryMessageComponent,
-} from "@linxiraos/zeta/modes/components/compaction-summary-message";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+} from "@linxiraos/pi-tui/chat/compaction-summary-message";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 
 beforeAll(async () => {

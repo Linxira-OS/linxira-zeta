@@ -1,15 +1,17 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
 import type { TSchema } from "@linxiraos/pi-ai";
-import { TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { renderMCPResult } from "@linxiraos/zeta/mcp/render";
-import { DeferredMCPTool, MCPTool, type MCPToolDetails } from "@linxiraos/zeta/mcp/tool-bridge";
+import { renderMCPResult } from "@linxiraos/pi-tui/tools/mcp";
+import { DeferredMCPTool, MCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
+import { type MCPToolDetails } from "@linxiraos/pi-tui/tools/mcp";
 import type { MCPServerConnection, MCPToolDefinition, MCPTransport } from "@linxiraos/zeta/mcp/types";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
-import { theme as activeTheme, getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { formatOutputNotice, type OutputMeta } from "@linxiraos/zeta/tools/output-meta";
-import { formatStatusIcon } from "@linxiraos/zeta/tools/render-utils";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { theme as activeTheme, getThemeByName, initTheme } from "@linxiraos/pi-tui/theme";
+import { type OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { formatStatusIcon } from "@linxiraos/pi-tui/render/render-utils";
+import { TUI } from "@linxiraos/pi-tui";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 beforeAll(async () => {

@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { SessionSelectorComponent } from "@linxiraos/zeta/modes/components/session-selector";
+import type { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";

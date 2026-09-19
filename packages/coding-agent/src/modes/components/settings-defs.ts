@@ -13,17 +13,19 @@ import { TERMINAL } from "@linxiraos/pi-tui";
 import { Settings } from "../../config/settings";
 import {
 	type AnyUiMetadata,
+	SETTING_TABS,
+	type SettingTab,
+	type SubmenuOption,
+	TAB_GROUPS,
+} from "@linxiraos/pi-tui/overlays/settings-defs";
+import {
 	getDefault,
 	getEnumValues,
 	getPathsForTab,
 	getType,
 	getUi,
 	isCredential,
-	SETTING_TABS,
 	type SettingPath,
-	type SettingTab,
-	type SubmenuOption,
-	TAB_GROUPS,
 } from "../../config/settings-schema";
 import { ZH_OPTION_TEXTS, ZH_SETTING_TEXTS } from "../../config/settings-zh";
 import { currentLanguage } from "../../i18n";

@@ -9,7 +9,7 @@ import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree"
 import { github } from "../utils/github";
 import { withRepoLock } from "../utils/repo-lock";
 import type { ToolSession } from ".";
-import type { GhPrCheckoutSummary, GhToolDetails } from "./gh";
+import type { GhPrCheckoutSummary, GhToolDetails } from "@linxiraos/pi-tui/tools/github";
 import {
 	appendRepoFlag,
 	buildTextResult,
@@ -21,15 +21,16 @@ import {
 	normalizeText,
 	parsePullRequestUrl,
 	parseRepoRef,
-	pushLine,
 	requireCurrentGitBranch,
 	requireNonEmpty,
 } from "./gh-common";
-import { formatShortSha } from "./gh-format";
+import { pushLine } from "@linxiraos/pi-tui/tools/gh-format";
+import { formatShortSha } from "@linxiraos/pi-tui/tools/gh-format";
 import type { GhPrViewData, GhRepoViewData, GithubInput } from "./gh-types";
 import { GH_PR_FIELDS_NO_COMMENTS } from "./gh-view";
 import { invalidateAllForNumber } from "./github-cache";
-import { ToolError, throwIfAborted } from "./tool-errors";
+import { throwIfAborted } from "./tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 export const GH_REPO_CLONE_FIELDS = ["nameWithOwner", "sshUrl", "url"];
 export const GH_PR_CHECKOUT_FIELDS = [

@@ -2,6 +2,7 @@ import * as stream from "node:stream";
 import { inspect } from "node:util";
 import { postmortem } from "@linxiraos/pi-utils";
 import { AgentSideConnection, ndJsonStream, type Stream } from "@linxiraos/pi-utils/acp";
+
 import type { ExtensionUIContext } from "../../extensibility/extensions/types";
 import type { AgentSession } from "../../session/agent-session";
 import { AcpAgent } from "./acp-agent";

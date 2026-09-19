@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
+
 import {
 	type AutocompleteProvider,
 	matchesKey,
@@ -11,37 +12,40 @@ import {
 import { isEnoent, logger, postmortem, sanitizeText } from "@linxiraos/pi-utils";
 import { isSettingsInitialized, settings } from "../../config/settings";
 import { resolveLocalRoot } from "../../internal-urls";
-import { AskDialogComponent } from "../../modes/components/ask-dialog";
-import { AssistantMessageComponent } from "../../modes/components/assistant-message";
-import { extractImagePathFromText } from "../../modes/components/custom-editor";
-import { HistorySearchComponent } from "../../modes/components/history-search";
-import { HookEditorComponent } from "../../modes/components/hook-editor";
-import { ReadToolGroupComponent } from "../../modes/components/read-tool-group";
-import { renderSegmentTrack } from "../../modes/components/segment-track";
-import { TinyTitleDownloadProgressComponent } from "../../modes/components/tiny-title-download-progress";
-import { ToolExecutionComponent } from "../../modes/components/tool-execution";
-import { TreeSelectorComponent } from "../../modes/components/tree-selector";
-import { chipLabel, compactImageMarkers, shiftImageMarkers } from "../../modes/composer-attachments";
-import { expandEmoticons } from "../../modes/emoji-autocomplete";
-import { materializeImageReferenceLinks, setCachedImageDimensions } from "../../modes/image-references";
-import { createPromptActionAutocompleteProvider } from "../../modes/prompt-action-autocomplete";
-import { createModelMentionSource } from "../model-mention-autocomplete";
-import { parseQueueShorthand, splitQueuedMessages } from "../../modes/queue-input";
+import { AskDialogComponent } from "@linxiraos/pi-tui/overlays/ask-dialog";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { extractImagePathFromText } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
+import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
+import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
+import { renderSegmentTrack } from "@linxiraos/pi-tui/chrome/segment-track";
+import { TinyTitleDownloadProgressComponent } from "@linxiraos/pi-tui/overlays/tiny-title-download-progress";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
+import { chipLabel, compactImageMarkers, shiftImageMarkers } from "@linxiraos/pi-tui/prompt/composer-attachments";
+import { expandEmoticons } from "@linxiraos/pi-tui/prompt/emoji-autocomplete";
+import { materializeImageReferenceLinks, setCachedImageDimensions } from "@linxiraos/pi-tui/prompt/image-references";
+import { createPromptActionAutocompleteProvider } from "@linxiraos/pi-tui/prompt/prompt-action-autocomplete";
+import { createModelMentionSource } from "@linxiraos/pi-tui/prompt/model-mention-autocomplete";
+import { createModelBrowserSource } from "../model-browser-source";
+import { parseQueueShorthand, splitQueuedMessages } from "@linxiraos/pi-tui/prompt/queue-input";
+
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "../../modes/skill-command";
 import type { InteractiveModeContext } from "../../modes/types";
 import manualContinuePrompt from "../../prompts/system/manual-continue.md" with { type: "text" };
 import { AgentRegistry } from "../../registry/agent-registry";
 import type { RestoredQueuedMessage } from "../../session/agent-session-types";
 import { USER_INTERRUPT_LABEL } from "../../session/messages";
-import { PINNED_HUD_TOGGLE_ID } from "../composer";
+import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
+
 import { pickRecentFocusableAgentId } from "./session-focus-controller";
 import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
 import { parseSlashCommand } from "../../slash-commands/helpers/parse";
-import { isTinyTitleLocalModelKey } from "../../tiny/models";
+import { getTinyTitleModelSpec, isTinyTitleLocalModelKey } from "../../tiny/models";
 import { tinyTitleClient } from "../../tiny/title-client";
 import type { TinyTitleProgressEvent } from "../../tiny/title-protocol";
 import { resolveReadPath } from "../../tools/path-utils";
-import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "../../tools/render-utils";
+import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import { vocalizer } from "../../tts/vocalizer";
 import {
 	copyToClipboard,
@@ -52,15 +56,11 @@ import {
 import { getSlashCommandUsage, loadSlashCommandUsage, recordSlashCommandUsage } from "../../utils/command-usage";
 import { EnhancedPasteController } from "../../utils/enhanced-paste";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
-import { ensureSupportedImageInput, ImageInputTooLargeError, loadImageInput } from "../../utils/image-loading";
+import { loadImageInput } from "../../utils/image-loading";
+import { ensureSupportedImageInput, ImageInputTooLargeError } from "@linxiraos/pi-tui/chat/image-loading";
+import { VideoError, buildVideoContactSheetPng, probeVideo } from "../../utils/video";
+import { createVideoPreviewImage, isVideoPath } from "@linxiraos/pi-tui/prompt/video";
 import { resizeImage } from "../../utils/image-resize";
-import {
-	buildVideoContactSheetPng,
-	createVideoPreviewImage,
-	isVideoPath,
-	probeVideo,
-	VideoError,
-} from "../../utils/video";
 
 /**
  * Slash commands that may carry secrets in their arguments should never be
@@ -234,7 +234,7 @@ export class InputController {
 
 	#showTinyTitleDownloadProgress(modelKey: string): (() => void) | undefined {
 		if (!isTinyTitleLocalModelKey(modelKey)) return;
-		const component = new TinyTitleDownloadProgressComponent(modelKey);
+		const component = new TinyTitleDownloadProgressComponent(getTinyTitleModelSpec(modelKey).label);
 		let added = false;
 		let disposed = false;
 		let removeTimer: NodeJS.Timeout | undefined;
@@ -2211,7 +2211,8 @@ export class InputController {
 			basePath,
 			commandUsage: getSlashCommandUsage,
 			modelMentions: createModelMentionSource({
-				settings: this.ctx.settings,
+				source: createModelBrowserSource(this.ctx.settings),
+
 				registry: this.ctx.session.modelRegistry,
 				scopedModels: () => this.ctx.session.scopedModels.map(s => s.model),
 			}),

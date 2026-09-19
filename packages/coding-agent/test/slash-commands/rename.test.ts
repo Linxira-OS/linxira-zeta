@@ -5,7 +5,7 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
-import { ensureTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { ensureTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";

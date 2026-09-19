@@ -1,7 +1,7 @@
 import { classifyModel } from "@linxiraos/pi-catalog/identity";
 import { $env, $flag } from "@linxiraos/pi-utils";
 
-export type EditMode = "replace" | "patch" | "hashline" | "apply_patch" | "sloppy";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 
 export const DEFAULT_EDIT_MODE: EditMode = "hashline";
 

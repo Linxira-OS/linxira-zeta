@@ -16,14 +16,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
-import type { TaskToolDetails } from "@linxiraos/zeta/task/types";
-import type { BashToolDetails } from "@linxiraos/zeta/tools/bash";
-import type { CoordinationDetails } from "@linxiraos/zeta/tools/hub";
+import type { TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
+import type { BashToolDetails } from "@linxiraos/pi-tui/tools/bash";
+import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 function taskResult(asyncState: "running" | "completed" | "failed" | undefined, text: string) {

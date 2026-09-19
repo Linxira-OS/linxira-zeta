@@ -5,11 +5,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { getThemeByName, initTheme, type Theme } from "@linxiraos/zeta/modes/theme/theme";
-import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@linxiraos/zeta/session/streaming-output";
-import type { ReadToolDetails, ReadTruncationStats, ToolSession } from "@linxiraos/zeta/tools";
-import { formatTruncationMetaNotice } from "@linxiraos/zeta/tools/output-meta";
-import { ReadTool, readToolRenderer } from "@linxiraos/zeta/tools/read";
+import { getThemeByName, initTheme, type Theme } from "@linxiraos/pi-tui/theme";
+import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@linxiraos/pi-tui/tools/streaming-output";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import type { ReadToolDetails, ReadTruncationStats } from "@linxiraos/pi-tui/tools/read";
+import { formatTruncationMetaNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { readToolRenderer } from "@linxiraos/pi-tui/tools/read";
 import { writeArchive } from "@linxiraos/pi-utils/ar";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {

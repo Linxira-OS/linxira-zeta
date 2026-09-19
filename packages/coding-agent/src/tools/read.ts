@@ -1,3 +1,5 @@
+import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+import { tryResolveInternalUrlSync } from "../internal-urls/hyperlink-targets";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { type EditStore, notebookToEditableText } from "@linxiraos/pi-natives";
@@ -34,7 +36,6 @@ import { type ResolvedArtifactFile, resolveArtifactFile } from "../internal-urls
 import { parseInternalUrl } from "../internal-urls/parse";
 import type { InternalUrl } from "../internal-urls/types";
 import { getExperimentalContextSession } from "./context-notes";
-import { readTargetsPlan } from "../plan-mode/plan-protection";
 import readDescription from "../prompts/tools/read.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import {
@@ -44,47 +45,43 @@ import {
 	truncateHead,
 	truncateHeadBytes,
 	truncateLine,
-} from "../session/streaming-output";
+} from "@linxiraos/pi-tui/tools/streaming-output";
 import { buildLineEntriesWithBlockContext, lineEntriesToPlainText } from "../utils/block-context";
 import { isCpuProfilePath, renderCpuProfile } from "../utils/cpuprofile";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
+import { loadImageInput, loadSvgImageInput } from "../utils/image-loading";
 import {
 	ImageInputTooLargeError,
 	InvalidImageDataError,
-	loadImageInput,
-	loadSvgImageInput,
 	MAX_IMAGE_INPUT_BYTES,
 	webpExclusionForModel,
-} from "../utils/image-loading";
+} from "@linxiraos/pi-tui/chat/image-loading";
 import { askImageQuestion, resolveImageQuestionModel } from "../utils/image-question";
 import { CONVERTIBLE_EXTENSIONS, convertFileWithMarkit } from "../utils/markit";
 import { isSampleProfilePath, renderSampleProfile } from "../utils/sample-profile";
 import { buildDirectoryTree, type DirectoryTree } from "../workspace-tree";
+import { type ConflictEntry, type ConflictScope, renderConflictRegion } from "@linxiraos/pi-tui/tools/conflict-detect";
 import {
-	type ConflictEntry,
-	type ConflictScope,
 	formatConflictSummary,
 	formatConflictWarning,
 	getConflictHistory,
 	parseConflictUri,
-	renderConflictRegion,
 	scanConflictLines,
 	scanFileForConflicts,
 } from "./conflict-detect";
 import { executeReadUrl, fetchReadUrl, parseReadUrlTarget } from "./fetch";
-import { postProcessToolResult, type OutputMeta, resolveOutputMaxColumns } from "./output-meta";
+import { postProcessToolResult, resolveOutputMaxColumns } from "./output-meta";
 import {
 	expandPath,
 	formatPathRelativeToCwd,
-	type LineRange,
 	pathTargetsSsh,
 	probeLiteralPathExists,
-	resolveReadPath,
+	resolveReadPathAsync,
 	splitDelimitedPathEntry,
-	splitInternalUrlSel,
-	splitPathAndSel,
 	splitPathAndSelPreferringLiteral,
 } from "./path-utils";
+import { type LineRange } from "@linxiraos/pi-tui/tools/line-ranges";
+import { splitInternalUrlSel, splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
 import { readArchive, resolveArchiveReadPath } from "./read-archive";
 import {
 	BRACKET_CONTEXT_ELLIPSIS,
@@ -123,7 +120,6 @@ import {
 	buildVideoContactSheetPng,
 	extractVideoFramePng,
 	formatVideoDetails,
-	isVideoPath,
 	parseVideoSelector,
 	probeVideo,
 	splitVideoReadTarget,
@@ -131,6 +127,7 @@ import {
 	type VideoMetadata,
 	type VideoPng,
 } from "../utils/video";
+import { isVideoPath } from "@linxiraos/pi-tui/prompt/video";
 import {
 	isMultiRange,
 	isRawSelector,
@@ -140,7 +137,7 @@ import {
 	resolveTailSelector,
 	selToOffsetLimit,
 } from "./read-selector";
-import { splitAddressableFileLines } from "./hashline-format";
+import { splitAddressableFileLines } from "@linxiraos/pi-tui/tools/hashline-format";
 import { readSqlite, resolveSqliteReadPath } from "./read-sqlite";
 import {
 	getReadTextFileBridge,
@@ -150,14 +147,15 @@ import {
 	trySummarize,
 } from "./read-summary";
 import { parseSqlitePathCandidates } from "./sqlite-reader";
-import { formatBytes, shortenPath } from "./render-utils";
-import { REPORT_ISSUE_DEVICE_NAME, reportIssueDeviceUsage } from "./report-tool-issue";
-import { isResolutionDeviceName, resolutionDeviceUsage } from "./resolve";
-import { ToolAbortError, ToolError, throwIfAborted } from "./tool-errors";
+import { formatBytes, shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { REPORT_ISSUE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/report-tool-issue";
+import { reportIssueDeviceUsage } from "./report-tool-issue";
+import { isResolutionDeviceName } from "@linxiraos/pi-tui/tools/resolve";
+import { resolutionDeviceUsage } from "./resolve";
+import { ToolAbortError, throwIfAborted } from "./tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { xdevDocs, xdevListing } from "./xdev";
-
-export { readToolRenderer } from "./read-renderer";
 
 /** Largest profile (`*.sample.txt`, `*.cpuprofile`) converted to a bottleneck summary; bigger files read as plain text. */
 const MAX_PROFILE_SUMMARY_BYTES = 32 * 1024 * 1024;
@@ -652,44 +650,6 @@ const readSchemaWithoutMemoryWithSkills = type({
 
 export type ReadToolInput = typeof readSchema.infer;
 
-/** Read result metadata retains truncation statistics, not a second copy of the body. */
-export type ReadTruncationStats = Omit<TruncationResult, "content">;
-
-export interface ReadToolDetails {
-	kind?: "file" | "url";
-	truncation?: ReadTruncationStats;
-	isDirectory?: boolean;
-	resolvedPath?: string;
-	suffixResolution?: { from: string; to: string };
-	url?: string;
-	finalUrl?: string;
-	contentType?: string;
-	method?: string;
-	notes?: string[];
-	meta?: OutputMeta;
-	/** Full on-disk byte size recorded before applying a file range. */
-	fileSize?: number;
-	/** Full source line count when the read reached EOF and the count is exact. */
-	totalLines?: number;
-	/** Raw text + start line for user-visible TUI rendering, set when content is text-like.
-	 * Mirrors the same lines the model receives but without hashline/line-number prefixes,
-	 * so the TUI can render the file content with its own gutter without re-parsing the formatted text. */
-	displayContent?: {
-		text: string;
-		startLine: number;
-		lineNumbers?: Array<number | null>;
-	};
-	summary?: { lines: number; elidedSpans: number; elidedLines: number };
-	/** Number of unresolved git conflicts surfaced by this read (TUI uses for inline `⚠ N` badge). */
-	conflictCount?: number;
-	/** Paths recovered from a delimited read argument; used only by the TUI to render one call as multiple read rows. */
-	displayReadTargets?: string[];
-	/**
-	 * Resolved filesystem link target for each {@link displayReadTargets} entry, aligned by index; `null` when a
-	 * delimited part has no linkable fs path. Lets the TUI hyperlink each grouped row the same way a standalone read row is.
-	 */
-	displayReadTargetLinks?: Array<string | null>;
-}
 type ReadParams = ReadToolInput;
 
 /**
@@ -1030,17 +990,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			IS_HL_MODE: displayMode.hashLines,
 			IS_LINE_NUMBER_MODE: !displayMode.hashLines && displayMode.lineNumbers,
 		});
-	}
-
-	/**
-	 * True when `readPath` targets the session's plan file: the canonical
-	 * `local://PLAN.md` alias or the session's plan reference path. Plan files
-	 * read without an explicit selector get the full default window so
-	 * incremental plan amendments never operate on a truncated view.
-	 */
-	#isPlanRead(readPath: string): boolean {
-		const reference = this.session.getPlanReferencePath?.() ?? "local://PLAN.md";
-		return readTargetsPlan(readPath, "local://PLAN.md") || readTargetsPlan(readPath, reference);
 	}
 
 	/**
@@ -1565,6 +1514,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		toolContext?: AgentToolContext,
 	): Promise<AgentToolResult<ReadToolDetails>> {
 		const result = await this.#executeInner(toolCallId, params, signal, onUpdate, toolContext);
+		const basePath = splitInternalUrlSel(params.path).path;
+		const displayTarget = tryResolveInternalUrlSync(basePath);
+		if (displayTarget && result.details) result.details.displayTarget = displayTarget;
 		appendRepeatReadHint(this.session, params.path, result);
 		return result;
 	}
@@ -1583,9 +1535,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		if (readPath.startsWith("file://")) {
 			readPath = expandPath(readPath);
 		}
-		// Set when the requested path is the session plan (canonical alias or the
-		// plan reference URL) — captured before scheme resolution rewrites readPath.
-		let planTargetedRead = false;
 		const imageQuestion = splitImageQuestionTarget(readPath);
 		readPath = imageQuestion.path;
 		const question = imageQuestion.question;
@@ -1660,9 +1609,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				throw new ToolError(imageSelectorMessage);
 			}
 			if (scheme === "local") {
-				// Capture plan targeting BEFORE the URL is rewritten to its on-disk
-				// path — the plan-aware read window keys on the `local://` spelling.
-				planTargetedRead = this.#isPlanRead(readPath);
 				const localFile = await resolveLocalUrlToFile(urlMeta, {
 					cwd: this.session.cwd,
 					settings: this.session.settings,
@@ -1746,7 +1692,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				? { kind: "none" as const }
 				: parseSel(localTarget.sel);
 
-		let absolutePath = resolveReadPath(localReadPath, this.session.cwd);
+		let absolutePath = await resolveReadPathAsync(localReadPath, this.session.cwd);
 		let suffixResolution: { from: string; to: string } | undefined;
 
 		let isDirectory = false;
@@ -2111,11 +2057,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const startLineDisplay = startLine + 1;
 
 					const DEFAULT_LIMIT = this.#defaultLimit;
-					// Plan files get the full default window: plan mode instructs the
-					// model to re-read and incrementally amend its plan, and a 300-line
-					// view of a longer plan makes every amendment blind past the window
-					// (details silently drop across rounds). Explicit selectors win.
-					const effectiveLimit = limit ?? (planTargetedRead ? DEFAULT_MAX_LINES : DEFAULT_LIMIT);
+					const effectiveLimit = limit ?? DEFAULT_LIMIT;
 					const maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, DEFAULT_MAX_LINES);
 					const selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
 					// Scale byte budget with line limit so the configured line count actually fits.

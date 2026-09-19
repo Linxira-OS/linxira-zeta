@@ -6,7 +6,7 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import { BtwController } from "@linxiraos/zeta/modes/controllers/btw-controller";
 import { LiveCommandController } from "@linxiraos/zeta/modes/controllers/live-command-controller";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";

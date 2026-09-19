@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { type Component, type OverlayHandle, setKeybindings, TUI, visibleWidth } from "@linxiraos/pi-tui";
 import type { Terminal, TerminalAppearance } from "@linxiraos/pi-tui/terminal";
-import { KeybindingsManager } from "../../../src/config/keybindings";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { Settings } from "../../../src/config/settings";
-import { SessionInfoOverlay } from "../../../src/modes/components/session-info-overlay";
-import { getThemeByName, setThemeInstance, type Theme } from "../../../src/modes/theme/theme";
+import { SessionInfoOverlay } from "@linxiraos/pi-tui/overlays/session-info-overlay";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
 
 class MinimalTerminal implements Terminal {
 	columns = 80;

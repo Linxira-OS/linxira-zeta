@@ -15,10 +15,10 @@ import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import { ChatTranscriptBuilder } from "@linxiraos/zeta/modes/components/chat-transcript-builder";
-import { formatUsageRow } from "@linxiraos/zeta/modes/components/usage-row";
+import { ChatTranscriptBuilder } from "@linxiraos/pi-tui/chat/chat-transcript-builder";
+import { formatUsageRow } from "@linxiraos/pi-tui/overlays/usage-row";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
@@ -282,8 +282,6 @@ describe("UiHelpers.renderSessionContext turn elapsed", () => {
 				get: (key: string) =>
 					key === "display.showTokenUsage" ? true : key === "display.showTurnTime" ? turnTimeOn : false,
 			},
-			getUserMessageText: (message: { content?: unknown }) =>
-				typeof message.content === "string" ? message.content : "",
 			addMessageToChat: (message: AgentMessage) => helpers.addMessageToChat(message),
 			session: {
 				retryAttempt: 0,
@@ -337,7 +335,6 @@ describe("focus-attach mid-turn keeps the prompt→yield delta", () => {
 					return streamState.isStreaming;
 				},
 			},
-			getUserMessageText: message => (typeof message.content === "string" ? message.content : ""),
 		});
 		ctx.chatContainer.setToolActivityVisible(true);
 		const helpers = new UiHelpers(ctx);

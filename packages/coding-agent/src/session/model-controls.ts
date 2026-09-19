@@ -29,7 +29,7 @@ import {
 } from "../config/model-resolver";
 import { getKnownRoleIds } from "../config/model-roles";
 import type { Settings } from "../config/settings";
-import { containsUltrathink } from "../modes/ultrathink";
+import { containsUltrathink } from "@linxiraos/pi-tui/prompt/ultrathink";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -39,8 +39,8 @@ import {
 	resolveThinkingLevelForModel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "../thinking";
-import type { EditMode } from "../utils/edit-mode";
+} from "@linxiraos/pi-tui/thinking";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ModelCycleResult, ResolvedRoleModel, RoleModelCycle, RoleModelCycleResult } from "./agent-session-types";
 import { formatRoleModelValue, resolveRoleModelFull } from "./role-models";

@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { AskDialogComponent } from "@linxiraos/zeta/modes/components/ask-dialog";
-import { HookEditorComponent } from "@linxiraos/zeta/modes/components/hook-editor";
-import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
+import { AskDialogComponent } from "@linxiraos/pi-tui/overlays/ask-dialog";
+import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
+import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 import { type KeyId, matchesKey } from "@linxiraos/pi-tui";

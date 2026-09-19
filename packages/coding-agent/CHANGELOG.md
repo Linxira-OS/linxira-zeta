@@ -12,11 +12,6 @@
 - Plan/Plan-ultra/Vibe/Goal 模式横幅与 attach 模式提示接入 i18n;`/loop`、`/rename` 描述进目录。
 
 ## [1.1.12] - 2026-09-10
-
-- Brand token sweep across the shipped VM protocol families: eval JS/Python kernel symbols (`__zeta_prelude__`, `__zeta_display__`, `__zeta_magic`/`__zeta_shell`), browser/computer bridge protocol names, and the shell snapshot helper now use the zeta naming; retained interop surfaces (`.omp-plugin`, `mcp__omp__`, the persisted silent-abort marker, `__ompInstallTokioRuntime`) are unchanged per the brand registry.
-- Fixed legacy-pi extension hot reload on Windows: module specifiers now keep the `?mtime` cache-busting query (plain slash paths), so edited extension source takes effect on reload instead of being pinned to the first load.
-- Web UI sidebar: default off with persisted toggle state, overlap with the status line fixed, plus running-session pin, usage line, and quick actions.
-
 ## [1.1.11] - 2026-09-08
 
 ### Added
@@ -39,32 +34,18 @@
 - Zeta merge adaptation: the `/plan-ultra` command and its registry entry, plus localized slash-command descriptions, are guarded against being dropped by upstream merges (i18n contract test now enforces M.* keys).
 
 ## [1.1.10] - 2026-09-07
-
-- Fixed edit and write results to report the formatted bytes actually committed by LSP writethrough.
-
-### Added
-
-- OMP v18.1.12 sync baseline: `memory://` now resolves against the session that issued it: a caller's own memory backend answers `memory://<id>`, so co-located sessions no longer read each other's memory rows, and a caller whose session is no longer live fails closed instead of being answered by a peer. Prompt completion binds to the same caller, so `memory://<memory-id>` stays on offer while a subagent shares the working directory. Advisors retain their owning session's memory access even without a session file.
-- OMP v18.1.11 sync baseline (`e3106be68f`): `retry.waitForUsageReset` — when a provider reports usage-limit exhaustion with a reset time (5-hour or weekly quota windows), the session sleeps until the reset instead of failing fast past `retry.maxDelayMs`; opt-in `bash.allowCompoundCommands` approval evaluates conservative literal `&&` chains per segment (requires a POSIX-quoting shell; whole-chain denies take precedence over earlier prompts).
-
-### Changed
-
-- Ranged reads of text without bracket characters skip unnecessary lexical context scanning.
-- Muse Code sessions send a compact hashline edit description (~3 KB less per request); all other models keep the full prompt.
-- Transcript usage row now shows the prompt-to-yield time as a bare delta, keeping the clock icon for time to first token only.
-
-### Fixed
-
-- Fixed GPT-6 Astra extended-context support and preserved maximum context windows reported by OpenAI Codex discovery ([#10980](https://github.com/can1357/oh-my-pi/pull/10980) by [@H4vC](https://github.com/H4vC)).
-- Fixed GPT-6 Astra requiring `/extended-context` for its full context window: it now keeps the documented 1.05M-token window with the setting on or off, and explicit per-model `contextWindow` overrides still win.
-- Subagent `yield` no longer rejects a valid `data` payload because a non-strict OpenAI-compatible backend filled the optional `error` field with `""`; previously the worker retried the identical call until the invalid-yield cap and the parent received nothing.
-- Fixed fullscreen `/copy` outlining only a lazily created grouped Read card, so Enter copies the assistant yield instead of tool output.
-- Fullscreen `/copy` now opens on the recent tail of the branch instead of replaying the whole session, so it appears immediately and steps without lag on long sessions (`a` loads the earlier turns). Both it and the esc-esc rewind selector also cache each transcript row set instead of re-stripping it every frame.
-- Fixed the fullscreen `/copy` and esc-esc rewind selectors repainting the whole frame for a wheel notch that cannot move the viewport; because both open scrolled to the newest turn, wheeling down there made the frame twitch.
-- Oversized selected lines that cannot fit after read context are reported with a working raw recovery selector instead of a looping continuation hint.
-- WorkPool child sessions no longer crash during startup while constructing their incremental `yield` tool schema.
-- The default `omp commit` agent now uses its displayed COMMIT model and honors `--model` instead of silently running on SMOL ([#10991](https://github.com/can1357/oh-my-pi/issues/10991)).
-- Fixed JavaScript `eval` `completion()`/`agent()` handles so the documented immediate-handle pattern works: `h.wait()`, `h.status()`, and the other handle methods now work on the un-awaited factory result ([#10986](https://github.com/can1357/oh-my-pi/issues/10986)).
+- Task descriptions containing tabs no longer misalign or overflow task rows; tabs are expanded before measuring and rendering.
+- GitHub Copilot model-policy 403s (plan, model policy, org restriction) no longer delete stored credentials, so the provider stays listed in `/model` after a per-model access denial instead of disappearing until the next `/login` ([#11280](https://github.com/can1357/oh-my-pi/pull/11280) by [@H4vC](https://github.com/H4vC)).
+- Bash results no longer replace a failing command's output with the shell minimizer's lossy summary when the original capture cannot be persisted as an artifact; the raw diagnostics are kept so a failure stays actionable ([#11081](https://github.com/can1357/oh-my-pi/issues/11081)).
+- Fixed worker subprocesses failing to declare themselves as worker hosts before dispatching selectors, which prevented nested thread worker spawns during `/usage` stats sync on multi-core systems.
+- Fixed `/usage` displaying a misleading generic database read failure when activity loading fails; the error detail is now sanitized, collapsed to a single line with shortened paths, and surfaced in the dashboard.
+- Advisor notes now report rate limiting accurately, blockers always interrupt even after a lower-severity note in the same update, and deferred notes flush when the primary run completes, including after advisor quota exhaustion ([#11062](https://github.com/can1357/oh-my-pi/issues/11062)).
+- Fixed the built-in clangd registration omitting CUDA source and header files (`.cu` and `.cuh`) ([#10782](https://github.com/can1357/oh-my-pi/pull/10782) by [@alphastorm](https://github.com/alphastorm)).
+- Fixed `ast_grep` skipping CUDA headers and ignoring an explicit `lang` override for ambiguous file extensions ([#10782](https://github.com/can1357/oh-my-pi/pull/10782) by [@alphastorm](https://github.com/alphastorm)).
+- Python cells are no longer replayed automatically after a kernel crash, preventing duplicate side effects; the next call starts a fresh kernel.
+- Session rewrites preserve open-reader snapshots and replacement identity when a rename needs an EPERM fallback.
+- Fixed WorkPool children retaining a stale Gemini-formatted `yield` declaration when pooled items were installed or cleared.
+- Preserve effective context and output limits when model overrides change unrelated settings, such as thinking effort levels.
 
 ## [1.1.9] - 2026-09-05
 
@@ -80,6 +61,14 @@
 - Windows installer (`install.ps1`) restored to the Zeta package/repo/binary names after the merge pulled the upstream OMP form back in.
 - Base system prompt refresh only re-applies on byte-level changes, keeping the inherited provider prompt-cache key stable across explicit refreshes.
 - i18n: zh catalog no longer carries OMP self-references; `/security` descriptions use the clean Zeta keys.
+- Idle compaction now starts or reschedules when its enabled state, threshold, or delay changes while a session is already idle ([#10242](https://github.com/can1357/oh-my-pi/issues/10242)).
+- Fixed `todo` and other tools called through eval rejecting optional `None`/`null` arguments that direct tool calls accept.
+- Report oversized selected lines that cannot fit after read context, with a working raw recovery selector instead of a looping continuation hint ([#10775](https://github.com/can1357/oh-my-pi/issues/10775)).
+- Approved plan content is now inlined into approve-and-execute prompts instead of forcing the executor to re-read the durable plan file ([#10923](https://github.com/can1357/oh-my-pi/issues/10923)).
+- Fixed WorkPool child sessions crashing during startup while constructing their incremental `yield` tool schema.
+- Commit summaries written in Vietnamese, Korean, and other accented scripts are no longer rejected for exceeding the length limit, and keep their accents as typed.
+- Tool-scoped TTSR rules now match finalized arguments reliably when providers stream short or throttled tool calls ([#10910](https://github.com/can1357/oh-my-pi/issues/10910)).
+- Restored `getSupportedThinkingLevels` in the legacy `pi-ai` shim so extensions importing it from `@earendil-works/pi-ai` (e.g. `@companion-ai/feynman`) pass Bun's named-export check and load ([#10800](https://github.com/can1357/oh-my-pi/issues/10800)).
 
 ## [1.1.6] - 2026-08-30
 
@@ -238,4 +227,3 @@
 - Fixed Enter being ignored during the first turn when omp starts with an initial prompt.
 - Fixed idle compaction discarding context while the session was still waiting on a backgrounded async job ([#10223](https://github.com/can1357/oh-my-pi/pull/10223) by [@mattwilkinsonn](https://github.com/mattwilkinsonn)).
 - Fixed LSP idle timeout clobbering in multi-workspace sessions and unmanaged timer spawning on pure config reads ([#10237](https://github.com/can1357/oh-my-pi/pull/10237) by [@harshaygadekar](https://github.com/harshaygadekar)).
-

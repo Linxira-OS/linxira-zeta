@@ -10,7 +10,7 @@ import { buildParams } from "@linxiraos/pi-ai/providers/openai-responses";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { estimateToolSchemaTokens } from "@linxiraos/zeta/modes/utils/context-usage";
+import { estimateToolSchemaTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";

@@ -18,7 +18,7 @@ import {
 	type SessionCompactEvent,
 	type SessionEvent,
 } from "@linxiraos/zeta/extensibility/hooks";
-import { theme } from "@linxiraos/zeta/modes/theme/theme";
+import { theme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";

@@ -22,7 +22,8 @@ import { TaskTool } from "@linxiraos/zeta/task";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";
 import * as executorModule from "@linxiraos/zeta/task/executor";
 import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
-import type { AgentDefinition, AgentProgress, SingleResult, TaskParams } from "@linxiraos/zeta/task/types";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { AgentProgress, SingleResult, TaskParams } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { snapshotJobs } from "@linxiraos/zeta/tools/hub/jobs";
 

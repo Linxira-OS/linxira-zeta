@@ -3,13 +3,9 @@ import type { AgentEvent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { CursorExecHandlers } from "@linxiraos/zeta/cursor";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
-import {
-	getLatestTodoPhasesFromEntries,
-	type TodoPhase,
-	todoToolRenderer,
-	USER_TODO_EDIT_CUSTOM_TYPE,
-} from "@linxiraos/zeta/tools/todo";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
+import { getLatestTodoPhasesFromEntries, USER_TODO_EDIT_CUSTOM_TYPE } from "@linxiraos/zeta/tools/todo";
+import { type TodoPhase, todoToolRenderer } from "@linxiraos/pi-tui/tools/todo";
 import { buildSessionContext } from "../src/session/session-context";
 import type { SessionEntry } from "../src/session/session-entries";
 

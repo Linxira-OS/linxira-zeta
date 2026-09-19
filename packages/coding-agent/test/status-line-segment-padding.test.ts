@@ -7,8 +7,9 @@
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 beforeAll(async () => {
@@ -63,7 +64,7 @@ function fakeSession(): AgentSession {
 
 /** `pi` + `model` bottom bar (plain dot separators) through the real pipeline. */
 function makeComponent(): StatusLineComponent {
-	const component = new StatusLineComponent(fakeSession());
+	const component = new StatusLineComponent(fakeSession(), statusLineHost);
 	component.updateSettings({
 		preset: "custom",
 		leftSegments: ["pi", "model"],

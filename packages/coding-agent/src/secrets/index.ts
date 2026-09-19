@@ -2,6 +2,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getSecretPlaceholderKeyPath, isEnoent, logger } from "@linxiraos/pi-utils";
+
 import { YAML } from "bun";
 import { type SecretEntry, SecretObfuscator } from "./obfuscator";
 import { CREDENTIAL_PATTERNS } from "./patterns";

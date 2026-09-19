@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { HistorySearchComponent } from "@linxiraos/zeta/modes/components/history-search";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { HistoryEntry, HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 
 beforeAll(async () => {

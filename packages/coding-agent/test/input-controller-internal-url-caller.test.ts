@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";

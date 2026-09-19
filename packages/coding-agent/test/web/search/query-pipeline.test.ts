@@ -9,7 +9,7 @@ import type { AuthStorage } from "@linxiraos/pi-ai";
 import { runSearchQuery } from "@linxiraos/zeta/web/search";
 import type { SearchParams } from "@linxiraos/zeta/web/search/provider";
 import * as provider from "@linxiraos/zeta/web/search/provider";
-import type { SearchProviderId, SearchResponse, SearchSource } from "@linxiraos/zeta/web/search/types";
+import type { SearchProviderId, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 
 const SOURCES: SearchSource[] = [
 	{ title: "Docs page", url: "https://docs.example.com/guide" },

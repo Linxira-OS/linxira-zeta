@@ -20,10 +20,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { resolveAssistantErrorPresentation } from "@linxiraos/zeta/modes/utils/transcript-render-helpers";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { resolveAssistantErrorPresentation } from "@linxiraos/pi-tui/chat/transcript-render-helpers";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";

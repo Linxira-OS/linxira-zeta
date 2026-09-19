@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getTerminalId } from "@linxiraos/pi-tui/ttyid";
+
 import {
 	getCustomSessionFilesDir,
 	getSessionsDir,
@@ -12,6 +13,7 @@ import {
 } from "@linxiraos/pi-utils/dirs";
 import { isEnoent } from "@linxiraos/pi-utils/fs-error";
 import * as logger from "@linxiraos/pi-utils/logger";
+
 import type { SessionStorage } from "./session-storage";
 
 const migratedSessionRoots = new Set<string>();

@@ -1,23 +1,25 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeText } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { getThemeByName } from "@linxiraos/zeta/modes/theme/theme";
+import { getThemeByName } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import {
 	dispatchResolutionDevice,
 	isPreviewResolutionToolCall,
 	isProposeToolCall,
 	type PlanProposalHandler,
-	PROPOSE_DEVICE_NAME,
 	PROPOSE_DEVICE_PATH,
-	REJECT_DEVICE_NAME,
 	REJECT_DEVICE_PATH,
-	RESOLVE_DEVICE_NAME,
 	RESOLVE_DEVICE_PATH,
 	resolutionDeviceUsage,
-	resolveRenderer,
 	writeDeviceDispatch,
 } from "@linxiraos/zeta/tools/resolve";
+import {
+	PROPOSE_DEVICE_NAME,
+	REJECT_DEVICE_NAME,
+	RESOLVE_DEVICE_NAME,
+	resolveRenderer,
+} from "@linxiraos/pi-tui/tools/resolve";
+import { sanitizeText } from "@linxiraos/pi-utils";
 
 function createSession(
 	options: {

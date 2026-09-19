@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { containsOrchestrate, highlightOrchestrate, renderOrchestrateNotice } from "@linxiraos/zeta/modes/orchestrate";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { containsUltrathink, highlightUltrathink } from "@linxiraos/zeta/modes/ultrathink";
+import { renderOrchestrateNotice } from "@linxiraos/zeta/modes/orchestrate";
+import { containsOrchestrate, highlightOrchestrate } from "@linxiraos/pi-tui/prompt/orchestrate";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { containsUltrathink, highlightUltrathink } from "@linxiraos/pi-tui/prompt/ultrathink";
 import { clearBundledCommandsCache, loadBundledCommands } from "@linxiraos/zeta/task/commands";
 
 beforeAll(() => {

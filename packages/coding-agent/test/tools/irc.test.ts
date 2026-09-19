@@ -5,7 +5,8 @@ import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { SettingPath } from "@linxiraos/zeta/config/settings-schema";
-import { IrcBus, type IrcMessage } from "@linxiraos/zeta/irc/bus";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { type IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
@@ -14,7 +15,8 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { type CoordinationDetails, HubTool, isIrcEnabled } from "@linxiraos/zeta/tools/hub";
+import { type CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
+import { HubTool, isIrcEnabled } from "@linxiraos/zeta/tools/hub";
 import { TempDir } from "@linxiraos/pi-utils";
 
 interface FakeSession {

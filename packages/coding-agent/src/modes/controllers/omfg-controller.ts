@@ -1,10 +1,11 @@
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, prompt } from "@linxiraos/pi-utils";
+
 import { invalidate as invalidateCapabilityCache } from "../../capability";
 import type { Rule } from "../../capability/rule";
 import omfgUserPrompt from "../../prompts/system/omfg-user.md" with { type: "text" };
-import { shortenPath } from "../../tools/render-utils";
-import { OmfgPanelComponent } from "../components/omfg-panel";
+import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { OmfgPanelComponent } from "@linxiraos/pi-tui/overlays/omfg-panel";
 import type { InteractiveModeContext } from "../types";
 import {
 	buildOmfgRuleForPath,
@@ -241,6 +242,7 @@ export class OmfgController {
 			// registered below (issue #10940 review). Invalidating the file clears its
 			// parent (rules dir); invalidating that dir clears its parent (the config dir)
 			// so a first-ever rule in a freshly created `.zeta/rules` is still discovered.
+
 			invalidateCapabilityCache(target.filePath);
 			invalidateCapabilityCache(path.dirname(target.filePath));
 			if (!this.#isActiveRequest(request)) return { kind: "aborted" };

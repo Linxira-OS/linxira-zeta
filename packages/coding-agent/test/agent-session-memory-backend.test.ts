@@ -18,7 +18,6 @@ import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/ac
 import { BUILTIN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
 import { resetMemoryForTests } from "@linxiraos/pi-mnemopi";
 import { getProjectAgentDir, getProjectDir, setProjectDir, TempDir } from "@linxiraos/pi-utils";
-import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function createTool(name: string): AgentTool {
@@ -56,15 +55,7 @@ describe("AgentSession memory backend lifecycle", () => {
 		session = undefined;
 		resetMemoryForTests();
 		authStorage.close();
-		AgentStorage.close();
-		try {
-			// Bounded sweep: the extended retry window inside removeSync can
-			// exceed the 5s hook budget on Windows; a leftover prefixed temp
-			// dir is inert and the OS reclaims it.
-			await Promise.race([tempDir.remove(), Bun.sleep(2_000)]);
-		} catch {
-			// Removal raced out — inert temp dir, no contract violated.
-		}
+		tempDir.removeSync();
 	});
 
 	function createSession(createMemoryTools: () => Promise<AgentTool[]>): AgentSession {

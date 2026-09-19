@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { TUI } from "@linxiraos/pi-tui";
-import { LoginDialogComponent } from "@linxiraos/zeta/modes/components/login-dialog";
+import { LoginDialogComponent } from "@linxiraos/pi-tui/overlays/login-dialog";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { TUI } from "@linxiraos/pi-tui";
 
 interface RenderableBlock {
 	render(width: number): string[];
@@ -122,7 +122,7 @@ describe("SelectorController login", () => {
 	});
 	it("submits exact prompt values while hiding secret input and retained answers", async () => {
 		const tui = { requestRender: vi.fn() } as unknown as TUI;
-		const dialog = new LoginDialogComponent(tui, "openrouter", vi.fn());
+		const dialog = new LoginDialogComponent(tui, "openrouter", vi.fn(), vi.fn());
 		const ordinary = dialog.showPrompt({ message: "Paste your OpenRouter API key" });
 
 		dialog.pasteText("OMP_PASTE_TEST_123");

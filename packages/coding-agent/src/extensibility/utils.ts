@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { postmortem } from "@linxiraos/pi-utils";
-import { theme } from "../modes/theme/theme";
+import { theme } from "@linxiraos/pi-tui/theme";
 import { expandPath, normalizeLocalScheme } from "../tools/path-utils";
 import type { HookUIContext } from "./hooks/types";
 

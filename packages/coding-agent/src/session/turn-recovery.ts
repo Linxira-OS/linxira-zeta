@@ -23,7 +23,8 @@ import { extractProviderRetryHint } from "@linxiraos/pi-ai/utils/retry-after";
 import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
 import { isFireworksFastModelId, toFireworksBaseModelId } from "@linxiraos/pi-catalog/fireworks-model-id";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
-import { extractRetryHint, logger, prompt, sleepLong } from "@linxiraos/pi-utils";
+import { logger, prompt, sleepLong } from "@linxiraos/pi-utils";
+
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelStringWithRouting, resolveModelOverride } from "../config/model-resolver";
 
@@ -38,8 +39,9 @@ import {
 	type ConfiguredThinkingLevel,
 	clampThinkingLevelToCeiling,
 	modelSupportsEffortCeiling,
-} from "../thinking";
-import type { EditMode } from "../utils/edit-mode";
+} from "@linxiraos/pi-tui/thinking";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
+
 import type { AgentSessionEvent } from "./agent-session-events";
 import type {
 	InitialRetryFallbackState,

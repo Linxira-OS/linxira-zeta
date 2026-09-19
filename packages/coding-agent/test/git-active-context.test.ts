@@ -3,11 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import {
-	type ActiveRepoContext,
-	resolveActiveRepoContext,
-	resolveActiveRepoContextSync,
-} from "@linxiraos/zeta/utils/active-repo-context";
+import { resolveActiveRepoContext, resolveActiveRepoContextSync } from "@linxiraos/zeta/utils/active-repo-context";
+import type { ActiveRepoContext } from "@linxiraos/pi-tui/status-line/host";
 
 const itWithSymlinkPrivilege = process.platform === "win32" ? it.skip : it;
 

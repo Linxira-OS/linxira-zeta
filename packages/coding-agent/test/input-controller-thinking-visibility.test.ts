@@ -1,5 +1,5 @@
 import { describe, expect, it, type Mock, vi } from "bun:test";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 

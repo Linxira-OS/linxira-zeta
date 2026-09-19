@@ -8,7 +8,8 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { ServingModel } from "@linxiraos/zeta/session/retry-fallback-chains";
 import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta/session/turn-recovery";
 import { runSubprocess } from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition, AgentProgress } from "@linxiraos/zeta/task/types";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
 import { createSessionDefaults } from "./helpers/session-defaults";
 
 function model(provider: string, id: string): Model<Api> {

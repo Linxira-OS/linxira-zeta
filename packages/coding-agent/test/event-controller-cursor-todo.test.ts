@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { Component } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { TRUNCATE_LENGTHS } from "@linxiraos/zeta/tools/render-utils";
+import { TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
+import type { Component } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 beforeAll(async () => {

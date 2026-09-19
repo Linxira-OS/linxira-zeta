@@ -6,7 +6,7 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import * as loopCondition from "@linxiraos/zeta/modes/loop-condition";
 import type { LoopConditionVerdict } from "@linxiraos/zeta/modes/loop-condition";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";

@@ -12,11 +12,11 @@ import { type Component, Ellipsis, truncateToWidth } from "@linxiraos/pi-tui";
 import { pluralize } from "@linxiraos/pi-utils";
 import { settings } from "../../config/settings";
 import type { SidebarWidget } from "../../extensibility/extensions";
-import { isClosedTodo, selectCollapsedTodos, type TodoItem, type TodoPhase } from "../../tools/todo";
-import { type ThemeColor, theme } from "../theme/theme";
-import type { ObservableSession } from "../session-observer-registry";
-import type { StatusLineComponent } from "./status-line/component";
-import type { SegmentContext } from "./status-line/types";
+import { isClosedTodo, selectCollapsedTodos, type TodoItem, type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import { type ThemeColor, theme } from "@linxiraos/pi-tui/theme/theme";
+import type { ObservableSession } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import type { StatusLineComponent } from "@linxiraos/pi-tui/status-line/component";
+import type { SegmentContext } from "@linxiraos/pi-tui/status-line/types";
 
 /** Fixed sidebar width in columns (v1: no drag resize). */
 export const SIDEBAR_WIDTH = 36;

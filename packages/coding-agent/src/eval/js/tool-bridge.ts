@@ -4,7 +4,7 @@ import { isRecord } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type { ToolSession } from "../../tools";
 import { committedTodoPhases } from "../../tools/todo";
-import { ToolError } from "../../tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { schemaDeclaresIntentField } from "../../utils/tool-schema";
 import { findEnabledEvalPrelude, invokeEvalPrelude } from "../preludes";
 import { EVAL_AGENT_BRIDGE_NAME, type EvalAgentHandleResult, runEvalAgent } from "../agent-bridge";

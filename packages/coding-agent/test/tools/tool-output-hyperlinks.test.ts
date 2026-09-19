@@ -3,15 +3,17 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { editToolRenderer } from "@linxiraos/zeta/edit/renderer";
-import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { editToolRenderer } from "@linxiraos/pi-tui/tools/edit";
+import { getThemeByName, initTheme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { astGrepToolRenderer } from "@linxiraos/zeta/tools/ast-grep";
-import { ReadTool, readToolRenderer } from "@linxiraos/zeta/tools/read";
-import { WriteTool, writeToolRenderer } from "@linxiraos/zeta/tools/write";
-import { grepToolRenderer } from "../../src/tools/grep";
+import { astGrepToolRenderer } from "@linxiraos/pi-tui/tools/ast-grep";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { readToolRenderer } from "@linxiraos/pi-tui/tools/read";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { writeToolRenderer } from "@linxiraos/pi-tui/tools/write";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { grepToolRenderer } from "@linxiraos/pi-tui/tools/grep";
 
 // 1x1 PNG so the read tool takes its image branch.
 const TINY_PNG_BASE64 =

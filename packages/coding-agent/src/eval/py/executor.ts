@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 
 import { getProjectDir, logger, Snowflake } from "@linxiraos/pi-utils";
-import type { OutputArtifactError } from "../../session/streaming-output";
+import type { OutputArtifactError } from "@linxiraos/pi-tui/tools/streaming-output";
 import type { ToolSession } from "../../tools";
 import {
 	buildManagedKernelEnv,

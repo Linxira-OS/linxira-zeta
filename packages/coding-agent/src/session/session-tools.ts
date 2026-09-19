@@ -3,6 +3,7 @@ import type { Agent, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-cor
 import type { Model } from "@linxiraos/pi-ai";
 import { resolveDelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
 import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@linxiraos/pi-utils";
+
 import { reset as resetCapabilities } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { ModelRegistry } from "../config/model-registry";
@@ -13,11 +14,13 @@ import { CustomToolAdapter } from "../extensibility/custom-tools/wrapper";
 import type { ExtensionRunner, SourceInfo, ToolInfo } from "../extensibility/extensions";
 import { ExtensionToolWrapper } from "../extensibility/extensions/wrapper";
 import { loadSkills, type Skill, type SkillWarning, setActiveSkills } from "../extensibility/skills";
-import { type LocalProtocolOptions, stripXdUrlPrefix, XD_URL_PREFIX } from "../internal-urls";
+import { type LocalProtocolOptions } from "../internal-urls";
+import { stripXdUrlPrefix, XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url";
 import { deduplicateMCPToolsByName, resolveMCPToolAlias } from "../mcp/tool-bridge";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import { MEMORY_BACKEND_TOOL_NAMES } from "../memory-backend/tool-names";
-import { invalidateToolSchemaMetadata } from "../modes/utils/context-usage";
+import { invalidateToolSchemaMetadata } from "@linxiraos/pi-tui/status-line/context-usage";
+
 import type { MemoryBackendStartOptions } from "../memory-backend/types";
 import toolRosterNoticePrompt from "../prompts/system/tool-roster-notice.md" with { type: "text" };
 import xdevMountNoticePrompt from "../prompts/system/xdev-mount-notice.md" with { type: "text" };
@@ -25,9 +28,11 @@ import { isMCPToolName, normalizeToolNames } from "../tools/builtin-names";
 import { wrapToolWithMetaNotice } from "../tools/output-meta";
 import { isFilesystemSourcePath } from "../tools/path-utils";
 import { supportsExternalThinking } from "../tools/think";
-import { ToolAbortError, ToolError } from "../tools/tool-errors";
+import { ToolAbortError } from "../tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { isMountableUnderXdev, listXdevTools, type XdevState, xdevDocsFor, xdevEntries } from "../tools/xdev";
-import { type EditMode, resolveEditMode } from "../utils/edit-mode";
+import { type EditMode } from "@linxiraos/pi-tui/tools/edit";
+import { resolveEditMode } from "../utils/edit-mode";
 import {
 	extractPermissionLocations,
 	getPermissionIntent,
@@ -1140,6 +1145,7 @@ export class SessionTools {
 					this.#host.clearMemoryPromotionSnapshot();
 					this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 				}
+
 				invalidateToolSchemaMetadata(this.#host.agent.state.tools);
 				this.#lastAppliedToolSignature = rebuiltSignature;
 				this.#promptModelKey = this.#currentPromptModelKey();
@@ -1703,6 +1709,7 @@ export class SessionTools {
 					this.#host.clearInheritedProviderPromptCacheKey();
 					this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 				}
+
 				invalidateToolSchemaMetadata(this.#host.agent.state.tools);
 				// The rebuilt prompt is a fresh roster snapshot. Keep the complete pending
 				// delta for a turn override that hides it, while separately tracking any

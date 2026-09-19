@@ -12,13 +12,13 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { Component, TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { ToolExecutionComponent, type ToolExecutionHandle } from "@linxiraos/zeta/modes/components/tool-execution";
+import { ToolExecutionComponent, type ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import type { Component, TUI } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 const uiStub = { requestRender() {}, requestComponentRender() {} } as unknown as TUI;

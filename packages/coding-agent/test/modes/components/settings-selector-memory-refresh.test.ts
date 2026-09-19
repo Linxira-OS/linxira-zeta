@@ -1,8 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { loadHindsightConfig } from "@linxiraos/zeta/hindsight/config";
-import { SettingsSelectorComponent } from "@linxiraos/zeta/modes/components/settings-selector";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
+import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
+import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/settings-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { setLanguage } from "../../../src/i18n";
 
 beforeAll(async () => {
@@ -51,7 +53,8 @@ function createSelector(onCancel: () => void = () => {}): SettingsSelectorCompon
 			thinkingLevel: undefined,
 			availableThemes: ["dark"],
 			providers: [],
-			cwd: process.cwd(),
+			settings: createSettingsHost(),
+			plugins: createPluginSettingsHost(process.cwd()),
 		},
 		{
 			onChange: () => {},

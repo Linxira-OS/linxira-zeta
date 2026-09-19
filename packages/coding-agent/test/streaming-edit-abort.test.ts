@@ -6,7 +6,7 @@ import type { Agent, AgentEvent } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { EditTool, getEditStore } from "@linxiraos/zeta/edit";
 import { StreamingEditGuard } from "@linxiraos/zeta/session/stream-guards";
-import { formatHashlineHeader } from "@linxiraos/zeta/tools/hashline-format";
+import { formatHashlineHeader } from "@linxiraos/pi-tui/tools/hashline-format";
 import type { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { removeWithRetries } from "@linxiraos/pi-utils";

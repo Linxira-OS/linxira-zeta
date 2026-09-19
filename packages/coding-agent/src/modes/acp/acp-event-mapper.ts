@@ -7,11 +7,12 @@ import type {
 	ToolCallLocation,
 	ToolKind,
 } from "@linxiraos/pi-utils/acp";
-import { parseXdUrl } from "../../internal-urls/xd-protocol";
+import { parseXdUrl } from "@linxiraos/pi-tui/tools/xd-url";
+
 import type { AgentSessionEvent } from "../../session/agent-session";
 import { resolveToCwd, splitPathAndSelPreferringLiteralSync } from "../../tools/path-utils";
-import type { TodoStatus } from "../../tools/todo";
-import { canonicalizeMessage } from "../../utils/thinking-display";
+import type { TodoStatus } from "@linxiraos/pi-tui/tools/todo";
+import { canonicalizeMessage } from "@linxiraos/pi-tui/chat/thinking-display";
 
 interface MessageProgress {
 	textEmitted: boolean;

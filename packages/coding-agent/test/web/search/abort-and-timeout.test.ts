@@ -23,7 +23,8 @@ import { searchAnthropic } from "@linxiraos/zeta/web/search/providers/anthropic"
 import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchBrave } from "@linxiraos/zeta/web/search/providers/brave";
 import { withHardTimeout } from "@linxiraos/zeta/web/search/providers/utils";
-import { SearchProviderError, type SearchProviderId, type SearchResponse } from "@linxiraos/zeta/web/search/types";
+import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
+import { type SearchProviderId, type SearchResponse } from "@linxiraos/pi-tui/tools/web-search";
 
 const FAKE_SESSION = {} as ToolSession;
 const fakeStorage = {

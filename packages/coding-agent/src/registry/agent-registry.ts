@@ -11,9 +11,11 @@
 
 import { logger } from "@linxiraos/pi-utils";
 import type { AgentSession } from "../session/agent-session";
-import { oneLineLabel } from "../task/types";
+import { oneLineLabel } from "@linxiraos/pi-tui/tools/task";
 
-export const MAIN_AGENT_ID = "Main";
+import { MAIN_AGENT_ID, type AgentStatus, type AgentMetricsSummary } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+export { MAIN_AGENT_ID };
+export type { AgentStatus, AgentMetricsSummary };
 
 /** Sidecar marker retained beside a child transcript after an explicit kill. */
 const AGENT_TOMBSTONE_SUFFIX = ".tombstone";
@@ -23,16 +25,6 @@ export function getAgentTombstonePath(sessionFile: string): string {
 }
 
 /**
- * - `running`: a turn is in flight.
- * - `idle`: live AgentSession in memory, awaiting work. Finished agents are
- *   `idle`, not removed.
- * - `parked`: session disposed; AgentRef + sessionFile retained, revivable.
- * - `aborted`: hard-killed, terminal.
- */
-export type AgentStatus = "running" | "idle" | "parked" | "aborted";
-/** Provenance of a displayed duration: active runtime, transcript span, or unavailable. */
-type AgentDurationKind = "active" | "span" | "unknown";
-/**
  * - `main`/`sub`: the user-facing agent tree (driving agent + task subagents).
  * - `advisor`: a passive review transcript persisted like a subagent for usage
  *   attribution and Agent Hub observability, but never a peer — hidden from
@@ -40,16 +32,20 @@ type AgentDurationKind = "active" | "span" | "unknown";
  */
 export type AgentKind = "main" | "sub" | "advisor";
 
-/** Persisted per-agent totals reconstructed from the child session transcript. */
-export interface AgentMetricsSummary {
-	tokens: number;
-	requests: number;
-	tools: number;
-	cost: number;
-	durationMs: number;
-	durationKind?: AgentDurationKind;
-	contextTokens?: number;
-	contextWindow?: number;
+/**
+ * Run lifecycle milestones, stamped as they happen and scoped to the CURRENT
+ * run: they are cleared when the ref re-enters `running` for a follow-up or
+ * wake turn. Launch is the ref's `createdAt`; these are the post-launch
+ * boundaries the parent needs to tell a genuinely working agent from one whose
+ * accepted result never terminalized.
+ */
+export interface AgentRunLifecycle {
+	/** When the run produced its final response (an accepted terminal `yield`). */
+	responseAt?: number;
+	/** When the run's final result was accepted by its driver. */
+	acceptedAt?: number;
+	/** When the ref last left `running` for a terminal status. */
+	terminalAt?: number;
 }
 
 /**

@@ -27,3 +27,11 @@ export * from "./transports/http";
 export * from "./transports/stdio";
 // Types
 export * from "./types";
+
+export type {
+	MCPToolDetails,
+	MCPTextContent,
+	MCPImageContent,
+	MCPResourceContent,
+	MCPContent,
+} from "@linxiraos/pi-tui/tools/mcp";

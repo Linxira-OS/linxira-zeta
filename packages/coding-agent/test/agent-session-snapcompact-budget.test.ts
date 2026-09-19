@@ -22,14 +22,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { Agent } from "@linxiraos/pi-agent-core";
 import { effectiveReserveTokens, prepareCompaction } from "@linxiraos/pi-agent-core/compaction";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { encodeRpcFrame, MAX_RPC_FRAME_BYTES } from "@linxiraos/zeta/modes/rpc/rpc-frame";
-import { computeNonMessageTokens } from "@linxiraos/zeta/modes/utils/context-usage";
+import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 
 describe("AgentSession snapcompact frame-budget sizing", () => {
 	let session: AgentSession;
@@ -170,7 +170,7 @@ describe("AgentSession snapcompact frame-budget sizing", () => {
 		// numFrames × FRAME_TOKEN_ESTIMATE + non-message + kept-recent.
 		const preparation = prepareCompaction(branchEntries, settings);
 		if (!preparation) throw new Error("Expected non-empty preparation");
-		let baseTokens = computeNonMessageTokens(session, session.agent.tokenizer);
+		let baseTokens = computeNonMessageTokens(session, session.agent.tokenizer, session.settings.revision);
 		baseTokens += session.agent.tokenizer.countMessages(preparation.recentMessages);
 		const shape = snapcompact.resolveShape(model);
 		const edgeCap = snapcompact.geometry(shape).capacity;

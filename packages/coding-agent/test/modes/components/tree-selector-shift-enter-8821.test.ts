@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
-import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
+import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
+import * as themeModule from "@linxiraos/pi-tui/theme";
 import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 
 // Issue #8821 — a terminal that delivers Shift+Enter as a bare LF (iTerm2

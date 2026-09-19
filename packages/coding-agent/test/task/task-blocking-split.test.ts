@@ -25,7 +25,8 @@ import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { TaskTool } from "@linxiraos/zeta/task";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";
 import * as executorModule from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition, SingleResult, TaskParams, TaskToolDetails } from "@linxiraos/zeta/task/types";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { SingleResult, TaskParams, TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const taskAgent: AgentDefinition = {

@@ -13,6 +13,7 @@
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { $env, isRecord, logger, Snowflake } from "@linxiraos/pi-utils";
+
 import { reset as resetCapabilities } from "../../capability";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import {
@@ -30,7 +31,7 @@ import {
 	type SkillPromptInput,
 } from "../../extensibility/skills";
 import { loadSlashCommands } from "../../extensibility/slash-commands";
-import { type Theme, theme } from "../../modes/theme/theme";
+import { type Theme, theme } from "@linxiraos/pi-tui/theme";
 import type { AgentSession } from "../../session/agent-session";
 import { SKILL_PROMPT_MESSAGE_TYPE, USER_INTERRUPT_LABEL } from "../../session/messages";
 import { executeAcpBuiltinSlashCommand } from "../../slash-commands/acp-builtins";

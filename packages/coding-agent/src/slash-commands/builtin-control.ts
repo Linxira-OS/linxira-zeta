@@ -1,5 +1,6 @@
 import { M } from "../i18n";
-import { runPauseScreen } from "../modes/components/pause-screen";
+import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
+
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";

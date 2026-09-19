@@ -16,9 +16,10 @@ import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionPreparation, CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantRetryRecovery, ImageContent, TextContent, ToolResultMessage } from "@linxiraos/pi-ai";
 import type { Rule } from "../capability/rule";
-import type { Goal, GoalModeState } from "../goals/state";
+import type { Goal } from "@linxiraos/pi-tui/tools/goal";
+import type { GoalModeState } from "../goals/state";
 import type { BranchSummaryEntry, CompactionEntry, SessionEntry } from "../session/session-entries";
-import type { TodoItem } from "../tools/todo";
+import type { TodoItem } from "@linxiraos/pi-tui/tools/todo";
 
 // ============================================================================
 // Session Events

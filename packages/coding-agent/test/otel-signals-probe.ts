@@ -193,9 +193,6 @@ const coverage: AgentRunCoverage = {
 config.onRunEnd?.(summary, coverage);
 
 await flushTelemetryExport();
-// The metric reader exports on its own interval; wait one cycle then flush.
-await Bun.sleep(700);
-await flushTelemetryExport();
 assertSingleMetricPoint("pi.zeta.agent.chat.calls");
 assertSingleMetricPoint("pi.zeta.agent.tool.calls");
 assertSingleMetricPoint("pi.zeta.agent.tool.duration");

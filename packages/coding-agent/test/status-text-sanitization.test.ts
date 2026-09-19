@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeStatusText } from "@linxiraos/zeta/modes/shared";
+import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
 
 describe("sanitizeStatusText", () => {
 	it("strips OSC, DCS, PM, APC, and 8-bit CSI escape sequences", () => {

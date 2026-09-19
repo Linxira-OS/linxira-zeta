@@ -9,7 +9,7 @@ import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle"
 import { AgentRegistry, MAIN_AGENT_ID, type AgentRef } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 
 interface SessionStub {
 	session: AgentSession;

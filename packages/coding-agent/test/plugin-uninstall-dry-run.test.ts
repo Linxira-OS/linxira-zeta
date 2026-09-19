@@ -15,7 +15,7 @@ import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import type { InstalledPluginSummary } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 
 describe("runPluginCommand({ action: 'uninstall', flags: { dryRun } })", () => {
 	beforeEach(async () => {

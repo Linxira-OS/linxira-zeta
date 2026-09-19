@@ -20,7 +20,7 @@ import {
 	type ExecutedWorkspaceChange,
 	sortAndValidateTextEdits,
 } from "@linxiraos/zeta/lsp/edits";
-import { renderCall, renderResult } from "@linxiraos/zeta/lsp/render";
+import { renderCall, renderResult } from "@linxiraos/pi-tui/tools/lsp";
 import { configCache, getConfig } from "@linxiraos/zeta/lsp/servers";
 import {
 	type CodeAction,
@@ -28,7 +28,6 @@ import {
 	type DeleteFile,
 	type Diagnostic,
 	type LspClient,
-	type LspToolDetails,
 	lspSchema,
 	type RenameFile,
 	type ServerConfig,
@@ -36,6 +35,7 @@ import {
 	type TextDocumentEdit,
 	type WorkspaceEdit,
 } from "@linxiraos/zeta/lsp/types";
+import { type LspToolDetails } from "@linxiraos/pi-tui/tools/lsp";
 import {
 	applyCodeAction,
 	collectGlobMatches,
@@ -48,14 +48,14 @@ import {
 	resolveSymbolColumn,
 	uriToFile,
 } from "@linxiraos/zeta/lsp/utils";
-import { getThemeByName, initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { getThemeByName, initTheme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import { clampTimeout } from "@linxiraos/zeta/tools/tool-timeouts";
 import type { Subprocess } from "bun";
 import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
-import { renderResult as renderLocalResult } from "../../src/lsp/render";
-import { getLanguageFromPath } from "../../src/utils/lang-from-path";
+import { renderResult as renderLocalResult } from "@linxiraos/pi-tui/tools/lsp";
+import { getLanguageFromPath } from "@linxiraos/pi-tui/lang-from-path";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 const lspTestSettings = Settings.isolated();

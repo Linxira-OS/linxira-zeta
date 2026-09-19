@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { EditTool, type EditToolDetails, getEditStore } from "@linxiraos/zeta/edit";
+import { EditTool, getEditStore } from "@linxiraos/zeta/edit";
+import { type EditToolDetails } from "@linxiraos/pi-tui/tools/edit";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { EditMode } from "@linxiraos/zeta/utils/edit-mode";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function makeSession(cwd: string, settings: Record<string, unknown> = {}): ToolSession {
 	return {

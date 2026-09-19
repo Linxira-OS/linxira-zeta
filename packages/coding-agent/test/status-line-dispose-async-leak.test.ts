@@ -15,9 +15,10 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import type { StatusLineSettings } from "@linxiraos/pi-tui/status-line";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { github } from "@linxiraos/zeta/utils/github";
 import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
@@ -144,7 +145,7 @@ describe("StatusLineComponent dispose guards async callbacks", () => {
 		defaultBranchMock.mockImplementation(() => new Promise<string | null>(r => (resolveDefault = r)));
 
 		const onBranchChange = vi.fn();
-		const component = new StatusLineComponent(makeSession());
+		const component = new StatusLineComponent(makeSession(), statusLineHost);
 		component.updateSettings(gitSegmentSettings);
 		component.watchBranch(onBranchChange);
 
@@ -173,7 +174,7 @@ describe("StatusLineComponent dispose guards async callbacks", () => {
 		defaultBranchMock.mockResolvedValue("develop");
 
 		const onBranchChange = vi.fn();
-		const component = new StatusLineComponent(makeSession());
+		const component = new StatusLineComponent(makeSession(), statusLineHost);
 		component.updateSettings(gitSegmentSettings);
 		component.watchBranch(onBranchChange);
 		component.getTopBorder(80);
@@ -200,7 +201,7 @@ describe("StatusLineComponent dispose guards async callbacks", () => {
 
 		const onBranchChange = vi.fn();
 		const components = new StatusLineTestComponents();
-		const component = components.track(new StatusLineComponent(makeSession()));
+		const component = components.track(new StatusLineComponent(makeSession(), statusLineHost));
 		component.updateSettings(gitSegmentSettings);
 		component.watchBranch(onBranchChange);
 		component.getTopBorder(80);

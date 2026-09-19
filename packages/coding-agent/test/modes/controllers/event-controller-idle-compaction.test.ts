@@ -4,7 +4,7 @@ import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config
 import type { GoalModeState } from "@linxiraos/zeta/goals/state";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";

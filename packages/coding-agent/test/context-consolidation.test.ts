@@ -5,9 +5,10 @@ import type { AssistantMessage, Message, Model } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { computeContextBreakdown } from "@linxiraos/zeta/modes/utils/context-usage";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { computeSessionContextBreakdown } from "@linxiraos/zeta/session/context-usage-runtime";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -339,10 +340,10 @@ describe("Context usage consolidation", () => {
 		const breakdownVal = session.getContextBreakdown();
 		const used = breakdownVal?.usedTokens;
 
-		const cb = computeContextBreakdown(session);
+		const cb = computeSessionContextBreakdown(session);
 		expect(cb.usedTokens).toBe(used!);
 
-		const sl = statusLines.track(new StatusLineComponent(session));
+		const sl = statusLines.track(new StatusLineComponent(session, statusLineHost));
 		expect(sl.getCachedContextBreakdown().usedTokens).toBe(used!);
 
 		const cu = session.getContextUsage();
@@ -377,7 +378,7 @@ describe("Context usage consolidation", () => {
 		sessionManager.appendMessage(assistant);
 		syncSession(session, agent);
 
-		const sl = statusLines.track(new StatusLineComponent(session));
+		const sl = statusLines.track(new StatusLineComponent(session, statusLineHost));
 		const initialBreakdown = sl.getCachedContextBreakdown();
 
 		const assistantExt = assistant as unknown as { thinkingSignature: string };

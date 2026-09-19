@@ -6,7 +6,7 @@ import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { ReadToolDetails } from "@linxiraos/zeta/tools/read";
+import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { trySummarize } from "@linxiraos/zeta/tools/read-summary";
 import { removeWithRetries } from "@linxiraos/pi-utils";

@@ -10,7 +10,7 @@ import type {
 } from "@linxiraos/pi-agent-core";
 import type { ComputerSafetyCheck, ImageContent, Static, TextContent, TSchema } from "@linxiraos/pi-ai";
 import { sanitizeText, untilAborted } from "@linxiraos/pi-utils";
-import type { Theme } from "../../modes/theme/theme";
+import type { Theme } from "@linxiraos/pi-tui/theme";
 import {
 	denyError,
 	formatApprovalPrompt,

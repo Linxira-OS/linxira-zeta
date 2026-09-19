@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { executePythonWithKernel } from "@linxiraos/zeta/eval/py/executor";
-import { DEFAULT_MAX_BYTES } from "@linxiraos/zeta/session/streaming-output";
+import { DEFAULT_MAX_BYTES } from "@linxiraos/pi-tui/tools/streaming-output";
 import { FakeKernel } from "./helpers";
 
 describe("executePythonWithKernel streaming", () => {

@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { $env, APP_NAME, logger } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
-import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "../thinking";
+import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { normalizeToolNames } from "../tools/builtin-names";
 import {
 	OPTIONAL_FLAGS,

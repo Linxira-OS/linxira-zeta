@@ -3,7 +3,7 @@ import { CollabController } from "@linxiraos/zeta/collab/controller";
 import type { CollabHostSnapshot } from "@linxiraos/zeta/collab/registry";
 import * as registry from "@linxiraos/zeta/collab/registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import {
 	type BuiltinSlashCommandRuntime,

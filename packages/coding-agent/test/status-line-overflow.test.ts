@@ -3,12 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { StatusLineSegmentId } from "@linxiraos/zeta/config/settings-schema";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/segments";
-import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/zeta/utils/session-color";
+import type { StatusLineSegmentId } from "@linxiraos/pi-tui/status-line/schema";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import type { SegmentContext } from "@linxiraos/pi-tui/status-line/segments";
+import { renderSegment } from "@linxiraos/pi-tui/status-line/segments";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
+import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/pi-tui/theme/session-color";
 import { visibleWidth } from "@linxiraos/pi-tui";
 import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 import { StatusLineTestComponents } from "./helpers/status-line";
@@ -62,6 +63,7 @@ function createCtx(overrides?: {
 		vibeMode: null,
 		vim: null,
 		collab: null,
+		stream: null,
 		usageStats: {
 			input: 0,
 			output: 0,
@@ -141,7 +143,9 @@ function stripAnsi(value: string): string {
 
 describe("status line session accent", () => {
 	function buildComponent(sessionAccent: boolean) {
-		const component = statusLines.track(new StatusLineComponent(createStatusLineSession("Named session")));
+		const component = statusLines.track(
+			new StatusLineComponent(createStatusLineSession("Named session"), statusLineHost),
+		);
 		component.updateSettings({
 			preset: "custom",
 			leftSegments: ["pi"],
@@ -210,7 +214,7 @@ describe("session_name preview-title fallback", () => {
 	});
 
 	it("right-aligns the stand-in title through the box border pipeline", () => {
-		const component = statusLines.track(new StatusLineComponent(createStatusLineSession("")));
+		const component = statusLines.track(new StatusLineComponent(createStatusLineSession(""), statusLineHost));
 		component.updateSettings({
 			preset: "custom",
 			leftSegments: ["pi"],
@@ -229,7 +233,9 @@ describe("session_name preview-title fallback", () => {
 
 describe("status line focused-agent dimming", () => {
 	it("keeps powerline end caps at full intensity while text stays dimmed", () => {
-		const component = statusLines.track(new StatusLineComponent(createStatusLineSession("Focused session")));
+		const component = statusLines.track(
+			new StatusLineComponent(createStatusLineSession("Focused session"), statusLineHost),
+		);
 		component.updateSettings({
 			preset: "custom",
 			leftSegments: ["pi"],
@@ -465,7 +471,7 @@ describe("overflow: path survives before model", () => {
 
 		const modelName = `MODEL_SHOULD_DROP_${"x".repeat(24)}`;
 		const session = createStatusLineSession("overflow test", modelName);
-		const component = statusLines.track(new StatusLineComponent(session));
+		const component = statusLines.track(new StatusLineComponent(session, statusLineHost));
 		const pathOptions = {
 			abbreviate: false,
 			maxLength: 32,

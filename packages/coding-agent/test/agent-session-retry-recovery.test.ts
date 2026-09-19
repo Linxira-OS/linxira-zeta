@@ -7,7 +7,7 @@ import * as aiStream from "@linxiraos/pi-ai/stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { resolveAssistantErrorPresentation } from "@linxiraos/zeta/modes/utils/transcript-render-helpers";
+import { resolveAssistantErrorPresentation } from "@linxiraos/pi-tui/chat/transcript-render-helpers";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";

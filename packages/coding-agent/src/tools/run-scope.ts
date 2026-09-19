@@ -1,7 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { untilAborted } from "@linxiraos/pi-utils/abortable";
 import * as postmortem from "@linxiraos/pi-utils/postmortem";
-import { ToolError, throwIfAborted } from "./tool-errors";
+import { throwIfAborted } from "./tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 const browserRunRejections = new WeakMap<object, object>();
 
@@ -174,8 +175,7 @@ function observeBrowserRunPromiseWithState<T>(
 	});
 	Object.defineProperties(promise, {
 		constructor: { configurable: true, value: observedPromiseConstructor },
-		// [suppressed] native Promise continuations must remain thenable.
-		// biome-ignore lint/suspicious/noThenProperty: then is a schema keyword in the scope DSL
+		// oxlint-disable-next-line unicorn/no-thenable -- native Promise continuations must remain thenable.
 		then: {
 			configurable: true,
 			value: <R1 = T, R2 = never>(

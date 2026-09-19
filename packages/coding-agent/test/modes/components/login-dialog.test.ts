@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import type { TUI } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { LoginDialogComponent } from "@linxiraos/zeta/modes/components/login-dialog";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { LoginDialogComponent } from "@linxiraos/pi-tui/overlays/login-dialog";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import * as openModule from "@linxiraos/zeta/utils/open";
+import type { TUI } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();
@@ -25,7 +25,7 @@ describe("LoginDialogComponent", () => {
 		const openSpy = spyOn(openModule, "openPath").mockImplementation(() => {});
 		try {
 			const tui = { requestRender() {} } as unknown as TUI;
-			const dialog = new LoginDialogComponent(tui, "google-antigravity", () => {});
+			const dialog = new LoginDialogComponent(tui, "google-antigravity", () => {}, openModule.openPath);
 			const authorizationUrl =
 				"https://accounts.google.com/o/oauth2/v2/auth?client_id=x&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A51121%2Foauth-callback&scope=cloud-platform&state=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 

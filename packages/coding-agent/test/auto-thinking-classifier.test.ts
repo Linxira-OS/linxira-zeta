@@ -15,7 +15,7 @@ import {
 	parseThinkingLevel,
 	resolveProvisionalAutoLevel,
 	resolveTaskEffortLevel,
-} from "@linxiraos/zeta/thinking";
+} from "@linxiraos/pi-tui/thinking";
 import type { TinyMemoryLocalModelKey } from "@linxiraos/zeta/tiny/models";
 import { tinyModelClient } from "@linxiraos/zeta/tiny/title-client";
 import { asGlobalFetch } from "./helpers/fetch-mock";

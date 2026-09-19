@@ -9,7 +9,7 @@ import { type MinimizerOptions, PtySession, Shell, type ShellRunResult } from "@
 import { $env } from "@linxiraos/pi-utils/env";
 import { isCmdShell, isExecutable, type ShellConfig } from "@linxiraos/pi-utils/procmgr";
 import { Settings, type ShellMinimizerSettings } from "../config/settings";
-import { type OutputArtifactError, OutputSink, type OutputSummary } from "../session/streaming-output";
+import { type OutputArtifactError, OutputSink, type OutputSummary } from "@linxiraos/pi-tui/tools/streaming-output";
 import { resolveOutputMaxColumns, resolveOutputSinkHeadBytes } from "../tools/output-meta";
 import { getOrCreateSnapshot } from "../utils/shell-snapshot";
 import { TerminalGraphicsDecoder } from "../utils/terminal-graphics";

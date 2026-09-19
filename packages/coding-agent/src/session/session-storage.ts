@@ -8,6 +8,7 @@ import * as logger from "@linxiraos/pi-utils/logger";
 import { peekFileEnds } from "@linxiraos/pi-utils/peek-file";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { toError } from "@linxiraos/pi-utils/type-guards";
+
 import { overlayTitleSlotContent, type SessionTitleUpdate, serializeTitleSlot } from "./session-title-slot";
 
 const utf8Decoder = new TextDecoder("utf-8");

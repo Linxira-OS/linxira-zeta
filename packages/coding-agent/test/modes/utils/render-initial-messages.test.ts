@@ -13,18 +13,18 @@
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, ImageContent, Message, Usage } from "@linxiraos/pi-ai";
+import type { AssistantMessage, ImageContent, Usage } from "@linxiraos/pi-ai";
 import { kStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
-import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext, RenderSessionContextOptions } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext, StrippedToolCallsMarker } from "@linxiraos/zeta/session/session-context";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
 
 beforeAll(() => {
 	initTheme();
@@ -183,6 +183,7 @@ function makeRenderCtx(
 		toolOutputExpanded: false,
 		hideToolActivity,
 		hideThinkingBlock: false,
+		assistantImagesVisible: showImages,
 		focusedAgentId: undefined,
 		editor: { addToHistory: vi.fn() },
 		viewSession: {
@@ -213,7 +214,6 @@ function makeRenderCtx(
 		},
 		addMessageToChat: (message: AgentMessage, options?: { imageLinks?: readonly (string | undefined)[] }) =>
 			helpers.addMessageToChat(message, options),
-		getUserMessageText: (message: Message) => helpers.getUserMessageText(message),
 		renderSessionContext: (context: SessionContext, options?: RenderSessionContextOptions) =>
 			helpers.renderSessionContext(context, options),
 		renderSessionContextIncrementally: (

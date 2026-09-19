@@ -1,13 +1,13 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { adjustHsv, TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
-import * as sessionColor from "@linxiraos/zeta/utils/session-color";
+import * as sessionColor from "@linxiraos/pi-tui/theme/session-color";
+import { adjustHsv, TempDir } from "@linxiraos/pi-utils";
 
 type Harness = {
 	mode: InteractiveMode;

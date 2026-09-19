@@ -20,7 +20,7 @@ import {
 } from "@linxiraos/zeta/tools/gh";
 import { parseIssueUrl, parsePullRequestUrl } from "@linxiraos/zeta/tools/gh-common";
 import { github } from "@linxiraos/zeta/utils/github";
-import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { withRepoLock } from "@linxiraos/zeta/utils/repo-lock";
 
 const TINY_PNG_BASE64 =

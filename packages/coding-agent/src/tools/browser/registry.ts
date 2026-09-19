@@ -2,7 +2,8 @@ import * as path from "node:path";
 import { isCompiledBinary, logger, withTimeout, workerHostEntry } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import type { Browser, CDPSession } from "puppeteer-core";
-import { ToolAbortError, ToolError } from "../tool-errors";
+import { ToolAbortError } from "../tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { findFreeCdpPort, findReusableCdp, gracefulKillTreeOnce, resolveSpawnArgs, waitForCdp } from "./attach";
 import type { CmuxKind } from "./cmux/rpc";
 import { CmuxSocketClient } from "./cmux/socket-client";
@@ -17,6 +18,7 @@ import {
 import { reapOrphanSharedTargets } from "./orphan-registry";
 import { ensureRelayDaemon, isLoopbackRelayUrl } from "./relay/daemon";
 import type { RelayKind } from "./relay/kind";
+import { waitForRelayExtension } from "./relay/probe";
 import { ensureSharedBrowser } from "./shared-daemon";
 
 export type PuppeteerBrowserKind =
@@ -35,12 +37,6 @@ export type BrowserKindTag = BrowserKind["kind"];
  * forever (issue #5260), so we cap the wait and force-kill on timeout.
  */
 const HEADLESS_CLOSE_TIMEOUT_MS = 5_000;
-/**
- * How long a relay open waits for the extension handshake (503 → 200). A
- * reaped extension service worker is revived by its 30s keepalive alarm, so
- * the wait must cover one full alarm period plus the dial.
- */
-const RELAY_EXTENSION_WAIT_MS = 35_000;
 
 interface BrowserHandleCommon {
 	key: string;
@@ -219,22 +215,21 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		// on demand (the extension dials in on its own). Hosts without a CLI
 		// worker entry (bun test, SDK embedding) never spawn brokers. Remote
 		// relay URLs must already be serving.
-		let autoStarted = false;
 		if (isLoopbackRelayUrl(cdpUrl) && (isCompiledBinary() || workerHostEntry() !== null)) {
-			autoStarted = await ensureRelayDaemon({ cdpUrl, signal: opts.signal });
+			await ensureRelayDaemon({ cdpUrl, signal: opts.signal });
 		}
-		// The relay answers /json/version with 503 until its extension dials in.
-		// A freshly revived extension service worker can take up to ~30s (its
-		// keepalive alarm) to reconnect, so give the handshake that long.
-		try {
-			await waitForCdp(cdpUrl, RELAY_EXTENSION_WAIT_MS, opts.signal);
-		} catch (err) {
-			if (err instanceof ToolAbortError) throw err;
-			if (err instanceof Error && err.name === "AbortError") throw err;
+		// The relay answers /json/version with 503 until its extension dials in;
+		// the wait fails fast when nothing serves the port or the server has
+		// already outlived the window an installed extension needs to connect.
+		const outcome = await waitForRelayExtension(cdpUrl, opts.signal);
+		if (outcome === "unreachable") {
 			throw new ToolError(
-				autoStarted
-					? `zeta browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`omp browser-relay install\` and check the toolbar badge shows "on".`
-					: `zeta browser relay is not reachable at ${cdpUrl}. Start it with \`omp browser-relay\` (or check the endpoint), and make sure the Zeta Browser Relay extension is loaded in Chrome.`,
+				`zeta browser relay is not reachable at ${cdpUrl}. Start it with \`omp browser-relay\` (or check the endpoint), and make sure the Zeta Browser Relay extension is loaded in Chrome.`,
+			);
+		}
+		if (outcome === "no-extension") {
+			throw new ToolError(
+				`zeta browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`omp browser-relay install\` and check the toolbar badge shows "on".`,
 			);
 		}
 		const puppeteer = await loadPuppeteer();
@@ -431,7 +426,7 @@ async function openSharedHeadlessHandle(
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
 		});
 		// Attaching to the shared daemon is the natural point to sweep targets
-		// left behind by omp processes that died without teardown — bounds
+		// left behind by zeta processes that died without teardown — bounds
 		// accumulation without a background timer. Best-effort and detached so a
 		// slow reap never delays the open (issue #10022).
 		void reapOrphanSharedTargets(browser, { projectDir: shared.projectDir, daemonName: shared.daemonName });

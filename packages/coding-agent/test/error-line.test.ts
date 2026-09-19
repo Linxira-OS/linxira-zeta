@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeErrorLine } from "@linxiraos/zeta/modes/components/error-block";
-import { TRUNCATE_LENGTHS } from "@linxiraos/zeta/tools/render-utils";
+import { sanitizeErrorLine } from "@linxiraos/pi-tui/chrome/error-block";
+import { TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
 
 describe("safe error lines", () => {
 	it("shortens multiple quoted home paths without splitting a home directory containing spaces", () => {

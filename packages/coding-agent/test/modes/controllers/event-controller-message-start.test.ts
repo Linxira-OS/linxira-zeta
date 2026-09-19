@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { ImageContent, UserMessage } from "@linxiraos/pi-ai";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import type { Component } from "@linxiraos/pi-tui";
@@ -37,16 +37,6 @@ function createContext(options: {
 	};
 	const ctx = createInteractiveModeContext({
 		editor,
-		getUserMessageText: message =>
-			typeof message.content === "string"
-				? message.content
-				: message.content
-						.map(content =>
-							content.type === "text" && "text" in content && typeof content.text === "string"
-								? content.text
-								: "",
-						)
-						.join(""),
 		optimisticUserMessageSignature: options.optimisticSignature,
 		locallySubmittedUserSignatures: new Set<string>(options.locallySubmittedSignatures ?? []),
 	});

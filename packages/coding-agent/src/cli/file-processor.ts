@@ -7,18 +7,17 @@ import type { ImageContent } from "@linxiraos/pi-ai";
 import { getProjectDir, isEnoent, readImageMetadata } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { resolveReadPath } from "../tools/path-utils";
-import { formatBytes } from "../tools/render-utils";
+import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
 import { formatDimensionNote, resizeImage } from "../utils/image-resize";
 import { CONVERTIBLE_EXTENSIONS, convertFileWithMarkit } from "../utils/markit";
 import {
 	buildVideoContactSheetPng,
-	createVideoPreviewImage,
 	formatVideoDetails,
-	isVideoPath,
 	probeVideo,
 	VideoError,
 	videoMimeForPath,
 } from "../utils/video";
+import { createVideoPreviewImage, isVideoPath } from "@linxiraos/pi-tui/prompt/video";
 
 // Keep CLI startup responsive and avoid OOM when users pass huge files.
 // If a file exceeds these limits, we include it as a path-only <file/> block.

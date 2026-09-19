@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import * as themeModule from "@linxiraos/pi-tui/theme";
+import { toolRenderers } from "@linxiraos/pi-tui/tools";
 import type { TUI } from "@linxiraos/pi-tui";
 import { removeWithRetries } from "@linxiraos/pi-utils";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
-import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
-import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
 
 async function getUiTheme() {
 	await themeModule.initTheme(false, undefined, undefined, "dark", "light");
@@ -75,6 +75,7 @@ describe("apply_patch rendering", () => {
 		].join("\n");
 
 		const component = toolRenderers.apply_patch.renderCall({ input }, { expanded: false, isPartial: true }, uiTheme);
+		if (!component) throw new Error("expected a call component");
 		const rendered = Bun.stripANSI(component.render(160).join("\n"));
 
 		expect(rendered).toContain("src/first.ts");
@@ -87,6 +88,7 @@ describe("apply_patch rendering", () => {
 		const input = ["*** Begin Patch", "*** Update File: src/streaming.ts", "@@", "-before", "+after"].join("\n");
 
 		const component = toolRenderers.apply_patch.renderCall({ input }, { expanded: false, isPartial: true }, uiTheme);
+		if (!component) throw new Error("expected a call component");
 		const rendered = Bun.stripANSI(component.render(160).join("\n"));
 
 		expect(rendered).toContain("src/streaming.ts");

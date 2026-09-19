@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { TreeSelectorComponent } from "@linxiraos/zeta/modes/components/tree-selector";
-import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
+import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
+import * as themeModule from "@linxiraos/pi-tui/theme";
 import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 
 interface AdvisorNoteFixture {

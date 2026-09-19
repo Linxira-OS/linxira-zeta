@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+
 import type {
 	AnthropicCompactionPayload,
 	AssistantMessage,
@@ -9,6 +10,7 @@ import type {
 	TextContent,
 } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
+
 import type { SessionContext } from "../session/session-context";
 import type { JsonValue, SecretObfuscator } from "./obfuscator";
 import { collectJsonRegexSecretValues, mapJsonStrings } from "./placeholder-scan";

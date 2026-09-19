@@ -13,7 +13,7 @@ import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { ExecutorOptions } from "@linxiraos/zeta/task/executor";
 import * as executorModule from "@linxiraos/zeta/task/executor";
-import type { SingleResult } from "@linxiraos/zeta/task/types";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
 

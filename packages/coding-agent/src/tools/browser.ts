@@ -3,7 +3,7 @@ import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { isRecord, logger, untilAborted } from "@linxiraos/pi-utils";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
 import type { ToolSession } from "../sdk";
-import { enforceInlineByteCap } from "../session/streaming-output";
+import { enforceInlineByteCap } from "@linxiraos/pi-tui/tools/streaming-output";
 import { resolveCmuxKind } from "./browser/cmux/rpc";
 import { resolveSpawnArgs } from "./browser/attach";
 import {
@@ -19,6 +19,7 @@ import { ensureChromiumExecutable } from "./browser/launch";
 import { resolveRelayKind } from "./browser/relay/kind";
 import type { AriaSnapshotOptions } from "./browser/aria/aria-snapshot";
 import type { ScreenshotResult } from "./browser/tab-protocol";
+import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
 import {
 	type AcquireTabResult,
 	acquireTab,
@@ -31,10 +32,10 @@ import {
 	runInTab,
 } from "./browser/tab-supervisor";
 import { renderTabCall } from "./browser/tab-call";
-import type { OutputMeta } from "./output-meta";
 import { resolveToCwd } from "./path-utils";
 import { renderCallChain, renderFunctionRun } from "./run-code";
-import { ToolAbortError, ToolError, throwIfAborted } from "./tool-errors";
+import { ToolAbortError, throwIfAborted } from "./tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout } from "./tool-timeouts";
 
@@ -62,7 +63,7 @@ const BROWSER_RUN_SCOPE: readonly string[] = ["tab", "page", "browser", "wait", 
 const appSchema = type({
 	"path?": type("string").describe("binary path to spawn"),
 	"cdp_url?": type("string").describe("existing cdp endpoint"),
-	"relay?": type("boolean").describe("drive the user's own tabs via the omp browser relay"),
+	"relay?": type("boolean").describe("drive the user's own tabs via the zeta browser relay"),
 	"args?": type("string[]").describe("extra cli args"),
 	"target?": type("string").describe("substring to pick a window"),
 });

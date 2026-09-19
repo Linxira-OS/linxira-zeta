@@ -12,6 +12,7 @@ import type {
 	UserMessage,
 } from "@linxiraos/pi-ai";
 import { isRecord, parseJsonlLenient } from "@linxiraos/pi-utils";
+
 import { resolveClaudePaths } from "../config/claude-paths";
 import { collectForeignJsonRecords, type ForeignJsonRecord, readForeignJsonRecords } from "./foreign-session-jsonl";
 import type { ForeignSessionInfo, ForeignSessionStore } from "./foreign-session-store";

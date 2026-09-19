@@ -4,7 +4,6 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { removeWithRetries } from "@linxiraos/pi-utils";
-import "@linxiraos/zeta/tools/renderers";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import {

@@ -11,10 +11,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import type { Component } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";

@@ -15,7 +15,7 @@ import { createInitExperimentTool } from "@linxiraos/zeta/autoresearch/tools/ini
 import { createLogExperimentTool } from "@linxiraos/zeta/autoresearch/tools/log-experiment";
 import { createRunExperimentTool } from "@linxiraos/zeta/autoresearch/tools/run-experiment";
 import { createUpdateNotesTool } from "@linxiraos/zeta/autoresearch/tools/update-notes";
-import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@linxiraos/zeta/autoresearch/types";
+import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@linxiraos/pi-tui/tools/autoresearch";
 import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta/extensibility/extensions";
 import { $ } from "bun";
 

@@ -22,6 +22,7 @@ $ErrorActionPreference = "Stop"
 # including PowerShell 7+, passes this check.
 if ($PSVersionTable.PSVersion -lt [version]"5.1") {
     throw "Windows PowerShell 5.1 or newer is required (found $($PSVersionTable.PSVersion)). Install PowerShell 7 from https://aka.ms/powershell and re-run the installer."
+
 }
 
 $Repo = "Linxira-OS/linxira-zeta"

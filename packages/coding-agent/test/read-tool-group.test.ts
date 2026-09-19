@@ -3,8 +3,8 @@ import * as path from "node:path";
 import * as url from "node:url";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { getDefault } from "@linxiraos/zeta/config/settings-schema";
-import { ReadToolGroupComponent, readArgsCollapseIntoGroup } from "@linxiraos/zeta/modes/components/read-tool-group";
-import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
+import { ReadToolGroupComponent, readArgsCollapseIntoGroup } from "@linxiraos/pi-tui/chat/read-tool-group";
+import * as themeModule from "@linxiraos/pi-tui/theme";
 
 function extractLinkUris(text: string): string[] {
 	return [...text.matchAll(/\x1b\]8;[^;]*;([^\x1b]+)\x1b\\/g)].map(match => match[1]!);

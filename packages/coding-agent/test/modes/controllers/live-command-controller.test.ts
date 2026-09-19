@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { LiveSessionController } from "@linxiraos/zeta/live/controller";
-import { LiveVisualizer } from "@linxiraos/zeta/live/visualizer";
+import { LiveVisualizer } from "@linxiraos/pi-tui/apps/live-visualizer";
 import { LiveCommandController } from "@linxiraos/zeta/modes/controllers/live-command-controller";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 

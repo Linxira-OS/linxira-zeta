@@ -14,7 +14,7 @@ import { getSecurityCoordinator } from "../security/coordinator";
 import type { SecurityTargetRequest } from "../security/preflight";
 import { SecurityStore } from "../security/store";
 import type { ToolSession } from "./index";
-import { ToolError } from "./tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 const securityScanSchema = type({
 	action:

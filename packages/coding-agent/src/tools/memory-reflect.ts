@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger, untilAborted } from "@linxiraos/pi-utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";
 import { ensureBankExists } from "../hindsight/bank";

@@ -14,9 +14,9 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { ExecutorOptions } from "@linxiraos/zeta/task/executor";
 import * as executorModule from "@linxiraos/zeta/task/executor";
-import type { SingleResult } from "@linxiraos/zeta/task/types";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { VibeCli } from "@linxiraos/zeta/vibe/lifecycle";
+import type { VibeCli } from "@linxiraos/pi-tui/tools/vibe";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
 
 function makeParentSession(settings: Settings): ToolSession {

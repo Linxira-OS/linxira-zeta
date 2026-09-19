@@ -14,9 +14,9 @@
 
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { Settings } from "../src/config/settings";
-import { AssistantMessageComponent } from "../src/modes/components/assistant-message";
-import { TranscriptContainer } from "../src/modes/components/transcript-container";
-import { initTheme } from "../src/modes/theme/theme";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 
 const WIDTH = 100;
 const SIZES = [500, 5000, 50_000];

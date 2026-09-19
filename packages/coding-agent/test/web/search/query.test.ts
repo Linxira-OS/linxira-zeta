@@ -9,7 +9,7 @@ import {
 	parseDateValue,
 	parseSearchQuery,
 } from "@linxiraos/zeta/web/search/query";
-import type { SearchSource } from "@linxiraos/zeta/web/search/types";
+import type { SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 
 describe("parseSearchQuery", () => {
 	it("leaves plain queries untouched", () => {

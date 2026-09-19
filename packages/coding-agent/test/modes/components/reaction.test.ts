@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { Container, Text } from "@linxiraos/pi-tui";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import { splitReaction } from "@linxiraos/zeta/modes/components/reaction";
-import { UserMessageComponent } from "@linxiraos/zeta/modes/components/user-message";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { splitReaction } from "@linxiraos/pi-tui/chat/reaction";
+import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { Container, Text } from "@linxiraos/pi-tui";
 
 const W = 60;
 

@@ -1,4 +1,4 @@
-import type { TodoPhase } from "../../tools/todo";
+import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import {
 	applyOpsToPhases,
 	getLatestTodoPhasesFromEntries,

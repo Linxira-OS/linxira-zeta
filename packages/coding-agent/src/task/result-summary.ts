@@ -8,8 +8,8 @@
 import { prompt } from "@linxiraos/pi-utils";
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { AgentRegistry } from "../registry/agent-registry";
-import { formatBytes, formatDuration } from "../tools/render-utils";
-import type { SingleResult } from "./types";
+import { formatBytes, formatDuration } from "@linxiraos/pi-tui/render/render-utils";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 
 /** Inline preview budget before the envelope points at `agent://<id>` instead. */
 const FULL_OUTPUT_THRESHOLD = 5000;

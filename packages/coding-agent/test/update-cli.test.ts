@@ -41,7 +41,7 @@ import {
 } from "@linxiraos/zeta/cli/update-cli";
 import Update from "@linxiraos/zeta/commands/update";
 import type { CliConfig } from "@linxiraos/pi-utils/cli";
-import { getThemeByName, setThemeInstance } from "../src/modes/theme/theme";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 const miseBinary = Bun.env.MISE_BIN ?? $which("mise");
 

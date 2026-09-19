@@ -1,3 +1,4 @@
+import { createAgentHubRuntime } from "@linxiraos/zeta/modes/agent-hub-runtime";
 /**
  * Hub Enter contract: activating a non-remote agent row delegates to the
  * `focusAgent` dep (session focus proxy) and closes the hub on success; a
@@ -6,19 +7,19 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
-import { AgentHubOverlayComponent } from "@linxiraos/zeta/modes/components/agent-hub";
+import { AgentHubOverlayComponent } from "@linxiraos/pi-tui/overlays/agent-hub";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
-import { SessionObserverRegistry } from "@linxiraos/zeta/modes/session-observer-registry";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { visitEntriesFromFileStream } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { getBundledAgent } from "@linxiraos/zeta/task/agents";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const AGENT_ID = "Worker";
 const TEST_CWD = path.resolve("agent-hub-cwd");
@@ -53,7 +54,7 @@ function makeHub(focusAgent: (id: string) => Promise<void>) {
 	const done = Promise.withResolvers<void>();
 	const renderRequested = Promise.withResolvers<void>();
 	const hub = new AgentHubOverlayComponent({
-		settings: Settings.isolated(),
+		...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents }),
 		observers: new SessionObserverRegistry(),
 		hubKeys: [],
 		onDone: () => {
@@ -167,7 +168,7 @@ describe("Agent hub Enter activation", () => {
 		const setFocus = vi.fn();
 		const onDone = vi.fn();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents }),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone,
@@ -205,7 +206,7 @@ describe("Agent hub Enter activation", () => {
 		await Bun.write(workerSessionFile, persistedChildJsonl("worker"));
 		const agents = new AgentRegistry();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents, sessionFile }),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone: () => {},
@@ -242,7 +243,7 @@ describe("Agent hub Enter activation", () => {
 		}
 		const agents = new AgentRegistry();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents, sessionFile }),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone: () => {},
@@ -265,7 +266,7 @@ describe("Agent hub Enter activation", () => {
 		await Bun.write(path.join(tempDir.path(), "main", "Worker.jsonl"), "");
 		const agents = new AgentRegistry();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents, sessionFile }),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone: () => {},
@@ -290,7 +291,7 @@ describe("Agent hub Enter activation", () => {
 		await Bun.write(childSessionFile, persistedChildJsonl("child"));
 		const agents = new AgentRegistry();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents, sessionFile }),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone: () => {},
@@ -333,7 +334,7 @@ describe("Agent hub Enter activation", () => {
 		await fs.utimes(workerSessionFile, lastActivity, lastActivity);
 		const agents = new AgentRegistry();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents, sessionFile }),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone: () => {},
@@ -412,7 +413,7 @@ describe("Agent hub Enter activation", () => {
 		await fs.utimes(workerSessionFile, lastActivity, lastActivity);
 		const agents = new AgentRegistry();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents, sessionFile }),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone: () => {},
@@ -518,7 +519,11 @@ describe("Agent hub Enter activation", () => {
 
 		const agents = new AgentRegistry();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({
+				settings: Settings.isolated(),
+				registry: agents,
+				sessionFile: fork.newSessionFile,
+			}),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone: () => {},
@@ -775,7 +780,7 @@ describe("Agent hub data refresh coalescing", () => {
 		const observers = new SessionObserverRegistry();
 		const requestRender = vi.fn();
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents }),
 			observers,
 			hubKeys: [],
 			onDone: () => {},
@@ -855,7 +860,7 @@ describe("Agent hub data refresh coalescing", () => {
 			status: "running",
 		});
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents }),
 			observers,
 			hubKeys: [],
 			onDone: () => {},
@@ -916,7 +921,7 @@ describe("Agent hub data refresh coalescing", () => {
 			status: "idle",
 		});
 		const hub = new AgentHubOverlayComponent({
-			settings: Settings.isolated(),
+			...createAgentHubRuntime({ settings: Settings.isolated(), registry: agents }),
 			observers: new SessionObserverRegistry(),
 			hubKeys: [],
 			onDone: () => {},

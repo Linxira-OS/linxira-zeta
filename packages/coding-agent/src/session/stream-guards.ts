@@ -9,13 +9,14 @@ import type { AssistantMessage, AssistantMessageEvent, Model, ToolCall } from "@
 import { GeminiHeaderRunDetector } from "@linxiraos/pi-ai/utils/thinking-loop";
 import { type RepeatedToolCallDetection, ToolCallLoopGuard } from "@linxiraos/pi-ai/utils/tool-call-loop-guard";
 import { logger, prompt } from "@linxiraos/pi-utils";
+
 import type { Settings } from "../config/settings";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import geminiToolReminderTemplate from "../prompts/system/gemini-tool-call-reminder.md" with { type: "text" };
 import type { SecretObfuscator } from "../secrets/obfuscator";
 import { assertEditableFile } from "../tools/auto-generated-guard";
 import { isInternalUrlPath, normalizeLocalScheme, resolveToCwd } from "../tools/path-utils";
-import { ToolError } from "../tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { CustomMessage } from "./messages";
 import type { SessionManager } from "./session-manager";
 import {

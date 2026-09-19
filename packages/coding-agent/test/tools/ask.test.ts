@@ -8,9 +8,10 @@ import type {
 	ExtensionAskDialogResult,
 	ExtensionUISelectItem,
 } from "@linxiraos/zeta/extensibility/extensions";
-import { getThemeByName, initTheme, theme, type Theme } from "@linxiraos/zeta/modes/theme/theme";
+import { getThemeByName, initTheme, theme, type Theme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { AskTool, askToolRenderer } from "@linxiraos/zeta/tools/ask";
+import { AskTool } from "@linxiraos/zeta/tools/ask";
+import { askToolRenderer } from "@linxiraos/pi-tui/tools/ask";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import { TERMINAL } from "@linxiraos/pi-tui";
 

@@ -13,7 +13,7 @@ import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-co
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { IrcMessage } from "@linxiraos/zeta/irc/bus";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";

@@ -1,3 +1,4 @@
+import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
 import type { Model } from "@linxiraos/pi-ai";
@@ -9,8 +10,8 @@ import {
 	type ModelHubCallbacks,
 	ModelHubComponent,
 	resetProviderAutoRefreshGuard,
-} from "@linxiraos/zeta/modes/components/model-hub";
-import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+} from "@linxiraos/pi-tui/overlays/model-hub";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 // Issue #2761: implicit local providers (ollama, llama.cpp, lm-studio) used to
 // get a sidebar tab even when nothing was listening on their endpoint. The hub
@@ -74,7 +75,7 @@ function createHub(registry: ModelRegistry): ModelHubComponent {
 		onLoginRequest: () => {},
 		onCancel: () => {},
 	};
-	const hub = new ModelHubComponent(ui, settings, registry, [], callbacks);
+	const hub = new ModelHubComponent(ui, createModelBrowserSource(settings), registry, [], callbacks);
 	openHubs.push(hub);
 	return hub;
 }

@@ -2,6 +2,7 @@ import type { AgentOptions } from "@linxiraos/pi-agent-core";
 import type { OAuthAccessResolution } from "@linxiraos/pi-ai";
 import type { ApiKeyResolver } from "@linxiraos/pi-ai/auth-retry";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+
 import type { AuthStorage } from "../session/auth-storage";
 import type { SecurityAccountRef, SecurityAuthRef } from "./contracts";
 

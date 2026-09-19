@@ -5,7 +5,6 @@ import * as path from "node:path";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { applyStartupCwd } from "@linxiraos/zeta/cli/startup-cwd";
 import * as utils from "@linxiraos/pi-utils";
-import { getProjectDir, normalizePathForComparison, setProjectDir } from "@linxiraos/pi-utils";
 
 const originalProjectDir = utils.getProjectDir();
 const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");

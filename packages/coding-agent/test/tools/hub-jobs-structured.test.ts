@@ -6,11 +6,11 @@
  * carrying data must advertise the `agent://<id>` handle (PR #10625 review).
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { AsyncJobRunResult } from "@linxiraos/zeta/async/job-manager";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import type { AsyncJobRunResult } from "@linxiraos/zeta/async/job-manager";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { StructuredSubagentOutput } from "@linxiraos/zeta/task/types";
+import type { StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { HubTool } from "@linxiraos/zeta/tools/hub";
 

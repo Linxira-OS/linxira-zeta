@@ -10,9 +10,9 @@ import {
 	resolveModelFromString,
 } from "../config/model-resolver";
 import imageQuestionSystemPromptTemplate from "../prompts/tools/image-question-system.md" with { type: "text" };
-import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";
+import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import type { ToolSession } from "../tools";
-import { ToolError } from "../tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { LoadedImageInput } from "./image-loading";
 
 /** Vision-capable model selected for an explicit image question. */

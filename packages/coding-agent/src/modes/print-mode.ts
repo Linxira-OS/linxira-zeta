@@ -8,6 +8,7 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { logger, postmortem, sanitizeText } from "@linxiraos/pi-utils";
+
 import { type AgentSession, type AgentSessionEvent, SHUTDOWN_CONSOLIDATE_BUDGET_MS } from "../session/agent-session";
 import { isSilentAbort } from "../session/messages";
 import { flushTelemetryExport } from "../telemetry-export";

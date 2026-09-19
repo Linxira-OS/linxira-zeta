@@ -19,6 +19,13 @@
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { Settings } from "../../config/settings";
 import {
+	SETTING_TABS,
+	TAB_GROUPS,
+	TAB_METADATA,
+	type SettingTab,
+	type SubmenuOption,
+} from "@linxiraos/pi-tui/overlays/settings-defs";
+import {
 	getDefault,
 	getEnumValues,
 	getPathsForTab,
@@ -26,13 +33,8 @@ import {
 	getUi,
 	hasUi,
 	isCredential,
-	SETTING_TABS,
 	SETTINGS_SCHEMA,
 	type SettingPath,
-	type SettingTab,
-	type SubmenuOption,
-	TAB_GROUPS,
-	TAB_METADATA,
 } from "../../config/settings-schema";
 import { ZH_GROUP_LABELS, ZH_OPTION_TEXTS, ZH_SETTING_TEXTS, ZH_TAB_LABELS } from "../../config/settings-zh";
 import { WebConfig } from "../../config/web-config";

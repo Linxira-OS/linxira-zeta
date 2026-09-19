@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { AgentOutputManager } from "@linxiraos/zeta/task/output-manager";
-import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/zeta/modes/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
 import { TempDir } from "@linxiraos/pi-utils";
 
 // Contract: subagent output ids are the requested name, used verbatim the first

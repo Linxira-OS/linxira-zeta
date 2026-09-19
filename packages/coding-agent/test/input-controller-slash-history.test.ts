@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
-import { isQueuedMessageList, splitQueuedMessages } from "@linxiraos/zeta/modes/queue-input";
+import { isQueuedMessageList, splitQueuedMessages } from "@linxiraos/pi-tui/prompt/queue-input";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 // Drives the real editor submit handler through the builtin slash dispatch

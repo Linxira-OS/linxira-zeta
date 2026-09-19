@@ -16,10 +16,10 @@ import {
 	getSegmentGalleryInventory,
 } from "@linxiraos/zeta/cli/gallery-fixtures";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { getComposerShapeOptions } from "@linxiraos/zeta/modes/components/composer-shape-registry";
-import { ALL_SEGMENT_IDS } from "@linxiraos/zeta/modes/components/status-line/segments";
-import { initTheme, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { toolRenderers } from "@linxiraos/zeta/tools/renderers";
+import { getComposerShapeOptions } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
+import { ALL_SEGMENT_IDS } from "@linxiraos/pi-tui/status-line/segments";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
+import { toolRenderers } from "@linxiraos/pi-tui/tools";
 
 beforeAll(async () => {
 	resetSettingsForTest();

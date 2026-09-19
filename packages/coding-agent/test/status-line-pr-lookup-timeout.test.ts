@@ -12,14 +12,15 @@
  * rejection so the segment never wedges after a single failure.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { StatusLineSettings } from "@linxiraos/pi-tui/status-line";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { github } from "@linxiraos/zeta/utils/github";
 import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { StatusLineSettings } from "@linxiraos/zeta/modes/components/status-line";
-import { StatusLineComponent } from "@linxiraos/zeta/modes/components/status-line";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
-import { github } from "@linxiraos/zeta/utils/github";
 
 const originalProjectDir = getProjectDir();
 
@@ -135,7 +136,7 @@ describe("StatusLineComponent PR lookup timeout guard", () => {
 			return { exitCode: 1, stdout: "", stderr: "" };
 		});
 
-		const component = new StatusLineComponent(makeSession());
+		const component = new StatusLineComponent(makeSession(), statusLineHost);
 		component.updateSettings(gitSegmentSettings);
 		try {
 			// Render triggers `#lookupPr` → github.run.
@@ -165,7 +166,7 @@ describe("StatusLineComponent PR lookup timeout guard", () => {
 		// throws.
 		vi.spyOn(github, "run").mockRejectedValue(new Error("simulated timeout"));
 
-		const component = new StatusLineComponent(makeSession());
+		const component = new StatusLineComponent(makeSession(), statusLineHost);
 		component.updateSettings(gitSegmentSettings);
 		try {
 			// First render fires the (rejecting) lookup.

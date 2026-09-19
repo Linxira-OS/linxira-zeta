@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { getThemeByName, setThemeInstance } from "@linxiraos/zeta/modes/theme/theme";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme/theme";
 import type { SingleResult, TaskToolDetails } from "@linxiraos/zeta/task";
-import { taskToolRenderer } from "@linxiraos/zeta/task/renderer";
+import { taskToolRenderer } from "@linxiraos/pi-tui/tools/task";
 
 // Regression for PR #11343 review: sanitizing the isolation artifact rows
 // (shortenPath + width bound) dropped the `Patch:` / `Branch:` /

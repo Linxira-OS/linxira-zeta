@@ -8,6 +8,7 @@ import {
 import type { SettingPath, Settings } from "../config/settings";
 import { SETTINGS_SCHEMA } from "../config/settings-schema";
 import { M } from "../i18n";
+
 import { describeLoopCondition } from "../modes/loop-condition";
 import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
@@ -386,6 +387,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "loop",
 		icon: "loop",
 		description: M.cmdLoopLong,
+
 		inlineHint: "[count|duration] [--while|--until '<cmd>'] [prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -717,6 +719,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		acpDescription: M.cmdPrewalkAcp,
 		acpInputHint: "[restart]",
 		subcommands: [{ name: "restart", description: M.cmdPrewalkRestart }],
+
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg && arg !== "restart") return usage("Usage: /prewalk [restart]", runtime);

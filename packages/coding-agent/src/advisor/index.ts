@@ -1,4 +1,5 @@
 export * from "./advise-tool";
+export type { AdvisorConfig, AdvisorConfigScope, WatchdogConfigDoc } from "@linxiraos/pi-tui/overlays/advisor-config";
 export * from "./config";
 export * from "./emission-guard";
 export * from "./loop-guard";

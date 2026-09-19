@@ -1854,7 +1854,7 @@ export const en = {
 	cmdCompactElide: "Strip tool results + large blocks (default)",
 	cmdCompactImages: "Strip image blocks",
 	cmdShake: "Drop heavy content from context (tool results, large blocks)",
-	cmdHandoff: "Hand off session context to a new session",
+	cmdHandoff: "Summarize the session into a handoff document and compact in place",
 	cmdResume: "Resume a different session",
 	cmdBtw: "Ask an ephemeral side question using the current session context",
 	cmdBtwHistory: "Ask a side question, or browse this session's BTW history",

@@ -10,10 +10,10 @@ import {
 	type SidebarSources,
 	type SidebarWidget,
 } from "../../../src/modes/components/sidebar";
-import type { SegmentContext } from "../../../src/modes/components/status-line/types";
-import type { ObservableSession } from "../../../src/modes/session-observer-registry";
-import { getThemeByName, setThemeInstance, theme } from "../../../src/modes/theme/theme";
-import type { TodoPhase } from "../../../src/tools/todo";
+import type { SegmentContext } from "@linxiraos/pi-tui/status-line/types";
+import type { ObservableSession } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { getThemeByName, setThemeInstance, theme } from "@linxiraos/pi-tui/theme/theme";
+import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 
 beforeAll(async () => {
 	await Settings.init({ inMemory: true });

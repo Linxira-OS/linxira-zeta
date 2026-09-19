@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { renderSegment } from "@linxiraos/zeta/modes/components/status-line/segments";
-import type { SegmentContext } from "@linxiraos/zeta/modes/components/status-line/types";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { renderSegment } from "@linxiraos/pi-tui/status-line/segments";
+import type { SegmentContext } from "@linxiraos/pi-tui/status-line/types";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { calculateTokensPerSecond } from "@linxiraos/zeta/utils/token-rate";
 
 beforeAll(async () => {

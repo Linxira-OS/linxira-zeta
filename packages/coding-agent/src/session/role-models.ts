@@ -1,11 +1,10 @@
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import type { ModelRegistry } from "../config/model-registry";
+import { formatModelSelectorValue, parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
 	extractExplicitThinkingSelector,
-	formatModelSelectorValue,
 	getModelMatchPreferences,
-	parseModelString,
 	type ResolvedModelRoleValue,
 	resolveModelRoleValue,
 } from "../config/model-resolver";

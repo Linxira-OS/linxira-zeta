@@ -3,7 +3,8 @@ import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
 import { setExcludedSearchProviders } from "@linxiraos/zeta/web/search/provider";
 import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchPublicWeb } from "@linxiraos/zeta/web/search/providers/public";
-import { SearchProviderError, type SearchProviderId } from "@linxiraos/zeta/web/search/types";
+import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
+import { type SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
 
 const fakeAuthStorage = {
 	async getApiKey() {

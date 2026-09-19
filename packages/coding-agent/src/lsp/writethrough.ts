@@ -3,20 +3,21 @@ import { isEnoent, logger, once, untilAborted } from "@linxiraos/pi-utils";
 import type { BunFile } from "bun";
 import { isPermissionDeniedError, writeFileWithFallback } from "../tools/file-write-fallback";
 import { beginPendingDiskWrite, endPendingDiskWrite, FileChangeType, notifyWorkspaceWatchedFiles } from "./client";
-import { getServersForFile } from "./config";
+import { getConfig, getServersForFile } from "./config";
+
 import {
 	captureDiagnosticVersions,
 	captureOpenFileVersions,
 	DEFERRED_DIAGNOSTICS_WAIT_TIMEOUT_MS,
-	type FileDiagnosticsResult,
-	FileFormatResult,
 	formatContent,
 	getDiagnosticsForFile,
 	INLINE_DIAGNOSTICS_WAIT_TIMEOUT_MS,
 	limitDiagnosticMessages,
 	type ServerVersionMap,
 } from "./diagnostics";
-import { getConfig, notifyFileSaved, splitServers, syncFileContent } from "./servers";
+import { type FileDiagnosticsResult, FileFormatResult } from "@linxiraos/pi-tui/tools/lsp";
+import { notifyFileSaved, splitServers, syncFileContent } from "./servers";
+
 import type { ServerConfig } from "./types";
 import { summarizeDiagnosticMessages } from "./utils";
 

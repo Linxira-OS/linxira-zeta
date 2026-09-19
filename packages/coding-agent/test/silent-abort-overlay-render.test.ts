@@ -1,3 +1,4 @@
+import { agentTranscriptSource } from "@linxiraos/zeta/modes/agent-hub-runtime";
 /**
  * Regression: the agent-hub chat transcript must not render SILENT_ABORT_MARKER verbatim.
  *
@@ -12,14 +13,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as AIError from "@linxiraos/pi-ai/error";
-import type { TUI } from "@linxiraos/pi-tui";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { AgentTranscriptViewer } from "@linxiraos/zeta/modes/components/agent-transcript-viewer";
-import type { ObservableSession } from "@linxiraos/zeta/modes/session-observer-registry";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { AgentTranscriptViewer } from "@linxiraos/pi-tui/overlays/agent-transcript-viewer";
+import type { ObservableSession } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
+import type { TUI } from "@linxiraos/pi-tui";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 const SESSION_ID = "test-session-1";
 
@@ -37,7 +38,7 @@ function makeSubagentRegistry(sessions: ObservableSession[]) {
 		onChange: () => () => {},
 		setMainSession: () => {},
 		getActiveSubagentCount: () => sessions.filter(s => s.status === "active").length,
-	} as unknown as import("@linxiraos/zeta/modes/session-observer-registry").SessionObserverRegistry;
+	} as unknown as import("@linxiraos/pi-tui/overlays/session-observer-registry").SessionObserverRegistry;
 }
 
 function makeViewer(sessionFile: string, observed: ObservableSession[]): AgentTranscriptViewer {
@@ -53,6 +54,7 @@ function makeViewer(sessionFile: string, observed: ObservableSession[]): AgentTr
 	});
 	const ui = { requestRender: () => {}, requestComponentRender: () => {} } as unknown as TUI;
 	return new AgentTranscriptViewer({
+		transcript: agentTranscriptSource,
 		agentId: SESSION_ID,
 		registry: agents,
 		observers: makeSubagentRegistry(observed),

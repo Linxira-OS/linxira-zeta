@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
-import * as fsp from "node:fs/promises";
+import * as path from "node:path";
 import { getStatsDbPath, workerHostEntry } from "@linxiraos/pi-utils";
+import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import {
 	applySessionParseResult,
 	completeSessionSync,
@@ -55,6 +56,23 @@ import type {
 } from "./types";
 import { computeUsageWindowStats, fetchUsageData } from "./usage-windows";
 
+const STATS_SYNC_LOCK_RETRY_MS = 25;
+const STATS_SYNC_LOCK_WAIT_MS = 60 * 60 * 1000;
+
+/**
+ * Serialize stats ingestion and archive reconciliation across processes.
+ * The lock covers file discovery, parsing, and the final SQLite write so a
+ * parse result for a session moved by GC can never commit after cleanup.
+ * The native lock is owned by an operating-system primitive, so an interrupted
+ * owner is released automatically and a live owner is never displaced.
+ */
+export async function withStatsSyncLock<T>(dbPath: string, fn: () => Promise<T>): Promise<T> {
+	await fs.promises.mkdir(path.dirname(dbPath), { recursive: true });
+	return await withFileLock(`${dbPath}.sync`, fn, {
+		retryDelayMs: STATS_SYNC_LOCK_RETRY_MS,
+		retries: Math.ceil(STATS_SYNC_LOCK_WAIT_MS / STATS_SYNC_LOCK_RETRY_MS),
+	});
+}
 /**
  * Progress event emitted after each session file is fully processed.
  * `current` is the number of files completed (skipped + parsed),
@@ -577,80 +595,4 @@ export async function getProviderDashboardStats(range?: string | null): Promise<
 		usageSeries,
 		windowInsights,
 	};
-}
-
-const STATS_LOCK_TIMEOUT_MS = 30_000;
-const STATS_LOCK_STALE_MS = 60_000;
-
-async function statIfPresent(path: string) {
-	try {
-		return await fsp.stat(path);
-	} catch (error) {
-		const code =
-			typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
-		if (code === "ENOENT") return null;
-		throw error;
-	}
-}
-
-function processExists(pid: number): boolean {
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (error) {
-		const code =
-			typeof error === "object" && error !== null && "code" in error ? (error as { code: string }).code : undefined;
-		if (code === "ESRCH" || code === "EINVAL") return false;
-		return true;
-	}
-}
-
-async function isStatsLockStale(lockPath: string): Promise<boolean> {
-	const stat = await statIfPresent(lockPath);
-	if (!stat) return false;
-	const pid = Number.parseInt((await Bun.file(lockPath).text()).split(/\r?\n/, 1)[0] ?? "", 10);
-	if (Number.isSafeInteger(pid) && pid > 0) return !processExists(pid);
-	return Date.now() - stat.mtimeMs > STATS_LOCK_STALE_MS;
-}
-
-/**
- * Acquire an exclusive lock on the stats database and execute `fn`.
- * Used by GC to prevent stats row cleanup from racing with stats sync.
- */
-export async function withStatsSyncLock<T>(dbPath: string, fn: () => Promise<T>): Promise<T> {
-	const lockPath = `${dbPath}.lock`;
-	const deadline = Date.now() + STATS_LOCK_TIMEOUT_MS;
-
-	while (Date.now() < deadline) {
-		try {
-			const handle = await fsp.open(lockPath, "wx");
-			try {
-				await handle.writeFile(`${process.pid}\n${new Date().toISOString()}\n`);
-				return await fn();
-			} finally {
-				await handle.close();
-				await fsp.unlink(lockPath).catch(() => {});
-			}
-		} catch (error) {
-			const code =
-				typeof error === "object" && error !== null && "code" in error
-					? (error as { code: string }).code
-					: undefined;
-			if (code !== "EEXIST") throw error;
-		}
-		if (await isStatsLockStale(lockPath)) {
-			try {
-				await fsp.unlink(lockPath);
-			} catch (error) {
-				const code =
-					typeof error === "object" && error !== null && "code" in error
-						? (error as { code: string }).code
-						: undefined;
-				if (code !== "ENOENT") throw error;
-			}
-		}
-		await Bun.sleep(100);
-	}
-
-	throw new Error(`timed out waiting for stats lock: ${lockPath}`);
 }

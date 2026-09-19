@@ -10,11 +10,11 @@ import type { AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { kStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { AssistantMessageComponent } from "@linxiraos/zeta/modes/components/assistant-message";
-import { ToolExecutionComponent } from "@linxiraos/zeta/modes/components/tool-execution";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { STREAMING_REVEAL_FRAME_MS } from "@linxiraos/zeta/modes/controllers/streaming-reveal";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 

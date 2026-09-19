@@ -5,18 +5,15 @@ import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
 import { COLLAB_PROTO, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { TUI } from "@linxiraos/pi-tui";
-import {
-	SPINNER_RENDER_INTERVAL_MS,
-	stopSharedSpinnerTicker,
-	ToolExecutionComponent,
-} from "@linxiraos/zeta/modes/components/tool-execution";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { SPINNER_ADVANCE_MS } from "@linxiraos/pi-tui/components/loader";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { TUI } from "@linxiraos/pi-tui";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "../../collab/helpers/in-memory-relay";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
@@ -199,12 +196,12 @@ describe("ToolExecutionComponent live preview spinners", () => {
 		);
 
 		try {
-			const spinnerTimers = setIntervalSpy.mock.calls.filter(([, ms]) => ms === SPINNER_RENDER_INTERVAL_MS).length;
+			const spinnerTimers = setIntervalSpy.mock.calls.filter(([, ms]) => ms === SPINNER_ADVANCE_MS).length;
 			// One shared ticker for all three live blocks, not three.
 			expect(spinnerTimers).toBe(1);
 
 			// A single tick repaints every registered block in lockstep.
-			vi.advanceTimersByTime(SPINNER_RENDER_INTERVAL_MS);
+			vi.advanceTimersByTime(SPINNER_ADVANCE_MS);
 			for (const requestComponentRender of renders) {
 				expect(requestComponentRender).toHaveBeenCalledTimes(1);
 			}

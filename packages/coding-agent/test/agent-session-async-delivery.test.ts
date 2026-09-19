@@ -16,8 +16,8 @@ import type { AsyncJob } from "@linxiraos/zeta/async/job-manager";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { DaemonCompletionNotification } from "@linxiraos/zeta/launch/protocol";
-import { buildAsyncResultBlock } from "@linxiraos/zeta/modes/utils/transcript-render-helpers";
-import { initTheme } from "@linxiraos/zeta/modes/theme/theme";
+import { buildAsyncResultBlock } from "@linxiraos/pi-tui/chat/transcript-render-helpers";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { ArtifactManager } from "@linxiraos/zeta/session/artifacts";
 import { buildAsyncResultBatchMessage, type AsyncResultEntry } from "@linxiraos/zeta/session/async-job-delivery";
@@ -26,7 +26,8 @@ import { convertToLlm, type CustomMessage } from "@linxiraos/zeta/session/messag
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { formatOutputNotice, type OutputMeta } from "@linxiraos/zeta/tools/output-meta";
+import { type OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { TempDir } from "@linxiraos/pi-utils";
 function observeAsyncResultEnqueue(session: AgentSession): Promise<void> {

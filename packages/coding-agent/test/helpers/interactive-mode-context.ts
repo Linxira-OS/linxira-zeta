@@ -34,8 +34,8 @@ import { vi } from "bun:test";
 import { isSettingsInitialized, Settings, settings } from "@linxiraos/zeta/config/settings";
 import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import type { MCPServerConnection } from "@linxiraos/zeta/mcp/types";
-import { ServedModelTracker } from "@linxiraos/zeta/modes/components/served-model-marker";
-import { TranscriptContainer } from "@linxiraos/zeta/modes/components/transcript-container";
+import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-input";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -239,6 +239,9 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 		get effectiveHideThinkingBlock() {
 			return this.hideThinkingBlock;
 		},
+		get assistantImagesVisible() {
+			return contextSettings.get("terminal.showImages");
+		},
 		hasDisplayableThinkingContent: false,
 		noteDisplayableThinkingContent: vi.fn(() => false),
 		proseOnlyThinking: true,
@@ -291,7 +294,6 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 		flushPendingModelSwitch: vi.fn(async () => {}),
 		reloadTodos: vi.fn(async () => {}),
 		setTodos: vi.fn(),
-		getUserMessageText: vi.fn(() => ""),
 	} satisfies ContextOverrides;
 	layer(ctx, overrides, RESOLVED_AHEAD);
 	return ctx as unknown as InteractiveModeContext;

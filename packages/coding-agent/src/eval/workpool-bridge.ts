@@ -3,7 +3,7 @@ import { createEvalCustomTools, describeEvalTools } from "../task/eval-tools";
 import { resolveEffectiveSubagentPolicy } from "../task/structured-subagent";
 import { type WorkPoolPeekResult, WorkPoolRegistry, type WorkPoolStatus } from "../task/workpool";
 import type { ToolSession } from "../tools";
-import { ToolError } from "../tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { JsStatusEvent } from "./js/shared/types";
 
 /** Synthetic bridge name reserved for eval work pools. */

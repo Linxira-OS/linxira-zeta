@@ -2,17 +2,19 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/pi-omptype";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import * as themeModule from "@linxiraos/zeta/modes/theme/theme";
+import * as themeModule from "@linxiraos/pi-tui/theme";
 import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";
 import { createTools, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
 import { requiresApproval, resolveApproval } from "@linxiraos/zeta/tools/approval";
-import { githubToolRenderer } from "@linxiraos/zeta/tools/gh-renderer";
-import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
-import { WriteTool, writeToolRenderer } from "@linxiraos/zeta/tools/write";
+import { githubToolRenderer } from "@linxiraos/pi-tui/tools/github";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { type WriteRenderContext, writeToolRenderer } from "@linxiraos/pi-tui/tools/write";
+import type { XdevMountedRenderer } from "@linxiraos/pi-tui/tools/xdev";
 import {
 	listXdevTools,
 	resolveMountedXdevTool,
@@ -24,6 +26,13 @@ import {
 	xdevDocsAll,
 	xdevEntries,
 } from "@linxiraos/zeta/tools/xdev";
+
+/** Mirrors `ToolExecutionComponent#buildRenderContext`: mounted tools expose their render hooks to the write renderer. */
+function mountedRenderContext(xdev: XdevState): WriteRenderContext {
+	return {
+		resolveXdevMounted: name => resolveMountedXdevTool(xdev, name) as XdevMountedRenderer | undefined,
+	};
+}
 
 // xdev mounting is default-on: discoverable tools like ast_edit unmount into
 // xd://, and a plain `write xd://ast_edit` dispatches them. These guard the
@@ -395,7 +404,7 @@ describe("read and write route xd:// device URLs", () => {
 			{
 				expanded: false,
 				isPartial: false,
-				renderContext: { resolveXdevMounted: name => resolveMountedXdevTool(xdev, name) },
+				renderContext: mountedRenderContext(xdev),
 			},
 			uiTheme,
 			{ path: "xd://github", content },
@@ -433,7 +442,7 @@ describe("read and write route xd:// device URLs", () => {
 			{
 				expanded: false,
 				isPartial: false,
-				renderContext: { resolveXdevMounted: name => resolveMountedXdevTool(xdev, name) },
+				renderContext: mountedRenderContext(xdev),
 			},
 			uiTheme,
 			{ path: "xd://weather", content },

@@ -1,3 +1,4 @@
+import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { afterEach, beforeAll, describe, expect, type Mock, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -15,9 +16,9 @@ import {
 	ModelHubComponent,
 	type ModelHubOptions,
 	resetProviderAutoRefreshGuard,
-} from "@linxiraos/zeta/modes/components/model-hub";
-import { getThemeByName, setThemeInstance, theme } from "@linxiraos/zeta/modes/theme/theme";
-import { AUTO_THINKING } from "@linxiraos/zeta/thinking";
+} from "@linxiraos/pi-tui/overlays/model-hub";
+import { getThemeByName, setThemeInstance, theme } from "@linxiraos/pi-tui/theme";
+import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
 
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();
@@ -127,7 +128,7 @@ function createHub(options: {
 	});
 	const hub = new ModelHubComponent(
 		ui,
-		settings,
+		createModelBrowserSource(settings),
 		registry,
 		options.scoped ? modelsFn().map(model => ({ model })) : [],
 		{

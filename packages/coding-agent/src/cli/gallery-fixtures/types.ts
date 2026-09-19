@@ -2,7 +2,7 @@
  * Types for `zeta gallery` sample data. See {@link ./index} for the aggregated
  * fixture registry and the contract each fixture must satisfy.
  */
-import type { EditMode } from "../../edit";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 
 /** A tool result snapshot, matching the shape `ToolExecutionComponent` consumes. */
 export interface GalleryResult {
