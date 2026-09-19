@@ -32,6 +32,7 @@ import {
 import { normalizeToLF } from "../edit/normalize";
 import { getEditStore } from "../edit/store";
 import { InternalUrlRouter, resolveLocalUrlToFile, resolveLocalUrlToPath } from "../internal-urls";
+import { readTargetsPlan } from "../plan-mode/plan-protection";
 import { type ResolvedArtifactFile, resolveArtifactFile } from "../internal-urls/artifact-protocol";
 import { parseInternalUrl } from "../internal-urls/parse";
 import type { InternalUrl } from "../internal-urls/types";
@@ -999,6 +1000,17 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	 * Only missing cwd-root paths qualify, so a real working-tree file always
 	 * wins and unrelated paths cannot escape into the session artifact sandbox.
 	 */
+	/**
+	 * True when `readPath` targets the session plan file: the canonical
+	 * `local://PLAN.md` alias or the session plan reference path. Plan files
+	 * read without an explicit selector get the full default window so
+	 * incremental plan amendments never operate on a truncated view.
+	 */
+	#isPlanRead(readPath: string): boolean {
+		const reference = this.session.getPlanReferencePath?.() ?? "local://PLAN.md";
+		return readTargetsPlan(readPath, "local://PLAN.md") || readTargetsPlan(readPath, reference);
+	}
+
 	#approvedPlanAlias(missingAbsolutePath: string): string | undefined {
 		const planReferencePath = this.session.getPlanReferencePath?.();
 		if (!planReferencePath?.startsWith("local:")) return undefined;
@@ -1535,6 +1547,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		if (readPath.startsWith("file://")) {
 			readPath = expandPath(readPath);
 		}
+		// Set when the requested path is the session plan (canonical alias or the
+		// plan reference URL) — captured before scheme resolution rewrites readPath.
+		let planTargetedRead = false;
 		const imageQuestion = splitImageQuestionTarget(readPath);
 		readPath = imageQuestion.path;
 		const question = imageQuestion.question;
@@ -1609,6 +1624,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				throw new ToolError(imageSelectorMessage);
 			}
 			if (scheme === "local") {
+				// Capture plan targeting BEFORE the URL is rewritten to its on-disk
+				// path — the plan-aware read window keys on the `local://` spelling.
+				planTargetedRead = this.#isPlanRead(readPath);
 				const localFile = await resolveLocalUrlToFile(urlMeta, {
 					cwd: this.session.cwd,
 					settings: this.session.settings,
@@ -2057,7 +2075,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const startLineDisplay = startLine + 1;
 
 					const DEFAULT_LIMIT = this.#defaultLimit;
-					const effectiveLimit = limit ?? DEFAULT_LIMIT;
+					const effectiveLimit = limit ?? (planTargetedRead ? DEFAULT_MAX_LINES : DEFAULT_LIMIT);
 					const maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, DEFAULT_MAX_LINES);
 					const selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
 					// Scale byte budget with line limit so the configured line count actually fits.

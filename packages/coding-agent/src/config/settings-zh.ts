@@ -686,6 +686,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "分享密钥脱敏",
 		description: "上传前对 /share 快照运行密钥混淆器（使用 secrets.* 配置）",
 	},
+	"stream.serverUrl": {
+		label: "直播服务器",
+		description: "`zeta stream` 使用的直播服务器（https://host[:port]）；观众通过 <base>/<你的 Stencil 用户名> 观看",
+	},
+	"stream.redactPatterns": {
+		label: "额外脱敏正则",
+		description: "在内置密钥形态与 env/secrets.yml 之外，对每条直播行额外应用的脱敏正则表达式",
+	},
 	"stt.enabled": {
 		label: "语音转文字",
 		description: "通过麦克风启用语音转文字输入",

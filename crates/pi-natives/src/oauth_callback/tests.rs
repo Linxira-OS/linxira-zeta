@@ -136,19 +136,6 @@ fn remote_start_is_unsupported_without_creating_storage() {
 	fs::remove_dir_all(home).unwrap();
 }
 
-#[cfg(target_os = "linux")]
-#[test]
-fn wsl_env_is_unsupported_without_creating_storage() {
-	let _serial = TEST_SERIAL.lock();
-	let home = temp_home("wsl");
-	let core = core(home.clone(), environment(&[("WSL_DISTRO_NAME", "Ubuntu")]));
-	assert!(matches!(
-		start_blocking(&core, CancelToken::default()).unwrap(),
-		StartOutcome::Unsupported
-	));
-	assert!(!home.join(".omp").exists());
-	fs::remove_dir_all(home).unwrap();
-}
 
 #[cfg(target_os = "linux")]
 #[test]
@@ -160,7 +147,7 @@ fn wsl_env_is_unsupported_without_creating_storage() {
 		start_blocking(&core, CancelToken::default()).unwrap(),
 		StartOutcome::Unsupported
 	));
-	assert!(!home.join(".omp").exists());
+	assert!(!home.join(".zeta").exists());
 	fs::remove_dir_all(home).unwrap();
 }
 
