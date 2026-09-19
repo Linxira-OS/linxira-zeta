@@ -1,5 +1,5 @@
 # Go build artifacts
-bin/
+/bin/
 vendor/
 /pico
 /ttt

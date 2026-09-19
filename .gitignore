@@ -111,7 +111,7 @@ HANDOFF.md
 # In-repo runtime artifacts (merge scope reports etc.)
 .zeta/
 
-# editor (vendored TTT Editor) build artifacts
-editor/bin/
-editor/ttt
-editor/ttt.exe
+# editor (vendored TTT Editor) build artifacts (root-anchored: editor/npm/*/bin must stay tracked)
+/editor/bin/
+/editor/ttt
+/editor/ttt.exe
