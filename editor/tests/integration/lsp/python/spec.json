@@ -1,0 +1,14 @@
+{
+  "waitFor": "def greet",
+  "diagnostic": "lsp diagnostics.*count=[1-9]",
+  "hover": {
+    "goto": "1:4",
+    "log": "lsp hover response.*length=[1-9]"
+  },
+  "completion": {
+    "goto": "5:0",
+    "type": "\nprin",
+    "log": "lsp completion response.*count=[1-9]"
+  },
+  "signatureHelp": null
+}

@@ -1,0 +1,6 @@
+{
+  "waitFor": "runs-on",
+  "diagnostic": "lsp diagnostics.*count=[0-9]",
+  "hover": null,
+  "completion": null
+}

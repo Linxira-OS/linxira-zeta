@@ -1,0 +1,16 @@
+{
+  "debugMode": true,
+  "lsp": {
+    "servers": {
+      "typescript": {
+        "command": ["typescript-language-server", "--stdio"],
+        "languages": {
+          ".ts": "typescript",
+          ".tsx": "typescriptreact",
+          ".js": "javascript",
+          ".jsx": "javascriptreact"
+        }
+      }
+    }
+  }
+}

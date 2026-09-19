@@ -1,0 +1,10 @@
+{
+  "debugMode": true,
+  "lsp": {
+    "servers": {
+      "yaml": {
+        "command": ["yaml-language-server", "--stdio"]
+      }
+    }
+  }
+}

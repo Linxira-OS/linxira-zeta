@@ -110,3 +110,8 @@ HANDOFF.md
 
 # In-repo runtime artifacts (merge scope reports etc.)
 .zeta/
+
+# editor (vendored TTT Editor) build artifacts
+editor/bin/
+editor/ttt
+editor/ttt.exe

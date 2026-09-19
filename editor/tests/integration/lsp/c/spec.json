@@ -1,0 +1,18 @@
+{
+  "waitFor": "int main",
+  "diagnostic": "lsp diagnostics.*count=[1-9]",
+  "hover": {
+    "goto": "5:11",
+    "log": "lsp hover response.*length=[1-9]"
+  },
+  "completion": {
+    "goto": "6:0",
+    "type": "\nprin",
+    "log": "lsp completion response.*count=[1-9]"
+  },
+  "signatureHelp": {
+    "goto": "6:0",
+    "type": "\n    printf(",
+    "log": "lsp signature help response.*label=.*"
+  }
+}
