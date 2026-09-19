@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- 上游 v18.2.5 同步:streaming CLI 命令、热路径记忆化(工具 schema/stamp/which 缓存)、TUI 主题与覆盖层组件迁移至 pi-tui、Astra 上下文确定性策略、eval 判定桥与 Python prelude 维护。
+- 修复 bun 1.4.0 bytecode 编译产物启动崩溃(desktop smoke 全平台)。
+- 设置项新增 Stream 分区与 stencil.so 流式认证。
 ## [1.1.15] - 2026-09-16
 ## [1.1.14] - 2026-09-12
 ## [1.1.13] - 2026-09-10
