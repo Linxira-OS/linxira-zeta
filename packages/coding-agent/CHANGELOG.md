@@ -2,11 +2,12 @@
 
 ## [Unreleased]
 
+## [1.1.16] - 2026-09-19
+
 - 上游 v18.2.5 同步:streaming CLI 命令、热路径记忆化(工具 schema/stamp/which 缓存)、TUI 主题与覆盖层组件迁移至 pi-tui、Astra 上下文确定性策略、eval 判定桥与 Python prelude 维护。
 - 修复 bun 1.4.0 bytecode 编译产物启动崩溃(desktop smoke 全平台)。
 - 设置项新增 Stream 分区与 stencil.so 流式认证。
-## [1.1.15] - 2026-09-16
-## [1.1.14] - 2026-09-12
+
 ## [1.1.13] - 2026-09-10
 
 - 上游 v18.1.16 同步:任务执行器 AgentBusyError、事件循环 keepalive、idle 封装截止时间、上下文笔记等。
@@ -14,7 +15,6 @@
 - `/language` 切换后斜杠命令描述即时刷新,无需重启。
 - Plan/Plan-ultra/Vibe/Goal 模式横幅与 attach 模式提示接入 i18n;`/loop`、`/rename` 描述进目录。
 
-## [1.1.12] - 2026-09-10
 ## [1.1.11] - 2026-09-08
 
 ### Added
@@ -37,6 +37,7 @@
 - Zeta merge adaptation: the `/plan-ultra` command and its registry entry, plus localized slash-command descriptions, are guarded against being dropped by upstream merges (i18n contract test now enforces M.* keys).
 
 ## [1.1.10] - 2026-09-07
+
 - Task descriptions containing tabs no longer misalign or overflow task rows; tabs are expanded before measuring and rendering.
 - GitHub Copilot model-policy 403s (plan, model policy, org restriction) no longer delete stored credentials, so the provider stays listed in `/model` after a per-model access denial instead of disappearing until the next `/login` ([#11280](https://github.com/can1357/oh-my-pi/pull/11280) by [@H4vC](https://github.com/H4vC)).
 - Bash results no longer replace a failing command's output with the shell minimizer's lossy summary when the original capture cannot be persisted as an artifact; the raw diagnostics are kept so a failure stays actionable ([#11081](https://github.com/can1357/oh-my-pi/issues/11081)).
