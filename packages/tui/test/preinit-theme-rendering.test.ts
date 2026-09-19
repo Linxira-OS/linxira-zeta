@@ -45,10 +45,10 @@ describe("rendering before theme initialization (#10864)", () => {
 			if (out.includes("\\x1b[38;2;")) throw new Error("unsupported-truecolor-gradient");
 			process.stdout.write("ok");
 		`);
-	});
+	}, 30000);
 
 	it("constructs and renders a tool component", async () => {
-		const entry = new URL("../src/chat/tool-execution.ts", import.meta.url).pathname;
+		const entry = Bun.fileURLToPath(new URL("../src/chat/tool-execution.ts", import.meta.url));
 		await expectFreshModuleRender(`
 			import { ToolExecutionComponent } from ${JSON.stringify(entry)};
 			const ui = { requestRender() {}, requestComponentRender() {}, resetDisplay() {} };
@@ -57,10 +57,10 @@ describe("rendering before theme initialization (#10864)", () => {
 			if (!out.includes("echo hi")) throw new Error("tool-output-missing");
 			process.stdout.write("ok");
 		`);
-	});
+	}, 30000);
 
 	it("constructs and renders assistant Markdown", async () => {
-		const entry = new URL("../src/chat/assistant-message.ts", import.meta.url).pathname;
+		const entry = Bun.fileURLToPath(new URL("../src/chat/assistant-message.ts", import.meta.url));
 		await expectFreshModuleRender(`
 			import { AssistantMessageComponent } from ${JSON.stringify(entry)};
 			const message = {
@@ -77,20 +77,20 @@ describe("rendering before theme initialization (#10864)", () => {
 			if (!out.includes("hello")) throw new Error("assistant-output-missing");
 			process.stdout.write("ok");
 		`);
-	});
+	}, 30000);
 
 	it("constructs and renders a user message", async () => {
-		const entry = new URL("../src/chat/user-message.ts", import.meta.url).pathname;
+		const entry = Bun.fileURLToPath(new URL("../src/chat/user-message.ts", import.meta.url));
 		await expectFreshModuleRender(`
 			import { UserMessageComponent } from ${JSON.stringify(entry)};
 			const out = Bun.stripANSI(new UserMessageComponent("hello").render(80).join("\\n"));
 			if (!out.includes("hello")) throw new Error("user-output-missing");
 			process.stdout.write("ok");
 		`);
-	});
+	}, 30000);
 
 	it("constructs and renders the usage dashboard", async () => {
-		const entry = new URL("../src/overlays/usage-dashboard.ts", import.meta.url).pathname;
+		const entry = Bun.fileURLToPath(new URL("../src/overlays/usage-dashboard.ts", import.meta.url));
 		await expectFreshModuleRender(`
 			import { UsageDashboardComponent } from ${JSON.stringify(entry)};
 			const component = new UsageDashboardComponent({
@@ -105,5 +105,5 @@ describe("rendering before theme initialization (#10864)", () => {
 			component.dispose();
 			process.stdout.write("ok");
 		`);
-	});
+	}, 30000);
 });

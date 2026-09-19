@@ -33,8 +33,8 @@ describe("prompt action autocomplete", () => {
 		// The coding-agent internal-url router installs the real host; here a stub
 		// proves the fall-through contract without the router.
 		setInternalUrlCompletionHost({
-			completionSchemes: () => ["omp"],
-			resolveCompletions: async scheme => (scheme === "omp" ? [{ value: "docs", label: "docs" }] : null),
+			completionSchemes: () => ["zeta"],
+			resolveCompletions: async scheme => (scheme === "zeta" ? [{ value: "docs", label: "docs" }] : null),
 		});
 	});
 
