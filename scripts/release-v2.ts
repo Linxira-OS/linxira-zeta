@@ -363,6 +363,18 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 		await $`sd '^(\s{4}version = ")[^"]+(")' ${"$1" + version + "$2"} ${buildFile}`;
 	}
 
+	// Step 2f: editor npm distribution packages (vendored TTT editor; not a
+	// Bun workspace — bumped here so the CI trusted-publishing job releases
+	// them on the same release version). The launcher pins platform leaves
+	// exactly, so their dependency refs move in the same pass.
+	console.log(`Updating editor npm packages to ${version}...`);
+	for (const editorDir of ["editor/npm/editor", "editor/npm/editor-windows-x64", "editor/npm/editor-linux-x64"]) {
+		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${editorDir}/package.json`;
+	}
+	for (const editorLeaf of ["editor-windows-x64", "editor-linux-x64"]) {
+		await $`sd '"@linxiraos/${editorLeaf}": "[^"]+"' ${`"@linxiraos/${editorLeaf}": "${version}"`} editor/npm/editor/package.json`;
+	}
+
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).

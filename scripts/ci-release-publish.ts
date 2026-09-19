@@ -84,7 +84,7 @@ interface PackageManifest {
 const repoRoot = path.join(import.meta.dir, "..");
 const isDryRun = process.argv.includes("--dry-run");
 const isPackOnly = process.argv.includes("--pack-only");
-const MIT_LICENSE = "LICENSE";
+const publishEditor = process.argv.slice(2).includes("--editor");
 const THIRD_PARTY_NOTICES = "THIRD-PARTY-NOTICES.txt";
 
 /** Selects the legal payload contract for a publishable first-party package. */
@@ -394,9 +394,11 @@ async function isPackedVersionPublished(tarball: PackedTarball): Promise<boolean
 }
 
 async function packAndPublish(dir: string, name: string): Promise<void> {
+	const dryRunManifest = (await Bun.file(path.join(dir, "package.json")).json()) as PackageManifest;
+	const dryRunVersion = typeof dryRunManifest.version === "string" ? dryRunManifest.version : "";
 	if (isDryRun) {
 		console.log(
-			`DRY RUN bun pm pack && npm publish --access public --tag ${npmDistTag(version)} (${path.relative(repoRoot, dir)})`,
+			`DRY RUN bun pm pack && npm publish --access public --tag ${npmDistTag(dryRunVersion)} (${path.relative(repoRoot, dir)})`,
 		);
 		return;
 	}
@@ -531,6 +533,15 @@ async function publishPackage(pkg: PublishPackage): Promise<void> {
 if (import.meta.main) {
 	if (nativeLeafTag) {
 		await publishNativeLeafPackage(nativeLeafTag);
+	} else if (publishEditor) {
+		// Vendored editor npm distribution (not a Bun workspace). Platform
+		// leaves publish first, then the launcher package that pins them
+		// via optionalDependencies.
+		const editorNpmDirs = ["editor/npm/editor-windows-x64", "editor/npm/editor-linux-x64", "editor/npm/editor"];
+		for (const dir of editorNpmDirs) {
+			const manifest = (await Bun.file(path.join(repoRoot, dir, "package.json")).json()) as PackageManifest;
+			await packAndPublish(path.join(repoRoot, dir), manifest.name ?? path.basename(dir));
+		}
 	} else {
 		for (const pkg of packages) {
 			await publishPackage(pkg);
