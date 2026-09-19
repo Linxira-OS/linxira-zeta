@@ -223,12 +223,12 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		why: "CLI terminal title brand character (registry row 1)",
 	},
 	{
-		file: "packages/coding-agent/src/modes/components/welcome.ts",
+		file: "packages/tui/src/prompt/welcome.ts",
 		symbol: "export const ZETA_LOGO",
 		why: "ζ char-art product logo surface (v18.0.3 lesson)",
 	},
 	{
-		file: "packages/coding-agent/src/modes/theme/symbols.ts",
+		file: "packages/tui/src/theme/symbols.ts",
 		symbol: '"icon.omp": "ζ",',
 		why: "status-line brand icon (registry: icon.omp=ζ)",
 	},
