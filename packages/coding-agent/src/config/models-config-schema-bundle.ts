@@ -42,7 +42,7 @@ export const getModelsConfigSchemaBundle = once(() => {
 		"disableReasoningOnForcedToolChoice?": "boolean",
 		"disableReasoningOnToolChoice?": "boolean",
 		"disableReasoningWithTools?": "boolean",
-		"thinkingFormat?": '"openai" | "openrouter" | "zai" | "qwen" | "qwen-chat-template"',
+		"thinkingFormat?": '"openai" | "openrouter" | "zai" | "kimi" | "qwen" | "qwen-chat-template" | "chat-template"',
 		"qwenTemplateReasoningEffort?": "boolean",
 		"openRouterRouting?": OpenRouterRoutingSchema,
 		"vercelGatewayRouting?": VercelGatewayRoutingSchema,

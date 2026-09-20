@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-09-20
+
+### Fixed
+- Preserve extension tools for crew workers: unknown bare tool names no longer get dropped by the builtin whitelist, so extension-provided tools (e.g. `pi_messenger`) survive worker spawn.
+
 ## [0.15.1] - 2026-08-23
 
 ### Highlights

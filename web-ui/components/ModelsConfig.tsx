@@ -1462,13 +1462,21 @@ function CompatEditor({
 
 // ── Model detail ──────────────────────────────────────────────────────────────
 
+// DeepSeek validates the exact reasoning_content value on assistant turns, so
+// the schema-legal encoding is the reasoning-content contract fields — never a
+// `thinkingFormat` value (the config schema enum has no "deepseek" member and
+// rejects the whole models config on load).
 const DEEPSEEK_COMPAT = {
-  thinkingFormat: "deepseek",
-  requiresReasoningContentOnAssistantMessages: true,
+  reasoningContentField: "reasoning_content",
+  requiresReasoningContentForAllAssistantTurns: true,
+  allowsSyntheticReasoningContentForToolCalls: false,
 } as const;
 
 function hasDeepseekCompat(model: ModelEntry): boolean {
-  return model.compat?.thinkingFormat === "deepseek";
+  return (
+    model.compat?.reasoningContentField === "reasoning_content" &&
+    model.compat?.requiresReasoningContentForAllAssistantTurns === true
+  );
 }
 
 function setDeepseekCompat(model: ModelEntry, enabled: boolean): ModelEntry {
@@ -1477,8 +1485,9 @@ function setDeepseekCompat(model: ModelEntry, enabled: boolean): ModelEntry {
   }
   if (!model.compat) return model;
   const rest = { ...model.compat };
-  delete rest.thinkingFormat;
-  delete rest.requiresReasoningContentOnAssistantMessages;
+  delete rest.reasoningContentField;
+  delete rest.requiresReasoningContentForAllAssistantTurns;
+  delete rest.allowsSyntheticReasoningContentForToolCalls;
   return { ...model, compat: Object.keys(rest).length ? rest : undefined };
 }
 
