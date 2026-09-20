@@ -37,7 +37,6 @@ import { generateMemorableName } from "../lib.ts";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const EXTENSION_DIR = path.resolve(__dirname, "..");
-const BUILTIN_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
 
 export interface SpawnOptions {
   onProgress?: (results: AgentResult[]) => void;
@@ -227,7 +226,7 @@ async function runAgent(
       for (const tool of agentConfig.tools) {
         if (tool.includes("/") || tool.endsWith(".ts") || tool.endsWith(".js")) {
           extensionPaths.push(tool);
-        } else if (BUILTIN_TOOLS.has(tool)) {
+        } else {
           builtinTools.push(tool);
         }
       }
