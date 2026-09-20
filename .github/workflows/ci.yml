@@ -925,15 +925,15 @@ jobs:
                 fi
               done
               count=$(ls packages/coding-agent/binaries/zeta-cli-* 2>/dev/null | wc -l)
-              if [ "$count" -lt 6 ]; then
-                echo "::error::Expected at least 6 zeta-cli-* binaries, found $count"
+              if [ "$count" -lt 3 ]; then
+                # Release matrix is trimmed to linux-x64, linux-musl-x64 and
+                # win32-x64 while macOS/ARM desktop publishing is paused.
+                echo "::error::Expected at least 3 zeta-cli-* binaries, found $count"
                 missing=1
               fi
-              desktop_count=$(find temp/desktop/release -type f \( -name 'zeta-desktop-*.dmg' -o -name 'zeta-desktop-*.zip' -o -name 'zeta-desktop-*.exe' -o -name 'zeta-desktop-*.deb' -o -name 'zeta-desktop-*.AppImage' -o -name 'zeta-desktop-*.tar.gz' \) 2>/dev/null | wc -l)
-              if [ "$desktop_count" -lt 5 ]; then
-                echo "::error::Expected at least 5 zeta-desktop-* installers/archives (mac dmg+zip per arch, win zip+exe, linux tar.gz+deb/AppImage), found $desktop_count"
-                missing=1
-              fi
+              # Desktop installers are not validated while desktop publishing
+              # is paused (document/release.md); restore the block together
+              # with the desktop jobs.
               exit $missing
          # Generated after every other release asset is in place and before
          # the release is created, so SHA256SUMS.txt itself ships as an asset
@@ -943,7 +943,6 @@ jobs:
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
-                temp/desktop/release/zeta-desktop-* \
                 LICENSE \
                 THIRD-PARTY-NOTICES.txt
          - name: Create GitHub Release
