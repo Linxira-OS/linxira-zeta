@@ -136,7 +136,6 @@ fn remote_start_is_unsupported_without_creating_storage() {
 	fs::remove_dir_all(home).unwrap();
 }
 
-
 #[cfg(target_os = "linux")]
 #[test]
 fn wsl_env_is_unsupported_without_creating_storage() {
