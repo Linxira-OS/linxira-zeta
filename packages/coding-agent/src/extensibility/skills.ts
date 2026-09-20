@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
+import { allowsSkillTokens, SKILL_TOKEN_RE } from "@linxiraos/pi-tui/prompt/skill-tokens";
 import { getProjectDir, prompt } from "@linxiraos/pi-utils";
 import {
 	isValidManagedSkillName,
@@ -11,7 +12,6 @@ import type { EffectiveExtensionRoots, SourceMeta } from "../capability/types";
 import type { SkillsSettings } from "../config/settings";
 import { type Skill as CapabilitySkill, isUserSourceEnabled, loadCapability } from "../discovery";
 import { compareSkillOrder, scanSkillsFromDir } from "../discovery/helpers";
-import { allowsSkillTokens, SKILL_TOKEN_RE } from "@linxiraos/pi-tui/prompt/skill-tokens";
 import autoloadTemplate from "../prompts/skills/autoload.md" with { type: "text" };
 import userInvocationTemplate from "../prompts/skills/user-invocation.md" with { type: "text" };
 import type { SkillPromptDetails } from "../session/messages";
@@ -121,6 +121,8 @@ export async function loadSkillsFromDir(options: LoadSkillsFromDirOptions): Prom
 	};
 }
 
+export const OFFICIAL_SKILLS_PROVIDER_ID = "zeta-official";
+
 export interface LoadSkillsOptions extends SkillsSettings {
 	/** Working directory for project-local skills. Default: getProjectDir() */
 	cwd?: string;
@@ -147,6 +149,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		enablePiProject = true,
 		enableAgentsUser = true,
 		enableAgentsProject = true,
+		enableOfficial = true,
 		customDirectories = [],
 		ignoredSkills = [],
 		includeSkills = [],
@@ -164,6 +167,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		// — third-party CLI toggles must never silently hide them (cf. #2401). The
 		// master `enabled` flag above still gates them.
 		if (provider === MANAGED_SKILLS_PROVIDER_ID) return true;
+		if (provider === OFFICIAL_SKILLS_PROVIDER_ID) return enableOfficial;
 		if (provider === "codex" && level === "user") return enableCodexUser || isUserSourceEnabled("codex");
 		if (provider === "claude" && level === "user") return enableClaudeUser || isUserSourceEnabled("claude");
 		if (provider === "claude" && level === "project") return enableClaudeProject;

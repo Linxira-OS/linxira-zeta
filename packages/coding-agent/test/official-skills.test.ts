@@ -20,7 +20,7 @@ describe("official bundled skills provider", () => {
 
 	test("discovers the shipped docx and pptx skills from skills/official", async () => {
 		const repo = path.resolve(import.meta.dir, "../..");
-		const result = await loadCapability(skillCapability.id, {
+		const result = await loadCapability<Skill>(skillCapability.id, {
 			cwd: repo,
 			providers: ["zeta-official"],
 		});
@@ -28,7 +28,6 @@ describe("official bundled skills provider", () => {
 		expect(names).toContain("docx");
 		expect(names).toContain("pptx");
 		const docx = result.items.find(s => s.name === "docx");
-		const docxMeta = docx?.frontmatter as { description?: string } | undefined;
-		expect(docxMeta?.description).toContain("Word");
+		expect(docx?.frontmatter.description).toContain("Word");
 	});
 });

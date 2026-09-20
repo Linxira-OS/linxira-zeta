@@ -38,6 +38,7 @@ const expectedFixtureSkillOrder: string[] = [
  * the assertion.
  */
 const DISABLE_ALL_BUILTIN_SKILLS = {
+	enableOfficial: false,
 	enableCodexUser: false,
 	enableClaudeUser: false,
 	enableClaudeProject: false,

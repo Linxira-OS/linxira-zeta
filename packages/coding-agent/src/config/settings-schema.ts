@@ -1,8 +1,15 @@
-import { ADVISOR_DEFAULT_BUDGET_PER_UPDATE } from "../advisor/emission-guard";
 import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
-import { DEFAULT_SHARE_URL, DEFAULT_STREAM_URL } from "@linxiraos/pi-wire";
-import { TREE_FILTER_MODES } from "@linxiraos/pi-tui/overlays/tree-selector";
 import { SHAPE_VARIANT_NAMES } from "@linxiraos/pi-snapcompact";
+import type { AnyUiMetadata, SettingTab, SubmenuOption, UiBase } from "@linxiraos/pi-tui/overlays/settings-defs";
+import { TREE_FILTER_MODES } from "@linxiraos/pi-tui/overlays/tree-selector";
+import {
+	AUTO_THINKING,
+	getConfiguredThinkingLevelMetadata,
+	getThinkingLevelMetadata,
+} from "@linxiraos/pi-tui/thinking";
+import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
+import { DEFAULT_SHARE_URL, DEFAULT_STREAM_URL } from "@linxiraos/pi-wire";
+import { ADVISOR_DEFAULT_BUDGET_PER_UPDATE } from "../advisor/emission-guard";
 import {
 	type BlobDestinationId,
 	type BlobDestinationMetadata,
@@ -10,7 +17,6 @@ import {
 } from "../blob-broker/destinations";
 import { DEFAULT_RELAY_URL } from "../collab/protocol";
 import { DEFAULT_LIVE_VOICE, LIVE_VOICE_OPTIONS, LIVE_VOICE_VALUES } from "../live/voices";
-import type { AnyUiMetadata, SettingTab, SubmenuOption, UiBase } from "@linxiraos/pi-tui/overlays/settings-defs";
 import {
 	COMPACTION_METHOD_CHOICES,
 	type CompactionMethod,
@@ -18,11 +24,6 @@ import {
 } from "../session/compaction-methods";
 import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS, STT_MODEL_VALUES } from "../stt/models";
 import { STT_SUBMIT_TRIGGER_OPTIONS, STT_SUBMIT_TRIGGER_VALUES } from "../stt/submit-trigger";
-import {
-	AUTO_THINKING,
-	getConfiguredThinkingLevelMetadata,
-	getThinkingLevelMetadata,
-} from "@linxiraos/pi-tui/thinking";
 import {
 	TINY_MODEL_DEVICE_DEFAULT,
 	TINY_MODEL_DEVICE_SETTING_OPTIONS,
@@ -59,7 +60,6 @@ import {
 	MAX_WEB_SEARCH_TIMEOUT_SECONDS,
 	SEARCH_PROVIDER_CHOICES,
 } from "../web/search/types";
-import { type SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
 import {
 	SERVICE_TIER_ANTHROPIC_OPTIONS,
 	SERVICE_TIER_ANTHROPIC_VALUES,
@@ -116,11 +116,12 @@ import {
 	type StatusLineSegmentId,
 	type StatusLineSeparatorStyle,
 } from "@linxiraos/pi-tui/status-line/schema";
+
 export {
 	CONTEXT_LINE_MODE_VALUES,
+	type ContextLineMode,
 	CUSTOM_STATUS_LINE_DEFAULTS,
 	STATUS_LINE_SEGMENT_IDS,
-	type ContextLineMode,
 	type StatusLinePreset,
 	type StatusLineSegmentId,
 	type StatusLineSeparatorStyle,
@@ -5448,6 +5449,7 @@ export const SETTINGS_SCHEMA = {
 	"skills.enableClaudeProject": { type: "boolean", default: true },
 
 	"skills.enablePiUser": { type: "boolean", default: true },
+	"skills.enableOfficial": { type: "boolean", default: true },
 
 	"skills.enablePiProject": { type: "boolean", default: true },
 
@@ -6550,6 +6552,7 @@ export interface SkillsSettings {
 	enablePiProject?: boolean;
 	enableAgentsUser?: boolean;
 	enableAgentsProject?: boolean;
+	enableOfficial?: boolean;
 	customDirectories?: string[];
 	ignoredSkills?: string[];
 	includeSkills?: string[];
