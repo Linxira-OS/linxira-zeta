@@ -85,6 +85,7 @@ const repoRoot = path.join(import.meta.dir, "..");
 const isDryRun = process.argv.includes("--dry-run");
 const isPackOnly = process.argv.includes("--pack-only");
 const publishEditor = process.argv.slice(2).includes("--editor");
+const MIT_LICENSE = "LICENSE";
 const THIRD_PARTY_NOTICES = "THIRD-PARTY-NOTICES.txt";
 
 /** Selects the legal payload contract for a publishable first-party package. */
