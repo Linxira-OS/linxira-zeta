@@ -17,6 +17,7 @@ import * as fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import * as path from "node:path";
 import { buildDocsIndexPayload } from "./generate-docs-index";
+import { buildOfficialSkillsPayload } from "./generate-official-skills-payload";
 import { createLegacyPiVirtualModulePlugin } from "./legacy-pi-virtual-module";
 
 const repoRoot = path.join(import.meta.dir, "..", "..");
@@ -107,6 +108,9 @@ async function main(): Promise<void> {
 					"process.env.PI_COMPILED": JSON.stringify("true"),
 					"process.env.PI_TINY_TRANSFORMERS_VERSION": JSON.stringify(transformersVersion),
 					"process.env.PI_DOCS_EMBED": JSON.stringify(docsIndexPayload.payload),
+					"process.env.ZETA_OFFICIAL_SKILLS_EMBED": JSON.stringify(
+						JSON.stringify((await buildOfficialSkillsPayload()).files),
+					),
 				},
 				minify: {
 					identifiers: false,
