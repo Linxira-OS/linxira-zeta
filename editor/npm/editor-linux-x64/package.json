@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/editor-linux-x64",
-	"version": "1.1.15",
+	"version": "1.1.16",
 	"description": "TTT Editor (vendored by Zeta) binary for linux/x64",
 	"license": "MIT",
 	"repository": {
