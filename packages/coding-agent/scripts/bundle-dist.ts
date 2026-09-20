@@ -4,6 +4,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { isEnoent } from "@linxiraos/pi-utils";
 import { buildDocsIndexPayload } from "./generate-docs-index";
+import { buildOfficialSkillsPayload } from "./generate-official-skills-payload";
 import { createLegacyPiVirtualModulePlugin } from "./legacy-pi-virtual-module";
 
 const packageDir = path.join(import.meta.dir, "..");
@@ -105,6 +106,9 @@ export async function bundleDist(outDir: string = defaultOutDir): Promise<void> 
 			define: {
 				"process.env.PI_BUNDLED": JSON.stringify("true"),
 				"process.env.PI_DOCS_EMBED": JSON.stringify(docsPayload.payload),
+				"process.env.ZETA_OFFICIAL_SKILLS_EMBED": JSON.stringify(
+					JSON.stringify((await buildOfficialSkillsPayload()).files),
+				),
 			},
 			minify: {
 				whitespace: true,

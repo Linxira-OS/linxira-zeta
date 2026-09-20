@@ -3,7 +3,8 @@
  *
  * Primary provider for OMP native configs. Supports all capabilities.
  */
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { getAgentDir, logger, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
@@ -345,14 +346,54 @@ registerProvider<Skill>(skillCapability.id, {
 // provider is inert in contexts without the pack (npm global installs
 // before the bundled seed lands).
 const OFFICIAL_SKILLS_PRIORITY = 10;
-// Resolved lazily per load so a test preload (or embedding host) can point the
-// pack at an empty path and make the provider a no-op for that process.
-function officialSkillsDir(): string {
-	return process.env.ZETA_OFFICIAL_SKILLS_DIR ?? path.join(import.meta.dir, "../../../../skills/official");
+// Resolution order:
+//   1. ZETA_OFFICIAL_SKILLS_DIR — explicit override; a dead path disables the
+//      pack entirely (the test preload uses this for process-wide isolation).
+//   2. ZETA_OFFICIAL_SKILLS_EMBED — payload burned in at bundle/binary build
+//      time (see scripts/generate-official-skills-payload.ts); seeded to disk
+//      under <agentDir>/official-skills/ so skills keep real paths.
+//   3. Repo checkout fallback — dev runs against skills/official/ in the tree.
+function resolveOfficialSkillsDir(): string | null {
+	const override = process.env.ZETA_OFFICIAL_SKILLS_DIR;
+	if (override !== undefined) return override;
+	const embed = process.env.ZETA_OFFICIAL_SKILLS_EMBED;
+	if (embed !== undefined) return seedOfficialSkillsFromEmbed(embed);
+	return path.join(import.meta.dir, "../../../../skills/official");
 }
+
+function seedOfficialSkillsFromEmbed(embedJson: string): string {
+	const seedDir = path.join(getAgentDir(), "official-skills");
+	const hash = createHash("sha256").update(embedJson).digest("hex").slice(0, 16);
+	const hashPath = path.join(seedDir, ".embed-hash");
+	let currentHash = "";
+	try {
+		currentHash = readFileSync(hashPath, "utf8").trim();
+	} catch {
+		// First seed, or the marker was removed — fall through to a rewrite.
+	}
+	if (currentHash === hash && existsSync(seedDir)) return seedDir;
+	const files = JSON.parse(embedJson) as Record<string, string>;
+	mkdirSync(seedDir, { recursive: true });
+	for (const [relative, body] of Object.entries(files)) {
+		const target = path.join(seedDir, relative);
+		mkdirSync(path.dirname(target), { recursive: true });
+		writeFileSync(target, body);
+	}
+	writeFileSync(hashPath, `${hash}\n`);
+	return seedDir;
+}
+
 async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
-	const dir = officialSkillsDir();
-	if (!existsSync(dir)) return { items: [] };
+	let dir: string | null;
+	try {
+		dir = resolveOfficialSkillsDir();
+	} catch (error) {
+		return {
+			items: [],
+			warnings: [`Failed to seed official skills: ${String(error)}`],
+		};
+	}
+	if (!dir || !existsSync(dir)) return { items: [] };
 	return scanSkillsFromDir(ctx, {
 		dir,
 		providerId: OFFICIAL_SKILLS_PROVIDER_ID,
