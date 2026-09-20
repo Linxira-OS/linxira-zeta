@@ -11,7 +11,7 @@ import { type Skill, skillCapability } from "../src/capability/skill";
  */
 // Opt this file back into the real pack before the provider module loads
 // (the global test preload points ZETA_OFFICIAL_SKILLS_DIR at a dead path).
-process.env.ZETA_OFFICIAL_SKILLS_DIR = path.resolve(import.meta.dir, "../../skills/official");
+process.env.ZETA_OFFICIAL_SKILLS_DIR = path.resolve(import.meta.dir, "../../../skills/official");
 await import("../src/discovery/builtin"); // registers all discovery providers (side effect)
 
 describe("official bundled skills provider", () => {
@@ -32,6 +32,6 @@ describe("official bundled skills provider", () => {
 		expect(names).toContain("docx");
 		expect(names).toContain("pptx");
 		const docx = result.items.find(s => s.name === "docx");
-		expect(docx?.frontmatter.description).toContain("Word");
+		expect(docx?.frontmatter?.description).toContain("Word");
 	});
 });
