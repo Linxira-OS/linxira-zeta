@@ -1000,7 +1000,14 @@ describe("Coding Agent Tools", () => {
 				path: "artifact://7:3-4",
 			});
 
-			expect(getTextOutput(result)).toContain("[Showing lines 2-2 of 4 (50.0KB limit). Use :3 to continue]");
+			// v18.2.5 read: an oversized single line is called out with its own
+			// artifact://raw hint before the summary line (no inline ":N to
+			// continue" tail anymore).
+			expect(getTextOutput(result)).toContain(
+				"[Line 3 is 60.0KB and could not fit after preceding context in the 50.0KB read budget.",
+			);
+			expect(getTextOutput(result)).toContain("Use artifact://7:raw:3-3 to read that line without context");
+			expect(getTextOutput(result)).toContain("[Showing lines 2-2 of 4 (50.0KB limit)]");
 		});
 
 		it("should spill oversized read output to an artifact", async () => {

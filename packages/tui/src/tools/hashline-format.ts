@@ -48,39 +48,9 @@ export function stripHashlinePrefixes(lines: string[]): string[] {
 	return hashlineStripPrefixes(lines);
 }
 
-/**
- * JS port of `hashline::prefixes::is_read_truncation_notice`
- * (crates/pi-edit). Shims the native binding when the installed natives
- * binary predates it (npm release leaves lag the workspace line between
- * releases, and workspace loads skip the version sentinel).
- */
-function jsIsReadTruncationNotice(line: string): boolean {
-	const trimmed = line.trim();
-	if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return false;
-	const body = trimmed.slice(1, -1);
-	const showingNotice =
-		body.startsWith("Showing ") &&
-		(body.includes(" line") || body.includes("lines ") || body.includes("bytes ")) &&
-		(body.includes(" of ") || body.includes(" elided"));
-	const moreCountIdx = body.indexOf(" more line");
-	const moreNotice =
-		(body.startsWith("More lines in ") || (moreCountIdx !== -1 && /^\d+$/.test(body.slice(0, moreCountIdx)))) &&
-		body.includes(" in ") &&
-		body.includes(". Use ") &&
-		body.endsWith(" to continue");
-	const elidedNotice =
-		(body.startsWith("…") || body.startsWith("...")) &&
-		body.includes("ln elided;") &&
-		body.includes("re-read needed ranges");
-	const oversizedLineNotice = body.startsWith("Line ") && body.includes(" exceeds ") && body.includes(" limit.");
-	return showingNotice || moreNotice || elidedNotice || oversizedLineNotice;
-}
-
 /** Whether a row is a truncation notice emitted by `read`. */
 export function isReadTruncationNotice(line: string): boolean {
-	return typeof hashlineIsReadTruncationNotice === "function"
-		? hashlineIsReadTruncationNotice(line)
-		: jsIsReadTruncationNotice(line);
+	return hashlineIsReadTruncationNotice(line);
 }
 
 /** Compute the native hashline content fingerprint. */
