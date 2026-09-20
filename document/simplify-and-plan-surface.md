@@ -402,3 +402,50 @@ update 流程（用我们 /api/update）。
 
 - 2026-09-20: 初版（用户方向确认：极简哲学、crew 底座、条件显示、
   plan 四按钮审阅面、plan-ultra web 识别）。
+
+## 10. 官方默认 Skills 套装 + 安装引导
+
+### 10.1 安装引导（onboarding）
+
+- 新用户安装后首次启动：二选一引导——**极简模式**（默认：主界面纯对话
+  框 + 侧栏导航，多余入口全藏）/**工程模式**（全功能面：面板、批量操
+  作、高级设置展开）。区别只在 UI 显示层（一个偏好标志驱动条件显示），
+  引擎能力完全一致；随时可在设置切换。
+- 不做 code 模式 / work 模式那类功能分叉——**同一引擎，两种皮**。
+
+### 10.2 官方默认 skills 套装（提案清单）
+
+机制：新增 bundled 官方 provider（发现根 `skills/official/`，打包内嵌
+`PI_SKILLS_EMBED` 同款逻辑 + 首启 seed 到 `~/.zeta/agent/skills/`），
+优先级与 managed 同层（用户/项目 authored skill 同名覆盖）。每个 skill =
+`SKILL.md`（name/description/SOP）+ 可选 `scripts/`（文档类依赖
+python-docx / python-pptx / openpyxl / pandoc，SKILL.md 内含安装指引）。
+
+文档排版/办公（用户点名优先）：
+
+| skill | 覆盖 |
+| --- | --- |
+| `docx` | Word 创建/改写/格式化：报告、公文、合同模板；样式/目录/页眉脚 |
+| `pptx` | PPT 创建与美化：版式、母版、图表、演讲者备注 |
+| `xlsx` | Excel：公式、条件格式、透视、图表 |
+| `pdf` | 生成/合并/拆分/表单填写/文本提取 |
+| `markdown-export` | MD → 带样式 HTML/PDF/Word 发布导出 |
+
+视觉/图表：
+
+| skill | 覆盖 |
+| --- | --- |
+| `charts` | 出版级数据图（matplotlib/echarts 模板 + 配色规范）|
+| `diagrams` | 架构图/流程图（mermaid/graphviz 美学规则）|
+
+内容/通用：
+
+| skill | 覆盖 |
+| --- | --- |
+| `doc-cleanup` | 格式清理统一（标点/全半角/术语一致性）|
+| `translate-polish` | 翻译 + 润色工作流（术语表一致）|
+| `release-notes` | 版本说明撰写（复用 Zeta changelog 规范）|
+| `data-extract` | 网页/PDF → 结构化表格（csv/json）|
+
+实施：每 skill 一个 PR（SKILL.md + 脚本 + 样例输出），先落 docx/pptx
+两个打样，验证 bundled provider 链路后批量补齐。
