@@ -91,7 +91,28 @@ brand-overlay.ts`，脚本已入库）→ 逐 bucket 测试契约 resolve → br
 （`bun scripts/check-zeta-sentinels.ts`，CI check job 强制，AGENTS.md 必须链接
 此文件——该链接本身被检查）。
 
-### 超大量上游同步：压缩式 squash sync（2026-09-17 起生效）
+### 上游增量合并规程（v18.2.5 起，唯一合并方式）
+
+**任何涉及 OMP 上游合并的任务（agent 或人），动手前必须先通读
+`document/merge-playbook.md` 的「上游增量合并规程」章节并按其执行**；
+本节只立原则，操作细节以 playbook 为准。
+
+- **只比对上游原生 tag 间差异**（`v18.2.5 → v18.2.6`），永不把"上游分叉后
+  我们的差异"卷进合并计算。这一语义由 git 三方合并自动保证——**前提是
+  merge-base 恰为上一个已集成的上游 tag**。
+- **真 merge commit，禁止 squash**：上游合并一律 `git merge v18.2.x` 双亲
+  提交，保持与上游 commit 谱系永续连接。谱系一断（如 squash 重写），
+  merge-base 退化为远古祖先，theirs 侧退化为全量追赶窗口 diff——v18.2.1
+  →v18.2.4 的 1300+ 冲突与多轮 CI 损伤即此根源。
+- **合并前强制验证**：`git merge-base HEAD v18.2.6` 必须等于上一个已集成
+  tag 的 peeled SHA（v18.2.5 = `3727311702`）；不等即谱系受损，停止合并
+  并排查，禁止带病合并。
+- fetch 用 `git fetch omp-upstream --no-filter tag <tag>` 回填对象
+  （partial clone 老规矩）。
+- 冲突 resolve 按 `document/merge-playbook.md` 契约（upstream-wins + Zeta
+  surface 重应用 + 无白名单全树扫描）。
+
+### 超大量上游同步：压缩式 squash sync【已废弃，勿再用】（2026-09-17 授权，v18.2.5 起废止）
 
 当上游追赶窗口超过 **300 提交**或推送 pack 预计 **>50MB** 时，常规
 "non-squash 双父合并 + 祖先检查"流程在传输层不可行（单包数百 MB 会被

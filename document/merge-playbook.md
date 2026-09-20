@@ -175,6 +175,69 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 五关全绿才允许 push。 Feature Branch Workflow 的 merge-main-into-branch 前置
 步骤照旧执行。
 
+## 上游增量合并规程（v18.2.5 起，唯一合并方式）
+
+> 本节取代已废弃的压缩式 squash sync。核心原则一句话：**只合并上游原生
+> tag 之间的差异；我们自己的差异永远不参与合并计算**。这一语义由 git 三方
+> 合并自动保证，前提是 merge-base 恰为上一个已集成的上游 tag——所以本
+> 规程的全部内容就是保住这个前提。
+
+### 原理
+
+- 三方合并：`git merge v18.2.6` 时，git 取 `merge-base(HEAD, v18.2.6)` 作为
+  共同祖先，theirs 侧 = 祖先到 v18.2.6 的**净增量**。
+- 上游树谱系连续（每个 release tag 都是我们上一轮 merge commit 的第二父）
+  时，merge-base 恰为上一个 tag——增量合并天然成立，冲突只出现在「上游
+  本轮改动的行 × 我们改过的行」的交集，量级为个位数到几十。
+- **谱系断裂（squash 重写 / force-push / 跳 tag）会使 merge-base 退化为
+  远古祖先**，theirs 侧膨胀为全量追赶窗口 diff。v18.2.1→v18.2.4 的
+  1300+ 冲突、连续多轮 CI 损伤即此单一根源。
+
+### 操作步骤（每步强制）
+
+1. **fetch 回填**：`git fetch omp-upstream --no-filter tag v18.2.6`
+   （partial clone 必须带 `--no-filter`，否则合并中途
+   `remote unpack failed` 且整个 merge 回滚）。
+2. **merge-base 验证（gate，不通过禁止合并）**：
+   `git merge-base HEAD v18.2.6` 输出必须 == 上一个已集成 tag 的 peeled
+   SHA（例：合 v18.2.6 时必须输出 `37273117021129e9...`（v18.2.5））。
+   不等 → 谱系受损，停止，先修复谱系（联系维护者评估），禁止带病合并。
+3. **增量预览**：`git diff --stat v18.2.5 v18.2.6` 一眼确认本轮增量规模；
+   `git log --oneline v18.2.5..v18.2.6` 逐条过一遍提交主题。
+4. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
+   rebase / cherry-pick 上游提交）。冲突按下方「大批量冲突的分级 resolve」
+   + 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名
+   映射、.zeta 路径、ZETA_CODING_AGENT_DIR、`__zeta_*` 注入符号、品牌、
+   Zeta-only 功能存活清单）。
+5. **生成物新鲜度 gate**：合并落地后按需重跑并提交——
+   `bun install`（bun.lock）→ `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix`
+   → `bun run gen:compat`（**凡 rules/ 下 KDL 有变化必跑**，v18.2.5 教训：
+   rules.json 留旧版导致 compat/conformance/tokenizer 套件全红）。
+6. **收口扫描（无扩展名白名单）**：
+   - 冲突标记：`git grep -nE "^(<<<<<<<|>>>>>>>) " -- .`
+   - 上游符号/品牌：`git grep -nE "@oh-my-pi/|__omp_|PI_CODING_AGENT_DIR|PI_LOGO" -- .`
+     （逐命中判定，豁免清单见 brand-rules.ts 与本 playbook 各教训节）
+   - 覆盖全部文本类型（.txt/.py/.rs/.nix/.kdl/.toml/.lock 与无扩展文件都在
+     扫描范围内——prelude.txt、tests.rs、bun.nix 三次踩坑）。
+7. **门禁**：`bun scripts/check-version-consistency.ts` +
+   `bun run check:ts` + `bun scripts/brand/brand-check.ts` +
+   `bun scripts/check-zeta-sentinels.ts`（双守卫都要）+
+   `bunx oxfmt --check <既有 glob>` + 动过 crates/ 时 `cargo fmt --all --check`。
+8. **本地全量测试（强制，不靠 CI 揭伤）**：workspace `bun test` 全量 +
+   `bun run test:rs`；已知环境噪声按豁免清单排除（本地 .node 陈旧造成的
+   natives 符号缺失属环境噪声，但必须先按 §natives 恢复再判定）。
+9. **推送**：分段/staging 分支按「推送前核对」节；merge commit 含上游 tag
+   对象，注意 pack 体积。
+
+### squash sync【已废弃】
+
+2026-09-17 授权的压缩式 squash sync（AGENTS.md 同名节）是为 v18.1.16..18.2.4
+超大追赶窗口（>300 提交 / >50MB pack）做的**一次性抢救**。其代价——上游
+谱系断裂、后续每次合并退化为全量冲突——已被 v18.2.5 起的真 merge 路线
+取代。**禁止再次对 main 做上游 squash 重写**；本章仅作历史档案保留，
+其"backup/omp/main 基座、main-old 保档、分段推送"等传输技巧仍可在
+`git push` 网络受限时复用（见「分段快进推送的必然产物」节）。
+
 ## 双 tag 连续合并方法论（v18.1.13 → v18.1.14 实战归纳，2026-09-08）
 
 上游连发两个 release 而本地落后两个版本时，**在一个 sync 分支上按 tag 顺序串联合并**
