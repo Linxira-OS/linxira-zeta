@@ -1,5 +1,9 @@
 # Zeta Development Roadmap
 
+> **当前执行计划**（极简化 UI、编辑器三端、plan/tracking 呈现、team
+> agent、上游合并边界）已收拢至 [simplify-and-plan-surface.md](./simplify-and-plan-surface.md)。
+> 本文档保留长期路线与 Shipped 记录；执行细节以该计划为准。
+
 Zeta is an OMP downstream distribution: the runtime tree, package layout, Bun
 workflow, and internal `@linxiraos/*` names intentionally follow OMP so upstream
 releases remain mergeable. This roadmap covers **Zeta-owned product surface
@@ -206,10 +210,10 @@ sync sources for upstream work.
    surfaces, system UI font stack with CJK fallbacks (no remote font
    dependency), Starfield retained as a legacy optional theme only. Full
    design spec (locked decisions, layout tree, token inventory, tracking v2
-   detail, acceptance): `document/web-ui-modernization.md` — amend that
+   detail, acceptance): `document/simplify-and-plan-surface.md` 附录 A — amend that
    document in place; this entry stays a pointer.
    Status (2026-09-03): Sidebar 重构红线 + openchamber 头部布局已落地
-   (feat/web-ui-sidebar；头部红线见 web-ui-modernization.md §1)；会话地图
+   (feat/web-ui-sidebar；头部红线见 simplify-and-plan-surface.md 附录 A §1)；会话地图
    设计已登记 (`document/session-map-web.md`)；agent-team 插件设计已登记
    (`document/agent-team-plugin.md`)。
 

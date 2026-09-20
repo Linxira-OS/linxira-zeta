@@ -1,13 +1,174 @@
-# Web-UI Modernization — Design Spec (v1.1.7)
+# 极简化 UI 与 Plan/Tracking 呈现 — 执行梳理（2026-09-20）
 
-Durable spec for the approved web-ui redesign (roadmap P0 delivery-order
-step 6). This document is the source of truth for details; `roadmap.md`
-carries only the schedule pointer. Amend sections in place — never rewrite
-the whole document.
+状态：梳理定稿（方向经用户确认）。本文是接下来开发的执行清单来源；
+`roadmap.md` 与 `web-ui-modernization.md` 的相应条目以本文为准收拢。
+设计参考：temp/deepseek-harness 的 UI（**洁净室**——只学行为与美学，不复制代码/资产）。
 
-Status: plan approved 2026-08-29. Remaining steps (3-10) land on fresh
-`feat/<scope>` branches off current `main`（OMP v18.1.10 / 1.1.9 基线），
-per the feature-branch workflow.
+## 0. 设计原则（locked）
+
+1. **极简哲学**：主界面 = 一个对话框 + 左边一点内容。多余按钮全部砍掉；
+   复杂度全部藏在后台/默认配置里——默认配置好，界面自然简洁。
+2. **为什么**：界面东西多，用户用不懂、乱点还会点坏；简洁化本身就是产品力。
+3. **设计美学对齐 dsh**：足够简单、标准圆角、标准方框、克制的设计美学。
+4. **侧边栏功能（项目组、存储桶）不是砍掉，是梳理好做上**——功能在，
+   视觉与交互负担归零。
+5. **条件显示**：入口只在对应能力开启时出现（如 tracking 按钮只在
+   `tracking.enabled` 时出现）。
+
+## 1. 侧边栏极简化
+
+裁决表（2026-09-20 梳理，用户确认方向）：
+
+| 块 | 现状 | 裁决 |
+| --- | --- | --- |
+| 头部（wordmark + 新会话 + 折叠）| SidebarHeader 248 行 | 保留，对齐 dsh 三件套 |
+| 搜索切换 | 已有 | 保留（折叠 rail 时收进图标）|
+| 项目组 + 会话存储桶 | ProjectsList + GroupSection | 保留（核心功能），样式减噪 |
+| 会话行悬停菜单 | SessionNodeItem 内嵌 | 移除行内菜单 → 右键上下文菜单 |
+| HoverCard 预览卡 | 155 行 | 删除 |
+| BulkActionBar | 独立条 | 保留，仅多选时浮出 |
+| Pinned / Archive | 120 行 + Archive | 保留，折叠为底部两行入口 |
+| NewSessionDialog | 441 行 | 保留，入口收进头部 |
+
+新增两块（本轮重点）：
+
+- **Plan 区**：侧边栏显示 agent 正在做/做完的 plan。plan 落盘按
+  `local://` 会话工件路径（userdata），`tracking.enabled` 时镜像
+  `<project>/.zeta/tracking/plans/`。gateway 需要按 plan 路径读文件的
+  白名单端点（artifacts 目录 + tracking 目录），web 侧渲染 markdown。
+- **Tracking 入口（条件显示）**：仅当 `tracking.enabled` 时侧边栏出现
+  Tracking 入口。tracking 文档是**项目长期文档**：给人看、给 agent 看、
+  给任何协作者看——任何人打开都能快速搞懂现在在做什么。
+
+dsh 迁移（行为级洁净室）：
+
+- 滚动条指针感知（指针不在列内→透明，离开保留 ~2s）
+- 折叠 rail 图标列（56px rail，含搜索/新会话/设置图标）
+- 标准圆角/方框、克制色彩（对齐现有 zeta-* 主题 token）
+
+## 2. Plan 生命周期 Web 呈现（本轮核心新增）
+
+CLI 的 plan 出口 prompt 已齐全：`plan-mode-approved.md`（含
+`contextPreserved` 分支）、`plan-yolo-handoff.md`、
+`plan-mode-compact-instructions.md`、`plan-mode-ultra-active.md`。
+**缺的是 Web 呈现层**：
+
+- **审阅面**：plan-mode 下 agent 产出 plan 后，web 显示 plan 全文
+  （markdown 渲染，来自 §1 的 plan 端点）+ 四个操作按钮：
+  1. **当前对话直接开始**（不压缩，`contextPreserved` 路径）
+  2. **新开会话开始**（yolo handoff / 新会话携带 plan 路径）
+  3. **压缩当前上下文后开始**（compact-instructions 路径）
+  4. **打回**（用户补充信息，agent 修订 plan）
+- 按钮经 gateway 下发对应 CLI 动作（复用既有 slash/exitMode 路径，
+  不新造协议）。
+- **plan-ultra 识别**：`/plan-ultra` 产出为多个小 plan 组合的超长
+  plan（组合复制体）。web 审阅面须识别 ultra 产物（workflow 标记），
+  展示组合结构（子 plan 列表 → 合成大 plan），并提供与普通 plan
+  相同的四按钮。存量行为是否"做对了"随本项一并核验。
+- **todo 呈现**：执行期 `todo` 工具状态经 gateway 暴露（现有 SSE 流
+  扩展或复用 tracking sync_todo），web 显示执行进度并与 plan 步骤
+  对应（Tracking v2 §5 的 todo 绑定在此汇合）。
+
+## 3. Tracking v2（与 web-ui-modernization §5 合流）
+
+- todo 绑定、compaction 自动摘要钩子、Next API 升级、面板——按
+  web-ui-modernization §5 原设计执行。
+- 本轮补充：**三读者定位**写进 tracking 模板（人 / agent / 协作者）；
+  面板入口条件显示（§1）。
+
+## 4. team agent（crew 底座，方向已定）
+
+实现方向：**以 pi-messenger 的 crew 为底座**（3140 行 plan→work→review
+DAG/审批/自主模式已在 `plugins/official/pi-messenger/crew/`），不自研
+编排器。上游已同步 0.15.2。
+
+- **M0 基建**：plugin-system manifest v2 `pages` 契约 + gateway
+  `/api/plugin-assets` 静态资源路由（两者现不存在，前置中的前置）。
+- **M1 team 面**：`team_*` 工具做成 `pi_messenger` action API 的 Zeta
+  化薄封装（team_spawn/plan/dispatch/chat/status/cancel ↔
+  join/plan/work/send/status/cancel）；crew 配置对齐规格的
+  `teams/*.json` + `personas/*.md`（frontmatter `locked` 段）。
+- **场景二（人设群聊）**：persona 锁定段字节级重放、发言限速、
+  @提及路由——crew lobby/mesh 之上补 Zeta 语义。
+- **M2 Web 三页面**：成员名册 / 消息流 / 任务看板（M0 pages 路由 iframe）。
+- 远期学习项：dsh 的 **PTC 模式**（Code Mode SDK——模型写 TypeScript
+  程序组合多步工具调用）。Zeta 暂无对应物；列为 P3 探索。
+
+## 5. pi-messenger 上游同步（已完成 2026-09-20）
+
+- fork 基点 0.15.1 → 上游 0.15.2（唯一修复：crew workers 保留扩展
+  工具，去除 BUILTIN_TOOLS 白名单）；版本线 1.1.1 → 1.1.2。
+- 后续每次同步核对上游 tags（当前节奏：小步补丁版）。
+
+## 6. 编辑器三端矩阵与 `/api/open` 枢纽
+
+| 面 | 编辑器 | 状态 |
+| --- | --- | --- |
+| CLI / TUI | **ttt**（`ttt <file>[:line[:col]]`，OSC 8 已就绪）| `/api/open` 加探测即用 |
+| Web UI | **CodeMirror 6** Files/编辑器 tab | modernization 步骤 5 **提前为核心件** |
+| 桌面 | 同一 web-ui（CM6 自动可用）+ 可选 spawn ttt.exe | 跟随 Web |
+
+统一枢纽：所有路径点击走 `/api/open`。Web/桌面默认开**内置 CM6 tab**；
+外部编辑器（vscode/cursor/**ttt** 经 `zeta-editor` launcher）才 spawn。
+ttt 无法 web 化（Go 全屏 TUI）——CM6 就是 web/桌面的编辑器本体。
+
+CLI 侧联动：`EDITOR_CLIS` 加 ttt 探测（`ttt`/`zeta-editor` --version）、
+`'C:\Users\ETPau\.omp\agent\sessions\-Documents-GITHUB-zeta\2026-09-14T10-31-43-026Z_01a09f79-02b2-761a-81e5-21860e8de92d\local'` 路径解析绝对路径后包 OSC 8、桌面内置终端链接点击走 desktop
+open bridge 到 `/api/open editor:ttt`。
+
+**定位**：agent 是产品本体且兼容任何模型/agent；web-ui 是 workbench；
+desktop 是壳；编辑器 = ttt（终端）+ CM6（web/桌面）。
+
+## 7. 上游合并边界（战略红线）
+
+做了这轮，Zeta 在产品面上**分层独立**——不是整体脱离上游，而是三块
+**天然不在 sync 树**的产品面自走 + sync 树内最小 hook 纪律：
+
+### 7.1 天然独立面（零合并负担，放手做）
+
+- **web-ui/**：frozen 独立快照（omp-web 已不是 merge 源）。极简化、CM6、
+  plan 审阅面、tracking 面板全部在此——随便改。
+- **plugins/official/**：Zeta 自有目录（pi-messenger fork、agent-team），
+  上游无此结构。
+- **editor/**：vendored TTT Editor + npm 分发，自有目录。
+
+### 7.2 sync 树内的改动（唯一需要纪律的地方）
+
+| 改动 | 文件 | 冲突面 | 纪律 |
+| --- | --- | --- | --- |
+| gateway 新端点（plan 白名单读、files PUT、plugin-assets）| `server/web-gateway/` **新 handler 模块** | 极小（新增文件）| 一端点一文件，路由注册只在 `web-gateway.ts` 加一行 |
+| `/api/open` 编辑器表加 ttt | `open.ts` EDITOR_CLIS 加一行 | 一行 | 可接受 |
+| hashline truncation-notice JS fallback | `packages/tui`（已合）| 小（additive）| 上游改同文件时按"上游 wins + 重应用" |
+| worktree 预算测试双态断言 | test 契约 | 上游若改同测试 | 按合并契约规则逐文件 resolve |
+| tracking 条件入口数据源 | gateway settings 只读投影（如有）| 小 | 新文件优先 |
+
+**硬规则**：产品逻辑永不写进 sync 树既有模块深处；需要 sync 树配合时，
+以"新文件 + 既有文件一行注册"为上限。违反此条 = 合并债务。
+
+### 7.3 守护
+
+- merge-gate（增量合并规程）的**自有功能守护测试**扩容：plugin-assets
+  路由、`/api/open` ttt、plan 白名单端点各加一条，上游合并后跑绿才算
+  合并完成。
+- `document/merge-playbook.md` 冲突决策表补记：web-gateway 注册行、
+  open.ts、hashline fallback 为"Zeta surface 重应用"清单项。
+
+## 8. 实施顺序
+
+1. 侧边栏极简化（§1 裁决表 + dsh 行为迁移）——web-ui 单线
+2. **Files + CM6 编辑器**（modernization 步骤 5 提前——web/桌面编辑器地基）
+3. Plan 白名单端点 + 审阅面四按钮 + plan-ultra 识别（§2，建在 CM6 之上）
+4. Tracking 条件入口 + tracking v2 汇合（§3）
+5. team agent M0（pages + plugin-assets）→ M1（team_* 薄封装）→ 场景二 → M2（§4）
+6. `/api/open` ttt 探测 + `'C:\Users\ETPau\.omp\agent\sessions\-Documents-GITHUB-zeta\2026-09-14T10-31-43-026Z_01a09f79-02b2-761a-81e5-21860e8de92d\local'` OSC 8 链接化（§6，小活穿插）
+
+每步独立分支 + 绿 CI 后合并（feature-branch workflow）。
+
+
+## 附录 A — Web-UI 现代化细则（收编自 web-ui-modernization.md，2026-08-29 批准）
+
+> 以下为已批准设计的**未完成部分**细则（原 §0–§7）。步骤 1–2 已合并
+> （8ba6971d27 + feat/web-ui-sidebar）；§8 旧顺序作废，以本计划 §8 为准。
 
 ## 0. Decisions (locked with user)
 
@@ -200,36 +361,15 @@ update 流程（用我们 /api/update）。
   npm ci + build + tsc/lint 前置；无需 native_addons/bun-install）；
   顺带修 `check` job 重复两次的 collab:web:build 步骤。
 
-## 8. 实施顺序（10 个提交，每步绿 tsc+lint）
 
-1. 依赖 + Tailwind v4 CSS-first + token/typography + 图标 sprite（旧 UI 不破坏）✓ 已合并（8ba6971d27）
-2. 主题系统（JSON 预设 + 生成器 + Provider + 选择器；zeta-* 三主题移植；首开 dark）✓ 已合并（8ba6971d27）
-   · Sidebar 子集已先行落地（feat/web-ui-sidebar，2026-09-03）：头部红线执行、
-     radix 显示设置下拉（排序/分组/Recent 开关，localStorage 持久化）、搜索切换
-     （展开+计数+Esc）、整宽新会话行、项目折叠持久化（zeta-web:sidebar-collapsed-projects）
-3. ui 原语子集替换高频内联样式
-4. layout/ 三栏重构 + surface tabs + 计数圈 + ContextPanel/Rail（红线全保留）
-5. Git/Diff/Files 视图 + CM6 + PUT /api/files
-6. gateway PTY + TerminalView（软开关）+ 三契约测试
-7. Tracking v2（模板/sync_todo/compaction 钩子/Next API 升级/面板/默认值/docs）
-8. 命令面板 + 快捷键框架（Ctrl+K 面板、Ctrl+N 新会话、Ctrl+B 侧栏）
-9. SettingsWindow + appearance 组
-10. i18n 补全 + 文档 + 死代码清理
+## 9. 修订记录
 
-## 9. 验收
+- 2026-09-20: 初版（用户方向确认：极简哲学、crew 底座、条件显示、
+  plan 四按钮审阅面、plan-ultra web 识别）。
+- 2026-09-20: §6 编辑器三端矩阵与 `/api/open` 枢纽；§7 上游合并边界
+  （分层独立战略红线）；§8 实施顺序（CM6 提前）。收编
+  web-ui-modernization.md 剩余细则为附录 A；editor-integration-plan.md
+  已全部落地，按 planning discipline 删除。
 
-- 静态：web-ui tsc/lint；gateway bun check + PTY 三契约；
-  `web_ui_build` 三平台绿。
-- 功能冒烟（npm run dev + zeta serve 网关 30142）：会话/项目/worktree 分区、
-  聊天收发 SSE、折叠行为、Trajectory、Git/Diff、文件浏览编辑保存、终端、
-  Tracking 联动（todo 阶段 + compaction 自动摘要）、设置读写、主题/密度/
-  圆角即时切换、首开深色 zeta-dark、代码块换主题零重排、中英双语。
-- 视觉：主要页面 PNG 交 judge 评审通过后提 PR。
-
-## 10. 修订记录
-
-- 2026-08-29: 初版（从会话批准计划收拢全部细则；版本归属 v1.1.7）。
-- 2026-08-29: §5 增第 7 条 Plan 落盘路由——plan 默认留 userdata（`local://`
-  → 会话 artifacts 目录），tracking.enabled 时才镜像进
-  `<project>/.zeta/tracking/plans/`，不写仓库工作树。
-- 2026-09-03: §1 Sidebar 头部红线落地 + §8 步骤 1-2 合并标记（feat/web-ui-sidebar）。
+- 2026-09-20: 初版（用户方向确认：极简哲学、crew 底座、条件显示、
+  plan 四按钮审阅面、plan-ultra web 识别）。
