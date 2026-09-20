@@ -345,12 +345,16 @@ registerProvider<Skill>(skillCapability.id, {
 // provider is inert in contexts without the pack (npm global installs
 // before the bundled seed lands).
 const OFFICIAL_SKILLS_PRIORITY = 10;
-const OFFICIAL_SKILLS_DIR =
-	process.env.ZETA_OFFICIAL_SKILLS_DIR ?? path.join(import.meta.dir, "../../../../skills/official");
+// Resolved lazily per load so a test preload (or embedding host) can point the
+// pack at an empty path and make the provider a no-op for that process.
+function officialSkillsDir(): string {
+	return process.env.ZETA_OFFICIAL_SKILLS_DIR ?? path.join(import.meta.dir, "../../../../skills/official");
+}
 async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
-	if (!existsSync(OFFICIAL_SKILLS_DIR)) return { items: [] };
+	const dir = officialSkillsDir();
+	if (!existsSync(dir)) return { items: [] };
 	return scanSkillsFromDir(ctx, {
-		dir: OFFICIAL_SKILLS_DIR,
+		dir,
 		providerId: OFFICIAL_SKILLS_PROVIDER_ID,
 		level: "user",
 		requireDescription: true,

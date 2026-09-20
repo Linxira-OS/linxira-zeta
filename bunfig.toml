@@ -44,6 +44,7 @@ saveTextLockfile = true
 ".lark" = "text"
 
 [test]
+preload = ["./packages/coding-agent/test/helpers/isolate-official-skills.ts"]
 # bun test does NOT honor .gitignore; prune robomp's repo clones and
 # scratch dirs so a root-level `bun test` doesn't walk into them.
 pathIgnorePatterns = [

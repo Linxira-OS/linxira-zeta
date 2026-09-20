@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import "../src/discovery/builtin"; // registers all discovery providers (side effect)
 import path from "node:path";
 import { getProviderInfo, loadCapability } from "../src/capability";
 import { type Skill, skillCapability } from "../src/capability/skill";
@@ -10,6 +9,11 @@ import { type Skill, skillCapability } from "../src/capability/skill";
  * must discover the shipped docx/pptx skills. Upstream merges have silently
  * dropped Zeta-owned capability providers before (see builtin-registry.test).
  */
+// Opt this file back into the real pack before the provider module loads
+// (the global test preload points ZETA_OFFICIAL_SKILLS_DIR at a dead path).
+process.env.ZETA_OFFICIAL_SKILLS_DIR = path.resolve(import.meta.dir, "../../skills/official");
+await import("../src/discovery/builtin"); // registers all discovery providers (side effect)
+
 describe("official bundled skills provider", () => {
 	test("provider is registered with correct priority band", () => {
 		const info = getProviderInfo("zeta-official");
