@@ -1,0 +1,39 @@
+# Go build artifacts
+/bin/
+vendor/
+/pico
+/ttt
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Config (user-local, not shipped)
+.config/
+
+# Node / docs
+node_modules/
+docs-web/dist/
+
+# Editor files
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+*.log
+docs-web/.astro/
+chaos-output/
+
+# Nix
+result
+result-*
+
+# Local editor state and debug dumps
+.ttt-notepad.json
+screenshot.txt
+!npm/*/bin/*.exe

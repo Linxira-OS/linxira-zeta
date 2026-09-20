@@ -62,6 +62,10 @@ const TARGETS: Array<{
 	{ dir: "packages/natives", name: "@linxiraos/pi-natives" },
 	{ dir: "packages/omptype", name: "@linxiraos/pi-omptype" },
 	{ dir: "packages/wire", name: "@linxiraos/pi-wire" },
+	// editor（vendored TTT Editor）：版本线独立对齐产品（1.1.15），三包分发
+	{ dir: "editor/npm/editor-windows-x64", name: "@linxiraos/editor-windows-x64" },
+	{ dir: "editor/npm/editor-linux-x64", name: "@linxiraos/editor-linux-x64" },
+	{ dir: "editor/npm/editor", name: "@linxiraos/editor" },
 	// zeta-web（web-ui）与 pi-messenger 版本线独立（1.1.5 / 1.1.1），不随 RELEASE 走；
 	// 需要时 --only 单发（见头部说明）。
 	// { dir: "web-ui", name: "@linxiraos/zeta-web", build: true, align: true },

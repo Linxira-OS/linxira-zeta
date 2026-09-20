@@ -34,6 +34,11 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
   Workflow filename `.github/workflows/ci.yml`、Environment 留空。逐包清单 =
   `workspaces.catalog` 的 `@linxiraos/*` 13 个键 + 6 个 `pi-natives-<tag>` leaf +
   `zeta-web` / `pi-messenger`（独立线）。新 leaf 包出现时同步补 npm 配置。
+  editor（vendored TTT）三包 `@linxiraos/editor` /
+  `@linxiraos/editor-windows-x64` / `@linxiraos/editor-linux-x64`（1.1.16 起，
+  x64 linux/windows only，mac/ARM 无包）已配置并随 release tag 经
+  `release_editor_packages` job 发布（`ci-release-publish.ts --editor`）；版本
+  随 release 线由 `release-v2.ts` Step 2f bump。
 - The `check` job also runs the brand-residue guard
   (`bun scripts/brand/brand-check.ts`, see `document/merge-playbook.md`).
 

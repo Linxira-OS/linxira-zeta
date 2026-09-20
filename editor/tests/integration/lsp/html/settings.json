@@ -1,0 +1,10 @@
+{
+  "debugMode": true,
+  "lsp": {
+    "servers": {
+      "html": {
+        "command": ["vscode-html-language-server", "--stdio"]
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "debugMode": true,
+  "lsp": {
+    "servers": {
+      "c": {
+        "command": ["clangd"],
+        "languages": {
+          ".c": "c",
+          ".h": "c",
+          ".cpp": "cpp",
+          ".hpp": "cpp"
+        }
+      }
+    }
+  }
+}

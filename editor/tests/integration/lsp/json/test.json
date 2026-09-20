@@ -1,0 +1,6 @@
+{
+  "name": "test",
+  "version": "1.0.0",
+  "description": "A test file"
+  "items": [1, 2, 3]
+}

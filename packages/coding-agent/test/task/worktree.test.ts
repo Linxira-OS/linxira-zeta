@@ -124,7 +124,9 @@ describe("worktree isolation helpers", () => {
 		);
 		expect(error).toBeInstanceOf(IsolationBaselineTooLargeError);
 		expect((error as IsolationBaselineTooLargeError).budgetBytes).toBe(budget);
-		expect((error as IsolationBaselineTooLargeError).contentBytes).toBeUndefined();
+		// diffText truncates at the cap instead of raising, so the refusal now
+		// carries the measured byte total rather than `undefined`.
+		expect((error as IsolationBaselineTooLargeError).contentBytes).toBeGreaterThan(budget);
 		expect((error as Error).message).toContain("task.isolation.enabled: false");
 
 		const within = await captureBaseline(repo);
@@ -157,7 +159,7 @@ describe("worktree isolation helpers", () => {
 			(err: unknown) => err,
 		);
 		expect(error).toBeInstanceOf(IsolationBaselineTooLargeError);
-		expect((error as IsolationBaselineTooLargeError).contentBytes).toBeUndefined();
+		expect((error as IsolationBaselineTooLargeError).contentBytes).toBeGreaterThan(budget);
 		expect(unstaged).toContain("+unstaged line");
 	});
 

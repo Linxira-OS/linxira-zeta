@@ -1,0 +1,13 @@
+{
+  "debugMode": true,
+  "lsp": {
+    "servers": {
+      "svelte": {
+        "command": ["svelteserver", "--stdio"],
+        "languages": {
+          ".svelte": "svelte"
+        }
+      }
+    }
+  }
+}

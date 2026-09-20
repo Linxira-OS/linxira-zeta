@@ -1,0 +1,6 @@
+{
+  "waitFor": "version",
+  "diagnostic": "lsp diagnostics.*count=[1-9]",
+  "hover": null,
+  "completion": null
+}

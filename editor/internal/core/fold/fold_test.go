@@ -1,0 +1,276 @@
+package fold
+
+import (
+	"reflect"
+	"testing"
+)
+
+func TestSetRanges(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{
+		{StartLine: 5, EndLine: 10},
+		{StartLine: 1, EndLine: 3},
+	})
+	// Verify ranges are sorted by checking folds at expected lines
+	if r := s.FoldAt(1); r == nil || r.EndLine != 3 {
+		t.Error("expected fold at line 1 with EndLine 3")
+	}
+	if r := s.FoldAt(5); r == nil || r.EndLine != 10 {
+		t.Error("expected fold at line 5 with EndLine 10")
+	}
+}
+
+func TestToggle(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 5}})
+
+	s.Toggle(2)
+	if !s.IsCollapsed(2) {
+		t.Error("expected collapsed after toggle")
+	}
+
+	s.Toggle(2)
+	if s.IsCollapsed(2) {
+		t.Error("expected expanded after second toggle")
+	}
+}
+
+func TestToggleNonFoldLine(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 5}})
+	s.Toggle(7)
+	if s.HasCollapsedFolds() {
+		t.Error("toggling non-fold line should be no-op")
+	}
+}
+
+func TestToggleInsideFold(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 5}})
+	s.Toggle(2)
+
+	s.Toggle(4)
+	if s.IsCollapsed(2) {
+		t.Error("toggling inside collapsed fold should expand it")
+	}
+}
+
+func TestCollapseAll(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{
+		{StartLine: 1, EndLine: 3},
+		{StartLine: 5, EndLine: 8},
+	})
+	s.CollapseAll()
+	if !s.IsCollapsed(1) || !s.IsCollapsed(5) {
+		t.Error("expected all ranges collapsed")
+	}
+}
+
+func TestExpandAll(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{
+		{StartLine: 1, EndLine: 3},
+		{StartLine: 5, EndLine: 8},
+	})
+	s.CollapseAll()
+	s.ExpandAll()
+	if s.HasCollapsedFolds() {
+		t.Error("expected no collapsed folds after ExpandAll")
+	}
+}
+
+func TestNestedRanges(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{
+		{StartLine: 0, EndLine: 9},
+		{StartLine: 2, EndLine: 4},
+	})
+	s.Toggle(0)
+
+	vis := s.VisibleLines(10)
+	if len(vis) != 1 {
+		t.Errorf("expected 1 visible line (outer fold collapsed), got %d: %v", len(vis), vis)
+	}
+	if vis[0] != 0 {
+		t.Errorf("expected line 0 visible, got %v", vis)
+	}
+}
+
+func TestVisibleLines_NoFolds(t *testing.T) {
+	s := NewState()
+	vis := s.VisibleLines(5)
+	expected := []int{0, 1, 2, 3, 4}
+	if !reflect.DeepEqual(vis, expected) {
+		t.Errorf("expected %v, got %v", expected, vis)
+	}
+}
+
+func TestVisibleLines_OneFold(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 4}})
+	s.Toggle(2)
+
+	vis := s.VisibleLines(7)
+	expected := []int{0, 1, 2, 5, 6}
+	if !reflect.DeepEqual(vis, expected) {
+		t.Errorf("expected %v, got %v", expected, vis)
+	}
+}
+
+func TestVisibleLines_FoldStartVisible(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 4}})
+	s.Toggle(2)
+
+	vis := s.VisibleLines(7)
+	found := false
+	for _, v := range vis {
+		if v == 2 {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("fold start line should always be visible")
+	}
+}
+
+func TestVisibleLines_MultipleFolds(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{
+		{StartLine: 1, EndLine: 2},
+		{StartLine: 5, EndLine: 7},
+	})
+	s.CollapseAll()
+
+	vis := s.VisibleLines(10)
+	expected := []int{0, 1, 3, 4, 5, 8, 9}
+	if !reflect.DeepEqual(vis, expected) {
+		t.Errorf("expected %v, got %v", expected, vis)
+	}
+}
+
+func TestVisibleLines_NestedFolds(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{
+		{StartLine: 1, EndLine: 8},
+		{StartLine: 3, EndLine: 5},
+	})
+	s.Toggle(1)
+
+	vis := s.VisibleLines(10)
+	expected := []int{0, 1, 9}
+	if !reflect.DeepEqual(vis, expected) {
+		t.Errorf("expected %v, got %v", expected, vis)
+	}
+}
+
+func TestBufferToVisible(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 4}})
+	s.Toggle(2)
+	s.VisibleLines(7)
+
+	if v := s.BufferToVisible(0); v != 0 {
+		t.Errorf("expected 0, got %d", v)
+	}
+	if v := s.BufferToVisible(2); v != 2 {
+		t.Errorf("expected 2, got %d", v)
+	}
+	if v := s.BufferToVisible(3); v != -1 {
+		t.Errorf("expected -1 (hidden), got %d", v)
+	}
+	if v := s.BufferToVisible(5); v != 3 {
+		t.Errorf("expected 3, got %d", v)
+	}
+}
+
+func TestVisibleToBuffer(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 4}})
+	s.Toggle(2)
+	s.VisibleLines(7)
+
+	if b := s.VisibleToBuffer(0); b != 0 {
+		t.Errorf("expected 0, got %d", b)
+	}
+	if b := s.VisibleToBuffer(2); b != 2 {
+		t.Errorf("expected 2, got %d", b)
+	}
+	if b := s.VisibleToBuffer(3); b != 5 {
+		t.Errorf("expected 5, got %d", b)
+	}
+}
+
+func TestHiddenCount(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 4}})
+	s.Toggle(2)
+
+	total := 7
+	hidden := total - s.VisibleLineCount(total)
+	if hidden != 2 {
+		t.Errorf("expected 2 hidden lines, got %d", hidden)
+	}
+}
+
+func TestSetRangesPreservesCollapsed(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 5}})
+	s.Toggle(2)
+
+	s.SetRanges([]Range{
+		{StartLine: 2, EndLine: 5},
+		{StartLine: 7, EndLine: 9},
+	})
+	if !s.IsCollapsed(2) {
+		t.Error("expected collapse state preserved for existing range")
+	}
+	if s.IsCollapsed(7) {
+		t.Error("new range should not be collapsed")
+	}
+}
+
+func TestFoldAt(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 3, EndLine: 6}})
+
+	if r := s.FoldAt(3); r == nil || r.StartLine != 3 {
+		t.Error("expected fold at line 3")
+	}
+	if r := s.FoldAt(4); r != nil {
+		t.Error("expected no fold at line 4")
+	}
+}
+
+func TestContainingFold(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 5}})
+	s.Toggle(2)
+
+	if r := s.ContainingFold(3); r == nil || r.StartLine != 2 {
+		t.Error("line 3 should be inside fold starting at 2")
+	}
+	if r := s.ContainingFold(2); r != nil {
+		t.Error("fold start line should not be 'contained'")
+	}
+	if r := s.ContainingFold(6); r != nil {
+		t.Error("line 6 is outside the fold")
+	}
+}
+
+func TestIsLineHidden(t *testing.T) {
+	s := NewState()
+	s.SetRanges([]Range{{StartLine: 2, EndLine: 5}})
+	s.Toggle(2)
+
+	if s.IsLineHidden(2) {
+		t.Error("fold start line should not be hidden")
+	}
+	if !s.IsLineHidden(3) {
+		t.Error("line 3 should be hidden")
+	}
+	if s.IsLineHidden(6) {
+		t.Error("line 6 should not be hidden")
+	}
+}

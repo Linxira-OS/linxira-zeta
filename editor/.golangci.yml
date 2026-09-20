@@ -1,0 +1,17 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    # TODO: enable after fixing violations
+    # - errcheck     # https://github.com/eugenioenko/ttt/issues/505
+    - staticcheck
+    - ineffassign
+    - unused
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-QF*"
+        - "-ST*"

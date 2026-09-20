@@ -1,0 +1,142 @@
+{
+  "default": {
+    "fg": "#333333",
+    "bg": "#ffffff"
+  },
+  "success": {
+    "fg": "#1b7a2a"
+  },
+  "danger": {
+    "fg": "#c72a2a"
+  },
+  "warning": {
+    "fg": "#9e6a03"
+  },
+  "border": {
+    "fg": "#c0c0c0"
+  },
+  "statusBar": {},
+  "tabs": {
+    "active": {
+      "fg": "#111111",
+      "bold": true
+    },
+    "inactive": {
+      "fg": "#999999"
+    }
+  },
+  "sidebar": {
+    "header": {
+      "fg": "#111111",
+      "bold": true
+    },
+    "item": {},
+    "selected": {
+      "fg": "#111111",
+      "bg": "#e8e8e8"
+    }
+  },
+  "dialog": {
+    "input": {},
+    "item": {},
+    "selected": {
+      "fg": "#111111",
+      "bg": "#e8e8e8"
+    },
+    "muted": {
+      "fg": "#999999"
+    }
+  },
+  "editor": {
+    "lineNumber": {
+      "fg": "#999999"
+    },
+    "activeLine": {
+      "bg": "#f5f5f5"
+    },
+    "selection": {
+      "bg": "#c8ddf5"
+    },
+    "searchMatch": {
+      "bg": "#ffdd00",
+      "fg": "#333333"
+    },
+    "searchActive": {
+      "bg": "#ff9500",
+      "fg": "#ffffff"
+    }
+  },
+  "menu": {
+    "item": {},
+    "active": {
+      "fg": "#111111",
+      "bg": "#e0e0e0",
+      "bold": true
+    }
+  },
+  "diff": {
+    "added": {
+      "bg": "#e8f5e8"
+    },
+    "deleted": {
+      "bg": "#f5e8e8"
+    },
+    "modified": {
+      "bg": "#f5f5e8"
+    }
+  },
+  "scrollbar": {
+    "fg": "#c0c0c0",
+    "bg": "#f0f0f0"
+  },
+  "syntax": {
+    "comment": {
+      "fg": "#8a8a8a"
+    },
+    "string": {
+      "fg": "#a31515"
+    },
+    "keyword": {
+      "fg": "#0000ff"
+    },
+    "number": {
+      "fg": "#098658"
+    },
+    "operator": {
+      "fg": "#333333"
+    },
+    "function": {
+      "fg": "#795e26"
+    },
+    "type": {
+      "fg": "#267f99"
+    },
+    "builtin": {
+      "fg": "#267f99"
+    },
+    "variable": {
+      "fg": "#001080"
+    },
+    "punctuation": {
+      "fg": "#333333"
+    },
+    "tag": {
+      "fg": "#800000"
+    },
+    "attribute": {
+      "fg": "#e50000"
+    }
+  },
+  "borders": {
+    "horizontal": "─",
+    "vertical": "│",
+    "topLeft": "┌",
+    "topRight": "┐",
+    "bottomLeft": "└",
+    "bottomRight": "┘",
+    "topTee": "┬",
+    "bottomTee": "┴",
+    "leftTee": "├",
+    "rightTee": "┤"
+  }
+}
