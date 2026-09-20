@@ -31,6 +31,8 @@ describe("official bundled skills provider", () => {
 		const names = result.items.map(s => s.name);
 		expect(names).toContain("docx");
 		expect(names).toContain("pptx");
+		expect(names).toContain("xlsx");
+		expect(names).toContain("pdf");
 		const docx = result.items.find(s => s.name === "docx");
 		expect(docx?.frontmatter?.description).toContain("Word");
 	});
