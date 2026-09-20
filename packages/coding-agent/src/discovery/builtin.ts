@@ -3,10 +3,14 @@
  *
  * Primary provider for OMP native configs. Supports all capabilities.
  */
+import { existsSync } from "node:fs";
 import * as path from "node:path";
 import { getAgentDir, logger, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { getManagedSkillsDir, MANAGED_SKILLS_PROVIDER_ID } from "../autolearn/managed-skills";
+
+const OFFICIAL_SKILLS_PROVIDER_ID = "zeta-official";
+
 import { registerProvider } from "../capability";
 import { type ContextFile, contextFileCapability } from "../capability/context-file";
 import { type Extension, type ExtensionManifest, extensionCapability } from "../capability/extension";
@@ -334,6 +338,33 @@ registerProvider<Skill>(skillCapability.id, {
 	description: "Auto-generated managed skills from ~/.zeta/agent/managed-skills",
 	priority: MANAGED_SKILLS_PRIORITY,
 	load: loadManagedSkills,
+});
+
+// Official bundled skills (`skills/official/` in the repo, packaged with
+// releases). Priority sits between authored (100) and managed (5): an
+// authored skill of the same name from any provider still wins, but the
+// official pack beats auto-learn noise. A missing dir is a no-op so the
+// provider is inert in contexts without the pack (npm global installs
+// before the bundled seed lands).
+const OFFICIAL_SKILLS_PRIORITY = 10;
+const OFFICIAL_SKILLS_DIR =
+	process.env.ZETA_OFFICIAL_SKILLS_DIR ?? path.join(import.meta.dir, "../../../../skills/official");
+async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
+	if (!existsSync(OFFICIAL_SKILLS_DIR)) return { items: [] };
+	return scanSkillsFromDir(ctx, {
+		dir: OFFICIAL_SKILLS_DIR,
+		providerId: OFFICIAL_SKILLS_PROVIDER_ID,
+		level: "user",
+		requireDescription: true,
+	});
+}
+
+registerProvider<Skill>(skillCapability.id, {
+	id: OFFICIAL_SKILLS_PROVIDER_ID,
+	displayName: "Official Skills (bundled)",
+	description: "First-party task skills shipped with Zeta (skills/official)",
+	priority: OFFICIAL_SKILLS_PRIORITY,
+	load: loadOfficialSkills,
 });
 
 // Slash Commands
