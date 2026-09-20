@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import "../src/discovery/builtin"; // registers all discovery providers (side effect)
 import path from "node:path";
 import { getProviderInfo, loadCapability } from "../src/capability";
-import { skillCapability } from "../src/capability/skill";
+import { type Skill, skillCapability } from "../src/capability/skill";
 
 /**
  * Merge guard: the official bundled skills provider (skills/official/) must
