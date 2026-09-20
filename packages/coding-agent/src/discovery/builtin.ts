@@ -3,6 +3,7 @@
  *
  * Primary provider for OMP native configs. Supports all capabilities.
  */
+import { existsSync } from "node:fs";
 import * as path from "node:path";
 import { getAgentDir, logger, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
@@ -23,6 +24,7 @@ import { type SlashCommand, slashCommandCapability } from "../capability/slash-c
 import { type SystemPrompt, systemPromptCapability } from "../capability/system-prompt";
 import { type CustomTool, toolCapability } from "../capability/tool";
 import type { LoadContext, LoadResult } from "../capability/types";
+import { OFFICIAL_SKILLS_PROVIDER_ID } from "../extensibility/skills";
 import { expandTilde } from "../tools/path-utils";
 import {
 	createSourceMeta,
@@ -334,6 +336,37 @@ registerProvider<Skill>(skillCapability.id, {
 	description: "Auto-generated managed skills from ~/.zeta/agent/managed-skills",
 	priority: MANAGED_SKILLS_PRIORITY,
 	load: loadManagedSkills,
+});
+
+// Official bundled skills (`skills/official/` in the repo, packaged with
+// releases). Priority sits between authored (100) and managed (5): an
+// authored skill of the same name from any provider still wins, but the
+// official pack beats auto-learn noise. A missing dir is a no-op so the
+// provider is inert in contexts without the pack (npm global installs
+// before the bundled seed lands).
+const OFFICIAL_SKILLS_PRIORITY = 10;
+// Resolved lazily per load so a test preload (or embedding host) can point the
+// pack at an empty path and make the provider a no-op for that process.
+function officialSkillsDir(): string {
+	return process.env.ZETA_OFFICIAL_SKILLS_DIR ?? path.join(import.meta.dir, "../../../../skills/official");
+}
+async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
+	const dir = officialSkillsDir();
+	if (!existsSync(dir)) return { items: [] };
+	return scanSkillsFromDir(ctx, {
+		dir,
+		providerId: OFFICIAL_SKILLS_PROVIDER_ID,
+		level: "user",
+		requireDescription: true,
+	});
+}
+
+registerProvider<Skill>(skillCapability.id, {
+	id: OFFICIAL_SKILLS_PROVIDER_ID,
+	displayName: "Official Skills (bundled)",
+	description: "First-party task skills shipped with Zeta (skills/official)",
+	priority: OFFICIAL_SKILLS_PRIORITY,
+	load: loadOfficialSkills,
 });
 
 // Slash Commands
