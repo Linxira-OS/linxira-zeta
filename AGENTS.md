@@ -219,7 +219,7 @@ that leaves an implementer choice open has failed; padding sections
   written under the userdata root (`local://` resolves to the session
   artifacts dir under `~/.zeta`), never into the repository working tree.
   With Tracking enabled, the tracking layer mirrors the durable plan into
-  `<project>/.zeta/tracking/` (`document/web-ui-modernization.md` §5) — the
+  `<project>/.zeta/tracking/` (`document/simplify-and-plan-surface.md` 附录 A §5) — the
   only project-local copy.
 - **Prune completed plans.** Once a plan's work has landed, its document is
   deleted; durable outcomes are encoded in AGENTS.md registries and the
