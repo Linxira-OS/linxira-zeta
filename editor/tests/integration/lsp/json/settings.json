@@ -1,0 +1,14 @@
+{
+  "debugMode": true,
+  "lsp": {
+    "servers": {
+      "json": {
+        "command": ["vscode-json-language-server", "--stdio"],
+        "languages": {
+          ".json": "json",
+          ".jsonc": "jsonc"
+        }
+      }
+    }
+  }
+}

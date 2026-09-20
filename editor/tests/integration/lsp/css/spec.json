@@ -1,0 +1,13 @@
+{
+  "waitFor": "font-size",
+  "diagnostic": "lsp diagnostics.*count=[1-9]",
+  "hover": {
+    "goto": "2:2",
+    "log": "lsp hover response.*length=[1-9]"
+  },
+  "completion": {
+    "goto": "9:0",
+    "type": "\n  back",
+    "log": "lsp completion response.*count=[1-9]"
+  }
+}

@@ -1,0 +1,10 @@
+body {
+  color: red;
+  font-size: 16px;
+  unknown-property: value;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+}

@@ -1,0 +1,45 @@
+# CodeRabbit configuration — https://docs.coderabbit.ai/reference/configuration
+language: en-US
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!bin/**"
+    - "!node_modules/**"
+    - "!docs-web/node_modules/**"
+    - "!docs-web/dist/**"
+    - "!chaos-output/**"
+    - "!go.sum"
+    - "!flake.lock"
+    - "!config/keybindings.json"
+  path_instructions:
+    - path: "internal/core/**"
+      instructions: >
+        This is the domain zone. New domain APIs must not introduce tcell,
+        term, view, render, widget, UI, process, or application-lifecycle
+        dependencies. core/highlight currently returning term.Style is a known
+        frozen boundary violation tracked by the architecture convergence plan;
+        flag any expansion of that dependency, but do not describe the existing
+        import as a newly introduced defect.
+    - path: "**/*_test.go"
+      instructions: >
+        Require the smallest deterministic test boundary that proves the
+        intended invariant. Ask for broader E2E, functional, live-PTY, or real
+        LSP coverage only when it establishes a distinct boundary; do not
+        require the same assertion at every test level.
+    - path: "ARCHITECTURE.md"
+      instructions: >
+        Verify package, dependency, baseline, and test-boundary claims against
+        current repository evidence. Require exact reproducible commands for
+        measured baselines and distinguish accepted boundary decisions from
+        known violations scheduled for cleanup.
+
+chat:
+  auto_reply: true
