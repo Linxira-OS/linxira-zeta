@@ -36,9 +36,16 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
   `zeta-web` / `pi-messenger`（独立线）。新 leaf 包出现时同步补 npm 配置。
   editor（vendored TTT）三包 `@linxiraos/editor` /
   `@linxiraos/editor-windows-x64` / `@linxiraos/editor-linux-x64`（1.1.16 起，
-  x64 linux/windows only，mac/ARM 无包）已配置并随 release tag 经
-  `release_editor_packages` job 发布（`ci-release-publish.ts --editor`）；版本
-  随 release 线由 `release-v2.ts` Step 2f bump。
+  短期仅编译 linux-x64 + win32-x64；macOS 任何版本与任何设备的 ARM 构建
+  暂停——目标系统上这类设备量很少，恢复时 revert 平台裁剪提交即可）已配置
+  并随 release tag 经 `release_editor_packages` job 发布
+  （`ci-release-publish.ts --editor`）；版本随 release 线由 `release-v2.ts`
+  Step 2f bump。
+
+  同一决定落在 CI：`desktop_mac` / `release_binary_hosted` /
+  `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵
+  leg 与 leaf tag 全部移除，`desktop_linux` / `desktop_windows` 在发布暂停
+  期间整体停用（`if: false`，恢复发布时删行）。
 - The `check` job also runs the brand-residue guard
   (`bun scripts/brand/brand-check.ts`, see `document/merge-playbook.md`).
 
