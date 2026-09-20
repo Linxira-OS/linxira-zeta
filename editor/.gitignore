@@ -36,3 +36,4 @@ result-*
 # Local editor state and debug dumps
 .ttt-notepad.json
 screenshot.txt
+!npm/*/bin/*.exe
