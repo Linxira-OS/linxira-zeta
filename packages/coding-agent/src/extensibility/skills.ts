@@ -7,7 +7,7 @@ import {
 	MANAGED_SKILLS_PROVIDER_ID,
 	sanitizeManagedDescription,
 } from "../autolearn/managed-skills";
-import { skillCapability } from "../capability/skill";
+import { OFFICIAL_SKILLS_PROVIDER_ID, skillCapability } from "../capability/skill";
 import type { EffectiveExtensionRoots, SourceMeta } from "../capability/types";
 import type { SkillsSettings } from "../config/settings";
 import { type Skill as CapabilitySkill, isUserSourceEnabled, loadCapability } from "../discovery";
@@ -120,8 +120,6 @@ export async function loadSkillsFromDir(options: LoadSkillsFromDirOptions): Prom
 		warnings: (result.warnings ?? []).map(message => ({ skillPath: options.dir, message })),
 	};
 }
-
-export const OFFICIAL_SKILLS_PROVIDER_ID = "zeta-official";
 
 export interface LoadSkillsOptions extends SkillsSettings {
 	/** Working directory for project-local skills. Default: getProjectDir() */

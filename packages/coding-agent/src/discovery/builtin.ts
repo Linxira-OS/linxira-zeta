@@ -20,12 +20,12 @@ import { type MCPServer, mcpCapability } from "../capability/mcp";
 import { type Prompt, promptCapability } from "../capability/prompt";
 import { type Rule, ruleCapability } from "../capability/rule";
 import { type Settings, settingsCapability } from "../capability/settings";
-import { type Skill, skillCapability } from "../capability/skill";
+import { OFFICIAL_SKILLS_PROVIDER_ID, type Skill, skillCapability } from "../capability/skill";
 import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { type SystemPrompt, systemPromptCapability } from "../capability/system-prompt";
 import { type CustomTool, toolCapability } from "../capability/tool";
 import type { LoadContext, LoadResult } from "../capability/types";
-import { OFFICIAL_SKILLS_PROVIDER_ID } from "../extensibility/skills";
+
 import { expandTilde } from "../tools/path-utils";
 import {
 	createSourceMeta,
