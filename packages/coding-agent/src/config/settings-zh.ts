@@ -50,6 +50,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Notifications: "通知",
 	Speech: "语音",
 	Collab: "协作",
+	Stream: "直播流",
 	"Magic Keywords": "魔法关键词",
 	"Startup & Updates": "启动与更新",
 	"Power (macOS)": "电源（macOS）",
