@@ -1,0 +1,28 @@
+# One-shot patch: attach the v1.1.16 desktop installers (already built as
+# artifacts of run 35518816072) to the existing GitHub release. Delete this
+# file after the run succeeds.
+name: patch-release-desktop
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  patch:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Attach desktop installers to v1.1.16
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 35518816072 -n zeta-desktop-win -D win -R "${{ github.repository }}"
+          gh run download 35518816072 -n zeta-desktop-linux -D linux -R "${{ github.repository }}"
+          find win linux -type f -print
+          gh release upload v1.1.16 \
+            $(find win linux -type f | tr '\n' ' ') \
+            --clobber -R "${{ github.repository }}"
+          gh release view v1.1.16 -R "${{ github.repository }}" --json assets \
+            --jq '"assets=\(.assets | length): " + ([.assets[].name] | join(", "))'
