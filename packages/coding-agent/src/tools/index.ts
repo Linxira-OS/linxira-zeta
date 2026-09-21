@@ -1,15 +1,17 @@
 import type { AgentOptions, AgentTelemetryConfig, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
-import type { EditStore } from "@linxiraos/pi-natives";
 import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@linxiraos/pi-ai";
+import type { EditStore } from "@linxiraos/pi-natives";
+import type { StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
+import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { logger } from "@linxiraos/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { ImControlParams, ImControlResult } from "../channels/im-control";
-import type { EvalPreludeDefinition } from "../eval/preludes";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
+import type { EvalPreludeDefinition } from "../eval/preludes";
 import { checkPythonKernelAvailability } from "../eval/py/kernel";
 import type { ToolPathWithSource } from "../extensibility/custom-tools";
 import type { PreparedExtension } from "../extensibility/extensions/types";
@@ -34,7 +36,6 @@ import type { ToolChoiceQueue } from "../session/tool-choice-queue";
 import { TaskTool } from "../task";
 import type { AgentOutputManager } from "../task/output-manager";
 import { type AgentDefinition, canSpawnAtDepth } from "../task/types";
-import { type StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { EventBus } from "../utils/event-bus";
 import { WebSearchTool } from "../web/search";
@@ -65,8 +66,8 @@ import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
 import type { PlanProposalHandler } from "./resolve";
 import { SecurityScanTool } from "./security-scan";
+import { SshExecTool } from "./ssh-exec";
 import { supportsExternalThinking, ThinkTool } from "./think";
-import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { TodoTool } from "./todo";
 import { TrackingTool } from "./tracking";
 import { WorkspaceRunTool } from "./workspace-run";
@@ -74,22 +75,42 @@ import { WriteTool } from "./write";
 import { isMountableUnderXdev, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
 
+export type {
+	BashRenderArgs,
+	BashRenderContext,
+	BashToolDetails,
+	ShellRendererConfig,
+} from "@linxiraos/pi-tui/tools/bash";
+export type {
+	AgentActivitySnapshot,
+	CancelOutcome,
+	CancelStatus,
+	CoordinationDetails,
+	HubDetails,
+	HubListStatus,
+	HubOp,
+	HubPeerInfo,
+	HubRenderArgs,
+	HubRosterCounts,
+	JobSnapshot,
+} from "@linxiraos/pi-tui/tools/hub";
+export * from "@linxiraos/pi-tui/tools/streaming-output";
+export type {
+	FindingDetails,
+	FindingPriority,
+	FindingPriorityInfo,
+	SubmitReviewDetails,
+} from "@linxiraos/pi-tui/tools/task";
+export type { VibeToolDetails } from "@linxiraos/pi-tui/tools/vibe";
 export * from "../edit";
 export * from "../goals";
 export * from "../lsp";
-export * from "@linxiraos/pi-tui/tools/streaming-output";
 export * from "../task";
 export * from "../web/search";
 export * from "./ask";
 export * from "./ast-edit";
 export * from "./ast-grep";
 export * from "./bash";
-export type {
-	BashToolDetails,
-	BashRenderArgs,
-	BashRenderContext,
-	ShellRendererConfig,
-} from "@linxiraos/pi-tui/tools/bash";
 export * from "./browser";
 export * from "./checkpoint";
 export * from "./computer";
@@ -104,19 +125,6 @@ export * from "./gh";
 export * from "./glob";
 export * from "./grep";
 export * from "./hub";
-export type {
-	HubOp,
-	HubPeerInfo,
-	HubListStatus,
-	HubRosterCounts,
-	JobSnapshot,
-	CancelStatus,
-	CancelOutcome,
-	AgentActivitySnapshot,
-	CoordinationDetails,
-	HubDetails,
-	HubRenderArgs,
-} from "@linxiraos/pi-tui/tools/hub";
 export * from "./image-gen";
 export * from "./learn";
 export * from "./manage-skill";
@@ -127,18 +135,11 @@ export * from "./memory-retain";
 export * from "./read";
 export * from "./report-tool-issue";
 export * from "./resolve";
-export type {
-	FindingPriority,
-	FindingPriorityInfo,
-	FindingDetails,
-	SubmitReviewDetails,
-} from "@linxiraos/pi-tui/tools/task";
 export * from "./security-scan";
 export * from "./think";
 export * from "./todo";
 export * from "./tts";
 export * from "./vibe";
-export type { VibeToolDetails } from "@linxiraos/pi-tui/tools/vibe";
 export * from "./write";
 export * from "./xdev";
 export * from "./yield";
@@ -528,6 +529,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 		if (!session.imControl) return null; // CLI mode
 		return new ImControlTool(session);
 	},
+	ssh_exec: session => new SshExecTool(session),
 	read: s => new ReadTool(s),
 	security_scan: s => new SecurityScanTool(s),
 	bash: s => new BashTool(s),
@@ -891,21 +893,21 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 
 export type { AskToolDetails, QuestionResult } from "@linxiraos/pi-tui/tools/ask";
 export type {
-	TodoStatus,
-	TodoOperation,
-	TodoItem,
-	TodoPhase,
-	TodoCompletionTransition,
-	TodoToolDetails,
-	CollapsedTodoSelection,
-} from "@linxiraos/pi-tui/tools/todo";
-export type { ThinkRenderArgs } from "@linxiraos/pi-tui/tools/think";
-export type { ResolutionDeviceName, ResolveDetails } from "@linxiraos/pi-tui/tools/resolve";
-export type {
-	GhToolDetails,
 	GhPrCheckoutSummary,
+	GhRunWatchFailedLogDetails,
 	GhRunWatchJobDetails,
 	GhRunWatchRunDetails,
-	GhRunWatchFailedLogDetails,
 	GhRunWatchViewDetails,
+	GhToolDetails,
 } from "@linxiraos/pi-tui/tools/github";
+export type { ResolutionDeviceName, ResolveDetails } from "@linxiraos/pi-tui/tools/resolve";
+export type { ThinkRenderArgs } from "@linxiraos/pi-tui/tools/think";
+export type {
+	CollapsedTodoSelection,
+	TodoCompletionTransition,
+	TodoItem,
+	TodoOperation,
+	TodoPhase,
+	TodoStatus,
+	TodoToolDetails,
+} from "@linxiraos/pi-tui/tools/todo";
