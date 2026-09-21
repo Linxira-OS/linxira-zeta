@@ -1,5 +1,7 @@
 import { TERMINAL } from "@linxiraos/pi-tui";
 import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "@linxiraos/pi-tui/overlays/settings-defs";
+import { currentLanguage } from "../i18n";
+import { localizeSettingUi } from "./settings-zh";
 import {
 	normalizeProviderMaxInFlightRequests,
 	Settings,
@@ -93,6 +95,7 @@ const CONDITIONS: Record<string, () => boolean> = {
 
 /** Adapt the application schema and settings store to the terminal overlay. */
 export function createSettingsHost(): SettingsHost {
+	const zh = currentLanguage() === "zh";
 	const entries: SettingsDisplayEntry[] = [];
 	for (const tab of SETTING_TABS) {
 		for (const path of getPathsForTab(tab)) {
@@ -101,7 +104,7 @@ export function createSettingsHost(): SettingsHost {
 				path,
 				type: getType(path),
 				defaultValue: getDefault(path),
-				ui,
+				ui: ui && zh ? localizeSettingUi(path, ui) : ui,
 				enumValues: getEnumValues(path),
 				credential: isCredential(path),
 				condition: ui?.condition ? CONDITIONS[ui.condition] : undefined,

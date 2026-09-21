@@ -1,4 +1,5 @@
 /** Schema-independent display definitions for the settings overlay. */
+import { tuiText } from "../i18n";
 import type { SymbolKey } from "../theme/symbols";
 
 export type SettingTab =
@@ -32,16 +33,66 @@ export const SETTING_TABS: SettingTab[] = [
 
 /** Tab display metadata - icon is a symbol key from theme.ts (tab.*) */
 export const TAB_METADATA: Record<SettingTab, TabMetadata> = {
-	appearance: { label: "Appearance", icon: "tab.appearance" },
-	model: { label: "Model", icon: "tab.model" },
-	interaction: { label: "Interaction", icon: "tab.interaction" },
-	context: { label: "Context", icon: "tab.context" },
-	memory: { label: "Memory", icon: "tab.memory" },
-	files: { label: "Files", icon: "tab.files" },
-	shell: { label: "Shell", icon: "tab.shell" },
-	tools: { label: "Tools", icon: "tab.tools" },
-	tasks: { label: "Tasks", icon: "tab.tasks" },
-	providers: { label: "Providers", icon: "tab.providers" },
+	appearance: {
+		get label() {
+			return tuiText("ssTabAppearance", "Appearance");
+		},
+		icon: "tab.appearance",
+	},
+	model: {
+		get label() {
+			return tuiText("ssTabModel", "Model");
+		},
+		icon: "tab.model",
+	},
+	interaction: {
+		get label() {
+			return tuiText("ssTabInteraction", "Interaction");
+		},
+		icon: "tab.interaction",
+	},
+	context: {
+		get label() {
+			return tuiText("ssTabContext", "Context");
+		},
+		icon: "tab.context",
+	},
+	memory: {
+		get label() {
+			return tuiText("ssTabMemory", "Memory");
+		},
+		icon: "tab.memory",
+	},
+	files: {
+		get label() {
+			return tuiText("ssTabFiles", "Files");
+		},
+		icon: "tab.files",
+	},
+	shell: {
+		get label() {
+			return tuiText("ssTabShell", "Shell");
+		},
+		icon: "tab.shell",
+	},
+	tools: {
+		get label() {
+			return tuiText("ssTabTools", "Tools");
+		},
+		icon: "tab.tools",
+	},
+	tasks: {
+		get label() {
+			return tuiText("ssTabTasks", "Tasks");
+		},
+		icon: "tab.tasks",
+	},
+	providers: {
+		get label() {
+			return tuiText("ssTabProviders", "Providers");
+		},
+		icon: "tab.providers",
+	},
 };
 
 /**

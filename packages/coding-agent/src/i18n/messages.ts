@@ -1197,6 +1197,16 @@ export interface Messages {
 	ssLimitFmt: string; // Limit: %s
 	ssOn: string; // Boolean value display: on
 	ssOff: string; // Boolean value display: off
+	ssTabAppearance: string; // Appearance tab label
+	ssTabModel: string; // Model tab label
+	ssTabInteraction: string; // Interaction tab label
+	ssTabContext: string; // Context tab label
+	ssTabMemory: string; // Memory tab label
+	ssTabFiles: string; // Files tab label
+	ssTabShell: string; // Shell tab label
+	ssTabTools: string; // Tools tab label
+	ssTabTasks: string; // Tasks tab label
+	ssTabProviders: string; // Providers tab label
 	ssTabPlugins: string; // Plugins tab label
 	ssFooterPrefix: string; // Enter/Space to change
 	ssFooterSuffix: string; // Type to search · Esc to close

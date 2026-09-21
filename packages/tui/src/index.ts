@@ -2,6 +2,8 @@
 
 // Autocomplete support
 export * from "./autocomplete";
+// Host-injectable UI texts (i18n)
+export * from "./i18n";
 // Components
 export * from "./chat/transcript-browser";
 export * from "./components/box";

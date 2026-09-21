@@ -168,6 +168,7 @@ import { loadSlashCommands } from "../extensibility/slash-commands";
 import type { GoalModeState } from "../goals/state";
 import { rebindMemoryBackendForCwd } from "../hindsight/backend";
 import { M } from "../i18n";
+import { wireTuiTexts } from "../i18n/wire-tui";
 import { copyLocalArtifacts, resolveLocalUrlToPath } from "../internal-urls";
 import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "../lsp/startup-events";
@@ -1160,6 +1161,8 @@ export class InteractiveMode implements InteractiveModeContext {
 			spellingAutocomplete: settings.get("spelling.autocomplete"),
 			spellingAutocorrect: settings.get("spelling.autocorrect"),
 		};
+		// Bridge pi-tui chrome strings to the localized catalogue (live).
+		wireTuiTexts();
 		const wasStarted = composer?.started ?? false;
 		this.composer =
 			composer ??
