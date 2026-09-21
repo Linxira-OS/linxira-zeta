@@ -1956,7 +1956,9 @@ export class EventController {
 			// This is the render boundary, not the persisted result: the stored
 			// error stays full-fidelity for the transcript and for replays.
 			const detail = textContent ? previewLine(sanitizeText(textContent), TRUNCATE_LENGTHS.LINE) : "";
-			this.ctx.showWarning(`${M.ecTodoUpdateFailedPrefix}${detail ? `: ${detail}` : M.ecTodoUpdateFailedSuffix}`);
+			this.ctx.showWarning(`${M.ecTodoUpdateFailedPrefix}${detail ? `: ${detail}` : M.ecTodoUpdateFailedSuffix}`, {
+				hideWithToolActivity: true,
+			});
 		}
 		// Plan approval rides a `write` to xd://propose: the dispatch metadata on
 		// the write details carries the approval payload as `inner`.

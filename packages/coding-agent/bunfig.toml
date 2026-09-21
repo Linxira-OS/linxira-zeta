@@ -2,4 +2,4 @@
 # Chunked CI runs execute `bun test` with cwd = packages/coding-agent, and bun
 # only reads the bunfig.toml next to (not above) the cwd — so this package
 # needs its own preload wiring in addition to the root bunfig.toml.
-preload = ["./test/helpers/isolate-official-skills.ts"]
+preload = ["./test/helpers/isolate-official-skills.ts", "./test/helpers/pin-test-language.ts"]
