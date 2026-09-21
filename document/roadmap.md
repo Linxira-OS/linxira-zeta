@@ -559,6 +559,28 @@ Remaining (non-blocking): the ~27 welcome tips have zh entries but are
 English-only content pools for other locales; the git-TUI and debug apps
 carry the last ~40 low-priority strings.
 
+### P2 — TTT editor zh UI + About branding (next release)
+
+The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
+`zeta-editor`) predates the tui text layer and ships English UI: the
+Settings pane (Editor/Appearance/Completion tabs, footer Cancel/Apply),
+menus, and the About dialog. Two work items, bundled into the next
+release:
+
+- **zh UI**: TTT is a vendored upstream app, not a pi-tui component —
+  `tuiText` does not reach it. Either port the same injectable-source
+  pattern into TTT's own render path (preferred; keeps upstream
+  mergeable) or fork the strings. Scope: settings tabs/labels, menus,
+  footer actions, dialog chrome.
+- **About branding**: the dialog still presents upstream identity —
+  "About TTT Editor", `Version 1.1.15` (TTT's own semver, not the Zeta
+  package version), `https://tttedit.dev`,
+  `https://github.com/eugenioenko/ttt`. Per the brand-surface registry
+  this is a Zeta product face: keep the upstream attribution lines
+  (MIT obligation) and add the Zeta distribution identity
+  (`Zeta Editor · v<zeta version> · TTT <upstream version> ·
+  github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
+
 
 ## Notes
 
