@@ -1,3 +1,4 @@
+import { tuiText } from "../i18n";
 import type { AgentProgress } from "../tools/task";
 
 export type AgentActivityKind = "response" | "tool" | "irc" | "lifecycle";
@@ -84,8 +85,8 @@ export function activityRowsFromProgress(progress: AgentProgress, lastUpdate = D
 		agentId: progress.id,
 		timestamp: lastUpdate,
 		kind: "lifecycle",
-		title: progress.status ?? "running",
-		summary: progress.task ?? progress.description ?? "Agent activity",
+		title: progress.status ?? tuiText("agentHubStatusRunning", "running"),
+		summary: progress.task ?? progress.description ?? tuiText("agentActivityFallback", "Agent activity"),
 		status:
 			progress.status === "completed"
 				? "success"
@@ -103,7 +104,7 @@ export function activityRowsFromProgress(progress: AgentProgress, lastUpdate = D
 			agentId: progress.id,
 			timestamp: lastUpdate,
 			kind: "response",
-			title: "Response",
+			title: tuiText("agentActivityResponse", "Response"),
 			summary: response,
 			status: progress.status === "failed" ? "error" : progress.status === "aborted" ? "aborted" : "pending",
 			source: "live",

@@ -12,6 +12,7 @@ import {
 	type ExtensionProvider,
 	type TreeNode,
 } from "./types";
+import { tuiText } from "../../i18n";
 
 export function resolveExtensionState(
 	source: { provider: string; level: string },
@@ -151,25 +152,25 @@ export function applyFilter(extensions: Extension[], query: string): Extension[]
 function getKindDisplayName(kind: ExtensionKind): string {
 	switch (kind) {
 		case "extension-module":
-			return "Extension Modules";
+			return tuiText("extKindExtensionModules", "Extension Modules");
 		case "skill":
-			return "Skills";
+			return tuiText("extKindSkills", "Skills");
 		case "rule":
-			return "Rules";
+			return tuiText("extKindRules", "Rules");
 		case "tool":
-			return "Tools";
+			return tuiText("extKindTools", "Tools");
 		case "mcp":
-			return "MCP Servers";
+			return tuiText("extKindMcp", "MCP Servers");
 		case "prompt":
-			return "Prompts";
+			return tuiText("extKindPrompts", "Prompts");
 		case "instruction":
-			return "Instructions";
+			return tuiText("extKindInstructions", "Instructions");
 		case "context-file":
-			return "Context Files";
+			return tuiText("extKindContextFiles", "Context Files");
 		case "hook":
-			return "Hooks";
+			return tuiText("extKindHooks", "Hooks");
 		case "slash-command":
-			return "Slash Commands";
+			return tuiText("extKindSlashCommands", "Slash Commands");
 		default:
 			return kind;
 	}
@@ -191,7 +192,7 @@ export function buildProviderTabs(extensions: Extension[], providers: readonly E
 	// ALL tab first
 	tabs.push({
 		id: "all",
-		label: "ALL",
+		label: tuiText("extTabAll", "ALL"),
 		enabled: true,
 		count: extensions.length,
 	});

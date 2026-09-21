@@ -2,6 +2,7 @@ import { Container } from "../tui";
 import { Disclosure } from "../components/disclosure";
 import { Text } from "../components/text";
 import { formatDiagnostics } from "../render/render-utils";
+import { tuiText } from "../i18n";
 import { getLanguageFromPath, theme } from "../theme";
 
 const EMPTY_ROWS: readonly string[] = [];
@@ -86,7 +87,7 @@ export class LateDiagnosticsMessageComponent extends Container {
 	/** Render one branch of the diagnostic tree, reusing the tool renderer. */
 	#format(input: { errored: boolean; summary: string; messages: string[] }, expanded: boolean): string {
 		return formatDiagnostics(input, expanded, theme, fp => theme.getLangIcon(getLanguageFromPath(fp)), {
-			title: "Late diagnostics",
+			title: tuiText("lateDiagTitle", "Late diagnostics"),
 		}).replace(/^\n+/, "");
 	}
 }

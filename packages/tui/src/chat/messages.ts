@@ -1,6 +1,7 @@
 import type { AssistantMessage, ImageContent, MessageAttribution, TextContent } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
+import { tuiText, tuiTextFmt } from "../i18n";
 import type { OutputMeta } from "../tools/output-meta";
 import type { BranchSummaryMessage, CompactionSummaryMessage } from "@linxiraos/pi-agent-core/compaction/messages";
 
@@ -127,12 +128,19 @@ export function resolveAbortLabel(
 		message.errorMessage === GENERIC_ABORT_SENTINEL ||
 		isSilentAbort(message);
 	if (!genericAbort) {
-		return message.errorMessage!;
+		const label = message.errorMessage!;
+		// USER_INTERRUPT_LABEL doubles as a persisted sentinel; only the display
+		// side maps it — equality checks above keep using the raw constant.
+		return label === USER_INTERRUPT_LABEL ? tuiText("statusInterrupted", USER_INTERRUPT_LABEL) : label;
 	}
 	if (retryAttempt > 0) {
-		return `Aborted after ${retryAttempt} retry attempt${retryAttempt > 1 ? "s" : ""}`;
+		return tuiTextFmt(
+			retryAttempt > 1 ? "statusAbortedAfterRetryManyFmt" : "statusAbortedAfterRetryOneFmt",
+			`Aborted after ${retryAttempt} retry attempt${retryAttempt > 1 ? "s" : ""}`,
+			retryAttempt,
+		);
 	}
-	return "Operation aborted";
+	return tuiText("statusOperationAborted", "Operation aborted");
 }
 
 /** True when a persisted or extension-supplied value can be sent as custom-message content. */

@@ -12,6 +12,7 @@ import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type { Component } from "../tui";
+import { tuiText } from "../i18n";
 import { fuzzyRank } from "../fuzzy";
 import { Input } from "../components/input";
 import { ScrollView } from "../components/scroll-view";
@@ -1114,7 +1115,10 @@ export class ModelBrowser implements Component {
 
 		if (total === 0) {
 			const message =
-				this.#emptyText?.() ?? (this.query.trim() ? "  No matching models" : "  No models available in this scope");
+				this.#emptyText?.() ??
+				(this.query.trim()
+					? tuiText("mbNoMatchingModels", "  No matching models")
+					: tuiText("mbNoModelsInScope", "  No models available in this scope"));
 			lines.push(truncateToWidth(theme.fg("muted", message), width));
 			for (let i = 1; i < this.#maxVisible; i++) lines.push("");
 		} else {

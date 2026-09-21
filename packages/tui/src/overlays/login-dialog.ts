@@ -1,6 +1,7 @@
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import type { OAuthPrompt } from "@linxiraos/pi-ai/oauth/types";
 import { Container, getKeybindings, Spacer, Text, type TUI, wrapTextWithAnsi } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { theme } from "../theme/theme";
 import { urlHyperlinkAlways, WidthAwareText } from "../render/index";
 import { formTheme } from "../chrome/form-theme";
@@ -14,6 +15,7 @@ export class LoginDialogComponent extends OverlayPanel {
 	#contentContainer: Container;
 	#input: TextFormField;
 	#tui: TUI;
+	#providerName: string;
 	#onComplete: (success: boolean, message?: string) => void;
 	#openUrl: (url: string) => void;
 	#abortController = new AbortController();
@@ -29,7 +31,8 @@ export class LoginDialogComponent extends OverlayPanel {
 	) {
 		const providerInfo = getOAuthProviders().find(p => p.id === providerId);
 		const providerName = providerInfo?.name || providerId;
-		super(`Login to ${providerName}`);
+		super(tuiTextFmt("loginTitleFmt", "Login to %s", providerName));
+		this.#providerName = providerName;
 		this.#tui = tui;
 		this.#onComplete = onComplete;
 		this.#openUrl = openUrl;
@@ -69,8 +72,8 @@ export class LoginDialogComponent extends OverlayPanel {
 		this.#abortController.abort();
 		const reject = this.#inputRejecter;
 		this.#clearInputHandlers();
-		reject?.(new Error("Login cancelled"));
-		this.#onComplete(false, "Login cancelled");
+		reject?.(new Error(tuiText("loginInputCancelled", "Login input cancelled")));
+		this.#onComplete(false, tuiText("abkLoginCancelled", "Login cancelled"));
 	}
 
 	/**
@@ -98,13 +101,24 @@ export class LoginDialogComponent extends OverlayPanel {
 			),
 		);
 
-		const clickHint = process.platform === "darwin" ? "Cmd+click to open" : "Ctrl+click to open";
+		const clickHint = tuiTextFmt(
+			"loginClickHintFmt",
+			"%s+click to open",
+			process.platform === "darwin" ? "Cmd" : "Ctrl",
+		);
 		const hyperlink = `\x1b]8;;${url}\x07${clickHint}\x1b]8;;\x07`;
 		this.#contentContainer.addChild(new Text(theme.fg("dim", hyperlink), 0, 0));
 
 		if (launchUrl && launchUrl !== url) {
 			this.#contentContainer.addChild(
-				new Text(theme.fg("dim", `Local shortcut (this machine only): ${launchUrl}`), 0, 0),
+				new Text(
+					theme.fg(
+						"dim",
+						tuiTextFmt("loginLocalShortcutFmt", "Local shortcut (this machine only): %s", launchUrl),
+					),
+					0,
+					0,
+				),
 			);
 		}
 
@@ -132,12 +146,18 @@ export class LoginDialogComponent extends OverlayPanel {
 			this.#contentContainer.addChild(new Spacer(1));
 			this.#contentContainer.addChild(new Text(theme.fg("dim", prompt), 0, 0));
 			this.#contentContainer.addChild(this.#input);
-			this.#contentContainer.addChild(new Text(theme.fg("dim", "(Escape to cancel)"), 0, 0));
+			this.#contentContainer.addChild(
+				new Text(theme.fg("dim", tuiText("loginEscapeToCancel", "(Escape to cancel)")), 0, 0),
+			);
 		}
 		this.#tui.requestRender();
 
 		if (signal?.aborted) {
-			return Promise.reject(signal.reason instanceof Error ? signal.reason : new Error("Login input cancelled"));
+			return Promise.reject(
+				signal.reason instanceof Error
+					? signal.reason
+					: new Error(tuiText("loginInputCancelled", "Login input cancelled")),
+			);
 		}
 		const { promise, resolve, reject } = Promise.withResolvers<string>();
 		this.#inputResolver = resolve;
@@ -146,7 +166,11 @@ export class LoginDialogComponent extends OverlayPanel {
 			const onAbort = () => {
 				if (this.#inputRejecter !== reject) return;
 				this.#clearInputHandlers();
-				reject(signal.reason instanceof Error ? signal.reason : new Error("Login input cancelled"));
+				reject(
+					signal.reason instanceof Error
+						? signal.reason
+						: new Error(tuiText("loginInputCancelled", "Login input cancelled")),
+				);
 			};
 			signal.addEventListener("abort", onAbort, { once: true });
 			this.#inputAbortCleanup = () => signal.removeEventListener("abort", onAbort);
@@ -172,10 +196,14 @@ export class LoginDialogComponent extends OverlayPanel {
 		this.#contentContainer.addChild(new Spacer(1));
 		this.#contentContainer.addChild(new Text(theme.fg("text", prompt.message), 0, 0));
 		if (prompt.placeholder) {
-			this.#contentContainer.addChild(new Text(theme.fg("dim", `e.g., ${prompt.placeholder}`), 0, 0));
+			this.#contentContainer.addChild(
+				new Text(theme.fg("dim", tuiTextFmt("loginExampleFmt", "e.g., %s", prompt.placeholder)), 0, 0),
+			);
 		}
 		this.#contentContainer.addChild(this.#input);
-		this.#contentContainer.addChild(new Text(theme.fg("dim", "(Escape to cancel, Enter to submit)"), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("dim", tuiText("loginEscapeEnterHint", "(Escape to cancel, Enter to submit)")), 0, 0),
+		);
 
 		this.#tui.requestRender();
 
@@ -200,7 +228,9 @@ export class LoginDialogComponent extends OverlayPanel {
 	showWaiting(message: string): void {
 		this.#contentContainer.addChild(new Spacer(1));
 		this.#contentContainer.addChild(new Text(theme.fg("dim", message), 0, 0));
-		this.#contentContainer.addChild(new Text(theme.fg("dim", "(Escape to cancel)"), 0, 0));
+		this.#contentContainer.addChild(
+			new Text(theme.fg("dim", tuiText("loginEscapeToCancel", "(Escape to cancel)")), 0, 0),
+		);
 		this.#tui.requestRender();
 	}
 
@@ -227,5 +257,10 @@ export class LoginDialogComponent extends OverlayPanel {
 
 		// Pass to input
 		this.#input.handleInput(data);
+	}
+
+	override render(width: number): readonly string[] {
+		this.title = tuiTextFmt("loginTitleFmt", "Login to %s", this.#providerName);
+		return super.render(width);
 	}
 }

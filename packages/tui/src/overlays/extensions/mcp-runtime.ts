@@ -54,6 +54,7 @@ export interface MCPConnectionDisplay {
 	prompts?: MCPResourceDisplay[];
 }
 
+import { tuiText, tuiTextFmt } from "../../i18n";
 import { PREVIEW_LIMITS } from "../../render/render-utils";
 import {
 	sanitizeDisplayField,
@@ -249,18 +250,36 @@ export function snapshotMcpRuntime(
 export function formatMcpListHint(snapshot: MCPRuntimeSnapshot): string {
 	switch (snapshot.health) {
 		case "inactive":
-			return "inactive";
+			return tuiText("stateInactive", "inactive");
 		case "connecting":
-			return "connecting…";
+			return tuiText("mcpListHintConnecting", "connecting…");
 		case "disconnected":
-			return "unavailable";
+			return tuiText("mcpListHintUnavailable", "unavailable");
 		case "connected": {
-			const parts = [`${snapshot.tools.length} tool${snapshot.tools.length === 1 ? "" : "s"}`];
+			const parts = [
+				tuiTextFmt(
+					snapshot.tools.length === 1 ? "mcpListToolOneFmt" : "mcpListToolManyFmt",
+					snapshot.tools.length === 1 ? "%d tool" : "%d tools",
+					snapshot.tools.length,
+				),
+			];
 			if (snapshot.resources.length > 0) {
-				parts.push(`${snapshot.resources.length} resource${snapshot.resources.length === 1 ? "" : "s"}`);
+				parts.push(
+					tuiTextFmt(
+						snapshot.resources.length === 1 ? "mcpListResourceOneFmt" : "mcpListResourceManyFmt",
+						snapshot.resources.length === 1 ? "%d resource" : "%d resources",
+						snapshot.resources.length,
+					),
+				);
 			}
 			if (snapshot.prompts.length > 0) {
-				parts.push(`${snapshot.prompts.length} prompt${snapshot.prompts.length === 1 ? "" : "s"}`);
+				parts.push(
+					tuiTextFmt(
+						snapshot.prompts.length === 1 ? "mcpListPromptOneFmt" : "mcpListPromptManyFmt",
+						snapshot.prompts.length === 1 ? "%d prompt" : "%d prompts",
+						snapshot.prompts.length,
+					),
+				);
 			}
 			return parts.join(" · ");
 		}
@@ -270,13 +289,13 @@ export function formatMcpListHint(snapshot: MCPRuntimeSnapshot): string {
 export function formatMcpHealthLabel(health: MCPConnectionHealth): string {
 	switch (health) {
 		case "connected":
-			return "Connected";
+			return tuiText("mcpStatusWordConnected", "Connected");
 		case "connecting":
-			return "Connecting";
+			return tuiText("mcpStatusWordConnecting", "Connecting");
 		case "disconnected":
-			return "Not connected";
+			return tuiText("mcpHealthNotConnected", "Not connected");
 		case "inactive":
-			return "Inactive";
+			return tuiText("mcpHealthInactive", "Inactive");
 	}
 }
 

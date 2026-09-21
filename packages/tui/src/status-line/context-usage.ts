@@ -5,6 +5,7 @@ import type { Tool as AiTool, Model } from "@linxiraos/pi-ai";
 import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { formatNumber } from "@linxiraos/pi-utils";
 import type { Theme } from "../theme";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 interface ContextSkill {
 	readonly name: string;
@@ -75,6 +76,15 @@ const CELL_FREE = "⛶";
 const CELL_BUFFER = "⛝";
 
 type CategoryId = "systemPrompt" | "systemContext" | "systemTools" | "skills" | "messages";
+
+/** Per-category legend label keys so a language switch re-renders live. */
+const LEGEND_LABEL_KEYS: Record<CategoryId, string> = {
+	systemPrompt: "ctxLegendSystemPrompt",
+	systemTools: "ctxLegendSystemTools",
+	systemContext: "ctxLegendSystemContext",
+	skills: "ctxLegendSkills",
+	messages: "ctxLegendMessages",
+};
 
 interface CategoryInfo {
 	id: CategoryId;
@@ -558,38 +568,46 @@ function buildLegendLines(breakdown: ContextBreakdown, theme: Theme): string[] {
 	const lines: string[] = [];
 	const { model, contextWindow, categories, usedTokens, autoCompactBufferTokens, freeTokens } = breakdown;
 
-	const modelName = model?.name ?? model?.id ?? "no model";
+	const modelName = model?.name ?? model?.id ?? tuiText("ctxNoModel", "no model");
 	const modelId = model?.id ?? "unknown";
 	const windowLabel = formatNumber(contextWindow).toLowerCase();
 
-	lines.push(theme.bold(`${modelName}`) + theme.fg("dim", ` (${windowLabel} context)`));
-	lines.push(theme.fg("muted", `${modelId}[${windowLabel}]`));
 	lines.push(
-		`${theme.bold(formatNumber(usedTokens))}${theme.fg("dim", `/${windowLabel} tokens`)}` +
-			theme.fg("muted", ` (${percentString(usedTokens, contextWindow)})`),
+		theme.bold(`${modelName}`) +
+			theme.fg("dim", tuiTextFmt("ctxWindowSuffixFmt", `(${windowLabel} context)`, windowLabel)),
+	);
+	lines.push(theme.fg("muted", `${modelId}[${windowLabel}]`));
+	const usedPct = percentString(usedTokens, contextWindow);
+	lines.push(
+		`${theme.bold(formatNumber(usedTokens))}${theme.fg("dim", tuiTextFmt("ctxTokensOfFmt", `/${windowLabel} tokens`, windowLabel))}` +
+			theme.fg("muted", tuiTextFmt("ctxPctFmt", `(${usedPct})`, usedPct)),
 	);
 	lines.push("");
-	lines.push(theme.fg("muted", "Estimated usage by category"));
+	lines.push(theme.fg("muted", tuiText("ctxEstimatedByCategory", "Estimated usage by category")));
 
 	for (const category of categories) {
 		const dot = theme.fg(category.color, category.glyph);
-		const label = category.label;
+		const label = tuiText(LEGEND_LABEL_KEYS[category.id], category.label);
 		const tokens = formatNumber(category.tokens);
 		const pct = percentString(category.tokens, contextWindow);
-		lines.push(`${dot} ${label}: ${theme.bold(tokens)} ${theme.fg("dim", `tokens (${pct})`)}`);
+		lines.push(
+			`${dot} ${label}: ${theme.bold(tokens)} ${theme.fg("dim", tuiTextFmt("ctxTokensPctFmt", `tokens (${pct})`, pct))}`,
+		);
 	}
 
 	const freeDot = theme.fg("dim", CELL_FREE);
+	const freePct = percentString(freeTokens, contextWindow);
 	lines.push(
-		`${freeDot} Free space: ${theme.bold(formatNumber(freeTokens))} ${theme.fg("dim", `(${percentString(freeTokens, contextWindow)})`)}`,
+		`${freeDot} ${tuiText("ctxFreeSpace", "Free space:")} ${theme.bold(formatNumber(freeTokens))} ${theme.fg("dim", tuiTextFmt("ctxPctFmt", `(${freePct})`, freePct))}`,
 	);
 
 	if (autoCompactBufferTokens > 0) {
 		const bufferDot = theme.fg("warning", CELL_BUFFER);
+		const bufferPct = percentString(autoCompactBufferTokens, contextWindow);
 		lines.push(
-			`${bufferDot} Autocompact buffer: ${theme.bold(formatNumber(autoCompactBufferTokens))} ${theme.fg(
+			`${bufferDot} ${tuiText("ctxAutocompactBuffer", "Autocompact buffer:")} ${theme.bold(formatNumber(autoCompactBufferTokens))} ${theme.fg(
 				"dim",
-				`tokens (${percentString(autoCompactBufferTokens, contextWindow)})`,
+				tuiTextFmt("ctxTokensPctFmt", `tokens (${bufferPct})`, bufferPct),
 			)}`,
 		);
 	}
@@ -654,7 +672,10 @@ function buildLegendLines(breakdown: ContextBreakdown, theme: Theme): string[] {
  */
 export function renderContextUsage(breakdown: ContextBreakdown, theme: Theme): string {
 	if (breakdown.contextWindow <= 0) {
-		return theme.fg("muted", "Context usage is unavailable: no model is selected for this session.");
+		return theme.fg(
+			"muted",
+			tuiText("ctxUnavailableNoModel", "Context usage is unavailable: no model is selected for this session."),
+		);
 	}
 
 	const cells = planCells(breakdown);

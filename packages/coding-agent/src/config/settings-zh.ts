@@ -5,15 +5,15 @@
  * `ui.description` / `ui.options` text and English group/tab names. This
  * module is the zh overlay: it maps every tab, every TAB_GROUPS group, every
  * setting with a `ui:` block, and every submenu option to natural Simplified
- * Chinese. The defs layer (`modes/components/settings-defs.ts`) and the
- * selector layer (`modes/components/settings-selector.ts`) consult these maps
- * whenever `currentLanguage() === "zh"`, falling back to the schema text for
- * any key that is missing here.
+ * Chinese. The TUI selector consumes these maps through
+ * `localizeSettingUi` (applied by `config/settings-ui.ts`), and the web
+ * settings panel consumes them directly via the gateway; both fall back to
+ * the schema text for any key that is missing here.
  *
  * Keep this file in lockstep with the schema: the completeness script asserts
  * that every tab, group, ui-blocked path, and ui.options entry is covered.
  */
-import type { SettingTab } from "@linxiraos/pi-tui/overlays/settings-defs";
+import type { AnyUiMetadata, SettingTab } from "@linxiraos/pi-tui/overlays/settings-defs";
 import type { SettingPath } from "./settings-schema";
 
 /** Tab labels for the settings tab bar (zh). */
@@ -4308,3 +4308,28 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		description: "禁用仅追加上下文",
 	},
 };
+
+/**
+ * Apply the zh overlay to one schema ui block: label, description, group
+ * heading, and submenu option texts. Missing keys fall back to the English
+ * schema text, so partial coverage stays safe.
+ */
+export function localizeSettingUi(path: string, ui: AnyUiMetadata): AnyUiMetadata {
+	const texts = ZH_SETTING_TEXTS[path as SettingPath];
+	const options =
+		ui.options === undefined || ui.options === "runtime"
+			? ui.options
+			: ui.options.map(option => {
+					const optionTexts = ZH_OPTION_TEXTS[`${path}::${option.value}`];
+					return optionTexts
+						? { ...option, label: optionTexts.label, description: optionTexts.description }
+						: option;
+				});
+	return {
+		...ui,
+		label: texts?.label ?? ui.label,
+		description: texts?.description ?? ui.description,
+		group: ui.group ? (ZH_GROUP_LABELS[ui.group] ?? ui.group) : ui.group,
+		options,
+	};
+}

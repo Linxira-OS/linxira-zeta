@@ -1,4 +1,5 @@
 import { type SgrMouseEvent } from "../../mouse";
+import { tuiText } from "../../i18n";
 import { type SelectItem, SelectList } from "../../components/select-list";
 import { Container } from "../../tui";
 import { Text } from "../../components/text";
@@ -10,8 +11,13 @@ import { getSelectListTheme, theme } from "../../theme/theme";
 import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 
 class ComposerSceneController implements SetupSceneController {
-	title = "Choose composer shape";
-	subtitle = "Pick the prompt and status line layout for your workflow.";
+	get title(): string {
+		return tuiText("setupComposerTitle", "Choose composer shape");
+	}
+
+	get subtitle(): string {
+		return tuiText("setupComposerSubtitle", "Pick the prompt and status line layout for your workflow.");
+	}
 	#selectList: SelectList;
 	#shapes: readonly ComposerShape[];
 	#items: readonly SelectItem[];
@@ -73,12 +79,15 @@ class ComposerSceneController implements SetupSceneController {
 
 	render(width: number, maxLines?: number): readonly string[] {
 		const intro = new Text(
-			theme.fg("muted", "Select a layout; live preview updates below. Press Enter to confirm."),
+			theme.fg(
+				"muted",
+				tuiText("setupComposerIntro", "Select a layout; live preview updates below. Press Enter to confirm."),
+			),
 			0,
 			0,
 		);
 		const preview = new Container();
-		preview.addChild(new Text(theme.fg("muted", "Preview:"), 0, 0));
+		preview.addChild(new Text(theme.fg("muted", tuiText("setupComposerPreviewLabel", "Preview:")), 0, 0));
 		for (const line of renderComposerShapePreview(this.#currentShape, width, this.#host.ctx.statusLine)) {
 			preview.addChild(new Text(line, 0, 0));
 		}
@@ -121,7 +130,9 @@ class ComposerSceneController implements SetupSceneController {
 /** Select and persist the prompt composer layout. */
 export const composerSetupScene: SetupScene = {
 	id: "composer-shape",
-	title: "Choose composer shape",
+	get title(): string {
+		return tuiText("setupComposerTitle", "Choose composer shape");
+	},
 	minVersion: 2,
 	mount: host => new ComposerSceneController(host),
 };

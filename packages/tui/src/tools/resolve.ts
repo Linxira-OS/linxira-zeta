@@ -10,6 +10,7 @@ import type { Theme } from "../theme/theme";
 import { Ellipsis, padToWidth, renderStatusLine, truncateToWidth } from "../render";
 
 import { replaceTabs } from "../render/render-utils";
+import { tuiText } from "../i18n";
 
 /** Device name for applying a staged action. */
 export const RESOLVE_DEVICE_NAME = "resolve";
@@ -43,7 +44,12 @@ export interface ResolveInvocation {
 
 /** Streaming-safe call preview for a resolution-device write: `Resolve/Reject/Propose: <text>`. */
 export function renderResolutionDeviceCall(device: ResolutionDeviceName, content: unknown, uiTheme: Theme): Component {
-	const title = device === PROPOSE_DEVICE_NAME ? "Propose" : device === REJECT_DEVICE_NAME ? "Reject" : "Resolve";
+	const title =
+		device === PROPOSE_DEVICE_NAME
+			? tuiText("rsProposeTitle", "Propose")
+			: device === REJECT_DEVICE_NAME
+				? tuiText("rsRejectTitle", "Reject")
+				: tuiText("rsResolveTitle", "Resolve");
 	return renderDeviceCallPreview(title, content, uiTheme, Ellipsis.Omit);
 }
 
@@ -74,10 +80,13 @@ export const resolveRenderer = {
 		const text = renderStatusLine(
 			{
 				icon: "pending",
-				title: "Resolve",
+				title: tuiText("rsResolveTitle", "Resolve"),
 				description: args.action,
 				badge: {
-					label: args.action === "apply" ? "proposed -> resolved" : "proposed -> rejected",
+					label:
+						args.action === "apply"
+							? tuiText("rsAppliedLabel", "proposed -> resolved")
+							: tuiText("rsRejectedLabel", "proposed -> rejected"),
 					color: args.action === "apply" ? "success" : "warning",
 				},
 				meta: reason ? [uiTheme.fg("muted", reason)] : undefined,
@@ -93,8 +102,8 @@ export const resolveRenderer = {
 		uiTheme: Theme,
 	): Component {
 		const details = result.details;
-		const label = replaceTabs(details?.label ?? "pending action");
-		const reason = replaceTabs(details?.reason?.trim() || "No reason provided");
+		const label = replaceTabs(details?.label ?? tuiText("rsPendingAction", "pending action"));
+		const reason = replaceTabs(details?.reason?.trim() || tuiText("rsNoReason", "No reason provided"));
 		const action = details?.action ?? "apply";
 		const isApply = action === "apply" && !result.isError;
 		const isFailedApply = action === "apply" && result.isError;
@@ -103,7 +112,11 @@ export const resolveRenderer = {
 		// reset (styledSymbol/status glyphs carry their own \x1b[39m) would drop the
 		// inverse block back to the default background mid-line.
 		const icon = uiTheme.symbol(isApply ? "tool.resolve" : "status.error");
-		const verb = isApply ? "Accept" : isFailedApply ? "Failed" : "Discard";
+		const verb = isApply
+			? tuiText("rsAccept", "Accept")
+			: isFailedApply
+				? tuiText("rsFailed", "Failed")
+				: tuiText("rsDiscard", "Discard");
 		const separator = ": ";
 		const separatorIndex = label.indexOf(separator);
 		const sourceLabel = separatorIndex > 0 ? label.slice(0, separatorIndex).trim() : undefined;

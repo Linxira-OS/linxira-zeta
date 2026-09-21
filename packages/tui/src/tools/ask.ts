@@ -19,6 +19,7 @@ import { outputBlockContentWidth, renderStatusLine } from "../render";
 import { framedToolCard } from "../render/tool-card";
 
 import { formatErrorMessage, formatMeta, formatTitle, sanitizeCarriageReturns } from "../render/render-utils";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 /** Result for a single question */
 export interface QuestionResult {
@@ -263,7 +264,9 @@ function renderAnswerOptionLines(
 
 	// Nothing was chosen (and no custom answer) → a lone cancelled marker.
 	if (selected.size === 0 && customInput === undefined && note === undefined) {
-		return [` ${uiTheme.styledSymbol("status.warning", "warning")} ${uiTheme.fg("warning", "Cancelled")}`];
+		return [
+			` ${uiTheme.styledSymbol("status.warning", "warning")} ${uiTheme.fg("warning", tuiText("askCancelledLabel", "Cancelled"))}`,
+		];
 	}
 
 	const out: string[] = [];
@@ -285,7 +288,7 @@ function renderAnswerOptionLines(
 export const askToolRenderer = {
 	mergeCallAndResult: true,
 	renderCall(args: AskRenderArgs, _options: RenderResultOptions, uiTheme: Theme): Component {
-		const label = formatTitle("Ask", uiTheme);
+		const label = formatTitle(tuiText("askTitle", "Ask"), uiTheme);
 		const mdTheme = getMarkdownTheme();
 		const accentStyle = { color: (t: string) => uiTheme.fg("accent", t) };
 		const md = (text: string, width: number) =>
@@ -296,11 +299,16 @@ export const askToolRenderer = {
 		// throw here takes down the whole TUI render loop — normalize first.
 		const questions = normalizeRenderQuestions(args.questions);
 		if (questions && questions.length > 0) {
-			const header = `${label} ${uiTheme.fg("muted", `${questions.length} questions`)}`;
+			const header = `${label} ${uiTheme.fg(
+				"muted",
+				questions.length === 1
+					? tuiText("askQuestionOne", "1 question")
+					: tuiTextFmt("askQuestionManyFmt", "%d questions", questions.length),
+			)}`;
 			return framedToolCard(uiTheme, ({ width }) => {
 				const sections = questions.map(q => {
 					const meta: string[] = [];
-					if (q.multi) meta.push("multi");
+					if (q.multi) meta.push(tuiText("askMultiMeta", "multi"));
 					if (q.options?.length) meta.push(`options:${q.options.length}`);
 					const metaStr = meta.length > 0 ? uiTheme.fg("dim", ` · ${meta.join(" · ")}`) : "";
 					// md() returns a shared cached array (module-level Markdown LRU) — copy before appending.
@@ -316,7 +324,7 @@ export const askToolRenderer = {
 
 		// Single question
 		if (typeof args.question !== "string" || !args.question) {
-			const errorLine = formatErrorMessage("No question provided", uiTheme);
+			const errorLine = formatErrorMessage(tuiText("askErrNoQuestion", "No question provided"), uiTheme);
 			return framedToolCard(uiTheme, () => ({
 				header: errorLine,
 				sections: [],
@@ -361,7 +369,7 @@ export const askToolRenderer = {
 		if (!rawDetails) {
 			const txt = result.content[0];
 			const fallback = txt?.type === "text" && txt.text ? sanitizeCarriageReturns(txt.text) : "";
-			const header = renderStatusLine({ icon: "warning", title: "Ask" }, uiTheme);
+			const header = renderStatusLine({ icon: "warning", title: tuiText("askTitle", "Ask") }, uiTheme);
 			const body = fallback ? `\n${uiTheme.fg("dim", fallback)}` : "";
 			return new Text(`${header}${body}`, 0, 0);
 		}
@@ -369,7 +377,14 @@ export const askToolRenderer = {
 
 		// Chat redirect: user chose "Chat about this" instead of answering.
 		if (details.chatRedirect) {
-			const header = renderStatusLine({ icon: "info", title: "Ask", meta: ["chat redirect"] }, uiTheme);
+			const header = renderStatusLine(
+				{
+					icon: "info",
+					title: tuiText("askTitle", "Ask"),
+					meta: [tuiText("askChatRedirectMeta", "chat redirect")],
+				},
+				uiTheme,
+			);
 			const questions = details.questions ?? [];
 			return framedToolCard(uiTheme, ({ width }) => ({
 				header,
@@ -391,8 +406,11 @@ export const askToolRenderer = {
 			const header = renderStatusLine(
 				{
 					icon: hasAnySelection ? "success" : "warning",
-					title: "Ask",
-					meta: [`${results.length} questions`],
+					title: tuiText("askTitle", "Ask"),
+					meta:
+						results.length === 1
+							? [tuiText("askQuestionOne", "1 question")]
+							: [tuiTextFmt("askQuestionManyFmt", "%d questions", results.length)],
 				},
 				uiTheme,
 			);
@@ -441,8 +459,8 @@ export const askToolRenderer = {
 			(details.selectedOptions && details.selectedOptions.length > 0);
 		const header = renderStatusLine(
 			hasSelection
-				? { iconOverride: uiTheme.styledSymbol("tool.ask", "accent"), title: "Ask" }
-				: { icon: "warning", title: "Ask" },
+				? { iconOverride: uiTheme.styledSymbol("tool.ask", "accent"), title: tuiText("askTitle", "Ask") }
+				: { icon: "warning", title: tuiText("askTitle", "Ask") },
 			uiTheme,
 		);
 		const dOptions = details.options;
@@ -469,7 +487,9 @@ export const askToolRenderer = {
 			];
 			if (dTimedOut) {
 				// Distinguish auto-selection from a real user choice in the transcript.
-				bodyLines.push(uiTheme.fg("dim", "auto-selected after timeout — not a user choice"));
+				bodyLines.push(
+					uiTheme.fg("dim", tuiText("askAutoSelected", "auto-selected after timeout — not a user choice")),
+				);
 			}
 			return {
 				header,

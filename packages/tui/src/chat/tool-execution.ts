@@ -28,6 +28,7 @@ import type { XdevMountedState } from "../tools/xdev";
 import { isFramedBlockComponent, markFramedBlockComponent, renderStatusLine, WidthAwareText } from "../render/index";
 import { convertImageToPng } from "./image-loading";
 import { sanitizeWithOptionalSixelPassthrough } from "../render/sixel";
+import { tuiTextFmt } from "../i18n";
 import { renderDiff } from "../chrome/diff";
 import { type AnimationFrame, trimBlankEdges } from "../chrome/transcript-container";
 
@@ -1102,7 +1103,14 @@ export class ToolExecutionComponent extends Container {
 						{
 							iconOverride: spinner,
 							title: "Edit",
-							description: theme.fg("dim", `${remaining} more file${remaining > 1 ? "s" : ""} pending…`),
+							description: theme.fg(
+								"dim",
+								tuiTextFmt(
+									remaining > 1 ? "toolEditPendingManyFmt" : "toolEditPendingOneFmt",
+									`${remaining} more file${remaining > 1 ? "s" : ""} pending…`,
+									remaining,
+								),
+							),
 						},
 						theme,
 					);

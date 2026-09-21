@@ -3,6 +3,7 @@ import { TERMINAL } from "../terminal-capabilities";
 import { theme } from "../theme/theme";
 import type { Component } from "../tui";
 import { padding, replaceTabs, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
+import { tuiText } from "../i18n";
 import tipsText from "./tips.txt" with { type: "text" };
 
 /** Tips embedded at build time, one per line; blanks dropped. */
@@ -203,7 +204,10 @@ export class WelcomeComponent implements Component {
 		if (theme.getSymbolPreset() === "unicode" && this.#nagRoll < 0.1) {
 			return read(this.#strings.nagNerdfont, "Please use nerdfont 😭.");
 		}
-		return pickWeightedTip(TIPS, this.#tipRoll) || undefined;
+		const picked = pickWeightedTip(TIPS, this.#tipRoll);
+		if (!picked) return undefined;
+		const index = TIPS.indexOf(picked);
+		return index >= 0 ? tuiText(`tip${index + 1}`, picked) : picked;
 	}
 
 	invalidate(): void {

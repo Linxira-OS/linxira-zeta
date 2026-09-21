@@ -2,6 +2,7 @@ import { type Component, type OverlayFocusOwner } from "../tui";
 import { matchesKey } from "../keys";
 import { centerLine, padding } from "../utils";
 import { padToWidth } from "../render/utils";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { routeSgrMouseInput, type SgrMouseEvent } from "../mouse";
 import { APP_NAME } from "@linxiraos/pi-utils";
 import { gradientLogo, ZETA_LOGO } from "../prompt/welcome";
@@ -182,14 +183,20 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 
 	#renderScene(width: number, height: number): string[] {
 		const scene = this.scenes[this.#sceneIndex];
-		const title = this.#activeScene?.title ?? scene?.title ?? "Setup";
+		const title = this.#activeScene?.title ?? scene?.title ?? tuiText("setupFallbackTitle", "Setup");
 		const subtitle = this.#activeScene?.subtitle;
 		const contentWidth = Math.max(MIN_CONTENT_WIDTH, width - SCENE_MARGIN_X * 2);
 		const logo = gradientLogo(ZETA_LOGO, 0);
 		const header = [
 			...logo.map(line => centerLine(line, width)),
 			centerLine(theme.bold(theme.fg("accent", APP_NAME)), width),
-			centerLine(theme.fg("muted", `Setup step ${this.#sceneIndex + 1} of ${this.scenes.length}`), width),
+			centerLine(
+				theme.fg(
+					"muted",
+					tuiTextFmt("setupStepFmt", "Setup step %s of %s", this.#sceneIndex + 1, this.scenes.length),
+				),
+				width,
+			),
 			"",
 			indentLine(theme.bold(title), width, SCENE_MARGIN_X),
 		];
@@ -201,7 +208,10 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 
 		const footer = [
 			"",
-			centerLine(theme.fg("dim", "↑/↓ select · enter confirm · esc skip · ctrl+c exit setup"), width),
+			centerLine(
+				theme.fg("dim", tuiText("setupFooterHint", "↑/↓ select · enter confirm · esc skip · ctrl+c exit setup")),
+				width,
+			),
 		];
 		const maxBodyLines = Math.max(0, height - header.length - footer.length);
 		const body = this.#activeScene?.render(contentWidth, maxBodyLines).slice(0, maxBodyLines) ?? [];

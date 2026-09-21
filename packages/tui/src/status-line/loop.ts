@@ -1,5 +1,6 @@
 import { truncateToWidth } from "../render/render-utils";
 import { sanitizeStatusText } from "../chrome/shared";
+import { tuiText } from "../i18n";
 
 /** A `/loop --while` / `/loop --until` continue-condition. */
 export interface LoopConditionConfig {
@@ -23,6 +24,6 @@ export type LoopLimitRuntime =
 
 /** Compact status-line form: `until: bun test`. */
 export function summarizeLoopCondition(condition: LoopConditionConfig, maxWidth: number): string {
-	const label = condition.until ? "until" : "while";
+	const label = condition.until ? tuiText("loopUntilPrefix", "until") : tuiText("loopWhilePrefix", "while");
 	return `${label}: ${truncateToWidth(sanitizeStatusText(condition.command), Math.max(1, maxWidth - label.length - 2))}`;
 }

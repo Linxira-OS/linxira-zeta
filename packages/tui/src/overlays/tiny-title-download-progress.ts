@@ -1,4 +1,5 @@
 import { type Component, truncateToWidth, visibleWidth } from "../index";
+import { tuiText } from "../i18n";
 import { formatBytes } from "@linxiraos/pi-utils";
 import { ProgressBar } from "../components/progress-bar";
 /** Download progress fields consumed by the status display. */
@@ -37,13 +38,14 @@ function currentFile(event: TinyTitleDownloadProgress | undefined): string | und
 }
 
 function statusLabel(event: TinyTitleDownloadProgress | undefined): string {
-	if (!event) return "Preparing";
-	if (event.status === "error") return "Failed";
-	if (event.status === "ready") return "Ready";
-	if (event.status === "done") return "Downloaded";
-	if (event.status === "download") return "Downloading";
-	if (event.status === "progress" || event.status === "progress_total") return "Downloading";
-	return "Preparing";
+	if (!event) return tuiText("tinyDlPreparing", "Preparing");
+	if (event.status === "error") return tuiText("tinyDlFailed", "Failed");
+	if (event.status === "ready") return tuiText("tinyDlReady", "Ready");
+	if (event.status === "done") return tuiText("tinyDlDownloaded", "Downloaded");
+	if (event.status === "download") return tuiText("tinyDlDownloading", "Downloading");
+	if (event.status === "progress" || event.status === "progress_total")
+		return tuiText("tinyDlDownloading", "Downloading");
+	return tuiText("tinyDlPreparing", "Preparing");
 }
 
 function byteLabel(event: TinyTitleDownloadProgress | undefined): string | undefined {
@@ -93,7 +95,7 @@ export class TinyTitleDownloadProgressComponent implements Component {
 		const pct =
 			this.#event?.progress === undefined ? "" : `${Math.floor(this.#event.progress).toString().padStart(3, " ")}%`;
 		const bytes = byteLabel(this.#event);
-		const title = `${theme.fg("accent", "Tiny model")} ${theme.fg("muted", status)} ${this.#modelLabel}`;
+		const title = `${theme.fg("accent", tuiText("tinyModelLabel", "Tiny model"))} ${theme.fg("muted", status)} ${this.#modelLabel}`;
 		const bar = this.#bar.render(Math.max(8, width - 36))[0] ?? "";
 		const details = [bar, pct, bytes, file].filter((part): part is string => Boolean(part)).join(" ");
 

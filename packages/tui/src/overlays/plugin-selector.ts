@@ -8,6 +8,7 @@ import { type SelectItem, SelectList, type SgrMouseEvent } from "../index";
 import { getSelectListTheme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { routeSelectListMouseWithTopBorder } from "../chrome/select-list-mouse-routing";
+import { tuiText } from "../i18n";
 
 export interface PluginSelectorCallbacks {
 	onSelect: (pluginName: string, marketplace: string, scope?: "user" | "project") => void;
@@ -30,7 +31,7 @@ export class PluginSelectorComponent extends OverlayPanel {
 		installedIds: Set<string>,
 		callbacks: PluginSelectorCallbacks,
 	) {
-		super("Plugins");
+		super(tuiText("ssTabPlugins", "Plugins"));
 
 		const items: SelectItem[] = plugins.map(({ plugin, marketplace, scope }) => {
 			// Encode scope into the value so onSelect can recover it without a parallel Map.
@@ -38,8 +39,10 @@ export class PluginSelectorComponent extends OverlayPanel {
 			const id = scope ? `${plugin.name}@${marketplace}#${scope}` : `${plugin.name}@${marketplace}`;
 			const installed = installedIds.has(`${plugin.name}@${marketplace}`);
 			const version = plugin.version ? `@${plugin.version}` : "";
-			const status = installed ? " [installed]" : "";
-			const scopeTag = scope ? ` [${scope}]` : "";
+			const status = installed ? tuiText("pluginSelectorInstalled", " [installed]") : "";
+			const scopeTag = scope
+				? ` [${scope === "user" ? tuiText("mcpScopeWordUser", "user") : tuiText("mcpScopeWordProject", "project")}]`
+				: "";
 
 			return {
 				value: id,
@@ -52,11 +55,11 @@ export class PluginSelectorComponent extends OverlayPanel {
 		if (items.length === 0) {
 			items.push({
 				value: "__empty__",
-				label: "No plugins available",
+				label: tuiText("pluginSelectorEmpty", "No plugins available"),
 				description:
 					marketplaceCount === 0
-						? "Add a marketplace first: /marketplace add <source>"
-						: "Configured marketplaces have no plugins",
+						? tuiText("pluginSelectorAddMarketplaceFirst", "Add a marketplace first: /marketplace add <source>")
+						: tuiText("pluginSelectorNoPluginsInMarketplaces", "Configured marketplaces have no plugins"),
 				disabled: true,
 			});
 		}

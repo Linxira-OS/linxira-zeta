@@ -7,6 +7,7 @@ import {
 	type SlashCommand,
 } from "../index";
 import { formatKeyHints, type KeybindingsManager } from "../app-keybindings";
+import { tuiText } from "../i18n";
 import { applyEmojiCompletion, getEmojiSuggestions, isEmojiPrefix, tryEmojiInlineReplace } from "./emoji-autocomplete";
 import { getGithubRefContext, getGithubRefSuggestions } from "./github-ref-autocomplete";
 import {
@@ -277,49 +278,67 @@ export function createPromptActionAutocompleteProvider(
 	const actions: PromptActionDefinition[] = [
 		{
 			id: "copy-line",
-			label: "Copy current line",
+			get label() {
+				return tuiText("promptActionCopyLine", "Copy current line");
+			},
 			description: formatKeyHints(options.keybindings.getKeys("app.clipboard.copyLine")),
 			keywords: ["copy", "line", "clipboard", "current"],
 			execute: options.copyCurrentLine,
 		},
 		{
 			id: "copy-prompt",
-			label: "Copy whole prompt",
+			get label() {
+				return tuiText("promptActionCopyPrompt", "Copy whole prompt");
+			},
 			description: formatKeyHints(options.keybindings.getKeys("app.clipboard.copyPrompt")),
 			keywords: ["copy", "prompt", "clipboard", "message"],
 			execute: options.copyPrompt,
 		},
 		{
 			id: "undo",
-			label: "Undo",
+			get label() {
+				return tuiText("promptActionUndo", "Undo");
+			},
 			description: formatKeyHints(editorKeybindings.getKeys("tui.editor.undo")),
 			keywords: ["undo", "revert", "edit", "history"],
 			execute: options.undo,
 		},
 		{
 			id: "cursor-message-end",
-			label: "Move cursor to message end",
-			description: "Current message",
+			get label() {
+				return tuiText("promptActionCursorMessageEnd", "Move cursor to message end");
+			},
+			get description() {
+				return tuiText("promptActionDescCurrentMessage", "Current message");
+			},
 			keywords: ["move", "cursor", "message", "end", "prompt", "last", "bottom"],
 			execute: options.moveCursorToMessageEnd,
 		},
 		{
 			id: "cursor-message-start",
-			label: "Move cursor to message start",
-			description: "Current message",
+			get label() {
+				return tuiText("promptActionCursorMessageStart", "Move cursor to message start");
+			},
+			get description() {
+				return tuiText("promptActionDescCurrentMessage", "Current message");
+			},
 			keywords: ["move", "cursor", "message", "start", "beginning", "prompt", "first", "top"],
 			execute: options.moveCursorToMessageStart,
 		},
 		{
 			id: "cursor-line-start",
-			label: "Move cursor to line start",
+			get label() {
+				return tuiText("promptActionCursorLineStart", "Move cursor to line start");
+			},
 			description: formatKeyHints(editorKeybindings.getKeys("tui.editor.cursorLineStart")),
 			keywords: ["move", "cursor", "line", "start", "beginning", "home"],
 			execute: options.moveCursorToLineStart,
 		},
 		{
 			id: "cursor-line-end",
-			label: "Move cursor to line end",
+			get label() {
+				return tuiText("promptActionCursorLineEnd", "Move cursor to line end");
+			},
 			description: formatKeyHints(editorKeybindings.getKeys("tui.editor.cursorLineEnd")),
 			keywords: ["move", "cursor", "line", "end"],
 			execute: options.moveCursorToLineEnd,

@@ -19,6 +19,8 @@ import {
 	type SgrMouseEvent,
 	type Tab,
 	TabBar,
+	tuiText,
+	tuiTextFmt,
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
@@ -70,7 +72,7 @@ function createSettingsTextField(
 		secret,
 		initialValue: currentValue || undefined,
 		empty: "submit",
-		hint: "  Enter to save · Esc to cancel · Clear field to unset",
+		hint: tuiText("ssSaveHint", "  Enter to save · Esc to cancel · Clear field to unset"),
 		onSubmit,
 		onCancel,
 		requestRender,
@@ -106,7 +108,7 @@ function createSettingsSelectField(
 		onSelectionChange,
 		onSubmit: onSelect,
 		onCancel,
-		hint: "  Enter to select · Esc to go back",
+		hint: tuiText("ssSelectHint", "  Enter to select · Esc to go back"),
 		footer,
 		requestRender,
 	});
@@ -173,8 +175,11 @@ class MultiSelectSubmenu extends Container {
 		};
 		this.#selectList.onCancel = this.#onClose;
 		const hint = this.#ordered
-			? "  Click to toggle · drag selected items to reorder · ←/→ move · 1-9 place · Esc to go back"
-			: "  Click/Enter/Space to toggle · Esc to go back";
+			? tuiText(
+					"ssOrderedToggleHint",
+					"  Click to toggle · drag selected items to reorder · ←/→ move · 1-9 place · Esc to go back",
+				)
+			: tuiText("ssToggleHint", "  Click/Enter/Space to toggle · Esc to go back");
 		this.#field = new FormField(this.#selectList, {
 			theme: formTheme,
 			label: this.#title,
@@ -324,23 +329,32 @@ class ProviderLimitsSubmenu extends Container {
 			return {
 				value: provider,
 				label: provider,
-				description: limit === undefined ? "Unlimited" : `Limit: ${limit}`,
+				description:
+					limit === undefined ? tuiText("ssUnlimited", "Unlimited") : tuiTextFmt("ssLimitFmt", "Limit: %s", limit),
 			};
 		});
 		const clearItem: SelectItem[] =
 			Object.keys(limits).length === 0
 				? []
-				: [{ value: "__clear_all", label: "Clear all limits", description: "Make every provider unlimited" }];
+				: [
+						{
+							value: "__clear_all",
+							label: tuiText("ssClearAll", "Clear all limits"),
+							description: tuiText("ssClearAllDesc", "Make every provider unlimited"),
+						},
+					];
 		const items = [...providerItems, ...clearItem];
 		this.#listField = new SelectFormField({
 			theme: formTheme,
-			label: "Max In-Flight Requests",
-			description:
+			label: tuiText("ssMaxInFlightTitle", "Max In-Flight Requests"),
+			description: tuiText(
+				"ssLimitsHelp",
 				"Select a provider, enter a positive number to cap concurrent LLM requests, or clear it for unlimited.",
+			),
 			items,
 			maxVisible: 12,
 			selectTheme: getSelectListTheme(),
-			hint: "  Enter to edit provider · Esc to go back",
+			hint: tuiText("ssEditProviderHint", "  Enter to edit provider · Esc to go back"),
 			onSubmit: value => {
 				if (value === "__clear_all") {
 					this.#settings.set("providers.maxInFlightRequests", {});
@@ -364,16 +378,19 @@ class ProviderLimitsSubmenu extends Container {
 		this.addChild(
 			new TextFormField({
 				theme: formTheme,
-				label: `Max In-Flight Requests: ${provider}`,
-				description:
+				label: `${tuiText("ssMaxInFlightTitle", "Max In-Flight Requests")}: ${provider}`,
+				description: tuiText(
+					"ssLimitHelp",
 					"Enter a positive number. Decimals round down. Clear the field to make this provider unlimited.",
+				),
 				initialValue: limits[provider]?.toString() ?? undefined,
 				empty: "submit",
-				hint: "  Enter to save · Esc to cancel · Clear field to unset",
+				hint: tuiText("ssSaveHint", "  Enter to save · Esc to cancel · Clear field to unset"),
 				validate: value => {
 					if (value.trim() === "") return undefined;
 					const limit = Number(value.trim());
-					if (!Number.isFinite(limit) || limit <= 0) return "Limit must be a positive number.";
+					if (!Number.isFinite(limit) || limit <= 0)
+						return tuiText("ssErrLimitPositive", "Limit must be a positive number.");
 					return undefined;
 				},
 				onSubmit: value => {
@@ -383,7 +400,8 @@ class ProviderLimitsSubmenu extends Container {
 						delete next[provider];
 					} else {
 						const limit = Number(trimmed);
-						if (!Number.isFinite(limit) || limit <= 0) throw new Error("Limit must be a positive number.");
+						if (!Number.isFinite(limit) || limit <= 0)
+							throw new Error(tuiText("ssErrLimitPositive", "Limit must be a positive number."));
 						next[provider] = Math.max(1, Math.floor(limit));
 					}
 					const normalized = this.#settings.validateProviderLimits(next);
@@ -568,22 +586,30 @@ export class SettingsSelectorComponent implements Component {
 
 	#footerHintText(): string {
 		if (this.#searchList) {
-			return "Enter to change · Tab to jump tabs · Esc to exit search";
+			return tuiText("ssSearchHint", "Enter to change · Tab to jump tabs · Esc to exit search");
 		}
 		if (this.#currentTabId === "plugins") {
-			return "Tab to switch tabs · Esc to close";
+			return tuiText("ssCloseHint", "Tab to switch tabs · Esc to close");
 		}
 		if (this.#currentList?.sectionFocused) {
-			return "↑/↓ to jump sections · Tab/Enter to settings · ←/→ to switch tabs · Esc to close";
+			return tuiText(
+				"ssSectionsFocusedHint",
+				"↑/↓ to jump sections · Tab/Enter to settings · ←/→ to switch tabs · Esc to close",
+			);
 		}
-		const nav = this.#hasSectionJump ? "Tab to jump sections · ←/→ to switch tabs" : "Tab to switch tabs";
-		return `Enter/Space to change · ${nav} · Type to search · Esc to close`;
+		const nav = this.#hasSectionJump
+			? tuiText("ssNavSectionsHint", "Tab to jump sections · ←/→ to switch tabs")
+			: tuiText("ssNavTabsHint", "Tab to switch tabs");
+		return `${tuiText("ssFooterPrefix", "Enter/Space to change")} · ${nav} · ${tuiText("ssFooterSuffix", "Type to search · Esc to close")}`;
 	}
 
 	/** Single-line search banner: accent icon, editable query with live cursor, right-aligned match count. */
 	#renderSearchBanner(width: number): string {
 		const icon = theme.symbol("icon.search");
-		const countText = this.#searchMatchCount === 1 ? "1 match" : `${this.#searchMatchCount} matches`;
+		const countText =
+			this.#searchMatchCount === 1
+				? tuiText("ssMatchesOne", "1 match")
+				: tuiTextFmt("ssMatchesFmt", "%d matches", this.#searchMatchCount);
 		const rightWidth = visibleWidth(countText) + 1; // trailing margin
 		const prefix = ` ${theme.fg("accent", icon)} `;
 		// The input pads itself to exactly this width and keeps the cursor in view.
@@ -605,7 +631,9 @@ export class SettingsSelectorComponent implements Component {
 		const tabLines = this.#tabBar.render(innerWidth);
 		const searching = this.#searchList !== null;
 		const showPreview = !searching && this.#currentTabId === "appearance";
-		const previewLines = showPreview ? ["", theme.fg("muted", "Preview:"), this.#getStatusPreviewString()] : [];
+		const previewLines = showPreview
+			? ["", theme.fg("muted", tuiText("ssPreview", "Preview:")), this.#getStatusPreviewString()]
+			: [];
 
 		// Fixed chrome: top border, tabs, divider, [search row], divider, hint, bottom border.
 		const fixedRows = 1 + tabLines.length + 1 + (searching ? 1 : 0) + 1 + 1 + 1;
@@ -624,7 +652,7 @@ export class SettingsSelectorComponent implements Component {
 		}
 
 		const out: string[] = [];
-		out.push(topBorder(width, "Settings"));
+		out.push(topBorder(width, tuiText("ssTitleSettings", "Settings")));
 		this.#tabRowStart = out.length;
 		this.#tabRowCount = tabLines.length;
 		for (const line of tabLines) {
@@ -731,7 +759,7 @@ export class SettingsSelectorComponent implements Component {
 			{
 				layout: "flat",
 				typeToSearch: false,
-				emptyText: "No matching settings",
+				emptyText: tuiText("ssNoMatching", "No matching settings"),
 				hint: "",
 			},
 		);
@@ -901,6 +929,8 @@ export class SettingsSelectorComponent implements Component {
 
 		switch (def.type) {
 			case "boolean":
+				// NB: value strings are data ("true"/"false") — the write path
+				// compares them literally, so only a valueLabel may localize.
 				return { ...item, currentValue: currentValue ? "true" : "false", values: ["true", "false"] };
 
 			case "enum":
@@ -1127,7 +1157,7 @@ export class SettingsSelectorComponent implements Component {
 	#formatProviderLimitsValue(value: unknown): string {
 		const limits = this.#context.settings.normalizeProviderLimits(value);
 		const entries = Object.entries(limits).sort(([a], [b]) => a.localeCompare(b));
-		if (entries.length === 0) return "Unlimited";
+		if (entries.length === 0) return tuiText("ssUnlimited", "Unlimited");
 		return entries.map(([provider, limit]) => `${provider}: ${limit}`).join(", ");
 	}
 
@@ -1297,7 +1327,7 @@ export class SettingsSelectorComponent implements Component {
 		if (this.#callbacks.getStatusLinePreview) {
 			return this.#callbacks.getStatusLinePreview();
 		}
-		return theme.fg("dim", "(preview not available)");
+		return theme.fg("dim", tuiText("ssPreviewUnavailable", "(preview not available)"));
 	}
 
 	/**

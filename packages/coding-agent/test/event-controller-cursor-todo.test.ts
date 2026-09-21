@@ -7,12 +7,16 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
 import type { Component } from "@linxiraos/pi-tui";
+import { setLanguage } from "../src/i18n";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 beforeAll(async () => {
 	resetSettingsForTest();
 	await Settings.init({ inMemory: true });
 	await initTheme();
+	// The assertions below pin English copy; without this the Intl fallback
+	// resolves zh on a Chinese-system Windows box.
+	setLanguage("en");
 });
 
 afterAll(() => {

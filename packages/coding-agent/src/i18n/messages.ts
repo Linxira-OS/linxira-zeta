@@ -386,6 +386,74 @@ export interface Messages {
 	statusQueuedMessageForAfterCompaction: string; // Queued message for after compaction
 	statusSentQueuedMessage: string; // Sent queued message
 	statusQueuedMessageForWhenTheAgentYields: string; // Queued message for when the agent yields
+	statusThatSubagentIsGoneOpenTheHubForLiveAgents: string; // That subagent is gone — open the hub for live agents
+	statusSlashCommandIsHostOnlyDuringACollabSessionFmt: string; // %s is host-only during a collab session, %s = command
+	statusFailedToSuspendFmt: string; // Failed to suspend: %s, %s = reason
+	statusRestoredLastQueuedMessageToEditor: string; // Restored last queued message to editor
+	statusQueuedNMessagesForAfterCompactionFmt: string; // Queued %d messages for after compaction, %d = count
+	statusSentFirstMessageQueuedNForLaterYieldsFmt: string; // Sent first message; queued %d for later yields, %d = count
+	statusQueuedNMessagesForWhenTheAgentYieldsFmt: string; // Queued %d messages for when the agent yields, %d = count
+	statusUnsupportedPastedImageFormatFmt: string; // Unsupported pasted image format: %s, %s = mime type
+	statusUnsupportedClipboardImageFormatFmt: string; // Unsupported clipboard image format: %s, %s = mime type
+	statusUnsupportedPastedVideoPreviewFormat: string; // Unsupported pasted video preview format
+	statusImageNotFoundAtPathFmt: string; // Image not found at %s, %s = path
+	statusImageNotFoundAtPathOverSshFmt: string; // Image not found at %s. Over SSH this path is local to your terminal — paste the image directly (clipboard image-paste shortcut) to send its bytes., %s = path
+	statusSavedPastedLinesFmt: string; // Saved %d pasted lines to local://%s, %d = line count, %s = paste name
+	statusFailedToSavePasteToAFileAttachedAsTextChipInstead: string; // Failed to save paste to a file — attached as a text chip instead
+	statusCopiedLineFmt: string; // Copied line: %s, %s = preview
+	statusCopiedFmt: string; // Copied: %s, %s = preview
+	statusToolActivityHiddenShowHintFmt: string; // Tool activity is hidden — show it with %s before expanding, %s = key hint
+	statusToolOutputExpansionEnabled: string; // Tool output expansion: enabled
+	statusToolOutputExpansionDisabled: string; // Tool output expansion: disabled
+	statusToolActivityStateHidden: string; // Tool activity: hidden
+	statusToolActivityStateVisible: string; // Tool activity: visible
+	statusThinkingBlocksHidden: string; // Thinking blocks: hidden
+	statusThinkingBlocksVisible: string; // Thinking blocks: visible
+	statusRewoundToSelectedPoint: string; // Rewound to selected point
+	statusNothingToCopyInThatItem: string; // Nothing to copy in that item
+	statusCopiedLabelToClipboardFmt: string; // Copied %s to clipboard, %s = label
+	statusOpeningFmt: string; // Opening %s: %s, %s = label, %s = href
+	statusNoSessionsFoundFmt: string; // No %s sessions found, %s = source name
+	statusUninstallingFmt: string; // Uninstalling %s..., %s = plugin id
+	statusUninstalledFmt: string; // Uninstalled %s, %s = plugin id
+	statusUninstallFailedFmt: string; // Uninstall failed: %s
+	statusInstallingFromFmt: string; // Installing %s from %s..., %s = name, %s = marketplace
+	statusInstalledFromFmt: string; // Installed %s from %s, %s = name, %s = marketplace
+	statusInstallFailedFmt: string; // Install failed: %s
+	selectorManualLoginPrompt: string; // Paste the authorization code (or full redirect URL), then press Enter:
+	statusSessionOnlyModelFmt: string; // Session-only model: %s. Use %s or /model for roles., %s = selector, %s = key hint
+	statusTaskSubagentModelFmt: string; // Task subagent model (session-only): %s. Use /agents to persist., %s = selector
+	statusRoleModelFmt: string; // %s model: %s, %s = role label, %s = selector
+	statusFailedToApplyPersonalityFmt: string; // Failed to apply personality: %s
+	statusFailedToApplyPromptDocsFmt: string; // Failed to apply xd:// prompt docs setting: %s
+	statusFailedToApplyMemoryBackendFmt: string; // Failed to apply memory backend: %s
+	statusFailedToApplyExternalThinkingFmt: string; // Failed to apply external thinking: %s
+	statusFailedToApplyMermaidFmt: string; // Failed to apply Mermaid rendering setting: %s
+	statusFailedToLoadThemeFmt: string; // Failed to load theme "%s": %s\nFell back to dark theme.
+	statusLoggingInToFmt: string; // Logging in to %s…, %s = provider id
+	statusLogoutSkippedNoLongerStoredFmt: string; // Logout skipped: %s is no longer stored for %s.
+	statusLogoutFailedFmt: string; // Logout failed: %s
+	statusLogoutSkippedNoCredentialsFmt: string; // Logout skipped: no stored credentials for %s.%s
+	statusAuthSourceLogoutHintFmt: string; // Current auth comes from %s; remove that source to log out.
+	statusLoggedOutFmt: string; // Successfully logged out %s from %s
+	statusCredentialRemovedFmt: string; // Credential removed from %s
+	statusStillAuthenticatedFmt: string; // %s is still authenticated via %s
+	statusCouldNotLoadStoredCredentialsFmt: string; // Could not load stored credentials: %s
+	statusNoStoredOAuthAccountsFmt: string; // No stored OAuth accounts for %s. Use /login to add one.
+	statusNoStoredOAuthAccountsSourceFmt: string; // No stored OAuth accounts for %s. Current auth comes from %s.
+	statusNoLongerAvailableToPinFmt: string; // %s is no longer available to pin.
+	statusPinnedFmt: string; // Pinned %s to this session for %s.
+	statusCouldNotLoadSavedResetsFmt: string; // Could not load saved resets: %s
+	statusNoSavedResetsUnreachable: string; // No saved resets available — some accounts couldn't be reached (try /login).
+	statusNoSavedResetsAvailable: string; // No saved rate-limit resets available to spend right now.
+	statusSpendingSavedResetFmt: string; // Spending 1 saved reset for %s…
+	statusResetFailedFmt: string; // Reset failed for %s: %s
+	statusSummarizeBranchTitle: string; // Summarize branch?
+	statusChoiceNoSummary: string; // Choice label + branch sentinel
+	statusChoiceSummarize: string; // Choice label
+	statusChoiceSummarizeCustomPrompt: string; // Choice label + branch sentinel
+	statusCustomSummarizationInstructions: string; // Custom summarization instructions editor title
+	statusSummarizingBranch: string; // Summarizing branch... (esc to cancel)
 
 	mcpManualLoginTip: string; // Headless? Paste the redirect URL or code with /login <value>.
 	mcpClickHereToAuthorize: string; // OSC 8 hyperlink label
@@ -686,6 +754,8 @@ export interface Messages {
 	mcpTipVerifyOAuthServer: string; // Connect tip
 	mcpWizardRetry: string; // Retry option
 	mcpExampleAuthUrl: string; // Example URL hint
+	mcpTestAlreadyFinishedFmt: string; // MCP test for "%s" already finished
+	mcpRemoveNameRequired: string; // Server name required. Usage: /mcp remove <name> [--scope project|user]
 	mcpExampleTokenUrl: string; // Example URL hint
 
 	// session selector (resume picker)
@@ -945,6 +1015,28 @@ export interface Messages {
 	ccSavedRateLimitResets: string;
 	ccUsageResetHint: string;
 	ccNoLimitsLabel: string;
+	ccFailedToSwitchWorkspaceFmt: string; // Failed to switch workspace: %s
+	ccFailedToRollbackMoveRealignFmt: string; // Failed to roll back move: %s (failed to re-align workspace to %s)
+	ccFailedToRollbackMoveFmt: string; // Failed to roll back move: %s (workspace remains at %s)
+	ccFailedToRestoreSourceWorkspaceFmt: string; // Failed to restore source workspace after rollback: workspace remains at %s
+	ccNoSessionFileYet: string; // No session file yet — send a message first.
+	ccTraceFmt: string; // Trace: %s, %s = url
+	ccFailedToOpenTraceFmt: string; // Failed to open trace: %s
+	ccLabelServed: string; // "Served:" row label
+	ccLabelCredits: string; // "Credits:" row label
+	ccLabelCommittedCredits: string; // "Committed Credits:" row label
+	ccLabelCommittedAcu: string; // "Committed ACU:" row label
+	ccMemoryConsolidationRan: string; // Memory consolidation ran.
+	ccWaitForResponseResetContext: string; // Wait for the current response to finish or abort it before resetting the context.
+	ccContextResetOneFmt: string; // Context reset — 1 message dropped; session continues.
+	ccContextResetManyFmt: string; // Context reset — %s messages dropped; session continues., %s = count
+	ccNothingToDelete: string; // Nothing to delete (in-memory session)
+	ccWaitForResponseWorktree: string; // Wait for the current response to finish or abort it before creating a worktree.
+	ccCreatingWorktreeFmt: string; // Creating worktree on %s…, %s = branch
+	ccWorktreeCreateFailedFmt: string; // Worktree creation failed: %s
+	ccWorktreeCleanupFailedFmt: string; // Worktree created, but cleaning source checkout failed: %s
+	ccWaitForCompactionHandoff: string; // Wait for context compaction to finish or cancel it before handing off.
+	ccContextHandedOff: string; // Context handed off and compacted in place
 	ccContextTitle: string; // Context header
 	ccCannotCreateDirFmt: string; // Cannot create dir, %s = basename
 	ccCreateDirectoryConfirmFmt: string; // Create dir confirm, %s = path
@@ -1197,6 +1289,16 @@ export interface Messages {
 	ssLimitFmt: string; // Limit: %s
 	ssOn: string; // Boolean value display: on
 	ssOff: string; // Boolean value display: off
+	ssTabAppearance: string; // Appearance tab label
+	ssTabModel: string; // Model tab label
+	ssTabInteraction: string; // Interaction tab label
+	ssTabContext: string; // Context tab label
+	ssTabMemory: string; // Memory tab label
+	ssTabFiles: string; // Files tab label
+	ssTabShell: string; // Shell tab label
+	ssTabTools: string; // Tools tab label
+	ssTabTasks: string; // Tasks tab label
+	ssTabProviders: string; // Providers tab label
 	ssTabPlugins: string; // Plugins tab label
 	ssFooterPrefix: string; // Enter/Space to change
 	ssFooterSuffix: string; // Type to search · Esc to close
@@ -1393,6 +1495,13 @@ export interface Messages {
 	ecStoppedWithError: string;
 	ecTodoUpdateFailedPrefix: string;
 	ecTodoUpdateFailedSuffix: string;
+	ecActionRemote: string; // Auto server compaction
+	ecRemoteCancelled: string; // Auto server compaction cancelled
+	ecRemoteFailed: string; // Auto server compaction failed; continuing without maintenance
+	ecRetryLabelFmt: string; // Retrying (%s/%s), %s = attempt, %s = max attempts
+	ecRetryInFmt: string; // " in %s…" countdown suffix, %s = duration
+	ecFallbackFmt: string; // Fallback: %s -> %s, %s = from model, %s = to model
+	ecFallbackSucceededFmt: string; // Fallback succeeded on %s, %s = model
 	tdUsageTitle: string;
 	tdHelpShow: string;
 	tdHelpEdit: string;
@@ -2045,6 +2154,53 @@ export interface Messages {
 	cmdLoop: string;
 	cmdSshAcp: string;
 	cmdCompactAcp: string;
+	lcSessionNotFoundFmt: string; // Session "%s" not found
+	lcCouldNotGenerateTitle: string; // Could not generate a session title. Use /rename <title> to set one.
+	colQrFailedFmt: string; // Failed to render collab QR code: %s
+	colAdvisorEnabled: string; // Advisor enabled.
+	colAdvisorSettingEnabledNoModel: string; // Advisor setting enabled, but no model is assigned to the 'advisor' role.
+	colAdvisorDisabled: string; // Advisor disabled.
+	colAdvisorUsage: string; // Usage: /advisor [on|off|status|dump [raw]|configure]
+	colCollabStopped: string; // Collab stopped
+	colCollabStatusFmt: string; // Collab: %s — %s, %s = names, %s = link
+	colNotInCollabSession: string; // Not in a collab session
+	colCollabListUsageFmt: string; // Usage: /collab list — for links or JSON use `%s collab link|list`, %s = app name
+	colNoActiveCollabHosts: string; // No active Collab hosts
+	colAlreadyGuest: string; // Already in a collab session as a guest (/leave first)
+	colFailedToStartFmt: string; // Failed to start collab session: %s
+	colJoinUsage: string; // Usage: /join <link>
+	colAlreadyInCollab: string; // Already in a collab session (/leave first)
+	colStopHostingFirst: string; // Stop hosting first (/collab stop)
+	colFailedToJoinFmt: string; // Failed to join collab session: %s
+	colBrowserDisabled: string; // Browser capability is disabled (enable in settings)
+	colBrowserUsage: string; // Usage: /browser [headless|visible]
+	colFailedToRestartBrowserFmt: string; // Failed to restart browser: %s
+	colBrowserModeFmt: string; // Browser mode: %s, %s = headless|visible
+	colInCollabReadOnlyGuest: string; // In a collab session as a read-only guest (/leave to exit)
+	colInCollabGuest: string; // In a collab session as a guest (/leave to exit)
+	colNoCodeBlockToCopy: string; // No code block to copy.
+	colCopiedCodeBlock: string; // Copied code block to clipboard
+	colNoCommandToCopy: string; // No command to copy.
+	colCopiedToClipboardFmt: string; // Copied %s to clipboard, %s = kind
+	colNoLinkToCopy: string; // No link to copy.
+	colCopiedLink: string; // Copied link to clipboard
+	colCopyUsage: string; // Usage: /copy [code|cmd|link]
+	colOpenUsage: string; // Usage: /open [link]  (pick a specific link: /copy, → blocks, o)
+	colNoLinkToOpen: string; // No link to open.
+	colOpeningFmt: string; // Opening %s, %s = href
+	bmSettingsUsage: string; // Usage: /settings [reset [confirm|<key>]]
+	bmSettingsResetUsage: string; // Usage: /settings reset [confirm|<key>]
+	bmUnknownSettingFmt: string; // Unknown setting: %s
+	bmModelProvidersUsageFmt: string; // Usage: /%s [providers], %s = command name
+	bmUnknownModelFmt: string; // Unknown model: %s
+	bmFastModeEnabled: string; // Fast mode enabled.
+	bmFastModeDisabled: string; // Fast mode disabled.
+	bmFastModeStatusFmt: string; // Fast mode is %s., %s = status
+	bmSkillListingToggledFmt: string; // Skill listing %s for this session., %s = enabled|disabled
+	bmSkillfulUsage: string; // Usage: /skillful [on|off|status]
+	bmComputerUsage: string; // Usage: /computer [on|off|status]
+	bmFastUsage: string; // Usage: /fast [on|off|status]
+	bmSkillListingFmt: string; // Skill listing: %s., %s = on|off
 	cmdShakeAcp: string;
 	cmdMemoryAcp: string;
 	cmdMoveAcp: string;
@@ -2199,6 +2355,871 @@ export interface Messages {
 	setPreviewNotAvailable: string; // "(preview not available)"
 	setTitleSettings: string; // "Settings" (top border)
 	setPluginsTab: string; // "Plugins" (extra tab)
+	// ── Setup wizard: composer scene (pi-tui setup/scenes/composer.ts) ──────
+	setupComposerTitle: string; // "Choose composer shape"
+	setupComposerSubtitle: string;
+	setupComposerIntro: string; // live-preview hint
+	setupComposerPreviewLabel: string; // "Preview:"
+
+	// ── Prompt "#" actions (pi-tui prompt-action-autocomplete.ts) ───────────
+	promptActionCopyLine: string; // "Copy current line"
+	promptActionCopyPrompt: string; // "Copy whole prompt"
+	promptActionUndo: string; // "Undo"
+	promptActionCursorMessageEnd: string;
+	promptActionCursorMessageStart: string;
+	promptActionCursorLineStart: string;
+	promptActionCursorLineEnd: string;
+	promptActionDescCurrentMessage: string; // "Current message" description
+
+	// ── /tools markdown table (pi-tui tools-markdown.ts) ────────────────────
+	toolsMarkdownTool: string; // "Tool" header
+	toolsMarkdownDescription: string; // "Description" header
+	toolsMarkdownNoTools: string; // empty state
+	toolsMarkdownNoDescription: string; // per-row fallback
+
+	// ── Extensions dashboard (pi-tui overlays/extensions) ───────────────────
+	extDashboardTitle: string; // top border title
+	extDashboardFooterFmt: string; // %s = expand key hint
+	extTabAll: string; // "ALL" provider tab label
+	extListSearch: string; // "Search: " prefix
+	extListTypeToFilter: string; // unfocused search placeholder
+	extListEmpty: string; // empty provider list
+	extListEnableMasterFmt: string; // "Enable %s", %s = provider name
+	extListMasterBadge: string; // "(Master Switch)"
+	extListLoadUserSourceFmt: string; // "Load ~/ %s config", %s = provider name
+	extListUserSourceBadge: string; // opt-in badge
+	extKindExtensionModules: string;
+	extKindSkills: string;
+	extKindTools: string;
+	extKindCommands: string;
+	extKindRules: string;
+	extKindMcp: string;
+	extKindHooks: string;
+	extKindPrompts: string;
+	extKindContext: string;
+	extKindInstructions: string;
+	extKindContextFiles: string;
+	extKindSlashCommands: string;
+	extParamRequired: string; // tool param flag
+	extParamOptional: string; // tool param flag
+	extParamDefaultFmt: string; // "Default: %s", %s = JSON default
+	extStateActive: string; // enablement badge
+	extStateDisabledFmt: string; // "Disabled (%s)", %s = reason text
+	extStateDisabledProvider: string; // reason: provider disabled
+	extStateDisabledOptIn: string; // reason: ~/ config not enabled
+	extStateDisabledManually: string; // reason: manually disabled
+	extStateUnknown: string; // reason: unknown
+	extStateShadowed: string; // "Shadowed"
+	extStateShadowedFmt: string; // "Shadowed by %s", %s = winner id
+	extHintHidden: string; // "hidden" list hint
+	extHintHiddenFmt: string; // "hidden · %s", %s = tool count text
+	extHintToolsFmt: string; // "%d tools", %d = live tool count
+	extHintAlways: string; // "always" list hint
+	extInspectorSelectExtension: string; // empty pane line 1
+	extInspectorToViewDetails: string; // empty pane line 2
+	extInspectorSectionTools: string; // section heading
+	extInspectorSectionResources: string; // section heading
+	extInspectorSectionPrompts: string; // section heading
+	extInspectorSectionArguments: string; // section heading
+	extInspectorSectionApplies: string; // section heading
+	extInspectorSectionHook: string; // section heading
+	extInspectorSectionInvocation: string; // section heading
+	extInspectorSectionTrigger: string; // section heading
+	extInspectorHeadingRule: string; // preview heading
+	extInspectorHeadingInstruction: string; // preview heading
+	extInspectorHeadingTemplate: string; // preview heading
+	extInspectorHeadingPrompt: string; // preview heading
+	extInspectorHeadingPreview: string; // preview heading
+	extInspectorCommand: string; // "Command" field label
+	extInspectorArgs: string; // "Args" field label
+	extInspectorEnvVars: string; // "Env vars" field label
+	extInspectorEnvCountFmt: string; // "%d defined", %d = env var count
+	extInspectorAlways: string; // "always" accent tag
+	extInspectorAlwaysApply: string; // "always apply" accent tag
+	extInspectorNoApplyConditions: string; // "(no apply conditions)"
+	extInspectorAcceptsArguments: string; // "accepts $ARGUMENTS"
+	extInspectorPatternsFmt: string; // "%d patterns", %d = glob count
+	extInspectorMoreFmt: string; // "… %d more (%s to expand)", %d = hidden, %s = key hint
+	extInspectorOrigin: string; // "Origin:" line label
+	extInspectorViaFmt: string; // "via %s (%s)", %s = provider, %s = level
+	extLevelUser: string; // source level label
+	extLevelProject: string; // source level label
+	extLevelNative: string; // source level label
+
+	// ── Welcome tips (pi-tui prompt/welcome.ts; tipN = tips.txt line N) ─────
+	tip1: string;
+	tip2: string;
+	tip3: string;
+	tip4: string;
+	tip5: string;
+	tip6: string;
+	tip7: string;
+	tip8: string;
+	tip9: string;
+	tip10: string;
+	tip11: string;
+	tip12: string;
+	tip13: string;
+	tip14: string;
+	tip15: string;
+	tip16: string;
+	tip17: string;
+	tip18: string;
+	tip19: string;
+	tip20: string;
+	tip21: string;
+	tip22: string;
+	tip23: string;
+	tip24: string;
+	tip25: string;
+	tip26: string;
+	tip27: string;
+	// ── Chat transcript render layer (pi-tui chat/*, status-line/*, tools/*, apps/*) ──
+	statusInterrupted: string; // render mapping for USER_INTERRUPT_LABEL — "Interrupted by user"
+	statusOperationAborted: string; // "Operation aborted"
+	statusAbortedAfterRetryOneFmt: string; // "Aborted after %d retry attempt"
+	statusAbortedAfterRetryManyFmt: string; // "Aborted after %d retry attempts"
+	execRunningEscCancel: string; // "Running… (esc to cancel)"
+	execColumnsOmittedFmt: string; // "… [%s visible columns omitted]"
+	execMoreLinesHintFmt: string; // "… %s more lines (ctrl+o to expand)"
+	execCancelledMarker: string; // "(cancelled)"
+	execExitFmt: string; // "(exit %s)"
+	todoReminderHeaderOneFmt: string; // "%d incomplete todo - reminder %s/%s"
+	todoReminderHeaderManyFmt: string; // "%d incomplete todos - reminder %s/%s"
+	compactionFromToTokensFmt: string; // "Compacted from %s to %s tokens"
+	compactionFromTokensFmt: string; // "Compacted from %s tokens"
+	compactionToTokensFmt: string; // "Compacted to %s tokens"
+	compactionContextLabel: string; // "Compacted context"
+	toolEditPendingOneFmt: string; // "%d more file pending…"
+	toolEditPendingManyFmt: string; // "%d more files pending…"
+	lateDiagTitle: string; // "Late diagnostics"
+	syntheticInputLabel: string; // "Synthetic input"
+	skillLinesOneFmt: string; // "%d line"
+	skillLinesManyFmt: string; // "%d lines"
+	skillPromptLabel: string; // "prompt"
+	skillUnknownName: string; // "unknown"
+	ctxLegendSystemPrompt: string; // "System prompt"
+	ctxLegendSystemTools: string; // "System tools"
+	ctxLegendSystemContext: string; // "System context"
+	ctxLegendSkills: string; // "Skills"
+	ctxLegendMessages: string; // "Messages"
+	ctxNoModel: string; // "no model"
+	ctxWindowSuffixFmt: string; // "(%s context)"
+	ctxTokensOfFmt: string; // "/%s tokens"
+	ctxTokensPctFmt: string; // "tokens (%s)"
+	ctxPctFmt: string; // "(%s)"
+	ctxEstimatedByCategory: string; // "Estimated usage by category"
+	ctxFreeSpace: string; // "Free space:"
+	ctxAutocompactBuffer: string; // "Autocompact buffer:"
+	ctxUnavailableNoModel: string; // "Context usage is unavailable: no model is selected for this session."
+	footerThinkingAuto: string; // "auto" thinking-level placeholder
+	loopUntilPrefix: string; // "until" loop condition prefix
+	loopWhilePrefix: string; // "while" loop condition prefix
+	globNoFiles: string; // "No files found"
+	globNoMatchesBeforeTimeout: string; // "No matches before timeout (scan incomplete)"
+	globZeroFiles: string; // "0 files"
+	globTimedOut: string; // "timed out"
+	globFileOne: string; // "1 file"
+	globFileManyFmt: string; // "%d files"
+	globTruncated: string; // "truncated"
+	globTruncatedReasonsFmt: string; // "truncated: %s"
+	globLimitResultsFmt: string; // "limit %s results"
+	globLineLimit: string; // "line limit"
+	globSizeLimit: string; // "size limit"
+	grepTruncated: string; // "truncated"
+	grepItemOne: string; // "1 item"
+	grepItemManyFmt: string; // "%d items"
+	grepMatchOne: string; // "1 match"
+	grepMatchManyFmt: string; // "%d matches"
+	grepFileOne: string; // "1 file"
+	grepFileManyFmt: string; // "%d files"
+	agrpSearchedFmt: string; // "searched %s"
+	agrpMatchOne: string; // "1 match"
+	agrpMatchManyFmt: string; // "%d matches"
+	agrpFileOne: string; // "1 file"
+	agrpFileManyFmt: string; // "%d files"
+	taskNoResults: string; // "No results"
+	taskNestedProgressShown: string; // "… nested task progress already shown"
+	taskDoneFmt: string; // "%d done"
+	taskRunningFmt: string; // "%d running"
+	taskPendingFmt: string; // "%d pending"
+	taskFailedFmt: string; // "%d failed"
+	taskAbortedFmt: string; // "%d aborted"
+	todoOpFailed: string; // "Todo operation failed"
+	todoNoTodosFallback: string; // "No todos"
+	todoTaskOne: string; // "1 task"
+	todoTaskManyFmt: string; // "%d tasks"
+	todoItemOne: string; // "1 item"
+	todoItemManyFmt: string; // "%d items"
+	wsErrorFmt: string; // "Error: %s"
+	wsSourceOne: string; // "1 source"
+	wsSourceManyFmt: string; // "%d sources"
+	wsNoAnswerText: string; // "No answer text returned"
+	wsNoSourcesReturned: string; // "No sources returned"
+	rsAccept: string; // "Accept"
+	rsFailed: string; // "Failed"
+	rsDiscard: string; // "Discard"
+	askTitle: string; // "Ask"
+	askChatRedirectMeta: string; // "chat redirect"
+	askMultiMeta: string; // "multi"
+	askQuestionOne: string; // "1 question"
+	askQuestionManyFmt: string; // "%d questions"
+	hbIrcInboxTitle: string; // "IRC inbox"
+	hbIrcPeersTitle: string; // "IRC peers"
+	hbInboxEmpty: string; // "empty"
+	hbPeekMeta: string; // "peek"
+	hbNoOtherAgents: string; // "no other agents"
+	hbUnreadOne: string; // "1 unread"
+	hbUnreadManyFmt: string; // "%d unread"
+	hbMessageOne: string; // "1 message"
+	hbMessageManyFmt: string; // "%d messages"
+	hbIrcAnyone: string; // "anyone"
+	hbIrcCallFailed: string; // "IRC call failed."
+	hbMoreLineOneFmt: string; // "… +%s more line"
+	hbMoreLinesManyFmt: string; // "… +%s more lines"
+	gitNoChanges: string; // "No changes"
+	gitNoCommitsYet: string; // "No commits yet"
+	gitLoadingDiff: string; // "Loading diff…"
+	gitStreamingFile: string; // "Streaming file…"
+	gitNoFileSelected: string; // "no file selected"
+	gitDiscardFileConfirmFmt: string; // "Discard changes to %s? Press delete again to confirm"
+	gitDiscardHunkConfirm: string; // "Discard hunk? Press x (or click) again to confirm"
+	gitDiscardLinesConfirm: string; // "Discard selected lines? Press x again to confirm"
+	gitStagedFmt: string; // "Staged %s"
+	gitStagedAll: string; // "Staged all changes"
+	gitUnstagedFmt: string; // "Unstaged %s"
+	gitUnstagedAll: string; // "Unstaged all changes"
+	gitDiscardedFmt: string; // "Discarded %s"
+	gitFilteringChangesFmt: string; // "Filtering changes: %s"
+	gitNoChangesMatchedFmt: string; // 'No changes matched "%s"'
+	gitHunksOfFmt: string; // "%s of %s hunks"
+	gitWholeFileOne: string; // "1 whole file"
+	gitWholeFileManyFmt: string; // "%d whole files"
+	gitAiStagedFmt: string; // "Staged %s (%s/%s files matched)"
+	gitGeneratingCommit: string; // "Generating commit message…"
+	gitGeneratedNeedsReviewFmt: string; // "Generated message needs review: %s"
+	gitStagedAndGenerated: string; // "Staged all changes and generated commit message"
+	gitGeneratedMessage: string; // "Generated commit message"
+	gitAmendedCommit: string; // "Amended commit"
+	gitCreatedCommit: string; // "Created commit"
+	gitStagedHunk: string; // "Staged hunk"
+	gitUnstagedHunk: string; // "Unstaged hunk"
+	gitDiscardedHunk: string; // "Discarded hunk"
+	gitSelectionNoChanges: string; // "Selection contains no changes"
+	gitStagedSelection: string; // "Staged selection"
+	gitUnstagedSelection: string; // "Unstaged selection"
+	gitDiscardedSelection: string; // "Discarded selection"
+	gitWsShowAll: string; // "Showing all changes"
+	gitWsIgnoreWhitespace: string; // "Ignoring whitespace-only line changes"
+	gitWsIgnoreFormatting: string; // "Ignoring formatting and import-only changes"
+	gitHintDiff: string; // diff-pane key hints row
+	gitHintSidebar: string; // sidebar key hints row
+	gitStageFileBtn: string; // " Stage File " pill (padding spaces included)
+	gitUnstageFileBtn: string; // " Unstage File " pill (padding spaces included)
+	gitContentKindBinary: string; // "Binary"
+	gitContentKindMedia: string; // "Media"
+	gitChipStaged: string; // " Staged " scope chip (padding spaces included)
+	gitChipUnstaged: string; // " Unstaged " scope chip (padding spaces included)
+	gitChipUntracked: string; // " Untracked " scope chip (padding spaces included)
+	gitStageAllPill: string; // "Stage All"
+	gitUnstageAllPill: string; // "Unstage All"
+	gitUnstagedFilesFmt: string; // "Unstaged Files (%s)"
+	gitStagedFilesFmt: string; // "Staged Files (%s)"
+	gitNoUnstagedFiles: string; // "   no unstaged files"
+	gitNoStagedFiles: string; // "   no staged files"
+	gitAiPromptPlaceholder: string; // "What should we stage?"
+	gitAmendPrevious: string; // "Amend previous commit"
+	gitCommitSummaryLabel: string; // "Commit summary"
+	gitDescriptionPlaceholder: string; // "Description"
+	gitBtnGenerating: string; // "-○- Generating commit message"
+	gitBtnCommitStaged: string; // "-○- Commit staged changes"
+	gitBtnStageAllCommit: string; // "-○- Stage all & commit"
+	gitFileChangesOnOneFmt: string; // "%s file change on "
+	gitFileChangesOnManyFmt: string; // "%s file changes on "
+	gitAuthoredFmt: string; // " authored %s"
+	gitParentLabel: string; // "parent:"
+	gitLoadingChangedFiles: string; // " Loading changed files…"
+	gitModifiedCountFmt: string; // "%s modified"
+	gitNoFile: string; // "No file"
+	gitTextObject: string; // "Text object"
+	gitBinaryObject: string; // "Binary object"
+	gitSizeUnavailable: string; // "Size unavailable"
+	gitObjectTooLarge: string; // "Object too large to preview"
+	gitExceedsPreviewLimit: string; // "Exceeds preview limit"
+	gitLfsObjectUnavailable: string; // "Git LFS object unavailable"
+	gitAssetBefore: string; // "Before" asset pane title
+	gitAssetAfter: string; // "After" asset pane title
+	gitKindText: string; // "Text"
+	gitKindBinary: string; // "Binary"
+	gitKindTooLarge: string; // "Too large"
+	gitKindLfsMissing: string; // "LFS missing"
+	psVerbStop: string; // "stop"
+	psVerbKill: string; // "kill"
+	psVerbRestart: string; // "restart"
+	psActingFmt: string; // "%s %s…"
+	psActionFailedFmt: string; // "%s %s failed: %s"
+	psRestarted: string; // "Restarted"
+	psKilled: string; // "Killed"
+	psStopped: string; // "Stopped"
+	psShowingAllScopes: string; // "Showing all scopes"
+	psShowingCurrentScope: string; // "Showing current scope"
+	psUpdatedAgoFmt: string; // "updated %s ago"
+	psUpdating: string; // "updating…"
+	psScopesOneFmt: string; // "%s process in %s scope"
+	psScopesManyFmt: string; // "%s processes in %s scopes"
+	psScopeAll: string; // "(all)"
+	psScopeCurrent: string; // "(current)"
+	psFooterHints: string; // process table footer hints
+	psNoProcesses: string; // "   no processes"
+	psNoScopes: string; // " No daemon broker scopes found."
+	psProcessInfo: string; // "process info"
+	psBackHints: string; // "esc back · q back"
+	psLogsHints: string; // "esc back · q back · view refreshes live"
+	psLogsTitleFmt: string; // "logs %s"
+	psLabelCommand: string; // "command:"
+	psLabelCwd: string; // "cwd:"
+	psLabelUptime: string; // "uptime:"
+	psLabelExit: string; // "exit:"
+	psLabelRestarts: string; // "restarts:"
+	psLabelOwner: string; // "owner:"
+	psRestartsFmt: string; // "%s (policy: %s)"
+	psLoading: string; // " loading…"
+	// ── MCP runtime dashboard (pi-tui overlays/extensions/mcp-runtime.ts) ───
+	mcpHealthNotConnected: string; // "Not connected"
+	mcpHealthInactive: string; // "Inactive"
+	mcpListHintConnecting: string; // "connecting…"
+	mcpListHintUnavailable: string; // "unavailable"
+	mcpListToolOneFmt: string; // "%d tool"
+	mcpListToolManyFmt: string; // "%d tools"
+	mcpListResourceOneFmt: string; // "%d resource"
+	mcpListResourceManyFmt: string; // "%d resources"
+	mcpListPromptOneFmt: string; // "%d prompt"
+	mcpListPromptManyFmt: string; // "%d prompts"
+	mcpOAuthNoHostHandler: string; // "OAuth login cannot start without a host OAuth handler."
+	// ── Marketplace plugin selector (pi-tui overlays/plugin-selector.ts) ────
+	pluginSelectorInstalled: string; // " [installed]"
+	pluginSelectorEmpty: string; // "No plugins available"
+	pluginSelectorAddMarketplaceFirst: string; // "Add a marketplace first: /marketplace add <source>"
+	pluginSelectorNoPluginsInMarketplaces: string; // "Configured marketplaces have no plugins"
+	// ── Plugin settings panel (pi-tui overlays/plugin-settings.ts) ──────────
+	pluginSettingsNoPlugins: string; // "No plugins installed"
+	pluginSettingsInstallNpmHint: string; // "Install npm plugins:        zeta plugin install <package>"
+	pluginSettingsInstallMarketplaceHint: string; // "Install marketplace plugins: zeta plugin install <name>@<marketplace>"
+	pluginSettingsListFooter: string; // "Enter to configure · Esc to go back"
+	pluginSettingsFeaturesFmt: string; // "%d/%d features"
+	pluginSettingsShadowedByFmt: string; // "shadowed by %s"
+	pluginSettingsEnabled: string; // "Enabled"
+	pluginSettingsEnableFeatureFmt: string; // "Enable %s feature"
+	pluginSettingsDetailFooterHint: string; // "Enter to edit · Esc to go back"
+	pluginSettingsConfigureFmt: string; // "Configure %s"
+	pluginSettingsSelectValueFmt: string; // "Select value for %s"
+	pluginSettingsEnumHint: string; // "Enter to select · Esc to cancel"
+	pluginSettingsTypeFmt: string; // "Type: %s"
+	pluginSettingsInputHint: string; // "Enter to save · Esc to cancel"
+	pluginSettingsVersionFmt: string; // "version       %s"
+	pluginSettingsScopeFmt: string; // "scope         %s"
+	pluginSettingsInstallPathFmt: string; // "install path  %s"
+	pluginSettingsInstalledAtFmt: string; // "installed at  %s"
+	pluginSettingsLastUpdatedFmt: string; // "last updated  %s"
+	pluginSettingsGitShaFmt: string; // "git sha       %s"
+	// ── tui overlays & shared component chrome (overlays/*, components/*) ──
+	loginTitleFmt: string; // "Login to %s", %s = provider name
+	loginClickHintFmt: string; // "%s+click to open", %s = Cmd/Ctrl
+	loginLocalShortcutFmt: string; // "Local shortcut (this machine only): %s"
+	loginExampleFmt: string; // "e.g., %s"
+	loginEscapeToCancel: string; // "(Escape to cancel)"
+	loginEscapeEnterHint: string; // "(Escape to cancel, Enter to submit)"
+	loginInputCancelled: string; // rejection reason
+	oauthSelectLoginTitle: string; // "Select provider to login"
+	oauthSelectLogoutTitle: string; // "Select provider to logout"
+	oauthSearchFmt: string; // "Search: %s"
+	oauthTypeToSearch: string; // "Type to search"
+	oauthNoProvidersAvailable: string; // "No OAuth providers available"
+	oauthNoStoredCredentials: string; // "No stored provider credentials to log out"
+	oauthNoMatchingProviders: string; // "No matching providers"
+	oauthProviderUnavailable: string; // "Provider unavailable in this environment."
+	oauthStatusChecking: string; // "checking"
+	oauthStatusInvalid: string; // "invalid"
+	oauthStatusLoggedIn: string; // "logged in"
+	oauthOriginConfig: string; // credential origin tag
+	oauthOriginLogin: string; // credential origin tag
+	oauthOriginApiKey: string; // credential origin tag
+	oauthOriginEnv: string; // credential origin tag
+	oauthOriginCustomProvider: string; // credential origin tag
+	logoutAccountTitleFmt: string; // "Select %s account to log out", %s = provider name
+	logoutAccountActiveTag: string; // " (active)"
+	logoutAccountEmpty: string; // "No stored accounts to log out"
+	logoutAccountFooterHint: string; // "↑/↓ select · ↵ log out account · Esc cancel"
+	resetUsageTitle: string; // "Spend a saved rate-limit reset"
+	resetUsageActiveTag: string; // " (active)"
+	resetUsageCountOne: string; // "%d saved reset"
+	resetUsageCountMany: string; // "%d saved resets"
+	resetUsageEmpty: string; // "No Codex accounts with saved resets"
+	resetUsageConfirmFmt: string; // "Press Enter again to spend 1 reset for %s, Esc to cancel", %s = account label
+	resetUsageFooterHint: string; // "↑/↓ select · ↵ spend a reset · Esc cancel"
+	resetUsageNoneLeft: string; // "That account has no saved resets to spend."
+	queueModeTitle: string; // "Queue Mode"
+	queueModeOneByOneDesc: string; // "Process queued messages one by one (recommended)"
+	queueModeAllDesc: string; // "Process all queued messages at once"
+	showImagesTitle: string; // "Show Images"
+	showImagesYesDesc: string; // "Show images inline in terminal"
+	showImagesNoDesc: string; // "Show text placeholder instead"
+	themeSelectorTitle: string; // "Theme"
+	themeSelectorCurrent: string; // "(current)"
+	thinkingSelectorTitle: string; // "Thinking Level"
+	sessionInfoTitle: string; // "Session Info"
+	sessionInfoFooterHint: string; // "↑/↓ scroll · Esc close"
+	planReviewTitle: string; // "Plan Review" (top border)
+	planReviewEscCancel: string; // "esc cancel"
+	planReviewEnterSave: string; // "enter save"
+	planReviewHelpSelect: string; // "↑↓ select"
+	planReviewHelpConfirm: string; // "⏎ confirm"
+	planReviewHelpModel: string; // "◂▸ model"
+	planReviewHelpSection: string; // "↑↓ section"
+	planReviewHelpOpen: string; // "⏎ open"
+	planReviewHelpAnnotate: string; // "a annotate"
+	planReviewHelpDelete: string; // "d delete"
+	planReviewHelpUndo: string; // "u undo"
+	planReviewHelpScroll: string; // "↑↓ scroll"
+	planReviewHelpFaster: string; // "⇧ faster"
+	planReviewHelpEnds: string; // "g/G ends"
+	planReviewHelpCopy: string; // "c copy"
+	planReviewHelpRegions: string; // "tab regions"
+	planReviewHelpEditorFmt: string; // "%s editor", %s = external editor key label
+	planReviewSubmitting: string; // "Submitting…"
+	planReviewSubmittingFmt: string; // "%s — submitting…", %s = committed choice label
+	planReviewApplying: string; // "Applying your selection — …"
+	planReviewFeedbackHeader: string; // "Refinement feedback on the plan:"
+	planReviewFeedbackRemoveHeader: string; // "Remove these sections:"
+	planReviewPlanPreamble: string; // "Plan preamble"
+	planReviewFeedbackLineFmt: string; // "> Line: %s", %s = quoted line context
+	planReviewAnnotate: string; // "Annotate" caption
+	planReviewNotePrefix: string; // "note: " callout prefix
+	planSaveTitle: string; // "Save and quit"
+	planSaveFooterHint: string; // "Enter save and quit · Esc cancel"
+	moveTitle: string; // "Move to directory"
+	moveNoMatchingDirectories: string; // "No matching directories"
+	moveFooterHint: string; // "Type to filter · ↑↓ navigate · Tab accept · Enter confirm · Esc cancel"
+	copyTitle: string; // "Copy" header
+	copySubtitle: string; // "pick what to put on the clipboard"
+	copyBlocksCaptionOne: string; // "%d block →"
+	copyBlocksCaptionMany: string; // "%d blocks →"
+	copyMoreLinesFmt: string; // "… +%d more lines"
+	copyLineCountOne: string; // "%d line"
+	copyLineCountMany: string; // "%d lines"
+	copyControlCopy: string; // clickable control
+	copyControlOpen: string; // clickable control
+	copyHintOpen: string; // "o open"
+	copyFooterUpDownBlock: string; // "↑/↓ block"
+	copyFooterBack: string; // "←/esc back"
+	copyFooterEnterCopy: string; // "enter copy"
+	copyFooterClick: string; // "click"
+	copyFooterStep: string; // "↑/↓ step"
+	copyFooterBlocks: string; // "→ blocks"
+	copyFooterEarlierTurns: string; // "a earlier turns"
+	copyFooterExpand: string; // "ctrl+o expand"
+	copyFooterClose: string; // "esc close"
+	copyBlockCode: string; // block kind label
+	copyBlockLangCodeFmt: string; // "%s code", %s = language
+	copyBlockQuote: string; // block kind label
+	copyBlockLink: string; // block kind label
+	copyBlockBashCommand: string; // block kind label
+	copyBlockEvalCode: string; // block kind label
+	copyBlockCommand: string; // block kind label
+	copyBlockOutput: string; // block kind label
+	copyBlockResultFmt: string; // "%s result", %s = tool name
+	copyBlockUserMessage: string; // turn label
+	copyBlockAssistantMessage: string; // turn label
+	copyBlockBashExecution: string; // turn label
+	copyBlockEvalExecution: string; // turn label
+	copyBlockSummary: string; // turn label
+	copyBlockMessage: string; // turn label
+	copyBlockTurnContent: string; // turn label
+	errorBannerDismissHint: string; // "Dismissed when you send your next message."
+	pauseTitle: string; // "P A U S E D"
+	pauseBodyLine1: string; // "Main agent, subagents, and advisor hold at their next step."
+	pauseBodyLine2: string; // "In-flight calls finish; nothing new starts until you resume."
+	pauseElapsedFmt: string; // "paused for %s", %s = clock
+	pauseEscToResume: string; // "esc to resume"
+	pauseResumeHint: string; // "esc · enter · space — resume"
+	fireworksTitleWeekly: string; // " O P E N A I   R E S E T " banner
+	fireworksTitleSaved: string; // " S A V E D   R E S E T " banner
+	fireworksSubtitleWeekly: string; // "Weekly usage cleared early · ESC to return"
+	fireworksBankedOneFmt: string; // "New reset banked · %d available · ESC to return"
+	fireworksBankedManyFmt: string; // "%d resets banked · %d available · ESC to return"
+	tinyDlPreparing: string; // "Preparing"
+	tinyDlFailed: string; // "Failed"
+	tinyDlReady: string; // "Ready"
+	tinyDlDownloaded: string; // "Downloaded"
+	tinyDlDownloading: string; // "Downloading"
+	tinyModelLabel: string; // "Tiny model"
+	composerShapeBandLabel: string; // "Status Band (Default)"
+	composerShapeBandDesc: string;
+	composerShapeBoxLabel: string; // "Rounded Box"
+	composerShapeBoxDesc: string;
+	composerShapeClaudeLabel: string; // "Claude Code"
+	composerShapeClaudeDesc: string;
+	composerShapePiLabel: string; // "Pi"
+	composerShapePiDesc: string;
+	composerShapeBorderlessLabel: string; // "Borderless"
+	composerShapeBorderlessDesc: string;
+	composerShapeRuleLabel: string; // "Top Rule Dock"
+	composerShapeRuleDesc: string;
+	composerShapeFieldLabel: string; // "Compact Field"
+	composerShapeFieldDesc: string;
+	composerShapeRailLabel: string; // "Accent Rail"
+	composerShapeRailDesc: string;
+	selectListNoMatching: string; // "No matching items"
+	selectListEmpty: string; // "No items"
+	settingsListEmpty: string; // "No settings available"
+	settingsListBackspaceHint: string; // "Backspace to edit search · Esc to cancel"
+	settingsListJumpSections: string; // "PgUp/PgDn to jump sections"
+	settingsListFooterSuffix: string; // "Type to search · Esc to cancel"
+	formValueRequired: string; // "A value is required."
+	// ── Model picker (model-picker.ts) ──────────────────────────────────────
+	mpTitle: string; // "Switch Model"
+	mpTaskTitle: string; // "Switch Task Model"
+	mpStatusHint: string; // "Session-only switch — role models stay unchanged"
+	mpQuickRoleStatusHint: string;
+	mpTaskStatusHint: string;
+	mpFooterHint: string;
+	mpQuickRoleFooterHint: string;
+	mpTaskFooterHint: string;
+	mpSessionModelWord: string; // "session model"
+	mpTaskModelWord: string; // "task model"
+	mpNoQuickRoles: string;
+
+	// ── Model hub (model-hub.ts) ────────────────────────────────────────────
+	mhModelsTitle: string; // "Models" (frame title)
+	mhRolesLabel: string; // "Roles" (sidebar)
+	mhMinutesAgoFmt: string; // "%sm ago"
+	mhNoMatchInProviderFmt: string; // %s = provider label
+	mhCachedPendingFmt: string; // %s = age
+	mhDiscoveryFailedFmt: string; // %s = error
+	mhDiscovery404Fmt: string; // %s = endpoint
+	mhApplying: string;
+	mhPickingFallbackFmt: string; // %s = verb, %s = label
+	mhAssigningFmt: string; // %s = label
+	mhRecentStatusFmt: string; // %s = --models scope suffix
+	mhNotConfiguredFmt: string; // %s = provider
+	mhRefreshingFmt: string; // %s = provider
+	mhProviderModelsFmt: string; // %s = provider, %s = count, %s = scope suffix
+	mhAllAvailableFmt: string; // %s = scope suffix
+	mhFallbacksChipFmt: string; // "fallbacks:%s"
+	mhForChipFmt: string; // "for %s"
+	mhNewRoleRow: string; // "+ New role…"
+	mhNewFallbackRow: string; // "+ New fallback…"
+	mhAutoFmt: string; // "auto → %s"
+	mhMoreAboveFmt: string; // "↑ %s more"
+	mhMoreBelowFmt: string; // "↓ %s more"
+	mhCycleTitleFmt: string; // %s = cycle key
+	mhCycleEmptyFmt: string; // %s = cycle key
+	mhNoCredentialsFmt: string; // %s = provider
+	mhLoginWithOauth: string;
+	mhCatalogCountFmt: string; // %s = count
+	mhThinkingRowSuffix: string; // " · t thinking"
+	mhRolesThinkingHintFmt: string; // %s = thinking suffix
+	mhMainHintFmt: string; // %s = arrows, %s = refresh suffix
+
+	// ── Model browser (model-browser.ts) ───────────────────────────────────
+	mbNoMatchingModels: string;
+	mbNoModelsInScope: string;
+
+	// ── Session selector (session-selector.ts) ─────────────────────────────
+	ssEmptyNoSessions: string; // "No sessions found" (no indent)
+	ssEmptyNoFolderSessions: string; // no indent
+	ssLoadingProjects: string; // "Loading all projects…" (no indent)
+	ssCurrentMark: string; // "current"
+	ssTitleWithScopeFmt: string; // "%s (%s)"
+	ssFooterHintLineFmt: string; // "[Del/⌫ delete · Enter select · Tab %s · Esc cancel]"
+
+	// ── History search (history-search.ts) ─────────────────────────────────
+	hsTitle: string; // "History"
+	hsNoMatchingHistory: string;
+	hsNoHistoryYet: string;
+	hsHintNavigate: string;
+	hsHintSelect: string;
+	hsHintCancel: string;
+	hsRelativeNow: string; // "now"
+
+	// ── Session tree selector (tree-selector.ts) ───────────────────────────
+	tselPanelTitle: string; // "Session Tree" (no indent)
+	tselEmptyEntries: string; // "No entries found" (no indent)
+	tselNoMatchBareFmt: string; // 'No entries match search "%s"'
+	tselBackspaceHint: string; // no indent
+	tselFilterDefault: string; // "[default]"
+	tselEntriesHiddenFmt: string; // %s = count, %s = filter label
+	tselAltShowAllHint: string; // no indent
+	tselHelpHintFull: string; // long help line with Alt+↑/↓ and PgUp/PgDn
+
+	// ── Rewind selector (rewind-selector.ts) ───────────────────────────────
+	rwTitle: string; // "Rewind"
+	rwSubtitle: string;
+	rwHintBranches: string; // "←/→ branches"
+	rwHintTurns: string; // "←/→ user turns"
+	rwFooterFmt: string; // %s = lateral hint
+	rwCurrentColumn: string; // "current"
+
+	// ── Usage dashboard (usage-dashboard.ts) ───────────────────────────────
+	udDetailsTitle: string; // "Usage · Details"
+	udNoLimits: string; // "no limits"
+	udAccountsFmt: string; // "%s accts"
+	udNoData: string; // "no data"
+	udMoreFmt: string; // "+%s more"
+	udUntouchedFmt: string; // "untouched: %s"
+	udHistoryUnavailable: string;
+	udHistoryUnavailableFmt: string; // %s = detail
+	udHistoryLoading: string;
+	udActivityTitle: string; // "Activity"
+	udActivitySummaryFmt: string; // %s = cost, %s = requests, %s = weeks
+	udSyncingSuffix: string; // " · syncing…"
+	udCheckedAgoFmt: string; // "checked %s ago"
+	udScrollHint: string; // "↑/↓ scroll · "
+	udDetailHint: string; // "Esc back"
+	udOverviewHint: string; // "↵ details · Esc close"
+
+	// ── agents hub (agents-hub.ts) ─────────────────────────────────────────
+	agentsHubTitle: string; // "Agents" (frame title)
+	agentsHubSourceProject: string; // sidebar source label
+	agentsHubSourceUser: string; // sidebar source label
+	agentsHubSourceBundled: string; // sidebar source label
+	agentsHubAllAgents: string; // sidebar "All agents"
+	agentsHubNewAgent: string; // sidebar "New agent"
+	agentsHubNewAgentRow: string; // list row "+ New agent…"
+	agentsHubNoModels: string; // model browser empty state
+	agentsHubSelectToInspect: string; // detail placeholder (also agent-hub)
+	agentsHubSearchLabel: string; // "search:"
+	agentsHubSessionModel: string; // "session model" (no parens)
+	agentsHubModelNoticeFmt: string; // "%s model: %s%s"
+	agentsHubPrewalkOnFmt: string; // "%s prewalk: on (%s)"
+	agentsHubPrewalkOffFmt: string; // "%s prewalk: off"
+	agentsHubAdvisorOnFmt: string; // "%s advisor: on (%s)"
+	agentsHubAdvisorOffFmt: string; // "%s advisor: off"
+	agentsHubAuto: string; // model summary "auto"
+	agentsHubChipEnable: string; // enable chip
+	agentsHubChipDisable: string; // disable chip
+	agentsHubPropertyModel: string; // property word "model"
+	agentsHubPropertyPrewalk: string; // property word "prewalk"
+	agentsHubPropertyAdvisor: string; // property word "advisor"
+	agentsHubPickModel: string; // "pick model…" chip
+	agentsHubPattern: string; // "pattern…" chip
+	agentsHubClearOverride: string; // "clear override" chip
+	agentsHubCreatedFmt: string; // "Created agent %s at %s"
+	agentsHubModelOverride: string; // "model override"
+	agentsHubPropertyModelFmt: string; // "%s model"
+	agentsHubPickingFmt: string; // " Picking %s for %s — Enter assigns, Esc cancels"
+	agentsHubCreateStatus: string; // create-flow status row
+	agentsHubSourceScopeFmt: string; // "%s agents" count row
+	agentsHubPrewalkBadgeFmt: string; // "pre:%s" list badge
+	agentsHubAdvisorBadgeFmt: string; // "adv:%s" list badge
+	agentsHubReviewTitle: string; // " Review generated agent"
+	agentsHubIdentifierFmt: string; // " Identifier: %s"
+	agentsHubScopeFmt: string; // " Scope: %s"
+	agentsHubMoreLinesFmt: string; // "   … %s more lines"
+	agentsHubCreateTitle: string; // " Create new agent"
+	agentsHubCreatePromptFmt: string; // " Describe what the agent should do; scope: %s"
+	agentsHubGenerating: string; // "Generating…"
+	agentsHubPatternValueModel: string; // "a model pattern"
+	agentsHubPatternValueStates: string; // '"on", "off", or a model pattern'
+	agentsHubPatternHintFmt: string; // pattern input hint, %s = value kinds
+	agentsHubStripApplyHint: string; // property strip footer
+	agentsHubStripOpenHint: string; // agent strip footer
+	agentsHubAssignHint: string; // model browser footer
+	agentsHubReviewHint: string; // review footer
+	agentsHubCreateHint: string; // create editor footer
+	agentsHubScopeHint: string; // sidebar focus footer
+	agentsHubListHint: string; // list focus footer
+	agentsHubPatternLabelFmt: string; // "%s %s pattern:" input label
+
+	// ── agent hub (agent-hub.ts / agent-activity.ts) ───────────────────────
+	agentHubTitle: string; // "Agent Hub" (also transcript viewer header)
+	agentHubActivity: string; // "Activity" section tab
+	agentHubStatusRunning: string; // status word (also agent-activity/viewer)
+	agentHubStatusIdle: string; // status word
+	agentHubStatusParked: string; // status word
+	agentHubStatusAborted: string; // status word
+	agentHubScopeAll: string; // "all agents"
+	agentHubScopeSelected: string; // "selected agent"
+	agentHubSelectedWord: string; // "selected" subtree fallback
+	agentHubScopeSubtreeFmt: string; // "%s subtree"
+	agentHubSearchFmt: string; // "search: %s"
+	agentHubSearchEmpty: string; // "search: —"
+	agentHubFilterAll: string; // activity filter word
+	agentHubFilterErrors: string; // activity filter word
+	agentHubFilterResponses: string; // activity filter word
+	agentHubFilterTools: string; // activity filter word
+	agentHubFollowing: string; // follow state word
+	agentHubPaused: string; // follow state word
+	agentHubNoMatch: string; // activity empty (filtered)
+	agentHubNoActivity: string; // activity empty
+	agentHubEarlierFmt: string; // "… %s earlier"
+	agentHubActivityFooter: string; // activity footer key strip
+	agentHubTitleAgentFmt: string; // "Agent Hub · %s" (narrow title)
+	agentHubViewByParent: string; // footer toggle word
+	agentHubViewFlat: string; // footer toggle word
+	agentHubFooterDetailsFmt: string; // narrow details footer, %s = filter, view
+	agentHubFooterNarrowFmt: string; // narrow footer, %s = filter, view
+	agentHubFooterWideFmt: string; // wide footer, %s = filter, view
+	agentHubLoadingSaved: string; // "Loading saved agents…"
+	agentHubEmptyTitle: string; // empty state heading
+	agentHubEmptyDetail: string; // empty state detail
+	agentHubEmptyHint: string; // empty state hint
+	agentHubMoreFmt: string; // "… %s more"
+	agentHubViewFlatChip: string; // "Flat" summary chip
+	agentHubViewByParentChip: string; // "By parent" summary chip
+	agentHubRoster: string; // "Roster" summary heading
+	agentHubUsageNone: string; // "Usage —" (zero measured)
+	agentHubMeasuredFmt: string; // "%s/%s measured"
+	agentHubAgentTimeFmt: string; // "%s agent time"
+	agentHubAgentTimeNone: string; // "agent time —"
+	agentHubReqFmt: string; // "%s req"
+	agentHubToolsFmt: string; // "%s tools"
+	agentHubTokFmt: string; // "%s tok"
+	agentHubTimedFmt: string; // "%s/%s timed"
+	agentHubSectionTask: string; // detail section
+	agentHubSectionCurrent: string; // detail section
+	agentHubSectionUsage: string; // detail section
+	agentHubSectionLineage: string; // detail section
+	agentHubSectionChanges: string; // detail section
+	agentHubSectionRecent: string; // detail section
+	agentHubActiveFmt: string; // "active %s"
+	agentHubRetryFmt: string; // "retry %s/%s"
+	agentHubUsageDash: string; // "usage —" (detail)
+	agentHubSpawnedByFmt: string; // "Spawned by %s"
+	agentHubChildrenFmt: string; // " · %s children"
+	agentHubRegisteredFmt: string; // "Registered %s"
+	agentHubReadOnlyLoc: string; // "Read-only · 0 LoC"
+	agentHubSharedWorkspace: string; // "Shared workspace · per-agent LoC not attributable"
+	agentHubOutputFmt: string; // "Output %s"
+	agentHubPatchFmt: string; // "Patch %s"
+	agentHubNestedPatchFmt: string; // "Nested patch %s"
+	agentHubWorktreeFmt: string; // "Worktree branch %s"
+	agentHubNoRecentActivity: string; // "No response or tool activity yet"
+	agentHubReadOnly: string; // advisor badge "read-only"
+	agentHubUsageWord: string; // metadata fallback "usage"
+	agentHubAdvisorReviveFmt: string; // revive notice
+	agentHubNotParkedFmt: string; // revive notice, %s = id, status
+	agentHubAdvisorKillFmt: string; // kill notice
+	agentActivityFallback: string; // "Agent activity" summary fallback
+	agentActivityResponse: string; // "Response" activity title
+
+	// ── agent transcript viewer (agent-transcript-viewer.ts) ───────────────
+	transcriptOfFmt: string; // "of %s" (parent tag)
+	transcriptFooterEditorFmt: string; // footer hint with editor, %s = expand key
+	transcriptFooterFmt: string; // footer hint without editor, %s = expand key
+	transcriptHostUnavailable: string; // remote placeholder
+	transcriptNoMessages: string; // empty placeholder
+	transcriptLoadingRemote: string; // remote loading placeholder
+	transcriptNoSessionFile: string; // no-session placeholder
+
+	// ── ask dialog (ask-dialog.ts) ─────────────────────────────────────────
+	askSubmitOption: string; // "Submit" tab + row (display mapping of sentinel)
+	askDialogTitle: string; // "Ask" panel title
+	askDialogTitleFmt: string; // "Ask (%ds)"
+	askReviewAnswers: string; // "Review answers" header
+	askCancelFmt: string; // "%s cancel" footer fragment
+	askEnterSubmit: string; // "Enter submit"
+	askUpDownScroll: string; // "↑/↓ scroll"
+	askUpDownMove: string; // "↑/↓ move"
+	askHintSelect: string; // "Enter select · n note"
+	askSpaceToggleNext: string; // "Space toggle · Enter next"
+	askSpaceToggleSubmit: string; // "Space toggle · Enter submit"
+	askExpandWord: string; // "expand"
+	askCollapseWord: string; // "collapse"
+	askUnanswered: string; // "unanswered" summary word
+	askOtherAnswerFmt: string; // "Other: “%s”"
+	askCustomAnswerPrompt: string; // "Custom answer: " prompt title prefix
+	askNotePromptFmt: string; // "Note for %s: " prompt title prefix
+	askUnansweredWarnOne: string; // "%d unanswered question; Enter still submits."
+	askUnansweredWarnMany: string; // "%d unanswered questions; Enter still submits."
+	askScrollIndicatorFmt: string; // " %s scroll ·"
+	askCancelWord: string; // "cancel" word (also btw footer)
+
+	// ── btw panel + history (btw-panel.ts / btw-history-panel.ts) ──────────
+	btwCopiedBadge: string; // "✓ Copied" title suffix
+	btwEscToCancel: string; // running footer
+	btwCopyAgain: string; // "c to copy again"
+	btwCopy: string; // "c to copy"
+	btwFollowUpHint: string; // "f to follow up"
+	btwBranchHint: string; // "b to branch"
+	btwEscToClose: string; // "Esc to close"
+	btwCopiedToClipboard: string; // "✓ Copied to clipboard" (both panels)
+	btwBranching: string; // "Branching to chat…"
+	btwCancelledClose: string; // "Cancelled · Esc to close"
+	btwErrorClose: string; // "Error · Esc to close"
+	btwWaitingForResponse: string; // "Waiting for response…" (both panels)
+	btwNoTextReturned: string; // "No text returned."
+	btwStatusRunning: string; // history status word
+	btwStatusComplete: string; // history status word
+	btwStatusError: string; // history status word
+	btwStatusInterrupted: string; // history status word
+	btwFollowUpPrompt: string; // composer input prompt
+	btwNoticeEmptyQuestion: string; // composer notice
+	btwNoticeBusy: string; // composer notice
+	btwNoticeStarting: string; // composer notice
+	btwNoticeNotStarted: string; // composer notice
+	btwNoticeStartFailed: string; // composer notice
+	btwEmptyList: string; // list empty state
+	btwEmptyDetail: string; // detail empty state
+	btwQuestionLabel: string; // "Question" heading
+	btwAnswerLabel: string; // "Answer" heading
+	btwNoAnswerText: string; // "No answer text."
+	btwNotResumed: string; // "Not resumed in this view."
+	btwHistoryCountFmt: string; // "History (%s)" pane label
+	btwDetailsLabel: string; // "Details" pane label
+	btwPanelTitle: string; // "BTW history" frame title
+	btwActStarting: string; // footer action word
+	btwActSend: string; // footer action word
+	btwActClose: string; // footer action word
+	btwActSwitchPane: string; // footer action word
+	btwActFollowUp: string; // footer action word
+	btwCopiedAgain: string; // "✓ copied · c to copy again"
+	btwActCopy: string; // footer action word
+	btwActCopyAnswer: string; // footer action word
+	btwActSelect: string; // navigation word
+	btwActScroll: string; // navigation word
+	btwTopicFmt: string; // "Topic: %s" composer line
+	overlayUnknownError: string; // "Unknown error" (btw + omfg panels)
+
+	// ── cleanse panel (cleanse-panel.ts) ───────────────────────────────────
+	cleanseFooterRunning: string; // "Esc cancel /cleanse"
+	cleanseFooterClean: string; // "Clean · Esc dismiss"
+	cleanseFooterUnresolved: string; // "Diagnostics remain · Esc dismiss"
+	cleanseFooterUnsupported: string; // "No runnable checker · Esc dismiss"
+	cleanseFooterCancelled: string; // "Cancelled · Esc dismiss"
+	cleanseFooterError: string; // "Error · Esc dismiss"
+
+	// ── omfg panel (omfg-panel.ts) ─────────────────────────────────────────
+	omfgStatusGenerating: string; // default status line
+	omfgFooterCancel: string; // "Esc cancel /omfg"
+	omfgFooterSavedFmt: string; // "Registered live · %s · Esc dismiss"
+	omfgSavedPathFallback: string; // "saved" path fallback word
+	omfgFooterRejected: string; // "Not saved · Esc dismiss"
+	omfgFooterAborted: string; // "Cancelled · Esc dismiss"
+	omfgFooterError: string; // "Error · Esc dismiss"
+	omfgWaitingRule: string; // "Waiting for candidate rule…"
+
+	// ── advisor config extras (advisor-config.ts) ──────────────────────────
+	adEnabledLabel: string; // preview "Enabled:"
+	adEnabledFieldLabel: string; // detail "Enabled"
+	adTokensInFmt: string; // "%s in"
+	adTokensOutFmt: string; // "%s out"
+	adTokensCacheFmt: string; // "%s cache"
+	adCostFmt: string; // "  Cost: $%s"
+	adContextFmt: string; // "  Context: %s/%s (%s%)"
+	adConfigProblems: string; // pinned warnings header
+	adScopeHelpFmt: string; // scope help, %s = localized scope word
+	adScopeItemFmt: string; // "Scope: %s" list item
+	adErrPrefixFmt: string; // "Advisor config: %s" notify prefix
+	adNameHint: string; // name editor footer
+	adModelHint: string; // model picker footer
+	adThinkingHintFmt: string; // thinking picker footer
+	adInstructionsTitleFmt: string; // "Instructions — %s" editor title
+	adMoreBelowFmt: string; // "  ↓ %s more" preview marker
+	adQuotaUsedFmt: string; // "%s: %s used"
+	adQuotaResetsWord: string; // "resets"
+	adQuotaTitleFmt: string; // "Quota: %s"
+	adQuotaResetsInFmt: string; // "%s in %s"
 }
 
 export { M } from "./index";

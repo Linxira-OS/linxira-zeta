@@ -7,9 +7,9 @@ import {
 	Input,
 	matchesKey,
 	Spacer,
-	TruncatedText,
 	truncateToWidth,
 } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
 /** Available session-tree display filters. */
 export const TREE_FILTER_MODES = ["default", "no-tools", "user-only", "labeled-only", "all"] as const;
@@ -494,13 +494,13 @@ class TreeList implements Component {
 	#getFilterLabel(): string {
 		switch (this.#filterMode) {
 			case "no-tools":
-				return " [no-tools]";
+				return tuiText("tselFilterNoTools", " [no-tools]");
 			case "user-only":
-				return " [user]";
+				return tuiText("tselFilterUser", " [user]");
 			case "labeled-only":
-				return " [labeled]";
+				return tuiText("tselFilterLabeled", " [labeled]");
 			case "all":
-				return " [all]";
+				return tuiText("tselFilterAll", " [all]");
 			default:
 				return "";
 		}
@@ -519,21 +519,47 @@ class TreeList implements Component {
 			//    `model_change` + `thinking_level_change` (both hidden by the default filter)
 			//    read as "broken /tree" — see #1909.
 			if (totalCount === 0) {
-				lines.push(truncateToWidth(theme.fg("muted", "No entries found"), width));
+				lines.push(truncateToWidth(theme.fg("muted", tuiText("tselEmptyEntries", "No entries found")), width));
 				lines.push(truncateToWidth(theme.fg("muted", `(0/0)${this.#getFilterLabel()}`), width));
 			} else if (this.#searchQuery.length > 0) {
-				lines.push(truncateToWidth(theme.fg("muted", `No entries match search "${this.#searchQuery}"`), width));
-				lines.push(truncateToWidth(theme.fg("muted", "Press Backspace to clear the search"), width));
-				lines.push(truncateToWidth(theme.fg("muted", `(0/${totalCount})${this.#getFilterLabel()}`), width));
-			} else {
-				const filterLabel = this.#getFilterLabel().trim() || "[default]";
 				lines.push(
 					truncateToWidth(
-						theme.fg("muted", `${totalCount} entries hidden by the current filter ${filterLabel}`),
+						theme.fg(
+							"muted",
+							tuiTextFmt("tselNoMatchBareFmt", 'No entries match search "%s"', this.#searchQuery),
+						),
 						width,
 					),
 				);
-				lines.push(truncateToWidth(theme.fg("muted", "Press Alt+A to show all, Alt+D for default"), width));
+				lines.push(
+					truncateToWidth(
+						theme.fg("muted", tuiText("tselBackspaceHint", "Press Backspace to clear the search")),
+						width,
+					),
+				);
+				lines.push(truncateToWidth(theme.fg("muted", `(0/${totalCount})${this.#getFilterLabel()}`), width));
+			} else {
+				const filterLabel = this.#getFilterLabel().trim() || tuiText("tselFilterDefault", "[default]");
+				lines.push(
+					truncateToWidth(
+						theme.fg(
+							"muted",
+							tuiTextFmt(
+								"tselEntriesHiddenFmt",
+								"%s entries hidden by the current filter %s",
+								totalCount,
+								filterLabel,
+							),
+						),
+						width,
+					),
+				);
+				lines.push(
+					truncateToWidth(
+						theme.fg("muted", tuiText("tselAltShowAllHint", "Press Alt+A to show all, Alt+D for default")),
+						width,
+					),
+				);
 				lines.push(truncateToWidth(theme.fg("muted", `(0/${totalCount})${this.#getFilterLabel()}`), width));
 			}
 			return lines;
@@ -660,28 +686,35 @@ class TreeList implements Component {
 				if (role === "user") {
 					const msgWithContent = msg as { content?: unknown };
 					const content = normalize(this.#extractContent(msgWithContent.content));
-					result = theme.fg("accent", "user: ") + content;
+					result = theme.fg("accent", tuiText("tselRoleUser", "user: ")) + content;
 				} else if (role === "developer") {
 					const msgWithContent = msg as { content?: unknown };
 					const content = normalize(this.#extractContent(msgWithContent.content));
-					result = theme.fg("dim", "developer: ") + theme.fg("muted", content);
+					result = theme.fg("dim", tuiText("tselRoleDeveloper", "developer: ")) + theme.fg("muted", content);
 				} else if (role === "assistant") {
 					const presentation = resolveAssistantErrorPresentation(msg);
 					if (presentation.kind === "compact-recovered") {
-						result = theme.fg("success", "assistant: ") + theme.fg("dim", presentation.text);
+						result =
+							theme.fg("success", tuiText("tselRoleAssistant", "assistant: ")) +
+							theme.fg("dim", presentation.text);
 						break;
 					}
 					const msgWithContent = msg as { content?: unknown; stopReason?: string; errorMessage?: string };
 					const textContent = normalize(this.#extractContent(msgWithContent.content));
 					if (textContent) {
-						result = theme.fg("success", "assistant: ") + textContent;
+						result = theme.fg("success", tuiText("tselRoleAssistant", "assistant: ")) + textContent;
 					} else if (presentation.kind === "full") {
 						result =
-							theme.fg("success", "assistant: ") + theme.fg("error", normalize(presentation.text).slice(0, 80));
+							theme.fg("success", tuiText("tselRoleAssistant", "assistant: ")) +
+							theme.fg("error", normalize(presentation.text).slice(0, 80));
 					} else if (msgWithContent.stopReason === "aborted") {
-						result = theme.fg("success", "assistant: ") + theme.fg("muted", "(aborted)");
+						result =
+							theme.fg("success", tuiText("tselRoleAssistant", "assistant: ")) +
+							theme.fg("muted", tuiText("tselAborted", "(aborted)"));
 					} else {
-						result = theme.fg("success", "assistant: ") + theme.fg("muted", "(no content)");
+						result =
+							theme.fg("success", tuiText("tselRoleAssistant", "assistant: ")) +
+							theme.fg("muted", tuiText("tselNoContent", "(no content)"));
 					}
 				} else if (role === "toolResult") {
 					const toolMsg = msg as { toolCallId?: string; toolName?: string };
@@ -689,7 +722,7 @@ class TreeList implements Component {
 					if (toolCall) {
 						result = theme.fg("muted", this.#formatToolCall(toolCall.name, toolCall.arguments));
 					} else {
-						result = theme.fg("muted", `[${toolMsg.toolName ?? "tool"}]`);
+						result = theme.fg("muted", `[${toolMsg.toolName ?? tuiText("tselTool", "tool")}]`);
 					}
 				} else if (role === "bashExecution") {
 					const bashMsg = msg as { command?: string };
@@ -980,9 +1013,14 @@ class SearchLine implements Component {
 	render(width: number): readonly string[] {
 		const query = this.treeList.getSearchQuery();
 		if (query) {
-			return [truncateToWidth(`${theme.fg("muted", "Search:")} ${theme.fg("accent", query)}`, width)];
+			return [
+				truncateToWidth(
+					`${theme.fg("muted", tuiText("tselSearchLabel", "Search:"))} ${theme.fg("accent", query)}`,
+					width,
+				),
+			];
 		}
-		return [truncateToWidth(theme.fg("muted", "Search:"), width)];
+		return [truncateToWidth(theme.fg("muted", tuiText("tselSearchLabel", "Search:")), width)];
 	}
 
 	handleInput(_keyData: string): void {}
@@ -1008,9 +1046,9 @@ class LabelInput implements Component {
 
 	render(width: number): readonly string[] {
 		const lines: string[] = [];
-		lines.push(truncateToWidth(theme.fg("muted", "Label (empty to remove):"), width));
+		lines.push(truncateToWidth(theme.fg("muted", tuiText("tselLabelPrompt", "Label (empty to remove):")), width));
 		lines.push(...this.#input.render(width));
-		lines.push(truncateToWidth(theme.fg("dim", "enter: save  esc: cancel"), width));
+		lines.push(truncateToWidth(theme.fg("dim", tuiText("tselLabelHint", "enter: save  esc: cancel")), width));
 		return lines;
 	}
 
@@ -1023,6 +1061,25 @@ class LabelInput implements Component {
 		} else {
 			this.#input.handleInput(keyData);
 		}
+	}
+}
+
+/** Help hint row, re-resolved every render so a live language switch applies. */
+class HelpHintLine implements Component {
+	invalidate(): void {}
+	render(width: number): readonly string[] {
+		return [
+			truncateToWidth(
+				theme.fg(
+					"muted",
+					tuiText(
+						"tselHelpHintFull",
+						"Enter: switch. Alt+↑/↓: previous/next turn. PgUp/PgDn (←/→): page. Home/End: first/last item. Shift+Enter: summarize & switch. Shift+L: label. Ctrl+O: filter. Alt+D/T/U/L/A: filter. Type to search",
+					),
+				),
+				width,
+			),
+		];
 	}
 }
 
@@ -1064,16 +1121,7 @@ export class TreeSelectorComponent extends OverlayPanel {
 		this.#labelInputContainer = new Container();
 
 		this.addChild(new Spacer(1));
-		this.addChild(
-			new TruncatedText(
-				theme.fg(
-					"muted",
-					"Enter: switch. Alt+↑/↓: previous/next turn. PgUp/PgDn (←/→): page. Home/End: first/last item. Shift+Enter: summarize & switch. Shift+L: label. Ctrl+O: filter. Alt+D/T/U/L/A: filter. Type to search",
-				),
-				0,
-				0,
-			),
-		);
+		this.addChild(new HelpHintLine());
 		this.addChild(new SearchLine(this.#treeList));
 		this.addChild(new PanelDivider());
 		this.addChild(new Spacer(1));
@@ -1084,6 +1132,11 @@ export class TreeSelectorComponent extends OverlayPanel {
 		if (tree.length === 0) {
 			setTimeout(() => onCancel(), 100);
 		}
+	}
+	/** Re-resolve the panel title every render so a live language switch applies. */
+	override render(width: number): readonly string[] {
+		this.title = tuiText("tselPanelTitle", "Session Tree");
+		return super.render(width);
 	}
 
 	#showLabelInput(entryId: string, currentLabel: string | undefined): void {

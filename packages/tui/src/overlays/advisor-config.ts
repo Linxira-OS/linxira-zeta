@@ -18,6 +18,7 @@
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { type Model, resolveUsedFraction, type UsageLimit, type UsageReport } from "@linxiraos/pi-ai";
 import { formatDuration } from "@linxiraos/pi-utils";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import {
 	type Component,
@@ -145,18 +146,25 @@ export function formatCompactQuota(
 		const windowLabel = limit.window?.label ?? limit.scope.windowId ?? "—";
 		const identity = limit.label.trim();
 		const header = identity && identity !== windowLabel ? `${windowLabel} (${identity})` : windowLabel;
-		const parts = [`${header}: ${pct}% used`];
+		const parts = [tuiTextFmt("adQuotaUsedFmt", "%s: %s used", header, `${pct}%`)];
 		const window = limit.window;
 		if (window?.resetsAt !== undefined && Number.isFinite(window.resetsAt) && window.resetsAt > nowMs) {
-			parts.push(`${window.resetLabel ?? "resets"} in ${formatDuration(window.resetsAt - nowMs)}`);
+			parts.push(
+				tuiTextFmt(
+					"adQuotaResetsInFmt",
+					"%s in %s",
+					window.resetLabel ?? tuiText("adQuotaResetsWord", "resets"),
+					formatDuration(window.resetsAt - nowMs),
+				),
+			);
 		}
 		lines.push(parts.join(" · "));
 	}
-	return `Quota: ${lines.join(" │ ")}`;
+	return tuiTextFmt("adQuotaTitleFmt", "Quota: %s", lines.join(" │ "));
 }
 
 function previewLineOrNone(text: string | undefined): string {
-	if (!text?.trim()) return "(none)";
+	if (!text?.trim()) return tuiText("adNone", "(none)");
 	const first = text.trim().split("\n", 1)[0] ?? "";
 	return first.length > PREVIEW_WIDTH ? `${first.slice(0, PREVIEW_WIDTH - 1)}…` : first;
 }
@@ -182,7 +190,7 @@ function commitTools(
 }
 
 function formatAdvisorTools(tools: readonly string[] | undefined, emptyLabel: string): string {
-	if (tools === undefined) return "read, grep, glob (default)";
+	if (tools === undefined) return tuiText("adToolsDefault", "read, grep, glob (default)");
 	return tools.length > 0 ? tools.join(", ") : emptyLabel;
 }
 
@@ -286,13 +294,16 @@ export class AdvisorConfigOverlayComponent implements Component {
 		}
 	}
 
-	// ───────────────────────────── render ─────────────────────────────
-
 	render(width: number): readonly string[] {
 		const height = Math.max(14, process.stdout.rows || 40);
 		const bodyRows = Math.max(3, height - 4);
 		this.#bodyRowsLast = bodyRows;
-		const title = `Advisor configuration · ${this.#scope}${this.#dirty ? "  ● unsaved" : ""}`;
+		const title = tuiTextFmt(
+			"adTitleFmt",
+			"Advisor configuration · %s%s",
+			tuiText(this.#scope === "user" ? "mcpScopeWordUser" : "mcpScopeWordProject", this.#scope),
+			this.#dirty ? tuiText("adUnsaved", "  ● unsaved") : "",
+		);
 		this.#split.setNarrowPane(this.#screen === "list" ? undefined : "left");
 		this.#split.setSplitAt(this.#screen === "list" ? 0 : Number.MAX_SAFE_INTEGER);
 		this.#split.setHeight(bodyRows);
@@ -354,8 +365,8 @@ export class AdvisorConfigOverlayComponent implements Component {
 		if (lines.length > rows) {
 			const marker =
 				start + rows < lines.length
-					? theme.fg("dim", `  ↓ ${lines.length - rows - start} more`)
-					: theme.fg("dim", "  (end)");
+					? theme.fg("dim", tuiTextFmt("adMoreBelowFmt", "  ↓ %s more", String(lines.length - rows - start)))
+					: theme.fg("dim", tuiText("adEnd", "  (end)"));
 			window[rows - 1] = marker;
 		}
 		return window;
@@ -367,7 +378,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 		// until a successful save rewrites the file without them.
 		const warnings = this.#doc.warnings?.length
 			? [
-					theme.fg("warning", "⚠ Config problems — dropped while loading:"),
+					theme.fg("warning", tuiText("adConfigProblems", "⚠ Config problems — dropped while loading:")),
 					...sanitizeDisplayWarnings(this.#doc.warnings).flatMap(warning =>
 						wrap(warning, bodyWidth).map(line => theme.fg("warning", line)),
 					),
@@ -382,55 +393,71 @@ export class AdvisorConfigOverlayComponent implements Component {
 			if (advisor) return [...warnings, ...this.#advisorPreview(advisor, bodyWidth)];
 		}
 		if (value === "shared") {
-			const lines = [...warnings, theme.bold("Shared instructions"), ""];
+			const lines = [...warnings, theme.bold(tuiText("adSharedInstructions", "Shared instructions")), ""];
 			const text = this.#doc.instructions?.trim();
-			lines.push(...(text ? wrap(text, bodyWidth) : [theme.fg("muted", "(none)")]));
+			lines.push(...(text ? wrap(text, bodyWidth) : [theme.fg("muted", tuiText("adNone", "(none)"))]));
 			return lines.map(line => truncateToWidth(line, bodyWidth));
 		}
 		const help =
 			value === "add"
-				? "Create a new advisor entry, then edit its model, tools, and instructions."
+				? tuiText("adAddHelp", "Create a new advisor entry, then edit its model, tools, and instructions.")
 				: value === "scope"
-					? `Switch between the project and user WATCHDOG.yml. Currently editing the ${this.#scope}-level file.`
+					? tuiTextFmt(
+							"adScopeHelpFmt",
+							"Switch between the project and user WATCHDOG.yml. Currently editing the %s-level file.",
+							tuiText(this.#scope === "user" ? "mcpScopeWordUser" : "mcpScopeWordProject", this.#scope),
+						)
 					: value === "save"
-						? "Write this scope's WATCHDOG.yml and reload the live advisors without a restart."
+						? tuiText(
+								"adWriteHelp",
+								"Write this scope's WATCHDOG.yml and reload the live advisors without a restart.",
+							)
 						: value === "close"
-							? "Close the editor. Unsaved changes are discarded."
+							? tuiText("adCloseHelp", "Close the editor. Unsaved changes are discarded.")
 							: "";
 		return [...warnings, ...wrap(help, bodyWidth).map(line => truncateToWidth(theme.fg("muted", line), bodyWidth))];
 	}
 
 	#advisorPreview(advisor: AdvisorConfig, bodyWidth: number): string[] {
-		const model = advisor.model?.trim() || this.#defaultModelLabel || "advisor role default";
-		const tools = formatAdvisorTools(advisor.tools, "no tools");
+		const model =
+			advisor.model?.trim() || this.#defaultModelLabel || tuiText("adRoleDefault", "advisor role default");
+		const tools = formatAdvisorTools(advisor.tools, tuiText("adNoTools", "no tools"));
 		const lines = [
-			theme.bold(advisor.name || "(unnamed)"),
+			theme.bold(advisor.name || tuiText("adUnnamed", "(unnamed)")),
 			"",
-			`${theme.fg("dim", "Enabled:")} ${advisor.enabled === false ? "○ off" : "● on"}`,
-			`${theme.fg("dim", "Model:")} ${model}`,
-			`${theme.fg("dim", "Tools:")} ${tools}`,
+			`${theme.fg("dim", tuiText("adEnabledLabel", "Enabled:"))} ${advisor.enabled === false ? tuiText("adOff", "○ off") : tuiText("adOn", "● on")}`,
+			`${theme.fg("dim", tuiText("adModelLabel", "Model:"))} ${model}`,
+			`${theme.fg("dim", tuiText("adToolsLabel", "Tools:"))} ${tools}`,
 			"",
-			theme.fg("dim", "Instructions:"),
+			theme.fg("dim", tuiText("adInstructionsLabel", "Instructions:")),
 		];
 		const instr = advisor.instructions?.trim();
-		lines.push(...(instr ? wrap(instr, bodyWidth) : [theme.fg("muted", "(none)")]));
+		lines.push(...(instr ? wrap(instr, bodyWidth) : [theme.fg("muted", tuiText("adNone", "(none)"))]));
 		// Show live usage stats when available from the session.
 		const liveStat = this.#cb.getAdvisorStats?.()?.find(s => s.name === (advisor.name || "default"));
 		if (liveStat && (liveStat.status === "running" || liveStat.status === "quota_exhausted")) {
-			lines.push("", theme.fg("dim", "Usage:"));
+			lines.push("", theme.fg("dim", tuiText("adUsageLabel", "Usage:")));
 			const spendParts: string[] = [
-				`${liveStat.tokens.input.toLocaleString()} in`,
-				`${liveStat.tokens.output.toLocaleString()} out`,
+				tuiTextFmt("adTokensInFmt", "%s in", liveStat.tokens.input.toLocaleString()),
+				tuiTextFmt("adTokensOutFmt", "%s out", liveStat.tokens.output.toLocaleString()),
 			];
-			if (liveStat.tokens.cacheRead > 0) spendParts.push(`${liveStat.tokens.cacheRead.toLocaleString()} cache`);
-			lines.push(theme.fg("dim", `  Tokens: ${spendParts.join(", ")}`));
-			if (liveStat.cost > 0) lines.push(theme.fg("dim", `  Cost: $${liveStat.cost.toFixed(4)}`));
+			if (liveStat.tokens.cacheRead > 0)
+				spendParts.push(tuiTextFmt("adTokensCacheFmt", "%s cache", liveStat.tokens.cacheRead.toLocaleString()));
+			lines.push(theme.fg("dim", tuiTextFmt("adTokensFmt", "  Tokens: %s", spendParts.join(", "))));
+			if (liveStat.cost > 0)
+				lines.push(theme.fg("dim", tuiTextFmt("adCostFmt", "  Cost: $%s", liveStat.cost.toFixed(4))));
 			if (liveStat.contextWindow > 0) {
 				const pct = Math.round((liveStat.contextTokens / liveStat.contextWindow) * 100);
 				lines.push(
 					theme.fg(
 						"dim",
-						`  Context: ${liveStat.contextTokens.toLocaleString()}/${liveStat.contextWindow.toLocaleString()} (${pct}%)`,
+						tuiTextFmt(
+							"adContextFmt",
+							"  Context: %s/%s (%s%)",
+							liveStat.contextTokens.toLocaleString(),
+							liveStat.contextWindow.toLocaleString(),
+							`${pct}%`,
+						),
 					),
 				);
 			}
@@ -481,8 +508,9 @@ export class AdvisorConfigOverlayComponent implements Component {
 	}
 
 	#advisorSummary(advisor: AdvisorConfig): string {
-		const model = advisor.model?.trim() || this.#defaultModelLabel || "advisor role default";
-		const tools = formatAdvisorTools(advisor.tools, "no tools");
+		const model =
+			advisor.model?.trim() || this.#defaultModelLabel || tuiText("adRoleDefault", "advisor role default");
+		const tools = formatAdvisorTools(advisor.tools, tuiText("adNoTools", "no tools"));
 		return `${model} · ${tools}`;
 	}
 
@@ -490,18 +518,26 @@ export class AdvisorConfigOverlayComponent implements Component {
 		this.#ensureRosterVisible();
 		const items: SelectItem[] = this.#doc.advisors.map((advisor, index) => ({
 			value: `advisor:${index}`,
-			label: `${advisor.enabled === false ? "○" : "●"} ${advisor.name || "(unnamed)"}`,
+			label: `${advisor.enabled === false ? "○" : "●"} ${advisor.name || tuiText("adUnnamed", "(unnamed)")}`,
 			description: this.#advisorSummary(advisor),
 		}));
-		items.push({ value: "add", label: "+ Add advisor" });
+		items.push({ value: "add", label: tuiText("adAddItem", "+ Add advisor") });
 		items.push({
 			value: "shared",
-			label: "Shared instructions",
+			label: tuiText("adSharedInstructions", "Shared instructions"),
 			description: previewLineOrNone(this.#doc.instructions),
 		});
-		items.push({ value: "scope", label: `Scope: ${this.#scope}`, description: `→ ${this.#otherScope()}` });
-		items.push({ value: "save", label: "Save & apply" });
-		items.push({ value: "close", label: "Close" });
+		items.push({
+			value: "scope",
+			label: tuiTextFmt(
+				"adScopeItemFmt",
+				"Scope: %s",
+				tuiText(this.#scope === "user" ? "mcpScopeWordUser" : "mcpScopeWordProject", this.#scope),
+			),
+			description: `→ ${tuiText(this.#otherScope() === "user" ? "mcpScopeWordUser" : "mcpScopeWordProject", this.#otherScope())}`,
+		});
+		items.push({ value: "save", label: tuiText("adSaveApply", "Save & apply") });
+		items.push({ value: "close", label: tuiText("adCloseItem", "Close") });
 
 		// Show every row (no internal overflow-search); the split frame supplies height.
 		const list = new SelectList(items, Math.max(1, items.length), getSelectListTheme());
@@ -511,10 +547,16 @@ export class AdvisorConfigOverlayComponent implements Component {
 		};
 		list.onSelect = item =>
 			void this.#onListSelect(item.value).catch(err => {
-				this.#cb.notify(`Advisor config: ${err instanceof Error ? err.message : String(err)}`);
+				this.#cb.notify(
+					tuiTextFmt("adErrPrefixFmt", "Advisor config: %s", err instanceof Error ? err.message : String(err)),
+				);
 			});
 		list.onCancel = () => this.#cb.close();
-		this.#setScreen("list", list, "↑↓ move · Enter / click select · scroll preview on the right · Esc close");
+		this.#setScreen(
+			"list",
+			list,
+			tuiText("adListHint", "↑↓ move · Enter / click select · scroll preview on the right · Esc close"),
+		);
 	}
 
 	async #onListSelect(value: string): Promise<void> {
@@ -530,7 +572,9 @@ export class AdvisorConfigOverlayComponent implements Component {
 		}
 		if (value === "scope") {
 			if (this.#dirty) {
-				this.#cb.notify('Unsaved changes — "Save & apply" or Close before switching scope.');
+				this.#cb.notify(
+					tuiText("adUnsavedNotify", 'Unsaved changes — "Save & apply" or Close before switching scope.'),
+				);
 				return;
 			}
 			const next = this.#otherScope();
@@ -573,30 +617,39 @@ export class AdvisorConfigOverlayComponent implements Component {
 			this.#showList();
 			return;
 		}
-		const modelDescription = advisor.model?.trim() || this.#defaultModelLabel || "advisor role default";
-		const toolsDescription = formatAdvisorTools(advisor.tools, "no tools");
+		const modelDescription =
+			advisor.model?.trim() || this.#defaultModelLabel || tuiText("adRoleDefault", "advisor role default");
+		const toolsDescription = formatAdvisorTools(advisor.tools, tuiText("adNoTools", "no tools"));
 		const items: SelectItem[] = [
-			{ value: "name", label: "Name", description: advisor.name },
+			{ value: "name", label: tuiText("adNameLabel", "Name"), description: advisor.name },
 			{
 				value: "toggleEnabled",
-				label: "Enabled",
-				description: advisor.enabled === false ? "○ off" : "● on",
+				label: tuiText("adEnabledFieldLabel", "Enabled"),
+				description: advisor.enabled === false ? tuiText("adOff", "○ off") : tuiText("adOn", "● on"),
 			},
-			{ value: "model", label: "Model", description: modelDescription },
+			{ value: "model", label: tuiText("adModelFieldLabel", "Model"), description: modelDescription },
 		];
 		if (advisor.model?.trim()) {
-			items.push({ value: "resetModel", label: "Reset model to advisor-role default" });
+			items.push({ value: "resetModel", label: tuiText("adResetModel", "Reset model to advisor-role default") });
 		}
 		items.push(
-			{ value: "tools", label: "Tools", description: toolsDescription },
-			{ value: "instructions", label: "Instructions", description: previewLineOrNone(advisor.instructions) },
-			{ value: "delete", label: "Delete this advisor" },
-			{ value: "back", label: "Back" },
+			{ value: "tools", label: tuiText("adToolsFieldLabel", "Tools"), description: toolsDescription },
+			{
+				value: "instructions",
+				label: tuiText("adInstructionsFieldLabel", "Instructions"),
+				description: previewLineOrNone(advisor.instructions),
+			},
+			{ value: "delete", label: tuiText("adDeleteAdvisor", "Delete this advisor") },
+			{ value: "back", label: tuiText("adBack", "Back") },
 		);
 		const list = new SelectList(items, Math.max(1, items.length), getSelectListTheme());
 		list.onSelect = item => this.#onDetailSelect(index, item.value);
 		list.onCancel = () => this.#showList();
-		this.#setScreen("detail", list, `Editing "${advisor.name}" · Enter / click edit field · Esc back`);
+		this.#setScreen(
+			"detail",
+			list,
+			tuiTextFmt("adEditingFmt", 'Editing "%s" · Enter / click edit field · Esc back', advisor.name),
+		);
 	}
 
 	#onDetailSelect(index: number, field: string): void {
@@ -647,7 +700,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 			this.#showDetail(index);
 		};
 		input.onEscape = () => this.#showDetail(index);
-		this.#setScreen("name", input, "Type a name · Enter save · Esc cancel");
+		this.#setScreen("name", input, tuiText("adNameHint", "Type a name · Enter save · Esc cancel"));
 	}
 
 	#showModelPicker(index: number): void {
@@ -680,11 +733,11 @@ export class AdvisorConfigOverlayComponent implements Component {
 			}
 		};
 		picker.onCancel = () => this.#showDetail(index);
-		this.#setScreen("model", picker, "Type to search · Enter / click twice picks · Esc back");
+		this.#setScreen("model", picker, tuiText("adModelHint", "Type to search · Enter / click twice picks · Esc back"));
 	}
 
 	#showThinkingPicker(index: number, selector: string, efforts: readonly string[]): void {
-		const items: SelectItem[] = [{ value: "", label: "(model default thinking)" }];
+		const items: SelectItem[] = [{ value: "", label: tuiText("adModelDefaultThinking", "(model default thinking)") }];
 		for (const effort of efforts) items.push({ value: effort, label: effort });
 		const list = new SelectList(items, Math.max(1, items.length), getSelectListTheme());
 		list.onSelect = item => {
@@ -694,7 +747,11 @@ export class AdvisorConfigOverlayComponent implements Component {
 			this.#showDetail(index);
 		};
 		list.onCancel = () => this.#showModelPicker(index);
-		this.#setScreen("thinking", list, `Thinking effort for ${selector} · Enter / click pick · Esc back`);
+		this.#setScreen(
+			"thinking",
+			list,
+			tuiTextFmt("adThinkingHintFmt", "Thinking effort for %s · Enter / click pick · Esc back", selector),
+		);
 	}
 
 	#showToolsEditor(index: number, selected: Set<string>, cursor: number): void {
@@ -703,7 +760,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 			value: name,
 			label: `${selected.has(name) ? "[x]" : "[ ]"} ${name}`,
 		}));
-		items.push({ value: "__done", label: "Done" });
+		items.push({ value: "__done", label: tuiText("adDone", "Done") });
 		const list = new SelectList(items, Math.max(1, items.length), getSelectListTheme());
 		list.setSelectedIndex(cursor);
 		let cursorIndex = cursor;
@@ -729,7 +786,10 @@ export class AdvisorConfigOverlayComponent implements Component {
 		this.#setScreen(
 			"tools",
 			list,
-			"Enter / click toggle · select Done or Esc to apply (empty = no tools; read/grep/glob = default)",
+			tuiText(
+				"adToolsHint",
+				"Enter / click toggle · select Done or Esc to apply (empty = no tools; read/grep/glob = default)",
+			),
 		);
 	}
 
@@ -737,7 +797,9 @@ export class AdvisorConfigOverlayComponent implements Component {
 	#showInstructionsEditor(index: number): void {
 		const shared = index < 0;
 		const current = shared ? this.#doc.instructions : this.#doc.advisors[index].instructions;
-		const title = shared ? "Shared advisor instructions" : `Instructions — ${this.#doc.advisors[index].name}`;
+		const title = shared
+			? tuiText("adSharedTitle", "Shared advisor instructions")
+			: tuiTextFmt("adInstructionsTitleFmt", "Instructions — %s", this.#doc.advisors[index].name);
 		const editor = new HookEditorComponent(
 			this.#tui,
 			title,

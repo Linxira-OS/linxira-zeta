@@ -36,6 +36,7 @@ import {
 } from "../render/render-utils";
 import type { StructuredSubagentOutput } from "./task";
 import type { RenderResultOptions, ToolRenderer, ToolActivitySummary } from "./renderer";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 /** Whether a wait snapshot contains only running jobs and no cancellations. */
 export function isWaitingPollDetails(details: unknown): boolean {
@@ -1038,7 +1039,13 @@ function bodyLines(
 	);
 	const hidden = preview.hidden;
 	if (hidden > 0) {
-		lines.push(`${indent}${quote} ${theme.fg("dim", `… +${hidden} more ${hidden === 1 ? "line" : "lines"}`)}`);
+		lines.push(
+			`${indent}${quote} ${
+				hidden === 1
+					? tuiTextFmt("hbMoreLineOneFmt", `… +${hidden} more line`, hidden)
+					: tuiTextFmt("hbMoreLinesManyFmt", `… +${hidden} more lines`, hidden)
+			}`,
+		);
 	}
 	return lines;
 }
@@ -1049,11 +1056,11 @@ function callTitle(args: HubRenderArgs | undefined, theme: Theme): string {
 		case "send":
 			return `IRC ${theme.nav.selected} ${args.to?.trim() || "…"}`;
 		case "wait":
-			return `IRC ${theme.nav.back} ${args.from?.trim() || "anyone"}`;
+			return `IRC ${theme.nav.back} ${args.from?.trim() || tuiText("hbIrcAnyone", "anyone")}`;
 		case "inbox":
-			return "IRC inbox";
+			return tuiText("hbIrcInboxTitle", "IRC inbox");
 		case "list":
-			return "IRC peers";
+			return tuiText("hbIrcPeersTitle", "IRC peers");
 		default:
 			return "Hub";
 	}
@@ -1066,7 +1073,7 @@ function messagingCallMeta(args: HubRenderArgs | undefined): string[] {
 		if (args.await) meta.push("await reply");
 		if (args.replyTo) meta.push("reply");
 	}
-	if (args?.op === "inbox" && args.peek) meta.push("peek");
+	if (args?.op === "inbox" && args.peek) meta.push(tuiText("hbPeekMeta", "peek"));
 	return meta;
 }
 
@@ -1075,7 +1082,7 @@ function renderErrorResult(
 	args: HubRenderArgs | undefined,
 	theme: Theme,
 ): string[] {
-	const text = firstTextBlock(result) || "IRC call failed.";
+	const text = firstTextBlock(result) || tuiText("hbIrcCallFailed", "IRC call failed.");
 	return [
 		renderStatusLine({ icon: "error", title: callTitle(args, theme), meta: messagingCallMeta(args) }, theme),
 		formatErrorDetail(text, theme),
@@ -1246,11 +1253,26 @@ function renderInboxResult(
 ): string[] {
 	const messages = details.inbox ?? [];
 	if (messages.length === 0) {
-		return [renderStatusLine({ iconOverride: ircGlyph(theme), title: "IRC inbox", meta: ["empty"] }, theme)];
+		return [
+			renderStatusLine(
+				{
+					iconOverride: ircGlyph(theme),
+					title: tuiText("hbIrcInboxTitle", "IRC inbox"),
+					meta: [tuiText("hbInboxEmpty", "empty")],
+				},
+				theme,
+			),
+		];
 	}
-	const meta = [`${messages.length} ${messages.length === 1 ? "message" : "messages"}`];
-	if (args?.peek) meta.push("peek");
-	const header = renderStatusLine({ iconOverride: ircGlyph(theme), title: "IRC inbox", meta }, theme);
+	const meta =
+		messages.length === 1
+			? [tuiText("hbMessageOne", "1 message")]
+			: [tuiTextFmt("hbMessageManyFmt", "%d messages", messages.length)];
+	if (args?.peek) meta.push(tuiText("hbPeekMeta", "peek"));
+	const header = renderStatusLine(
+		{ iconOverride: ircGlyph(theme), title: tuiText("hbIrcInboxTitle", "IRC inbox"), meta },
+		theme,
+	);
 	const items = renderTreeList<IrcMessage>(
 		{
 			items: messages,
@@ -1284,8 +1306,8 @@ function renderListResult(details: Partial<CoordinationDetails>, expanded: boole
 						`${rosterCounts.parked} parked`,
 						...(rosterCounts.truncated > 0 ? [`${rosterCounts.truncated} truncated`] : []),
 					]
-				: ["no other agents"];
-		return [renderStatusLine({ icon: "info", title: "IRC peers", meta }, theme)];
+				: [tuiText("hbNoOtherAgents", "no other agents")];
+		return [renderStatusLine({ icon: "info", title: tuiText("hbIrcPeersTitle", "IRC peers"), meta }, theme)];
 	}
 	const counts = new Map<string, number>();
 	for (const peer of peers) counts.set(peer.status, (counts.get(peer.status) ?? 0) + 1);
@@ -1298,8 +1320,19 @@ function renderListResult(details: Partial<CoordinationDetails>, expanded: boole
 			]
 		: [...counts].map(([status, count]) => `${count} ${status}`);
 	const unreadTotal = peers.reduce((sum, peer) => sum + peer.unread, 0);
-	if (unreadTotal > 0) meta.push(theme.fg("warning", `${unreadTotal} unread`));
-	const header = renderStatusLine({ iconOverride: ircGlyph(theme), title: "IRC peers", meta }, theme);
+	if (unreadTotal > 0)
+		meta.push(
+			theme.fg(
+				"warning",
+				unreadTotal === 1
+					? tuiText("hbUnreadOne", "1 unread")
+					: tuiTextFmt("hbUnreadManyFmt", "%d unread", unreadTotal),
+			),
+		);
+	const header = renderStatusLine(
+		{ iconOverride: ircGlyph(theme), title: tuiText("hbIrcPeersTitle", "IRC peers"), meta },
+		theme,
+	);
 	const items = renderTreeList(
 		{
 			items: peers,

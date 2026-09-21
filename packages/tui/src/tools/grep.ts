@@ -24,6 +24,7 @@ import {
 	PREVIEW_LIMITS,
 	replaceTabs,
 } from "../render/render-utils";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { classifyGroupedLines, groupLineIndicesByBlank } from "./grouped-file-output";
 
 /** Display metadata for grep tool results. */
@@ -84,7 +85,7 @@ const SEARCH_CODE_FRAME_LINE_RE = /^\s*\*?(\d+)│/;
 function searchScopeMeta(details: GrepToolDetails | undefined): string | undefined {
 	if (!details?.scopePath) return undefined;
 	const label = details.searchPath ? fileHyperlink(details.searchPath, details.scopePath) : details.scopePath;
-	return `in ${label}`;
+	return tuiTextFmt("gpInLabelFmt", `in ${label}`, label);
 }
 
 function linkUrlLikeSearchHeader(
@@ -264,7 +265,10 @@ export const grepToolRenderer = {
 		const details = result.details;
 
 		if (result.isError || details?.error) {
-			const errorText = details?.error || result.content?.find(c => c.type === "text")?.text || "Unknown error";
+			const errorText =
+				details?.error ||
+				result.content?.find(c => c.type === "text")?.text ||
+				tuiText("glUnknownError", "Unknown error");
 			return new Text(formatErrorMessage(errorText, uiTheme), 1, 0);
 		}
 
@@ -273,7 +277,7 @@ export const grepToolRenderer = {
 		if (!hasDetailedData) {
 			const textContent = result.details?.displayContent ?? result.content?.find(c => c.type === "text")?.text;
 			if (!textContent || textContent === "No matches found") {
-				return new Text(formatEmptyMessage("No matches found", uiTheme), 1, 0);
+				return new Text(formatEmptyMessage(tuiText("gpNoMatches", "No matches found"), uiTheme), 1, 0);
 			}
 			const lines = textContent.split("\n").filter(line => line.trim() !== "");
 			const description = args?.pattern ?? undefined;
@@ -283,7 +287,10 @@ export const grepToolRenderer = {
 					title: "Grep",
 					titleColor: "toolTitle",
 					description,
-					meta: [formatCount("item", lines.length)],
+					meta:
+						lines.length === 1
+							? [tuiText("grepItemOne", "1 item")]
+							: [tuiTextFmt("grepItemManyFmt", "%d items", lines.length)],
 				},
 				uiTheme,
 			);
@@ -316,27 +323,39 @@ export const grepToolRenderer = {
 		const missingPathsList = details?.missingPaths ?? [];
 		const missingNote =
 			missingPathsList.length > 0
-				? uiTheme.fg("warning", `skipped missing: ${missingPathsList.join(", ")}`)
+				? uiTheme.fg(
+						"warning",
+						tuiTextFmt(
+							"gpSkippedMissingFmt",
+							`skipped missing: ${missingPathsList.join(", ")}`,
+							missingPathsList.join(", "),
+						),
+					)
 				: undefined;
 
 		if (matchCount === 0) {
-			const meta = ["0 matches"];
+			const meta = [tuiText("agrpZeroMatches", "0 matches")];
 			const scopeMeta = searchScopeMeta(details);
 			if (scopeMeta) meta.push(scopeMeta);
 			const header = renderStatusLine(
 				{ icon: "warning", title: "Grep", titleColor: "toolTitle", description: args?.pattern, meta },
 				uiTheme,
 			);
-			const lines = [header, formatEmptyMessage("No matches found", uiTheme)];
+			const lines = [header, formatEmptyMessage(tuiText("gpNoMatches", "No matches found"), uiTheme)];
 			if (missingNote) lines.push(missingNote);
 			return new Text(lines.join("\n"), 1, 0);
 		}
 
-		const summaryParts = [formatCount("match", matchCount), formatCount("file", fileCount)];
-		const meta = [...summaryParts];
+		const matchMeta =
+			matchCount === 1
+				? tuiText("grepMatchOne", "1 match")
+				: tuiTextFmt("grepMatchManyFmt", "%d matches", matchCount);
+		const fileMeta =
+			fileCount === 1 ? tuiText("grepFileOne", "1 file") : tuiTextFmt("grepFileManyFmt", "%d files", fileCount);
+		const meta = [matchMeta, fileMeta];
 		const scopeMeta = searchScopeMeta(details);
 		if (scopeMeta) meta.push(scopeMeta);
-		if (truncated) meta.push(uiTheme.fg("warning", "truncated"));
+		if (truncated) meta.push(uiTheme.fg("warning", tuiText("grepTruncated", "truncated")));
 		const description = args?.pattern ?? undefined;
 		const header = renderStatusLine(
 			{

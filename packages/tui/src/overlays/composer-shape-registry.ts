@@ -1,52 +1,92 @@
 import { type ComposerStyle, registerComposerStyle } from "../index";
+import { tuiText } from "../i18n";
 import type { SubmenuOption } from "./settings-defs";
 
 /** Composer shape id; extensions may register additional values at runtime. */
 export type ComposerShape = string;
 
-/** Built-in composer choices and their shared settings/setup copy. */
+/**
+ * Built-in composer choices and their shared settings/setup copy. Labels and
+ * descriptions resolve through `tuiText` on every read (getter, not cached
+ * field) so a runtime language switch applies to the next rendered selector.
+ */
 export const BUILTIN_COMPOSER_SHAPES = [
 	{
 		value: "band",
-		label: "Status Band (Default)",
-		description: "Flush soft-capped status band above a curved prompt, no frame",
+		get label() {
+			return tuiText("composerShapeBandLabel", "Status Band (Default)");
+		},
+		get description() {
+			return tuiText("composerShapeBandDesc", "Flush soft-capped status band above a curved prompt, no frame");
+		},
 	},
 	{
 		value: "box",
-		label: "Rounded Box",
-		description: "Status line embedded in top border, compact 2-line prompt",
+		get label() {
+			return tuiText("composerShapeBoxLabel", "Rounded Box");
+		},
+		get description() {
+			return tuiText("composerShapeBoxDesc", "Status line embedded in top border, compact 2-line prompt");
+		},
 	},
 	{
 		value: "claude",
-		label: "Claude Code",
-		description: "Full-width horizontal rules above and below, status line at bottom",
+		get label() {
+			return tuiText("composerShapeClaudeLabel", "Claude Code");
+		},
+		get description() {
+			return tuiText(
+				"composerShapeClaudeDesc",
+				"Full-width horizontal rules above and below, status line at bottom",
+			);
+		},
 	},
 	{
 		value: "pi",
-		label: "Pi",
-		description: "Framed horizontal rules with status line at bottom",
+		get label() {
+			return tuiText("composerShapePiLabel", "Pi");
+		},
+		get description() {
+			return tuiText("composerShapePiDesc", "Framed horizontal rules with status line at bottom");
+		},
 	},
 	{
 		value: "borderless",
-		label: "Borderless",
-		description: "Clean prompt glyph with status line at bottom, no box borders",
+		get label() {
+			return tuiText("composerShapeBorderlessLabel", "Borderless");
+		},
+		get description() {
+			return tuiText("composerShapeBorderlessDesc", "Clean prompt glyph with status line at bottom, no box borders");
+		},
 	},
 	{
 		value: "rule",
-		label: "Top Rule Dock",
-		description: "Single top rule with status docked onto it and below",
+		get label() {
+			return tuiText("composerShapeRuleLabel", "Top Rule Dock");
+		},
+		get description() {
+			return tuiText("composerShapeRuleDesc", "Single top rule with status docked onto it and below");
+		},
 	},
 	{
 		value: "field",
-		label: "Compact Field",
-		description: "Filled one-row field with accent end caps",
+		get label() {
+			return tuiText("composerShapeFieldLabel", "Compact Field");
+		},
+		get description() {
+			return tuiText("composerShapeFieldDesc", "Filled one-row field with accent end caps");
+		},
 	},
 	{
 		value: "rail",
-		label: "Accent Rail",
-		description: "Filled one-row field anchored by a single accent rail",
+		get label() {
+			return tuiText("composerShapeRailLabel", "Accent Rail");
+		},
+		get description() {
+			return tuiText("composerShapeRailDesc", "Filled one-row field anchored by a single accent rail");
+		},
 	},
-] as const;
+];
 
 /** Built-in composer ids used by tests and non-runtime consumers. */
 export const COMPOSER_SHAPE_VALUES = BUILTIN_COMPOSER_SHAPES.map(shape => shape.value);

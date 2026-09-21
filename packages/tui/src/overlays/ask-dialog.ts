@@ -16,6 +16,7 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 /** One selectable answer in an ask dialog. */
 export interface ExtensionAskDialogOption {
 	label: string;
@@ -333,12 +334,23 @@ function normalizedInlineInput(input: string): string {
  * participant answers. State and results keep originals.
  */
 function displayOptionLabels(question: ExtensionAskDialogQuestion): string[] {
-	const recommendedSuffix = " (Recommended)";
+	const recommendedSuffix = tuiText("askRecommendedSuffix", " (Recommended)");
 	const badged = question.options.map((option, index) => {
 		const base = sanitizeCarriageReturns(option.label);
-		return question.recommended === index && !base.endsWith(recommendedSuffix) ? `${base}${recommendedSuffix}` : base;
+		const hasSuffix = base.endsWith(" (Recommended)") || base.endsWith(recommendedSuffix);
+		return question.recommended === index && !hasSuffix ? `${base}${recommendedSuffix}` : base;
 	});
-	return disambiguateDisplayLabels(badged, [OTHER_OPTION, ...GUEST_ACTION_LABELS]);
+	// Render-side mapping only: the sentinel labels stay English constants so
+	// guest/host disambiguation keeps matching identical rows across ends.
+	const displaySentinels: Record<string, string> = {
+		[OTHER_OPTION]: tuiText("askOtherOption", OTHER_OPTION),
+		[GUEST_ACTION_LABELS[0]!]: tuiText("askChatOption", "Chat about this"),
+		[GUEST_ACTION_LABELS[1]!]: tuiText("askNext", "Next →"),
+	};
+	return disambiguateDisplayLabels(
+		badged.map(label => displaySentinels[label] ?? label),
+		[OTHER_OPTION, ...GUEST_ACTION_LABELS],
+	);
 }
 
 function renderAnswerSummary(question: ExtensionAskDialogQuestion, state: QuestionState): string {
@@ -352,12 +364,13 @@ function renderAnswerSummary(question: ExtensionAskDialogQuestion, state: Questi
 		.map(entry => entry.display);
 	if (question.multi) {
 		const answers = [...selected];
-		if (state.customInput !== undefined) answers.push(`Other: “${normalizedInlineInput(state.customInput)}”`);
-		return answers.length > 0 ? answers.join(", ") : theme.fg("warning", "unanswered");
+		if (state.customInput !== undefined)
+			answers.push(tuiTextFmt("askOtherAnswerFmt", "Other: “%s”", normalizedInlineInput(state.customInput)));
+		return answers.length > 0 ? answers.join(", ") : theme.fg("warning", tuiText("askUnanswered", "unanswered"));
 	}
 	if (state.customInput !== undefined) return `“${normalizedInlineInput(state.customInput)}”`;
-	if (selected.length === 0) return theme.fg("warning", "unanswered");
-	return selected[0] ?? theme.fg("warning", "unanswered");
+	if (selected.length === 0) return theme.fg("warning", tuiText("askUnanswered", "unanswered"));
+	return selected[0] ?? theme.fg("warning", tuiText("askUnanswered", "unanswered"));
 }
 
 function clearNote(state: QuestionState): void {
@@ -536,7 +549,7 @@ export class AskDialogComponent implements Component {
 				() => this.#handleTimeout(),
 			);
 		}
-		this.#panel = new OverlayPanel("Ask");
+		this.#panel = new OverlayPanel(tuiText("askDialogTitle", "Ask"));
 		this.#headerRegion = new PanelRows();
 		this.#bodyRegion = new PanelRows();
 		this.#footerRegion = new PanelRows();
@@ -700,7 +713,9 @@ export class AskDialogComponent implements Component {
 	}
 
 	#titleText(): string {
-		return this.#remainingSeconds === undefined ? "Ask" : `Ask (${this.#remainingSeconds}s)`;
+		return this.#remainingSeconds === undefined
+			? tuiText("askDialogTitle", "Ask")
+			: tuiTextFmt("askDialogTitleFmt", "Ask (%ds)", this.#remainingSeconds);
 	}
 
 	#hasSubmitTab(): boolean {
@@ -721,7 +736,6 @@ export class AskDialogComponent implements Component {
 	#currentQuestionIndex(): number {
 		return clamp(this.#activeTabIndex, 0, Math.max(0, this.#questions.length - 1));
 	}
-
 	#requestRender(): void {
 		this.options.tui?.requestRender();
 	}
@@ -734,7 +748,7 @@ export class AskDialogComponent implements Component {
 					id: String(index),
 					label: questionTabLabel(question, index),
 				})),
-				{ id: "submit", label: "Submit" },
+				{ id: "submit", label: tuiText("askSubmitOption", "Submit") },
 			];
 			this.#tabBar = new TabBar("", tabs, getTabBarTheme(), this.#activeTabIndex);
 			this.#tabBar.showHint = false;
@@ -743,7 +757,7 @@ export class AskDialogComponent implements Component {
 		if (this.#isSubmitTab()) {
 			this.#headerExpandable = false;
 			this.#descExpandable = false;
-			lines.push(theme.bold(theme.fg("accent", "Review answers")));
+			lines.push(theme.bold(theme.fg("accent", tuiText("askReviewAnswers", "Review answers"))));
 			return lines;
 		}
 		const questionIndex = this.#currentQuestionIndex();
@@ -763,28 +777,31 @@ export class AskDialogComponent implements Component {
 
 	#expandHint(): string {
 		if (!this.#headerExpandable && !this.#descExpandable) return "";
-		return ` · ${expandKeyHint()} ${this.#expanded ? "collapse" : "expand"}`;
+		return ` · ${expandKeyHint()} ${this.#expanded ? tuiText("askCollapseWord", "collapse") : tuiText("askExpandWord", "expand")}`;
 	}
 
 	#footerHintText(indicator: string): string {
-		const cancel = `${cancelKeyLabel()} cancel`;
+		const cancel = tuiTextFmt("askCancelFmt", "%s cancel", cancelKeyLabel());
 		const inputGuard = this.options.inputGuard;
 		if (inputGuard?.isBlocked()) return `${inputGuard.hint}${this.#expandHint()} · ${cancel}`;
 		if (this.#isSubmitTab()) {
-			const scroll = indicator ? ` ${indicator} scroll ·` : "";
-			return `Enter submit · ↑/↓ scroll ·${scroll} ${cancel}`;
+			const scroll = indicator ? tuiTextFmt("askScrollIndicatorFmt", " %s scroll ·", indicator) : "";
+			return `${tuiText("askEnterSubmit", "Enter submit")} · ${tuiText("askUpDownScroll", "↑/↓ scroll")} ·${scroll} ${cancel}`;
 		}
 		const question = this.#questions[this.#currentQuestionIndex()];
 		// Enter advances in multi-question dialogs and submits single-question ones.
-		const enterAction = this.#questions.length > 1 ? "next" : "submit";
-		const action = question?.multi ? `Space toggle · Enter ${enterAction}` : "Enter select · n note";
+		const action = question?.multi
+			? this.#questions.length > 1
+				? tuiText("askSpaceToggleNext", "Space toggle · Enter next")
+				: tuiText("askSpaceToggleSubmit", "Space toggle · Enter submit")
+			: tuiText("askHintSelect", "Enter select · n note");
 		const tabs = this.#hasSubmitTab() ? " · Tab/←/→" : "";
 		const expand = this.#expandHint();
 		if (this.#questionCanPage && indicator) {
 			return `${action} · ↑/↓${tabs} · ${cancel}${expand} · ${pageKeysLabel()} ${indicator}`;
 		}
-		const scroll = indicator ? ` ${indicator} scroll ·` : "";
-		return `${action} · ↑/↓ move${tabs} ·${scroll} ${cancel}${expand}`;
+		const scroll = indicator ? tuiTextFmt("askScrollIndicatorFmt", " %s scroll ·", indicator) : "";
+		return `${action} · ${tuiText("askUpDownMove", "↑/↓ move")}${tabs} ·${scroll} ${cancel}${expand}`;
 	}
 
 	#questionRows(question: ExtensionAskDialogQuestion): QuestionRow[] {
@@ -917,7 +934,7 @@ export class AskDialogComponent implements Component {
 		this.#promptActive = true;
 		try {
 			const input = await this.callbacks.onPrompt(
-				boundPromptTitle("Custom answer: ", question.question),
+				boundPromptTitle(tuiText("askCustomAnswerPrompt", "Custom answer: "), question.question),
 				state.customInput,
 			);
 			if (input === undefined || this.#closed) return;
@@ -953,7 +970,7 @@ export class AskDialogComponent implements Component {
 		this.#promptActive = true;
 		try {
 			const input = await this.callbacks.onPrompt(
-				boundPromptTitle(`Note for ${rowItem.label}: `, question.question),
+				boundPromptTitle(tuiTextFmt("askNotePromptFmt", "Note for %s: ", rowItem.label), question.question),
 				state.noteRowKey === rowItem.key ? state.note : undefined,
 			);
 			if (input === undefined || this.#closed) return;
@@ -1051,7 +1068,9 @@ export class AskDialogComponent implements Component {
 			allLines.push(
 				theme.fg(
 					"warning",
-					`${unanswered} unanswered question${unanswered === 1 ? "" : "s"}; Enter still submits.`,
+					unanswered === 1
+						? tuiTextFmt("askUnansweredWarnOne", "%d unanswered question; Enter still submits.", unanswered)
+						: tuiTextFmt("askUnansweredWarnMany", "%d unanswered questions; Enter still submits.", unanswered),
 				),
 			);
 			allLines.push("");
@@ -1067,12 +1086,15 @@ export class AskDialogComponent implements Component {
 			if (submittedNote?.trim()) {
 				const note = normalizedInlineInput(submittedNote);
 				allLines.push(
-					theme.fg("muted", `   Note: ${truncateToWidth(note, Math.max(1, width - 9), Ellipsis.Unicode)}`),
+					theme.fg(
+						"muted",
+						`  ${tuiText("askNote", " Note:")}${truncateToWidth(note, Math.max(1, width - 9), Ellipsis.Unicode)}`,
+					),
 				);
 			}
 		}
 		allLines.push("");
-		allLines.push(theme.fg("accent", `${theme.nav.cursor} ${SUBMIT_OPTION}`));
+		allLines.push(theme.fg("accent", `${theme.nav.cursor} ${tuiText("askSubmitOption", SUBMIT_OPTION)}`));
 		this.#submitScrollOffset = clamp(this.#submitScrollOffset, 0, Math.max(0, allLines.length - rows));
 		const scrollView = new ScrollView(allLines, {
 			height: rows,

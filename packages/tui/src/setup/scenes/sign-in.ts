@@ -1,4 +1,5 @@
 import type { AuthStorage } from "@linxiraos/pi-ai";
+import { tuiText, tuiTextFmt } from "../../i18n";
 import { PASTE_CODE_LOGIN_PROVIDERS } from "@linxiraos/pi-ai";
 import type { OAuthPrompt, OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
 import { type Component, type Focusable, Container } from "../../tui";
@@ -15,11 +16,11 @@ import { theme } from "../../theme/theme";
 import type { SetupSceneHost, SetupTab } from "./types";
 
 function loginUrlLink(url: string): string {
-	return `\x1b]8;;${url}\x07Open login URL\x1b]8;;\x07`;
+	return `\x1b]8;;${url}\x07${tuiText("setupSignInOpenUrl", "Open login URL")}\x1b]8;;\x07`;
 }
 
 function loginCopyHint(): string {
-	return theme.fg("dim", "(clipboard copy attempted; Alt+C retries)");
+	return theme.fg("dim", tuiText("setupSignInClipboardHint", "(clipboard copy attempted; Alt+C retries)"));
 }
 
 class CopyablePromptInput implements Component, Focusable {
@@ -73,7 +74,9 @@ interface PromptState {
  */
 export class SignInTab implements SetupTab {
 	readonly id = "sign-in";
-	readonly label = "Sign in";
+	get label(): string {
+		return tuiText("setupSignInLabel", "Sign in");
+	}
 
 	#authStorage: AuthStorage;
 	#selector: OAuthSelectorComponent;
@@ -143,7 +146,14 @@ export class SignInTab implements SetupTab {
 		if (this.#loggingInProvider === undefined && (maxLines === undefined || maxLines >= 17 + 2)) {
 			intro = new Container();
 			intro.addChild(
-				new Text(theme.fg("muted", "Pick a provider to sign in — you can connect more than one."), 0, 0),
+				new Text(
+					theme.fg(
+						"muted",
+						tuiText("setupSignInHint", "Pick a provider to sign in — you can connect more than one."),
+					),
+					0,
+					0,
+				),
 			);
 			intro.addChild(new Spacer(1));
 		}
@@ -151,14 +161,37 @@ export class SignInTab implements SetupTab {
 		const urlLines = this.#authUrl ? wrapTextWithAnsi(theme.fg("dim", this.#authUrl), width) : [];
 		if (this.#authUrl) {
 			tail.addChild(
-				new Text(theme.fg("accent", `Browser login: ${loginUrlLink(this.#authUrl)} ${loginCopyHint()}`), 0, 0),
+				new Text(
+					theme.fg(
+						"accent",
+						tuiTextFmt(
+							"setupSignInBrowserLoginFmt",
+							"Browser login: %s %s",
+							loginUrlLink(this.#authUrl),
+							loginCopyHint(),
+						),
+					),
+					0,
+					0,
+				),
 			);
 			// Keep one URL row above the prompt; repeat the complete wrapped URL
 			// below so the input remains visible in the wizard's short viewport.
 			if (urlLines[0]) tail.addChild(new Text(urlLines[0], 0, 0));
 			if (this.#authLaunchUrl) {
 				tail.addChild(
-					new Text(theme.fg("dim", `Local shortcut (this machine only): ${this.#authLaunchUrl}`), 0, 0),
+					new Text(
+						theme.fg(
+							"dim",
+							tuiTextFmt(
+								"setupSignInLocalShortcutFmt",
+								"Local shortcut (this machine only): %s",
+								this.#authLaunchUrl,
+							),
+						),
+						0,
+						0,
+					),
 				);
 			}
 		}
@@ -191,7 +224,13 @@ export class SignInTab implements SetupTab {
 		}
 		if (this.#loggingInProvider) {
 			this.#step.setKind("async");
-			this.#step.setHeading(new Text(theme.bold(`Signing in to ${this.#loggingInProvider}`), 0, 0));
+			this.#step.setHeading(
+				new Text(
+					theme.bold(tuiTextFmt("setupSignInSigningInFmt", "Signing in to %s", this.#loggingInProvider)),
+					0,
+					0,
+				),
+			);
 			this.#step.setIntro(undefined);
 			this.#step.setContent(tail);
 			this.#step.setStatus(undefined);
@@ -223,7 +262,7 @@ export class SignInTab implements SetupTab {
 		const useManualInput = PASTE_CODE_LOGIN_PROVIDERS.has(providerId);
 		this.#selector.stopValidation();
 		this.#loggingInProvider = providerId;
-		this.#statusLines = [theme.fg("dim", "Starting OAuth flow…")];
+		this.#statusLines = [theme.fg("dim", tuiText("setupSignInStartingOAuth", "Starting OAuth flow…"))];
 		this.#authUrl = undefined;
 		this.#authLaunchUrl = undefined;
 		this.#loginAbort = new AbortController();
@@ -250,7 +289,12 @@ export class SignInTab implements SetupTab {
 						this.#statusLines.push(theme.fg("warning", info.instructions));
 					}
 					if (useManualInput) {
-						this.#statusLines.push(theme.fg("dim", "Paste the returned code or redirect URL when prompted."));
+						this.#statusLines.push(
+							theme.fg(
+								"dim",
+								tuiText("setupSignInPasteCodeHint", "Paste the returned code or redirect URL when prompted."),
+							),
+						);
 					}
 					void this.#copyAuthUrl();
 					this.#host.ctx.openInBrowser(info.url);
@@ -262,15 +306,26 @@ export class SignInTab implements SetupTab {
 					this.#host.requestRender();
 				},
 				onManualCodeInput: signal =>
-					this.#showPrompt({ message: "Paste the authorization code (or full redirect URL):" }, signal),
+					this.#showPrompt(
+						{
+							message: tuiText(
+								"setupSignInPasteCodePrompt",
+								"Paste the authorization code (or full redirect URL):",
+							),
+						},
+						signal,
+					),
 			});
 			// Provider-scoped online refresh so the just-persisted credential re-runs
 			// discovery instead of reusing a fresh authoritative cache row (#5780).
 			await this.#host.ctx.refreshProvider(providerId);
 			if (this.#disposed) return;
 			this.#statusLines = [
-				theme.fg("success", `${theme.status.success} Signed in to ${providerId}`),
-				theme.fg("dim", `Credentials saved to ${getAgentDbPath()}`),
+				theme.fg(
+					"success",
+					`${theme.status.success} ${tuiTextFmt("setupSignInSignedInFmt", "Signed in to %s", providerId)}`,
+				),
+				theme.fg("dim", tuiTextFmt("setupSignInCredentialsFmt", "Credentials saved to %s", getAgentDbPath())),
 			];
 			this.#authUrl = undefined;
 			this.#authLaunchUrl = undefined;
@@ -283,14 +338,14 @@ export class SignInTab implements SetupTab {
 		} catch (error) {
 			if (this.#disposed) return;
 			if (this.#loginAbort?.signal.aborted) {
-				this.#statusLines = [theme.fg("dim", "Login cancelled.")];
+				this.#statusLines = [theme.fg("dim", tuiText("setupSignInCancelled", "Login cancelled."))];
 				this.#authUrl = undefined;
 				this.#authLaunchUrl = undefined;
 			} else {
 				const message = error instanceof Error ? error.message : String(error);
 				this.#statusLines = [
-					theme.fg("error", `Login failed: ${message}`),
-					theme.fg("dim", "Choose another provider or press Esc to continue."),
+					theme.fg("error", tuiTextFmt("setupSignInFailedFmt", "Login failed: %s", message)),
+					theme.fg("dim", tuiText("setupSignInRetryHint", "Choose another provider or press Esc to continue.")),
 				];
 				this.#authUrl = undefined;
 				this.#authLaunchUrl = undefined;

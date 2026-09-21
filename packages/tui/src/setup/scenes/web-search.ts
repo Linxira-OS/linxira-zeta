@@ -1,4 +1,5 @@
 import { type SgrMouseEvent } from "../../mouse";
+import { tuiText, tuiTextFmt } from "../../i18n";
 import { type SelectItem, SelectList } from "../../components/select-list";
 import { Spacer } from "../../components/spacer";
 import { Text } from "../../components/text";
@@ -28,7 +29,9 @@ type Availability = "checking" | boolean;
  */
 export class WebSearchTab implements SetupTab {
 	readonly id = "web-search";
-	readonly label = "Web search";
+	get label(): string {
+		return tuiText("setupWebSearchLabel", "Web search");
+	}
 	readonly modal = false;
 
 	#list: SelectList;
@@ -80,7 +83,11 @@ export class WebSearchTab implements SetupTab {
 	}
 
 	render(width: number, maxLines?: number): readonly string[] {
-		const intro = new Text(theme.fg("muted", "Choose the provider the web_search tool should prefer."), 0, 0);
+		const intro = new Text(
+			theme.fg("muted", tuiText("setupWebSearchHint", "Choose the provider the web_search tool should prefer.")),
+			0,
+			0,
+		);
 		const status = new Container();
 		const selected = this.#list.getSelectedItem();
 		if (selected) {
@@ -143,23 +150,33 @@ export class WebSearchTab implements SetupTab {
 		// list with the remaining providers in their built-in order (auto = reset).
 		this.#host.ctx.saveSearchProvider(option.value);
 		const label = WEB_SEARCH_ITEMS.find(item => item.value === value)?.label ?? value;
-		this.#status = [theme.fg("success", `${theme.status.success} Web search set to ${label}`)];
+		this.#status = [
+			theme.fg(
+				"success",
+				`${theme.status.success} ${tuiTextFmt("setupWebSearchSetFmt", "Web search set to %s", label)}`,
+			),
+		];
 		if (value !== "auto" && this.#availability.get(value as SearchProviderId) === false) {
-			this.#status.push(theme.fg("dim", "Not configured yet — add its API key or sign in to enable it."));
+			this.#status.push(
+				theme.fg(
+					"dim",
+					tuiText("setupWebSearchNotConfigured", "Not configured yet — add its API key or sign in to enable it."),
+				),
+			);
 		}
 		this.#host.requestRender();
 	}
 
 	#readinessLines(value: string): string[] {
 		if (value === "auto") {
-			return [theme.fg("dim", "Automatically uses the first configured provider.")];
+			return [theme.fg("dim", tuiText("setupWebSearchAuto", "Automatically uses the first configured provider."))];
 		}
 		const state = this.#availability.get(value as SearchProviderId);
 		if (state === undefined || state === "checking") {
-			return [theme.fg("dim", "Checking availability…")];
+			return [theme.fg("dim", tuiText("setupWebSearchChecking", "Checking availability…"))];
 		}
 		return state
-			? [theme.fg("success", `${theme.status.success} Ready to use`)]
-			: [theme.fg("warning", `${theme.status.pending} Needs credentials`)];
+			? [theme.fg("success", `${theme.status.success} ${tuiText("setupWebSearchReady", "Ready to use")}`)]
+			: [theme.fg("warning", `${theme.status.pending} ${tuiText("setupWebSearchNeedsCreds", "Needs credentials")}`)];
 	}
 }

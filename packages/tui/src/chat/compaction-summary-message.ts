@@ -4,6 +4,7 @@ import { type Component } from "../tui";
 import { Markdown } from "../components/markdown";
 import { formatNumber } from "@linxiraos/pi-utils";
 import { getMarkdownTheme, theme } from "../theme";
+import { tuiText, tuiTextFmt } from "../i18n";
 import type { BranchSummaryMessage, CompactionSummaryMessage, CustomMessage } from "./messages";
 
 /** Divider labels per compaction method; unknown/legacy methods fall back to "compacted". */
@@ -165,7 +166,10 @@ export class CompactionSummaryMessageComponent extends SummaryMessageComponent {
 }
 
 function compactionLabel(message: CompactionSummaryMessage): string {
-	const name = (message.method && COMPACTION_METHOD_LABELS[message.method]) || "compacted";
+	const name =
+		message.method === "handoff"
+			? tuiText("csLabelHandoff", "handed-off")
+			: (message.method && COMPACTION_METHOD_LABELS[message.method]) || tuiText("csLabelCompacted", "compacted");
 	let label = `${theme.icon.camera} ${name}`;
 	const amount = compactionAmount(message);
 	if (amount) label += `${theme.sep.dot}${amount}`;
@@ -177,15 +181,32 @@ function compactionDetailMarkdown(message: CompactionSummaryMessage): string {
 	const tokenLine =
 		message.tokensBefore > 0
 			? message.tokensAfter !== undefined
-				? `Compacted from ${message.tokensBefore.toLocaleString()} to ${message.tokensAfter.toLocaleString()} tokens`
-				: `Compacted from ${message.tokensBefore.toLocaleString()} tokens`
+				? tuiTextFmt(
+						"compactionFromToTokensFmt",
+						`Compacted from ${message.tokensBefore.toLocaleString()} to ${message.tokensAfter.toLocaleString()} tokens`,
+						message.tokensBefore.toLocaleString(),
+						message.tokensAfter.toLocaleString(),
+					)
+				: tuiTextFmt(
+						"compactionFromTokensFmt",
+						`Compacted from ${message.tokensBefore.toLocaleString()} tokens`,
+						message.tokensBefore.toLocaleString(),
+					)
 			: message.tokensAfter !== undefined
-				? `Compacted to ${message.tokensAfter.toLocaleString()} tokens`
-				: "Compacted context";
+				? tuiTextFmt(
+						"compactionToTokensFmt",
+						`Compacted to ${message.tokensAfter.toLocaleString()} tokens`,
+						message.tokensAfter.toLocaleString(),
+					)
+				: tuiText("compactionContextLabel", "Compacted context");
 	const frameCount = message.images?.length ?? 0;
 	const frameNote =
-		frameCount > 0 ? `\n\n_${frameCount} snapcompact frame${frameCount === 1 ? "" : "s"} attached_` : "";
-	const warningNote = message.warning ? `\n\n${theme.icon.warning} **Warning:** ${message.warning}` : "";
+		frameCount > 0
+			? `\n\n${tuiTextFmt("csFramesAttachedFmt", `_${frameCount} snapcompact frame${frameCount === 1 ? "" : "s"} attached_`, frameCount, frameCount === 1 ? "" : "s")}`
+			: "";
+	const warningNote = message.warning
+		? `\n\n${theme.icon.warning} ${tuiTextFmt("csWarningFmt", "**Warning:** %s", message.warning)}`
+		: "";
 	return `**${tokenLine}**${warningNote}\n\n${message.summary}${frameNote}`;
 }
 
@@ -197,10 +218,10 @@ function compactionDetailMarkdown(message: CompactionSummaryMessage): string {
 export class HandoffSummaryMessageComponent extends SummaryMessageComponent {
 	constructor(message: CustomMessage<unknown>) {
 		super({
-			label: () => `${theme.icon.context} handed-off`,
+			label: () => `${theme.icon.context} ${tuiText("csLabelHandoff", "handed-off")}`,
 			detailMarkdown: () => {
 				const document = extractHandoffDocument(getCustomMessageText(message));
-				return `**Handoff context**\n\n${document || "_No handoff content._"}`;
+				return `**${tuiText("csHandoffContext", "Handoff context")}**\n\n${document || tuiText("csNoHandoffContent", "_No handoff content._")}`;
 			},
 		});
 	}
@@ -224,8 +245,8 @@ export function createHandoffSummaryMessageComponent(
 export class BranchSummaryMessageComponent extends SummaryMessageComponent {
 	constructor(message: BranchSummaryMessage) {
 		super({
-			label: () => `${theme.icon.branch} branch`,
-			detailMarkdown: () => `**Branch summary**\n\n${message.summary}`,
+			label: () => `${theme.icon.branch} ${tuiText("csLabelBranch", "branch")}`,
+			detailMarkdown: () => `**${tuiText("csBranchSummary", "Branch summary")}**\n\n${message.summary}`,
 		});
 	}
 }

@@ -1,4 +1,5 @@
 import { type Component, Markdown, Text, type TUI } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { replaceTabs } from "../render/render-utils";
 import { getMarkdownTheme, theme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
@@ -22,7 +23,7 @@ interface OmfgPanelComponentOptions {
 export class OmfgPanelComponent extends OverlayPanel {
 	#tui: TUI;
 	#state: OmfgPanelState = "generating";
-	#status = "Generating TTSR rule…";
+	#status: string | undefined;
 	#preview = "";
 	#savedPath: string | undefined;
 	#errorMessage: string | undefined;
@@ -33,7 +34,14 @@ export class OmfgPanelComponent extends OverlayPanel {
 		super(`/omfg ${replaceTabs(options.complaint)}`);
 		this.#tui = options.tui;
 		this.#content = new StreamingPanelContent(() => ({
-			sections: [new Text(theme.fg("muted", replaceTabs(this.#status)), 0, 0), this.#contentComponent()],
+			sections: [
+				new Text(
+					theme.fg("muted", replaceTabs(this.#status ?? tuiText("omfgStatusGenerating", "Generating TTSR rule…"))),
+					0,
+					0,
+				),
+				this.#contentComponent(),
+			],
 			footer: this.#footerLine(),
 		}));
 		this.addChild(this.#content);
@@ -64,7 +72,7 @@ export class OmfgPanelComponent extends OverlayPanel {
 		if (this.#closed) return;
 		this.#state = "saved";
 		this.#savedPath = path;
-		this.#status = `Saved ${path}`;
+		this.#status = undefined;
 		this.#errorMessage = undefined;
 		this.#rebuild();
 	}
@@ -72,7 +80,7 @@ export class OmfgPanelComponent extends OverlayPanel {
 	markRejected(): void {
 		if (this.#closed) return;
 		this.#state = "rejected";
-		this.#status = "Rule was not saved.";
+		this.#status = undefined;
 		this.#errorMessage = undefined;
 		this.#rebuild();
 	}
@@ -80,7 +88,7 @@ export class OmfgPanelComponent extends OverlayPanel {
 	markAborted(): void {
 		if (this.#closed) return;
 		this.#state = "aborted";
-		this.#status = "Cancelled.";
+		this.#status = undefined;
 		this.#errorMessage = undefined;
 		this.#rebuild();
 	}
@@ -88,7 +96,7 @@ export class OmfgPanelComponent extends OverlayPanel {
 	markError(message: string): void {
 		if (this.#closed) return;
 		this.#state = "error";
-		this.#status = "Could not create rule.";
+		this.#status = undefined;
 		this.#errorMessage = message;
 		this.#rebuild();
 	}
@@ -108,28 +116,46 @@ export class OmfgPanelComponent extends OverlayPanel {
 			case "validating":
 			case "confirming":
 			case "saving":
-				return theme.fg("muted", "Esc cancel /omfg");
+				return theme.fg("muted", tuiText("omfgFooterCancel", "Esc cancel /omfg"));
 			case "saved":
 				return theme.fg(
 					"success",
-					`${theme.status.success} Registered live · ${replaceTabs(this.#savedPath ?? "saved")} · Esc dismiss`,
+					tuiTextFmt(
+						"omfgFooterSavedFmt",
+						"Registered live · %s · Esc dismiss",
+						replaceTabs(this.#savedPath ?? tuiText("omfgSavedPathFallback", "saved")),
+					),
 				);
 			case "rejected":
-				return theme.fg("warning", `${theme.status.warning} Not saved · Esc dismiss`);
+				return theme.fg(
+					"warning",
+					`${theme.status.warning} ${tuiText("omfgFooterRejected", "Not saved · Esc dismiss")}`,
+				);
 			case "aborted":
-				return theme.fg("warning", `${theme.status.warning} Cancelled · Esc dismiss`);
+				return theme.fg(
+					"warning",
+					`${theme.status.warning} ${tuiText("omfgFooterAborted", "Cancelled · Esc dismiss")}`,
+				);
 			case "error":
-				return theme.fg("error", `${theme.status.error} Error · Esc dismiss`);
+				return theme.fg("error", `${theme.status.error} ${tuiText("omfgFooterError", "Error · Esc dismiss")}`);
 		}
 	}
 
 	#contentComponent(): Component {
 		if (this.#state === "error") {
-			return new Text(theme.fg("error", replaceTabs(this.#errorMessage ?? "Unknown error")), 0, 0);
+			return new Text(
+				theme.fg("error", replaceTabs(this.#errorMessage ?? tuiText("overlayUnknownError", "Unknown error"))),
+				0,
+				0,
+			);
 		}
 		const text = replaceTabs(this.#preview).trim();
 		if (!text) {
-			return new Text(theme.fg("dim", `${theme.status.pending} Waiting for candidate rule…`), 0, 0);
+			return new Text(
+				theme.fg("dim", `${theme.status.pending} ${tuiText("omfgWaitingRule", "Waiting for candidate rule…")}`),
+				0,
+				0,
+			);
 		}
 		return new Markdown(text, 0, 0, getMarkdownTheme());
 	}

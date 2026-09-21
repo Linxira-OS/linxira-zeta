@@ -1,4 +1,5 @@
 import type { Effort } from "@linxiraos/pi-ai";
+import { tuiText } from "../i18n";
 import { type SelectItem, SelectList, type SgrMouseEvent } from "../index";
 import { getSelectListTheme } from "../theme/theme";
 import { getThinkingLevelMetadata } from "../thinking";
@@ -17,7 +18,7 @@ export class ThinkingSelectorComponent extends OverlayPanel {
 		onSelect: (level: Effort) => void,
 		onCancel: () => void,
 	) {
-		super("Thinking Level");
+		super(tuiText("thinkingSelectorTitle", "Thinking Level"));
 
 		const thinkingLevels: SelectItem[] = availableLevels.map(getThinkingLevelMetadata);
 
@@ -47,5 +48,10 @@ export class ThinkingSelectorComponent extends OverlayPanel {
 
 	routeMouse(event: SgrMouseEvent, line: number, col: number): void {
 		routeSelectListMouseWithTopBorder(this.#selectList, event, line, col);
+	}
+
+	override render(width: number): readonly string[] {
+		this.title = tuiText("thinkingSelectorTitle", "Thinking Level");
+		return super.render(width);
 	}
 }

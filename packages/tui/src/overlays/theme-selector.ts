@@ -1,4 +1,5 @@
 import { type SelectItem, SelectList, type SgrMouseEvent } from "../index";
+import { tuiText } from "../i18n";
 import { getSelectListTheme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { routeSelectListMouseWithTopBorder } from "../chrome/select-list-mouse-routing";
@@ -18,14 +19,14 @@ export class ThemeSelectorComponent extends OverlayPanel {
 		onCancel: () => void,
 		onPreview: (themeName: string) => void,
 	) {
-		super("Theme");
+		super(tuiText("themeSelectorTitle", "Theme"));
 		this.#onPreview = onPreview;
 
 		// Create select items from provided themes
 		const themeItems: SelectItem[] = themes.map(name => ({
 			value: name,
 			label: name,
-			description: name === currentTheme ? "(current)" : undefined,
+			description: name === currentTheme ? tuiText("themeSelectorCurrent", "(current)") : undefined,
 		}));
 
 		// Create selector
@@ -58,5 +59,10 @@ export class ThemeSelectorComponent extends OverlayPanel {
 
 	routeMouse(event: SgrMouseEvent, line: number, col: number): void {
 		routeSelectListMouseWithTopBorder(this.#selectList, event, line, col);
+	}
+
+	override render(width: number): readonly string[] {
+		this.title = tuiText("themeSelectorTitle", "Theme");
+		return super.render(width);
 	}
 }

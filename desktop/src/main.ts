@@ -577,7 +577,15 @@ function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
 	return [
 		{ label: trayLabels.showWindow, click: () => showMainWindow() },
 		{ label: trayLabels.statsDashboard, click: () => openStatsWindow() },
-		{ label: trayLabels.openSettings, click: () => mainWindow?.loadURL(`${WEB_UI_URL}/settings`) },
+		{
+			label: trayLabels.openSettings,
+			click: () => {
+				// The tray can own the only window (hidden to tray), so surface it
+				// before deep-linking into the settings panel modal.
+				showMainWindow();
+				mainWindow?.loadURL(`${WEB_UI_URL}/?panel=settings`);
+			},
+		},
 		{ type: "separator" },
 		{
 			label: trayLabels.notifications,

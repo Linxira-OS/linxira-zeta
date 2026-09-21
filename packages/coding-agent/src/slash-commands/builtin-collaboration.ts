@@ -47,7 +47,7 @@ function showCollabQrCode(ctx: InteractiveModeContext, webLink: string): void {
 	try {
 		ctx.present([new Spacer(1), new CollabQrCodeComponent(webLink)]);
 	} catch (err) {
-		ctx.showError(`Failed to render collab QR code: ${errorMessage(err)}`);
+		ctx.showError(M.colQrFailedFmt.replace("%s", errorMessage(err)));
 	}
 }
 
@@ -130,11 +130,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				const active = runtime.ctx.session.toggleAdvisorEnabled();
 				const configured = runtime.ctx.session.isAdvisorEnabled();
 				if (active) {
-					runtime.ctx.showStatus("Advisor enabled.");
+					runtime.ctx.showStatus(M.colAdvisorEnabled);
 				} else if (configured) {
-					runtime.ctx.showStatus("Advisor setting enabled, but no model is assigned to the 'advisor' role.");
+					runtime.ctx.showStatus(M.colAdvisorSettingEnabledNoModel);
 				} else {
-					runtime.ctx.showStatus("Advisor disabled.");
+					runtime.ctx.showStatus(M.colAdvisorDisabled);
 				}
 				refreshStatusLine(runtime.ctx);
 				runtime.ctx.editor.setText("");
@@ -151,7 +151,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			}
 			if (verb === "off") {
 				runtime.ctx.session.setAdvisorEnabled(false);
-				runtime.ctx.showStatus("Advisor disabled.");
+				runtime.ctx.showStatus(M.colAdvisorDisabled);
 				refreshStatusLine(runtime.ctx);
 				runtime.ctx.editor.setText("");
 				return;
@@ -172,7 +172,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus("Usage: /advisor [on|off|status|dump [raw]|configure]");
+			runtime.ctx.showStatus(M.colAdvisorUsage);
 			runtime.ctx.editor.setText("");
 		},
 	},
@@ -317,7 +317,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			const { verb, rest } = parseSubcommand(args);
 			if (verb === "stop") {
 				await ctx.collabController.stop("host stopped");
-				ctx.showStatus("Collab stopped");
+				ctx.showStatus(M.colCollabStopped);
 				return;
 			}
 			if (verb === "status") {
@@ -327,15 +327,13 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 						p.role === "host" ? `${p.name} (host)` : p.readOnly ? `${p.name} (view-only)` : p.name,
 					);
 					const link = host.access === "view" ? host.webViewLink : host.webLink;
-					ctx.showStatus(`Collab: ${names.join(", ")} — ${collabBrowserLink(link)}`);
-				} else if (ctx.collabGuest) {
 					ctx.showStatus(
-						ctx.collabGuest.readOnly
-							? "In a collab session as a read-only guest (/leave to exit)"
-							: "In a collab session as a guest (/leave to exit)",
+						M.colCollabStatusFmt.replace("%s", names.join(", ")).replace("%s", collabBrowserLink(link)),
 					);
+				} else if (ctx.collabGuest) {
+					ctx.showStatus(ctx.collabGuest.readOnly ? M.colInCollabReadOnlyGuest : M.colInCollabGuest);
 				} else {
-					ctx.showStatus("Not in a collab session");
+					ctx.showStatus(M.colNotInCollabSession);
 				}
 				return;
 			}
@@ -345,7 +343,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 
 				// so a listing can be shown or logged without granting anything.
 				if (rest.trim()) {
-					ctx.showError(`Usage: /collab list — for links or JSON use \`${APP_NAME} collab link|list\``);
+					ctx.showError(M.colCollabListUsageFmt.replace("%s", APP_NAME));
 					return;
 				}
 				let hosts: CollabHostSnapshot[];
@@ -361,7 +359,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 					return;
 				}
 				if (hosts.length === 0) {
-					ctx.showStatus("No active Collab hosts");
+					ctx.showStatus(M.colNoActiveCollabHosts);
 					return;
 				}
 				const bullet = theme.fg("accent", theme.format.bullet);
@@ -399,7 +397,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				return;
 			}
 			if (ctx.collabGuest) {
-				ctx.showError("Already in a collab session as a guest (/leave first)");
+				ctx.showError(M.colAlreadyGuest);
 				return;
 			}
 			const knownStartVerb = verb === "start" || verb === "view";
@@ -410,7 +408,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			try {
 				host = await ctx.collabController.start({ access, relay: knownStartVerb ? rest : args });
 			} catch (err) {
-				ctx.showError(`Failed to start collab session: ${errorMessage(err)}`);
+				ctx.showError(M.colFailedToStartFmt.replace("%s", errorMessage(err)));
 				return;
 			}
 			let heading = existing ? "Collab session restarted with control access" : "Collab session started!";
@@ -429,11 +427,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			ctx.editor.setText("");
 			const link = command.args.trim();
 			if (!link) {
-				ctx.showError("Usage: /join <link>");
+				ctx.showError(M.colJoinUsage);
 				return;
 			}
 			if (ctx.collabGuest) {
-				ctx.showError("Already in a collab session (/leave first)");
+				ctx.showError(M.colAlreadyInCollab);
 				return;
 			}
 			try {
@@ -441,12 +439,12 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				if (!ctx.collabController.host) await ctx.collabController.stop("joining another session");
 				// Recheck after teardown: a concurrent manual start may have won.
 				if (ctx.collabController.host) {
-					ctx.showError("Stop hosting first (/collab stop)");
+					ctx.showError(M.colStopHostingFirst);
 					return;
 				}
 				await new CollabGuestLink(ctx).join(link);
 			} catch (err) {
-				ctx.showError(`Failed to join collab session: ${errorMessage(err)}`);
+				ctx.showError(M.colFailedToJoinFmt.replace("%s", errorMessage(err)));
 			}
 		},
 	},
@@ -469,10 +467,10 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			const wasHosting = ctx.collabHost !== undefined;
 			await ctx.collabController.stop("host stopped");
 			if (wasHosting) {
-				ctx.showStatus("Collab stopped");
+				ctx.showStatus(M.colCollabStopped);
 				return;
 			}
-			ctx.showStatus("Not in a collab session");
+			ctx.showStatus(M.colNotInCollabSession);
 		},
 	},
 	{
@@ -522,7 +520,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			const current = settings.get("browser.headless" as SettingPath) as boolean;
 			let next = current;
 			if (!(settings.get("browser.enabled" as SettingPath) as boolean)) {
-				runtime.ctx.showWarning("Browser capability is disabled (enable in settings)");
+				runtime.ctx.showWarning(M.colBrowserDisabled);
 				runtime.ctx.editor.setText("");
 				return;
 			}
@@ -533,7 +531,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			} else if (arg === "visible" || arg === "show" || arg === "headful") {
 				next = false;
 			} else {
-				runtime.ctx.showStatus("Usage: /browser [headless|visible]");
+				runtime.ctx.showStatus(M.colBrowserUsage);
 				runtime.ctx.editor.setText("");
 				return;
 			}
@@ -541,11 +539,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			try {
 				await restartBrowserForModeChange();
 			} catch (error) {
-				runtime.ctx.showWarning(`Failed to restart browser: ${errorMessage(error)}`);
+				runtime.ctx.showWarning(M.colFailedToRestartBrowserFmt.replace("%s", errorMessage(error)));
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus(`Browser mode: ${next ? "headless" : "visible"}`);
+			runtime.ctx.showStatus(M.colBrowserModeFmt.replace("%s", next ? "headless" : "visible"));
 			runtime.ctx.editor.setText("");
 		},
 	},
@@ -564,40 +562,42 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			if (arg === "code") {
 				const block = extractLastCodeBlock(runtime.ctx.session.messages);
 				if (!block) {
-					runtime.ctx.showStatus("No code block to copy.");
+					runtime.ctx.showStatus(M.colNoCodeBlockToCopy);
 					runtime.ctx.editor.setText("");
 					return;
 				}
 				await copyToClipboard(block.code);
-				runtime.ctx.showStatus("Copied code block to clipboard");
+				runtime.ctx.showStatus(M.colCopiedCodeBlock);
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			if (arg === "cmd" || arg === "command") {
 				const lastCommand = extractLastCommand(runtime.ctx.session.messages);
 				if (!lastCommand) {
-					runtime.ctx.showStatus("No command to copy.");
+					runtime.ctx.showStatus(M.colNoCommandToCopy);
 					runtime.ctx.editor.setText("");
 					return;
 				}
 				await copyToClipboard(lastCommand.code);
-				runtime.ctx.showStatus(`Copied ${lastCommand.kind === "bash" ? "bash command" : "eval code"} to clipboard`);
+				runtime.ctx.showStatus(
+					M.colCopiedToClipboardFmt.replace("%s", lastCommand.kind === "bash" ? "bash command" : "eval code"),
+				);
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			if (arg === "link" || arg === "url") {
 				const link = extractLastLink(runtime.ctx.session.messages);
 				if (!link) {
-					runtime.ctx.showStatus("No link to copy.");
+					runtime.ctx.showStatus(M.colNoLinkToCopy);
 					runtime.ctx.editor.setText("");
 					return;
 				}
 				await copyToClipboard(link.href);
-				runtime.ctx.showStatus("Copied link to clipboard");
+				runtime.ctx.showStatus(M.colCopiedLink);
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus("Usage: /copy [code|cmd|link]");
+			runtime.ctx.showStatus(M.colCopyUsage);
 			runtime.ctx.editor.setText("");
 		},
 	},
@@ -609,18 +609,18 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		handleTui: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg && arg !== "link" && arg !== "url") {
-				runtime.ctx.showStatus("Usage: /open [link]  (pick a specific link: /copy, → blocks, o)");
+				runtime.ctx.showStatus(M.colOpenUsage);
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			const link = extractLastLink(runtime.ctx.session.messages);
 			if (!link) {
-				runtime.ctx.showStatus("No link to open.");
+				runtime.ctx.showStatus(M.colNoLinkToOpen);
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			openPath(link.href);
-			runtime.ctx.showStatus(`Opening ${link.href}`);
+			runtime.ctx.showStatus(M.colOpeningFmt.replace("%s", link.href));
 			runtime.ctx.editor.setText("");
 		},
 	},

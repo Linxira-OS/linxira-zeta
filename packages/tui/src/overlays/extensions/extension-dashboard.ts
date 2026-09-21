@@ -30,6 +30,7 @@ import {
 	matchesSelectPageUp,
 } from "../../keybinding-matchers";
 import { expandKeyHint } from "../../render/render-utils";
+import { tuiText, tuiTextFmt } from "../../i18n";
 import { bottomBorder, divider, PanelRows, row, topBorder } from "../../chrome/overlay-box";
 import { ExtensionList } from "./extension-list";
 import { InspectorPanel, type ToolRuntimeSource } from "./inspector-panel";
@@ -73,7 +74,11 @@ export interface ExtensionDashboardOptions {
 }
 
 function extFooter(): string {
-	return ` ↑/↓: navigate · Space: toggle · ←/→: provider · PgUp/PgDn: inspector · ${expandKeyHint()}: expand · Esc: close`;
+	return tuiTextFmt(
+		"extDashboardFooterFmt",
+		" ↑/↓: navigate · Space: toggle · ←/→: provider · PgUp/PgDn: inspector · %s: expand · Esc: close",
+		expandKeyHint(),
+	);
 }
 
 /**
@@ -226,7 +231,7 @@ export class ExtensionDashboard implements Component {
 		this.#mainList.setToolSource(toolFrame);
 		this.#inspector.setToolSource(toolFrame);
 
-		this.#frameTop.setLines([topBorder(width, "Extension Control Center")]);
+		this.#frameTop.setLines([topBorder(width, tuiText("extDashboardTitle", "Extension Control Center"))]);
 		this.#frameTabs.setLines(tabLines.map(line => row(line, width)));
 		this.#frameUpperDivider.setLines([divider(width)]);
 		this.#frameBody.setLines(this.#body.render(innerWidth).map(line => row(line, width)));
