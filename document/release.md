@@ -44,8 +44,10 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
 
   同一决定落在 CI：`desktop_mac` / `release_binary_hosted` /
   `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵
-  leg 与 leaf tag 全部移除，`desktop_linux` / `desktop_windows` 在发布暂停
-  期间整体停用（`if: false`，恢复发布时删行）。
+  leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` **恢复为常驻
+  发布 job**（v1.1.16 起桌面安装包是 release 的固定资产：win zip+nsis-exe、
+  linux tar.gz+deb+AppImage；`release_github` 依赖两个 desktop job 的产物，
+  见下方损伤类别 5）。
 - The `check` job also runs the brand-residue guard
   (`bun scripts/brand/brand-check.ts`, see `document/merge-playbook.md`).
 
@@ -132,6 +134,24 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 | 2 | Artifact 名漂移：upload/download 的 artifact key（`zeta-binary-*`、`native-addons-*`）两侧不一致 | download 步骤空集或 digest 错误 | upload/download `pattern` 成对核对 |
 | 3 | 新 leaf 包（`@linxiraos/pi-natives-<tag>`）首次发布时 npm 侧无 trusted publisher / 无权限 → `PUT 404` | `Publish native leaf packages` 失败；主包因 `optionalDependencies` 锁步被 gating 全部不发 | 发版前 npmjs.com 逐包配置 trusted publisher；本地补发用 `scripts/publish-missing-packages.ts` |
 | 4 | 版本线漂移（旧病，保留）：catalog/manifest/sentinel 版本不一致 | `bun-install` 全 job 死 / `check-version-consistency` 报错 | `bun scripts/check-version-consistency.ts` + `bun run check:ts`（AGENTS.md 门槛已覆盖） |
+| 5 | desktop 组装竞态（v1.1.16）：`release_github` 未依赖 desktop jobs，启动时 `zeta-desktop-*` artifacts 尚未上传，下载 0 个安装包，preflight 报 `found 0` | `Preflight release assets` 报 `Expected at least 5 zeta-desktop-*, found 0`，GH Release 不创建 | `release_github.needs` 必须含 `desktop_linux` + `desktop_windows`；desktop jobs 改动时核对该 needs 链 |
+| 6 | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧 | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布 | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
+| 7 | 手动版本 bump 漏 editor 平台包（v1.1.16）：只 bump launcher，`editor-windows-x64`/`-linux-x64` 与 launcher `optionalDependencies` pins 留在旧版 | `release_editor_packages` 重发已存在版本 → npm 409，run 红 | `release-v2.ts` Step 2f 是唯一权威 bump 路径；手动 bump 必须三包 + 两条 pins 全改 |
+
+**发布完成的判定纪律（v1.1.16 教训）**：PR 会产生两个 run——真正的 CI run（约 21
+jobs）和 "Evaluate flake" 的 1-job 轻量 run。**判断 CI 是否通过必须打开 run 核对
+jobs 数量**：`jobs=1` 的 "success" 是 flake 评估器，不是 CI 绿。v1.1.16 前夕
+#30/#31/#32 的"绿"全是 flake 评估器，embed 代码从未被完整验证，合并后 main 立即
+三 bucket 红。
+
+**版权面（发行物随带义务）**：根 `LICENSE` 保留上游版权行（Mario Zechner /
+Can Bölük / Stencil Labs）并追加 `Copyright (c) 2026 Linxira-OS (Zeta
+modifications and additions)`；`desktop/electron-builder.yml` 的
+`copyright:` 与其保持同一主体；npm 包的 LICENSE 由 `ci-release-publish.ts`
+从根 LICENSE 注入（`legalPayloadFiles`），修改随**下个发布版本**生效——已发布
+版本不可覆盖。Vendored 上游目录（editor/TTT、uutils 组件等）自己的 LICENSE
+文件原样保留，禁止追加或改写；我们的追加只出现在根 LICENSE 与
+THIRD-PARTY-NOTICES 汇总。
 
 **发布中断后的补发路径**：CI 发布链任何 job 失败后，未发布的包用
 `bun scripts/publish-missing-packages.ts`（交互式，EOTP 时浏览器授权）在本地补发核心包；
