@@ -559,6 +559,19 @@ Remaining (non-blocking): the ~27 welcome tips have zh entries but are
 English-only content pools for other locales; the git-TUI and debug apps
 carry the last ~40 low-priority strings.
 
+### In flight — plan-surface completion (feat/plan-surface-completion, 2026-09-22)
+
+Executing the A+B remainder of
+[simplify-and-plan-surface.md](./simplify-and-plan-surface.md) (§11): minimal
+shell wrap-up (settings-only bottom entry, collapse rail, welcome dual
+selector), command palette (Ctrl+K), Shiki over react-syntax-highlighter,
+windowed searchable settings, gateway plan endpoint + sidebar Plan card,
+tracking.enabled gating, and Tracking v2 (sync_todo, index template, object
+index, status stage/phases, plan mirroring, phase nudge). C-level items
+(CM6, PTY terminal, team agent M0-M2, 7 remaining skills, onboarding) are
+recorded in §11.2 for separate plans; per-section status is annotated inline
+in that document (2026-09-22 audit).
+
 ### P2 — TTT editor zh UI + About branding (next release)
 
 The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +

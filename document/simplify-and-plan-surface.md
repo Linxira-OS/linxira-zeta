@@ -1,5 +1,9 @@
 # 极简化 UI 与 Plan/Tracking 呈现 — 执行梳理（2026-09-20）
 
+> **状态盘点（2026-09-22）**：各节状态已就地标注（✅ 已落地 / ◐ 部分 /
+> ❌ 未做）。本批执行 A+B 级剩余项（feat/plan-surface-completion，见 §11）；
+> C 级大件（CM6/PTY/team agent/剩余 skills/onboarding）另立后续计划。
+
 状态：梳理定稿（方向经用户确认）。本文是接下来开发的执行清单来源；
 `roadmap.md` 与 `web-ui-modernization.md` 的相应条目以本文为准收拢。
 设计参考：temp/deepseek-harness 的 UI（**洁净室**——只学行为与美学，不复制代码/资产）。
@@ -17,6 +21,9 @@
 
 ## 1. 侧边栏与极简主界面（对齐 dsh 实测形态，2026-09-20 截图定稿）
 
+> 状态（2026-09-22）：◐ —— §1.1 侧边栏基础件 7/12 已落地；底部收敛、
+> 折叠 rail、§1.2 主界面极简、§1.3 Plan/Tracking 条件入口本批执行。
+
 **目标形态（dsh 截图实测）**：主区域 = 纯对话框（居中 logo + 工作区选择器
 + 模式选择器 + 大输入框 + 底行 [附件/语音/范围/模型/发送]），**无 tabs、
 无面板、无多余按钮**；左侧一列承载全部导航；其余一切藏进菜单与设置。
@@ -25,25 +32,27 @@
 
 | dsh 功能 | Zeta 现状 | 落实 |
 | --- | --- | --- |
-| 工作区树（工作区分组下挂会话）| 项目组 + 存储桶已有 | 保留，样式对齐 |
-| 会话/工作区行 hover `...` 菜单 | FloatingMenu 已有 | 保留 |
-| 右键菜单：重命名 / **删除工作区** | 部分有 | 补齐右键菜单统一入口 |
-| 工作区行 `+` 快捷新建会话 | 无 | **新增** |
-| 区头小图标组（搜索/筛选/新建工作区）| 搜索有、筛选/新建无 | **补筛选 + 新建工作区** |
-| "新会话" 唯一大按钮 | 已有 | 保留 |
-| 底部唯一入口 = 设置 | 底部有多入口 | **收敛为设置唯一入口** |
-| 折叠 rail（56px 图标列）| 275px 固定折叠 | 折叠态补图标列 |
+| 工作区树（工作区分组下挂会话）| 项目组 + 存储桶已有 | ✅ 已落地（SidebarProjectsList worktree 分组）|
+| 会话/工作区行 hover `...` 菜单 | FloatingMenu 已有 | ✅ 已落地（行/项目双菜单）|
+| 右键菜单：重命名 / **删除工作区** | 部分有 | ✅ 已落地（rename/delete 接线）|
+| 工作区行 `+` 快捷新建会话 | 无 | ✅ 已落地 |
+| 区头小图标组（搜索/筛选/新建工作区）| 搜索有、筛选/新建无 | ◐ 搜索/显示下拉已有；新建工作区本批补 |
+| "新会话" 唯一大按钮 | 已有 | ✅ 已落地（ze-btn-hero）|
+| 底部唯一入口 = 设置 | 底部有多入口 | ❌ 本批执行 |
+| 折叠 rail（56px 图标列）| 275px 固定折叠 | ❌ 本批执行 |
 
 裁决表（补充）：
 
 | 块 | 裁决 |
 | --- | --- |
-| HoverCard 预览卡 | 删除 |
-| BulkActionBar | 仅多选时浮出 |
-| Pinned / Archive | 折叠为底部入口（设置旁）|
-| PathLabel | 保留（弱化色）|
+| HoverCard 预览卡 | 删除 — 本批执行 |
+| BulkActionBar | 仅多选时浮出 — ✅ 已落地（editMode 底栏形态）|
+| Pinned / Archive | 折叠为底部入口（设置旁）— ◐ 列表内折叠分区已落地；不强迁底部（2026-09-22 裁量，见 §11.2）|
+| PathLabel | 保留（弱化色）— ✅ 已落地；sidebar/PathLabel.tsx 死副本本批删 |
 
 ### 1.2 主界面极简化
+
+> 状态（2026-09-22）：❌ —— 双选择器、命令面板、删常驻按钮本批执行。
 
 - 中央 = 欢迎态（logo + 产品名）+ 工作区/模式双选择器 + 大输入框 +
   底行工具组；会话进行中 = 对话流 + composer（现状保留）。
@@ -53,13 +62,18 @@
 
 ### 1.3 新增两块（本轮重点）
 
-- **Plan 区**：侧边栏显示 agent 的 plan（`'C:\Users\ETPau\.omp\agent\sessions\-Documents-GITHUB-zeta\2026-09-14T10-31-43-026Z_01a09f79-02b2-761a-81e5-21860e8de92d\local'` 会话工件路径解析；
+> 状态（2026-09-22）：❌ —— gateway plan 白名单端点 + 侧边栏 Plan 区 +
+> tracking.enabled 条件入口本批执行。
+
+- **Plan 区**：侧边栏显示 agent 的 plan（`local://` 会话工件路径解析；
   `tracking.enabled` 时镜像 tracking/plans/）。gateway 白名单读端点 +
   web markdown 渲染。
 - **Tracking 入口（条件显示）**：仅 `tracking.enabled` 时出现。tracking
   文档三读者：人 / agent / 协作者。
 
 ### 1.4 dsh 行为迁移（洁净室）
+
+> 状态（2026-09-22）：◐ —— 折叠 rail 本批执行；滚动条指针感知未排期（§11.2）。
 
 - 滚动条指针感知（离开 ~2s 后隐藏）
 - 折叠 rail 图标列
@@ -73,10 +87,15 @@ GPUI 是 web-ui 收敛后的最后路线，不与当前开发并行。
 
 ## 2. Plan 生命周期 Web 呈现（本轮核心新增）
 
+> 状态（2026-09-22）：◐ —— 四按钮审阅面 ✅（web-ui/components/PlanApproval.tsx，
+> preserve/compact/fresh/cancel 经 ChatWindow plan_approve 下发）；
+> plan-ultra workflow 徽章 ✅、组合结构延后（无结构化子 plan 数据源，§11.2）；
+> todo gateway 暴露本批执行（§11.1）。
+
 CLI 的 plan 出口 prompt 已齐全：`plan-mode-approved.md`（含
 `contextPreserved` 分支）、`plan-yolo-handoff.md`、
 `plan-mode-compact-instructions.md`、`plan-mode-ultra-active.md`。
-**缺的是 Web 呈现层**：
+**Web 呈现层缺口**：
 
 - **审阅面**：plan-mode 下 agent 产出 plan 后，web 显示 plan 全文
   （markdown 渲染，来自 §1 的 plan 端点）+ 四个操作按钮：
@@ -96,12 +115,21 @@ CLI 的 plan 出口 prompt 已齐全：`plan-mode-approved.md`（含
 
 ## 3. Tracking v2（与 web-ui-modernization §5 合流）
 
+> 状态（2026-09-22）：❌ 核心未落地 —— 已有：tracking 工具 4 op v1、
+> TodoTracker phases/12 次 mid-run nudge、compaction→recordCompaction 钩子 ✅。
+> 本批执行：sync_todo、index-template.md、tracking-index 对象数组、
+> status stage/phases/lastSessionId、plan 镜像、phase 完成 nudge 接线、
+> 三读者模板、docs v2、todo gateway 暴露（§11.1）。
+
 - todo 绑定、compaction 自动摘要钩子、Next API 升级、面板——按
   web-ui-modernization §5 原设计执行。
 - 本轮补充：**三读者定位**写进 tracking 模板（人 / agent / 协作者）；
   面板入口条件显示（§1）。
 
 ## 4. team agent（crew 底座，方向已定）
+
+> 状态（2026-09-22）：◐ —— crew 底座 + 上游 0.15.2/1.1.2 同步 ✅（§5）；
+> M0/M1/场景二/M2 ❌ C 级另立（§11.2）。
 
 实现方向：**以 pi-messenger 的 crew 为底座**（3140 行 plan→work→review
 DAG/审批/自主模式已在 `plugins/official/pi-messenger/crew/`），不自研
@@ -127,6 +155,10 @@ DAG/审批/自主模式已在 `plugins/official/pi-messenger/crew/`），不自�
 
 ## 6. 编辑器三端矩阵与 `/api/open` 枢纽
 
+> 状态（2026-09-22）：◐ —— CLI ttt ✅（zeta-editor 1.1.17 已发布，嵌套
+> 布局修复生效）；CM6 ❌ C 级（§11.2）；`/api/open` ttt 探测一行小活未做
+> （§11.3）。
+
 | 面 | 编辑器 | 状态 |
 | --- | --- | --- |
 | CLI / TUI | **ttt**（`ttt <file>[:line[:col]]`，OSC 8 已就绪）| `/api/open` 加探测即用 |
@@ -138,7 +170,7 @@ DAG/审批/自主模式已在 `plugins/official/pi-messenger/crew/`），不自�
 ttt 无法 web 化（Go 全屏 TUI）——CM6 就是 web/桌面的编辑器本体。
 
 CLI 侧联动：`EDITOR_CLIS` 加 ttt 探测（`ttt`/`zeta-editor` --version）、
-`'C:\Users\ETPau\.omp\agent\sessions\-Documents-GITHUB-zeta\2026-09-14T10-31-43-026Z_01a09f79-02b2-761a-81e5-21860e8de92d\local'` 路径解析绝对路径后包 OSC 8、桌面内置终端链接点击走 desktop
+`local://` 路径解析绝对路径后包 OSC 8、桌面内置终端链接点击走 desktop
 open bridge 到 `/api/open editor:ttt`。
 
 **定位**：agent 是产品本体且兼容任何模型/agent；web-ui 是 workbench；
@@ -180,20 +212,28 @@ desktop 是壳；编辑器 = ttt（终端）+ CM6（web/桌面）。
 
 ## 8. 实施顺序
 
+> 状态（2026-09-22）：步骤 1 大部落地（本批收尾）、3/4 本批、2/5 未动、
+> 6 小活未动（§11.3）；每步独立分支 + 绿 CI 纪律继续有效。
+
 1. 侧边栏极简化（§1 裁决表 + dsh 行为迁移）——web-ui 单线
 2. **Files + CM6 编辑器**（modernization 步骤 5 提前——web/桌面编辑器地基）
 3. Plan 白名单端点 + 审阅面四按钮 + plan-ultra 识别（§2，建在 CM6 之上）
 4. Tracking 条件入口 + tracking v2 汇合（§3）
 5. team agent M0（pages + plugin-assets）→ M1（team_* 薄封装）→ 场景二 → M2（§4）
-6. `/api/open` ttt 探测 + `'C:\Users\ETPau\.omp\agent\sessions\-Documents-GITHUB-zeta\2026-09-14T10-31-43-026Z_01a09f79-02b2-761a-81e5-21860e8de92d\local'` OSC 8 链接化（§6，小活穿插）
-
-每步独立分支 + 绿 CI 后合并（feature-branch workflow）。
+6. `/api/open` ttt 探测 + `local://` OSC 8 链接化（§6，小活穿插）
 
 
 ## 附录 A — Web-UI 现代化细则（收编自 web-ui-modernization.md，2026-08-29 批准）
 
 > 以下为已批准设计的**未完成部分**细则（原 §0–§7）。步骤 1–2 已合并
 > （8ba6971d27 + feat/web-ui-sidebar）；§8 旧顺序作废，以本计划 §8 为准。
+>
+> 状态盘点（2026-09-22）：主题系统（43 预设 + cssGenerator +
+> ThemeSystemProvider + bootstrap 防闪）、design-system/typography token 层、
+> 侧边栏基础件族 ✅；Shiki 替换 / SettingsWindow 窗口化 / i18n 清欠 /
+> web_ui_build CI 本批执行；CM6、PTY 终端、components/ui/ 组件库、sprite
+> 全量替换、ContextUsageDisplay、GitView/DiffView、ContextPanelRail dnd-kit
+> 改造 ❌ C 级另立（§11.2）。
 
 ## 0. Decisions (locked with user)
 
@@ -399,11 +439,16 @@ update 流程（用我们 /api/update）。
   `...`/`+` 菜单 + 右键重命名/删除工作区 + 区头图标组 + 底部设置唯一
   入口 + 主区纯对话框）；补记此前"没开发完"的侧边栏功能清单；§1.5
   GPUI 远期路线（web-ui 收敛后的最后路线）。
-
-- 2026-09-20: 初版（用户方向确认：极简哲学、crew 底座、条件显示、
-  plan 四按钮审阅面、plan-ultra web 识别）。
+- 2026-09-22: 全文状态盘点（四路代码审计）；Pinned/Archive 裁量更新
+  （保持列表内折叠分区，不强迁底部）；新增 §11 剩余工作清单
+  （A+B 本批 / C 级另立 / 小活）；顺带修正两处笔误与重复修订条目。
 
 ## 10. 官方默认 Skills 套装 + 安装引导
+
+> 状态（2026-09-22）：◐ —— §10.2 机制全链 ✅（`ZETA_OFFICIAL_SKILLS_EMBED`
+> 打包内嵌 + 首启 seed + `zeta-official` provider，priority 10）；
+> docx/pptx/xlsx/pdf 四 skill ✅；其余 7 个 ❌ C 级（§11.2）。
+> §10.1 onboarding ❌ C 级（§11.2）。
 
 ### 10.1 安装引导（onboarding）
 
@@ -447,5 +492,48 @@ python-docx / python-pptx / openpyxl / pandoc，SKILL.md 内含安装指引）�
 | `release-notes` | 版本说明撰写（复用 Zeta changelog 规范）|
 | `data-extract` | 网页/PDF → 结构化表格（csv/json）|
 
-实施：每 skill 一个 PR（SKILL.md + 脚本 + 样例输出），先落 docx/pptx
-两个打样，验证 bundled provider 链路后批量补齐。
+实施：每 skill 一个 PR（SKILL.md + 脚本 + 样例输出）。docx/pptx/xlsx/pdf
+四个已落地（机制验证完成）；剩余 7 个按同机制批量补齐（§11.2）。
+
+## 11. 剩余工作 — 本批与后续（2026-09-22 盘点收口）
+
+### 11.1 本批执行（feat/plan-surface-completion，A+B 级）
+
+- **波 2 极简收尾**：底部入口收敛为设置唯一；删 HoverCard + PathLabel
+  死副本；区头新建工作区按钮；侧栏折叠 56px 图标列；欢迎态工作区/模式
+  双选择器；删顶栏重复 files 按钮。
+- **波 3**：命令面板 Ctrl+K（cmdk）；Shiki 替换 react-syntax-highlighter
+  （消费既有 --md-syntax-* 变量）；SettingsWindow 窗口化（搜索 + 高亮 +
+  分组导航 + appearance 组）；i18n 清欠（TrackingPanel/SettingsPanel/
+  ChatInput/LanguagePicker/FileViewer/formatRelativeTime 硬编码入
+  messages）。
+- **波 4 Plan/Tracking**：gateway plan 白名单端点（/api/plan）；侧边栏
+  Plan 区；dock tracking 入口 tracking.enabled gating；Tracking v2 核心
+  （sync_todo、prompts/tracking/index-template.md、tracking-index 对象
+  数组、status stage/phases/lastSessionId、plan 批准镜像至
+  tracking/plans/、phase 完成 nudge 接线、三读者模板落盘、todo 经
+  get_state 暴露、tracking_update.md / zeta-tracking.md v2 重写）。
+- **波 5**：移除 react-syntax-highlighter 依赖；CI web_ui_build matrix
+  job + 修 check job 重复 collab:web:build 步骤；文档终态刷新。
+
+### 11.2 C 级另立（不在本批）
+
+- CM6 Files/编辑器 tab（附录 A §3 FilesView + Next PUT /api/files）。
+- 终端 PTY WebSocket（附录 A §4 全链）。
+- team agent M0（manifest v2 pages + /api/plugin-assets）→ M1（team_*
+  薄封装 + teams/personas 配置）→ 场景二 → M2 三页面（§4）。
+- 剩余 7 个官方 skills（markdown-export/charts/diagrams/doc-cleanup/
+  translate-polish/release-notes/data-extract）。
+- onboarding 双模式引导（§10.1）。
+- plan-ultra 组合结构 web 展示（等 plan-ultra 产出结构化子 plan 数据源）。
+- ContextUsageDisplay 计数圈、ContextPanelRail（dnd-kit 排序 + 变更数
+  徽标）、GitView、DiffView（@pierre/diffs）、components/ui/ 组件库、
+  sprite 图标全量替换。
+- 滚动条指针感知（§1.4）。
+- web-ui/AGENTS.md File Map 重写（§7；引用已删 rpc-manager/npx 等，
+  缺 sidebar//icon/ 等 20+ 组件）。
+
+### 11.3 小活（可穿插任意批次）
+
+- `/api/open` EDITOR_CLIS 加 ttt/zeta-editor 探测（§6，约两行 + 契约测试）。
+- `docs/` 中 tracking 文档之外残留 `.omp` 路径表述的巡检。
