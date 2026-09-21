@@ -48,6 +48,11 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
   发布 job**（v1.1.16 起桌面安装包是 release 的固定资产：win zip+nsis-exe、
   linux tar.gz+deb+AppImage；`release_github` 依赖两个 desktop job 的产物，
   见下方损伤类别 5）。
+
+  **方向注记（未实施）**：CLI 与桌面将来可能拆分版本线独立发布——桌面追稳定
+  （低频、大版本），CLI 高频快跑。届时 tag/repo 级拆分（如 `cli-vX.Y.Z` 与
+  `desktop-vX.Y.Z` 分列 release）需重新推导损伤类别 5 的 needs 链与 preflight
+  期待，不要沿用本文件的单 release 假设。
 - The `check` job also runs the brand-residue guard
   (`bun scripts/brand/brand-check.ts`, see `document/merge-playbook.md`).
 
