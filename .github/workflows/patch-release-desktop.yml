@@ -1,6 +1,5 @@
-# One-shot patch: attach the v1.1.16 desktop installers (already built as
-# artifacts of run 35518816072) to the existing GitHub release. Delete this
-# file after the run succeeds.
+# One-shot patch: rebuild SHA256SUMS.txt for v1.1.16 covering every asset.
+# Delete this file after the run succeeds.
 name: patch-release-desktop
 on:
   workflow_dispatch: {}
@@ -13,16 +12,13 @@ jobs:
   patch:
     runs-on: ubuntu-22.04
     steps:
-      - name: Attach desktop installers to v1.1.16
+      - name: Rebuild checksums over every release asset
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh run download 35518816072 -n zeta-desktop-win -D win -R "${{ github.repository }}"
-          gh run download 35518816072 -n zeta-desktop-linux -D linux -R "${{ github.repository }}"
-          find win linux -type f -print
-          gh release upload v1.1.16 \
-            $(find win linux -type f | tr '\n' ' ') \
-            --clobber -R "${{ github.repository }}"
-          gh release view v1.1.16 -R "${{ github.repository }}" --json assets \
-            --jq '"assets=\(.assets | length): " + ([.assets[].name] | join(", "))'
+          mkdir -p sumdir && cd sumdir
+          gh release download v1.1.16 -R "${{ github.repository }}" --pattern '*' --exclude 'SHA256SUMS.txt'
+          sha256sum --binary * | sed 's/\*//' > SHA256SUMS.txt
+          gh release upload v1.1.16 SHA256SUMS.txt --clobber -R "${{ github.repository }}"
+          gh release view v1.1.16 -R "${{ github.repository }}" --json assets --jq '"assets=\(.assets | length)"'
