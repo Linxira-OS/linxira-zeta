@@ -434,6 +434,20 @@ async function runTestCommand(testCommand: TestCommand): Promise<void> {
 			);
 			continue;
 		}
+		// A chunk can die without printing a single test-level line (silent
+		// exit 1 at load or during teardown). Rerun it once with piped output
+		// so the log carries the actual failure instead of an opaque exit code.
+		const echo = Bun.spawnSync(testCommand.command, {
+			cwd,
+			env,
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		const tail = `${echo.stdout.toString()}\n${echo.stderr.toString()}`.trimEnd().split("\n").slice(-120);
+		if (tail.length > 0) {
+			console.log(`==> ${testCommand.label}: captured output tail from the diagnostic rerun:`);
+			for (const line of tail) console.log(`    ${line}`);
+		}
 		throw new Error(`${testCommand.label} ${describeChunkFailure(exitCode, timedOut)}: ${renderedCommand}`);
 	}
 }

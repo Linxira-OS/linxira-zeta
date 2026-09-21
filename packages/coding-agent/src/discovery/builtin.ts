@@ -20,12 +20,12 @@ import { type MCPServer, mcpCapability } from "../capability/mcp";
 import { type Prompt, promptCapability } from "../capability/prompt";
 import { type Rule, ruleCapability } from "../capability/rule";
 import { type Settings, settingsCapability } from "../capability/settings";
-import { type Skill, skillCapability } from "../capability/skill";
+import { OFFICIAL_SKILLS_PROVIDER_ID, type Skill, skillCapability } from "../capability/skill";
 import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { type SystemPrompt, systemPromptCapability } from "../capability/system-prompt";
 import { type CustomTool, toolCapability } from "../capability/tool";
 import type { LoadContext, LoadResult } from "../capability/types";
-import { OFFICIAL_SKILLS_PROVIDER_ID } from "../extensibility/skills";
+
 import { expandTilde } from "../tools/path-utils";
 import {
 	createSourceMeta,
@@ -362,7 +362,10 @@ function resolveOfficialSkillsDir(): string | null {
 }
 
 function seedOfficialSkillsFromEmbed(embedJson: string): string {
-	const seedDir = path.join(getAgentDir(), "official-skills");
+	// Test processes override this to point the seed at a temp dir; mutating
+	// the global agent dir from a test leaks into every later chunk sibling.
+	const seedRoot = process.env.ZETA_OFFICIAL_SKILLS_SEED_DIR ?? path.join(getAgentDir(), "official-skills");
+	const seedDir = seedRoot;
 	const hash = createHash("sha256").update(embedJson).digest("hex").slice(0, 16);
 	const hashPath = path.join(seedDir, ".embed-hash");
 	let currentHash = "";

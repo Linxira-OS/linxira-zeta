@@ -6,6 +6,11 @@
 import { defineCapability } from ".";
 import type { SourceMeta } from "./types";
 
+/** Provider id for the official bundled skills pack. Lives here (capability
+ * layer, no discovery/extensibility imports) so both discovery/builtin.ts and
+ * extensibility/skills.ts can import it without creating a module cycle —
+ * a cycle made this TDZ time-bomb: "Cannot access before initialization". */
+export const OFFICIAL_SKILLS_PROVIDER_ID = "zeta-official";
 /**
  * Parsed frontmatter from a skill file.
  */
