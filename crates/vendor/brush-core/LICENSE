@@ -5,6 +5,7 @@ modifications can be maintained against the published release (brush-core
 0.5.0).
 
   Copyright (c) 2024 reuben olinsky
+Copyright (c) 2026 Linxira-OS (Zeta)
 
 Local modifications include: Windows path handling fixes (drive-alias and
 rooted-path normalization in globs), an async background-PID fix for the nohup

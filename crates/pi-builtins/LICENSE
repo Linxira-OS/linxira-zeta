@@ -24,6 +24,7 @@ printenv, readlink, realpath, rm, seq, sort, stat, tac, tail, tee, touch, tr,
 truncate, uname, uniq, wc, whoami, yes.
 
   Copyright (c) uutils developers
+Copyright (c) 2026 Linxira-OS (Zeta)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
