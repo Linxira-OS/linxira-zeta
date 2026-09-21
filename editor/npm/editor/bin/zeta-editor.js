@@ -14,7 +14,6 @@ const PKG = `@linxiraos/editor-${PKG_PLATFORM}-${process.arch}`;
 // node_modules/@linxiraos/ or nested under our package's node_modules
 // depending on the surrounding dependency tree.
 let found;
-console.error("[dbg] paths:", [__dirname, ...module.paths].join(" | "));
 try {
 	const pkgDir = path.dirname(require.resolve(`${PKG}/package.json`, { paths: [__dirname, ...module.paths] }));
 	const candidate = path.join(pkgDir, "bin", EXE);
