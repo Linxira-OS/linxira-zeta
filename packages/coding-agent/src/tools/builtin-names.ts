@@ -31,6 +31,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"workspace_run",
 	"im_control",
 	"tracking_update",
+	"ssh_exec",
 ] as const;
 
 export type BuiltinToolName = (typeof BUILTIN_TOOL_NAMES)[number];
