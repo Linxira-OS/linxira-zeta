@@ -1,4 +1,5 @@
 import type { Model } from "@linxiraos/pi-ai";
+import { tuiText, tuiTextFmt } from "../../i18n";
 import type { SgrMouseEvent } from "../../mouse";
 import { Text } from "../../components/text";
 import { WizardStep } from "../../components/wizard-step";
@@ -10,8 +11,13 @@ import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 const MAX_VISIBLE_MODELS = 10;
 
 class ModelSceneController implements SetupSceneController {
-	title = "Choose your default model";
-	subtitle = "Search configured models and save the model used for new sessions.";
+	get title(): string {
+		return tuiText("setupModelTitle", "Choose your default model");
+	}
+
+	get subtitle(): string {
+		return tuiText("setupModelSubtitle", "Search configured models and save the model used for new sessions.");
+	}
 	#browser: ModelBrowser;
 	#status: string | undefined;
 	#selecting = false;
@@ -31,7 +37,7 @@ class ModelSceneController implements SetupSceneController {
 	}
 
 	async onMount(): Promise<void> {
-		this.#status = theme.fg("muted", "Discovering available models…");
+		this.#status = theme.fg("muted", tuiText("setupModelDiscovering", "Discovering available models…"));
 		this.#host.requestRender();
 		await this.#refreshModels();
 	}
@@ -58,7 +64,8 @@ class ModelSceneController implements SetupSceneController {
 
 	render(width: number, maxLines?: number): readonly string[] {
 		const intro = new Text(
-			this.#status ?? theme.fg("muted", "Type to search. Enter saves the highlighted model as your default."),
+			this.#status ??
+				tuiText("setupModelSearchHint", "Type to search. Enter saves the highlighted model as your default."),
 			0,
 			0,
 		);
@@ -115,7 +122,7 @@ class ModelSceneController implements SetupSceneController {
 	async #select(model: Model, selector: string): Promise<void> {
 		if (this.#selecting) return;
 		this.#selecting = true;
-		this.#status = theme.fg("muted", `Saving ${selector} as the default model…`);
+		this.#status = theme.fg("muted", tuiTextFmt("setupModelSavingFmt", "Saving %s as the default model…", selector));
 		this.#host.requestRender();
 		try {
 			await this.#host.ctx.selectModel(model, selector);
@@ -132,7 +139,9 @@ class ModelSceneController implements SetupSceneController {
 /** Setup step that assigns one available model to the persisted default role. */
 export const modelSetupScene: SetupScene = {
 	id: "model",
-	title: "Choose your default model",
+	get title(): string {
+		return tuiText("setupModelTitle", "Choose your default model");
+	},
 	minVersion: 1,
 	mount: host => new ModelSceneController(host),
 };

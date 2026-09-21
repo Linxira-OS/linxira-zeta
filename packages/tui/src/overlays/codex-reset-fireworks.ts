@@ -7,6 +7,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { type ThemeColor, theme } from "../theme/theme";
 
 const FRAME_INTERVAL_MS = 85;
@@ -175,13 +176,20 @@ function drawBanner(
 	const top = height - 3;
 	const innerWidth = panelWidth - 2;
 	const titleText =
-		event.kind === "unscheduled-weekly-reset" ? " O P E N A I   R E S E T " : " S A V E D   R E S E T ";
+		event.kind === "unscheduled-weekly-reset"
+			? tuiText("fireworksTitleWeekly", " O P E N A I   R E S E T ")
+			: tuiText("fireworksTitleSaved", " S A V E D   R E S E T ");
 	const subtitleText =
 		event.kind === "unscheduled-weekly-reset"
-			? "Weekly usage cleared early · ESC to return"
+			? tuiText("fireworksSubtitleWeekly", "Weekly usage cleared early · ESC to return")
 			: event.added === 1
-				? `New reset banked · ${event.available} available · ESC to return`
-				: `${event.added} resets banked · ${event.available} available · ESC to return`;
+				? tuiTextFmt("fireworksBankedOneFmt", "New reset banked · %d available · ESC to return", event.available)
+				: tuiTextFmt(
+						"fireworksBankedManyFmt",
+						"%d resets banked · %d available · ESC to return",
+						event.added,
+						event.available,
+					);
 	const title = truncateToWidth(titleText, innerWidth, "");
 	const subtitle = truncateToWidth(subtitleText, innerWidth, "");
 	const titleOffset = Math.floor((innerWidth - visibleWidth(title)) / 2);

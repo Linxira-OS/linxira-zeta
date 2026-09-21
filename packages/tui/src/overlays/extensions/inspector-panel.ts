@@ -14,6 +14,7 @@ import { renderTableRow } from "../../components/table";
 import { theme } from "../../theme";
 import { divider } from "../../chrome/overlay-box";
 import { expandKeyHint, PREVIEW_LIMITS, replaceTabs, shortenPath } from "../../render/render-utils";
+import { tuiText, tuiTextFmt } from "../../i18n";
 import {
 	sanitizeDisplayField,
 	sanitizeDisplayLine,
@@ -117,7 +118,10 @@ export class InspectorPanel implements Component {
 
 	render(width: number): readonly string[] {
 		if (!this.#extension) {
-			return [theme.fg("muted", "Select an extension"), theme.fg("dim", "to view details")];
+			return [
+				theme.fg("muted", tuiText("extInspectorSelectExtension", "Select an extension")),
+				theme.fg("dim", tuiText("extInspectorToViewDetails", "to view details")),
+			];
 		}
 		this.#width = width;
 		this.#toolFrame = snapshotToolRuntimeSource(this.#toolSource);
@@ -183,7 +187,13 @@ export class InspectorPanel implements Component {
 		if (shadowed) {
 			const config: string[] = [];
 			if (isDiscoveredMcpServer(ext.raw) && ext.raw.command) {
-				this.#pushLabeled(config, "Command", shortenPath(ext.raw.command, os.homedir()), width, "success");
+				this.#pushLabeled(
+					config,
+					tuiText("extInspectorCommand", "Command"),
+					shortenPath(ext.raw.command, os.homedir()),
+					width,
+					"success",
+				);
 			}
 			if (config.length > 0) config.push("");
 			return { description: undefined, surface: [], contents: [], config };
@@ -228,7 +238,7 @@ export class InspectorPanel implements Component {
 				toolsBody.push(theme.fg("dim", `  … args (${expandKeyHint()} to expand)`));
 				toolsBody.push("");
 			}
-			contents.push(...this.#section("Tools", toolsBody, width));
+			contents.push(...this.#section(tuiText("extInspectorSectionTools", "Tools"), toolsBody, width));
 		}
 
 		if (snap && snap.resources.length > 0) {
@@ -244,7 +254,7 @@ export class InspectorPanel implements Component {
 				resourcesBody.push(theme.fg("dim", `  … ${hidden} more (${expandKeyHint()} to expand)`));
 			}
 			resourcesBody.push("");
-			contents.push(...this.#section("Resources", resourcesBody, width));
+			contents.push(...this.#section(tuiText("extInspectorSectionResources", "Resources"), resourcesBody, width));
 		}
 
 		if (snap && snap.prompts.length > 0) {
@@ -260,15 +270,28 @@ export class InspectorPanel implements Component {
 				promptsBody.push(theme.fg("dim", `  … ${hidden} more (${expandKeyHint()} to expand)`));
 			}
 			promptsBody.push("");
-			contents.push(...this.#section("Prompts", promptsBody, width));
+			contents.push(...this.#section(tuiText("extInspectorSectionPrompts", "Prompts"), promptsBody, width));
 		}
 
 		if (snap?.command)
-			this.#pushLabeled(config, "Command", shortenPath(snap.command, os.homedir()), width, "success");
+			this.#pushLabeled(
+				config,
+				tuiText("extInspectorCommand", "Command"),
+				shortenPath(snap.command, os.homedir()),
+				width,
+				"success",
+			);
 		if (snap?.url) this.#pushLabeled(config, "URL", snap.url, width, "success");
-		if (snap?.args && snap.args.length > 0) this.#pushLabeled(config, "Args", snap.args.join(" "), width, "dim");
+		if (snap?.args && snap.args.length > 0)
+			this.#pushLabeled(config, tuiText("extInspectorArgs", "Args"), snap.args.join(" "), width, "dim");
 		if (snap && snap.envCount > 0) {
-			this.#pushLabeled(config, "Env vars", `${snap.envCount} defined`, width, "dim");
+			this.#pushLabeled(
+				config,
+				tuiText("extInspectorEnvVars", "Env vars"),
+				tuiTextFmt("extInspectorEnvCountFmt", "%d defined", snap.envCount),
+				width,
+				"dim",
+			);
 		}
 		if (config.length > 0) config.push("");
 
@@ -312,7 +335,7 @@ export class InspectorPanel implements Component {
 				factoryBody.push(theme.fg("dim", `  … args (${expandKeyHint()} to expand)`));
 				factoryBody.push("");
 			}
-			surface.push(...this.#section("Tools", factoryBody, width));
+			surface.push(...this.#section(tuiText("extInspectorSectionTools", "Tools"), factoryBody, width));
 			return { description: data.description, surface, contents: [], config: [] };
 		}
 		if (lives.length === 0 && data.params.length === 0) {
@@ -320,7 +343,7 @@ export class InspectorPanel implements Component {
 		}
 		const argsBody: string[] = [];
 		this.#pushParams(argsBody, data.params, width, "  ");
-		surface.push(...this.#section("Arguments", argsBody, width));
+		surface.push(...this.#section(tuiText("extInspectorSectionArguments", "Arguments"), argsBody, width));
 		return {
 			title: data.label,
 			description: data.description,
@@ -335,7 +358,7 @@ export class InspectorPanel implements Component {
 		const data = ruleInspectorData(ext, this.#source);
 		const surface: string[] = [];
 		const appliesBody: string[] = [];
-		if (data.alwaysApply) appliesBody.push(`  ${theme.fg("accent", "always")}`);
+		if (data.alwaysApply) appliesBody.push(`  ${theme.fg("accent", tuiText("extInspectorAlways", "always"))}`);
 		if (data.globs) this.#pushLabeled(appliesBody, "globs", data.globs.join(", "), width);
 		if (data.condition) this.#pushLabeledList(appliesBody, "condition", data.condition, width);
 		if (data.astCondition) this.#pushLabeledList(appliesBody, "ast", data.astCondition, width);
@@ -343,15 +366,15 @@ export class InspectorPanel implements Component {
 		if (data.agents) this.#pushLabeledList(appliesBody, "agents", data.agents, width);
 		if (data.interruptMode) this.#pushLabeled(appliesBody, "interrupt", data.interruptMode, width, "dim");
 		if (!data.alwaysApply && !data.globs && !data.condition && !data.astCondition && !data.agents) {
-			appliesBody.push(theme.fg("dim", "  (no apply conditions)"));
+			appliesBody.push(theme.fg("dim", `  ${tuiText("extInspectorNoApplyConditions", "(no apply conditions)")}`));
 		}
 		appliesBody.push("");
-		surface.push(...this.#section("Applies", appliesBody, width));
+		surface.push(...this.#section(tuiText("extInspectorSectionApplies", "Applies"), appliesBody, width));
 		return {
 			description: data.description,
 			surface,
 			contents: [],
-			preview: { heading: "Rule", text: data.content },
+			preview: { heading: tuiText("extInspectorHeadingRule", "Rule"), text: data.content },
 			config: [],
 		};
 	}
@@ -370,7 +393,7 @@ export class InspectorPanel implements Component {
 			runtimeExtra.push(divider(width));
 		}
 		const surface: string[] = [];
-		if (data.alwaysApply) surface.push(`  ${theme.fg("accent", "always apply")}`);
+		if (data.alwaysApply) surface.push(`  ${theme.fg("accent", tuiText("extInspectorAlwaysApply", "always apply"))}`);
 		if (data.globs) this.#pushLabeled(surface, "globs", data.globs.join(", "), width);
 		if (surface.length > 0) surface.push("");
 		return {
@@ -378,7 +401,7 @@ export class InspectorPanel implements Component {
 			runtimeExtra: runtimeExtra.length > 0 ? runtimeExtra : undefined,
 			surface,
 			contents: [],
-			preview: { heading: "Instruction", text: data.content },
+			preview: { heading: tuiText("extInspectorHeadingInstruction", "Instruction"), text: data.content },
 			config: [],
 		};
 	}
@@ -389,14 +412,17 @@ export class InspectorPanel implements Component {
 		const invocationBody: string[] = [];
 		invocationBody.push(`  ${theme.fg("accent", `/${sanitizeDisplayText(ext.name)}`)}`);
 		if (data.argumentHint) this.#pushLabeled(invocationBody, "hint", data.argumentHint, this.#width, "dim");
-		if (data.usesArguments) invocationBody.push(`  ${theme.fg("dim", "accepts $ARGUMENTS")}`);
+		if (data.usesArguments)
+			invocationBody.push(`  ${theme.fg("dim", tuiText("extInspectorAcceptsArguments", "accepts $ARGUMENTS"))}`);
 		invocationBody.push("");
-		surface.push(...this.#section("Invocation", invocationBody, this.#width));
+		surface.push(
+			...this.#section(tuiText("extInspectorSectionInvocation", "Invocation"), invocationBody, this.#width),
+		);
 		return {
 			description: data.description,
 			surface,
 			contents: [],
-			preview: { heading: "Template", text: data.body },
+			preview: { heading: tuiText("extInspectorHeadingTemplate", "Template"), text: data.body },
 			config: [],
 		};
 	}
@@ -408,7 +434,7 @@ export class InspectorPanel implements Component {
 		if (data.hookType) this.#pushLabeled(hookBody, "when", data.hookType, this.#width);
 		if (data.tool) this.#pushLabeled(hookBody, "tool", data.tool, this.#width);
 		hookBody.push("");
-		surface.push(...this.#section("Hook", hookBody, this.#width));
+		surface.push(...this.#section(tuiText("extInspectorSectionHook", "Hook"), hookBody, this.#width));
 		return { description: ext.description, surface, contents: [], config: [] };
 	}
 
@@ -418,7 +444,7 @@ export class InspectorPanel implements Component {
 			description: ext.description,
 			surface: [],
 			contents: [],
-			preview: { heading: "Prompt", text: data.content },
+			preview: { heading: tuiText("extInspectorHeadingPrompt", "Prompt"), text: data.content },
 			config: [],
 		};
 	}
@@ -429,7 +455,7 @@ export class InspectorPanel implements Component {
 			description: ext.description,
 			surface: [],
 			contents: [],
-			preview: { heading: "Preview", text: data.content },
+			preview: { heading: tuiText("extInspectorHeadingPreview", "Preview"), text: data.content },
 			config: [],
 		};
 	}
@@ -441,13 +467,13 @@ export class InspectorPanel implements Component {
 			const filesBody: string[] = [];
 			this.#pushLabeled(filesBody, "files", data.applyTo, this.#width);
 			filesBody.push("");
-			surface.push(...this.#section("Applies", filesBody, this.#width));
+			surface.push(...this.#section(tuiText("extInspectorSectionApplies", "Applies"), filesBody, this.#width));
 		}
 		return {
 			description: ext.description,
 			surface,
 			contents: [],
-			preview: { heading: "Instruction", text: data.content },
+			preview: { heading: tuiText("extInspectorHeadingInstruction", "Instruction"), text: data.content },
 			config: [],
 		};
 	}
@@ -456,7 +482,7 @@ export class InspectorPanel implements Component {
 		const surface: string[] = [];
 		if (ext.trigger) {
 			const triggerBody: string[] = [`  ${theme.fg("accent", ext.trigger)}`, ""];
-			surface.push(...this.#section("Trigger", triggerBody, this.#width));
+			surface.push(...this.#section(tuiText("extInspectorSectionTrigger", "Trigger"), triggerBody, this.#width));
 		}
 		return { description: ext.description, surface, contents: [], config: [] };
 	}
@@ -503,20 +529,24 @@ export class InspectorPanel implements Component {
 		if (this.#expanded || wrapped.length <= MCP_INLINE_DESC_LINES) {
 			lines.push(...wrapped);
 		} else {
-			lines.push(...wrapped.slice(0, MCP_INLINE_DESC_LINES));
-			lines.push(
-				theme.fg("dim", `  … ${wrapped.length - MCP_INLINE_DESC_LINES} more (${expandKeyHint()} to expand)`),
-			);
+			lines.push(...wrapped);
+			lines.push("");
 		}
-		lines.push("");
 	}
 
 	#pushOrigin(lines: string[], ext: Extension, width: number): void {
-		lines.push(theme.fg("muted", "Origin:"));
-		const levelLabel = ext.source.level === "user" ? "User" : ext.source.level === "project" ? "Project" : "Native";
+		lines.push(theme.fg("muted", tuiText("extInspectorOrigin", "Origin:")));
+		const levelLabel =
+			ext.source.level === "user"
+				? tuiText("extLevelUser", "User")
+				: ext.source.level === "project"
+					? tuiText("extLevelProject", "Project")
+					: tuiText("extLevelNative", "Native");
 		this.#pushWrapped(
 			lines,
-			theme.italic(`via ${sanitizeDisplayText(ext.source.providerName)} (${levelLabel})`),
+			theme.italic(
+				tuiTextFmt("extInspectorViaFmt", "via %s (%s)", sanitizeDisplayText(ext.source.providerName), levelLabel),
+			),
 			width,
 			"  ",
 		);
@@ -548,9 +578,20 @@ export class InspectorPanel implements Component {
 		const hidden = items.length - shown.length;
 		const indent = "             ";
 		if (hidden > 0) {
-			this.#pushLabeled(lines, label, `${items.length} patterns`, width, "dim");
+			this.#pushLabeled(
+				lines,
+				label,
+				tuiTextFmt("extInspectorPatternsFmt", "%d patterns", items.length),
+				width,
+				"dim",
+			);
 			for (const item of shown) this.#pushWrapped(lines, item, width, indent);
-			lines.push(theme.fg("dim", `${indent}… ${hidden} more (${expandKeyHint()} to expand)`));
+			lines.push(
+				theme.fg(
+					"dim",
+					`${indent}${tuiTextFmt("extInspectorMoreFmt", "… %d more (%s to expand)", hidden, expandKeyHint())}`,
+				),
+			);
 			return;
 		}
 		this.#pushLabeled(lines, label, shown[0] ?? "", width);

@@ -5,6 +5,7 @@
  * exposes the configured ctrl+p quick roles.
  */
 import type { Model } from "@linxiraos/pi-ai";
+import { tuiText } from "../i18n";
 import { addKeyAliases, canonicalKeyId } from "../keybindings";
 import { type KeyId, parseKey } from "../keys";
 import type { Component, TUI } from "../tui";
@@ -74,14 +75,6 @@ export const BROWSER_FRAME_ROWS = 5;
 const MIN_VISIBLE = 5;
 /** Fraction of the terminal height the floating overlay occupies. */
 const HEIGHT_FRACTION = 0.4;
-
-const STATUS_HINT = "Session-only switch — role models stay unchanged";
-const QUICK_ROLE_STATUS_HINT = "Quick role switch — applies its model and thinking for this session";
-const TASK_STATUS_HINT = "Task subagent switch — spawned task agents use this model (session-only)";
-const FOOTER_HINT = "↑/↓ models · Enter use for this session · type to search · @ quick roles · Esc close";
-const QUICK_ROLE_FOOTER_HINT = "↑/↓ roles · Enter apply role model · type to search · Esc close";
-const TASK_FOOTER_HINT = "↑/↓ models · Enter use for Task subagents · type to search · Esc close";
-
 /**
  * The alt+p picker component. Hosted as a non-fullscreen bottom-anchored
  * overlay (`ui.showOverlay(..., { anchor: "bottom-center" })`); keyboard-only,
@@ -132,7 +125,8 @@ export class ModelPickerComponent implements Component {
 		this.#browser = new ModelBrowser(settings, {
 			currentContextTokens: options.currentContextTokens,
 			markOverContext: true,
-			emptyText: () => (this.#roleMode ? "  No quick roles in the Ctrl+P cycle" : undefined),
+			emptyText: () =>
+				this.#roleMode ? tuiText("mpNoQuickRoles", "  No quick roles in the Ctrl+P cycle") : undefined,
 		});
 		this.#browser.onActivate = item => {
 			const quickRole = this.#quickRoles.get(item.selector);
@@ -263,17 +257,48 @@ export class ModelPickerComponent implements Component {
 		const status = this.#configError
 			? theme.fg("error", ` ${this.#configError}`)
 			: this.#taskMode
-				? theme.fg("error", ` ${TASK_STATUS_HINT}`)
-				: theme.fg("muted", ` ${this.#roleMode ? QUICK_ROLE_STATUS_HINT : STATUS_HINT}`);
+				? theme.fg(
+						"error",
+						` ${tuiText(
+							"mpTaskStatusHint",
+							"Task subagent switch — spawned task agents use this model (session-only)",
+						)}`,
+					)
+				: theme.fg(
+						"muted",
+						` ${
+							this.#roleMode
+								? tuiText(
+										"mpQuickRoleStatusHint",
+										"Quick role switch — applies its model and thinking for this session",
+									)
+								: tuiText("mpStatusHint", "Session-only switch — role models stay unchanged")
+						}`,
+					);
 
 		const borderColor: ThemeColor | undefined = this.#taskMode ? "error" : undefined;
-		let footer = this.#taskMode ? TASK_FOOTER_HINT : this.#roleMode ? QUICK_ROLE_FOOTER_HINT : FOOTER_HINT;
+		let footer = this.#taskMode
+			? tuiText("mpTaskFooterHint", "↑/↓ models · Enter use for Task subagents · type to search · Esc close")
+			: this.#roleMode
+				? tuiText("mpQuickRoleFooterHint", "↑/↓ roles · Enter apply role model · type to search · Esc close")
+				: tuiText(
+						"mpFooterHint",
+						"↑/↓ models · Enter use for this session · type to search · @ quick roles · Esc close",
+					);
 		if (this.#taskMatchKeys.size > 0 && !this.#roleMode) {
-			footer += ` · ${this.#taskModeKeyLabel} ${this.#taskMode ? "session model" : "task model"}`;
+			footer += ` · ${this.#taskModeKeyLabel} ${
+				this.#taskMode ? tuiText("mpSessionModelWord", "session model") : tuiText("mpTaskModelWord", "task model")
+			}`;
 		}
 
 		const out: string[] = [];
-		out.push(topBorder(width, this.#taskMode ? "Switch Task Model" : "Switch Model", borderColor));
+		out.push(
+			topBorder(
+				width,
+				this.#taskMode ? tuiText("mpTaskTitle", "Switch Task Model") : tuiText("mpTitle", "Switch Model"),
+				borderColor,
+			),
+		);
 		out.push(row(status, width, borderColor));
 		for (const line of this.#browser.render(inner)) {
 			out.push(row(line, width, borderColor));

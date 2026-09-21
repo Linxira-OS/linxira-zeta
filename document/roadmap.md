@@ -459,12 +459,11 @@ coding-agent types. `getProjectTrackingDir` is already exported from
 `packages/utils`; the stats-side endpoint + type remain. (Web UI already has a
 TrackingPanel wired to the gateway; this is the stats-dashboard-side panel.)
 
-### P2 — SSH remote command tool (extension recovery)
+### P2 — SSH remote command tool — DONE (v1.1.17)
 
-The plumbing already shipped: `zeta ssh` CLI, the `/ssh` slash command, and
-`src/ssh/` (connection-manager, file-transfer, sshfs-mount). Remaining: an
-agent-callable SSH exec tool via `ctx.registerTool` wrapping the retained
-connection manager — no new protocol work needed.
+The `ssh_exec` agent tool shipped in v1.1.17 (PR #34): `ctx.registerTool`
+wrapping the retained connection manager (`zeta ssh` CLI, `/ssh`, and
+`src/ssh/` plumbing). Done.
 
 ### P3 — Vim input mode extension
 
@@ -532,6 +531,34 @@ Discord, Slack, Matrix, Signal, SMS/Twilio, LINE, Teams, IRC, Mattermost —
 each is an adapter over the same minimal channel interface; add on demand,
 reference `temp/openclaw-ref` (checked out for this survey) for wire
 protocols and auth flows.
+
+### DONE — Full-surface CLI i18n (feat/i18n-overlay, post v1.1.17)
+
+v1.1.16's renderer migration into `@linxiraos/pi-tui` (0d6dbd32fc) orphaned
+the i18n bundle from every migrated panel — zh fell back to English across
+Settings, the MCP wizard, selectors, setup, and chat chrome. Fixed with a
+host-injectable text layer:
+
+- `packages/tui/src/i18n.ts`: `setTuiTextSource` / `tuiText(key, fallback)` —
+  inline English is the permanent fallback; the coding-agent wires the source
+  to the live `M` proxy (`src/i18n/wire-tui.ts`, registered at
+  `InteractiveMode` boot), so `/language` switches apply on the next render.
+- Settings rows localize host-side: `createSettingsHost` applies the
+  `settings-zh.ts` overlay (`localizeSettingUi`) to labels, descriptions,
+  groups, and submenu options — same data the gateway panel uses.
+- ~700 keys wired across all tui panels, setup scenes, chat/status-line/tool
+  meta, and coding-agent controllers; `scripts/check-i18n-consistency.ts`
+  guards en/zh/messages parity (baseline drift pre-dates this branch).
+- Desktop tray "Open Settings" fixed: `/?panel=settings` deep link
+  (web-ui `initial-navigation` + AppShell) and a `/settings` 307 redirect;
+  the tray click now shows the window before navigating.
+- Sentinels stay byte-stable: `USER_INTERRUPT_LABEL`,
+  `GENERIC_ABORT_SENTINEL`, `GUEST_ACTION_LABELS` — only render sites map.
+
+Remaining (non-blocking): the ~27 welcome tips have zh entries but are
+English-only content pools for other locales; the git-TUI and debug apps
+carry the last ~40 low-priority strings.
+
 
 ## Notes
 

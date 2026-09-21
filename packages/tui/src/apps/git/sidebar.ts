@@ -23,6 +23,7 @@ import { getEditorTheme, theme } from "../../theme/theme";
 import { type AvatarSource, identiconLines } from "./avatar";
 import { pill, selectionBgAnsi, softPill, tintChip, withBg } from "./colors";
 import type { ChangedFile, GitViewState } from "./state";
+import { tuiText, tuiTextFmt } from "../../i18n";
 
 /** Generated conventional commit fields shown in the commit form. */
 export interface GitCommitMessage {
@@ -1017,7 +1018,11 @@ export class Sidebar {
 	#changesHeaderRows(width: number): Row[] {
 		const total = this.#model.unstaged.length + this.#model.staged.length;
 		const branch = this.#model.branch ? tintChip(` ${this.#model.branch} `, theme.getColorHex("accent")) : "";
-		const label = theme.bold(`${total} file change${total === 1 ? "" : "s"} on `);
+		const label = theme.bold(
+			total === 1
+				? tuiTextFmt("gitFileChangesOnOneFmt", "%s file change on ", total)
+				: tuiTextFmt("gitFileChangesOnManyFmt", "%s file changes on ", total),
+		);
 		return [
 			{ text: ` ${label}${branch}` },
 			this.#viewToggleRow(width),
@@ -1032,9 +1037,9 @@ export class Sidebar {
 		const wand = theme.getSymbolPreset() === "nerd" ? "" : "✦";
 		rows.push(
 			sectionHeaderRow(
-				`${unstagedFolded ? "▸" : "▾"} Unstaged Files (${this.#model.unstaged.length})`,
+				`${unstagedFolded ? "▸" : "▾"} ${tuiTextFmt("gitUnstagedFilesFmt", `Unstaged Files (${this.#model.unstaged.length})`, this.#model.unstaged.length)}`,
 				[
-					{ action: "Stage All", target: { kind: "stage-all" } },
+					{ action: tuiText("gitStageAllPill", "Stage All"), target: { kind: "stage-all" } },
 					{ action: wand, target: { kind: "stage-ai" } },
 				],
 				unstaged,
@@ -1046,15 +1051,16 @@ export class Sidebar {
 		if (this.#aiPromptOpen) rows.push(this.#aiPromptRow(width, isSelected));
 		if (!unstagedFolded) {
 			rows.push(...this.#entryRows(this.#model.unstaged, "unstaged"));
-			if (this.#model.unstaged.length === 0) rows.push({ text: theme.fg("dim", "   no unstaged files") });
+			if (this.#model.unstaged.length === 0)
+				rows.push({ text: theme.fg("dim", tuiText("gitNoUnstagedFiles", "   no unstaged files")) });
 		}
 		rows.push({ text: "" });
 		const staged: SectionTarget = { kind: "section", area: "staged" };
 		const stagedFolded = this.#collapsedSections.has("staged");
 		rows.push(
 			sectionHeaderRow(
-				`${stagedFolded ? "▸" : "▾"} Staged Files (${this.#model.staged.length})`,
-				[{ action: "Unstage All", target: { kind: "unstage-all" } }],
+				`${stagedFolded ? "▸" : "▾"} ${tuiTextFmt("gitStagedFilesFmt", `Staged Files (${this.#model.staged.length})`, this.#model.staged.length)}`,
+				[{ action: tuiText("gitUnstageAllPill", "Unstage All"), target: { kind: "unstage-all" } }],
 				staged,
 				width,
 				isSelected(staged),
@@ -1063,7 +1069,8 @@ export class Sidebar {
 		);
 		if (!stagedFolded) {
 			rows.push(...this.#entryRows(this.#model.staged, "staged"));
-			if (this.#model.staged.length === 0) rows.push({ text: theme.fg("dim", "   no staged files") });
+			if (this.#model.staged.length === 0)
+				rows.push({ text: theme.fg("dim", tuiText("gitNoStagedFiles", "   no staged files")) });
 		}
 		return rows;
 	}
@@ -1073,7 +1080,7 @@ export class Sidebar {
 		const bar = isSelected(target) ? theme.fg("accent", "▎") : theme.fg("borderMuted", "▏");
 		const line =
 			this.aiInput.getValue().length === 0 && !this.aiInput.focused
-				? theme.fg("dim", "What should we stage?")
+				? theme.fg("dim", tuiText("gitAiPromptPlaceholder", "What should we stage?"))
 				: (this.aiInput.render(width - 4)[0] ?? "");
 		return { text: ` ${bar}${line}`, target };
 	}
@@ -1084,7 +1091,7 @@ export class Sidebar {
 
 		const amendTarget: Target = { kind: "amend" };
 		const amendBox = this.amend ? theme.fg("accent", "▣") : theme.fg("muted", "☐");
-		const amendLine = ` ${amendBox} Amend previous commit`;
+		const amendLine = ` ${amendBox} ${tuiText("gitAmendPrevious", "Amend previous commit")}`;
 		rows.push({
 			text: isSelected(amendTarget) && this.focused ? `${withBg(amendLine, selectionBgAnsi())}\x1b[0m` : amendLine,
 			target: amendTarget,
@@ -1093,7 +1100,7 @@ export class Sidebar {
 		const summaryTarget: Target = { kind: "summary" };
 		const summaryLen = this.summary.getValue().length;
 		const counter = theme.fg(summaryLen > SUMMARY_LIMIT ? "warning" : "dim", String(SUMMARY_LIMIT - summaryLen));
-		const summaryLabel = theme.fg("muted", "Commit summary");
+		const summaryLabel = theme.fg("muted", tuiText("gitCommitSummaryLabel", "Commit summary"));
 		rows.push({
 			text: ` ${summaryLabel}${" ".repeat(Math.max(1, width - 2 - visibleWidth(summaryLabel) - visibleWidth(counter)))}${counter}`,
 		});
@@ -1105,7 +1112,10 @@ export class Sidebar {
 		const descriptionLines = this.#descriptionField.render(width - 4);
 		const descriptionBar = isSelected(descriptionTarget) ? theme.fg("accent", "▎") : theme.fg("borderMuted", "▏");
 		if (this.description.getText().length === 0 && !this.#descriptionField.focused) {
-			rows.push({ text: ` ${descriptionBar}${theme.fg("dim", "Description")}`, target: descriptionTarget });
+			rows.push({
+				text: ` ${descriptionBar}${theme.fg("dim", tuiText("gitDescriptionPlaceholder", "Description"))}`,
+				target: descriptionTarget,
+			});
 		} else {
 			for (const line of descriptionLines.length > 0 ? descriptionLines : [""]) {
 				rows.push({ text: ` ${descriptionBar}${line}`, target: descriptionTarget });
@@ -1119,10 +1129,10 @@ export class Sidebar {
 		const description = this.description.getText().trim();
 		const canActivate = hasChanges && !this.generating && (summary.length > 0 || description.length === 0);
 		const label = this.generating
-			? "-○- Generating commit message"
+			? tuiText("gitBtnGenerating", "-○- Generating commit message")
 			: this.#model.staged.length > 0
-				? "-○- Commit staged changes"
-				: "-○- Stage all & commit";
+				? tuiText("gitBtnCommitStaged", "-○- Commit staged changes")
+				: tuiText("gitBtnStageAllCommit", "-○- Stage all & commit");
 		const pad = Math.max(0, Math.floor((width - 4 - visibleWidth(label)) / 2));
 		const inner = `${" ".repeat(pad)}${label}${" ".repeat(pad)}`;
 		const button = pill(inner, theme.getColorHex("accent"), {
@@ -1137,7 +1147,7 @@ export class Sidebar {
 		const rows: Row[] = [];
 		const head = this.#model.headCommit;
 		if (!head) {
-			rows.push({ text: "" }, { text: theme.fg("dim", " No commits yet") });
+			rows.push({ text: "" }, { text: theme.fg("dim", ` ${tuiText("gitNoCommitsYet", "No commits yet")}`) });
 			return rows;
 		}
 		for (const line of Bun.wrapAnsi(theme.bold(head.subject), width - 2).split("\n")) {
@@ -1152,27 +1162,31 @@ export class Sidebar {
 		}
 		rows.push({ text: "" });
 
-		for (const line of this.#avatarRows(head.authorEmail)) rows.push({ text: ` ${line}` });
 		rows.push({ text: ` ${theme.bold(head.authorName)} ${theme.fg("dim", `<${head.authorEmail}>`)}` });
 		const when = head.authorDate ? new Date(head.authorDate) : null;
 		if (when && !Number.isNaN(when.getTime())) {
-			rows.push({ text: theme.fg("dim", ` authored ${when.toLocaleString()}`) });
+			rows.push({
+				text: theme.fg(
+					"dim",
+					tuiTextFmt("gitAuthoredFmt", ` authored ${when.toLocaleString()}`, when.toLocaleString()),
+				),
+			});
 		}
 		if (head.parents.length > 0) {
 			rows.push({
-				text: ` ${theme.fg("dim", "parent:")} ${theme.fg("accent", head.parents.map(sha => sha.slice(0, 8)).join(" "))}`,
+				text: ` ${theme.fg("dim", tuiText("gitParentLabel", "parent:"))} ${theme.fg("accent", head.parents.map(sha => sha.slice(0, 8)).join(" "))}`,
 			});
 		}
 		rows.push({ text: theme.fg("borderMuted", "─".repeat(Math.max(0, width))) });
 		if (!head.filesLoaded) {
-			rows.push({ text: theme.fg("dim", " Loading changed files…") });
+			rows.push({ text: theme.fg("dim", tuiText("gitLoadingChangedFiles", " Loading changed files…")) });
 			return rows;
 		}
 
 		const additions = head.files.reduce((sum, file) => sum + (file.additions ?? 0), 0);
 		const deletions = head.files.reduce((sum, file) => sum + (file.deletions ?? 0), 0);
 		rows.push({
-			text: ` ${theme.bold(`${head.files.length} modified`)}  ${theme.fg("success", `+${additions}`)} ${theme.fg("error", `−${deletions}`)} ${theme.fg("dim", `· ${head.shortSha}`)}`,
+			text: ` ${theme.bold(tuiTextFmt("gitModifiedCountFmt", "%s modified", head.files.length))}  ${theme.fg("success", `+${additions}`)} ${theme.fg("error", `−${deletions}`)} ${theme.fg("dim", `· ${head.shortSha}`)}`,
 		});
 		rows.push(this.#viewToggleRow(width));
 		rows.push(...this.#entryRows(head.files, "commit"));

@@ -43,6 +43,7 @@ import { formatOutputInline, renderJsonTreeLines } from "./json-tree";
 import { repairDoubleEncodedJsonString } from "./task-repair-args";
 import { getSubprocessToolRenderer } from "./subprocess";
 import { assembleYieldResult } from "./task-yield-assembly";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 /** Render context threaded in from `ToolExecutionComponent.#buildRenderContext`. */
 interface TaskRenderContext {
@@ -66,7 +67,7 @@ type TaskRenderOptions = RenderResultOptions & { renderContext?: TaskRenderConte
 const MAX_NESTED_TASK_RENDER_DEPTH = 8;
 
 function renderNestedCycleLine(theme: Theme): string {
-	return theme.fg("dim", "… nested task progress already shown");
+	return theme.fg("dim", tuiText("taskNestedProgressShown", "… nested task progress already shown"));
 }
 
 function formatFindingSummary(findings: FindingDetails[], theme: Theme): string {
@@ -1215,11 +1216,11 @@ function formatHiddenProgressLine(hidden: readonly AgentProgress[], theme: Theme
 	};
 	for (const p of hidden) counts[p.status]++;
 	const parts: string[] = [];
-	if (counts.completed > 0) parts.push(theme.fg("dim", `${counts.completed} done`));
-	if (counts.running > 0) parts.push(theme.fg("dim", `${counts.running} running`));
-	if (counts.pending > 0) parts.push(theme.fg("dim", `${counts.pending} pending`));
-	if (counts.failed > 0) parts.push(theme.fg("error", `${counts.failed} failed`));
-	if (counts.aborted > 0) parts.push(theme.fg("error", `${counts.aborted} aborted`));
+	if (counts.completed > 0) parts.push(theme.fg("dim", tuiTextFmt("taskDoneFmt", "%d done", counts.completed)));
+	if (counts.running > 0) parts.push(theme.fg("dim", tuiTextFmt("taskRunningFmt", "%d running", counts.running)));
+	if (counts.pending > 0) parts.push(theme.fg("dim", tuiTextFmt("taskPendingFmt", "%d pending", counts.pending)));
+	if (counts.failed > 0) parts.push(theme.fg("error", tuiTextFmt("taskFailedFmt", "%d failed", counts.failed)));
+	if (counts.aborted > 0) parts.push(theme.fg("error", tuiTextFmt("taskAbortedFmt", "%d aborted", counts.aborted)));
 	const breakdown =
 		parts.length > 0
 			? `${theme.fg("dim", " (")}${parts.join(theme.fg("dim", theme.sep.dot))}${theme.fg("dim", ")")}`
@@ -1417,7 +1418,7 @@ export function renderResult(
 			if (abortedCount > 0) summaryParts.push(theme.fg("error", `${abortedCount} aborted`));
 			if (successCount > 0) summaryParts.push(theme.fg("success", `${successCount} succeeded`));
 			if (mergeFailedCount > 0) summaryParts.push(theme.fg("warning", `${mergeFailedCount} merge failed`));
-			if (failCount > 0) summaryParts.push(theme.fg("error", `${failCount} failed`));
+			if (failCount > 0) summaryParts.push(theme.fg("error", tuiTextFmt("taskFailedFmt", "%d failed", failCount)));
 			const totalRequests = requestTotal;
 			if (totalRequests > 0) summaryParts.push(theme.fg("dim", `${formatNumber(totalRequests)} req`));
 			summaryParts.push(theme.fg("dim", formatDuration(details.totalDurationMs)));
@@ -1434,7 +1435,7 @@ export function renderResult(
 		const borderColor = isError ? "error" : "borderMuted";
 
 		if (lines.length === 0) {
-			const text = fallbackText.trim() ? fallbackText : "No results";
+			const text = fallbackText.trim() ? fallbackText : tuiText("taskNoResults", "No results");
 			return {
 				header,
 				sections: [

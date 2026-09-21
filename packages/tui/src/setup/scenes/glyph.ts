@@ -1,4 +1,5 @@
 import { type SgrMouseEvent } from "../../mouse";
+import { tuiText } from "../../i18n";
 import { type SelectItem, SelectList } from "../../components/select-list";
 import { Text } from "../../components/text";
 import { WizardStep } from "../../components/wizard-step";
@@ -27,8 +28,13 @@ const GLYPH_ITEMS: readonly SelectItem[] = GLYPH_PRESETS.map((preset, index) => 
 }));
 
 class GlyphSceneController implements SetupSceneController {
-	title = "Choose glyph mode";
-	subtitle = "Pick the row that renders cleanly in your terminal.";
+	get title(): string {
+		return tuiText("setupGlyphTitle", "Choose glyph mode");
+	}
+
+	get subtitle(): string {
+		return tuiText("setupGlyphSubtitle", "Pick the row that renders cleanly in your terminal.");
+	}
 	#selectList: SelectList;
 	#previewRequest = 0;
 	#committing = false;
@@ -79,7 +85,14 @@ class GlyphSceneController implements SetupSceneController {
 		if (!this.#step) {
 			this.#step = new WizardStep({
 				kind: "choice",
-				intro: new Text(theme.fg("muted", "If a row shows boxes, tofu, or misaligned icons, pick another."), 0, 0),
+				intro: new Text(
+					theme.fg(
+						"muted",
+						tuiText("setupGlyphHint", "If a row shows boxes, tofu, or misaligned icons, pick another."),
+					),
+					0,
+					0,
+				),
 				content: this.#selectList,
 				minContentLines: GLYPH_ITEMS.length,
 				fitContent: () => {
@@ -114,7 +127,9 @@ class GlyphSceneController implements SetupSceneController {
 /** Preview and persist the terminal glyph preset. */
 export const glyphSetupScene: SetupScene = {
 	id: "glyph-mode",
-	title: "Choose glyph mode",
+	get title(): string {
+		return tuiText("setupGlyphTitle", "Choose glyph mode");
+	},
 	minVersion: 1,
 	mount: host => new GlyphSceneController(host),
 };

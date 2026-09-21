@@ -32,6 +32,7 @@ import {
 	type TUI,
 	truncateToWidth,
 } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 import type { MessageRenderer } from "../chat/extension-types";
 import type { TranscriptEntryLike as TranscriptEntry } from "../chat/transcript-entry";
 import { theme } from "../theme/theme";
@@ -357,16 +358,29 @@ export class RewindSelectorComponent implements Component {
 						prepared,
 					}).column;
 		const position = this.#targets.length > 0 ? `${this.#selected + 1}/${this.#targets.length}  ` : "";
-		const lateral = columns.length > 0 ? "←/→ branches" : "←/→ user turns";
+		const lateral =
+			columns.length > 0 ? tuiText("rwHintBranches", "←/→ branches") : tuiText("rwHintTurns", "←/→ user turns");
 		return {
 			header: [
-				`${theme.icon.rewind} ${theme.bold("Rewind")}${theme.sep.dot}${theme.fg("dim", "pick the point to continue from")}`,
+				`${theme.icon.rewind} ${theme.bold(tuiText("rwTitle", "Rewind"))}${theme.sep.dot}${theme.fg(
+					"dim",
+					tuiText("rwSubtitle", "pick the point to continue from"),
+				)}`,
 			],
 			body: {
 				lines: composed.lines,
 				anchor: this.#outlineAnchor(composed),
 			},
-			footer: [theme.fg("dim", `${position}↑/↓ step  ${lateral}  enter rewind  ctrl+o expand  esc cancel`)],
+			footer: [
+				theme.fg(
+					"dim",
+					tuiTextFmt(
+						"rwFooterFmt",
+						"↑/↓ step  %s  enter rewind  ctrl+o expand  esc cancel",
+						`${position}${lateral}`,
+					),
+				),
+			],
 		};
 	}
 
@@ -411,7 +425,7 @@ export class RewindSelectorComponent implements Component {
 				suffixTargets,
 				this.#activeVariant === 0 ? 0 : -1,
 				colWidth,
-				this.#columnHeader(0, count, "current", colWidth),
+				this.#columnHeader(0, count, tuiText("rwCurrentColumn", "current"), colWidth),
 			),
 		];
 		for (let index = 0; index < columns.length; index++) {

@@ -5,6 +5,7 @@
  * The user types a path, Tab autocompletes the highlighted directory, and Enter
  * confirms — yielding the resolved directory string (or `undefined` on cancel).
  */
+import { tuiText } from "../i18n";
 import { type Component, type Focusable, Key, matchesKey } from "../index";
 import { theme } from "../theme/theme";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
@@ -56,7 +57,6 @@ export class MoveOverlay implements Component, Focusable {
 		this.#done = done;
 		this.#field = new TextFormField({
 			theme: formTheme,
-			prompt: theme.fg("dim", "Path: "),
 			empty: "submit",
 			spaceBeforeControl: false,
 			spaceAfterControl: false,
@@ -135,6 +135,7 @@ export class MoveOverlay implements Component, Focusable {
 	render(width: number): readonly string[] {
 		const w = width;
 		const innerWidth = Math.max(1, w - 4);
+		this.#field.input.prompt = theme.fg("dim", `${tuiText("adshPath", "Path:")} `);
 		const fieldLines = this.#field.render(innerWidth);
 		const memo = this.#renderMemo;
 		if (memo?.width === w && memo.fieldLines === fieldLines && memo.revision === this.#revision) {
@@ -142,14 +143,14 @@ export class MoveOverlay implements Component, Focusable {
 		}
 		const lines: string[] = [];
 
-		lines.push(topBorder(w, "Move to directory"));
+		lines.push(topBorder(w, tuiText("moveTitle", "Move to directory")));
 		for (const fieldLine of fieldLines) {
 			lines.push(row(fieldLine, w));
 		}
 		lines.push(row("", w));
 
 		if (this.#results.length === 0 && this.#field.getValue().length > 0) {
-			lines.push(row(theme.fg("dim", "No matching directories"), w));
+			lines.push(row(theme.fg("dim", tuiText("moveNoMatchingDirectories", "No matching directories")), w));
 		} else {
 			for (let i = 0; i < Math.min(this.#results.length, MAX_RESULTS); i++) {
 				const item = this.#results[i]!;
@@ -161,14 +162,22 @@ export class MoveOverlay implements Component, Focusable {
 		}
 
 		lines.push(row("", w));
-		lines.push(row(theme.fg("dim", "Type to filter · ↑↓ navigate · Tab accept · Enter confirm · Esc cancel"), w));
+		lines.push(
+			row(
+				theme.fg(
+					"dim",
+					tuiText("moveFooterHint", "Type to filter · ↑↓ navigate · Tab accept · Enter confirm · Esc cancel"),
+				),
+				w,
+			),
+		);
 		lines.push(bottomBorder(w));
 		this.#renderMemo = { width: w, fieldLines, revision: this.#revision, lines };
 		return lines;
 	}
 
 	invalidate(): void {
-		this.#field.input.prompt = theme.fg("dim", "Path: ");
+		this.#field.input.prompt = theme.fg("dim", `${tuiText("adshPath", "Path:")} `);
 		this.#field.invalidate();
 		this.#revision++;
 		this.#renderMemo = undefined;

@@ -1,4 +1,5 @@
 import { Container, matchesKey, ScrollView, TruncatedText } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { theme } from "../theme/theme";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { OverlayPanel } from "../chrome/overlay-box";
@@ -22,6 +23,7 @@ export class LogoutAccountSelectorComponent extends OverlayPanel {
 	#menu: MenuSelection<LogoutAccount>;
 	#onSelectCallback: (account: LogoutAccount) => void;
 	#onCancelCallback: () => void;
+	#providerName: string;
 
 	constructor(
 		providerName: string,
@@ -29,7 +31,8 @@ export class LogoutAccountSelectorComponent extends OverlayPanel {
 		onSelect: (account: LogoutAccount) => void,
 		onCancel: () => void,
 	) {
-		super(`Select ${providerName} account to log out`);
+		super(tuiTextFmt("logoutAccountTitleFmt", "Select %s account to log out", providerName));
+		this.#providerName = providerName;
 		this.#onSelectCallback = onSelect;
 		this.#onCancelCallback = onCancel;
 		const active = accounts.find(account => account.active);
@@ -59,7 +62,7 @@ export class LogoutAccountSelectorComponent extends OverlayPanel {
 		for (let i = startIndex; i < endIndex; i++) {
 			const account = items[i];
 			if (!account) continue;
-			const activeTag = account.active ? theme.fg("muted", " (active)") : "";
+			const activeTag = account.active ? theme.fg("muted", tuiText("logoutAccountActiveTag", " (active)")) : "";
 			const detail = account.detail ? theme.fg("dim", `  ${account.detail}`) : "";
 			if (i === this.#menu.selectedIndex) {
 				rows.push(`${theme.fg("accent", `${theme.nav.cursor} ${account.label}`)}${activeTag}${detail}`);
@@ -80,11 +83,17 @@ export class LogoutAccountSelectorComponent extends OverlayPanel {
 		}
 
 		if (total === 0) {
-			this.#listContainer.addChild(new TruncatedText(theme.fg("muted", "No stored accounts to log out"), 0, 0));
+			this.#listContainer.addChild(
+				new TruncatedText(theme.fg("muted", tuiText("logoutAccountEmpty", "No stored accounts to log out")), 0, 0),
+			);
 		}
 
 		this.#listContainer.addChild(
-			new TruncatedText(theme.fg("muted", "↑/↓ select · ↵ log out account · Esc cancel"), 0, 0),
+			new TruncatedText(
+				theme.fg("muted", tuiText("logoutAccountFooterHint", "↑/↓ select · ↵ log out account · Esc cancel")),
+				0,
+				0,
+			),
 		);
 	}
 
@@ -111,5 +120,10 @@ export class LogoutAccountSelectorComponent extends OverlayPanel {
 			if (!account) return;
 			this.#onSelectCallback(account);
 		}
+	}
+
+	override render(width: number): readonly string[] {
+		this.title = tuiTextFmt("logoutAccountTitleFmt", "Select %s account to log out", this.#providerName);
+		return super.render(width);
 	}
 }

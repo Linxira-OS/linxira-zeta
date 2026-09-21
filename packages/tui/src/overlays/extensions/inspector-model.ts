@@ -14,6 +14,7 @@ import {
 	sanitizeDisplayText,
 } from "./display-text";
 import { type Extension, type ExtensionState, isShadowedExtension } from "./types";
+import { tuiText, tuiTextFmt } from "../../i18n";
 
 export interface LiveToolRecord {
 	name: string;
@@ -192,12 +193,16 @@ export function toolParamsFromSchema(schema: unknown): ToolParamView[] {
 		const record = spec && typeof spec === "object" ? (spec as Record<string, unknown>) : {};
 		const isRequired = required.has(name);
 		const defaultVal =
-			record.default !== undefined ? `Default: ${sanitizeDisplayLine(String(record.default))}` : null;
+			record.default !== undefined
+				? tuiTextFmt("extParamDefaultFmt", "Default: %s", sanitizeDisplayLine(String(record.default)))
+				: null;
 		params.push({
 			name: sanitizeDisplayLine(name),
 			type: paramType(record),
 			required: isRequired,
-			flag: isRequired ? "Required" : (defaultVal ?? "Optional"),
+			flag: isRequired
+				? tuiText("extParamRequired", "Required")
+				: (defaultVal ?? tuiText("extParamOptional", "Optional")),
 			description: typeof record.description === "string" ? sanitizeDisplayField(record.description) : undefined,
 		});
 	}
@@ -273,15 +278,15 @@ export function formatExtensionListHint(ext: Extension, lives: LiveToolRecord[] 
 	switch (ext.kind) {
 		case "tool": {
 			if (lives.length > 1) {
-				detail = `${lives.length} tools`;
-				if (lives.every(tool => tool.hidden)) detail = `hidden · ${detail}`;
+				detail = tuiTextFmt("extHintToolsFmt", "%d tools", lives.length);
+				if (lives.every(tool => tool.hidden)) detail = tuiTextFmt("extHintHiddenFmt", "hidden · %s", detail);
 			} else if (lives[0]?.hidden) {
-				detail = "hidden";
+				detail = tuiText("extHintHidden", "hidden");
 			}
 			break;
 		}
 		case "skill":
-			detail = skillInspectorData(ext).hidden ? "hidden" : undefined;
+			detail = skillInspectorData(ext).hidden ? tuiText("extHintHidden", "hidden") : undefined;
 			break;
 		case "slash-command":
 			detail = ext.trigger ?? `/${ext.name}`;
@@ -314,7 +319,7 @@ export function toolInspectorData(
 		return {
 			description: sanitizeDisplayField(description),
 			params: [],
-			runtimeDetail: `${lives.length} tools`,
+			runtimeDetail: tuiTextFmt("extHintToolsFmt", "%d tools", lives.length),
 			factory: lives.map(live => ({
 				...live,
 				name: sanitizeDisplayLine(live.name),
@@ -388,8 +393,8 @@ export function skillInspectorData(ext: Extension): {
 	const alwaysApply = frontmatter.alwaysApply === true;
 	const globs = stringArray(frontmatter.globs) ?? stringArray(raw.globs);
 	let runtimeDetail: string | undefined;
-	if (hidden) runtimeDetail = "hidden";
-	else if (alwaysApply) runtimeDetail = "always";
+	if (hidden) runtimeDetail = tuiText("extHintHidden", "hidden");
+	else if (alwaysApply) runtimeDetail = tuiText("extHintAlways", "always");
 	else if (globs) runtimeDetail = globs.join(", ");
 	return {
 		description: stringField(frontmatter, "description") ?? sanitizeDisplayField(ext.description),
@@ -466,19 +471,21 @@ export function contextInspectorData(ext: Extension): { content: string; runtime
 export function enablementLabel(state: ExtensionState, reason?: string, shadowedBy?: string): string {
 	switch (state) {
 		case "active":
-			return "Active";
+			return tuiText("extStateActive", "Active");
 		case "disabled": {
 			const reasonText =
 				reason === "provider-disabled"
-					? "provider disabled"
+					? tuiText("extStateDisabledProvider", "provider disabled")
 					: reason === "user-opt-in"
-						? "~/ config not enabled"
+						? tuiText("extStateDisabledOptIn", "~/ config not enabled")
 						: reason === "item-disabled"
-							? "manually disabled"
-							: "unknown";
-			return `Disabled (${reasonText})`;
+							? tuiText("extStateDisabledManually", "manually disabled")
+							: tuiText("extStateUnknown", "unknown");
+			return tuiTextFmt("extStateDisabledFmt", "Disabled (%s)", reasonText);
 		}
 		case "shadowed":
-			return `Shadowed${shadowedBy ? ` by ${sanitizeDisplayText(shadowedBy)}` : ""}`;
+			return shadowedBy
+				? tuiTextFmt("extStateShadowedFmt", "Shadowed by %s", sanitizeDisplayText(shadowedBy))
+				: tuiText("extStateShadowed", "Shadowed");
 	}
 }

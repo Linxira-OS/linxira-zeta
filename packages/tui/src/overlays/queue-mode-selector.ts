@@ -1,4 +1,5 @@
 import { type SelectItem, SelectList, type SgrMouseEvent } from "../index";
+import { tuiText } from "../i18n";
 import { getSelectListTheme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { routeSelectListMouseWithTopBorder } from "../chrome/select-list-mouse-routing";
@@ -14,15 +15,19 @@ export class QueueModeSelectorComponent extends OverlayPanel {
 		onSelect: (mode: "all" | "one-at-a-time") => void,
 		onCancel: () => void,
 	) {
-		super("Queue Mode");
+		super(tuiText("queueModeTitle", "Queue Mode"));
 
 		const queueModes: SelectItem[] = [
 			{
 				value: "one-at-a-time",
 				label: "one-at-a-time",
-				description: "Process queued messages one by one (recommended)",
+				description: tuiText("queueModeOneByOneDesc", "Process queued messages one by one (recommended)"),
 			},
-			{ value: "all", label: "all", description: "Process all queued messages at once" },
+			{
+				value: "all",
+				label: "all",
+				description: tuiText("queueModeAllDesc", "Process all queued messages at once"),
+			},
 		];
 
 		// Create selector
@@ -51,5 +56,10 @@ export class QueueModeSelectorComponent extends OverlayPanel {
 
 	routeMouse(event: SgrMouseEvent, line: number, col: number): void {
 		routeSelectListMouseWithTopBorder(this.#selectList, event, line, col);
+	}
+
+	override render(width: number): readonly string[] {
+		this.title = tuiText("queueModeTitle", "Queue Mode");
+		return super.render(width);
 	}
 }

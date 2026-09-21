@@ -120,7 +120,7 @@ function configuredSettingCount(settings: Settings): number {
 function handleSettingsReset(args: string, ctx: InteractiveModeContext): void {
 	const [head, ...rest] = args.split(/\s+/);
 	if (head !== "reset") {
-		ctx.showWarning(`Usage: /settings [reset [confirm|<key>]]`);
+		ctx.showWarning(M.bmSettingsUsage);
 		return;
 	}
 	const settings = ctx.settings;
@@ -134,7 +134,7 @@ function handleSettingsReset(args: string, ctx: InteractiveModeContext): void {
 		return;
 	}
 	if (rest.length > 1) {
-		ctx.showWarning(`Usage: /settings reset [confirm|<key>]`);
+		ctx.showWarning(M.bmSettingsResetUsage);
 		return;
 	}
 	if (rest[0] === "confirm") {
@@ -150,7 +150,7 @@ function handleSettingsReset(args: string, ctx: InteractiveModeContext): void {
 	}
 	const key = rest[0];
 	if (!Object.hasOwn(SETTINGS_SCHEMA, key)) {
-		ctx.showWarning(`Unknown setting: ${key}`);
+		ctx.showWarning(M.bmUnknownSettingFmt.replace("%s", key));
 		return;
 	}
 	if (!settings.reset(key as SettingPath)) {
@@ -265,7 +265,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			if (opensProviders) {
 				await runtime.ctx.showProviderSetup();
 			} else {
-				runtime.ctx.showWarning(`Usage: /${command.name} [providers]`);
+				runtime.ctx.showWarning(M.bmModelProvidersUsageFmt.replace("%s", command.name));
 			}
 			runtime.ctx.editor.setText("");
 		},
@@ -505,7 +505,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			}
 			const resolved = resolveSessionModelSelector(selector, runtime.ctx.session, runtime.ctx.settings);
 			if (!resolved.model) {
-				runtime.ctx.showError(`Unknown model: ${selector}`);
+				runtime.ctx.showError(M.bmUnknownModelFmt.replace("%s", selector));
 				return;
 			}
 			if (resolved.warning) runtime.ctx.showStatus(resolved.warning);
@@ -554,7 +554,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			if (!arg || arg === "toggle") {
 				const enabled = runtime.ctx.session.toggleFastMode();
 				refreshStatusLine(runtime.ctx);
-				runtime.ctx.showStatus(`Fast mode ${enabled ? "enabled" : "disabled"}.`);
+				runtime.ctx.showStatus(enabled ? M.bmFastModeEnabled : M.bmFastModeDisabled);
 				runtime.ctx.editor.setText("");
 				return;
 			}
@@ -570,16 +570,16 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			if (arg === "off") {
 				runtime.ctx.session.setFastMode(false);
 				refreshStatusLine(runtime.ctx);
-				runtime.ctx.showStatus("Fast mode disabled.");
+				runtime.ctx.showStatus(M.bmFastModeDisabled);
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			if (arg === "status") {
-				runtime.ctx.showStatus(`Fast mode is ${formatFastModeStatus(runtime.ctx.session)}.`);
+				runtime.ctx.showStatus(M.bmFastModeStatusFmt.replace("%s", formatFastModeStatus(runtime.ctx.session)));
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus("Usage: /fast [on|off|status]");
+			runtime.ctx.showStatus(M.bmFastUsage);
 			runtime.ctx.editor.setText("");
 		},
 	},
@@ -620,7 +620,9 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handleTui: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg === "status") {
-				runtime.ctx.showStatus(`Skill listing: ${runtime.ctx.session.settings.get("skillful") ? "on" : "off"}.`);
+				runtime.ctx.showStatus(
+					M.bmSkillListingFmt.replace("%s", runtime.ctx.session.settings.get("skillful") ? "on" : "off"),
+				);
 				runtime.ctx.editor.setText("");
 				return;
 			}
@@ -631,11 +633,11 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 						: arg === "off"
 							? await runtime.ctx.session.setSkillful(false)
 							: await runtime.ctx.session.toggleSkillful();
-				runtime.ctx.showStatus(`Skill listing ${enabled ? "enabled" : "disabled"} for this session.`);
+				runtime.ctx.showStatus(M.bmSkillListingToggledFmt.replace("%s", enabled ? "enabled" : "disabled"));
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus("Usage: /skillful [on|off|status]");
+			runtime.ctx.showStatus(M.bmSkillfulUsage);
 			runtime.ctx.editor.setText("");
 		},
 	},
@@ -707,7 +709,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus("Usage: /computer [on|off|status]");
+			runtime.ctx.showStatus(M.bmComputerUsage);
 			runtime.ctx.editor.setText("");
 		},
 	},

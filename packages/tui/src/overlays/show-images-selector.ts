@@ -1,4 +1,5 @@
 import { type SelectItem, SelectList, type SgrMouseEvent } from "../index";
+import { tuiText } from "../i18n";
 import { getSelectListTheme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { routeSelectListMouseWithTopBorder } from "../chrome/select-list-mouse-routing";
@@ -10,11 +11,19 @@ export class ShowImagesSelectorComponent extends OverlayPanel {
 	#selectList: SelectList;
 
 	constructor(currentValue: boolean, onSelect: (show: boolean) => void, onCancel: () => void) {
-		super("Show Images");
+		super(tuiText("showImagesTitle", "Show Images"));
 
 		const items: SelectItem[] = [
-			{ value: "yes", label: "Yes", description: "Show images inline in terminal" },
-			{ value: "no", label: "No", description: "Show text placeholder instead" },
+			{
+				value: "yes",
+				label: tuiText("ssConfirmYes", "Yes"),
+				description: tuiText("showImagesYesDesc", "Show images inline in terminal"),
+			},
+			{
+				value: "no",
+				label: tuiText("ssConfirmNo", "No"),
+				description: tuiText("showImagesNoDesc", "Show text placeholder instead"),
+			},
 		];
 
 		// Create selector
@@ -40,5 +49,10 @@ export class ShowImagesSelectorComponent extends OverlayPanel {
 
 	routeMouse(event: SgrMouseEvent, line: number, col: number): void {
 		routeSelectListMouseWithTopBorder(this.#selectList, event, line, col);
+	}
+
+	override render(width: number): readonly string[] {
+		this.title = tuiText("showImagesTitle", "Show Images");
+		return super.render(width);
 	}
 }

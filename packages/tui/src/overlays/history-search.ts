@@ -9,6 +9,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
+import { tuiText } from "../i18n";
 import { theme } from "../theme/theme";
 import {
 	matchesAppInterrupt,
@@ -77,7 +78,7 @@ function highlightTokens(text: string, tokens: string[]): string {
 /** Compact "time since" label (e.g. `now`, `5m`, `2h`, `3d`, `2w`, `6mo`, `1y`) from epoch seconds. */
 function relativeTime(epochSeconds: number): string {
 	const seconds = Math.max(0, Math.floor(Date.now() / 1000) - epochSeconds);
-	if (seconds < 60) return "now";
+	if (seconds < 60) return tuiText("hsRelativeNow", "now");
 	const minutes = Math.floor(seconds / 60);
 	if (minutes < 60) return `${minutes}m`;
 	const hours = Math.floor(minutes / 60);
@@ -111,7 +112,10 @@ class HistoryResultsList implements Component {
 		const items = this.#menu.visibleItems;
 
 		if (items.length === 0) {
-			const message = this.#tokens.length > 0 ? "No matching history" : "No history yet";
+			const message =
+				this.#tokens.length > 0
+					? tuiText("hsNoMatchingHistory", "No matching history")
+					: tuiText("hsNoHistoryYet", "No history yet");
 			lines.push(theme.fg("muted", `  ${theme.status.info} ${message}`));
 			return lines;
 		}
@@ -162,17 +166,32 @@ class HistoryResultsList implements Component {
 	}
 }
 
+/** Footer hint row, re-resolved every render so a live language switch applies. */
+class HistoryHintLine implements Component {
+	invalidate(): void {}
+	render(width: number): string[] {
+		const dot = theme.fg("dim", theme.sep.dot);
+		const hint = [
+			rawKeyHint("↑↓", tuiText("hsHintNavigate", "navigate")),
+			rawKeyHint("enter", tuiText("hsHintSelect", "select")),
+			rawKeyHint("esc", tuiText("hsHintCancel", "cancel")),
+		].join(dot);
+		return [truncateToWidth(hint, width)];
+	}
+}
+
 export class HistorySearchComponent extends OverlayPanel {
 	#historyStorage: HistorySource;
 	#searchInput: Input;
 	#menu: MenuSelection<HistorySearchEntry>;
+
 	#resultsList: HistoryResultsList;
 	#onSelect: (prompt: string) => void;
 	#onCancel: () => void;
 	#resultLimit = 100;
 
 	constructor(historyStorage: HistorySource, onSelect: (prompt: string) => void, onCancel: () => void) {
-		super("History");
+		super(tuiText("hsTitle", "History"));
 		this.#historyStorage = historyStorage;
 		this.#onSelect = onSelect;
 		this.#onCancel = onCancel;
@@ -194,18 +213,20 @@ export class HistorySearchComponent extends OverlayPanel {
 
 		this.#resultsList = new HistoryResultsList(this.#menu);
 
-		const dot = theme.fg("dim", theme.sep.dot);
-		const hint = [rawKeyHint("↑↓", "navigate"), rawKeyHint("enter", "select"), rawKeyHint("esc", "cancel")].join(dot);
-
 		this.addChild(new Spacer(1));
 		this.addChild(this.#searchInput);
 		this.addChild(new Spacer(1));
 		this.addChild(this.#resultsList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(hint, 0, 0));
+		this.addChild(new HistoryHintLine());
 		this.addChild(new Spacer(1));
 
 		this.#updateResults();
+	}
+	/** Re-resolve the panel title every render so a live language switch applies. */
+	override render(width: number): readonly string[] {
+		this.title = tuiText("hsTitle", "History");
+		return super.render(width);
 	}
 
 	handleInput(keyData: string): void {

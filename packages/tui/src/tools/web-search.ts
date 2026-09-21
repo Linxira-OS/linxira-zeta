@@ -20,6 +20,7 @@ import {
 	replaceTabs,
 	truncateToWidth,
 } from "../render/render-utils";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { renderStatusLine, renderTreeList, urlHyperlink } from "../render";
 import { framedToolCard } from "../render/tool-card";
 
@@ -62,7 +63,7 @@ export interface SearchRenderDetails {
 /** Render a web search failure as a framed error panel, matching the success layout. */
 function renderSearchErrorPanel(message: string, providerLabel: string | undefined, theme: Theme): Component {
 	const header = renderStatusLine({ icon: "error", title: "Web Search", description: providerLabel }, theme);
-	const body = theme.fg("error", `Error: ${replaceTabs(message)}`);
+	const body = theme.fg("error", tuiTextFmt("wsErrorFmt", `Error: ${replaceTabs(message)}`, replaceTabs(message)));
 	return framedToolCard(theme, () => ({
 		header,
 		phase: "error",
@@ -120,13 +121,19 @@ export function renderSearchResult(
 					iconOverride: theme.styledSymbol("tool.webSearch", "accent"),
 					title: "Web Search",
 					description: providerLabel,
-					meta: [formatCount("source", sourceCount)],
+					meta:
+						sourceCount === 1
+							? [tuiText("wsSourceOne", "1 source")]
+							: [tuiTextFmt("wsSourceManyFmt", "%d sources", sourceCount)],
 				}
 			: {
 					icon: "warning",
 					title: "Web Search",
 					description: providerLabel,
-					meta: [formatCount("source", sourceCount)],
+					meta:
+						sourceCount === 1
+							? [tuiText("wsSourceOne", "1 source")]
+							: [tuiTextFmt("wsSourceManyFmt", "%d sources", sourceCount)],
 				},
 		theme,
 	);
@@ -156,7 +163,7 @@ export function renderSearchResult(
 		const renderedAnswer = answerMarkdown ? answerMarkdown.render(contentWidth) : [];
 		let answerLines: readonly string[];
 		if (renderedAnswer.length === 0) {
-			answerLines = [theme.fg("muted", "No answer text returned")];
+			answerLines = [theme.fg("muted", tuiText("wsNoAnswerText", "No answer text returned"))];
 		} else if (args?.maxAnswerLines !== undefined && !expanded) {
 			// CLI compact mode (`omp q`) caps the answer; the TUI passes no cap and shows it in full.
 			// `renderedAnswer` is the Markdown component's shared cache — slice copies before appending.
@@ -221,7 +228,10 @@ export function renderSearchResult(
 				},
 				{
 					label: theme.fg("toolTitle", "Sources"),
-					content: sourceTree.length > 0 ? sourceTree : [theme.fg("muted", "No sources returned")],
+					content:
+						sourceTree.length > 0
+							? sourceTree
+							: [theme.fg("muted", tuiText("wsNoSourcesReturned", "No sources returned"))],
 				},
 				{ label: theme.fg("toolTitle", "Metadata"), content: metaLines },
 			],

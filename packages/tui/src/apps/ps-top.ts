@@ -29,6 +29,7 @@ import {
 	TERMINAL_STATES,
 	tableCells,
 } from "./ps-data";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 const REFRESH_MS = 2_000;
 const LOGS_POLL_MS = 1_000;
@@ -151,18 +152,43 @@ export class PsTopComponent implements Component {
 		const entry = this.#flat[this.#selected];
 		if (!entry) return;
 		const name = entry.row.snapshot.name;
-		this.#setStatus(chalk.yellow(`${verb} ${name}…`));
+		this.#setStatus(
+			chalk.yellow(
+				tuiTextFmt(
+					"psActingFmt",
+					`${verb} ${name}…`,
+					verb === "restart"
+						? tuiText("psVerbRestart", "restart")
+						: verb === "kill"
+							? tuiText("psVerbKill", "kill")
+							: tuiText("psVerbStop", "stop"),
+					name,
+				),
+			),
+		);
 		try {
 			const daemon = await this.#host.act(entry.scope, name, verb);
 			this.#setStatus(
 				chalk.green(
-					`${verb === "restart" ? "Restarted" : verb === "kill" ? "Killed" : "Stopped"} ${daemonLabel(daemon)}`,
+					`${verb === "restart" ? tuiText("psRestarted", "Restarted") : verb === "kill" ? tuiText("psKilled", "Killed") : tuiText("psStopped", "Stopped")} ${daemonLabel(daemon)}`,
 				),
 			);
 			void this.#refresh();
 		} catch (error) {
 			this.#setStatus(
-				chalk.red(`${verb} ${name} failed: ${error instanceof Error ? error.message : String(error)}`),
+				chalk.red(
+					tuiTextFmt(
+						"psActionFailedFmt",
+						`${verb} ${name} failed: ${error instanceof Error ? error.message : String(error)}`,
+						verb === "restart"
+							? tuiText("psVerbRestart", "restart")
+							: verb === "kill"
+								? tuiText("psVerbKill", "kill")
+								: tuiText("psVerbStop", "stop"),
+						name,
+						error instanceof Error ? error.message : String(error),
+					),
+				),
 			);
 		}
 	}
@@ -237,7 +263,13 @@ export class PsTopComponent implements Component {
 		else if (matchesKey(data, "down") || data === "j") this.#moveSelection(1);
 		else if (data === "a") {
 			this.#all = !this.#all;
-			this.#setStatus(chalk.dim(this.#all ? "Showing all scopes" : "Showing current scope"));
+			this.#setStatus(
+				chalk.dim(
+					this.#all
+						? tuiText("psShowingAllScopes", "Showing all scopes")
+						: tuiText("psShowingCurrentScope", "Showing current scope"),
+				),
+			);
 			void this.#refresh();
 		} else if (matchesKey(data, "enter") || data === "i") void this.#openInfo();
 		else if (data === "l") this.#openLogs();
@@ -268,7 +300,13 @@ export class PsTopComponent implements Component {
 	}
 
 	#header(width: number, title: string): string {
-		const age = this.#lastRefresh ? `updated ${formatDuration(Date.now() - this.#lastRefresh)} ago` : "updating…";
+		const age = this.#lastRefresh
+			? tuiTextFmt(
+					"psUpdatedAgoFmt",
+					`updated ${formatDuration(Date.now() - this.#lastRefresh)} ago`,
+					formatDuration(Date.now() - this.#lastRefresh),
+				)
+			: tuiText("psUpdating", "updating…");
 		const left = ` ${chalk.bold("zeta ps")} ${chalk.dim("·")} ${title}`;
 		const right = chalk.dim(age);
 		const pad = Math.max(1, width - Bun.stringWidth(left) - Bun.stringWidth(right) - 1);
@@ -281,11 +319,14 @@ export class PsTopComponent implements Component {
 	}
 
 	#renderTable(width: number, height: number): string[] {
-		const scopesLabel = `${this.#flat.length} process${this.#flat.length === 1 ? "" : "es"} in ${this.#reports.length} scope${this.#reports.length === 1 ? "" : "s"} ${chalk.dim(this.#all ? "(all)" : "(current)")}`;
+		const scopesLabel = `${this.#flat.length === 1 ? tuiTextFmt("psScopesOneFmt", "%s process in %s scope", 1, this.#reports.length) : tuiTextFmt("psScopesManyFmt", "%s processes in %s scopes", this.#flat.length, this.#reports.length)} ${chalk.dim(this.#all ? tuiText("psScopeAll", "(all)") : tuiText("psScopeCurrent", "(current)"))}`;
 		const header = this.#header(width, scopesLabel);
 		const footer = this.#footer(
 			width,
-			"↑/↓ select · enter info · l logs · s stop · x kill · r restart · a all scopes · q quit",
+			tuiText(
+				"psFooterHints",
+				"↑/↓ select · enter info · l logs · s stop · x kill · r restart · a all scopes · q quit",
+			),
 		);
 		const bodyHeight = height - 1 - footer.length;
 
@@ -312,7 +353,7 @@ export class PsTopComponent implements Component {
 		for (const report of this.#reports) {
 			body.push({ text: ` ${scopeHeader(report.scope)}` });
 			if (report.daemons.length === 0) {
-				body.push({ text: chalk.dim("   no processes") });
+				body.push({ text: chalk.dim(tuiText("psNoProcesses", "   no processes")) });
 			} else {
 				body.push({ text: chalk.dim(renderRow([...TABLE_HEADER])) });
 				for (const row of report.daemons) {
@@ -326,7 +367,7 @@ export class PsTopComponent implements Component {
 			}
 			body.push({ text: "" });
 		}
-		if (body.length === 0) body.push({ text: chalk.dim(" No daemon broker scopes found.") });
+		if (body.length === 0) body.push({ text: chalk.dim(tuiText("psNoScopes", " No daemon broker scopes found.")) });
 
 		// Keep the selected logical row visible through refreshes and resizes.
 		const selectedLine = body.findIndex(line => line.flat === this.#selected);
@@ -339,37 +380,45 @@ export class PsTopComponent implements Component {
 		});
 		this.#tableView.setLines(display);
 		this.#tableView.setHeight(bodyHeight);
-		this.#tableView.setActiveRow(selectedLine >= 0 ? selectedLine : undefined);
-
 		const lines = [header, ...this.#tableView.render(width)];
 		while (lines.length < height - footer.length) lines.push("");
 		lines.push(...footer);
 		return lines;
 	}
-
 	#renderInfo(width: number, height: number): string[] {
 		const info = this.#info;
-		const header = this.#header(width, "process info");
-		const footer = this.#footer(width, "esc back · q back");
+		const header = this.#header(width, tuiText("psProcessInfo", "process info"));
+		const footer = this.#footer(width, tuiText("psBackHints", "esc back · q back"));
 		const body = [""];
 		if (info) {
 			const daemon = info.daemon;
 			body.push(` ${chalk.bold(daemonLabel(daemon))}`);
 			body.push("");
 			const rows: KeyValueRow[] = [
-				{ label: "command:", value: collapseCommand(formatCommand(info.spec)) },
-				{ label: "cwd:", value: info.spec.cwd },
+				{ label: tuiText("psLabelCommand", "command:"), value: collapseCommand(formatCommand(info.spec)) },
+				{ label: tuiText("psLabelCwd", "cwd:"), value: info.spec.cwd },
 			];
 			if (!TERMINAL_STATES[daemon.state])
-				rows.push({ label: "uptime:", value: formatDuration(Date.now() - daemon.startedAt) });
-			if (daemon.exitReason) rows.push({ label: "exit:", value: daemon.exitReason });
-			rows.push({ label: "restarts:", value: `${daemon.restartCount} (policy: ${info.spec.restart})` });
-			rows.push({ label: "owner:", value: daemon.owner ?? "-" });
+				rows.push({
+					label: tuiText("psLabelUptime", "uptime:"),
+					value: formatDuration(Date.now() - daemon.startedAt),
+				});
+			if (daemon.exitReason) rows.push({ label: tuiText("psLabelExit", "exit:"), value: daemon.exitReason });
+			rows.push({
+				label: tuiText("psLabelRestarts", "restarts:"),
+				value: tuiTextFmt(
+					"psRestartsFmt",
+					`%s (policy: ${info.spec.restart})`,
+					daemon.restartCount,
+					info.spec.restart,
+				),
+			});
+			rows.push({ label: tuiText("psLabelOwner", "owner:"), value: daemon.owner ?? "-" });
 			this.#infoList.setRows(rows);
 			body.push(...this.#infoList.render(width));
 			body.push(`   pty: ${info.spec.pty}  persist: ${info.spec.persist}  detached: ${info.spec.detached}`);
 		} else {
-			body.push(chalk.dim(" loading…"));
+			body.push(chalk.dim(tuiText("psLoading", " loading…")));
 		}
 		this.#infoView.setLines(body);
 		this.#infoView.setHeight(height - 1 - footer.length);
@@ -381,9 +430,10 @@ export class PsTopComponent implements Component {
 		const name = entry?.row.snapshot.name ?? "?";
 		const header = this.#header(
 			width,
-			`logs ${chalk.bold(name)}${this.#logsState ? chalk.dim(` · ${this.#logsState}`) : ""}`,
+			tuiTextFmt("psLogsTitleFmt", `logs %s`, chalk.bold(name)) +
+				(this.#logsState ? chalk.dim(` · ${this.#logsState}`) : ""),
 		);
-		const footer = this.#footer(width, "esc back · q back · view refreshes live");
+		const footer = this.#footer(width, tuiText("psLogsHints", "esc back · q back · view refreshes live"));
 		const bodyHeight = height - 1 - footer.length;
 		this.#logsView.setLines(this.#logsLines.map(line => ` ${line}`));
 		this.#logsView.setHeight(bodyHeight);

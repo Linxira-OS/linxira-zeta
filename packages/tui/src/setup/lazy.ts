@@ -1,4 +1,5 @@
 import type { SetupHost } from "./scenes/types";
+import { tuiText } from "../i18n";
 
 /** Load and run provider setup without completing onboarding or replaying the welcome intro. */
 export async function runProviderSetupWizard(ctx: SetupHost): Promise<void> {
@@ -7,7 +8,7 @@ export async function runProviderSetupWizard(ctx: SetupHost): Promise<void> {
 	const { ALL_SCENES, runSetupWizard } = await import("./wizard");
 	const providersScene = ALL_SCENES.find(scene => scene.id === "providers");
 	if (!providersScene) {
-		ctx.showError("Provider setup is unavailable.");
+		ctx.showError(tuiText("setupProviderUnavailable", "Provider setup is unavailable."));
 		return;
 	}
 	await runSetupWizard(ctx, [providersScene], {

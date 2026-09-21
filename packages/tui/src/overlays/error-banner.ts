@@ -1,4 +1,5 @@
 import { Container, Spacer, Text } from "../index";
+import { tuiText } from "../i18n";
 import { WidthAwareText } from "../render/index";
 import { theme } from "../theme/theme";
 import { DynamicBorder } from "../chrome/dynamic-border";
@@ -33,7 +34,13 @@ export class ErrorBannerComponent extends Container {
 				0,
 			),
 		);
-		this.addChild(new Text(theme.fg("dim", "Dismissed when you send your next message."), 1, 0));
+		this.addChild(
+			new Text(
+				theme.fg("dim", tuiText("errorBannerDismissHint", "Dismissed when you send your next message.")),
+				1,
+				0,
+			),
+		);
 		this.addChild(new DynamicBorder(str => theme.fg("error", str)));
 	}
 }

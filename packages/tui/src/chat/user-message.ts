@@ -18,6 +18,7 @@ import { MODEL_MENTION_TAG_RE } from "../prompt/model-mention-syntax";
 import { fileHyperlink } from "../render";
 import { imageReferenceHyperlink } from "../prompt/image-references";
 import { highlightMagicKeywords } from "../prompt/magic-keywords";
+import { tuiText } from "../i18n";
 import type { ReactionTarget } from "./reaction";
 
 // OSC 133 shell integration: marks prompt zones for terminal multiplexers.
@@ -281,7 +282,9 @@ function syntheticInputLabel(text: string): string {
 		const line = raw.trim();
 		if (!line) continue;
 		const heading = /^#{1,6}\s+(.*)$/.exec(line);
-		return heading ? heading[1]!.trim() || "Synthetic input" : "Synthetic input";
+		return heading
+			? heading[1]!.trim() || tuiText("syntheticInputLabel", "Synthetic input")
+			: tuiText("syntheticInputLabel", "Synthetic input");
 	}
-	return "Synthetic input";
+	return tuiText("syntheticInputLabel", "Synthetic input");
 }

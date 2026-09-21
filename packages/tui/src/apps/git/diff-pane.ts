@@ -24,6 +24,7 @@ import { getLanguageFromPath } from "../../lang-from-path";
 import { createHighlightStream, theme } from "../../theme/theme";
 import { bgAnsiHex, canvasHex, fgAnsiHex, mixHex, pill, selectionBgAnsi, textHex, withBg } from "./colors";
 import { DIFF_CONTEXT_LINES, type FileAssetSide, type FileStreamUpdate } from "./state";
+import { tuiText } from "../../i18n";
 
 /** Column ranges (inclusive start, exclusive end) carrying intraline emphasis. */
 type MarkRanges = readonly (readonly [number, number])[];
@@ -1033,7 +1034,7 @@ export class DiffPane {
 		if (this.state === "streaming" && this.#streaming) return this.#renderStreaming(width, height);
 		if (this.state === "asset" && this.#asset) return this.#renderAsset(width, height);
 		if (!doc || this.state !== "ready") {
-			const message = this.state === "loading" ? "Loading diff…" : this.emptyMessage;
+			const message = this.state === "loading" ? tuiText("gitLoadingDiff", "Loading diff…") : this.emptyMessage;
 			const lines: string[] = [];
 			for (let i = 0; i < height; i++) {
 				lines.push(
@@ -1084,11 +1085,17 @@ export class DiffPane {
 		for (let index = 0; index < height; index++) {
 			const leftSource =
 				index === 0
-					? centerLine(theme.bold(this.#assetTitle("Before", asset.old)), leftWidth).trimEnd()
+					? centerLine(
+							theme.bold(this.#assetTitle(tuiText("gitAssetBefore", "Before"), asset.old)),
+							leftWidth,
+						).trimEnd()
 					: (oldLines[index - 1] ?? "");
 			const rightSource =
 				index === 0
-					? centerLine(theme.bold(this.#assetTitle("After", asset.new)), rightWidth).trimEnd()
+					? centerLine(
+							theme.bold(this.#assetTitle(tuiText("gitAssetAfter", "After"), asset.new)),
+							rightWidth,
+						).trimEnd()
 					: (newLines[index - 1] ?? "");
 			const left = truncateToWidth(leftSource, leftWidth);
 			const right = truncateToWidth(rightSource, rightWidth);
@@ -1121,26 +1128,30 @@ export class DiffPane {
 			let details: string[];
 			switch (side.kind) {
 				case "empty":
-					details = ["No file"];
+					details = [tuiText("gitNoFile", "No file")];
 					break;
 				case "text":
-					details = ["Text object", formatBytes(side.byteLength)];
+					details = [tuiText("gitTextObject", "Text object"), formatBytes(side.byteLength)];
 					break;
 				case "binary":
 					details = [
-						"Binary object",
-						side.byteLength === undefined ? "Size unavailable" : formatBytes(side.byteLength),
+						tuiText("gitBinaryObject", "Binary object"),
+						side.byteLength === undefined
+							? tuiText("gitSizeUnavailable", "Size unavailable")
+							: formatBytes(side.byteLength),
 					];
 					break;
 				case "tooLarge":
 					details = [
-						"Object too large to preview",
-						side.byteLength === undefined ? "Exceeds preview limit" : formatBytes(side.byteLength),
+						tuiText("gitObjectTooLarge", "Object too large to preview"),
+						side.byteLength === undefined
+							? tuiText("gitExceedsPreviewLimit", "Exceeds preview limit")
+							: formatBytes(side.byteLength),
 					];
 					break;
 				case "lfsMissing":
 					details = [
-						"Git LFS object unavailable",
+						tuiText("gitLfsObjectUnavailable", "Git LFS object unavailable"),
 						`sha256:${side.oid.slice(0, 12)}… · ${formatBytes(side.byteLength)}`,
 					];
 					break;
@@ -1165,19 +1176,19 @@ export class DiffPane {
 				lfs = side.image.lfsOid !== undefined;
 				break;
 			case "text":
-				kind = "Text";
+				kind = tuiText("gitKindText", "Text");
 				lfs = side.lfsOid !== undefined;
 				break;
 			case "binary":
-				kind = "Binary";
+				kind = tuiText("gitKindBinary", "Binary");
 				lfs = side.lfsOid !== undefined;
 				break;
 			case "tooLarge":
-				kind = "Too large";
+				kind = tuiText("gitKindTooLarge", "Too large");
 				lfs = side.lfsOid !== undefined;
 				break;
 			case "lfsMissing":
-				kind = "LFS missing";
+				kind = tuiText("gitKindLfsMissing", "LFS missing");
 				lfs = true;
 				break;
 		}
@@ -1190,7 +1201,9 @@ export class DiffPane {
 		const total = this.#total();
 		if (total === 0) {
 			return Array.from({ length: height }, (_, index) =>
-				index === Math.floor(height / 2) ? centerLine(theme.fg("dim", "Streaming file…"), width).trimEnd() : "",
+				index === Math.floor(height / 2)
+					? centerLine(theme.fg("dim", tuiText("gitStreamingFile", "Streaming file…")), width).trimEnd()
+					: "",
 			);
 		}
 		this.#clampScroll();

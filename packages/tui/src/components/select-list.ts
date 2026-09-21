@@ -6,6 +6,7 @@ import { type MouseRoutable, routeSelectListMouse, type SgrMouseEvent } from "..
 import type { SymbolTheme } from "../symbols";
 import type { Component } from "../tui";
 import { Ellipsis, padding, replaceTabs, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { ScrollView } from "./scroll-view";
 
 const DEFAULT_PRIMARY_COLUMN_WIDTH = 32;
@@ -258,8 +259,8 @@ export class SelectList implements Component, MouseRoutable {
 			}
 			const message =
 				this.#selection.query.trim().length > 0
-					? (this.layout.noMatchText ?? "No matching items")
-					: (this.layout.emptyText ?? "No items");
+					? (this.layout.noMatchText ?? tuiText("selectListNoMatching", "No matching items"))
+					: (this.layout.emptyText ?? tuiText("selectListEmpty", "No items"));
 			lines.push(this.theme.noMatch(`  ${message}`));
 			return lines;
 		}
@@ -586,7 +587,11 @@ export class SelectList implements Component, MouseRoutable {
 			this.layout.statusText !== undefined
 				? (custom ?? "")
 				: (pendingItem?.confirmation ??
-					(query ? `  Search: ${query}` : this.#canEditSearch() ? "  Type to search" : ""));
+					(query
+						? tuiTextFmt("hsSearchFmt", "  Search: %s", query)
+						: this.#canEditSearch()
+							? tuiText("hsTypeToSearch", "  Type to search")
+							: ""));
 		return this.theme.scrollInfo(truncateToWidth(statusText, Math.max(1, width - 2), Ellipsis.Omit));
 	}
 

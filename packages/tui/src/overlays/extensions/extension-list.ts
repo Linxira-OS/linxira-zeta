@@ -11,6 +11,7 @@ import { padding, truncateToWidth, visibleWidth } from "../../utils";
 import { theme } from "../../theme";
 import { matchesSelectDown, matchesSelectUp } from "../../keybinding-matchers";
 import { contentRowWidth, renderScrollableList, searchableChar } from "../../chrome/selector-helpers";
+import { tuiText, tuiTextFmt } from "../../i18n";
 import { MenuSelection } from "../../components/menu-selection";
 import { scrollOffsetForRow, viewportRange } from "../../components/scroll-viewport";
 import { sanitizeDisplayLine } from "./display-text";
@@ -187,16 +188,17 @@ export class ExtensionList implements Component {
 		this.#visibleCount = 0;
 
 		// Search bar
-		const searchPrefix = theme.fg("muted", "Search: ");
+		const searchPrefix = theme.fg("muted", tuiText("extListSearch", "Search: "));
 		const query = this.#menu.query;
-		const searchText = query || (this.#focused ? "" : theme.fg("dim", "type to filter"));
+		const searchText =
+			query || (this.#focused ? "" : theme.fg("dim", tuiText("extListTypeToFilter", "type to filter")));
 		const cursor = this.#focused ? theme.fg("accent", "_") : "";
 		lines.push(searchPrefix + searchText + cursor);
 		lines.push("");
 
 		const items = this.#menu.visibleItems;
 		if (items.length === 0) {
-			lines.push(theme.fg("muted", "  No extensions found for this provider."));
+			lines.push(theme.fg("muted", tuiText("extListEmpty", "  No extensions found for this provider.")));
 			return lines;
 		}
 
@@ -255,8 +257,8 @@ export class ExtensionList implements Component {
 		const checkbox = item.enabled
 			? theme.fg("success", theme.checkbox.checked)
 			: theme.fg("dim", theme.checkbox.unchecked);
-		const label = `Load ~/ ${item.providerName} config`;
-		const badge = theme.fg("muted", "(opt-in; project config always loads)");
+		const label = tuiTextFmt("extListLoadUserSourceFmt", "Load ~/ %s config", item.providerName);
+		const badge = theme.fg("muted", tuiText("extListUserSourceBadge", "(opt-in; project config always loads)"));
 
 		let line = `${checkbox} ${theme.icon.folder} ${label}  ${badge}`;
 
@@ -275,8 +277,8 @@ export class ExtensionList implements Component {
 			? theme.fg("success", theme.checkbox.checked)
 			: theme.fg("dim", theme.checkbox.unchecked);
 		const icon = theme.icon.package;
-		const label = `Enable ${item.providerName}`;
-		const badge = theme.fg("warning", "(Master Switch)");
+		const label = tuiTextFmt("extListEnableMasterFmt", "Enable %s", item.providerName);
+		const badge = theme.fg("warning", tuiText("extListMasterBadge", "(Master Switch)"));
 
 		let line = `${checkbox} ${icon} ${label}  ${badge}`;
 
@@ -292,7 +294,7 @@ export class ExtensionList implements Component {
 
 	#renderKindHeader(item: ListItem & { type: "kind-header" }, isSelected: boolean, width: number): string {
 		const countBadge = theme.fg("muted", `(${item.count})`);
-		let line = `${item.icon} ${item.label} ${countBadge}`;
+		let line = `${item.icon} ${this.#getKindLabel(item.kind)} ${countBadge}`;
 
 		if (isSelected) {
 			line = theme.bold(theme.fg("accent", line));
@@ -517,25 +519,25 @@ export class ExtensionList implements Component {
 	#getKindLabel(kind: ExtensionKind): string {
 		switch (kind) {
 			case "extension-module":
-				return "Extension Modules";
+				return tuiText("extKindExtensionModules", "Extension Modules");
 			case "skill":
-				return "Skills";
+				return tuiText("extKindSkills", "Skills");
 			case "tool":
-				return "Tools";
+				return tuiText("extKindTools", "Tools");
 			case "slash-command":
-				return "Commands";
+				return tuiText("extKindCommands", "Commands");
 			case "rule":
-				return "Rules";
+				return tuiText("extKindRules", "Rules");
 			case "mcp":
-				return "MCP Servers";
+				return tuiText("extKindMcp", "MCP Servers");
 			case "hook":
-				return "Hooks";
+				return tuiText("extKindHooks", "Hooks");
 			case "prompt":
-				return "Prompts";
+				return tuiText("extKindPrompts", "Prompts");
 			case "context-file":
-				return "Context";
+				return tuiText("extKindContext", "Context");
 			case "instruction":
-				return "Instructions";
+				return tuiText("extKindInstructions", "Instructions");
 			default:
 				return kind;
 		}

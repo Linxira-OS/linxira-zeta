@@ -10,6 +10,7 @@ import { getMarkdownTheme, theme } from "../theme";
 import type { CustomMessage, SkillPromptDetails } from "./messages";
 import { fileHyperlink } from "../render";
 import { collapseSkillTokens, skillChipLabel, skillChipStyle, skillToken } from "../prompt/composer-attachments";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { type UserBubbleOptions, UserMessageComponent, userBubbleColor } from "./user-message";
 
 /**
@@ -88,7 +89,7 @@ export class SkillMessageComponent extends Container {
 		this.#disclosure?.dispose();
 		this.clear();
 		const details = this.#message.details;
-		const name = details?.name?.trim() || "unknown";
+		const name = details?.name?.trim() || tuiText("skillUnknownName", "unknown");
 		const token = skillToken(name);
 		const prompt = details?.prompt ?? (details?.args ? `${token} ${details.args}` : token);
 		// Display-only collapse: only the invoked skill becomes a chip; a second `/skill:` token the
@@ -159,7 +160,16 @@ export class SkillMessageComponent extends Container {
 		const chip = skillChipStyle(label, bubbleReset());
 		const parts = [details?.path ? fileHyperlink(details.path, chip, { line: 1 }) : chip];
 		if (typeof details?.lineCount === "number") {
-			parts.push(theme.fg("muted", `${details.lineCount} ${details.lineCount === 1 ? "line" : "lines"}`));
+			parts.push(
+				theme.fg(
+					"muted",
+					tuiTextFmt(
+						details.lineCount === 1 ? "skillLinesOneFmt" : "skillLinesManyFmt",
+						`${details.lineCount} ${details.lineCount === 1 ? "line" : "lines"}`,
+						details.lineCount,
+					),
+				),
+			);
 		}
 		return parts.join("  ");
 	}
@@ -168,7 +178,12 @@ export class SkillMessageComponent extends Container {
 	#promptSection(bubble: UserBubbleOptions): Component[] {
 		const text = this.#extractText();
 		if (!text) return [];
-		return [new Spacer(1), new Text(theme.fg("muted", "prompt"), 0, 0), new Spacer(1), this.#markdown(text, bubble)];
+		return [
+			new Spacer(1),
+			new Text(theme.fg("muted", tuiText("skillPromptLabel", "prompt")), 0, 0),
+			new Spacer(1),
+			this.#markdown(text, bubble),
+		];
 	}
 
 	#extractText(): string {

@@ -11,6 +11,7 @@ import { renderStatusLine, renderTreeList } from "../render";
 import { framedToolCard } from "../render/tool-card";
 
 import { formatErrorDetail, formatMoreItems, PREVIEW_LIMITS, pluralize, replaceTabs } from "../render/render-utils";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 // =============================================================================
 // Types
@@ -448,7 +449,11 @@ export const todoToolRenderer = {
 						if (e.task) parts.push(forDisplay(e.task));
 						if (e.phase) parts.push(forDisplay(e.phase));
 						if (Array.isArray(e.items) && e.items.length) {
-							parts.push(`${e.items.length} item${e.items.length === 1 ? "" : "s"}`);
+							parts.push(
+								e.items.length === 1
+									? tuiText("todoItemOne", "1 item")
+									: tuiTextFmt("todoItemManyFmt", "%d items", e.items.length),
+							);
 						}
 						return parts.join(" ");
 					});
@@ -468,7 +473,9 @@ export const todoToolRenderer = {
 		args?: TodoRenderArgs,
 	): Component {
 		if (result.isError) {
-			const errorText = result.content?.find(content => content.type === "text")?.text ?? "Todo operation failed";
+			const errorText =
+				result.content?.find(content => content.type === "text")?.text ??
+				tuiText("todoOpFailed", "Todo operation failed");
 			const header = renderStatusLine({ icon: "error", title: "Todo" }, uiTheme);
 			return framedToolCard(uiTheme, () => ({
 				header,
@@ -494,7 +501,10 @@ export const todoToolRenderer = {
 			{
 				iconOverride: uiTheme.styledSymbol("tool.todo", "accent"),
 				title: "Todo",
-				meta: [`${allTasks.length} tasks`],
+				meta:
+					allTasks.length === 1
+						? [tuiText("todoTaskOne", "1 task")]
+						: [tuiTextFmt("todoTaskManyFmt", "%d tasks", allTasks.length)],
 			},
 			uiTheme,
 		);
@@ -502,7 +512,10 @@ export const todoToolRenderer = {
 			// Provider text on the Cursor path (the todo summary or a refusal note),
 			// so sanitize like every other label. The error branch above already
 			// goes through `formatErrorDetail`.
-			const fallback = forDisplay(result.content?.find(content => content.type === "text")?.text ?? "No todos");
+			const fallback = forDisplay(
+				result.content?.find(content => content.type === "text")?.text ??
+					tuiText("todoNoTodosFallback", "No todos"),
+			);
 			return new Text(`${header}\n  ${uiTheme.fg("dim", fallback)}`, 0, 0);
 		}
 

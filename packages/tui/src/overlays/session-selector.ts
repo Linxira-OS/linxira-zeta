@@ -17,6 +17,7 @@ import { formatBytes } from "@linxiraos/pi-utils";
 import { theme } from "../theme/theme";
 import { contentRowWidth } from "../chrome/selector-helpers";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
+import { tuiText, tuiTextFmt } from "../i18n";
 /** Session lifecycle status presented by the picker. */
 export type SessionSelectorStatus = "complete" | "interrupted" | "aborted" | "error" | "pending" | "unknown";
 
@@ -48,15 +49,15 @@ import { MenuSelection, getMenuWindow } from "../components/menu-selection";
 function formatSessionStatus(status: SessionSelectorStatus | undefined): string | undefined {
 	switch (status) {
 		case "complete":
-			return theme.fg("success", `${theme.status.success} done`);
+			return theme.fg("success", `${theme.status.success} ${tuiText("ssStatusDone", "done")}`);
 		case "interrupted":
-			return theme.fg("warning", `${theme.status.warning} interrupted`);
+			return theme.fg("warning", `${theme.status.warning} ${tuiText("ssStatusInterrupted", "interrupted")}`);
 		case "aborted":
-			return theme.fg("muted", `${theme.status.aborted} aborted`);
+			return theme.fg("muted", `${theme.status.aborted} ${tuiText("ssStatusAborted", "aborted")}`);
 		case "error":
-			return theme.fg("error", `${theme.status.error} error`);
+			return theme.fg("error", `${theme.status.error} ${tuiText("ssStatusError", "error")}`);
 		case "pending":
-			return theme.fg("accent", `${theme.status.pending} pending`);
+			return theme.fg("accent", `${theme.status.pending} ${tuiText("ssStatusPending", "pending")}`);
 		default:
 			return undefined;
 	}
@@ -611,11 +612,17 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 
 		if (this.#menu.visibleItems.length === 0) {
 			if (this.#showCwd) {
-				lines.push(truncateToWidth(theme.fg("muted", "No sessions found"), width));
+				lines.push(truncateToWidth(theme.fg("muted", tuiText("ssEmptyNoSessions", "No sessions found")), width));
 			} else {
 				// "Current folder" scope - hint to try "all"
 				lines.push(
-					truncateToWidth(theme.fg("muted", "No sessions in current folder. Press Tab to view all."), width),
+					truncateToWidth(
+						theme.fg(
+							"muted",
+							tuiText("ssEmptyNoFolderSessions", "No sessions in current folder. Press Tab to view all."),
+						),
+						width,
+					),
 				);
 			}
 			return lines;
@@ -629,11 +636,11 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 			const diffHours = Math.floor(diffMs / 3600000);
 			const diffDays = Math.floor(diffMs / 86400000);
 
-			if (diffMins < 1) return "just now";
-			if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
-			if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
-			if (diffDays === 1) return "1 day ago";
-			if (diffDays < 7) return `${diffDays} days ago`;
+			if (diffMins < 1) return tuiText("ssJustNow", "just now");
+			if (diffMins < 60) return tuiTextFmt("ssMinuteAgoFmt", "%s minute%s ago", diffMins, diffMins !== 1 ? "s" : "");
+			if (diffHours < 24) return tuiTextFmt("ssHourAgoFmt", "%s hour%s ago", diffHours, diffHours !== 1 ? "s" : "");
+			if (diffDays === 1) return tuiText("ssDayAgo", "1 day ago");
+			if (diffDays < 7) return tuiTextFmt("ssDaysAgoFmt", "%s days ago", diffDays);
 
 			return date.toLocaleDateString();
 		};
@@ -704,14 +711,14 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 			const modified = formatDate(session.modified);
 			let metadata = `  ${dim(modified)} ${dot} ${dim(formatBytes(session.size))}`;
 			if (currentPath !== undefined && session.path === currentPath) {
-				metadata += ` ${dot} ${theme.fg("accent", "current")}`;
+				metadata += ` ${dot} ${theme.fg("accent", tuiText("ssCurrentMark", "current"))}`;
 			}
 			const status = formatSessionStatus(session.status);
 			if (status) {
 				metadata += ` ${dot} ${status}`;
 			}
 			if (session.parentSessionPath) {
-				metadata += ` ${dot} ${dim(`${theme.icon.branch} fork`)}`;
+				metadata += ` ${dot} ${dim(tuiText("ssForkLabel", "fork"))}`;
 			}
 			if (this.#showCwd && session.cwd) {
 				metadata += ` ${dot} ${dim(shortenPath(session.cwd))}`;
@@ -883,7 +890,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	#footerStart = 0;
 	readonly #getTerminalRows: () => number;
 	readonly #fillHeight: boolean;
-	readonly #title: string;
+	readonly #title: string | undefined;
 	readonly #scopeLabel: string | false | undefined;
 
 	constructor(
@@ -902,7 +909,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		this.#globalSessions = options.allSessions ?? null;
 		this.#getTerminalRows = options.getTerminalRows ?? (() => 24);
 		this.#fillHeight = options.fillHeight ?? false;
-		this.#title = options.title ?? "Resume Session";
+		this.#title = options.title;
 		this.#scopeLabel = options.scopeLabel;
 		this.title = this.#headerLabel();
 		// One spacer of breathing room; OverlayPanel supplies the two outer
@@ -949,9 +956,14 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	}
 
 	#headerLabel(): string {
-		if (this.#scopeLabel === false) return this.#title;
-		const scopeLabel = this.#scopeLabel ?? (this.#scope === "all" ? "all projects" : "current folder");
-		return `${this.#title} (${scopeLabel})`;
+		const base = this.#title ?? tuiText("ssTitleResume", "Resume Session");
+		if (this.#scopeLabel === false) return base;
+		const scopeLabel =
+			this.#scopeLabel ??
+			(this.#scope === "all"
+				? tuiText("ssAllProjectsLabel", "all projects")
+				: tuiText("ssCurrentFolderLabel", "current folder"));
+		return tuiTextFmt("ssTitleWithScopeFmt", "%s (%s)", base, scopeLabel);
 	}
 
 	/**
@@ -967,7 +979,9 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 				if (!this.#loadAllSessions) return;
 				this.#toggling = true;
 				this.#messageContainer.clear();
-				this.#messageContainer.addChild(new Text(theme.fg("muted", "Loading all projects…"), 0, 0));
+				this.#messageContainer.addChild(
+					new Text(theme.fg("muted", tuiText("ssLoadingProjects", "Loading all projects…")), 0, 0),
+				);
 				this.#onRequestRender?.();
 				try {
 					global = await this.#loadAllSessions();
@@ -1019,7 +1033,9 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 
 	#showError(message: string): void {
 		this.#messageContainer.clear();
-		this.#messageContainer.addChild(new Text(theme.fg("error", `Error: ${replaceTabs(message)}`), 0, 0));
+		this.#messageContainer.addChild(
+			new Text(theme.fg("error", tuiTextFmt("ssErrorPrefixFmt", "Error: %s", replaceTabs(message))), 0, 0),
+		);
 		this.#messageContainer.addChild(new Spacer(1));
 	}
 
@@ -1034,11 +1050,13 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			this.#contentSlot.addChild(this.#sessionList);
 			this.#onRequestRender?.();
 		};
+		const confirmYes = tuiText("ssConfirmYes", "Yes");
+		const confirmNo = tuiText("ssConfirmNo", "No");
 		this.#confirmationDialog = new HookSelectorComponent(
-			`Delete session?\n${displayName}`,
-			["Yes", "No"],
+			tuiTextFmt("ssDeleteSessionFmt", "Delete session?\n%s", displayName),
+			[confirmYes, confirmNo],
 			async (option: string) => {
-				if (option === "Yes" && this.#onDelete) {
+				if (option === confirmYes && this.#onDelete) {
 					this.#clearError();
 					try {
 						const deleted = await this.#onDelete(session);
@@ -1073,6 +1091,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	 * the panel's inner width before their rows are wrapped.
 	 */
 	override render(width: number): readonly string[] {
+		this.title = this.#headerLabel();
 		const innerWidth = Math.max(1, width - 4);
 		const lines: string[] = [topBorder(width, this.title)];
 		for (const child of this.children) {
@@ -1093,8 +1112,14 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 
 	/** Blank · keybinding hint · bottom border. Rendered by {@link render}. */
 	#footerLines(width: number): string[] {
-		const scopeHint = this.#scope === "all" ? "current folder" : "all projects";
-		const hint = theme.fg("muted", `[Del/⌫ delete · Enter select · Tab ${scopeHint} · Esc cancel]`);
+		const scopeHint =
+			this.#scope === "all"
+				? tuiText("ssCurrentFolderLabel", "current folder")
+				: tuiText("ssAllProjectsLabel", "all projects");
+		const hint = theme.fg(
+			"muted",
+			tuiTextFmt("ssFooterHintLineFmt", "[Del/⌫ delete · Enter select · Tab %s · Esc cancel]", scopeHint),
+		);
 		return [row("", width), row(hint, width), row("", width), bottomBorder(width)];
 	}
 

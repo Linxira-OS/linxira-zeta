@@ -1,5 +1,6 @@
 /** Anchored `/cleanse` overlay rendering the host's live board above the editor. */
 import { Text, type TUI } from "../index";
+import { tuiText } from "../i18n";
 import type { AgentProgress } from "../tools/task";
 import { replaceTabs } from "../render/render-utils";
 import { theme } from "../theme/theme";
@@ -151,17 +152,29 @@ export class CleansePanelComponent extends OverlayPanel {
 	#footerLine(): string {
 		switch (this.#outcome) {
 			case undefined:
-				return theme.fg("muted", "Esc cancel /cleanse");
+				return theme.fg("muted", tuiText("cleanseFooterRunning", "Esc cancel /cleanse"));
 			case "clean":
-				return theme.fg("success", `${theme.status.success} Clean · Esc dismiss`);
+				return theme.fg(
+					"success",
+					`${theme.status.success} ${tuiText("cleanseFooterClean", "Clean · Esc dismiss")}`,
+				);
 			case "unresolved":
-				return theme.fg("warning", `${theme.status.warning} Diagnostics remain · Esc dismiss`);
+				return theme.fg(
+					"warning",
+					`${theme.status.warning} ${tuiText("cleanseFooterUnresolved", "Diagnostics remain · Esc dismiss")}`,
+				);
 			case "unsupported":
-				return theme.fg("warning", `${theme.status.warning} No runnable checker · Esc dismiss`);
+				return theme.fg(
+					"warning",
+					`${theme.status.warning} ${tuiText("cleanseFooterUnsupported", "No runnable checker · Esc dismiss")}`,
+				);
 			case "cancelled":
-				return theme.fg("warning", `${theme.status.warning} Cancelled · Esc dismiss`);
+				return theme.fg(
+					"warning",
+					`${theme.status.warning} ${tuiText("cleanseFooterCancelled", "Cancelled · Esc dismiss")}`,
+				);
 			case "error":
-				return theme.fg("error", `${theme.status.error} Error · Esc dismiss`);
+				return theme.fg("error", `${theme.status.error} ${tuiText("cleanseFooterError", "Error · Esc dismiss")}`);
 		}
 	}
 }

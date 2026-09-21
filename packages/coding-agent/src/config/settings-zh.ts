@@ -5,10 +5,10 @@
  * `ui.description` / `ui.options` text and English group/tab names. This
  * module is the zh overlay: it maps every tab, every TAB_GROUPS group, every
  * setting with a `ui:` block, and every submenu option to natural Simplified
- * Chinese. The defs layer (`modes/components/settings-defs.ts`) and the
- * selector layer (`modes/components/settings-selector.ts`) consult these maps
- * whenever `currentLanguage() === "zh"`, falling back to the schema text for
- * any key that is missing here.
+ * Chinese. The TUI selector consumes these maps through
+ * `localizeSettingUi` (applied by `config/settings-ui.ts`), and the web
+ * settings panel consumes them directly via the gateway; both fall back to
+ * the schema text for any key that is missing here.
  *
  * Keep this file in lockstep with the schema: the completeness script asserts
  * that every tab, group, ui-blocked path, and ui.options entry is covered.

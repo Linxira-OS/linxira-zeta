@@ -1,38 +1,44 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { SETTING_TABS } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { setLanguage } from "../src/i18n";
-import { getAllSettingDefs, getSettingsForTab } from "../src/modes/components/settings-defs";
+import { createSettingsHost } from "../src/config/settings-ui";
 
 afterEach(() => setLanguage("en"));
 
 describe("settings page zh localization", () => {
-	test("zh: all tab labels, group headings, labels, descriptions are Chinese", () => {
+	test("zh: all labels and descriptions are Chinese", () => {
 		setLanguage("zh");
-		const defs = getAllSettingDefs();
-		expect(defs.length).toBeGreaterThan(300);
+		const host = createSettingsHost();
+		expect(host.entries.length).toBeGreaterThan(300);
 
 		// No setting label/description may remain pure ASCII English under zh.
 		const hasCjk = (s: string) => /[\u4e00-\u9fff]/.test(s);
-		for (const def of defs) {
-			expect(hasCjk(def.label), `label for ${def.path} should be zh: ${def.label}`).toBe(true);
-			if (def.description) {
-				expect(hasCjk(def.description), `description for ${def.path} should be zh: ${def.description}`).toBe(true);
+		for (const entry of host.entries) {
+			expect(hasCjk(entry.ui?.label ?? ""), `label for ${entry.path} should be zh: ${entry.ui?.label}`).toBe(true);
+			if (entry.ui?.description) {
+				expect(
+					hasCjk(entry.ui.description),
+					`description for ${entry.path} should be zh: ${entry.ui.description}`,
+				).toBe(true);
 			}
 		}
-		// Tab headings localized.
+		// Every tab still yields entries.
 		for (const tab of SETTING_TABS) {
-			const defsForTab = getSettingsForTab(tab);
-			expect(defsForTab.length).toBeGreaterThan(0);
+			const forTab = host.entries.filter(entry => entry.ui?.tab === tab);
+			expect(forTab.length).toBeGreaterThan(0);
 		}
 	});
 
 	test("en: schema English preserved", () => {
 		setLanguage("en");
-		const defs = getAllSettingDefs();
-		expect(defs.length).toBeGreaterThan(300);
+		const host = createSettingsHost();
+		expect(host.entries.length).toBeGreaterThan(300);
 		const hasCjk = (s: string) => /[\u4e00-\u9fff]/.test(s);
-		for (const def of defs) {
-			expect(hasCjk(def.label), `en label for ${def.path} should stay English: ${def.label}`).toBe(false);
+		for (const entry of host.entries) {
+			expect(
+				hasCjk(entry.ui?.label ?? ""),
+				`en label for ${entry.path} should stay English: ${entry.ui?.label}`,
+			).toBe(false);
 		}
 	});
 });

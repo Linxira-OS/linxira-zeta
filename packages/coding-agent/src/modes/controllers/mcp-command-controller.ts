@@ -61,6 +61,7 @@ import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 import { urlHyperlinkAlways } from "@linxiraos/pi-tui/render";
 import { copyToClipboard } from "../../utils/clipboard";
 import { isTimeoutError } from "../../utils/fetch-timeout";
+import { M } from "../../i18n";
 import { openPath } from "../../utils/open";
 import { ChatBlock } from "@linxiraos/pi-tui/chrome/chat-block";
 import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
@@ -232,14 +233,14 @@ export class MCPAuthorizationLinkPrompt implements Component {
 	invalidate(): void {}
 
 	render(width: number): readonly string[] {
-		const link = urlHyperlinkAlways(this.#fullUrl, "Click here to authorize");
+		const link = urlHyperlinkAlways(this.#fullUrl, M.mcpClickHereToAuthorize);
 		const lines: string[] = [
-			` ${theme.fg("success", "Open authorization URL:")}`,
+			` ${theme.fg("success", M.mcpOpenAuthorizationUrl)}`,
 			` ${theme.fg("accent", link)}`,
-			...wrapUrlRows("Copy URL:", this.#fullUrl, width),
+			...wrapUrlRows(M.mcpCopyUrl, this.#fullUrl, width),
 		];
 		if (this.#launchUrl) {
-			lines.push(...wrapUrlRows("Local shortcut (this machine only):", this.#launchUrl, width));
+			lines.push(...wrapUrlRows(M.mcpLocalShortcutFmt.replace(" %s", ""), this.#launchUrl, width));
 		}
 		return lines;
 	}
@@ -257,7 +258,7 @@ class McpConnectingBlock extends ChatBlock {
 		super();
 		this.addChild(new Spacer(1));
 		const frame = theme.spinnerFrames[0] ?? "|";
-		this.#text = new Text(theme.fg("muted", `${frame} Connecting to "${serverName}"...`), 1, 0);
+		this.#text = new Text(theme.fg("muted", `${frame} ${M.mcpConnectingToFmt.replace("%s", serverName)}`), 1, 0);
 		this.addChild(this.#text);
 	}
 
@@ -267,7 +268,10 @@ class McpConnectingBlock extends ChatBlock {
 		const interval = setInterval(() => {
 			frame++;
 			this.#text.setText(
-				theme.fg("muted", `${frames[frame % frames.length] ?? "|"} Connecting to "${this.serverName}"...`),
+				theme.fg(
+					"muted",
+					`${frames[frame % frames.length] ?? "|"} ${M.mcpConnectingToFmt.replace("%s", this.serverName)}`,
+				),
 			);
 			this.requestRender();
 		}, 80);
@@ -458,7 +462,7 @@ export class MCPCommandController {
 				await this.#handleReload();
 				break;
 			default:
-				this.ctx.showError(`Unknown subcommand: ${subcommand}. Type /mcp help for usage.`);
+				this.ctx.showError(M.mcpUnknownSubcommandFmt.replace("%s", subcommand));
 		}
 	}
 
@@ -768,7 +772,7 @@ export class MCPCommandController {
 							});
 						} catch (oauthError) {
 							if (oauthError instanceof MCPOAuthCancelledError) {
-								this.ctx.showStatus(`Add cancelled for "${parsed.initialName}"`);
+								this.ctx.showStatus(M.mcpAddCancelledForFmt.replace("%s", parsed.initialName));
 								return;
 							}
 							this.ctx.showError(
@@ -1404,7 +1408,7 @@ export class MCPCommandController {
 				helpText = `\n\nTip: Use ${theme.fg("accent", "/mcp list")} to see existing servers.`;
 			}
 
-			this.ctx.showError(`Failed to add server: ${errorMsg}${helpText}`);
+			this.ctx.showError(M.mcpFailedToAddServerFmt.replace("%s", `${errorMsg}${helpText}`));
 		}
 	}
 
@@ -1552,7 +1556,9 @@ export class MCPCommandController {
 			}
 			this.#showMessage(lines.join("\n"));
 		} catch (error) {
-			this.ctx.showError(`Failed to list servers: ${error instanceof Error ? error.message : String(error)}`);
+			this.ctx.showError(
+				M.mcpFailedToListServersFmt.replace("%s", error instanceof Error ? error.message : String(error)),
+			);
 		}
 	}
 
@@ -1570,7 +1576,7 @@ export class MCPCommandController {
 		const { name, scope } = parsed.value;
 
 		if (!name) {
-			this.ctx.showError("Server name required. Usage: /mcp remove <name> [--scope project|user]");
+			this.ctx.showError(M.mcpRemoveNameRequired);
 			return;
 		}
 
@@ -1581,7 +1587,7 @@ export class MCPCommandController {
 			const filePath = scope === "user" ? userPath : projectPath;
 			const config = await readMCPConfigFile(filePath);
 			if (!config.mcpServers?.[name]) {
-				this.ctx.showError(`Server "${name}" not found in ${scope} config.`);
+				this.ctx.showError(M.mcpServerNotFoundInFmt.replace("%s", name).replace("%s", scope));
 				return;
 			}
 
@@ -1598,7 +1604,9 @@ export class MCPCommandController {
 
 			this.#showMessage(["", theme.fg("success", `- Removed server "${name}" from ${scope} config`), ""].join("\n"));
 		} catch (error) {
-			this.ctx.showError(`Failed to remove server: ${error instanceof Error ? error.message : String(error)}`);
+			this.ctx.showError(
+				M.mcpFailedToRemoveServerFmt.replace("%s", error instanceof Error ? error.message : String(error)),
+			);
 		}
 	}
 
@@ -1607,7 +1615,7 @@ export class MCPCommandController {
 	 */
 	async #handleTest(name: string | undefined): Promise<void> {
 		if (!name) {
-			this.ctx.showError("Server name required. Usage: /mcp test <name>");
+			this.ctx.showError(M.mcpServerNameRequiredFmt.replace("%s", "test"));
 			return;
 		}
 
@@ -1615,7 +1623,7 @@ export class MCPCommandController {
 		let settled = false;
 		const handleEscape = (): void => {
 			if (settled) {
-				this.ctx.showStatus(`MCP test for "${name}" already finished`);
+				this.ctx.showStatus(M.mcpTestAlreadyFinishedFmt.replace("%s", name));
 				return;
 			}
 			abortController.abort();
@@ -1668,7 +1676,7 @@ export class MCPCommandController {
 			const { config } = found;
 			if (config.enabled === false) {
 				this.ctx.mcpTestEscapeHandlers.delete(handleEscape);
-				this.ctx.showError(`Server "${name}" is disabled. Run /mcp enable ${name} first.`);
+				this.ctx.showError(M.mcpServerDisabledEnableFirstFmt.replace("%s", name).replace("%s", name));
 				return;
 			}
 
@@ -1677,7 +1685,7 @@ export class MCPCommandController {
 			// is already gone.
 			if (abortController.signal.aborted) {
 				this.ctx.mcpTestEscapeHandlers.delete(handleEscape);
-				this.ctx.showStatus(`Cancelled MCP test for "${name}"`);
+				this.ctx.showStatus(M.mcpCancelledMCPTestFmt.replace("%s", name));
 				return;
 			}
 
@@ -1729,7 +1737,7 @@ export class MCPCommandController {
 		} catch (error) {
 			if (abortController.signal.aborted || (error instanceof Error && error.name === "AbortError")) {
 				settleNote = `Cancelled connection test for "${name}".`;
-				this.ctx.showStatus(`Cancelled MCP test for "${name}"`);
+				this.ctx.showStatus(M.mcpCancelledMCPTestFmt.replace("%s", name));
 				return;
 			}
 
@@ -1750,7 +1758,7 @@ export class MCPCommandController {
 			}
 
 			settleNote = `Connection test for "${name}" failed.`;
-			this.ctx.showError(`Failed to connect to "${name}": ${errorMsg}${helpText}`);
+			this.ctx.showError(M.mcpFailedToConnectToFmt.replace("%s", name).replace("%s", `${errorMsg}${helpText}`));
 		} finally {
 			settled = true;
 			if (hintShown) {
@@ -1782,7 +1790,7 @@ export class MCPCommandController {
 
 	async #handleSetEnabled(name: string | undefined, enabled: boolean): Promise<void> {
 		if (!name) {
-			this.ctx.showError(`Server name required. Usage: /mcp ${enabled ? "enable" : "disable"} <name>`);
+			this.ctx.showError(M.mcpServerNameRequiredFmt.replace("%s", enabled ? "enable" : "disable"));
 			return;
 		}
 
@@ -1795,7 +1803,7 @@ export class MCPCommandController {
 				const isDiscovered = this.ctx.mcpManager?.getSource(name);
 				const isCurrentlyDisabled = disabledServers.has(name);
 				if (!isDiscovered && !isCurrentlyDisabled) {
-					this.ctx.showError(`Server "${name}" not found.`);
+					this.ctx.showError(M.mcpServerNotFoundFmt.replace("%s", name));
 					return;
 				}
 				if (isCurrentlyDisabled === !enabled) {
@@ -1883,14 +1891,14 @@ export class MCPCommandController {
 
 	async #handleUnauth(name: string | undefined): Promise<void> {
 		if (!name) {
-			this.ctx.showError("Server name required. Usage: /mcp unauth <name>");
+			this.ctx.showError(M.mcpServerNameRequiredFmt.replace("%s", "unauth"));
 			return;
 		}
 
 		try {
 			const found = await this.#resolveServerForAuth(name);
 			if (!found) {
-				this.ctx.showError(`Server "${name}" not found.`);
+				this.ctx.showError(M.mcpServerNotFoundFmt.replace("%s", name));
 				return;
 			}
 
@@ -1933,7 +1941,9 @@ export class MCPCommandController {
 				["", theme.fg("success", `- Cleared auth for "${name}" (${found.scope} config)`), ""].join("\n"),
 			);
 		} catch (error) {
-			this.ctx.showError(`Failed to clear auth: ${error instanceof Error ? error.message : String(error)}`);
+			this.ctx.showError(
+				M.mcpFailedToClearAuthFmt.replace("%s", error instanceof Error ? error.message : String(error)),
+			);
 		}
 	}
 
@@ -1947,19 +1957,20 @@ export class MCPCommandController {
 		options: { silent?: boolean; reload?: boolean; authChallenge?: MCPAuthChallenge } = {},
 	): Promise<MCPServerConfig | undefined> {
 		if (!name) {
-			if (!options.silent) this.ctx.showError("Server name required. Usage: /mcp reauth <name>");
+			if (!options.silent) this.ctx.showError(M.mcpServerNameRequiredFmt.replace("%s", "reauth"));
 			return;
 		}
 
 		try {
 			const found = await this.#resolveServerForAuth(name);
 			if (!found) {
-				if (!options.silent) this.ctx.showError(`Server "${name}" not found.`);
+				if (!options.silent) this.ctx.showError(M.mcpServerNotFoundFmt.replace("%s", name));
 				return;
 			}
 
 			if (found.config.enabled === false) {
-				if (!options.silent) this.ctx.showError(`Server "${name}" is disabled. Run /mcp enable ${name} first.`);
+				if (!options.silent)
+					this.ctx.showError(M.mcpServerDisabledEnableFirstFmt.replace("%s", name).replace("%s", name));
 				return;
 			}
 
@@ -2086,7 +2097,7 @@ export class MCPCommandController {
 			return updatedConfig;
 		} catch (error) {
 			if (error instanceof MCPOAuthCancelledError) {
-				if (!options.silent) this.ctx.showStatus(`Reauthorization cancelled for "${name}"`);
+				if (!options.silent) this.ctx.showStatus(M.mcpReauthorizationCancelledFmt.replace("%s", name));
 				return;
 			}
 			if (!options.silent) {
@@ -2115,7 +2126,9 @@ export class MCPCommandController {
 				].join("\n"),
 			);
 		} catch (error) {
-			this.ctx.showError(`Failed to reload MCP: ${error instanceof Error ? error.message : String(error)}`);
+			this.ctx.showError(
+				M.mcpFailedToReloadFmt.replace("%s", error instanceof Error ? error.message : String(error)),
+			);
 		}
 	}
 
@@ -2124,11 +2137,11 @@ export class MCPCommandController {
 	 */
 	async #handleReconnect(name: string | undefined): Promise<void> {
 		if (!name) {
-			this.ctx.showError("Server name required. Usage: /mcp reconnect <name>");
+			this.ctx.showError(M.mcpServerNameRequiredFmt.replace("%s", "reconnect"));
 			return;
 		}
 		if (!this.ctx.mcpManager) {
-			this.ctx.showError("MCP manager not available.");
+			this.ctx.showError(M.mcpManagerNotAvailable);
 			return;
 		}
 
@@ -2151,7 +2164,7 @@ export class MCPCommandController {
 					].join("\n"),
 				);
 			} else {
-				this.ctx.showError(`Failed to reconnect to "${name}". Check server status and logs.`);
+				this.ctx.showError(M.mcpReconnectFailedCheckStatusFmt.replace("%s", name));
 			}
 		} catch (error) {
 			this.ctx.showError(
@@ -2237,7 +2250,7 @@ export class MCPCommandController {
 	 */
 	async #handleResources(): Promise<void> {
 		if (!this.ctx.mcpManager) {
-			this.ctx.showError("No MCP manager available.");
+			this.ctx.showError(M.mcpNoManagerAvailable);
 			return;
 		}
 
@@ -2280,7 +2293,7 @@ export class MCPCommandController {
 	 */
 	async #handlePrompts(): Promise<void> {
 		if (!this.ctx.mcpManager) {
-			this.ctx.showError("No MCP manager available.");
+			this.ctx.showError(M.mcpNoManagerAvailable);
 			return;
 		}
 
@@ -2321,7 +2334,7 @@ export class MCPCommandController {
 	 */
 	async #handleNotifications(): Promise<void> {
 		if (!this.ctx.mcpManager) {
-			this.ctx.showError("No MCP manager available.");
+			this.ctx.showError(M.mcpNoManagerAvailable);
 			return;
 		}
 
@@ -2393,7 +2406,7 @@ export class MCPCommandController {
 			if (input === undefined) return null;
 			const apiKey = input.trim();
 			if (!apiKey) {
-				this.ctx.showError("Smithery API key cannot be empty.");
+				this.ctx.showError(M.mcpSmitheryKeyCannotBeEmpty);
 				continue;
 			}
 			try {
@@ -2411,7 +2424,7 @@ export class MCPCommandController {
 		const apiKey = await this.#promptSmitheryApiKey("Smithery API key (Esc to cancel)");
 		if (!apiKey) return false;
 		await saveSmitheryApiKey(apiKey);
-		this.ctx.showStatus("Smithery API key saved.");
+		this.ctx.showStatus(M.mcpSmitheryKeySaved);
 		return true;
 	}
 
@@ -2467,7 +2480,7 @@ export class MCPCommandController {
 		const apiKey = await this.#waitForSmitheryCliApiKey(session.sessionId, new AbortController().signal);
 		await this.#validateSmitheryApiKey(apiKey);
 		await saveSmitheryApiKey(apiKey);
-		this.ctx.showStatus("Smithery API key saved.");
+		this.ctx.showStatus(M.mcpSmitheryKeySaved);
 		return true;
 	}
 
@@ -2538,7 +2551,7 @@ export class MCPCommandController {
 	async #handleSmitheryLogin(): Promise<void> {
 		const ok = await this.#promptSmitheryLogin("login");
 		if (!ok) {
-			this.ctx.showStatus("Smithery login cancelled.");
+			this.ctx.showStatus(M.mcpSmitheryLoginCancelled);
 		}
 	}
 
@@ -2565,13 +2578,13 @@ export class MCPCommandController {
 			if (input === undefined) return null;
 			const proposed = input.trim() || defaultName;
 			if (!proposed) {
-				this.ctx.showError("Server name cannot be empty.");
+				this.ctx.showError(M.mcpServerNameCannotBeEmpty);
 				continue;
 			}
 			const filePath = getMCPConfigPath(scope, getProjectDir());
 			const config = await readMCPConfigFile(filePath);
 			if (config.mcpServers?.[proposed]) {
-				this.ctx.showError(`Server "${proposed}" already exists in ${scope} config.`);
+				this.ctx.showError(M.mcpServerAlreadyExistsInFmt.replace("%s", proposed).replace("%s", scope));
 				continue;
 			}
 			return proposed;
@@ -2591,7 +2604,7 @@ export class MCPCommandController {
 			const value = userInput.trim();
 			if (!value) {
 				if (input.required) {
-					this.ctx.showError(`Missing required value for "${input.key}".`);
+					this.ctx.showError(M.mcpMissingRequiredValueFmt.replace("%s", input.key));
 					return null;
 				}
 				continue;
@@ -2626,7 +2639,7 @@ export class MCPCommandController {
 			const label = `${index + 1}. ${result.display.displayName} (${result.display.transport}, uses ${result.display.useCount})`;
 			return label.length > 120 ? `${label.slice(0, 117)}...` : label;
 		});
-		const selected = await this.ctx.showHookSelector(`Registry results for "${keyword}"`, options);
+		const selected = await this.ctx.showHookSelector(M.mcpRegistryResultsForFmt.replace("%s", keyword), options);
 		if (!selected) return null;
 		const prefix = selected.split(".", 1)[0];
 		const index = Number(prefix) - 1;
@@ -2639,12 +2652,12 @@ export class MCPCommandController {
 		const defaultName = await this.#nextAvailableServerName(scope, baseName);
 		const serverName = await this.#promptDeploymentServerName(scope, defaultName);
 		if (!serverName) {
-			this.ctx.showStatus("MCP deploy cancelled.");
+			this.ctx.showStatus(M.mcpDeployCancelled);
 			return;
 		}
 		const inputValues = await this.#promptRequiredRegistryInputs(result);
 		if (inputValues === null) {
-			this.ctx.showStatus("MCP deploy cancelled.");
+			this.ctx.showStatus(M.mcpDeployCancelled);
 			return;
 		}
 		const config = this.#applyRegistryInputOverrides(result.config, inputValues);
@@ -2680,7 +2693,7 @@ export class MCPCommandController {
 
 			const selected = await this.#pickRegistryResult(results, parsed.keyword);
 			if (!selected) {
-				this.ctx.showStatus("MCP Smithery selection cancelled.");
+				this.ctx.showStatus(M.mcpSelectionCancelled);
 				return;
 			}
 
@@ -2688,10 +2701,10 @@ export class MCPCommandController {
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			if (/authentication was cancelled|login cancelled/i.test(message)) {
-				this.ctx.showError(`${message} Run /mcp smithery-login to authenticate first.`);
+				this.ctx.showError(M.mcpLoginFirstToAuthenticateFmt.replace("%s", message));
 				return;
 			}
-			this.ctx.showError(`Smithery search failed: ${message}`);
+			this.ctx.showError(M.mcpSmitherySearchFailedFmt.replace("%s", message));
 		}
 	}
 

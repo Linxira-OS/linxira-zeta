@@ -23,6 +23,7 @@ import { OverlayPanel } from "../chrome/overlay-box";
 import { FormField, SelectFormField, TextFormField } from "../components/form";
 import { formTheme } from "../chrome/form-theme";
 import { SettingsFormField } from "../components/settings-list";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 /** Setting metadata consumed by the plugin settings UI. */
 export type PluginSettingSchema = {
@@ -145,16 +146,17 @@ async function buildPluginConfigItems(
 
 	const settings = await manager.getPluginSettings(plugin.name);
 	const items: SettingItem[] = [];
+	const notSetLabel = tuiText("psNotSet", "(not set)");
 	for (const key in schemaSettings) {
 		const schema = schemaSettings[key];
 		const currentValue = settings[key] ?? schema.default;
-		const displayValue = schema.secret && currentValue ? "••••••••" : String(currentValue ?? "(not set)");
+		const displayValue = schema.secret && currentValue ? "••••••••" : String(currentValue ?? notSetLabel);
 
 		if (schema.type === "boolean") {
 			items.push({
 				id: `config:${key}`,
 				label: `  ${key}`,
-				description: schema.description || `Configure ${key}`,
+				description: schema.description || tuiTextFmt("pluginSettingsConfigureFmt", "Configure %s", key),
 				currentValue: currentValue ? "true" : "false",
 				values: ["true", "false"],
 			});
@@ -162,12 +164,12 @@ async function buildPluginConfigItems(
 			items.push({
 				id: `config:${key}`,
 				label: `  ${key}`,
-				description: schema.description || `Configure ${key}`,
+				description: schema.description || tuiTextFmt("pluginSettingsConfigureFmt", "Configure %s", key),
 				currentValue: String(currentValue ?? schema.default ?? ""),
 				submenu: (cv, done) =>
 					createConfigEnumPanel(
 						key,
-						schema.description || `Select value for ${key}`,
+						schema.description || tuiTextFmt("pluginSettingsSelectValueFmt", "Select value for %s", key),
 						schema.values,
 						cv,
 						value => {
@@ -183,13 +185,13 @@ async function buildPluginConfigItems(
 			items.push({
 				id: `config:${key}`,
 				label: `  ${key}`,
-				description: schema.description || `Configure ${key}`,
+				description: schema.description || tuiTextFmt("pluginSettingsConfigureFmt", "Configure %s", key),
 				currentValue: displayValue,
 				submenu: (cv, done) =>
 					createConfigInputPanel(
 						key,
 						schema,
-						cv === "(not set)" ? "" : cv,
+						cv === notSetLabel ? "" : cv,
 						value => {
 							const parsed = schema.type === "number" ? Number(value) : value;
 							const result = onConfigChange(key, parsed);
@@ -231,15 +233,34 @@ export class PluginListComponent extends OverlayPanel {
 		private readonly entries: ReadonlyArray<PluginListEntry>,
 		callbacks: PluginListCallbacks,
 	) {
-		super("Plugins");
+		super(tuiText("ssTabPlugins", "Plugins"));
 		this.addChild(new Spacer(1));
 
 		if (entries.length === 0) {
-			this.addChild(new Text(theme.fg("muted", "No plugins installed"), 0, 0));
+			this.addChild(new Text(theme.fg("muted", tuiText("pluginSettingsNoPlugins", "No plugins installed")), 0, 0));
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("dim", "Install npm plugins:        zeta plugin install <package>"), 0, 0));
 			this.addChild(
-				new Text(theme.fg("dim", "Install marketplace plugins: zeta plugin install <name>@<marketplace>"), 0, 0),
+				new Text(
+					theme.fg(
+						"dim",
+						tuiText("pluginSettingsInstallNpmHint", "Install npm plugins:        zeta plugin install <package>"),
+					),
+					0,
+					0,
+				),
+			);
+			this.addChild(
+				new Text(
+					theme.fg(
+						"dim",
+						tuiText(
+							"pluginSettingsInstallMarketplaceHint",
+							"Install marketplace plugins: zeta plugin install <name>@<marketplace>",
+						),
+					),
+					0,
+					0,
+				),
 			);
 			this.addChild(new Spacer(1));
 
@@ -270,11 +291,16 @@ export class PluginListComponent extends OverlayPanel {
 
 		this.addChild(this.#selectList);
 		this.addChild(new Spacer(1));
-		this.addChild(new Text(theme.fg("dim", "Enter to configure · Esc to go back"), 0, 0));
+		this.addChild(
+			new Text(theme.fg("dim", tuiText("pluginSettingsListFooter", "Enter to configure · Esc to go back")), 0, 0),
+		);
 	}
 
 	#renderItem(entry: PluginListEntry): SelectItem {
-		const kindBadge = theme.fg("dim", entry.kind === "npm" ? "[npm]" : "[marketplace]");
+		const kindBadge = theme.fg(
+			"dim",
+			entry.kind === "npm" ? tuiText("psBadgeNpm", "[npm]") : tuiText("psBadgeMarketplace", "[marketplace]"),
+		);
 
 		if (entry.kind === "npm") {
 			const p = entry.plugin;
@@ -286,7 +312,7 @@ export class PluginListComponent extends OverlayPanel {
 
 			let details = `${kindBadge} ${theme.sep.dot} v${p.version}`;
 			if (featureCount > 0) {
-				details += ` ${theme.sep.dot} ${enabledCount}/${featureCount} features`;
+				details += ` ${theme.sep.dot} ${tuiTextFmt("pluginSettingsFeaturesFmt", "%d/%d features", enabledCount, featureCount)}`;
 			}
 
 			return {
@@ -299,13 +325,16 @@ export class PluginListComponent extends OverlayPanel {
 		const summary = entry.plugin;
 		const enabled = marketplaceEnabled(summary);
 		const status = enabled ? theme.fg("success", theme.status.enabled) : theme.fg("muted", theme.status.disabled);
-		const scopeTag = theme.fg("dim", `[${summary.scope}]`);
+		const scopeTag = theme.fg(
+			"dim",
+			`[${summary.scope === "user" ? tuiText("mcpScopeWordUser", "user") : tuiText("mcpScopeWordProject", "project")}]`,
+		);
 		const shadowMarker = summary.shadowedBy ? ` ${theme.fg("warning", theme.status.shadowed)}` : "";
 		const version = summary.entries[0]?.version ?? "?";
 
 		let details = `${kindBadge} ${scopeTag} ${theme.sep.dot} v${version}`;
 		if (summary.shadowedBy) {
-			details += ` ${theme.sep.dot} shadowed by ${summary.shadowedBy}`;
+			details += ` ${theme.sep.dot} ${tuiTextFmt("pluginSettingsShadowedByFmt", "shadowed by %s", summary.shadowedBy)}`;
 		}
 
 		return {
@@ -365,8 +394,8 @@ export class PluginDetailComponent extends OverlayPanel {
 		// Enable/disable toggle
 		items.push({
 			id: "__enabled__",
-			label: "Enabled",
-			description: "Enable or disable this plugin",
+			label: tuiText("pluginSettingsEnabled", "Enabled"),
+			description: tuiText("psToggleDesc", "Enable or disable this plugin"),
 			currentValue: plugin.enabled ? "true" : "false",
 			values: ["true", "false"],
 		});
@@ -386,7 +415,8 @@ export class PluginDetailComponent extends OverlayPanel {
 				items.push({
 					id: `feature:${featName}`,
 					label: `  ${featName}`,
-					description: feat.description || `Enable ${featName} feature`,
+					description:
+						feat.description || tuiTextFmt("pluginSettingsEnableFeatureFmt", "Enable %s feature", featName),
 					currentValue: isEnabled ? "true" : "false",
 					values: ["true", "false"],
 				});
@@ -408,7 +438,7 @@ export class PluginDetailComponent extends OverlayPanel {
 			items,
 			maxVisible: Math.min(items.length, 10),
 			settingsTheme: getSettingsListTheme(),
-			hint: DETAIL_FOOTER_HINT,
+			hint: tuiText("pluginSettingsDetailFooterHint", "Enter to edit · Esc to go back"),
 			onChange: (id, newValue) => {
 				if (id === "__enabled__") {
 					this.callbacks.onEnabledChange(newValue === "true");
@@ -505,32 +535,96 @@ export class MarketplacePluginDetailComponent extends OverlayPanel {
 		const plugin = this.plugin;
 		const entry = plugin.entries[0];
 		this.title = plugin.id;
-		const subtitleParts = [`[${plugin.scope}]`];
-		if (plugin.shadowedBy) subtitleParts.push(`${theme.status.shadowed} shadowed by ${plugin.shadowedBy}`);
+		const subtitleParts = [
+			`[${plugin.scope === "user" ? tuiText("mcpScopeWordUser", "user") : tuiText("mcpScopeWordProject", "project")}]`,
+		];
+		if (plugin.shadowedBy)
+			subtitleParts.push(
+				`${theme.status.shadowed} ${tuiTextFmt("pluginSettingsShadowedByFmt", "shadowed by %s", plugin.shadowedBy)}`,
+			);
 
 		const items: SettingItem[] = [
 			{
 				id: "__enabled__",
-				label: "Enabled",
-				description: "Enable or disable this marketplace plugin",
+				label: tuiText("pluginSettingsEnabled", "Enabled"),
+				description: tuiText("psMarketToggleDesc", "Enable or disable this marketplace plugin"),
 				currentValue: marketplaceEnabled(plugin) ? "true" : "false",
 				values: ["true", "false"],
 			},
 			...configItems,
 		];
 		const summary: Component[] = [
-			new Text(theme.fg("dim", `version       ${entry?.version ?? "(unknown)"}`), 0, 0),
-			new Text(theme.fg("dim", `scope         ${plugin.scope}`), 0, 0),
 			new Text(
-				theme.fg("dim", `install path  ${entry?.installPath ? shortenPath(entry.installPath) : "(unknown)"}`),
+				theme.fg(
+					"dim",
+					tuiTextFmt(
+						"pluginSettingsVersionFmt",
+						"version       %s",
+						entry?.version ?? tuiText("psUnknown", "(unknown)"),
+					),
+				),
 				0,
 				0,
 			),
-			new Text(theme.fg("dim", `installed at  ${entry?.installedAt ?? "(unknown)"}`), 0, 0),
-			new Text(theme.fg("dim", `last updated  ${entry?.lastUpdated ?? "(unknown)"}`), 0, 0),
+			new Text(
+				theme.fg(
+					"dim",
+					tuiTextFmt(
+						"pluginSettingsScopeFmt",
+						"scope         %s",
+						plugin.scope === "user"
+							? tuiText("mcpScopeWordUser", "user")
+							: tuiText("mcpScopeWordProject", "project"),
+					),
+				),
+				0,
+				0,
+			),
+			new Text(
+				theme.fg(
+					"dim",
+					tuiTextFmt(
+						"pluginSettingsInstallPathFmt",
+						"install path  %s",
+						entry?.installPath ? shortenPath(entry.installPath) : tuiText("psUnknown", "(unknown)"),
+					),
+				),
+				0,
+				0,
+			),
+			new Text(
+				theme.fg(
+					"dim",
+					tuiTextFmt(
+						"pluginSettingsInstalledAtFmt",
+						"installed at  %s",
+						entry?.installedAt ?? tuiText("psUnknown", "(unknown)"),
+					),
+				),
+				0,
+				0,
+			),
+			new Text(
+				theme.fg(
+					"dim",
+					tuiTextFmt(
+						"pluginSettingsLastUpdatedFmt",
+						"last updated  %s",
+						entry?.lastUpdated ?? tuiText("psUnknown", "(unknown)"),
+					),
+				),
+				0,
+				0,
+			),
 		];
 		if (entry?.gitCommitSha) {
-			summary.push(new Text(theme.fg("dim", `git sha       ${entry.gitCommitSha}`), 0, 0));
+			summary.push(
+				new Text(
+					theme.fg("dim", tuiTextFmt("pluginSettingsGitShaFmt", "git sha       %s", entry.gitCommitSha)),
+					0,
+					0,
+				),
+			);
 		}
 		summary.push(new Spacer(1));
 		this.#settingsList = new SettingsFormField({
@@ -540,7 +634,7 @@ export class MarketplacePluginDetailComponent extends OverlayPanel {
 			maxVisible: Math.min(items.length, 10),
 			settingsTheme: getSettingsListTheme(),
 			summary,
-			hint: DETAIL_FOOTER_HINT,
+			hint: tuiText("pluginSettingsDetailFooterHint", "Enter to edit · Esc to go back"),
 			onChange: (id, newValue) => {
 				if (id === "__enabled__") {
 					const next = newValue === "true";
@@ -570,9 +664,6 @@ export class MarketplacePluginDetailComponent extends OverlayPanel {
 // =============================================================================
 // Config Submenus
 // =============================================================================
-
-/** Shared footer hint for plugin detail lists. */
-const DETAIL_FOOTER_HINT = "Enter to edit · Esc to go back";
 
 /**
  * Thin OverlayPanel boundary around a shared form field. The panel title stays
@@ -631,7 +722,7 @@ function createConfigEnumPanel(
 		currentValue,
 		maxVisible: 8,
 		selectTheme: getSelectListTheme(),
-		hint: "Enter to select · Esc to cancel",
+		hint: tuiText("pluginSettingsEnumHint", "Enter to select · Esc to cancel"),
 		onSubmit: onSelect,
 		onCancel,
 		requestRender,
@@ -648,7 +739,7 @@ function createConfigInputPanel(
 	onCancel: () => void,
 	requestRender?: () => void,
 ): Component {
-	let typeHint = `Type: ${schema.type}`;
+	let typeHint = tuiTextFmt("pluginSettingsTypeFmt", "Type: %s", schema.type);
 	if (schema.type === "number" && (schema.min !== undefined || schema.max !== undefined)) {
 		typeHint += ` (${schema.min ?? ""}..${schema.max ?? ""})`;
 	}
@@ -660,7 +751,7 @@ function createConfigInputPanel(
 		secret: schema.secret,
 		initialValue: !schema.secret ? currentValue : undefined,
 		empty: "cancel",
-		hint: "Enter to save · Esc to cancel",
+		hint: tuiText("pluginSettingsInputHint", "Enter to save · Esc to cancel"),
 		onSubmit,
 		onCancel,
 		requestRender,

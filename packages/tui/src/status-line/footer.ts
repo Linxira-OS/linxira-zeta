@@ -9,6 +9,7 @@ import { shortenPath } from "../render/render-utils";
 import { sanitizeStatusText } from "../chrome/shared";
 import { formatMetric } from "../components/metric";
 import { formatBillingSummary } from "./metrics";
+import { tuiText } from "../i18n";
 import { formatContextUsage, getContextUsageLevel, getContextUsageThemeColor } from "../chrome/context-thresholds";
 
 /**
@@ -258,7 +259,7 @@ export class FooterComponent implements Component {
 				// Pending (no turn classified yet / classifying) shows a symbol-theme
 				// question-box marker; once resolved it shows `<level>`.
 				const resolved = this.session.autoResolvedThinkingLevel();
-				rightSide = `${modelName} • ${resolved ? resolved : `${theme.thinking.autoPending} auto`}`;
+				rightSide = `${modelName} • ${resolved ? resolved : `${theme.thinking.autoPending} ${tuiText("footerThinkingAuto", "auto")}`}`;
 			} else {
 				const thinkingLevel = state.thinkingLevel ?? ThinkingLevel.Off;
 				rightSide = `${modelName} • ${thinkingLevel}`;

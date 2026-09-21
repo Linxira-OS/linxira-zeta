@@ -1,4 +1,5 @@
 import { Container, matchesKey, ScrollView, Spacer, TruncatedText } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { theme } from "../theme/theme";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { OverlayPanel } from "../chrome/overlay-box";
@@ -33,7 +34,7 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 	#onCancelCallback: () => void;
 
 	constructor(accounts: ResetUsageAccount[], onSelect: (account: ResetUsageAccount) => void, onCancel: () => void) {
-		super("Spend a saved rate-limit reset");
+		super(tuiText("resetUsageTitle", "Spend a saved rate-limit reset"));
 		this.#onSelectCallback = onSelect;
 		this.#onCancelCallback = onCancel;
 		const firstRedeemable = accounts.find(account => account.availableCount > 0);
@@ -71,13 +72,17 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 			const redeemable = account.availableCount > 0;
 			const countLabel = account.error
 				? account.error
-				: `${account.availableCount} saved reset${account.availableCount === 1 ? "" : "s"}`;
+				: tuiTextFmt(
+						account.availableCount === 1 ? "resetUsageCountOne" : "resetUsageCountMany",
+						account.availableCount === 1 ? "%d saved reset" : "%d saved resets",
+						account.availableCount,
+					);
 			const countText = account.error
 				? theme.fg("error", countLabel)
 				: redeemable
 					? theme.fg("success", countLabel)
 					: theme.fg("dim", countLabel);
-			const activeTag = account.active ? theme.fg("muted", " (active)") : "";
+			const activeTag = account.active ? theme.fg("muted", tuiText("resetUsageActiveTag", " (active)")) : "";
 			if (isSelected) {
 				const name = redeemable ? theme.fg("accent", account.label) : theme.fg("dim", account.label);
 				rows.push(`${theme.fg("accent", `${theme.nav.cursor} `)}${name}${activeTag}  ${countText}`);
@@ -100,14 +105,25 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 
 		if (total === 0) {
 			this.#listContainer.addChild(
-				new TruncatedText(theme.fg("muted", "No Codex accounts with saved resets"), 0, 0),
+				new TruncatedText(
+					theme.fg("muted", tuiText("resetUsageEmpty", "No Codex accounts with saved resets")),
+					0,
+					0,
+				),
 			);
 		}
 
 		const pending = items.find(item => this.#menu.isPending(item));
 		const hint = pending
-			? theme.fg("warning", `Press Enter again to spend 1 reset for ${pending.label}, Esc to cancel`)
-			: theme.fg("muted", "↑/↓ select · ↵ spend a reset · Esc cancel");
+			? theme.fg(
+					"warning",
+					tuiTextFmt(
+						"resetUsageConfirmFmt",
+						"Press Enter again to spend 1 reset for %s, Esc to cancel",
+						pending.label,
+					),
+				)
+			: theme.fg("muted", tuiText("resetUsageFooterHint", "↑/↓ select · ↵ spend a reset · Esc cancel"));
 		this.#listContainer.addChild(new TruncatedText(hint, 0, 0));
 
 		if (this.#statusMessage) {
@@ -151,7 +167,7 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 			const account = this.#menu.selectedItem;
 			if (!account) return;
 			if (account.availableCount <= 0) {
-				this.#statusMessage = "That account has no saved resets to spend.";
+				this.#statusMessage = tuiText("resetUsageNoneLeft", "That account has no saved resets to spend.");
 				this.#updateList();
 				return;
 			}
@@ -166,5 +182,10 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 				return;
 			}
 		}
+	}
+
+	override render(width: number): readonly string[] {
+		this.title = tuiText("resetUsageTitle", "Spend a saved rate-limit reset");
+		return super.render(width);
 	}
 }

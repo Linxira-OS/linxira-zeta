@@ -25,6 +25,7 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "../index";
+import { tuiText, tuiTextFmt } from "../i18n";
 import type { AgentSource } from "../tools/task";
 import { shortenPath } from "../render/render-utils";
 import { getEditorTheme, theme } from "../theme";
@@ -132,28 +133,47 @@ function extractJsonObject(raw: string): string {
 function parseGeneratedAgentSpec(raw: string): GeneratedAgentSpec {
 	const parsed = JSON.parse(extractJsonObject(raw)) as Partial<GeneratedAgentSpec>;
 	if (!parsed || typeof parsed !== "object") {
-		throw new Error("Model output is not a JSON object");
+		throw new Error(tuiText("adshErrNotJson", "Model output is not a JSON object"));
 	}
 	if (
 		typeof parsed.identifier !== "string" ||
 		typeof parsed.whenToUse !== "string" ||
 		typeof parsed.systemPrompt !== "string"
 	) {
-		throw new Error("Model output is missing required fields (identifier, whenToUse, systemPrompt)");
+		throw new Error(
+			tuiText(
+				"adshErrMissingFields",
+				"Model output is missing required fields (identifier, whenToUse, systemPrompt)",
+			),
+		);
 	}
 	const identifier = parsed.identifier.trim();
 	const whenToUse = parsed.whenToUse.trim();
 	const systemPrompt = parsed.systemPrompt.trim();
 	if (!IDENTIFIER_PATTERN.test(identifier)) {
-		throw new Error("Generated identifier is invalid (must be lowercase kebab-case, 2+ words)");
+		throw new Error(
+			tuiText("adshErrIdentifier", "Generated identifier is invalid (must be lowercase kebab-case, 2+ words)"),
+		);
 	}
 	if (!whenToUse.toLowerCase().startsWith("use this agent when")) {
-		throw new Error("Generated whenToUse must start with 'Use this agent when...'");
+		throw new Error(tuiText("adshErrWhenToUse", "Generated whenToUse must start with 'Use this agent when...'"));
 	}
 	if (!systemPrompt) {
-		throw new Error("Generated systemPrompt is empty");
+		throw new Error(tuiText("adshErrSystemPromptEmpty", "Generated systemPrompt is empty"));
 	}
 	return { identifier, whenToUse, systemPrompt };
+}
+
+/** English source labels double as fuzzy-search keywords; display resolves via tuiText. */
+function sourceLabelKey(source: AgentSource): string {
+	switch (source) {
+		case "project":
+			return "agentsHubSourceProject";
+		case "user":
+			return "agentsHubSourceUser";
+		case "bundled":
+			return "agentsHubSourceBundled";
+	}
 }
 
 function matchAgent(agent: HubAgent, query: string): boolean {
@@ -237,7 +257,8 @@ export class AgentsHubComponent implements Component {
 		this.#deps = deps;
 		this.#callbacks = callbacks;
 		this.#browser = new ModelBrowser(deps.browserSource, {
-			emptyText: () => "  No models available — configure a provider in /models first.",
+			emptyText: () =>
+				tuiText("agentsHubNoModels", "  No models available — configure a provider in /models first."),
 		});
 		this.#browser.setShowProvider(true);
 		this.#browser.onActivate = item => this.#commitPickedModel(item);
@@ -291,7 +312,12 @@ export class AgentsHubComponent implements Component {
 		const counts: Record<AgentSource, number> = { project: 0, user: 0, bundled: 0 };
 		for (const agent of this.#allAgents) counts[agent.source]++;
 		const entries: SidebarEntry[] = [
-			{ id: "all", kind: "all", label: "All agents", annotation: String(this.#allAgents.length) },
+			{
+				id: "all",
+				kind: "all",
+				label: tuiText("agentsHubAllAgents", "All agents"),
+				annotation: String(this.#allAgents.length),
+			},
 		];
 		const sources = (["project", "user", "bundled"] as const).filter(source => counts[source] > 0);
 		if (sources.length > 0) {
@@ -300,14 +326,14 @@ export class AgentsHubComponent implements Component {
 				entries.push({
 					id: `source:${source}`,
 					kind: "source",
-					label: SOURCE_LABEL[source],
+					label: tuiText(sourceLabelKey(source), SOURCE_LABEL[source]),
 					source,
 					annotation: String(counts[source]),
 				});
 			}
 		}
 		entries.push({ id: "sep:actions", kind: "separator", label: "" });
-		entries.push({ id: "new", kind: "new", label: "New agent" });
+		entries.push({ id: "new", kind: "new", label: tuiText("agentsHubNewAgent", "New agent") });
 		this.#entries = entries;
 		if (!entries.some(entry => entry.id === this.#activeEntryId)) this.#activeEntryId = "all";
 	}
@@ -344,7 +370,7 @@ export class AgentsHubComponent implements Component {
 			.map(entry => entry.name)
 			.sort((a, b) => a.localeCompare(b));
 		this.#deps.setDisabledAgents(disabled);
-		this.#notice = `${agent.name} ${agent.disabled ? "disabled" : "enabled"}`;
+		this.#notice = `${agent.name} ${tuiText(agent.disabled ? "stateDisabled" : "stateEnabled", agent.disabled ? "disabled" : "enabled")}`;
 		this.#tui.requestRender();
 	}
 
@@ -386,22 +412,33 @@ export class AgentsHubComponent implements Component {
 		this.#tui.requestRender();
 	}
 
-	/** One-line effective description used for notices and the status row. */
 	#describeProperty(agent: HubAgent, property: PropertyKind): string {
 		switch (property) {
 			case "model": {
 				const patterns = this.#deps.effectiveModelPatterns(agent);
 				const resolved = this.#deps.resolvePatterns(patterns);
-				const base = agent.overrideModel ?? (patterns.length > 0 ? patterns.join(",") : "session model");
-				return `${agent.name} model: ${base}${resolved ? ` → ${resolved}` : ""}`;
+				const base =
+					agent.overrideModel ??
+					(patterns.length > 0 ? patterns.join(",") : tuiText("agentsHubSessionModel", "session model"));
+				return tuiTextFmt(
+					"agentsHubModelNoticeFmt",
+					"%s model: %s%s",
+					agent.name,
+					base,
+					resolved ? ` → ${resolved}` : "",
+				);
 			}
 			case "prewalk": {
 				const pattern = this.#deps.effectivePrewalkPattern(agent);
-				return `${agent.name} prewalk: ${pattern ? `on (${pattern})` : "off"}`;
+				return pattern
+					? tuiTextFmt("agentsHubPrewalkOnFmt", "%s prewalk: on (%s)", agent.name, pattern)
+					: tuiTextFmt("agentsHubPrewalkOffFmt", "%s prewalk: off", agent.name);
 			}
 			case "advisor": {
 				const pattern = this.#deps.effectiveAdvisorPattern(agent);
-				return `${agent.name} advisor: ${pattern ? `on (${pattern})` : "off"}`;
+				return pattern
+					? tuiTextFmt("agentsHubAdvisorOnFmt", "%s advisor: on (%s)", agent.name, pattern)
+					: tuiTextFmt("agentsHubAdvisorOffFmt", "%s advisor: off", agent.name);
 			}
 		}
 	}
@@ -410,35 +447,51 @@ export class AgentsHubComponent implements Component {
 	// Strips
 	// ═══════════════════════════════════════════════════════════════════════
 
+	#propertyLabel(property: PropertyKind): string {
+		switch (property) {
+			case "model":
+				return tuiText("agentsHubPropertyModel", "model");
+			case "prewalk":
+				return tuiText("agentsHubPropertyPrewalk", "prewalk");
+			case "advisor":
+				return tuiText("agentsHubPropertyAdvisor", "advisor");
+		}
+	}
+
 	#propertySummary(agent: HubAgent, property: PropertyKind): string {
 		switch (property) {
 			case "model":
-				return agent.overrideModel ?? "auto";
+				return agent.overrideModel ?? tuiText("agentsHubAuto", "auto");
 			case "prewalk": {
 				const pattern = this.#deps.effectivePrewalkPattern(agent);
-				return pattern ?? "off";
+				return pattern ?? tuiText("stateOff", "off");
 			}
 			case "advisor": {
 				const pattern = this.#deps.effectiveAdvisorPattern(agent);
-				return pattern ?? "off";
+				return pattern ?? tuiText("stateOff", "off");
 			}
 		}
 	}
 
 	/** Level-1 strip: pick which knob of `agent` to change. */
 	#openAgentStrip(agent: HubAgent): void {
+		const enabledLabel = tuiText(
+			agent.disabled ? "agentsHubChipEnable" : "agentsHubChipDisable",
+			agent.disabled ? "enable" : "disable",
+		);
 		const enabledChip: StripChip = {
-			label: agent.disabled ? "enable" : "disable",
+			label: enabledLabel,
 			styled: agent.disabled
-				? theme.fg("success", `${theme.status.enabled} enable`)
-				: theme.fg("dim", `${theme.status.disabled} disable`),
+				? theme.fg("success", `${theme.status.enabled} ${enabledLabel}`)
+				: theme.fg("dim", `${theme.status.disabled} ${enabledLabel}`),
 			action: { kind: "toggle" },
 		};
 		const propertyChip = (property: PropertyKind): StripChip => {
+			const label = this.#propertyLabel(property);
 			const summary = this.#propertySummary(agent, property);
 			return {
-				label: property,
-				styled: `${theme.fg("accent", property)}${theme.fg("dim", `: ${summary}`)}`,
+				label,
+				styled: `${theme.fg("accent", label)}${theme.fg("dim", `: ${summary}`)}`,
 				action: { kind: "property", property },
 			};
 		};
@@ -457,47 +510,55 @@ export class AgentsHubComponent implements Component {
 		const mark = (label: string, active: boolean, color: "accent" | "muted" = "muted"): string =>
 			active ? theme.fg("accent", `${theme.status.enabled} ${label}`) : theme.fg(color, label);
 		if (property === "model") {
+			const pickLabel = tuiText("agentsHubPickModel", "pick model…");
 			chips.push({
-				label: "pick model…",
-				styled: theme.fg("accent", "pick model…"),
+				label: pickLabel,
+				styled: theme.fg("accent", pickLabel),
 				action: { kind: "pick", property },
 			});
+			const patternLabel = tuiText("agentsHubPattern", "pattern…");
 			chips.push({
-				label: "pattern…",
-				styled: theme.fg("muted", "pattern…"),
+				label: patternLabel,
+				styled: theme.fg("muted", patternLabel),
 				action: { kind: "pattern", property },
 			});
 			if (agent.overrideModel) {
+				const clearLabel = tuiText("agentsHubClearOverride", "clear override");
 				chips.push({
-					label: "clear override",
-					styled: theme.fg("warning", "clear override"),
+					label: clearLabel,
+					styled: theme.fg("warning", clearLabel),
 					action: { kind: "set", property, value: undefined },
 				});
 			}
 		} else {
+			const defaultLabel = tuiText("adshAgentDefault", "agent default");
 			chips.push({
-				label: "agent default",
-				styled: mark("agent default", current === undefined),
+				label: defaultLabel,
+				styled: mark(defaultLabel, current === undefined),
 				action: { kind: "set", property, value: undefined },
 			});
+			const onLabel = tuiText("stateOn", "on");
 			chips.push({
-				label: "on",
-				styled: mark("on", current === "on"),
+				label: onLabel,
+				styled: mark(onLabel, current === "on"),
 				action: { kind: "set", property, value: "on" },
 			});
+			const offLabel = tuiText("stateOff", "off");
 			chips.push({
-				label: "off",
-				styled: mark("off", current === "off"),
+				label: offLabel,
+				styled: mark(offLabel, current === "off"),
 				action: { kind: "set", property, value: "off" },
 			});
+			const pickLabel = tuiText("agentsHubPickModel", "pick model…");
 			chips.push({
-				label: "pick model…",
-				styled: theme.fg("accent", "pick model…"),
+				label: pickLabel,
+				styled: theme.fg("accent", pickLabel),
 				action: { kind: "pick", property },
 			});
+			const patternLabel = tuiText("agentsHubPattern", "pattern…");
 			chips.push({
-				label: "pattern…",
-				styled: theme.fg("muted", "pattern…"),
+				label: patternLabel,
+				styled: theme.fg("muted", patternLabel),
 				action: { kind: "pattern", property },
 			});
 		}
@@ -617,7 +678,7 @@ export class AgentsHubComponent implements Component {
 		const description = rawDescription.trim();
 		this.#createDescription = description;
 		if (!description) {
-			this.#createError = "Description is required.";
+			this.#createError = tuiText("adshErrDescription", "Description is required.");
 			this.#tui.requestRender();
 			return;
 		}
@@ -651,7 +712,12 @@ export class AgentsHubComponent implements Component {
 		if (!spec) return;
 		const filePath = await this.#deps.saveAgent(this.#createScope, spec);
 		this.#clearCreateFlow();
-		this.#notice = `Created agent ${spec.identifier} at ${shortenPath(filePath)}`;
+		this.#notice = tuiTextFmt(
+			"agentsHubCreatedFmt",
+			"Created agent %s at %s",
+			spec.identifier,
+			shortenPath(filePath),
+		);
 		await this.#reload();
 	}
 
@@ -978,26 +1044,50 @@ export class AgentsHubComponent implements Component {
 		if (this.#loadError) return truncateToWidth(theme.fg("error", ` ${this.#loadError}`), width);
 		if (this.#assigning) {
 			const { agent, property } = this.#assigning;
-			const what = property === "model" ? "model override" : `${property} model`;
+			const what =
+				property === "model"
+					? tuiText("agentsHubModelOverride", "model override")
+					: tuiTextFmt("agentsHubPropertyModelFmt", "%s model", this.#propertyLabel(property));
 			return truncateToWidth(
-				theme.fg("accent", ` Picking ${what} for ${theme.bold(agent.name)} — Enter assigns, Esc cancels`),
+				theme.fg(
+					"accent",
+					tuiTextFmt(
+						"agentsHubPickingFmt",
+						" Picking %s for %s — Enter assigns, Esc cancels",
+						what,
+						theme.bold(agent.name),
+					),
+				),
 				width,
 			);
 		}
 		if (this.#createActive) {
-			return truncateToWidth(theme.fg("accent", " New agent — describe it and let the architect draft it"), width);
+			return truncateToWidth(
+				theme.fg(
+					"accent",
+					tuiText("agentsHubCreateStatus", " New agent — describe it and let the architect draft it"),
+				),
+				width,
+			);
 		}
 		if (this.#notice) return truncateToWidth(theme.fg("success", ` ${this.#notice}`), width);
 		const entry = this.#activeEntry();
-		const scopeLabel = entry.kind === "source" ? `${entry.label} agents` : "All agents";
+		const scopeLabel =
+			entry.kind === "source"
+				? tuiTextFmt("agentsHubSourceScopeFmt", "%s agents", entry.label)
+				: tuiText("agentsHubAllAgents", "All agents");
 		const count = this.#rows.filter(rowDef => rowDef.kind === "agent").length;
 		return truncateToWidth(theme.fg("muted", ` ${scopeLabel} · ${count}`), width);
 	}
 
 	#renderList(width: number, rows: number): string[] {
 		const lines: string[] = [];
-		const searchText = this.#searchQuery ? theme.fg("accent", this.#searchQuery) : theme.fg("dim", "type to filter");
-		lines.push(truncateToWidth(` ${theme.fg("muted", "search:")} ${searchText}`, width));
+		const searchText = this.#searchQuery
+			? theme.fg("accent", this.#searchQuery)
+			: theme.fg("dim", tuiText("adshTypeToFilter", "type to filter"));
+		lines.push(
+			truncateToWidth(` ${theme.fg("muted", tuiText("agentsHubSearchLabel", "search:"))} ${searchText}`, width),
+		);
 		lines.push("");
 		this.#listRowStart = lines.length;
 
@@ -1020,7 +1110,7 @@ export class AgentsHubComponent implements Component {
 			const hovered = i === this.#rowHover;
 			const cursor = selected && listFocused ? theme.fg("accent", theme.nav.cursor) : " ";
 			if (rowDef.kind === "new") {
-				let line = ` ${cursor} ${theme.fg(selected ? "accent" : "dim", "+ New agent…")}`;
+				let line = ` ${cursor} ${theme.fg(selected ? "accent" : "dim", tuiText("agentsHubNewAgentRow", "+ New agent…"))}`;
 				if (hovered) line = theme.bg("selectedBg", line);
 				lines.push(truncateToWidth(line, width));
 				continue;
@@ -1038,10 +1128,13 @@ export class AgentsHubComponent implements Component {
 			const badges: string[] = [];
 			if (agent.overrideModel) badges.push(theme.fg("warning", agent.overrideModel));
 			const prewalk = this.#deps.effectivePrewalkPattern(agent);
-			if (prewalk) badges.push(theme.fg("dim", `pre:${prewalk}`));
+			if (prewalk) badges.push(theme.fg("dim", tuiTextFmt("agentsHubPrewalkBadgeFmt", "pre:%s", prewalk)));
 			const advisor = this.#deps.effectiveAdvisorPattern(agent);
-			if (advisor) badges.push(theme.fg("dim", `adv:${advisor}`));
-			const sourceTag = theme.fg("dim", SOURCE_LABEL[agent.source].toLowerCase());
+			if (advisor) badges.push(theme.fg("dim", tuiTextFmt("agentsHubAdvisorBadgeFmt", "adv:%s", advisor)));
+			const sourceTag = theme.fg(
+				"dim",
+				tuiText(sourceLabelKey(agent.source), SOURCE_LABEL[agent.source]).toLowerCase(),
+			);
 			let line = ` ${cursor} ${dot} ${nameStyled}  ${sourceTag}`;
 			const right = badges.join("  ");
 			const rightWidth = visibleWidth(right);
@@ -1066,20 +1159,20 @@ export class AgentsHubComponent implements Component {
 			lines.push(truncateToWidth(` ${theme.fg("dim", replaceTabs(agent.description))}`, width));
 			const patterns = this.#deps.effectiveModelPatterns(agent);
 			const resolved = this.#deps.resolvePatterns(patterns);
-			const modelLine = `${theme.fg("muted", "model:")} ${patterns.length > 0 ? replaceTabs(patterns.join(",")) : theme.fg("dim", "(session model)")}${resolved ? ` ${theme.fg("dim", "→")} ${theme.fg("success", resolved)}` : ""}`;
+			const modelLine = `${theme.fg("muted", `${tuiText("agentsHubPropertyModel", "model")}:`)} ${patterns.length > 0 ? replaceTabs(patterns.join(",")) : theme.fg("dim", tuiText("adshSessionModel", "(session model)"))}${resolved ? ` ${theme.fg("dim", "→")} ${theme.fg("success", resolved)}` : ""}`;
 			lines.push(truncateToWidth(` ${modelLine}`, width));
 			const prewalk = this.#deps.effectivePrewalkPattern(agent);
 			const advisor = this.#deps.effectiveAdvisorPattern(agent);
 			const flagLine = [
-				`${theme.fg("muted", "prewalk:")} ${prewalk ? theme.fg("success", prewalk) : theme.fg("dim", "off")}`,
-				`${theme.fg("muted", "advisor:")} ${advisor ? theme.fg("success", advisor) : theme.fg("dim", "off")}`,
+				`${theme.fg("muted", `${tuiText("agentsHubPropertyPrewalk", "prewalk")}:`)} ${prewalk ? theme.fg("success", prewalk) : theme.fg("dim", tuiText("stateOff", "off"))}`,
+				`${theme.fg("muted", `${tuiText("agentsHubPropertyAdvisor", "advisor")}:`)} ${advisor ? theme.fg("success", advisor) : theme.fg("dim", tuiText("stateOff", "off"))}`,
 				agent.filePath ? theme.fg("dim", shortenPath(agent.filePath)) : "",
 			]
 				.filter(Boolean)
 				.join("   ");
 			lines.push(truncateToWidth(` ${flagLine}`, width));
 		} else {
-			lines.push(theme.fg("dim", " Select an agent to inspect"));
+			lines.push(theme.fg("dim", ` ${tuiText("agentsHubSelectToInspect", "Select an agent to inspect")}`));
 			lines.push("");
 			lines.push("");
 		}
@@ -1091,17 +1184,42 @@ export class AgentsHubComponent implements Component {
 		lines.push("");
 		if (this.#createSpec) {
 			const spec = this.#createSpec;
-			lines.push(truncateToWidth(theme.bold(theme.fg("accent", " Review generated agent")), width));
+			lines.push(
+				truncateToWidth(
+					theme.bold(theme.fg("accent", tuiText("agentsHubReviewTitle", " Review generated agent"))),
+					width,
+				),
+			);
 			lines.push("");
-			lines.push(truncateToWidth(theme.fg("muted", ` Identifier: ${spec.identifier}`), width));
-			lines.push(truncateToWidth(theme.fg("muted", ` Scope: ${this.#createScope}`), width));
+			lines.push(
+				truncateToWidth(
+					theme.fg("muted", tuiTextFmt("agentsHubIdentifierFmt", " Identifier: %s", spec.identifier)),
+					width,
+				),
+			);
+			lines.push(
+				truncateToWidth(
+					theme.fg(
+						"muted",
+						tuiTextFmt(
+							"agentsHubScopeFmt",
+							" Scope: %s",
+							tuiText(
+								this.#createScope === "user" ? "mcpScopeWordUser" : "mcpScopeWordProject",
+								this.#createScope,
+							),
+						),
+					),
+					width,
+				),
+			);
 			lines.push("");
-			lines.push(theme.fg("muted", " whenToUse:"));
+			lines.push(theme.fg("muted", ` ${tuiText("adshWhenToUse", "whenToUse:")}`));
 			for (const line of wrapTextWithAnsi(replaceTabs(spec.whenToUse), Math.max(20, width - 2)).slice(0, 6)) {
 				lines.push(truncateToWidth(` ${line}`, width));
 			}
 			lines.push("");
-			lines.push(theme.fg("muted", " systemPrompt preview:"));
+			lines.push(theme.fg("muted", ` ${tuiText("adshSystemPromptPreview", "systemPrompt preview:")}`));
 			const promptWidth = Math.max(20, width - 4);
 			const wrapped: string[] = [];
 			for (const raw of spec.systemPrompt.split("\n")) {
@@ -1112,14 +1230,34 @@ export class AgentsHubComponent implements Component {
 				lines.push(truncateToWidth(`   ${theme.fg("dim", line)}`, width));
 			}
 			if (wrapped.length > budget) {
-				lines.push(theme.fg("dim", `   … ${wrapped.length - budget} more lines`));
+				lines.push(
+					theme.fg(
+						"dim",
+						tuiTextFmt("agentsHubMoreLinesFmt", "   … %s more lines", String(wrapped.length - budget)),
+					),
+				);
 			}
 		} else {
-			lines.push(truncateToWidth(theme.bold(theme.fg("accent", " Create new agent")), width));
+			lines.push(
+				truncateToWidth(
+					theme.bold(theme.fg("accent", tuiText("agentsHubCreateTitle", " Create new agent"))),
+					width,
+				),
+			);
 			lines.push("");
 			lines.push(
 				truncateToWidth(
-					theme.fg("muted", " Describe what the agent should do; scope: ") + theme.fg("accent", this.#createScope),
+					tuiTextFmt(
+						"agentsHubCreatePromptFmt",
+						" Describe what the agent should do; scope: %s",
+						theme.fg(
+							"accent",
+							tuiText(
+								this.#createScope === "user" ? "mcpScopeWordUser" : "mcpScopeWordProject",
+								this.#createScope,
+							),
+						),
+					),
 					width,
 				),
 			);
@@ -1130,7 +1268,7 @@ export class AgentsHubComponent implements Component {
 				}
 			}
 			if (this.#createGenerating) {
-				lines.push(theme.fg("muted", " Generating…"));
+				lines.push(theme.fg("muted", ` ${tuiText("agentsHubGenerating", "Generating…")}`));
 				lines.push("");
 				const contentWidth = Math.max(20, width - 4);
 				const wrapped: string[] = [];
@@ -1155,23 +1293,36 @@ export class AgentsHubComponent implements Component {
 		if (this.#strip) {
 			if (this.#strip.kind === "pattern") {
 				const property = this.#strip.property;
-				const values = property === "model" ? "a model pattern" : '"on", "off", or a model pattern';
-				return `Enter ${values} (role aliases like @smol and :level suffixes work; empty clears) · Esc back`;
+				const values =
+					property === "model"
+						? tuiText("agentsHubPatternValueModel", "a model pattern")
+						: tuiText("agentsHubPatternValueStates", '"on", "off", or a model pattern');
+				return tuiTextFmt(
+					"agentsHubPatternHintFmt",
+					"Enter %s (role aliases like @smol and :level suffixes work; empty clears) · Esc back",
+					values,
+				);
 			}
-			return this.#strip.property ? "←/→ choose · Enter apply · Esc back" : "←/→ choose · Enter open · Esc cancel";
+			return this.#strip.property
+				? tuiText("agentsHubStripApplyHint", "←/→ choose · Enter apply · Esc back")
+				: tuiText("agentsHubStripOpenHint", "←/→ choose · Enter open · Esc cancel");
 		}
 		if (this.#assigning) {
-			return "Enter pick · ↑/↓ models · type to search · Esc cancel";
+			return tuiText("agentsHubAssignHint", "Enter pick · ↑/↓ models · type to search · Esc cancel");
 		}
 		if (this.#createActive) {
-			if (this.#createSpec) return "Enter save · Tab scope · r regenerate · Esc cancel";
-			if (this.#createGenerating) return "Generating…";
-			return "Ctrl+Q/Ctrl+Enter generate · Enter newline · Tab scope · Esc cancel";
+			if (this.#createSpec)
+				return tuiText("agentsHubReviewHint", "Enter save · Tab scope · r regenerate · Esc cancel");
+			if (this.#createGenerating) return tuiText("agentsHubGenerating", "Generating…");
+			return tuiText("agentsHubCreateHint", "Ctrl+Q/Ctrl+Enter generate · Enter newline · Tab scope · Esc cancel");
 		}
 		if (this.#focus === "scope") {
-			return "↑/↓ scopes · →/Enter agents · Esc close";
+			return tuiText("agentsHubScopeHint", "↑/↓ scopes · →/Enter agents · Esc close");
 		}
-		return "Enter configure · Space enable/disable · ↑/↓ rows · type to search · Ctrl+R reload · Esc close";
+		return tuiText(
+			"agentsHubListHint",
+			"Enter configure · Space enable/disable · ↑/↓ rows · type to search · Ctrl+R reload · Esc close",
+		);
 	}
 
 	#renderFooter(width: number): string {
@@ -1185,19 +1336,28 @@ export class AgentsHubComponent implements Component {
 
 	#renderStrip(width: number, strip: StripState): string {
 		if (strip.kind === "pattern") {
-			const label = theme.fg("accent", `${strip.agent.name} ${strip.property} pattern:`);
-			const labelWidth = visibleWidth(`${strip.agent.name} ${strip.property} pattern:`);
+			const plain = tuiTextFmt(
+				"agentsHubPatternLabelFmt",
+				"%s %s pattern:",
+				strip.agent.name,
+				this.#propertyLabel(strip.property),
+			);
+			const label = theme.fg("accent", plain);
+			const labelWidth = visibleWidth(plain);
 			const inputWidth = Math.max(8, Math.min(40, width - labelWidth - 4));
 			const inputLine = strip.input.render(inputWidth)[0] ?? "";
 			return truncateToWidth(`${label} ${inputLine}`, width);
 		}
 		const prefix = strip.property
-			? `${theme.fg("accent", strip.agent.name)}${theme.fg("dim", ` · ${strip.property} →`)} `
+			? `${theme.fg("accent", strip.agent.name)}${theme.fg("dim", ` · ${this.#propertyLabel(strip.property)} →`)} `
 			: `${theme.fg("accent", strip.agent.name)}${theme.fg("dim", " →")} `;
 		return this.#frame.renderChips(width, prefix, strip);
 	}
 
 	render(width: number): readonly string[] {
+		// Sidebar labels are entry snapshots; rebuild them per paint so a
+		// /language switch relabels the scope list without a data reload.
+		this.#buildSidebar();
 		return this.#frame.render(width, this.#terminalRows(), this.#entries, this.#renderFooter(width - 4));
 	}
 }

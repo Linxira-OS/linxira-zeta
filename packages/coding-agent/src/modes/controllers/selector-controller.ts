@@ -22,6 +22,7 @@ import { resolveAdvisorRoleSelection, resolveModelRoleValue } from "../../config
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
+import { M } from "../../i18n";
 import { createSettingsHost } from "../../config/settings-ui";
 import { createPluginSettingsHost } from "../../extensibility/plugins/settings-host";
 
@@ -135,8 +136,7 @@ import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector"
 import { UsageDashboardComponent } from "@linxiraos/pi-tui/overlays/usage-dashboard";
 import { renderUsageReports } from "./command-controller";
 import type { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
-
-const MANUAL_LOGIN_PROMPT = "Paste the authorization code (or full redirect URL), then press Enter:";
+const MANUAL_LOGIN_PROMPT = M.selectorManualLoginPrompt;
 
 interface ModelOverlayModules {
 	ModelHubComponent: typeof ModelHubComponentType;
@@ -650,22 +650,22 @@ export class SelectorController {
 				break;
 			case "personality":
 				void this.ctx.session.refreshBaseSystemPrompt().catch(err => {
-					this.ctx.showError(`Failed to apply personality: ${err}`);
+					this.ctx.showError(M.statusFailedToApplyPersonalityFmt.replace("%s", String(err)));
 				});
 				break;
 			case "tools.xdevDocs":
 				void this.ctx.session.refreshBaseSystemPrompt().catch(err => {
-					this.ctx.showError(`Failed to apply xd:// prompt docs setting: ${err}`);
+					this.ctx.showError(M.statusFailedToApplyPromptDocsFmt.replace("%s", String(err)));
 				});
 				break;
 			case "memory.backend":
 				void this.ctx.session.applyMemoryBackend().catch(err => {
-					this.ctx.showError(`Failed to apply memory backend: ${err}`);
+					this.ctx.showError(M.statusFailedToApplyMemoryBackendFmt.replace("%s", String(err)));
 				});
 				break;
 			case "externalThinking":
 				void this.ctx.session.setThinkToolEnabled(value as boolean).catch(err => {
-					this.ctx.showError(`Failed to apply external thinking: ${err}`);
+					this.ctx.showError(M.statusFailedToApplyExternalThinkingFmt.replace("%s", String(err)));
 				});
 				break;
 			case "compaction.idleEnabled":
@@ -801,7 +801,7 @@ export class SelectorController {
 			case "tui.renderMermaid":
 				setMarkdownMermaidRendering(value as boolean);
 				this.ctx.session.refreshBaseSystemPrompt().catch(err => {
-					this.ctx.showError(`Failed to apply Mermaid rendering setting: ${err}`);
+					this.ctx.showError(M.statusFailedToApplyMermaidFmt.replace("%s", String(err)));
 				});
 				this.ctx.rebuildChatFromMessages();
 				this.ctx.ui.resetDisplay();
@@ -813,7 +813,9 @@ export class SelectorController {
 					this.ctx.ui.requestRender();
 					this.ctx.ui.invalidate();
 					if (!result.success) {
-						this.ctx.showError(`Failed to load theme "${value}": ${result.error}\nFell back to dark theme.`);
+						this.ctx.showError(
+							M.statusFailedToLoadThemeFmt.replace("%s", String(value)).replace("%s", String(result.error)),
+						);
 					}
 				});
 				break;
@@ -972,7 +974,7 @@ export class SelectorController {
 			this.ctx.statusLine.invalidate();
 			this.ctx.updateEditorBorderColor();
 			const roleSelectorHint = this.ctx.keybindings.getKeys("app.model.select")[0] ?? "Alt+M";
-			this.ctx.showStatus(`Session-only model: ${selector}. Use ${roleSelectorHint} or /model for roles.`);
+			this.ctx.showStatus(M.statusSessionOnlyModelFmt.replace("%s", selector).replace("%s", roleSelectorHint));
 		};
 		if (!compactFirst) {
 			await apply();
@@ -1052,7 +1054,7 @@ export class SelectorController {
 						...this.ctx.settings.get("task.agentModelOverrides"),
 						task: selector,
 					});
-					this.ctx.showStatus(`Task subagent model (session-only): ${selector}. Use /agents to persist.`);
+					this.ctx.showStatus(M.statusTaskSubagentModelFmt.replace("%s", selector));
 					done();
 				},
 				onCancel: done,
@@ -1166,7 +1168,9 @@ export class SelectorController {
 								this.ctx.statusLine.invalidate();
 								this.ctx.updateEditorBorderColor();
 							}
-							this.ctx.showStatus(`${defaultStatusLabel} model: ${selector ?? model.id}`);
+							this.ctx.showStatus(
+								M.statusRoleModelFmt.replace("%s", defaultStatusLabel).replace("%s", selector ?? model.id),
+							);
 						} else {
 							// Other roles (smol, slow, custom): update settings, not the current model.
 							const modelRoleValue = formatModelSelectorValue(selectorValue, thinkingLevel);
@@ -1350,13 +1354,13 @@ export class SelectorController {
 					onSelect: async (name, marketplace, scope) => {
 						done();
 						const pluginId = `${name}@${marketplace}`;
-						this.ctx.showStatus(`Uninstalling ${pluginId}...`);
+						this.ctx.showStatus(M.statusUninstallingFmt.replace("%s", pluginId));
 						this.ctx.ui.requestRender();
 						try {
 							await mgr.uninstallPlugin(pluginId, scope);
-							this.ctx.showStatus(`Uninstalled ${pluginId}`);
+							this.ctx.showStatus(M.statusUninstalledFmt.replace("%s", pluginId));
 						} catch (err) {
-							this.ctx.showStatus(`Uninstall failed: ${err}`);
+							this.ctx.showStatus(M.statusUninstallFailedFmt.replace("%s", String(err)));
 						}
 						this.ctx.ui.requestRender();
 					},
@@ -1386,14 +1390,14 @@ export class SelectorController {
 			const selector = new PluginSelectorComponent(marketplaces.length, allPlugins, installedIds, {
 				onSelect: async (name, marketplace) => {
 					done();
-					this.ctx.showStatus(`Installing ${name} from ${marketplace}...`);
+					this.ctx.showStatus(M.statusInstallingFromFmt.replace("%s", name).replace("%s", marketplace));
 					this.ctx.ui.requestRender();
 					try {
 						const force = installedIds.has(`${name}@${marketplace}`);
 						await mgr.installPlugin(name, marketplace, { force });
-						this.ctx.showStatus(`Installed ${name} from ${marketplace}`);
+						this.ctx.showStatus(M.statusInstalledFromFmt.replace("%s", name).replace("%s", marketplace));
 					} catch (err) {
-						this.ctx.showStatus(`Install failed: ${err}`);
+						this.ctx.showStatus(M.statusInstallFailedFmt.replace("%s", String(err)));
 					}
 					this.ctx.ui.requestRender();
 				},
@@ -1409,7 +1413,7 @@ export class SelectorController {
 	showUserMessageSelector(): void {
 		const entries = this.ctx.sessionManager.getBranch().filter(isTranscriptEntry);
 		if (entries.length === 0) {
-			this.ctx.showStatus("No messages to branch from");
+			this.ctx.showStatus(M.statusNoMessagesToBranchFrom);
 			return;
 		}
 
@@ -1435,7 +1439,7 @@ export class SelectorController {
 		});
 		if (selector.targetCount === 0) {
 			selector.dispose();
-			this.ctx.showStatus("No messages to branch from");
+			this.ctx.showStatus(M.statusNoMessagesToBranchFrom);
 			return;
 		}
 		// Fullscreen alternate-screen overlay: the transcript replica draws over
@@ -1507,7 +1511,7 @@ export class SelectorController {
 		const realLeafId = this.ctx.sessionManager.getLeafId();
 		if (entryId === realLeafId && !isUserTarget) {
 			done();
-			this.ctx.showStatus("Already at this point");
+			this.ctx.showStatus(M.statusAlreadyAtThisPoint);
 			return;
 		}
 		const treeRewind = this.#treeRewindBoundary(entryId, realLeafId);
@@ -1515,7 +1519,7 @@ export class SelectorController {
 			const result = await this.ctx.session.navigateTree(entryId, { summarize: false });
 			if (result.cancelled) {
 				done();
-				this.ctx.showStatus("Navigation cancelled");
+				this.ctx.showStatus(M.statusNavigationCancelled);
 				return;
 			}
 			const fastRewind =
@@ -1530,7 +1534,7 @@ export class SelectorController {
 				this.ctx.editor.setDraft(result.editorText, result.editorImages);
 			}
 			done();
-			this.ctx.showStatus("Rewound to selected point");
+			this.ctx.showStatus(M.statusRewoundToSelectedPoint);
 		} catch (error) {
 			done();
 			this.ctx.showError(error instanceof Error ? error.message : String(error));
@@ -1540,7 +1544,7 @@ export class SelectorController {
 	showCopySelector(): void {
 		const entries = this.ctx.sessionManager.getBranch().filter(isTranscriptEntry);
 		if (entries.length === 0) {
-			this.ctx.showStatus("Nothing to copy yet.");
+			this.ctx.showStatus(M.statusNothingToCopyYet);
 			return;
 		}
 
@@ -1563,22 +1567,22 @@ export class SelectorController {
 			onPick: (content, label) => {
 				done();
 				if (!content.trim()) {
-					this.ctx.showStatus("Nothing to copy in that item");
+					this.ctx.showStatus(M.statusNothingToCopyInThatItem);
 					return;
 				}
 				void copyToClipboard(content);
-				this.ctx.showStatus(`Copied ${label} to clipboard`);
+				this.ctx.showStatus(M.statusCopiedLabelToClipboardFmt.replace("%s", label));
 			},
 			onOpen: (href, label) => {
 				done();
 				openPath(href);
-				this.ctx.showStatus(`Opening ${label}: ${href}`);
+				this.ctx.showStatus(M.statusOpeningFmt.replace("%s", label).replace("%s", href));
 			},
 			onCancel: done,
 		});
 		if (selector.targetCount === 0) {
 			selector.dispose();
-			this.ctx.showStatus("Nothing to copy yet.");
+			this.ctx.showStatus(M.statusNothingToCopyYet);
 			return;
 		}
 		const overlayHandle = this.ctx.ui.showOverlay(selector, {
@@ -1597,7 +1601,7 @@ export class SelectorController {
 		const realLeafId = this.ctx.sessionManager.getLeafId();
 
 		if (tree.length === 0) {
-			this.ctx.showStatus("No entries in session");
+			this.ctx.showStatus(M.statusNoEntriesInSession);
 			return;
 		}
 
@@ -1619,7 +1623,7 @@ export class SelectorController {
 							currentEntry.message.toolName === "ask";
 						if (!currentIsAskResult) {
 							done();
-							this.ctx.showStatus("Already at this point");
+							this.ctx.showStatus(M.statusAlreadyAtThisPoint);
 							return;
 						}
 					}
@@ -1642,10 +1646,10 @@ export class SelectorController {
 					const branchSummariesEnabled = settings.get("branchSummary.enabled");
 
 					while (!wantsSummary && branchSummariesEnabled) {
-						const summaryChoice = await this.ctx.showHookSelector("Summarize branch?", [
-							"No summary",
-							"Summarize",
-							"Summarize with custom prompt",
+						const summaryChoice = await this.ctx.showHookSelector(M.statusSummarizeBranchTitle, [
+							M.statusChoiceNoSummary,
+							M.statusChoiceSummarize,
+							M.statusChoiceSummarizeCustomPrompt,
 						]);
 
 						if (summaryChoice === undefined) {
@@ -1654,10 +1658,10 @@ export class SelectorController {
 							return;
 						}
 
-						wantsSummary = summaryChoice !== "No summary";
+						wantsSummary = summaryChoice !== M.statusChoiceNoSummary;
 
-						if (summaryChoice === "Summarize with custom prompt") {
-							customInstructions = await this.ctx.showHookEditor("Custom summarization instructions");
+						if (summaryChoice === M.statusChoiceSummarizeCustomPrompt) {
+							customInstructions = await this.ctx.showHookEditor(M.statusCustomSummarizationInstructions);
 							if (customInstructions === undefined) {
 								// User cancelled - loop back to summary selector
 								continue;
@@ -1681,7 +1685,7 @@ export class SelectorController {
 							this.ctx.ui,
 							spinner => theme.fg("accent", spinner),
 							text => theme.fg("muted", text),
-							"Summarizing branch... (esc to cancel)",
+							M.statusSummarizingBranch,
 							getSymbolTheme().spinnerFrames,
 						);
 						this.ctx.statusContainer.addChild(summaryLoader);
@@ -1701,7 +1705,7 @@ export class SelectorController {
 						if (result.reopenAsk) {
 							const reanswer = await this.#reanswerAsk(result.reopenAsk.questions);
 							if (!reanswer) {
-								this.ctx.showStatus("Re-answer cancelled");
+								this.ctx.showStatus(M.statusReAnswerCancelled);
 								return;
 							}
 							result = await this.ctx.session.navigateTree(entryId, {
@@ -1714,12 +1718,12 @@ export class SelectorController {
 
 						if (result.aborted) {
 							// Summarization aborted - re-show tree selector
-							this.ctx.showStatus("Branch summarization cancelled");
+							this.ctx.showStatus(M.statusBranchSummarizationCancelled);
 							this.showTreeSelector();
 							return;
 						}
 						if (result.cancelled) {
-							this.ctx.showStatus("Navigation cancelled");
+							this.ctx.showStatus(M.statusNavigationCancelled);
 							return;
 						}
 
@@ -1739,7 +1743,7 @@ export class SelectorController {
 						if (result.editorText && !this.ctx.editor.getText().trim()) {
 							this.ctx.editor.setDraft(result.editorText, result.editorImages);
 						}
-						this.ctx.showStatus("Navigated to selected point");
+						this.ctx.showStatus(M.statusNavigatedToSelectedPoint);
 
 						// Re-answering a past `ask` commits a new sibling answer but,
 						// unlike a live `ask`, leaves the agent idle. Resume it now —
@@ -1824,7 +1828,7 @@ export class SelectorController {
 	async #reanswerAsk(questions: AskToolInput["questions"]): Promise<AgentToolResult<AskToolDetails> | undefined> {
 		const uiContext = this.ctx.getToolUIContext();
 		if (!uiContext) {
-			this.ctx.showError("Ask tool UI is not ready");
+			this.ctx.showError(M.statusAskToolUIIsNotReady);
 			return undefined;
 		}
 		const toolSession: ToolSession = {
@@ -1877,7 +1881,7 @@ export class SelectorController {
 				return;
 			}
 			if (foreignSessions.length === 0) {
-				this.ctx.showWarning(`No ${sourceName} sessions found`);
+				this.ctx.showWarning(M.statusNoSessionsFoundFmt.replace("%s", sourceName));
 				return;
 			}
 			const foreignByPath = new Map(foreignSessions.map(session => [session.path, session]));
@@ -2036,7 +2040,9 @@ export class SelectorController {
 			try {
 				await this.ctx.settings.flush();
 			} catch (err) {
-				this.ctx.showError(`Failed to save pending settings: ${err instanceof Error ? err.message : String(err)}`);
+				this.ctx.showError(
+					M.ccFailedToSaveSettingsFmt.replace("%s", err instanceof Error ? err.message : String(err)),
+				);
 				return false;
 			}
 		}
@@ -2070,7 +2076,7 @@ export class SelectorController {
 	async handleSessionDeleteCommand(): Promise<void> {
 		const sessionFile = this.ctx.sessionManager.getSessionFile();
 		if (!sessionFile) {
-			this.ctx.showError("No session file to delete (in-memory session)");
+			this.ctx.showError(M.statusNoSessionFileToDeleteInMemorySession);
 			return;
 		}
 
@@ -2078,7 +2084,7 @@ export class SelectorController {
 		const storage = new FileSessionStorage();
 		const fileExists = await storage.exists(sessionFile);
 		if (!fileExists) {
-			this.ctx.showError("Session has not been saved yet");
+			this.ctx.showError(M.statusSessionHasNotBeenSavedYet);
 			return;
 		}
 
@@ -2088,12 +2094,12 @@ export class SelectorController {
 		);
 
 		if (!confirmed) {
-			this.ctx.showStatus("Delete cancelled");
+			this.ctx.showStatus(M.statusDeleteCancelled);
 			return;
 		}
 
 		if (!(await this.#detachActiveSessionBeforeDeletion(sessionFile))) {
-			this.ctx.showStatus("Delete cancelled");
+			this.ctx.showStatus(M.statusDeleteCancelled);
 			return;
 		}
 
@@ -2101,7 +2107,7 @@ export class SelectorController {
 		await storage.deleteSessionWithArtifacts(sessionFile);
 
 		// Show session selector
-		this.ctx.showStatus("Session deleted");
+		this.ctx.showStatus(M.statusSessionDeleted);
 		await this.showSessionSelector();
 	}
 
@@ -2113,7 +2119,7 @@ export class SelectorController {
 	 * credentials were stored.
 	 */
 	async #handleOAuthLogin(providerId: string): Promise<boolean> {
-		this.ctx.showStatus(`Logging in to ${providerId}…`);
+		this.ctx.showStatus(M.statusLoggingInToFmt.replace("%s", providerId));
 		const { LoginDialogComponent, PASTE_CODE_LOGIN_PROVIDERS } = loadProviderAuthUi();
 		const useManualInput = PASTE_CODE_LOGIN_PROVIDERS.has(providerId);
 		let restored = false;
@@ -2194,7 +2200,9 @@ export class SelectorController {
 				// surfaced "Login cancelled".
 				return false;
 			}
-			this.ctx.showError(`Login failed: ${error instanceof Error ? error.message : String(error)}`);
+			this.ctx.showError(
+				M.setupSignInFailedFmt.replace("%s", error instanceof Error ? error.message : String(error)),
+			);
 			return false;
 		} finally {
 			restoreEditor();
@@ -2206,7 +2214,9 @@ export class SelectorController {
 			const authStorage = this.ctx.session.modelRegistry.authStorage;
 			const removed = await authStorage.removeCredential(providerId, account.credentialId);
 			if (!removed) {
-				this.ctx.showError(`Logout skipped: ${account.label} is no longer stored for ${providerId}.`);
+				this.ctx.showError(
+					M.statusLogoutSkippedNoLongerStoredFmt.replace("%s", account.label).replace("%s", providerId),
+				);
 				return;
 			}
 
@@ -2221,22 +2231,31 @@ export class SelectorController {
 				new Text(
 					theme.fg(
 						"success",
-						`${theme.status.success} Successfully logged out ${account.label} from ${providerId}`,
+						`${theme.status.success} ${M.statusLoggedOutFmt.replace("%s", account.label).replace("%s", providerId)}`,
 					),
 					1,
 					0,
 				),
 			);
-			block.addChild(new Text(theme.fg("dim", `Credential removed from ${getAgentDbPath()}`), 1, 0));
+			block.addChild(new Text(theme.fg("dim", M.statusCredentialRemovedFmt.replace("%s", getAgentDbPath())), 1, 0));
 			const remainingSource = authStorage.describeCredentialSource(providerId, this.ctx.session.sessionId);
 			if (remainingSource) {
 				block.addChild(
-					new Text(theme.fg("warning", `${providerId} is still authenticated via ${remainingSource}`), 1, 0),
+					new Text(
+						theme.fg(
+							"warning",
+							M.statusStillAuthenticatedFmt.replace("%s", providerId).replace("%s", remainingSource),
+						),
+						1,
+						0,
+					),
 				);
 			}
 			this.ctx.present(block);
 		} catch (error: unknown) {
-			this.ctx.showError(`Logout failed: ${error instanceof Error ? error.message : String(error)}`);
+			this.ctx.showError(
+				M.statusLogoutFailedFmt.replace("%s", error instanceof Error ? error.message : String(error)),
+			);
 		}
 	}
 
@@ -2258,8 +2277,8 @@ export class SelectorController {
 		});
 		if (accounts.length === 0) {
 			const source = authStorage.describeCredentialSource(providerId, this.ctx.session.sessionId);
-			const suffix = source ? ` Current auth comes from ${source}; remove that source to log out.` : "";
-			this.ctx.showError(`Logout skipped: no stored credentials for ${providerId}.${suffix}`);
+			const suffix = source ? ` ${M.statusAuthSourceLogoutHintFmt.replace("%s", source)}` : "";
+			this.ctx.showError(M.statusLogoutSkippedNoCredentialsFmt.replace("%s", providerId).replace("%s", suffix));
 			return;
 		}
 
@@ -2298,7 +2317,7 @@ export class SelectorController {
 				this.ctx.session.modelRegistry.authStorage.has(provider.id),
 			);
 			if (loggedInProviders.length === 0) {
-				this.ctx.showStatus("No stored provider credentials to log out. Remove env or config auth at its source.");
+				this.ctx.showStatus(M.statusNoStoredProviderCredentialsToLogOutRemoveEnvOrConfigAuthAtItsSource);
 				return;
 			}
 		}
@@ -2342,10 +2361,10 @@ export class SelectorController {
 	async showSessionPinSelector(): Promise<void> {
 		const session = this.ctx.session;
 		if (session.isStreaming) {
-			this.ctx.showStatus("Cannot pin an account while the session is streaming.");
+			this.ctx.showStatus(M.statusCannotPinAnAccountWhileTheSessionIsStreaming);
 			return;
 		}
-		this.ctx.showStatus("Loading provider accounts…", { dim: true });
+		this.ctx.showStatus(M.statusLoadingProviderAccounts, { dim: true });
 		let accountList: SessionOAuthAccountList | undefined;
 		try {
 			accountList = await session.listCurrentProviderOAuthAccounts();
@@ -2356,7 +2375,7 @@ export class SelectorController {
 			return;
 		}
 		if (!accountList) {
-			this.ctx.showStatus("Select a model before pinning a provider account.");
+			this.ctx.showStatus(M.statusSelectAModelBeforePinningAProviderAccount);
 			return;
 		}
 		const { getOAuthProviders } = loadProviderAuthUi();
@@ -2370,8 +2389,8 @@ export class SelectorController {
 			);
 			this.ctx.showStatus(
 				source
-					? `No stored OAuth accounts for ${providerName}. Current auth comes from ${source}.`
-					: `No stored OAuth accounts for ${providerName}. Use /login to add one.`,
+					? M.statusNoStoredOAuthAccountsSourceFmt.replace("%s", providerName).replace("%s", source)
+					: M.statusNoStoredOAuthAccountsFmt.replace("%s", providerName),
 			);
 			return;
 		}
@@ -2383,10 +2402,10 @@ export class SelectorController {
 				account => {
 					done();
 					if (!session.pinCurrentProviderOAuthAccount(account.credentialId)) {
-						this.ctx.showWarning(`${account.label} is no longer available to pin.`);
+						this.ctx.showWarning(M.statusNoLongerAvailableToPinFmt.replace("%s", account.label));
 						return;
 					}
-					this.ctx.showStatus(`Pinned ${account.label} to this session for ${providerName}.`);
+					this.ctx.showStatus(M.statusPinnedFmt.replace("%s", account.label).replace("%s", providerName));
 					this.ctx.statusLine.invalidate();
 					this.ctx.ui.requestRender();
 				},
@@ -2401,24 +2420,24 @@ export class SelectorController {
 
 	async showResetUsageSelector(): Promise<void> {
 		const session = this.ctx.session;
-		this.ctx.showStatus("Checking saved rate-limit resets…", { dim: true });
+		this.ctx.showStatus(M.statusCheckingSavedRateLimitResets, { dim: true });
 		let statuses: ResetCreditAccountStatus[];
 		try {
 			statuses = await session.listResetCredits();
 		} catch (error) {
-			this.ctx.showError(`Could not load saved resets: ${error instanceof Error ? error.message : String(error)}`);
+			this.ctx.showError(
+				M.statusCouldNotLoadSavedResetsFmt.replace("%s", error instanceof Error ? error.message : String(error)),
+			);
 			return;
 		}
 		const accounts = toResetUsageAccounts(statuses);
 		if (accounts.length === 0) {
-			this.ctx.showStatus("No Codex accounts found. Use /login to add one.");
+			this.ctx.showStatus(M.statusNoCodexAccountsFoundUseLoginToAddOne);
 			return;
 		}
 		if (!accounts.some(account => account.availableCount > 0)) {
 			this.ctx.showStatus(
-				accounts.some(account => account.error)
-					? "No saved resets available — some accounts couldn't be reached (try /login)."
-					: "No saved rate-limit resets available to spend right now.",
+				accounts.some(account => account.error) ? M.statusNoSavedResetsUnreachable : M.statusNoSavedResetsAvailable,
 			);
 			return;
 		}
@@ -2439,13 +2458,15 @@ export class SelectorController {
 	}
 
 	async #redeemReset(account: ResetUsageAccount): Promise<void> {
-		this.ctx.showStatus(`Spending 1 saved reset for ${account.label}…`, { dim: true });
+		this.ctx.showStatus(M.statusSpendingSavedResetFmt.replace("%s", account.label), { dim: true });
 		let outcome: ResetCreditRedeemOutcome;
 		try {
 			outcome = await this.ctx.session.redeemResetCredit(account.target);
 		} catch (error) {
 			this.ctx.showError(
-				`Reset failed for ${account.label}: ${error instanceof Error ? error.message : String(error)}`,
+				M.statusResetFailedFmt
+					.replace("%s", account.label)
+					.replace("%s", error instanceof Error ? error.message : String(error)),
 			);
 			return;
 		}

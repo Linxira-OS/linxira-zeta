@@ -1,4 +1,5 @@
 import { getKeybindings } from "../keybindings";
+import { tuiText } from "../i18n";
 import { matchesKey } from "../keys";
 import type { MouseRoutable, SgrMouseEvent } from "../mouse";
 import { Container, type Component, type Focusable } from "../tui";
@@ -302,7 +303,7 @@ export class TextFormField extends FormField {
 				return;
 			}
 			if (empty === "reject") {
-				this.setError(this.#options.emptyError ?? "A value is required.");
+				this.setError(this.#options.emptyError ?? tuiText("formValueRequired", "A value is required."));
 				return;
 			}
 		}
@@ -368,7 +369,7 @@ export class SelectFormField extends FormField {
 		const previewText = options.getPreview ? new StyledText(options.getPreview(), text => text) : undefined;
 		super(selectList, {
 			...options,
-			previewLabel: previewText ? (options.previewLabel ?? "Preview:") : undefined,
+			previewLabel: previewText ? (options.previewLabel ?? tuiText("setPreviewLabel", "Preview:")) : undefined,
 			preview: previewText,
 		});
 		this.selectList = selectList;

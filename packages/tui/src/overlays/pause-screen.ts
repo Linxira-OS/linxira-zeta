@@ -16,6 +16,7 @@ import { type Component, matchesKey, type OverlayFocusOwner, type OverlayHandle,
 import { formatCoarseDuration } from "../chrome/format";
 import { centerLine } from "../utils";
 import { theme } from "../theme/theme";
+import { tuiText, tuiTextFmt } from "../i18n";
 import { matchesAppInterrupt } from "../keybinding-matchers";
 
 /**
@@ -75,10 +76,15 @@ export function renderPauseScreen(width: number, height: number, elapsedMs: numb
 			content.push(centerLine(theme.bold(sessionName), width).trimEnd());
 			content.push("");
 		}
-		content.push(centerLine(theme.bold(theme.fg("accent", `▌▌ ${TITLE}`)), width).trimEnd());
+		content.push(centerLine(theme.bold(theme.fg("accent", `▌▌ ${tuiText("pauseTitle", TITLE)}`)), width).trimEnd());
 		content.push("");
-		content.push(centerLine(theme.fg("dim", `paused for ${formatClock(elapsedMs)}`), width).trimEnd());
-		content.push(centerLine(theme.fg("dim", "esc to resume"), width).trimEnd());
+		content.push(
+			centerLine(
+				theme.fg("dim", tuiTextFmt("pauseElapsedFmt", "paused for %s", formatClock(elapsedMs))),
+				width,
+			).trimEnd(),
+		);
+		content.push(centerLine(theme.fg("dim", tuiText("pauseEscToResume", "esc to resume")), width).trimEnd());
 	} else {
 		if (sessionName) {
 			content.push(centerLine(theme.bold(sessionName), width).trimEnd());
@@ -91,15 +97,19 @@ export function renderPauseScreen(width: number, height: number, elapsedMs: numb
 			content.push(centerLine(theme.fg("accent", glyphRow), width).trimEnd());
 		}
 		content.push("");
-		content.push(centerLine(theme.bold(theme.fg("accent", TITLE)), width).trimEnd());
+		content.push(centerLine(theme.bold(theme.fg("accent", tuiText("pauseTitle", TITLE))), width).trimEnd());
 		content.push("");
-		for (const line of BODY_LINES) {
-			content.push(centerLine(theme.fg("muted", line), width).trimEnd());
-		}
+		content.push(centerLine(theme.fg("muted", tuiText("pauseBodyLine1", BODY_LINES[0])), width).trimEnd());
+		content.push(centerLine(theme.fg("muted", tuiText("pauseBodyLine2", BODY_LINES[1])), width).trimEnd());
 		content.push("");
-		content.push(centerLine(theme.fg("dim", `paused for ${formatClock(elapsedMs)}`), width).trimEnd());
+		content.push(
+			centerLine(
+				theme.fg("dim", tuiTextFmt("pauseElapsedFmt", "paused for %s", formatClock(elapsedMs))),
+				width,
+			).trimEnd(),
+		);
 		content.push("");
-		content.push(centerLine(theme.fg("dim", RESUME_HINT), width).trimEnd());
+		content.push(centerLine(theme.fg("dim", tuiText("pauseResumeHint", RESUME_HINT)), width).trimEnd());
 	}
 
 	const topPad = Math.max(0, Math.floor((height - content.length) / 2));

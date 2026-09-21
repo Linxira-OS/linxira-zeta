@@ -15,6 +15,7 @@ import {
 import { classifyGroupedLines, groupLineIndicesByBlank } from "./grouped-file-output";
 import type { OutputMeta } from "./output-meta";
 import type { RenderResultOptions, ToolRenderer } from "./renderer";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 /** Display metadata returned by ast-grep. */
 export interface AstGrepToolDetails {
@@ -56,7 +57,8 @@ export const astGrepToolRenderer = {
 	renderCall(args: AstGrepRenderArgs, _options: RenderResultOptions, uiTheme: Theme): Component {
 		const meta: string[] = [];
 		const scopePaths = toPathList(args.path ?? args.paths);
-		if (scopePaths.length) meta.push(`in ${scopePaths.join(", ")}`);
+		if (scopePaths.length)
+			meta.push(tuiTextFmt("gpInLabelFmt", `in ${scopePaths.join(", ")}`, scopePaths.join(", ")));
 		if (args.skip !== undefined && args.skip > 0) meta.push(`skip:${args.skip}`);
 
 		const description = args.pat ?? "?";
@@ -73,7 +75,8 @@ export const astGrepToolRenderer = {
 		const details = result.details;
 
 		if (result.isError) {
-			const errorText = result.content?.find(c => c.type === "text")?.text || "Unknown error";
+			const errorText =
+				result.content?.find(c => c.type === "text")?.text || tuiText("glUnknownError", "Unknown error");
 			return new Text(formatErrorMessage(errorText, uiTheme), 0, 0);
 		}
 
@@ -84,23 +87,33 @@ export const astGrepToolRenderer = {
 
 		if (matchCount === 0) {
 			const description = args?.pat;
-			const meta = ["0 matches"];
-			if (details?.scopePath) meta.push(`in ${details.scopePath}`);
-			if (filesSearched > 0) meta.push(`searched ${filesSearched}`);
+			const meta = [tuiText("agrpZeroMatches", "0 matches")];
+			if (details?.scopePath) meta.push(tuiTextFmt("gpInLabelFmt", `in ${details.scopePath}`, details.scopePath));
+			if (filesSearched > 0) meta.push(tuiTextFmt("agrpSearchedFmt", `searched ${filesSearched}`, filesSearched));
 			const header = renderStatusLine({ icon: "warning", title: "AST Grep", description, meta }, uiTheme);
-			const lines = [header, formatEmptyMessage("No matches found", uiTheme)];
+			const lines = [header, formatEmptyMessage(tuiText("agrpNoMatches", "No matches found"), uiTheme)];
 			if (details?.parseErrors?.length) {
-				lines.push(uiTheme.fg("warning", "Query may be mis-scoped; narrow `path` before concluding absence"));
+				lines.push(
+					uiTheme.fg(
+						"warning",
+						tuiText("agrpMisScoped", "Query may be mis-scoped; narrow `path` before concluding absence"),
+					),
+				);
 				appendParseErrorsBulletList(lines, details.parseErrors, uiTheme, details.parseErrorsTotal);
 			}
 			return new Text(lines.join("\n"), 0, 0);
 		}
 
-		const summaryParts = [formatCount("match", matchCount), formatCount("file", fileCount)];
-		const meta = [...summaryParts];
-		if (details?.scopePath) meta.push(`in ${details.scopePath}`);
-		meta.push(`searched ${filesSearched}`);
-		if (limitReached) meta.push(uiTheme.fg("warning", "limit reached"));
+		const matchMeta =
+			matchCount === 1
+				? tuiText("agrpMatchOne", "1 match")
+				: tuiTextFmt("agrpMatchManyFmt", "%d matches", matchCount);
+		const fileMeta =
+			fileCount === 1 ? tuiText("agrpFileOne", "1 file") : tuiTextFmt("agrpFileManyFmt", "%d files", fileCount);
+		const meta = [matchMeta, fileMeta];
+		if (details?.scopePath) meta.push(tuiTextFmt("gpInLabelFmt", `in ${details.scopePath}`, details.scopePath));
+		meta.push(tuiTextFmt("agrpSearchedFmt", `searched ${filesSearched}`, filesSearched));
+		if (limitReached) meta.push(uiTheme.fg("warning", tuiText("tLimitReached", "limit reached")));
 		const description = args?.pat;
 		const header = renderStatusLine(
 			{
@@ -141,7 +154,9 @@ export const astGrepToolRenderer = {
 
 		const extraLines: string[] = [];
 		if (limitReached) {
-			extraLines.push(uiTheme.fg("warning", "limit reached; narrow path or increase limit"));
+			extraLines.push(
+				uiTheme.fg("warning", tuiText("agrpLimitNarrowPath", "limit reached; narrow path or increase limit")),
+			);
 		}
 		if (details?.parseErrors?.length) {
 			extraLines.push(

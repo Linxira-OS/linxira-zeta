@@ -45,6 +45,7 @@ import {
 } from "./diff-pane";
 import { Sidebar, type SidebarAction, type GitCommitMessage } from "./sidebar";
 import type { ChangedFile, FileContents, GitTuiModel } from "./state";
+import { tuiText, tuiTextFmt } from "../../i18n";
 
 /** AI staging counts displayed after filtering the working tree. */
 export interface AiStageOutcome {
@@ -268,7 +269,10 @@ class GitTuiComponent implements Component {
 		this.#pane.patchTarget = this.#patchTargetFor(file);
 		const seq = ++this.#loadSeq;
 		if (!file) {
-			this.#pane.emptyMessage = this.#model.clean && !this.#model.headCommit ? "No commits yet" : "No changes";
+			this.#pane.emptyMessage =
+				this.#model.clean && !this.#model.headCommit
+					? tuiText("gitNoCommitsYet", "No commits yet")
+					: tuiText("gitNoChanges", "No changes");
 			this.#pane.setDocument(null, "empty");
 			this.#ui.requestRender();
 			return;
@@ -340,7 +344,14 @@ class GitTuiComponent implements Component {
 			if (this.#pendingDiscard !== key) {
 				this.#pendingDiscard = key;
 				this.#setStatus(
-					theme.fg("warning", `Discard changes to ${action.selection.label}? Press delete again to confirm`),
+					theme.fg(
+						"warning",
+						tuiTextFmt(
+							"gitDiscardFileConfirmFmt",
+							`Discard changes to ${action.selection.label}? Press delete again to confirm`,
+							action.selection.label,
+						),
+					),
 				);
 				return;
 			}
@@ -352,24 +363,44 @@ class GitTuiComponent implements Component {
 			switch (action.type) {
 				case "discard":
 					await this.#model.discard(action.selection.files);
-					this.#setStatus(theme.fg("success", `Discarded ${action.selection.label}`));
+					this.#setStatus(
+						theme.fg(
+							"success",
+							tuiTextFmt("gitDiscardedFmt", `Discarded ${action.selection.label}`, action.selection.label),
+						),
+					);
 					break;
 				case "stage":
 					await this.#model.stage(action.selection?.files);
 					this.#setStatus(
-						theme.fg("success", action.selection ? `Staged ${action.selection.label}` : "Staged all changes"),
+						theme.fg(
+							"success",
+							action.selection
+								? tuiTextFmt("gitStagedFmt", `Staged ${action.selection.label}`, action.selection.label)
+								: tuiText("gitStagedAll", "Staged all changes"),
+						),
 					);
 					break;
 				case "unstage":
 					await this.#model.unstage(action.selection?.files);
 					this.#setStatus(
-						theme.fg("success", action.selection ? `Unstaged ${action.selection.label}` : "Unstaged all changes"),
+						theme.fg(
+							"success",
+							action.selection
+								? tuiTextFmt("gitUnstagedFmt", `Unstaged ${action.selection.label}`, action.selection.label)
+								: tuiText("gitUnstagedAll", "Unstaged all changes"),
+						),
 					);
 					break;
 				case "stage-ai": {
 					const abort = new AbortController();
 					this.#aiStageAbort = abort;
-					this.#setStatus(theme.fg("accent", `Filtering changes: ${action.prompt}`));
+					this.#setStatus(
+						theme.fg(
+							"accent",
+							tuiTextFmt("gitFilteringChangesFmt", `Filtering changes: ${action.prompt}`, action.prompt),
+						),
+					);
 					try {
 						const outcome = await this.#host.aiStage({
 							cwd: this.#model.cwd,
@@ -381,17 +412,40 @@ class GitTuiComponent implements Component {
 							},
 						});
 						if (outcome.stagedHunks === 0 && outcome.wholeFiles === 0) {
-							this.#setStatus(theme.fg("warning", `No changes matched "${action.prompt}"`));
+							this.#setStatus(
+								theme.fg(
+									"warning",
+									tuiTextFmt("gitNoChangesMatchedFmt", `No changes matched "${action.prompt}"`, action.prompt),
+								),
+							);
 						} else {
 							const parts: string[] = [];
-							if (outcome.stagedHunks > 0) parts.push(`${outcome.stagedHunks} of ${outcome.totalHunks} hunks`);
+							if (outcome.stagedHunks > 0)
+								parts.push(
+									tuiTextFmt(
+										"gitHunksOfFmt",
+										`${outcome.stagedHunks} of ${outcome.totalHunks} hunks`,
+										outcome.stagedHunks,
+										outcome.totalHunks,
+									),
+								);
 							if (outcome.wholeFiles > 0) {
-								parts.push(`${outcome.wholeFiles} whole file${outcome.wholeFiles === 1 ? "" : "s"}`);
+								parts.push(
+									outcome.wholeFiles === 1
+										? tuiText("gitWholeFileOne", "1 whole file")
+										: tuiTextFmt("gitWholeFileManyFmt", "%d whole files", outcome.wholeFiles),
+								);
 							}
 							this.#setStatus(
 								theme.fg(
 									"success",
-									`Staged ${parts.join(" + ")} (${outcome.matchedFiles}/${outcome.totalFiles} files matched)`,
+									tuiTextFmt(
+										"gitAiStagedFmt",
+										`Staged ${parts.join(" + ")} (${outcome.matchedFiles}/${outcome.totalFiles} files matched)`,
+										parts.join(" + "),
+										outcome.matchedFiles,
+										outcome.totalFiles,
+									),
 								),
 							);
 						}
@@ -404,7 +458,7 @@ class GitTuiComponent implements Component {
 					const abort = new AbortController();
 					this.#generationAbort = abort;
 					this.#sidebar.setGenerating(true);
-					this.#setStatus(theme.fg("accent", "Generating commit message…"));
+					this.#setStatus(theme.fg("accent", tuiText("gitGeneratingCommit", "Generating commit message…")));
 					try {
 						const generated = await this.#host.generateCommitMessage({
 							cwd: this.#model.cwd,
@@ -417,12 +471,19 @@ class GitTuiComponent implements Component {
 						this.#sidebar.setGeneratedCommit(generated.commit);
 						this.#setStatus(
 							generated.validationError
-								? theme.fg("warning", `Generated message needs review: ${generated.validationError}`)
+								? theme.fg(
+										"warning",
+										tuiTextFmt(
+											"gitGeneratedNeedsReviewFmt",
+											`Generated message needs review: ${generated.validationError}`,
+											generated.validationError,
+										),
+									)
 								: theme.fg(
 										"success",
 										generated.stagedAll
-											? "Staged all changes and generated commit message"
-											: "Generated commit message",
+											? tuiText("gitStagedAndGenerated", "Staged all changes and generated commit message")
+											: tuiText("gitGeneratedMessage", "Generated commit message"),
 									),
 						);
 					} finally {
@@ -435,7 +496,14 @@ class GitTuiComponent implements Component {
 					if (action.stageAll) await this.#model.stage();
 					await this.#model.commit(action.message, { amend: action.amend });
 					this.#sidebar.clearForm();
-					this.#setStatus(theme.fg("success", action.amend ? "Amended commit" : "Created commit"));
+					this.#setStatus(
+						theme.fg(
+							"success",
+							action.amend
+								? tuiText("gitAmendedCommit", "Amended commit")
+								: tuiText("gitCreatedCommit", "Created commit"),
+						),
+					);
 					break;
 				}
 			}
@@ -451,7 +519,9 @@ class GitTuiComponent implements Component {
 		if (!hunk.patch) return;
 		if (action === "discard" && this.#pendingDiscard !== hunk.patch) {
 			this.#pendingDiscard = hunk.patch;
-			this.#setStatus(theme.fg("warning", "Discard hunk? Press x (or click) again to confirm"));
+			this.#setStatus(
+				theme.fg("warning", tuiText("gitDiscardHunkConfirm", "Discard hunk? Press x (or click) again to confirm")),
+			);
 			return;
 		}
 		this.#pendingDiscard = null;
@@ -464,7 +534,11 @@ class GitTuiComponent implements Component {
 			this.#setStatus(
 				theme.fg(
 					"success",
-					action === "stage" ? "Staged hunk" : action === "unstage" ? "Unstaged hunk" : "Discarded hunk",
+					action === "stage"
+						? tuiText("gitStagedHunk", "Staged hunk")
+						: action === "unstage"
+							? tuiText("gitUnstagedHunk", "Unstaged hunk")
+							: tuiText("gitDiscardedHunk", "Discarded hunk"),
 				),
 			);
 			await this.#refresh(true);
@@ -482,12 +556,14 @@ class GitTuiComponent implements Component {
 		const intent = action === "stage" ? "apply" : "revert";
 		const patch = buildLineSelectionPatch(doc, span.from, span.to, intent);
 		if (!patch) {
-			this.#setStatus(theme.fg("warning", "Selection contains no changes"));
+			this.#setStatus(theme.fg("warning", tuiText("gitSelectionNoChanges", "Selection contains no changes")));
 			return;
 		}
 		if (action === "discard" && this.#pendingDiscard !== patch) {
 			this.#pendingDiscard = patch;
-			this.#setStatus(theme.fg("warning", "Discard selected lines? Press x again to confirm"));
+			this.#setStatus(
+				theme.fg("warning", tuiText("gitDiscardLinesConfirm", "Discard selected lines? Press x again to confirm")),
+			);
 			return;
 		}
 		this.#pendingDiscard = null;
@@ -502,10 +578,10 @@ class GitTuiComponent implements Component {
 				theme.fg(
 					"success",
 					action === "stage"
-						? "Staged selection"
+						? tuiText("gitStagedSelection", "Staged selection")
 						: action === "unstage"
-							? "Unstaged selection"
-							: "Discarded selection",
+							? tuiText("gitUnstagedSelection", "Unstaged selection")
+							: tuiText("gitDiscardedSelection", "Discarded selection"),
 				),
 			);
 			await this.#refresh(true);
@@ -566,10 +642,10 @@ class GitTuiComponent implements Component {
 			theme.fg(
 				"dim",
 				this.#whitespace === "off"
-					? "Showing all changes"
+					? tuiText("gitWsShowAll", "Showing all changes")
 					: this.#whitespace === "whitespace"
-						? "Ignoring whitespace-only line changes"
-						: "Ignoring formatting and import-only changes",
+						? tuiText("gitWsIgnoreWhitespace", "Ignoring whitespace-only line changes")
+						: tuiText("gitWsIgnoreFormatting", "Ignoring formatting and import-only changes"),
 			),
 		);
 		this.#rebuildDocument();
@@ -747,18 +823,26 @@ class GitTuiComponent implements Component {
 			const doc = this.#pane.doc;
 			if (doc) row.add(`  ${theme.fg("success", `+${doc.additions}`)} ${theme.fg("error", `−${doc.deletions}`)}`);
 		} else {
-			row.add(theme.fg("dim", "no file selected"));
+			row.add(theme.fg("dim", tuiText("gitNoFileSelected", "no file selected")));
 		}
 
 		const right = new HitRow();
 		const asset = this.#contents?.kind === "asset" ? this.#contents : null;
 		const contentKind =
-			asset && (asset.old.kind === "image" || asset.new.kind === "image") ? "Media" : asset ? "Binary" : "UTF-8";
+			asset && (asset.old.kind === "image" || asset.new.kind === "image")
+				? tuiText("gitContentKindMedia", "Media")
+				: asset
+					? tuiText("gitContentKindBinary", "Binary")
+					: "UTF-8";
 		right.add(theme.fg("dim", contentKind)).add("  ");
 		if (file?.area === "unstaged")
-			right.button(pill(" Stage File ", theme.getColorHex("toolDiffAdded")), () => this.#stageCurrentFile());
+			right.button(pill(tuiText("gitStageFileBtn", " Stage File "), theme.getColorHex("toolDiffAdded")), () =>
+				this.#stageCurrentFile(),
+			);
 		else if (file?.area === "staged")
-			right.button(pill(" Unstage File ", theme.getColorHex("warning")), () => this.#stageCurrentFile());
+			right.button(pill(tuiText("gitUnstageFileBtn", " Unstage File "), theme.getColorHex("warning")), () =>
+				this.#stageCurrentFile(),
+			);
 		right.add(" ").button(softPill(` ${glyphs.close} `), () => this.#done.resolve());
 
 		// The empty middle carries the key hints (or a fresh status message).
@@ -768,8 +852,14 @@ class GitTuiComponent implements Component {
 			theme.fg(
 				"dim",
 				this.#focus === "diff"
-					? "alt+↓/↑ hunk · ]/[ file · shift+↑/↓ select · s/u stage · x/del discard · v view · c commit · q quit"
-					: "↑/↓ move · ←/→ fold · space stage · del discard · enter open · alt+↓/↑ hunk · c commit · t tree · q quit",
+					? tuiText(
+							"gitHintDiff",
+							"alt+↓/↑ hunk · ]/[ file · shift+↑/↓ select · s/u stage · x/del discard · v view · c commit · q quit",
+						)
+					: tuiText(
+							"gitHintSidebar",
+							"↑/↓ move · ←/→ fold · space stage · del discard · enter open · alt+↓/↑ hunk · c commit · t tree · q quit",
+						),
 			);
 		const free = width - row.width - right.width - 1;
 		const middleText = free > visibleWidth(middle) + 4 ? middle : truncateToWidth(middle, Math.max(0, free - 4));
@@ -794,12 +884,17 @@ class GitTuiComponent implements Component {
 		row.add(" ");
 		const scope =
 			file?.area === "staged"
-				? tintChip(" Staged ", theme.getColorHex("success"))
+				? tintChip(tuiText("gitChipStaged", " Staged "), theme.getColorHex("success"))
 				: file?.area === "unstaged"
-					? tintChip(file.kind === "untracked" ? " Untracked " : " Unstaged ", theme.getColorHex("warning"))
+					? tintChip(
+							file.kind === "untracked"
+								? tuiText("gitChipUntracked", " Untracked ")
+								: tuiText("gitChipUnstaged", " Unstaged "),
+							theme.getColorHex("warning"),
+						)
 					: file
 						? tintChip(` ${this.#model.headCommit?.shortSha ?? "commit"} `, theme.getColorHex("accent"))
-						: theme.fg("dim", ` ${this.#model.branch ?? "detached"} `);
+						: theme.fg("dim", ` ${this.#model.branch ?? tuiText("slDetached", "detached")} `);
 		row.add(scope);
 
 		// Hunk nav + one segmented view control ⟨file│split│inline│hunk⟩,
