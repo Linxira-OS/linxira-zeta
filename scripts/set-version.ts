@@ -46,6 +46,13 @@ const ALL_PACKAGES = [
 	"wire",
 ] as const;
 
+// Vendored editor npm distribution (published by `ci-release-publish.ts --editor`).
+const EDITOR_NPM_PACKAGES = [
+	"editor/npm/editor-windows-x64/package.json",
+	"editor/npm/editor-linux-x64/package.json",
+	"editor/npm/editor/package.json",
+] as const;
+
 // Mirrors release-v2.ts CATALOG_KEYS — the exact @linxiraos workspace-catalog keys.
 const CATALOG_KEYS = [
 	"@linxiraos/pi-utils",
@@ -173,6 +180,18 @@ async function main(): Promise<void> {
 		} else {
 			unchanged.push(rel);
 		}
+	}
+
+	// 4b. Vendored editor npm distribution (not a Bun workspace).
+	for (const rel of EDITOR_NPM_PACKAGES) {
+		const manifest = readJson(rel) as { version?: string };
+		if (manifest.version === version) {
+			unchanged.push(rel);
+			continue;
+		}
+		manifest.version = version;
+		writeJson(rel, manifest);
+		changed.push(rel);
 	}
 
 	// 5. Root catalog @linxiraos keys.
