@@ -761,8 +761,10 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
+         needs.desktop_linux.result == 'success' &&
+         needs.desktop_windows.result == 'success' &&
          !inputs.skip_npm }}
-      needs: [release_metadata, release_gate, release_binary]
+      needs: [release_metadata, release_gate, release_binary, desktop_linux, desktop_windows]
       runs-on: ubuntu-22.04
       # id-token lets npm mint the OIDC token for trusted publishing; the
       # NODE_AUTH_TOKEN below is the fallback for unconfigured packages.
@@ -931,9 +933,13 @@ jobs:
                 echo "::error::Expected at least 3 zeta-cli-* binaries, found $count"
                 missing=1
               fi
-              # Desktop installers are not validated while desktop publishing
-              # is paused (document/release.md); restore the block together
-              # with the desktop jobs.
+              desktop_count=$(find temp/desktop/release -type f \( -name 'zeta-desktop-*.zip' -o -name 'zeta-desktop-*.exe' -o -name 'zeta-desktop-*.deb' -o -name 'zeta-desktop-*.AppImage' -o -name 'zeta-desktop-*.tar.gz' \) 2>/dev/null | wc -l)
+              if [ "$desktop_count" -lt 5 ]; then
+                # win32 zip+nsis-exe and linux tar.gz+deb+AppImage; macOS is
+                # still paused (document/release.md).
+                echo "::error::Expected at least 5 zeta-desktop-* installers/archives, found $desktop_count"
+                missing=1
+              fi
               exit $missing
          # Generated after every other release asset is in place and before
          # the release is created, so SHA256SUMS.txt itself ships as an asset
@@ -943,6 +949,7 @@ jobs:
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
+                temp/desktop/release/zeta-desktop-* \
                 LICENSE \
                 THIRD-PARTY-NOTICES.txt
          - name: Create GitHub Release

@@ -6,7 +6,7 @@
 appId: com.zeta.desktop
 productName: Zeta
 artifactName: zeta-desktop-${version}-${os}-${arch}.${ext}
-copyright: Copyright (c) 2026 Zeta
+copyright: Copyright (c) 2026 Linxira-OS
 electronVersion: 37.10.3
 
 directories:
