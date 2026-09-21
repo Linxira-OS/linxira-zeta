@@ -5,7 +5,7 @@
 	"version": "0.0.1",
 	"description": "Unified benchmark runners plus Harbor run storage, REST/SSE APIs, and a live web dashboard",
 	"homepage": "https://linxira-os.github.io/zeta/",
-	"author": "Can Boluk",
+	"author": "Linxira-OS",
 	"license": "MIT",
 	"repository": {
 		"directory": "packages/metaharness",

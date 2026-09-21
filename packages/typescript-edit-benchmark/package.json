@@ -42,7 +42,7 @@
 		"type": "git"
 	},
 	"license": "MIT",
-	"author": "Can Boluk",
+	"author": "Linxira-OS",
 	"homepage": "https://linxira-os.github.io/zeta/",
 	"description": "Edit benchmark suite using TypeScript source code mutations",
 	"version": "0.0.1",

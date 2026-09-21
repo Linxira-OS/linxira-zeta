@@ -39,6 +39,11 @@ toolchain required by Rust.
 
 - A terminal coding workspace with file reading, search, patching, shell, git,
   task delegation, and structured tool output.
+- A bundled terminal editor ([TTT Editor](https://github.com/eugenioenko/ttt),
+  vendored and maintained as `@linxiraos/editor`): install `npm i -g @linxiraos/editor`
+  and launch `zeta-editor` in any terminal — including over SSH, so an agent
+  session, hand-written edits, and code review all run on the server without a
+  GUI editor. Windows x64 and Linux x64 builds ship as platform packages.
 - Multi-provider model access, local configuration, OAuth flows, model
   discovery, session recovery, and controllable retry behavior.
 - Native text, image, terminal, browser, and desktop capabilities where the
