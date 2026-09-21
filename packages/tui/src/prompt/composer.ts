@@ -1,7 +1,10 @@
+import { postmortem } from "@linxiraos/pi-utils";
+import { type AnimationFrame, TranscriptContainer } from "../chrome/transcript-container";
 import type { EditorTopBorder } from "../components/composer/types";
 import { Spacer } from "../components/spacer";
-import { isInsideTerminalMultiplexer } from "../terminal-multiplexer";
 import { ProcessTerminal, type Terminal } from "../terminal";
+import { isInsideTerminalMultiplexer } from "../terminal-multiplexer";
+import { ensureThemeSync, getEditorTheme, theme } from "../theme/theme";
 import {
 	type Component,
 	Container,
@@ -13,11 +16,8 @@ import {
 	type ViewportSize,
 } from "../tui";
 import { sliceWithWidth, truncateToWidth, visibleWidth } from "../utils";
-import { postmortem } from "@linxiraos/pi-utils";
 import { CustomEditor } from "./custom-editor";
-import { type AnimationFrame, TranscriptContainer } from "../chrome/transcript-container";
-import { type LspServerInfo, type RecentSession, WelcomeComponent } from "./welcome";
-import { ensureThemeSync, getEditorTheme, theme } from "../theme/theme";
+import { type LspServerInfo, type RecentSession, WelcomeComponent, type WelcomeStrings } from "./welcome";
 
 const DOUBLE_INTERRUPT_MS = 500;
 
@@ -56,6 +56,8 @@ export interface ComposerWelcomeUpdate {
 	readonly providerName?: string;
 	readonly recentSessions?: readonly RecentSession[];
 	readonly lspServers?: readonly LspServerInfo[];
+	/** Localizable panel strings; pass getters so `/language` switches apply on the next render. */
+	readonly strings?: WelcomeStrings;
 }
 
 /**
@@ -699,7 +701,7 @@ export class Composer implements TerminalFrameProvider {
 				reflowed.push("");
 				continue;
 			}
-			for (let column = 0; column < lineWidth;) {
+			for (let column = 0; column < lineWidth; ) {
 				let slice = sliceWithWidth(line, column, columns, true);
 				if (slice.width === 0) slice = sliceWithWidth(line, column, columns);
 				reflowed.push(slice.text);
@@ -884,12 +886,17 @@ export class Composer implements TerminalFrameProvider {
 		this.#stopped = true;
 	}
 
+	#welcomeStrings: WelcomeStrings | undefined;
 	#applyWelcomeUpdate(update: ComposerWelcomeUpdate): void {
 		if (update.version !== undefined) this.#version = update.version;
 		if (update.modelName !== undefined) this.#modelName = update.modelName;
 		if (update.providerName !== undefined) this.#providerName = update.providerName;
 		if (update.recentSessions !== undefined) this.#recentSessions = [...update.recentSessions];
 		if (update.lspServers !== undefined) this.#lspServers = [...update.lspServers];
+		if (update.strings !== undefined) {
+			this.#welcomeStrings = update.strings;
+			this.#welcome?.setStrings(update.strings);
+		}
 	}
 
 	#ensureWelcome(): void {
@@ -900,6 +907,7 @@ export class Composer implements TerminalFrameProvider {
 			this.#recentSessions,
 			this.#lspServers,
 		);
+		if (this.#welcomeStrings) this.#welcome.setStrings(this.#welcomeStrings);
 	}
 
 	#rebuildHeader(): void {

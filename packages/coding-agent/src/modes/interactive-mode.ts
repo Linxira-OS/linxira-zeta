@@ -11,12 +11,10 @@ import {
 	EventLoopKeepalive,
 	ThinkingLevel,
 } from "@linxiraos/pi-agent-core";
-import { M } from "../i18n";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { execReplace } from "@linxiraos/pi-natives";
-
 import type {
 	AutocompleteProvider,
 	Component,
@@ -41,9 +39,88 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "@linxiraos/pi-tui";
+import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import type { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import type { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
+import type { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
+import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
+import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
+import { messageHasDisplayableThinking } from "@linxiraos/pi-tui/chat/thinking-display";
+import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
+import { ChatBlock, type ChatBlockHost } from "@linxiraos/pi-tui/chrome/chat-block";
+import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
+import { formatCoarseDuration } from "@linxiraos/pi-tui/chrome/format";
+import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import type { AgentHubRegistry } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+import { CodexResetFireworksController } from "@linxiraos/pi-tui/overlays/codex-reset-fireworks";
+import { ErrorBannerComponent } from "@linxiraos/pi-tui/overlays/error-banner";
+import type { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
+import type { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
+import type { HookSelectorComponent, HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
+import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@linxiraos/pi-tui/overlays/plan-review-overlay";
+import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@linxiraos/pi-tui/overlays/plan-save-overlay";
+import {
+	getRunningSubagentBadgeAgentIds,
+	getRunningSubagentBadgeRegistry,
+} from "@linxiraos/pi-tui/overlays/running-subagent-badge";
+import { SessionInfoOverlay } from "@linxiraos/pi-tui/overlays/session-info-overlay";
+import {
+	type ObservableSession,
+	type SessionObserverChangeKind,
+	SessionObserverRegistry,
+} from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { AttachmentChipsBand } from "@linxiraos/pi-tui/prompt/attachment-chips";
+import { Composer, type ComposerStatusSnapshot, PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
+import { modelMentionChipLabel } from "@linxiraos/pi-tui/prompt/composer-attachments";
+import { writeComposerStatusCache, writeComposerWelcomeCache } from "@linxiraos/pi-tui/prompt/composer-cache";
+import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
+import { imageReferenceHyperlink, materializeImageReferenceLinks } from "@linxiraos/pi-tui/prompt/image-references";
+import { modelMentionDisplayName } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
+import type { LspServerInfo as WelcomeLspServerInfo } from "@linxiraos/pi-tui/prompt/welcome";
+import { applyHyperlinkSetting, fileHyperlink } from "@linxiraos/pi-tui/render/hyperlink";
+import {
+	FEED_MODEL_BADGE_WIDTH,
+	formatFeedModelBadge,
+	formatMoreItems,
+	isFeedModelBadgeEnabled,
+	replaceTabs,
+	shortenEmbeddedPaths,
+	shortenPath,
+	TRUNCATE_LENGTHS,
+	truncateToWidth,
+} from "@linxiraos/pi-tui/render/render-utils";
+import { renderTreeList } from "@linxiraos/pi-tui/render/tree-list";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
 import type { TerminalAppearanceRequestToken } from "@linxiraos/pi-tui/terminal";
 import { isInsideTerminalMultiplexer } from "@linxiraos/pi-tui/terminal-capabilities";
-
+import type { Theme } from "@linxiraos/pi-tui/theme";
+import {
+	getEditorTheme,
+	getMarkdownTheme,
+	onTerminalAppearanceChange,
+	onThemeChange,
+	setMarkdownMermaidRendering,
+	startMacOSAppearanceReprobeFallback,
+	theme,
+} from "@linxiraos/pi-tui/theme";
+import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
+import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/pi-tui/theme/session-color";
+import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@linxiraos/pi-tui/theme/shimmer";
+import { getSlashCommandTypeIcon } from "@linxiraos/pi-tui/theme/tui-adapters";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { Goal } from "@linxiraos/pi-tui/tools/goal";
+import { agentTypeBadge, formatTaskId } from "@linxiraos/pi-tui/tools/task";
+import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import {
+	formatPhaseDisplayName,
+	isClosedTodo,
+	selectCollapsedTodos,
+	setActiveTodoDescriptionsProvider,
+	todoMatchesAnyDescription,
+} from "@linxiraos/pi-tui/tools/todo";
 import {
 	$env,
 	adjustHsv,
@@ -55,16 +132,15 @@ import {
 	postmortem,
 	prompt,
 	sanitizeText,
-	stableStringifyJson,
 	setProjectDir,
+	stableStringifyJson,
 } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { reset as resetCapabilities } from "../capability";
 import { restartArgv } from "../cli/flag-tables";
-import type { CollabGuestLink } from "../collab/guest";
 import { CollabController } from "../collab/controller";
+import type { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
-import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { formatModelString, type ResolvedModelRoleValue } from "../config/model-resolver";
 import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
 import {
@@ -89,11 +165,11 @@ import type { CompactOptions } from "../extensibility/extensions/types";
 import type { Skill } from "../extensibility/skills";
 import type { FileSlashCommand } from "../extensibility/slash-commands";
 import { loadSlashCommands } from "../extensibility/slash-commands";
-import type { Goal } from "@linxiraos/pi-tui/tools/goal";
 import type { GoalModeState } from "../goals/state";
-
 import { rebindMemoryBackendForCwd } from "../hindsight/backend";
+import { M } from "../i18n";
 import { copyLocalArtifacts, resolveLocalUrlToPath } from "../internal-urls";
+import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "../lsp/startup-events";
 import type { MCPManager } from "../mcp";
 import {
@@ -104,14 +180,15 @@ import {
 	type McpConnectionStatusEvent,
 } from "../mcp/startup-events";
 import { humanizePlanTitle, type PlanApprovalDetails, resolvePlanTitle } from "../plan-mode/approved-plan";
-import { autosaveApprovedPlan, planSaveFileName } from "../plan-mode/plan-autosave";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
+import { autosaveApprovedPlan, planSaveFileName } from "../plan-mode/plan-autosave";
 import type { PlanWorkflow } from "../plan-mode/state";
 import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
 import planFilenamePrompt from "../prompts/system/plan-filename.md" with { type: "text" };
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
-import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
-import type { AgentHubRegistry } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with {
+	type: "text",
+};
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import {
 	type AgentSession,
@@ -124,70 +201,37 @@ import type { CompactMode } from "../session/compact-modes";
 import type { ForeignSessionSource } from "../session/foreign-session-store";
 import { HistoryStorage } from "../session/history-storage";
 import { USER_INTERRUPT_LABEL } from "../session/messages";
-import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";
-import { modelMentionDisplayName } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
-import { modelMentionChipLabel } from "@linxiraos/pi-tui/prompt/composer-attachments";
-
 import type { SessionContext } from "../session/session-context";
 import { getRecentSessions } from "../session/session-listing";
 import type { SessionManager } from "../session/session-manager";
 import type { ShakeMode } from "../session/shake-types";
-import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
 import { buildStaticInlineHint } from "../slash-commands/builtin-completions";
-import { formatCoarseDuration } from "@linxiraos/pi-tui/chrome/format";
-
+import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
+import { StreamPublisher } from "../stream/publisher";
+import { StreamRedactor } from "../stream/redactor";
 import { STTController, type SttState } from "../stt";
 import { resolveCliEntryCmd } from "../subprocess/worker-client";
 import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-prompt";
 import { labelEchoesHandle } from "../task/label";
-import { agentTypeBadge, formatTaskId } from "@linxiraos/pi-tui/tools/task";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { tinyTitleClient } from "../tiny/title-client";
 import type { LspStartupServerInfo } from "../tools";
 import { isMCPToolName } from "../tools/builtin-names";
 import { normalizeLocalScheme, resolveToCwd } from "../tools/path-utils";
-import { StreamPublisher } from "../stream/publisher";
-import { StreamRedactor } from "../stream/redactor";
-import {
-	FEED_MODEL_BADGE_WIDTH,
-	formatFeedModelBadge,
-	formatMoreItems,
-	isFeedModelBadgeEnabled,
-	replaceTabs,
-	shortenEmbeddedPaths,
-	shortenPath,
-	TRUNCATE_LENGTHS,
-	truncateToWidth,
-} from "@linxiraos/pi-tui/render/render-utils";
 import { setAutoQaConsentHandler } from "../tools/report-tool-issue";
 import {
 	createTodoHudStateData,
 	getTodoHudVisibility,
 	nextActionableTask,
 	TODO_HUD_STATE_CUSTOM_TYPE,
-	USER_TODO_EDIT_CUSTOM_TYPE,
 	type TodoHudStateEntryData,
+	USER_TODO_EDIT_CUSTOM_TYPE,
 } from "../tools/todo";
-import {
-	formatPhaseDisplayName,
-	isClosedTodo,
-	selectCollapsedTodos,
-	setActiveTodoDescriptionsProvider,
-	todoMatchesAnyDescription,
-} from "@linxiraos/pi-tui/tools/todo";
 import { vocalizer } from "../tts/vocalizer";
-import { applyHyperlinkSetting, fileHyperlink } from "@linxiraos/pi-tui/render/hyperlink";
-import { renderTreeList } from "@linxiraos/pi-tui/render/tree-list";
-
 import { formatStartupChangelogSummary, type StartupChangelogSelection } from "../utils/changelog";
 import { copyToClipboard } from "../utils/clipboard";
 import type { EventBus } from "../utils/event-bus";
 import { getEditorCommand, openInEditor } from "../utils/external-editor";
 import { resumeCommand } from "../utils/resume-command";
-import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/pi-tui/theme/session-color";
-import { messageHasDisplayableThinking } from "@linxiraos/pi-tui/chat/thinking-display";
-import type { TokenRateMeter } from "../utils/token-rate";
-
 import {
 	disposeTerminalTitleState,
 	initTerminalTitleState,
@@ -197,39 +241,14 @@ import {
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleStateEnabled,
 } from "../utils/title-generator";
+import type { TokenRateMeter } from "../utils/token-rate";
 import {
 	aggregateVibeWorkerTokensPerSecond,
 	type VibeOwnerScope,
 	type VibeParentSession,
 	VibeSessionRegistry,
 } from "../vibe/runtime";
-import type { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
-import { AttachmentChipsBand } from "@linxiraos/pi-tui/prompt/attachment-chips";
-import type { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
-import { ChatBlock, type ChatBlockHost } from "@linxiraos/pi-tui/chrome/chat-block";
-import { CodexResetFireworksController } from "@linxiraos/pi-tui/overlays/codex-reset-fireworks";
-import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
-import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
-import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
-import { ErrorBannerComponent } from "@linxiraos/pi-tui/overlays/error-banner";
-import type { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
-import type { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
-import type { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
-import type { HookSelectorComponent, HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
-import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@linxiraos/pi-tui/overlays/plan-review-overlay";
-import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@linxiraos/pi-tui/overlays/plan-save-overlay";
-import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
-import { SessionInfoOverlay } from "@linxiraos/pi-tui/overlays/session-info-overlay";
-import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
-import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
 import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
-import { statusLineHost } from "./status-line-host";
-import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
-import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
-import type { LspServerInfo as WelcomeLspServerInfo } from "@linxiraos/pi-tui/prompt/welcome";
-import { Composer, PINNED_HUD_TOGGLE_ID, type ComposerStatusSnapshot } from "@linxiraos/pi-tui/prompt/composer";
-import { writeComposerStatusCache, writeComposerWelcomeCache } from "@linxiraos/pi-tui/prompt/composer-cache";
-
 import { BtwController } from "./controllers/btw-controller";
 import { CleanseCommandController } from "./controllers/cleanse-command-controller";
 import { CommandController } from "./controllers/command-controller";
@@ -244,7 +263,6 @@ import { SessionFocusController } from "./controllers/session-focus-controller";
 import { SSHCommandController } from "./controllers/ssh-command-controller";
 import { TanCommandController } from "./controllers/tan-command-controller";
 import { TodoCommandController } from "./controllers/todo-command-controller";
-import { imageReferenceHyperlink, materializeImageReferenceLinks } from "@linxiraos/pi-tui/prompt/image-references";
 import { describeLoopCondition, evaluateLoopCondition, type LoopConditionVerdict } from "./loop-condition";
 import {
 	consumeLoopLimitIteration,
@@ -255,33 +273,10 @@ import {
 	isLoopLimitExhausted,
 	parseLoopArgs,
 } from "./loop-limit";
-import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
 import { OAuthManualInputManager } from "./oauth-manual-input";
-import {
-	getRunningSubagentBadgeAgentIds,
-	getRunningSubagentBadgeRegistry,
-} from "@linxiraos/pi-tui/overlays/running-subagent-badge";
-import {
-	type ObservableSession,
-	type SessionObserverChangeKind,
-	SessionObserverRegistry,
-} from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import { createSessionTeardown, type SessionTeardown } from "./session-teardown";
-import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./skill-command";
-import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
-import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@linxiraos/pi-tui/theme/shimmer";
-import type { Theme } from "@linxiraos/pi-tui/theme";
-import {
-	getEditorTheme,
-	getMarkdownTheme,
-	onTerminalAppearanceChange,
-	onThemeChange,
-	setMarkdownMermaidRendering,
-	startMacOSAppearanceReprobeFallback,
-	theme,
-} from "@linxiraos/pi-tui/theme";
-import { getSlashCommandTypeIcon } from "@linxiraos/pi-tui/theme/tui-adapters";
+import { statusLineHost } from "./status-line-host";
 import type {
 	AgentHubOpenOptions,
 	CompactionQueuedMessage,
@@ -291,7 +286,6 @@ import type {
 	RenderSessionContextOptions,
 	SubmittedUserInput,
 } from "./types";
-import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { UiHelpers } from "./utils/ui-helpers";
 
 const STILL_CLOSING_DELAY_MS = 3_000;
@@ -1182,6 +1176,43 @@ export class InteractiveMode implements InteractiveModeContext {
 						status: server.status,
 						fileTypes: server.fileTypes,
 					})),
+					// Getters, not snapshots: re-read on every render so a
+					// /language switch re-localizes the panel without a rebuild.
+					strings: {
+						get back() {
+							return M.welcomeBack;
+						},
+						get tipsTitle() {
+							return M.welcomeTipsTitle;
+						},
+						get lspServersTitle() {
+							return M.welcomeLspServersTitle;
+						},
+						get recentSessionsTitle() {
+							return M.welcomeRecentSessionsTitle;
+						},
+						get noRecentSessions() {
+							return M.welcomeNoRecentSessions;
+						},
+						get noLspServers() {
+							return M.welcomeNoLspServers;
+						},
+						get tipLabel() {
+							return M.welcomeTipLabel;
+						},
+						get promptActionsHint() {
+							return M.welcomePromptActionsHint;
+						},
+						get commandsHint() {
+							return M.welcomeCommandsHint;
+						},
+						get runBashHint() {
+							return M.welcomeRunBashHint;
+						},
+						get runPythonHint() {
+							return M.welcomeRunPythonHint;
+						},
+					},
 				},
 			});
 		this.composer.setPreferences(preferences);
