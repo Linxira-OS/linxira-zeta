@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
 import type { SettingPath, SettingValue } from "../config/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
+import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
 import type { TrackingStatus } from "../tools/tracking";
 import { commandConsumed, usage } from "./helpers/parse";
 import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
@@ -133,12 +134,22 @@ async function buildTrackingReport(command: ParsedSlashCommand, cwd: string): Pr
 	const emptyHint = `（无追踪数据。用 /tracking start 开始维护项目追踪文档。）`;
 
 	switch (arg) {
-		case "start":
+		case "start": {
+			let seededNote: string;
+			try {
+				await fs.access(indexPath);
+				seededNote = `索引已存在: ${indexPath}`;
+			} catch {
+				await Bun.write(indexPath, `${indexTemplate.replace("{{PROJECT}}", "Project Tracking")}\n`);
+				seededNote = `已按三读者模板生成索引: ${indexPath}（人 / agent / 协作者）`;
+			}
 			return (
-				"开始维护项目追踪文档：我会在里程碑、重要决策与阻塞解除后调用 tracking_update 工具，\n" +
-				`把状态（status.json）、索引（INDEX.md）、操作日志（actions.jsonl）与计划（sessions/）写入 ${dir}。\n` +
-				"追踪文档独立于记忆机制，跨会话保留，可在 Web UI 追踪面板查看。"
+				"开始维护项目追踪文档：我会在里程碑、重要决策、阶段完成与阻塞解除后调用 tracking_update 工具，\n" +
+				`把状态（status.json）、索引（INDEX.md）、操作日志（actions.jsonl）、阶段（sync_todo）与计划（sessions/）写入 ${dir}。\n` +
+				"追踪文档独立于记忆机制，跨会话保留，可在 Web UI 追踪面板查看。三读者定位：人 / agent / 协作者。\n" +
+				seededNote
 			);
+		}
 		case "status": {
 			try {
 				const parsed = JSON.parse(await Bun.file(statusPath).text()) as TrackingStatus;

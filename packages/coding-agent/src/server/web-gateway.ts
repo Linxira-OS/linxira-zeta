@@ -62,6 +62,7 @@ import {
 	handleModelsConfigMetadata,
 } from "./web-gateway/models-config";
 import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
+import { handleGetPlan } from "./web-gateway/plan";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import {
@@ -140,6 +141,7 @@ const SETTINGS_RE = /^\/api\/settings$/;
 const SETTINGS_RELOAD_RE = /^\/api\/settings\/reload$/;
 const TRACKING_RE = /^\/api\/tracking\/?$/;
 const TRACKING_EVENTS_RE = /^\/api\/tracking\/events$/;
+const PLAN_RE = /^\/api\/plan$/;
 const WEB_CONFIG_RE = /^\/api\/web-config$/;
 const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const BLOB_RE = /^\/api\/blobs\/([^/]+)$/;
@@ -511,6 +513,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (TRACKING_RE.test(pathname)) {
 		if (req.method === "GET") return handleGetTracking(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (PLAN_RE.test(pathname)) {
+		if (req.method === "GET") return handleGetPlan(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

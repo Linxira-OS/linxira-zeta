@@ -22,6 +22,12 @@ interface TrackingStatus {
 	blockers: string[];
 	decisions: string[];
 	lastUpdated: string;
+	/** Current todo phase name (Tracking v2 sync_todo). */
+	stage?: string;
+	/** Ordered todo-phase mirror (Tracking v2 sync_todo). */
+	phases?: { name: string; status: string }[];
+	/** Session that last wrote tracking state. */
+	lastSessionId?: string | null;
 }
 
 interface TrackingAction {
@@ -35,11 +41,17 @@ export interface TrackingData {
 	status: TrackingStatus | null;
 	actions: TrackingAction[];
 	sessions: { name: string; content: string }[];
+	/** Compaction summaries (`summaries/compaction-*.md`), newest first. */
+	summaries: { name: string; content: string }[];
+	/** Mirrored approved plans (`plans/*-plan.md`), newest first. */
+	plans: { name: string; content: string }[];
 	updatedAt: string;
 }
 
 /** Debounce window coalescing rapid write bursts into one notification. */
 const WATCH_DEBOUNCE_MS = 100;
+const SUMMARIES_DIR = "summaries";
+const PLANS_DIR = "plans";
 
 function readIndex(trackingDir: string): string | null {
 	try {
@@ -55,12 +67,26 @@ function readStatus(trackingDir: string): TrackingStatus | null {
 			fs.readFileSync(path.join(trackingDir, "status.json"), "utf8"),
 		) as Partial<TrackingStatus> | null;
 		if (!raw || typeof raw !== "object") return null;
+		const phaseRows: unknown = raw.phases;
+		const phases = Array.isArray(phaseRows)
+			? phaseRows.flatMap(row => {
+					if (!row || typeof row !== "object") return [];
+					if (!("name" in row) || !("status" in row)) return [];
+					if (typeof row.name !== "string" || typeof row.status !== "string") return [];
+					return [{ name: row.name, status: row.status }];
+				})
+			: undefined;
 		return {
 			phase: String(raw.phase ?? ""),
 			progress: String(raw.progress ?? ""),
 			blockers: Array.isArray(raw.blockers) ? raw.blockers.map(String) : [],
 			decisions: Array.isArray(raw.decisions) ? raw.decisions.map(String) : [],
 			lastUpdated: String(raw.lastUpdated ?? ""),
+			...(typeof raw.stage === "string" && raw.stage !== "" ? { stage: raw.stage } : {}),
+			...(phases && phases.length > 0 ? { phases } : {}),
+			...(typeof raw.lastSessionId === "string" || raw.lastSessionId === null
+				? { lastSessionId: raw.lastSessionId }
+				: {}),
 		};
 	} catch {
 		return null;
@@ -110,6 +136,31 @@ function readSessions(trackingDir: string): { name: string; content: string }[] 
 	}
 }
 
+/** Newest-first listing of a tracking subdirectory of markdown files. */
+function readMarkdownDir(dir: string): { name: string; content: string }[] {
+	try {
+		return fs
+			.readdirSync(dir, { withFileTypes: true })
+			.filter(entry => entry.isFile() && entry.name.endsWith(".md"))
+			.map(entry => {
+				const fullPath = path.join(dir, entry.name);
+				try {
+					return {
+						name: entry.name,
+						content: fs.readFileSync(fullPath, "utf8"),
+						mtime: fs.statSync(fullPath).mtimeMs,
+					};
+				} catch {
+					return { name: entry.name, content: "", mtime: 0 };
+				}
+			})
+			.sort((a, b) => b.mtime - a.mtime)
+			.map(({ name, content }) => ({ name, content }));
+	} catch {
+		return [];
+	}
+}
+
 export async function handleGetTracking(req: Request): Promise<Response> {
 	try {
 		const url = new URL(req.url);
@@ -120,6 +171,8 @@ export async function handleGetTracking(req: Request): Promise<Response> {
 			status: readStatus(trackingDir),
 			actions: readActions(trackingDir),
 			sessions: readSessions(trackingDir),
+			summaries: readMarkdownDir(path.join(trackingDir, SUMMARIES_DIR)),
+			plans: readMarkdownDir(path.join(trackingDir, PLANS_DIR)),
 			updatedAt: new Date().toISOString(),
 		};
 		return Response.json(data);

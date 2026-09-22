@@ -12,6 +12,11 @@ Before execution: initialize todo tracking with `todo`.
 After each completed step: immediately update `todo`.
 If `todo` fails: fix payload; retry before continuing.
 {{/has}}
+{{#has tools "tracking_update"}}
+When a todo phase becomes fully completed: call `tracking_update` with
+`op: "sync_todo"`, `current_phase` = the next phase name, `phases` = remaining
+ordered phase names — before starting the next phase.
+{{/has}}
 </instruction>
 
 <plan path="{{planFilePath}}">
