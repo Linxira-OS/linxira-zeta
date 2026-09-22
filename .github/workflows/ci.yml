@@ -910,8 +910,13 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
+         needs.desktop_linux.result == 'success' &&
+         needs.desktop_windows.result == 'success' &&
          !inputs.skip_npm }}
-      needs: [release_metadata, release_gate, release_binary]
+      # v1.1.18 damage class 10 recurrence: without the desktop deps this job
+      # started while desktop builds were still running, found 0
+      # zeta-desktop-* installers, and the validation aborted the release.
+      needs: [release_metadata, release_gate, release_binary, desktop_linux, desktop_windows]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
