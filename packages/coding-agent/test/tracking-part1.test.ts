@@ -90,7 +90,50 @@ describe("TrackingTool (part 1)", () => {
 		expect(written.trim()).toBe(content);
 
 		const trackingIndex = await Bun.file(path.join(agentDir, "tracking-index.json")).json();
-		expect(trackingIndex).toContain(cwd);
+		// v2: object rows keyed by project path (v1 bare strings are migrated
+		// on first write).
+		const entry = trackingIndex.find((row: { path?: string } | string) =>
+			typeof row === "string" ? row === cwd : row.path === cwd,
+		);
+		expect(entry).toBeDefined();
+		expect(entry.name).toBe(path.basename(cwd));
+		expect(entry.lastActiveSessionId).toBeNull();
+	});
+
+	it("sync_todo: mirrors phases into status.json and logs phase_complete on stage advance", async () => {
+		const cwd = path.join(tempDir, "p3b");
+		await fs.mkdir(cwd, { recursive: true });
+		const tool = new TrackingTool(createMockSession(cwd));
+
+		const first = await tool.execute("t1", {
+			op: "sync_todo",
+			current_phase: "setup",
+			phases: ["setup", "implement", "verify"],
+		});
+		expect(first.isError).toBeFalsy();
+
+		const second = await tool.execute("t2", {
+			op: "sync_todo",
+			current_phase: "implement",
+			phases: ["setup", "implement", "verify"],
+		});
+		expect(second.isError).toBeFalsy();
+
+		const status = await Bun.file(path.join(cwd, ".zeta", "tracking", "status.json")).json();
+		expect(status.stage).toBe("implement");
+		expect(status.phases).toEqual([
+			{ name: "setup", status: "completed" },
+			{ name: "implement", status: "in_progress" },
+			{ name: "verify", status: "pending" },
+		]);
+
+		const actions = (await Bun.file(path.join(cwd, ".zeta", "tracking", "actions.jsonl")).text())
+			.trim()
+			.split("\n")
+			.map(line => JSON.parse(line) as { action: string; detail?: string });
+		const phaseComplete = actions.filter(entry => entry.action === "phase_complete");
+		expect(phaseComplete).toHaveLength(1);
+		expect(phaseComplete[0].detail).toBe("setup");
 	});
 
 	it("update_index: throws when content is missing", async () => {
