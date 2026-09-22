@@ -1,8 +1,9 @@
 # 极简化 UI 与 Plan/Tracking 呈现 — 执行梳理（2026-09-20）
 
 > **状态盘点（2026-09-22）**：各节状态已就地标注（✅ 已落地 / ◐ 部分 /
-> ❌ 未做）。本批执行 A+B 级剩余项（feat/plan-surface-completion，见 §11）；
-> C 级大件（CM6/PTY/team agent/剩余 skills/onboarding）另立后续计划。
+> ❌ 未做）。A+B 级剩余项已由 feat/plan-surface-completion 落地
+> （§11.1 全部完成，2026-09-22）；C 级大件（CM6/PTY/team agent/剩余
+> skills/onboarding）另立后续计划（§11.2）。
 
 状态：梳理定稿（方向经用户确认）。本文是接下来开发的执行清单来源；
 `roadmap.md` 与 `web-ui-modernization.md` 的相应条目以本文为准收拢。
@@ -21,8 +22,9 @@
 
 ## 1. 侧边栏与极简主界面（对齐 dsh 实测形态，2026-09-20 截图定稿）
 
-> 状态（2026-09-22）：◐ —— §1.1 侧边栏基础件 7/12 已落地；底部收敛、
-> 折叠 rail、§1.2 主界面极简、§1.3 Plan/Tracking 条件入口本批执行。
+> 状态（2026-09-22，plan-surface-completion 落地后）：§1.1 全部 ✅；
+> §1.2 极简化 ✅（底部收敛/折叠 rail/双选择器/命令面板）；§1.3 ✅
+> （/api/plan 端点 + 侧栏 Plan 卡 + tracking 条件入口）。
 
 **目标形态（dsh 截图实测）**：主区域 = 纯对话框（居中 logo + 工作区选择器
 + 模式选择器 + 大输入框 + 底行 [附件/语音/范围/模型/发送]），**无 tabs、
@@ -36,23 +38,23 @@
 | 会话/工作区行 hover `...` 菜单 | FloatingMenu 已有 | ✅ 已落地（行/项目双菜单）|
 | 右键菜单：重命名 / **删除工作区** | 部分有 | ✅ 已落地（rename/delete 接线）|
 | 工作区行 `+` 快捷新建会话 | 无 | ✅ 已落地 |
-| 区头小图标组（搜索/筛选/新建工作区）| 搜索有、筛选/新建无 | ◐ 搜索/显示下拉已有；新建工作区本批补 |
+| 区头小图标组（搜索/筛选/新建工作区）| 搜索有、筛选/新建无 | ✅ 已落地（新建工作区本批补齐）|
 | "新会话" 唯一大按钮 | 已有 | ✅ 已落地（ze-btn-hero）|
-| 底部唯一入口 = 设置 | 底部有多入口 | ❌ 本批执行 |
-| 折叠 rail（56px 图标列）| 275px 固定折叠 | ❌ 本批执行 |
+| 底部唯一入口 = 设置 | 底部有多入口 | ✅ 已落地（折叠为 rail 开关 + 设置）|
+| 折叠 rail（56px 图标列）| 275px 固定折叠 | ✅ 已落地（桌面折叠态图标列，localStorage 持久化）|
 
 裁决表（补充）：
 
 | 块 | 裁决 |
 | --- | --- |
-| HoverCard 预览卡 | 删除 — 本批执行 |
+| HoverCard 预览卡 | 删除 — ✅ 已删（SessionHoverCard.tsx 及接线）|
 | BulkActionBar | 仅多选时浮出 — ✅ 已落地（editMode 底栏形态）|
 | Pinned / Archive | 折叠为底部入口（设置旁）— ◐ 列表内折叠分区已落地；不强迁底部（2026-09-22 裁量，见 §11.2）|
-| PathLabel | 保留（弱化色）— ✅ 已落地；sidebar/PathLabel.tsx 死副本本批删 |
+| PathLabel | 保留（弱化色）— ✅ 已落地；sidebar/PathLabel.tsx 死副本已删 |
 
 ### 1.2 主界面极简化
 
-> 状态（2026-09-22）：❌ —— 双选择器、命令面板、删常驻按钮本批执行。
+> 状态（2026-09-22）：✅ —— 双选择器、命令面板 Ctrl+K、删常驻按钮已落地。
 
 - 中央 = 欢迎态（logo + 产品名）+ 工作区/模式双选择器 + 大输入框 +
   底行工具组；会话进行中 = 对话流 + composer（现状保留）。
@@ -62,8 +64,8 @@
 
 ### 1.3 新增两块（本轮重点）
 
-> 状态（2026-09-22）：❌ —— gateway plan 白名单端点 + 侧边栏 Plan 区 +
-> tracking.enabled 条件入口本批执行。
+> 状态（2026-09-22）：✅ —— GET /api/plan 白名单端点、侧栏 Plan 卡、
+> tracking.enabled 条件入口均已落地。
 
 - **Plan 区**：侧边栏显示 agent 的 plan（`local://` 会话工件路径解析；
   `tracking.enabled` 时镜像 tracking/plans/）。gateway 白名单读端点 +
@@ -73,7 +75,7 @@
 
 ### 1.4 dsh 行为迁移（洁净室）
 
-> 状态（2026-09-22）：◐ —— 折叠 rail 本批执行；滚动条指针感知未排期（§11.2）。
+> 状态（2026-09-22）：◐ —— 折叠 rail ✅；滚动条指针感知未排期（§11.2）。
 
 - 滚动条指针感知（离开 ~2s 后隐藏）
 - 折叠 rail 图标列
@@ -87,15 +89,15 @@ GPUI 是 web-ui 收敛后的最后路线，不与当前开发并行。
 
 ## 2. Plan 生命周期 Web 呈现（本轮核心新增）
 
-> 状态（2026-09-22）：◐ —— 四按钮审阅面 ✅（web-ui/components/PlanApproval.tsx，
+> 状态（2026-09-22）：✅（组合结构除外）—— 四按钮审阅面 ✅（web-ui/components/PlanApproval.tsx，
 > preserve/compact/fresh/cancel 经 ChatWindow plan_approve 下发）；
-> plan-ultra workflow 徽章 ✅、组合结构延后（无结构化子 plan 数据源，§11.2）；
-> todo gateway 暴露本批执行（§11.1）。
+> plan-ultra workflow 徽章 ✅；todo 经 get_state todos 暴露 ✅；
+> 组合结构延后（无结构化子 plan 数据源，§11.2）。
 
 CLI 的 plan 出口 prompt 已齐全：`plan-mode-approved.md`（含
 `contextPreserved` 分支）、`plan-yolo-handoff.md`、
 `plan-mode-compact-instructions.md`、`plan-mode-ultra-active.md`。
-**Web 呈现层缺口**：
+**Web 呈现层**：
 
 - **审阅面**：plan-mode 下 agent 产出 plan 后，web 显示 plan 全文
   （markdown 渲染，来自 §1 的 plan 端点）+ 四个操作按钮：
@@ -115,11 +117,10 @@ CLI 的 plan 出口 prompt 已齐全：`plan-mode-approved.md`（含
 
 ## 3. Tracking v2（与 web-ui-modernization §5 合流）
 
-> 状态（2026-09-22）：❌ 核心未落地 —— 已有：tracking 工具 4 op v1、
-> TodoTracker phases/12 次 mid-run nudge、compaction→recordCompaction 钩子 ✅。
-> 本批执行：sync_todo、index-template.md、tracking-index 对象数组、
-> status stage/phases/lastSessionId、plan 镜像、phase 完成 nudge 接线、
-> 三读者模板、docs v2、todo gateway 暴露（§11.1）。
+> 状态（2026-09-22）：✅ 核心 —— sync_todo、index-template 三读者模板、
+> tracking-index 对象数组、status stage/phases/lastSessionId、plan 镜像、
+> phase 完成 nudge 接线、todo gateway 暴露、docs v2、条件入口全部落地。
+> tracking.enabled 默认仍为 false（opt-in 设计不变）。
 
 - todo 绑定、compaction 自动摘要钩子、Next API 升级、面板——按
   web-ui-modernization §5 原设计执行。
@@ -442,6 +443,9 @@ update 流程（用我们 /api/update）。
 - 2026-09-22: 全文状态盘点（四路代码审计）；Pinned/Archive 裁量更新
   （保持列表内折叠分区，不强迁底部）；新增 §11 剩余工作清单
   （A+B 本批 / C 级另立 / 小活）；顺带修正两处笔误与重复修订条目。
+- 2026-09-22: feat/plan-surface-completion 落地 §11.1 全部 A+B 级项
+  （极简收尾、命令面板、Shiki、SettingsWindow、i18n 清欠、Tracking v2、
+  plan 端点/Plan 卡/条件入口、web_ui_build CI）；状态标注刷新为终态。
 
 ## 10. 官方默认 Skills 套装 + 安装引导
 
@@ -497,24 +501,24 @@ python-docx / python-pptx / openpyxl / pandoc，SKILL.md 内含安装指引）�
 
 ## 11. 剩余工作 — 本批与后续（2026-09-22 盘点收口）
 
-### 11.1 本批执行（feat/plan-surface-completion，A+B 级）
+### 11.1 本批执行（feat/plan-surface-completion，A+B 级）— ✅ 已全部落地（2026-09-22）
 
-- **波 2 极简收尾**：底部入口收敛为设置唯一；删 HoverCard + PathLabel
-  死副本；区头新建工作区按钮；侧栏折叠 56px 图标列；欢迎态工作区/模式
-  双选择器；删顶栏重复 files 按钮。
-- **波 3**：命令面板 Ctrl+K（cmdk）；Shiki 替换 react-syntax-highlighter
-  （消费既有 --md-syntax-* 变量）；SettingsWindow 窗口化（搜索 + 高亮 +
-  分组导航 + appearance 组）；i18n 清欠（TrackingPanel/SettingsPanel/
-  ChatInput/LanguagePicker/FileViewer/formatRelativeTime 硬编码入
-  messages）。
-- **波 4 Plan/Tracking**：gateway plan 白名单端点（/api/plan）；侧边栏
-  Plan 区；dock tracking 入口 tracking.enabled gating；Tracking v2 核心
-  （sync_todo、prompts/tracking/index-template.md、tracking-index 对象
-  数组、status stage/phases/lastSessionId、plan 批准镜像至
-  tracking/plans/、phase 完成 nudge 接线、三读者模板落盘、todo 经
-  get_state 暴露、tracking_update.md / zeta-tracking.md v2 重写）。
-- **波 5**：移除 react-syntax-highlighter 依赖；CI web_ui_build matrix
-  job + 修 check job 重复 collab:web:build 步骤；文档终态刷新。
+- **波 2 极简收尾** ✅：底部入口收敛为 rail 开关 + 设置唯一；HoverCard +
+  PathLabel 死副本已删；区头新建工作区按钮；侧栏折叠 56px 图标列；
+  欢迎态工作区/模式双选择器；顶栏重复 files 按钮已删。
+- **波 3** ✅：命令面板 Ctrl+K（cmdk：动作 + 会话搜索）；Shiki 替换
+  react-syntax-highlighter（纯 CSS 变量主题，切主题零重排）；SettingsWindow
+  窗口化（搜索 + 高亮 + 分组导航 + appearance 组）；i18n 清欠
+  （TrackingPanel/ChatInput/LanguagePicker/formatRelativeTime/SettingsPanel
+  硬编码入 messages，en/zh 同步）。
+- **波 4 Plan/Tracking** ✅：GET /api/plan 白名单端点；侧栏 Plan 卡；
+  dock tracking 入口 tracking.enabled gating；Tracking v2（sync_todo、
+  index-template.md、对象数组索引、stage/phases/lastSessionId、plan 镜像
+  tracking/plans/、phase 完成 nudge、三读者模板、todos get_state 暴露、
+  docs v2）。
+- **波 5** ✅：react-syntax-highlighter 依赖移除；CI web_ui_build matrix
+  job（ubuntu/windows/macos）。（原列「修 check job 重复 collab:web:build」
+  已不适用——该步骤现仅出现一次。）
 
 ### 11.2 C 级另立（不在本批）
 
