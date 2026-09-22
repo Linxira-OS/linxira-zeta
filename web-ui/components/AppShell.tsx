@@ -51,9 +51,12 @@ import {
 	RIGHT_PANEL_FALLBACK_WIDTH,
 	RIGHT_PANEL_MAX_WIDTH,
 	RIGHT_PANEL_MIN_WIDTH,
+	SIDEBAR_COLLAPSED_WIDTH,
 	SIDEBAR_DEFAULT_WIDTH,
 	SIDEBAR_MAX_WIDTH,
 	SIDEBAR_MIN_WIDTH,
+	readSidebarCollapsedPref,
+	writeSidebarCollapsedPref,
 } from "@/lib/panel-layout";
 import type { SessionInfo, SessionTreeNode } from "@/lib/types";
 import type { ChatInputHandle } from "./ChatInput";
@@ -214,6 +217,21 @@ function AppShellContent() {
 	useEffect(() => {
 		setSidebarOpen(readSidebarOpenPref());
 	}, []);
+	// Collapsed rail mode (desktop): the sidebar shrinks to a 56px icon column.
+	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+	useEffect(() => {
+		setSidebarCollapsed(readSidebarCollapsedPref());
+	}, []);
+	const expandSidebar = useCallback(() => {
+		setSidebarCollapsed(false);
+		writeSidebarCollapsedPref(false);
+	}, []);
+	const collapseSidebar = useCallback(() => {
+		setSidebarCollapsed(true);
+		writeSidebarCollapsedPref(true);
+	}, []);
+	// The collapsed rail is a desktop affordance; mobile keeps the drawer.
+	const sidebarRailActive = sidebarCollapsed && !isMobile;
 	type DockTool = "session" | "files" | "tracking" | "plugins";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
@@ -848,7 +866,162 @@ function AppShellContent() {
 		return () => observer.disconnect();
 	}, [windowTitle]);
 
-	const sidebarContent = (
+	// Collapsed rail: 56px icon column replacing the full sidebar body.
+	const sidebarCollapsedRail = (
+		<div
+			style={{
+				height: "100%",
+				display: "flex",
+				flexDirection: "column",
+				alignItems: "center",
+				gap: 4,
+				padding: "8px 0",
+			}}
+		>
+			{(
+				[
+					{
+						label: t("new-session"),
+						onClick: () =>
+							handleNewSession(`rail-${Date.now()}`, activeCwd ?? selectedSession?.cwd ?? newSessionCwd ?? ""),
+						icon: (
+							<svg
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<path d="M12 5v14" />
+								<path d="M5 12h14" />
+							</svg>
+						),
+					},
+					{
+						label: t("sidebar.display.search"),
+						onClick: expandSidebar,
+						icon: (
+							<svg
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<circle cx="11" cy="11" r="7" />
+								<line x1="21" y1="21" x2="16.5" y2="16.5" />
+							</svg>
+						),
+					},
+					{
+						label: t("sidebar.openWorkspace"),
+						onClick: expandSidebar,
+						icon: (
+							<svg
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+							</svg>
+						),
+					},
+					{
+						label: t("settings"),
+						onClick: () => setSettingsConfigOpen(true),
+						icon: (
+							<svg
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+								<circle cx="12" cy="12" r="3" />
+							</svg>
+						),
+					},
+				] as { label: string; onClick: () => void; icon: ReactNode }[]
+			).map(({ label, onClick, icon }) => (
+				<button
+					key={label}
+					onClick={onClick}
+					title={label}
+					aria-label={label}
+					className="sidebar-icon-btn"
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						width: 36,
+						height: 36,
+						padding: 0,
+						background: "none",
+						border: "none",
+						borderRadius: 9,
+						color: "var(--text-muted)",
+						cursor: "pointer",
+					}}
+				>
+					{icon}
+				</button>
+			))}
+			<div style={{ flex: 1 }} />
+			<button
+				onClick={expandSidebar}
+				title={t("layout.expandRail")}
+				aria-label={t("layout.expandRail")}
+				className="sidebar-icon-btn"
+				style={{
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					width: 36,
+					height: 36,
+					padding: 0,
+					background: "none",
+					border: "none",
+					borderRadius: 9,
+					color: "var(--text-muted)",
+					cursor: "pointer",
+				}}
+			>
+				<svg
+					width="18"
+					height="18"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				>
+					<rect x="3" y="3" width="18" height="18" rx="2" />
+					<line x1="9" y1="3" x2="9" y2="21" />
+					<polyline points="15 9 17.5 12 15 15" />
+				</svg>
+			</button>
+		</div>
+	);
+
+	const sidebarContent = sidebarRailActive ? (
+		sidebarCollapsedRail
+	) : (
 		<>
 			<SessionSidebar
 				selectedSessionId={selectedSession?.id ?? null}
@@ -879,79 +1052,32 @@ function AppShellContent() {
 			>
 				{(
 					[
-						{
-							label: t("models"),
-							onClick: () => setModelsConfigOpen(true),
-							disabled: false,
-							icon: (
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<rect x="4" y="4" width="16" height="16" rx="2" />
-									<rect x="9" y="9" width="6" height="6" />
-									<line x1="9" y1="1" x2="9" y2="4" />
-									<line x1="15" y1="1" x2="15" y2="4" />
-									<line x1="9" y1="20" x2="9" y2="23" />
-									<line x1="15" y1="20" x2="15" y2="23" />
-									<line x1="20" y1="9" x2="23" y2="9" />
-									<line x1="20" y1="14" x2="23" y2="14" />
-									<line x1="1" y1="9" x2="4" y2="9" />
-									<line x1="1" y1="14" x2="4" y2="14" />
-								</svg>
-							),
-						},
-						{
-							label: t("skills"),
-							onClick: () => setSkillsConfigOpen(true),
-							disabled: !activeCwd && !selectedSession?.cwd && !newSessionCwd,
-							icon: (
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<path d="M12 2L2 7l10 5 10-5-10-5z" />
-									<path d="M2 17l10 5 10-5" />
-									<path d="M2 12l10 5 10-5" />
-								</svg>
-							),
-						},
-						{
-							label: t("plugins"),
-							// Open the right tool dock's plugin window instead of the legacy
-							// modal; it degrades to a "select project" hint without a cwd.
-							onClick: () => setDockTool("plugins"),
-							disabled: false,
-							icon: (
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<path d="M9 7V2" />
-									<path d="M15 7V2" />
-									<path d="M6 13V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5a6 6 0 0 1-12 0Z" />
-									<path d="M12 19v3" />
-								</svg>
-							),
-						},
+						// The collapsed rail is desktop-only; mobile keeps the full drawer.
+						...(isMobile
+							? []
+							: [
+									{
+										label: t("layout.collapseToRail"),
+										onClick: collapseSidebar,
+										disabled: false,
+										icon: (
+											<svg
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												strokeWidth="2"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											>
+												<rect x="3" y="3" width="18" height="18" rx="2" />
+												<line x1="9" y1="3" x2="9" y2="21" />
+												<polyline points="16.5 9 14 12 16.5 15" />
+											</svg>
+										),
+									},
+								]),
 						{
 							label: t("settings"),
 							onClick: () => setSettingsConfigOpen(true),
@@ -1117,9 +1243,18 @@ function AppShellContent() {
           overflow: hidden;
           transition: width 0.2s ease, min-width 0.2s ease;
         }
-        .sidebar-container.sidebar-open {
+		.sidebar-container.sidebar-open {
           width: var(--sidebar-width, 260px);
           min-width: var(--sidebar-width, 260px);
+        }
+        .sidebar-container.sidebar-collapsed,
+        .sidebar-container.sidebar-collapsed.sidebar-open {
+          width: ${SIDEBAR_COLLAPSED_WIDTH}px;
+          min-width: ${SIDEBAR_COLLAPSED_WIDTH}px;
+        }
+        .sidebar-container.sidebar-collapsed > * {
+          width: ${SIDEBAR_COLLAPSED_WIDTH}px;
+          min-width: ${SIDEBAR_COLLAPSED_WIDTH}px;
         }
         .sidebar-container.sidebar-closed {
           width: 0;
@@ -1274,10 +1409,10 @@ function AppShellContent() {
 				<div
 					ref={sidebarResizer.panelRef}
 					id="session-sidebar"
-					className={`sidebar-container${sidebarOpen ? " sidebar-open" : " sidebar-closed"}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}${sidebarResizer.isResizing ? " sidebar-resizing" : ""}`}
+					className={`sidebar-container${sidebarRailActive ? " sidebar-collapsed" : ""}${sidebarOpen ? " sidebar-open" : " sidebar-closed"}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}${sidebarResizer.isResizing ? " sidebar-resizing" : ""}`}
 					style={
 						{
-							"--sidebar-width": `${sidebarResizer.width}px`,
+							"--sidebar-width": `${sidebarRailActive ? SIDEBAR_COLLAPSED_WIDTH : sidebarResizer.width}px`,
 							background: "var(--bg-panel)",
 							borderRight: "1px solid var(--border)",
 							display: "flex",
@@ -1932,48 +2067,6 @@ function AppShellContent() {
 									</button>
 								);
 							})()}
-						{/* Files window toggle — opens the dock on the files window */}
-						<button
-							onClick={() => {
-								setDockTool(cur => (cur === "files" ? null : "files"));
-							}}
-							title={dockTool === "files" ? t("dock.hide-files") : t("dock.show-files")}
-							aria-label={dockTool === "files" ? t("dock.hide-files") : t("dock.show-files")}
-							aria-pressed={dockTool === "files"}
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								width: 36,
-								height: "100%",
-								padding: 0,
-								background: "none",
-								border: "none",
-								color: dockTool === "files" ? "var(--accent)" : "var(--text-muted)",
-								cursor: "pointer",
-								transition: "color 0.12s, background 0.12s",
-							}}
-							onMouseEnter={e => {
-								e.currentTarget.style.color = "var(--text)";
-							}}
-							onMouseLeave={e => {
-								e.currentTarget.style.color = dockTool === "files" ? "var(--accent)" : "var(--text-muted)";
-							}}
-						>
-							<svg
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<rect x="3" y="3" width="18" height="18" rx="2" />
-								<line x1="15" y1="3" x2="15" y2="21" />
-							</svg>
-						</button>
 						{/* Top panel dropdown — shared, only one active at a time */}
 						{activeTopPanel && topPanelPos && (
 							<div
@@ -2329,6 +2422,7 @@ function AppShellContent() {
 								session={selectedSession}
 								newSessionCwd={effectiveNewSessionCwd}
 								explicitNew={explicitNewRef.current}
+								onNewSessionCwdChange={cwd => handleNewSession(`welcome-${Date.now()}`, cwd)}
 								onAgentEnd={handleAgentEnd}
 								onSessionCreated={handleSessionCreated}
 								onSessionForked={handleSessionForked}

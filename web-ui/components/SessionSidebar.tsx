@@ -5,14 +5,14 @@
 import { getFileName } from "@/lib/file-paths";
 
 import {
-  useEffect,
-  useLayoutEffect,
-  useState,
-  useCallback,
-  useMemo,
-  useRef,
-  type CSSProperties,
-  type ReactNode,
+	useEffect,
+	useLayoutEffect,
+	useState,
+	useCallback,
+	useMemo,
+	useRef,
+	type CSSProperties,
+	type ReactNode,
 } from "react";
 import type { SessionInfo } from "@/lib/types";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -35,32 +35,31 @@ import { ArchiveSection } from "./sidebar/ArchiveSection";
 import { PinnedSection } from "./sidebar/PinnedSection";
 import { BulkActionBar } from "./sidebar/BulkActionBar";
 import { FloatingMenu, type FloatingMenuItem } from "./sidebar/FloatingMenu";
-import { SessionHoverCard } from "./sidebar/SessionHoverCard";
 import { SearchDialog } from "./SearchDialog";
 import {
-  loadSidebarPrefs,
-  updatePrefs,
-  markSessionRead,
-  type SessionSort,
-  type ProjectSort,
+	loadSidebarPrefs,
+	updatePrefs,
+	markSessionRead,
+	type SessionSort,
+	type ProjectSort,
 } from "@/lib/sidebar-prefs";
 import { sortSessions, sortProjects } from "@/lib/sidebar-groups";
 import {
-  loadCollapsedProjects,
-  loadDisplaySettings,
-  loadPinnedSessionIds,
-  savePinnedSessionIds,
-  SIDEBAR_COLLAPSED_PROJECTS_KEY,
-  SIDEBAR_DISPLAY_KEY,
-  type SidebarDisplaySettings,
+	loadCollapsedProjects,
+	loadDisplaySettings,
+	loadPinnedSessionIds,
+	savePinnedSessionIds,
+	SIDEBAR_COLLAPSED_PROJECTS_KEY,
+	SIDEBAR_DISPLAY_KEY,
+	type SidebarDisplaySettings,
 } from "./sidebar/sidebar-shared";
 import { useSessionMultiSelect } from "./sidebar/useSessionMultiSelect";
 import {
-  archiveSession,
-  deleteProjectSessions,
-  deleteSessions,
-  fetchArchivedSessions,
-  renameSession,
+	archiveSession,
+	deleteProjectSessions,
+	deleteSessions,
+	fetchArchivedSessions,
+	renameSession,
 } from "@/lib/session-api";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
@@ -68,92 +67,83 @@ import { sendAgentCommand } from "@/lib/agent-client";
 import "@/lib/pi-desktop";
 
 interface Props {
-  selectedSessionId: string | null;
-  onSelectSession: (session: SessionInfo, isRestore?: boolean) => void;
-  onNewSession?: (sessionId: string, cwd: string) => void;
-  initialSessionId?: string | null;
-  skipInitialProjectSelection?: boolean;
-  onInitialRestoreDone?: () => void;
-  refreshKey?: number;
-  onSessionDeleted?: (sessionId: string) => void;
-  selectedCwd?: string | null;
-  onCwdChange?: (cwd: string | null, projectRoot?: string | null) => void;
-  onOpenSkills?: () => void;
-  onOpenFile?: (
-    filePath: string,
-    fileName: string,
-    options?: { sourceSessionId?: string | null; modeHint?: "diff" },
-  ) => void;
-  explorerRefreshKey?: number;
-  onExplorerRefresh?: () => void;
-  onAtMention?: (relativePath: string, isDir: boolean) => void;
-  onAtMentions?: (relativePaths: string[]) => void;
+	selectedSessionId: string | null;
+	onSelectSession: (session: SessionInfo, isRestore?: boolean) => void;
+	onNewSession?: (sessionId: string, cwd: string) => void;
+	initialSessionId?: string | null;
+	skipInitialProjectSelection?: boolean;
+	onInitialRestoreDone?: () => void;
+	refreshKey?: number;
+	onSessionDeleted?: (sessionId: string) => void;
+	selectedCwd?: string | null;
+	onCwdChange?: (cwd: string | null, projectRoot?: string | null) => void;
+	onOpenSkills?: () => void;
+	onOpenFile?: (
+		filePath: string,
+		fileName: string,
+		options?: { sourceSessionId?: string | null; modeHint?: "diff" },
+	) => void;
+	explorerRefreshKey?: number;
+	onExplorerRefresh?: () => void;
+	onAtMention?: (relativePath: string, isDir: boolean) => void;
+	onAtMentions?: (relativePaths: string[]) => void;
 }
 
 interface WorktreeEntry {
-  path: string;
-  branch: string | null;
-  isMain: boolean;
+	path: string;
+	branch: string | null;
+	isMain: boolean;
 }
 
 interface WorktreeState {
-  /** The cwd this data was fetched for — guards against stale responses */
-  forCwd: string;
-  projectRoot: string;
-  isGit: boolean;
-  /** False when forCwd is a repo subdirectory — the switcher is hidden there
-   *  because subdir sessions keep their own project identity */
-  isTopLevel: boolean;
-  worktrees: WorktreeEntry[];
+	/** The cwd this data was fetched for — guards against stale responses */
+	forCwd: string;
+	projectRoot: string;
+	isGit: boolean;
+	/** False when forCwd is a repo subdirectory — the switcher is hidden there
+	 *  because subdir sessions keep their own project identity */
+	isTopLevel: boolean;
+	worktrees: WorktreeEntry[];
 }
 
 const UNREAD_SESSIONS_STORAGE_KEY = "zeta-web:unread-session-ids";
 const RUNNING_SESSIONS_POLL_MS = 2500;
 
-
 function loadUnreadSessionIds(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(UNREAD_SESSIONS_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed))
-      return new Set(
-        parsed.filter((id): id is string => typeof id === "string"),
-      );
-    return new Set();
-  } catch {
-    return new Set();
-  }
+	if (typeof window === "undefined") return new Set();
+	try {
+		const raw = window.localStorage.getItem(UNREAD_SESSIONS_STORAGE_KEY);
+		if (!raw) return new Set();
+		const parsed = JSON.parse(raw) as unknown;
+		if (Array.isArray(parsed)) return new Set(parsed.filter((id): id is string => typeof id === "string"));
+		return new Set();
+	} catch {
+		return new Set();
+	}
 }
 
 function saveUnreadSessionIds(ids: Set<string>): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (ids.size === 0)
-      window.localStorage.removeItem(UNREAD_SESSIONS_STORAGE_KEY);
-    else
-      window.localStorage.setItem(
-        UNREAD_SESSIONS_STORAGE_KEY,
-        JSON.stringify([...ids]),
-      );
-  } catch {
-    // ignore storage quota / privacy-mode errors
-  }
+	if (typeof window === "undefined") return;
+	try {
+		if (ids.size === 0) window.localStorage.removeItem(UNREAD_SESSIONS_STORAGE_KEY);
+		else window.localStorage.setItem(UNREAD_SESSIONS_STORAGE_KEY, JSON.stringify([...ids]));
+	} catch {
+		// ignore storage quota / privacy-mode errors
+	}
 }
 
 function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const mins = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString();
+	const date = new Date(dateStr);
+	const now = new Date();
+	const diff = now.getTime() - date.getTime();
+	const mins = Math.floor(diff / 60000);
+	const hours = Math.floor(diff / 3600000);
+	const days = Math.floor(diff / 86400000);
+	if (mins < 1) return "just now";
+	if (mins < 60) return `${mins}m ago`;
+	if (hours < 24) return `${hours}h ago`;
+	if (days < 7) return `${days}d ago`;
+	return date.toLocaleDateString();
 }
 
 /**
@@ -161,25 +151,21 @@ function formatRelativeTime(dateStr: string): string {
  * main repo) sorted by most recent session activity.
  */
 function getRecentProjects(sessions: SessionInfo[]): string[] {
-  const latestByRoot = new Map<string, string>(); // projectRoot -> most recent modified
-  for (const s of sessions) {
-    const root = s.projectRoot ?? s.cwd;
-    if (!root) continue;
-    const prev = latestByRoot.get(root);
-    if (!prev || s.modified > prev) {
-      latestByRoot.set(root, s.modified);
-    }
-  }
-  return [...latestByRoot.entries()]
-    .sort((a, b) => b[1].localeCompare(a[1]))
-    .map(([root]) => root);
+	const latestByRoot = new Map<string, string>(); // projectRoot -> most recent modified
+	for (const s of sessions) {
+		const root = s.projectRoot ?? s.cwd;
+		if (!root) continue;
+		const prev = latestByRoot.get(root);
+		if (!prev || s.modified > prev) {
+			latestByRoot.set(root, s.modified);
+		}
+	}
+	return [...latestByRoot.entries()].sort((a, b) => b[1].localeCompare(a[1])).map(([root]) => root);
 }
 
 /** Substitute the home dir prefix with ~ (no path truncation — see PathLabel) */
 function displayCwd(cwd: string, homeDir?: string): string {
-  return homeDir && cwd.startsWith(homeDir)
-    ? "~" + cwd.slice(homeDir.length)
-    : cwd;
+	return homeDir && cwd.startsWith(homeDir) ? "~" + cwd.slice(homeDir.length) : cwd;
 }
 
 /**
@@ -191,243 +177,229 @@ function displayCwd(cwd: string, homeDir?: string): string {
  */
 
 function ToolbarIconButton({
-  onClick,
-  title,
-  disabled,
-  skipHover,
-  color,
-  background = "none",
-  marginRight,
-  ariaPressed,
-  children,
+	onClick,
+	title,
+	disabled,
+	skipHover,
+	color,
+	background = "none",
+	marginRight,
+	ariaPressed,
+	children,
 }: {
-  onClick: () => void;
-  title: string;
-  disabled?: boolean;
-  skipHover?: boolean;
-  color: string;
-  background?: string;
-  marginRight?: number;
-  ariaPressed?: boolean;
-  children: ReactNode;
+	onClick: () => void;
+	title: string;
+	disabled?: boolean;
+	skipHover?: boolean;
+	color: string;
+	background?: string;
+	marginRight?: number;
+	ariaPressed?: boolean;
+	children: ReactNode;
 }) {
-  const enter = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (disabled || skipHover) return;
-    e.currentTarget.style.color = "var(--text-muted)";
-    e.currentTarget.style.background = "var(--bg-hover)";
-  };
-  const leave = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (disabled || skipHover) return;
-    e.currentTarget.style.color = color;
-    e.currentTarget.style.background = background;
-  };
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-label={title}
-      aria-pressed={ariaPressed}
-      style={{
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 26,
-        height: 26,
-        padding: 0,
-        marginRight,
-        background,
-        border: "none",
-        color,
-        cursor: disabled ? "default" : "pointer",
-        borderRadius: 5,
-        flexShrink: 0,
-        opacity: disabled ? 0.6 : 1,
-        transition: "color 0.3s, background 0.3s",
-      }}
-      onMouseEnter={enter}
-      onMouseLeave={leave}
-    >
-      {children}
-    </button>
-  );
+	const enter = (e: React.MouseEvent<HTMLButtonElement>) => {
+		if (disabled || skipHover) return;
+		e.currentTarget.style.color = "var(--text-muted)";
+		e.currentTarget.style.background = "var(--bg-hover)";
+	};
+	const leave = (e: React.MouseEvent<HTMLButtonElement>) => {
+		if (disabled || skipHover) return;
+		e.currentTarget.style.color = color;
+		e.currentTarget.style.background = background;
+	};
+	return (
+		<button
+			onClick={onClick}
+			disabled={disabled}
+			title={title}
+			aria-label={title}
+			aria-pressed={ariaPressed}
+			style={{
+				position: "relative",
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				width: 26,
+				height: 26,
+				padding: 0,
+				marginRight,
+				background,
+				border: "none",
+				color,
+				cursor: disabled ? "default" : "pointer",
+				borderRadius: 5,
+				flexShrink: 0,
+				opacity: disabled ? 0.6 : 1,
+				transition: "color 0.3s, background 0.3s",
+			}}
+			onMouseEnter={enter}
+			onMouseLeave={leave}
+		>
+			{children}
+		</button>
+	);
 }
 
 function PathLabel({ text, style }: { text: string; style?: CSSProperties }) {
-  return (
-    <span
-      style={{
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-        display: "block",
-        minWidth: 0,
-        lineHeight: 1.35,
-        direction: "rtl",
-        textAlign: "left",
-        ...style,
-      }}
-    >
-      <span style={{ unicodeBidi: "plaintext" }}>{text}</span>
-    </span>
-  );
+	return (
+		<span
+			style={{
+				overflow: "hidden",
+				textOverflow: "ellipsis",
+				whiteSpace: "nowrap",
+				display: "block",
+				minWidth: 0,
+				lineHeight: 1.35,
+				direction: "rtl",
+				textAlign: "left",
+				...style,
+			}}
+		>
+			<span style={{ unicodeBidi: "plaintext" }}>{text}</span>
+		</span>
+	);
 }
 
 const DROPDOWN_ANIMATION_MS = 140;
 
-function AnimatedDropdown({
-  open,
-  children,
-  style,
-}: {
-  open: boolean;
-  children: ReactNode;
-  style: CSSProperties;
-}) {
-  const [mounted, setMounted] = useState(open);
-  const [visible, setVisible] = useState(open);
+function AnimatedDropdown({ open, children, style }: { open: boolean; children: ReactNode; style: CSSProperties }) {
+	const [mounted, setMounted] = useState(open);
+	const [visible, setVisible] = useState(open);
 
-  useEffect(() => {
-    let frame: number | undefined;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
+	useEffect(() => {
+		let frame: number | undefined;
+		let timeout: ReturnType<typeof setTimeout> | undefined;
 
-    if (open) {
-      setMounted(true);
-      setVisible(false);
-      frame = window.requestAnimationFrame(() => {
-        frame = window.requestAnimationFrame(() => setVisible(true));
-      });
-    } else {
-      setVisible(false);
-      timeout = setTimeout(() => setMounted(false), DROPDOWN_ANIMATION_MS);
-    }
+		if (open) {
+			setMounted(true);
+			setVisible(false);
+			frame = window.requestAnimationFrame(() => {
+				frame = window.requestAnimationFrame(() => setVisible(true));
+			});
+		} else {
+			setVisible(false);
+			timeout = setTimeout(() => setMounted(false), DROPDOWN_ANIMATION_MS);
+		}
 
-    return () => {
-      if (frame !== undefined) window.cancelAnimationFrame(frame);
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [open]);
+		return () => {
+			if (frame !== undefined) window.cancelAnimationFrame(frame);
+			if (timeout) clearTimeout(timeout);
+		};
+	}, [open]);
 
-  if (!mounted) return null;
+	if (!mounted) return null;
 
-  return (
-    <div
-      style={{
-        ...style,
-        opacity: visible ? 1 : 0,
-        transform: visible
-          ? "translateY(0) scale(1)"
-          : "translateY(-8px) scale(0.96)",
-        transformOrigin: "top center",
-        transition: `opacity ${DROPDOWN_ANIMATION_MS}ms ease, transform ${DROPDOWN_ANIMATION_MS}ms ease`,
-        pointerEvents: open ? "auto" : "none",
-      }}
-    >
-      {children}
-    </div>
-  );
+	return (
+		<div
+			style={{
+				...style,
+				opacity: visible ? 1 : 0,
+				transform: visible ? "translateY(0) scale(1)" : "translateY(-8px) scale(0.96)",
+				transformOrigin: "top center",
+				transition: `opacity ${DROPDOWN_ANIMATION_MS}ms ease, transform ${DROPDOWN_ANIMATION_MS}ms ease`,
+				pointerEvents: open ? "auto" : "none",
+			}}
+		>
+			{children}
+		</div>
+	);
 }
 
 interface SessionTreeNode {
-  session: SessionInfo;
-  children: SessionTreeNode[];
+	session: SessionInfo;
+	children: SessionTreeNode[];
 }
 
 function buildSessionTree(sessions: SessionInfo[]): SessionTreeNode[] {
-  const byId = new Map<string, SessionTreeNode>();
-  for (const s of sessions) {
-    byId.set(s.id, { session: s, children: [] });
-  }
+	const byId = new Map<string, SessionTreeNode>();
+	for (const s of sessions) {
+		byId.set(s.id, { session: s, children: [] });
+	}
 
-  // Build a map of parentSessionId chains so we can resolve missing ancestors
-  const parentOf = new Map<string, string>();
-  for (const s of sessions) {
-    if (s.parentSessionId) parentOf.set(s.id, s.parentSessionId);
-  }
+	// Build a map of parentSessionId chains so we can resolve missing ancestors
+	const parentOf = new Map<string, string>();
+	for (const s of sessions) {
+		if (s.parentSessionId) parentOf.set(s.id, s.parentSessionId);
+	}
 
-  // Walk up the parentSessionId chain to find the nearest ancestor that exists in byId
-  function resolveAncestor(id: string): string | null {
-    let cur = parentOf.get(id);
-    const visited = new Set<string>();
-    while (cur) {
-      if (visited.has(cur)) return null; // cycle guard
-      visited.add(cur);
-      if (byId.has(cur)) return cur;
-      cur = parentOf.get(cur);
-    }
-    return null;
-  }
+	// Walk up the parentSessionId chain to find the nearest ancestor that exists in byId
+	function resolveAncestor(id: string): string | null {
+		let cur = parentOf.get(id);
+		const visited = new Set<string>();
+		while (cur) {
+			if (visited.has(cur)) return null; // cycle guard
+			visited.add(cur);
+			if (byId.has(cur)) return cur;
+			cur = parentOf.get(cur);
+		}
+		return null;
+	}
 
-  const roots: SessionTreeNode[] = [];
-  for (const node of byId.values()) {
-    const ancestor = resolveAncestor(node.session.id);
-    if (ancestor) {
-      byId.get(ancestor)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
+	const roots: SessionTreeNode[] = [];
+	for (const node of byId.values()) {
+		const ancestor = resolveAncestor(node.session.id);
+		if (ancestor) {
+			byId.get(ancestor)!.children.push(node);
+		} else {
+			roots.push(node);
+		}
+	}
 
-  // Sort each level by modified desc
-  const sort = (nodes: SessionTreeNode[]) => {
-    nodes.sort((a, b) => b.session.modified.localeCompare(a.session.modified));
-    nodes.forEach((n) => sort(n.children));
-  };
-  sort(roots);
-  return roots;
+	// Sort each level by modified desc
+	const sort = (nodes: SessionTreeNode[]) => {
+		nodes.sort((a, b) => b.session.modified.localeCompare(a.session.modified));
+		nodes.forEach(n => sort(n.children));
+	};
+	sort(roots);
+	return roots;
 }
 
-const SCRAMBLE_CHARS =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
 
 function useScramble(target: string, running: boolean): string {
-  const [display, setDisplay] = useState(target);
-  const frameRef = useRef<number | null>(null);
-  const iterRef = useRef(0);
+	const [display, setDisplay] = useState(target);
+	const frameRef = useRef<number | null>(null);
+	const iterRef = useRef(0);
 
-  useEffect(() => {
-    if (!running) {
-      setDisplay(target);
-      return;
-    }
-    iterRef.current = 0;
-    const totalFrames = target.length * 4;
+	useEffect(() => {
+		if (!running) {
+			setDisplay(target);
+			return;
+		}
+		iterRef.current = 0;
+		const totalFrames = target.length * 4;
 
-    const step = () => {
-      iterRef.current += 1;
-      const progress = iterRef.current / totalFrames;
-      const resolved = Math.floor(progress * target.length);
+		const step = () => {
+			iterRef.current += 1;
+			const progress = iterRef.current / totalFrames;
+			const resolved = Math.floor(progress * target.length);
 
-      setDisplay(
-        target
-          .split("")
-          .map((char, i) => {
-            if (char === " ") return " ";
-            if (i < resolved) return char;
-            return SCRAMBLE_CHARS[
-              Math.floor(Math.random() * SCRAMBLE_CHARS.length)
-            ];
-          })
-          .join(""),
-      );
+			setDisplay(
+				target
+					.split("")
+					.map((char, i) => {
+						if (char === " ") return " ";
+						if (i < resolved) return char;
+						return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+					})
+					.join(""),
+			);
 
-      if (iterRef.current < totalFrames) {
-        frameRef.current = requestAnimationFrame(step);
-      } else {
-        setDisplay(target);
-      }
-    };
+			if (iterRef.current < totalFrames) {
+				frameRef.current = requestAnimationFrame(step);
+			} else {
+				setDisplay(target);
+			}
+		};
 
-    frameRef.current = requestAnimationFrame(step);
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
-  }, [target, running]);
+		frameRef.current = requestAnimationFrame(step);
+		return () => {
+			if (frameRef.current) cancelAnimationFrame(frameRef.current);
+		};
+	}, [target, running]);
 
-  return display;
+	return display;
 }
-
 
 /**
  * Hover-revealed project header menu (⋯): destructive project-scoped actions.
@@ -435,3453 +407,3337 @@ function useScramble(target: string, running: boolean): string {
  * drops the workspace group row for this session.
  */
 function ProjectHeaderMenu({
-  project,
-  count,
-  onConfirmDelete,
-  onRenameAlias,
-  onTogglePin,
-  pinned,
+	project,
+	count,
+	onConfirmDelete,
+	onRenameAlias,
+	onTogglePin,
+	pinned,
 }: {
-  project: string;
-  count: number;
-  onConfirmDelete: (project: string, count: number) => void;
-  onRenameAlias: (project: string) => void;
-  onTogglePin: (project: string) => void;
-  pinned: boolean;
+	project: string;
+	count: number;
+	onConfirmDelete: (project: string, count: number) => void;
+	onRenameAlias: (project: string) => void;
+	onTogglePin: (project: string) => void;
+	pinned: boolean;
 }) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-  return (
-    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        title={t("sidebar.worktreeMenu")}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 20,
-          height: 20,
-          marginRight: 8,
-          padding: 0,
-          background: "none",
-          border: "none",
-          borderRadius: 5,
-          color: "var(--text-dim)",
-          cursor: "pointer",
-          opacity: open ? 1 : 0,
-          transition: "opacity 0.12s",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = "1";
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-          <circle cx="5" cy="12" r="1.8" />
-          <circle cx="12" cy="12" r="1.8" />
-          <circle cx="19" cy="12" r="1.8" />
-        </svg>
-      </button>
-      {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 2px)",
-            right: 8,
-            zIndex: 220,
-            minWidth: 190,
-            background: "var(--bg-elevated, var(--bg))",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            boxShadow: "0 6px 20px rgba(0,0,0,0.18)",
-            padding: 4,
-          }}
-        >
-          <button
-            onClick={() => {
-              setOpen(false);
-              onTogglePin(project);
-            }}
-            disabled={count === 0}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "6px 8px",
-              fontSize: 12,
-              color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
-              background: "none",
-              border: "none",
-              borderRadius: 5,
-              cursor: count === 0 ? "default" : "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {pinned ? t("sidebar.unpinProject") : t("sidebar.pinProject")}
-          </button>
-<button
-            onClick={() => {
-              setOpen(false);
-              onRenameAlias(project);
-            }}
-            disabled={count === 0}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "6px 8px",
-              fontSize: 12,
-              color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
-              background: "none",
-              border: "none",
-              borderRadius: 5,
-              cursor: count === 0 ? "default" : "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {t("sidebar.renameProject")}
-          </button>
-<button
-            onClick={() => {
-              setOpen(false);
-              onConfirmDelete(project, count);
-            }}
-            disabled={count === 0}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "6px 8px",
-              fontSize: 12,
-              color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
-              background: "none",
-              border: "none",
-              borderRadius: 5,
-              cursor: count === 0 ? "default" : "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {t("sidebar.deleteProjectSessions")}
-          </button>
-        </div>
-      )}
-    </div>
-  );
+	const { t } = useI18n();
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (!open) return;
+		const handler = (e: MouseEvent) => {
+			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [open]);
+	return (
+		<div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
+			<button
+				onClick={() => setOpen(v => !v)}
+				title={t("sidebar.worktreeMenu")}
+				style={{
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					width: 20,
+					height: 20,
+					marginRight: 8,
+					padding: 0,
+					background: "none",
+					border: "none",
+					borderRadius: 5,
+					color: "var(--text-dim)",
+					cursor: "pointer",
+					opacity: open ? 1 : 0,
+					transition: "opacity 0.12s",
+				}}
+				onMouseEnter={e => {
+					e.currentTarget.style.opacity = "1";
+				}}
+			>
+				<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+					<circle cx="5" cy="12" r="1.8" />
+					<circle cx="12" cy="12" r="1.8" />
+					<circle cx="19" cy="12" r="1.8" />
+				</svg>
+			</button>
+			{open && (
+				<div
+					style={{
+						position: "absolute",
+						top: "calc(100% + 2px)",
+						right: 8,
+						zIndex: 220,
+						minWidth: 190,
+						background: "var(--bg-elevated, var(--bg))",
+						border: "1px solid var(--border)",
+						borderRadius: 8,
+						boxShadow: "0 6px 20px rgba(0,0,0,0.18)",
+						padding: 4,
+					}}
+				>
+					<button
+						onClick={() => {
+							setOpen(false);
+							onTogglePin(project);
+						}}
+						disabled={count === 0}
+						style={{
+							display: "block",
+							width: "100%",
+							textAlign: "left",
+							padding: "6px 8px",
+							fontSize: 12,
+							color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
+							background: "none",
+							border: "none",
+							borderRadius: 5,
+							cursor: count === 0 ? "default" : "pointer",
+							whiteSpace: "nowrap",
+						}}
+					>
+						{pinned ? t("sidebar.unpinProject") : t("sidebar.pinProject")}
+					</button>
+					<button
+						onClick={() => {
+							setOpen(false);
+							onRenameAlias(project);
+						}}
+						disabled={count === 0}
+						style={{
+							display: "block",
+							width: "100%",
+							textAlign: "left",
+							padding: "6px 8px",
+							fontSize: 12,
+							color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
+							background: "none",
+							border: "none",
+							borderRadius: 5,
+							cursor: count === 0 ? "default" : "pointer",
+							whiteSpace: "nowrap",
+						}}
+					>
+						{t("sidebar.renameProject")}
+					</button>
+					<button
+						onClick={() => {
+							setOpen(false);
+							onConfirmDelete(project, count);
+						}}
+						disabled={count === 0}
+						style={{
+							display: "block",
+							width: "100%",
+							textAlign: "left",
+							padding: "6px 8px",
+							fontSize: 12,
+							color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
+							background: "none",
+							border: "none",
+							borderRadius: 5,
+							cursor: count === 0 ? "default" : "pointer",
+							whiteSpace: "nowrap",
+						}}
+					>
+						{t("sidebar.deleteProjectSessions")}
+					</button>
+				</div>
+			)}
+		</div>
+	);
 }
 
 function ZetaWebTitle() {
-  const [showVersion, setShowVersion] = useState(false);
-  const [scrambling, setScrambling] = useState(false);
-  const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const [showVersion, setShowVersion] = useState(false);
+	const [scrambling, setScrambling] = useState(false);
+	const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const target = showVersion
-    ? `v${process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.NEXT_PUBLIC_OMP_VERSION ?? process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}`
-    : "Zeta Web";
-  const display = useScramble(target, scrambling);
+	const target = showVersion
+		? `v${process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.NEXT_PUBLIC_OMP_VERSION ?? process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}`
+		: "Zeta Web";
+	const display = useScramble(target, scrambling);
 
-  const triggerScramble = useCallback((toVersion: boolean) => {
-    setShowVersion(toVersion);
-    setScrambling(true);
-    setTimeout(
-      () => setScrambling(false),
-      (toVersion ? 6 : 8) * 4 * (1000 / 60) + 100,
-    );
-  }, []);
+	const triggerScramble = useCallback((toVersion: boolean) => {
+		setShowVersion(toVersion);
+		setScrambling(true);
+		setTimeout(() => setScrambling(false), (toVersion ? 6 : 8) * 4 * (1000 / 60) + 100);
+	}, []);
 
-  const handleClick = useCallback(() => {
-    if (revertTimerRef.current) clearTimeout(revertTimerRef.current);
+	const handleClick = useCallback(() => {
+		if (revertTimerRef.current) clearTimeout(revertTimerRef.current);
 
-    const next = !showVersion;
-    triggerScramble(next);
+		const next = !showVersion;
+		triggerScramble(next);
 
-    if (next) {
-      revertTimerRef.current = setTimeout(() => triggerScramble(false), 3000);
-    }
-  }, [showVersion, triggerScramble]);
+		if (next) {
+			revertTimerRef.current = setTimeout(() => triggerScramble(false), 3000);
+		}
+	}, [showVersion, triggerScramble]);
 
-  useEffect(
-    () => () => {
-      if (revertTimerRef.current) clearTimeout(revertTimerRef.current);
-    },
-    [],
-  );
+	useEffect(
+		() => () => {
+			if (revertTimerRef.current) clearTimeout(revertTimerRef.current);
+		},
+		[],
+	);
 
-  const { isStarfield } = useTheme();
+	const { isStarfield } = useTheme();
 
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-      {isStarfield && <StarfieldEmblem size={20} />}
-      <button
-        onClick={handleClick}
-        style={{
-          background: "none",
-          border: "none",
-          padding: 0,
-          cursor: "default",
-          fontWeight: 800,
-          fontSize: isStarfield ? 14 : 15,
-          letterSpacing: isStarfield ? "0.12em" : "-0.01em",
-          color: showVersion ? "var(--accent)" : "var(--text)",
-          fontFamily: isStarfield
-            ? "var(--font-display, 'Orbitron', sans-serif)"
-            : "var(--font-mono)",
-          minWidth: "6ch",
-          textTransform: isStarfield ? "uppercase" : "none",
-        }}
-      >
-        {display}
-      </button>
-    </div>
-  );
+	return (
+		<div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+			{isStarfield && <StarfieldEmblem size={20} />}
+			<button
+				onClick={handleClick}
+				style={{
+					background: "none",
+					border: "none",
+					padding: 0,
+					cursor: "default",
+					fontWeight: 800,
+					fontSize: isStarfield ? 14 : 15,
+					letterSpacing: isStarfield ? "0.12em" : "-0.01em",
+					color: showVersion ? "var(--accent)" : "var(--text)",
+					fontFamily: isStarfield ? "var(--font-display, 'Orbitron', sans-serif)" : "var(--font-mono)",
+					minWidth: "6ch",
+					textTransform: isStarfield ? "uppercase" : "none",
+				}}
+			>
+				{display}
+			</button>
+		</div>
+	);
 }
 
 export function SessionSidebar({
-  selectedSessionId,
-  onSelectSession,
-  onNewSession,
-  initialSessionId,
-  skipInitialProjectSelection,
-  onInitialRestoreDone,
-  refreshKey,
-  onSessionDeleted,
-  selectedCwd: selectedCwdProp,
-  onCwdChange,
-  onOpenSkills,
-  onOpenFile,
-  explorerRefreshKey,
-  onExplorerRefresh,
-  onAtMention,
-  onAtMentions,
+	selectedSessionId,
+	onSelectSession,
+	onNewSession,
+	initialSessionId,
+	skipInitialProjectSelection,
+	onInitialRestoreDone,
+	refreshKey,
+	onSessionDeleted,
+	selectedCwd: selectedCwdProp,
+	onCwdChange,
+	onOpenSkills,
+	onOpenFile,
+	explorerRefreshKey,
+	onExplorerRefresh,
+	onAtMention,
+	onAtMentions,
 }: Props) {
-  const { t } = useI18n();
-  const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
-  const [showBotSessions, setShowBotSessions] = useState(false);
-  const [sessionSearch, setSessionSearch] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const multiSelect = useSessionMultiSelect();
-  const [pinnedIds, setPinnedIds] = useState<string[]>(() =>
-    loadPinnedSessionIds(),
-  );
-  const [archivedSessions, setArchivedSessions] = useState<SessionInfo[]>([]);
-  const [confirmProjectDelete, setConfirmProjectDelete] = useState<{
-    project: string;
-    count: number;
-  } | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() =>
-    loadCollapsedProjects(),
-  );
-  const [display, setDisplay] = useState<SidebarDisplaySettings>(() =>
-    loadDisplaySettings(),
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedCwd, setSelectedCwd] = useState<string | null>(null);
-  const [homeDir, setHomeDir] = useState<string>("");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [projectFilter, setProjectFilter] = useState("");
-  const [folderPickerModalOpen, setFolderPickerModalOpen] = useState(false);
-  const [customPathOpen, setCustomPathOpen] = useState(false);
-  const [customPathValue, setCustomPathValue] = useState("");
-  const [customPathError, setCustomPathError] = useState<string | null>(null);
-  const [customPathValidating, setCustomPathValidating] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  // Worktree switcher state
-  const [worktreeState, setWorktreeState] = useState<WorktreeState | null>(
-    null,
-  );
-  const [wtDropdownOpen, setWtDropdownOpen] = useState(false);
-  const [wtNewOpen, setWtNewOpen] = useState(false);
-  const [wtNewBranch, setWtNewBranch] = useState("");
-  const [wtError, setWtError] = useState<string | null>(null);
-  const [wtBusy, setWtBusy] = useState(false);
-  const [wtConfirmRemove, setWtConfirmRemove] = useState<string | null>(null);
-  const [worktreeLoadingCwd, setWorktreeLoadingCwd] = useState<string | null>(
-    null,
-  );
-  const wtDropdownRef = useRef<HTMLDivElement>(null);
-  const wtNewInputRef = useRef<HTMLInputElement>(null);
-  const [explorerOpen, setExplorerOpen] = useState(false);
-  const [explorerKey, setExplorerKey] = useState(0);
-  const [explorerUploadBusy, setExplorerUploadBusy] = useState(false);
-  const [changesCount, setChangesCount] = useState(0);
-  const [changesCollapsed, setChangesCollapsed] = useState(true);
-  const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
-  const [wtFilter, setWtFilter] = useState("");
-  const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(() =>
-    loadUnreadSessionIds(),
-  );
-  const previousRunningSessionIdsRef = useRef<Set<string>>(new Set());
-  // Once polling has delivered a snapshot it is the source of truth for
-  // running state; late /api/sessions responses must not overwrite it.
-  const runningPollAuthoritativeRef = useRef(false);
-  const explorerRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const fileExplorerRef = useRef<FileExplorerHandle>(null);
-  // Sidebar extras: today's usage micro-line from the stats dashboard.
-  // Fails silently — the section hides when the stats service is down.
-  const [usage, setUsage] = useState<{
-    totalCost: number;
-    totalTokens: number;
-    totalRequests: number;
-  } | null>(null);
+	const { t } = useI18n();
+	const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
+	const [showBotSessions, setShowBotSessions] = useState(false);
+	const [sessionSearch, setSessionSearch] = useState("");
+	const [searchOpen, setSearchOpen] = useState(false);
+	const multiSelect = useSessionMultiSelect();
+	const [pinnedIds, setPinnedIds] = useState<string[]>(() => loadPinnedSessionIds());
+	const [archivedSessions, setArchivedSessions] = useState<SessionInfo[]>([]);
+	const [confirmProjectDelete, setConfirmProjectDelete] = useState<{
+		project: string;
+		count: number;
+	} | null>(null);
+	const searchInputRef = useRef<HTMLInputElement>(null);
+	const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => loadCollapsedProjects());
+	const [display, setDisplay] = useState<SidebarDisplaySettings>(() => loadDisplaySettings());
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [selectedCwd, setSelectedCwd] = useState<string | null>(null);
+	const [homeDir, setHomeDir] = useState<string>("");
+	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const [projectFilter, setProjectFilter] = useState("");
+	const [folderPickerModalOpen, setFolderPickerModalOpen] = useState(false);
+	const [customPathOpen, setCustomPathOpen] = useState(false);
+	const [customPathValue, setCustomPathValue] = useState("");
+	const [customPathError, setCustomPathError] = useState<string | null>(null);
+	const [customPathValidating, setCustomPathValidating] = useState(false);
+	const dropdownRef = useRef<HTMLDivElement>(null);
+	// Worktree switcher state
+	const [worktreeState, setWorktreeState] = useState<WorktreeState | null>(null);
+	const [wtDropdownOpen, setWtDropdownOpen] = useState(false);
+	const [wtNewOpen, setWtNewOpen] = useState(false);
+	const [wtNewBranch, setWtNewBranch] = useState("");
+	const [wtError, setWtError] = useState<string | null>(null);
+	const [wtBusy, setWtBusy] = useState(false);
+	const [wtConfirmRemove, setWtConfirmRemove] = useState<string | null>(null);
+	const [worktreeLoadingCwd, setWorktreeLoadingCwd] = useState<string | null>(null);
+	const wtDropdownRef = useRef<HTMLDivElement>(null);
+	const wtNewInputRef = useRef<HTMLInputElement>(null);
+	const [explorerOpen, setExplorerOpen] = useState(false);
+	const [explorerKey, setExplorerKey] = useState(0);
+	const [explorerUploadBusy, setExplorerUploadBusy] = useState(false);
+	const [changesCount, setChangesCount] = useState(0);
+	const [changesCollapsed, setChangesCollapsed] = useState(true);
+	const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
+	const [wtFilter, setWtFilter] = useState("");
+	const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(() => new Set());
+	const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(() => loadUnreadSessionIds());
+	const previousRunningSessionIdsRef = useRef<Set<string>>(new Set());
+	// Once polling has delivered a snapshot it is the source of truth for
+	// running state; late /api/sessions responses must not overwrite it.
+	const runningPollAuthoritativeRef = useRef(false);
+	const explorerRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const fileExplorerRef = useRef<FileExplorerHandle>(null);
+	// Sidebar extras: today's usage micro-line from the stats dashboard.
+	// Fails silently — the section hides when the stats service is down.
+	const [usage, setUsage] = useState<{
+		totalCost: number;
+		totalTokens: number;
+		totalRequests: number;
+	} | null>(null);
 
-  // Create-session draft flow + project presentation prefs (P1 sidebar rework)
-  const [draftOpen, setDraftOpen] = useState(false);
-  const [draftProject, setDraftProject] = useState<string | null>(null);
-  const [tempOpen, setTempOpen] = useState(false);
-  const [projectAliases, setProjectAliases] = useState<Record<string, string>>(
-    () => loadProjectAliases(),
-  );
-  const [pinnedProjects, setPinnedProjects] = useState<string[]>(() =>
-    loadPinnedProjects(),
-  );
+	// Create-session draft flow + project presentation prefs (P1 sidebar rework)
+	const [draftOpen, setDraftOpen] = useState(false);
+	const [draftProject, setDraftProject] = useState<string | null>(null);
+	const [tempOpen, setTempOpen] = useState(false);
+	const [projectAliases, setProjectAliases] = useState<Record<string, string>>(() => loadProjectAliases());
+	const [pinnedProjects, setPinnedProjects] = useState<string[]>(() => loadPinnedProjects());
 
-  // P2 interaction port: unified palette + floating menus + sort modes.
-  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
-  const [sessionSort, setSessionSort] = useState<SessionSort>(
-    () => loadSidebarPrefs().sessionView.sort,
-  );
-  const [projSort, setProjSort] = useState<ProjectSort>(
-    () => loadSidebarPrefs().projectSort,
-  );
-  const [rowMenu, setRowMenu] = useState<{
-    session: SessionInfo;
-    point: { x: number; y: number } | null;
-    anchorRect: DOMRect | null;
-  } | null>(null);
-  const [projMenu, setProjMenu] = useState<{
-    project: string;
-    point: { x: number; y: number } | null;
-    anchorRect: DOMRect | null;
-  } | null>(null);
-  const [tempSortMenu, setTempSortMenu] = useState<{
-    anchorRect: DOMRect | null;
-  } | null>(null);
-  const [projSortMenu, setProjSortMenu] = useState<{
-    anchorRect: DOMRect | null;
-  } | null>(null);
-  const [hovered, setHovered] = useState<{
-    session: SessionInfo;
-    rect: DOMRect;
-  } | null>(null);
-  // Two-level confirmation for every destructive action (delete/archive/clear).
-  const [dangerConfirm, setDangerConfirm] = useState<{
-    title: string;
-    body: string;
-    detail?: string;
-    confirmLabel: string;
-    action: () => Promise<void> | void;
-  } | null>(null);
+	// P2 interaction port: unified palette + floating menus + sort modes.
+	const [searchDialogOpen, setSearchDialogOpen] = useState(false);
+	const [sessionSort, setSessionSort] = useState<SessionSort>(() => loadSidebarPrefs().sessionView.sort);
+	const [projSort, setProjSort] = useState<ProjectSort>(() => loadSidebarPrefs().projectSort);
+	const [rowMenu, setRowMenu] = useState<{
+		session: SessionInfo;
+		point: { x: number; y: number } | null;
+		anchorRect: DOMRect | null;
+	} | null>(null);
+	const [projMenu, setProjMenu] = useState<{
+		project: string;
+		point: { x: number; y: number } | null;
+		anchorRect: DOMRect | null;
+	} | null>(null);
+	const [tempSortMenu, setTempSortMenu] = useState<{
+		anchorRect: DOMRect | null;
+	} | null>(null);
+	const [projSortMenu, setProjSortMenu] = useState<{
+		anchorRect: DOMRect | null;
+	} | null>(null);
+	// Two-level confirmation for every destructive action (delete/archive/clear).
+	const [dangerConfirm, setDangerConfirm] = useState<{
+		title: string;
+		body: string;
+		detail?: string;
+		confirmLabel: string;
+		action: () => Promise<void> | void;
+	} | null>(null);
 
-  // Mod+K opens the aggregated search palette.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setSearchDialogOpen((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+	// Mod+K opens the aggregated search palette.
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+				e.preventDefault();
+				setSearchDialogOpen(v => !v);
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, []);
 
-  const branchForProject = useCallback(
-    (project: string): string | null => {
-      const wt = worktreeState;
-      if (wt && wt.projectRoot === project) {
-        const cur =
-          wt.worktrees.find((w) => w.path === selectedCwd) ??
-          wt.worktrees.find((w) => w.isMain);
-        return cur?.branch ?? null;
-      }
-      return null;
-    },
-    [worktreeState, selectedCwd],
-  );
+	useEffect(() => {
+		let cancelled = false;
+		const load = async () => {
+			try {
+				const res = await fetch("/api/stats/overview?range=today");
+				if (!res.ok) return;
+				const data = (await res.json()) as {
+					overall?: {
+						totalCost?: number;
+						totalInputTokens?: number;
+						totalOutputTokens?: number;
+						totalRequests?: number;
+					};
+				};
+				const o = data.overall;
+				if (!cancelled && o) {
+					setUsage({
+						totalCost: o.totalCost ?? 0,
+						totalTokens: (o.totalInputTokens ?? 0) + (o.totalOutputTokens ?? 0),
+						totalRequests: o.totalRequests ?? 0,
+					});
+				}
+			} catch {
+				// Stats service unreachable: keep the section hidden.
+			}
+		};
+		void load();
+		const timer = setInterval(load, 30_000);
+		return () => {
+			cancelled = true;
+			clearInterval(timer);
+		};
+	}, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/stats/overview?range=today");
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          overall?: {
-            totalCost?: number;
-            totalInputTokens?: number;
-            totalOutputTokens?: number;
-            totalRequests?: number;
-          };
-        };
-        const o = data.overall;
-        if (!cancelled && o) {
-          setUsage({
-            totalCost: o.totalCost ?? 0,
-            totalTokens: (o.totalInputTokens ?? 0) + (o.totalOutputTokens ?? 0),
-            totalRequests: o.totalRequests ?? 0,
-          });
-        }
-      } catch {
-        // Stats service unreachable: keep the section hidden.
-      }
-    };
-    void load();
-    const timer = setInterval(load, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
+	const loadSessions = useCallback(async (showLoading = false) => {
+		try {
+			if (showLoading) setLoading(true);
+			const res = await fetch("/api/sessions");
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data = (await res.json()) as {
+				sessions: SessionInfo[];
+				runningSessionIds?: string[];
+			};
+			setAllSessions(data.sessions);
+			// Treat the fetched running set as an initial fallback only. Once the
+			// lightweight poll is live, a slow session-list fetch cannot overwrite it.
+			if (!runningPollAuthoritativeRef.current) {
+				setRunningSessionIds(new Set(data.runningSessionIds ?? []));
+			}
+			// Drop unread markers for sessions that no longer exist (e.g. deleted).
+			const existingIds = new Set(data.sessions.map(s => s.id));
+			setUnreadSessionIds(prev => {
+				if (prev.size === 0) return prev;
+				const next = new Set([...prev].filter(id => existingIds.has(id)));
+				return next.size === prev.size ? prev : next;
+			});
+			setError(null);
+		} catch (e) {
+			setError(String(e));
+		} finally {
+			if (showLoading) setLoading(false);
+		}
+	}, []);
 
-  const loadSessions = useCallback(async (showLoading = false) => {
-    try {
-      if (showLoading) setLoading(true);
-      const res = await fetch("/api/sessions");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as {
-        sessions: SessionInfo[];
-        runningSessionIds?: string[];
-      };
-      setAllSessions(data.sessions);
-      // Treat the fetched running set as an initial fallback only. Once the
-      // lightweight poll is live, a slow session-list fetch cannot overwrite it.
-      if (!runningPollAuthoritativeRef.current) {
-        setRunningSessionIds(new Set(data.runningSessionIds ?? []));
-      }
-      // Drop unread markers for sessions that no longer exist (e.g. deleted).
-      const existingIds = new Set(data.sessions.map((s) => s.id));
-      setUnreadSessionIds((prev) => {
-        if (prev.size === 0) return prev;
-        const next = new Set([...prev].filter((id) => existingIds.has(id)));
-        return next.size === prev.size ? prev : next;
-      });
-      setError(null);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, []);
+	const initialLoadDone = useRef(false);
+	useEffect(() => {
+		const isFirst = !initialLoadDone.current;
+		initialLoadDone.current = true;
+		loadSessions(isFirst);
+		// Whether the sidebar shows relay/bot default-space sessions (web.yml
+		// `remote.showBotSessions`; default false = hidden).
+		fetch("/api/web-config")
+			.then(res => (res.ok ? res.json() : null))
+			.then(config => {
+				if (config?.remote?.showBotSessions === true) setShowBotSessions(true);
+			})
+			.catch(() => {});
+	}, [loadSessions, refreshKey]);
 
-  const initialLoadDone = useRef(false);
-  useEffect(() => {
-    const isFirst = !initialLoadDone.current;
-    initialLoadDone.current = true;
-    loadSessions(isFirst);
-    // Whether the sidebar shows relay/bot default-space sessions (web.yml
-    // `remote.showBotSessions`; default false = hidden).
-    fetch("/api/web-config")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((config) => {
-        if (config?.remote?.showBotSessions === true) setShowBotSessions(true);
-      })
-      .catch(() => {});
-  }, [loadSessions, refreshKey]);
+	// Persist unread markers so they survive a browser refresh before the user
+	// has actually opened the completed session.
+	useEffect(() => {
+		saveUnreadSessionIds(unreadSessionIds);
+	}, [unreadSessionIds]);
 
-  // Persist unread markers so they survive a browser refresh before the user
-  // has actually opened the completed session.
-  useEffect(() => {
-    saveUnreadSessionIds(unreadSessionIds);
-  }, [unreadSessionIds]);
+	useEffect(() => {
+		// Running status via a lightweight poll of /api/agent/running. Pauses when
+		// the tab is hidden; aborted in-flight requests when switching visibility.
+		let stopped = false;
+		let timer: ReturnType<typeof setTimeout> | undefined = undefined;
+		let controller: AbortController | null = null;
 
-  useEffect(() => {
-    // Running status via a lightweight poll of /api/agent/running. Pauses when
-    // the tab is hidden; aborted in-flight requests when switching visibility.
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | undefined = undefined;
-    let controller: AbortController | null = null;
+		const clearTimer = () => {
+			clearTimeout(timer);
+			timer = undefined;
+		};
 
-    const clearTimer = () => {
-      clearTimeout(timer);
-      timer = undefined;
-    };
+		const schedule = () => {
+			clearTimer();
+			if (stopped || document.visibilityState !== "visible") return;
+			timer = setTimeout(() => void poll(), RUNNING_SESSIONS_POLL_MS);
+		};
 
-    const schedule = () => {
-      clearTimer();
-      if (stopped || document.visibilityState !== "visible") return;
-      timer = setTimeout(() => void poll(), RUNNING_SESSIONS_POLL_MS);
-    };
+		const poll = async () => {
+			if (stopped || document.visibilityState !== "visible") return;
+			const current = new AbortController();
+			controller?.abort();
+			controller = current;
+			try {
+				const res = await fetch("/api/agent/running", {
+					cache: "no-store",
+					signal: current.signal,
+				});
+				if (!res.ok) return;
+				const data = (await res.json()) as { runningSessionIds?: string[] };
+				if (stopped || controller !== current) return;
+				runningPollAuthoritativeRef.current = true;
+				setRunningSessionIds(new Set(data.runningSessionIds ?? []));
+			} catch {
+				// Keep the last known state; the next visible-tab poll retries.
+			} finally {
+				if (controller === current) controller = null;
+				schedule();
+			}
+		};
 
-    const poll = async () => {
-      if (stopped || document.visibilityState !== "visible") return;
-      const current = new AbortController();
-      controller?.abort();
-      controller = current;
-      try {
-        const res = await fetch("/api/agent/running", {
-          cache: "no-store",
-          signal: current.signal,
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as { runningSessionIds?: string[] };
-        if (stopped || controller !== current) return;
-        runningPollAuthoritativeRef.current = true;
-        setRunningSessionIds(new Set(data.runningSessionIds ?? []));
-      } catch {
-        // Keep the last known state; the next visible-tab poll retries.
-      } finally {
-        if (controller === current) controller = null;
-        schedule();
-      }
-    };
+		const onVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				void poll();
+				return;
+			}
+			clearTimer();
+			controller?.abort();
+			controller = null;
+		};
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void poll();
-        return;
-      }
-      clearTimer();
-      controller?.abort();
-      controller = null;
-    };
+		void poll();
+		document.addEventListener("visibilitychange", onVisibilityChange);
+		return () => {
+			stopped = true;
+			clearTimer();
+			controller?.abort();
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+		};
+	}, []);
 
-    void poll();
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      stopped = true;
-      clearTimer();
-      controller?.abort();
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, []);
+	useEffect(() => {
+		const previous = previousRunningSessionIdsRef.current;
+		const completedInBackground = [...previous].filter(id => !runningSessionIds.has(id) && id !== selectedSessionId);
+		const newlyRunning = [...runningSessionIds];
 
-  useEffect(() => {
-    const previous = previousRunningSessionIdsRef.current;
-    const completedInBackground = [...previous].filter(
-      (id) => !runningSessionIds.has(id) && id !== selectedSessionId,
-    );
-    const newlyRunning = [...runningSessionIds];
+		if (completedInBackground.length > 0 || newlyRunning.length > 0) {
+			setUnreadSessionIds(prev => {
+				const next = new Set(prev);
+				newlyRunning.forEach(id => next.delete(id));
+				completedInBackground.forEach(id => next.add(id));
+				return next;
+			});
+		}
+		// Refresh the session list whenever the running set changes: new sessions
+		// become visible without a manual refresh, including the just-selected one
+		// (previously excluded here, which left brand-new sessions invisible).
+		if (completedInBackground.length > 0 || newlyRunning.length > 0) {
+			loadSessions(false);
+		}
 
-    if (completedInBackground.length > 0 || newlyRunning.length > 0) {
-      setUnreadSessionIds((prev) => {
-        const next = new Set(prev);
-        newlyRunning.forEach((id) => next.delete(id));
-        completedInBackground.forEach((id) => next.add(id));
-        return next;
-      });
-    }
-    // Refresh the session list whenever the running set changes: new sessions
-    // become visible without a manual refresh, including the just-selected one
-    // (previously excluded here, which left brand-new sessions invisible).
-    if (completedInBackground.length > 0 || newlyRunning.length > 0) {
-      loadSessions(false);
-    }
+		previousRunningSessionIdsRef.current = runningSessionIds;
+	}, [runningSessionIds, selectedSessionId, loadSessions]);
 
-    previousRunningSessionIdsRef.current = runningSessionIds;
-  }, [runningSessionIds, selectedSessionId, loadSessions]);
+	useEffect(() => {
+		if (!selectedSessionId) return;
+		setUnreadSessionIds(prev => {
+			if (!prev.has(selectedSessionId)) return prev;
+			const next = new Set(prev);
+			next.delete(selectedSessionId);
+			return next;
+		});
+	}, [selectedSessionId]);
 
-  useEffect(() => {
-    if (!selectedSessionId) return;
-    setUnreadSessionIds((prev) => {
-      if (!prev.has(selectedSessionId)) return prev;
-      const next = new Set(prev);
-      next.delete(selectedSessionId);
-      return next;
-    });
-  }, [selectedSessionId]);
+	useEffect(() => {
+		if (explorerRefreshKey !== undefined) setExplorerKey(k => k + 1);
+	}, [explorerRefreshKey]);
 
-  useEffect(() => {
-    if (explorerRefreshKey !== undefined) setExplorerKey((k) => k + 1);
-  }, [explorerRefreshKey]);
+	useEffect(() => {
+		fetch("/api/home")
+			.then(r => r.json())
+			.then((d: { home?: string }) => {
+				if (d.home) setHomeDir(d.home);
+			})
+			.catch(() => {});
+	}, []);
 
-  useEffect(() => {
-    fetch("/api/home")
-      .then((r) => r.json())
-      .then((d: { home?: string }) => {
-        if (d.home) setHomeDir(d.home);
-      })
-      .catch(() => {});
-  }, []);
+	const restoredRef = useRef(false);
 
-  const restoredRef = useRef(false);
+	/** Resolve the project root for a cwd from the freshest data available */
+	const projectRootFor = useCallback(
+		(cwd: string | null): string | null => {
+			if (!cwd) return null;
+			if (worktreeState && worktreeState.forCwd === cwd) return worktreeState.projectRoot;
+			// Any path in the loaded worktree list belongs to that project — covers
+			// worktrees without sessions, so switching to them keeps the row mounted.
+			if (worktreeState?.worktrees.some(w => w.path === cwd)) return worktreeState.projectRoot;
+			const match = allSessions.find(s => s.cwd === cwd);
+			return match?.projectRoot ?? cwd;
+		},
+		[worktreeState, allSessions],
+	);
 
-  /** Resolve the project root for a cwd from the freshest data available */
-  const projectRootFor = useCallback(
-    (cwd: string | null): string | null => {
-      if (!cwd) return null;
-      if (worktreeState && worktreeState.forCwd === cwd)
-        return worktreeState.projectRoot;
-      // Any path in the loaded worktree list belongs to that project — covers
-      // worktrees without sessions, so switching to them keeps the row mounted.
-      if (worktreeState?.worktrees.some((w) => w.path === cwd))
-        return worktreeState.projectRoot;
-      const match = allSessions.find((s) => s.cwd === cwd);
-      return match?.projectRoot ?? cwd;
-    },
-    [worktreeState, allSessions],
-  );
+	// Notify parent only when the effective cwd actually changes (not when
+	// projectRootFor identity changes due to session/worktree refreshes).
+	const lastNotifiedCwdRef = useRef<string | null>(null);
+	useEffect(() => {
+		if (lastNotifiedCwdRef.current === selectedCwd) return;
+		lastNotifiedCwdRef.current = selectedCwd;
+		onCwdChange?.(selectedCwd, projectRootFor(selectedCwd));
+	}, [selectedCwd, onCwdChange, projectRootFor]);
 
-  // Notify parent only when the effective cwd actually changes (not when
-  // projectRootFor identity changes due to session/worktree refreshes).
-  const lastNotifiedCwdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (lastNotifiedCwdRef.current === selectedCwd) return;
-    lastNotifiedCwdRef.current = selectedCwd;
-    onCwdChange?.(selectedCwd, projectRootFor(selectedCwd));
-  }, [selectedCwd, onCwdChange, projectRootFor]);
+	// Sync the worktree switcher to the selected session's cwd. Sessions of all
+	// worktrees in a project share one list, so clicking a session from another
+	// worktree should move the effective cwd there. Only fires when the prop
+	// value changes, so a manual switcher change is not snapped back.
+	const lastSyncedCwdPropRef = useRef<string | null>(null);
+	useEffect(() => {
+		if (selectedCwdProp && selectedCwdProp !== lastSyncedCwdPropRef.current) {
+			lastSyncedCwdPropRef.current = selectedCwdProp;
+			setSelectedCwd(selectedCwdProp);
+		}
+	}, [selectedCwdProp]);
 
-  // Sync the worktree switcher to the selected session's cwd. Sessions of all
-  // worktrees in a project share one list, so clicking a session from another
-  // worktree should move the effective cwd there. Only fires when the prop
-  // value changes, so a manual switcher change is not snapped back.
-  const lastSyncedCwdPropRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (selectedCwdProp && selectedCwdProp !== lastSyncedCwdPropRef.current) {
-      lastSyncedCwdPropRef.current = selectedCwdProp;
-      setSelectedCwd(selectedCwdProp);
-    }
-  }, [selectedCwdProp]);
+	// Load worktrees for the current effective cwd
+	const [wtRefreshKey, setWtRefreshKey] = useState(0);
+	useLayoutEffect(() => {
+		if (!selectedCwd) {
+			setWorktreeState(null);
+			setWorktreeLoadingCwd(null);
+			return;
+		}
+		let cancelled = false;
+		setWorktreeLoadingCwd(selectedCwd);
+		fetch(`/api/worktrees?cwd=${encodeURIComponent(selectedCwd)}`)
+			.then(r => r.json())
+			.then(
+				(d: {
+					projectRoot?: string;
+					isGit?: boolean;
+					isTopLevel?: boolean;
+					worktrees?: WorktreeEntry[];
+					error?: string;
+				}) => {
+					if (cancelled) return;
+					setWorktreeLoadingCwd(null);
+					if (d.error || !d.projectRoot) {
+						setWorktreeState(null);
+						return;
+					}
+					setWorktreeState({
+						forCwd: selectedCwd,
+						projectRoot: d.projectRoot,
+						isGit: d.isGit ?? false,
+						isTopLevel: d.isTopLevel ?? false,
+						worktrees: d.worktrees ?? [],
+					});
+				},
+			)
+			.catch(() => {
+				if (!cancelled) {
+					setWorktreeLoadingCwd(null);
+					setWorktreeState(null);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [selectedCwd, wtRefreshKey, refreshKey]);
 
-  // Load worktrees for the current effective cwd
-  const [wtRefreshKey, setWtRefreshKey] = useState(0);
-  useLayoutEffect(() => {
-    if (!selectedCwd) {
-      setWorktreeState(null);
-      setWorktreeLoadingCwd(null);
-      return;
-    }
-    let cancelled = false;
-    setWorktreeLoadingCwd(selectedCwd);
-    fetch(`/api/worktrees?cwd=${encodeURIComponent(selectedCwd)}`)
-      .then((r) => r.json())
-      .then(
-        (d: {
-          projectRoot?: string;
-          isGit?: boolean;
-          isTopLevel?: boolean;
-          worktrees?: WorktreeEntry[];
-          error?: string;
-        }) => {
-          if (cancelled) return;
-          setWorktreeLoadingCwd(null);
-          if (d.error || !d.projectRoot) {
-            setWorktreeState(null);
-            return;
-          }
-          setWorktreeState({
-            forCwd: selectedCwd,
-            projectRoot: d.projectRoot,
-            isGit: d.isGit ?? false,
-            isTopLevel: d.isTopLevel ?? false,
-            worktrees: d.worktrees ?? [],
-          });
-        },
-      )
-      .catch(() => {
-        if (!cancelled) {
-          setWorktreeLoadingCwd(null);
-          setWorktreeState(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedCwd, wtRefreshKey, refreshKey]);
+	// Auto-select cwd and restore session from URL on first load
+	useEffect(() => {
+		if (allSessions.length === 0 || skipInitialProjectSelection) return;
 
-  // Auto-select cwd and restore session from URL on first load
-  useEffect(() => {
-    if (allSessions.length === 0 || skipInitialProjectSelection) return;
+		if (selectedCwd === null) {
+			// If restoring a session, set cwd to match that session
+			if (initialSessionId && !restoredRef.current) {
+				restoredRef.current = true;
+				const target = allSessions.find(s => s.id === initialSessionId);
+				if (target) {
+					setSelectedCwd(target.cwd);
+					onSelectSession(target, true);
+					return;
+				}
+				// Session not found — notify parent so it can show the placeholder
+				onInitialRestoreDone?.();
+			}
+			const projects = getRecentProjects(allSessions);
+			if (projects.length > 0) setSelectedCwd(projects[0]);
+		}
+	}, [allSessions, selectedCwd, initialSessionId, skipInitialProjectSelection, onSelectSession, onInitialRestoreDone]);
 
-    if (selectedCwd === null) {
-      // If restoring a session, set cwd to match that session
-      if (initialSessionId && !restoredRef.current) {
-        restoredRef.current = true;
-        const target = allSessions.find((s) => s.id === initialSessionId);
-        if (target) {
-          setSelectedCwd(target.cwd);
-          onSelectSession(target, true);
-          return;
-        }
-        // Session not found — notify parent so it can show the placeholder
-        onInitialRestoreDone?.();
-      }
-      const projects = getRecentProjects(allSessions);
-      if (projects.length > 0) setSelectedCwd(projects[0]);
-    }
-  }, [
-    allSessions,
-    selectedCwd,
-    initialSessionId,
-    skipInitialProjectSelection,
-    onSelectSession,
-    onInitialRestoreDone,
-  ]);
+	const commitCustomPath = useCallback(
+		async (candidate?: string) => {
+			const path = (candidate ?? customPathValue).trim();
+			if (!path || customPathValidating) return;
 
-  const commitCustomPath = useCallback(
-    async (candidate?: string) => {
-      const path = (candidate ?? customPathValue).trim();
-      if (!path || customPathValidating) return;
+			setCustomPathValidating(true);
+			setCustomPathError(null);
+			try {
+				const res = await fetch("/api/cwd/validate", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ cwd: path }),
+				});
+				const data = (await res.json().catch(() => ({}))) as {
+					cwd?: string;
+					error?: string;
+				};
+				if (!res.ok || data.error) {
+					setCustomPathError(data.error ?? `HTTP ${res.status}`);
+					return;
+				}
+				setSelectedCwd(data.cwd ?? path);
+				setCustomPathOpen(false);
+				setCustomPathValue("");
+				setDropdownOpen(false);
+			} catch (e) {
+				setCustomPathError(e instanceof Error ? e.message : String(e));
+			} finally {
+				setCustomPathValidating(false);
+			}
+		},
+		[customPathValue, customPathValidating],
+	);
 
-      setCustomPathValidating(true);
-      setCustomPathError(null);
-      try {
-        const res = await fetch("/api/cwd/validate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cwd: path }),
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          cwd?: string;
-          error?: string;
-        };
-        if (!res.ok || data.error) {
-          setCustomPathError(data.error ?? `HTTP ${res.status}`);
-          return;
-        }
-        setSelectedCwd(data.cwd ?? path);
-        setCustomPathOpen(false);
-        setCustomPathValue("");
-        setDropdownOpen(false);
-      } catch (e) {
-        setCustomPathError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setCustomPathValidating(false);
-      }
-    },
-    [customPathValue, customPathValidating],
-  );
+	const handleCustomPathClick = useCallback(() => {
+		setCustomPathOpen(true);
+		setCustomPathError(null);
+		setDropdownOpen(false);
+	}, []);
+	const handleDefaultCwd = useCallback(async () => {
+		try {
+			const res = await fetch("/api/default-cwd", { method: "POST" });
+			const data = (await res.json()) as { cwd?: string; error?: string };
+			if (data.cwd) {
+				setSelectedCwd(data.cwd);
+				setCustomPathOpen(false);
+				setCustomPathValue("");
+				setCustomPathError(null);
+				setDropdownOpen(false);
+			}
+		} catch {
+			// ignore
+		}
+	}, []);
 
-  const handleCustomPathClick = useCallback(() => {
-    setCustomPathOpen(true);
-    setCustomPathError(null);
-    setDropdownOpen(false);
-  }, []);
-  const handleDefaultCwd = useCallback(async () => {
-    try {
-      const res = await fetch("/api/default-cwd", { method: "POST" });
-      const data = (await res.json()) as { cwd?: string; error?: string };
-      if (data.cwd) {
-        setSelectedCwd(data.cwd);
-        setCustomPathOpen(false);
-        setCustomPathValue("");
-        setCustomPathError(null);
-        setDropdownOpen(false);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+	const handleCreateWorktree = useCallback(async () => {
+		const branch = wtNewBranch.trim();
+		if (!branch || wtBusy || !worktreeState) return;
+		setWtBusy(true);
+		setWtError(null);
+		try {
+			const res = await fetch("/api/worktrees", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ cwd: worktreeState.projectRoot, branch }),
+			});
+			const data = (await res.json().catch(() => ({}))) as {
+				path?: string;
+				error?: string;
+			};
+			if (!res.ok || data.error || !data.path) {
+				setWtError(data.error ?? `HTTP ${res.status}`);
+				return;
+			}
+			setWtNewOpen(false);
+			setWtNewBranch("");
+			setWtDropdownOpen(false);
+			// Optimistically register the new worktree so projectRootFor() resolves
+			// it to the main repo before the refetch lands (keeps AppShell from
+			// treating the new cwd as a different project).
+			setWorktreeState(prev =>
+				prev
+					? {
+							...prev,
+							forCwd: data.path!,
+							worktrees: [...prev.worktrees, { path: data.path!, branch, isMain: false }],
+						}
+					: prev,
+			);
+			setSelectedCwd(data.path);
+			setWtRefreshKey(k => k + 1);
+		} catch (e) {
+			setWtError(e instanceof Error ? e.message : String(e));
+		} finally {
+			setWtBusy(false);
+		}
+	}, [wtNewBranch, wtBusy, worktreeState]);
 
-  const handleCreateWorktree = useCallback(async () => {
-    const branch = wtNewBranch.trim();
-    if (!branch || wtBusy || !worktreeState) return;
-    setWtBusy(true);
-    setWtError(null);
-    try {
-      const res = await fetch("/api/worktrees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd: worktreeState.projectRoot, branch }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        path?: string;
-        error?: string;
-      };
-      if (!res.ok || data.error || !data.path) {
-        setWtError(data.error ?? `HTTP ${res.status}`);
-        return;
-      }
-      setWtNewOpen(false);
-      setWtNewBranch("");
-      setWtDropdownOpen(false);
-      // Optimistically register the new worktree so projectRootFor() resolves
-      // it to the main repo before the refetch lands (keeps AppShell from
-      // treating the new cwd as a different project).
-      setWorktreeState((prev) =>
-        prev
-          ? {
-              ...prev,
-              forCwd: data.path!,
-              worktrees: [
-                ...prev.worktrees,
-                { path: data.path!, branch, isMain: false },
-              ],
-            }
-          : prev,
-      );
-      setSelectedCwd(data.path);
-      setWtRefreshKey((k) => k + 1);
-    } catch (e) {
-      setWtError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setWtBusy(false);
-    }
-  }, [wtNewBranch, wtBusy, worktreeState]);
+	const handleRemoveWorktree = useCallback(
+		async (path: string, force: boolean) => {
+			if (!worktreeState || wtBusy) return;
+			setWtBusy(true);
+			setWtError(null);
+			try {
+				const res = await fetch("/api/worktrees", {
+					method: "DELETE",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ cwd: worktreeState.projectRoot, path, force }),
+				});
+				const data = (await res.json().catch(() => ({}))) as {
+					error?: string;
+					dirty?: boolean;
+				};
+				if (!res.ok) {
+					if (data.dirty && !force) {
+						// Dirty worktree — ask the user to confirm a force removal
+						setWtConfirmRemove(path);
+						return;
+					}
+					setWtError(data.error ?? `HTTP ${res.status}`);
+					return;
+				}
+				setWtConfirmRemove(null);
+				if (selectedCwd === path) setSelectedCwd(worktreeState.projectRoot);
+				setWtRefreshKey(k => k + 1);
+			} catch (e) {
+				setWtError(e instanceof Error ? e.message : String(e));
+			} finally {
+				setWtBusy(false);
+			}
+		},
+		[worktreeState, wtBusy, selectedCwd],
+	);
 
-  const handleRemoveWorktree = useCallback(
-    async (path: string, force: boolean) => {
-      if (!worktreeState || wtBusy) return;
-      setWtBusy(true);
-      setWtError(null);
-      try {
-        const res = await fetch("/api/worktrees", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cwd: worktreeState.projectRoot, path, force }),
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          dirty?: boolean;
-        };
-        if (!res.ok) {
-          if (data.dirty && !force) {
-            // Dirty worktree — ask the user to confirm a force removal
-            setWtConfirmRemove(path);
-            return;
-          }
-          setWtError(data.error ?? `HTTP ${res.status}`);
-          return;
-        }
-        setWtConfirmRemove(null);
-        if (selectedCwd === path) setSelectedCwd(worktreeState.projectRoot);
-        setWtRefreshKey((k) => k + 1);
-      } catch (e) {
-        setWtError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setWtBusy(false);
-      }
-    },
-    [worktreeState, wtBusy, selectedCwd],
-  );
+	// Close dropdowns on outside click
+	useEffect(() => {
+		const handler = (e: MouseEvent) => {
+			if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+				setDropdownOpen(false);
+				setProjectFilter("");
+			}
+			if (wtDropdownRef.current && !wtDropdownRef.current.contains(e.target as Node)) {
+				setWtDropdownOpen(false);
+				setWtNewOpen(false);
+				setWtNewBranch("");
+				setWtError(null);
+				setWtConfirmRemove(null);
+				setWtFilter("");
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, []);
 
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setDropdownOpen(false);
-        setProjectFilter("");
-      }
-      if (
-        wtDropdownRef.current &&
-        !wtDropdownRef.current.contains(e.target as Node)
-      ) {
-        setWtDropdownOpen(false);
-        setWtNewOpen(false);
-        setWtNewBranch("");
-        setWtError(null);
-        setWtConfirmRemove(null);
-        setWtFilter("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+	// Clicking a session moves the effective cwd to that session's worktree.
+	// Done on the click path (not via the selectedCwd prop sync) so it also
+	// works when the prop value won't change — e.g. re-clicking the already
+	// open session after manually switching worktrees.
+	const handleSelectSessionFromList = useCallback(
+		(s: SessionInfo) => {
+			if (s.cwd) setSelectedCwd(s.cwd);
+			onSelectSession(s);
+		},
+		[onSelectSession],
+	);
 
-  // Clicking a session moves the effective cwd to that session's worktree.
-  // Done on the click path (not via the selectedCwd prop sync) so it also
-  // works when the prop value won't change — e.g. re-clicking the already
-  // open session after manually switching worktrees.
-  const handleSelectSessionFromList = useCallback(
-    (s: SessionInfo) => {
-      if (s.cwd) setSelectedCwd(s.cwd);
-      onSelectSession(s);
-    },
-    [onSelectSession],
-  );
+	const handleNewSession = useCallback(() => {
+		if (!selectedCwd) return;
+		// Generate a temporary UUID client-side — no backend call needed.
+		// Pi will be spawned lazily when the user sends the first message.
+		const tempId =
+			typeof crypto.randomUUID === "function"
+				? crypto.randomUUID()
+				: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+		onNewSession?.(tempId, selectedCwd);
+	}, [selectedCwd, onNewSession]);
 
-  const handleNewSession = useCallback(() => {
-    if (!selectedCwd) return;
-    // Generate a temporary UUID client-side — no backend call needed.
-    // Pi will be spawned lazily when the user sends the first message.
-    const tempId =
-      typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-    onNewSession?.(tempId, selectedCwd);
-  }, [selectedCwd, onNewSession]);
+	const toggleProjectCollapsed = useCallback((project: string) => {
+		setCollapsedProjects(prev => {
+			const next = new Set(prev);
+			if (next.has(project)) {
+				next.delete(project);
+			} else {
+				next.add(project);
+			}
+			try {
+				window.localStorage.setItem(SIDEBAR_COLLAPSED_PROJECTS_KEY, JSON.stringify([...next]));
+			} catch {
+				// storage unavailable — collapse stays session-only
+			}
+			return next;
+		});
+	}, []);
 
-  const toggleProjectCollapsed = useCallback((project: string) => {
-    setCollapsedProjects((prev) => {
-      const next = new Set(prev);
-      if (next.has(project)) {
-        next.delete(project);
-      } else {
-        next.add(project);
-      }
-      try {
-        window.localStorage.setItem(
-          SIDEBAR_COLLAPSED_PROJECTS_KEY,
-          JSON.stringify([...next]),
-        );
-      } catch {
-        // storage unavailable — collapse stays session-only
-      }
-      return next;
-    });
-  }, []);
+	const updateDisplay = useCallback((patch: Partial<SidebarDisplaySettings>) => {
+		setDisplay(prev => {
+			const next = { ...prev, ...patch };
+			try {
+				window.localStorage.setItem(SIDEBAR_DISPLAY_KEY, JSON.stringify(next));
+			} catch {
+				// storage unavailable — display prefs stay session-only
+			}
+			return next;
+		});
+	}, []);
 
-  const updateDisplay = useCallback(
-    (patch: Partial<SidebarDisplaySettings>) => {
-      setDisplay((prev) => {
-        const next = { ...prev, ...patch };
-        try {
-          window.localStorage.setItem(
-            SIDEBAR_DISPLAY_KEY,
-            JSON.stringify(next),
-          );
-        } catch {
-          // storage unavailable — display prefs stay session-only
-        }
-        return next;
-      });
-    },
-    [],
-  );
+	// Sessions of every worktree in the selected project are shown together
+	const selectedProject = projectRootFor(selectedCwd);
+	const visibleSessions = showBotSessions
+		? allSessions
+		: allSessions.filter(s => s.tag !== "relay" && s.tag !== "bot");
+	const nonTempSessions = visibleSessions.filter(s => !s.temp);
+	const tempSessions = visibleSessions.filter(s => s.temp === true);
+	const recentProjects = getRecentProjects(nonTempSessions);
+	const showProjectFilter = recentProjects.length > 8;
+	const visibleProjects = projectFilter.trim()
+		? recentProjects.filter(p => p.toLowerCase().includes(projectFilter.trim().toLowerCase()))
+		: recentProjects;
+	const filteredSessions = selectedProject
+		? nonTempSessions.filter(s => (s.projectRoot ?? s.cwd) === selectedProject)
+		: nonTempSessions;
+	const purgeTempSessions = useCallback(async () => {
+		const byCwd = new Set<string>();
+		for (const s of tempSessions) byCwd.add(s.cwd);
+		for (const cwd of byCwd) {
+			try {
+				await deleteProjectSessions(cwd);
+			} catch {
+				// leave the group; user can retry
+			}
+		}
+	}, [tempSessions]);
 
+	const openDraft = useCallback(
+		(project?: string | null) => {
+			setDraftProject(project ?? selectedProject ?? selectedCwd ?? null);
+			setDraftOpen(true);
+		},
+		[selectedProject, selectedCwd],
+	);
 
-  // Sessions of every worktree in the selected project are shown together
-  const selectedProject = projectRootFor(selectedCwd);
-  const visibleSessions = showBotSessions
-    ? allSessions
-    : allSessions.filter((s) => s.tag !== "relay" && s.tag !== "bot");
-  const nonTempSessions = visibleSessions.filter((s) => !s.temp);
-  const tempSessions = visibleSessions.filter((s) => s.temp === true);
-  const recentProjects = getRecentProjects(nonTempSessions);
-  const showProjectFilter = recentProjects.length > 8;
-  const visibleProjects = projectFilter.trim()
-    ? recentProjects.filter((p) =>
-        p.toLowerCase().includes(projectFilter.trim().toLowerCase()),
-      )
-    : recentProjects;
-  const filteredSessions = selectedProject
-    ? nonTempSessions.filter(
-        (s) => (s.projectRoot ?? s.cwd) === selectedProject,
-      )
-    : nonTempSessions;
-  const purgeTempSessions = useCallback(async () => {
-    const byCwd = new Set<string>();
-    for (const s of tempSessions) byCwd.add(s.cwd);
-    for (const cwd of byCwd) {
-      try {
-        await deleteProjectSessions(cwd);
-      } catch {
-        // leave the group; user can retry
-      }
-    }
-  }, [tempSessions]);
+	const requestProjectDelete = useCallback(
+		(project: string) => {
+			setConfirmProjectDelete({
+				project,
+				count: filteredSessions.length,
+			});
+		},
+		[filteredSessions.length],
+	);
 
-  const openDraft = useCallback(
-    (project?: string | null) => {
-      setDraftProject(project ?? selectedProject ?? selectedCwd ?? null);
-      setDraftOpen(true);
-    },
-    [selectedProject, selectedCwd],
-  );
+	const setProjectAlias = useCallback(
+		(project: string) => {
+			const current = projectAliases[project] ?? "";
+			const next = window.prompt("Project display name", current);
+			if (next === null) return;
+			setProjectAliases(prev => {
+				const updated = { ...prev };
+				if (next.trim() === "") delete updated[project];
+				else updated[project] = next.trim();
+				saveProjectAliases(updated);
+				return updated;
+			});
+		},
+		[projectAliases],
+	);
 
-  const requestProjectDelete = useCallback(
-    (project: string) => {
-      setConfirmProjectDelete({
-        project,
-        count: filteredSessions.length,
-      });
-    },
-    [filteredSessions.length],
-  );
+	const toggleProjectPin = useCallback((project: string) => {
+		setPinnedProjects(prev => {
+			const next = prev.includes(project) ? prev.filter(p => p !== project) : [project, ...prev];
+			savePinnedProjects(next);
+			return next;
+		});
+	}, []);
+	const showWorktreeSwitcher = Boolean(
+		worktreeState?.isGit && worktreeState.isTopLevel && selectedCwd && selectedProject === worktreeState.projectRoot,
+	);
+	const worktreeGuide =
+		selectedCwd && worktreeState && selectedProject === worktreeState.projectRoot && !showWorktreeSwitcher
+			? worktreeState.isGit
+				? {
+						label: t("sidebar.openRepoRoot"),
+						title: t("sidebar.openRepoRootTitle"),
+					}
+				: {
+						label: t("sidebar.gitRepoRootOnly"),
+						title: t("sidebar.gitRepoRootOnlyTitle"),
+					}
+			: null;
+	const worktreeLoading = Boolean(selectedCwd && worktreeLoadingCwd === selectedCwd);
+	const inactiveWorktreeSelector =
+		worktreeGuide ??
+		(worktreeLoading && !showWorktreeSwitcher
+			? {
+					label: t("sidebar.worktrees"),
+					title: t("sidebar.checkingWorktrees"),
+				}
+			: null);
+	// All known workspaces, current first — the sidebar lists every workspace
+	// with its own session group (reference-project layout).
+	const workspaceGroups = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const project of recentProjects) {
+			counts.set(project, visibleSessions.filter(s => (s.projectRoot ?? s.cwd) === project).length);
+		}
+		let ordered: string[];
+		const firstSeen = new Map<string, number>();
+		allSessions.forEach((s, idx) => {
+			const root = s.projectRoot ?? s.cwd;
+			if (root && !firstSeen.has(root)) firstSeen.set(root, idx);
+		});
+		switch (projSort) {
+			case "name":
+				ordered = [...recentProjects].sort((a, b) => a.localeCompare(b));
+				break;
+			case "created":
+				// First session appearance order (stable per id order in allSessions).
+				ordered = [...recentProjects].sort((a, b) => (firstSeen.get(a) ?? 1e9) - (firstSeen.get(b) ?? 1e9));
+				break;
+			case "oldest": {
+				ordered = [...recentProjects].sort((a, b) => (firstSeen.get(b) ?? 1e9) - (firstSeen.get(a) ?? 1e9));
+				break;
+			}
+			case "recent": {
+				// Most recently modified session first.
+				const latest = new Map<string, number>();
+				for (const s of allSessions) {
+					const root = s.projectRoot ?? s.cwd;
+					if (!root) continue;
+					const t = new Date(s.modified).getTime();
+					if (!latest.has(root) || t > (latest.get(root) ?? 0)) latest.set(root, t);
+				}
+				ordered = [...recentProjects].sort((a, b) => (latest.get(b) ?? 0) - (latest.get(a) ?? 0));
+				break;
+			}
+			case "manual": {
+				// Pinned first (prefs order), then current project, then recency.
+				const prefsNow = loadSidebarPrefs();
+				const pinRank = (p: string) => {
+					const m = prefsNow.projectMeta[p];
+					return m?.pinned ? (m.order ?? 0) : 1e9;
+				};
+				ordered = [...recentProjects].sort(
+					(a, b) => pinRank(a) - pinRank(b) || (a === selectedProject ? -1 : b === selectedProject ? 1 : 0),
+				);
+				break;
+			}
+			default:
+				ordered = [...recentProjects];
+		}
+		return ordered.map(project => ({
+			project,
+			count: counts.get(project) ?? 0,
+		}));
+	}, [recentProjects, selectedProject, visibleSessions, projSort, allSessions]);
 
-  const setProjectAlias = useCallback(
-    (project: string) => {
-      const current = projectAliases[project] ?? "";
-      const next = window.prompt("Project display name", current);
-      if (next === null) return;
-      setProjectAliases((prev) => {
-        const updated = { ...prev };
-        if (next.trim() === "") delete updated[project];
-        else updated[project] = next.trim();
-        saveProjectAliases(updated);
-        return updated;
-      });
-    },
-    [projectAliases],
-  );
+	// Local session search (data is fully in memory — no backend round trip).
+	const searchQuery = sessionSearch.trim().toLowerCase();
+	const searchedSessions = useMemo(() => {
+		if (!searchQuery) return filteredSessions;
+		return filteredSessions.filter(s => {
+			const title = (s.name || s.firstMessage || s.id).toLowerCase();
+			const cwd = (s.cwd ?? "").toLowerCase();
+			return title.includes(searchQuery) || cwd.includes(searchQuery);
+		});
+	}, [filteredSessions, searchQuery]);
+	const searchTree = buildSessionTree(searchedSessions);
+	const searching = searchQuery.length > 0;
 
-  const toggleProjectPin = useCallback(
-    (project: string) => {
-      setPinnedProjects((prev) => {
-        const next = prev.includes(project)
-          ? prev.filter((p) => p !== project)
-          : [project, ...prev];
-        savePinnedProjects(next);
-        return next;
-      });
-    },
-    [],
-  );
-  const showWorktreeSwitcher = Boolean(
-    worktreeState?.isGit &&
-    worktreeState.isTopLevel &&
-    selectedCwd &&
-    selectedProject === worktreeState.projectRoot,
-  );
-  const worktreeGuide =
-    selectedCwd &&
-    worktreeState &&
-    selectedProject === worktreeState.projectRoot &&
-    !showWorktreeSwitcher
-      ? worktreeState.isGit
-        ? {
-            label: t("sidebar.openRepoRoot"),
-            title: t("sidebar.openRepoRootTitle"),
-          }
-        : {
-            label: t("sidebar.gitRepoRootOnly"),
-            title: t("sidebar.gitRepoRootOnlyTitle"),
-          }
-      : null;
-  const worktreeLoading = Boolean(
-    selectedCwd && worktreeLoadingCwd === selectedCwd,
-  );
-  const inactiveWorktreeSelector =
-    worktreeGuide ??
-    (worktreeLoading && !showWorktreeSwitcher
-      ? {
-          label: t("sidebar.worktrees"),
-          title: t("sidebar.checkingWorktrees"),
-        }
-      : null);
-  // All known workspaces, current first — the sidebar lists every workspace
-  // with its own session group (reference-project layout).
-  const workspaceGroups = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const project of recentProjects) {
-      counts.set(
-        project,
-        visibleSessions.filter((s) => (s.projectRoot ?? s.cwd) === project)
-          .length,
-      );
-    }
-    let ordered: string[];
-    const firstSeen = new Map<string, number>();
-    allSessions.forEach((s, idx) => {
-      const root = s.projectRoot ?? s.cwd;
-      if (root && !firstSeen.has(root)) firstSeen.set(root, idx);
-    });
-    switch (projSort) {
-      case "name":
-        ordered = [...recentProjects].sort((a, b) => a.localeCompare(b));
-        break;
-      case "created":
-        // First session appearance order (stable per id order in allSessions).
-        ordered = [...recentProjects].sort(
-          (a, b) => (firstSeen.get(a) ?? 1e9) - (firstSeen.get(b) ?? 1e9),
-        );
-        break;
-      case "oldest": {
-        ordered = [...recentProjects].sort(
-          (a, b) => (firstSeen.get(b) ?? 1e9) - (firstSeen.get(a) ?? 1e9),
-        );
-        break;
-      }
-      case "recent": {
-        // Most recently modified session first.
-        const latest = new Map<string, number>();
-        for (const s of allSessions) {
-          const root = s.projectRoot ?? s.cwd;
-          if (!root) continue;
-          const t = new Date(s.modified).getTime();
-          if (!latest.has(root) || t > (latest.get(root) ?? 0))
-            latest.set(root, t);
-        }
-        ordered = [...recentProjects].sort(
-          (a, b) => (latest.get(b) ?? 0) - (latest.get(a) ?? 0),
-        );
-        break;
-      }
-      case "manual": {
-        // Pinned first (prefs order), then current project, then recency.
-        const prefsNow = loadSidebarPrefs();
-        const pinRank = (p: string) => {
-          const m = prefsNow.projectMeta[p];
-          return m?.pinned ? m.order ?? 0 : 1e9;
-        };
-        ordered = [...recentProjects].sort(
-          (a, b) =>
-            pinRank(a) - pinRank(b) ||
-            (a === selectedProject ? -1 : b === selectedProject ? 1 : 0),
-        );
-        break;
-      }
-      default:
-        ordered = [...recentProjects];
-    }
-    return ordered.map((project) => ({
-      project,
-      count: counts.get(project) ?? 0,
-    }));
-  }, [
-    recentProjects,
-    selectedProject,
-    visibleSessions,
-    projSort,
-    allSessions,
-  ]);
+	// Time-group headings (Today / Yesterday / Earlier) around the tree — only
+	// when not searching, so the search result stays a flat list.
+	type TimeBucket = "today" | "yesterday" | "thisWeek" | "earlier";
+	const bucketOf = (dateStr: string): TimeBucket => {
+		const d = new Date(dateStr);
+		const now = new Date();
+		const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+		const dayMs = 86_400_000;
+		const diff = startOfDay(now) - startOfDay(d);
+		if (diff < 0) return "today";
+		if (diff < dayMs) return "today";
+		if (diff < 2 * dayMs) return "yesterday";
+		if (diff < 7 * dayMs) return "thisWeek";
+		return "earlier";
+	};
+	const BUCKET_LABELS: Record<TimeBucket, string> = {
+		today: t("sidebar.bucket.today"),
+		yesterday: t("sidebar.bucket.yesterday"),
+		thisWeek: t("sidebar.bucket.thisWeek"),
+		earlier: t("sidebar.bucket.earlier"),
+	};
+	const bucketOrder: TimeBucket[] = ["today", "yesterday", "thisWeek", "earlier"];
+	const groupedTree = useMemo(() => {
+		if (searching) return null;
+		const byBucket: Record<TimeBucket, SessionTreeNode[]> = {
+			today: [],
+			yesterday: [],
+			thisWeek: [],
+			earlier: [],
+		};
+		const sortedForTree =
+			sessionSort === "recent"
+				? filteredSessions
+				: sortSessions(
+						filteredSessions.map(s => ({
+							...s,
+							title: s.name ?? s.firstMessage,
+							projectKey: s.projectRoot ?? s.cwd,
+							updatedAt: Date.parse(s.modified) || 0,
+							createdAt: Date.parse(s.created) || 0,
+							temp: s.temp === true,
+						})),
+						sessionSort,
+						id => loadSidebarPrefs().sessionMeta[id],
+					);
+		const tree = buildSessionTree(
+			sessionSort === "recent" ? filteredSessions : (sortedForTree as unknown as typeof filteredSessions),
+		);
+		for (const node of tree) {
+			byBucket[bucketOf(node.session.modified)].push(node);
+		}
+		return bucketOrder.map(b => ({ bucket: b, nodes: byBucket[b] })).filter(g => g.nodes.length > 0);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder are stable per-locale constants
+	}, [filteredSessions, searching]);
 
-  // Local session search (data is fully in memory — no backend round trip).
-  const searchQuery = sessionSearch.trim().toLowerCase();
-  const searchedSessions = useMemo(() => {
-    if (!searchQuery) return filteredSessions;
-    return filteredSessions.filter((s) => {
-      const title = (s.name || s.firstMessage || s.id).toLowerCase();
-      const cwd = (s.cwd ?? "").toLowerCase();
-      return title.includes(searchQuery) || cwd.includes(searchQuery);
-    });
-  }, [filteredSessions, searchQuery]);
-  const searchTree = buildSessionTree(searchedSessions);
-  const searching = searchQuery.length > 0;
+	// Per-project session trees: EVERY project renders its own conversations
+	// inline as children of the project row (parent folds → children hide).
+	const projectTrees = useMemo(() => {
+		const byProject = new Map<string, SessionInfo[]>();
+		for (const s of nonTempSessions) {
+			const root = s.projectRoot ?? s.cwd;
+			const list = byProject.get(root) ?? [];
+			list.push(s);
+			byProject.set(root, list);
+		}
+		const trees = new Map<string, { bucket: TimeBucket; nodes: SessionTreeNode[] }[]>();
+		for (const [project, sessions] of byProject) {
+			const byBucket: Record<TimeBucket, SessionTreeNode[]> = {
+				today: [],
+				yesterday: [],
+				thisWeek: [],
+				earlier: [],
+			};
+			for (const node of buildSessionTree(sessions)) {
+				byBucket[bucketOf(node.session.modified)].push(node);
+			}
+			trees.set(
+				project,
+				bucketOrder.map(b => ({ bucket: b, nodes: byBucket[b] })).filter(g => g.nodes.length > 0),
+			);
+		}
+		return trees;
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder stable per locale
+	}, [nonTempSessions]);
 
-  // Time-group headings (Today / Yesterday / Earlier) around the tree — only
-  // when not searching, so the search result stays a flat list.
-  type TimeBucket = "today" | "yesterday" | "thisWeek" | "earlier";
-  const bucketOf = (dateStr: string): TimeBucket => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const startOfDay = (x: Date) =>
-      new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-    const dayMs = 86_400_000;
-    const diff = startOfDay(now) - startOfDay(d);
-    if (diff < 0) return "today";
-    if (diff < dayMs) return "today";
-    if (diff < 2 * dayMs) return "yesterday";
-    if (diff < 7 * dayMs) return "thisWeek";
-    return "earlier";
-  };
-  const BUCKET_LABELS: Record<TimeBucket, string> = {
-    today: t("sidebar.bucket.today"),
-    yesterday: t("sidebar.bucket.yesterday"),
-    thisWeek: t("sidebar.bucket.thisWeek"),
-    earlier: t("sidebar.bucket.earlier"),
-  };
-  const bucketOrder: TimeBucket[] = ["today", "yesterday", "thisWeek", "earlier"];
-  const groupedTree = useMemo(() => {
-    if (searching) return null;
-    const byBucket: Record<TimeBucket, SessionTreeNode[]> = {
-      today: [],
-      yesterday: [],
-      thisWeek: [],
-      earlier: [],
-    };
-    const sortedForTree =
-      sessionSort === "recent"
-        ? filteredSessions
-        : sortSessions(
-            filteredSessions.map((s) => ({
-              ...s,
-              title: s.name ?? s.firstMessage,
-              projectKey: s.projectRoot ?? s.cwd,
-              updatedAt: Date.parse(s.modified) || 0,
-              createdAt: Date.parse(s.created) || 0,
-              temp: s.temp === true,
-            })),
-            sessionSort,
-            (id) => loadSidebarPrefs().sessionMeta[id],
-          );
-    const tree = buildSessionTree(
-      sessionSort === "recent"
-        ? filteredSessions
-        : (sortedForTree as unknown as typeof filteredSessions),
-    );
-    for (const node of tree) {
-      byBucket[bucketOf(node.session.modified)].push(node);
-    }
-    return bucketOrder
-      .map((b) => ({ bucket: b, nodes: byBucket[b] }))
-      .filter((g) => g.nodes.length > 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder are stable per-locale constants
-  }, [filteredSessions, searching]);
+	// ── Pin / archive / bulk-selection glue ──
+	const pinnedIdSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+	const togglePin = useCallback((id: string) => {
+		setPinnedIds(prev => {
+			const next = prev.includes(id) ? prev.filter(x => x !== id) : [id, ...prev];
+			savePinnedSessionIds(next);
+			return next;
+		});
+	}, []);
+	// All session ids visible in the list (across buckets), for shift-range
+	// selection and select-all.
+	const visibleSessionIds = useMemo(() => filteredSessions.map(s => s.id), [filteredSessions]);
+	const handleArchiveOne = useCallback(
+		async (id: string) => {
+			try {
+				await archiveSession(id);
+				await Promise.all([loadSessions(), loadArchived()]);
+			} catch {
+				// keep the row in place on failure
+			}
+		},
+		[loadSessions],
+	);
+	const loadArchived = useCallback(async () => {
+		try {
+			setArchivedSessions(await fetchArchivedSessions());
+		} catch {
+			setArchivedSessions([]);
+		}
+	}, []);
+	useEffect(() => {
+		void loadArchived();
+	}, [loadArchived, refreshKey]);
+	// Drop selection/pins that no longer resolve to live sessions.
+	useEffect(() => {
+		const existing = new Set(allSessions.map(s => s.id));
+		multiSelect.prune(existing);
+	}, [allSessions, multiSelect]);
+	const handleBulkDelete = useCallback(async () => {
+		const ids = [...multiSelect.selectedIds];
+		if (ids.length === 0) return;
+		if (!window.confirm(t("sidebar.deleteSelectedConfirm", { count: ids.length }))) return;
+		try {
+			if (ids.length > 5) {
+				// Large selections collapse to one project-scoped call per project.
+				const byProject = new Map<string, string[]>();
+				for (const s of allSessions) {
+					if (multiSelect.selectedIds.has(s.id)) {
+						const root = s.projectRoot ?? s.cwd;
+						byProject.set(root, [...(byProject.get(root) ?? []), s.id]);
+					}
+				}
+				for (const [root, projectIds] of byProject) {
+					if (projectIds.length > 5) await deleteProjectSessions(root);
+					else await deleteSessions(projectIds);
+				}
+			} else {
+				await deleteSessions(ids);
+			}
+			multiSelect.clear();
+			await loadSessions();
+		} catch {
+			// leave selection intact on failure
+		}
+	}, [multiSelect, allSessions, loadSessions, t]);
+	const handleBulkArchive = useCallback(async () => {
+		const ids = [...multiSelect.selectedIds];
+		try {
+			for (const id of ids) await archiveSession(id);
+			multiSelect.clear();
+			await Promise.all([loadSessions(), loadArchived()]);
+		} catch {
+			// keep selection on failure
+		}
+	}, [multiSelect, loadSessions, loadArchived]);
+	const pinnedSessions = useMemo(
+		() =>
+			pinnedIds
+				.map(id => allSessions.find(s => s.id === id))
+				.filter((s): s is SessionInfo => Boolean(s))
+				.filter(s => filteredSessions.some(f => f.id === s.id)),
+		[pinnedIds, allSessions, filteredSessions],
+	);
+	const stalePinnedIds = useMemo(
+		() => pinnedIds.filter(id => !allSessions.some(s => s.id === id)),
+		[pinnedIds, allSessions],
+	);
 
-  // Per-project session trees: EVERY project renders its own conversations
-  // inline as children of the project row (parent folds → children hide).
-  const projectTrees = useMemo(() => {
-    const byProject = new Map<string, SessionInfo[]>();
-    for (const s of nonTempSessions) {
-      const root = s.projectRoot ?? s.cwd;
-      const list = byProject.get(root) ?? [];
-      list.push(s);
-      byProject.set(root, list);
-    }
-    const trees = new Map<string, { bucket: TimeBucket; nodes: SessionTreeNode[] }[]>();
-    for (const [project, sessions] of byProject) {
-      const byBucket: Record<TimeBucket, SessionTreeNode[]> = {
-        today: [],
-        yesterday: [],
-        thisWeek: [],
-        earlier: [],
-      };
-      for (const node of buildSessionTree(sessions)) {
-        byBucket[bucketOf(node.session.modified)].push(node);
-      }
-      trees.set(
-        project,
-        bucketOrder
-          .map((b) => ({ bucket: b, nodes: byBucket[b] }))
-          .filter((g) => g.nodes.length > 0),
-      );
-    }
-    return trees;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder stable per locale
-  }, [nonTempSessions]);
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				height: "100%",
+				overflow: "hidden",
+			}}
+		>
+			{customPathOpen && (
+				<DirectoryPicker
+					busy={customPathValidating}
+					error={customPathError}
+					onCancel={() => {
+						setCustomPathOpen(false);
+						setCustomPathError(null);
+					}}
+					onSelect={path => void commitCustomPath(path)}
+				/>
+			)}
+			{/* Header */}
+			<div
+				style={{
+					padding: "12px 10px 10px",
+					borderBottom: "1px solid var(--border)",
+					flexShrink: 0,
+				}}
+			>
+				<SidebarHeader
+					title={<ZetaWebTitle />}
+					display={display}
+					searchOpen={searchOpen}
+					editMode={multiSelect.enabled}
+					onToggleSearch={() =>
+						setSearchOpen(v => {
+							const next = !v;
+							if (!next) setSessionSearch("");
+							return next;
+						})
+					}
+					onToggleEditMode={() => multiSelect.setEnabled(!multiSelect.enabled)}
+					onUpdateDisplay={updateDisplay}
+					onNewWorkspace={() => openDraft(null)}
+				/>
 
-  // ── Pin / archive / bulk-selection glue ──
-  const pinnedIdSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
-  const togglePin = useCallback((id: string) => {
-    setPinnedIds((prev) => {
-      const next = prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [id, ...prev];
-      savePinnedSessionIds(next);
-      return next;
-    });
-  }, []);
-  // All session ids visible in the list (across buckets), for shift-range
-  // selection and select-all.
-  const visibleSessionIds = useMemo(
-    () => filteredSessions.map((s) => s.id),
-    [filteredSessions],
-  );
-  const handleArchiveOne = useCallback(
-    async (id: string) => {
-      try {
-        await archiveSession(id);
-        await Promise.all([loadSessions(), loadArchived()]);
-      } catch {
-        // keep the row in place on failure
-      }
-    },
-    [loadSessions],
-  );
-  const loadArchived = useCallback(async () => {
-    try {
-      setArchivedSessions(await fetchArchivedSessions());
-    } catch {
-      setArchivedSessions([]);
-    }
-  }, []);
-  useEffect(() => {
-    void loadArchived();
-  }, [loadArchived, refreshKey]);
-  // Drop selection/pins that no longer resolve to live sessions.
-  useEffect(() => {
-    const existing = new Set(allSessions.map((s) => s.id));
-    multiSelect.prune(existing);
-  }, [allSessions, multiSelect]);
-  const handleBulkDelete = useCallback(async () => {
-    const ids = [...multiSelect.selectedIds];
-    if (ids.length === 0) return;
-    if (
-      !window.confirm(
-        t("sidebar.deleteSelectedConfirm", { count: ids.length }),
-      )
-    )
-      return;
-    try {
-      if (ids.length > 5) {
-        // Large selections collapse to one project-scoped call per project.
-        const byProject = new Map<string, string[]>();
-        for (const s of allSessions) {
-          if (multiSelect.selectedIds.has(s.id)) {
-            const root = s.projectRoot ?? s.cwd;
-            byProject.set(root, [...(byProject.get(root) ?? []), s.id]);
-          }
-        }
-        for (const [root, projectIds] of byProject) {
-          if (projectIds.length > 5) await deleteProjectSessions(root);
-          else await deleteSessions(projectIds);
-        }
-      } else {
-        await deleteSessions(ids);
-      }
-      multiSelect.clear();
-      await loadSessions();
-    } catch {
-      // leave selection intact on failure
-    }
-  }, [multiSelect, allSessions, loadSessions, t]);
-  const handleBulkArchive = useCallback(async () => {
-    const ids = [...multiSelect.selectedIds];
-    try {
-      for (const id of ids) await archiveSession(id);
-      multiSelect.clear();
-      await Promise.all([loadSessions(), loadArchived()]);
-    } catch {
-      // keep selection on failure
-    }
-  }, [multiSelect, loadSessions, loadArchived]);
-  const pinnedSessions = useMemo(
-    () =>
-      pinnedIds
-        .map((id) => allSessions.find((s) => s.id === id))
-        .filter((s): s is SessionInfo => Boolean(s))
-        .filter((s) => filteredSessions.some((f) => f.id === s.id)),
-    [pinnedIds, allSessions, filteredSessions],
-  );
-  const stalePinnedIds = useMemo(
-    () => pinnedIds.filter((id) => !allSessions.some((s) => s.id === id)),
-    [pinnedIds, allSessions],
-  );
+				{/* Action row — new session / open workspace / skills */}
+				<div
+					style={{
+						display: "flex",
+						gap: 6,
+						padding: "8px 10px 6px",
+						flexShrink: 0,
+					}}
+				>
+					<button
+						className="ze-btn-hero"
+						onClick={() => openDraft(selectedProject)}
+						style={{
+							flex: 2,
+							height: 32,
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							gap: 6,
+							borderRadius: 7,
+							fontSize: 12,
+							fontWeight: 600,
+						}}
+					>
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 12 12"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.2"
+							strokeLinecap="round"
+						>
+							<line x1="6" y1="1" x2="6" y2="11" />
+							<line x1="1" y1="6" x2="11" y2="6" />
+						</svg>
+						{t("sidebar.actions.newSession")}
+					</button>
+					<button
+						className="ze-btn"
+						onClick={() => setDropdownOpen(v => !v)}
+						style={{
+							flex: 1.4,
+							height: 32,
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							gap: 5,
+							borderRadius: 7,
+							color: "var(--text-muted)",
+							fontSize: 11.5,
+						}}
+					>
+						<svg
+							width="11"
+							height="11"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+						</svg>
+						{t("sidebar.openWorkspace")}
+					</button>
+					{onOpenSkills && (
+						<button
+							className="ze-btn"
+							onClick={onOpenSkills}
+							title={t("skills")}
+							style={{
+								width: 32,
+								height: 32,
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								borderRadius: 7,
+								color: "var(--text-muted)",
+							}}
+						>
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<path d="M12 2l2.4 5.4L20 8.6l-4 4.2.9 6.2L12 16l-4.9 3 1-6.2-4-4.2 5.6-1.2z" />
+							</svg>
+						</button>
+					)}
+				</div>
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflow: "hidden",
-      }}
-    >
-      {customPathOpen && (
-        <DirectoryPicker
-          busy={customPathValidating}
-          error={customPathError}
-          onCancel={() => {
-            setCustomPathOpen(false);
-            setCustomPathError(null);
-          }}
-          onSelect={(path) => void commitCustomPath(path)}
-        />
-      )}
-      {/* Header */}
-      <div
-        style={{
-          padding: "12px 10px 10px",
-          borderBottom: "1px solid var(--border)",
-          flexShrink: 0,
-        }}
-      >
-        <SidebarHeader
-          title={<ZetaWebTitle />}
-          display={display}
-          searchOpen={searchOpen}
-          editMode={multiSelect.enabled}
-          onToggleSearch={() =>
-            setSearchOpen((v) => {
-              const next = !v;
-              if (!next) setSessionSearch("");
-              return next;
-            })
-          }
-          onToggleEditMode={() => multiSelect.setEnabled(!multiSelect.enabled)}
-          onUpdateDisplay={updateDisplay}
-        />
+				{/* Search row — toggled from the tools row, Esc clears/closes */}
+				{searchOpen && !loading && !error && (
+					<div style={{ padding: "4px 10px 6px" }}>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								gap: 6,
+								height: 28,
+								padding: "0 8px",
+								background: "var(--bg-panel)",
+								border: "1px solid var(--border)",
+								borderRadius: 6,
+							}}
+						>
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="var(--text-dim)"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								style={{ flexShrink: 0 }}
+							>
+								<circle cx="11" cy="11" r="8" />
+								<line x1="21" y1="21" x2="16.65" y2="16.65" />
+							</svg>
+							<input
+								ref={searchInputRef}
+								value={sessionSearch}
+								onChange={e => setSessionSearch(e.target.value)}
+								onKeyDown={e => {
+									if (e.key === "Escape") {
+										if (sessionSearch) setSessionSearch("");
+										else setSearchOpen(false);
+									}
+								}}
+								placeholder={t("sidebar.display.searchPlaceholder")}
+								aria-label={t("sidebar.display.searchPlaceholder")}
+								style={{
+									flex: 1,
+									minWidth: 0,
+									border: "none",
+									outline: "none",
+									background: "transparent",
+									color: "var(--text)",
+									fontSize: 12,
+								}}
+							/>
+							{searching && (
+								<button
+									onClick={() => setSessionSearch("")}
+									aria-label={t("sidebar.display.searchClear")}
+									title={t("sidebar.display.searchClear")}
+									style={{
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										width: 16,
+										height: 16,
+										padding: 0,
+										flexShrink: 0,
+										background: "none",
+										border: "none",
+										color: "var(--text-dim)",
+										cursor: "pointer",
+									}}
+								>
+									<svg
+										width="10"
+										height="10"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.4"
+										strokeLinecap="round"
+									>
+										<line x1="18" y1="6" x2="6" y2="18" />
+										<line x1="6" y1="6" x2="18" y2="18" />
+									</svg>
+								</button>
+							)}
+							{searching && (
+								<span
+									style={{
+										fontSize: 10,
+										color: "var(--text-dim)",
+										flexShrink: 0,
+									}}
+								>
+									{searchTree.length}
+								</span>
+							)}
+						</div>
+					</div>
+				)}
+			</div>
+			{/* PINNED — order-preserving pinned sessions, stale ids grayed out */}
+			<PinnedSection
+				pinnedSessions={pinnedSessions}
+				stalePinnedIds={stalePinnedIds}
+				selectedSessionId={selectedSessionId}
+				runningSessionIds={runningSessionIds}
+				unreadSessionIds={unreadSessionIds}
+				editMode={multiSelect.enabled}
+				selectedIds={multiSelect.selectedIds}
+				onSelectSession={handleSelectSessionFromList}
+				onToggleSelect={multiSelect.toggleItem}
+				visibleIds={visibleSessionIds}
+				onUnpin={togglePin}
+				onArchive={id => void handleArchiveOne(id)}
+				onDeleted={id => {
+					onSessionDeleted?.(id);
+					loadSessions();
+				}}
+			/>
+			{/* RUNNING — live sessions pinned above the tree */}
+			{runningSessionIds.size > 0 && (
+				<div
+					style={{
+						flexShrink: 0,
+						borderBottom: "1px solid var(--border)",
+						padding: "6px 8px",
+					}}
+				>
+					<div
+						style={{
+							fontSize: 10,
+							fontWeight: 600,
+							letterSpacing: "0.08em",
+							color: "var(--text-dim)",
+							marginBottom: 4,
+						}}
+					>
+						{t("sidebar-running")}
+					</div>
+					{allSessions
+						.filter(s => runningSessionIds.has(s.id))
+						.slice(0, 6)
+						.map(s => (
+							<button
+								key={s.id}
+								onClick={() => handleSelectSessionFromList(s)}
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: 6,
+									width: "100%",
+									padding: "3px 4px",
+									background: "none",
+									border: "none",
+									borderRadius: 5,
+									color: "var(--text)",
+									cursor: "pointer",
+									fontSize: 11.5,
+									textAlign: "left",
+								}}
+								title={s.name ?? s.firstMessage ?? s.id}
+							>
+								<span
+									style={{
+										width: 6,
+										height: 6,
+										borderRadius: "50%",
+										flexShrink: 0,
+										background: "var(--accent, #22c55e)",
+										boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent, #22c55e) 22%, transparent)",
+									}}
+								/>
+								<span
+									style={{
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										whiteSpace: "nowrap",
+									}}
+								>
+									{s.name ?? s.firstMessage ?? s.id}
+								</span>
+							</button>
+						))}
+				</div>
+			)}
+			{/* USAGE — today's cost/token micro-line; hidden while stats is down */}
+			{usage && (
+				<button
+					onClick={() => window.open("/stats/", "_blank")}
+					style={{
+						flexShrink: 0,
+						display: "flex",
+						gap: 10,
+						alignItems: "baseline",
+						padding: "5px 12px",
+						background: "none",
+						border: "none",
+						borderTop: "1px solid var(--border)",
+						cursor: "pointer",
+						color: "var(--text-muted)",
+						fontSize: 10.5,
+						textAlign: "left",
+					}}
+					title={t("sidebar-usage-open")}
+				>
+					<span style={{ fontWeight: 600, color: "var(--text-dim)" }}>{t("sidebar-usage-today")}</span>
+					<span>${usage.totalCost.toFixed(2)}</span>
+					<span>
+						{usage.totalTokens >= 1000 ? `${(usage.totalTokens / 1000).toFixed(1)}k` : usage.totalTokens} tok
+					</span>
+					<span>
+						{usage.totalRequests} {t("sidebar-usage-requests")}
+					</span>
+				</button>
+			)}
+			{/* Session list */}
+			{/* TEMP — throwaway sessions (cwd inside the OS temp dir), collapsed by default */}
+			{tempSessions.length > 0 && !searchOpen && (
+				<div style={{ flexShrink: 0, borderTop: "1px solid var(--border)" }}>
+					<button
+						onClick={() => setTempOpen(v => !v)}
+						style={{
+							width: "100%",
+							display: "flex",
+							alignItems: "center",
+							gap: 6,
+							padding: "6px 10px",
+							background: "none",
+							border: "none",
+							color: "var(--text-dim)",
+							cursor: "pointer",
+							fontSize: 10.5,
+							letterSpacing: "0.08em",
+						}}
+					>
+						<svg
+							width="9"
+							height="9"
+							viewBox="0 0 10 10"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.6"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							style={{ transform: tempOpen ? "none" : "rotate(-90deg)", transition: "transform 0.12s" }}
+						>
+							<polyline points="2.5 3.5 5 6.5 7.5 3.5" />
+						</svg>
+						{t("sidebar.tempSection")}
+						<span style={{ color: "var(--text-dim)" }}>({tempSessions.length})</span>
+						<span style={{ flex: 1 }} />
+						<span
+							role="button"
+							tabIndex={0}
+							aria-label={t("sidebar.sessionSort")}
+							onClick={e => {
+								e.stopPropagation();
+								setTempSortMenu({ anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect() });
+							}}
+							onKeyDown={e => {
+								if (e.key === "Enter") e.stopPropagation();
+							}}
+							className="ze-quiet"
+							style={{ padding: "1px 5px" }}
+						>
+							↑↓
+						</span>
+						<span
+							role="button"
+							tabIndex={0}
+							onClick={e => {
+								e.stopPropagation();
+								openDraft(null);
+							}}
+							onKeyDown={e => {
+								if (e.key === "Enter") e.stopPropagation();
+							}}
+							className="ze-quiet"
+							style={{ padding: "1px 6px" }}
+						>
+							+
+						</span>
+						<span
+							role="button"
+							tabIndex={0}
+							onClick={e => {
+								e.stopPropagation();
+								setDangerConfirm({
+									title: t("sidebar.tempClear"),
+									body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
+									confirmLabel: t("sidebar.tempClear"),
+									action: () => purgeTempSessions(),
+								});
+							}}
+							onKeyDown={e => {
+								if (e.key === "Enter") {
+									e.stopPropagation();
+									setDangerConfirm({
+										title: t("sidebar.tempClear"),
+										body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
+										confirmLabel: t("sidebar.tempClear"),
+										action: () => purgeTempSessions(),
+									});
+								}
+							}}
+							style={{ color: "var(--status-error)", cursor: "pointer" }}
+						>
+							{t("sidebar.tempClear")}
+						</span>
+					</button>
+					{tempOpen && tempSessions.length === 0 && (
+						<div style={{ padding: "6px 12px", color: "var(--text-dim)", fontSize: 11 }}>
+							{t("sidebar.tempEmpty")}
+						</div>
+					)}
+					{tempOpen && (
+						<div style={{ maxHeight: "30vh", overflowY: "auto" }}>
+							{tempSessions.map(s => (
+								<SessionItem
+									key={s.id}
+									session={s}
+									isSelected={s.id === selectedSessionId}
+									isRunning={runningSessionIds.has(s.id)}
+									isUnread={unreadSessionIds.has(s.id)}
+									onClick={() => {
+										setSelectedCwd(s.cwd);
+										onSelectSession(s, false);
+									}}
+								/>
+							))}
+						</div>
+					)}
+				</div>
+			)}
+			<div
+				style={{
+					// flex-basis 0 + minHeight 0: the list must shrink to the space
+					// below the header. With basis auto the natural content height
+					// overflows the column and visually collides with the bottom bar.
+					flex: "1 1 0",
+					overflowY: "auto",
+					padding: "0",
+					minHeight: 0,
+				}}
+			>
+				{loading && (
+					<div
+						style={{
+							padding: "16px 14px",
+							color: "var(--text-muted)",
+							fontSize: 12,
+						}}
+					>
+						Loading...
+					</div>
+				)}
+				{error && (
+					<div
+						style={{
+							padding: "12px 14px",
+							color: "var(--status-error-foreground)",
+							fontSize: 12,
+						}}
+					>
+						{error}
+					</div>
+				)}
 
-        {/* Action row — new session / open workspace / skills */}
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            padding: "8px 10px 6px",
-            flexShrink: 0,
-          }}
-        >
-          <button
-            className="ze-btn-hero"
-            onClick={() => openDraft(selectedProject)}
-            style={{
-              flex: 2,
-              height: 32,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              borderRadius: 7,
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <line x1="6" y1="1" x2="6" y2="11" />
-              <line x1="1" y1="6" x2="11" y2="6" />
-            </svg>
-            {t("sidebar.actions.newSession")}
-          </button>
-          <button
-            className="ze-btn"
-            onClick={() => setDropdownOpen((v) => !v)}
-            style={{
-              flex: 1.4,
-              height: 32,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-              borderRadius: 7,
-              color: "var(--text-muted)",
-              fontSize: 11.5,
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            </svg>
-            {t("sidebar.openWorkspace")}
-          </button>
-          {onOpenSkills && (
-            <button
-              className="ze-btn"
-              onClick={onOpenSkills}
-              title={t("skills")}
-              style={{
-                width: 32,
-                height: 32,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 7,
-                color: "var(--text-muted)",
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2l2.4 5.4L20 8.6l-4 4.2.9 6.2L12 16l-4.9 3 1-6.2-4-4.2 5.6-1.2z" />
-              </svg>
-            </button>
-          )}
-        </div>
+				{!loading && !error && filteredSessions.length === 0 && (
+					<div
+						style={{
+							padding: "16px 14px",
+							color: "var(--text-muted)",
+							fontSize: 12,
+						}}
+					>
+						No sessions found
+					</div>
+				)}
+				{!loading && !error && filteredSessions.length > 0 && searching && searchTree.length === 0 && (
+					<div
+						style={{
+							padding: "16px 14px",
+							color: "var(--text-muted)",
+							fontSize: 12,
+						}}
+					>
+						No sessions match &ldquo;{sessionSearch.trim()}&rdquo;
+					</div>
+				)}
+				{!loading && !error && groupedTree !== null ? (
+					<SidebarProjectsList
+						groups={workspaceGroups}
+						selectedProject={selectedProject}
+						collapsedProjects={collapsedProjects}
+						onToggleCollapse={toggleProjectCollapsed}
+						projectAliases={projectAliases}
+						branchFor={project => {
+							const wt = worktreeState;
+							if (wt && wt.projectRoot === project) {
+								const cur = wt.worktrees.find(w => w.path === selectedCwd) ?? wt.worktrees.find(w => w.isMain);
+								return cur?.branch ?? null;
+							}
+							return null;
+						}}
+						onNewSessionInProject={project => openDraft(project)}
+						onProjectContextMenu={(e, project) => {
+							e.preventDefault();
+							setProjMenu({ project, point: { x: e.clientX, y: e.clientY }, anchorRect: null });
+						}}
+						onProjectSortClick={e =>
+							setProjSortMenu({ anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect() })
+						}
+						onDeleteProjectSessions={project => requestProjectDelete(project)}
+						onOpenTerminal={project => {
+							void fetch("/api/open", {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({ target: "terminal", path: project }),
+							}).catch(() => {});
+						}}
+						onSwitchProject={project => {
+							setSelectedCwd(project);
+							setDropdownOpen(false);
+						}}
+						renderProjectMenu={project =>
+							confirmProjectDelete === null ? (
+								<ProjectHeaderMenu
+									project={project}
+									count={visibleSessions.filter(s => (s.projectRoot ?? s.cwd) === project).length}
 
-        {/* Search row — toggled from the tools row, Esc clears/closes */}
-        {searchOpen && !loading && !error && (
-          <div style={{ padding: "4px 10px 6px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                height: 28,
-                padding: "0 8px",
-                background: "var(--bg-panel)",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-              }}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--text-dim)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ flexShrink: 0 }}
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                ref={searchInputRef}
-                value={sessionSearch}
-                onChange={(e) => setSessionSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    if (sessionSearch) setSessionSearch("");
-                    else setSearchOpen(false);
-                  }
-                }}
-                placeholder={t("sidebar.display.searchPlaceholder")}
-                aria-label={t("sidebar.display.searchPlaceholder")}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  color: "var(--text)",
-                  fontSize: 12,
-                }}
-              />
-              {searching && (
-                <button
-                  onClick={() => setSessionSearch("")}
-                  aria-label={t("sidebar.display.searchClear")}
-                  title={t("sidebar.display.searchClear")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 16,
-                    height: 16,
-                    padding: 0,
-                    flexShrink: 0,
-                    background: "none",
-                    border: "none",
-                    color: "var(--text-dim)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              )}
-              {searching && (
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "var(--text-dim)",
-                    flexShrink: 0,
-                  }}
-                >
-                  {searchTree.length}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+									onRenameAlias={project => setProjectAlias(project)}
+									onTogglePin={project => toggleProjectPin(project)}
+									pinned={pinnedProjects.includes(project)}
+									onConfirmDelete={(p, count) => setConfirmProjectDelete({ project: p, count })}
+								/>
+							) : null
+						}
+						renderProjectSessions={project => (
+							<>
+								{(projectTrees.get(project) ?? []).map(group => (
+									<SessionGroupSection
+										key={group.bucket}
+										groups={[group]}
+										bucketLabels={BUCKET_LABELS}
+										selectedSessionId={selectedSessionId}
+										runningSessionIds={runningSessionIds}
+										unreadSessionIds={unreadSessionIds}
+										editMode={multiSelect.enabled}
+										selectedIds={multiSelect.selectedIds}
+										onSelectSession={handleSelectSessionFromList}
+										onRenamed={loadSessions}
+										onSessionDeleted={id => {
+											onSessionDeleted?.(id);
+											loadSessions();
+										}}
+										onToggleSelect={multiSelect.toggleItem}
+										visibleIds={visibleSessionIds}
+										onArchive={id => void handleArchiveOne(id)}
+										pinnedIds={pinnedIdSet}
+										onPinToggle={togglePin}
+										onRowContextMenu={(e, session) =>
+											setRowMenu({ session, point: { x: e.clientX, y: e.clientY }, anchorRect: null })
+										}
+									/>
+								))}
+							</>
+						)}
+					/>
+				) : (
+					!loading &&
+					!error &&
+					searchTree.map(node => (
+						<SessionGroupSection
+							key={node.session.id}
+							groups={[{ bucket: "earlier" as const, nodes: [node] }]}
+							bucketLabels={BUCKET_LABELS}
+							selectedSessionId={selectedSessionId}
+							runningSessionIds={runningSessionIds}
+							unreadSessionIds={unreadSessionIds}
+							editMode={multiSelect.enabled}
+							selectedIds={multiSelect.selectedIds}
+							onSelectSession={handleSelectSessionFromList}
+							onRenamed={loadSessions}
+							onSessionDeleted={id => {
+								onSessionDeleted?.(id);
+								loadSessions();
+							}}
+							onToggleSelect={multiSelect.toggleItem}
+							visibleIds={visibleSessionIds}
+							onArchive={id => void handleArchiveOne(id)}
+							pinnedIds={pinnedIdSet}
+							onPinToggle={togglePin}
+						/>
+					))
+				)}
+			</div>
+			{/* Bulk action bar (edit mode, non-empty selection) */}
+			<BulkActionBar
+				count={multiSelect.selectedIds.size}
+				visibleCount={visibleSessionIds.length}
+				onSelectAllVisible={() => multiSelect.selectAll(visibleSessionIds)}
+				onBulkDelete={() => void handleBulkDelete()}
+				onBulkArchive={() => void handleBulkArchive()}
+				onExit={() => multiSelect.setEnabled(false)}
+			/>
+			{/* ARCHIVED — in-sidebar collapsed archive with restore/delete */}
+			<ArchiveSection
+				archivedSessions={archivedSessions}
+				onChanged={() => void Promise.all([loadSessions(), loadArchived()])}
+			/>
+			{/* File Explorer section */}
+			{(selectedCwdProp || selectedCwd) && (
+				<div
+					style={{
+						borderTop: "1px solid var(--border)",
+						display: "flex",
+						flexDirection: "column",
+						flex: explorerOpen ? "1 1 0" : "0 0 auto",
+						minHeight: 0,
+						overflow: "hidden",
+					}}
+				>
+					<div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+						<button
+							onClick={() => setExplorerOpen(v => !v)}
+							style={{
+								display: "flex",
+								alignItems: "center",
+								gap: 6,
+								flex: 1,
+								padding: "6px 10px",
+								background: "none",
+								border: "none",
+								color: "var(--text-muted)",
+								cursor: "pointer",
+								fontSize: 11,
+								fontWeight: 600,
+								letterSpacing: "0.05em",
+								textTransform: "uppercase",
+								textAlign: "left",
+							}}
+						>
+							<svg
+								width="9"
+								height="9"
+								viewBox="0 0 10 10"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.8"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								style={{
+									transform: explorerOpen ? "rotate(90deg)" : "none",
+									transition: "transform 0.15s",
+									flexShrink: 0,
+								}}
+							>
+								<polyline points="3 2 7 5 3 8" />
+							</svg>
+							Explorer
+						</button>
+						{explorerOpen && changesCount > 0 && (
+							<ToolbarIconButton
+								onClick={() => setChangesCollapsed(v => !v)}
+								title={t("sidebar.changedFiles", { count: changesCount })}
+								ariaPressed={!changesCollapsed}
+								color={changesCollapsed ? "var(--text-dim)" : "var(--accent)"}
+								background={changesCollapsed ? "none" : "var(--bg-selected)"}
+							>
+								<svg
+									width="13"
+									height="13"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									aria-hidden="true"
+								>
+									<circle cx="12" cy="12" r="3" />
+									<path d="M3 12h6" />
+									<path d="M15 12h6" />
+								</svg>
+							</ToolbarIconButton>
+						)}
+						{explorerOpen && (
+							<ToolbarIconButton
+								onClick={() => fileExplorerRef.current?.openUploadPicker()}
+								disabled={explorerUploadBusy}
+								title={t("sidebar.uploadFilesTitle")}
+								color="var(--text-dim)"
+							>
+								<svg
+									width="13"
+									height="13"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									aria-hidden="true"
+								>
+									<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+									<path d="m17 8-5-5-5 5" />
+									<path d="M12 3v12" />
+								</svg>
+							</ToolbarIconButton>
+						)}
+						<ToolbarIconButton
+							onClick={() => {
+								if (onExplorerRefresh) onExplorerRefresh();
+								else setExplorerKey(k => k + 1);
+								setExplorerRefreshDone(true);
+								if (explorerRefreshTimerRef.current) clearTimeout(explorerRefreshTimerRef.current);
+								explorerRefreshTimerRef.current = setTimeout(() => setExplorerRefreshDone(false), 2000);
+							}}
+							title={t("sidebar.refreshExplorer")}
+							skipHover={explorerRefreshDone}
+							color={explorerRefreshDone ? "var(--status-success)" : "var(--text-dim)"}
+							background={explorerRefreshDone ? "var(--status-success-background)" : "none"}
+							marginRight={6}
+						>
+							{explorerRefreshDone ? (
+								<svg
+									width="13"
+									height="13"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="var(--status-success)"
+									strokeWidth="2.5"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
+									<polyline points="20 6 9 17 4 12" />
+								</svg>
+							) : (
+								<svg
+									width="13"
+									height="13"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
+									<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+									<path d="M3 3v5h5" />
+								</svg>
+							)}
+						</ToolbarIconButton>
+					</div>
+					{explorerOpen && (
+						<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+							<FileExplorer
+								ref={fileExplorerRef}
+								cwd={selectedCwd ?? selectedCwdProp!}
+								onOpenFile={onOpenFile ?? (() => {})}
+								refreshKey={explorerKey}
+								onAtMention={onAtMention}
+								onAtMentions={onAtMentions}
+								onUploadBusyChange={setExplorerUploadBusy}
+								changesCollapsed={changesCollapsed}
+								onChangesCountChange={setChangesCount}
+							/>
+						</div>
+					)}
+				</div>
+			)}
+			{confirmProjectDelete && (
+				<div
+					role="dialog"
+					aria-modal="true"
+					onClick={() => setConfirmProjectDelete(null)}
+					style={{
+						position: "fixed",
+						inset: 0,
+						zIndex: 400,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						background: "var(--surface-overlay)",
+					}}
+				>
+					<div
+						onClick={e => e.stopPropagation()}
+						style={{
+							minWidth: 320,
+							maxWidth: 420,
+							background: "var(--bg-elevated, var(--bg))",
+							border: "1px solid var(--border)",
+							borderRadius: 10,
+							padding: 16,
+							boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+						}}
+					>
+						<div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
+							{t("sidebar.deleteProjectSessions")}
+						</div>
+						<div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
+							{t("sidebar.deleteProjectConfirm", { count: confirmProjectDelete.count })}
+							<div
+								title={confirmProjectDelete.project}
+								style={{
+									marginTop: 4,
+									fontFamily: "var(--font-mono)",
+									fontSize: 11,
+									color: "var(--text-dim)",
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+									whiteSpace: "nowrap",
+								}}
+							>
+								{confirmProjectDelete.project}
+							</div>
+						</div>
+						<div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+							<button
+								onClick={() => setConfirmProjectDelete(null)}
+								style={{
+									padding: "6px 12px",
+									background: "var(--bg-hover)",
+									border: "1px solid var(--border)",
+									borderRadius: 6,
+									color: "var(--text-muted)",
+									fontSize: 12,
+									cursor: "pointer",
+								}}
+							>
+								{t("cancel")}
+							</button>
+							<button
+								onClick={() => {
+									const target = confirmProjectDelete.project;
+									setConfirmProjectDelete(null);
+									void deleteProjectSessions(target)
+										.then(() => loadSessions())
+										.catch(() => {});
+								}}
+								style={{
+									padding: "6px 12px",
+									background: "var(--status-error)",
+									border: "none",
+									borderRadius: 6,
+									color: "var(--status-error-foreground)",
+									fontSize: 12,
+									fontWeight: 600,
+									cursor: "pointer",
+								}}
+							>
+								{t("sidebar.delete")}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+			{dangerConfirm && (
+				<div
+					role="dialog"
+					aria-modal="true"
+					onClick={() => setDangerConfirm(null)}
+					style={{
+						position: "fixed",
+						inset: 0,
+						zIndex: 410,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						background: "var(--surface-overlay)",
+					}}
+				>
+					<div
+						onClick={e => e.stopPropagation()}
+						style={{
+							minWidth: 320,
+							maxWidth: 420,
+							background: "var(--bg-elevated, var(--bg))",
+							border: "1px solid var(--border)",
+							borderRadius: 10,
+							padding: 16,
+							boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+						}}
+					>
+						<div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
+							{dangerConfirm.title}
+						</div>
+						<div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
+							{dangerConfirm.body}
+							{dangerConfirm.detail && (
+								<div
+									title={dangerConfirm.detail}
+									style={{
+										marginTop: 4,
+										fontFamily: "var(--font-mono)",
+										fontSize: 11,
+										color: "var(--text-dim)",
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										whiteSpace: "nowrap",
+									}}
+								>
+									{dangerConfirm.detail}
+								</div>
+							)}
+						</div>
+						<div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+							<button
+								onClick={() => setDangerConfirm(null)}
+								style={{
+									padding: "6px 12px",
+									background: "var(--bg-hover)",
+									border: "1px solid var(--border)",
+									borderRadius: 6,
+									color: "var(--text-muted)",
+									fontSize: 12,
+									cursor: "pointer",
+								}}
+							>
+								{t("cancel")}
+							</button>
+							<button
+								className="ze-btn"
+								onClick={() => {
+									const action = dangerConfirm.action;
+									setDangerConfirm(null);
+									void action();
+								}}
+								style={{
+									padding: "6px 12px",
+									borderRadius: 6,
+									fontSize: 12,
+									color: "var(--status-error)",
+									borderColor: "color-mix(in srgb, var(--status-error) 50%, var(--border))",
+								}}
+							>
+								{dangerConfirm.confirmLabel}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+			<FolderPickerModal
+				open={folderPickerModalOpen}
+				initialPath={selectedCwd}
+				onSelect={path => {
+					setFolderPickerModalOpen(false);
+					void commitCustomPath(path);
+				}}
+				onClose={() => setFolderPickerModalOpen(false)}
+			/>{" "}
+			{/* Open-workspace dialog — project list + source actions (replaces the permanent path picker) */}
+			{dropdownOpen && (
+				<div
+					role="dialog"
+					aria-modal="true"
+					aria-label="Open workspace"
+					onMouseDown={e => {
+						if (e.target === e.currentTarget) setDropdownOpen(false);
+					}}
+					style={{
+						position: "fixed",
+						inset: 0,
+						zIndex: 90,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						background: "color-mix(in srgb, var(--bg) 55%, transparent)",
+						backdropFilter: "blur(2px)",
+					}}
+				>
+					<div
+						style={{
+							width: 420,
+							maxWidth: "calc(100vw - 32px)",
+							maxHeight: "min(70vh, 560px)",
+							display: "flex",
+							flexDirection: "column",
+							background: "var(--bg)",
+							border: "1px solid var(--border)",
+							borderRadius: 10,
+							boxShadow: "var(--surface-shadow)",
+							overflow: "hidden",
+						}}
+					>
+						<div
+							style={{
+								padding: "10px 12px",
+								borderBottom: "1px solid var(--border)",
+								fontSize: 12.5,
+								fontWeight: 600,
+								color: "var(--text)",
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+							}}
+						>
+							{t("sidebar.openWorkspace")}
+							<button
+								aria-label="Close"
+								onClick={() => setDropdownOpen(false)}
+								style={{
+									background: "none",
+									border: "none",
+									color: "var(--text-dim)",
+									cursor: "pointer",
+									fontSize: 14,
+									lineHeight: 1,
+									padding: 2,
+								}}
+							>
+								✕
+							</button>
+						</div>
 
-      {/* PINNED — order-preserving pinned sessions, stale ids grayed out */}
-      <PinnedSection
-        pinnedSessions={pinnedSessions}
-        stalePinnedIds={stalePinnedIds}
-        selectedSessionId={selectedSessionId}
-        runningSessionIds={runningSessionIds}
-        unreadSessionIds={unreadSessionIds}
-        editMode={multiSelect.enabled}
-        selectedIds={multiSelect.selectedIds}
-        onSelectSession={handleSelectSessionFromList}
-        onToggleSelect={multiSelect.toggleItem}
-        visibleIds={visibleSessionIds}
-        onUnpin={togglePin}
-        onArchive={(id) => void handleArchiveOne(id)}
-        onDeleted={(id) => {
-          onSessionDeleted?.(id);
-          loadSessions();
-        }}
-      />
-      {/* RUNNING — live sessions pinned above the tree */}
-      {runningSessionIds.size > 0 && (
-        <div
-          style={{
-            flexShrink: 0,
-            borderBottom: "1px solid var(--border)",
-            padding: "6px 8px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              color: "var(--text-dim)",
-              marginBottom: 4,
-            }}
-          >
-            {t("sidebar-running")}
-          </div>
-          {allSessions
-            .filter((s) => runningSessionIds.has(s.id))
-            .slice(0, 6)
-            .map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleSelectSessionFromList(s)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  width: "100%",
-                  padding: "3px 4px",
-                  background: "none",
-                  border: "none",
-                  borderRadius: 5,
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  fontSize: 11.5,
-                  textAlign: "left",
-                }}
-                title={s.name ?? s.firstMessage ?? s.id}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    background: "var(--accent, #22c55e)",
-                    boxShadow:
-                      "0 0 0 3px color-mix(in srgb, var(--accent, #22c55e) 22%, transparent)",
-                  }}
-                />
-                <span
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {s.name ?? s.firstMessage ?? s.id}
-                </span>
-              </button>
-            ))}
-        </div>
-      )}
+						{showProjectFilter && (
+							<div
+								style={{
+									padding: "6px 8px",
+									borderBottom: "1px solid var(--border)",
+								}}
+							>
+								<input
+									value={projectFilter}
+									onChange={e => setProjectFilter(e.target.value)}
+									onKeyDown={e => {
+										if (e.key === "Escape") {
+											setProjectFilter("");
+											setDropdownOpen(false);
+										}
+									}}
+									placeholder={t("filter-projects")}
+									autoFocus
+									style={{
+										width: "100%",
+										fontSize: 11,
+										fontFamily: "var(--font-mono)",
+										padding: "5px 8px",
+										border: "1px solid var(--border)",
+										borderRadius: 5,
+										outline: "none",
+										background: "var(--bg)",
+										color: "var(--text)",
+										boxSizing: "border-box",
+									}}
+								/>
+							</div>
+						)}
+						{/* Default workspace — always the first entry */}
+						<button
+							onClick={e => {
+								e.stopPropagation();
+								void handleDefaultCwd();
+								setDropdownOpen(false);
+							}}
+							style={{
+								display: "flex",
+								alignItems: "center",
+								gap: 7,
+								width: "100%",
+								padding: "7px 10px",
+								background: "var(--bg)",
+								border: "none",
+								borderBottom: "1px solid var(--border)",
+								color: "var(--text)",
+								cursor: "pointer",
+								textAlign: "left",
+							}}
+							title={t("sidebar.default-workspace")}
+						>
+							<svg
+								width="11"
+								height="11"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="var(--accent)"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								style={{ flexShrink: 0 }}
+							>
+								<path d="M3 9.5L12 3l9 6.5V21H3z" />
+							</svg>
+							<span style={{ fontSize: 11.5, fontWeight: 600 }}>{t("sidebar.default-workspace")}</span>
+						</button>
+						<div style={{ maxHeight: "min(50vh, 380px)", overflowY: "auto" }}>
+							{visibleProjects.map(project => {
+								const active = project === selectedProject;
+								return (
+									<button
+										key={project}
+										onClick={() => {
+											setSelectedCwd(project);
+											setProjectFilter("");
+											setCustomPathOpen(false);
+											setCustomPathValue("");
+											setCustomPathError(null);
+											setDropdownOpen(false);
+										}}
+										style={{
+											display: "flex",
+											alignItems: "center",
+											gap: 7,
+											width: "100%",
+											padding: "7px 10px",
+											background: active ? "var(--bg-selected)" : "var(--bg)",
+											border: "none",
+											borderBottom: "1px solid var(--border)",
+											color: active ? "var(--text)" : "var(--text-muted)",
+											cursor: "pointer",
+											textAlign: "left",
+										}}
+										title={project}
+									>
+										<span style={{ width: 10, flexShrink: 0, display: "flex" }}>
+											{active && (
+												<svg
+													width="10"
+													height="10"
+													viewBox="0 0 10 10"
+													fill="none"
+													stroke="var(--accent)"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<polyline points="1.5 5 4 7.5 8.5 2.5" />
+												</svg>
+											)}
+										</span>
+										<span
+											style={{
+												flex: 1,
+												minWidth: 0,
+												display: "flex",
+												flexDirection: "column",
+												gap: 1,
+											}}
+										>
+											<span
+												style={{
+													fontSize: 11.5,
+													fontWeight: 600,
+													color: "var(--text)",
+													overflow: "hidden",
+													textOverflow: "ellipsis",
+													whiteSpace: "nowrap",
+												}}
+											>
+												{getFileName(project)}
+											</span>
+											<PathLabel
+												text={displayCwd(project, homeDir)}
+												style={{ fontSize: 10, color: "var(--text-muted)" }}
+											/>
+										</span>
+									</button>
+								);
+							})}
+							{visibleProjects.length === 0 && projectFilter.trim() && (
+								<div
+									style={{
+										padding: "8px 10px",
+										fontSize: 11,
+										color: "var(--text-dim)",
+									}}
+								>
+									{t("no-matching-projects")}
+								</div>
+							)}
+						</div>
 
-      {/* USAGE — today's cost/token micro-line; hidden while stats is down */}
-      {usage && (
-        <button
-          onClick={() => window.open("/stats/", "_blank")}
-          style={{
-            flexShrink: 0,
-            display: "flex",
-            gap: 10,
-            alignItems: "baseline",
-            padding: "5px 12px",
-            background: "none",
-            border: "none",
-            borderTop: "1px solid var(--border)",
-            cursor: "pointer",
-            color: "var(--text-muted)",
-            fontSize: 10.5,
-            textAlign: "left",
-          }}
-          title={t("sidebar-usage-open")}
-        >
-          <span style={{ fontWeight: 600, color: "var(--text-dim)" }}>
-            {t("sidebar-usage-today")}
-          </span>
-          <span>${usage.totalCost.toFixed(2)}</span>
-          <span>
-            {usage.totalTokens >= 1000
-              ? `${(usage.totalTokens / 1000).toFixed(1)}k`
-              : usage.totalTokens}{" "}
-            tok
-          </span>
-          <span>
-            {usage.totalRequests} {t("sidebar-usage-requests")}
-          </span>
-        </button>
-      )}
-
-      {/* Session list */}
-      {/* TEMP — throwaway sessions (cwd inside the OS temp dir), collapsed by default */}
-      {tempSessions.length > 0 && !searchOpen && (
-        <div style={{ flexShrink: 0, borderTop: "1px solid var(--border)" }}>
-          <button
-            onClick={() => setTempOpen((v) => !v)}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 10px",
-              background: "none",
-              border: "none",
-              color: "var(--text-dim)",
-              cursor: "pointer",
-              fontSize: 10.5,
-              letterSpacing: "0.08em",
-            }}
-          >
-            <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ transform: tempOpen ? "none" : "rotate(-90deg)", transition: "transform 0.12s" }}>
-              <polyline points="2.5 3.5 5 6.5 7.5 3.5" />
-            </svg>
-            {t("sidebar.tempSection")}
-            <span style={{ color: "var(--text-dim)" }}>({tempSessions.length})</span>
-            <span style={{ flex: 1 }} />
-            <span
-              role="button"
-              tabIndex={0}
-              aria-label={t("sidebar.sessionSort")}
-              onClick={(e) => {
-                e.stopPropagation();
-                setTempSortMenu({ anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect() });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.stopPropagation();
-              }}
-              className="ze-quiet"
-              style={{ padding: "1px 5px" }}
-            >
-              ↑↓
-            </span>
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                openDraft(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.stopPropagation();
-              }}
-              className="ze-quiet"
-              style={{ padding: "1px 6px" }}
-            >
-              +
-            </span>
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                setDangerConfirm({
-                  title: t("sidebar.tempClear"),
-                  body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
-                  confirmLabel: t("sidebar.tempClear"),
-                  action: () => purgeTempSessions(),
-                });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.stopPropagation();
-                  setDangerConfirm({
-                    title: t("sidebar.tempClear"),
-                    body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
-                    confirmLabel: t("sidebar.tempClear"),
-                    action: () => purgeTempSessions(),
-                  });
-                }
-              }}
-              style={{ color: "var(--status-error)", cursor: "pointer" }}
-            >
-              {t("sidebar.tempClear")}
-            </span>
-          </button>
-          {tempOpen && tempSessions.length === 0 && (
-            <div style={{ padding: "6px 12px", color: "var(--text-dim)", fontSize: 11 }}>
-              {t("sidebar.tempEmpty")}
-            </div>
-          )}
-          {tempOpen && (
-            <div style={{ maxHeight: "30vh", overflowY: "auto" }}>
-              {tempSessions.map((s) => (
-                <SessionItem
-                  key={s.id}
-                  session={s}
-                  isSelected={s.id === selectedSessionId}
-                  isRunning={runningSessionIds.has(s.id)}
-                  isUnread={unreadSessionIds.has(s.id)}
-                  onClick={() => {
-                    setSelectedCwd(s.cwd);
-                    onSelectSession(s, false);
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div
-        onMouseOver={(e) => {
-          const row = (e.target as HTMLElement).closest<HTMLElement>("[data-session-row]");
-          if (!row) return;
-          const id = row.dataset.sessionRow;
-          const s = allSessions.find((x) => x.id === id);
-          if (s && hovered?.session.id !== id) setHovered({ session: s, rect: row.getBoundingClientRect() });
-        }}
-        onMouseLeave={() => setHovered(null)}
-        style={{
-          // flex-basis 0 + minHeight 0: the list must shrink to the space
-          // below the header. With basis auto the natural content height
-          // overflows the column and visually collides with the bottom bar.
-          flex: "1 1 0",
-          overflowY: "auto",
-          padding: "0",
-          minHeight: 0,
-        }}
-      >
-        {loading && (
-          <div
-            style={{
-              padding: "16px 14px",
-              color: "var(--text-muted)",
-              fontSize: 12,
-            }}
-          >
-            Loading...
-          </div>
-        )}
-        {error && (
-          <div
-            style={{
-              padding: "12px 14px",
-              color: "var(--status-error-foreground)",
-              fontSize: 12,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {!loading && !error && filteredSessions.length === 0 && (
-          <div
-            style={{
-              padding: "16px 14px",
-              color: "var(--text-muted)",
-              fontSize: 12,
-            }}
-          >
-            No sessions found
-          </div>
-        )}
-        {!loading &&
-          !error &&
-          filteredSessions.length > 0 &&
-          searching &&
-          searchTree.length === 0 && (
-            <div
-              style={{
-                padding: "16px 14px",
-                color: "var(--text-muted)",
-                fontSize: 12,
-              }}
-            >
-              No sessions match &ldquo;{sessionSearch.trim()}&rdquo;
-            </div>
-          )}
-        {!loading && !error && groupedTree !== null ? (
-          <SidebarProjectsList
-            groups={workspaceGroups}
-            selectedProject={selectedProject}
-            collapsedProjects={collapsedProjects}
-            onToggleCollapse={toggleProjectCollapsed}
-            projectAliases={projectAliases}
-            branchFor={(project) => {
-            	const wt = worktreeState;
-            	if (wt && wt.projectRoot === project) {
-            		const cur = wt.worktrees.find((w) => w.path === selectedCwd) ?? wt.worktrees.find((w) => w.isMain);
-            		return cur?.branch ?? null;
-            	}
-            	return null;
-            }}
-            onNewSessionInProject={(project) => openDraft(project)}
-            onProjectContextMenu={(e, project) => {
-              e.preventDefault();
-              setProjMenu({ project, point: { x: e.clientX, y: e.clientY }, anchorRect: null });
-            }}
-            onProjectSortClick={(e) =>
-              setProjSortMenu({ anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect() })
-            }
-            onDeleteProjectSessions={(project) => requestProjectDelete(project)}
-            onOpenTerminal={(project) => {
-            	void fetch("/api/open", {
-            		method: "POST",
-            		headers: { "Content-Type": "application/json" },
-            		body: JSON.stringify({ target: "terminal", path: project }),
-            	}).catch(() => {});
-            }}
-            onSwitchProject={(project) => {
-              setSelectedCwd(project);
-              setDropdownOpen(false);
-            }}
-            renderProjectMenu={(project) =>
-              confirmProjectDelete === null ? (
-                <ProjectHeaderMenu
-                  project={project}
-                  count={
-                    visibleSessions.filter(
-                      (s) => (s.projectRoot ?? s.cwd) === project,
-                    ).length
-                  }
-
-                  onRenameAlias={(project) => setProjectAlias(project)}
-                  onTogglePin={(project) => toggleProjectPin(project)}
-                  pinned={pinnedProjects.includes(project)}
-                  onConfirmDelete={(p, count) =>
-                    setConfirmProjectDelete({ project: p, count })
-                  }
-                />
-              ) : null
-            }
-            renderProjectSessions={(project) => (
-              <>
-                {(projectTrees.get(project) ?? []).map((group) => (
-                  <SessionGroupSection
-                    key={group.bucket}
-                    groups={[group]}
-                    bucketLabels={BUCKET_LABELS}
-                    selectedSessionId={selectedSessionId}
-                    runningSessionIds={runningSessionIds}
-                    unreadSessionIds={unreadSessionIds}
-                    editMode={multiSelect.enabled}
-                    selectedIds={multiSelect.selectedIds}
-                    onSelectSession={handleSelectSessionFromList}
-                    onRenamed={loadSessions}
-                    onSessionDeleted={(id) => {
-                      onSessionDeleted?.(id);
-                      loadSessions();
-                    }}
-                    onToggleSelect={multiSelect.toggleItem}
-                    visibleIds={visibleSessionIds}
-                    onArchive={(id) => void handleArchiveOne(id)}
-                    pinnedIds={pinnedIdSet}
-                    onPinToggle={togglePin}
-                    onRowContextMenu={(e, session) =>
-                      setRowMenu({ session, point: { x: e.clientX, y: e.clientY }, anchorRect: null })
-                    }
-                  />
-                ))}
-              </>
-            )}
-          />
-        ) : (
-          !loading &&
-          !error &&
-          searchTree.map((node) => (
-            <SessionGroupSection
-              key={node.session.id}
-              groups={[{ bucket: "earlier" as const, nodes: [node] }]}
-              bucketLabels={BUCKET_LABELS}
-              selectedSessionId={selectedSessionId}
-              runningSessionIds={runningSessionIds}
-              unreadSessionIds={unreadSessionIds}
-              editMode={multiSelect.enabled}
-              selectedIds={multiSelect.selectedIds}
-              onSelectSession={handleSelectSessionFromList}
-              onRenamed={loadSessions}
-              onSessionDeleted={(id) => {
-                onSessionDeleted?.(id);
-                loadSessions();
-              }}
-              onToggleSelect={multiSelect.toggleItem}
-              visibleIds={visibleSessionIds}
-              onArchive={(id) => void handleArchiveOne(id)}
-              pinnedIds={pinnedIdSet}
-              onPinToggle={togglePin}
-            />
-          ))
-        )}
-      </div>
-
-      {/* Bulk action bar (edit mode, non-empty selection) */}
-      <BulkActionBar
-        count={multiSelect.selectedIds.size}
-        visibleCount={visibleSessionIds.length}
-        onSelectAllVisible={() => multiSelect.selectAll(visibleSessionIds)}
-        onBulkDelete={() => void handleBulkDelete()}
-        onBulkArchive={() => void handleBulkArchive()}
-        onExit={() => multiSelect.setEnabled(false)}
-      />
-      {/* ARCHIVED — in-sidebar collapsed archive with restore/delete */}
-      <ArchiveSection
-        archivedSessions={archivedSessions}
-        onChanged={() => void Promise.all([loadSessions(), loadArchived()])}
-      />
-
-      {/* File Explorer section */}
-      {(selectedCwdProp || selectedCwd) && (
-        <div
-          style={{
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            flex: explorerOpen ? "1 1 0" : "0 0 auto",
-            minHeight: 0,
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            <button
-              onClick={() => setExplorerOpen((v) => !v)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flex: 1,
-                padding: "6px 10px",
-                background: "none",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                textAlign: "left",
-              }}
-            >
-              <svg
-                width="9"
-                height="9"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{
-                  transform: explorerOpen ? "rotate(90deg)" : "none",
-                  transition: "transform 0.15s",
-                  flexShrink: 0,
-                }}
-              >
-                <polyline points="3 2 7 5 3 8" />
-              </svg>
-              Explorer
-            </button>
-            {explorerOpen && changesCount > 0 && (
-              <ToolbarIconButton
-                onClick={() => setChangesCollapsed((v) => !v)}
-                title={t("sidebar.changedFiles", { count: changesCount })}
-                ariaPressed={!changesCollapsed}
-                color={changesCollapsed ? "var(--text-dim)" : "var(--accent)"}
-                background={changesCollapsed ? "none" : "var(--bg-selected)"}
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M3 12h6" />
-                  <path d="M15 12h6" />
-                </svg>
-              </ToolbarIconButton>
-            )}
-            {explorerOpen && (
-              <ToolbarIconButton
-                onClick={() => fileExplorerRef.current?.openUploadPicker()}
-                disabled={explorerUploadBusy}
-                title={t("sidebar.uploadFilesTitle")}
-                color="var(--text-dim)"
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <path d="m17 8-5-5-5 5" />
-                  <path d="M12 3v12" />
-                </svg>
-              </ToolbarIconButton>
-            )}
-            <ToolbarIconButton
-              onClick={() => {
-                if (onExplorerRefresh) onExplorerRefresh();
-                else setExplorerKey((k) => k + 1);
-                setExplorerRefreshDone(true);
-                if (explorerRefreshTimerRef.current)
-                  clearTimeout(explorerRefreshTimerRef.current);
-                explorerRefreshTimerRef.current = setTimeout(
-                  () => setExplorerRefreshDone(false),
-                  2000,
-                );
-              }}
-              title={t("sidebar.refreshExplorer")}
-              skipHover={explorerRefreshDone}
-              color={explorerRefreshDone ? "var(--status-success)" : "var(--text-dim)"}
-              background={
-                explorerRefreshDone ? "var(--status-success-background)" : "none"
-              }
-              marginRight={6}
-            >
-              {explorerRefreshDone ? (
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--status-success)"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : (
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-              )}
-            </ToolbarIconButton>
-          </div>
-          {explorerOpen && (
-            <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-              <FileExplorer
-                ref={fileExplorerRef}
-                cwd={selectedCwd ?? selectedCwdProp!}
-                onOpenFile={onOpenFile ?? (() => {})}
-                refreshKey={explorerKey}
-                onAtMention={onAtMention}
-                onAtMentions={onAtMentions}
-                onUploadBusyChange={setExplorerUploadBusy}
-                changesCollapsed={changesCollapsed}
-                onChangesCountChange={setChangesCount}
-              />
-            </div>
-          )}
-        </div>
-      )}
-      {confirmProjectDelete && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setConfirmProjectDelete(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 400,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "var(--surface-overlay)",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              minWidth: 320,
-              maxWidth: 420,
-              background: "var(--bg-elevated, var(--bg))",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: 16,
-              boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
-              {t("sidebar.deleteProjectSessions")}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
-              {t("sidebar.deleteProjectConfirm", { count: confirmProjectDelete.count })}
-              <div
-                title={confirmProjectDelete.project}
-                style={{ marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-              >
-                {confirmProjectDelete.project}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setConfirmProjectDelete(null)}
-                style={{
-                  padding: "6px 12px",
-                  background: "var(--bg-hover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
-                  color: "var(--text-muted)",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                {t("cancel")}
-              </button>
-              <button
-                onClick={() => {
-                  const target = confirmProjectDelete.project;
-                  setConfirmProjectDelete(null);
-                  void deleteProjectSessions(target)
-                    .then(() => loadSessions())
-                    .catch(() => {});
-                }}
-                style={{
-                  padding: "6px 12px",
-                  background: "var(--status-error)",
-                  border: "none",
-                  borderRadius: 6,
-                  color: "var(--status-error-foreground)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                {t("sidebar.delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {dangerConfirm && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setDangerConfirm(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 410,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "var(--surface-overlay)",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              minWidth: 320,
-              maxWidth: 420,
-              background: "var(--bg-elevated, var(--bg))",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: 16,
-              boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
-              {dangerConfirm.title}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
-              {dangerConfirm.body}
-              {dangerConfirm.detail && (
-                <div
-                  title={dangerConfirm.detail}
-                  style={{ marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                >
-                  {dangerConfirm.detail}
-                </div>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setDangerConfirm(null)}
-                style={{
-                  padding: "6px 12px",
-                  background: "var(--bg-hover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
-                  color: "var(--text-muted)",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                {t("cancel")}
-              </button>
-              <button
-                className="ze-btn"
-                onClick={() => {
-                  const action = dangerConfirm.action;
-                  setDangerConfirm(null);
-                  void action();
-                }}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  color: "var(--status-error)",
-                  borderColor: "color-mix(in srgb, var(--status-error) 50%, var(--border))",
-                }}
-              >
-                {dangerConfirm.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <FolderPickerModal
-        open={folderPickerModalOpen}
-        initialPath={selectedCwd}
-        onSelect={(path) => {
-          setFolderPickerModalOpen(false);
-          void commitCustomPath(path);
-        }}
-        onClose={() => setFolderPickerModalOpen(false)}
-      />      {/* Open-workspace dialog — project list + source actions (replaces the permanent path picker) */}
-      {dropdownOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Open workspace"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setDropdownOpen(false);
-          }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 90,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "color-mix(in srgb, var(--bg) 55%, transparent)",
-            backdropFilter: "blur(2px)",
-          }}
-        >
-          <div
-            style={{
-              width: 420,
-              maxWidth: "calc(100vw - 32px)",
-              maxHeight: "min(70vh, 560px)",
-              display: "flex",
-              flexDirection: "column",
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              boxShadow: "var(--surface-shadow)",
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)", fontSize: 12.5, fontWeight: 600, color: "var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              {t("sidebar.openWorkspace")}
-              <button
-                aria-label="Close"
-                onClick={() => setDropdownOpen(false)}
-                style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 2 }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {showProjectFilter && (
-              <div
-                style={{
-                  padding: "6px 8px",
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
-                <input
-                  value={projectFilter}
-                  onChange={(e) => setProjectFilter(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                      setProjectFilter("");
-                      setDropdownOpen(false);
-                    }
-                  }}
-                  placeholder={t("filter-projects")}
-                  autoFocus
-                  style={{
-                    width: "100%",
-                    fontSize: 11,
-                    fontFamily: "var(--font-mono)",
-                    padding: "5px 8px",
-                    border: "1px solid var(--border)",
-                    borderRadius: 5,
-                    outline: "none",
-                    background: "var(--bg)",
-                    color: "var(--text)",
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
-            )}
-            {/* Default workspace — always the first entry */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleDefaultCwd();
-                setDropdownOpen(false);
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                width: "100%",
-                padding: "7px 10px",
-                background: "var(--bg)",
-                border: "none",
-                borderBottom: "1px solid var(--border)",
-                color: "var(--text)",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-              title={t("sidebar.default-workspace")}
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--accent)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ flexShrink: 0 }}
-              >
-                <path d="M3 9.5L12 3l9 6.5V21H3z" />
-              </svg>
-              <span style={{ fontSize: 11.5, fontWeight: 600 }}>
-                {t("sidebar.default-workspace")}
-              </span>
-            </button>
-            <div style={{ maxHeight: "min(50vh, 380px)", overflowY: "auto" }}>
-              {visibleProjects.map((project) => {
-                const active = project === selectedProject;
-                return (
-                  <button
-                    key={project}
-                    onClick={() => {
-                      setSelectedCwd(project);
-                      setProjectFilter("");
-                      setCustomPathOpen(false);
-                      setCustomPathValue("");
-                      setCustomPathError(null);
-                      setDropdownOpen(false);
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 7,
-                      width: "100%",
-                      padding: "7px 10px",
-                      background: active ? "var(--bg-selected)" : "var(--bg)",
-                      border: "none",
-                      borderBottom: "1px solid var(--border)",
-                      color: active ? "var(--text)" : "var(--text-muted)",
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}
-                    title={project}
-                  >
-                    <span style={{ width: 10, flexShrink: 0, display: "flex" }}>
-                      {active && (
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 10 10"
-                          fill="none"
-                          stroke="var(--accent)"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="1.5 5 4 7.5 8.5 2.5" />
-                        </svg>
-                      )}
-                    </span>
-                    <span
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 1,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 11.5,
-                          fontWeight: 600,
-                          color: "var(--text)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {getFileName(project)}
-                      </span>
-                      <PathLabel
-                        text={displayCwd(project, homeDir)}
-                        style={{ fontSize: 10, color: "var(--text-muted)" }}
-                      />
-                    </span>
-                  </button>
-                );
-              })}
-              {visibleProjects.length === 0 && projectFilter.trim() && (
-                <div
-                  style={{
-                    padding: "8px 10px",
-                    fontSize: 11,
-                    color: "var(--text-dim)",
-                  }}
-                >
-                  {t("no-matching-projects")}
-                </div>
-              )}
-            </div>
-
-            {/* Workspace source actions — compact single row */}
-            <div
-              style={{
-                display: "flex",
-                borderTop: "1px solid var(--border)",
-                background: "var(--bg)",
-              }}
-            >
-              {[
-                {
-                  key: "default",
-                  label: t("use-default-directory"),
-                  visible: !customPathOpen,
-                  color: "var(--text-muted)" as string,
-                  icon: (
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 10 10"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.1"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ flexShrink: 0 }}
-                    >
-                      <path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" />
-                    </svg>
-                  ),
-                  onClick: (e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    void handleDefaultCwd();
-                  },
-                },
-                {
-                  key: "browse",
-                  label: t("browse-folder-ide-style"),
-                  visible: !customPathOpen,
-                  color: "var(--accent)" as string,
-                  icon: (
-                    <svg
-                      width="11"
-                      height="11"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ flexShrink: 0 }}
-                    >
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                    </svg>
-                  ),
-                  onClick: (e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    setDropdownOpen(false);
-                    setFolderPickerModalOpen(true);
-                  },
-                },
-                {
-                  key: "custom",
-                  label: t("custom-path"),
-                  visible: true,
-                  color: "var(--text-muted)" as string,
-                  icon: (
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 10 10"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.1"
-                      strokeLinecap="round"
-                      style={{ flexShrink: 0 }}
-                    >
-                      <line x1="5" y1="1" x2="5" y2="9" />
-                      <line x1="1" y1="5" x2="9" y2="5" />
-                    </svg>
-                  ),
-                  onClick: (e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    handleCustomPathClick();
-                  },
-                },
-              ]
-                .filter((action) => action.visible)
-                .map((action) => (
-                  <button
-                    key={action.key}
-                    onClick={action.onClick}
-                    title={action.label}
-                    style={{
-                      flex: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 5,
-                      padding: "7px 4px",
-                      background: "none",
-                      border: "none",
-                      color: action.color,
-                      cursor: "pointer",
-                      fontSize: 10.5,
-                      minWidth: 0,
-                    }}
-                  >
-                    {action.icon}
-                    <span
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {action.label}
-                    </span>
-                  </button>
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* New session draft flow — project + worktree + branch (replaces the old path picker) */}
-      <NewSessionDialog
-        open={draftOpen}
-        projects={recentProjects.map((p) => ({
-          cwd: p,
-          label: projectAliases[p] ?? getFileName(p),
-          lastActivity: 0,
-        }))}
-        initialProject={draftProject ?? selectedProject}
-        onClose={() => {
-          setDraftOpen(false);
-          setDraftProject(null);
-        }}
-        onBrowse={() => {
-          setDraftProject(draftProject ?? selectedProject);
-          setFolderPickerModalOpen(true);
-        }}
-        onCreate={(cwd) => {
-          setDraftOpen(false);
-          setDraftProject(null);
-          setSelectedCwd(cwd);
-          onNewSession?.(`draft-${Date.now()}`, cwd);
-        }}
-      />
-
-      {/* P2 floating menus + palette + hover card (portal-rendered) */}
-      <FloatingMenu
-        open={rowMenu !== null}
-        point={rowMenu?.point ?? null}
-        anchorRect={rowMenu?.anchorRect ?? null}
-        onClose={() => setRowMenu(null)}
-        label={t("sidebar.worktreeMenu")}
-        items={(() => {
-          const s = rowMenu?.session;
-          if (!s) return [] as FloatingMenuItem[];
-          return [
-            { key: "rename", label: t("sidebar.rename"), onSelect: () => void renameSession(s.id, s.name ?? "").then(() => loadSessions()).catch(() => {}) },
-            { key: "pin", label: pinnedIdSet.has(s.id) ? t("sidebar.unpin") : t("sidebar.pin"), onSelect: () => togglePin(s.id) },
-            {
-              key: "archive",
-              label: t("sidebar.archive"),
-              onSelect: () =>
-                setDangerConfirm({
-                  title: t("sidebar.archiveSession"),
-                  body: t("sidebar.archiveSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
-                  confirmLabel: t("sidebar.archive"),
-                  action: () => handleArchiveOne(s.id),
-                }),
-            },
-            { key: "copyid", label: t("sidebar.copySessionId"), onSelect: () => void navigator.clipboard?.writeText(s.id).catch(() => {}) },
-            {
-              key: "delete",
-              label: t("sidebar.delete"),
-              danger: true,
-              onSelect: () =>
-                setDangerConfirm({
-                  title: t("sidebar.deleteSessionTitle"),
-                  body: t("sidebar.deleteSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
-                  detail: s.id,
-                  confirmLabel: t("sidebar.delete"),
-                  action: async () => {
-                    await deleteSessions([s.id]);
-                    onSessionDeleted?.(s.id);
-                    await loadSessions();
-                  },
-                }),
-            },
-          ];
-        })()}
-      />
-      <FloatingMenu
-        open={projMenu !== null}
-        point={projMenu?.point ?? null}
-        anchorRect={projMenu?.anchorRect ?? null}
-        onClose={() => setProjMenu(null)}
-        label={t("sidebar.worktreeMenu")}
-        items={(() => {
-          const project = projMenu?.project;
-          if (!project) return [] as FloatingMenuItem[];
-          return [
-            { key: "terminal", label: t("sidebar.openTerminal"), onSelect: () => void fetch("/api/open", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target: "terminal", path: project }) }).catch(() => {}) },
-            { key: "rename", label: t("sidebar.renameProject"), onSelect: () => setProjectAlias(project) },
-            { key: "pin", label: pinnedProjects.includes(project) ? t("sidebar.unpinProject") : t("sidebar.pinProject"), onSelect: () => toggleProjectPin(project) },
-            { key: "delete", label: t("sidebar.deleteProjectSessions"), danger: true, onSelect: () => requestProjectDelete(project) },
-          ];
-        })()}
-      />
-      <FloatingMenu
-        open={tempSortMenu !== null}
-        anchorRect={tempSortMenu?.anchorRect ?? null}
-        onClose={() => setTempSortMenu(null)}
-        label={t("sidebar.sessionSort")}
-        items={(["recent", "created", "oldest", "name"] as SessionSort[]).map((mode) => ({
-          key: mode,
-          label: t(`sidebar.sort.${mode}`),
-          checked: sessionSort === mode,
-          onSelect: () => {
-            setSessionSort(mode);
-            updatePrefs((p) => {
-              p.sessionView.sort = mode;
-            });
-          },
-        }))}
-      />
-      <FloatingMenu
-        open={projSortMenu !== null}
-        anchorRect={projSortMenu?.anchorRect ?? null}
-        onClose={() => setProjSortMenu(null)}
-        label={t("sidebar.display.projectSort")}
-        items={(["recent", "created", "oldest", "name", "manual"] as ProjectSort[]).map((mode) => ({
-          key: mode,
-          label: t(`sidebar.sort.${mode}`),
-          checked: projSort === mode,
-          onSelect: () => {
-            setProjSort(mode);
-            updatePrefs((p) => {
-              p.projectSort = mode;
-            });
-          },
-        }))}
-      />
-      <SessionHoverCard
-        session={hovered?.session ?? null}
-        anchorRect={hovered?.rect ?? null}
-        branch={hovered ? branchForProject(hovered.session.projectRoot ?? hovered.session.cwd) : null}
-        selected={hovered?.session.id === selectedSessionId}
-        running={hovered ? runningSessionIds.has(hovered.session.id) : false}
-      />
-      <SearchDialog
-        open={searchDialogOpen}
-        sessions={allSessions}
-        commands={[
-          { key: "workspace", label: t("sidebar.openWorkspace"), run: () => setDropdownOpen(true) },
-          ...(onOpenSkills ? [{ key: "skills", label: t("skills"), run: () => onOpenSkills() }] : []),
-          { key: "draft", label: t("sidebar.newTempSession"), run: () => openDraft(null) },
-        ]}
-        onClose={() => setSearchDialogOpen(false)}
-        onSelectSession={(s) => {
-          setSelectedCwd(s.cwd);
-          onSelectSession(s, false);
-        }}
-        onNewSession={() => openDraft(selectedProject)}
-      />
-    </div>
-  );
+						{/* Workspace source actions — compact single row */}
+						<div
+							style={{
+								display: "flex",
+								borderTop: "1px solid var(--border)",
+								background: "var(--bg)",
+							}}
+						>
+							{[
+								{
+									key: "default",
+									label: t("use-default-directory"),
+									visible: !customPathOpen,
+									color: "var(--text-muted)" as string,
+									icon: (
+										<svg
+											width="10"
+											height="10"
+											viewBox="0 0 10 10"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="1.1"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											style={{ flexShrink: 0 }}
+										>
+											<path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" />
+										</svg>
+									),
+									onClick: (e: React.MouseEvent) => {
+										e.stopPropagation();
+										void handleDefaultCwd();
+									},
+								},
+								{
+									key: "browse",
+									label: t("browse-folder-ide-style"),
+									visible: !customPathOpen,
+									color: "var(--accent)" as string,
+									icon: (
+										<svg
+											width="11"
+											height="11"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="2"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											style={{ flexShrink: 0 }}
+										>
+											<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+										</svg>
+									),
+									onClick: (e: React.MouseEvent) => {
+										e.stopPropagation();
+										setDropdownOpen(false);
+										setFolderPickerModalOpen(true);
+									},
+								},
+								{
+									key: "custom",
+									label: t("custom-path"),
+									visible: true,
+									color: "var(--text-muted)" as string,
+									icon: (
+										<svg
+											width="10"
+											height="10"
+											viewBox="0 0 10 10"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="1.1"
+											strokeLinecap="round"
+											style={{ flexShrink: 0 }}
+										>
+											<line x1="5" y1="1" x2="5" y2="9" />
+											<line x1="1" y1="5" x2="9" y2="5" />
+										</svg>
+									),
+									onClick: (e: React.MouseEvent) => {
+										e.stopPropagation();
+										handleCustomPathClick();
+									},
+								},
+							]
+								.filter(action => action.visible)
+								.map(action => (
+									<button
+										key={action.key}
+										onClick={action.onClick}
+										title={action.label}
+										style={{
+											flex: 1,
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											gap: 5,
+											padding: "7px 4px",
+											background: "none",
+											border: "none",
+											color: action.color,
+											cursor: "pointer",
+											fontSize: 10.5,
+											minWidth: 0,
+										}}
+									>
+										{action.icon}
+										<span
+											style={{
+												overflow: "hidden",
+												textOverflow: "ellipsis",
+												whiteSpace: "nowrap",
+											}}
+										>
+											{action.label}
+										</span>
+									</button>
+								))}
+						</div>
+					</div>
+				</div>
+			)}
+			{/* New session draft flow — project + worktree + branch (replaces the old path picker) */}
+			<NewSessionDialog
+				open={draftOpen}
+				projects={recentProjects.map(p => ({
+					cwd: p,
+					label: projectAliases[p] ?? getFileName(p),
+					lastActivity: 0,
+				}))}
+				initialProject={draftProject ?? selectedProject}
+				onClose={() => {
+					setDraftOpen(false);
+					setDraftProject(null);
+				}}
+				onBrowse={() => {
+					setDraftProject(draftProject ?? selectedProject);
+					setFolderPickerModalOpen(true);
+				}}
+				onCreate={cwd => {
+					setDraftOpen(false);
+					setDraftProject(null);
+					setSelectedCwd(cwd);
+					onNewSession?.(`draft-${Date.now()}`, cwd);
+				}}
+			/>
+			{/* P2 floating menus + palette + hover card (portal-rendered) */}
+			<FloatingMenu
+				open={rowMenu !== null}
+				point={rowMenu?.point ?? null}
+				anchorRect={rowMenu?.anchorRect ?? null}
+				onClose={() => setRowMenu(null)}
+				label={t("sidebar.worktreeMenu")}
+				items={(() => {
+					const s = rowMenu?.session;
+					if (!s) return [] as FloatingMenuItem[];
+					return [
+						{
+							key: "rename",
+							label: t("sidebar.rename"),
+							onSelect: () =>
+								void renameSession(s.id, s.name ?? "")
+									.then(() => loadSessions())
+									.catch(() => {}),
+						},
+						{
+							key: "pin",
+							label: pinnedIdSet.has(s.id) ? t("sidebar.unpin") : t("sidebar.pin"),
+							onSelect: () => togglePin(s.id),
+						},
+						{
+							key: "archive",
+							label: t("sidebar.archive"),
+							onSelect: () =>
+								setDangerConfirm({
+									title: t("sidebar.archiveSession"),
+									body: t("sidebar.archiveSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
+									confirmLabel: t("sidebar.archive"),
+									action: () => handleArchiveOne(s.id),
+								}),
+						},
+						{
+							key: "copyid",
+							label: t("sidebar.copySessionId"),
+							onSelect: () => void navigator.clipboard?.writeText(s.id).catch(() => {}),
+						},
+						{
+							key: "delete",
+							label: t("sidebar.delete"),
+							danger: true,
+							onSelect: () =>
+								setDangerConfirm({
+									title: t("sidebar.deleteSessionTitle"),
+									body: t("sidebar.deleteSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
+									detail: s.id,
+									confirmLabel: t("sidebar.delete"),
+									action: async () => {
+										await deleteSessions([s.id]);
+										onSessionDeleted?.(s.id);
+										await loadSessions();
+									},
+								}),
+						},
+					];
+				})()}
+			/>
+			<FloatingMenu
+				open={projMenu !== null}
+				point={projMenu?.point ?? null}
+				anchorRect={projMenu?.anchorRect ?? null}
+				onClose={() => setProjMenu(null)}
+				label={t("sidebar.worktreeMenu")}
+				items={(() => {
+					const project = projMenu?.project;
+					if (!project) return [] as FloatingMenuItem[];
+					return [
+						{
+							key: "terminal",
+							label: t("sidebar.openTerminal"),
+							onSelect: () =>
+								void fetch("/api/open", {
+									method: "POST",
+									headers: { "Content-Type": "application/json" },
+									body: JSON.stringify({ target: "terminal", path: project }),
+								}).catch(() => {}),
+						},
+						{ key: "rename", label: t("sidebar.renameProject"), onSelect: () => setProjectAlias(project) },
+						{
+							key: "pin",
+							label: pinnedProjects.includes(project) ? t("sidebar.unpinProject") : t("sidebar.pinProject"),
+							onSelect: () => toggleProjectPin(project),
+						},
+						{
+							key: "delete",
+							label: t("sidebar.deleteProjectSessions"),
+							danger: true,
+							onSelect: () => requestProjectDelete(project),
+						},
+					];
+				})()}
+			/>
+			<FloatingMenu
+				open={tempSortMenu !== null}
+				anchorRect={tempSortMenu?.anchorRect ?? null}
+				onClose={() => setTempSortMenu(null)}
+				label={t("sidebar.sessionSort")}
+				items={(["recent", "created", "oldest", "name"] as SessionSort[]).map(mode => ({
+					key: mode,
+					label: t(`sidebar.sort.${mode}`),
+					checked: sessionSort === mode,
+					onSelect: () => {
+						setSessionSort(mode);
+						updatePrefs(p => {
+							p.sessionView.sort = mode;
+						});
+					},
+				}))}
+			/>
+			<FloatingMenu
+				open={projSortMenu !== null}
+				anchorRect={projSortMenu?.anchorRect ?? null}
+				onClose={() => setProjSortMenu(null)}
+				label={t("sidebar.display.projectSort")}
+				items={(["recent", "created", "oldest", "name", "manual"] as ProjectSort[]).map(mode => ({
+					key: mode,
+					label: t(`sidebar.sort.${mode}`),
+					checked: projSort === mode,
+					onSelect: () => {
+						setProjSort(mode);
+						updatePrefs(p => {
+							p.projectSort = mode;
+						});
+					},
+				}))}
+			/>
+			<SearchDialog
+				open={searchDialogOpen}
+				sessions={allSessions}
+				commands={[
+					{ key: "workspace", label: t("sidebar.openWorkspace"), run: () => setDropdownOpen(true) },
+					...(onOpenSkills ? [{ key: "skills", label: t("skills"), run: () => onOpenSkills() }] : []),
+					{ key: "draft", label: t("sidebar.newTempSession"), run: () => openDraft(null) },
+				]}
+				onClose={() => setSearchDialogOpen(false)}
+				onSelectSession={s => {
+					setSelectedCwd(s.cwd);
+					onSelectSession(s, false);
+				}}
+				onNewSession={() => openDraft(selectedProject)}
+			/>
+		</div>
+	);
 }
 
 function SessionTreeItem({
-  node,
-  selectedSessionId,
-  runningSessionIds,
-  unreadSessionIds,
-  onSelectSession,
-  onRenamed,
-  onSessionDeleted,
-  depth,
+	node,
+	selectedSessionId,
+	runningSessionIds,
+	unreadSessionIds,
+	onSelectSession,
+	onRenamed,
+	onSessionDeleted,
+	depth,
 }: {
-  node: SessionTreeNode;
-  selectedSessionId: string | null;
-  runningSessionIds: Set<string>;
-  unreadSessionIds: Set<string>;
-  onSelectSession: (s: SessionInfo) => void;
-  onRenamed?: () => void;
-  onSessionDeleted?: (id: string) => void;
-  depth: number;
+	node: SessionTreeNode;
+	selectedSessionId: string | null;
+	runningSessionIds: Set<string>;
+	unreadSessionIds: Set<string>;
+	onSelectSession: (s: SessionInfo) => void;
+	onRenamed?: () => void;
+	onSessionDeleted?: (id: string) => void;
+	depth: number;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const hasChildren = node.children.length > 0;
+	const [collapsed, setCollapsed] = useState(false);
+	const hasChildren = node.children.length > 0;
 
-  return (
-    <div>
-      <div style={{ position: "relative" }}>
-        {/* Indent line for child sessions */}
-        {depth > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              left: depth * 12 + 6,
-              top: 0,
-              bottom: 0,
-              width: 1,
-              background: "var(--border)",
-              pointerEvents: "none",
-            }}
-          />
-        )}
-        <SessionItem
-          session={node.session}
-          isSelected={node.session.id === selectedSessionId}
-          isRunning={runningSessionIds.has(node.session.id)}
-          isUnread={unreadSessionIds.has(node.session.id)}
-          onClick={() => onSelectSession(node.session)}
-          onRenamed={onRenamed}
-          onDeleted={(id) => onSessionDeleted?.(id)}
-          depth={depth}
-          hasChildren={hasChildren}
-          collapsed={collapsed}
-          onToggleCollapse={() => setCollapsed((v) => !v)}
-        />
-      </div>
-      {hasChildren && !collapsed && (
-        <div>
-          {node.children.map((child) => (
-            <SessionTreeItem
-              key={child.session.id}
-              node={child}
-              selectedSessionId={selectedSessionId}
-              runningSessionIds={runningSessionIds}
-              unreadSessionIds={unreadSessionIds}
-              onSelectSession={onSelectSession}
-              onRenamed={onRenamed}
-              onSessionDeleted={onSessionDeleted}
-              depth={depth + 1}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+	return (
+		<div>
+			<div style={{ position: "relative" }}>
+				{/* Indent line for child sessions */}
+				{depth > 0 && (
+					<div
+						style={{
+							position: "absolute",
+							left: depth * 12 + 6,
+							top: 0,
+							bottom: 0,
+							width: 1,
+							background: "var(--border)",
+							pointerEvents: "none",
+						}}
+					/>
+				)}
+				<SessionItem
+					session={node.session}
+					isSelected={node.session.id === selectedSessionId}
+					isRunning={runningSessionIds.has(node.session.id)}
+					isUnread={unreadSessionIds.has(node.session.id)}
+					onClick={() => onSelectSession(node.session)}
+					onRenamed={onRenamed}
+					onDeleted={id => onSessionDeleted?.(id)}
+					depth={depth}
+					hasChildren={hasChildren}
+					collapsed={collapsed}
+					onToggleCollapse={() => setCollapsed(v => !v)}
+				/>
+			</div>
+			{hasChildren && !collapsed && (
+				<div>
+					{node.children.map(child => (
+						<SessionTreeItem
+							key={child.session.id}
+							node={child}
+							selectedSessionId={selectedSessionId}
+							runningSessionIds={runningSessionIds}
+							unreadSessionIds={unreadSessionIds}
+							onSelectSession={onSelectSession}
+							onRenamed={onRenamed}
+							onSessionDeleted={onSessionDeleted}
+							depth={depth + 1}
+						/>
+					))}
+				</div>
+			)}
+		</div>
+	);
 }
 
 function RunningSessionIndicator() {
-  const { t } = useI18n();
-  return (
-    <span
-      title={t("sidebar.agentRunning")}
-      aria-label={t("sidebar.agentRunning")}
-      style={{
-        width: 14,
-        height: 14,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        color: "var(--accent)",
-      }}
-    >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-        style={{ display: "block" }}
-      >
-        <g>
-          <path
-            d="M21 12a9 9 0 1 1-3.8-7.4"
-            stroke="currentColor"
-            strokeWidth="2.8"
-            strokeLinecap="round"
-          />
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 12 12"
-            to="360 12 12"
-            dur="0.9s"
-            repeatCount="indefinite"
-          />
-        </g>
-      </svg>
-    </span>
-  );
+	const { t } = useI18n();
+	return (
+		<span
+			title={t("sidebar.agentRunning")}
+			aria-label={t("sidebar.agentRunning")}
+			style={{
+				width: 14,
+				height: 14,
+				display: "inline-flex",
+				alignItems: "center",
+				justifyContent: "center",
+				flexShrink: 0,
+				color: "var(--accent)",
+			}}
+		>
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "block" }}>
+				<g>
+					<path d="M21 12a9 9 0 1 1-3.8-7.4" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+					<animateTransform
+						attributeName="transform"
+						type="rotate"
+						from="0 12 12"
+						to="360 12 12"
+						dur="0.9s"
+						repeatCount="indefinite"
+					/>
+				</g>
+			</svg>
+		</span>
+	);
 }
 
 function UnreadSessionIndicator() {
-  const { t } = useI18n();
-  return (
-    <span
-      title={t("sidebar.newActivity")}
-      aria-label={t("sidebar.newSessionActivity")}
-      style={{
-        width: 14,
-        height: 14,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        color: "var(--status-info)",
-      }}
-    >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 14 14"
-        fill="none"
-        aria-hidden="true"
-        style={{ display: "block" }}
-      >
-        <circle cx="7" cy="7" r="2.5" fill="currentColor" />
-        <circle
-          cx="7"
-          cy="7"
-          r="3"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          opacity="0.32"
-        >
-          <animate
-            attributeName="r"
-            values="3;6;3"
-            dur="1.6s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="opacity"
-            values="0.32;0;0.32"
-            dur="1.6s"
-            repeatCount="indefinite"
-          />
-        </circle>
-      </svg>
-    </span>
-  );
+	const { t } = useI18n();
+	return (
+		<span
+			title={t("sidebar.newActivity")}
+			aria-label={t("sidebar.newSessionActivity")}
+			style={{
+				width: 14,
+				height: 14,
+				display: "inline-flex",
+				alignItems: "center",
+				justifyContent: "center",
+				flexShrink: 0,
+				color: "var(--status-info)",
+			}}
+		>
+			<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ display: "block" }}>
+				<circle cx="7" cy="7" r="2.5" fill="currentColor" />
+				<circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.4" opacity="0.32">
+					<animate attributeName="r" values="3;6;3" dur="1.6s" repeatCount="indefinite" />
+					<animate attributeName="opacity" values="0.32;0;0.32" dur="1.6s" repeatCount="indefinite" />
+				</circle>
+			</svg>
+		</span>
+	);
 }
 
 function SessionItem({
-  session,
-  isSelected,
-  isRunning,
-  isUnread,
-  onClick,
-  onRenamed,
-  onDeleted,
-  depth = 0,
-  hasChildren = false,
-  collapsed = false,
-  onToggleCollapse,
+	session,
+	isSelected,
+	isRunning,
+	isUnread,
+	onClick,
+	onRenamed,
+	onDeleted,
+	depth = 0,
+	hasChildren = false,
+	collapsed = false,
+	onToggleCollapse,
 }: {
-  session: SessionInfo;
-  isSelected: boolean;
-  isRunning?: boolean;
-  isUnread?: boolean;
-  onClick: () => void;
-  onRenamed?: () => void;
-  onDeleted?: (id: string) => void;
-  depth?: number;
-  hasChildren?: boolean;
-  collapsed?: boolean;
-  onToggleCollapse?: () => void;
+	session: SessionInfo;
+	isSelected: boolean;
+	isRunning?: boolean;
+	isUnread?: boolean;
+	onClick: () => void;
+	onRenamed?: () => void;
+	onDeleted?: (id: string) => void;
+	depth?: number;
+	hasChildren?: boolean;
+	collapsed?: boolean;
+	onToggleCollapse?: () => void;
 }) {
-  const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+	const { t } = useI18n();
+	const [hovered, setHovered] = useState(false);
+	const [renaming, setRenaming] = useState(false);
+	const [renameValue, setRenameValue] = useState("");
+	const [confirmDelete, setConfirmDelete] = useState(false);
+	const [deleting, setDeleting] = useState(false);
+	const inputRef = useRef<HTMLInputElement>(null);
 
-  const title =
-    session.name ||
-    session.firstMessage.slice(0, 50) ||
-    session.id.slice(0, 12);
+	const title = session.name || session.firstMessage.slice(0, 50) || session.id.slice(0, 12);
 
-  const startRename = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setRenameValue(session.name ?? "");
-      setRenaming(true);
-      setTimeout(() => inputRef.current?.select(), 0);
-    },
-    [session.name],
-  );
+	const startRename = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation();
+			setRenameValue(session.name ?? "");
+			setRenaming(true);
+			setTimeout(() => inputRef.current?.select(), 0);
+		},
+		[session.name],
+	);
 
-  const commitRename = useCallback(async () => {
-    const name = renameValue.trim();
-    setRenaming(false);
-    if (name === (session.name ?? "")) return;
-    try {
-      await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      onRenamed?.();
-    } catch {
-      // ignore
-    }
-  }, [renameValue, session.id, session.name, onRenamed]);
+	const commitRename = useCallback(async () => {
+		const name = renameValue.trim();
+		setRenaming(false);
+		if (name === (session.name ?? "")) return;
+		try {
+			await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name }),
+			});
+			onRenamed?.();
+		} catch {
+			// ignore
+		}
+	}, [renameValue, session.id, session.name, onRenamed]);
 
-  const performDelete = useCallback(async () => {
-    setConfirmDelete(false);
-    setDeleting(true);
-    try {
-      await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
-        method: "DELETE",
-      });
-      onDeleted?.(session.id);
-    } catch {
-      setDeleting(false);
-    }
-  }, [session.id, onDeleted]);
+	const performDelete = useCallback(async () => {
+		setConfirmDelete(false);
+		setDeleting(true);
+		try {
+			await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
+				method: "DELETE",
+			});
+			onDeleted?.(session.id);
+		} catch {
+			setDeleting(false);
+		}
+	}, [session.id, onDeleted]);
 
-  const handleDeleteClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (e.shiftKey) {
-        void performDelete();
-      } else {
-        setConfirmDelete(true);
-      }
-    },
-    [performDelete],
-  );
+	const handleDeleteClick = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation();
+			if (e.shiftKey) {
+				void performDelete();
+			} else {
+				setConfirmDelete(true);
+			}
+		},
+		[performDelete],
+	);
 
-  const handleDeleteCancel = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setConfirmDelete(false);
-  }, []);
-  const handleDeleteConfirm = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      void performDelete();
-    },
-    [performDelete],
-  );
+	const handleDeleteCancel = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation();
+		setConfirmDelete(false);
+	}, []);
+	const handleDeleteConfirm = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation();
+			void performDelete();
+		},
+		[performDelete],
+	);
 
-  // Fixed-height outer wrapper — content swaps in place so the list never reflows
-  const ITEM_HEIGHT = 54;
+	// Fixed-height outer wrapper — content swaps in place so the list never reflows
+	const ITEM_HEIGHT = 54;
 
-  return (
-    <div
-      onClick={confirmDelete || renaming ? undefined : onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => {
-        setHovered(false);
-      }}
-      style={{
-        height: ITEM_HEIGHT,
-        display: "flex",
-        alignItems: "center",
-        paddingLeft: depth > 0 ? depth * 12 + 14 : 14,
-        paddingRight: 8,
-        cursor: confirmDelete || renaming ? "default" : "pointer",
-        background: confirmDelete
-          ? "var(--status-error-background)"
-          : isSelected
-            ? "var(--bg-selected)"
-            : hovered
-              ? "var(--bg-hover)"
-              : "transparent",
-        borderLeft: confirmDelete
-          ? "2px solid var(--status-error)"
-          : isSelected
-            ? "2px solid var(--accent)"
-            : "2px solid transparent",
-        transition: "background 0.1s",
-        opacity: deleting ? 0.5 : 1,
-        gap: 6,
-        overflow: "hidden",
-      }}
-    >
-      {confirmDelete ? (
-        /* ── Delete confirmation: same height, two flat buttons ── */
-        <>
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
-              fontSize: 12,
-              color: "var(--text)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {t("sidebar.deleteSession", {
-              title: title.slice(0, 22) + (title.length > 22 ? "…" : ""),
-            })}
-          </div>
-          <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-            <button
-              onClick={handleDeleteConfirm}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 4,
-                height: 30,
-                padding: "0 11px",
-                background: "var(--status-error)",
-                border: "none",
-                borderRadius: 6,
-                color: "var(--status-error-foreground)",
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                <path d="M10 11v6M14 11v6" />
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-              </svg>
-              {t("models.delete")}
-            </button>
-            <button
-              onClick={handleDeleteCancel}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                height: 30,
-                padding: "0 11px",
-                background: "var(--bg)",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {t("cancel")}
-            </button>
-          </div>
-        </>
-      ) : renaming ? (
-        /* ── Rename: input fills the same row ── */
-        <input
-          ref={inputRef}
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
-          onBlur={commitRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitRename();
-            if (e.key === "Escape") setRenaming(false);
-          }}
-          autoFocus
-          style={{
-            flex: 1,
-            fontSize: 12,
-            padding: "5px 8px",
-            border: "1px solid var(--accent)",
-            borderRadius: 5,
-            outline: "none",
-            background: "var(--bg)",
-            color: "var(--text)",
-            height: 30,
-          }}
-        />
-      ) : (
-        /* ── Normal view ── */
-        <>
-          {/* Fork indicator for child sessions */}
-          {depth > 0 && (
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--text-dim)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ flexShrink: 0 }}
-            >
-              <line x1="6" y1="3" x2="6" y2="15" />
-              <circle cx="18" cy="6" r="3" />
-              <circle cx="6" cy="18" r="3" />
-              <path d="M18 9a9 9 0 0 1-9 9" />
-            </svg>
-          )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                minWidth: 0,
-                fontSize: 12,
-                fontWeight: isSelected ? 500 : 400,
-                lineHeight: 1.4,
-                color: "var(--text)",
-              }}
-              title={title}
-            >
-              <span
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  minWidth: 0,
-                }}
-              >
-                {title}
-              </span>
-              {session.tag && (
-                <span
-                  style={{
-                    flexShrink: 0,
-                    fontSize: 9,
-                    lineHeight: 1,
-                    padding: "2px 5px",
-                    borderRadius: 8,
-                    border: "1px solid var(--accent-dim, rgba(99,102,241,0.4))",
-                    color: "var(--accent, #6366f1)",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                  }}
-                >
-                  {session.tag}
-                </span>
-              )}
-            </div>
-            <div
-              style={{
-                marginTop: 2,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "var(--text-dim)",
-                fontSize: 11,
-                minWidth: 0,
-              }}
-            >
-              {session.cwd && (
-                <span
-                  title={session.cwd}
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth: "45%",
-                    color: "var(--text-dim)",
-                  }}
-                >
-                  {session.cwd.split(/[\\/]/).filter(Boolean).pop() ||
-                    session.cwd}
-                </span>
-              )}
-              {isRunning ? (
-                <RunningSessionIndicator />
-              ) : isUnread ? (
-                <UnreadSessionIndicator />
-              ) : (
-                <span title={session.modified}>
-                  {formatRelativeTime(session.modified)}
-                </span>
-              )}
-              <span>
-                {t("sidebar.messagesCount", { count: session.messageCount })}
-              </span>
-              {session.worktreeBranch && (
-                <span
-                  title={`Worktree: ${session.cwd}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 3,
-                    color: "var(--accent)",
-                    minWidth: 0,
-                    overflow: "hidden",
-                  }}
-                >
-                  <svg
-                    width="9"
-                    height="9"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ flexShrink: 0 }}
-                  >
-                    <line x1="6" y1="3" x2="6" y2="15" />
-                    <circle cx="18" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M18 9a9 9 0 0 1-9 9" />
-                  </svg>
-                  <span
-                    style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {session.worktreeBranch}
-                  </span>
-                </span>
-              )}
-            </div>
-          </div>
+	return (
+		<div
+			onClick={confirmDelete || renaming ? undefined : onClick}
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => {
+				setHovered(false);
+			}}
+			style={{
+				height: ITEM_HEIGHT,
+				display: "flex",
+				alignItems: "center",
+				paddingLeft: depth > 0 ? depth * 12 + 14 : 14,
+				paddingRight: 8,
+				cursor: confirmDelete || renaming ? "default" : "pointer",
+				background: confirmDelete
+					? "var(--status-error-background)"
+					: isSelected
+						? "var(--bg-selected)"
+						: hovered
+							? "var(--bg-hover)"
+							: "transparent",
+				borderLeft: confirmDelete
+					? "2px solid var(--status-error)"
+					: isSelected
+						? "2px solid var(--accent)"
+						: "2px solid transparent",
+				transition: "background 0.1s",
+				opacity: deleting ? 0.5 : 1,
+				gap: 6,
+				overflow: "hidden",
+			}}
+		>
+			{confirmDelete ? (
+				/* ── Delete confirmation: same height, two flat buttons ── */
+				<>
+					<div
+						style={{
+							flex: 1,
+							minWidth: 0,
+							fontSize: 12,
+							color: "var(--text)",
+							overflow: "hidden",
+							textOverflow: "ellipsis",
+							whiteSpace: "nowrap",
+						}}
+					>
+						{t("sidebar.deleteSession", {
+							title: title.slice(0, 22) + (title.length > 22 ? "…" : ""),
+						})}
+					</div>
+					<div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+						<button
+							onClick={handleDeleteConfirm}
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								gap: 4,
+								height: 30,
+								padding: "0 11px",
+								background: "var(--status-error)",
+								border: "none",
+								borderRadius: 6,
+								color: "var(--status-error-foreground)",
+								cursor: "pointer",
+								fontSize: 12,
+								fontWeight: 600,
+								whiteSpace: "nowrap",
+							}}
+						>
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<polyline points="3 6 5 6 21 6" />
+								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+								<path d="M10 11v6M14 11v6" />
+								<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+							</svg>
+							{t("models.delete")}
+						</button>
+						<button
+							onClick={handleDeleteCancel}
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								height: 30,
+								padding: "0 11px",
+								background: "var(--bg)",
+								border: "1px solid var(--border)",
+								borderRadius: 6,
+								color: "var(--text-muted)",
+								cursor: "pointer",
+								fontSize: 12,
+								fontWeight: 500,
+								whiteSpace: "nowrap",
+							}}
+						>
+							{t("cancel")}
+						</button>
+					</div>
+				</>
+			) : renaming ? (
+				/* ── Rename: input fills the same row ── */
+				<input
+					ref={inputRef}
+					value={renameValue}
+					onChange={e => setRenameValue(e.target.value)}
+					onBlur={commitRename}
+					onKeyDown={e => {
+						if (e.key === "Enter") commitRename();
+						if (e.key === "Escape") setRenaming(false);
+					}}
+					autoFocus
+					style={{
+						flex: 1,
+						fontSize: 12,
+						padding: "5px 8px",
+						border: "1px solid var(--accent)",
+						borderRadius: 5,
+						outline: "none",
+						background: "var(--bg)",
+						color: "var(--text)",
+						height: 30,
+					}}
+				/>
+			) : (
+				/* ── Normal view ── */
+				<>
+					{/* Fork indicator for child sessions */}
+					{depth > 0 && (
+						<svg
+							width="10"
+							height="10"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="var(--text-dim)"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							style={{ flexShrink: 0 }}
+						>
+							<line x1="6" y1="3" x2="6" y2="15" />
+							<circle cx="18" cy="6" r="3" />
+							<circle cx="6" cy="18" r="3" />
+							<path d="M18 9a9 9 0 0 1-9 9" />
+						</svg>
+					)}
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								gap: 5,
+								minWidth: 0,
+								fontSize: 12,
+								fontWeight: isSelected ? 500 : 400,
+								lineHeight: 1.4,
+								color: "var(--text)",
+							}}
+							title={title}
+						>
+							<span
+								style={{
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+									whiteSpace: "nowrap",
+									minWidth: 0,
+								}}
+							>
+								{title}
+							</span>
+							{session.tag && (
+								<span
+									style={{
+										flexShrink: 0,
+										fontSize: 9,
+										lineHeight: 1,
+										padding: "2px 5px",
+										borderRadius: 8,
+										border: "1px solid var(--accent-dim, rgba(99,102,241,0.4))",
+										color: "var(--accent, #6366f1)",
+										textTransform: "uppercase",
+										letterSpacing: 0.4,
+									}}
+								>
+									{session.tag}
+								</span>
+							)}
+						</div>
+						<div
+							style={{
+								marginTop: 2,
+								display: "flex",
+								alignItems: "center",
+								gap: 8,
+								color: "var(--text-dim)",
+								fontSize: 11,
+								minWidth: 0,
+							}}
+						>
+							{session.cwd && (
+								<span
+									title={session.cwd}
+									style={{
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										whiteSpace: "nowrap",
+										maxWidth: "45%",
+										color: "var(--text-dim)",
+									}}
+								>
+									{session.cwd.split(/[\\/]/).filter(Boolean).pop() || session.cwd}
+								</span>
+							)}
+							{isRunning ? (
+								<RunningSessionIndicator />
+							) : isUnread ? (
+								<UnreadSessionIndicator />
+							) : (
+								<span title={session.modified}>{formatRelativeTime(session.modified)}</span>
+							)}
+							<span>{t("sidebar.messagesCount", { count: session.messageCount })}</span>
+							{session.worktreeBranch && (
+								<span
+									title={`Worktree: ${session.cwd}`}
+									style={{
+										display: "flex",
+										alignItems: "center",
+										gap: 3,
+										color: "var(--accent)",
+										minWidth: 0,
+										overflow: "hidden",
+									}}
+								>
+									<svg
+										width="9"
+										height="9"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.4"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										style={{ flexShrink: 0 }}
+									>
+										<line x1="6" y1="3" x2="6" y2="15" />
+										<circle cx="18" cy="6" r="3" />
+										<circle cx="6" cy="18" r="3" />
+										<path d="M18 9a9 9 0 0 1-9 9" />
+									</svg>
+									<span
+										style={{
+											overflow: "hidden",
+											textOverflow: "ellipsis",
+											whiteSpace: "nowrap",
+										}}
+									>
+										{session.worktreeBranch}
+									</span>
+								</span>
+							)}
+						</div>
+					</div>
 
-          {/* Collapse toggle — always visible when has children */}
-          {hasChildren && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleCollapse?.();
-              }}
-              title={collapsed ? "Expand forks" : "Collapse forks"}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 20,
-                height: 20,
-                padding: 0,
-                flexShrink: 0,
-                background: "none",
-                border: "none",
-                color: "var(--text-dim)",
-                cursor: "pointer",
-                transform: collapsed ? "rotate(-90deg)" : "none",
-                transition: "transform 0.15s",
-              }}
-            >
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="2 3.5 5 6.5 8 3.5" />
-              </svg>
-            </button>
-          )}
+					{/* Collapse toggle — always visible when has children */}
+					{hasChildren && (
+						<button
+							onClick={e => {
+								e.stopPropagation();
+								onToggleCollapse?.();
+							}}
+							title={collapsed ? "Expand forks" : "Collapse forks"}
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								width: 20,
+								height: 20,
+								padding: 0,
+								flexShrink: 0,
+								background: "none",
+								border: "none",
+								color: "var(--text-dim)",
+								cursor: "pointer",
+								transform: collapsed ? "rotate(-90deg)" : "none",
+								transition: "transform 0.15s",
+							}}
+						>
+							<svg
+								width="10"
+								height="10"
+								viewBox="0 0 10 10"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.8"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<polyline points="2 3.5 5 6.5 8 3.5" />
+							</svg>
+						</button>
+					)}
 
-          {/* Action buttons — reserved width (2×32px + 4px gap) so the row
+					{/* Action buttons — reserved width (2×32px + 4px gap) so the row
               never reflows on hover; opacity fades in instead. */}
-          <div
-            style={{
-              display: "flex",
-              gap: 4,
-              flexShrink: 0,
-              width: 68,
-              justifyContent: "flex-end",
-              opacity: hovered ? 1 : 0,
-              transition: "opacity 0.12s",
-              pointerEvents: hovered ? "auto" : "none",
-            }}
-          >
-            <button
-              onClick={startRename}
-              title={t("sidebar.rename")}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 32,
-                height: 32,
-                padding: 0,
-                background: "var(--bg-hover)",
-                border: "1px solid var(--border)",
-                borderRadius: 7,
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                flexShrink: 0,
-                transition: "background 0.12s, color 0.12s, border-color 0.12s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--bg-selected)";
-                e.currentTarget.style.color = "var(--accent)";
-                e.currentTarget.style.borderColor = "var(--interactive-border-focus)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.color = "var(--text-muted)";
-                e.currentTarget.style.borderColor = "var(--border)";
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-              </svg>
-            </button>
-            <button
-              onClick={handleDeleteClick}
-              title={t("sidebar.deleteWithShiftClick")}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 32,
-                height: 32,
-                padding: 0,
-                background: "var(--bg-hover)",
-                border: "1px solid var(--border)",
-                borderRadius: 7,
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                flexShrink: 0,
-                transition: "background 0.12s, color 0.12s, border-color 0.12s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--status-error-background)";
-                e.currentTarget.style.color = "var(--status-error)";
-                e.currentTarget.style.borderColor = "var(--status-error-border)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.color = "var(--text-muted)";
-                e.currentTarget.style.borderColor = "var(--border)";
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                <path d="M10 11v6M14 11v6" />
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-              </svg>
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
+					<div
+						style={{
+							display: "flex",
+							gap: 4,
+							flexShrink: 0,
+							width: 68,
+							justifyContent: "flex-end",
+							opacity: hovered ? 1 : 0,
+							transition: "opacity 0.12s",
+							pointerEvents: hovered ? "auto" : "none",
+						}}
+					>
+						<button
+							onClick={startRename}
+							title={t("sidebar.rename")}
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								width: 32,
+								height: 32,
+								padding: 0,
+								background: "var(--bg-hover)",
+								border: "1px solid var(--border)",
+								borderRadius: 7,
+								color: "var(--text-muted)",
+								cursor: "pointer",
+								flexShrink: 0,
+								transition: "background 0.12s, color 0.12s, border-color 0.12s",
+							}}
+							onMouseEnter={e => {
+								e.currentTarget.style.background = "var(--bg-selected)";
+								e.currentTarget.style.color = "var(--accent)";
+								e.currentTarget.style.borderColor = "var(--interactive-border-focus)";
+							}}
+							onMouseLeave={e => {
+								e.currentTarget.style.background = "var(--bg-hover)";
+								e.currentTarget.style.color = "var(--text-muted)";
+								e.currentTarget.style.borderColor = "var(--border)";
+							}}
+						>
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+							</svg>
+						</button>
+						<button
+							onClick={handleDeleteClick}
+							title={t("sidebar.deleteWithShiftClick")}
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								width: 32,
+								height: 32,
+								padding: 0,
+								background: "var(--bg-hover)",
+								border: "1px solid var(--border)",
+								borderRadius: 7,
+								color: "var(--text-muted)",
+								cursor: "pointer",
+								flexShrink: 0,
+								transition: "background 0.12s, color 0.12s, border-color 0.12s",
+							}}
+							onMouseEnter={e => {
+								e.currentTarget.style.background = "var(--status-error-background)";
+								e.currentTarget.style.color = "var(--status-error)";
+								e.currentTarget.style.borderColor = "var(--status-error-border)";
+							}}
+							onMouseLeave={e => {
+								e.currentTarget.style.background = "var(--bg-hover)";
+								e.currentTarget.style.color = "var(--text-muted)";
+								e.currentTarget.style.borderColor = "var(--border)";
+							}}
+						>
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<polyline points="3 6 5 6 21 6" />
+								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+								<path d="M10 11v6M14 11v6" />
+								<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+							</svg>
+						</button>
+					</div>
+				</>
+			)}
+		</div>
+	);
 }

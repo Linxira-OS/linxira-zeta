@@ -1,7 +1,7 @@
 /**
  * Sidebar header row: brand title, folder picker, display-settings dropdown,
- * search toggle, and the edit-mode (multi-select) toggle. New-session remains
- * the only creation entry — no batch button here.
+ * new-workspace entry, search toggle, and the edit-mode (multi-select) toggle.
+ * New-session remains the only creation entry — no batch button here.
  */
 "use client";
 
@@ -18,6 +18,8 @@ interface SidebarHeaderProps {
 	onToggleSearch: () => void;
 	onToggleEditMode: () => void;
 	onUpdateDisplay: (patch: Partial<SidebarDisplaySettings>) => void;
+	/** Opens the create-session draft flow seeded for workspace (project/worktree/branch) picking. */
+	onNewWorkspace?: () => void;
 }
 
 const TOOL_BUTTON_STYLE: CSSProperties = {
@@ -51,6 +53,7 @@ export function SidebarHeader({
 	onToggleSearch,
 	onToggleEditMode,
 	onUpdateDisplay,
+	onNewWorkspace,
 }: SidebarHeaderProps) {
 	const { t } = useI18n();
 	return (
@@ -64,11 +67,52 @@ export function SidebarHeader({
 		>
 			{title}
 			<div style={{ display: "flex", gap: 6 }}>
+				{/* New workspace — same draft flow as the create button, seeded for workspace picking */}
+				{onNewWorkspace && (
+					<button
+						className="ze-btn"
+						aria-label={t("sidebar.new-workspace")}
+						title={t("sidebar.new-workspace")}
+						onClick={onNewWorkspace}
+						style={TOOL_BUTTON_STYLE}
+						onMouseEnter={hoverAccent}
+						onMouseLeave={hoverReset}
+					>
+						<svg
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+							<line x1="12" y1="10" x2="12" y2="16" />
+							<line x1="9" y1="13" x2="15" y2="13" />
+						</svg>
+					</button>
+				)}
 				{/* Display settings dropdown — sort/group/recent controls */}
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger asChild>
-						<button title={t("sidebar.display.title")} className="ze-btn" style={TOOL_BUTTON_STYLE} onMouseEnter={hoverAccent} onMouseLeave={hoverReset}>
-							<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+						<button
+							title={t("sidebar.display.title")}
+							className="ze-btn"
+							style={TOOL_BUTTON_STYLE}
+							onMouseEnter={hoverAccent}
+							onMouseLeave={hoverReset}
+						>
+							<svg
+								width="13"
+								height="13"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+							>
 								<line x1="4" y1="6" x2="20" y2="6" />
 								<line x1="4" y1="12" x2="16" y2="12" />
 								<line x1="4" y1="18" x2="12" y2="18" />
@@ -237,7 +281,16 @@ export function SidebarHeader({
 					onMouseEnter={hoverAccent}
 					onMouseLeave={hoverReset}
 				>
-					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+					<svg
+						width="13"
+						height="13"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
 						<path d="M9 11l3 3L22 4" />
 						<path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
 					</svg>
