@@ -1,20 +1,35 @@
 # Zeta 更新日志
+
 ## 下一版本（Unreleased）
 
 ### OMP 同步基线
 
-- 基线上移:v18.1.16(`61b1b8aef6`,经 `backup/pre-sync-v18.1.16` 离线验证分支全量合并 + 五守卫 + hunk 级丢失扫描后并入)。合并审阅方法论新增 slice 分层审阅(v14→15→16 逐 release 切片)。
+- v18.2.5(`aead0d4742` 并入,随 1.1.16 发布);本版无新上游同步。
+
+### 新增
+
+- 全面板 CLI i18n(feat/i18n-overlay,PR #36):宿主可注入 tuiText 文本层,约 700 个 key 覆盖全部 TUI 面板、Settings、setup 场景与聊天/状态栏/工具元数据;`/language` 切换即时生效,无需重启。Settings 行由宿主侧 localizeSettingUi 覆写,zh 下 300+ 设置项全中文。
+- Web 极简收尾(plan-surface-completion,PR #37):底部入口收敛为「折叠开关 + 设置」;侧栏可折叠为 56px 图标栏;欢迎态工作区/模式双选择器;区头新建工作区;命令面板 Ctrl+K(cmdk,动作 + 会话搜索);Shiki 替换 react-syntax-highlighter(代码块配色随主题 CSS 变量即时切换);设置窗口化(页内搜索 + 命中高亮 + 分组导航 + 外观组);侧栏 Plan 卡片;Tracking 面板入口按 tracking.enabled 条件显示;TrackingPanel/ChatInput 等硬编码文案全部入 i18n。
+- Tracking v2(PR #37):`tracking_update` 新增 `sync_todo`(todo 阶段镜像 status.json,阶段推进记录 phase_complete);全局追踪索引升级对象行(path/name/phase/progress/lastActiveSessionId);INDEX.md 三读者模板(人/agent/协作者)自动落盘;批准的 plan 只读镜像至 tracking/plans/;todo 阶段完成后一次性隐藏提醒同步;`GET /api/plan` 白名单端点;agent 状态暴露实时 todos;docs/tools/tracking_update.md 与 docs/zeta-tracking.md 重写为 v2。
+- 官方默认 skills 机制随 1.1.16 落地(docx/pptx/xlsx/pdf 首发,`skills.enableOfficial` 默认开)。
+
+### 修复
+
+- i18n 覆盖后 todo 警告选项丢失(hideWithToolActivity 第二参数)与测试语言钉扎(bunfig preload 钉 en,中文 Windows Intl 兜底不再产生假红)。
+- 桌面托盘 Open Settings 404:`/?panel=settings` 深链 + `/settings` 307 重定向,点击先弹窗再导航。
+- web-ui Next 构建钉 outputFileTracingRoot,消除多 lockfile 推断警告。
+- 发布链:editor 三包纳入 lockstep 版本线(`set-version.ts` EDITOR_NPM_PACKAGES),独立 `editor-publish.yml` 支持补发。
+
+## 1.1.16（2026-09-19）
+
+### OMP 同步基线
+
+- v18.1.16（`61b1b8aef6`,经 `backup/pre-sync-v18.1.16` 离线验证分支全量合并 + 五守卫 + hunk 级丢失扫描后并入）；随后 v18.2.5（48 commits,streaming CLI 命令、热路径记忆化、TUI 主题/覆盖层组件迁移 pi-tui）。合并审阅方法论新增 slice 分层审阅(v14→15→16 逐 release 切片)。
 
 ### 新增
 
 - 上游 v18.1.14→v18.1.16 功能面:任务执行器 AgentBusyError 忙碌反馈、事件循环 keepalive、idle 封装截止时间(arming/deadline)、上下文笔记(context-notes)、advisor 每轮建议条数上限设置、GitHub Copilot OAuth 公共 GitHub/GHE 双 client-id、renovate 系配置面、auth-broker wire-schema 资源。
-
-### 修复
-
-- 中文界面 `/settings` 布尔项无法关闭:显示文案(开/关)被误用于机器值匹配,导致切换恒落 true;现值与显示分离(SettingsList 新增 valueLabel/valueLabels)。
-- `/language` 切换后斜杠命令描述不刷新:内置命令注册表快照在启动语言冻结;现在切换后即时重建命令段与补全提供器,无需重启。
-- Plan/Plan-ultra/Vibe/Goal 模式横幅、attach(`zeta attach`)模式提示此前为英文硬编码;全部接入 i18n 目录(新增 imPlanUltraModeEnabledFmt 等键)。
-- `/loop`、`/rename` 描述入目录(上游新文案 en 保留,zh 补译),i18n 契约测试恢复全绿。
+- 上游 v18.2.5 功能面:streaming CLI 命令、热路径记忆化(工具 schema/stamp/which 缓存)、Astra 上下文确定性策略、eval 判定桥与 Python prelude 维护、设置 Stream 分区与 stencil.so 流式认证。
 
 ### Web UI 侧栏重构(feat/sidebar-redesign,PR #19)
 
@@ -26,6 +41,13 @@
 - 移除与"打开工作区"语义重复的头部文件夹按钮;临时会话区补排序/新建/空态。
 - 网关新增 git 端点(branches/checkout/branch)与会话 temp 标记;stats 孤儿行修剪、临时目录摄入过滤、Zeta 品牌/主题。
 
+### 修复
+
+- 中文界面 `/settings` 布尔项无法关闭:显示文案(开/关)被误用于机器值匹配,导致切换恒落 true;现值与显示分离(SettingsList 新增 valueLabel/valueLabels)。
+- `/language` 切换后斜杠命令描述不刷新:内置命令注册表快照在启动语言冻结;现在切换后即时重建命令段与补全提供器,无需重启。
+- Plan/Plan-ultra/Vibe/Goal 模式横幅、attach(`zeta attach`)模式提示此前为英文硬编码;全部接入 i18n 目录(新增 imPlanUltraModeEnabledFmt 等键)。
+- `/loop`、`/rename` 描述入目录(上游新文案 en 保留,zh 补译),i18n 契约测试恢复全绿。
+- bun 1.4.0 bytecode 编译产物启动崩溃(desktop smoke 全平台)。
 
 ## 1.1.10（2026-09-07）
 
@@ -147,8 +169,6 @@
 
 - Escape 在输入框内不再关闭整个面板；面板渲染崩溃时 ErrorBoundary 兜底（不再拖垮整个应用）。
 
-
-
 ### 同步基线
 
 - 当前基于 **OMP v18.0.4**（`5eef8a2386`；v18.0.3 `160ed439ac` 亦已合并，`git merge-base --is-ancestor` 均验证通过）。
@@ -164,10 +184,10 @@
 
 - 当前基于 **OMP 17.3.8**（`858f7dd91f`）。
 - 完整合并 OMP 17.3.8 官方 tag（分支 `zeta/v1.1.10-17.3.8`，合并提交 `2bf455c9c3`，`git merge-base --is-ancestor` 已验证），59 个冲突按 AGENTS.md 政策表解决：
-  - 保留 Zeta 包名/版本（`@linxiraos/*` @ 1.0.9、workspace 1.0.9、native sentinel `__piNativesV1_0_9`）。
-  - 接受上游依赖图（`bun.lock` 以 `@linxiraos/*` 名重新生成、`Cargo.lock` 经 `cargo metadata` 对齐）。
-  - 上游实现 + Zeta 覆盖（i18n 键、`.zeta` 路径、`@linxiraos` 导入、Zeta 特性）逐文件保留；测试按 tests-as-contract 成对接受并适配 `.omp` → `.zeta`。
-  - `issue-887-repro.test.ts` 保留（上游删除），其 qwen3.7-max 断言随 17.3.8 `models.json` 路由更新。
+   - 保留 Zeta 包名/版本（`@linxiraos/*` @ 1.0.9、workspace 1.0.9、native sentinel `__piNativesV1_0_9`）。
+   - 接受上游依赖图（`bun.lock` 以 `@linxiraos/*` 名重新生成、`Cargo.lock` 经 `cargo metadata` 对齐）。
+   - 上游实现 + Zeta 覆盖（i18n 键、`.zeta` 路径、`@linxiraos` 导入、Zeta 特性）逐文件保留；测试按 tests-as-contract 成对接受并适配 `.omp` → `.zeta`。
+   - `issue-887-repro.test.ts` 保留（上游删除），其 qwen3.7-max 断言随 17.3.8 `models.json` 路由更新。
 - 合并分支已并入 `main`（合并提交 `76588be094`，无冲突；跟随修复提交 `82309f384d` 在其上保留）。
 - 跟随修复（Phase 1-8，见各包 `CHANGELOG.md`）：stats 独立窗口导航、更新流程（checking 态 / 已是最新提示 / CLI 交互确认与 `--yes`）、微信 v1 API 登录与 peer 持久化及解绑、飞书首聊 onboarding、`allowedPeers` 白名单、web-ui `/plan` 进入计划模式、models 配置卡片去重、desktop 二次点击恢复、桌面菜单 i18n、设置面板新增可编辑项。
 
@@ -221,14 +241,13 @@
 
 - 完成 pi / pi-web / opencode-v2 三方跨进程会话共享机制调查，设计文档落盘 `local://dual-plane-live-session-design.md`：采纳"TUI 富客户端化 + serve 托管会话"方向（opencode 形态），四阶段实施另立计划。
 
-
 ### Web UI 工作区列表无法删除（问题调查，修复另行安排）
 
 - **成因**：侧栏的"工作区/仓库"列表不是独立注册表，而是 `GET /api/sessions` 的派生结果——网关扫描 `~/.zeta/agent/sessions/<编码cwd>/*.jsonl`，每个会话携带 cwd，按 projectRoot 去重后得到项目列表。因此只要某个目录开过一次会话，它就会永久出现在选择器里，目前没有任何删除入口。
 - **现状量化**：本机 `~/.zeta/agent/sessions` 共 127 个按 cwd 编码的目录，其中 **120 个是 `-AppData-Local-Temp-*`**（advisor-toggle 探针、bot 草稿 cwd、自动化测试遗留）；真实仓库仅约 7 个。总量约 2.4 MB——问题不在磁盘占用，而在选择器被垃圾路径淹没。
 - **拟议方案（两级删除）**：
-  1. *隐藏*：纯前端 localStorage 隐藏清单（按 projectRoot），列表过滤展示；不删任何文件，重新打开该仓库即恢复连接。
-  2. *彻底删除*：新增网关 `DELETE` 工作区端点，级联清理该 cwd 名下全部状态——`~/.zeta/agent/sessions/<编码cwd>/` 整目录、`terminal-sessions/` 中引用这些会话的面包屑（否则 `--continue` 悬挂）、指向该 cwd 的 bot/draft 注册表绑定（`remote.sessionMappings`/`botSessions`）、运行中会话拒绝删除或先注销；未发现 per-workspace 锁文件，所谓"隐藏锁文件"实质就是 sessions 目录与面包屑残留。
+   1. _隐藏_：纯前端 localStorage 隐藏清单（按 projectRoot），列表过滤展示；不删任何文件，重新打开该仓库即恢复连接。
+   2. _彻底删除_：新增网关 `DELETE` 工作区端点，级联清理该 cwd 名下全部状态——`~/.zeta/agent/sessions/<编码cwd>/` 整目录、`terminal-sessions/` 中引用这些会话的面包屑（否则 `--continue` 悬挂）、指向该 cwd 的 bot/draft 注册表绑定（`remote.sessionMappings`/`botSessions`）、运行中会话拒绝删除或先注销；未发现 per-workspace 锁文件，所谓"隐藏锁文件"实质就是 sessions 目录与面包屑残留。
 - 附带建议：对 `-AppData-Local-Temp-*` 这类短命临时目录的会话提供一键清扫（其会话价值为零）。
 
 ## v1.0.9（2026-08-19）
