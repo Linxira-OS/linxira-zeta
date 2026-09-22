@@ -48,26 +48,29 @@ Starting with **1.1.19**, Zeta ships through the Linxira-OS Linux mainline as
 a system package (user decision, 2026-09-22 — 1.1.18 remains npm/desktop-only
 while the packaging lane is set up):
 
-- **Repos (local clones under `F:/Linxira-OS/`, upstream on GitHub)**:
-  - `Linxira-OS/packages` — PKGBUILD definitions; every package pinned to an
-    upstream commit (`_commit` + codeload + sha256), built in a clean
-    `archlinux:base-devel` container, signed, `repo-add`-ed.
-  - `Linxira-OS/linxira-packages` — the published `[linxira]` pacman repo
-    (x86_64 db + packages + signatures, GitHub Pages).
-  - `Linxira-OS/linxira-update` — Arch-Update fork; the system update
-    notifier/applier. **Zero extra config needed on our side**: once `zeta`
-    is in `[linxira]`, update discovery and delivery are automatic.
+- **Repos (local clones under `F:/Linxira-OS/`, upstream on GitHub)**.
+  Scope: the `zeta-desktop` shell (+ bundled `zeta` CLI) only — the vendored
+  editor npm packages (`@linxiraos/editor*`) remain npm-only and are out of
+  the system-package lane:
+   - `Linxira-OS/packages` — PKGBUILD definitions; every package pinned to an
+     upstream commit (`_commit` + codeload + sha256), built in a clean
+     `archlinux:base-devel` container, signed, `repo-add`-ed.
+   - `Linxira-OS/linxira-packages` — the published `[linxira]` pacman repo
+     (x86_64 db + packages + signatures, GitHub Pages).
+   - `Linxira-OS/linxira-update` — Arch-Update fork; the system update
+     notifier/applier. **Zero extra config needed on our side**: once `zeta`
+     is in `[linxira]`, update discovery and delivery are automatic.
 - **Wiring checklist for 1.1.19**:
-  1. `packages/packages/zeta/PKGBUILD` — decide packaging shape: install the
-     pinned GitHub Release linux binary asset (simplest, sha256-pinned) vs
-     source build via `bun` (heavier; Arch `bun` package dependency).
-  2. `upstream-sync.toml`: add `[[track]] package = "zeta" repo =
-     "Linxira-OS/linxira-zeta"` — the daily scanner bumps the PKGBUILD from
-     `releases/latest` automatically (draft/prerelease ignored), so every
-     normal `release-v2.ts` release propagates with no manual step.
-  3. Verify end-to-end: release v1.1.19 → sync bot bumps PKGBUILD → CI
-     build/sign/repo-add → `pacman -Sy zeta` on a clean system →
-     linxira-update offers the upgrade.
+   1. `packages/packages/zeta/PKGBUILD` — decide packaging shape: install the
+      pinned GitHub Release linux binary asset (simplest, sha256-pinned) vs
+      source build via `bun` (heavier; Arch `bun` package dependency).
+   2. `upstream-sync.toml`: add `[[track]] package = "zeta" repo =
+"Linxira-OS/linxira-zeta"` — the daily scanner bumps the PKGBUILD from
+      `releases/latest` automatically (draft/prerelease ignored), so every
+      normal `release-v2.ts` release propagates with no manual step.
+   3. Verify end-to-end: release v1.1.19 → sync bot bumps PKGBUILD → CI
+      build/sign/repo-add → `pacman -Sy zeta` on a clean system →
+      linxira-update offers the upgrade.
 
 ### P0 - Web workbench foundation and desktop handoff
 

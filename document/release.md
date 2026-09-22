@@ -206,7 +206,10 @@ version sections, `UPDATE-LOG.md` entry) lives in
 ### Linux downstream packaging contract (Linxira OS `[linxira]` repo)
 
 From **1.1.19** Zeta ships as a system package in the Linxira OS mainline
-(`document/roadmap.md` § P1). The downstream driver is
+(`document/roadmap.md` § P1). **Scope: the `zeta-desktop` shell (with its
+bundled `zeta` CLI) only** — the vendored editor npm distribution
+(`@linxiraos/editor*`) stays npm-only and never becomes a system package.
+The downstream driver is
 `Linxira-OS/packages` → `packages/zetabin` — a **release-asset PKGBUILD**
 (`source=` points at the GitHub release asset, no `_commit` pin), wired into
 their daily `sync-upstream.py` scanner via an `asset` track mode. Every
