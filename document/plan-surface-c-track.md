@@ -20,27 +20,56 @@
 | 8   | `feat/c-track-skills-*`（每 skill 一分支）    | 剩余 7 个官方 skills                                               | 无（机制已验证）            |
 | 9   | `feat/c-track-onboarding`                     | uiMode 双模式引导                                                  | 批 1（appearance 组挂开关） |
 
-批 0/1/8 无相互依赖，可最先并行；2/3/4 依赖批 1；5→6→7 在 dev 分支串行。
-**默认推进顺序：0 → 1 → {2 ∥ 3 ∥ 4} → 8（穿插）→ 9；5→6→7 独立在 dev 分支推进，不阻塞其它批次。**
+批 0/1/8 无相互依赖，可最先并行；2/3/4 依赖批 1；5→6→7 串行（分支策略
+见下方评估结论：评估建议正常 feat 分支，保守路线 dev 分支，待用户拍板）。
+**默认推进顺序：0 → 1 → {2 ∥ 3 ∥ 4} → 8（穿插）→ 9；5→6→7 独立推进，
+不阻塞其它批次。**
 
-## 批 5–7 的 dev 分支约束（用户裁决，2026-09-22）
+## 批 5–7 分支策略 — 编排层评估结论（2026-09-22 代码审计）
 
-team agent 会对编排层做大改，**全部三批在 development 分支
-`dev/team-agent/2026-09` 上推进**（release.md 的 dev 分支纪律；预计超过
-3 个月则升级为 `dev/longtime/team-agent`），绝不落 `main`：
+**担忧复核（用户提出：pi-messenger 劫持/依赖底层编排层，且其面向的 pi
+agent 版本可能与 OMP 继承的不一致）——审计结论：担忧不成立**：
 
-- **dev 版本号**：dev 分支上的构建/发布一律带 prerelease 标记
-  （`set-version.ts 1.1.19-dev.<YYYYMMDD>`，全线一致；
-  npm 侧 `publish --tag dev`，不动 `latest`；**不打 `v*` tag、不走
-  `release-v2.ts`、不建 GH Release**——正式发布线只认 main）。合并回
-  main 时版本线随 PR 归位正式号（merge 前 revert dev bump 或直接以
-  release-v2 下一次 bump 覆盖）。
-- **默认关闭**：`team.enabled` settings 门禁（默认 **false**，同
-  `tracking.enabled` 模式）——工具注册、crew 自动拉起、M2 页面入口全部
-  gating；关闭时编排层零行为差异。dev 阶段也不默认开。
-- 合并回 main 的前置：上游 OMP 同步基线核对（编排层改动与上游
-  agent/compaction 域的冲突面按 §7.2「新文件 + 一行注册」上限收敛，
-  无法收敛的改动逐条记入 merge-playbook 冲突决策表）。
+1. **crew 不触碰编排内核**：worker = `spawn(getPiCommand(), ["--mode",
+"json","--no-session","-p", …])` 的 **CLI 子进程**（`crew/lobby.ts:112`、
+   `crew/agents.ts:263`），协调靠文件总线（`.pi/messenger/` store + alive
+   心跳）+ stdout JSONL。pi-agent-core 在 `package.json` 里是依赖声明，
+   但 crew 代码**零运行时 import**；`@linxiraos/zeta` 的 8 处 import 全部
+   是 **type-only**（`ExtensionContext`/`Theme`）。编排层（agent-session/
+   compaction/session-manager）源码零改动。
+2. **依赖版本漂移不存在**：依赖全部 `@linxiraos/*` + workspace `*` 解析
+   （fork 时已完成 rename 与解绑）——跟随 Zeta 当前树，没有"面向更老
+   pi agent 包"的问题。唯一真实风险是 **CLI flag 协议**（worker 经
+   `--mode json` 起子代理），不是库版本。
+3. **兼容矩阵（crew 所需 9 项 vs `zeta` CLI 现状）**：
+   已有 7 项：`--no-session`、`-p`、`--provider`/`--model`、`--thinking`、
+   `--tools`、`--extension`。缺口 2 项：
+   - `--mode json`：NDJSON 事件流输出。crew 消费的事件名
+     （`tool_execution_start/end`、`message_end` + usage/content/
+     errorMessage，见 `crew/utils/progress.ts`）与 Zeta `AgentSessionEvent`
+     **同名同形**——适配 = 在 print（`-p`）路径加序列化分支（additive
+     flag，动 sync 树但面小；pi 本尊有同名 flag，上游同步冲突面可控）。
+   - `--append-system-prompt`：zeta 只有替换版 `--system-prompt`
+     （flag-tables.ts:166）。crew 用它注入 worker 角色 prompt——需要
+     append 语义（否则 worker 丢失默认 coding prompt）。同样是 additive。
+     另需 3 处小改：`getPiCommand()` → `zeta`/`zeta.cmd`（一行）；
+     `.pi/messenger` 数据目录名裁量（建议保留——与 `.omp-plugin` 同类的
+     插件自有数据面）；`team.enabled` 默认 false 门禁。
+
+### 分支裁决
+
+- **评估建议：不需要 dev 分支**。理由：无编排内核改动；全部 Zeta 侧工作
+  要么是插件目录内文件，要么是 §7.2 纪律内的新文件 + 一行注册；两个
+  CLI flag 是 additive 且 pi 同名（上游合并冲突面小）。
+- **保留用户裁决通道**：若仍按 2026-09-22 初版决定走保守路线，则维持
+  `dev/team-agent/2026-09`（三批同一 dev 分支；预计超 3 个月升级
+  `dev/longtime/team-agent`）+ dev 版本号策略（`set-version.ts
+1.1.19-dev.<YYYYMMDD>` 全线一致、npm `publish --tag dev` 不动 latest、
+  不打 `v*` tag 不走 release-v2.ts 不建 GH Release；合并回 main 时版本线
+  归位正式号）+ 合并前上游基线核对与 merge-playbook 冲突决策表补记。
+- **两种路径共用的硬约束**：`team.enabled` 默认 **false**（工具注册、
+  crew 自动拉起、M2 页面入口全 gating，关闭时零行为差异）；dev 阶段
+  也不默认开。
 
 ## 批 0 — 小活清欠
 
@@ -126,6 +155,17 @@ allow-list 外 403；语言高亮与主题联动；`npx tsc` 零引用债务清�
 rail 无终端入口。
 
 ## 批 5 — team agent M0（前置中的前置）
+
+前置（CLI 协议适配，评估结论缺口 2 项 + 1 行）：
+
+- `--mode json`：print（`-p`）路径新增 NDJSON 事件流输出分支——序列化
+  `tool_execution_start/end`、`message_end`（usage/content/errorMessage）、
+  `agent_end` 到 stdout（crew 解析端 `crew/utils/progress.ts` 已按这些
+  事件名消费）；additive flag。
+- `--append-system-prompt <file>`：append 语义（区别于替换版
+  `--system-prompt`）。
+- 插件内 `crew/agents.ts:getPiCommand()` → `zeta`/`zeta.cmd`（一行，随批 6
+  或提前）。
 
 - plugin-system manifest v2：`extensibility/plugins/types.ts` PluginManifest
   追加 `pages?: PluginPagesDeclaration`（路径 + 入口 + 标题白名单形状），
