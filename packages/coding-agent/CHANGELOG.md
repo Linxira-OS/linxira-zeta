@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.18] - 2026-09-22
+
 - 全面板 i18n:宿主可注入 tuiText 文本层,约 700 个 key 覆盖全部 TUI 面板、设置、setup 场景与聊天/状态栏;`/language` 切换即时生效,无需重启。
 - Tracking v2:`tracking_update` 新增 `sync_todo`(todo 阶段镜像进 status.json,阶段推进记录 phase_complete);全局追踪索引升级为对象行(含阶段/进度/最近会话);INDEX.md 首次使用自动落三读者模板;批准的 plan 镜像至 tracking/plans/;todo 阶段完成后自动提醒同步追踪文档。
 - Web 网关新增 `GET /api/plan` 白名单端点(仅限当前会话 plan 文件),`/api/tracking` 追加压缩摘要与 plan 镜像列表,agent 状态暴露实时 todo 阶段。

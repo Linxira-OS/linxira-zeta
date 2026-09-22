@@ -2,10 +2,9 @@
 
 ## [Unreleased]
 
-- 包元数据:author/maintainer 更新为 Linxira-OS,LICENSE 追加 Linxira-OS 版权行(发行面变更)。
-## [1.1.16] - 2026-09-19
+## [1.1.18] - 2026-09-22
 
-- 上游 v18.2.5 同步:工具 schema 注入 stamp 记忆化、代理工具调用流式 JSON 解析。
+- 包元数据:author/maintainer 更新为 Linxira-OS,LICENSE 追加 Linxira-OS 版权行(发行面变更)。
 
 ## [9.2.2] - 2026-01-31
 
@@ -136,6 +135,10 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.1.16] - 2026-09-19
+
+- 上游 v18.2.5 同步:工具 schema 注入 stamp 记忆化、代理工具调用流式 JSON 解析。
 
 ## [0.38.0] - 2026-01-08
 
