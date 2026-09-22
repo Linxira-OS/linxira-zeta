@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 版本线推进;本版无独立用户可见变化。
 ## [1.1.18] - 2026-09-22
 
 - 新增宿主可注入文本层:`setTuiTextSource` / `tuiText` / `tuiTextFmt`——内联英文为永久 fallback,宿主(coding-agent)注入活翻译代理,面板文本随 `/language` 即时切换;pi-tui 独立使用零依赖。

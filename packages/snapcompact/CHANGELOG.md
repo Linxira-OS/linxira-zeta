@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 版本线推进;本版无独立用户可见变化。
 ## [1.1.18] - 2026-09-22
 
 - 包元数据:author/maintainer 更新为 Linxira-OS,LICENSE 追加 Linxira-OS 版权行(发行面变更)。

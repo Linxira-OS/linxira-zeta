@@ -6,6 +6,20 @@
 
 - v18.2.5(`aead0d4742` 并入,随 1.1.16 发布);本版无新上游同步。
 
+### 修复
+
+- 内嵌 TTT 编辑器(editor vendor):无按键移动不再自动弹出右键菜单——按下沿检测免疫终端 SGR release 残留位(Windows/Tabby 实测,v1.1.18 损伤);内嵌终端鼠标按钮映射与 tcell v3 语义对齐;About/--help 品牌面清理(上游 tttedit.dev/eugenioenko 链接移除,改指 Linxira-OS/linxira-zeta;VENDOR.md 修改层 #1-#3)。
+
+### Linux 主线分发(准备)
+
+- 契约固化(document/release.md):`zeta-desktop-<ver>-linux-x64.tar.gz` 资产名冻结、字节稳定、正式 Release 形态、三处版本一致;范围 = 仅 zeta-desktop 壳,editor npm 分发不进系统包。接入由 Linxira-OS/packages 的 zetabin(asset 模式扫描器)自动驱动,v1.1.18 为首个契约样本。
+
+## 1.1.18（2026-09-22）
+
+### OMP 同步基线
+
+- v18.2.5(`aead0d4742` 并入,随 1.1.16 发布);本版无新上游同步。
+
 ### 新增
 
 - 全面板 CLI i18n(feat/i18n-overlay,PR #36):宿主可注入 tuiText 文本层,约 700 个 key 覆盖全部 TUI 面板、Settings、setup 场景与聊天/状态栏/工具元数据;`/language` 切换即时生效,无需重启。Settings 行由宿主侧 localizeSettingUi 覆写,zh 下 300+ 设置项全中文。
@@ -18,6 +32,7 @@
 - i18n 覆盖后 todo 警告选项丢失(hideWithToolActivity 第二参数)与测试语言钉扎(bunfig preload 钉 en,中文 Windows Intl 兜底不再产生假红)。
 - 桌面托盘 Open Settings 404:`/?panel=settings` 深链 + `/settings` 307 重定向,点击先弹窗再导航。
 - web-ui Next 构建钉 outputFileTracingRoot,消除多 lockfile 推断警告。
+- 发布链三连修:`release_github` 等 desktop 产物(损伤类别 10 复发);editor npm 发布改 workflow_call 复用 editor-publish.yml 并显式授 id-token(reusable callee 不可越 caller 权限上限,startup_failure 根因);MCP instructions 测试等待两段式 prompt 重建的竞态。
 - 发布链:editor 三包纳入 lockstep 版本线(`set-version.ts` EDITOR_NPM_PACKAGES),独立 `editor-publish.yml` 支持补发。
 
 ## 1.1.16（2026-09-19）
