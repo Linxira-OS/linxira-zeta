@@ -886,24 +886,15 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          !inputs.skip_npm }}
+      # Reuse the standalone dispatchable workflow instead of duplicating its
+      # publish steps here: v1.1.18 hit the Trusted Publisher mismatch because
+      # npm's OIDC workflow claim is the executing workflow file, and the
+      # publishers are bound to editor-publish.yml. Calling it keeps the
+      # bound filename and the publish logic in exactly one place; the same
+      # file still serves manual republishes via `gh workflow run`.
       needs: [release_metadata, release_gate]
-      runs-on: ubuntu-22.04
-      permissions:
-         id-token: write
-         contents: read
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-              registry-url: "https://registry.npmjs.org"
-         - name: Ensure npm supports trusted publishing
-           run: npm install -g npm@11.17.0
-         - name: Publish editor packages
-           env:
-              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-           run: bun scripts/ci-release-publish.ts --editor
+      uses: ./.github/workflows/editor-publish.yml
+      secrets: inherit
 
    release_github:
       name: Publish GitHub release
