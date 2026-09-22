@@ -15,14 +15,14 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
   registry — so **the `@linxiraos` npm publish chain is a hard dependency of
   desktop CI**.
 - **npm publishing uses trusted publishing (OIDC)**: `permissions:
-  id-token: write` in the workflow, cloud-hosted runners, npm CLI ≥ 11.5.1,
+id-token: write` in the workflow, cloud-hosted runners, npm CLI ≥ 11.5.1,
   Node ≥ 22.14 (runners already force Node 24). The trusted-publisher entry on
   npmjs.com must match the workflow filename exactly (`.github/workflows/ci.yml`)
   and the repo (Linxira-OS/linxira-zeta). OIDC publishes automatically attach
   provenance. Long-lived `NPM_TOKEN`/`NODE_AUTH_TOKEN` are a temporary
   fallback only: npm now requires 2FA for all publishes, bypass-2FA granular
   tokens lose direct publish in January 2027, and staged publishing (`npm
-  stage publish` + maintainer 2FA approval) is the recommended pairing for
+stage publish` + maintainer 2FA approval) is the recommended pairing for
   CI-originated publishes. Every published package uses the `@linxiraos/*` name —
   no `@linxiraos/*` or legacy names, and no `.omp` compatibility packages.
 - **The `@linxiraos` publish chain is live** (v1.0.9 published 2026-08-19 via
@@ -42,17 +42,18 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
   （`ci-release-publish.ts --editor`）；版本随 release 线由 `release-v2.ts`
   Step 2f bump。
 
-  同一决定落在 CI：`desktop_mac` / `release_binary_hosted` /
-  `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵
-  leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` **恢复为常驻
-  发布 job**（v1.1.16 起桌面安装包是 release 的固定资产：win zip+nsis-exe、
-  linux tar.gz+deb+AppImage；`release_github` 依赖两个 desktop job 的产物，
-  见下方损伤类别 5）。
+   同一决定落在 CI：`desktop_mac` / `release_binary_hosted` /
+   `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵
+   leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` **恢复为常驻
+   发布 job**（v1.1.16 起桌面安装包是 release 的固定资产：win zip+nsis-exe、
+   linux tar.gz+deb+AppImage；`release_github` 依赖两个 desktop job 的产物，
+   见下方损伤类别 5）。
 
-  **方向注记（未实施）**：CLI 与桌面将来可能拆分版本线独立发布——桌面追稳定
-  （低频、大版本），CLI 高频快跑。届时 tag/repo 级拆分（如 `cli-vX.Y.Z` 与
-  `desktop-vX.Y.Z` 分列 release）需重新推导损伤类别 5 的 needs 链与 preflight
-  期待，不要沿用本文件的单 release 假设。
+   **方向注记（未实施）**：CLI 与桌面将来可能拆分版本线独立发布——桌面追稳定
+   （低频、大版本），CLI 高频快跑。届时 tag/repo 级拆分（如 `cli-vX.Y.Z` 与
+   `desktop-vX.Y.Z` 分列 release）需重新推导损伤类别 5 的 needs 链与 preflight
+   期待，不要沿用本文件的单 release 假设。
+
 - The `check` job also runs the brand-residue guard
   (`bun scripts/brand/brand-check.ts`, see `document/merge-playbook.md`).
 
@@ -68,11 +69,11 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
   be functionally complete and locally validated — never dispatch half-done
   work, and never trigger CI for a simple documentation/config push.
 - Release runs are entered only through two channels:
-  1. `bun scripts/release-v2.ts <version>` — atomic bump commit + `v*` tag push
-     on `main`; the push run detects the tag and runs the full gate
-     (tests + build + publish).
-  2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-only
-     dispatch that skips publishing.
+   1. `bun scripts/release-v2.ts <version>` — atomic bump commit + `v*` tag push
+      on `main`; the push run detects the tag and runs the full gate
+      (tests + build + publish).
+   2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-only
+      dispatch that skips publishing.
 - Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
   gated on `release_gate` (full test/build validation) plus
   `release_binary` / `release_binary_hosted` (all release artifacts present)
@@ -133,15 +134,15 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 每次 release 合并后、push tag 前逐类核对（v1.1.9 首跑即验证：每一类都曾打断发布链）。
 按 v1.1.9 实际断裂点编码为机械检查，写入 AGENTS.md Post-Merge Checklist 的 release 面补充：
 
-| # | 损伤类别 | 症状 | 机械守卫 |
-|---|---|---|---|
-| 1 | Release asset 名漂移：build 脚本改名（如 `omp-browser-relay-extension.zip` → `zeta-browser-relay-extension.zip`）而 ci.yml 仍引旧名 | `Generate checksums` 步骤 ENOENT，GH Release 不创建，下游 verify/brew/npm 全 skipped | checksums 前的 `Preflight release assets` 步骤；改名任何 release asset 时全库 grep 旧名 |
-| 2 | Artifact 名漂移：upload/download 的 artifact key（`zeta-binary-*`、`native-addons-*`）两侧不一致 | download 步骤空集或 digest 错误 | upload/download `pattern` 成对核对 |
-| 3 | 新 leaf 包（`@linxiraos/pi-natives-<tag>`）首次发布时 npm 侧无 trusted publisher / 无权限 → `PUT 404` | `Publish native leaf packages` 失败；主包因 `optionalDependencies` 锁步被 gating 全部不发 | 发版前 npmjs.com 逐包配置 trusted publisher；本地补发用 `scripts/publish-missing-packages.ts` |
-| 4 | 版本线漂移（旧病，保留）：catalog/manifest/sentinel 版本不一致 | `bun-install` 全 job 死 / `check-version-consistency` 报错 | `bun scripts/check-version-consistency.ts` + `bun run check:ts`（AGENTS.md 门槛已覆盖） |
-| 5 | desktop 组装竞态（v1.1.16）：`release_github` 未依赖 desktop jobs，启动时 `zeta-desktop-*` artifacts 尚未上传，下载 0 个安装包，preflight 报 `found 0` | `Preflight release assets` 报 `Expected at least 5 zeta-desktop-*, found 0`，GH Release 不创建 | `release_github.needs` 必须含 `desktop_linux` + `desktop_windows`；desktop jobs 改动时核对该 needs 链 |
-| 6 | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧 | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布 | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
-| 7 | 手动版本 bump 漏 editor 平台包（v1.1.16）：只 bump launcher，`editor-windows-x64`/`-linux-x64` 与 launcher `optionalDependencies` pins 留在旧版 | `release_editor_packages` 重发已存在版本 → npm 409，run 红 | `release-v2.ts` Step 2f 是唯一权威 bump 路径；手动 bump 必须三包 + 两条 pins 全改 |
+| #   | 损伤类别                                                                                                                                               | 症状                                                                                           | 机械守卫                                                                                                                                                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Release asset 名漂移：build 脚本改名（如 `omp-browser-relay-extension.zip` → `zeta-browser-relay-extension.zip`）而 ci.yml 仍引旧名                    | `Generate checksums` 步骤 ENOENT，GH Release 不创建，下游 verify/brew/npm 全 skipped           | checksums 前的 `Preflight release assets` 步骤；改名任何 release asset 时全库 grep 旧名                                                                                   |
+| 2   | Artifact 名漂移：upload/download 的 artifact key（`zeta-binary-*`、`native-addons-*`）两侧不一致                                                       | download 步骤空集或 digest 错误                                                                | upload/download `pattern` 成对核对                                                                                                                                        |
+| 3   | 新 leaf 包（`@linxiraos/pi-natives-<tag>`）首次发布时 npm 侧无 trusted publisher / 无权限 → `PUT 404`                                                  | `Publish native leaf packages` 失败；主包因 `optionalDependencies` 锁步被 gating 全部不发      | 发版前 npmjs.com 逐包配置 trusted publisher；本地补发用 `scripts/publish-missing-packages.ts`                                                                             |
+| 4   | 版本线漂移（旧病，保留）：catalog/manifest/sentinel 版本不一致                                                                                         | `bun-install` 全 job 死 / `check-version-consistency` 报错                                     | `bun scripts/check-version-consistency.ts` + `bun run check:ts`（AGENTS.md 门槛已覆盖）                                                                                   |
+| 5   | desktop 组装竞态（v1.1.16）：`release_github` 未依赖 desktop jobs，启动时 `zeta-desktop-*` artifacts 尚未上传，下载 0 个安装包，preflight 报 `found 0` | `Preflight release assets` 报 `Expected at least 5 zeta-desktop-*, found 0`，GH Release 不创建 | `release_github.needs` 必须含 `desktop_linux` + `desktop_windows`；desktop jobs 改动时核对该 needs 链                                                                     |
+| 6   | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧                                                                                      | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布                | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
+| 7   | 手动版本 bump 漏 editor 平台包（v1.1.16）：只 bump launcher，`editor-windows-x64`/`-linux-x64` 与 launcher `optionalDependencies` pins 留在旧版        | `release_editor_packages` 重发已存在版本 → npm 409，run 红                                     | `release-v2.ts` Step 2f 是唯一权威 bump 路径；手动 bump 必须三包 + 两条 pins 全改                                                                                         |
 
 **发布完成的判定纪律（v1.1.16 教训）**：PR 会产生两个 run——真正的 CI run（约 21
 jobs）和 "Evaluate flake" 的 1-job 轻量 run。**判断 CI 是否通过必须打开 run 核对
@@ -175,12 +176,12 @@ so a straggler fails with `ETARGET` (the 1.0.6/1.0.7 era shipped
 
 Always move the version with a script:
 
-| Script | Purpose |
-|---|---|
+| Script                                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 14 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, the `__piNativesVX_Y_Z` sentinel (lib.rs + committed bindings), `desktop/package.json` + its lockfile, and `web-ui/package.json` (`zeta-web` version **and** its `@linxiraos/*` ranges, kept as `^<version>`). **Does not** touch changelogs, commit, tag or push. |
-| `bun scripts/sync-versions.ts` | Re-sync every `@linxiraos/*` dependency range to the current package versions. |
-| `bun scripts/check-version-consistency.ts` | Verify the line is consistent (packages, catalog, Rust workspace, natives sentinel, desktop app, README badge). Run before tagging. |
-| `bun scripts/release-v2.ts <version>` | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, atomic `v*` tag push. |
+| `bun scripts/sync-versions.ts`                     | Re-sync every `@linxiraos/*` dependency range to the current package versions.                                                                                                                                                                                                                                                                                                                                     |
+| `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives sentinel, desktop app, README badge). Run before tagging.                                                                                                                                                                                                                                                                                |
+| `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, atomic `v*` tag push.                                                                                                                                                                                                                                                                                                       |
 
 Rules:
 
@@ -201,6 +202,46 @@ Rules:
 The changelog-side pre-tag gate (`[Unreleased]` completeness, no upstream
 version sections, `UPDATE-LOG.md` entry) lives in
 `document/dev-conventions.md` § Changelog.
+
+### Linux downstream packaging contract (Linxira OS `[linxira]` repo)
+
+From **1.1.19** Zeta ships as a system package in the Linxira OS mainline
+(`document/roadmap.md` § P1). The downstream driver is
+`Linxira-OS/packages` → `packages/zetabin` — a **release-asset PKGBUILD**
+(`source=` points at the GitHub release asset, no `_commit` pin), wired into
+their daily `sync-upstream.py` scanner via an `asset` track mode. Every
+official release therefore auto-propagates to `[linxira]`/linxira-update
+**only while this contract holds**; breaking any clause silently stalls the
+system-package lane (the scanner skips, it does not error).
+
+Frozen clauses — changing any of them requires coordinating with the
+Linxira packages maintainers first:
+
+1. **Asset name**: `zeta-desktop-<version>-linux-x64.tar.gz`, produced by
+   `desktop/electron-builder.yml` (`artifactName: zeta-desktop-${version}-${os}-${arch}.${ext}`)
+   and uploaded by the `release_github` job. The name template is load-bearing
+   downstream; do not reformat it.
+2. **Byte stability**: release assets are never re-uploaded or overwritten
+   after publishing. Downstream reads the GitHub API asset `digest`
+   (sha256) and pins it into the PKGBUILD — a re-upload under the same tag
+   invalidates the pinned checksum. "Fix a bad asset" means cutting a new
+   version, never replacing in place.
+3. **Release shape**: stable releases must be non-draft, non-prerelease
+   (`release_github` already sets `prerelease:` only for the canary channel —
+   keep it that way); the scanner reads `releases/latest` only.
+4. **Version identity**: the tag (`vX.Y.Z`), `desktop/package.json`
+   (hence `${version}` in every asset name), and the shell's embedded
+   version must agree — `check-version-consistency.ts` covers the desktop
+   manifest; run it before tagging (release-v2 does).
+5. `SHA256SUMS.txt` ships beside the assets (already generated and uploaded
+   by `release_github`) as the human-audit copy; the machine source of truth
+   is the per-asset API digest.
+
+Post-release self-check (per cut):
+
+- [ ] `gh release view vX.Y.Z` — non-draft, non-prerelease
+- [ ] asset `zeta-desktop-X.Y.Z-linux-x64.tar.gz` present, plausible size
+- [ ] tag / asset name / embedded desktop version all read `X.Y.Z`
 
 ## Upstream Reference Hygiene
 
@@ -230,22 +271,22 @@ Zeta keeps upstream references minimal so the repository stays lean:
   `backup/<remote>/main` mirrors each upstream `main`, and
   `backup/omp-tag/<tag>` holds the peeled commit of each OMP release tag.
   Refresh these after every sync (`git push origin
-  refs/remotes/<remote>/main:refs/heads/backup/<remote>/main` and the peeled
+refs/remotes/<remote>/main:refs/heads/backup/<remote>/main` and the peeled
   tag SHAs). `backup/*` never feeds product work; it exists only for
   disaster recovery.
 - **Branch/tag hygiene (local and remote).** Keep the branch and tag surface
   minimal — the same rule applies to local refs and `origin`:
-  - Local branches are limited to `main`, the `sync/omp` mirror (fast-forward
-    to `omp-upstream/main` only), and long-lived product/version branches
-    (e.g. `zeta/v1.1.10-17.3.8`). Nothing else is kept locally.
-  - Short-lived integration branches (`sync/omp-release/<release>`,
-    `port/<scope>`, `port/pi-web/<scope>`, `feat/<scope>`) are deleted —
-    local and remote — as soon as they are merged into `main`. Do not leave
-    merged branches around "just in case"; their commits are already on
-    `main`.
-  - Outdated OMP version tags (`v17.x`, older) are deleted locally and never
-    pushed to `origin`; `origin` carries only Zeta product release tags
-    (`v1.x.x`) plus the `backup/*` namespace.
+   - Local branches are limited to `main`, the `sync/omp` mirror (fast-forward
+     to `omp-upstream/main` only), and long-lived product/version branches
+     (e.g. `zeta/v1.1.10-17.3.8`). Nothing else is kept locally.
+   - Short-lived integration branches (`sync/omp-release/<release>`,
+     `port/<scope>`, `port/pi-web/<scope>`, `feat/<scope>`) are deleted —
+     local and remote — as soon as they are merged into `main`. Do not leave
+     merged branches around "just in case"; their commits are already on
+     `main`.
+   - Outdated OMP version tags (`v17.x`, older) are deleted locally and never
+     pushed to `origin`; `origin` carries only Zeta product release tags
+     (`v1.x.x`) plus the `backup/*` namespace.
 
 ### Branch naming & retention
 
@@ -254,20 +295,20 @@ local refs and `origin`.
 
 **Long-lived (kept indefinitely):**
 
-| Ref | Shape | Notes |
-|---|---|---|
-| Product trunk | `main` | sole integration target |
-| Upstream mirror | `sync/omp` | fast-forward to `omp-upstream/main` only, never edited |
-| Stable/version branch | `zeta/v<zeta>-<omp>` (e.g. `zeta/v1.1.10-17.3.8`) | one per shipped Zeta version; kept forever |
-| Backup namespace | `backup/<remote>/main`, `backup/omp-tag/<tag>` | disaster recovery; see below |
+| Ref                   | Shape                                             | Notes                                                  |
+| --------------------- | ------------------------------------------------- | ------------------------------------------------------ |
+| Product trunk         | `main`                                            | sole integration target                                |
+| Upstream mirror       | `sync/omp`                                        | fast-forward to `omp-upstream/main` only, never edited |
+| Stable/version branch | `zeta/v<zeta>-<omp>` (e.g. `zeta/v1.1.10-17.3.8`) | one per shipped Zeta version; kept forever             |
+| Backup namespace      | `backup/<remote>/main`, `backup/omp-tag/<tag>`    | disaster recovery; see below                           |
 
 **Short-lived (delete on merge, local + remote):**
 
-| Ref | Shape | Notes |
-|---|---|---|
-| OMP release sync | `sync/omp-release/<release>` | deleted as soon as merged to `main` |
-| Pi semantic port | `port/<scope>` / `port/pi-web/<scope>` | deleted as soon as merged |
-| Feature branch | `feat/<scope>` | deleted as soon as merged |
+| Ref              | Shape                                  | Notes                               |
+| ---------------- | -------------------------------------- | ----------------------------------- |
+| OMP release sync | `sync/omp-release/<release>`           | deleted as soon as merged to `main` |
+| Pi semantic port | `port/<scope>` / `port/pi-web/<scope>` | deleted as soon as merged           |
+| Feature branch   | `feat/<scope>`                         | deleted as soon as merged           |
 
 **Development branches (time-stamped, 3-month retention):**
 
