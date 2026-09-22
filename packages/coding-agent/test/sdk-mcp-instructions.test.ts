@@ -117,8 +117,14 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			// poll the live prompt with a generous ceiling, exiting the instant
 			// the rebuilt prompt carries the instructions.
 			const deadline = Date.now() + 12_000;
+			// The instructions frame and the mounted-tool mapping land in two
+			// independent prompt rebuilds; waiting on the instructions alone
+			// races the mapping render (v1.1.18 release runs hit exactly that
+			// split — instructions present, `do\u0060thing` mapping not yet).
+			// Poll until the last piece this case asserts on is visible.
+			const doThingMapping = '- "do\\u0060thing" → `xd://mcp__instr_do_thing`';
 			let prompt = session.systemPrompt.join("\n");
-			while (!prompt.includes(SERVER_INSTRUCTIONS) && Date.now() < deadline) {
+			while ((!prompt.includes(SERVER_INSTRUCTIONS) || !prompt.includes(doThingMapping)) && Date.now() < deadline) {
 				await Bun.sleep(10);
 				prompt = session.systemPrompt.join("\n");
 			}
@@ -261,8 +267,12 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			// completion signal exposed to this integration harness; fake timers
 			// cannot advance it, so retain the established polling bounds above.
 			const deadline = Date.now() + 12_000;
+			// Same two-pass render as above: instructions first, the 64 capped
+			// row mappings in a later rebuild. Wait for the full bounded list,
+			// not just the frame (v1.1.18 release run hit the split).
 			let prompt = session.systemPrompt.join("\n");
-			while (!prompt.includes(SERVER_INSTRUCTIONS) && Date.now() < deadline) {
+			const renderedRowLines = () => prompt.split("\n").filter(line => line.startsWith('- "row_'));
+			while ((!prompt.includes(SERVER_INSTRUCTIONS) || renderedRowLines().length < 64) && Date.now() < deadline) {
 				await Bun.sleep(10);
 				prompt = session.systemPrompt.join("\n");
 			}
