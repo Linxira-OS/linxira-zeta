@@ -174,14 +174,18 @@ jobs:
    # Standalone web-ui build matrix (Appendix A §7 / simplify-and-plan-surface
    # §11): npm-only project — no bun-install, no native addons, no Rust. Catches
    # platform-specific breakage in the Next build that the single-Linux `check`
-   # job cannot see.
+   # job cannot see. windows-2022 is deferred: `next build` hits an upstream
+   # Next/webpack bug on the runner (EPERM scandir of the junctioned
+   # 'C:\Users\...\Application Data' during compile, vercel/next.js#40760
+   # family) that outputFileTracingRoot does not cover; re-add once upstream
+   # fixes the compile-phase glob.
    web_ui_build:
       name: Web UI build (${{ matrix.os }})
       runs-on: ${{ matrix.os }}
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-22.04, windows-2022, macos-14]
+            os: [ubuntu-22.04, macos-14]
       defaults:
          run:
             working-directory: web-ui

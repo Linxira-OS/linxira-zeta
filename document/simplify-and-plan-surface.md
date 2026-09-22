@@ -517,8 +517,10 @@ python-docx / python-pptx / openpyxl / pandoc，SKILL.md 内含安装指引）�
   tracking/plans/、phase 完成 nudge、三读者模板、todos get_state 暴露、
   docs v2）。
 - **波 5** ✅：react-syntax-highlighter 依赖移除；CI web_ui_build matrix
-  job（ubuntu/windows/macos）。（原列「修 check job 重复 collab:web:build」
-  已不适用——该步骤现仅出现一次。）
+  job（ubuntu/macos 绿；windows-2022 暂缓——runner profile junction 触发
+  Next 上游 compile 阶段 EPERM，见 ci.yml 注释，上游修复后补回）。
+  （原列「修 check job 重复 collab:web:build」已不适用——该步骤现仅出现
+  一次。）
 
 ### 11.2 C 级另立（不在本批）
 
