@@ -13,7 +13,7 @@ let globalAbortHandler: (() => void) | null = null;
  * Call this from ChatWindow whenever agentRunning or handleAbort changes.
  */
 export function registerAbortHandler(handler: (() => void) | null): void {
-  globalAbortHandler = handler;
+	globalAbortHandler = handler;
 }
 
 // ---------------------------------------------------------------------------
@@ -21,16 +21,18 @@ export function registerAbortHandler(handler: (() => void) | null): void {
 // ---------------------------------------------------------------------------
 
 interface UseGlobalKeyboardShortcutsOptions {
-  /** Called when Ctrl+Alt+N or Ctrl+N is pressed. Receives current cwd. */
-  onNewSession?: (cwd: string) => void;
-  /** The currently selected project directory (sidebar cwd). */
-  activeCwd?: string | null;
-  /** Focus the chat input (Ctrl+I). */
-  onFocusInput?: () => void;
-  /** Submit the current chat draft (Ctrl+Enter). */
-  onSubmitInput?: () => void;
-  /** Cycle the app theme (Ctrl+/). */
-  onCycleTheme?: () => void;
+	/** Called when Ctrl+Alt+N or Ctrl+N is pressed. Receives current cwd. */
+	onNewSession?: (cwd: string) => void;
+	/** The currently selected project directory (sidebar cwd). */
+	activeCwd?: string | null;
+	/** Focus the chat input (Ctrl+I). */
+	onFocusInput?: () => void;
+	/** Submit the current chat draft (Ctrl+Enter). */
+	onSubmitInput?: () => void;
+	/** Cycle the app theme (Ctrl+/). */
+	onCycleTheme?: () => void;
+	/** Toggle the command palette (Ctrl+K). */
+	onTogglePalette?: () => void;
 }
 
 /**
@@ -53,59 +55,65 @@ interface UseGlobalKeyboardShortcutsOptions {
  * Ctrl+I/Ctrl+Enter also skip when the event originates inside a contenteditable
  * or input (IME composition); the textarea is driven by ChatInput's own keys.
  */
-export function useGlobalKeyboardShortcuts(
-  options: UseGlobalKeyboardShortcutsOptions,
-): void {
-  const { onNewSession, activeCwd, onFocusInput, onSubmitInput, onCycleTheme } = options;
+export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOptions): void {
+	const { onNewSession, activeCwd, onFocusInput, onSubmitInput, onCycleTheme, onTogglePalette } = options;
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent): void => {
-      // ---- Esc: stop agent ----
-      if (e.key === "Escape") {
-        if (!globalAbortHandler) return;
+	useEffect(() => {
+		const handler = (e: KeyboardEvent): void => {
+			// ---- Esc: stop agent ----
+			if (e.key === "Escape") {
+				if (!globalAbortHandler) return;
 
-        const tag = (e.target as HTMLElement)?.tagName;
-        // Let textarea/input handle Esc internally (ChatInput menus / stop).
-        if (tag === "TEXTAREA" || tag === "INPUT") return;
+				const tag = (e.target as HTMLElement)?.tagName;
+				// Let textarea/input handle Esc internally (ChatInput menus / stop).
+				if (tag === "TEXTAREA" || tag === "INPUT") return;
 
-        e.preventDefault();
-        globalAbortHandler();
-        return;
-      }
+				e.preventDefault();
+				globalAbortHandler();
+				return;
+			}
 
-      // ---- New session: Ctrl+N (kept) / Ctrl+Alt+N (legacy alias) ----
-      if (e.key === "n" && e.ctrlKey && !e.shiftKey && !e.metaKey) {
-        if (!activeCwd || !onNewSession) return;
-        e.preventDefault();
-        onNewSession(activeCwd);
-        return;
-      }
+			// ---- New session: Ctrl+N (kept) / Ctrl+Alt+N (legacy alias) ----
+			if (e.key === "n" && e.ctrlKey && !e.shiftKey && !e.metaKey) {
+				if (!activeCwd || !onNewSession) return;
+				e.preventDefault();
+				onNewSession(activeCwd);
+				return;
+			}
 
-      // ---- Focus chat input: Ctrl+I ----
-      if (e.key === "i" && e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
-        if (!onFocusInput) return;
-        e.preventDefault();
-        onFocusInput();
-        return;
-      }
+			// ---- Focus chat input: Ctrl+I ----
+			if (e.key === "i" && e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
+				if (!onFocusInput) return;
+				e.preventDefault();
+				onFocusInput();
+				return;
+			}
 
-      // ---- Submit chat draft: Ctrl+Enter ----
-      if (e.key === "Enter" && e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
-        if (!onSubmitInput) return;
-        e.preventDefault();
-        onSubmitInput();
-        return;
-      }
+			// ---- Submit chat draft: Ctrl+Enter ----
+			if (e.key === "Enter" && e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
+				if (!onSubmitInput) return;
+				e.preventDefault();
+				onSubmitInput();
+				return;
+			}
 
-      // ---- Cycle theme: Ctrl+/ ----
-      if (e.key === "/" && e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
-        if (!onCycleTheme) return;
-        e.preventDefault();
-        onCycleTheme();
-      }
-    };
+			// ---- Cycle theme: Ctrl+/ ----
+			if (e.key === "/" && e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
+				if (!onCycleTheme) return;
+				e.preventDefault();
+				onCycleTheme();
+				return;
+			}
 
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [activeCwd, onNewSession, onFocusInput, onSubmitInput, onCycleTheme]);
+			// ---- Command palette: Ctrl+K ----
+			if (e.key === "k" && e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
+				if (!onTogglePalette) return;
+				e.preventDefault();
+				onTogglePalette();
+			}
+		};
+
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [activeCwd, onNewSession, onFocusInput, onSubmitInput, onCycleTheme, onTogglePalette]);
 }

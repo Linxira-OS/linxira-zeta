@@ -63,6 +63,7 @@ import {
 } from "@/lib/session-api";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
+import type { TranslationParams } from "@/lib/i18n/types";
 import { sendAgentCommand } from "@/lib/agent-client";
 import "@/lib/pi-desktop";
 
@@ -87,6 +88,8 @@ interface Props {
 	onExplorerRefresh?: () => void;
 	onAtMention?: (relativePath: string, isDir: boolean) => void;
 	onAtMentions?: (relativePaths: string[]) => void;
+	/** Active plan card shown under the new-session row (null hides it). */
+	planCard?: { title: string; onOpen: () => void } | null;
 }
 
 interface WorktreeEntry {
@@ -132,17 +135,17 @@ function saveUnreadSessionIds(ids: Set<string>): void {
 	}
 }
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, t: (key: string, params?: TranslationParams) => string): string {
 	const date = new Date(dateStr);
 	const now = new Date();
 	const diff = now.getTime() - date.getTime();
 	const mins = Math.floor(diff / 60000);
 	const hours = Math.floor(diff / 3600000);
 	const days = Math.floor(diff / 86400000);
-	if (mins < 1) return "just now";
-	if (mins < 60) return `${mins}m ago`;
-	if (hours < 24) return `${hours}h ago`;
-	if (days < 7) return `${days}d ago`;
+	if (mins < 1) return t("sidebar.time.justNow");
+	if (mins < 60) return t("sidebar.time.minAgo", { n: mins });
+	if (hours < 24) return t("sidebar.time.hourAgo", { n: hours });
+	if (days < 7) return t("sidebar.time.dayAgo", { n: days });
 	return date.toLocaleDateString();
 }
 
@@ -628,6 +631,7 @@ export function SessionSidebar({
 	onExplorerRefresh,
 	onAtMention,
 	onAtMentions,
+	planCard,
 }: Props) {
 	const { t } = useI18n();
 	const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
@@ -1719,6 +1723,61 @@ export function SessionSidebar({
 						</button>
 					)}
 				</div>
+
+				{/* Active plan card — only when the selected session has a live plan */}
+				{planCard && (
+					<div style={{ padding: "0 10px 6px", flexShrink: 0 }}>
+						<button
+							onClick={planCard.onOpen}
+							title={planCard.title}
+							style={{
+								width: "100%",
+								display: "flex",
+								alignItems: "center",
+								gap: 7,
+								padding: "7px 9px",
+								background: "var(--bg)",
+								border: "1px solid var(--border)",
+								borderRadius: 8,
+								cursor: "pointer",
+								textAlign: "left",
+							}}
+						>
+							<svg
+								width="13"
+								height="13"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="var(--accent)"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								style={{ flexShrink: 0 }}
+							>
+								<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+								<polyline points="14 2 14 8 20 8" />
+								<line x1="16" y1="13" x2="8" y2="13" />
+								<line x1="16" y1="17" x2="8" y2="17" />
+							</svg>
+							<span
+								style={{
+									flex: 1,
+									minWidth: 0,
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+									whiteSpace: "nowrap",
+									fontSize: 11.5,
+									color: "var(--text)",
+								}}
+							>
+								{planCard.title}
+							</span>
+							<span style={{ fontSize: 10, color: "var(--text-dim)", flexShrink: 0 }}>
+								{t("sidebar.planCard")}
+							</span>
+						</button>
+					</div>
+				)}
 
 				{/* Search row — toggled from the tools row, Esc clears/closes */}
 				{searchOpen && !loading && !error && (
@@ -3550,7 +3609,7 @@ function SessionItem({
 							) : isUnread ? (
 								<UnreadSessionIndicator />
 							) : (
-								<span title={session.modified}>{formatRelativeTime(session.modified)}</span>
+								<span title={session.modified}>{formatRelativeTime(session.modified, t)}</span>
 							)}
 							<span>{t("sidebar.messagesCount", { count: session.messageCount })}</span>
 							{session.worktreeBranch && (

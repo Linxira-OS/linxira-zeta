@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, Component, type ReactNode } from "react";
+import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { installRemoteTokenFetch } from "@/lib/remote-token";
 import { SessionSidebar } from "./SessionSidebar";
-import { ChatWindow } from "./ChatWindow";
+import { ChatWindow, planTitleFromPath } from "./ChatWindow";
 import { PluginsManager } from "./PluginsManager";
 import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
@@ -13,7 +13,7 @@ import { ModelsConfig } from "./ModelsConfig";
 import { StatsDashboard } from "./StatsDashboard";
 import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
-import { SettingsPanel } from "./SettingsPanel";
+import { SettingsWindow } from "./settings/SettingsWindow";
 import { BranchNavigator } from "./BranchNavigator";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
@@ -25,10 +25,12 @@ import { StarfieldEmblem } from "./StarfieldEmblem";
 import { TrackingPanel } from "./TrackingPanel";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { copyText } from "@/lib/clipboard";
+import { fetchSessions } from "@/lib/session-api";
 import { getFileName } from "@/lib/file-paths";
 import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText } from "@/lib/file-fuzzy";
 import { getInitialNavigation } from "@/lib/initial-navigation";
 import { SidePanel } from "./SidePanel";
+import { CommandPalette, type CommandPaletteAction } from "./command-palette";
 import { useSidebar } from "@/hooks/useSidebar";
 import {
 	fetchDesktopInfo,
@@ -77,53 +79,6 @@ const openMenuItemStyle: React.CSSProperties = {
 	cursor: "pointer",
 	textTransform: "capitalize",
 };
-
-/**
- * Keeps a render crash inside one modal (e.g. SettingsPanel) from unmounting
- * the whole app — without this, React 18 drops the full tree and the UI seems
- * "stuck closed" until a reload.
- */
-class ModalBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-	state = { failed: false };
-	static getDerivedStateFromError(): { failed: boolean } {
-		return { failed: true };
-	}
-	override render() {
-		if (this.state.failed) {
-			return (
-				<div
-					style={{
-						padding: 16,
-						fontSize: 12.5,
-						color: "var(--status-error)",
-						background: "var(--bg-panel)",
-						border: "1px solid var(--border)",
-						borderRadius: 8,
-						margin: 12,
-					}}
-				>
-					Something went wrong rendering this panel.
-					<button
-						onClick={() => this.setState({ failed: false })}
-						style={{
-							marginLeft: 10,
-							padding: "4px 10px",
-							background: "none",
-							border: "1px solid var(--border)",
-							borderRadius: 5,
-							color: "var(--text)",
-							cursor: "pointer",
-							fontSize: 12,
-						}}
-					>
-						Retry
-					</button>
-				</div>
-			);
-		}
-		return this.props.children;
-	}
-}
 
 const SIDEBAR_OPEN_STORAGE_KEY = "zeta-sidebar-open";
 
@@ -221,6 +176,34 @@ function AppShellContent() {
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 	useEffect(() => {
 		setSidebarCollapsed(readSidebarCollapsedPref());
+	}, []);
+	// Command palette (Ctrl+K) visibility.
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	// Sidebar Plan card state (hoisted from ChatWindow).
+	const [sidebarPlan, setSidebarPlan] = useState<{ enabled: boolean; planFilePath: string | null }>({
+		enabled: false,
+		planFilePath: null,
+	});
+	const handlePlanStateChange = useCallback((plan: { enabled: boolean; planFilePath: string | null }) => {
+		setSidebarPlan(plan);
+	}, []);
+	// tracking.enabled gates the dock tracking entry (conditional entry, §1.3).
+	const [trackingEnabled, setTrackingEnabled] = useState(false);
+	useEffect(() => {
+		let cancelled = false;
+		fetch("/api/settings")
+			.then(r => r.json())
+			.then((data: { settings?: Array<{ path?: string; value?: unknown }> }) => {
+				if (cancelled) return;
+				const entry = Array.isArray(data.settings) ? data.settings.find(s => s.path === "tracking.enabled") : null;
+				setTrackingEnabled(entry?.value === true);
+			})
+			.catch(() => {
+				// Settings fetch failed — the tracking entry stays hidden (safe default).
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, []);
 	const expandSidebar = useCallback(() => {
 		setSidebarCollapsed(false);
@@ -676,14 +659,80 @@ function AppShellContent() {
 	);
 
 	// Global keyboard shortcuts (handles Esc, Ctrl+N/Ctrl+Alt+N, Ctrl+I,
-	// Ctrl+Enter, Ctrl+/ etc.)
+	// Ctrl+Enter, Ctrl+K, Ctrl+/ etc.)
 	useGlobalKeyboardShortcuts({
 		onNewSession: (cwd: string) => handleNewSession(`kb-${Date.now()}`, cwd),
 		activeCwd,
 		onFocusInput: () => chatInputRef.current?.focus(),
 		onSubmitInput: () => chatInputRef.current?.submit(),
+		onTogglePalette: () => setPaletteOpen(open => !open),
 		onCycleTheme: () => cycleTheme(),
 	});
+
+	// Command palette entries (Ctrl+K): shell actions; sessions are fetched by
+	// the palette itself.
+	const paletteActions: CommandPaletteAction[] = [
+		{
+			id: "new-session",
+			label: t("palette.new-session"),
+			keywords: "new create session",
+			run: () => handleNewSession(`palette-${Date.now()}`, activeCwd ?? ""),
+		},
+		{
+			id: "open-settings",
+			label: t("palette.open-settings"),
+			keywords: "settings preferences",
+			run: () => setSettingsConfigOpen(true),
+		},
+		{
+			id: "open-models",
+			label: t("palette.open-models"),
+			keywords: "models provider",
+			run: () => setModelsConfigOpen(true),
+		},
+		{
+			id: "open-skills",
+			label: t("palette.open-skills"),
+			keywords: "skills",
+			run: () => setSkillsConfigOpen(true),
+		},
+		{
+			id: "open-plugins",
+			label: t("palette.open-plugins"),
+			keywords: "plugins extensions",
+			run: () => setDockTool("plugins"),
+		},
+		{
+			id: "open-stats",
+			label: t("palette.open-stats"),
+			keywords: "stats dashboard usage",
+			run: () => setStatsOpen(true),
+		},
+		...(isMobile
+			? []
+			: [
+					{
+						id: "toggle-sidebar-rail",
+						label: sidebarRailActive ? t("layout.expandRail") : t("layout.collapseToRail"),
+						keywords: "sidebar collapse rail expand",
+						run: () => (sidebarRailActive ? expandSidebar() : collapseSidebar()),
+					} satisfies CommandPaletteAction,
+				]),
+	];
+
+	const handlePaletteSelectSession = useCallback(
+		(sessionId: string) => {
+			fetchSessions()
+				.then(list => {
+					const session = (Array.isArray(list) ? list : []).find(s => s.id === sessionId);
+					if (session) handleSelectSession(session);
+				})
+				.catch(() => {
+					// Session list fetch failed — nothing sensible to select.
+				});
+		},
+		[handleSelectSession],
+	);
 
 	// Client-built transient SessionInfo (new session / fork) lacks the
 	// server-computed projectRoot, which the same-project check in
@@ -1040,6 +1089,14 @@ function AppShellContent() {
 				onExplorerRefresh={handleExplorerRefresh}
 				onAtMention={handleAtMention}
 				onAtMentions={handleAtMentions}
+				planCard={
+					sidebarPlan.enabled && sidebarPlan.planFilePath
+						? {
+								title: planTitleFromPath(sidebarPlan.planFilePath),
+								onOpen: () => setDockTool("session"),
+							}
+						: null
+				}
 			/>
 			<div
 				style={{
@@ -2423,6 +2480,7 @@ function AppShellContent() {
 								newSessionCwd={effectiveNewSessionCwd}
 								explicitNew={explicitNewRef.current}
 								onNewSessionCwdChange={cwd => handleNewSession(`welcome-${Date.now()}`, cwd)}
+								onPlanStateChange={handlePlanStateChange}
 								onAgentEnd={handleAgentEnd}
 								onSessionCreated={handleSessionCreated}
 								onSessionForked={handleSessionForked}
@@ -2736,28 +2794,34 @@ function AppShellContent() {
 									</svg>
 								),
 							},
-							{
-								id: "tracking",
-								label: t("dock.window.tracking"),
-								icon: (
-									<svg
-										width="16"
-										height="16"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-										<polyline points="14 2 14 8 20 8" />
-										<line x1="16" y1="13" x2="8" y2="13" />
-										<line x1="16" y1="17" x2="8" y2="17" />
-										<polyline points="10 9 9 9 8 9" />
-									</svg>
-								),
-							},
+							// Conditional entry (§1.3): the tracking window only exists when
+							// tracking.enabled is on.
+							...(trackingEnabled
+								? [
+										{
+											id: "tracking",
+											label: t("dock.window.tracking"),
+											icon: (
+												<svg
+													width="16"
+													height="16"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+													<polyline points="14 2 14 8 20 8" />
+													<line x1="16" y1="13" x2="8" y2="13" />
+													<line x1="16" y1="17" x2="8" y2="17" />
+													<polyline points="10 9 9 9 8 9" />
+												</svg>
+											),
+										} satisfies { id: DockTool; label: string; icon: ReactNode },
+									]
+								: []),
 							{
 								id: "plugins",
 								label: t("dock.window.plugins"),
@@ -3001,6 +3065,12 @@ function AppShellContent() {
 					</div>
 				</div>
 			</div>
+			<CommandPalette
+				open={paletteOpen}
+				onOpenChange={setPaletteOpen}
+				onSelectSession={handlePaletteSelectSession}
+				actions={paletteActions}
+			/>
 			{modelsConfigOpen && (
 				<ModelsConfig
 					onClose={() => {
@@ -3009,14 +3079,11 @@ function AppShellContent() {
 					}}
 				/>
 			)}
-			{settingsConfigOpen && (
-				<ModalBoundary>
-					<SettingsPanel
-						onClose={() => setSettingsConfigOpen(false)}
-						onOpenModelsConfig={() => setModelsConfigOpen(true)}
-					/>
-				</ModalBoundary>
-			)}
+			<SettingsWindow
+				open={settingsConfigOpen}
+				onClose={() => setSettingsConfigOpen(false)}
+				onOpenModelsConfig={() => setModelsConfigOpen(true)}
+			/>
 			{skillsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
 				<SkillsConfig
 					cwd={(activeCwd ?? selectedSession?.cwd ?? newSessionCwd)!}

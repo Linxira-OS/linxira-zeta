@@ -51,6 +51,8 @@ interface Props {
 	 * reset). Absent → the picker renders but stays inert.
 	 */
 	onNewSessionCwdChange?: (cwd: string) => void;
+	/** Notifies the host of the active plan state (sidebar Plan card). */
+	onPlanStateChange?: (plan: { enabled: boolean; planFilePath: string | null }) => void;
 	/** True when the "New" action created this chat (independent session). */
 	explicitNew?: boolean;
 	onAgentEnd?: () => void;
@@ -216,7 +218,7 @@ function getUserInputText(message: AgentMessage): string | null {
 }
 
 /** Derive a display title from a plan file path (`local://<slug>-plan.md`). */
-function planTitleFromPath(planFilePath: string): string {
+export function planTitleFromPath(planFilePath: string): string {
 	const lastSegment = planFilePath.split(/[/\\]/).pop() ?? "";
 	const stem = lastSegment.replace(/\.md$/i, "").replace(/-plan$/i, "");
 	const spaced = stem.replace(/[-_]+/g, " ").trim();
@@ -405,6 +407,7 @@ export function ChatWindow({
 	session,
 	newSessionCwd,
 	onNewSessionCwdChange,
+	onPlanStateChange,
 	explicitNew,
 	onAgentEnd,
 	onSessionCreated,
@@ -613,6 +616,12 @@ export function ChatWindow({
 		},
 		[onSessionStatsChange],
 	);
+	// Hoist plan state for the sidebar Plan card (AppShell owns the wiring).
+	const planFileForCard = planState.planFilePath;
+	const planEnabledForCard = planState.enabled;
+	useEffect(() => {
+		onPlanStateChange?.({ enabled: planEnabledForCard, planFilePath: planFileForCard });
+	}, [planEnabledForCard, planFileForCard, onPlanStateChange]);
 
 	// Push context usage up to AppShell as well.
 	const ctxKey = contextUsage
