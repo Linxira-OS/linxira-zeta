@@ -9,21 +9,38 @@
 
 ## 批次总览与依赖
 
-| 批  | 分支                                       | 内容                                                               | 依赖                        |
-| --- | ------------------------------------------ | ------------------------------------------------------------------ | --------------------------- |
-| 0   | `feat/c-track-cleanup`                     | 小活清欠（ttt 探测、AGENTS File Map、滚动条感知、windows CI 评估） | 无                          |
-| 1   | `feat/c-track-ui-primitives`               | ui/ 基础件 + ContextUsageDisplay + ContextPanelRail 改造           | 无                          |
-| 2   | `feat/c-track-git-diff`                    | GitView + DiffView                                                 | 批 1（rail tab 挂载）       |
-| 3   | `feat/c-track-cm6`                         | CM6 Files/编辑器 tab + PUT /api/files                              | 批 1                        |
-| 4   | `feat/c-track-pty`                         | 终端 PTY WebSocket + TerminalView                                  | 批 1                        |
-| 5   | `feat/c-track-team-m0`                     | manifest v2 `pages` + `/api/plugin-assets`                         | 无                          |
-| 6   | `feat/c-track-team-m1`                     | `team_*` 工具 + crews 配置                                         | 批 5                        |
-| 7   | `feat/c-track-team-m2`                     | 场景二 + Web 三页面                                                | 批 6                        |
-| 8   | `feat/c-track-skills-*`（每 skill 一分支） | 剩余 7 个官方 skills                                               | 无（机制已验证）            |
-| 9   | `feat/c-track-onboarding`                  | uiMode 双模式引导                                                  | 批 1（appearance 组挂开关） |
+| 批  | 分支                                          | 内容                                                               | 依赖                        |
+| --- | --------------------------------------------- | ------------------------------------------------------------------ | --------------------------- |
+| 0   | `feat/c-track-cleanup`                        | 小活清欠（ttt 探测、AGENTS File Map、滚动条感知、windows CI 评估） | 无                          |
+| 1   | `feat/c-track-ui-primitives`                  | ui/ 基础件 + ContextUsageDisplay + ContextPanelRail 改造           | 无                          |
+| 2   | `feat/c-track-git-diff`                       | GitView + DiffView                                                 | 批 1（rail tab 挂载）       |
+| 3   | `feat/c-track-cm6`                            | CM6 Files/编辑器 tab + PUT /api/files                              | 批 1                        |
+| 4   | `feat/c-track-pty`                            | 终端 PTY WebSocket + TerminalView                                  | 批 1                        |
+| 5–7 | `dev/team-agent/2026-09`（三批同一 dev 分支） | team agent M0 → M1 → 场景二+M2                                     | 5→6→7 串行                  |
+| 8   | `feat/c-track-skills-*`（每 skill 一分支）    | 剩余 7 个官方 skills                                               | 无（机制已验证）            |
+| 9   | `feat/c-track-onboarding`                     | uiMode 双模式引导                                                  | 批 1（appearance 组挂开关） |
 
-批 0/1/5/8 无相互依赖，可最先并行；2/3/4 依赖批 1；5→6→7 串行。
-**默认推进顺序：0 → 1 → {2 ∥ 3 ∥ 4} → 5 → 6 → 7 → 8（穿插）→ 9。**
+批 0/1/8 无相互依赖，可最先并行；2/3/4 依赖批 1；5→6→7 在 dev 分支串行。
+**默认推进顺序：0 → 1 → {2 ∥ 3 ∥ 4} → 8（穿插）→ 9；5→6→7 独立在 dev 分支推进，不阻塞其它批次。**
+
+## 批 5–7 的 dev 分支约束（用户裁决，2026-09-22）
+
+team agent 会对编排层做大改，**全部三批在 development 分支
+`dev/team-agent/2026-09` 上推进**（release.md 的 dev 分支纪律；预计超过
+3 个月则升级为 `dev/longtime/team-agent`），绝不落 `main`：
+
+- **dev 版本号**：dev 分支上的构建/发布一律带 prerelease 标记
+  （`set-version.ts 1.1.19-dev.<YYYYMMDD>`，全线一致；
+  npm 侧 `publish --tag dev`，不动 `latest`；**不打 `v*` tag、不走
+  `release-v2.ts`、不建 GH Release**——正式发布线只认 main）。合并回
+  main 时版本线随 PR 归位正式号（merge 前 revert dev bump 或直接以
+  release-v2 下一次 bump 覆盖）。
+- **默认关闭**：`team.enabled` settings 门禁（默认 **false**，同
+  `tracking.enabled` 模式）——工具注册、crew 自动拉起、M2 页面入口全部
+  gating；关闭时编排层零行为差异。dev 阶段也不默认开。
+- 合并回 main 的前置：上游 OMP 同步基线核对（编排层改动与上游
+  agent/compaction 域的冲突面按 §7.2「新文件 + 一行注册」上限收敛，
+  无法收敛的改动逐条记入 merge-playbook 冲突决策表）。
 
 ## 批 0 — 小活清欠
 
@@ -131,6 +148,9 @@ rail 无终端入口。
   `locked` 段）；发现根与 skill 同款（用户/项目两层）。
 - 工具 prompt 进 `prompts/tools/`；`tracking.enabled` 时 spawn 记
   actions.jsonl（复用 v2 日志）。
+- **默认关闭门禁**：`team.enabled` settings 项（默认 **false**）gating
+  全部 `team_*` 工具注册与 crew 自动拉起；关闭时编排层零行为差异。
+  M2 页面入口同 gate。
 
 验收：crew 从 teams/*.json 拉起 → plan → work → review 全链
 （集成测试打真 crew worker）；`team_status` 反映 DAG 状态。
@@ -150,11 +170,33 @@ rail 无终端入口。
 `translate-polish` / `release-notes` / `data-extract`——每个 =
 `skills/official/<name>/SKILL.md`（name/description/SOP）+ 可选 `scripts/`
 
-- 样例输出；`ZETA_OFFICIAL_SKILLS_EMBED` 自动打包（机制已验证，无代码
-  改动）；文档类依赖（python-docx/openpyxl/pandoc/echarts）在 SKILL.md 内
-  给安装指引。规格详见 §10.2 表。
+- 样例输出；规格详见 §10.2 表。文档类依赖（python-docx/openpyxl/pandoc/
+  echarts）在 SKILL.md 内给安装指引，不进 npm 依赖。
 
-验收：每 skill 首启 seed 后 `/skills` 可见并可执行样例任务。
+**分发链路（已核实代码，`builtin.ts:352-417` +
+`generate-official-skills-payload.ts`）——新 skill 无需任何注册/发布脚本
+操作**：
+
+1. **构建期内嵌**：`build-zeta-binary.ts:111` / `bundle-dist.ts:109` /
+   `compile-binary.ts:49` 三个构建入口都调 `buildOfficialSkillsPayload()`，
+   扫 `skills/official/*/SKILL.md` 生成 `{hash, files}` map 烧进
+   `process.env.ZETA_OFFICIAL_SKILLS_EMBED`（与 `PI_DOCS_EMBED` 同机制）。
+   **skills 不单独发 npm 包——随 `@linxiraos/zeta` 主包与二进制发布**；
+   纯加文件（SKILL.md + scripts/），构建自动带上。
+2. **运行时 seed**：首启把 embed 文件落盘到 `<agentDir>/official-skills/`
+   （sha256 前 16 位 hash 写 `.embed-hash`，内容不变不重写），skill 保持
+   真实磁盘路径供 realpath/baseDir 消费。
+3. **读取走既有 skill 发现层**：`zeta-official` provider（priority 10）
+   `scanSkillsFromDir` 枚举后由标准 Capability/Skill 机制加载——**不需要
+   类似 `local://` 读 plan 那样的独立读取协议或工具注册**；agent 侧是
+   skill 注入 + 既有文件读取工具，web 侧 `/skills` 面板直接列出。
+4. **覆盖顺序**：authored(100，用户/项目 `~/.zeta/agent/skills/` 等) >
+   official(10) > managed(5)——用户同名 skill 永远赢。
+5. **开关**：`skills.enableOfficial`（默认 true，已随 ea0d318a23 落地）。
+
+验收：每 skill 加文件 → 本地 `bun run build`（bundle-dist）后
+`ZETA_OFFICIAL_SKILLS_EMBED` 含新条目 → 首启 seed 后 `/skills` 可见并可
+执行样例任务；npm 发版后无额动手步骤。
 
 ## 批 9 — onboarding 双模式（§10.1）
 
