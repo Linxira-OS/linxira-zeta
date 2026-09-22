@@ -31,6 +31,7 @@ import { createAgentSession } from "../../sdk";
 import type { AgentSession, ModeId } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import { SessionManager } from "../../session/session-manager";
+import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { VibeModeState } from "../../vibe/state";
 import {
@@ -174,6 +175,8 @@ export interface AgentState {
 	planFilePath: string | null;
 	/** Plan file body when plan mode is active (web-ui PlanApproval preview). */
 	planContent?: string;
+	/** Live todo-phase mirror for the web execution progress panel. */
+	todos: TodoPhase[];
 	// --- AgentState v2 (shared session state bridge) ---
 	/** Active mode states, keyed by mode id (only present when active). */
 	modes: { plan?: PlanModeState; goal?: GoalModeState; vibe?: VibeModeState };
@@ -452,6 +455,7 @@ export class AgentSessionWrapper {
 			planModeEnabled: planEnabled,
 			planFilePath,
 			planContent,
+			todos: inner.getTodoPhases(),
 			modes,
 			modelRole: this.#currentModelRole(),
 			activeToolNames: inner.getActiveToolNames(),

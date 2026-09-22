@@ -7,6 +7,7 @@ import type { Settings } from "../config/settings";
 import type { LocalProtocolOptions } from "../internal-urls";
 import { resolveApprovedPlan } from "../plan-mode/approved-plan";
 import { autosaveApprovedPlan } from "../plan-mode/plan-autosave";
+import { mirrorPlanToTracking } from "../tools/tracking";
 import { listPlanFiles, readPlanFile } from "../plan-mode/plan-files";
 import type { PlanModeState } from "../plan-mode/state";
 import planYoloHandoffPrompt from "../prompts/system/plan-yolo-handoff.md" with { type: "text" };
@@ -372,6 +373,12 @@ export class PrewalkCoordinator {
 				const displayPath = truncateToWidth(replaceTabs(shortenPath(autosavedPlan)), TRUNCATE_LENGTHS.CONTENT);
 				this.#host.emitNotice("info", `Plan autosaved to ${displayPath}.`, "plan-yolo");
 			}
+			await mirrorPlanToTracking({
+				settings: this.#host.settings,
+				cwd: this.#host.sessionManager.getCwd(),
+				slug: resolvedTitle,
+				planContent,
+			});
 		} catch (error) {
 			logger.warn("Failed to autosave approved plan", { error });
 			const detail = truncateToWidth(

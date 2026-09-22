@@ -183,6 +183,7 @@ import {
 import { humanizePlanTitle, type PlanApprovalDetails, resolvePlanTitle } from "../plan-mode/approved-plan";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import { autosaveApprovedPlan, planSaveFileName } from "../plan-mode/plan-autosave";
+import { mirrorPlanToTracking } from "../tools/tracking";
 import type { PlanWorkflow } from "../plan-mode/state";
 import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
 import planFilenamePrompt from "../prompts/system/plan-filename.md" with { type: "text" };
@@ -4558,6 +4559,12 @@ export class InteractiveMode implements InteractiveModeContext {
 				const displayPath = truncateToWidth(replaceTabs(shortenPath(autosaved)), TRUNCATE_LENGTHS.CONTENT);
 				this.showStatus(`Saved plan to ${displayPath}.`);
 			}
+			await mirrorPlanToTracking({
+				settings: this.session.settings,
+				cwd: this.sessionManager.getCwd(),
+				slug: options.title,
+				planContent,
+			});
 		} catch (error) {
 			const detail = truncateToWidth(
 				shortenEmbeddedPaths(

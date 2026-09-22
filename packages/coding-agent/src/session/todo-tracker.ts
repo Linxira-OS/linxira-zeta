@@ -5,6 +5,7 @@ import type { Settings } from "../config/settings";
 import eagerTaskPrompt from "../prompts/system/eager-task.md" with { type: "text" };
 import eagerTodoPrompt from "../prompts/system/eager-todo.md" with { type: "text" };
 import midRunTodoNudgePrompt from "../prompts/system/mid-run-todo-nudge.md" with { type: "text" };
+import trackingPhaseNudgePrompt from "../prompts/system/tracking-phase-nudge.md" with { type: "text" };
 import { getLatestTodoPhasesFromEntries, isTodoPhase } from "../tools/todo";
 import { type TodoItem, type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { buildNamedToolChoice } from "../utils/tool-choice";
@@ -13,6 +14,7 @@ import type { SessionManager } from "./session-manager";
 
 const MID_RUN_NUDGE_MUTATION_THRESHOLD = 12;
 const MID_RUN_NUDGE_MAX_PER_CYCLE = 2;
+const TRACKING_PHASE_NUDGE_MESSAGE_TYPE = "tracking-phase-nudge";
 const MUTATING_TOOLS: Record<string, true> = {
 	bash: true,
 	eval: true,
@@ -71,6 +73,8 @@ export class TodoTracker {
 	#reminderAwaitingProgress = false;
 	#mutationsSinceLastTouch = 0;
 	#midRunNudgeCount = 0;
+	/** Phase that just became fully completed and has not been mirrored yet. */
+	#completedPhasePendingMirror: string | null = null;
 
 	constructor(host: TodoTrackerHost) {
 		this.#host = host;
@@ -81,9 +85,21 @@ export class TodoTracker {
 		return this.#clonePhases(this.#phases);
 	}
 
-	/** Replaces todo phases with a defensive clone. */
+	/** Replaces todo phases with a defensive clone, detecting a phase that just
+	 *  became fully completed so the tracking mirror nudge can fire once. */
 	setPhases(phases: TodoPhase[]): void {
+		const previous = this.#phases;
 		this.#phases = this.#clonePhases(phases);
+		const fullyCompleted = (phase: TodoPhase): boolean =>
+			phase.tasks.length > 0 && phase.tasks.every(task => task.status === "completed");
+		const justCompleted = phases.find(phase => fullyCompleted(phase));
+		const wasAlreadyComplete =
+			justCompleted !== undefined && previous.some(p => p.name === justCompleted.name && fullyCompleted(p));
+		if (justCompleted && !wasAlreadyComplete) {
+			this.#completedPhasePendingMirror = justCompleted.name;
+		} else if (!justCompleted) {
+			this.#completedPhasePendingMirror = null;
+		}
 	}
 
 	/** Rehydrates todo phases from the current transcript branch. */
@@ -295,6 +311,28 @@ export class TodoTracker {
 
 	/** Takes the next hidden mid-run reconciliation nudge, if its budget and guards allow. */
 	takeMidRunNudge(): AgentMessage | null {
+		// A phase just completed: mirror it into tracking once, before any
+		// reconciliation nudge. Not subject to the mutation-count budget —
+		// the completion itself is the trigger — but consumed exactly once.
+		if (this.#completedPhasePendingMirror !== null) {
+			if (
+				this.#host.settings.get("tracking.enabled") === true &&
+				this.#host.getActiveToolNames().includes("tracking_update")
+			) {
+				const phaseName = this.#completedPhasePendingMirror;
+				this.#completedPhasePendingMirror = null;
+				logger.debug("Tracking phase nudge fired", { phase: phaseName });
+				return {
+					role: "custom",
+					customType: TRACKING_PHASE_NUDGE_MESSAGE_TYPE,
+					content: prompt.render(trackingPhaseNudgePrompt, { phase: phaseName }),
+					display: false,
+					attribution: "agent",
+					timestamp: Date.now(),
+				};
+			}
+			this.#completedPhasePendingMirror = null;
+		}
 		if (this.#mutationsSinceLastTouch < MID_RUN_NUDGE_MUTATION_THRESHOLD) return null;
 		if (this.#midRunNudgeCount >= MID_RUN_NUDGE_MAX_PER_CYCLE) return null;
 		if (!this.#host.settings.get("todo.enabled") || !this.#host.settings.get("todo.reminders")) return null;

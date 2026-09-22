@@ -22,23 +22,23 @@ upstream position changes.
 
 These exist today (headline capabilities are marked in the root `README.md`):
 
-| Capability | Where | Notes |
-| --- | --- | --- |
-| Long-term tracking documents | `packages/coding-agent/src/tools/tracking.ts` | `tracking_update` tool writes `<project>/.zeta/tracking/`; Web UI TrackingPanel. **Default OFF** — gated by `tracking.enabled` (opt-in) since v1.0.6 |
-| Experiment measurement (`autoresearch`) | `packages/coding-agent/src/autoresearch/` | Per-project SQLite experiments, metrics, baseline commits |
-| TypeScript custom commands | `packages/coding-agent/src/extensibility/custom-commands/` | User commands from `~/.zeta/commands/` + project dirs, arktype/typebox/zod arg schemas, bundled `ci-green`/`review` |
-| Markdown command files | `src/discovery/builtin.ts` + `src/utils/command-args.ts` | `<config-dir>/commands/*.md` at user + project level, `$ARGUMENTS`/`$@`/`$1` substitution |
-| Command marketplace (Bun-package distribution) | `slash-commands/builtin-marketplace.ts` | Install/uninstall commands as Bun packages |
-| ACP collaboration builtins | `slash-commands/acp-builtins.ts` | Agent Client Protocol session commands |
-| Local stats dashboard | `zeta stats` (`packages/stats`) | Local observability |
-| IM channels (WeChat / Feishu / Telegram) | `packages/channels` + `src/channels/` | `ChatChannel`/`ChannelHost` interface, session router, `channel_send`/`workspace_run`/`im_control` tools, WeChat iLink QR login |
-| Remote token auth + LAN exposure | `src/server/web-gateway.ts` (`authorizedForAccess`) | Non-loopback bind via `ZETA_SERVE_HOSTNAME` + `remote.token` (Bearer / `X-Zeta-Token` on every `/api/*`), CSRF origin guard, `docs/remote-workspaces.md` |
-| Web-ui open-in-app buttons + update check | `src/server/web-gateway/open.ts`, `web-ui/components/AppShell.tsx` | `POST /api/open` (terminal / explorer / editors), `GET /api/open/options`, update check/download/install |
-| Web-ui quick model import | `src/server/web-gateway/models.ts` | `GET /api/models/import?base=<url>` OpenAI-compatible discovery into `models.yml` |
-| Web-ui stats iframe | `web-ui/components/StatsDashboard.tsx` | AppShell Stats tab rendering `NEXT_PUBLIC_STATS_URL` |
-| Web-ui trajectory view | `web-ui/lib/trajectory.ts` + TrajectoryView/TrajectoryCell | Chat/Trajectory toggle, think/tool cells with duration + token counts, raw-entry inspector |
-| Mermaid rendering (web + TUI) | `web-ui/components/MermaidBlock.tsx`, `packages/utils/src/mermaid-ascii.ts` | Web-ui strict-SVG render (`securityLevel: "strict"`); TUI ASCII render under `tui.renderMermaid` (default on) |
-| Session sharing | `slash-commands/builtin-collaboration.ts` | `/share` slash command + `zeta share` encrypted link |
+| Capability                                     | Where                                                                       | Notes                                                                                                                                                    |
+| ---------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Long-term tracking documents                   | `packages/coding-agent/src/tools/tracking.ts`                               | `tracking_update` tool writes `<project>/.zeta/tracking/`; Web UI TrackingPanel. **Default OFF** — gated by `tracking.enabled` (opt-in) since v1.0.6     |
+| Experiment measurement (`autoresearch`)        | `packages/coding-agent/src/autoresearch/`                                   | Per-project SQLite experiments, metrics, baseline commits                                                                                                |
+| TypeScript custom commands                     | `packages/coding-agent/src/extensibility/custom-commands/`                  | User commands from `~/.zeta/commands/` + project dirs, arktype/typebox/zod arg schemas, bundled `ci-green`/`review`                                      |
+| Markdown command files                         | `src/discovery/builtin.ts` + `src/utils/command-args.ts`                    | `<config-dir>/commands/*.md` at user + project level, `$ARGUMENTS`/`$@`/`$1` substitution                                                                |
+| Command marketplace (Bun-package distribution) | `slash-commands/builtin-marketplace.ts`                                     | Install/uninstall commands as Bun packages                                                                                                               |
+| ACP collaboration builtins                     | `slash-commands/acp-builtins.ts`                                            | Agent Client Protocol session commands                                                                                                                   |
+| Local stats dashboard                          | `zeta stats` (`packages/stats`)                                             | Local observability                                                                                                                                      |
+| IM channels (WeChat / Feishu / Telegram)       | `packages/channels` + `src/channels/`                                       | `ChatChannel`/`ChannelHost` interface, session router, `channel_send`/`workspace_run`/`im_control` tools, WeChat iLink QR login                          |
+| Remote token auth + LAN exposure               | `src/server/web-gateway.ts` (`authorizedForAccess`)                         | Non-loopback bind via `ZETA_SERVE_HOSTNAME` + `remote.token` (Bearer / `X-Zeta-Token` on every `/api/*`), CSRF origin guard, `docs/remote-workspaces.md` |
+| Web-ui open-in-app buttons + update check      | `src/server/web-gateway/open.ts`, `web-ui/components/AppShell.tsx`          | `POST /api/open` (terminal / explorer / editors), `GET /api/open/options`, update check/download/install                                                 |
+| Web-ui quick model import                      | `src/server/web-gateway/models.ts`                                          | `GET /api/models/import?base=<url>` OpenAI-compatible discovery into `models.yml`                                                                        |
+| Web-ui stats iframe                            | `web-ui/components/StatsDashboard.tsx`                                      | AppShell Stats tab rendering `NEXT_PUBLIC_STATS_URL`                                                                                                     |
+| Web-ui trajectory view                         | `web-ui/lib/trajectory.ts` + TrajectoryView/TrajectoryCell                  | Chat/Trajectory toggle, think/tool cells with duration + token counts, raw-entry inspector                                                               |
+| Mermaid rendering (web + TUI)                  | `web-ui/components/MermaidBlock.tsx`, `packages/utils/src/mermaid-ascii.ts` | Web-ui strict-SVG render (`securityLevel: "strict"`); TUI ASCII render under `tui.renderMermaid` (default on)                                            |
+| Session sharing                                | `slash-commands/builtin-collaboration.ts`                                   | `/share` slash command + `zeta share` encrypted link                                                                                                     |
 
 ## Priorities
 
@@ -128,7 +128,7 @@ capabilities that its execution environment can actually provide.
   depend on it, or on an arbitrary locally installed font.
 - Until a reviewed redistributable font is selected, use a system UI stack with
   CJK fallbacks: `ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-  "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif`.
+"Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif`.
   Maple Mono may remain an optional code font with normal monospace fallbacks;
   it is not the UI chrome font.
 - A future bundled font must have a documented redistributable license and
@@ -320,18 +320,19 @@ singlesources context that must survive long sessions.
 The revival shipped in a different shape than the original `render_mermaid`
 tool plan, and most of it is done: web-ui renders ```mermaid fences via
 `MermaidBlock.tsx` (`mermaid@^11`, `securityLevel: "strict"`, source/preview
-+ zoom dialog); the TUI renders ASCII under `tui.renderMermaid` (default on,
-`packages/utils/src/mermaid-ascii.ts`); the system prompt advertises mermaid
-blocks. Remaining:
 
-- **SVG fenced blocks in chat**: raw inline SVG is sanitized away today
+- zoom dialog); the TUI renders ASCII under `tui.renderMermaid` (default on,
+  `packages/utils/src/mermaid-ascii.ts`); the system prompt advertises mermaid
+  blocks. Remaining:
+
+* **SVG fenced blocks in chat**: raw inline SVG is sanitized away today
   (`rehype-sanitize` default schema in `web-ui/lib/markdown.ts`), and
   `MarkdownBody.tsx` has no ```svg block path at all — an emitted SVG block
   renders as plain code even on desktop. Add the render path behind a
   security-reviewed sanitize decision (the XSS surface grows once the gateway
   is exposed to phones/WAN). No DOMPurify second layer exists today;
   mermaid's strict output is the only trusted SVG source.
-- **Dynamic prompt adjustment (decided design)**: add an immutable
+* **Dynamic prompt adjustment (decided design)**: add an immutable
   per-session `chatSvgRendering` surface option set at `createAgentSession`
   (CLI → false, serve → true; serve's only client is web-ui, so a
   process-level binary suffices — no per-client provenance needed). Extend
@@ -342,13 +343,13 @@ blocks. Remaining:
   sit outside the applied-tool signature and the web settings POST never
   refreshes running-session prompts — an immutable constructor value avoids
   cache drift entirely.
-- A dedicated `render_mermaid` tool is no longer required for web/mobile;
+* A dedicated `render_mermaid` tool is no longer required for web/mobile;
   if a real `render_svg` tool is ever warranted, follow the surface-scoped
   sink pattern (see Surface-scoped tool exposure contract below).
 
-- ~~P0 — Channel tool sink wiring regression~~ 已解决（1.1.9）：`sdk.ts` sinks 接线 + 顶层会话门控随 v18.1.10 同步落地。
+* ~~P0 — Channel tool sink wiring regression~~ 已解决（1.1.9）：`sdk.ts` sinks 接线 + 顶层会话门控随 v18.1.10 同步落地。
 
-- ~~P1 — pi-vcs restage race: apply-to-index silently no-ops for new files~~ 已解决：restage race 已修复，`issue-966-repro.test.ts` 隔离解除（文件内已无 skip，恢复为守卫）。
+* ~~P1 — pi-vcs restage race: apply-to-index silently no-ops for new files~~ 已解决：restage race 已修复，`issue-966-repro.test.ts` 隔离解除（文件内已无 skip，恢复为守卫）。
 
 ### P1 — Memory stability track (Windows OOM / render retention)
 
@@ -559,13 +560,27 @@ Remaining (non-blocking): the ~27 welcome tips have zh entries but are
 English-only content pools for other locales; the git-TUI and debug apps
 carry the last ~40 low-priority strings.
 
-### P2 — TTT editor zh UI + About branding (next release)
+### DONE — plan-surface completion A+B (feat/plan-surface-completion, 2026-09-22)
+
+The A+B remainder of
+[simplify-and-plan-surface.md](./simplify-and-plan-surface.md) (§11.1) has
+landed: minimal shell wrap-up (settings-only bottom entry, collapse rail,
+welcome dual selector), command palette (Ctrl+K), Shiki over
+react-syntax-highlighter, windowed searchable settings, gateway plan endpoint
+
+- sidebar Plan card, tracking.enabled gating, and Tracking v2 (sync_todo,
+  index template, object index, status stage/phases, plan mirroring, phase
+  nudge). C-level items (CM6, PTY terminal, team agent M0-M2, 7 remaining
+  skills, onboarding) stay in §11.2 for separate plans; per-section status is
+  annotated inline in that document.
+
+### P2 — TTT editor zh UI + About branding (deferred past 1.1.18)
 
 The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 `zeta-editor`) predates the tui text layer and ships English UI: the
 Settings pane (Editor/Appearance/Completion tabs, footer Cancel/Apply),
-menus, and the About dialog. Two work items, bundled into the next
-release:
+menus, and the About dialog. Two work items; 1.1.18 ships without them
+(user call, 2026-09-22) — slot them into whichever release follows:
 
 - **zh UI**: TTT is a vendored upstream app, not a pi-tui component —
   `tuiText` does not reach it. Either port the same injectable-source
@@ -579,8 +594,7 @@ release:
   this is a Zeta product face: keep the upstream attribution lines
   (MIT obligation) and add the Zeta distribution identity
   (`Zeta Editor · v<zeta version> · TTT <upstream version> ·
-  github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
-
+github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
 
 ## Notes
 

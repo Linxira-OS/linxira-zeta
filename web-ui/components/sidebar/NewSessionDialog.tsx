@@ -1,12 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { PathLabel } from "./PathLabel";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 export interface DraftProject {
 	cwd: string;
 	label: string;
 	lastActivity: number;
+}
+
+/** Left-ellipsis path label (keeps the tail visible) — inline copy of the
+ *  SessionSidebar helper (unexported there; importing this dialog from
+ *  SessionSidebar makes re-exporting it circular). */
+function PathLabel({ text, style }: { text: string; style?: CSSProperties }) {
+	return (
+		<span
+			dir="rtl"
+			style={{
+				display: "block",
+				unicodeBidi: "plaintext",
+				overflow: "hidden",
+				textOverflow: "ellipsis",
+				whiteSpace: "nowrap",
+				...style,
+			}}
+		>
+			{text}
+		</span>
+	);
 }
 
 export interface DraftWorktree {
@@ -73,7 +93,7 @@ export function NewSessionDialog({
 
 	const visibleProjects = useMemo(() => {
 		const q = projectFilter.trim().toLowerCase();
-		return q ? projects.filter((p) => p.cwd.toLowerCase().includes(q)) : projects;
+		return q ? projects.filter(p => p.cwd.toLowerCase().includes(q)) : projects;
 	}, [projects, projectFilter]);
 
 	// Worktrees of the chosen project.
@@ -85,28 +105,19 @@ export function NewSessionDialog({
 		}
 		let cancelled = false;
 		fetch(`/api/worktrees?cwd=${encodeURIComponent(project)}`)
-			.then((r) => r.json())
-			.then(
-				(
-					d: {
-						projectRoot?: string;
-						isGit?: boolean;
-						worktrees?: DraftWorktree[];
-						error?: string;
-					},
-				) => {
-					if (cancelled) return;
-					if (d.error || !d.worktrees || d.worktrees.length === 0) {
-						// Non-git or bare directory: the project path itself is the target.
-						setWorktrees([]);
-						setWorktree(project);
-						return;
-					}
-					setWorktrees(d.worktrees);
-					const main = d.worktrees.find((w) => w.isMain) ?? d.worktrees[0];
-					setWorktree(main?.path ?? project);
-				},
-			)
+			.then(r => r.json())
+			.then((d: { projectRoot?: string; isGit?: boolean; worktrees?: DraftWorktree[]; error?: string }) => {
+				if (cancelled) return;
+				if (d.error || !d.worktrees || d.worktrees.length === 0) {
+					// Non-git or bare directory: the project path itself is the target.
+					setWorktrees([]);
+					setWorktree(project);
+					return;
+				}
+				setWorktrees(d.worktrees);
+				const main = d.worktrees.find(w => w.isMain) ?? d.worktrees[0];
+				setWorktree(main?.path ?? project);
+			})
 			.catch(() => {
 				if (!cancelled) {
 					setWorktrees([]);
@@ -127,7 +138,7 @@ export function NewSessionDialog({
 		}
 		let cancelled = false;
 		fetch(`/api/git/branches?cwd=${encodeURIComponent(worktree)}`)
-			.then((r) => r.json())
+			.then(r => r.json())
 			.then((d: { isGitRepository?: boolean; current?: string; branches?: BranchInfo[] }) => {
 				if (cancelled) return;
 				if (d.isGitRepository && d.branches && d.branches.length > 0) {
@@ -160,7 +171,7 @@ export function NewSessionDialog({
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ cwd: worktree, branch }),
 			})
-				.then(async (r) => {
+				.then(async r => {
 					setBranchBusy(false);
 					if (r.status === 409) {
 						setError(`Worktree has uncommitted changes — commit or stash first.`);
@@ -186,7 +197,7 @@ export function NewSessionDialog({
 			role="dialog"
 			aria-modal="true"
 			aria-label="New session"
-			onMouseDown={(e) => {
+			onMouseDown={e => {
 				if (e.target === e.currentTarget) onClose();
 			}}
 			style={{
@@ -245,14 +256,12 @@ export function NewSessionDialog({
 				</div>
 
 				{/* Project */}
-				<div style={{ padding: "10px 12px 4px", fontSize: 11, color: "var(--text-muted)" }}>
-					Project
-				</div>
+				<div style={{ padding: "10px 12px 4px", fontSize: 11, color: "var(--text-muted)" }}>Project</div>
 				<div style={{ padding: "0 12px" }}>
 					<input
 						ref={inputRef}
 						value={projectFilter}
-						onChange={(e) => setProjectFilter(e.target.value)}
+						onChange={e => setProjectFilter(e.target.value)}
 						placeholder="Filter projects…"
 						style={{
 							width: "100%",
@@ -267,8 +276,16 @@ export function NewSessionDialog({
 						}}
 					/>
 				</div>
-				<div style={{ margin: "6px 12px 0", maxHeight: 180, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 7 }}>
-					{visibleProjects.map((p) => {
+				<div
+					style={{
+						margin: "6px 12px 0",
+						maxHeight: 180,
+						overflowY: "auto",
+						border: "1px solid var(--border)",
+						borderRadius: 7,
+					}}
+				>
+					{visibleProjects.map(p => {
 						const active = p.cwd === project;
 						return (
 							<button
@@ -293,10 +310,16 @@ export function NewSessionDialog({
 								}}
 								title={p.cwd}
 							>
-								<span style={{ width: 10, flexShrink: 0, color: "var(--accent)" }}>
-									{active ? "✓" : ""}
-								</span>
-								<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+								<span style={{ width: 10, flexShrink: 0, color: "var(--accent)" }}>{active ? "✓" : ""}</span>
+								<span
+									style={{
+										flex: 1,
+										minWidth: 0,
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										whiteSpace: "nowrap",
+									}}
+								>
 									{p.label}
 								</span>
 								<PathLabel text={p.cwd} style={{ fontSize: 10, color: "var(--text-dim)", maxWidth: 150 }} />
@@ -304,7 +327,9 @@ export function NewSessionDialog({
 						);
 					})}
 					{visibleProjects.length === 0 && (
-						<div style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-dim)" }}>No matching projects</div>
+						<div style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-dim)" }}>
+							No matching projects
+						</div>
 					)}
 				</div>
 				<button
@@ -329,9 +354,11 @@ export function NewSessionDialog({
 					{worktrees === null ? (
 						<div style={{ fontSize: 11, color: "var(--text-dim)" }}>Loading…</div>
 					) : worktrees.length === 0 ? (
-						<div style={{ fontSize: 11, color: "var(--text-dim)" }}>Not a git repository — session runs in the project directory.</div>
+						<div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+							Not a git repository — session runs in the project directory.
+						</div>
 					) : (
-						worktrees.map((w) => {
+						worktrees.map(w => {
 							const active = w.path === worktree;
 							return (
 								<button
@@ -353,11 +380,21 @@ export function NewSessionDialog({
 									title={w.path}
 								>
 									<span style={{ color: w.isMain ? "var(--text-dim)" : "var(--accent)" }}>⑂</span>
-									<span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+									<span
+										style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+									>
 										{w.branch ?? w.path}
 									</span>
 									{w.isMain && (
-										<span style={{ fontSize: 10, color: "var(--text-dim)", border: "1px solid var(--border)", borderRadius: 4, padding: "0 4px" }}>
+										<span
+											style={{
+												fontSize: 10,
+												color: "var(--text-dim)",
+												border: "1px solid var(--border)",
+												borderRadius: 4,
+												padding: "0 4px",
+											}}
+										>
 											main
 										</span>
 									)}
@@ -371,7 +408,7 @@ export function NewSessionDialog({
 					<>
 						<div style={{ padding: "10px 12px 4px", fontSize: 11, color: "var(--text-muted)" }}>Branch</div>
 						<div style={{ padding: "0 12px", display: "flex", flexWrap: "wrap", gap: 5 }}>
-							{branches.map((b) => {
+							{branches.map(b => {
 								const active = b.name === branch;
 								return (
 									<button
@@ -397,12 +434,30 @@ export function NewSessionDialog({
 				)}
 
 				{error && (
-					<div style={{ margin: "8px 12px 0", padding: "6px 8px", fontSize: 11, borderRadius: 6, background: "color-mix(in srgb, var(--status-error) 12%, transparent)", color: "var(--status-error)" }}>
+					<div
+						style={{
+							margin: "8px 12px 0",
+							padding: "6px 8px",
+							fontSize: 11,
+							borderRadius: 6,
+							background: "color-mix(in srgb, var(--status-error) 12%, transparent)",
+							color: "var(--status-error)",
+						}}
+					>
 						{error}
 					</div>
 				)}
 
-				<div style={{ marginTop: "auto", padding: "10px 12px", display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border)" }}>
+				<div
+					style={{
+						marginTop: "auto",
+						padding: "10px 12px",
+						display: "flex",
+						justifyContent: "flex-end",
+						gap: 8,
+						borderTop: "1px solid var(--border)",
+					}}
+				>
 					<button
 						onClick={onClose}
 						style={{
