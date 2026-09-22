@@ -179,7 +179,7 @@ Examples:
   ttt ~/projectA ~/projectB                     Multi-root workspace
   ttt . https://github.com/o/r/pull/123         Review a PR with repo tree
 
-Docs: https://tttedit.dev
+Source: https://github.com/Linxira-OS/linxira-zeta
 `, version)
 			os.Exit(0)
 		case "--version", "-v":

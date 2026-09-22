@@ -346,7 +346,11 @@ func (t *TabBarWidget) HandleEvent(ev tcell.Event) EventResult {
 	// Reuse Render's gutter width so click hit-tests line up with the screen.
 	arrowW := t.renderArrowW
 
-	if btn&tcell.Button2 != 0 && t.OnTabRightClick != nil {
+	if btn&tcell.Button2 != 0 && prevBtn&tcell.Button2 == 0 && t.OnTabRightClick != nil {
+		// Press-edge only: a stale Button2 bit in tcell's btnsDown set
+		// (quirky SGR releases) re-arms every motion event; the edge check
+		// keeps the menu from re-opening on mere pointer movement
+		// (v1.1.18 damage).
 		localX := mx - r.X - arrowW + t.ScrollOffset
 		for i, s := range t.tabSpans {
 			if localX >= s.start && localX < s.end {

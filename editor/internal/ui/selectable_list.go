@@ -21,6 +21,7 @@ type SelectableList struct {
 	Selected     int
 	ScrollTop    int
 	lastSelected int
+	lastButtons  tcell.ButtonMask
 }
 
 func (sl *SelectableList) EnsureVisible(visibleHeight int) {
@@ -50,6 +51,11 @@ func (sl *SelectableList) HandleListEvent(ev tcell.Event, rect Rect, itemCount i
 	switch tev := ev.(type) {
 	case *tcell.EventMouse:
 		btn := tev.Buttons()
+		// Press-edge for the context button: stale btnsDown bits (quirky SGR
+		// releases) re-arm every motion event; only the newly pressed edge
+		// may open a context menu (v1.1.18 damage).
+		rising := btn &^ sl.lastButtons
+		sl.lastButtons = btn
 		if btn&tcell.Button1 != 0 {
 			_, my := tev.Position()
 			idx := sl.ScrollTop + (my - rect.Y)
@@ -59,7 +65,7 @@ func (sl *SelectableList) HandleListEvent(ev tcell.Event, rect Rect, itemCount i
 			}
 			return ListEventResult{Result: EventConsumed}
 		}
-		if btn&tcell.Button2 != 0 {
+		if rising&tcell.Button2 != 0 {
 			mx, my := tev.Position()
 			idx := sl.ScrollTop + (my - rect.Y)
 			if idx >= 0 && idx < itemCount {

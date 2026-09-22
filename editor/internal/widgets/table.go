@@ -24,11 +24,12 @@ type TableConfig struct {
 
 type TableWidget struct {
 	BaseWidget
-	Config    TableConfig
-	selected  int
-	scrollTop int
-	lastSel   int
-	focused   bool
+	Config      TableConfig
+	selected    int
+	scrollTop   int
+	lastButtons tcell.ButtonMask
+	lastSel     int
+	focused     bool
 
 	scrollbar                 scrollbar
 	contentW                  int
@@ -312,6 +313,12 @@ func (t *TableWidget) handleMouse(ev *tcell.EventMouse) EventResult {
 	mx, my := ev.Position()
 	r := t.rect
 
+	// Press-edge for the context button: stale btnsDown bits (quirky SGR
+	// releases) re-arm every motion event; only the newly pressed edge may
+	// open the menu (v1.1.18 damage).
+	rising := btn &^ t.lastButtons
+	t.lastButtons = btn
+
 	if mx < r.X || mx >= r.X+r.W || my < r.Y || my >= r.Y+r.H {
 		return EventIgnored
 	}
@@ -351,7 +358,7 @@ func (t *TableWidget) handleMouse(ev *tcell.EventMouse) EventResult {
 		return EventIgnored
 	}
 
-	if btn&tcell.Button2 != 0 {
+	if rising&tcell.Button2 != 0 {
 		t.selected = idx
 		if t.Config.OnMenu != nil && len(t.Config.NodeMenu) > 0 {
 			t.Config.OnMenu(t.Config.NodeMenu, idx, mx, my)

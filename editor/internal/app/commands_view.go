@@ -467,8 +467,7 @@ func registerViewCommands(app *App) {
 		Handler: func() {
 			app.ShowInfoDialogEx("About TTT Editor", []widgets.KeyValueEntry{
 				{Key: "Version", Value: app.Version},
-				{Key: "Website", Value: "https://tttedit.dev"},
-				{Key: "GitHub", Value: "https://github.com/eugenioenko/ttt"},
+				{Key: "Source", Value: "https://github.com/Linxira-OS/linxira-zeta"},
 			}, true)
 		},
 	})

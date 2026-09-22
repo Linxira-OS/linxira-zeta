@@ -47,6 +47,7 @@ type Root struct {
 	EscapeDismissers []func() bool
 	EscapeFallback   func()
 	capturedWidget   Widget
+	mouseEdge        MouseEdgeTracker
 }
 
 func NewRoot(main Widget) *Root {
@@ -281,6 +282,12 @@ func (r *Root) handleMouse(ev tcell.Event) EventResult {
 	}
 	btn := mev.Buttons()
 
+	// Edge-detect the right button: a stale Button2 bit inside tcell's
+	// btnsDown set (quirky SGR releases, seen on Tabby) re-arms every motion
+	// event, and the raw bitmask would re-open the context menu on mere
+	// pointer movement (v1.1.18 damage). Fire on the press edge only.
+	rising := r.mouseEdge.Rising(btn)
+
 	if r.capturedWidget != nil {
 		r.reconcilePointerCapture()
 	}
@@ -297,7 +304,7 @@ func (r *Root) handleMouse(ev tcell.Event) EventResult {
 		return EventConsumed
 	}
 
-	if btn&tcell.Button2 != 0 && r.OnRightClick != nil {
+	if rising&tcell.Button2 != 0 && r.OnRightClick != nil {
 		mx, my := mev.Position()
 		slog.Debug("root", "action", "rightClick", "x", mx, "y", my)
 		r.OnRightClick(mx, my)

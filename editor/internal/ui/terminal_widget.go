@@ -659,13 +659,17 @@ func sgrModifiers(mod tcell.ModMask) int {
 }
 
 func sgrButtonCode(btn tcell.ButtonMask) (code int, ok bool) {
+	// tcell v3 names buttons semantically: Button1=primary(left),
+	// Button2=secondary(right), Button3=middle — while the SGR wire encoding
+	// numbers them 0=left, 1=middle, 2=right (see tcell input.go, which maps
+	// wire 1→Button3 and wire 2→Button2). Mirror that back exactly.
 	switch {
 	case btn&tcell.Button1 != 0:
 		return sgrButtonLeft, true
 	case btn&tcell.Button2 != 0:
-		return sgrButtonMiddle, true
-	case btn&tcell.Button3 != 0:
 		return sgrButtonRight, true
+	case btn&tcell.Button3 != 0:
+		return sgrButtonMiddle, true
 	}
 	return 0, false
 }
