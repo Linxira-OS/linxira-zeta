@@ -893,7 +893,14 @@ jobs:
       # bound filename and the publish logic in exactly one place; the same
       # file still serves manual republishes via `gh workflow run`.
       needs: [release_metadata, release_gate]
+      # A reusable-workflow callee may not elevate beyond the permissions the
+      # caller job passes; undeclared, this job inherits ci.yml's top-level
+      # contents:read cap and the run dies at startup_failure. id-token is
+      # what npm OIDC (Trusted Publisher) needs for the actual publish.
       uses: ./.github/workflows/editor-publish.yml
+      permissions:
+         id-token: write
+         contents: read
       secrets: inherit
 
    release_github:
