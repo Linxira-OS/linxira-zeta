@@ -56,8 +56,8 @@ import { MessengerOverlay, type OverlayCallbacks } from "./overlay.ts";
 import { MessengerConfigOverlay } from "./config-overlay.ts";
 import { loadConfig, loadGlobalConfig, matchesAutoRegisterPath, type MessengerConfig } from "./config.ts";
 import { executeCrewAction } from "./crew/index.ts";
-import { registerTeamCommand } from "./team-command.ts";
 import { registerEditorCommand, switchToEditorFromUi } from "./editor-command.ts";
+import { registerTeamAgentCommand } from "./teamagent-command.ts";
 import { createEditorSwitchButton } from "./editor-switch-button.ts";
 import { logFeedEvent, pruneFeed } from "./feed.ts";
 import type { CrewParams } from "./crew/types.ts";
@@ -580,8 +580,9 @@ Usage (action-based API - preferred):
 	// Commands
 	// ===========================================================================
 
-	// Local team/crew reads: no model turn, works without any API key.
-	registerTeamCommand(pi);
+	// Local team/crew reads + role→subagent registration: no model turn, works
+	// without any API key.
+	registerTeamAgentCommand(pi);
 	// Hand the session to the TTT editor (writes the handoff file, spawns the editor).
 	registerEditorCommand(pi);
 
