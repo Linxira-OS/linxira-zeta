@@ -12,13 +12,29 @@
 
 Zeta is a Bun-native coding agent distribution built on the OMP runtime. It
 keeps the terminal workflow fast and direct while owning its package namespace,
-product presentation, release policy, and future local web workspace.
+product presentation, release policy, and its own local web workspace — one
+runtime, three surfaces (terminal, browser, desktop).
 
 ## Update Log
 
 Release history (v1.0.9 and earlier): [UPDATE-LOG.md](UPDATE-LOG.md)
 
 ## Start Here
+
+Install the released CLI (Node 20+ or Bun on the machine):
+
+```sh
+npm i -g @linxiraos/zeta      # or: bun add -g @linxiraos/zeta
+zeta                           # opens in the current project directory
+zeta --help                    # commands and options
+```
+
+The bundled editor ships as its own package:
+
+```sh
+npm i -g @linxiraos/editor
+zeta-editor .                  # launch in any terminal, including over SSH
+```
 
 From a source checkout:
 
@@ -49,8 +65,9 @@ toolchain required by Rust.
 - Native text, image, terminal, browser, and desktop capabilities where the
   host platform supports them.
 - A Bun-first monorepo with internal packages under the `@linxiraos/*` namespace.
-- A planned local web workbench and desktop distribution that use the same
-  coding-agent runtime rather than a separate product stack.
+- A local web workbench (`zeta serve`, Next.js app in `web-ui/`) and a desktop
+  shell (`zeta-desktop`, Electron) that embed the same coding-agent runtime —
+  one session tree, one settings model, one gateway API (`/api/*`).
 
 ## Upstream Origins
 
@@ -167,6 +184,18 @@ The primary application lives in `packages/coding-agent/`. Shared runtime
 packages include `packages/ai/`, `packages/catalog/`, `packages/agent/`,
 `packages/tui/`, and `packages/natives/`.
 
+## Platform Support
+
+| Surface                             | Windows | macOS      | Linux      |
+| ----------------------------------- | ------- | ---------- | ---------- |
+| `zeta` CLI                          | x64     | x64, arm64 | x64, arm64 |
+| `zeta-editor` (`@linxiraos/editor`) | x64     | —          | x64        |
+| `zeta serve` (web workbench)        | x64     | x64, arm64 | x64, arm64 |
+| `zeta-desktop` shell                | x64     | x64, arm64 | x64        |
+
+Native text/grep and image capabilities require the platform C/C++ toolchain
+when built from source; released binaries bundle the prebuilt native modules.
+
 ## Upstream Policy
 
 Zeta follows OMP only through complete, official release tags. Each release is
@@ -181,5 +210,6 @@ Pi and Pi Web are semantic feature sources, not raw merge sources. See
 ## License
 
 Zeta is distributed under the repository's [MIT License](LICENSE). Its runtime
-lineage includes OMP and Pi; their contributions remain acknowledged in source
-history and package notices.
+lineage includes OMP and Pi, and the bundled editor is vendored from
+[TTT Editor](https://github.com/eugenioenko/ttt); their contributions remain
+acknowledged in source history and package notices.
