@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/pi-natives",
-	"version": "1.1.20",
+	"version": "1.1.21",
 	"description": "Native Rust bindings for PDF conversion, audio, WebRTC, grep, clipboard, image processing, syntax highlighting, PTY, and shell operations via N-API",
 	"keywords": [
 		"clipboard",

@@ -1,6 +1,6 @@
 {
 	"name": "zeta-desktop",
-	"version": "1.1.20",
+	"version": "1.1.21",
 	"private": true,
 	"description": "Zeta desktop shell: embedded Web UI + Stats dashboard with local service (no terminal, no system browser)",
 	"homepage": "https://linxira-os.github.io/zeta/",

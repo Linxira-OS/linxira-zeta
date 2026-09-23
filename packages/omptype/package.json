@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/pi-omptype",
-	"version": "1.1.20",
+	"version": "1.1.21",
 	"description": "ArkType-compatible runtime schema validation with lazy JIT compilation",
 	"keywords": [
 		"arktype",
