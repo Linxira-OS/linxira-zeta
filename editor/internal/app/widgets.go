@@ -240,10 +240,10 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 	references := ui.NewReferencesWidget()
 	output := ui.NewOutputWidget()
 	bottomPanel := ui.NewBottomPanelWidget(borders)
-	bottomPanel.AddPanel("terminal", "Terminal", terminalPanel)
-	bottomPanel.AddPanel("problems", "Diagnostics", problems)
-	bottomPanel.AddPanel("references", "References", references)
-	bottomPanel.AddPanel("output", "Output", output)
+	bottomPanel.AddPanel("terminal", t("Terminal"), terminalPanel)
+	bottomPanel.AddPanel("problems", t("Diagnostics"), problems)
+	bottomPanel.AddPanel("references", t("References"), references)
+	bottomPanel.AddPanel("output", t("Output"), output)
 
 	contentSplit := ui.NewContentSplitWidget()
 	contentSplit.Top = editorGroup
@@ -280,7 +280,7 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 	sidebar.AddPanel("explorer", t("Explore"), explorer.Adapter)
 	sidebar.AddPanel("search", t("Find"), search)
 	sidebar.AddPanel("changes", t("Changes"), changes.Adapter)
-	sidebar.AddPanel("outline", "Outline", symbols.Adapter)
+	sidebar.AddPanel("outline", t("Outline"), symbols.Adapter)
 	sidebar.SetPanelOrder(cfg.Settings.Sidebar.PanelOrder)
 	sidebar.Tabs.Config.Reorderable = true
 	hasFolders := len(ws.Paths()) > 0

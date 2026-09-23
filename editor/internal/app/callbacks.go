@@ -467,7 +467,7 @@ func (a *App) CommitChanges(dir string, message string) {
 
 func (a *App) ConfirmDiscard(message string, onConfirm func()) {
 	a.ShowConfirmDialogEx("Discard Changes?", message,
-		[]string{"Cancel", "Discard"},
+		[]string{t("Cancel"), t("Discard")},
 		[]func(){
 			func() { a.DismissDialog() },
 			func() {
@@ -485,7 +485,7 @@ func registerWidgetCallbacks(app *App) {
 		idx := i
 		reg.Register(command.Command{
 			ID:    menuBarLabels[idx],
-			Title: "Menu: " + app.MenuBar.Items[idx].Name,
+			Title: t("Menu") + ": " + app.MenuBar.Items[idx].Name,
 			Handler: func() {
 				openMenuBarDropdown(app, idx)
 			},

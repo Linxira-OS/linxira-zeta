@@ -20,15 +20,16 @@ import (
 var zh = detectZH()
 
 func detectZH() bool {
+	// Explicit opt-in only: a Chinese locale on the host (Windows Git Bash,
+	// zh_CN desktops) must NOT silently switch the UI — keyboard shortcuts and
+	// command names are English-first, and a half-translated surface is worse
+	// than none. Users/plugins flip it via settings.json "language" or
+	// TTT_LANG=zh; the table stays available for them.
 	lang := ""
 	if appSettingsLang != "" {
 		lang = appSettingsLang
 	} else if s := os.Getenv("TTT_LANG"); s != "" {
 		lang = s
-	} else if s := os.Getenv("LC_ALL"); s != "" {
-		lang = s
-	} else {
-		lang = os.Getenv("LANG")
 	}
 	lang = strings.ToLower(lang)
 	return strings.HasPrefix(lang, "zh")
@@ -106,6 +107,12 @@ var zhLabels = map[string]string{
 	"New Terminal":           "新建终端",
 	"Theme":                  "主题",
 	"Keybindings":            "按键绑定",
+	"Terminal":               "终端",
+	"Diagnostics":            "诊断",
+	"References":             "引用",
+	"Output":                 "输出",
+	"Discard":                "放弃",
+	"Menu":                   "菜单",
 }
 
 // zhFieldLabels translates setting-field labels. Keyed by the English label
