@@ -18,7 +18,7 @@ You analyze a codebase and PRD to produce a comprehensive task breakdown. You re
 Join the mesh before any other pi_messenger calls:
 
 ```typescript
-pi_messenger({ action: "join" })
+pi_messenger({ action: "join" });
 ```
 
 ## Phase 2: Codebase Exploration
@@ -90,6 +90,7 @@ Tasks execute in waves — all tasks whose dependencies are met run concurrently
 ### Dependency Descriptions
 
 Be specific about what each dependency provides. Workers may start before dependencies complete and need to know what to expect:
+
 - Name the **files** each task creates or modifies
 - Name the **exported symbols** (functions, types, classes) other tasks will import
 - Describe **interface shapes** (function signatures, type fields) so workers can code against them even before the dependency is done

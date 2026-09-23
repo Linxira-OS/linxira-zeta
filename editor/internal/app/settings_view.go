@@ -181,6 +181,14 @@ func settingsCategories() []settingsCategory {
 				GetBool: func(s *config.Settings) bool { return s.DebugMode },
 				SetBool: func(s *config.Settings, v bool) { s.DebugMode = v }},
 		}},
+		{Title: t("Agent"), Fields: []settingField{
+			{Label: t("Enable agent handoff"), Kind: settingBool,
+				GetBool: func(s *config.Settings) bool { return s.Agent.IsEnabled() },
+				SetBool: func(s *config.Settings, v bool) { s.Agent.Enabled = boolPtr(v) }},
+			{Label: t("Hand off current file"), Kind: settingBool,
+				GetBool: func(s *config.Settings) bool { return s.Agent.HandsOffFile() },
+				SetBool: func(s *config.Settings, v bool) { s.Agent.HandoffFile = boolPtr(v) }},
+		}},
 	}
 }
 

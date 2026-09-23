@@ -8,7 +8,7 @@
 
 [![npm version](https://img.shields.io/npm/v/pi-messenger?style=for-the-badge)](https://www.npmjs.com/package/pi-messenger)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux-blue?style=for-the-badge)]()
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux-blue?style=for-the-badge)](<>)
 
 ## Installation
 
@@ -43,19 +43,19 @@ npx pi-messenger --crew-uninstall
 Once joined (manually or via `autoRegister` config), agents can coordinate:
 
 ```typescript
-pi_messenger({ action: "join" })
-pi_messenger({ action: "reserve", paths: ["src/auth/"], reason: "Refactoring" })
-pi_messenger({ action: "send", to: "GoldFalcon", message: "auth is done" })
-pi_messenger({ action: "release" })
-pi_messenger({ action: "leave" })
+pi_messenger({ action: "join" });
+pi_messenger({ action: "reserve", paths: ["src/auth/"], reason: "Refactoring" });
+pi_messenger({ action: "send", to: "GoldFalcon", message: "auth is done" });
+pi_messenger({ action: "release" });
+pi_messenger({ action: "leave" });
 ```
 
 For multi-agent task orchestration from a PRD:
 
 ```typescript
-pi_messenger({ action: "plan" })                       // Planner analyzes codebase, creates tasks
-pi_messenger({ action: "work", autonomous: true })      // Workers execute tasks in waves until done
-pi_messenger({ action: "review", target: "task-1" })    // Reviewer checks implementation
+pi_messenger({ action: "plan" }); // Planner analyzes codebase, creates tasks
+pi_messenger({ action: "work", autonomous: true }); // Workers execute tasks in waves until done
+pi_messenger({ action: "review", target: "task-1" }); // Reviewer checks implementation
 ```
 
 ## Features
@@ -82,12 +82,12 @@ pi_messenger({ action: "review", target: "task-1" })    // Reviewer checks imple
 
 Chat input supports `@Name msg` for DMs and `@all msg` for broadcasts. Text without `@` broadcasts from the Agents tab or DMs the selected agent tab.
 
-| Key | Action |
-|-----|--------|
+| Key             | Action                                     |
+| --------------- | ------------------------------------------ |
 | `Tab` / `←` `→` | Switch tabs (Agents, Crew, agent DMs, All) |
-| `↑` `↓` | Scroll history / navigate crew tasks |
-| `Enter` | Send message |
-| `Esc` | Close |
+| `↑` `↓`         | Scroll history / navigate crew tasks       |
+| `Enter`         | Send message                               |
+| `Esc`           | Close                                      |
 
 ## Crew: Task Orchestration
 
@@ -104,10 +104,10 @@ Crew logs are per project, under that project's working directory: `.pi/messenge
 No special PRD format required — the planner auto-discovers `PRD.md`, `SPEC.md`, `DESIGN.md`, etc. in your project root and `docs/`. Or skip the file entirely:
 
 ```typescript
-pi_messenger({ action: "plan", prompt: "Scan the codebase for bugs" })
+pi_messenger({ action: "plan", prompt: "Scan the codebase for bugs" });
 
 // Plan + auto-start autonomous work when planning completes
-pi_messenger({ action: "plan" })  // auto-starts workers (default)
+pi_messenger({ action: "plan" }); // auto-starts workers (default)
 ```
 
 ### Wave Execution
@@ -171,10 +171,10 @@ Reject the migration task; it needs rollback tests.
 The agent maps those requests to Team actions. If a task needs approval, the agent should ask in plain language and continue after you approve. The tool calls are mainly for agents and power users:
 
 ```typescript
-pi_messenger({ action: "team.setup", name: "migration-squad" })
-pi_messenger({ action: "team.memory.note", type: "decision", message: "Auth API changes require reviewer sign-off." })
-pi_messenger({ action: "team.roles" })
-pi_messenger({ action: "team.status" })
+pi_messenger({ action: "team.setup", name: "migration-squad" });
+pi_messenger({ action: "team.memory.note", type: "decision", message: "Auth API changes require reviewer sign-off." });
+pi_messenger({ action: "team.roles" });
+pi_messenger({ action: "team.status" });
 ```
 
 `team.setup` activates the profile, saves an editable JSON copy if needed, creates a starter charter when the project does not have one, and returns the next planning/status commands.
@@ -186,24 +186,24 @@ Team's built-in role names follow the packaged `pi-subagents` vocabulary where p
 Built-in sample profiles are available immediately and are saved as editable JSON the first time you activate them:
 
 ```typescript
-pi_messenger({ action: "team.setup", name: "migration-squad" }) // migrations with approval gates
-pi_messenger({ action: "team.setup", name: "review-squad" })    // scout/reviewer/worker cleanup flow
-pi_messenger({ action: "team.setup", name: "research-squad" })  // research-first planning flow
+pi_messenger({ action: "team.setup", name: "migration-squad" }); // migrations with approval gates
+pi_messenger({ action: "team.setup", name: "review-squad" }); // scout/reviewer/worker cleanup flow
+pi_messenger({ action: "team.setup", name: "research-squad" }); // research-first planning flow
 ```
 
 A saved profile looks like this:
 
 ```json
 {
-  "name": "migration-squad",
-  "description": "Scout, implement, and review high-risk migrations with lead approval gates",
-  "roles": {
-    "scout": { "description": "Map affected schemas, APIs, and rollback paths before implementation" },
-    "worker": { "description": "Implement the approved migration in small, reversible steps" },
-    "reviewer": { "description": "Review migration safety, compatibility, rollback, and tests" }
-  },
-  "approval": { "mode": "risk-labels", "labels": ["database", "migration", "destructive", "api-contract"] },
-  "memory": { "inject": ["decision", "interface", "risk", "handoff"], "maxCharsPerType": 4000 }
+	"name": "migration-squad",
+	"description": "Scout, implement, and review high-risk migrations with lead approval gates",
+	"roles": {
+		"scout": { "description": "Map affected schemas, APIs, and rollback paths before implementation" },
+		"worker": { "description": "Implement the approved migration in small, reversible steps" },
+		"reviewer": { "description": "Review migration safety, compatibility, rollback, and tests" }
+	},
+	"approval": { "mode": "risk-labels", "labels": ["database", "migration", "destructive", "api-contract"] },
+	"memory": { "inject": ["decision", "interface", "risk", "handoff"], "maxCharsPerType": 4000 }
 }
 ```
 
@@ -219,13 +219,13 @@ By default, Crew agents inherit the host session model unless a task, request, r
 
 ```json
 {
-  "crew": {
-    "models": {
-      "worker": "claude-haiku-4-5",
-      "planner": "claude-sonnet-4-6",
-      "reviewer": "claude-sonnet-4-6"
-    }
-  }
+	"crew": {
+		"models": {
+			"worker": "claude-haiku-4-5",
+			"planner": "claude-sonnet-4-6",
+			"reviewer": "claude-sonnet-4-6"
+		}
+	}
 }
 ```
 
@@ -233,12 +233,12 @@ Model strings accept `provider/model` format for explicit provider selection and
 
 ```json
 {
-  "crew": {
-    "models": {
-      "worker": "anthropic/claude-haiku-4-5",
-      "planner": "openrouter/anthropic/claude-sonnet-4:high"
-    }
-  }
+	"crew": {
+		"models": {
+			"worker": "anthropic/claude-haiku-4-5",
+			"planner": "openrouter/anthropic/claude-sonnet-4:high"
+		}
+	}
 }
 ```
 
@@ -248,55 +248,55 @@ Full config reference (all fields optional — only set what you want to change)
 
 ```json
 {
-  "crew": {
-    "concurrency": { "workers": 2, "max": 10 },
-    "coordination": "chatty",
-    "models": { "worker": "claude-haiku-4-5" },
-    "review": { "enabled": true, "maxIterations": 3 },
-    "planning": { "maxPasses": 1 },
-    "work": {
-      "maxAttemptsPerTask": 5,
-      "maxWaves": 50
-    }
-  }
+	"crew": {
+		"concurrency": { "workers": 2, "max": 10 },
+		"coordination": "chatty",
+		"models": { "worker": "claude-haiku-4-5" },
+		"review": { "enabled": true, "maxIterations": 3 },
+		"planning": { "maxPasses": 1 },
+		"work": {
+			"maxAttemptsPerTask": 5,
+			"maxWaves": 50
+		}
+	}
 }
 ```
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `concurrency.workers` | Default parallel workers per wave | `2` |
-| `concurrency.max` | Maximum workers allowed (hard ceiling is 10) | `10` |
-| `dependencies` | Dependency scheduling mode: `advisory` or `strict` | `"advisory"` |
-| `coordination` | Worker coordination level: `none`, `minimal`, `moderate`, `chatty` | `"chatty"` |
-| `messageBudgets` | Max outgoing messages per worker per level (sends rejected after limit) | `{ none: 0, minimal: 2, moderate: 5, chatty: 10 }` |
-| `models.planner` | Model for planner agent | host session model, then agent frontmatter |
-| `models.worker` | Model for workers (overridden by per-task or per-wave `model` param) | host session model, then agent frontmatter |
-| `models.reviewer` | Model for reviewer agent | host session model, then agent frontmatter |
-| `models.analyst` | Model for analyst (plan-sync) agent | host session model, then agent frontmatter |
-| `thinking.planner` | Thinking level for planner agent | (from frontmatter) |
-| `thinking.worker` | Thinking level for worker agents | (from frontmatter) |
-| `thinking.reviewer` | Thinking level for reviewer agents | (from frontmatter) |
-| `thinking.analyst` | Thinking level for analyst agents | (from frontmatter) |
-| `review.enabled` | Auto-review after task completion | `true` |
-| `review.maxIterations` | Max review/fix cycles per task | `3` |
-| `planning.maxPasses` | Max planner/reviewer refinement passes | `1` |
-| `work.maxAttemptsPerTask` | Auto-block after N failures | `5` |
-| `work.maxWaves` | Max autonomous waves | `50` |
-| `work.shutdownGracePeriodMs` | Grace period before SIGTERM on abort | `30000` |
-| `work.env` | Environment variables passed to spawned workers | `{}` |
-| `artifacts.enabled` | Write compact Crew debug artifacts | `true` |
-| `artifacts.cleanupDays` | Retention setting for Crew artifacts | `7` |
+| Setting                      | Description                                                             | Default                                            |
+| ---------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
+| `concurrency.workers`        | Default parallel workers per wave                                       | `2`                                                |
+| `concurrency.max`            | Maximum workers allowed (hard ceiling is 10)                            | `10`                                               |
+| `dependencies`               | Dependency scheduling mode: `advisory` or `strict`                      | `"advisory"`                                       |
+| `coordination`               | Worker coordination level: `none`, `minimal`, `moderate`, `chatty`      | `"chatty"`                                         |
+| `messageBudgets`             | Max outgoing messages per worker per level (sends rejected after limit) | `{ none: 0, minimal: 2, moderate: 5, chatty: 10 }` |
+| `models.planner`             | Model for planner agent                                                 | host session model, then agent frontmatter         |
+| `models.worker`              | Model for workers (overridden by per-task or per-wave `model` param)    | host session model, then agent frontmatter         |
+| `models.reviewer`            | Model for reviewer agent                                                | host session model, then agent frontmatter         |
+| `models.analyst`             | Model for analyst (plan-sync) agent                                     | host session model, then agent frontmatter         |
+| `thinking.planner`           | Thinking level for planner agent                                        | (from frontmatter)                                 |
+| `thinking.worker`            | Thinking level for worker agents                                        | (from frontmatter)                                 |
+| `thinking.reviewer`          | Thinking level for reviewer agents                                      | (from frontmatter)                                 |
+| `thinking.analyst`           | Thinking level for analyst agents                                       | (from frontmatter)                                 |
+| `review.enabled`             | Auto-review after task completion                                       | `true`                                             |
+| `review.maxIterations`       | Max review/fix cycles per task                                          | `3`                                                |
+| `planning.maxPasses`         | Max planner/reviewer refinement passes                                  | `1`                                                |
+| `work.maxAttemptsPerTask`    | Auto-block after N failures                                             | `5`                                                |
+| `work.maxWaves`              | Max autonomous waves                                                    | `50`                                               |
+| `work.shutdownGracePeriodMs` | Grace period before SIGTERM on abort                                    | `30000`                                            |
+| `work.env`                   | Environment variables passed to spawned workers                         | `{}`                                               |
+| `artifacts.enabled`          | Write compact Crew debug artifacts                                      | `true`                                             |
+| `artifacts.cleanupDays`      | Retention setting for Crew artifacts                                    | `7`                                                |
 
 ### Default Agent Models
 
 Each crew agent ships with a fallback model in its frontmatter. Override any role via `crew.models.<role>` in config:
 
-| Agent | Role | Default Model |
-|-------|------|---------------|
-| `crew-planner` | planner | `anthropic/claude-opus-4-6` |
-| `crew-worker` | worker | `anthropic/claude-haiku-4-5` |
-| `crew-reviewer` | reviewer | `anthropic/claude-opus-4-6` |
-| `crew-plan-sync` | analyst | `anthropic/claude-haiku-4-5` |
+| Agent            | Role     | Default Model                |
+| ---------------- | -------- | ---------------------------- |
+| `crew-planner`   | planner  | `anthropic/claude-opus-4-6`  |
+| `crew-worker`    | worker   | `anthropic/claude-haiku-4-5` |
+| `crew-reviewer`  | reviewer | `anthropic/claude-opus-4-6`  |
+| `crew-plan-sync` | analyst  | `anthropic/claude-haiku-4-5` |
 
 Agent definitions live in `crew/agents/` within the extension. To customize one for a project, copy it to `.pi/messenger/crew/agents/` and edit the frontmatter — project-level agents override extension defaults by name. Agents support `thinking: <level>` in frontmatter (off, minimal, low, medium, high, xhigh). Config `thinking.<role>` overrides the frontmatter value.
 
@@ -304,70 +304,70 @@ Agent definitions live in `crew/agents/` within the extension. To customize one 
 
 ### Coordination
 
-| Action | Description |
-|--------|-------------|
-| `join` | Join the agent mesh |
-| `leave` | Leave the mesh for the current session |
-| `list` | List agents with presence info |
-| `status` | Show your status or crew progress |
-| `whois` | Detailed info about an agent (`name` required) |
-| `feed` | Show activity feed (`limit` optional, default: 20) |
+| Action       | Description                                                    |
+| ------------ | -------------------------------------------------------------- |
+| `join`       | Join the agent mesh                                            |
+| `leave`      | Leave the mesh for the current session                         |
+| `list`       | List agents with presence info                                 |
+| `status`     | Show your status or crew progress                              |
+| `whois`      | Detailed info about an agent (`name` required)                 |
+| `feed`       | Show activity feed (`limit` optional, default: 20)             |
 | `set_status` | Set custom status message (`message` optional — omit to clear) |
-| `send` | Send DM (`to` + `message` required) |
-| `broadcast` | Broadcast to all (`message` required) |
-| `reserve` | Reserve files (`paths` required, `reason` optional) |
-| `release` | Release reservations (`paths` optional — omit to release all) |
-| `rename` | Change your name (`name` required) |
+| `send`       | Send DM (`to` + `message` required)                            |
+| `broadcast`  | Broadcast to all (`message` required)                          |
+| `reserve`    | Reserve files (`paths` required, `reason` optional)            |
+| `release`    | Release reservations (`paths` optional — omit to release all)  |
+| `rename`     | Change your name (`name` required)                             |
 
 ### Crew
 
-| Action | Description |
-|--------|-------------|
-| `plan` | Create plan from PRD or inline prompt (`prd`, `prompt` optional — auto-discovers PRD if omitted, auto-starts workers unless `autoWork: false`) |
-| `work` | Run ready tasks (`autonomous`, `concurrency` optional) |
-| `work.stop` | Stop autonomous work for the current project |
-| `review` | Review implementation (`target` task ID required) |
-| `task.list` | List all tasks |
-| `task.show` | Show task details (`id` required) |
-| `task.start` | Start a task (`id` required) |
-| `task.approve` | Approve an approval-gated task (`id` required) |
-| `task.reject` | Reject an approval-gated task (`id` required, `reason` optional) |
-| `task.done` | Complete a task (`id` required, `summary` optional) |
-| `task.block` | Block a task (`id` + `reason` required) |
-| `task.unblock` | Unblock a task (`id` required) |
-| `task.ready` | List tasks ready to work |
-| `task.reset` | Reset a task (`id` required, `cascade` optional) |
-| `crew.status` | Overall crew status |
-| `crew.validate` | Validate plan dependencies |
-| `crew.agents` | List available crew agents |
-| `crew.install` | Show discovered crew agents and their sources |
-| `crew.uninstall` | Remove stale shared-directory crew agent copies |
+| Action           | Description                                                                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `plan`           | Create plan from PRD or inline prompt (`prd`, `prompt` optional — auto-discovers PRD if omitted, auto-starts workers unless `autoWork: false`) |
+| `work`           | Run ready tasks (`autonomous`, `concurrency` optional)                                                                                         |
+| `work.stop`      | Stop autonomous work for the current project                                                                                                   |
+| `review`         | Review implementation (`target` task ID required)                                                                                              |
+| `task.list`      | List all tasks                                                                                                                                 |
+| `task.show`      | Show task details (`id` required)                                                                                                              |
+| `task.start`     | Start a task (`id` required)                                                                                                                   |
+| `task.approve`   | Approve an approval-gated task (`id` required)                                                                                                 |
+| `task.reject`    | Reject an approval-gated task (`id` required, `reason` optional)                                                                               |
+| `task.done`      | Complete a task (`id` required, `summary` optional)                                                                                            |
+| `task.block`     | Block a task (`id` + `reason` required)                                                                                                        |
+| `task.unblock`   | Unblock a task (`id` required)                                                                                                                 |
+| `task.ready`     | List tasks ready to work                                                                                                                       |
+| `task.reset`     | Reset a task (`id` required, `cascade` optional)                                                                                               |
+| `crew.status`    | Overall crew status                                                                                                                            |
+| `crew.validate`  | Validate plan dependencies                                                                                                                     |
+| `crew.agents`    | List available crew agents                                                                                                                     |
+| `crew.install`   | Show discovered crew agents and their sources                                                                                                  |
+| `crew.uninstall` | Remove stale shared-directory crew agent copies                                                                                                |
 
 ### Team
 
-| Action | Description |
-|--------|-------------|
-| `team.setup` | Activate a profile, create a starter charter if missing, and show next steps (`name` optional, defaults to `migration-squad`) |
-| `team.profile.list` | List built-in samples and saved reusable JSON team profiles |
-| `team.profile.use` | Activate a profile (`name` required; saves a sample/default profile if missing) |
-| `team.profile.save` | Save the active profile under `name` |
-| `team.charter.show` | Show the project team charter |
-| `team.charter.create` | Create or replace the charter (`name` + `message` required) |
-| `team.charter.update` | Append a charter update (`message` required) |
-| `team.memory.note` | Append team memory (`type`: `decision`, `interface`, `risk`, or `handoff`; `message` required) |
-| `team.memory.list` | List team memory (`type` and `limit` optional) |
-| `team.roles` | Resolve Team roles from packaged-vocabulary defaults, profile config, and optional subagent metadata |
-| `team.status` | Summarize team/profile/charter, roles, memory counts, and needs-lead tasks |
+| Action                | Description                                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `team.setup`          | Activate a profile, create a starter charter if missing, and show next steps (`name` optional, defaults to `migration-squad`) |
+| `team.profile.list`   | List built-in samples and saved reusable JSON team profiles                                                                   |
+| `team.profile.use`    | Activate a profile (`name` required; saves a sample/default profile if missing)                                               |
+| `team.profile.save`   | Save the active profile under `name`                                                                                          |
+| `team.charter.show`   | Show the project team charter                                                                                                 |
+| `team.charter.create` | Create or replace the charter (`name` + `message` required)                                                                   |
+| `team.charter.update` | Append a charter update (`message` required)                                                                                  |
+| `team.memory.note`    | Append team memory (`type`: `decision`, `interface`, `risk`, or `handoff`; `message` required)                                |
+| `team.memory.list`    | List team memory (`type` and `limit` optional)                                                                                |
+| `team.roles`          | Resolve Team roles from packaged-vocabulary defaults, profile config, and optional subagent metadata                          |
+| `team.status`         | Summarize team/profile/charter, roles, memory counts, and needs-lead tasks                                                    |
 
 Approval-gated tasks use the Crew task commands `task.approve` and `task.reject`. Rejected tasks stay blocked from work and are surfaced with `task.revise` / `task.revise-tree` next steps.
 
 ### Swarm (Spec-Based)
 
-| Action | Description |
-|--------|-------------|
-| `swarm` | Show swarm task status |
-| `claim` | Claim a task (`taskId` required) |
-| `unclaim` | Release a claim (`taskId` required) |
+| Action     | Description                         |
+| ---------- | ----------------------------------- |
+| `swarm`    | Show swarm task status              |
+| `claim`    | Claim a task (`taskId` required)    |
+| `unclaim`  | Release a claim (`taskId` required) |
 | `complete` | Complete a task (`taskId` required) |
 
 ## Configuration
@@ -376,31 +376,31 @@ Create `~/.pi/agent/pi-messenger.json`:
 
 ```json
 {
-  "autoRegister": false,
-  "autoRegisterPaths": ["~/projects/team-collab"],
-  "scopeToFolder": false,
-  "nameTheme": "default",
-  "stuckThreshold": 900,
-  "stuckNotify": true,
-  "autoOverlayPlanning": true
+	"autoRegister": false,
+	"autoRegisterPaths": ["~/projects/team-collab"],
+	"scopeToFolder": false,
+	"nameTheme": "default",
+	"stuckThreshold": 900,
+	"stuckNotify": true,
+	"autoOverlayPlanning": true
 }
 ```
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `autoRegister` | Join mesh on startup | `false` |
-| `autoRegisterPaths` | Folders where auto-join is enabled (supports `*` globs) | `[]` |
-| `scopeToFolder` | Only see agents in same directory | `false` |
-| `nameTheme` | Name theme: `default`, `nature`, `space`, `minimal`, `custom` | `"default"` |
-| `nameWords` | Custom theme words: `{ adjectives: [...], nouns: [...] }` | — |
-| `feedRetention` | Max events kept in activity feed | `50` |
-| `stuckThreshold` | Seconds of inactivity before stuck detection | `900` |
-| `stuckNotify` | Show notification when a peer appears stuck | `true` |
-| `autoStatus` | Auto-generate status messages from activity | `true` |
-| `autoOverlay` | Auto-open overlay when autonomous crew work starts | `true` |
-| `autoOverlayPlanning` | Auto-open Crew overlay when planning starts or is restored in-progress | `true` |
-| `crewEventsInFeed` | Include crew task events in activity feed | `true` |
-| `contextMode` | Context injection level: `full`, `minimal`, `none` | `"full"` |
+| Setting               | Description                                                            | Default     |
+| --------------------- | ---------------------------------------------------------------------- | ----------- |
+| `autoRegister`        | Join mesh on startup                                                   | `false`     |
+| `autoRegisterPaths`   | Folders where auto-join is enabled (supports `*` globs)                | `[]`        |
+| `scopeToFolder`       | Only see agents in same directory                                      | `false`     |
+| `nameTheme`           | Name theme: `default`, `nature`, `space`, `minimal`, `custom`          | `"default"` |
+| `nameWords`           | Custom theme words: `{ adjectives: [...], nouns: [...] }`              | —           |
+| `feedRetention`       | Max events kept in activity feed                                       | `50`        |
+| `stuckThreshold`      | Seconds of inactivity before stuck detection                           | `900`       |
+| `stuckNotify`         | Show notification when a peer appears stuck                            | `true`      |
+| `autoStatus`          | Auto-generate status messages from activity                            | `true`      |
+| `autoOverlay`         | Auto-open overlay when autonomous crew work starts                     | `true`      |
+| `autoOverlayPlanning` | Auto-open Crew overlay when planning starts or is restored in-progress | `true`      |
+| `crewEventsInFeed`    | Include crew task events in activity feed                              | `true`      |
+| `contextMode`         | Context injection level: `full`, `minimal`, `none`                     | `"full"`    |
 
 Config priority: project `.pi/pi-messenger.json` > user `~/.pi/agent/pi-messenger.json` > `~/.pi/agent/settings.json` `"messenger"` key > defaults.
 

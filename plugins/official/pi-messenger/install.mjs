@@ -100,9 +100,7 @@ if (isCrewUninstall) {
 		}
 	}
 
-	console.log(removed > 0
-		? `Removed ${removed} crew agent(s) from ${AGENTS_DIR}`
-		: "Nothing to remove");
+	console.log(removed > 0 ? `Removed ${removed} crew agent(s) from ${AGENTS_DIR}` : "Nothing to remove");
 	process.exit(0);
 }
 

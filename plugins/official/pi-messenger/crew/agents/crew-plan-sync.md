@@ -25,13 +25,15 @@ After a task is completed:
 ## Process
 
 1. Get completed task details:
+
    ```typescript
-   pi_messenger({ action: "task.show", id: "<COMPLETED_TASK_ID>" })
+   pi_messenger({ action: "task.show", id: "<COMPLETED_TASK_ID>" });
    ```
 
 2. Find dependent tasks:
+
    ```typescript
-   pi_messenger({ action: "task.list", epic: "<EPIC_ID>" })
+   pi_messenger({ action: "task.list", epic: "<EPIC_ID>" });
    ```
 
 3. Read and update specs that reference the completed task

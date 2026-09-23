@@ -17,6 +17,20 @@ import (
 // The label layer is deliberately display-only: setting IDs, JSON tags and
 // stored values stay English so configs written under one locale remain
 // readable (and mergeable) under another.
+//
+// Translated surface (the agreed scope):
+//   - the settings form: category tabs, field labels, enum option labels
+//   - descriptive copy that explains a control (dialog body text, hints)
+//
+// Deliberately NOT translated:
+//   - menu bar captions and every dropdown action label — they sit next to the
+//     keyboard shortcut that fires them, and a translated label stops matching
+//     the key the user actually presses
+//   - sidebar/bottom panel captions (navigational chrome, same reason)
+//   - command IDs, command palette titles, key names, file/branch/status text
+//
+// Adding a translation for a menu action or panel caption is out of scope by
+// decision, not oversight.
 var zh = detectZH()
 
 func detectZH() bool {
@@ -113,6 +127,9 @@ var zhLabels = map[string]string{
 	"Output":                 "输出",
 	"Discard":                "放弃",
 	"Menu":                   "菜单",
+	"Agent":                  "代理",
+	"Enable agent handoff":   "启用代理交接",
+	"Hand off current file":  "交接当前文件",
 }
 
 // zhFieldLabels translates setting-field labels. Keyed by the English label

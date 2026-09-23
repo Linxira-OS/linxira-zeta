@@ -5,17 +5,20 @@
 ## [0.15.2] - 2026-09-20
 
 ### Fixed
+
 - Preserve extension tools for crew workers: unknown bare tool names no longer get dropped by the builtin whitelist, so extension-provided tools (e.g. `pi_messenger`) survive worker spawn.
 
 ## [0.15.1] - 2026-08-23
 
 ### Highlights
+
 - Resuming a session is more reliable when older or malformed agent messages are present.
 - Crew planning is less likely to create duplicate task lists from repeated planning runs.
 - Crew reviews now look at the task branch, so reviewers see the work they are meant to review.
 - Auto-review no longer spends time on tasks that are already blocked or marked as duplicates.
 
 ### Fixed
+
 - Render malformed persisted agent messages and normalize inbound mail that uses `message` and `ts`, fixing session resume crashes. Thanks to [@rioxiaoliliang](https://github.com/rioxiaoliliang) for #29.
 - Prevent duplicate Crew task sets when planning runs overlap or repeat.
 - Review task branches instead of the main checkout so Crew reviewers inspect the intended changes.
@@ -24,11 +27,13 @@
 ## [0.15.0] - 2026-07-30
 
 ### Added
+
 - Added an optional Team layer with reusable profiles, project charter/memory, role-aware tasks, approval gates, worker context, and overlay signals.
 - Added `team.setup` for first-run Team setup with profile activation, starter charter creation, and next-step guidance.
 - Surfaced rejected approval-gated tasks separately with `task.revise` / `task.revise-tree` guidance.
 
 ### Fixed
+
 - Migrated extension tool schemas from `@sinclair/typebox` to `typebox` 1.x and updated the local test/tsconfig references to the new package entry.
 - Guarded status heartbeat updates against stale pi session contexts after reloads or session replacement while preserving non-stale errors, fixing #26, #25, and #18. Thanks to Kire Howard (`MatrixJockey`), `MartinMayday`, and Hydro (`HydroToxin`) for the reports, and to Riwut Libinuko (`cakriwut`) for #19.
 - Excluded the orchestrator-only `pi-messenger-crew` skill from worker prompts to avoid irrelevant skill loading during Crew task execution. Thanks to Varun Maliwal (`vmaliwal`) for #15.
@@ -43,6 +48,7 @@
 - Crew subprocesses now fail fast on terminal provider usage/quota/auth 4xx JSON events instead of waiting through retry loops, fixing #21. Thanks to Velinus (`velinussage`) for the report.
 
 ### Changed
+
 - `readFeedEvents` now reads only a bounded tail of `feed.jsonl` in backward 64KB chunks instead of parsing the whole file, making overlay feed reads on large histories dramatically faster (~1,800x on a 100k-event feed). Non-positive limits now return no events.
 - Overlay rendering, auto-spawn/refill checks, and stuck-agent heartbeats now reuse a single Crew task snapshot per frame instead of rescanning the task directory per section, roughly quadrupling render-helper throughput on large task lists.
 - Aligned Team built-in roles and sample profiles with the packaged `pi-subagents` role vocabulary while keeping Crew as the execution engine.
@@ -51,24 +57,29 @@
 ## [0.14.1] - 2026-04-04
 
 ### Changed
+
 - Added a `promptSnippet` for `pi_messenger` so Pi 0.59+ includes it in the default tool prompt section and reliably surfaces Crew/coordination workflows.
 
 ## [0.14.0] - 2026-04-03
 
 ### Added
+
 - **`leave` action** — `pi_messenger({ action: "leave" })` now lets the current session leave the mesh without restarting pi. It releases reservations, auto-unclaims the session's active swarm claim, closes the messenger overlay, and allows later rejoin from the same session.
 
 ### Fixed
+
 - **Leave guardrails for Crew state** — `leave` now refuses while project planning, autonomous work, or session-owned in-progress Crew tasks are still active, preventing stranded coordination state.
 - **Immutable-session cwd handling** — Registration, folder scoping, auto-register path matching, and messenger context now follow the live session cwd after pi runtime/session replacement instead of relying on `process.cwd()`.
 
 ## [0.13.2] - 2026-03-19
 
 ### Added
+
 - **`work.stop` action** — `pi_messenger({ action: "work.stop" })` now stops autonomous Crew work for the current project and persists the stop state.
 - **Autonomous guard coverage tests** — Added targeted tests for `work.stop` routing and `agent_end` autonomous continuation guard behavior.
 
 ### Fixed
+
 - **Autonomous continuation retry loop guard** — Autonomous Crew mode now stops itself after repeated identical `crew_continue` retries without wave progress (for example when steer turns keep aborting). The extension persists the stopped state and emits a warning instead of looping indefinitely.
 - **Persisted autonomous stop state from index-level stop paths** — `max waves` and `no ready tasks` stop paths now append `crew-state` so restored sessions do not revive stale active autonomous state.
 - **Autonomous continuation no longer runs in unregistered sessions** — If Crew autonomous state is restored but the current session is not joined to pi-messenger, the extension now stops autonomous mode and persists that stop instead of emitting repeated continuation steer messages that cannot execute.
@@ -80,14 +91,17 @@
 ## [0.13.1] - 2026-03-14
 
 ### Added
+
 - **Auto-review after task completion** — Workers' completed tasks now get an automatic reviewer pass before being counted as done. Controlled by existing `config.review.enabled` (default: true) and `config.review.maxIterations` (default: 3). SHIP keeps the task done, NEEDS_WORK resets it to todo for retry with review feedback injected into the next worker's prompt, MAJOR_RETHINK blocks the task. Reviews run sequentially between worker completion and wave result reporting, and respect the abort signal. Adds `review_count` to the Task interface and `task.review` to the activity feed.
 
 ## [0.13.0] - 2026-03-02
 
 ### Added
+
 - **Dynamic skill loading for crew workers** — Workers can now acquire domain-specific knowledge on demand during task execution. A three-tier discovery system scans user skills (`~/.pi/agent/skills/`), extension skills (`crew/skills/`), and project skills (`.pi/messenger/crew/skills/`) to build a skill catalog. The planner sees the catalog and can tag tasks with relevant skill names. Workers see tagged skills as "Recommended" in their prompt alongside the full catalog, and load what they need via `read()` — zero upfront token cost, no config changes. Project-level skills override extension, which override user, matching the agent override pattern. When no skills are configured, prompts are unchanged.
 
 ### Fixed
+
 - **Artifact dir creation** — `writeArtifact`, `writeMetadata`, and `appendJsonl` now create parent directories on demand. Fixes ENOENT on first `plan` run.
 - **Multiline feed sanitization** — Feed events with embedded newlines no longer corrupt the TUI overlay layout.
 - **Config model override** — `crew.models` config now actually overrides agent defaults. Priority: task override > config > agent frontmatter.
@@ -95,11 +109,13 @@
 ## [0.12.1] - 2026-02-22
 
 ### Fixed
+
 - **Wrong model resolved for `provider/model` format** - Worker spawn passed `--model zai/glm-5` as a single flag, which pi's model resolver matched as a literal model ID under `vercel-ai-gateway` instead of interpreting `zai` as the provider. Now splits `provider/model` into separate `--provider` and `--model` flags, matching the intended provider. Affects both task workers and lobby workers.
 
 ## [0.12.0] - 2026-02-21
 
 ### Added
+
 - **Thinking level support** - Agents support `thinking: <level>` in frontmatter (off, minimal, low, medium, high, xhigh). Config `thinking.<role>` overrides per-agent frontmatter. Applied via `--thinking` flag to spawned processes.
 - **Advisory dependencies** - Dependencies are now informational context, not scheduling blockers. All `todo` tasks are eligible for assignment regardless of dependency status. Workers see dependency completion state (done/in-progress/not started) in their prompt and coordinate via reservations and DMs. Configurable via `dependencies` config (`"advisory"` default, `"strict"` for blocking mode). Transitive dependencies pruned from plans automatically.
 - **Auto-work on plan completion** - Planning automatically starts autonomous work when tasks are created (default behavior). Pass `autoWork: false` to review the plan first. A steer message triggers the LLM to call `work { autonomous: true }` on its next turn.
@@ -135,15 +151,18 @@
 - **Live coordination level display** - Status bar hints now show the actual coordination level (`v:chatty`, `v:none`, etc.) instead of the opaque `v:Coord` label.
 
 ### Changed
+
 - **Default `planning.maxPasses` reduced to 1** - Single-pass planning is now the default. Multi-pass planning with reviewer feedback is still available by setting `planning.maxPasses` in user or project config.
 - **Structural cleanup** - Extracted `crew/prompt.ts` (worker prompt builder), `crew/spawn.ts` (shared spawn logic), `crew/registry.ts` (unified worker registry replacing separate maps in agents.ts and lobby.ts). Split `crew/state.ts` into `state-autonomous.ts` and `state-planning.ts` with a barrel re-export.
 - **Crew agent locality** - Crew agents are now discovered from extension-local `crew/agents/` plus project overrides in `.pi/messenger/crew/agents/`. Removed auto-install/update copy machinery and converted `crew.install` / `--crew-install` to informational commands.
 
 ### Removed
+
 - **Legacy key-based routing** - Removed the `join`, `claim`, `unclaim`, `complete`, `swarm`, `list`, `rename`, `reserve`, `release`, and `broadcast` tool parameters and the legacy routing block in `index.ts` that duplicated `crew/index.ts` action-based routing. All callers should use `action`-based syntax (e.g., `{ action: "join" }` instead of `{ join: true }`).
 - **Interview handler** - Removed `crew/handlers/interview.ts`, `crew-interview-generator.md` agent, and the `interview` action. The feature spawned an LLM to generate questions for the user but never worked (got stuck). Agent moved to deprecated list for cleanup on existing installs.
 
 ### Fixed
+
 - **Overlay rendering corruption from multi-line bash args** - `extractArgsPreview` returned raw bash `command` strings containing newlines (comments, `&&` chains, heredocs). These embedded newlines broke overlay rows, cascading layout corruption through the workers section, task list, and feed. Newlines are now collapsed to spaces at the extraction point.
 - **Fire-and-forget dynamic import in `task-actions.ts`** - `killWorkerByTask` was imported via `import("./registry.js").then(...)` which swallowed errors silently. Replaced with a static import since no circular dependency exists.
 - **Stale legacy syntax in user-facing strings** - Five handler/index strings still referenced removed `{ join: true }` / `{ list: true }` / `{ to: "..." }` syntax. Updated to action-based equivalents.
@@ -165,6 +184,7 @@
 ## [0.11.0] - 2026-02-08
 
 ### Added
+
 - **Test suite** — 53 tests across 7 Vitest suites covering store CRUD, state machine, config merging, agent discovery, model resolution, graceful shutdown, and live progress (including cwd isolation). Includes test helpers for temp directories and mock contexts.
 - **Per-agent runtime config** — Model override with 4-level priority: per-task > per-wave `model` param > config `crew.models.worker` > agent `.md` frontmatter. Environment variable override via `crew.work.env` config (not exposed as tool param to prevent API keys in logs).
 - **Graceful shutdown** — `AbortSignal` threaded from tool execute through to spawned workers. On abort: discovers worker name via PID-based registry scan, writes shutdown message to worker inbox, waits 30s grace period, SIGTERM, waits 5s, SIGKILL. Tasks reset to `todo` for retry. Workers instructed to release reservations and exit without committing.
@@ -172,76 +192,91 @@
 - **`shutdownGracePeriodMs` config** — Configurable grace period before SIGTERM (default: 30000).
 
 ### Changed
+
 - **Dynamic overlay height** — Content area scales with terminal size (8-25 lines) instead of hardcoded 10. On a standard 24-row terminal, visible content goes from 10 to 15 lines.
 - **Handler signatures simplified** — Removed unused `state` and `dirs` parameters from plan and review handlers.
 
 ### Fixed
+
 - **`deepMerge` crash** — Merging config with `models` key crashed when the target didn't have the key. Hardened for undefined target keys.
 - **Result/task association** — Worker results now matched by `taskId` field instead of array index, since `spawnAgents` returns in completion order not submission order.
 
 ### Removed
+
 - `attemptsPerTask` field from `AutonomousState` — declared but never populated by any code.
 - `ARCHITECTURE.md` from repo (moved to external docs).
 
 ## [0.10.0] - 2026-02-05
 
 ### Fixed
+
 - **Crew spawner applies agent definitions** — Spawned crew workers now receive the agent's system prompt (`--append-system-prompt`), tool restrictions (`--tools`), and model override from their `.md` definitions. Previously a phantom `--agent` flag was passed that pi-core silently ignored, the agent name leaked into the prompt as noise, and the system prompts (worker's 6-phase protocol, reviewer's rubric, planner's exploration workflow) were never delivered. Tool restrictions also take effect: reviewers and interview generators are now limited to `read,bash` instead of getting all default builtins including `write` and `edit`.
 - **Crew spawner session cleanup** — Spawned workers now pass `--no-session` to avoid writing ephemeral session files to disk.
 
 ### Added
+
 - **`--crew-install` / `--crew-uninstall` CLI flags** — `npx pi-messenger --crew-install` copies crew agent `.md` files and the `pi-messenger-crew` skill to user directories. `--crew-uninstall` removes them. Reads from the npm package (not the installed extension) to avoid version skew.
 
 ### Changed
+
 - **README rewrite** — Installation section now shows real CLI commands instead of tool-call syntax. "How It Works" section explains pi extension API hooks (`pi.on()`, `pi.sendMessage()`, `{ block: true }`, `ctx.ui.custom()`) instead of listing directory trees.
 
 ## [0.9.0] - 2026-02-05
 
 ### Added
+
 - **npm publishing** - Package now published to npm. Install with `pi install npm:pi-messenger`.
 - **`install.mjs`** - `npx pi-messenger` copies the npm package contents to the extensions directory. No git dependency. Version-pinned to the npm release. `npx pi-messenger --remove` to uninstall.
 - `repository`, `homepage`, `bugs` fields in package.json for npm/GitHub integration.
 - `bin`, `files` fields in package.json for npm distribution.
 
 ### Changed
+
 - **Banner image** - README references `banner.png` via absolute GitHub URL (`raw.githubusercontent.com`) instead of relative path, so it renders on both GitHub and npmjs.com without shipping the 1.1MB image in the npm package.
 - **Install section** - README now documents `pi install npm:pi-messenger` as the primary install method.
 
 ## [0.8.2] - 2026-02-01
 
 ### Fixed
+
 - Adapt execute signature to pi v0.51.0: reorder signal, onUpdate, ctx parameters
 
 ## [0.8.1] - 2026-01-30
 
 ### Changed
+
 - **Parallelism-aware planning** - Planner prompt now includes a dedicated Parallel Execution section teaching DAG thinking, independent work streams, critical path minimization, and real data flow dependencies. Plans should produce wider dependency graphs with more concurrent waves instead of linear chains.
 - **Parallelism-aware review** - Both the automated planning loop reviewer and the manual plan review (`action: "review"`) now evaluate plans for unnecessary sequential dependencies and critical path length.
 - PRD truncation applied consistently to both explicit `prd` parameter and auto-discovered PRD files (100KB limit).
 
 ### Fixed
+
 - Stale README agent list referenced removed "analysts" instead of the actual 5 agents.
 
 ## [0.8.0] - 2026-01-30
 
 ### Added
+
 - **Planning progress file** - `.pi/messenger/crew/planning-progress.md` accumulates planner findings and reviewer feedback across passes and runs. Persists through plan deletions. User-editable: add steering notes that the planner reads on every run.
 - `planning.maxPasses` config option (default: 3). Set to 1 for single-pass behavior.
 - JSON task block parsing (`tasks-json` fenced block) as the primary task extraction path, with the existing markdown regex as fallback.
 - Shared verdict parser (`crew/utils/verdict.ts`) used by both review and planning handlers.
 
 ### Changed
+
 - **Planning redesign: single planner agent** - Replaced the 5-scout + gap-analyst pipeline (6 LLM sessions) with a single `crew-planner` agent that explores the codebase iteratively in one session. Cheaper, faster, no information loss from truncation handoffs. Crew agent count: 10 to 5.
 - **Iterative planning with review** - Planner runs in a multi-pass loop with reviewer feedback until SHIP verdict or `maxPasses` reached. Falls back gracefully on reviewer/planner failures.
 - Deprecated scout and gap-analyst agent files auto-cleaned from `~/.pi/agent/agents/` on first use.
 
 ### Removed
+
 - 5 scout agents (`crew-repo-scout`, `crew-practice-scout`, `crew-docs-scout`, `crew-web-scout`, `crew-github-scout`) and `crew-gap-analyst`.
 - `concurrency.scouts` and `truncation.scouts` config options (replaced by `truncation.planners`).
 
 ## [0.7.4] - 2026-01-29
 
 ### Added
+
 - **Living Presence** - Agents now have rich status indicators (active, idle, away, stuck) based on activity recency, open tasks, and reservations. Status is computed from `lastActivityAt` with configurable stuck threshold.
 - **Activity Feed** - Append-only JSONL feed (`feed.jsonl`) tracks edits, commits, test runs, messages, joins/leaves, and crew task events. Pruned on startup to `feedRetention` limit. New `feed` action to query events.
 - **Tool & Token Tracking** - Each agent's session tracks tool call count and cumulative token usage, visible in `list`, `whois`, and the overlay.
@@ -258,6 +293,7 @@
 - **New config options** - `nameTheme`, `nameWords`, `feedRetention`, `stuckThreshold`, `stuckNotify`, `autoStatus`, `crewEventsInFeed`.
 
 ### Fixed
+
 - **Self-whois missing Model and Branch lines** - `buildSelfRegistration` returned `model: ""` and omitted `gitBranch`/`spec`, so self-whois skipped the Model and Branch lines that peers could see. Added `model` to `MessengerState`, populated during registration and updates, and included all three fields in self-representation.
 - **Rename desync: stale session time and activity** - `renameAgent` wrote fresh `startedAt` and `lastActivityAt` to disk but didn't update the in-memory state. The next registry flush would overwrite the disk's fresh values with stale ones, making the agent appear idle for the entire pre-rename session duration. Self-whois also showed a different session age than peer-whois.
 - **Orphaned comma in crew status "In Progress" formatting** - When a task had no `assigned_to` but `attempt_count > 1`, the output produced a leading comma. Rewrote to build suffix parts as an array and join conditionally.
@@ -268,11 +304,13 @@
 ## [0.7.3] - 2026-01-27
 
 ### Fixed
+
 - Google API compatibility: Use `StringEnum` for string literal unions (`type`, `autoRegisterPath`) and `Type.Any()` for mixed-type unions (`to`, `release`) to avoid unsupported `anyOf`/`const` JSON Schema patterns
 
 ## 0.7.2 - 2026-01-26
 
 ### Changed
+
 - Added `pi-package` keyword for npm discoverability (pi v0.50.0 package system)
 
 ## 0.7.1 - 2026-01-24
@@ -298,11 +336,11 @@
 
 **Epic System Removed** - Crew has been simplified to a PRD-based workflow:
 
-| Before | After |
-|--------|-------|
-| PRD → epic.create → plan epic → work on epic | PRD → plan → work → done |
-| Task IDs: `c-1-abc.1`, `c-1-abc.2` | Task IDs: `task-1`, `task-2` |
-| `target: "c-1-abc"` (epic ID) required | No target needed - works on current plan |
+| Before                                       | After                                    |
+| -------------------------------------------- | ---------------------------------------- |
+| PRD → epic.create → plan epic → work on epic | PRD → plan → work → done                 |
+| Task IDs: `c-1-abc.1`, `c-1-abc.2`           | Task IDs: `task-1`, `task-2`             |
+| `target: "c-1-abc"` (epic ID) required       | No target needed - works on current plan |
 
 ### Removed
 
@@ -311,48 +349,52 @@
 - **Epic validation** - `crew.validate` now validates the plan, not an epic
 - **Epic-scoped task operations** - `task.ready` and `task.list` no longer require `epic` parameter
 - **Files deleted:**
-  - `crew/handlers/epic.ts` (~285 lines)
-  - `crew/handlers/checkpoint.ts` (~190 lines)
-  - Epic CRUD functions from `crew/store.ts` (~100 lines)
+   - `crew/handlers/epic.ts` (~285 lines)
+   - `crew/handlers/checkpoint.ts` (~190 lines)
+   - Epic CRUD functions from `crew/store.ts` (~100 lines)
 
 ### Changed
 
 - **`plan` action** - Now takes `prd` parameter instead of `target`:
-  ```typescript
-  // Before
-  pi_messenger({ action: "plan", target: "c-1-abc" })
-  
-  // After
-  pi_messenger({ action: "plan" })                    // Auto-discover PRD
-  pi_messenger({ action: "plan", prd: "docs/PRD.md" }) // Explicit path
-  ```
+
+   ```typescript
+   // Before
+   pi_messenger({ action: "plan", target: "c-1-abc" });
+
+   // After
+   pi_messenger({ action: "plan" }); // Auto-discover PRD
+   pi_messenger({ action: "plan", prd: "docs/PRD.md" }); // Explicit path
+   ```
 
 - **`work` action** - No longer requires target:
-  ```typescript
-  // Before
-  pi_messenger({ action: "work", target: "c-1-abc" })
-  
-  // After
-  pi_messenger({ action: "work" })                    // Work on current plan
-  pi_messenger({ action: "work", autonomous: true })  // Autonomous mode
-  ```
+
+   ```typescript
+   // Before
+   pi_messenger({ action: "work", target: "c-1-abc" });
+
+   // After
+   pi_messenger({ action: "work" }); // Work on current plan
+   pi_messenger({ action: "work", autonomous: true }); // Autonomous mode
+   ```
 
 - **`status` action** - Now shows plan progress instead of epic list
 
 - **Task IDs** - Simplified from `c-N-xxx.M` to `task-N`:
-  ```typescript
-  // Before
-  pi_messenger({ action: "task.show", id: "c-1-abc.1" })
-  
-  // After
-  pi_messenger({ action: "task.show", id: "task-1" })
-  ```
+
+   ```typescript
+   // Before
+   pi_messenger({ action: "task.show", id: "c-1-abc.1" });
+
+   // After
+   pi_messenger({ action: "task.show", id: "task-1" });
+   ```
 
 - **Crew overlay** - Now shows flat task list under PRD name (no epic grouping)
 
 ### Storage
 
 New simplified storage structure:
+
 ```
 .pi/messenger/crew/
 ├── plan.json              # Plan metadata (PRD path, progress)
@@ -381,34 +423,34 @@ New simplified storage structure:
 ### Changed
 
 - **Crew agent model assignments** - Optimized for cost and capability:
-  - Scouts (deep): `claude-opus-4-5` - repo-scout, github-scout, practice-scout
-  - Scouts (fast): `claude-haiku-4-5` - docs-scout, web-scout
-  - Analysts: `claude-opus-4-5` - gap-analyst, interview-generator, plan-sync
-  - Worker: `claude-opus-4-5` - quality code generation
-  - Reviewer: `openai/gpt-5.2-high` - diverse perspective for review
+   - Scouts (deep): `claude-opus-4-5` - repo-scout, github-scout, practice-scout
+   - Scouts (fast): `claude-haiku-4-5` - docs-scout, web-scout
+   - Analysts: `claude-opus-4-5` - gap-analyst, interview-generator, plan-sync
+   - Worker: `claude-opus-4-5` - quality code generation
+   - Reviewer: `openai/gpt-5.2-high` - diverse perspective for review
 
 - **Streamlined scout roster** - Reduced from 7 to 5 focused scouts:
-  - Removed: `crew-memory-scout` (memory system not implemented)
-  - Removed: `crew-epic-scout` (only useful for multi-epic projects)
-  - Removed: `crew-docs-gap-scout` (merged into gap-analyst)
-  - Renamed: `crew-github-scout` → `crew-web-scout` (web search focus)
-  - New: `crew-github-scout` (gh CLI integration, sparse checkouts)
+   - Removed: `crew-memory-scout` (memory system not implemented)
+   - Removed: `crew-epic-scout` (only useful for multi-epic projects)
+   - Removed: `crew-docs-gap-scout` (merged into gap-analyst)
+   - Renamed: `crew-github-scout` → `crew-web-scout` (web search focus)
+   - New: `crew-github-scout` (gh CLI integration, sparse checkouts)
 
 ### Added
 
 - **PRD auto-discovery** - Plan handler now finds and includes PRD/spec files:
-  - Searches: `PRD.md`, `SPEC.md`, `REQUIREMENTS.md`, `DESIGN.md`, `PLAN.md`
-  - Also checks `docs/` subdirectory
-  - Content included in all scout prompts (up to 50KB)
+   - Searches: `PRD.md`, `SPEC.md`, `REQUIREMENTS.md`, `DESIGN.md`, `PLAN.md`
+   - Also checks `docs/` subdirectory
+   - Content included in all scout prompts (up to 50KB)
 
 - **Review feedback loop** - Workers see previous review feedback on retry:
-  - `last_review` field added to Task type
-  - Review handler stores feedback after each review
-  - Worker prompt includes issues to fix on retry attempts
+   - `last_review` field added to Task type
+   - Review handler stores feedback after each review
+   - Worker prompt includes issues to fix on retry attempts
 
 - **Scout skip logic** - web-scout and github-scout assess relevance first:
-  - Can skip with explanation if not relevant to the feature
-  - Saves time and API costs for internal/simple features
+   - Can skip with explanation if not relevant to the feature
+   - Saves time and API costs for internal/simple features
 
 - **ARCHITECTURE.md** - New documentation with orchestration flow diagram, model summary, and agent inventory
 
@@ -432,9 +474,9 @@ New simplified storage structure:
 ### Added
 
 - **Planning Workflow Documentation** - README now explains how the `plan` action works:
-  - Diagram showing scouts (parallel) → gap-analyst → tasks with dependencies
-  - Clarifies that no special format is required for PRDs/specs
-  - Example of starting from a PRD with `idea: true`
+   - Diagram showing scouts (parallel) → gap-analyst → tasks with dependencies
+   - Clarifies that no special format is required for PRDs/specs
+   - Example of starting from a PRD with `idea: true`
 
 ## 0.6.0 - 2026-01-23
 
@@ -443,60 +485,61 @@ New simplified storage structure:
 **Crew: Task Orchestration** - A complete multi-agent task orchestration system for complex epics.
 
 - **Epics & Tasks** - Hierarchical work items with dependency tracking
-  - `epic.create`, `epic.show`, `epic.list`, `epic.close`, `epic.set_spec`
-  - `task.create`, `task.show`, `task.list`, `task.start`, `task.done`, `task.block`, `task.unblock`, `task.ready`, `task.reset`
+   - `epic.create`, `epic.show`, `epic.list`, `epic.close`, `epic.set_spec`
+   - `task.create`, `task.show`, `task.list`, `task.start`, `task.done`, `task.block`, `task.unblock`, `task.ready`, `task.reset`
 
 - **Planning** - Automated task breakdown with parallel scouts
-  - `plan` action runs 7 scout agents in parallel to analyze codebase
-  - Gap analyst synthesizes findings into task graph with dependencies
-  - Supports planning from idea (`idea: true`) or existing epic
+   - `plan` action runs 7 scout agents in parallel to analyze codebase
+   - Gap analyst synthesizes findings into task graph with dependencies
+   - Supports planning from idea (`idea: true`) or existing epic
 
 - **Work Execution** - Parallel worker spawning with concurrency control
-  - `work` action executes ready tasks (dependencies satisfied)
-  - `autonomous: true` flag for continuous wave execution until done/blocked
-  - Configurable concurrency for scouts (default: 4) and workers (default: 2)
-  - Auto-blocks tasks after `maxAttemptsPerTask` failures
+   - `work` action executes ready tasks (dependencies satisfied)
+   - `autonomous: true` flag for continuous wave execution until done/blocked
+   - Configurable concurrency for scouts (default: 4) and workers (default: 2)
+   - Auto-blocks tasks after `maxAttemptsPerTask` failures
 
 - **Code Review** - Automated review with verdicts
-  - `review` action for implementation (git diff) or plan review
-  - SHIP / NEEDS_WORK / MAJOR_RETHINK verdicts with detailed feedback
+   - `review` action for implementation (git diff) or plan review
+   - SHIP / NEEDS_WORK / MAJOR_RETHINK verdicts with detailed feedback
 
 - **Interview** - Clarification question generation
-  - `interview` action generates 20-40 deep questions
-  - Outputs JSON file for pi's interview tool
+   - `interview` action generates 20-40 deep questions
+   - Outputs JSON file for pi's interview tool
 
 - **Sync** - Downstream spec updates
-  - `sync` action updates dependent task specs after completion
+   - `sync` action updates dependent task specs after completion
 
 - **Checkpoints** - State save/restore for recovery
-  - `checkpoint.save`, `checkpoint.restore`, `checkpoint.delete`, `checkpoint.list`
+   - `checkpoint.save`, `checkpoint.restore`, `checkpoint.delete`, `checkpoint.list`
 
 - **Status & Maintenance**
-  - `crew.status` - Overall crew status with progress metrics
-  - `crew.validate` - Validate epic structure and dependencies
-  - `crew.agents` - List available crew agents by role
-  - `crew.install` / `crew.uninstall` - Agent management
+   - `crew.status` - Overall crew status with progress metrics
+   - `crew.validate` - Validate epic structure and dependencies
+   - `crew.agents` - List available crew agents by role
+   - `crew.install` / `crew.uninstall` - Agent management
 
 - **Crew Overlay Tab** - Visual epic/task tree in `/messenger` overlay
-  - Tab bar shows "Crew (N)" with active epic count
-  - Expand/collapse epics with Enter key
-  - Status icons: ✓ done, ● in_progress, ○ todo, ✗ blocked
-  - Shows assigned agent, dependencies, and block reasons
-  - Autonomous mode status bar: wave number, progress, ready count, timer
+   - Tab bar shows "Crew (N)" with active epic count
+   - Expand/collapse epics with Enter key
+   - Status icons: ✓ done, ● in_progress, ○ todo, ✗ blocked
+   - Shows assigned agent, dependencies, and block reasons
+   - Autonomous mode status bar: wave number, progress, ready count, timer
 
 - **12 Crew Agents** - Auto-installed on first use of `plan`, `work`, or `review`
-  - 7 scouts: repo, practice, docs, github, epic, docs-gap, memory
-  - Plus: worker, reviewer, gap-analyst, interview-generator, plan-sync
+   - 7 scouts: repo, practice, docs, github, epic, docs-gap, memory
+   - Plus: worker, reviewer, gap-analyst, interview-generator, plan-sync
 
 - **Action-based API** - Consistent `action` parameter pattern
-  - Example: `pi_messenger({ action: "epic.create", title: "OAuth Login" })`
-  - 24 new crew actions, 38 total actions through one tool
+   - Example: `pi_messenger({ action: "epic.create", title: "OAuth Login" })`
+   - 24 new crew actions, 38 total actions through one tool
 
 ### Storage
 
 New directory `.pi/messenger/crew/` (per-project):
+
 - `epics/*.json` - Epic metadata
-- `specs/*.md` - Epic specifications  
+- `specs/*.md` - Epic specifications
 - `tasks/*.json` - Task metadata
 - `tasks/*.md` - Task specifications
 - `blocks/*.md` - Block context for blocked tasks
@@ -507,26 +550,27 @@ New directory `.pi/messenger/crew/` (per-project):
 ### Configuration
 
 New `crew` section in `~/.pi/agent/pi-messenger.json`:
+
 ```json
 {
-  "crew": {
-    "concurrency": { "scouts": 4, "workers": 2 },
-    "review": { "enabled": true, "maxIterations": 3 },
-    "work": { "maxAttemptsPerTask": 5, "maxWaves": 50 },
-    "artifacts": { "enabled": true, "cleanupDays": 7 }
-  }
+	"crew": {
+		"concurrency": { "scouts": 4, "workers": 2 },
+		"review": { "enabled": true, "maxIterations": 3 },
+		"work": { "maxAttemptsPerTask": 5, "maxWaves": 50 },
+		"artifacts": { "enabled": true, "cleanupDays": 7 }
+	}
 }
 ```
 
 ### Fixed
 
 - 12 bugs fixed during implementation review:
-  - **Critical:** `loadCrewConfig` called with wrong path in plan.ts and work.ts
-  - Double-counting bug in work.ts (tasks in both `failed` and `blocked` arrays)
-  - O(n²) complexity in plan.ts task creation loop
-  - O(n²) complexity in agents.ts worker spawn loop
-  - Invalid status icon map in epic.ts (missing `blocked`, `archived`)
-  - Various unused imports and variables cleaned up
+   - **Critical:** `loadCrewConfig` called with wrong path in plan.ts and work.ts
+   - Double-counting bug in work.ts (tasks in both `failed` and `blocked` arrays)
+   - O(n²) complexity in plan.ts task creation loop
+   - O(n²) complexity in agents.ts worker spawn loop
+   - Invalid status icon map in epic.ts (missing `blocked`, `archived`)
+   - Various unused imports and variables cleaned up
 
 ---
 
@@ -537,9 +581,9 @@ New `crew` section in `~/.pi/agent/pi-messenger.json`:
 - **Path-based auto-register** - New `autoRegisterPaths` config option allows specifying folders where agents should auto-join the mesh, instead of global auto-register. Supports `~` expansion and glob patterns (`~/work/*`).
 - **Folder scoping** - New `scopeToFolder` config option limits agent visibility to the same working directory. When enabled, agents only see other agents in the same folder (broadcasts are scoped, but direct messaging by name still works).
 - **Auto-register path management (tool)** - New `autoRegisterPath` parameter:
-  - `pi_messenger({ autoRegisterPath: "add" })` - Add current folder to auto-register list
-  - `pi_messenger({ autoRegisterPath: "remove" })` - Remove current folder
-  - `pi_messenger({ autoRegisterPath: "list" })` - Show all configured paths
+   - `pi_messenger({ autoRegisterPath: "add" })` - Add current folder to auto-register list
+   - `pi_messenger({ autoRegisterPath: "remove" })` - Remove current folder
+   - `pi_messenger({ autoRegisterPath: "list" })` - Show all configured paths
 - **Config TUI command** - `/messenger config` opens an overlay to manage auto-register paths with keyboard navigation.
 
 ### Changed
@@ -571,6 +615,7 @@ New `crew` section in `~/.pi/agent/pi-messenger.json`:
 ### Storage
 
 New files in `~/.pi/agent/messenger/`:
+
 - `claims.json` - Active task claims by spec
 - `completions.json` - Completed tasks by spec
 - `swarm.lock` - Atomic lock for claim/complete mutations
@@ -601,9 +646,9 @@ New files in `~/.pi/agent/messenger/`:
 - **Agent differentiation** - Agents are now easier to distinguish when multiple work in the same folder
 - **Git branch detection** - Automatically detects and displays git branch (or short SHA for detached HEAD)
 - **Adaptive display modes** - List and overlay views adapt based on agent context:
-  - Same folder + branch: Compact view, branch in header
-  - Same folder, different branches: Shows branch per agent
-  - Different folders: Shows folder per agent
+   - Same folder + branch: Compact view, branch in header
+   - Same folder, different branches: Shows branch per agent
+   - Different folders: Shows folder per agent
 - **Location awareness** - Status command now shows `Location: folder (branch)`
 - **Enhanced context** - Registration and first-contact messages include location info
 - **Improved reservation display** - Uses 🔒 prefix, truncates long paths from the left preserving filename
@@ -652,9 +697,9 @@ New files in `~/.pi/agent/messenger/`:
 - **Agent colors** - Each agent name gets a consistent color based on a hash of their name. Makes it easy to distinguish agents in conversations.
 - **Agent details** - When viewing a conversation with no messages, shows the agent's working directory, model, and file reservations.
 - **Context injection** - Agents now receive orientation on startup and helpful context with messages:
-  - Registration message explaining multi-agent environment (once per session)
-  - Reply hint showing how to respond to messages
-  - Sender details (cwd, model) on first contact from each agent
+   - Registration message explaining multi-agent environment (once per session)
+   - Reply hint showing how to respond to messages
+   - Sender details (cwd, model) on first contact from each agent
 - **Configuration file** - `~/.pi/agent/pi-messenger.json` for customizing context injection. Supports `contextMode: "full" | "minimal" | "none"`.
 
 ### Changed
