@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 斜杠命令描述跟随 `/language` 实时切换(此前 import 时快照固化,切换只重建列表、文字停留 OS 语言);`/language` 文本模式补 `refreshCommands()`,ACP/RPC 客户端重新广告命令列表。
+
 ## [1.1.19] - 2026-09-22
 
 - 内嵌 TTT 编辑器修复:无按键移动不再自动弹出右键菜单(按下沿检测,免疫终端 SGR release 残留位);About/--help 品牌面清理(上游链接移除);内嵌终端鼠标按钮映射与 tcell v3 语义对齐。

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 版本线推进;`__piNatives` 哨兵派生规则与 set-version 对齐(dots-only → 全部非字母数字),prerelease 下不再推出非法 Rust 标识符。
+
 ## [1.1.19] - 2026-09-22
 
 - 版本线推进;本版无独立用户可见变化。
@@ -167,14 +169,14 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Breaking Changes
 
 - **Queue API replaced with steer/followUp**: The `queueMessage()` method has been split into two methods with different delivery semantics ([#403](https://github.com/badlogic/pi-mono/issues/403)):
-  - `steer(msg)`: Interrupts the agent mid-run. Delivered after current tool execution, skips remaining tools.
-  - `followUp(msg)`: Waits until the agent finishes. Delivered only when there are no more tool calls or steering messages.
+   - `steer(msg)`: Interrupts the agent mid-run. Delivered after current tool execution, skips remaining tools.
+   - `followUp(msg)`: Waits until the agent finishes. Delivered only when there are no more tool calls or steering messages.
 - **Queue mode renamed**: `queueMode` option renamed to `steeringMode`. Added new `followUpMode` option. Both control whether messages are delivered one-at-a-time or all at once.
 - **AgentLoopConfig callbacks renamed**: `getQueuedMessages` split into `getSteeringMessages` and `getFollowUpMessages`.
 - **Agent methods renamed**:
-  - `queueMessage()` → `steer()` and `followUp()`
-  - `clearMessageQueue()` → `clearSteeringQueue()`, `clearFollowUpQueue()`, `clearAllQueues()`
-  - `setQueueMode()`/`getQueueMode()` → `setSteeringMode()`/`getSteeringMode()` and `setFollowUpMode()`/`getFollowUpMode()`
+   - `queueMessage()` → `steer()` and `followUp()`
+   - `clearMessageQueue()` → `clearSteeringQueue()`, `clearFollowUpQueue()`, `clearAllQueues()`
+   - `setQueueMode()`/`getQueueMode()` → `setSteeringMode()`/`getSteeringMode()` and `setFollowUpMode()`/`getFollowUpMode()`
 
 ### Fixed
 
@@ -186,9 +188,9 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 - **Transport abstraction removed**: `ProviderTransport`, `AppTransport`, and `AgentTransport` interface have been removed. Use the `streamFn` option directly for custom streaming implementations.
 - **Agent options renamed**:
-  - `transport` → removed (use `streamFn` instead)
-  - `messageTransformer` → `convertToLlm`
-  - `preprocessor` → `transformContext`
+   - `transport` → removed (use `streamFn` instead)
+   - `messageTransformer` → `convertToLlm`
+   - `preprocessor` → `transformContext`
 - **`AppMessage` renamed to `AgentMessage`**: All references to `AppMessage` have been renamed to `AgentMessage` for consistency.
 - **`CustomMessages` renamed to `CustomAgentMessages`**: The declaration merging interface has been renamed.
 - **`UserMessageWithAttachments` and `Attachment` types removed**: Attachment handling is now the responsibility of the `convertToLlm` function.
