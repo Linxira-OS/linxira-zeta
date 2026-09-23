@@ -68,6 +68,7 @@ var zhLabels = map[string]string{
 	"Default":            "默认",
 	"Settings applied":   "已应用设置",
 	"Settings cancelled": "已取消",
+	"Invalid value for":  "无效值：",
 }
 
 // zhFieldLabels translates setting-field labels. Keyed by the English label

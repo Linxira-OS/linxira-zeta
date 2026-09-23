@@ -420,7 +420,7 @@ func (v *settingsView) apply() {
 		}
 	}
 	if len(bad) > 0 {
-		v.setStatus("Invalid value for " + strings.Join(bad, ", "))
+		v.setStatus(t("Invalid value for") + " " + strings.Join(bad, ", "))
 		return
 	}
 	v.commitTo(v.app.Settings)
