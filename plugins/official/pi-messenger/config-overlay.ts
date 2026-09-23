@@ -8,164 +8,168 @@ import type { Theme } from "@linxiraos/zeta";
 import { getAutoRegisterPaths, saveAutoRegisterPaths, matchesAutoRegisterPath } from "./config.ts";
 
 export class MessengerConfigOverlay implements Component, Focusable {
-  readonly width = 60;
-  focused = false;
+	readonly width = 60;
+	focused = false;
 
-  private paths: string[];
-  private selectedIndex = 0;
-  private dirty = false;
-  private statusMessage = "";
+	private paths: string[];
+	private selectedIndex = 0;
+	private dirty = false;
+	private statusMessage = "";
 
-  constructor(
-    private tui: TUI,
-    private theme: Theme,
-    private done: () => void,
-    private cwd: string,
-  ) {
-    this.paths = getAutoRegisterPaths();
-  }
+	constructor(
+		private tui: TUI,
+		private theme: Theme,
+		private done: () => void,
+		private cwd: string,
+	) {
+		this.paths = getAutoRegisterPaths();
+	}
 
-  handleInput(data: string): void {
-    if (matchesKey(data, "escape") || matchesKey(data, "q")) {
-      if (this.dirty) {
-        saveAutoRegisterPaths(this.paths);
-      }
-      this.done();
-      return;
-    }
+	handleInput(data: string): void {
+		if (matchesKey(data, "escape") || matchesKey(data, "q")) {
+			if (this.dirty) {
+				saveAutoRegisterPaths(this.paths);
+			}
+			this.done();
+			return;
+		}
 
-    if (matchesKey(data, "a")) {
-      this.addCurrentPath();
-      this.tui.requestRender();
-      return;
-    }
+		if (matchesKey(data, "a")) {
+			this.addCurrentPath();
+			this.tui.requestRender();
+			return;
+		}
 
-    if (matchesKey(data, "d") || matchesKey(data, "backspace")) {
-      this.deleteSelected();
-      this.tui.requestRender();
-      return;
-    }
+		if (matchesKey(data, "d") || matchesKey(data, "backspace")) {
+			this.deleteSelected();
+			this.tui.requestRender();
+			return;
+		}
 
-    if (matchesKey(data, "up")) {
-      if (this.paths.length > 0) {
-        this.selectedIndex = Math.max(0, this.selectedIndex - 1);
-        this.tui.requestRender();
-      }
-      return;
-    }
+		if (matchesKey(data, "up")) {
+			if (this.paths.length > 0) {
+				this.selectedIndex = Math.max(0, this.selectedIndex - 1);
+				this.tui.requestRender();
+			}
+			return;
+		}
 
-    if (matchesKey(data, "down")) {
-      if (this.paths.length > 0) {
-        this.selectedIndex = Math.min(this.paths.length - 1, this.selectedIndex + 1);
-        this.tui.requestRender();
-      }
-      return;
-    }
-  }
+		if (matchesKey(data, "down")) {
+			if (this.paths.length > 0) {
+				this.selectedIndex = Math.min(this.paths.length - 1, this.selectedIndex + 1);
+				this.tui.requestRender();
+			}
+			return;
+		}
+	}
 
-  private addCurrentPath(): void {
-    if (this.paths.includes(this.cwd)) {
-      this.statusMessage = "Already in list";
-      return;
-    }
-    this.paths.push(this.cwd);
-    this.selectedIndex = this.paths.length - 1;
-    this.dirty = true;
-    this.statusMessage = "Added current folder";
-  }
+	private addCurrentPath(): void {
+		if (this.paths.includes(this.cwd)) {
+			this.statusMessage = "Already in list";
+			return;
+		}
+		this.paths.push(this.cwd);
+		this.selectedIndex = this.paths.length - 1;
+		this.dirty = true;
+		this.statusMessage = "Added current folder";
+	}
 
-  private deleteSelected(): void {
-    if (this.paths.length === 0) return;
-    
-    const removed = this.paths[this.selectedIndex];
-    this.paths.splice(this.selectedIndex, 1);
-    this.selectedIndex = Math.min(this.selectedIndex, Math.max(0, this.paths.length - 1));
-    this.dirty = true;
-    this.statusMessage = `Removed: ${removed.split("/").pop()}`;
-  }
+	private deleteSelected(): void {
+		if (this.paths.length === 0) return;
 
-  render(_width: number): string[] {
-    const w = this.width;
-    const innerW = w - 2;
-    const lines: string[] = [];
-    const isCurrentInList = matchesAutoRegisterPath(this.cwd, this.paths);
+		const removed = this.paths[this.selectedIndex];
+		this.paths.splice(this.selectedIndex, 1);
+		this.selectedIndex = Math.min(this.selectedIndex, Math.max(0, this.paths.length - 1));
+		this.dirty = true;
+		this.statusMessage = `Removed: ${removed.split("/").pop()}`;
+	}
 
-    const border = (s: string) => this.theme.fg("dim", s);
-    const pad = (s: string, len: number) => s + " ".repeat(Math.max(0, len - visibleWidth(s)));
-    const row = (content: string) => border("│") + pad(" " + content, innerW) + border("│");
-    const emptyRow = () => border("│") + " ".repeat(innerW) + border("│");
+	render(_width: number): string[] {
+		const w = this.width;
+		const innerW = w - 2;
+		const lines: string[] = [];
+		const isCurrentInList = matchesAutoRegisterPath(this.cwd, this.paths);
 
-    // Top border with title
-    const titleText = " Messenger Config ";
-    const borderLen = innerW - titleText.length;
-    const leftBorder = Math.floor(borderLen / 2);
-    const rightBorder = borderLen - leftBorder;
-    lines.push(border("╭" + "─".repeat(leftBorder)) + this.theme.fg("accent", titleText) + border("─".repeat(rightBorder) + "╮"));
+		const border = (s: string) => this.theme.fg("dim", s);
+		const pad = (s: string, len: number) => s + " ".repeat(Math.max(0, len - visibleWidth(s)));
+		const row = (content: string) => border("│") + pad(" " + content, innerW) + border("│");
+		const emptyRow = () => border("│") + " ".repeat(innerW) + border("│");
 
-    lines.push(emptyRow());
+		// Top border with title
+		const titleText = " Messenger Config ";
+		const borderLen = innerW - titleText.length;
+		const leftBorder = Math.floor(borderLen / 2);
+		const rightBorder = borderLen - leftBorder;
+		lines.push(
+			border("╭" + "─".repeat(leftBorder)) +
+				this.theme.fg("accent", titleText) +
+				border("─".repeat(rightBorder) + "╮"),
+		);
 
-    // Current folder status
-    const cwdDisplay = truncateToWidth(this.cwd, Math.max(10, innerW - 20));
-    lines.push(row(`Current folder: ${cwdDisplay}`));
-    const statusColor = isCurrentInList ? "accent" : "dim";
-    lines.push(row(`Auto-register: ${this.theme.fg(statusColor, isCurrentInList ? "YES" : "NO")}`));
+		lines.push(emptyRow());
 
-    lines.push(emptyRow());
+		// Current folder status
+		const cwdDisplay = truncateToWidth(this.cwd, Math.max(10, innerW - 20));
+		lines.push(row(`Current folder: ${cwdDisplay}`));
+		const statusColor = isCurrentInList ? "accent" : "dim";
+		lines.push(row(`Auto-register: ${this.theme.fg(statusColor, isCurrentInList ? "YES" : "NO")}`));
 
-    // Divider
-    lines.push(border("├" + "─".repeat(innerW) + "┤"));
+		lines.push(emptyRow());
 
-    lines.push(emptyRow());
-    lines.push(row(this.theme.fg("dim", "Auto-register paths:")));
-    lines.push(emptyRow());
+		// Divider
+		lines.push(border("├" + "─".repeat(innerW) + "┤"));
 
-    if (this.paths.length === 0) {
-      lines.push(row(this.theme.fg("dim", "  (none configured)")));
-    } else {
-      for (let i = 0; i < this.paths.length; i++) {
-        const path = this.paths[i];
-        const isSelected = i === this.selectedIndex;
-        const isCurrent = path === this.cwd;
-        
-        const marker = isSelected ? this.theme.fg("accent", "▸") : " ";
-        const suffix = isCurrent ? this.theme.fg("dim", " (current)") : "";
-        const pathDisplay = truncateToWidth(path, Math.max(10, innerW - 15));
-        
-        if (isSelected) {
-          lines.push(row(`${marker} ${this.theme.fg("accent", pathDisplay)}${suffix}`));
-        } else {
-          lines.push(row(`${marker} ${pathDisplay}${suffix}`));
-        }
-      }
-    }
+		lines.push(emptyRow());
+		lines.push(row(this.theme.fg("dim", "Auto-register paths:")));
+		lines.push(emptyRow());
 
-    lines.push(emptyRow());
+		if (this.paths.length === 0) {
+			lines.push(row(this.theme.fg("dim", "  (none configured)")));
+		} else {
+			for (let i = 0; i < this.paths.length; i++) {
+				const path = this.paths[i];
+				const isSelected = i === this.selectedIndex;
+				const isCurrent = path === this.cwd;
 
-    // Divider
-    lines.push(border("├" + "─".repeat(innerW) + "┤"));
+				const marker = isSelected ? this.theme.fg("accent", "▸") : " ";
+				const suffix = isCurrent ? this.theme.fg("dim", " (current)") : "";
+				const pathDisplay = truncateToWidth(path, Math.max(10, innerW - 15));
 
-    lines.push(emptyRow());
+				if (isSelected) {
+					lines.push(row(`${marker} ${this.theme.fg("accent", pathDisplay)}${suffix}`));
+				} else {
+					lines.push(row(`${marker} ${pathDisplay}${suffix}`));
+				}
+			}
+		}
 
-    // Status message
-    if (this.statusMessage) {
-      lines.push(row(this.theme.fg("accent", this.statusMessage)));
-    } else {
-      lines.push(emptyRow());
-    }
+		lines.push(emptyRow());
 
-    // Help
-    const help = "a add  d delete  ↑↓ navigate  Esc save & close";
-    lines.push(row(this.theme.fg("dim", help)));
+		// Divider
+		lines.push(border("├" + "─".repeat(innerW) + "┤"));
 
-    // Bottom border
-    lines.push(border("╰" + "─".repeat(innerW) + "╯"));
+		lines.push(emptyRow());
 
-    return lines;
-  }
+		// Status message
+		if (this.statusMessage) {
+			lines.push(row(this.theme.fg("accent", this.statusMessage)));
+		} else {
+			lines.push(emptyRow());
+		}
 
-  invalidate(): void {
-    this.statusMessage = "";
-  }
+		// Help
+		const help = "a add  d delete  ↑↓ navigate  Esc save & close";
+		lines.push(row(this.theme.fg("dim", help)));
 
-  dispose(): void {}
+		// Bottom border
+		lines.push(border("╰" + "─".repeat(innerW) + "╯"));
+
+		return lines;
+	}
+
+	invalidate(): void {
+		this.statusMessage = "";
+	}
+
+	dispose(): void {}
 }

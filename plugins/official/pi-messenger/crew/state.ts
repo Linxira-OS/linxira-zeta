@@ -9,11 +9,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 export function normalizeCwd(cwd: string): string {
-  try {
-    return fs.realpathSync.native(cwd);
-  } catch {
-    return path.resolve(cwd);
-  }
+	try {
+		return fs.realpathSync.native(cwd);
+	} catch {
+		return path.resolve(cwd);
+	}
 }
 
 export * from "./state-autonomous.ts";

@@ -18,7 +18,7 @@ You implement a single task. Your prompt contains TASK_ID.
 Join the mesh before any other pi_messenger calls:
 
 ```typescript
-pi_messenger({ action: "join" })
+pi_messenger({ action: "join" });
 ```
 
 ## Phase 2: Re-anchor (CRITICAL)
@@ -26,13 +26,13 @@ pi_messenger({ action: "join" })
 Read the task spec to understand what to build:
 
 ```typescript
-pi_messenger({ action: "task.show", id: "<TASK_ID>" })
+pi_messenger({ action: "task.show", id: "<TASK_ID>" });
 ```
 
 Read the task spec file for detailed requirements:
 
 ```typescript
-read({ path: ".pi/messenger/crew/tasks/<TASK_ID>.md" })
+read({ path: ".pi/messenger/crew/tasks/<TASK_ID>.md" });
 ```
 
 ## Phase 2.5: Load Relevant Skills
@@ -42,7 +42,7 @@ If your task prompt includes an **Available Skills** section, read skills that m
 You already have every `pi_messenger` action you need in this prompt, so do not load Crew orchestration references. If skills are marked **Recommended for this task**, read those first.
 
 ```typescript
-read({ path: "<skill-path-from-the-list>" })
+read({ path: "<skill-path-from-the-list>" });
 ```
 
 Skip this phase if no Available Skills section is present or no skills match your implementation work.
@@ -50,13 +50,13 @@ Skip this phase if no Available Skills section is present or no skills match you
 ## Phase 3: Start Task & Reserve Files
 
 ```typescript
-pi_messenger({ action: "task.start", id: "<TASK_ID>" })
+pi_messenger({ action: "task.start", id: "<TASK_ID>" });
 ```
 
 Identify files you'll modify and reserve them:
 
 ```typescript
-pi_messenger({ action: "reserve", paths: ["src/path/to/files/"], reason: "<TASK_ID>" })
+pi_messenger({ action: "reserve", paths: ["src/path/to/files/"], reason: "<TASK_ID>" });
 ```
 
 ## Phase 4: Implement
@@ -69,7 +69,7 @@ pi_messenger({ action: "reserve", paths: ["src/path/to/files/"], reason: "<TASK_
 **Progress Logging:** After each significant step above, log what you did:
 
 ```typescript
-pi_messenger({ action: "task.progress", id: "<TASK_ID>", message: "Added JWT validation to src/auth/middleware.ts" })
+pi_messenger({ action: "task.progress", id: "<TASK_ID>", message: "Added JWT validation to src/auth/middleware.ts" });
 ```
 
 Keep entries concise — one line per step. This helps the next agent pick up where you left off if the task gets interrupted.
@@ -88,26 +88,27 @@ Task: <TASK_ID>"
 Release your reservations:
 
 ```typescript
-pi_messenger({ action: "release" })
+pi_messenger({ action: "release" });
 ```
 
 Mark the task complete with evidence:
 
 ```typescript
 pi_messenger({
-  action: "task.done",
-  id: "<TASK_ID>",
-  summary: "Brief description of what was implemented",
-  evidence: {
-    commits: ["<commit-sha>"],
-    tests: ["npm test"]
-  }
-})
+	action: "task.done",
+	id: "<TASK_ID>",
+	summary: "Brief description of what was implemented",
+	evidence: {
+		commits: ["<commit-sha>"],
+		tests: ["npm test"],
+	},
+});
 ```
 
 ## Shutdown Handling
 
 If you receive a message saying "SHUTDOWN REQUESTED":
+
 1. Stop what you're doing
 2. Release reservations: `pi_messenger({ action: "release" })`
 3. Do NOT mark the task as done — leave it as in_progress for retry

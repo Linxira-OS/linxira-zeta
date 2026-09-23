@@ -39,42 +39,47 @@ export function registerEditorCommand(pi: ExtensionAPI): void {
 	pi.registerCommand("editor", {
 		description: "Open the TTT editor on the current workspace (hands off cwd, repo and session)",
 		handler: async (_args: string, ctx: ExtensionCommandContext) => {
-			const cwd = ctx.cwd;
-			const sessionFile = ctx.sessionManager?.getSessionFile?.() ?? undefined;
-			const handoff = await writeHandoff({
-				cwd,
-				gitRoot: detectGitRoot(cwd),
-				sessionFile,
-				from: "zeta",
-			});
-
-			const autoInstall = ctx.settings?.get("editor.autoInstall") ?? true;
-			const resolved = ensureEditorBinary(autoInstall === true);
-			if (!resolved.binary) {
-				pi.sendMessage(
-					{ customType: "editor_handoff", content: resolved.error ?? "The editor is unavailable.", display: true },
-					{ deliverAs: "aside" },
-				);
-				return;
-			}
-			const binary = resolved.binary;;
-			// The editor reads the handoff on startup; cwd is passed as the
-			// positional argument so a binary older than the handoff support
-			// still opens the right directory.
-			const child = cp.spawn(binary, [cwd], {
-				detached: true,
-				stdio: "ignore",
-				cwd,
-			});
-			child.unref();
-
-			const parts = [`Opened the editor on ${cwd}`];
-			if (sessionFile) parts.push(`session ${path.basename(sessionFile)}`);
-			if (resolved.note) parts.push(resolved.note);
-			pi.sendMessage(
-				{ customType: "editor_handoff", content: `${parts.join(" — ")}.`, display: true },
-				{ deliverAs: "aside" },
-			);
+			await switchToEditor(ctx);
 		},
 	});
+}
+
+/**
+ * Perform the switch: write the handoff and spawn the editor. Shared by the
+ * /editor command and the header button so both honour the same settings and
+ * report the same way.
+ */
+export async function switchToEditor(ctx: ExtensionCommandContext): Promise<void> {
+	const cwd = ctx.cwd;
+	const sessionFile =
+		(ctx.settings?.get("editor.handoffSession") ?? true) === true
+			? (ctx.sessionManager?.getSessionFile?.() ?? undefined)
+			: undefined;
+	const handoff = await writeHandoff({
+		cwd,
+		gitRoot: detectGitRoot(cwd),
+		sessionFile,
+		from: "zeta",
+	});
+
+	const autoInstall = ctx.settings?.get("editor.autoInstall") ?? true;
+	const resolved = ensureEditorBinary(autoInstall === true);
+	if (!resolved.binary) {
+		ctx.ui?.notify?.(resolved.error ?? "The editor is unavailable.", "error");
+		return;
+	}
+	// The editor reads the handoff on startup; cwd is passed positionally so a
+	// binary older than handoff support still opens the right directory.
+	const child = cp.spawn(resolved.binary, [cwd], { detached: true, stdio: "ignore", cwd });
+	child.unref();
+
+	const parts = [`Opened the editor on ${cwd}`];
+	if (sessionFile) parts.push(`session ${path.basename(sessionFile)}`);
+	if (resolved.note) parts.push(resolved.note);
+	ctx.ui?.notify?.(`${parts.join(" — ")}.`, "info");
+}
+
+/** Entry point for the header button (no slash-command arguments). */
+export async function switchToEditorFromUi(ctx: ExtensionCommandContext): Promise<void> {
+	await switchToEditor(ctx);
 }
