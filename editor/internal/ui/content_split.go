@@ -162,7 +162,9 @@ func (cs *ContentSplitWidget) HandleEvent(ev tcell.Event) EventResult {
 	}
 
 	if cs.capturedChild != nil {
-		if btn == tcell.ButtonNone {
+		// Falling edge of Button1: stale btnsDown bits can suppress
+		// ButtonNone forever (v1.1.19 damage).
+		if btn&tcell.Button1 == 0 {
 			cs.capturedChild.HandleEvent(ev)
 			cs.capturedChild = nil
 			return EventConsumed

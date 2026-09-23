@@ -292,7 +292,9 @@ func (t *TabBarWidget) HandleEvent(ev tcell.Event) EventResult {
 
 	slog.Debug("tabBar", "mx", mx, "my", my, "btn", btn, "rect", r, "hasMore", t.MoreButton != nil)
 
-	if btn == tcell.ButtonNone && t.drag.Active() {
+	// Drag ends on the falling edge of Button1 (its only initiator): stale
+	// btnsDown bits can suppress ButtonNone forever (v1.1.19 damage).
+	if btn&tcell.Button1 == 0 && t.drag.Active() {
 		t.wasPressed = false
 		t.cancelAutoScroll()
 		if !t.validateGestureSource() {
@@ -361,7 +363,10 @@ func (t *TabBarWidget) HandleEvent(ev tcell.Event) EventResult {
 	}
 
 	// Mouse release: only close if released at the exact same screen position as mouse-down
-	if btn == tcell.ButtonNone {
+	// Release handling on the falling edge of Button1: stale btnsDown bits
+	// can suppress ButtonNone forever, leaving wasPressed latched and the
+	// close-click dead (v1.1.19 damage).
+	if btn&tcell.Button1 == 0 {
 		t.wasPressed = false
 		if t.closeDownX >= 0 && mx == t.closeDownX && my == t.closeDownY {
 			t.closeDownX = -1

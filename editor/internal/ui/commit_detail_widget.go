@@ -1482,8 +1482,12 @@ func (d *CommitDetailWidget) HandleEvent(ev tcell.Event) EventResult {
 			}
 			primaryPressed := buttons&tcell.Button1 != 0
 			freshPrimaryPress := primaryPressed && !d.primaryPressed
-			if buttons == tcell.ButtonNone {
+			if d.primaryPressed && buttons&tcell.Button1 == 0 {
+				// Falling edge of Button1: stale btnsDown bits can suppress
+				// ButtonNone forever (v1.1.19 damage).
 				d.primaryPressed = false
+			}
+			if buttons == tcell.ButtonNone {
 				if d.disclosurePressed {
 					d.disclosurePressed = false
 					return EventConsumed
@@ -1547,7 +1551,8 @@ func (d *CommitDetailWidget) HandleEvent(ev tcell.Event) EventResult {
 					return EventCaptured
 				}
 			}
-			if d.selecting && buttons == tcell.ButtonNone {
+			if d.selecting && buttons&tcell.Button1 == 0 {
+				// Falling edge of Button1 (v1.1.19 damage; see above).
 				d.selecting = false
 				start, end := d.selection.Range()
 				if start.Line == end.Line && start.Col == end.Col {

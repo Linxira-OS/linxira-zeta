@@ -224,7 +224,9 @@ func (m *MarkdownWidget) HandleEvent(ev tcell.Event) EventResult {
 			}
 		}
 
-		if btn == tcell.ButtonNone && m.dragging {
+		// Drag ends on the falling edge of Button1: stale btnsDown bits can
+		// suppress ButtonNone forever (v1.1.19 damage).
+		if btn&tcell.Button1 == 0 && m.dragging {
 			m.dragging = false
 			if m.sel.Anchor == m.selEnd {
 				m.sel.Clear()

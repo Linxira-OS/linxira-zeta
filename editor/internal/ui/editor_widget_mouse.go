@@ -146,7 +146,11 @@ func (e *EditorPaneWidget) handleMouse(mev *tcell.EventMouse) EventResult {
 		e.scrollViewport()
 		return EventCaptured
 	}
-	if btn == tcell.ButtonNone && e.mouseDown {
+	if e.mouseDown && btn&tcell.Button1 == 0 {
+		// Falling edge of the initiating button: stale btnsDown bits (quirky
+		// SGR releases) mean Buttons() may never be ButtonNone; an absolute
+		// test here pinned mouseDown forever, deadlocking the editor pane
+		// (v1.1.19 damage).
 		e.mouseDown = false
 		if mx == e.mouseDownX && my == e.mouseDownY && inGutter {
 			bufLine := e.screenToBufferLine(my - r.Y)

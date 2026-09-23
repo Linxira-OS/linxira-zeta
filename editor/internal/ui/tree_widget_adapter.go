@@ -155,7 +155,9 @@ func (a *WidgetAdapter) CursorPosition() (int, int, bool) {
 func (a *WidgetAdapter) HandleEvent(ev tcell.Event) EventResult {
 	if tev, ok := ev.(*tcell.EventMouse); ok && a.capturedWidget != nil {
 		result := a.capturedWidget.HandleEvent(ev)
-		if tev.Buttons() == tcell.ButtonNone {
+		// Falling edge of Button1: stale btnsDown bits can suppress
+		// ButtonNone forever (v1.1.19 damage).
+		if tev.Buttons()&tcell.Button1 == 0 {
 			a.capturedWidget = nil
 		}
 		return result

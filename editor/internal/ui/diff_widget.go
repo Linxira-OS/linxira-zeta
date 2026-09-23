@@ -1054,7 +1054,9 @@ func (d *DiffViewWidget) HandleEvent(ev tcell.Event) EventResult {
 		if overGap {
 			d.hoveredGap = hoveredGap
 		}
-		if btn == tcell.ButtonNone {
+		// Falling edge of Button1: stale btnsDown bits can suppress
+		// ButtonNone forever (v1.1.19 damage).
+		if btn&tcell.Button1 == 0 {
 			d.primaryPressed = false
 		}
 		if btn&tcell.Button1 != 0 {
@@ -1093,7 +1095,8 @@ func (d *DiffViewWidget) HandleEvent(ev tcell.Event) EventResult {
 				return EventCaptured
 			}
 		}
-		if d.selecting && btn == tcell.ButtonNone {
+		if d.selecting && btn&tcell.Button1 == 0 {
+			// Falling edge of Button1 (v1.1.19 damage; see above).
 			d.selecting = false
 			start, end := d.selection.Range()
 			if start.Line == end.Line && start.Col == end.Col {

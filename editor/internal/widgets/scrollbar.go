@@ -106,7 +106,9 @@ func (s *scrollbarInteraction) configure(r scrollRange, geometry scrollbarGeomet
 
 func (s *scrollbarInteraction) handlePointer(position int, inside bool, buttons tcell.ButtonMask) (int, EventResult) {
 	if s.dragging {
-		if buttons == tcell.ButtonNone {
+		if buttons&tcell.Button1 == 0 {
+			// Falling edge of Button1: stale btnsDown bits can suppress
+			// ButtonNone forever (v1.1.19 damage).
 			s.dragging = false
 			return s.rangeModel.offset, EventConsumed
 		}

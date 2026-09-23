@@ -121,7 +121,9 @@ func (s *SidebarWidget) captureChild(child Widget) {
 func (s *SidebarWidget) HandleEvent(ev tcell.Event) EventResult {
 	if s.capturedChild != nil {
 		result := s.capturedChild.HandleEvent(ev)
-		if tev, ok := ev.(*tcell.EventMouse); ok && tev.Buttons() == tcell.ButtonNone {
+		// Falling edge of Button1 (the only initiator here): stale btnsDown
+		// bits can keep ButtonNone from ever arriving (v1.1.19 damage).
+		if tev, ok := ev.(*tcell.EventMouse); ok && tev.Buttons()&tcell.Button1 == 0 {
 			s.capturedChild = nil
 			s.lastSeenBtn = tcell.ButtonNone
 		}

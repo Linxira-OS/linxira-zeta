@@ -104,6 +104,12 @@ func (m *MenuBarWidget) HandleEvent(ev tcell.Event) EventResult {
 			m.wasPressed = false
 			return EventIgnored
 		}
+		// Falling edge of Button1 clears a latched press even when stale
+		// btnsDown bits keep ButtonNone from ever arriving (v1.1.19 damage —
+		// without this the menubar went permanently dead after one click).
+		if m.wasPressed && btn&tcell.Button1 == 0 {
+			m.wasPressed = false
+		}
 		if btn&tcell.Button1 != 0 && !m.wasPressed {
 			m.wasPressed = true
 			r := m.GetRect()

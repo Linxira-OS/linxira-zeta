@@ -586,7 +586,10 @@ func (tw *TerminalWidget) HandleEvent(ev tcell.Event) EventResult {
 				tw.mouseButtonHeld = code
 				return EventCaptured
 			}
-			if btn == tcell.ButtonNone {
+			// Forward the SGR release on the falling edge of the held button:
+			// stale btnsDown bits can suppress ButtonNone forever, leaving the
+			// child PTY seeing an eternally held button (v1.1.19 damage).
+			if btn == tcell.ButtonNone || tw.mouseButtonHeld >= 0 && btn&sgrHeldButtonMask(tw.mouseButtonHeld) == 0 {
 				if tw.mouseButtonHeld >= 0 {
 					col, row := tw.mousePTYCoords(mx, my)
 					tw.Term.WriteString(encodeSGRMouse(tw.mouseButtonHeld|sgrModifiers(tev.Modifiers()), col, row, true))
@@ -656,6 +659,20 @@ func sgrModifiers(mod tcell.ModMask) int {
 		m |= sgrCtrlMod
 	}
 	return m
+}
+
+// sgrHeldButtonMask maps a forwarded SGR button code back to the tcell
+// button mask that produces it (inverse of sgrButtonCode).
+func sgrHeldButtonMask(code int) tcell.ButtonMask {
+	switch code {
+	case sgrButtonLeft:
+		return tcell.Button1
+	case sgrButtonMiddle:
+		return tcell.Button3
+	case sgrButtonRight:
+		return tcell.Button2
+	}
+	return tcell.ButtonNone
 }
 
 func sgrButtonCode(btn tcell.ButtonMask) (code int, ok bool) {

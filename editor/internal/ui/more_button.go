@@ -38,7 +38,9 @@ func (m *MoreButtonWidget) HandleEvent(ev tcell.Event) EventResult {
 		m.pressedIn = true
 		return EventConsumed
 	}
-	if btn == tcell.ButtonNone && m.pressedIn {
+	// Click applies on the falling edge of Button1: stale btnsDown bits can
+	// suppress ButtonNone forever (v1.1.19 damage).
+	if btn&tcell.Button1 == 0 && m.pressedIn {
 		m.pressedIn = false
 		if inside && m.OnClick != nil {
 			m.OnClick(r.X+1, r.Y+r.H)

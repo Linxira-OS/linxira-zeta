@@ -60,7 +60,9 @@ func (s *Scrollbar) HandleEvent(ev tcell.Event) (newTopItem int, consumed bool) 
 	btn := mev.Buttons()
 
 	if s.dragging {
-		if btn == tcell.ButtonNone {
+		if btn&tcell.Button1 == 0 {
+			// Falling edge of Button1 (the only drag initiator): stale
+			// btnsDown bits can suppress ButtonNone forever (v1.1.19 damage).
 			s.dragging = false
 			return s.TopItem, false
 		}
@@ -166,7 +168,8 @@ func (s *HScrollbar) HandleEvent(ev tcell.Event) (newLeftCol int, consumed bool)
 	btn := mev.Buttons()
 
 	if s.dragging {
-		if btn == tcell.ButtonNone {
+		if btn&tcell.Button1 == 0 {
+			// Falling edge of Button1 (v1.1.19 damage; see vertical twin).
 			s.dragging = false
 			return s.LeftCol, false
 		}

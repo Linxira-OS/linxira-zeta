@@ -47,6 +47,7 @@ type Root struct {
 	EscapeDismissers []func() bool
 	EscapeFallback   func()
 	capturedWidget   Widget
+	capturedGesture  ButtonGesture
 	mouseEdge        MouseEdgeTracker
 }
 
@@ -300,7 +301,11 @@ func (r *Root) handleMouse(ev tcell.Event) EventResult {
 	}
 
 	if r.capturedWidget != nil {
-		if btn == tcell.ButtonNone {
+		// Release on the falling edge of the gesture's initiating buttons —
+		// stale btnsDown bits (quirky SGR releases) mean Buttons() may never
+		// return ButtonNone, and an absolute test here pinned the capture
+		// forever, deadlocking every left click (v1.1.19 damage).
+		if r.capturedGesture.Ended(btn) {
 			r.capturedWidget.HandleEvent(ev)
 			r.capturedWidget = nil
 			slog.Debug("root", "action", "mouseCapture", "state", "released")
@@ -321,6 +326,12 @@ func (r *Root) handleMouse(ev tcell.Event) EventResult {
 	result := r.Main.HandleEvent(ev)
 	if result == EventCaptured {
 		r.capturedWidget = r.Main
+		// Record the initiating buttons of this gesture (press edge); the
+		// capture releases when they leave the mask, not on ButtonNone.
+		r.capturedGesture.Begin(rising)
+		if r.capturedGesture.buttons == 0 {
+			r.capturedGesture.Begin(btn)
+		}
 		slog.Debug("root", "action", "mouseCapture", "state", "set")
 		return EventConsumed
 	}
