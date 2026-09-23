@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Handoff is the payload zeta writes when it hands a session to the editor.
@@ -146,6 +147,69 @@ func splitFileTarget(target string) (path string, line, col int) {
 		col = atoiSafe(colPart)
 	}
 	return trimmed[:idx], line, col
+}
+
+// formatHandoffFileTarget builds "path:line:col" (1-based, matching the TS
+// side's formatFileTarget) and omits positions that are not positive.
+func formatHandoffFileTarget(path string, line, col int) string {
+	if line <= 0 {
+		return path
+	}
+	if col <= 0 {
+		return path + ":" + itoa(line)
+	}
+	return path + ":" + itoa(line) + ":" + itoa(col)
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	negative := n < 0
+	if negative {
+		n = -n
+	}
+	var buf [20]byte
+	i := len(buf)
+	for n > 0 {
+		i--
+		buf[i] = byte('0' + n%10)
+		n /= 10
+	}
+	if negative {
+		i--
+		buf[i] = '-'
+	}
+	return string(buf[i:])
+}
+
+// writeEditorHandoff is the editor→zeta half of the contract: same file, same
+// fields, From marks the direction so the receiving side can tell them apart.
+func writeEditorHandoff(cwd, file string) error {
+	path := handoffPath()
+	if path == "" {
+		return errString("no handoff path (home directory unavailable)")
+	}
+	payload := Handoff{
+		Cwd:     cwd,
+		GitRoot: "", // TEMP-DEBUG
+		File:    file,
+		From:    "editor",
+		Ts:      time.Now().UnixMilli(),
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return err
+	}
+	// Write-then-rename so a concurrent switch never reads a partial file.
+	tmp := path + ".editor.tmp"
+	if err := os.WriteFile(tmp, append(data, '\n'), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 func atoiSafe(s string) int {

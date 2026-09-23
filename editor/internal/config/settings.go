@@ -187,6 +187,25 @@ func DefaultExplorerSettings() ExplorerSettings {
 	}
 }
 
+// AgentSettings controls the editor↔agent handoff (the editor side of the
+// cross-surface switch). All fields are tri-state pointers so an absent key
+// means "default" rather than "off", matching PluginSettings.
+type AgentSettings struct {
+	// Enabled gates the Agent menu entry and the handoff commands.
+	Enabled *bool `json:"enabled,omitempty"`
+	// HandoffFile writes the file target (path:line:col) into the handoff so
+	// the agent resumes with the cursor where the user left it.
+	HandoffFile *bool `json:"handoffFile,omitempty"`
+}
+
+func (a AgentSettings) IsEnabled() bool {
+	return a.Enabled == nil || *a.Enabled
+}
+
+func (a AgentSettings) HandsOffFile() bool {
+	return a.HandoffFile == nil || *a.HandoffFile
+}
+
 type PluginSettings struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -224,6 +243,7 @@ type Settings struct {
 	Markdown     MarkdownSettings     `json:"markdown"`
 	// Plugins is safe: its only field is a tri-state *bool where nil means the
 	// default, so the zero value and "unset" mean the same thing.
+	Agent      AgentSettings     `json:"agent,omitzero"`
 	Plugins    PluginSettings    `json:"plugins,omitzero"`
 	Formatters map[string]string `json:"formatters,omitempty"`
 	// Extra holds top-level keys that are not part of the core schema — chiefly
@@ -238,7 +258,7 @@ type Settings struct {
 var knownSettingsKeys = map[string]bool{
 	"version": true, "theme": true, "debugMode": true, "editor": true,
 	"search": true, "explorer": true, "sidebar": true, "git": true, "terminal": true, "lsp": true,
-	"autocomplete": true, "markdown": true, "plugins": true, "formatters": true,
+	"autocomplete": true, "markdown": true, "plugins": true, "formatters": true, "agent": true,
 }
 
 func (s Settings) MarshalJSON() ([]byte, error) {

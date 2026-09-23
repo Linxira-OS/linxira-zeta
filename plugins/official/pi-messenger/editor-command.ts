@@ -12,31 +12,10 @@
  */
 
 import * as cp from "node:child_process";
-import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@linxiraos/zeta";
+import { ensureEditorBinary } from "./editor-binary.ts";
 import { writeHandoff } from "./handoff.ts";
-
-/** Resolve the `zeta-editor` binary, or null when the editor package is absent. */
-function resolveEditorBinary(): string | null {
-	// npm installs the platform binary as a sibling of the launcher script.
-	const candidates = [
-		path.join(process.cwd(), "node_modules", ".bin", "zeta-editor"),
-		path.join(os.homedir(), ".zeta", "plugins", "node_modules", ".bin", "zeta-editor"),
-	];
-	for (const candidate of candidates) {
-		try {
-			fs.accessSync(candidate, fs.constants.X_OK);
-			return candidate;
-		} catch {
-			// try the next candidate
-		}
-	}
-	// Fall back to PATH lookup: `zeta-editor` on PATH is a supported install.
-	return "zeta-editor";
-}
-
-import * as os from "node:os";
 
 /** Best-effort repository root for a directory; empty when not inside one. */
 function detectGitRoot(dir: string): string {
@@ -69,7 +48,16 @@ export function registerEditorCommand(pi: ExtensionAPI): void {
 				from: "zeta",
 			});
 
-			const binary = resolveEditorBinary();
+			const autoInstall = ctx.settings?.get("editor.autoInstall") ?? true;
+			const resolved = ensureEditorBinary(autoInstall === true);
+			if (!resolved.binary) {
+				pi.sendMessage(
+					{ customType: "editor_handoff", content: resolved.error ?? "The editor is unavailable.", display: true },
+					{ deliverAs: "aside" },
+				);
+				return;
+			}
+			const binary = resolved.binary;;
 			// The editor reads the handoff on startup; cwd is passed as the
 			// positional argument so a binary older than the handoff support
 			// still opens the right directory.
@@ -80,12 +68,11 @@ export function registerEditorCommand(pi: ExtensionAPI): void {
 			});
 			child.unref();
 
+			const parts = [`Opened the editor on ${cwd}`];
+			if (sessionFile) parts.push(`session ${path.basename(sessionFile)}`);
+			if (resolved.note) parts.push(resolved.note);
 			pi.sendMessage(
-				{
-					customType: "editor_handoff",
-					content: `Opened the editor on ${cwd}${sessionFile ? ` (session ${path.basename(sessionFile)})` : ""}. Handoff: ${path.basename(handoff)}`,
-					display: true,
-				},
+				{ customType: "editor_handoff", content: `${parts.join(" — ")}.`, display: true },
 				{ deliverAs: "aside" },
 			);
 		},
