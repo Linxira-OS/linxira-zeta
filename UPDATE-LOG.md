@@ -17,7 +17,20 @@
 ### i18n 接口层(默认英文)
 
 - 设置 TUI 完整本地化接口:`t()` 翻译表(130+ 条)覆盖分类标签、全部字段、枚举选项、菜单栏、侧栏/底部面板、下拉项、对话框按钮与状态行;语言选择器(Appearance→Language,中文/English/Default)Apply 后**即时重建**表单生效(工作草稿保留)。
+- **斜杠命令描述跟随 `/language` 实时切换**(此前 import 时快照固化,`/language` 只重建列表、文字停留 OS 语言):203 处 spec/subcommand `description` 改 thunk,经共享 `resolveCommandDescription()` 在 TUI materialize、subcommand 补全、ACP available-commands payload 每个读取点解析;`/language` 文本模式补 `refreshCommands()` 让 ACP/RPC 客户端重新广告命令列表。回归测试钉住跨目录文案必须不同。
 - **官方默认英文**:locale 探测收窄为显式 opt-in(settings.json `language` 或 `TTT_LANG=zh`),宿主 `LANG`/`LC_ALL` 不再触发切换——快捷键与命令名英文优先;翻译表完整保留供插件/社区自行适配。
+
+### 版本线工具
+
+- prerelease 版本号支持(semver `1.1.20-rc.1` 等):`set-version.ts` 校验放宽并拒绝空标识符/前导零/build metadata;`check-version-consistency.ts` 的 `__piNatives` 哨兵派生规则与 setter 对齐(此前 dots-only 规则会在 prerelease 下推出非法 Rust 标识符);两处 README badge 正则同步支持。
+- 修复 9 个 `crates/*/BUILD.bazel` 自 1.1.17 起的版本漂移(setter 的 bazel 正则要求恰好 4 空格缩进,实际属性更深)。
+- `writeJson` 保留 manifest 原有缩进与行尾(tab+CRLF),版本 bump 不再产生全文件 diff。
+- `document/release.md` 记录版本号格式契约:稳定线纯数字、prerelease 仅内测/RC 且必须 `--tag` 不发 Release 资产、timestamp z 明确否决(混淆发布次序与构建时间)。
+
+### 产品前门(README)
+
+- Component Lineage 表:逐组件列上游来源 vs Zeta 所有权,含 TTT Editor 的插件兼容现状(当前跟随上游插件体系,若不适配则直接内嵌所需插件而非分叉协议)。
+- npm 安装路径、Platform Support 矩阵、Interface Language 节;web/desktop 从 "planned" 更正为已发布;License 补 TTT 上游致谢。
 
 ## 1.1.19（2026-09-23）
 
