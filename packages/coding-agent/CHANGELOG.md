@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.20] - 2026-09-23
+
 - 斜杠命令描述跟随 `/language` 实时切换(此前 import 时快照固化,切换只重建列表、文字停留 OS 语言);`/language` 文本模式补 `refreshCommands()`,ACP/RPC 客户端重新广告命令列表。
 
 ## [1.1.19] - 2026-09-22

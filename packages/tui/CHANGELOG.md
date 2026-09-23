@@ -2,11 +2,9 @@
 
 ## [Unreleased]
 
+## [1.1.20] - 2026-09-23
+
 - 版本线推进;斜杠命令描述改为惰性 thunk 解析(203 处),`/language` 切换后描述文字跟随目录实时变化,不再停留在 OS 语言。
-
-## [1.1.19] - 2026-09-22
-
-- 版本线推进;本版无独立用户可见变化。
 
 ## [9.8.0] - 2026-02-01
 
@@ -381,6 +379,10 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added `getText()` method to Text component for retrieving current text content
+
+## [1.1.19] - 2026-09-22
+
+- 版本线推进;本版无独立用户可见变化。
 
 ## [1.1.18] - 2026-09-22
 

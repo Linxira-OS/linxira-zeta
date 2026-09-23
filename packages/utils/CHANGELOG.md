@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.20] - 2026-09-23
+
 - 版本线推进;`set-version.ts` 保留 manifest 原有缩进与行尾(tab+CRLF),版本 bump 不再产生全文件 diff;prerelease 版本号(semver `x.y.z-rc.N`)校验支持,拒绝空标识符/前导零/build metadata。
 
 ## [1.1.19] - 2026-09-22

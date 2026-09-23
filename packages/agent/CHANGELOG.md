@@ -2,11 +2,9 @@
 
 ## [Unreleased]
 
+## [1.1.20] - 2026-09-23
+
 - 版本线推进;`__piNatives` 哨兵派生规则与 set-version 对齐(dots-only → 全部非字母数字),prerelease 下不再推出非法 Rust 标识符。
-
-## [1.1.19] - 2026-09-22
-
-- 版本线推进;本版无独立用户可见变化。
 
 ## [9.2.2] - 2026-01-31
 
@@ -137,6 +135,10 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.1.19] - 2026-09-22
+
+- 版本线推进;本版无独立用户可见变化。
 
 ## [1.1.18] - 2026-09-22
 
