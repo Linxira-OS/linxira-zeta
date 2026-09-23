@@ -57,17 +57,41 @@ toolchain required by Rust.
 Zeta is a distribution derived from four upstream projects, each with a
 fixed role:
 
-| Project | Role in Zeta |
-|---|---|
+| Project                                               | Role in Zeta                                                                                      |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | The runtime tree. Integrated only at complete, official release tags — never raw upstream commits |
-| [Pi](https://github.com/earendil-works/pi) | Semantic-port source for feature work, never a raw merge source |
-| [OMP Web](https://github.com/17380936778/omp-web) | Source of the `web-ui/` snapshot |
-| [Pi Web](https://github.com/agegr/pi-web) | Semantic-port source for web features |
+| [Pi](https://github.com/earendil-works/pi)            | Semantic-port source for feature work, never a raw merge source                                   |
+| [OMP Web](https://github.com/17380936778/omp-web)     | Source of the `web-ui/` snapshot                                                                  |
+| [Pi Web](https://github.com/agegr/pi-web)             | Semantic-port source for web features                                                             |
 
 The merge policy is recorded in [document/upstream-sync.md](document/upstream-sync.md);
 the web workbench's own front door is [web-ui/README.md](web-ui/README.md).
 Predecessor contributions remain acknowledged in source history and package
 notices.
+
+## Component Lineage
+
+The distribution is assembled from parts with different origins. What a part
+inherits from upstream — and what Zeta owns — is stated per component:
+
+| Component                                                               | Upstream origin                                                                                | Zeta ownership                                                                                                                      |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/coding-agent/` (CLI, `zeta`)                                  | OMP runtime tree, release-tag merges                                                           | Brand, config dir `.zeta`, npm scope `@linxiraos/*`, release chain, Zeta-originated capabilities                                    |
+| `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats`   | OMP runtime tree                                                                               | Same adaptation surface as the CLI                                                                                                  |
+| `editor/` (TTT Editor, `@linxiraos/editor`, binary `ttt`/`zeta-editor`) | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go source + prebuilt binaries | Brand surface, Zeta theme, mouse/interaction fixes, i18n hook surface; every vendored-binary change is logged in `editor/VENDOR.md` |
+| `web-ui/`                                                               | OMP Web snapshot (frozen — manual cherry-picks only)                                           | Own-desktop upgrade content, Next.js app                                                                                            |
+| `desktop/`                                                              | Zeta-originated                                                                                | Electron shell that embeds the `web-ui/` build and the compiled `zeta` runtime                                                      |
+| `packages/coding-agent/src/channels/` (WeChat/Feishu/Telegram bridge)   | Zeta-originated                                                                                | Channel runtime, tools (`channel_send`, `workspace_run`)                                                                            |
+| `packages/coding-agent/src/server/` (web-gateway, `zeta serve`)         | Zeta-originated                                                                                | REST surface consumed by `web-ui/` and `desktop/` over HTTP                                                                         |
+
+**TTT Editor plugin compatibility.** The editor currently follows the upstream
+plugin system (Go plugin API) as its extension path. Zeta's vendored changes are
+bug fixes, brand surface, and additive hooks — not a fork of the plugin
+protocol. If upstream's plugin direction stops being a good fit for the
+distribution, the fallback is to vendor the specific plugins the product needs
+directly into `editor/` rather than maintain protocol divergence; that decision
+is recorded when (and if) it is made. See `editor/VENDOR.md` for the current
+change ledger.
 
 ## Zeta-Originated Capabilities
 
@@ -84,6 +108,15 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
   argument schemas and full access to the runtime API.
 - **Command marketplace** — install and share slash commands as Bun packages.
 - **ACP collaboration builtins** — Agent Client Protocol session support.
+- **Channel runtime** — WeChat/Feishu/Telegram bridges embedded in
+  `zeta serve`, with plan-image routing and workspace-scoped execution tools.
+- **Web gateway** — REST API behind the web UI (`/api/*`), one handler module
+  per resource, consumed by both the browser UI and the desktop shell.
+- **Desktop shell** — Electron tray application embedding a standalone build of
+  the web UI plus the compiled runtime; target machines need neither Bun nor Node.
+- **Linux downstream packaging** — `zeta-desktop` ships as a release asset with
+  a frozen name/digest contract so downstream repositories (pacman et al.) can
+  pin and verify it; see `document/release.md`.
 - **Local stats dashboard** — `zeta stats` observability for the coding agent.
 
 ## Documentation
@@ -99,6 +132,23 @@ The repository keeps two documentation trees with different audiences:
   roadmap](document/roadmap.md), the upstream [sync
   ledger](document/upstream-sync.md), and the
   [porting guide](document/porting-from-pi-mono.md).
+
+## Interface Language
+
+The CLI ships Simplified Chinese and English catalogues. The active language
+resolves in this order:
+
+1. `language` in the settings file (`~/.zeta/settings.json`) — the explicit
+   choice, written by `/language`.
+2. `ZETA_LANG` / `LC_ALL` / `LC_MESSAGES` / `LANG` — the shell locale.
+3. The OS UI language (`Intl`) — so a Chinese Windows box gets Chinese with no
+   configuration at all.
+4. English when nothing matches.
+
+`/language` switches live: slash-command descriptions, the composer, and every
+localized panel re-resolve on the next render without a restart. Both
+catalogues are complete, so the choice is per-install rather than per-build —
+plugins can register their own text through the same source.
 
 ## Development
 
