@@ -6,6 +6,7 @@ import type { ExtensionRunner } from "../extensibility/extensions";
 import { getSkillSlashCommandName, type Skill } from "../extensibility/skills";
 import { type FileSlashCommand, loadSlashCommands } from "../extensibility/slash-commands";
 import { ACP_BUILTIN_RESERVED_NAMES, isAcpBuiltinShadowedName } from "./acp-builtins";
+import { resolveCommandDescription } from "./builtin-registry";
 import { BUILTIN_SLASH_COMMANDS_INTERNAL } from "./builtin-registry";
 
 export type AvailableSlashCommandSource = "builtin" | "skill" | "extension" | "custom" | "mcp_prompt" | "file";
@@ -49,9 +50,13 @@ export async function buildAvailableSlashCommands(
 		appendCommand({
 			name: command.name,
 			aliases: command.aliases,
-			description: command.acpDescription ?? command.description,
+			description: command.acpDescription ?? resolveCommandDescription(command.description),
 			input: hint ? { hint } : undefined,
-			subcommands: command.subcommands,
+			subcommands: command.subcommands?.map(s => ({
+				name: s.name,
+				description: resolveCommandDescription(s.description),
+				usage: s.usage,
+			})),
 			source: "builtin",
 		});
 		// ACP dispatch resolves builtin aliases before `session.prompt()` sees the

@@ -174,18 +174,18 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "ssh",
 		icon: "host",
-		description: M.cmdSsh,
+		description: () => M.cmdSsh,
 		acpDescription: M.cmdSshAcp,
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
 				name: "add",
-				description: M.cmdSshAdd,
+				description: () => M.cmdSshAdd,
 				usage: "<name> --host <host> [--user <user>] [--port <port>] [--key <keyPath>] [--scope project|user]",
 			},
-			{ name: "list", description: M.cmdSshList },
-			{ name: "remove", description: M.cmdSshRemove, usage: "<name> [--scope project|user]" },
-			{ name: "help", description: M.cmdMcpHelp },
+			{ name: "list", description: () => M.cmdSshList },
+			{ name: "remove", description: () => M.cmdSshRemove, usage: "<name> [--scope project|user]" },
+			{ name: "help", description: () => M.cmdMcpHelp },
 		],
 		allowArgs: true,
 		handle: handleSshAcp,
@@ -197,7 +197,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "new",
 		icon: "plus",
-		description: M.cmdNew,
+		description: () => M.cmdNew,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleClearCommand();
@@ -206,7 +206,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "fresh",
 		icon: "restart",
-		description: M.cmdFresh,
+		description: () => M.cmdFresh,
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.session.isStreaming ? M.acFreshUnavailable : M.acFreshReady,
 		handle: async (_command, runtime) => {
@@ -228,7 +228,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "clear",
 		icon: "eraser",
-		description: M.cmdClear,
+		description: () => M.cmdClear,
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.session.isStreaming ? M.acClearUnavailable : M.acClearDrop,
 		handleTui: async (_command, runtime) => {
@@ -239,7 +239,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "delete",
 		icon: "trash",
-		description: M.cmdDrop,
+		description: () => M.cmdDrop,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleDeleteCommand();
@@ -248,7 +248,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "compact",
 		icon: "compress",
-		description: M.cmdCompact,
+		description: () => M.cmdCompact,
 		acpDescription: M.cmdCompactAcp,
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
@@ -319,12 +319,12 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "shake",
 		icon: "vibrate",
-		description: M.cmdShake,
+		description: () => M.cmdShake,
 		acpDescription: M.cmdShakeAcp,
 		subcommands: [
-			{ name: "elide", description: M.cmdCompactElide },
-			{ name: "images", description: M.cmdCompactImages },
-			{ name: "thinking", description: M.cmdDropAllThinkingBlocks },
+			{ name: "elide", description: () => M.cmdCompactElide },
+			{ name: "images", description: () => M.cmdCompactImages },
+			{ name: "thinking", description: () => M.cmdDropAllThinkingBlocks },
 		],
 		acpInputHint: "[elide|images|thinking]",
 		allowArgs: true,
@@ -348,7 +348,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "handoff",
 		icon: "handoff",
-		description: M.cmdHandoff,
+		description: () => M.cmdHandoff,
 
 		acpDescription: M.cmdHandoff,
 		inlineHint: "[focus instructions]",
@@ -416,7 +416,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "resume",
 		icon: "history",
-		description: M.cmdResume,
+		description: () => M.cmdResume,
 		inlineHint: "[session id|@claude|@codex]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -447,7 +447,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "pin",
 		icon: "pin",
-		description: M.cmdPinorUnpinaSessionattheTopoftheResumeList,
+		description: () => M.cmdPinorUnpinaSessionattheTopoftheResumeList,
 		inlineHint: "[session id]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -478,7 +478,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "btw",
 		icon: "question",
-		description: M.cmdBtwHistory,
+		description: () => M.cmdBtwHistory,
 
 		inlineHint: "[question]",
 		allowArgs: true,
@@ -491,7 +491,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "tan",
 		icon: "rocket",
-		description: M.cmdTan,
+		description: () => M.cmdTan,
 		inlineHint: "<work>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -503,7 +503,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "omfg",
 		icon: "rule",
-		description: M.cmdOmfg,
+		description: () => M.cmdOmfg,
 		inlineHint: "<complaint>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -515,7 +515,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "cleanse",
 		icon: "stethoscope",
-		description: M.cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents,
+		description: () => M.cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents,
 		inlineHint: "[request] [--all]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -527,7 +527,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "retry",
 		icon: "redo",
-		description: M.cmdRetry,
+		description: () => M.cmdRetry,
 		handle: async (_command, runtime) => {
 			if (runtime.session.isStreaming) {
 				return usage("Wait for the current response to finish or abort it before retrying.", runtime);
@@ -562,7 +562,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "debug",
 		icon: "bug",
-		description: M.cmdDebug,
+		description: () => M.cmdDebug,
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.showDebugSelector();
 			runtime.ctx.editor.setText("");
@@ -571,29 +571,29 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "memory",
 		icon: "memory",
-		description: M.cmdMemory,
+		description: () => M.cmdMemory,
 		acpDescription: M.cmdMemoryAcp,
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "view", description: M.cmdMemoryView },
-			{ name: "stats", description: M.cmdMemoryStats },
-			{ name: "diagnose", description: M.cmdMemoryDiagnose },
-			{ name: "queue", description: M.cmdShowPendingMemoryDeltasAwaitingConsolidation },
-			{ name: "sync", description: M.cmdRunMemoryConsolidationNow },
-			{ name: "clear", description: M.cmdMemoryClear },
-			{ name: "reset", description: M.cmdMemoryReset },
-			{ name: "enqueue", description: M.cmdMemoryEnqueue },
-			{ name: "rebuild", description: M.cmdMemoryRebuild },
-			{ name: "mm list", description: M.cmdMemoryMmList },
-			{ name: "mm show", description: M.cmdMemoryMmShow },
+			{ name: "view", description: () => M.cmdMemoryView },
+			{ name: "stats", description: () => M.cmdMemoryStats },
+			{ name: "diagnose", description: () => M.cmdMemoryDiagnose },
+			{ name: "queue", description: () => M.cmdShowPendingMemoryDeltasAwaitingConsolidation },
+			{ name: "sync", description: () => M.cmdRunMemoryConsolidationNow },
+			{ name: "clear", description: () => M.cmdMemoryClear },
+			{ name: "reset", description: () => M.cmdMemoryReset },
+			{ name: "enqueue", description: () => M.cmdMemoryEnqueue },
+			{ name: "rebuild", description: () => M.cmdMemoryRebuild },
+			{ name: "mm list", description: () => M.cmdMemoryMmList },
+			{ name: "mm show", description: () => M.cmdMemoryMmShow },
 			{
 				name: "mm refresh",
-				description: M.cmdMemoryMmRefresh,
+				description: () => M.cmdMemoryMmRefresh,
 			},
-			{ name: "mm history", description: M.cmdMemoryMmHistory },
-			{ name: "mm seed", description: M.cmdMemoryMmSeed },
-			{ name: "mm delete", description: M.cmdMemoryMmDelete },
-			{ name: "mm reload", description: M.cmdMemoryMmReload },
+			{ name: "mm history", description: () => M.cmdMemoryMmHistory },
+			{ name: "mm seed", description: () => M.cmdMemoryMmSeed },
+			{ name: "mm delete", description: () => M.cmdMemoryMmDelete },
+			{ name: "mm reload", description: () => M.cmdMemoryMmReload },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -660,7 +660,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "rename",
 		icon: "pencil",
-		description: M.cmdRenameGenerate,
+		description: () => M.cmdRenameGenerate,
 
 		inlineHint: "[title]",
 		allowArgs: true,
@@ -739,7 +739,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "move",
 		icon: "folderMove",
-		description: M.cmdMoveAcp,
+		description: () => M.cmdMoveAcp,
 		acpDescription: M.cmdMoveAcp,
 		inlineHint: "[<path>]",
 		allowArgs: true,
@@ -770,7 +770,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "wt",
 		aliases: ["worktree"],
 		icon: "folderMove",
-		description: M.cmdMoveThisSessionIntoaNewWorktreeChangesIncluded,
+		description: () => M.cmdMoveThisSessionIntoaNewWorktreeChangesIncluded,
 		acpDescription: M.cmdMoveThisSessionIntoaNewWorktreeChangesIncluded,
 		inlineHint: "[<branch>]",
 		allowArgs: true,
@@ -804,7 +804,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "add-dir",
 		icon: "folderPlus",
-		description: M.cmdAddDir,
+		description: () => M.cmdAddDir,
 		acpDescription: M.cmdAddDirAcp,
 		inlineHint: "<path>",
 		allowArgs: true,
@@ -836,7 +836,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "remove-dir",
 		icon: "folderMinus",
-		description: M.cmdRemoveDirAcp,
+		description: () => M.cmdRemoveDirAcp,
 		acpDescription: M.cmdRemoveDirAcp,
 		inlineHint: "<path>",
 		allowArgs: true,
@@ -864,7 +864,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "dirs",
-		description: M.cmdDirsAcp,
+		description: () => M.cmdDirsAcp,
 		acpDescription: M.cmdDirsAcp,
 		handle: async (_command, runtime) => {
 			await runtime.output(formatWorkspaceDirectories(runtime));
@@ -873,13 +873,13 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "exit",
-		description: M.cmdExit,
+		description: () => M.cmdExit,
 		handleTui: shutdownHandlerTui,
 	},
 	{
 		name: "restart",
 		icon: "restart",
-		description: M.cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession,
+		description: () => M.cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.restart();

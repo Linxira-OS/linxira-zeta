@@ -1,5 +1,9 @@
 import type { AvailableCommand } from "@linxiraos/pi-utils/acp";
-import { BUILTIN_SLASH_COMMANDS_INTERNAL, lookupBuiltinSlashCommand } from "./builtin-registry";
+import {
+	BUILTIN_SLASH_COMMANDS_INTERNAL,
+	lookupBuiltinSlashCommand,
+	resolveCommandDescription,
+} from "./builtin-registry";
 import { parseSlashCommand } from "./helpers/parse";
 import type { AcpBuiltinSlashCommandResult, SlashCommandRuntime } from "./types";
 
@@ -43,7 +47,7 @@ export const ACP_BUILTIN_SLASH_COMMANDS: AvailableCommand[] = BUILTIN_SLASH_COMM
 	const hint = command.acpInputHint ?? command.inlineHint;
 	return {
 		name: command.name,
-		description: command.acpDescription ?? command.description,
+		description: command.acpDescription ?? resolveCommandDescription(command.description),
 		input: hint ? { hint } : undefined,
 	};
 });

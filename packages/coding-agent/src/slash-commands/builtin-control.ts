@@ -9,7 +9,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "force",
 		icon: "hammer",
-		description: M.cmdForce,
+		description: () => M.cmdForce,
 		aliases: ["force:"],
 		inlineHint: "<tool-name> [prompt]",
 		allowArgs: true,
@@ -59,7 +59,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "live",
 		icon: "voice",
-		description: M.cmdLiveVoice,
+		description: () => M.cmdLiveVoice,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runtime.ctx.handleLiveCommand();
@@ -68,7 +68,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "pause",
 		icon: "pause",
-		description: M.cmdPause,
+		description: () => M.cmdPause,
 		handleTui: async (_command, runtime) => {
 			runtime.ctx.editor.setText("");
 			await runPauseScreen(runtime.ctx);
@@ -78,13 +78,13 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "quit",
 		aliases: ["q"],
 		icon: "power",
-		description: M.cmdQuit,
+		description: () => M.cmdQuit,
 		handleTui: shutdownHandlerTui,
 	},
 	{
 		name: "sidebar",
 		icon: "gauge",
-		description: M.cmdSidebar,
+		description: () => M.cmdSidebar,
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.settings.get("tui.sidebar") ? M.acSidebarOn : M.acSidebarOff,
 		handleTui: (_command, runtime) => {

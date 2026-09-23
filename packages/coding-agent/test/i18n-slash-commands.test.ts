@@ -2,7 +2,11 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { currentLanguage, M, setLanguage } from "../src/i18n";
 import { en } from "../src/i18n/en";
 import { zh } from "../src/i18n/zh";
-import { BUILTIN_SLASH_COMMAND_DEFS } from "../src/slash-commands/builtin-registry";
+import {
+	buildTuiBuiltinSlashCommands,
+	BUILTIN_SLASH_COMMAND_DEFS,
+	resolveCommandDescription,
+} from "../src/slash-commands/builtin-registry";
 
 /**
  * Anti-regression probe for the CLI /command zh localization (v18.1.5 base).
@@ -30,13 +34,12 @@ const hasCjk = (s: string) => /[\u4e00-\u9fff]/.test(s);
  */
 const DESCRIPTION_ALLOWLIST: ReadonlySet<string> = new Set<string>([]);
 
-/** The registry snapshot captured descriptions at import time with the
- * system-detected language, so map each DEFS description back to its en
- * catalogue key via the en catalogue values (language-independent). */
+/** Descriptions are thunks resolved against the active catalogue (see
+ * resolveCommandDescription), so map each back to its en catalogue key to
+ * prove it is catalogue-backed rather than hardcoded. */
 function referencedCmdKeys(): { key: string; via: string }[] {
-	// The registry snapshot captured description VALUES at import time in the
-	// system-detected language. Map each description back to its catalogue key
-	// via either catalogue, then verify BOTH catalogues define the key.
+	// Resolve each thunk under the ACTIVE catalogue, then map the value back to
+	// its key via either catalogue and verify BOTH catalogues define it.
 	const enValues = new Map<string, string>();
 	for (const [k, v] of Object.entries(en)) {
 		if (k.startsWith("cmd") && typeof v === "string") enValues.set(v, k);
@@ -47,10 +50,14 @@ function referencedCmdKeys(): { key: string; via: string }[] {
 	}
 	const keys: { key: string; via: string }[] = [];
 	for (const cmd of BUILTIN_SLASH_COMMAND_DEFS) {
-		const k = enValues.get(cmd.description) ?? zhValues.get(cmd.description);
+		const k =
+			enValues.get(resolveCommandDescription(cmd.description)) ??
+			zhValues.get(resolveCommandDescription(cmd.description));
 		if (k) keys.push({ key: k, via: `/${cmd.name}` });
 		for (const sub of cmd.subcommands ?? []) {
-			const sk = enValues.get(sub.description) ?? zhValues.get(sub.description);
+			const sk =
+				enValues.get(resolveCommandDescription(sub.description)) ??
+				zhValues.get(resolveCommandDescription(sub.description));
 			if (sk) keys.push({ key: sk, via: `/${cmd.name} ${sub.name}` });
 		}
 	}
@@ -75,9 +82,9 @@ function hardcodedDescriptions(): { via: string; description: string }[] {
 		violations.push({ via, description });
 	};
 	for (const cmd of BUILTIN_SLASH_COMMAND_DEFS) {
-		check(`/${cmd.name}`, cmd.description);
+		check(`/${cmd.name}`, resolveCommandDescription(cmd.description));
 		for (const sub of cmd.subcommands ?? []) {
-			check(`/${cmd.name} ${sub.name}`, sub.description);
+			check(`/${cmd.name} ${sub.name}`, resolveCommandDescription(sub.description));
 		}
 	}
 	return violations;
@@ -89,7 +96,7 @@ describe("builtin slash command zh localization", () => {
 	test("commands exist and descriptions are non-empty", () => {
 		expect(BUILTIN_SLASH_COMMAND_DEFS.length).toBeGreaterThan(40);
 		for (const cmd of BUILTIN_SLASH_COMMAND_DEFS) {
-			expect(cmd.description.length, `/${cmd.name} description empty`).toBeGreaterThan(0);
+			expect(resolveCommandDescription(cmd.description).length, `/${cmd.name} description empty`).toBeGreaterThan(0);
 		}
 	});
 
@@ -148,5 +155,34 @@ describe("builtin slash command zh localization", () => {
 		expect(currentLanguage()).toBe("zh");
 		setLanguage("en");
 		expect(currentLanguage()).toBe("en");
+	});
+
+	// The regression this suite exists for: descriptions used to be plain
+	// strings captured when the registry module was imported, so /language
+	// rebuilt every list but kept the import-time copy. Resolving through the
+	// active catalogue must actually change the rendered text.
+	test("descriptions follow /language instead of the import-time snapshot", () => {
+		const def = BUILTIN_SLASH_COMMAND_DEFS.find(command => command.name === "language");
+		expect(def).toBeDefined();
+
+		setLanguage("en");
+		const en = resolveCommandDescription(def!.description);
+		setLanguage("zh");
+		const zh = resolveCommandDescription(def!.description);
+
+		expect(en).not.toBe(zh);
+		expect(hasCjk(en)).toBe(false);
+		expect(hasCjk(zh)).toBe(true);
+	});
+
+	test("materialized TUI commands resolve descriptions per catalogue", () => {
+		setLanguage("zh");
+		const tuiZh = buildTuiBuiltinSlashCommands().find(command => command.name === "language");
+		setLanguage("en");
+		const tuiEn = buildTuiBuiltinSlashCommands().find(command => command.name === "language");
+
+		expect(tuiZh?.description).not.toBe(tuiEn?.description);
+		expect(hasCjk(tuiEn?.description ?? "")).toBe(false);
+		expect(hasCjk(tuiZh?.description ?? "")).toBe(true);
 	});
 });

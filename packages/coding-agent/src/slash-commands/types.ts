@@ -7,7 +7,8 @@ import type { SessionManager } from "../session/session-manager";
 /** Declarative subcommand definition for commands like /mcp. */
 export interface SubcommandDef {
 	name: string;
-	description: string;
+	/** See BuiltinSlashCommand.description for why this may be a thunk. */
+	description: string | (() => string);
 	/** Usage hint shown as dim ghost text, e.g. "<name> [--scope project|user]". */
 	usage?: string;
 }
@@ -16,7 +17,13 @@ export interface SubcommandDef {
 export interface BuiltinSlashCommand {
 	name: string;
 	aliases?: string[];
-	description: string;
+	/**
+	 * Command description. A function is resolved on every read so localized
+	 * copy follows `/language` at runtime — a plain string is captured at
+	 * import time and would freeze the locale active when the module loaded
+	 * (which for most installs is the OS language, not the user's choice).
+	 */
+	description: string | (() => string);
 	/** Autocomplete type-indicator icon. Defaults to "action" (generic terminal glyph). */
 	icon?: SlashCommandIconName;
 	/** Whether the command consumes text after the command name. */
