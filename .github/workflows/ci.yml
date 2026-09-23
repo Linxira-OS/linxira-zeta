@@ -886,22 +886,37 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          !inputs.skip_npm }}
-      # Reuse the standalone dispatchable workflow instead of duplicating its
-      # publish steps here: v1.1.18 hit the Trusted Publisher mismatch because
-      # npm's OIDC workflow claim is the executing workflow file, and the
-      # publishers are bound to editor-publish.yml. Calling it keeps the
-      # bound filename and the publish logic in exactly one place; the same
-      # file still serves manual republishes via `gh workflow run`.
+      # npm Trusted Publisher binds the workflow file that EXECUTES the
+      # publish. A `uses:` call keeps editor-publish.yml as the callee, but
+      # the OIDC claim still names the caller (ci.yml) — v1.1.19's E404. So
+      # dispatch the dedicated workflow instead and wait for it: the publish
+      # truly runs inside editor-publish.yml, matching the binding, and the
+      # same file keeps serving manual republishes via `gh workflow run`.
       needs: [release_metadata, release_gate]
-      # A reusable-workflow callee may not elevate beyond the permissions the
-      # caller job passes; undeclared, this job inherits ci.yml's top-level
-      # contents:read cap and the run dies at startup_failure. id-token is
-      # what npm OIDC (Trusted Publisher) needs for the actual publish.
-      uses: ./.github/workflows/editor-publish.yml
+      runs-on: ubuntu-22.04
       permissions:
-         id-token: write
          contents: read
-      secrets: inherit
+         actions: write
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         - name: Dispatch editor-publish.yml and wait for it
+           env:
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+           run: |
+              set -euo pipefail
+              gh workflow run editor-publish.yml --ref "${GITHUB_REF_NAME}"
+              rid=""
+              for _ in $(seq 1 30); do
+                 sleep 10
+                 rid=$(gh run list --workflow=editor-publish.yml --branch "${GITHUB_REF_NAME}" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+                 [ -n "$rid" ] && break
+              done
+              if [ -z "$rid" ]; then
+                 echo "::error::editor-publish run never appeared"
+                 exit 1
+              fi
+              gh run watch "$rid" --exit-status --interval 15
 
    release_github:
       name: Publish GitHub release

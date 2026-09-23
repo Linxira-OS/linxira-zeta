@@ -265,6 +265,13 @@ func (r *Root) handleOverlay(ev tcell.Event) EventResult {
 	}
 	top := r.Overlays[len(r.Overlays)-1]
 	slog.Debug("root", "action", "overlayIntercept", "modal", top.Modal, "count", len(r.Overlays))
+	// A modal overlay swallows mouse events, including the Button2 release
+	// that pairs with the press which opened it. Without syncing, the edge
+	// tracker's baseline stays at Button2 and the *next* genuine right-click
+	// press looks like a motion replay (v1.1.18 damage). Track through.
+	if mev, ok := ev.(*tcell.EventMouse); ok {
+		r.mouseEdge.Rising(mev.Buttons())
+	}
 	result := top.Widget.HandleEvent(ev)
 	if top.Modal {
 		return EventConsumed
