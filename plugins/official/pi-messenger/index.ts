@@ -54,6 +54,7 @@ import { MessengerOverlay, type OverlayCallbacks } from "./overlay.ts";
 import { MessengerConfigOverlay } from "./config-overlay.ts";
 import { loadConfig, loadGlobalConfig, matchesAutoRegisterPath, type MessengerConfig } from "./config.ts";
 import { executeCrewAction } from "./crew/index.ts";
+import { registerTeamCommand } from "./team-command.ts";
 import { logFeedEvent, pruneFeed } from "./feed.ts";
 import type { CrewParams } from "./crew/types.ts";
 import {
@@ -529,6 +530,9 @@ Usage (action-based API - preferred):
   // ===========================================================================
   // Commands
   // ===========================================================================
+
+  // Local team/crew reads: no model turn, works without any API key.
+  registerTeamCommand(pi);
 
   pi.registerCommand("messenger", {
     description: "Open messenger overlay, or 'config' to manage settings",

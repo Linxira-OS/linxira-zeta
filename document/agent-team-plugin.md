@@ -1,6 +1,9 @@
 # Zeta agent-team 插件开发规格
 
-状态：设计定稿（本文档只定契约与行为，不含实现代码）。分发/清单/安装的通用规则见
+状态：**已实现**（2026-09-23 校正）。crew/team 编排层不落在独立的
+`plugins/official/agent-team/`，而是随 `plugins/official/pi-messenger/`
+一起落地并发布为 `@linxiraos/pi-messenger`（npm）。本文的 §2-§7 是当时的
+设计契约；与现实现的差异见文末「实现对照」。分发/清单/安装的通用规则见
 [plugin-system.md](./plugin-system.md)，本文不重复其内容，仅引用。
 
 ## 1. 定位
@@ -16,11 +19,11 @@
 
 CLI 侧三大件已存在（Agent Hub 已消费），agent-team 只做**编排层 + 工具暴露**：
 
-| 基座 | 位置 | agent-team 的用法 |
-|---|---|---|
-| AgentRegistry | `packages/coding-agent/src/registry/agent-registry.ts`（`list(): AgentRef[]`） | crew 成员 = registry 里的 subagent；`team_spawn` 通过既有 task 派发路径创建 |
-| AgentLifecycleManager | `packages/coding-agent/src/registry/agent-lifecycle.ts` | 成员生命周期（启动/退场/异常回收）复用生命周期管理，插件不另造进程模型 |
-| IrcBus | `packages/coding-agent/src/irc/bus.ts` | 成员间消息 = IRC 总线消息；`team_chat` 工具是总线投递的封装 |
+| 基座                  | 位置                                                                           | agent-team 的用法                                                           |
+| --------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| AgentRegistry         | `packages/coding-agent/src/registry/agent-registry.ts`（`list(): AgentRef[]`） | crew 成员 = registry 里的 subagent；`team_spawn` 通过既有 task 派发路径创建 |
+| AgentLifecycleManager | `packages/coding-agent/src/registry/agent-lifecycle.ts`                        | 成员生命周期（启动/退场/异常回收）复用生命周期管理，插件不另造进程模型      |
+| IrcBus                | `packages/coding-agent/src/irc/bus.ts`                                         | 成员间消息 = IRC 总线消息；`team_chat` 工具是总线投递的封装                 |
 
 新增的只有一层薄编排器（`plugins/official/agent-team/` 内）：
 
@@ -66,14 +69,14 @@ plugins/official/agent-team/
 
 ## 4. 工具面（`team_*`）
 
-| 工具 | 作用 | 备注 |
-|---|---|---|
-| `team_spawn` | 按 crew 配置 spawn 全体成员（经 task 路径） | 幂等：已在场的成员跳过 |
-| `team_plan` | 生成/更新任务 DAG | 写 `crew-state.json` |
-| `team_dispatch` | 派发单个任务给指定成员 | 复用 task 派发路径 |
-| `team_chat` | 向总线投递成员消息（@提及路由） | IrcBus 封装 |
-| `team_status` | 输出 DAG 进度 / 成员状态 | 复用 AgentRegistry.list() |
-| `team_cancel` | 取消 crew（成员退场走 lifecycle） | |
+| 工具            | 作用                                        | 备注                      |
+| --------------- | ------------------------------------------- | ------------------------- |
+| `team_spawn`    | 按 crew 配置 spawn 全体成员（经 task 路径） | 幂等：已在场的成员跳过    |
+| `team_plan`     | 生成/更新任务 DAG                           | 写 `crew-state.json`      |
+| `team_dispatch` | 派发单个任务给指定成员                      | 复用 task 派发路径        |
+| `team_chat`     | 向总线投递成员消息（@提及路由）             | IrcBus 封装               |
+| `team_status`   | 输出 DAG 进度 / 成员状态                    | 复用 AgentRegistry.list() |
+| `team_cancel`   | 取消 crew（成员退场走 lifecycle）           |                           |
 
 工具描述走 i18n 目录（与 CLI /命令汉化同一 `M` 体系），新增键进
 `packages/coding-agent/src/i18n/{en,zh}.ts` 的 team 分区。
@@ -84,11 +87,11 @@ plugins/official/agent-team/
   iframe 方案。页面三块：成员名册、消息流（IRC 总线投影）、任务看板（DAG 投影）。
 - **前置依赖（已核实缺失，列为 Milestone 0）**：manifest v2 `pages` 机制与
   gateway `/api/plugin-assets` 路由均不存在。
-  - M0：plugin-system.md 的 pages 契约落地（gateway 路由 + manifest 解析 +
-    静态资源挂载）。
-  - M1：team-agent 核心（编排器 + `team_*` 工具 + crew 配置加载）。
-  - M2：Web 页面三块（名册 / 消息流 / 看板）。
-  - M3：人设群聊模式（场景二全量）。
+   - M0：plugin-system.md 的 pages 契约落地（gateway 路由 + manifest 解析 +
+     静态资源挂载）。
+   - M1：team-agent 核心（编排器 + `team_*` 工具 + crew 配置加载）。
+   - M2：Web 页面三块（名册 / 消息流 / 看板）。
+   - M3：人设群聊模式（场景二全量）。
 
 ## 6. CLI/TUI 查看面
 
@@ -100,10 +103,35 @@ plugins/official/agent-team/
 
 ## 7. 兼容与测试
 
-| 测试 | 断言 |
-|---|---|
+| 测试            | 断言                                                          |
+| --------------- | ------------------------------------------------------------- |
 | crew 编排确定性 | 固定 mock 模型下，同一 DAG 派发顺序稳定；重试上限触发人工介入 |
-| IRC 总线注入 | `team_chat` 消息按提及路由到达目标成员；限速生效 |
-| manifest 校验 | pages 声明与 `pages/` 资源一致；缺资源 → 安装期失败 |
-| persona 锁定 | locked 段在 N 轮对话后字节级不变 |
-| `team_cancel` | 成员退场走 lifecycle，registry 无泄漏 |
+| IRC 总线注入    | `team_chat` 消息按提及路由到达目标成员；限速生效              |
+| manifest 校验   | pages 声明与 `pages/` 资源一致；缺资源 → 安装期失败           |
+| persona 锁定    | locked 段在 N 轮对话后字节级不变                              |
+| `team_cancel`   | 成员退场走 lifecycle，registry 无泄漏                         |
+
+## 8. 实现对照（2026-09-23）
+
+| 设计契约                                                                                            | 实际落地                                                                                                                                                                  | 位置                                                              |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 独立 `plugins/official/agent-team/`                                                                 | 并入 `plugins/official/pi-messenger/`（crew/ 子目录）                                                                                                                     | `plugins/official/pi-messenger/crew/`                             |
+| `crew/teams/*.json` 成员配置                                                                        | profile 模型：8 个 BUILTIN_ROLES + 内置 sample profiles + 用户 profiles（`~/.zeta` 下持久化）                                                                             | `crew/team/store.ts`                                              |
+| `crew/personas/*.md` frontmatter 锁定                                                               | persona = agent markdown，`locked` 语义由 prompt 重建路径承担                                                                                                             | `crew/agents/*.md`、`crew/prompt.ts`                              |
+| `team_spawn` / `team_plan` / `team_dispatch` / `team_chat` / `team_status` / `team_cancel` 六个工具 | 单一 `pi_messenger` tool + action 路由（`plan` / `work` / `review` / `task.*` / `team.*` / `coordination` / `sync` / `status`），另有 `/messenger` slash 命令打开 overlay | `index.ts`（registerTool）、`crew/index.ts`、`crew/handlers/*.ts` |
+| orchestrator plan→work→review 循环                                                                  | action router + 各 handler；`work` 支持 `autonomous` 跑到完成/阻塞                                                                                                        | `crew/index.ts`、`crew/handlers/work.ts`                          |
+| IRC 总线 = 成员消息                                                                                 | 文件型 agent mesh（无 daemon），成员发现/ Presence / 消息投递都在 store 层                                                                                                | `store.ts`、`crew/registry.ts`                                    |
+| manifest v2 `pages` + gateway `/api/plugin-assets`                                                  | **仍未实现**（M0 前置缺失依旧）——Web 显示面走 overlay，不是 iframe page                                                                                                   | —                                                                 |
+| `/team` 本地查询命令                                                                                | 已补：`/team roles` / `profile.list` / `status` / `charter.show`，纯本地读取、不触发模型轮次（无 API key 也能用）                                                         | `team-command.ts`                                                 |
+
+**启用方式**（无 `team.enabled` 设置键——开关就是插件本身）：
+
+```sh
+zeta plugin install @linxiraos/pi-messenger
+zeta plugin enable @linxiraos/pi-messenger
+# TUI: /messenger 打开 overlay；/team roles 等做本地查询
+```
+
+**已知边界**：`-p`（headless one-shot）模式下所有 slash 命令（含内置 `/language`）
+都会作为 prompt 交给模型，这是 harness 设计而非插件问题；本地查询命令的价值在
+TUI 内直接执行、零 token。
