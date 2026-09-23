@@ -181,7 +181,7 @@ var styleLabels = map[string]string{
 func gutterStyleItems() []widgets.SelectItem {
 	items := make([]widgets.SelectItem, 0, len(config.GutterStyles))
 	for _, id := range config.GutterStyles {
-		items = append(items, widgets.SelectItem{ID: id, Label: styleLabels[id]})
+		items = append(items, widgets.SelectItem{ID: id, Label: t(styleLabels[id])})
 	}
 	return items
 }
@@ -194,22 +194,22 @@ func borderStyleItems() []widgets.SelectItem {
 		if id == "theme" {
 			continue
 		}
-		items = append(items, widgets.SelectItem{ID: id, Label: styleLabels[id]})
+		items = append(items, widgets.SelectItem{ID: id, Label: t(styleLabels[id])})
 	}
 	return items
 }
 
 func diffModeItems() []widgets.SelectItem {
 	return []widgets.SelectItem{
-		{ID: config.DiffModeSplit, Label: "Split"},
-		{ID: config.DiffModeUnified, Label: "Unified"},
+		{ID: config.DiffModeSplit, Label: t("Split")},
+		{ID: config.DiffModeUnified, Label: t("Unified")},
 	}
 }
 
 func diffContextItems() []widgets.SelectItem {
 	return []widgets.SelectItem{
-		{ID: config.DiffContextChanges, Label: "Changes Only"},
-		{ID: config.DiffContextFull, Label: "Full File"},
+		{ID: config.DiffContextChanges, Label: t("Changes Only")},
+		{ID: config.DiffContextFull, Label: t("Full File")},
 	}
 }
 

@@ -208,6 +208,7 @@ func DefaultMarkdownSettings() MarkdownSettings {
 type Settings struct {
 	Version   int    `json:"version"`
 	Theme     string `json:"theme,omitempty"`
+	Language  string `json:"language,omitempty"` // "" = follow env; "zh"/"en" forces the UI locale
 	DebugMode bool   `json:"debugMode,omitempty"`
 	// These sections must NOT use omitzero: their defaults are non-zero, so an
 	// all-false/all-zero section would be omitted on save and silently revert to

@@ -38,6 +38,7 @@ func (a *App) ApplySettings(s config.Settings) {
 	prev := a.appliedSettings
 	a.appliedSettings = s
 	*a.Settings = s
+	installLang(&s) // UI locale follows the persisted language
 
 	// Apply editor settings to the editor group and active editor
 	a.EditorGroup.TabSize = s.Editor.TabSize

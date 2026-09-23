@@ -129,12 +129,13 @@ func TestSettingsEnumSelectOpensPopup(t *testing.T) {
 	h := openSettings(t)
 	clickRowControl(t, h, "Appearance", "Appearance")
 
-	// The theme select shows "Default" until it is opened.
+	// The theme select shows "Default" until it is opened. The language
+	// select shares that label, so target the Theme row explicitly.
 	if strings.Contains(h.screenText(), "default-dark") {
 		t.Fatal("theme list visible before the select was opened")
 	}
 
-	clickRowControl(t, h, "Default", "Default")
+	clickRowControl(t, h, "Theme", "Default")
 
 	screen := h.screenText()
 	if !strings.Contains(screen, "▲") {
