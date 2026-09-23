@@ -255,12 +255,12 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 	statusBar := ui.NewStatusBarWidget(status)
 
 	menuBar := ui.NewMenuBarWidget([]ui.MenuItem{
-		{Name: "File"},
-		{Name: "Edit"},
-		{Name: "Selection"},
-		{Name: "View"},
-		{Name: "Options"},
-		{Name: "Help"},
+		{Name: t("File")},
+		{Name: t("Edit")},
+		{Name: t("Selection")},
+		{Name: t("View")},
+		{Name: t("Options")},
+		{Name: t("Help")},
 	})
 
 	search := ui.NewSearchWidget()
@@ -277,9 +277,9 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 	explorer := NewNavigationPanel(cfg.Settings.Explorer, ws.Paths()...)
 
 	sidebar := ui.NewSidebarWidget()
-	sidebar.AddPanel("explorer", "Explore", explorer.Adapter)
-	sidebar.AddPanel("search", "Find", search)
-	sidebar.AddPanel("changes", "Changes", changes.Adapter)
+	sidebar.AddPanel("explorer", t("Explore"), explorer.Adapter)
+	sidebar.AddPanel("search", t("Find"), search)
+	sidebar.AddPanel("changes", t("Changes"), changes.Adapter)
 	sidebar.AddPanel("outline", "Outline", symbols.Adapter)
 	sidebar.SetPanelOrder(cfg.Settings.Sidebar.PanelOrder)
 	sidebar.Tabs.Config.Reorderable = true

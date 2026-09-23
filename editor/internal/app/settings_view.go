@@ -98,7 +98,7 @@ func settingsCategories() []settingsCategory {
 				SetBool: func(s *config.Settings, v bool) { s.Editor.FocusOnOpen = v }},
 		}},
 		{Title: t("Appearance"), Fields: []settingField{
-			{Label: t("Language"), Kind: settingEnum, Restart: true, Options: languageItems,
+			{Label: t("Language"), Kind: settingEnum, Options: languageItems,
 				GetString: func(s *config.Settings) string { return s.Language },
 				SetString: func(s *config.Settings, v string) { s.Language = v }},
 			{Label: t("Theme"), Kind: settingEnum, Options: themeItems,
@@ -274,6 +274,15 @@ func (a *App) ShowSettings() {
 
 	v := &settingsView{app: a, working: *a.Settings, categories: settingsCategories()}
 	a.settingsView = v
+	v.render()
+}
+
+// render builds the form widgets for the current categories (constructed under
+// the locale active at call time) and mounts the tab. Extracted from
+// ShowSettings so a language switch can rebuild the surface in place.
+func (v *settingsView) render() {
+	a := v.app
+	v.categories = settingsCategories()
 
 	tabItems := make([]widgets.TabItem, 0, len(v.categories))
 	panes := make([]widgets.Widget, 0, len(v.categories))
@@ -423,10 +432,28 @@ func (v *settingsView) apply() {
 		v.setStatus(t("Invalid value for") + " " + strings.Join(bad, ", "))
 		return
 	}
+	prevLang := v.app.Settings.Language
 	v.commitTo(v.app.Settings)
 	v.app.SaveAndApplySettings()
 	v.working = *v.app.Settings
 	v.setStatus(t("Settings applied"))
+	// The whole form is rendered in the locale active at construction time
+	// (category tabs, field labels, enum options, buttons). Switching language
+	// must rebuild it, or the labels stay in the old locale until restart —
+	// which defeats the point of a language picker (user report v1.1.20).
+	if v.app.Settings.Language != prevLang {
+		v.rebuild()
+	}
+}
+
+// rebuild reconstructs the settings tab in the newly active locale, keeping
+// the working copy so pending edits survive the re-render.
+func (v *settingsView) rebuild() {
+	v.app.settingsView = nil
+	v.app.EditorGroup.ClosePluginTab(settingsTabID)
+	next := &settingsView{app: v.app, working: v.working}
+	v.app.settingsView = next
+	next.render()
 }
 
 // Dropping the working copy is what discards unapplied edits, so it does not
