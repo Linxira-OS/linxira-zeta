@@ -4,6 +4,47 @@
 
 CI/发布机制参考：唯一 workflow、trigger discipline、CI watching discipline、release tag 与 update log、版本线工具，以及上游引用卫生（远端/tag/分支保留策略）。硬性合并规则与品牌注册表见根 `AGENTS.md`；合并操作手册见 `document/merge-playbook.md`；日常编码约定见 `document/dev-conventions.md`。
 
+## Version line format
+
+Zeta rides **one semver line** across every published surface (14 packages,
+catalog keys, Cargo workspace, natives sentinel, desktop, README badge,
+`crates/*/BUILD.bazel`). The format conventions below are enforced by
+`scripts/set-version.ts` and verified by `scripts/check-version-consistency.ts`.
+
+| Segment  | Meaning                                                           | Example                         |
+| -------- | ----------------------------------------------------------------- | ------------------------------- |
+| `x.y`    | Product line. A bump in `y` is a release the update log documents | `1.1`                           |
+| `z`      | Patch level on the line                                           | `1.1.19`                        |
+| `-<ids>` | **Prerelease** — internal and RC lines only                       | `1.1.20-alpha.1`, `1.1.20-rc.2` |
+
+**Prerelease rules** (semver §9, enforced by the validator):
+
+- Dot-separated identifiers, each a non-empty run of `[0-9A-Za-z-]`;
+  a numeric identifier must not carry leading zeros (`rc.01` is rejected).
+- No build metadata (`+…`): it does not participate in precedence, so it
+  cannot order a release line and is rejected outright.
+- Comparison is semver precedence: `1.1.20-alpha.1 < 1.1.20-rc.1 < 1.1.20`.
+
+**Timestamp z (e.g. `1.1.202609231831`) is explicitly not adopted.** It is
+valid semver and the tooling accepts it, but it conflates two different axes —
+release ordering and build time — so a hotfix that ships after a scheduled
+build has no honest number left, and the sentinel/badge strings grow noise.
+Build time belongs in the changelog and the git tag, not the version.
+
+**Publishing consequences**:
+
+- The stable line (`npm publish` default dist-tag `latest`) is **numeric
+  only**. `zeta update` and `npm i -g @linxiraos/zeta` must never resolve to
+  an alpha/rc build.
+- A prerelease publish must pass `--tag next` (or `alpha`/`rc`) so it cannot
+  win the `latest` tag, and it does not produce GitHub Release assets or the
+  desktop installer set — those are stable-line only.
+- `cargo`/`Cargo.toml` and the `__piNativesV` sentinel ride the same string:
+  the sentinel derivation maps every non-alphanumeric character to `_`
+  (`1.1.20-rc.2` → `__piNativesV1_1_20_rc_2`). The checker and the setter
+  must stay in lock-step on that rule — they once disagreed (dots-only vs
+  all-non-alphanumeric), which would have failed every prerelease line.
+
 ## CI and Release
 
 - `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It

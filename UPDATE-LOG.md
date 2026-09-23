@@ -8,6 +8,25 @@
 
 ### 修复
 
+- 内嵌 TTT 编辑器(editor vendor)鼠标交互整肃(v1.1.18 右键菜单乱弹的根治 + 用户实测验收):
+   - 幽灵 Button2 残留位导致左键整体失灵——约 20 处 `Buttons()==ButtonNone` 绝对闩锁改为**发起键下降沿**判定(`ButtonGesture`/`capturedGesture`),对残留位免疫;root 捕获释放经 `capturedGesture.Ended`;modal overlay 吞事件时同步沿基线;新增幽灵流 e2e 回归测试。
+   - 滚轮/中键穿透宿主终端(Tabby 收到后自己滚动或透给其它窗口):`Root.handleMouse` 末尾改为无条件 `EventConsumed`——TTT 是全屏 TUI,root 层兜底同时覆盖所有嵌套子页面(split/tab/内嵌终端/plugin widget)。
+   - 中键关闭标签页(上游未实现的 tabbed-UI 惯例):press 记录 `middleDownTab`,**松开沿命中同一 tab 才关**;松开在别处取消;pinned tab 走 unpin。
+- Zeta 品牌主题迁移:pi-tui titanium 色板(electricBlue accent / darkTitanium bg / brightAluminum 文本)映射为 TTT 86-token 主题文件 `zeta.json`,与 vermeer schema 逐 token 对齐(86/86),进 embedded themes FS,设置页 Appearance→Theme 直接可选。
+
+### i18n 接口层(默认英文)
+
+- 设置 TUI 完整本地化接口:`t()` 翻译表(130+ 条)覆盖分类标签、全部字段、枚举选项、菜单栏、侧栏/底部面板、下拉项、对话框按钮与状态行;语言选择器(Appearance→Language,中文/English/Default)Apply 后**即时重建**表单生效(工作草稿保留)。
+- **官方默认英文**:locale 探测收窄为显式 opt-in(settings.json `language` 或 `TTT_LANG=zh`),宿主 `LANG`/`LC_ALL` 不再触发切换——快捷键与命令名英文优先;翻译表完整保留供插件/社区自行适配。
+
+## 1.1.19（2026-09-23）
+
+### OMP 同步基线
+
+- v18.2.5(`aead0d4742` 并入,随 1.1.16 发布);本版无新上游同步。
+
+### 修复
+
 - 内嵌 TTT 编辑器(editor vendor):无按键移动不再自动弹出右键菜单——按下沿检测免疫终端 SGR release 残留位(Windows/Tabby 实测,v1.1.18 损伤);内嵌终端鼠标按钮映射与 tcell v3 语义对齐;About/--help 品牌面清理(上游 tttedit.dev/eugenioenko 链接移除,改指 Linxira-OS/linxira-zeta;VENDOR.md 修改层 #1-#3)。
 
 ### Linux 主线分发(准备)

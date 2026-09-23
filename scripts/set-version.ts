@@ -83,7 +83,16 @@ function readJson(rel: string): unknown {
 
 function writeJson(rel: string, data: unknown): void {
 	if (!DRY_RUN) {
-		fs.writeFileSync(path.join(repoRoot, rel), `${JSON.stringify(data, null, 2)}\n`);
+		// Preserve the file's existing indentation and line endings: the
+		// manifests are tab-indented with CRLF on Windows checkouts, and a
+		// blanket 2-space/LF rewrite shows up as a whole-file diff in every
+		// release commit. Only the version value actually changes.
+		const abs = path.join(repoRoot, rel);
+		const original = fs.readFileSync(abs, "utf8");
+		const crlf = original.includes("\r\n");
+		const tabIndent = /^\t"/m.test(original);
+		const text = tabIndent ? JSON.stringify(data, null, "\t") : JSON.stringify(data, null, 2);
+		fs.writeFileSync(abs, crlf ? `${text.replace(/\n/g, "\r\n")}\r\n` : `${text}\n`);
 	}
 }
 
@@ -122,8 +131,18 @@ async function main(): Promise<void> {
 		process.exit(1);
 	}
 	const version = versionArg.replace(/^v/, "");
-	if (!/^\d+\.\d+\.\d+$/.test(version)) {
-		fail(`Invalid version "${versionArg}". Expected semver like 1.1.0.`);
+	// Semver: numeric x.y.z on the stable line, optional prerelease segment
+	// (1.1.0-rc.1) for internal/RC lines. Build metadata is deliberately NOT
+	// accepted — it does not compare, so it cannot order a release line.
+	// Identifiers must be non-empty dot-separated alphanumeric runs; a numeric
+	// identifier may not carry leading zeros (semver §9). "alpha..1" and
+	// "rc.01" are rejected here rather than by npm/publisher later.
+	if (
+		!/^\d+\.\d+\.\d+(-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?$/.test(
+			version,
+		)
+	) {
+		fail(`Invalid version "${versionArg}". Expected semver like 1.1.0 or 1.1.0-rc.1.`);
 	}
 
 	const changed: string[] = [];
@@ -224,7 +243,12 @@ async function main(): Promise<void> {
 			const file = path.join(cratesDir, dir, "BUILD.bazel");
 			if (!fs.existsSync(file)) continue;
 			const text = fs.readFileSync(file, "utf8");
-			const next = text.replace(/^(\s{4}version = ")[^"]+(")/gm, `$1${version}$2`);
+			// Indentation varies by target nesting (4 spaces for the crate
+			// attr, deeper inside generated/macro expansions); the checker
+			// greps exactly 4, so mirror that: any leading run of spaces is
+			// rewritten. `version` attrs on non-rust targets in the same file
+			// are intentionally rewritten too — they ride the same line.
+			const next = text.replace(/^([ \t]+version = ")[^"]+(")/gm, `$1${version}$2`);
 			if (next !== text) {
 				if (!DRY_RUN) fs.writeFileSync(file, next);
 				changed.push(`crates/${dir}/BUILD.bazel`);
@@ -237,7 +261,7 @@ async function main(): Promise<void> {
 	// 7. README version badge (shields.io `badge/zeta-<version>-…`), kept in
 	// lock-step so the product front door shows the release version.
 	const readmeRel = "README.md";
-	if (replaceInFile(readmeRel, /badge\/zeta-\d+\.\d+\.\d+-/, `badge/zeta-${version}-`)) {
+	if (replaceInFile(readmeRel, /badge\/zeta-\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?-/, `badge/zeta-${version}-`)) {
 		changed.push(readmeRel);
 	} else {
 		unchanged.push(readmeRel);

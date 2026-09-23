@@ -127,8 +127,12 @@ function main(): void {
 		}
 	}
 
-	// pi-natives sentinel.
-	const sentinel = `__piNativesV${expected.replace(/\./g, "_")}`;
+	// pi-natives sentinel. Derivation must match set-version.ts: every
+	// non-alphanumeric char becomes "_", so 1.1.0-rc.1 yields
+	// __piNativesV1_1_0_rc_1 (a valid Rust identifier). The old
+	// dots-to-underscores rule produced 1_1_0-rc_1 with a hyphen — not an
+	// identifier — so the two scripts disagreed on any prerelease version.
+	const sentinel = `__piNativesV${expected.replace(/[^A-Za-z0-9]/g, "_")}`;
 	for (const file of SENTINEL_FILES) {
 		const content = fs.readFileSync(path.join(root, file), "utf8");
 		if (!content.includes(sentinel)) problems.push(`${file}: missing ${sentinel}`);
@@ -142,7 +146,7 @@ function main(): void {
 	// (img.shields.io `badge/zeta-<version>`); a merge that resets it to an
 	// upstream number or forgets the bump must fail here, not in the log only.
 	const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
-	const badge = readme.match(/badge\/zeta-([0-9]+\.[0-9]+\.[0-9]+)-/);
+	const badge = readme.match(/badge\/zeta-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)-/);
 	if (!badge) {
 		problems.push("README.md: no zeta version badge (badge/zeta-<version> shield) found");
 	} else if (badge[1] !== expected) {
