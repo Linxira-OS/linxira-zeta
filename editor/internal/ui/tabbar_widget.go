@@ -348,6 +348,21 @@ func (t *TabBarWidget) HandleEvent(ev tcell.Event) EventResult {
 	// Reuse Render's gutter width so click hit-tests line up with the screen.
 	arrowW := t.renderArrowW
 
+	// Middle click on a tab closes it (standard tabbed-UI convention).
+	if btn&tcell.Button3 != 0 && prevBtn&tcell.Button3 == 0 {
+		localX := mx - r.X - arrowW + t.ScrollOffset
+		for i, s := range t.tabSpans {
+			if localX >= s.start && localX < s.end {
+				if t.Tabs[i].Pinned && t.OnTabUnpin != nil {
+					t.OnTabUnpin(i)
+				} else if t.OnTabClose != nil {
+					t.OnTabClose(i)
+				}
+				return EventConsumed
+			}
+		}
+	}
+
 	if btn&tcell.Button2 != 0 && prevBtn&tcell.Button2 == 0 && t.OnTabRightClick != nil {
 		// Press-edge only: a stale Button2 bit in tcell's btnsDown set
 		// (quirky SGR releases) re-arms every motion event; the edge check
