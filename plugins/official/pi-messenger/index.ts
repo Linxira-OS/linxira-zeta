@@ -55,6 +55,7 @@ import { MessengerConfigOverlay } from "./config-overlay.ts";
 import { loadConfig, loadGlobalConfig, matchesAutoRegisterPath, type MessengerConfig } from "./config.ts";
 import { executeCrewAction } from "./crew/index.ts";
 import { registerTeamCommand } from "./team-command.ts";
+import { registerEditorCommand } from "./editor-command.ts";
 import { logFeedEvent, pruneFeed } from "./feed.ts";
 import type { CrewParams } from "./crew/types.ts";
 import {
@@ -533,6 +534,8 @@ Usage (action-based API - preferred):
 
   // Local team/crew reads: no model turn, works without any API key.
   registerTeamCommand(pi);
+  // Hand the session to the TTT editor (writes the handoff file, spawns the editor).
+  registerEditorCommand(pi);
 
   pi.registerCommand("messenger", {
     description: "Open messenger overlay, or 'config' to manage settings",

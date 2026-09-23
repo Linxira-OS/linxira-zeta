@@ -239,6 +239,11 @@ Source: https://github.com/Linxira-OS/linxira-zeta
 	editor.ApplyBorderStyle()
 	editor.Init(screen, renderer, lspManager)
 
+	// A handoff from the agent CLI fills in whatever the command line did not
+	// ask for: explicit arguments and --workspace win, the handoff only opens
+	// the directory/tab the user switched away from.
+	editor.ApplyHandoff()
+
 	editor.Version = version
 	editor.Keybindings = cfg.Keybindings
 	editor.Reg = cmdRegistry
