@@ -1,14 +1,14 @@
 # VENDOR — TTT Editor 快照账目
 
-| 项 | 值 |
-|---|---|
-| 上游仓库 | https://github.com/eugenioenko/ttt |
-| 来源 tag | `v1.5.0` |
-| peeled SHA | `765048940a54d9765fa574ae62df43abed398fa8` |
-| 引入方式 | `git archive v1.5.0`（无上游 git 历史）|
-| 协议 | MIT（`LICENSE` 原样保留，未改动）|
-| 引入日期 | 2026-09-19 |
-| npm 包 | `@linxiraos/editor`（Go 二进制分发，版本对齐 Zeta 产品线）|
+| 项         | 值                                                         |
+| ---------- | ---------------------------------------------------------- |
+| 上游仓库   | https://github.com/eugenioenko/ttt                         |
+| 来源 tag   | `v1.5.0`                                                   |
+| peeled SHA | `765048940a54d9765fa574ae62df43abed398fa8`                 |
+| 引入方式   | `git archive v1.5.0`（无上游 git 历史）                    |
+| 协议       | MIT（`LICENSE` 原样保留，未改动）                          |
+| 引入日期   | 2026-09-19                                                 |
+| npm 包     | `@linxiraos/editor`（Go 二进制分发，版本对齐 Zeta 产品线） |
 
 ## 出局方案（选型记录）
 
@@ -19,12 +19,13 @@
 
 ## 修改层清单（对上游 v1.5.0 的全部偏离）
 
-| # | 文件 | 偏离 | 原因 | 日期 |
-|---|---|---|---|---|
-| 1 | `internal/ui/mouse_edge.go`（新增）、`internal/ui/root.go`、`internal/ui/selectable_list.go`、`internal/ui/tabbar_widget.go`、`internal/widgets/table.go`、`internal/widgets/tree.go` | 右键触发改**按下沿检测**（Rising edge / `lastButtons` 比较），替代原始 `btn&Button2 != 0` 位测试 | 上游 bug：quirky SGR release（Tabby 实测，file dialog 关闭后）在 tcell `btnsDown` 集合里留下残留 Button2 位，tcell 对每个后续 motion 事件重放该位 → 鼠标仅移动就自动弹出右键菜单（v1.1.18 用户实测）。沿检测免疫残留位 | 2026-09-23 |
-| 2 | `internal/ui/terminal_widget.go` `sgrButtonCode` | 内嵌终端鼠标转发的按钮映射修正：tcell Button2=secondary(右键) → SGR 2、Button3=middle → SGR 1（原映射把 Button2 当 middle） | 上游把 tcell 语义名（Primary/Secondary/Middle）与 X11 物理编号混用；与 tcell `input.go` 的 wire 1→Button3、wire 2→Button2 映射对齐 | 2026-09-23 |
-| 3 | `internal/app/commands_view.go`（About 对话框）、`cmd/ttt/main.go`（--help） | 品牌面清理：删除上游 Website（tttedit.dev）/ GitHub（eugenioenko/ttt）链接，改为 Linxira-OS/linxira-zeta | fork 后品牌面归 Zeta 所有（AGENTS 品牌面登记制度） | 2026-09-23 |
-| 4 | `internal/ui/mouse_edge.go`（ButtonGesture）、`internal/ui/root.go`（capturedGesture）、`internal/ui/editor_widget_mouse.go`、`menubar_widget.go`、`sidebar_widget.go`、`tree_widget_adapter.go`、`content_split.go`、`split_panel.go`、`scrollbar.go`×2、`tabbar_widget.go`×2、`terminal_widget.go`、`commit_detail_widget.go`×2、`diff_widget.go`×2、`more_button.go`、`widgets/markdown.go`、`widgets/scrollbar.go`、`tests/e2e/phantom_button2_recovery_test.go` | 全部 `Buttons()==ButtonNone` 释放/复位闩锁改为**发起键下降沿**判定；root 捕获释放经 `capturedGesture.Ended`；modal overlay 吞事件时同步沿基线；新增幽灵流 e2e 回归测试 | 上游 bug 的深层后果：tcell `btnsDown` 幽灵 Button2 位使 `Buttons()` 永不返回 ButtonNone，约 20 处闩锁永久卡死 → 左键全失灵（v1.1.19 用户实测，Windows/Tabby）。沿检测免疫残留位；ButtonNone 是其子集，健康终端行为零变化 | 2026-09-23 |
+| #   | 文件                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 偏离                                                                                                                                                                                             | 原因                                                                                                                                                                                                                     | 日期       |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| 1   | `internal/ui/mouse_edge.go`（新增）、`internal/ui/root.go`、`internal/ui/selectable_list.go`、`internal/ui/tabbar_widget.go`、`internal/widgets/table.go`、`internal/widgets/tree.go`                                                                                                                                                                                                                                                                                | 右键触发改**按下沿检测**（Rising edge / `lastButtons` 比较），替代原始 `btn&Button2 != 0` 位测试                                                                                                 | 上游 bug：quirky SGR release（Tabby 实测，file dialog 关闭后）在 tcell `btnsDown` 集合里留下残留 Button2 位，tcell 对每个后续 motion 事件重放该位 → 鼠标仅移动就自动弹出右键菜单（v1.1.18 用户实测）。沿检测免疫残留位   | 2026-09-23 |
+| 2   | `internal/ui/terminal_widget.go` `sgrButtonCode`                                                                                                                                                                                                                                                                                                                                                                                                                     | 内嵌终端鼠标转发的按钮映射修正：tcell Button2=secondary(右键) → SGR 2、Button3=middle → SGR 1（原映射把 Button2 当 middle）                                                                      | 上游把 tcell 语义名（Primary/Secondary/Middle）与 X11 物理编号混用；与 tcell `input.go` 的 wire 1→Button3、wire 2→Button2 映射对齐                                                                                       | 2026-09-23 |
+| 3   | `internal/app/commands_view.go`（About 对话框）、`cmd/ttt/main.go`（--help）                                                                                                                                                                                                                                                                                                                                                                                         | 品牌面清理：删除上游 Website（tttedit.dev）/ GitHub（eugenioenko/ttt）链接，改为 Linxira-OS/linxira-zeta                                                                                         | fork 后品牌面归 Zeta 所有（AGENTS 品牌面登记制度）                                                                                                                                                                       | 2026-09-23 |
+| 4   | `internal/ui/mouse_edge.go`（ButtonGesture）、`internal/ui/root.go`（capturedGesture）、`internal/ui/editor_widget_mouse.go`、`menubar_widget.go`、`sidebar_widget.go`、`tree_widget_adapter.go`、`content_split.go`、`split_panel.go`、`scrollbar.go`×2、`tabbar_widget.go`×2、`terminal_widget.go`、`commit_detail_widget.go`×2、`diff_widget.go`×2、`more_button.go`、`widgets/markdown.go`、`widgets/scrollbar.go`、`tests/e2e/phantom_button2_recovery_test.go` | 全部 `Buttons()==ButtonNone` 释放/复位闩锁改为**发起键下降沿**判定；root 捕获释放经 `capturedGesture.Ended`；modal overlay 吞事件时同步沿基线；新增幽灵流 e2e 回归测试                           | 上游 bug 的深层后果：tcell `btnsDown` 幽灵 Button2 位使 `Buttons()` 永不返回 ButtonNone，约 20 处闩锁永久卡死 → 左键全失灵（v1.1.19 用户实测，Windows/Tabby）。沿检测免疫残留位；ButtonNone 是其子集，健康终端行为零变化 | 2026-09-23 |
+| 5   | `config/themes/zeta.json`（新增）、`internal/config/themes/zeta.json`（新增）                                                                                                                                                                                                                                                                                                                                                                                        | 品牌主题：Zeta 默认 TUI 配色（pi-tui titanium：accent electricBlue #00b4ff / bg darkTitanium #0f1216 / text brightAluminum）映射为 TTT 86-token 主题文件（含 terminal 16 色与 box-drawing 字符） | Zeta 产品观感一致化：编辑器面随主产品配色；schema 与 vermeer 全量对齐（86 token 零缺）                                                                                                                                   | 2026-09-23 |
 
 ## bump 流程
 
