@@ -76,7 +76,7 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 		if (q) {
 			const matches = sessions
 				.filter(
-					(s) =>
+					s =>
 						(s.name ?? "").toLowerCase().includes(q) ||
 						(s.firstMessage ?? "").toLowerCase().includes(q) ||
 						s.id.toLowerCase().includes(q),
@@ -123,7 +123,7 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 		return out;
 	}, [query, sessions, commands, t]);
 
-	const selectable = rows.filter((r) => r.kind !== "header");
+	const selectable = rows.filter(r => r.kind !== "header");
 	const activeSelectable = Math.min(active, selectable.length - 1);
 
 	useEffect(() => {
@@ -137,7 +137,7 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 				const n = selectable.length;
 				if (n === 0) return;
 				const delta = e.key === "ArrowDown" ? 1 : -1;
-				setActive((prev) => (Math.min(prev, n - 1) + delta + n) % n);
+				setActive(prev => (Math.min(prev, n - 1) + delta + n) % n);
 			} else if (e.key === "Enter") {
 				e.preventDefault();
 				const row = selectable[activeSelectable];
@@ -166,7 +166,7 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 			role="dialog"
 			aria-modal="true"
 			aria-label={t("search.placeholder")}
-			onMouseDown={(e) => {
+			onMouseDown={e => {
 				if (e.target === e.currentTarget) onClose();
 			}}
 			style={{
@@ -195,24 +195,47 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 					overflow: "hidden",
 				}}
 			>
-				<div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
-					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--text-dim)" }}>
+				<div
+					style={{
+						padding: "8px 10px",
+						borderBottom: "1px solid var(--border)",
+						display: "flex",
+						alignItems: "center",
+						gap: 8,
+					}}
+				>
+					<svg
+						width="13"
+						height="13"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						style={{ color: "var(--text-dim)" }}
+					>
 						<circle cx="11" cy="11" r="7" />
 						<line x1="21" y1="21" x2="16.5" y2="16.5" />
 					</svg>
 					<input
 						ref={inputRef}
 						value={query}
-						onChange={(e) => {
+						onChange={e => {
 							setQuery(e.target.value);
 							setActive(0);
 						}}
 						placeholder={t("search.placeholder")}
-						style={{ flex: 1, background: "none", border: "none", outline: "none", color: "var(--text)", fontSize: 13 }}
+						style={{
+							flex: 1,
+							background: "none",
+							border: "none",
+							outline: "none",
+							color: "var(--text)",
+							fontSize: 13,
+						}}
 					/>
 				</div>
 				<div ref={listRef} style={{ overflowY: "auto", flex: 1, padding: 4 }}>
-					{rows.map((row) => {
+					{rows.map(row => {
 						if (row.kind === "header") {
 							return (
 								<div
@@ -261,7 +284,9 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 								<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
 									{row.label}
 								</span>
-								{row.hint && <span style={{ color: "var(--text-dim)", fontSize: 10.5, flexShrink: 0 }}>{row.hint}</span>}
+								{row.hint && (
+									<span style={{ color: "var(--text-dim)", fontSize: 10.5, flexShrink: 0 }}>{row.hint}</span>
+								)}
 							</button>
 						);
 					})}

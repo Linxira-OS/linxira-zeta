@@ -2,7 +2,7 @@
 title: Quick Start
 description: Get up and running with TTT in minutes.
 sidebar:
-  order: 3
+   order: 3
 ---
 
 ## Opening Files and Folders
@@ -51,10 +51,10 @@ Press **Ctrl+P** to open command mode with a `>` prefix and the complete command
 
 Config files live in `~/.config/ttt/`:
 
-| File | Purpose |
-|------|---------|
-| [`settings.json`](https://github.com/eugenioenko/ttt/blob/main/config/settings.json) | Editor settings |
+| File                                                                                       | Purpose            |
+| ------------------------------------------------------------------------------------------ | ------------------ |
+| [`settings.json`](https://github.com/eugenioenko/ttt/blob/main/config/settings.json)       | Editor settings    |
 | [`keybindings.json`](https://github.com/eugenioenko/ttt/blob/main/config/keybindings.json) | Custom keybindings |
-| `themes/*.json` | Custom themes |
+| `themes/*.json`                                                                            | Custom themes      |
 
 You can also open these from the command palette (**Ctrl+P**): **Settings: Open Editor Settings** (also **Ctrl+K ,**), **Settings: Open settings.json** and **Settings: Open keybindings.json**.

@@ -71,9 +71,9 @@ function storage(): StorageLike {
 	if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
 	memory ??= new Map<string, string>();
 	return {
-		getItem: (k) => memory?.get(k) ?? null,
+		getItem: k => memory?.get(k) ?? null,
 		setItem: (k, v) => void memory?.set(k, v),
-		removeItem: (k) => void memory?.delete(k),
+		removeItem: k => void memory?.delete(k),
 	};
 }
 
@@ -265,19 +265,19 @@ export function sessionIsPinned(id: string, p: ZetaSidebarPrefs): boolean {
 }
 
 export function pinSession(id: string, pinned: boolean): ZetaSidebarPrefs {
-	return updatePrefs((p) => {
+	return updatePrefs(p => {
 		p.sessionMeta[id] = { ...p.sessionMeta[id], pinned };
 	});
 }
 
 export function markSessionRenamed(id: string): ZetaSidebarPrefs {
-	return updatePrefs((p) => {
+	return updatePrefs(p => {
 		p.sessionMeta[id] = { ...p.sessionMeta[id], manualTitle: true };
 	});
 }
 
 export function markSessionRead(id: string, at: number): ZetaSidebarPrefs {
-	return updatePrefs((p) => {
+	return updatePrefs(p => {
 		p.sessionMeta[id] = { ...p.sessionMeta[id], readAt: at };
 	});
 }
@@ -297,7 +297,7 @@ export function projectAlias(path: string, p: ZetaSidebarPrefs): string | undefi
 }
 
 export function setProjectAlias(path: string, name: string | null): ZetaSidebarPrefs {
-	return updatePrefs((p) => {
+	return updatePrefs(p => {
 		const meta = { ...p.projectMeta[path] };
 		if (name) meta.name = name.slice(0, 80);
 		else delete meta.name;
@@ -306,19 +306,19 @@ export function setProjectAlias(path: string, name: string | null): ZetaSidebarP
 }
 
 export function pinProject(path: string, pinned: boolean): ZetaSidebarPrefs {
-	return updatePrefs((p) => {
+	return updatePrefs(p => {
 		p.projectMeta[path] = { ...p.projectMeta[path], pinned };
 	});
 }
 
 export function collapseProject(path: string, collapsed: boolean): ZetaSidebarPrefs {
-	return updatePrefs((p) => {
+	return updatePrefs(p => {
 		p.projectMeta[path] = { ...p.projectMeta[path], collapsed };
 	});
 }
 
 export function reorderProjects(orderedPaths: readonly string[]): ZetaSidebarPrefs {
-	return updatePrefs((p) => {
+	return updatePrefs(p => {
 		orderedPaths.forEach((path, i) => {
 			p.projectMeta[path] = { ...p.projectMeta[path], order: i };
 		});

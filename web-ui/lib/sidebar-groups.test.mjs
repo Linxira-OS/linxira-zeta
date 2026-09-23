@@ -33,7 +33,7 @@ test("timeGroups: today renders without a label; empty groups omitted", () => {
 		NOW,
 	);
 	assert.deepEqual(
-		groups.map((g) => [g.key, g.label]),
+		groups.map(g => [g.key, g.label]),
 		[
 			["today", null],
 			["thisWeek", "thisWeek"],
@@ -55,9 +55,9 @@ test("sortSessions: pinned always first, then sort key", () => {
 		s("mid", { updatedAt: NOW - H }),
 	];
 	const meta = new Map([["old-pinned", { pinned: true }]]);
-	const out = sortSessions(rows, "recent", (id) => meta.get(id));
+	const out = sortSessions(rows, "recent", id => meta.get(id));
 	assert.deepEqual(
-		out.map((r) => r.id),
+		out.map(r => r.id),
 		["old-pinned", "new", "mid"],
 	);
 });
@@ -66,7 +66,7 @@ test("sortSessions: name mode ignores recency", () => {
 	const rows = [s("b", { title: "banana" }), s("a", { title: "apple" })];
 	const out = sortSessions(rows, "name", () => undefined);
 	assert.deepEqual(
-		out.map((r) => r.id),
+		out.map(r => r.id),
 		["a", "b"],
 	);
 });
@@ -81,7 +81,7 @@ test("sortProjects: pinned first, name sort, path tiebreak", () => {
 		"name",
 	);
 	assert.deepEqual(
-		out.map((p) => p.path),
+		out.map(p => p.path),
 		["/a", "/m", "/z"],
 	);
 });
@@ -96,7 +96,7 @@ test("sortProjects: manual order respected", () => {
 		"manual",
 	);
 	assert.deepEqual(
-		out.map((p) => p.path),
+		out.map(p => p.path),
 		["/b", "/c", "/a"],
 	);
 });
@@ -111,13 +111,25 @@ test("splitZones: pins float out, temp excluded, groups sorted", () => {
 			s("p1new", { projectKey: "/p1", updatedAt: NOW - H }),
 		],
 		"recent",
-		(id) => (id === "pinned" ? { pinned: true } : undefined),
+		id => (id === "pinned" ? { pinned: true } : undefined),
 	);
-	assert.deepEqual(zones.pinned.map((r) => r.id), ["pinned"]);
-	assert.deepEqual(zones.temp.map((r) => r.id), ["t1"]);
+	assert.deepEqual(
+		zones.pinned.map(r => r.id),
+		["pinned"],
+	);
+	assert.deepEqual(
+		zones.temp.map(r => r.id),
+		["t1"],
+	);
 	// Groups ordered by most recently active project first (/p2 is newer).
-	assert.deepEqual(zones.projectRows.map((g) => g.project), ["/p2", "/p1"]);
-	assert.deepEqual(zones.projectRows[1].sessions.map((r) => r.id), ["p1new", "p1old"]);
+	assert.deepEqual(
+		zones.projectRows.map(g => g.project),
+		["/p2", "/p1"],
+	);
+	assert.deepEqual(
+		zones.projectRows[1].sessions.map(r => r.id),
+		["p1new", "p1old"],
+	);
 });
 
 test("foldVisible caps at 10 and reports hidden count", () => {

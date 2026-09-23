@@ -39,7 +39,7 @@ async function freePort() {
 			deferred.reject(new Error("Could not reserve a loopback port"));
 			return;
 		}
-		server.close((error) => {
+		server.close(error => {
 			if (error) deferred.reject(error);
 			else deferred.resolve(address.port);
 		});
@@ -114,9 +114,10 @@ async function main() {
 	const appDir = appPathFromArgs();
 	// macOS bundles the shell in Zeta.app; extraResources land under
 	// Contents/Resources. Other platforms keep resources/ at the app root.
-	const serviceDir = process.platform === "darwin"
-		? path.join(appDir, "Zeta.app", "Contents", "Resources", "zeta")
-		: path.join(appDir, "resources", "zeta");
+	const serviceDir =
+		process.platform === "darwin"
+			? path.join(appDir, "Zeta.app", "Contents", "Resources", "zeta")
+			: path.join(appDir, "resources", "zeta");
 	const zeta = path.join(serviceDir, platformInfo.zetaBinaryName);
 	const runtime = path.join(serviceDir, platformInfo.nodeBinaryName);
 	const standaloneServer = path.join(serviceDir, "web-ui", ".next", "standalone", "server.js");
@@ -132,7 +133,7 @@ async function main() {
 	let spawnError = null;
 	let stopping = false;
 	const serviceOutput = [];
-	const collectOutput = (chunk) => {
+	const collectOutput = chunk => {
 		serviceOutput.push(chunk.toString());
 		while (serviceOutput.join("").length > 8_000) serviceOutput.shift();
 	};
@@ -145,12 +146,14 @@ async function main() {
 	});
 	child.stdout.on("data", collectOutput);
 	child.stderr.on("data", collectOutput);
-	child.once("error", (error) => {
+	child.once("error", error => {
 		spawnError = error;
 	});
 	child.once("exit", (code, signal) => {
 		if (!stopping && spawnError === null) {
-			spawnError = new Error(`Packaged Zeta service exited (${code ?? signal ?? "unknown"}): ${serviceOutput.join("")}`);
+			spawnError = new Error(
+				`Packaged Zeta service exited (${code ?? signal ?? "unknown"}): ${serviceOutput.join("")}`,
+			);
 		}
 	});
 
@@ -165,14 +168,16 @@ async function main() {
 		const page = await fetch(webUrl);
 		const html = await page.text();
 		const assets = [...html.matchAll(/(?:src|href)="([^"]*\/_next\/[^"]*)"/g)]
-			.map((match) => match[1])
+			.map(match => match[1])
 			.filter((asset, index, values) => values.indexOf(asset) === index);
 		if (assets.length === 0) throw new Error("Packaged Web UI did not reference any Next assets");
 		for (const asset of assets) {
 			const response = await fetch(`${webUrl}${asset}`);
 			if (!response.ok) throw new Error(`Packaged Next asset failed: ${response.status} ${asset}`);
 		}
-		console.log(`Desktop smoke passed: default workspace, SSE, ${assets.length} Next assets, Web UI, API, and Stats dashboard.`);
+		console.log(
+			`Desktop smoke passed: default workspace, SSE, ${assets.length} Next assets, Web UI, API, and Stats dashboard.`,
+		);
 	} finally {
 		stopping = true;
 		await stopService(child);
@@ -186,8 +191,8 @@ async function main() {
 // force the process out instead of waiting for the loop to drain.
 main().then(
 	() => process.exit(0),
-	(error) => {
-		console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+	error => {
+		console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
 		process.exit(1);
 	},
 );

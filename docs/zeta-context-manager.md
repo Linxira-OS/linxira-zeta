@@ -33,23 +33,23 @@ Queue check → last message has endTurn? → trigger runAutoCompaction
 
 All settings are under the `zeta.contextCache` namespace:
 
-| Setting | Type | Default | Description |
-|---|---|---|---|
-| `enabled` | `boolean` | `false` | Master switch for both state machines |
-| `thresholdTokens` | `number` | `400000` | Token threshold for memory write trigger |
-| `memoryWriteEnabled` | `boolean` | `true` | Enable State Machine A (threshold → memory write) |
-| `endTurnCompactionEnabled` | `boolean` | `true` | Enable State Machine B (endTurn → compaction) |
+| Setting                    | Type      | Default  | Description                                       |
+| -------------------------- | --------- | -------- | ------------------------------------------------- |
+| `enabled`                  | `boolean` | `false`  | Master switch for both state machines             |
+| `thresholdTokens`          | `number`  | `400000` | Token threshold for memory write trigger          |
+| `memoryWriteEnabled`       | `boolean` | `true`   | Enable State Machine A (threshold → memory write) |
+| `endTurnCompactionEnabled` | `boolean` | `true`   | Enable State Machine B (endTurn → compaction)     |
 
 ### Configuration Example
 
 ```yaml
 # ~/.zeta/config.yml
 zeta:
-  contextCache:
-    enabled: true
-    thresholdTokens: 400000
-    memoryWriteEnabled: true
-    endTurnCompactionEnabled: true
+   contextCache:
+      enabled: true
+      thresholdTokens: 400000
+      memoryWriteEnabled: true
+      endTurnCompactionEnabled: true
 ```
 
 ## Integration
@@ -63,6 +63,7 @@ manager.register(agent);
 ```
 
 The `host` must implement the `ZetaContextManagerHost` interface, providing:
+
 - `settings` — access to user configuration
 - `getContextUsage()` — current token usage
 - `runAutoCompaction()` — trigger compaction

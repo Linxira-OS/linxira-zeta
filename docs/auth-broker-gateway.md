@@ -192,8 +192,8 @@ Broker clients can restrict their visible OAuth accounts by setting `OMP_AUTH_BR
 
 ```json
 {
-  "anthropic": ["email:alice@example.com|org:org-team"],
-  "openai-codex": []
+	"anthropic": ["email:alice@example.com|org:org-team"],
+	"openai-codex": []
 }
 ```
 
@@ -218,10 +218,10 @@ The broker is **off** unless `OMP_AUTH_BROKER_URL` (or `auth.broker.url` in `con
 
 | Variable                            | Purpose                                                                                                                                                                | Required when                                                                                                             |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `OMP_AUTH_BROKER_URL`               | Base URL of the remote auth-broker (e.g. `https://broker.tailnet:8765`). Selecting this puts the client in broker mode — local SQLite is bypassed.                     | Any time the zeta client should resolve credentials through a broker (and required by `zeta auth-gateway serve`).           |
+| `OMP_AUTH_BROKER_URL`               | Base URL of the remote auth-broker (e.g. `https://broker.tailnet:8765`). Selecting this puts the client in broker mode — local SQLite is bypassed.                     | Any time the zeta client should resolve credentials through a broker (and required by `zeta auth-gateway serve`).         |
 | `OMP_AUTH_BROKER_TOKEN`             | Bearer token used for every broker endpoint except `/v1/healthz`.                                                                                                      | When `OMP_AUTH_BROKER_URL` is set and no token is available from `auth.broker.token` or `<config-dir>/auth-broker.token`. |
 | `OMP_AUTH_BROKER_SNAPSHOT_TTL_MS`   | Freshness window for the encrypted local snapshot cache. Default `3600000` (1 h); `0` disables cache reads and writes.                                                 | Optional in broker mode.                                                                                                  |
-| `OMP_AUTH_BROKER_SNAPSHOT_CACHE`    | Path override for the encrypted local snapshot cache. Default `~/\.zeta/cache/auth-broker-snapshot.enc` (or XDG cache equivalent).                                       | Optional in broker mode.                                                                                                  |
+| `OMP_AUTH_BROKER_SNAPSHOT_CACHE`    | Path override for the encrypted local snapshot cache. Default `~/\.zeta/cache/auth-broker-snapshot.enc` (or XDG cache equivalent).                                     | Optional in broker mode.                                                                                                  |
 | `OMP_AUTH_BROKER_ACCOUNT_POOL_FILE` | JSON file mapping provider IDs to OAuth `identityKey` values visible to this trusted client. Parsed once; invalid files abort initialization. API keys are unaffected. | Optional in broker mode.                                                                                                  |
 
 Resolution order in `resolveAuthBrokerConfig()`:
@@ -241,8 +241,8 @@ The gateway has no dedicated env vars — it inherits `OMP_AUTH_BROKER_*` becaus
 
 ### Token files
 
-| Path                              | Owner                                                | Mode                          |
-| --------------------------------- | ---------------------------------------------------- | ----------------------------- |
+| Path                              | Owner                                                 | Mode                          |
+| --------------------------------- | ----------------------------------------------------- | ----------------------------- |
 | `<config-dir>/auth-broker.token`  | `zeta auth-broker serve` (created at first start)     | `0600` in a `0700` parent dir |
 | `<config-dir>/auth-gateway.token` | `zeta auth-gateway serve` (skipped under `--no-auth`) | `0600` in a `0700` parent dir |
 

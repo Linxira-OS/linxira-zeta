@@ -26,7 +26,9 @@ if (!found) {
 	if (existsSync(flat)) found = flat;
 }
 if (!found) {
-	console.error(`@linxiraos/editor: no binary for ${process.platform}-${process.arch}. Install the matching @linxiraos/editor-* package.`);
+	console.error(
+		`@linxiraos/editor: no binary for ${process.platform}-${process.arch}. Install the matching @linxiraos/editor-* package.`,
+	);
 	process.exit(1);
 }
 const { spawn } = require("node:child_process");

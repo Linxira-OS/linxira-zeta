@@ -7,18 +7,20 @@ import { cleanupDir, createTempDir, createTempFile } from "./helpers.js";
 let dir;
 
 afterEach(() => {
-  tui.kill();
-  if (dir) cleanupDir(dir);
-  dir = undefined;
+	tui.kill();
+	if (dir) cleanupDir(dir);
+	dir = undefined;
 });
 
 function diffFixture() {
-  dir = createTempDir();
-  const file = createTempFile(dir, "test.txt", "hello\n");
-  const configDir = join(dir, "config");
-  mkdirSync(configDir, { recursive: true });
-  const plugin = join(dir, "diff.lua");
-  writeFileSync(plugin, `
+	dir = createTempDir();
+	const file = createTempFile(dir, "test.txt", "hello\n");
+	const configDir = join(dir, "config");
+	mkdirSync(configDir, { recursive: true });
+	const plugin = join(dir, "diff.lua");
+	writeFileSync(
+		plugin,
+		`
     local ttt = require("ttt")
     ttt.register({
       commands = {
@@ -36,120 +38,124 @@ function diffFixture() {
         }
       },
     })
-  `, "utf8");
-  return { file, configDir, plugin };
+  `,
+		"utf8",
+	);
+	return { file, configDir, plugin };
 }
 
 function startWithConfig({ file, configDir, plugin }) {
-  tui.start("--plugin", plugin, file);
-  tui.setEnv({ TTT_CONFIG_DIR: configDir });
-  tui.setSize(42, 15);
+	tui.start("--plugin", plugin, file);
+	tui.setEnv({ TTT_CONFIG_DIR: configDir });
+	tui.setSize(42, 15);
 }
 
 function enableUnifiedWrappedDefaults() {
-  tui.exec("Use Unified Diff by Default");
-  tui.exec("Toggle Diff Word Wrap Default");
+	tui.exec("Use Unified Diff by Default");
+	tui.exec("Toggle Diff Word Wrap Default");
 }
 
 function savedSettings(configDir) {
-  return JSON.parse(readFileSync(join(configDir, "settings.json"), "utf8"));
+	return JSON.parse(readFileSync(join(configDir, "settings.json"), "utf8"));
 }
 
 function diffRow(screen, text) {
-  return screen.split("\n").findIndex((row) => row.includes(text));
+	return screen.split("\n").findIndex(row => row.includes(text));
 }
 
 describe("diff reading preferences", () => {
-  it("marks removed and added line numbers in the shared diff gutter", () => {
-    const fixture = diffFixture();
-    startWithConfig(fixture);
-    tui.exec("Test Preference Diff");
-    const snapshot = tui.snapshot();
+	it("marks removed and added line numbers in the shared diff gutter", () => {
+		const fixture = diffFixture();
+		startWithConfig(fixture);
+		tui.exec("Test Preference Diff");
+		const snapshot = tui.snapshot();
 
-    const { snapshots } = tui.run();
-    expect(snapshots[snapshot]).toMatch(/1 −.*1 \+/u);
-  });
+		const { snapshots } = tui.run();
+		expect(snapshots[snapshot]).toMatch(/1 −.*1 \+/u);
+	});
 
-  it("shows and persists global diff controls under Options", () => {
-    const fixture = diffFixture();
-    startWithConfig(fixture);
-    tui.exec("Menu: Options");
-    const options = tui.snapshot();
-    for (let i = 0; i < 10; i++) tui.press("down");
-    tui.press("right");
-    const diffViews = tui.snapshot();
-    tui.press("escape");
-    enableUnifiedWrappedDefaults();
-    tui.exec("Show Full File Diff by Default");
-    tui.exec("Toggle High Contrast Diffs");
-    tui.exec("Toggle Collapsed Diff Row Emphasis");
+	it("shows and persists global diff controls under Options", () => {
+		const fixture = diffFixture();
+		startWithConfig(fixture);
+		tui.exec("Menu: Options");
+		const options = tui.snapshot();
+		for (let i = 0; i < 10; i++) tui.press("down");
+		tui.press("right");
+		const diffViews = tui.snapshot();
+		tui.press("escape");
+		enableUnifiedWrappedDefaults();
+		tui.exec("Show Full File Diff by Default");
+		tui.exec("Toggle High Contrast Diffs");
+		tui.exec("Toggle Collapsed Diff Row Emphasis");
 
-    const { snapshots } = tui.run();
-    expect(snapshots[options]).toContain("Diff Views");
-    expect(snapshots[options]).toContain("Git Files");
-    expect(snapshots[diffViews]).toContain("Split");
-    expect(snapshots[diffViews]).toContain("Unified");
-    expect(snapshots[diffViews]).toContain("Changes Only");
-    expect(snapshots[diffViews]).toContain("Full File");
-    expect(snapshots[diffViews]).toContain("Wrap Lines");
-    expect(snapshots[diffViews]).toContain("High Contrast");
-    expect(snapshots[diffViews]).toContain("Emphasize Collapsed Rows");
+		const { snapshots } = tui.run();
+		expect(snapshots[options]).toContain("Diff Views");
+		expect(snapshots[options]).toContain("Git Files");
+		expect(snapshots[diffViews]).toContain("Split");
+		expect(snapshots[diffViews]).toContain("Unified");
+		expect(snapshots[diffViews]).toContain("Changes Only");
+		expect(snapshots[diffViews]).toContain("Full File");
+		expect(snapshots[diffViews]).toContain("Wrap Lines");
+		expect(snapshots[diffViews]).toContain("High Contrast");
+		expect(snapshots[diffViews]).toContain("Emphasize Collapsed Rows");
 
-    const saved = savedSettings(fixture.configDir);
-    expect(saved.editor.diffMode).toBe("unified");
-    expect(saved.editor.diffContext).toBe("full");
-    expect(saved.editor.diffWordWrap).toBe(true);
-    expect(saved.editor.diffHighContrast).toBe(true);
-    expect(saved.editor.diffEmphasizeCollapsedRows).toBe(true);
-  });
+		const saved = savedSettings(fixture.configDir);
+		expect(saved.editor.diffMode).toBe("unified");
+		expect(saved.editor.diffContext).toBe("full");
+		expect(saved.editor.diffWordWrap).toBe(true);
+		expect(saved.editor.diffHighContrast).toBe(true);
+		expect(saved.editor.diffEmphasizeCollapsedRows).toBe(true);
+	});
 
-  it("updates an inherited open diff when Options defaults change", () => {
-    const fixture = diffFixture();
-    startWithConfig(fixture);
-    tui.exec("Test Preference Diff");
-    const before = tui.snapshot();
-    enableUnifiedWrappedDefaults();
-    const after = tui.snapshot();
+	it("updates an inherited open diff when Options defaults change", () => {
+		const fixture = diffFixture();
+		startWithConfig(fixture);
+		tui.exec("Test Preference Diff");
+		const before = tui.snapshot();
+		enableUnifiedWrappedDefaults();
+		const after = tui.snapshot();
 
-    const { snapshots } = tui.run();
-    expect(diffRow(snapshots[before], "left-prefix")).toBe(diffRow(snapshots[before], "right-prefix"));
-    expect(snapshots[before]).not.toContain("SUFFIX");
-    expect(diffRow(snapshots[after], "left-prefix")).toBeLessThan(diffRow(snapshots[after], "right-prefix"));
-    expect(snapshots[after]).toContain("SUFFIX");
-  });
+		const { snapshots } = tui.run();
+		expect(diffRow(snapshots[before], "left-prefix")).toBe(diffRow(snapshots[before], "right-prefix"));
+		expect(snapshots[before]).not.toContain("SUFFIX");
+		expect(diffRow(snapshots[after], "left-prefix")).toBeLessThan(diffRow(snapshots[after], "right-prefix"));
+		expect(snapshots[after]).toContain("SUFFIX");
+	});
 
-  it("preserves explicit surface overrides independently", () => {
-    const fixture = diffFixture();
-    startWithConfig(fixture);
-    tui.exec("Test First Preference Diff");
-    tui.exec("Test Second Preference Diff");
-    tui.exec("Git: Unified Diff");
-    tui.exec("Git: Toggle Diff Wrap");
-    enableUnifiedWrappedDefaults();
-    tui.exec("Use Split Diff by Default");
-    tui.exec("Toggle Diff Word Wrap Default");
-    const overridden = tui.snapshot();
-    tui.exec("View: Previous Tab");
-    const inherited = tui.snapshot();
+	it("preserves explicit surface overrides independently", () => {
+		const fixture = diffFixture();
+		startWithConfig(fixture);
+		tui.exec("Test First Preference Diff");
+		tui.exec("Test Second Preference Diff");
+		tui.exec("Git: Unified Diff");
+		tui.exec("Git: Toggle Diff Wrap");
+		enableUnifiedWrappedDefaults();
+		tui.exec("Use Split Diff by Default");
+		tui.exec("Toggle Diff Word Wrap Default");
+		const overridden = tui.snapshot();
+		tui.exec("View: Previous Tab");
+		const inherited = tui.snapshot();
 
-    const { snapshots } = tui.run();
-    expect(diffRow(snapshots[overridden], "left-prefix")).toBeLessThan(diffRow(snapshots[overridden], "right-prefix"));
-    expect(snapshots[overridden]).toContain("SUFFIX");
-    expect(diffRow(snapshots[inherited], "left-prefix")).toBe(diffRow(snapshots[inherited], "right-prefix"));
-    expect(snapshots[inherited]).not.toContain("SUFFIX");
-  });
+		const { snapshots } = tui.run();
+		expect(diffRow(snapshots[overridden], "left-prefix")).toBeLessThan(
+			diffRow(snapshots[overridden], "right-prefix"),
+		);
+		expect(snapshots[overridden]).toContain("SUFFIX");
+		expect(diffRow(snapshots[inherited], "left-prefix")).toBe(diffRow(snapshots[inherited], "right-prefix"));
+		expect(snapshots[inherited]).not.toContain("SUFFIX");
+	});
 
-  it("loads persisted diff defaults on the next run", () => {
-    const fixture = diffFixture();
-    startWithConfig(fixture);
-    enableUnifiedWrappedDefaults();
-    tui.run();
+	it("loads persisted diff defaults on the next run", () => {
+		const fixture = diffFixture();
+		startWithConfig(fixture);
+		enableUnifiedWrappedDefaults();
+		tui.run();
 
-    startWithConfig(fixture);
-    tui.exec("Test Preference Diff");
-    const reopened = tui.snapshot();
-    const { snapshots } = tui.run();
-    expect(diffRow(snapshots[reopened], "left-prefix")).toBeLessThan(diffRow(snapshots[reopened], "right-prefix"));
-    expect(snapshots[reopened]).toContain("SUFFIX");
-  });
+		startWithConfig(fixture);
+		tui.exec("Test Preference Diff");
+		const reopened = tui.snapshot();
+		const { snapshots } = tui.run();
+		expect(diffRow(snapshots[reopened], "left-prefix")).toBeLessThan(diffRow(snapshots[reopened], "right-prefix"));
+		expect(snapshots[reopened]).toContain("SUFFIX");
+	});
 });

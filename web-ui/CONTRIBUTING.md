@@ -18,10 +18,10 @@ Thank you for considering contributing to `omp-web`!
 ## Development Guidelines
 
 - **TypeScript & Linting**: Always verify your code passes type checks and linter rules before submitting a PR:
-  ```bash
-  npx tsc --noEmit
-  npm run lint
-  ```
+   ```bash
+   npx tsc --noEmit
+   npm run lint
+   ```
 - **Dev Server Caution**: Do NOT run `next build` during development as it pollutes `.next/` and breaks `npm run dev`.
 - **Code Style**: Follow existing project conventions. Keep components clean, modular, and performance-conscious.
 

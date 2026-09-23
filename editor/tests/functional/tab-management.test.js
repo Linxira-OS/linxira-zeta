@@ -5,83 +5,83 @@ import { createTempDir, createTempFile, cleanupDir, readFile } from "./helpers.j
 let dir;
 
 afterEach(() => {
-  tui.kill();
-  if (dir) cleanupDir(dir);
+	tui.kill();
+	if (dir) cleanupDir(dir);
 });
 
 describe("tab management", () => {
-  it("should open multiple files as tabs", () => {
-    dir = createTempDir();
-    const file1 = createTempFile(dir, "first.txt", "First file");
-    const file2 = createTempFile(dir, "second.txt", "Second file");
+	it("should open multiple files as tabs", () => {
+		dir = createTempDir();
+		const file1 = createTempFile(dir, "first.txt", "First file");
+		const file2 = createTempFile(dir, "second.txt", "Second file");
 
-    tui.start(file1, file2);
-    tui.waitFor("second.txt");
+		tui.start(file1, file2);
+		tui.waitFor("second.txt");
 
-    const s0 = tui.snapshot();
-    const { snapshots } = tui.run();
-    expect(snapshots[s0]).toContain("first.txt");
-    expect(snapshots[s0]).toContain("second.txt");
-  });
+		const s0 = tui.snapshot();
+		const { snapshots } = tui.run();
+		expect(snapshots[s0]).toContain("first.txt");
+		expect(snapshots[s0]).toContain("second.txt");
+	});
 
-  it("should close active tab with ctrl+w", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "closeme.txt", "Close this content");
+	it("should close active tab with ctrl+w", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "closeme.txt", "Close this content");
 
-    tui.start(file);
-    tui.waitFor("Close this content");
+		tui.start(file);
+		tui.waitFor("Close this content");
 
-    tui.press("ctrl+w");
+		tui.press("ctrl+w");
 
-    const s0 = tui.snapshot();
-    const { snapshots } = tui.run();
-    expect(snapshots[s0]).toContain("untitled");
-    expect(snapshots[s0]).not.toContain("Close this content");
-  });
+		const s0 = tui.snapshot();
+		const { snapshots } = tui.run();
+		expect(snapshots[s0]).toContain("untitled");
+		expect(snapshots[s0]).not.toContain("Close this content");
+	});
 
-  it("should show unsaved changes dialog when closing dirty tab", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "unsaved.txt", "Original");
+	it("should show unsaved changes dialog when closing dirty tab", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "unsaved.txt", "Original");
 
-    tui.start(file);
-    tui.waitFor("unsaved.txt");
+		tui.start(file);
+		tui.waitFor("unsaved.txt");
 
-    tui.type("dirty");
+		tui.type("dirty");
 
-    tui.press("ctrl+w");
-    tui.waitFor("Save changes");
+		tui.press("ctrl+w");
+		tui.waitFor("Save changes");
 
-    const s0 = tui.snapshot();
+		const s0 = tui.snapshot();
 
-    // Cancel the dialog
-    tui.press("escape");
+		// Cancel the dialog
+		tui.press("escape");
 
-    const s1 = tui.snapshot();
-    const { snapshots } = tui.run();
+		const s1 = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    expect(snapshots[s0]).toContain("Save changes");
-    expect(snapshots[s1]).toContain("unsaved.txt");
-  });
+		expect(snapshots[s0]).toContain("Save changes");
+		expect(snapshots[s1]).toContain("unsaved.txt");
+	});
 
-  it("should discard unsaved changes from dialog", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "discard.txt", "Original content");
+	it("should discard unsaved changes from dialog", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "discard.txt", "Original content");
 
-    tui.start(file);
-    tui.waitFor("Original content");
+		tui.start(file);
+		tui.waitFor("Original content");
 
-    tui.type("dirty");
+		tui.type("dirty");
 
-    tui.press("ctrl+w");
-    tui.waitFor("Save changes");
+		tui.press("ctrl+w");
+		tui.waitFor("Save changes");
 
-    tui.press("enter");
+		tui.press("enter");
 
-    const s0 = tui.snapshot();
-    const { snapshots } = tui.run();
+		const s0 = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    // Tab closed, editor shows untitled, original file unchanged
-    expect(snapshots[s0]).toContain("untitled");
-    expect(readFile(file)).toBe("Original content");
-  });
+		// Tab closed, editor shows untitled, original file unchanged
+		expect(snapshots[s0]).toContain("untitled");
+		expect(readFile(file)).toBe("Original content");
+	});
 });

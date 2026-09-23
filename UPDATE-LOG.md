@@ -6,6 +6,31 @@
 
 - v18.2.5(`aead0d4742` 并入,随 1.1.16 发布);本版无新上游同步。
 
+### 新增
+
+- **agent ↔ editor 双向切换**(透传打开路径/git 工作区/会话):
+   - handoff 文件 `~/.zeta/handoff.json` 一次性携带 cwd/gitRoot/sessionFile/file:line:col;write-then-rename 写入、读一次即删(不会重放昨天上下文);损坏或空 payload 不阻塞启动;**显式 CLI 参数永远优先**,同目录已开的工作区不拆。
+   - zeta 侧入口:**右上角独立圆角按钮**(theme 圆角制表符绘制,右对齐)+ `/editor` 命令。装在 header 而非 status-line segment——segment 来自用户可配置预设列表,而这是必须常驻的产品入口。
+   - TTT 侧入口:**菜单栏 Agent 项**(直角配 editor 主题,追加在最后以免 menuOptionsIndex 指错)+ `handoff.toAgent` / `handoff.toAgentWithFile`(带光标位);spawn detached,PATH → 插件树 → repo checkout 三级解析。
+   - 双层回归测试钉住跨进程契约(盘符冒号 vs 位置冒号、读一次语义、损坏容错、空 cwd 拒绝)——两侧无共享代码,契约只存在于两边。
+- **`/teamagent` 指令**(一个词):把 crew 角色注册为可派发的 subagent。
+   - `add <role> [--user]` 将 `TeamRoleDefinition`(只有 name/description/thinking/skills)转成标准 `AgentDefinition` frontmatter 写进 agents 目录——discovery 已经在看的路径,不养第二套注册表;保留名(main/sub)与非法名写入前拒绝,已存在不覆盖。
+   - `agents` / `remove` / `roles` / `status` / `profile.list` / `charter.show` 共 7 个动词归一个命令(原 `/team` 删除,消除同名双注册)。
+   - scope 默认 project(随仓库走),`--user` 写全局目录;discovery 缓存只在 runtime 刷新,故 add 明说需重开会话,不暗示立即可 spawn。
+- **editor 按需安装守卫**:`editor.autoInstall`(默认 true)在切换时检测 `@linxiraos/editor`,缺失则自动 `npm i -g`;Linux/macOS 的 root-owned prefix EACCES 用 `sudo -n` 重试,需要密码时返回确切命令而非挂在不可见提示符上。配套 `editor.handoffSession` 控制是否把会话写进 handoff。
+- **TTT Agent 设置分区**:启用交接 / 交接当前文件(tri-state,缺省即默认开)。
+
+### 修复
+
+- **CI 从不覆盖 editor/ 与 plugins/**:`ci.yml` 的 push 与 pull_request 两个 trigger 的 `paths` 过滤器都漏了这两个源码树,导致只改 editor 或 plugins 的 PR **跳过整个 workflow(零 check 直接绿合并)**。已双双补上;本次 23 job 全绿即修复后首次验证。
+- **TTT 汉化范围收窄为契约**:只译设置表单与描述性文案;**菜单栏/下拉动作/面板标题保持英文**——它们与快捷键并列,译名失去指位意义。此前译掉的 72 个菜单标签 + 8 个面板标题已回退,范围写进 `i18n.go` 头注防回潮。
+
+## 1.1.20（2026-09-23）
+
+### OMP 同步基线
+
+- v18.2.5(`aead0d4742` 并入,随 1.1.16 发布);本版无新上游同步。
+
 ### 修复
 
 - 内嵌 TTT 编辑器(editor vendor)鼠标交互整肃(v1.1.18 右键菜单乱弹的根治 + 用户实测验收):

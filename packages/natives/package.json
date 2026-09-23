@@ -2,32 +2,56 @@
 	"name": "@linxiraos/pi-natives",
 	"version": "1.1.20",
 	"description": "Native Rust bindings for PDF conversion, audio, WebRTC, grep, clipboard, image processing, syntax highlighting, PTY, and shell operations via N-API",
-	"type": "module",
+	"keywords": [
+		"clipboard",
+		"grep",
+		"image",
+		"napi",
+		"native",
+		"pty",
+		"rust",
+		"shell",
+		"syntax-highlighting",
+		"text-processing"
+	],
 	"homepage": "https://linxira-os.github.io/zeta/",
-	"author": "Linxira-OS",
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	},
 	"license": "MIT",
+	"author": "Linxira-OS",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/natives"
 	},
-	"bugs": {
-		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
-	},
-	"keywords": [
-		"napi",
-		"rust",
+	"files": [
+		"src",
 		"native",
-		"grep",
-		"text-processing",
-		"clipboard",
-		"image",
-		"pty",
-		"shell",
-		"syntax-highlighting"
+		"README.md",
+		"CHANGELOG.md"
 	],
+	"type": "module",
 	"main": "./native/index.js",
 	"types": "./native/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./native/index.d.ts",
+			"import": "./native/index.js"
+		},
+		"./desktop": {
+			"types": "./native/desktop.d.ts",
+			"import": "./native/desktop.js"
+		},
+		"./clipboard": {
+			"types": "./native/clipboard.d.ts",
+			"import": "./native/clipboard.js"
+		},
+		"./vcs": {
+			"types": "./native/vcs.d.ts",
+			"import": "./native/vcs.js"
+		}
+	},
 	"scripts": {
 		"build": "bun ../../scripts/bazel-natives.ts host --dest native",
 		"build:bindings": "bun scripts/build-bindings.ts",
@@ -54,35 +78,11 @@
 		"string-width": "8.2.2",
 		"wrap-ansi": "10.0.0"
 	},
-	"engines": {
-		"bun": ">=1.3.14"
-	},
 	"napi": {
 		"binaryName": "pi_natives",
 		"triples": {}
 	},
-	"files": [
-		"src",
-		"native",
-		"README.md",
-		"CHANGELOG.md"
-	],
-	"exports": {
-		".": {
-			"types": "./native/index.d.ts",
-			"import": "./native/index.js"
-		},
-		"./desktop": {
-			"types": "./native/desktop.d.ts",
-			"import": "./native/desktop.js"
-		},
-		"./clipboard": {
-			"types": "./native/clipboard.d.ts",
-			"import": "./native/clipboard.js"
-		},
-		"./vcs": {
-			"types": "./native/vcs.d.ts",
-			"import": "./native/vcs.js"
-		}
+	"engines": {
+		"bun": ">=1.3.14"
 	}
 }

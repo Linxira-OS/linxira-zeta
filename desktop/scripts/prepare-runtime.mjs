@@ -59,7 +59,9 @@ if (process.platform !== "win32") {
 const nativeDir = path.join(repoRoot, "packages", "natives", "native");
 const nativePrefix = `pi_natives.${platformInfo.nativeTag}`;
 const nativeAddons = fs.existsSync(nativeDir)
-	? fs.readdirSync(nativeDir).filter(f => f.startsWith(`${nativePrefix}.node`) || (f.startsWith(`${nativePrefix}-`) && f.endsWith(".node")))
+	? fs
+			.readdirSync(nativeDir)
+			.filter(f => f.startsWith(`${nativePrefix}.node`) || (f.startsWith(`${nativePrefix}-`) && f.endsWith(".node")))
 	: [];
 if (nativeAddons.length === 0) {
 	throw new Error(`No native addons for ${platformInfo.nativeTag} in ${nativeDir}; run the natives build first.`);
@@ -76,6 +78,5 @@ fs.cpSync(staticFiles, path.join(stagedStandalone, ".next", "static"), { recursi
 if (fs.existsSync(publicFiles)) {
 	fs.cpSync(publicFiles, path.join(stagedStandalone, "public"), { recursive: true });
 }
-
 
 console.log(`desktop runtime staged at ${stagingDir}`);

@@ -74,11 +74,23 @@ if (!process.env.CI) {
 }
 
 const archFlag = process.arch === "arm64" ? "--arm64" : "--x64";
-const result = spawnSync(process.execPath, [builderCli, platformInfo.builderTarget, archFlag, "--publish", "never", "--config", path.join(tempRoot, "electron-builder.yml")], {
-	cwd: tempRoot,
-	env,
-	stdio: "inherit",
-});
+const result = spawnSync(
+	process.execPath,
+	[
+		builderCli,
+		platformInfo.builderTarget,
+		archFlag,
+		"--publish",
+		"never",
+		"--config",
+		path.join(tempRoot, "electron-builder.yml"),
+	],
+	{
+		cwd: tempRoot,
+		env,
+		stdio: "inherit",
+	},
+);
 
 if (result.error) throw result.error;
 if (result.status !== 0) {
@@ -114,7 +126,10 @@ if (process.platform === "darwin") {
 	if (!appBundleDir) throw new Error(`No .app bundle found under ${tempRelease}`);
 	unpackedSource = appBundleDir;
 }
-const unpackedOut = path.join(releaseOut, `zeta-desktop-${manifest.version}-${platformInfo.platformId}-${process.arch}`);
+const unpackedOut = path.join(
+	releaseOut,
+	`zeta-desktop-${manifest.version}-${platformInfo.platformId}-${process.arch}`,
+);
 fs.rmSync(unpackedOut, { recursive: true, force: true });
 fs.cpSync(unpackedSource, unpackedOut, { recursive: true });
 fs.rmSync(tempRoot, { recursive: true, force: true });

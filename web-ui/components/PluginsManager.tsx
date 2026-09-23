@@ -9,9 +9,7 @@ type PluginScope = PluginPackageInfo["scope"];
 type PluginAction = "install" | "remove" | "update" | "disable" | "enable";
 
 function shortenPath(path: string): string {
-	return path
-		.replace(/^\/(?:Users|home)\/[^/]+/, "~")
-		.replace(/^[A-Za-z]:[/\\]Users[/\\][^/\\]+/, "~");
+	return path.replace(/^\/(?:Users|home)\/[^/]+/, "~").replace(/^[A-Za-z]:[/\\]Users[/\\][^/\\]+/, "~");
 }
 
 function resourceSummary(pkg: PluginPackageInfo, t: (key: string) => string): string {
@@ -25,13 +23,7 @@ function resourceSummary(pkg: PluginPackageInfo, t: (key: string) => string): st
 }
 
 /** Git hosts whose bare `host/owner/repo` shorthand we can rewrite. */
-const KNOWN_GIT_HOSTS = [
-	"github.com",
-	"gitlab.com",
-	"bitbucket.org",
-	"codeberg.org",
-	"git.sr.ht",
-];
+const KNOWN_GIT_HOSTS = ["github.com", "gitlab.com", "bitbucket.org", "codeberg.org", "git.sr.ht"];
 
 /**
  * Normalize a pasted plugin source into a spec the extension loader resolves.
@@ -58,9 +50,12 @@ function normalizePluginSource(raw: string): string {
 
 	// Bare `host/owner/repo` shorthand → full clone URL.
 	const lower = source.toLowerCase();
-	const host = KNOWN_GIT_HOSTS.find((candidate) => lower.startsWith(`${candidate}/`));
+	const host = KNOWN_GIT_HOSTS.find(candidate => lower.startsWith(`${candidate}/`));
 	if (!host) return source;
-	const rest = source.slice(host.length).replace(/^\/+/, "").replace(/\.git$/i, "");
+	const rest = source
+		.slice(host.length)
+		.replace(/^\/+/, "")
+		.replace(/\.git$/i, "");
 	return rest.includes("/") ? `https://${host}/${rest}.git` : source;
 }
 
@@ -154,8 +149,8 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 			<div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border)" }}>
 				<input
 					value={sourceInput}
-					onChange={(event) => setSourceInput(event.target.value)}
-					onKeyDown={(event) => {
+					onChange={event => setSourceInput(event.target.value)}
+					onKeyDown={event => {
 						if (event.key === "Enter" && sourceInput.trim()) void act("install");
 					}}
 					placeholder={t("plugins.install.placeholder")}
@@ -175,7 +170,7 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 				/>
 				<select
 					value={scope}
-					onChange={(event) => setScope(event.target.value === "project" ? "project" : "global")}
+					onChange={event => setScope(event.target.value === "project" ? "project" : "global")}
 					style={{
 						height: 26,
 						fontSize: 11.5,
@@ -246,7 +241,7 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 						{data ? t("plugins.empty") : t("plugins.loading")}
 					</div>
 				) : (
-					packages.map((pkg) => (
+					packages.map(pkg => (
 						<div
 							key={`${pkg.scope}\u0000${pkg.source}`}
 							style={{ padding: "9px 10px", borderBottom: "1px solid var(--border)" }}
@@ -254,7 +249,13 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 							<div style={{ display: "flex", alignItems: "center", gap: 7 }}>
 								<span
 									aria-hidden
-									style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: STATUS_COLOR[pkg.status] }}
+									style={{
+										width: 7,
+										height: 7,
+										borderRadius: "50%",
+										flexShrink: 0,
+										background: STATUS_COLOR[pkg.status],
+									}}
 								/>
 								<span
 									title={pkg.source}
@@ -277,7 +278,17 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 							</div>
 
 							<div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-								<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, color: "var(--text-muted)" }}>
+								<span
+									style={{
+										flex: 1,
+										minWidth: 0,
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										whiteSpace: "nowrap",
+										fontSize: 11,
+										color: "var(--text-muted)",
+									}}
+								>
 									{resourceSummary(pkg, t)}
 									{pkg.version ? ` · v${pkg.version}` : ""}
 								</span>
@@ -293,7 +304,11 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 								<SmallButton onClick={() => void act("update", pkg.source)} disabled={busySource !== null}>
 									{t("plugins.action.update")}
 								</SmallButton>
-								<SmallButton danger onClick={() => void act("remove", pkg.source)} disabled={busySource !== null}>
+								<SmallButton
+									danger
+									onClick={() => void act("remove", pkg.source)}
+									disabled={busySource !== null}
+								>
 									{t("plugins.action.remove")}
 								</SmallButton>
 							</div>

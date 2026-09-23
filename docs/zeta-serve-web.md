@@ -13,13 +13,13 @@ zeta serve
 
 ### Flags
 
-| Flag | Short | Default | Description |
-|---|---|---|---|
-| `--stats-port` | `-s` | `3847` | Port for the Stats Dashboard |
-| `--web-port` | `-w` | `30141` | Port for the Web UI |
-| `--no-browser` | — | `false` | Don't open browser automatically |
-| `--stats-only` | — | `false` | Start only Stats Dashboard |
-| `--web-only` | — | `false` | Start only Web UI |
+| Flag           | Short | Default | Description                      |
+| -------------- | ----- | ------- | -------------------------------- |
+| `--stats-port` | `-s`  | `3847`  | Port for the Stats Dashboard     |
+| `--web-port`   | `-w`  | `30141` | Port for the Web UI              |
+| `--no-browser` | —     | `false` | Don't open browser automatically |
+| `--stats-only` | —     | `false` | Start only Stats Dashboard       |
+| `--web-only`   | —     | `false` | Start only Web UI                |
 
 ### Examples
 
@@ -47,10 +47,10 @@ zeta web
 
 ### Flags
 
-| Flag | Short | Default | Description |
-|---|---|---|---|
-| `--port` | `-p` | `30141` | Port for the Web UI |
-| `--no-browser` | — | `false` | Don't open browser automatically |
+| Flag           | Short | Default | Description                      |
+| -------------- | ----- | ------- | -------------------------------- |
+| `--port`       | `-p`  | `30141` | Port for the Web UI              |
+| `--no-browser` | —     | `false` | Don't open browser automatically |
 
 ### Examples
 
@@ -94,12 +94,12 @@ See [zeta-server.md](./zeta-server.md) for the full server architecture.
 
 Command resolution contract — the two installs never collide on PATH:
 
-| Command | Owner | Behavior |
-|---|---|---|
-| `zeta` | npm/source install | Always the CLI/TUI; never the desktop bundle. |
-| `zeta-d` | Desktop install only | No args → the bundled CLI/TUI. |
-| `zeta-d -d [cwd]` | Desktop install only | Opens the desktop GUI at `cwd` (default: current directory). |
-| `zeta --desktop [cwd]` | npm/source install | Probes for a desktop install and opens its GUI; exits 1 listing probed paths when none is found. |
+| Command                | Owner                | Behavior                                                                                         |
+| ---------------------- | -------------------- | ------------------------------------------------------------------------------------------------ |
+| `zeta`                 | npm/source install   | Always the CLI/TUI; never the desktop bundle.                                                    |
+| `zeta-d`               | Desktop install only | No args → the bundled CLI/TUI.                                                                   |
+| `zeta-d -d [cwd]`      | Desktop install only | Opens the desktop GUI at `cwd` (default: current directory).                                     |
+| `zeta --desktop [cwd]` | npm/source install   | Probes for a desktop install and opens its GUI; exits 1 listing probed paths when none is found. |
 
 Mechanics:
 

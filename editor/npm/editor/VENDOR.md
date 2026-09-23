@@ -1,14 +1,14 @@
 # VENDOR — TTT Editor 快照账目
 
-| 项 | 值 |
-|---|---|
-| 上游仓库 | https://github.com/eugenioenko/ttt |
-| 来源 tag | `v1.5.0` |
-| peeled SHA | `765048940a54d9765fa574ae62df43abed398fa8` |
-| 引入方式 | `git archive v1.5.0`（无上游 git 历史）|
-| 协议 | MIT（`LICENSE` 原样保留，未改动）|
-| 引入日期 | 2026-09-19 |
-| npm 包 | `@linxiraos/editor`（Go 二进制分发，版本对齐 Zeta 产品线）|
+| 项         | 值                                                         |
+| ---------- | ---------------------------------------------------------- |
+| 上游仓库   | https://github.com/eugenioenko/ttt                         |
+| 来源 tag   | `v1.5.0`                                                   |
+| peeled SHA | `765048940a54d9765fa574ae62df43abed398fa8`                 |
+| 引入方式   | `git archive v1.5.0`（无上游 git 历史）                    |
+| 协议       | MIT（`LICENSE` 原样保留，未改动）                          |
+| 引入日期   | 2026-09-19                                                 |
+| npm 包     | `@linxiraos/editor`（Go 二进制分发，版本对齐 Zeta 产品线） |
 
 ## 出局方案（选型记录）
 

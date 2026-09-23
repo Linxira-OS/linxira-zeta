@@ -7,21 +7,24 @@ import { join } from "node:path";
 let dir;
 
 afterEach(() => {
-  tui.kill();
-  if (dir) cleanupDir(dir);
+	tui.kill();
+	if (dir) cleanupDir(dir);
 });
 
 function writePlugin(dir, name, lua) {
-  const path = join(dir, name);
-  writeFileSync(path, lua, "utf8");
-  return path;
+	const path = join(dir, name);
+	writeFileSync(path, lua, "utf8");
+	return path;
 }
 
 describe("ttt.open_diff plugin API", () => {
-  it("opens a diff tab with old and new lines", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "test.txt", "hello\n");
-    const plugin = writePlugin(dir, "test.lua", `
+	it("opens a diff tab with old and new lines", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "test.txt", "hello\n");
+		const plugin = writePlugin(
+			dir,
+			"test.lua",
+			`
       local ttt = require("ttt")
       ttt.register({
         commands = {
@@ -31,22 +34,26 @@ describe("ttt.open_diff plugin API", () => {
           }
         },
       })
-    `);
+    `,
+		);
 
-    tui.start("--plugin", plugin, file);
-    tui.exec("Test Diff");
-    const s = tui.snapshot();
-    const { snapshots } = tui.run();
+		tui.start("--plugin", plugin, file);
+		tui.exec("Test Diff");
+		const s = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    expect(snapshots[s]).toContain("myfile.go (diff)");
-  });
+		expect(snapshots[s]).toContain("myfile.go (diff)");
+	});
 });
 
 describe("ttt.open_readonly plugin API", () => {
-  it("opens a readonly buffer tab", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "test.txt", "hello\n");
-    const plugin = writePlugin(dir, "test.lua", `
+	it("opens a readonly buffer tab", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "test.txt", "hello\n");
+		const plugin = writePlugin(
+			dir,
+			"test.lua",
+			`
       local ttt = require("ttt")
       ttt.register({
         commands = {
@@ -56,21 +63,25 @@ describe("ttt.open_readonly plugin API", () => {
           }
         },
       })
-    `);
+    `,
+		);
 
-    tui.start("--plugin", plugin, file);
-    tui.exec("Test ReadOnly");
-    const s = tui.snapshot();
-    const { snapshots } = tui.run();
+		tui.start("--plugin", plugin, file);
+		tui.exec("Test ReadOnly");
+		const s = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    expect(snapshots[s]).toContain("file (abc123)");
-    expect(snapshots[s]).toContain("readonly content");
-  });
+		expect(snapshots[s]).toContain("file (abc123)");
+		expect(snapshots[s]).toContain("readonly content");
+	});
 
-  it("blocks typing in readonly tab", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "test.txt", "hello\n");
-    const plugin = writePlugin(dir, "test.lua", `
+	it("blocks typing in readonly tab", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "test.txt", "hello\n");
+		const plugin = writePlugin(
+			dir,
+			"test.lua",
+			`
       local ttt = require("ttt")
       ttt.register({
         commands = {
@@ -80,25 +91,29 @@ describe("ttt.open_readonly plugin API", () => {
           }
         },
       })
-    `);
+    `,
+		);
 
-    tui.start("--plugin", plugin, file);
-    tui.exec("Test ReadOnly");
-    tui.type("should not appear");
-    const s = tui.snapshot();
-    const { snapshots } = tui.run();
+		tui.start("--plugin", plugin, file);
+		tui.exec("Test ReadOnly");
+		tui.type("should not appear");
+		const s = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    expect(snapshots[s]).toContain("original line");
-    expect(snapshots[s]).not.toContain("should not appear");
-  });
+		expect(snapshots[s]).toContain("original line");
+		expect(snapshots[s]).not.toContain("should not appear");
+	});
 });
 
 describe("ttt.open_file readonly mode", () => {
-  it("opens a file in readonly mode with third argument", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "test.txt", "hello\n");
-    const target = createTempFile(dir, "target.txt", "readonly file content\n");
-    const plugin = writePlugin(dir, "test.lua", `
+	it("opens a file in readonly mode with third argument", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "test.txt", "hello\n");
+		const target = createTempFile(dir, "target.txt", "readonly file content\n");
+		const plugin = writePlugin(
+			dir,
+			"test.lua",
+			`
       local ttt = require("ttt")
       ttt.register({
         commands = {
@@ -108,15 +123,16 @@ describe("ttt.open_file readonly mode", () => {
           }
         }
       })
-    `);
+    `,
+		);
 
-    tui.start("--plugin", plugin, file);
-    tui.exec("Test OpenRO");
-    tui.type("nope");
-    const s = tui.snapshot();
-    const { snapshots } = tui.run();
+		tui.start("--plugin", plugin, file);
+		tui.exec("Test OpenRO");
+		tui.type("nope");
+		const s = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    expect(snapshots[s]).toContain("readonly file content");
-    expect(snapshots[s]).not.toContain("nope");
-  });
+		expect(snapshots[s]).toContain("readonly file content");
+		expect(snapshots[s]).not.toContain("nope");
+	});
 });

@@ -73,9 +73,9 @@ A provider frame contains two channels:
 
 ```ts
 interface TerminalFramePlan {
-  history?: { id: number; rows: readonly string[] };
-  viewport: readonly string[];
-  kind?: "append" | "replay";
+	history?: { id: number; rows: readonly string[] };
+	viewport: readonly string[];
+	kind?: "append" | "replay";
 }
 ```
 

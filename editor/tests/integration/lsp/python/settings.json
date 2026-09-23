@@ -1,10 +1,10 @@
 {
-  "debugMode": true,
-  "lsp": {
-    "servers": {
-      "python": {
-        "command": ["pyright-langserver", "--stdio"]
-      }
-    }
-  }
+	"debugMode": true,
+	"lsp": {
+		"servers": {
+			"python": {
+				"command": ["pyright-langserver", "--stdio"]
+			}
+		}
+	}
 }

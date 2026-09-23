@@ -34,13 +34,13 @@ Upstream uses different package scopes. Replace them consistently.
 
 - Replace old scopes with the local scope used here.
 - Examples (adjust to match the actual packages you are porting):
-  - `@mariozechner/pi-coding-agent` → `@linxiraos/zeta`
-  - `@mariozechner/pi-agent-core` → `@linxiraos/pi-agent-core`
-  - `@mariozechner/pi-tui` → `@linxiraos/pi-tui`
-  - `@mariozechner/pi-ai` → `@linxiraos/pi-ai`
-  - `@mariozechner/pi-utils` → `@linxiraos/pi-utils`
-  - `@mariozechner/pi-catalog` → `@linxiraos/pi-catalog`
-  - `@mariozechner/pi-natives` → `@linxiraos/pi-natives`
+   - `@mariozechner/pi-coding-agent` → `@linxiraos/zeta`
+   - `@mariozechner/pi-agent-core` → `@linxiraos/pi-agent-core`
+   - `@mariozechner/pi-tui` → `@linxiraos/pi-tui`
+   - `@mariozechner/pi-ai` → `@linxiraos/pi-ai`
+   - `@mariozechner/pi-utils` → `@linxiraos/pi-utils`
+   - `@mariozechner/pi-catalog` → `@linxiraos/pi-catalog`
+   - `@mariozechner/pi-natives` → `@linxiraos/pi-natives`
 - Some upstream packages publish under the `@earendil-works/*` scope instead of `@mariozechner/*`. Map it the same way (`@earendil-works/pi-coding-agent` → `@linxiraos/zeta`, and so on).
 - The bare `typebox` package is not an `@linxiraos/*` scope; do not rewrite it as one. See the Extensions divergence in section 15 for how tool-parameter schemas map.
 
@@ -101,10 +101,10 @@ Do not add new runtime asset copy steps. Keep assets in repo and prefer Bun embe
 - Keep assets in-repo and let the bundler include them.
 - Eliminate copy scripts unless the user explicitly requests them or the package already has an intentional generation step.
 - If upstream reads a bundled fallback file at runtime, replace filesystem reads with a Bun text embed import unless the current package already uses a generated asset pipeline.
-  - Example (Codex instructions fallback):
-    - `const FALLBACK_PROMPT_PATH = join(import.meta.dir, "codex-instructions.md");` -> removed
-    - `import FALLBACK_INSTRUCTIONS from "./codex-instructions.md" with { type: "text" };`
-    - Use `return FALLBACK_INSTRUCTIONS;` instead of `readFileSync(FALLBACK_PROMPT_PATH, "utf8")`
+   - Example (Codex instructions fallback):
+      - `const FALLBACK_PROMPT_PATH = join(import.meta.dir, "codex-instructions.md");` -> removed
+      - `import FALLBACK_INSTRUCTIONS from "./codex-instructions.md" with { type: "text" };`
+      - Use `return FALLBACK_INSTRUCTIONS;` instead of `readFileSync(FALLBACK_PROMPT_PATH, "utf8")`
 
 ## 6) Port `package.json` carefully
 
@@ -127,13 +127,13 @@ Treat `package.json` as a contract. Merge intentionally.
 - Prefer ES `#` private fields for new encapsulated state. Constructor parameter properties already exist in current code and are acceptable; do not churn unrelated access modifiers while porting.
 - Prefer existing helpers and utilities over new ad-hoc code.
   Preserve Bun-first infrastructure changes already made in this repo:
-  - Runtime is Bun (no Node entry points for the main CLI).
-  - Package manager is Bun (no npm lockfiles).
-  - Heavy Node APIs should not be introduced casually; current source still uses selected Node APIs (`node:crypto`, `node:readline`, synchronous `node:fs`, and `child_process`) where they fit provider, CLI, or process-control semantics.
-  - Lightweight Node APIs (`os.homedir`, `os.tmpdir`, `fs.mkdtempSync`, `path.*`) are kept.
-  - CLI shebangs use `bun` (not `node`, not `tsx`).
-  - TypeScript packages generally use source files directly; `@linxiraos/pi-natives` exports generated native bindings from `packages/natives/native`.
-  - CI workflows run Bun for install/check/test.
+   - Runtime is Bun (no Node entry points for the main CLI).
+   - Package manager is Bun (no npm lockfiles).
+   - Heavy Node APIs should not be introduced casually; current source still uses selected Node APIs (`node:crypto`, `node:readline`, synchronous `node:fs`, and `child_process`) where they fit provider, CLI, or process-control semantics.
+   - Lightweight Node APIs (`os.homedir`, `os.tmpdir`, `fs.mkdtempSync`, `path.*`) are kept.
+   - CLI shebangs use `bun` (not `node`, not `tsx`).
+   - TypeScript packages generally use source files directly; `@linxiraos/pi-natives` exports generated native bindings from `packages/natives/native`.
+   - CI workflows run Bun for install/check/test.
 
 ## 8) Remove old compatibility layers
 
@@ -325,8 +325,8 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 
 ### File Consolidation
 
-| Upstream                                           | Our Fork                                                  | Reason                                        |
-| -------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------- |
+| Upstream                                           | Our Fork                                                   | Reason                                        |
+| -------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------- |
 | `clipboard.ts` + `clipboard-image.ts` (tool files) | `src/utils/clipboard.ts` backed by `@linxiraos/pi-natives` | Native implementation with a small TS wrapper |
 
 ### Test Framework
@@ -338,11 +338,11 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 
 ### Tool Architecture
 
-| Upstream                            | Our Fork                                                                                                      | Notes                                                     |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `createTool(cwd: string, options?)` | `createTools(session: ToolSession)` via `BUILTIN_TOOLS` registry                                              | Tool factories accept `ToolSession` and can return `null` |
+| Upstream                            | Our Fork                                                                                                                                                                                                                              | Notes                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `createTool(cwd: string, options?)` | `createTools(session: ToolSession)` via `BUILTIN_TOOLS` registry                                                                                                                                                                      | Tool factories accept `ToolSession` and can return `null` |
 | Per-tool `*Operations` interfaces   | Only current per-tool override interfaces remain (for example `GlobOperations` in `tools/glob.ts`); `FindOperations` survives only in the legacy shim (`src/extensibility/legacy-pi-coding-agent-shim.ts`) after the find→glob rename | Used for SSH/remote overrides where present               |
-| Node.js `fs/promises` everywhere    | Bun file APIs for simple file writes/reads, `node:fs/promises` for dirs, selected sync `node:fs` where needed | Prefer Bun APIs when they simplify                        |
+| Node.js `fs/promises` everywhere    | Bun file APIs for simple file writes/reads, `node:fs/promises` for dirs, selected sync `node:fs` where needed                                                                                                                         | Prefer Bun APIs when they simplify                        |
 
 ### Auth Storage
 
@@ -353,13 +353,13 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 
 ### Extensions
 
-| Upstream                                                               | Our Fork                                                                                                                                                                                                                                                                                     |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `jiti` for TypeScript loading                                          | Native Bun `import()`                                                                                                                                                                                                                                                                        |
-| `pkg.pi` manifest field                                                | `pkg.omp` preferred; fallback to `pkg.pi` remains                                                                                                                                                                                                                                            |
-| `StringEnum` from `pi-ai`                                              | `Type.Enum` from `pi.typebox`, or `pi.arktype.enumerated(...)`; `pi-ai` no longer exports `StringEnum`                                                                                                                                                                                       |
-| `formatSize` from `pi-coding-agent`                                    | `formatBytes` from `@linxiraos/pi-utils`                                                                                                                                                                                                                                                      |
-| Upstream resource/package/settings managers as the native architecture | Capability-based discovery (`loadCapability(...)`), the `Settings` singleton, and `EventBus`; legacy extension imports of `DefaultResourceLoader`, `DefaultPackageManager`, and `SettingsManager` are compatibility shims in `legacy-pi-coding-agent-shim.ts`, not the native implementation |
+| Upstream                                                                                                      | Our Fork                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `jiti` for TypeScript loading                                                                                 | Native Bun `import()`                                                                                                                                                                                                                                                                                                                                         |
+| `pkg.pi` manifest field                                                                                       | `pkg.omp` preferred; fallback to `pkg.pi` remains                                                                                                                                                                                                                                                                                                             |
+| `StringEnum` from `pi-ai`                                                                                     | `Type.Enum` from `pi.typebox`, or `pi.arktype.enumerated(...)`; `pi-ai` no longer exports `StringEnum`                                                                                                                                                                                                                                                        |
+| `formatSize` from `pi-coding-agent`                                                                           | `formatBytes` from `@linxiraos/pi-utils`                                                                                                                                                                                                                                                                                                                      |
+| Upstream resource/package/settings managers as the native architecture                                        | Capability-based discovery (`loadCapability(...)`), the `Settings` singleton, and `EventBus`; legacy extension imports of `DefaultResourceLoader`, `DefaultPackageManager`, and `SettingsManager` are compatibility shims in `legacy-pi-coding-agent-shim.ts`, not the native implementation                                                                  |
 | `SettingsManager.create(cwd)` returns a synchronous manager with `getGlobalSettings()`/`getProjectSettings()` | The shim's `SettingsManager.create()` is synchronous and resolves the active extension session's `Settings`, then a live instance matching `cwd`/`agentDir`, or an isolated fallback; `Settings` exposes `getGlobalSettings()`/`getProjectSettings()` that deep-clone the raw global/project layers so extensions can read their own namespaced keys (#10397) |
 
 ### Skip These Upstream Features

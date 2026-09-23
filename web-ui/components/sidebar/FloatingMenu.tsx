@@ -59,7 +59,7 @@ export function FloatingMenu({ open, onClose, items, point, anchorRect, label }:
 		x = Math.max(6, Math.min(x, vw - MENU_W - 6));
 		y = y + h > vh - 6 ? Math.max(6, y - h - (anchorRect ? anchorRect.height + 8 : 0)) : y;
 		setPos({ x, y });
-		setActive(items.findIndex((i) => !i.disabled));
+		setActive(items.findIndex(i => !i.disabled));
 	}, [open, point, anchorRect, items]);
 
 	useEffect(() => {
@@ -77,7 +77,7 @@ export function FloatingMenu({ open, onClose, items, point, anchorRect, label }:
 			}
 			if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
 			e.preventDefault();
-			const enabled = items.map((it, i) => (it.disabled ? -1 : i)).filter((i) => i >= 0);
+			const enabled = items.map((it, i) => (it.disabled ? -1 : i)).filter(i => i >= 0);
 			if (enabled.length === 0) return;
 			let next: number;
 			if (e.key === "Home") {
@@ -130,7 +130,7 @@ export function FloatingMenu({ open, onClose, items, point, anchorRect, label }:
 			ref={ref}
 			role="menu"
 			aria-label={label}
-			onMouseDown={(e) => e.stopPropagation()}
+			onMouseDown={e => e.stopPropagation()}
 			style={{
 				position: "fixed",
 				left: pos?.x ?? -9999,

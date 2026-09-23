@@ -3,47 +3,56 @@ title: TTT Editor - Terminal Text Tool
 description: TTT Editor, a terminal text editor. A real alternative to VS Code, Zed, and Sublime that runs in your terminal.
 template: splash
 hero:
-  title: "TTT Editor <br> Terminal Text Tool"
-  tagline: The IDE that lives in your terminal.
-  actions:
-    - text: Get Started
-      link: /getting-started/installation/
-      icon: right-arrow
-    - text: View on GitHub
-      link: https://github.com/eugenioenko/ttt
-      variant: minimal
-      icon: external
+   title: "TTT Editor <br> Terminal Text Tool"
+   tagline: The IDE that lives in your terminal.
+   actions:
+      - text: Get Started
+        link: /getting-started/installation/
+        icon: right-arrow
+      - text: View on GitHub
+        link: https://github.com/eugenioenko/ttt
+        variant: minimal
+        icon: external
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid } from "@astrojs/starlight/components";
 
-<video src="/demo/demo.webm" autoplay loop muted playsinline style="width:100%;border-radius:8px;margin-bottom:2rem;"></video>
+<video
+	src="/demo/demo.webm"
+	autoplay
+	loop
+	muted
+	playsinline
+	style="width:100%;border-radius:8px;margin-bottom:2rem;"
+></video>
 
 ## Features
 
 <CardGrid stagger>
-  <Card title="GUI in Your Terminal" icon="laptop">
-    Menus, dialogs, mouse support, right-click context menus, and a file explorer. TTT is designed to feel like a desktop app, not a terminal one.
-  </Card>
-  <Card title="Built-in Themes" icon="star">
-    Ships with themes out of the box. Customize everything via JSON or the built-in theme picker with live preview.
-  </Card>
-  <Card title="LSP Intelligence" icon="setting">
-    Completions, diagnostics with inline squiggles, hover info, rename, references, and formatting for 23+ languages.
-  </Card>
-  <Card title="Integrated Terminal" icon="seti:shell">
-    Full terminal emulator with VT escape sequence support, true color rendering, and multiple tabs.
-  </Card>
-  <Card title="Git Built In" icon="github">
-    Stage, commit, push, inline diff view (partial and full-file), blame, and review GitHub PRs directly from the terminal.
-  </Card>
-  <Card title="Multi-Cursor & Search" icon="pencil">
-    Place cursors with Ctrl+D, Ctrl+K L, or Alt+Click. Ripgrep-powered workspace search with glob filters.
-  </Card>
-  <Card title="Workspaces" icon="open-book">
-    Multi-folder projects, file explorer, quick open, and tabs. Save and restore workspace layouts with .ttt files.
-  </Card>
-  <Card title="Zero Config" icon="rocket">
-    Single binary, works out of the box. Customize keybindings, settings, and themes only when you want to.
-  </Card>
+	<Card title="GUI in Your Terminal" icon="laptop">
+		Menus, dialogs, mouse support, right-click context menus, and a file explorer. TTT is designed to feel like a
+		desktop app, not a terminal one.
+	</Card>
+	<Card title="Built-in Themes" icon="star">
+		Ships with themes out of the box. Customize everything via JSON or the built-in theme picker with live preview.
+	</Card>
+	<Card title="LSP Intelligence" icon="setting">
+		Completions, diagnostics with inline squiggles, hover info, rename, references, and formatting for 23+ languages.
+	</Card>
+	<Card title="Integrated Terminal" icon="seti:shell">
+		Full terminal emulator with VT escape sequence support, true color rendering, and multiple tabs.
+	</Card>
+	<Card title="Git Built In" icon="github">
+		Stage, commit, push, inline diff view (partial and full-file), blame, and review GitHub PRs directly from the
+		terminal.
+	</Card>
+	<Card title="Multi-Cursor & Search" icon="pencil">
+		Place cursors with Ctrl+D, Ctrl+K L, or Alt+Click. Ripgrep-powered workspace search with glob filters.
+	</Card>
+	<Card title="Workspaces" icon="open-book">
+		Multi-folder projects, file explorer, quick open, and tabs. Save and restore workspace layouts with .ttt files.
+	</Card>
+	<Card title="Zero Config" icon="rocket">
+		Single binary, works out of the box. Customize keybindings, settings, and themes only when you want to.
+	</Card>
 </CardGrid>

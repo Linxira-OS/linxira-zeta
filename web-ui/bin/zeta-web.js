@@ -5,8 +5,8 @@
 const { getUnsupportedNodeVersionMessage, isNodeVersionSupported } = require("./node-version");
 
 if (!isNodeVersionSupported(process.versions.node)) {
-  console.error(getUnsupportedNodeVersionMessage(process.versions.node));
-  process.exit(1);
+	console.error(getUnsupportedNodeVersionMessage(process.versions.node));
+	process.exit(1);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -25,29 +25,31 @@ const nextDir = path.join(pkgDir, ".next");
 // may not exist when installed via npx).
 let nextBin;
 try {
-  nextBin = require.resolve("next/dist/bin/next", { paths: [pkgDir] });
+	nextBin = require.resolve("next/dist/bin/next", { paths: [pkgDir] });
 } catch {
-  // Fallback: locate next package root and derive the bin path manually.
-  try {
-    const nextPkg = require.resolve("next/package.json", { paths: [pkgDir] });
-    nextBin = path.join(path.dirname(nextPkg), "dist", "bin", "next");
-  } catch {
-    nextBin = path.join(pkgDir, "node_modules", "next", "dist", "bin", "next");
-  }
+	// Fallback: locate next package root and derive the bin path manually.
+	try {
+		const nextPkg = require.resolve("next/package.json", { paths: [pkgDir] });
+		nextBin = path.join(path.dirname(nextPkg), "dist", "bin", "next");
+	} catch {
+		nextBin = path.join(pkgDir, "node_modules", "next", "dist", "bin", "next");
+	}
 }
 
 const { port, hostname, openBrowser } = parseLaunchOptions();
 const loopbackHostnames = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 if (!fs.existsSync(nextDir)) {
-  console.error("Build artifacts not found. Run `npm run build` first, or install via `npm install -g zeta-web` to get a pre-built package.");
-  process.exit(1);
+	console.error(
+		"Build artifacts not found. Run `npm run build` first, or install via `npm install -g zeta-web` to get a pre-built package.",
+	);
+	process.exit(1);
 }
 
 if (!loopbackHostnames.has(hostname)) {
-  console.warn(
-    `Warning: zeta-web is listening on ${hostname} without authentication. Only use this on a trusted network.`,
-  );
+	console.warn(
+		`Warning: zeta-web is listening on ${hostname} without authentication. Only use this on a trusted network.`,
+	);
 }
 
 const nextArgs = ["start", "-p", port];
@@ -56,37 +58,37 @@ nextArgs.push("-H", hostname);
 // Always run next's JS entry with node directly — avoids .bin symlink issues
 // and path-with-spaces problems on Windows when shell: true is used.
 const child = spawn(process.execPath, [nextBin, ...nextArgs], {
-  cwd: pkgDir,
-  stdio: ["inherit", "pipe", "inherit"],
-  env: { ...process.env },
+	cwd: pkgDir,
+	stdio: ["inherit", "pipe", "inherit"],
+	env: { ...process.env },
 });
 
 let browserOpened = false;
 const url = `http://${hostname}:${port}`;
 
-child.stdout.on("data", (chunk) => {
-  const text = chunk.toString();
-  process.stdout.write(text);
-  if (text.includes("Ready")) {
-    console.log(`\n> Zeta Web is ready at ${url}\n`);
-  }
-  if (openBrowser && !browserOpened && text.includes("Ready")) {
-    browserOpened = true;
-    const isWindows = process.platform === "win32";
-    const isMac = process.platform === "darwin";
-    const openCmd = isWindows ? "start" : isMac ? "open" : "xdg-open";
-    const opener = spawn(openCmd, [url], {
-      shell: isWindows,
-      stdio: "ignore",
-      detached: true,
-    });
+child.stdout.on("data", chunk => {
+	const text = chunk.toString();
+	process.stdout.write(text);
+	if (text.includes("Ready")) {
+		console.log(`\n> Zeta Web is ready at ${url}\n`);
+	}
+	if (openBrowser && !browserOpened && text.includes("Ready")) {
+		browserOpened = true;
+		const isWindows = process.platform === "win32";
+		const isMac = process.platform === "darwin";
+		const openCmd = isWindows ? "start" : isMac ? "open" : "xdg-open";
+		const opener = spawn(openCmd, [url], {
+			shell: isWindows,
+			stdio: "ignore",
+			detached: true,
+		});
 
-    opener.on("error", (error) => {
-      console.warn(`Could not open browser automatically: ${error.message}`);
-    });
+		opener.on("error", error => {
+			console.warn(`Could not open browser automatically: ${error.message}`);
+		});
 
-    opener.unref();
-  }
+		opener.unref();
+	}
 });
 
-child.on("exit", (code) => process.exit(code ?? 0));
+child.on("exit", code => process.exit(code ?? 0));

@@ -48,10 +48,7 @@ Workspace files use the `.ttt` extension and store a list of folders as relative
 
 ```json
 {
-  "folders": [
-    { "path": "." },
-    { "path": "../other-project" }
-  ]
+	"folders": [{ "path": "." }, { "path": "../other-project" }]
 }
 ```
 

@@ -21,7 +21,7 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 function getMessages(): Record<string, Record<string, string>> {
 	return Object.fromEntries(
-		getSupportedLocales().flatMap((id) => {
+		getSupportedLocales().flatMap(id => {
 			const plugin = getLocalePlugin(id);
 			return plugin ? [[id, plugin.messages]] : [];
 		}),
@@ -65,7 +65,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 	const supportedLocales = useMemo(
 		() =>
 			getSupportedLocales()
-				.map((id) => getLocalePlugin(id))
+				.map(id => getLocalePlugin(id))
 				.filter((plugin): plugin is LocalePlugin => Boolean(plugin)),
 		[],
 	);

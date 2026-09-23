@@ -6,7 +6,7 @@ The companion relay server lives in the zeta CLI (`zeta browser-relay`, see `pac
 
 ## Setup
 
-1. `zeta browser-relay install` — writes the bundled extension to `~/.zeta/browser-relay/extension`, then load it via `chrome://extensions` → Developer mode → *Load unpacked*. (Or grab `zeta-browser-relay-extension.zip` from GitHub releases.)
+1. `zeta browser-relay install` — writes the bundled extension to `~/.zeta/browser-relay/extension`, then load it via `chrome://extensions` → Developer mode → _Load unpacked_. (Or grab `zeta-browser-relay-extension.zip` from GitHub releases.)
 2. Opt in, one of two ways:
    - **Per call** — pass `app: { relay: true }` to `browser.open(...)` in Eval. Works without any setting and persists nothing: the configured default for every other call and session stays whatever it already was.
    - **As the default** — `zeta config set browser.relay true` makes the relay the default for **every session using this profile, in every project** (project-level settings, `PI_BROWSER_RELAY`, and an explicit `app` choice still take precedence). Any session's ordinary `browser.open(...)` call will then drive your real browser — including background sessions you aren't watching; without `app.target` such a call adopts the currently visible tab, and if it carries a `url` it navigates that tab away from what you were reading.

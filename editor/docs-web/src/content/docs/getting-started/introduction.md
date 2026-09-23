@@ -2,7 +2,7 @@
 title: Introduction
 description: What is TTT and why use it.
 sidebar:
-  order: 1
+   order: 1
 ---
 
 TTT Editor (Terminal Text Tool) is a fully-featured code editor that runs in your terminal. It is not a simplified terminal editor. It is a real alternative to VS Code, Zed, and Sublime that happens to run in your terminal.

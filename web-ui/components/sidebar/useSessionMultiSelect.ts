@@ -41,23 +41,20 @@ export function useSessionMultiSelect(): SessionMultiSelect {
 		}
 	}, []);
 
-	const selectRange = useCallback(
-		(fromId: string, toId: string, visibleIds: readonly string[]) => {
-			const start = visibleIds.indexOf(fromId);
-			const end = visibleIds.indexOf(toId);
-			if (start < 0 || end < 0) {
-				setSelected((prev) => new Set(prev).add(toId));
-				return;
-			}
-			const [lo, hi] = start <= end ? [start, end] : [end, start];
-			setSelected((prev) => {
-				const next = new Set(prev);
-				for (let i = lo; i <= hi; i++) next.add(visibleIds[i]);
-				return next;
-			});
-		},
-		[],
-	);
+	const selectRange = useCallback((fromId: string, toId: string, visibleIds: readonly string[]) => {
+		const start = visibleIds.indexOf(fromId);
+		const end = visibleIds.indexOf(toId);
+		if (start < 0 || end < 0) {
+			setSelected(prev => new Set(prev).add(toId));
+			return;
+		}
+		const [lo, hi] = start <= end ? [start, end] : [end, start];
+		setSelected(prev => {
+			const next = new Set(prev);
+			for (let i = lo; i <= hi; i++) next.add(visibleIds[i]);
+			return next;
+		});
+	}, []);
 
 	const toggleItem = useCallback(
 		(id: string, opts?: { shift?: boolean; visibleIds?: readonly string[] }) => {
@@ -65,7 +62,7 @@ export function useSessionMultiSelect(): SessionMultiSelect {
 				selectRange(anchorId, id, opts.visibleIds);
 				return;
 			}
-			setSelected((prev) => {
+			setSelected(prev => {
 				const next = new Set(prev);
 				if (next.has(id)) next.delete(id);
 				else next.add(id);
@@ -81,7 +78,7 @@ export function useSessionMultiSelect(): SessionMultiSelect {
 	}, []);
 
 	const prune = useCallback((existingIds: ReadonlySet<string>) => {
-		setSelected((prev) => {
+		setSelected(prev => {
 			if (prev.size === 0) return prev;
 			const next = new Set([...prev].filter(id => existingIds.has(id)));
 			return next.size === prev.size ? prev : next;

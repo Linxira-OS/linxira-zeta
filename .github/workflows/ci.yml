@@ -693,7 +693,21 @@ jobs:
          needs.test_coding_agent_native.result == 'success' &&
          needs.test_smoke.result == 'success' && needs.check.result == 'success' &&
          needs.install_methods.result == 'success' }}
-      needs: [release_metadata, check, rust_validate, native_addons, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods]
+      needs:
+         [
+            release_metadata,
+            check,
+            rust_validate,
+            native_addons,
+            test_workspace,
+            test_coding_agent_singleton,
+            test_ts_native,
+            test_coding_agent_ui,
+            test_coding_agent_runtime,
+            test_coding_agent_native,
+            test_smoke,
+            install_methods,
+         ]
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -850,7 +864,6 @@ jobs:
               for tag in linux-x64 win32-x64; do
                 bun run ci:release:publish-native-leaf "$tag"
               done
-
 
    # Vendored editor (TTT) upstream test suites, run on the same Linux
    # environment the upstream project targets. Gates every PR/push that
@@ -1069,4 +1082,3 @@ jobs:
               # publisher for the package (or on a first publish).
               NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
            run: bun run ci:release:publish
-

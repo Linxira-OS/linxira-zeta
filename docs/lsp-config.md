@@ -21,13 +21,13 @@ No configuration is required for common setups. The built-in server list covers 
 
 Zeta merges LSP config from multiple files, lowest to highest priority:
 
-| Priority    | Location                                                                                                                    |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 5 (lowest)  | `~/lsp.json`, `~/.lsp.json`, `~/lsp.yaml`, `~/.lsp.yaml`, `~/lsp.yml`, `~/.lsp.yml`                                         |
-| 4           | Plugin LSP configs (marketplace / `--plugin-dir` roots)                                                                     |
+| Priority    | Location                                                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 5 (lowest)  | `~/lsp.json`, `~/.lsp.json`, `~/lsp.yaml`, `~/.lsp.yaml`, `~/lsp.yml`, `~/.lsp.yml`                                          |
+| 4           | Plugin LSP configs (marketplace / `--plugin-dir` roots)                                                                      |
 | 3           | User config dirs: `~/.zeta/agent/lsp.*`, `~/.claude/lsp.*`, `~/.codex/lsp.*`, `~/.gemini/lsp.*`                              |
 | 2           | Project config dirs: `<project>/.zeta/lsp.*`, `<project>/.claude/lsp.*`, `<project>/.codex/lsp.*`, `<project>/.gemini/lsp.*` |
-| 1 (highest) | Project root: `<project>/lsp.*` and `<project>/.lsp.*`                                                                      |
+| 1 (highest) | Project root: `<project>/lsp.*` and `<project>/.lsp.*`                                                                       |
 
 Each location accepts `.json`, `.yaml`, and `.yml` variants, including hidden-file versions (`.lsp.json`, `.lsp.yaml`, `.lsp.yml`). Files are merged in order: higher-priority files override lower-priority fields for the same server. Servers not mentioned in any override file remain at their built-in defaults.
 
@@ -88,13 +88,13 @@ The `capabilities` object enables optional server-specific features that OMP sup
 
 ```json
 {
-  "capabilities": {
-    "flycheck": true,
-    "ssr": true,
-    "expandMacro": true,
-    "runnables": true,
-    "relatedTests": true
-  }
+	"capabilities": {
+		"flycheck": true,
+		"ssr": true,
+		"expandMacro": true,
+		"runnables": true,
+		"relatedTests": true
+	}
 }
 ```
 
@@ -108,32 +108,32 @@ Partial overrides are merged onto the built-in defaults. You only need to specif
 
 ```json
 {
-  "servers": {
-    "typescript-language-server": {
-      "args": ["--stdio", "--log-level", "4"]
-    }
-  }
+	"servers": {
+		"typescript-language-server": {
+			"args": ["--stdio", "--log-level", "4"]
+		}
+	}
 }
 ```
 
 ```yaml
 servers:
-  gopls:
-    settings:
-      gopls:
-        gofumpt: false
-        staticcheck: false
+   gopls:
+      settings:
+         gopls:
+            gofumpt: false
+            staticcheck: false
 ```
 
 ### Disable a built-in server
 
 ```json
 {
-  "servers": {
-    "eslint": {
-      "disabled": true
-    }
-  }
+	"servers": {
+		"eslint": {
+			"disabled": true
+		}
+	}
 }
 ```
 
@@ -143,14 +143,14 @@ New servers require `command`, `fileTypes`, and `rootMarkers`. All other fields 
 
 ```json
 {
-  "servers": {
-    "my-lsp": {
-      "command": "my-lsp-server",
-      "args": ["--stdio"],
-      "fileTypes": [".xyz"],
-      "rootMarkers": [".xyz-project", ".git"]
-    }
-  }
+	"servers": {
+		"my-lsp": {
+			"command": "my-lsp-server",
+			"args": ["--stdio"],
+			"fileTypes": [".xyz"],
+			"rootMarkers": [".xyz-project", ".git"]
+		}
+	}
 }
 ```
 
@@ -160,7 +160,7 @@ Shut down language servers that have been inactive for more than five minutes:
 
 ```json
 {
-  "idleTimeoutMs": 300000
+	"idleTimeoutMs": 300000
 }
 ```
 
@@ -170,11 +170,11 @@ Place the override in `<project>/.zeta/lsp.json`:
 
 ```json
 {
-  "servers": {
-    "pylsp": {
-      "disabled": true
-    }
-  }
+	"servers": {
+		"pylsp": {
+			"disabled": true
+		}
+	}
 }
 ```
 

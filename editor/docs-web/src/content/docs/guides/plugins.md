@@ -84,25 +84,25 @@ Plugins declare their required permissions in their manifest file. When you inst
 
 Available permissions include:
 
-| Permission | Description |
-|------------|-------------|
-| `panel.sidebar` | Add a panel to the sidebar |
-| `panel.bottom` | Add a tab to the bottom panel |
-| `panel.drawer` | Open drawer panels |
-| `panel.editor` | Open custom editor tabs |
-| `commands` | Register commands in the command palette |
-| `keybindings` | Bind keyboard shortcuts |
-| `editor.read` | Read editor buffer contents |
-| `editor.write` | Modify editor buffers |
-| `fs.read` | Read files and directories |
-| `fs.write` | Write files |
-| `system.exec` | Execute specific system commands |
-| `system.env` | Read environment variables |
-| `network.http` | Make HTTP requests (`true` for any host, or a list of allowed hostnames) |
-| `events.file` | Listen for file open/close/save events |
-| `events.editor` | Listen for buffer and cursor changes |
-| `settings` | Read/write editor settings |
-| `settings_keys` | Which settings keys the plugin can access (e.g. `formatters.*`) |
+| Permission      | Description                                                              |
+| --------------- | ------------------------------------------------------------------------ |
+| `panel.sidebar` | Add a panel to the sidebar                                               |
+| `panel.bottom`  | Add a tab to the bottom panel                                            |
+| `panel.drawer`  | Open drawer panels                                                       |
+| `panel.editor`  | Open custom editor tabs                                                  |
+| `commands`      | Register commands in the command palette                                 |
+| `keybindings`   | Bind keyboard shortcuts                                                  |
+| `editor.read`   | Read editor buffer contents                                              |
+| `editor.write`  | Modify editor buffers                                                    |
+| `fs.read`       | Read files and directories                                               |
+| `fs.write`      | Write files                                                              |
+| `system.exec`   | Execute specific system commands                                         |
+| `system.env`    | Read environment variables                                               |
+| `network.http`  | Make HTTP requests (`true` for any host, or a list of allowed hostnames) |
+| `events.file`   | Listen for file open/close/save events                                   |
+| `events.editor` | Listen for buffer and cursor changes                                     |
+| `settings`      | Read/write editor settings                                               |
+| `settings_keys` | Which settings keys the plugin can access (e.g. `formatters.*`)          |
 
 ## Disabling the Plugin System
 
@@ -110,9 +110,9 @@ To completely disable the plugin system, add this to your `settings.json`:
 
 ```json
 {
-  "plugins": {
-    "enabled": false
-  }
+	"plugins": {
+		"enabled": false
+	}
 }
 ```
 
@@ -122,17 +122,17 @@ When disabled, no plugins are loaded, the Plugins sidebar tab is hidden, and plu
 
 Community plugins are maintained in the [ttt-plugins](https://github.com/eugenioenko/ttt-plugins) repository:
 
-| Plugin | Description |
-|--------|-------------|
-| cheat-sheet | Fetch programming cheat sheets from cheat.sh |
-| color-picker | Color picker with hex/RGB swatches |
-| docker-manager | Docker container, image, and volume management |
-| go-test-runner | Run Go tests and view results |
-| http-client | HTTP request client for testing APIs |
-| json-viewer | Interactive JSON tree viewer |
-| markdown-preview | Markdown preview panel |
-| notepad | Persistent scratchpad for quick notes |
-| todo-scanner | Scan workspace for TODO/FIXME/HACK/NOTE comments |
+| Plugin           | Description                                      |
+| ---------------- | ------------------------------------------------ |
+| cheat-sheet      | Fetch programming cheat sheets from cheat.sh     |
+| color-picker     | Color picker with hex/RGB swatches               |
+| docker-manager   | Docker container, image, and volume management   |
+| go-test-runner   | Run Go tests and view results                    |
+| http-client      | HTTP request client for testing APIs             |
+| json-viewer      | Interactive JSON tree viewer                     |
+| markdown-preview | Markdown preview panel                           |
+| notepad          | Persistent scratchpad for quick notes            |
+| todo-scanner     | Scan workspace for TODO/FIXME/HACK/NOTE comments |
 
 ## Creating Plugins
 
@@ -148,12 +148,12 @@ To list your plugin in TTT's built-in plugin browser:
 
 ```json
 {
-  "name": "my-plugin",
-  "author": "your-name",
-  "description": "Short description of what it does",
-  "repo": "https://github.com/your-name/ttt-my-plugin",
-  "version": "0.1.0",
-  "tags": ["relevant", "search", "tags"]
+	"name": "my-plugin",
+	"author": "your-name",
+	"description": "Short description of what it does",
+	"repo": "https://github.com/your-name/ttt-my-plugin",
+	"version": "0.1.0",
+	"tags": ["relevant", "search", "tags"]
 }
 ```
 
@@ -170,12 +170,12 @@ If your plugin lives in a subdirectory of a monorepo, add a `path` field:
 
 Registry fields:
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | yes | Plugin name (must match the directory name and manifest name) |
-| `author` | yes | Author name |
-| `description` | yes | Short description shown in the plugin browser |
-| `repo` | yes | Git repository URL |
-| `version` | no | Current version string |
-| `tags` | no | Array of search tags for discoverability |
-| `path` | no | Subdirectory path within the repo (for monorepos) |
+| Field         | Required | Description                                                   |
+| ------------- | -------- | ------------------------------------------------------------- |
+| `name`        | yes      | Plugin name (must match the directory name and manifest name) |
+| `author`      | yes      | Author name                                                   |
+| `description` | yes      | Short description shown in the plugin browser                 |
+| `repo`        | yes      | Git repository URL                                            |
+| `version`     | no       | Current version string                                        |
+| `tags`        | no       | Array of search tags for discoverability                      |
+| `path`        | no       | Subdirectory path within the repo (for monorepos)             |

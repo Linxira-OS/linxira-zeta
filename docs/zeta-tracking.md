@@ -19,9 +19,9 @@ Every tracking document is written for three readers at once:
 3. **Collaborators** — cross-session/cross-agent views (Web UI tracking panel)
    show where the project stands.
 
-Boundary with memory: tracking holds *project working state* (plan, progress,
-blockers, decisions) that travels with the project; memory holds *learned
-facts* across projects. Tracking must not store learned facts — cross-reference
+Boundary with memory: tracking holds _project working state_ (plan, progress,
+blockers, decisions) that travels with the project; memory holds _learned
+facts_ across projects. Tracking must not store learned facts — cross-reference
 memory by topic instead.
 
 ## File Structure
@@ -54,12 +54,12 @@ cross-project discovery. v2 rows are objects:
 
 ```json
 {
-  "path": "<project dir>",
-  "name": "<dir name>",
-  "phase": "<last known phase>",
-  "progress": "<last known progress>",
-  "lastActiveSessionId": "<session id | null>",
-  "lastUpdated": "<iso timestamp>"
+	"path": "<project dir>",
+	"name": "<dir name>",
+	"phase": "<last known phase>",
+	"progress": "<last known progress>",
+	"lastActiveSessionId": "<session id | null>",
+	"lastUpdated": "<iso timestamp>"
 }
 ```
 
@@ -73,12 +73,12 @@ a `discoverable` tool (loaded on demand) with `read` approval level, gated by
 
 ### Operations
 
-| Operation | Description | File |
-|---|---|---|
-| `update_status` | Update project phase, progress, blockers, decisions | `status.json` |
-| `update_index` | Overwrite the project overview | `INDEX.md` |
-| `log_action` | Append a timestamped action entry | `actions.jsonl` |
-| `sync_plan` | Copy a plan file to the tracking directory | `sessions/` |
+| Operation        | Description                                                                                        | File                            |
+| ---------------- | -------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `update_status`  | Update project phase, progress, blockers, decisions                                                | `status.json`                   |
+| `update_index`   | Overwrite the project overview                                                                     | `INDEX.md`                      |
+| `log_action`     | Append a timestamped action entry                                                                  | `actions.jsonl`                 |
+| `sync_plan`      | Copy a plan file to the tracking directory                                                         | `sessions/`                     |
 | `sync_todo` (v2) | Mirror todo phases: `stage` + ordered `phases` rows; logs `phase_complete` when the stage advances | `status.json` + `actions.jsonl` |
 
 ### Schema
@@ -116,6 +116,7 @@ a `discoverable` tool (loaded on demand) with `read` approval level, gated by
 ### Usage Guidelines
 
 The agent prompt instructs the model to:
+
 - Call `tracking_update` after significant milestones or when blockers resolve
 - Log important decisions with `log_action` for traceability
 - Sync plans with `sync_plan` for cross-session visibility

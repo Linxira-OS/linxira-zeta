@@ -49,7 +49,13 @@ export function isOpenTargetId(value: unknown): value is OpenTargetId {
 }
 
 function isSafeAbsolutePath(value: unknown): value is string {
-	return typeof value === "string" && value.length > 0 && value.length <= 32_768 && !value.includes("\0") && path.isAbsolute(value);
+	return (
+		typeof value === "string" &&
+		value.length > 0 &&
+		value.length <= 32_768 &&
+		!value.includes("\0") &&
+		path.isAbsolute(value)
+	);
 }
 
 function isPathWithin(root: string, candidate: string): boolean {
@@ -71,7 +77,11 @@ export function validateGatewayOpenTarget(
 	const expectedToken = createGatewayOpenToken(candidate.path, secret);
 	const candidateToken = Buffer.from(candidate.token);
 	const expectedTokenBytes = Buffer.from(expectedToken);
-	if (candidateToken.length !== expectedTokenBytes.length || !crypto.timingSafeEqual(candidateToken, expectedTokenBytes)) return null;
+	if (
+		candidateToken.length !== expectedTokenBytes.length ||
+		!crypto.timingSafeEqual(candidateToken, expectedTokenBytes)
+	)
+		return null;
 
 	try {
 		const workspace = realpath(workspacePath);
@@ -85,7 +95,7 @@ export function validateGatewayOpenTarget(
 
 export function listHostOpenTargets(
 	platform: NodeJS.Platform = process.platform,
-	commandAvailable: (command: string) => boolean = (command) => {
+	commandAvailable: (command: string) => boolean = command => {
 		const lookup = platform === "win32" ? "where.exe" : "which";
 		return spawnSync(lookup, [command], { stdio: "ignore" }).status === 0;
 	},
@@ -93,7 +103,8 @@ export function listHostOpenTargets(
 	if (!(platform === "win32" || platform === "darwin" || platform === "linux")) return [];
 	const targets: DesktopOpenTarget[] = [{ id: "file-manager", label: "File manager" }];
 	for (const [editorId, editor] of Object.entries(EDITOR_COMMANDS)) {
-		if (commandAvailable(editor.command)) targets.push({ id: `editor:${editorId}` as OpenTargetId, label: editor.label });
+		if (commandAvailable(editor.command))
+			targets.push({ id: `editor:${editorId}` as OpenTargetId, label: editor.label });
 	}
 	return targets;
 }
@@ -101,5 +112,5 @@ export function listHostOpenTargets(
 export function editorIdFromTarget(targetId: OpenTargetId): EditorId | null {
 	if (!targetId.startsWith("editor:")) return null;
 	const editorId = targetId.slice("editor:".length);
-	return Object.hasOwn(EDITOR_COMMANDS, editorId) ? editorId as EditorId : null;
+	return Object.hasOwn(EDITOR_COMMANDS, editorId) ? (editorId as EditorId) : null;
 }

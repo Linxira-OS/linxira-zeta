@@ -135,7 +135,6 @@ The desktop build adds a system tray icon. Closing the window keeps Zeta
 running in the tray (Settings → Web / Bot → "Minimize to tray on close");
 use the tray menu to reopen the window or quit.
 
-
 ## Desktop entry: `zeta-d` vs `zeta`
 
 The desktop install registers exactly one command on your PATH: `zeta-d`.

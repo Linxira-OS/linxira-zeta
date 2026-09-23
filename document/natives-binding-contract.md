@@ -39,14 +39,14 @@ There is no current `NativeBindings` declaration-merging lifecycle and no full r
 
 ```json
 {
-  "main": "./native/index.js",
-  "types": "./native/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./native/index.d.ts",
-      "import": "./native/index.js"
-    }
-  }
+	"main": "./native/index.js",
+	"types": "./native/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./native/index.d.ts",
+			"import": "./native/index.js"
+		}
+	}
 }
 ```
 
@@ -54,29 +54,29 @@ Consumers in `packages/coding-agent` and `packages/tui` import directly from `@l
 
 ## JS API ↔ native export mapping (representative)
 
-| Category          | Public JS API                                                                                             | Rust source                                      | Return style               |
-| ----------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------- |
-| Grep              | `grep(options, onMatch?)`                                                                                 | `grep.rs`                                        | `Promise<GrepResult>`      |
-| Grep              | `search(content, options)`                                                                                | `grep.rs`                                        | `SearchResult`             |
-| Grep              | `hasMatch(content, pattern, ignoreCase?, multiline?)`                                                     | `grep.rs`                                        | `boolean`                  |
-| Fuzzy path search | `fuzzyFind(options)`                                                                                      | `fd.rs`                                          | `Promise<FuzzyFindResult>` |
-| Glob/workspace    | `glob(options, onMatch?)`, `listWorkspace(options)`                                                       | `glob.rs`, `workspace.rs`                        | `Promise<...>`             |
-| Glob cache        | `invalidateFsScanCache(path?)`                                                                            | `iofs.rs`                                        | `void`                     |
+| Category          | Public JS API                                                                                                                                       | Rust source                                      | Return style               |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------- |
+| Grep              | `grep(options, onMatch?)`                                                                                                                           | `grep.rs`                                        | `Promise<GrepResult>`      |
+| Grep              | `search(content, options)`                                                                                                                          | `grep.rs`                                        | `SearchResult`             |
+| Grep              | `hasMatch(content, pattern, ignoreCase?, multiline?)`                                                                                               | `grep.rs`                                        | `boolean`                  |
+| Fuzzy path search | `fuzzyFind(options)`                                                                                                                                | `fd.rs`                                          | `Promise<FuzzyFindResult>` |
+| Glob/workspace    | `glob(options, onMatch?)`, `listWorkspace(options)`                                                                                                 | `glob.rs`, `workspace.rs`                        | `Promise<...>`             |
+| Glob cache        | `invalidateFsScanCache(path?)`                                                                                                                      | `iofs.rs`                                        | `void`                     |
 | AST/block/summary | `astGrep(options)`, `astMatch(options)`, `astEdit(options)`, `blockRangeAt(options)`, `enclosingBlockBoundaries(options)`, `summarizeCode(options)` | `ast.rs`, `block.rs`, `summary.rs`               | mixed                      |
-| Shell             | `executeShell(options, onChunk?)`                                                                         | `shell.rs`                                       | `Promise<ShellRunResult>`  |
-| Shell             | `new Shell(options?)`, `shell.run(...)`, `shell.abort()`                                                  | `shell.rs`                                       | class / promises           |
-| Shell             | `applyBashFixups(command)`                                                                                | `shell.rs`                                       | `BashFixupResult`          |
-| PTY               | `new PtySession()`, `start/write/resize/kill`                                                             | `pty.rs`                                         | class / promises           |
-| Process           | `Process.fromPid/fromPath`, `status/children/killTree/terminate/waitForExit`                              | `ps.rs`                                          | class / mixed              |
-| Keys              | `parseKey`, `matchesKey`, Kitty/legacy helpers                                                            | `keys.rs`                                        | sync                       |
-| Text              | `wrapTextWithAnsi`, `truncateToWidth`, `sliceWithWidth`, `extractSegments`, `visibleWidth`                | `text.rs`                                        | sync                       |
-| Highlight         | `highlightCode`, `supportsLanguage`, `getSupportedLanguages`                                              | `highlight.rs`                                   | sync                       |
-| HTML              | `htmlToMarkdown(html, options?)`                                                                          | `html.rs`                                        | `Promise<string>`          |
-| SIXEL             | `encodeSixel`                                                                                             | `sixel.rs`                                       | sync                       |
-| Snapcompact       | `renderSnapcompactPng(text, options)`                                                                     | `snapcompact.rs`                                 | sync                       |
-| Clipboard         | `copyToClipboard`, `readImageFromClipboard`                                                               | `clipboard.rs`                                   | sync / promise             |
-| Tokens            | `countTokens(input, encoding?)`                                                                           | `tokens.rs`                                      | sync                       |
-| System/isolation  | `detectMacOSAppearance`, `MacAppearanceObserver`, `MacOSPowerAssertion`, `getWorkProfile`, `iso*` helpers | `appearance.rs`, `power.rs`, `prof.rs`, `iso.rs` | mixed                      |
+| Shell             | `executeShell(options, onChunk?)`                                                                                                                   | `shell.rs`                                       | `Promise<ShellRunResult>`  |
+| Shell             | `new Shell(options?)`, `shell.run(...)`, `shell.abort()`                                                                                            | `shell.rs`                                       | class / promises           |
+| Shell             | `applyBashFixups(command)`                                                                                                                          | `shell.rs`                                       | `BashFixupResult`          |
+| PTY               | `new PtySession()`, `start/write/resize/kill`                                                                                                       | `pty.rs`                                         | class / promises           |
+| Process           | `Process.fromPid/fromPath`, `status/children/killTree/terminate/waitForExit`                                                                        | `ps.rs`                                          | class / mixed              |
+| Keys              | `parseKey`, `matchesKey`, Kitty/legacy helpers                                                                                                      | `keys.rs`                                        | sync                       |
+| Text              | `wrapTextWithAnsi`, `truncateToWidth`, `sliceWithWidth`, `extractSegments`, `visibleWidth`                                                          | `text.rs`                                        | sync                       |
+| Highlight         | `highlightCode`, `supportsLanguage`, `getSupportedLanguages`                                                                                        | `highlight.rs`                                   | sync                       |
+| HTML              | `htmlToMarkdown(html, options?)`                                                                                                                    | `html.rs`                                        | `Promise<string>`          |
+| SIXEL             | `encodeSixel`                                                                                                                                       | `sixel.rs`                                       | sync                       |
+| Snapcompact       | `renderSnapcompactPng(text, options)`                                                                                                               | `snapcompact.rs`                                 | sync                       |
+| Clipboard         | `copyToClipboard`, `readImageFromClipboard`                                                                                                         | `clipboard.rs`                                   | sync / promise             |
+| Tokens            | `countTokens(input, encoding?)`                                                                                                                     | `tokens.rs`                                      | sync                       |
+| System/isolation  | `detectMacOSAppearance`, `MacAppearanceObserver`, `MacOSPowerAssertion`, `getWorkProfile`, `iso*` helpers                                           | `appearance.rs`, `power.rs`, `prof.rs`, `iso.rs` | mixed                      |
 
 ## Sync vs async contract differences
 

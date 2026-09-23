@@ -20,12 +20,12 @@ plugins/official/<plugin-id>/
 源码与 `package.json` 直接持有 `@linxiraos/*` 引用，不再使用上游
 `@earendil-works/*`。改写映射（按包名）：
 
-| 上游 | Zeta |
-|---|---|
+| 上游                              | Zeta                                 |
+| --------------------------------- | ------------------------------------ |
 | `@earendil-works/pi-coding-agent` | `@linxiraos/pi-coding-agent`（zeta） |
-| `@earendil-works/pi-ai` | `@linxiraos/pi-ai` |
-| `@earendil-works/pi-agent-core` | `@linxiraos/pi-agent-core` |
-| `@earendil-works/pi-tui` | `@linxiraos/pi-tui` |
+| `@earendil-works/pi-ai`           | `@linxiraos/pi-ai`                   |
+| `@earendil-works/pi-agent-core`   | `@linxiraos/pi-agent-core`           |
+| `@earendil-works/pi-tui`          | `@linxiraos/pi-tui`                  |
 
 `scripts/publish-missing-packages.ts` 的 `rewriteEarendilDeps` 保留为发布兜底，
 但官方插件源码内已常驻 `@linxiraos/*`。
@@ -34,14 +34,14 @@ plugins/official/<plugin-id>/
 
 ```jsonc
 {
-  "id": "<plugin-id>",
-  "name": "<显示名>",
-  "description": "<一句话描述>",
-  "source": "<上游仓库 URL>",
-  "publish": "@linxiraos/<plugin-id>",
-  "install": "npm",
-  "compat": { "zeta": "^1.1.0" },
-  "unuse": false,
-  "category": "official"
+	"id": "<plugin-id>",
+	"name": "<显示名>",
+	"description": "<一句话描述>",
+	"source": "<上游仓库 URL>",
+	"publish": "@linxiraos/<plugin-id>",
+	"install": "npm",
+	"compat": { "zeta": "^1.1.0" },
+	"unuse": false,
+	"category": "official",
 }
 ```

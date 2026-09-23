@@ -18,15 +18,15 @@ triage 表、推送门槛）在根 `AGENTS.md`，本文只放操作步骤与工�
    被移动的 release tag。从 `main` 切出短生命周期
    `sync/omp-release/<release>` 分支（优先在隔离 worktree 里），对核实过的 tag
    做真正的 non-squash merge；合并后 `git merge-base --is-ancestor <tag-commit>
-   HEAD` 必须成功，证明完整上游 release 已在历史中。
+HEAD` 必须成功，证明完整上游 release 已在历史中。
 2. **结构修复。** 处理损伤类别 1–3：`workspaces.catalog` 全部 13 个键（14 个发布
    包含不在 catalog 的 `@linxiraos/zeta-web`）对齐 Zeta
    键名与版本线；npm scope 按"上游包名 → Zeta 发布名"**映射改写**（`omptype` →
    `@linxiraos/pi-omptype`，不是机械 scope 替换）；Cargo workspace 版本 +
    natives 哨兵 + committed bindings 用 `bun scripts/set-version.ts <当前 Zeta
-   版本>` 整线对齐，再 `bun install` 刷新 lockfile；逐项恢复冲突解决中静默丢失
+版本>` 整线对齐，再 `bun install` 刷新 lockfile；逐项恢复冲突解决中静默丢失
    的 Zeta-only 代码（清单见 AGENTS.md 损伤表第 4 类）。**Gate：`bun scripts/
-   check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误**，两关都过
+check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误**，两关都过
    才进品牌阶段。
 3. **品牌 overlay。** 跑 `bun scripts/brand/brand-overlay.ts`（脚本已入库，
    `--dry` 可先预览），在逐 bucket 测试 triage 之前执行——机械 token 先扫掉，
@@ -100,11 +100,10 @@ bun scripts/brand/brand-overlay.ts         # apply：直接改写工作树
 ```
 
 - apply 模式基于 `git ls-files` 扫描受跟踪产品源码，把 brand-rules.ts 里
-  **Zeta 规范形无歧义**的机械 token 批量改写：`USER_AGENT = \`omp/\${VERSION}\``
-  → `zeta/`、`PREVIEW_TITLE`/`APP_NAME`/profile alias 的 `"omp"` → `"ζ"`/`"zeta"`、
-  `name: "oh-my-pi"` → `"zeta"`、`.omp` 路径 fixture → `.zeta`（skills/agent/
-  plugins/cache 等参数面）、mcp/theme schema URL 指向 Zeta 仓库 raw 地址、
-  doc-comment 与 `$XDG_*/omp/` 文档路径、`.omp\` Windows 路径等。
+  **Zeta 规范形无歧义**的机械 token 批量改写：`USER_AGENT = \`omp/\${VERSION}\``→`zeta/`、`PREVIEW_TITLE`/`APP_NAME`/profile alias 的 `"omp"`→`"ζ"`/`"zeta"`、
+`name: "oh-my-pi"`→`"zeta"`、`.omp`路径 fixture →`.zeta`（skills/agent/
+plugins/cache 等参数面）、mcp/theme schema URL 指向 Zeta 仓库 raw 地址、
+doc-comment 与 `$XDG_*/omp/` 文档路径、`.omp\` Windows 路径等。
 - **幂等且刻意窄**：只改无歧义 token。语义面（测试契约、上游互操作面）留给
   人工逐文件 resolve；跑完 overlay 后用 brand-check 看还剩哪些需要动手。
 - 执行时机：阶段 3——结构修复之后、逐 bucket 测试 triage 之前，让剩余测试
@@ -127,13 +126,13 @@ scope、越界 `.omp` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断�
 `scripts/brand/brand-rules.ts` 的表按五类语义分组；每条规则带一行理由注释。
 命中一条上游标记时，先判断它属于哪一级，再决定动作：
 
-| 级别 | 含义 | 落在哪个表 | 动作 |
-|---|---|---|---|
-| **must-replace** | Zeta 规范形无歧义的机械上游 token | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `omp/` ``、`@linxiraos/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归 |
-| **allow-interop** | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/omp-plugins、`omp.sh`/`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW` | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表） |
-| **allow-provenance** | 指向上游的出处引用（issue/URL） | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/can1357/oh-my-pi`、`oh-my-pi#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目 | 保留 |
-| **internal-key** | 内部标识符/共享基础设施，改了会静默断功能 | `OMP_PATH_ALLOW` 的 `__omp`/`OMP_PROFILE`/`ompprurl` 等模式；注册表"Native Tokio 安装导出"行 | 保留；勿 sweep 成 `__zeta*`（v18.0.10 Tokio 静默不装教训） |
-| **test-contract** | 测试 fixture/断言编码的上游兼容契约 | `OMP_PATH_ALLOW` 注释：test fixture 豁免（自洽临时路径）；CI 证明真分歧时逐 bucket resolve（skillful-toggle 教训） | 阶段 4 人工逐文件 resolve |
+| 级别                 | 含义                                                                                                                                | 落在哪个表                                                                                                                                                                                                                                                                  | 动作                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **must-replace**     | Zeta 规范形无歧义的机械上游 token                                                                                                   | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `omp/` ``、`@linxiraos/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归                                  |
+| **allow-interop**    | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/omp-plugins、`omp.sh`/`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW`                                                                                                                                                                                                                                                            | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表） |
+| **allow-provenance** | 指向上游的出处引用（issue/URL）                                                                                                     | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/can1357/oh-my-pi`、`oh-my-pi#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目                                                                                                                                                     | 保留                                                                |
+| **internal-key**     | 内部标识符/共享基础设施，改了会静默断功能                                                                                           | `OMP_PATH_ALLOW` 的 `__omp`/`OMP_PROFILE`/`ompprurl` 等模式；注册表"Native Tokio 安装导出"行                                                                                                                                                                                | 保留；勿 sweep 成 `__zeta*`（v18.0.10 Tokio 静默不装教训）          |
+| **test-contract**    | 测试 fixture/断言编码的上游兼容契约                                                                                                 | `OMP_PATH_ALLOW` 注释：test fixture 豁免（自洽临时路径）；CI 证明真分歧时逐 bucket resolve（skillful-toggle 教训）                                                                                                                                                          | 阶段 4 人工逐文件 resolve                                           |
 
 `SKIP_PREFIXES`（`web-ui/`、`temp/`、`document/`、`docs/`、`python/`、
 `AGENTS.md`、`UPDATE-LOG.md`、vendored 代码、`plugins/` 等）永不扫描；
@@ -206,9 +205,9 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    `git log --oneline v18.2.5..v18.2.6` 逐条过一遍提交主题。
 4. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
    rebase / cherry-pick 上游提交）。冲突按下方「大批量冲突的分级 resolve」
-   + 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名
-   映射、.zeta 路径、ZETA_CODING_AGENT_DIR、`__zeta_*` 注入符号、品牌、
-   Zeta-only 功能存活清单）。
+   - 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名
+     映射、.zeta 路径、ZETA_CODING_AGENT_DIR、`__zeta_*` 注入符号、品牌、
+     Zeta-only 功能存活清单）。
 5. **生成物新鲜度 gate**：合并落地后按需重跑并提交——
    `bun install`（bun.lock）→ `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix`
    → `bun run gen:compat`（**凡 rules/ 下 KDL 有变化必跑**，v18.2.5 教训：
@@ -308,7 +307,7 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 - CHANGELOG `## [18.x]` 段随每个新 tag 合并重新出现 → 重跑折叠脚本。
 - catalog/Astra、Codex discovery 96 连挂（本地）→ 大头是**本地陈旧
   natives `.node`**（类 5：`Failed to load pi_natives native addon for
-  win32-x64`），本地 `packages/natives` 重建即消；CI bazel 现场构建无此问题。
+win32-x64`），本地 `packages/natives` 重建即消；CI bazel 现场构建无此问题。
 
 ### 全局符号 sweep 不能按扩展名白名单（v18.2.4 教训之二）
 
@@ -343,7 +342,7 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 - 规则：标记扫描改为 `git grep -lE "^(<<<<<<<|>>>>>>>) " -- .`（全树、全
   文本类型，仅排除二进制），任何新目录加入仓库都要重新过一遍清单。
 - bun.lock 变更后的配套动作再次确认：`bunx bun2nix -l bun.lock -c ../ -o
-  nix/bun.nix`（bun2nix 2.1.2），lockfile 重复键去重后 bun install 不会
+nix/bun.nix`（bun2nix 2.1.2），lockfile 重复键去重后 bun install 不会
   自动重写 lock 文本，bun.nix 必须手动重生成。
 
 ### 分段快进推送的必然产物

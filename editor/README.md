@@ -21,12 +21,14 @@ Full documentation lives in [`docs-web/src/content/docs/`](docs-web/src/content/
 - [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) — required for workspace search
 
 ### Quick Install MacOS (brew)
+
 ```sh
 brew tap eugenioenko/ttt
 brew install ttt
 ```
 
 ### Quick Install Linux
+
 ```sh
 curl -sSfL https://raw.githubusercontent.com/eugenioenko/ttt/main/install.sh | sh
 ```
@@ -50,11 +52,13 @@ yay -S ttt
 > **Note:** The flake tracks `main`. A future tagged release will ship a pinned flake; until then, install from `main`.
 
 Try it without installing:
+
 ```sh
 nix run github:eugenioenko/ttt
 ```
 
 Add to your `flake.nix` inputs:
+
 ```nix
 {
   inputs.ttt.url = "github:eugenioenko/ttt";
@@ -149,10 +153,7 @@ Workspace files use the `.ttt` extension and store a list of folders as relative
 
 ```json
 {
-  "folders": [
-    { "path": "." },
-    { "path": "../other-project" }
-  ]
+	"folders": [{ "path": "." }, { "path": "../other-project" }]
 }
 ```
 
@@ -190,27 +191,32 @@ Changes panel in the sidebar (Ctrl+K C) with full staging workflow.
 Working-tree files and files under expanded commits can be shown as a compact directory **Tree** or a full-path **List** (the default). The choice persists in `git.fileView`. Changes, commit details, and Explorer expose safe **Expand All** and **Collapse All** actions in their relevant menus.
 
 **Staging:**
+
 - **Spacebar** — toggle stage/unstage on the selected file
 - **`a`** — stage all unstaged files
 - **`u`** — unstage all staged files
 - **`+` / `-` buttons** on the section headers — stage/unstage all files in that section
 
 **Committing:**
+
 - Inline commit message input below the file list (Tab from the tree to focus it)
 - Type a message and press Enter to commit all staged files
 - Commit History starts with the 10 most recent commits; activate **Load older commits…** to append bounded pages from the same HEAD snapshot
 
 **Remote operations:**
+
 - **Pull**, **Push**, **Sync** (pull then push) from the sidebar actions button
 - Per-repo actions via the group header menu button in multi-root workspaces
 
 **Diff view:**
+
 - Select a changed file to open a split or unified diff with syntax highlighting layered on diff backgrounds
 - Set the global view mode, context, wrapping, and high-contrast presentation under **Options**; the Changes panel menu provides the same contextual controls
 - Changes-only views show quiet collapsed-context rows that can be expanded in place; full-file context remains available globally or per diff
 - Untracked files open directly in the editor
 
 **Multi-root:**
+
 - Changes are grouped by repository, each with its own collapsible Staged/Changes sections and commit input
 - File status badges: **M** (modified), **A** (added), **D** (deleted), **R** (renamed), **U** (untracked)
 
@@ -317,13 +323,13 @@ File, Edit, Selection, View, and Help menus accessible via the menu bar or keybo
 
 Config files are loaded from `<exe-dir>/config/` (bundled defaults) or `~/.config/ttt/` (user overrides):
 
-| File | Purpose |
-|------|---------|
-| [`settings.json`](config/settings.json) | Editor settings (tabSize, wordWrap, theme, lsp, autocomplete, etc.) |
-| [`keybindings.json`](config/keybindings.json) | Custom keybindings (VS Code key format) |
-| `themes/*.json` | Custom color themes |
+| File                                          | Purpose                                                             |
+| --------------------------------------------- | ------------------------------------------------------------------- |
+| [`settings.json`](config/settings.json)       | Editor settings (tabSize, wordWrap, theme, lsp, autocomplete, etc.) |
+| [`keybindings.json`](config/keybindings.json) | Custom keybindings (VS Code key format)                             |
+| `themes/*.json`                               | Custom color themes                                                 |
 
-Most settings can be edited from a form: **View → Settings**, **Ctrl+K ,**, or **Settings: Open Editor Settings** from the command palette. Changes are held until you press **Apply**; **Cancel** drops them. Settings marked *(restart)* take effect on next launch. LSP settings and external formatters are JSON-only — use **Settings: Open settings.json**.
+Most settings can be edited from a form: **View → Settings**, **Ctrl+K ,**, or **Settings: Open Editor Settings** from the command palette. Changes are held until you press **Apply**; **Cancel** drops them. Settings marked _(restart)_ take effect on next launch. LSP settings and external formatters are JSON-only — use **Settings: Open settings.json**.
 
 See [Settings reference](docs-web/src/content/docs/reference/settings.md) for every key, its type, default, and description.
 
@@ -410,13 +416,13 @@ Each crash is saved as a JSON report with the random seed and full event log, so
 
 TTT includes a built-in scripted interaction system designed for AI agent interactivity and automated debugging. Think of `--exec` as a fast Playwright for the terminal — full click, keyboard, and command simulation with screenshot and state dump capture, all without the overhead of a terminal emulation layer.
 
-| Flag | Description |
-|------|-------------|
-| `--exec "commands"` | Execute semicolon-separated commands after startup |
-| `--listen` | Start an HTTP command server on `127.0.0.1:4242` (`POST /exec` accepts the same script format as `--exec`, against an already-running editor) |
-| `--plugin FILE` | Load a Lua plugin file on startup with full permissions |
-| `--size WxH` | Force screen dimensions (e.g. `120x40`) for deterministic layout |
-| `--debug` | Enable debug mode regardless of config |
+| Flag                | Description                                                                                                                                   |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--exec "commands"` | Execute semicolon-separated commands after startup                                                                                            |
+| `--listen`          | Start an HTTP command server on `127.0.0.1:4242` (`POST /exec` accepts the same script format as `--exec`, against an already-running editor) |
+| `--plugin FILE`     | Load a Lua plugin file on startup with full permissions                                                                                       |
+| `--size WxH`        | Force screen dimensions (e.g. `120x40`) for deterministic layout                                                                              |
+| `--debug`           | Enable debug mode regardless of config                                                                                                        |
 
 The `TTT_CONFIG_DIR` environment variable overrides the config directory (`~/.config/ttt`) entirely — settings, keybindings, themes, and plugins are read from and written to that directory instead. Use it to run scripted sessions isolated from your real configuration. Headless `--exec` sessions also use a process-local clipboard so concurrent automation cannot overwrite the desktop clipboard; interactive sessions, including `--listen`, keep the system clipboard.
 
@@ -424,17 +430,17 @@ The `TTT_CONFIG_DIR` environment variable overrides the config directory (`~/.co
 
 The `--exec` flag accepts a semicolon-separated string of commands that run sequentially after the editor starts. AI agents (like Claude Code) can use this to interact with the editor, inspect UI state, and verify behavior programmatically — no manual interaction needed:
 
-| Command | Description |
-|---------|-------------|
-| `click X Y` | Simulate a mouse click at screen coordinates |
-| `key COMBO` | Simulate a key press (e.g. `key ctrl+p`, `key enter`) |
-| `type TEXT` | Type a string of text character by character |
-| `exec "Command Name"` | Run a command palette command by title |
-| `screenshot PATH` | Save the current screen text to a file |
-| `debug PATH` | Save the editor's debug state as JSON to a file |
-| `wait MS` | Wait for the given number of milliseconds |
+| Command                      | Description                                                             |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `click X Y`                  | Simulate a mouse click at screen coordinates                            |
+| `key COMBO`                  | Simulate a key press (e.g. `key ctrl+p`, `key enter`)                   |
+| `type TEXT`                  | Type a string of text character by character                            |
+| `exec "Command Name"`        | Run a command palette command by title                                  |
+| `screenshot PATH`            | Save the current screen text to a file                                  |
+| `debug PATH`                 | Save the editor's debug state as JSON to a file                         |
+| `wait MS`                    | Wait for the given number of milliseconds                               |
 | `wait-for TEXT [timeout=MS]` | Wait until text appears on the visible screen (default timeout: 5000ms) |
-| `quit` / `shutdown` | Exit the editor |
+| `quit` / `shutdown`          | Exit the editor                                                         |
 
 Quote `wait-for` text when it contains leading/trailing whitespace or escapes, for example `wait-for "Indexing complete" timeout=10000`. Scripted input and commands are acknowledged only after the main event loop handles and redraws them, so a following `wait-for`, `screenshot`, or `debug` observes their completed visible state. Invalid actions, missing commands/panels, capture failures, and wait timeouts stop the script: CLI `--exec` writes the error to stderr and exits nonzero; `POST /exec` returns a non-2xx response with the same detail.
 
@@ -489,7 +495,7 @@ TTT is better because of the people who took the time to try it, report bugs, re
 - [@jetpax](https://github.com/jetpax): surfacing the macOS / iTerm2 issues (mouse support, clipboard copy, large-list scrolling, workspace paths).
 - [@egorse](https://github.com/egorse): the search-panel focus fix.
 - [@pirate-boop](https://github.com/pirate-boop): the Cyrillic cursor-offset fix and a number of UX/packaging ideas.
-- [@forthrin](https://github.com/forthrin): great insight into emacs, keyboards and keyboard shortcuts :) 
+- [@forthrin](https://github.com/forthrin): great insight into emacs, keyboards and keyboard shortcuts :)
 
 Want to help? Bug reports, feature requests, and pull requests are all welcome — open an [issue](https://github.com/eugenioenko/ttt/issues) or a PR.
 

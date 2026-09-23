@@ -13,9 +13,9 @@ To disable LSP entirely, set `lsp.enabled` to `false` in your settings:
 
 ```json
 {
-  "lsp": {
-    "enabled": false
-  }
+	"lsp": {
+		"enabled": false
+	}
 }
 ```
 
@@ -194,11 +194,11 @@ Add or override language servers in `~/.config/ttt/settings.json` under the `lsp
 
 ```json
 {
-  "lsp": {
-    "servers": {
-      "ocaml": { "command": ["ocamllsp"] }
-    }
-  }
+	"lsp": {
+		"servers": {
+			"ocaml": { "command": ["ocamllsp"] }
+		}
+	}
 }
 ```
 
@@ -210,19 +210,19 @@ To override a built-in server, use the same key. For example, to use `tsserver` 
 
 ```json
 {
-  "lsp": {
-    "servers": {
-      "typescript": {
-        "command": ["tsserver", "--stdio"],
-        "languages": {
-          ".ts": "typescript",
-          ".tsx": "typescriptreact",
-          ".js": "javascript",
-          ".jsx": "javascriptreact"
-        }
-      }
-    }
-  }
+	"lsp": {
+		"servers": {
+			"typescript": {
+				"command": ["tsserver", "--stdio"],
+				"languages": {
+					".ts": "typescript",
+					".tsx": "typescriptreact",
+					".js": "javascript",
+					".jsx": "javascriptreact"
+				}
+			}
+		}
+	}
 }
 ```
 
@@ -230,21 +230,21 @@ To add file extensions to an existing server, override the full entry with the a
 
 ```json
 {
-  "lsp": {
-    "servers": {
-      "typescript": {
-        "command": ["typescript-language-server", "--stdio"],
-        "languages": {
-          ".ts": "typescript",
-          ".tsx": "typescriptreact",
-          ".js": "javascript",
-          ".jsx": "javascriptreact",
-          ".mjs": "javascript",
-          ".svelte": "typescript"
-        }
-      }
-    }
-  }
+	"lsp": {
+		"servers": {
+			"typescript": {
+				"command": ["typescript-language-server", "--stdio"],
+				"languages": {
+					".ts": "typescript",
+					".tsx": "typescriptreact",
+					".js": "javascript",
+					".jsx": "javascriptreact",
+					".mjs": "javascript",
+					".svelte": "typescript"
+				}
+			}
+		}
+	}
 }
 ```
 
@@ -258,32 +258,32 @@ The server is started lazily on first use and shut down when the editor exits.
 
 The language segment on the right of the status bar shows the state of the server for the current file:
 
-| Indicator | Meaning |
-|-----------|---------|
-| `Go ◉` | Connected and initialized |
-| `Go ◌` | Starting, or not launched yet — servers start on first use |
-| `Go ⚠` | Failed to start, exited, or the binary is not installed |
-| `Go` | No server configured for this language |
+| Indicator | Meaning                                                    |
+| --------- | ---------------------------------------------------------- |
+| `Go ◉`    | Connected and initialized                                  |
+| `Go ◌`    | Starting, or not launched yet — servers start on first use |
+| `Go ⚠`    | Failed to start, exited, or the binary is not installed    |
+| `Go`      | No server configured for this language                     |
 
 Click the segment to open the OUTPUT panel, where each server logs its startup command, its own stderr, initialization failures and unexpected exits under the `lsp:<server>` prefix. That is the place to look when a feature silently does nothing.
 
 ## Supported Features
 
-| Feature | Keybinding | Description |
-|---------|-----------|-------------|
-| Autocomplete | Ctrl+U | Trigger completion at cursor position |
-| Signature Help | *(automatic)* | Parameter hints shown on `(` and `,` |
-| Go to Definition | F12 | Jump to the definition of the symbol under the cursor |
-| Go to Implementation | Shift+F12 | Jump to the implementation |
-| Go to Type Definition | Ctrl+L T | Jump to the type definition |
-| Find References | Ctrl+L R | Find all references (results in bottom panel) |
-| Rename Symbol | F2 | Rename across all files in the workspace |
-| Hover | Ctrl+K I | Show type information and documentation |
-| Format Document | Ctrl+L F | Format the entire document |
-| Format Selection | Ctrl+L S | Format the selected range |
-| Organize Imports | Ctrl+L O | Organize imports via code action |
-| Fix All | Ctrl+L X | Apply all available fixes |
-| Diagnostics | *(automatic)* | Error/warning squiggles, status bar summary, hover popup |
+| Feature               | Keybinding    | Description                                              |
+| --------------------- | ------------- | -------------------------------------------------------- |
+| Autocomplete          | Ctrl+U        | Trigger completion at cursor position                    |
+| Signature Help        | _(automatic)_ | Parameter hints shown on `(` and `,`                     |
+| Go to Definition      | F12           | Jump to the definition of the symbol under the cursor    |
+| Go to Implementation  | Shift+F12     | Jump to the implementation                               |
+| Go to Type Definition | Ctrl+L T      | Jump to the type definition                              |
+| Find References       | Ctrl+L R      | Find all references (results in bottom panel)            |
+| Rename Symbol         | F2            | Rename across all files in the workspace                 |
+| Hover                 | Ctrl+K I      | Show type information and documentation                  |
+| Format Document       | Ctrl+L F      | Format the entire document                               |
+| Format Selection      | Ctrl+L S      | Format the selected range                                |
+| Organize Imports      | Ctrl+L O      | Organize imports via code action                         |
+| Fix All               | Ctrl+L X      | Apply all available fixes                                |
+| Diagnostics           | _(automatic)_ | Error/warning squiggles, status bar summary, hover popup |
 
 ## Auto-Completion
 
@@ -295,12 +295,12 @@ Completions trigger automatically as you type with a configurable debounce (defa
 
 ```json
 {
-  "autocomplete": {
-    "enabled": true,
-    "autoSuggest": true,
-    "debounce": 150,
-    "signatureHelp": true
-  }
+	"autocomplete": {
+		"enabled": true,
+		"autoSuggest": true,
+		"debounce": 150,
+		"signatureHelp": true
+	}
 }
 ```
 
@@ -321,9 +321,9 @@ The LSP server publishes diagnostics (errors, warnings, hints) which are display
 
 ```json
 {
-  "editor": {
-    "formatOnSave": true
-  }
+	"editor": {
+		"formatOnSave": true
+	}
 }
 ```
 
@@ -336,9 +336,9 @@ Enable `lsp.saveOnRename` to auto-save files affected by a rename:
 
 ```json
 {
-  "lsp": {
-    "saveOnRename": true
-  }
+	"lsp": {
+		"saveOnRename": true
+	}
 }
 ```
 
@@ -348,12 +348,9 @@ Configure automatic code actions that run before each save:
 
 ```json
 {
-  "lsp": {
-    "codeActionsOnSave": [
-      "source.organizeImports",
-      "source.fixAll"
-    ]
-  }
+	"lsp": {
+		"codeActionsOnSave": ["source.organizeImports", "source.fixAll"]
+	}
 }
 ```
 
@@ -361,12 +358,12 @@ Configure automatic code actions that run before each save:
 
 All LSP settings are nested under `lsp.*` in `settings.json`. Autocomplete settings are separate, under `autocomplete.*`.
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `lsp.enabled` | boolean | `true` | Enable or disable LSP support entirely |
-| `lsp.hover` | boolean | `true` | Enable or disable hover information |
-| `lsp.hoverDelay` | number | `500` | Delay in milliseconds before showing hover info |
-| `lsp.saveOnRename` | boolean | `false` | Auto-save files affected by a rename |
-| `lsp.codeActionsOnSave` | string[] | `[]` | Code actions to run before each save |
-| `lsp.notifyAvailability` | boolean | `true` | Show a notification when a language server is not installed |
-| `lsp.servers` | object | *(24 built-in)* | Custom or overridden language server configurations |
+| Setting                  | Type     | Default         | Description                                                 |
+| ------------------------ | -------- | --------------- | ----------------------------------------------------------- |
+| `lsp.enabled`            | boolean  | `true`          | Enable or disable LSP support entirely                      |
+| `lsp.hover`              | boolean  | `true`          | Enable or disable hover information                         |
+| `lsp.hoverDelay`         | number   | `500`           | Delay in milliseconds before showing hover info             |
+| `lsp.saveOnRename`       | boolean  | `false`         | Auto-save files affected by a rename                        |
+| `lsp.codeActionsOnSave`  | string[] | `[]`            | Code actions to run before each save                        |
+| `lsp.notifyAvailability` | boolean  | `true`          | Show a notification when a language server is not installed |
+| `lsp.servers`            | object   | _(24 built-in)_ | Custom or overridden language server configurations         |

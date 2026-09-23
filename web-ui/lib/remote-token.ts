@@ -14,44 +14,41 @@
 const STORAGE_KEY = "zeta-remote-token";
 
 export function getRemoteToken(): string {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) ?? "";
-  } catch {
-    return "";
-  }
+	try {
+		return window.localStorage.getItem(STORAGE_KEY) ?? "";
+	} catch {
+		return "";
+	}
 }
 
 export function setRemoteToken(token: string | undefined): void {
-  try {
-    if (token) {
-      window.localStorage.setItem(STORAGE_KEY, token);
-    } else {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    // storage unavailable — remote access simply won't authenticate
-  }
+	try {
+		if (token) {
+			window.localStorage.setItem(STORAGE_KEY, token);
+		} else {
+			window.localStorage.removeItem(STORAGE_KEY);
+		}
+	} catch {
+		// storage unavailable — remote access simply won't authenticate
+	}
 }
 
 let installed = false;
 
 /** Patch `window.fetch` once so every `/api/*` request carries the token. */
 export function installRemoteTokenFetch(): void {
-  if (installed || typeof window === "undefined") return;
-  installed = true;
-  const original = window.fetch.bind(window);
-  // Keep fetch's static helpers (e.g. `preconnect`) that lib.dom attaches.
-  window.fetch = Object.assign(
-    (input: RequestInfo | URL, init?: RequestInit) => {
-      const token = getRemoteToken();
-      if (token && typeof input === "string" && input.startsWith("/api/")) {
-        init = {
-          ...init,
-          headers: { ...init?.headers, "X-Zeta-Token": token },
-        };
-      }
-      return original(input, init);
-    },
-    original,
-  ) as typeof fetch;
+	if (installed || typeof window === "undefined") return;
+	installed = true;
+	const original = window.fetch.bind(window);
+	// Keep fetch's static helpers (e.g. `preconnect`) that lib.dom attaches.
+	window.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) => {
+		const token = getRemoteToken();
+		if (token && typeof input === "string" && input.startsWith("/api/")) {
+			init = {
+				...init,
+				headers: { ...init?.headers, "X-Zeta-Token": token },
+			};
+		}
+		return original(input, init);
+	}, original) as typeof fetch;
 }

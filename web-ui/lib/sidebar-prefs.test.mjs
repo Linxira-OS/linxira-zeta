@@ -8,9 +8,9 @@ const jiti = createJiti(import.meta.url);
 function makeStorage(initial = new Map()) {
 	const map = new Map(initial);
 	return {
-		getItem: (k) => (map.has(k) ? map.get(k) : null),
+		getItem: k => (map.has(k) ? map.get(k) : null),
 		setItem: (k, v) => map.set(k, String(v)),
-		removeItem: (k) => map.delete(k),
+		removeItem: k => map.delete(k),
 		_dump: () => map,
 	};
 }
@@ -20,7 +20,11 @@ async function loadModule(storage) {
 	globalThis.window = { localStorage: storage };
 	const mod = await jiti.import("../lib/sidebar-prefs.ts");
 	mod.resetPrefsCacheForTest();
-	return { mod, storage, restore: () => (savedWindow === undefined ? delete globalThis.window : (globalThis.window = savedWindow)) };
+	return {
+		mod,
+		storage,
+		restore: () => (savedWindow === undefined ? delete globalThis.window : (globalThis.window = savedWindow)),
+	};
 }
 
 const LEGACY = {
@@ -78,7 +82,14 @@ test("unknown sort values clamp to defaults; oversize alias truncated", async ()
 	const v2 = "zeta-web:sidebar-preferences-v2";
 	const storage = makeStorage(
 		new Map([
-			[v2, JSON.stringify({ projectSort: "bogus", sessionView: { sort: "nope" }, projectMeta: { "/p": { name: "x".repeat(200) } } })],
+			[
+				v2,
+				JSON.stringify({
+					projectSort: "bogus",
+					sessionView: { sort: "nope" },
+					projectMeta: { "/p": { name: "x".repeat(200) } },
+				}),
+			],
 		]),
 	);
 	const { mod, restore } = await loadModule(storage);

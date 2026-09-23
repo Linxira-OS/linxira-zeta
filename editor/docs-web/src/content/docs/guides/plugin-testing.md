@@ -20,20 +20,20 @@ The plugin's name (used for its panel id, `plugin.<name>`) is the Lua file's bas
 
 ## `--exec` commands
 
-| Command | Description |
-|---------|-------------|
-| `wait MS` | Pause (let timers, async callbacks, and renders settle) |
-| `wait-for TEXT [timeout=MS]` | Wait until text is visible on screen (default timeout: 5000ms) |
-| `panel ID` | Open a bottom-panel tab by id (e.g. `panel output`, `panel plugin.init`) |
-| `key COMBO` | Press a key or chord (`key enter`, `key ctrl+k p`, `key tab`) |
-| `type TEXT` | Type a string |
-| `click X Y` | Click at screen coordinates |
-| `hover X Y` | Move the mouse to coordinates |
-| `drag X1 Y1 X2 Y2` | Drag between two points |
-| `exec "Command Name"` | Run a command by its palette title |
-| `screenshot PATH` | Write the current screen (plain text) to a file |
-| `debug PATH` | Write the editor's full state as JSON to a file |
-| `quit` / `shutdown` | Exit |
+| Command                      | Description                                                              |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `wait MS`                    | Pause (let timers, async callbacks, and renders settle)                  |
+| `wait-for TEXT [timeout=MS]` | Wait until text is visible on screen (default timeout: 5000ms)           |
+| `panel ID`                   | Open a bottom-panel tab by id (e.g. `panel output`, `panel plugin.init`) |
+| `key COMBO`                  | Press a key or chord (`key enter`, `key ctrl+k p`, `key tab`)            |
+| `type TEXT`                  | Type a string                                                            |
+| `click X Y`                  | Click at screen coordinates                                              |
+| `hover X Y`                  | Move the mouse to coordinates                                            |
+| `drag X1 Y1 X2 Y2`           | Drag between two points                                                  |
+| `exec "Command Name"`        | Run a command by its palette title                                       |
+| `screenshot PATH`            | Write the current screen (plain text) to a file                          |
+| `debug PATH`                 | Write the editor's full state as JSON to a file                          |
+| `quit` / `shutdown`          | Exit                                                                     |
 
 Prefer `wait-for` when a visible state has a reliable text marker. Quote text that contains whitespace or escapes: `wait-for "Indexing complete" timeout=10000`. Scripted input and commands are acknowledged after the main event loop handles and redraws them, so the condition checks the rendered screen rather than whether an event was merely posted. Invalid actions and timeouts stop the script; CLI `--exec` exits nonzero with stderr and `POST /exec` returns a non-2xx response with the error.
 
@@ -67,7 +67,7 @@ bin/ttt --size 100x30 --plugin ./init.lua file.txt \
 python3 -c "import json; print([l for l in json.load(open('/tmp/state.json'))['output']])"
 ```
 
-A common pattern: the screenshot shows the panel *looks* unchanged, but the OUTPUT log shows a callback fired with the wrong data — that mismatch is the bug. (This is exactly how the widget system's scrollview mouse-routing bugs were found: clicks visually did nothing, but the debug dump proved events never reached the widgets.)
+A common pattern: the screenshot shows the panel _looks_ unchanged, but the OUTPUT log shows a callback fired with the wrong data — that mismatch is the bug. (This is exactly how the widget system's scrollview mouse-routing bugs were found: clicks visually did nothing, but the debug dump proved events never reached the widgets.)
 
 ## Isolate from your real config
 

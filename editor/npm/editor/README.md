@@ -20,10 +20,10 @@ npx zeta-editor --version
 
 ## Platform support
 
-| Package | OS | Arch | Status |
-|---|---|---|---|
-| `@linxiraos/editor-windows-x64` | Windows | x64 | supported |
-| `@linxiraos/editor-linux-x64` | Linux | x64 | supported |
+| Package                         | OS      | Arch | Status    |
+| ------------------------------- | ------- | ---- | --------- |
+| `@linxiraos/editor-windows-x64` | Windows | x64  | supported |
+| `@linxiraos/editor-linux-x64`   | Linux   | x64  | supported |
 
 Only **x64 (amd64)** builds of Linux and Windows are provided. macOS and ARM (arm64/armv7) builds are **not** available yet. On unsupported platforms the launcher exits with a clear error; the rest of Zeta is unaffected.
 

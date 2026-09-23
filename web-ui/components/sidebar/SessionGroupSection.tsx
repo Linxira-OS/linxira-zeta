@@ -90,7 +90,7 @@ function TreeItem({
 					onArchive={() => rest.onArchive(node.session.id)}
 					pinned={rest.pinnedIds.has(node.session.id)}
 					onPinToggle={() => rest.onPinToggle(node.session.id)}
-					onRowContextMenu={rest.onRowContextMenu ? (e) => rest.onRowContextMenu?.(e, node.session) : undefined}
+					onRowContextMenu={rest.onRowContextMenu ? e => rest.onRowContextMenu?.(e, node.session) : undefined}
 					depth={depth}
 					hasChildren={hasChildren}
 					collapsed={collapsed}
@@ -110,7 +110,6 @@ function TreeItem({
 		</div>
 	);
 }
-
 
 const MAX_VISIBLE_SESSIONS = 10;
 

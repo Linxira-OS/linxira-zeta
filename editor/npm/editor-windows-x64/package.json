@@ -1,24 +1,24 @@
 {
-  "name": "@linxiraos/editor-windows-x64",
-  "version": "1.1.20",
-  "description": "TTT Editor (vendored by Zeta) binary for win32/x64",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-    "directory": "editor"
-  },
-  "os": [
-    "win32"
-  ],
-  "cpu": [
-    "x64"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "bin",
-    "LICENSE"
-  ]
+	"name": "@linxiraos/editor-windows-x64",
+	"version": "1.1.20",
+	"description": "TTT Editor (vendored by Zeta) binary for win32/x64",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"directory": "editor"
+	},
+	"files": [
+		"bin",
+		"LICENSE"
+	],
+	"os": [
+		"win32"
+	],
+	"cpu": [
+		"x64"
+	],
+	"publishConfig": {
+		"access": "public"
+	}
 }

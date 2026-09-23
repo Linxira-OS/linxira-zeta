@@ -1,94 +1,82 @@
 {
-  "metadata": {
-    "id": "zeta-dark",
-    "name": "Zeta",
-    "description": "Zeta dark theme — neutral graphite, no blue accent",
-    "variant": "dark",
-    "tags": [
-      "dark",
-      "preset"
-    ]
-  },
-  "colors": {
-    "primary": {
-      "base": "#EAEAEA",
-      "hover": "rgb(234 234 234 / 0.85)",
-      "active": "rgb(234 234 234 / 0.7)",
-      "foreground": "#161616",
-      "muted": "rgb(234 234 234 / 0.18)",
-      "emphasis": "#FFFFFF"
-    },
-    "surface": {
-      "background": "#161616",
-      "foreground": "#F5F5F5",
-      "muted": "#1E1E1E",
-      "mutedForeground": "#9D9D9D",
-      "elevated": "#232323",
-      "elevatedForeground": "#F5F5F5",
-      "overlay": "rgb(0 0 0 / 0.64)",
-      "subtle": "rgb(255 255 255 / 0.05)"
-    },
-    "interactive": {
-      "border": "#2E2E2E",
-      "borderHover": "#3C3C3C",
-      "borderFocus": "#EAEAEA",
-      "selection": "rgb(255 255 255 / 0.09)",
-      "selectionForeground": "#F5F5F5",
-      "focus": "#EAEAEA",
-      "focusRing": "rgb(234 234 234 / 0.35)",
-      "cursor": "#F5F5F5",
-      "hover": "rgb(255 255 255 / 0.06)",
-      "active": "rgb(255 255 255 / 0.1)"
-    },
-    "status": {
-      "error": "#F07178",
-      "errorForeground": "#F8B4B8",
-      "errorBackground": "rgb(240 113 120 / 0.18)",
-      "errorBorder": "rgb(240 113 120 / 0.48)",
-      "warning": "#E5C07B",
-      "warningForeground": "#F2DCAE",
-      "warningBackground": "rgb(229 192 123 / 0.18)",
-      "warningBorder": "rgb(229 192 123 / 0.48)",
-      "success": "#98C379",
-      "successForeground": "#C6E3B0",
-      "successBackground": "rgb(152 195 121 / 0.18)",
-      "successBorder": "rgb(152 195 121 / 0.48)",
-      "info": "#61AFEF",
-      "infoForeground": "#B5D5F9",
-      "infoBackground": "rgb(97 175 239 / 0.18)",
-      "infoBorder": "rgb(97 175 239 / 0.48)"
-    },
-    "syntax": {
-      "background": "#172033",
-      "foreground": "#cbd5e1",
-      "comment": "#8b9ab3",
-      "keyword": "#fb7185",
-      "string": "#86efac",
-      "number": "#7dd3fc",
-      "function": "#c4b5fd",
-      "variable": "#fdba74",
-      "type": "#6ee7b7",
-      "operator": "#fda4af",
-      "property": "#93c5fd",
-      "header": "#1d2940",
-      "lineNumber": "#98a8c2"
-    },
-    "chart": [
-      "#EAEAEA",
-      "#F07178",
-      "#E5C07B",
-      "#98C379",
-      "#61AFEF",
-      "#C678DD",
-      "#D19A66",
-      "#56B6C2"
-    ],
-    "chat": {
-      "userBackground": "rgb(255 255 255 / 0.07)",
-      "userBorder": "rgb(255 255 255 / 0.14)",
-      "assistantBackground": "#161616",
-      "toolBackground": "rgb(255 255 255 / 0.04)",
-      "toolBorder": "rgb(255 255 255 / 0.1)"
-    }
-  }
+	"metadata": {
+		"id": "zeta-dark",
+		"name": "Zeta",
+		"description": "Zeta dark theme — neutral graphite, no blue accent",
+		"variant": "dark",
+		"tags": ["dark", "preset"]
+	},
+	"colors": {
+		"primary": {
+			"base": "#EAEAEA",
+			"hover": "rgb(234 234 234 / 0.85)",
+			"active": "rgb(234 234 234 / 0.7)",
+			"foreground": "#161616",
+			"muted": "rgb(234 234 234 / 0.18)",
+			"emphasis": "#FFFFFF"
+		},
+		"surface": {
+			"background": "#161616",
+			"foreground": "#F5F5F5",
+			"muted": "#1E1E1E",
+			"mutedForeground": "#9D9D9D",
+			"elevated": "#232323",
+			"elevatedForeground": "#F5F5F5",
+			"overlay": "rgb(0 0 0 / 0.64)",
+			"subtle": "rgb(255 255 255 / 0.05)"
+		},
+		"interactive": {
+			"border": "#2E2E2E",
+			"borderHover": "#3C3C3C",
+			"borderFocus": "#EAEAEA",
+			"selection": "rgb(255 255 255 / 0.09)",
+			"selectionForeground": "#F5F5F5",
+			"focus": "#EAEAEA",
+			"focusRing": "rgb(234 234 234 / 0.35)",
+			"cursor": "#F5F5F5",
+			"hover": "rgb(255 255 255 / 0.06)",
+			"active": "rgb(255 255 255 / 0.1)"
+		},
+		"status": {
+			"error": "#F07178",
+			"errorForeground": "#F8B4B8",
+			"errorBackground": "rgb(240 113 120 / 0.18)",
+			"errorBorder": "rgb(240 113 120 / 0.48)",
+			"warning": "#E5C07B",
+			"warningForeground": "#F2DCAE",
+			"warningBackground": "rgb(229 192 123 / 0.18)",
+			"warningBorder": "rgb(229 192 123 / 0.48)",
+			"success": "#98C379",
+			"successForeground": "#C6E3B0",
+			"successBackground": "rgb(152 195 121 / 0.18)",
+			"successBorder": "rgb(152 195 121 / 0.48)",
+			"info": "#61AFEF",
+			"infoForeground": "#B5D5F9",
+			"infoBackground": "rgb(97 175 239 / 0.18)",
+			"infoBorder": "rgb(97 175 239 / 0.48)"
+		},
+		"syntax": {
+			"background": "#172033",
+			"foreground": "#cbd5e1",
+			"comment": "#8b9ab3",
+			"keyword": "#fb7185",
+			"string": "#86efac",
+			"number": "#7dd3fc",
+			"function": "#c4b5fd",
+			"variable": "#fdba74",
+			"type": "#6ee7b7",
+			"operator": "#fda4af",
+			"property": "#93c5fd",
+			"header": "#1d2940",
+			"lineNumber": "#98a8c2"
+		},
+		"chart": ["#EAEAEA", "#F07178", "#E5C07B", "#98C379", "#61AFEF", "#C678DD", "#D19A66", "#56B6C2"],
+		"chat": {
+			"userBackground": "rgb(255 255 255 / 0.07)",
+			"userBorder": "rgb(255 255 255 / 0.14)",
+			"assistantBackground": "#161616",
+			"toolBackground": "rgb(255 255 255 / 0.04)",
+			"toolBorder": "rgb(255 255 255 / 0.1)"
+		}
+	}
 }

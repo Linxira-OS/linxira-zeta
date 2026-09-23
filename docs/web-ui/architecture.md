@@ -17,12 +17,12 @@ Browser ── :30141 (Bun.serve, ZetaServer)
 `ZetaServer` (`packages/coding-agent/src/server/zeta-server.ts`) is the single
 entry point. Its `classifyRequest()` decides where each request goes:
 
-| Route type  | Condition                                            | Target                       |
-|-------------|------------------------------------------------------|------------------------------|
-| `stats`     | `/api/stats*`, `/api/sync`, `/api/request/*`         | Stats Dashboard              |
-| `gateway`   | `/api/*` not owned by Next (see below)               | Web Gateway (`webGatewayFetch`) |
-| `webui`     | anything else (and Next-owned `/api/*`)              | Web UI Next.js child         |
-| `unavailable` | no Web UI backend running                          | 503                          |
+| Route type    | Condition                                    | Target                          |
+| ------------- | -------------------------------------------- | ------------------------------- |
+| `stats`       | `/api/stats*`, `/api/sync`, `/api/request/*` | Stats Dashboard                 |
+| `gateway`     | `/api/*` not owned by Next (see below)       | Web Gateway (`webGatewayFetch`) |
+| `webui`       | anything else (and Next-owned `/api/*`)      | Web UI Next.js child            |
+| `unavailable` | no Web UI backend running                    | 503                             |
 
 A few `/api/*` prefixes stay inside Next.js because they are pure Node code
 with no runtime dependency (`/api/fs/`, `/api/files/`, `/api/cwd/`,

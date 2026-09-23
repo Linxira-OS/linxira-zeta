@@ -39,10 +39,10 @@ herdr plugin pane open --plugin ttt.editor --entrypoint editor
 
 ### Actions
 
-| Action | Description |
-|--------|-------------|
-| `ttt.editor.open` | Open TTT in the current workspace |
-| `ttt.editor.open-worktree` | Open TTT in the active worktree |
+| Action                     | Description                       |
+| -------------------------- | --------------------------------- |
+| `ttt.editor.open`          | Open TTT in the current workspace |
+| `ttt.editor.open-worktree` | Open TTT in the active worktree   |
 
 Invoke an action from the CLI:
 

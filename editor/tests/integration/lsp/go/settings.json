@@ -1,10 +1,10 @@
 {
-  "debugMode": true,
-  "lsp": {
-    "servers": {
-      "go": {
-        "command": ["gopls", "serve"]
-      }
-    }
-  }
+	"debugMode": true,
+	"lsp": {
+		"servers": {
+			"go": {
+				"command": ["gopls", "serve"]
+			}
+		}
+	}
 }

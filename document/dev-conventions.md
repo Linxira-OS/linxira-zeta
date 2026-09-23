@@ -15,16 +15,16 @@
 - **Promises**: use `Promise.withResolvers()` instead of `new Promise((resolve, reject) => ...)`.
 - **Prompts**: never build prompts in code (no inline strings, template literals, or concatenation). Prompts live in static `.md` files; use Handlebars for dynamic content. Import them via `import content from "./prompt.md" with { type: "text" }` — not `readFile`.
 - **Worker scripts**: workers re-enter the CLI entrypoint; never spawn separate worker entry modules. `cli.ts` declares itself as the worker host at startup (`declareWorkerHostEntry()` from `@linxiraos/pi-utils/env`) and dispatches hidden argv selectors (`__omp_worker_stats_sync`, `__omp_worker_tab`, `__omp_worker_js_eval`, `__omp_worker_tiny_inference`) before loading the command registry. Spawn sites use:
-  ```ts
-  import { workerHostEntry } from "@linxiraos/pi-utils";
-  const hostEntry = workerHostEntry();
-  const worker = hostEntry
-  	? new Worker(hostEntry, { type: "module", argv: ["__omp_worker_<name>"] })
-  	: new Worker(new URL("./<worker>.ts", import.meta.url).href, { type: "module" });
-  ```
-  When the process was started from the zeta CLI — source `cli.ts`, npm-bundle `dist/cli.js`, or compiled binary — `workerHostEntry()` is `Bun.main` and the worker re-enters the single entry module, so no per-worker `--compile` entrypoints or bundle entries exist. Outside a CLI host (`bun test`, SDK embedding, standalone `omp-stats`) it returns `null` and the direct-module fallback loads the worker source. New worker kinds MUST add their selector to the dispatch table in `cli.ts` and keep the fallback branch.
-  History: `with { type: "file" }` only copied the entry as a raw asset (workers crashed silently in compiled binaries — issues #1011, #1027), and the later literal-path + extra-entrypoint pattern required keeping spawn literals and two build scripts in sync (issue #1150). The smoke probe below is the live validation of this contract.
-  Validate any new worker with the dedicated smoke probe: `zeta --smoke-test` spawns the stats sync worker and the tiny-model subprocess, pings them, and exits — it's wired into `ci:test:smoke` and `scripts/install-tests/run-ci.sh` so binary, source-link, and tarball installs all exercise it. Add a sibling smoke if the new worker is on a different module graph.
+   ```ts
+   import { workerHostEntry } from "@linxiraos/pi-utils";
+   const hostEntry = workerHostEntry();
+   const worker = hostEntry
+   	? new Worker(hostEntry, { type: "module", argv: ["__omp_worker_<name>"] })
+   	: new Worker(new URL("./<worker>.ts", import.meta.url).href, { type: "module" });
+   ```
+   When the process was started from the zeta CLI — source `cli.ts`, npm-bundle `dist/cli.js`, or compiled binary — `workerHostEntry()` is `Bun.main` and the worker re-enters the single entry module, so no per-worker `--compile` entrypoints or bundle entries exist. Outside a CLI host (`bun test`, SDK embedding, standalone `omp-stats`) it returns `null` and the direct-module fallback loads the worker source. New worker kinds MUST add their selector to the dispatch table in `cli.ts` and keep the fallback branch.
+   History: `with { type: "file" }` only copied the entry as a raw asset (workers crashed silently in compiled binaries — issues #1011, #1027), and the later literal-path + extra-entrypoint pattern required keeping spawn literals and two build scripts in sync (issue #1150). The smoke probe below is the live validation of this contract.
+   Validate any new worker with the dedicated smoke probe: `zeta --smoke-test` spawns the stats sync worker and the tiny-model subprocess, pings them, and exits — it's wired into `ci:test:smoke` and `scripts/install-tests/run-ci.sh` so binary, source-link, and tarball installs all exercise it. Add a sibling smoke if the new worker is on a different module graph.
 
 ## Central Utilities
 
@@ -40,20 +40,20 @@ Use Bun APIs where they provide a cleaner alternative; fall back to `node:*` onl
 
 ### Quick reference
 
-| Operation       | Use                                       | Not                                |
-| --------------- | ----------------------------------------- | ---------------------------------- |
-| File read/write | `Bun.file()`, `Bun.write()`               | `readFileSync`, `writeFileSync`    |
-| Spawn process   | `` $`cmd` ``, `Bun.spawn()`               | `child_process`                    |
-| Sleep           | `Bun.sleep(ms)`                           | `setTimeout` promise               |
+| Operation       | Use                                        | Not                                |
+| --------------- | ------------------------------------------ | ---------------------------------- |
+| File read/write | `Bun.file()`, `Bun.write()`                | `readFileSync`, `writeFileSync`    |
+| Spawn process   | `` $`cmd` ``, `Bun.spawn()`                | `child_process`                    |
+| Sleep           | `Bun.sleep(ms)`                            | `setTimeout` promise               |
 | Binary lookup   | `$which("git")` from `@linxiraos/pi-utils` | `spawnSync(["which", "git"])`      |
-| HTTP server     | `Bun.serve()`                             | `http.createServer()`              |
-| SQLite          | `bun:sqlite`                              | `better-sqlite3`                   |
-| Hashing         | `Bun.hash()`, `Bun.password.*`, WebCrypto | `node:crypto`                      |
-| Path resolution | `import.meta.dir`, `import.meta.path`     | `fileURLToPath` dance              |
-| JSON5           | `Bun.JSON5.parse()` / `.stringify()`      | `json5` package                    |
-| JSONL           | `Bun.JSONL.parse()` / `.parseChunk()`     | `text.split("\n").map(JSON.parse)` |
-| String width    | `Bun.stringWidth()`                       | `get-east-asian-width`, custom     |
-| Text wrapping   | `Bun.wrapAnsi()`                          | custom ANSI-aware wrappers         |
+| HTTP server     | `Bun.serve()`                              | `http.createServer()`              |
+| SQLite          | `bun:sqlite`                               | `better-sqlite3`                   |
+| Hashing         | `Bun.hash()`, `Bun.password.*`, WebCrypto  | `node:crypto`                      |
+| Path resolution | `import.meta.dir`, `import.meta.path`      | `fileURLToPath` dance              |
+| JSON5           | `Bun.JSON5.parse()` / `.stringify()`       | `json5` package                    |
+| JSONL           | `Bun.JSONL.parse()` / `.parseChunk()`      | `text.split("\n").map(JSON.parse)` |
+| String width    | `Bun.stringWidth()`                        | `get-east-asian-width`, custom     |
+| Text wrapping   | `Bun.wrapAnsi()`                           | custom ANSI-aware wrappers         |
 
 ### Process execution
 
@@ -111,15 +111,15 @@ Use `node:fs/promises` for directory ops (`fs.mkdir`, `fs.rm`, `fs.readdir`) —
 - `existsSync`/`readFileSync`/`writeFileSync` in async code → `Bun.file()` APIs.
 - `mkdir(dirname(path), …)` before `Bun.write(path, …)` → redundant; `Bun.write` handles it.
 - `if (await file.exists()) { await file.json() }` → two syscalls plus race. Use try-catch with `isEnoent`:
-  ```typescript
-  import { isEnoent } from "@linxiraos/pi-utils";
-  try {
-  	return await Bun.file(path).json();
-  } catch (err) {
-  	if (isEnoent(err)) return null;
-  	throw err;
-  }
-  ```
+   ```typescript
+   import { isEnoent } from "@linxiraos/pi-utils";
+   try {
+   	return await Bun.file(path).json();
+   } catch (err) {
+   	if (isEnoent(err)) return null;
+   	throw err;
+   }
+   ```
 - Multiple `Bun.file(path)` handles for the same path (including across `checkX`/`loadX` helpers).
 - `Buffer.from(await Bun.file(x).arrayBuffer())` → `await fs.readFile(path)`.
 - Existence check + try-catch around the same read → drop the existence check.
@@ -224,13 +224,13 @@ For the bash tool specifically:
 
 Profiles live in the root `Cargo.toml`; `.cargo/config.toml` carries the settings Cargo.toml cannot express. Both are committed, so no local `~/.cargo/config.toml` is required.
 
-| Profile | Use |
-| --- | --- |
-| `dev` | Default. Line tables for our crates, no debuginfo for deps, deps at `opt-level = 2`. |
-| `release` | Shipping build: fat LTO, 1 codegen unit, stripped. |
-| `local` | Fast local release iteration: thin LTO, 16 codegen units, incremental. |
-| `profiling` | `release` codegen with symbols kept, for `perf`/`samply`/Instruments. |
-| `ci` | Thin LTO, no debuginfo, stripped. |
+| Profile     | Use                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------ |
+| `dev`       | Default. Line tables for our crates, no debuginfo for deps, deps at `opt-level = 2`. |
+| `release`   | Shipping build: fat LTO, 1 codegen unit, stripped.                                   |
+| `local`     | Fast local release iteration: thin LTO, 16 codegen units, incremental.               |
+| `profiling` | `release` codegen with symbols kept, for `perf`/`samply`/Instruments.                |
+| `ci`        | Thin LTO, no debuginfo, stripped.                                                    |
 
 **Never set `split-debuginfo = "off"` on a profile that has debuginfo.** On Mach-O the linker never merges DWARF into the executable — it writes a debug map (`N_OSO`) pointing at the `.o` files, and `"unpacked"` is what keeps those files. With `"off"` every backtrace frame in our own crates silently loses `file:line`; the `panicked at foo.rs:3` header still prints (that is `#[track_caller]`, not debuginfo), which makes the loss easy to miss. `ci` may use `"off"` only because it sets `debug = false`.
 
@@ -322,6 +322,7 @@ refuses to bump while any log is missing:
    fails if it drifts.
 
 The pre-tag gate in `release-v2.ts` runs before any bump:
+
 - no `## [1[5-8].` upstream version sections in any `packages/*/CHANGELOG.md`
 - every package `[Unreleased]` section has at least one entry line
 - `UPDATE-LOG.md` `## 下一版本（Unreleased）` is non-empty

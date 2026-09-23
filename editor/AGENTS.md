@@ -32,9 +32,9 @@ Known boundary violations and explicit boundary decisions are documented there. 
 ### Packages
 
 - **`internal/core/`** — UI-agnostic editor engine. Domain APIs must not introduce terminal or rendering dependencies.
-  - `buffer/` — Line-based text storage (`[]string`), rune-level insert/delete, file I/O (load/save)
-  - `cursor/` — Visual column cursor with goal-column preservation for vertical movement
-  - `undo/` — Command-pattern undo/redo via `EditCommand` interface (InsertRune, DeleteRange, InsertLine)
+   - `buffer/` — Line-based text storage (`[]string`), rune-level insert/delete, file I/O (load/save)
+   - `cursor/` — Visual column cursor with goal-column preservation for vertical movement
+   - `undo/` — Command-pattern undo/redo via `EditCommand` interface (InsertRune, DeleteRange, InsertLine)
 
 - **`internal/highlight/`** — Presentation-owned per-line syntax highlighting via `chroma/v2` lexers. Owns language selection, lexer-state detection, caching, and mapping Chroma token types to `term.Style`. Full-buffer re-lexing is a known performance trap — avoid it.
 
@@ -69,9 +69,9 @@ Known boundary violations and explicit boundary decisions are documented there. 
 
 - Cursor `Col` is a rune index, not a byte index — all line-length calculations use `[]rune()`. It is **not** a terminal column: a fullwidth rune advances `Col` by 1 and the screen by 2.
 - **Never compute display width by hand.** No `len([]rune(s))`, `visCol++`, or `x++` as a stand-in for terminal columns — use `textwidth.String`/`textwidth.Rune`. Fullwidth East Asian runes occupy two columns, and tcell advances the terminal cursor by the rune's width when it draws: a layout that assumes one column per rune writes the next character into a cell the terminal never displays, so it vanishes (issue #434). Three distinct quantities must not be conflated:
-  - **byte offset** ↔ **rune index** — `editor.byte_to_col`/`col_to_byte` in the Lua API (`internal/plugin/lua_editor.go`); no width involved.
-  - **rune index** ↔ **terminal column** — `bufColToVisualCol`/`visualColToBufCol` (`internal/ui/editor_widget_utils.go`); width-aware.
-  - A widget that draws left to right should take its width from what `DrawText` returns rather than measuring the same string a second time.
+   - **byte offset** ↔ **rune index** — `editor.byte_to_col`/`col_to_byte` in the Lua API (`internal/plugin/lua_editor.go`); no width involved.
+   - **rune index** ↔ **terminal column** — `bufColToVisualCol`/`visualColToBufCol` (`internal/ui/editor_widget_utils.go`); width-aware.
+   - A widget that draws left to right should take its width from what `DrawText` returns rather than measuring the same string a second time.
 - A fullwidth rune must never be drawn in the last column of a clip region: the terminal paints it across two columns regardless of clipping, so it bleeds over the border or scrollbar to its right. `DrawText` substitutes a space in that case.
 - The renderer uses double-buffering (prev/curr cell grids) to minimize terminal writes.
 - `Screen` isolates terminal drawing and screen lifecycle. tcell events remain the shared presentation event model in `term`, `widgets`, `ui`, and narrow application/platform routing. Domain and service packages must not import tcell.
@@ -89,7 +89,7 @@ Keybindings are defined in `internal/config/keybindings.go` (`DefaultKeybindings
 
 **Critical: tcell control key behavior.** For Ctrl+letter, tcell v3 (legacy mode, which ttt uses) delivers events with **both** the `KeyCtrlA..Z` constant **and** `ModCtrl` set. When registering control key bindings in `comboToTcell`, do NOT strip `ModCtrl` — the registered modifier must match what tcell delivers, otherwise `matchKey()` will fail silently. Ctrl+punctuation control chars (space, backtick, `/`, `\`, `]`, `^`, `_`) have no `KeyCtrl*` constant in v3 — they arrive as `KeyRune` + `ModCtrl` + a printable string (the exact string differs between legacy terminals and kitty-protocol terminals). `foldCtrlEvent()` in `internal/ui/root.go` folds both encodings to the canonical registered form: ctrl+space and ctrl+backtick → `KeyNUL`+`ModCtrl`, ctrl+/ → `KeyUS`+`ModCtrl`. New ctrl+punctuation bindings need a fold entry there.
 
-**Ctrl+Backtick (`` ctrl+` ``):** On legacy terminals Ctrl+` sends NUL (0x00), same as Ctrl+Space — they are indistinguishable, and both fold to `KeyNUL`+`ModCtrl`. Kitty-protocol terminals (Ghostty, Kitty, WezTerm) do report them distinctly under tcell v3, but ttt currently folds both to the same canonical key, so they remain one binding. `terminal.toggle` is bound to `ctrl+t` by default (with `alt+t` for `terminal.fullscreen`); `ctrl+backtick` is currently unbound.
+**Ctrl+Backtick (`` ctrl+` ``):** On legacy terminals Ctrl+`sends NUL (0x00), same as Ctrl+Space — they are indistinguishable, and both fold to`KeyNUL`+`ModCtrl`. Kitty-protocol terminals (Ghostty, Kitty, WezTerm) do report them distinctly under tcell v3, but ttt currently folds both to the same canonical key, so they remain one binding. `terminal.toggle`is bound to`ctrl+t`by default (with`alt+t`for`terminal.fullscreen`); `ctrl+backtick` is currently unbound.
 
 **Force keys:** Bindings for commands in the `config.ForceKeyCommands` map (`internal/config/keybindings.go`, registered via `root.AddForceKey()` in `internal/app/commands.go`) are checked even when a `RawKeyConsumer` (like the integrated terminal) has focus. `terminal.toggle` must remain a force key.
 
@@ -114,25 +114,25 @@ Lua plugins render UI in sidebar panels, bottom-panel tabs, drawers, and editor 
 
 **Widget methods** (called as `p:method(args)`):
 
-| Method | Lua fields | Description |
-|---|---|---|
-| `p:label(text)` or `p:label({...})` | `text`, `style`, `badge`, `width`, borders | Static text line. `style` is a named style (see below). `border`/`border_top`/`border_bottom`/`border_left`/`border_right` draw borders. Supports box model. |
-| `p:title(text)` or `p:title({...})` | `text`, `badge`, `menu`, `on_menu(command)`, `icon`, `padded` | Bold section heading with optional right-aligned badge and dropdown menu. `menu` is `{label, command, separator, checked}` tables; optional boolean `checked` reserves and controls a check indicator. `icon` overrides the dropdown button (default `⋮`). Supports box model. |
-| `p:tree({...})` | `items`, `indent` (default 2), `on_select`, `on_expand`, `on_command`, `node_menu`, `key_commands`, `truncate_left` | Expandable tree view. Items are `{id, label, icon, badge, muted, expandable, expanded, children}` tables. `key_commands` maps single chars to commands via `on_command`. `truncate_left` truncates overflowing labels from the left (`…tail`) so the end stays visible. |
-| `p:list({...})` | `items`, `on_select`, `on_command`, `node_menu`, `key_commands`, `truncate_left` | Flat list (backed by TreeWidget, no indentation). `truncate_left` keeps label tails visible on overflow. |
-| `p:button({...})` | `label`, `on_click` | Clickable button. Label is immutable after creation (accelerator parsing). |
-| `p:checkbox({...})` | `label`, `checked`, `style`, `on_change(checked)` | Boolean toggle. Renders `[x]`/`[ ]` with focus styling on brackets. Supports box model. |
-| `p:input({...})` | `placeholder`, `prefix`, `clear_on_submit`, `on_change(text)`, `on_submit(text)` | Text input field. `clear_on_submit` (bool) clears text after submit. |
-| `p:vstack({...})` | `render(child_panel)`, `gap` | Vertical stack container. The `render` function receives a child panel proxy to emit nested widgets. |
-| `p:keyvalue({{key,value}, ...})` | array of `{key, value}` tables | Key-value list. The argument table IS the entries array (not an `entries` field); box model fields go on the same table. |
-| `p:hstack({...})` | `render(child_panel)`, `gap`, `height` | Horizontal stack container. First child grows to fill available space, remaining children get fixed width. |
-| `p:scrollview({...})` | `render(child_panel)` | Scrollable container. Wraps children with mouse wheel scrolling and scrollbar when content overflows. |
-| `p:box({...})` | `render(child_panel)`, `border` (+ per-side), `height` | Container with optional border and fixed height. Children via `render` callback. |
-| `p:divider()` | (none) | Horizontal divider line. Single-line separator, no configuration. |
-| `p:dropdown({...})` | `label`, `entries`, `on_menu(command)` | Dropdown menu button. `entries` are `{label, command, separator, checked}` tables; optional boolean `checked` reserves and controls a check indicator. |
-| `p:progress({...})` | `value` (0–1), `style`, `char` (default `▄`) | Horizontal progress bar. |
-| `p:table({...})` | `columns` (`{label, width, align}`), `rows` (arrays of strings), `on_select(row_idx)`, `on_command(cmd, row_idx)`, `node_menu`, `key_commands` | Data table with headers and row selection. Row indices are 1-based. |
-| `p:markdown(text)` or `p:markdown({...})` | `text` | Rendered markdown with selection/copy, auto-wrapped in a scrollview. Wraps at `markdown.wrapWidth` (default 80). |
+| Method                                    | Lua fields                                                                                                                                     | Description                                                                                                                                                                                                                                                                    |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `p:label(text)` or `p:label({...})`       | `text`, `style`, `badge`, `width`, borders                                                                                                     | Static text line. `style` is a named style (see below). `border`/`border_top`/`border_bottom`/`border_left`/`border_right` draw borders. Supports box model.                                                                                                                   |
+| `p:title(text)` or `p:title({...})`       | `text`, `badge`, `menu`, `on_menu(command)`, `icon`, `padded`                                                                                  | Bold section heading with optional right-aligned badge and dropdown menu. `menu` is `{label, command, separator, checked}` tables; optional boolean `checked` reserves and controls a check indicator. `icon` overrides the dropdown button (default `⋮`). Supports box model. |
+| `p:tree({...})`                           | `items`, `indent` (default 2), `on_select`, `on_expand`, `on_command`, `node_menu`, `key_commands`, `truncate_left`                            | Expandable tree view. Items are `{id, label, icon, badge, muted, expandable, expanded, children}` tables. `key_commands` maps single chars to commands via `on_command`. `truncate_left` truncates overflowing labels from the left (`…tail`) so the end stays visible.        |
+| `p:list({...})`                           | `items`, `on_select`, `on_command`, `node_menu`, `key_commands`, `truncate_left`                                                               | Flat list (backed by TreeWidget, no indentation). `truncate_left` keeps label tails visible on overflow.                                                                                                                                                                       |
+| `p:button({...})`                         | `label`, `on_click`                                                                                                                            | Clickable button. Label is immutable after creation (accelerator parsing).                                                                                                                                                                                                     |
+| `p:checkbox({...})`                       | `label`, `checked`, `style`, `on_change(checked)`                                                                                              | Boolean toggle. Renders `[x]`/`[ ]` with focus styling on brackets. Supports box model.                                                                                                                                                                                        |
+| `p:input({...})`                          | `placeholder`, `prefix`, `clear_on_submit`, `on_change(text)`, `on_submit(text)`                                                               | Text input field. `clear_on_submit` (bool) clears text after submit.                                                                                                                                                                                                           |
+| `p:vstack({...})`                         | `render(child_panel)`, `gap`                                                                                                                   | Vertical stack container. The `render` function receives a child panel proxy to emit nested widgets.                                                                                                                                                                           |
+| `p:keyvalue({{key,value}, ...})`          | array of `{key, value}` tables                                                                                                                 | Key-value list. The argument table IS the entries array (not an `entries` field); box model fields go on the same table.                                                                                                                                                       |
+| `p:hstack({...})`                         | `render(child_panel)`, `gap`, `height`                                                                                                         | Horizontal stack container. First child grows to fill available space, remaining children get fixed width.                                                                                                                                                                     |
+| `p:scrollview({...})`                     | `render(child_panel)`                                                                                                                          | Scrollable container. Wraps children with mouse wheel scrolling and scrollbar when content overflows.                                                                                                                                                                          |
+| `p:box({...})`                            | `render(child_panel)`, `border` (+ per-side), `height`                                                                                         | Container with optional border and fixed height. Children via `render` callback.                                                                                                                                                                                               |
+| `p:divider()`                             | (none)                                                                                                                                         | Horizontal divider line. Single-line separator, no configuration.                                                                                                                                                                                                              |
+| `p:dropdown({...})`                       | `label`, `entries`, `on_menu(command)`                                                                                                         | Dropdown menu button. `entries` are `{label, command, separator, checked}` tables; optional boolean `checked` reserves and controls a check indicator.                                                                                                                         |
+| `p:progress({...})`                       | `value` (0–1), `style`, `char` (default `▄`)                                                                                                   | Horizontal progress bar.                                                                                                                                                                                                                                                       |
+| `p:table({...})`                          | `columns` (`{label, width, align}`), `rows` (arrays of strings), `on_select(row_idx)`, `on_command(cmd, row_idx)`, `node_menu`, `key_commands` | Data table with headers and row selection. Row indices are 1-based.                                                                                                                                                                                                            |
+| `p:markdown(text)` or `p:markdown({...})` | `text`                                                                                                                                         | Rendered markdown with selection/copy, auto-wrapped in a scrollview. Wraps at `markdown.wrapWidth` (default 80).                                                                                                                                                               |
 
 All menu-entry tables (`actions`, `menu`, `entries`, and `node_menu`) accept `label`, `command`, `separator`, and optional boolean `checked`. Omitting `checked` keeps the menu indicator-free; `false` shows an unchecked slot and `true` shows a check.
 
@@ -155,10 +155,12 @@ The status bar uses a segment-based model (`view.StatusBar` with `StatusSegment`
 Core segments use priorities 100–500 (branch=100, blame=200 on left; position=100, indent=200, encoding=300, eol=400, language=500 on right). Plugin segments default to priority 1000; lower values (e.g., 10) appear before core segments.
 
 **Plugin Lua API:**
+
 - `ttt.set_status_item(side, id, text, opts)` — add or update a status bar segment. `side` is `"left"` or `"right"`. `id` is scoped to the plugin (prefixed with `pluginName:`). `opts` is an optional table with `priority` (number, default 1000) and `on_click` (function).
 - `ttt.remove_status_item(id)` — remove a segment by ID.
 
 **Command execution:**
+
 - `ttt.exec_command(id)` — execute any registered command by ID (e.g., `"editor.undo"`, `"file.save"`). Returns `true` if the command was found and executed, `false` otherwise. Requires `commands` permission.
 
 These callbacks are only available after `WirePlugin` — call them from command handlers or event callbacks, not at plugin init time.
@@ -176,6 +178,7 @@ The project has four levels of testing:
 Scripted key, mouse, and command actions are acknowledged after main-thread handling and redraw, so do not add sleeps between synchronous actions. For genuinely asynchronous work, wait for a unique post-transition screen state that proves the result was applied. Use raw elapsed waits only when timing or delayed lifecycle behavior is itself the invariant.
 
 The batch pattern: `tui.start(file)` resets state, commands accumulate, `tui.snapshot()` returns an index, `tui.run()` executes all commands and returns `{ snapshots: string[] }`. Assertions happen after `run()`:
+
 ```js
 tui.start(file);
 tui.type("hello");
@@ -210,6 +213,7 @@ cat /tmp/state.json   # see full widget tree, focus, selection, panels
 ```
 
 Supported commands:
+
 - `click X Y` — simulate left mouse click (press + release) at coordinates
 - `rclick X Y` — simulate right mouse click at coordinates
 - `hover X Y` — simulate mouse hover (move) at coordinates

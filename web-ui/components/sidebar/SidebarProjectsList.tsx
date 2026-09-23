@@ -65,18 +65,18 @@ export function SidebarProjectsList({
 					<div key={pg.project}>
 						<div
 							style={{ display: "flex", alignItems: "center", width: "100%" }}
-							onContextMenu={(e) => onProjectContextMenu?.(e, pg.project)}
+							onContextMenu={e => onProjectContextMenu?.(e, pg.project)}
 						>
 							{onProjectSortClick && (
 								<span
 									role="button"
 									tabIndex={0}
 									aria-label={t("sidebar.display.projectSort")}
-									onClick={(e) => {
+									onClick={e => {
 										e.stopPropagation();
 										onProjectSortClick(e);
 									}}
-									onKeyDown={(e) => e.stopPropagation()}
+									onKeyDown={e => e.stopPropagation()}
 									className="ze-quiet"
 									style={{ fontSize: 10, padding: "1px 4px", flexShrink: 0 }}
 								>
@@ -149,7 +149,16 @@ export function SidebarProjectsList({
 											whiteSpace: "nowrap",
 										}}
 									>
-										<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{ flexShrink: 0 }}>
+										<svg
+											width="9"
+											height="9"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="2.4"
+											strokeLinecap="round"
+											style={{ flexShrink: 0 }}
+										>
 											<line x1="6" y1="3" x2="6" y2="15" />
 											<circle cx="18" cy="6" r="3" />
 											<circle cx="6" cy="18" r="3" />
@@ -190,19 +199,39 @@ export function SidebarProjectsList({
 								<span
 									className="sidebar-group-actions"
 									style={{ display: "flex", alignItems: "center", gap: 2, marginRight: 2 }}
-									onClick={(e) => e.stopPropagation()}
+									onClick={e => e.stopPropagation()}
 								>
 									{onNewSessionInProject && (
 										<button
 											aria-label="New session in project"
 											title="New session here"
-											style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", borderRadius: 5, color: "var(--text-muted)", cursor: "pointer", padding: 0 }}
-											onClick={(e) => {
+											style={{
+												width: 22,
+												height: 22,
+												display: "flex",
+												alignItems: "center",
+												justifyContent: "center",
+												background: "none",
+												border: "none",
+												borderRadius: 5,
+												color: "var(--text-muted)",
+												cursor: "pointer",
+												padding: 0,
+											}}
+											onClick={e => {
 												e.stopPropagation();
 												onNewSessionInProject(pg.project);
 											}}
 										>
-											<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+											<svg
+												width="11"
+												height="11"
+												viewBox="0 0 12 12"
+												fill="none"
+												stroke="currentColor"
+												strokeWidth="2"
+												strokeLinecap="round"
+											>
 												<line x1="6" y1="1" x2="6" y2="11" />
 												<line x1="1" y1="6" x2="11" y2="6" />
 											</svg>
@@ -212,13 +241,34 @@ export function SidebarProjectsList({
 										<button
 											aria-label="Open project in terminal"
 											title="Open in terminal"
-											style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", borderRadius: 5, color: "var(--text-muted)", cursor: "pointer", padding: 0 }}
-											onClick={(e) => {
+											style={{
+												width: 22,
+												height: 22,
+												display: "flex",
+												alignItems: "center",
+												justifyContent: "center",
+												background: "none",
+												border: "none",
+												borderRadius: 5,
+												color: "var(--text-muted)",
+												cursor: "pointer",
+												padding: 0,
+											}}
+											onClick={e => {
 												e.stopPropagation();
 												onOpenTerminal(pg.project);
 											}}
 										>
-											<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+											<svg
+												width="11"
+												height="11"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												strokeWidth="2"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											>
 												<polyline points="4 17 10 11 4 5" />
 												<line x1="12" y1="19" x2="20" y2="19" />
 											</svg>
@@ -228,13 +278,34 @@ export function SidebarProjectsList({
 										<button
 											aria-label="Delete all project sessions"
 											title="Delete all sessions in this project"
-											style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", borderRadius: 5, color: "var(--status-error)", cursor: "pointer", padding: 0 }}
-											onClick={(e) => {
+											style={{
+												width: 22,
+												height: 22,
+												display: "flex",
+												alignItems: "center",
+												justifyContent: "center",
+												background: "none",
+												border: "none",
+												borderRadius: 5,
+												color: "var(--status-error)",
+												cursor: "pointer",
+												padding: 0,
+											}}
+											onClick={e => {
 												e.stopPropagation();
 												onDeleteProjectSessions(pg.project);
 											}}
 										>
-											<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+											<svg
+												width="11"
+												height="11"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												strokeWidth="2"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											>
 												<polyline points="3 6 5 6 21 6" />
 												<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
 											</svg>
@@ -244,21 +315,18 @@ export function SidebarProjectsList({
 							)}
 							{isCurrent && renderProjectMenu?.(pg.project)}
 						</div>
-						{pg.count === 0 &&
-							!collapsedProjects.has(pg.project) && (
-								<div
-									style={{
-										padding: "2px 14px 8px 38px",
-										fontSize: 11,
-										color: "var(--text-dim)",
-									}}
-								>
-									{t("sidebar.no-sessions-in-workspace")}
-								</div>
-							)}
-						{!collapsedProjects.has(pg.project) &&
-							pg.count > 0 &&
-							renderProjectSessions(pg.project)}
+						{pg.count === 0 && !collapsedProjects.has(pg.project) && (
+							<div
+								style={{
+									padding: "2px 14px 8px 38px",
+									fontSize: 11,
+									color: "var(--text-dim)",
+								}}
+							>
+								{t("sidebar.no-sessions-in-workspace")}
+							</div>
+						)}
+						{!collapsedProjects.has(pg.project) && pg.count > 0 && renderProjectSessions(pg.project)}
 					</div>
 				);
 			})}

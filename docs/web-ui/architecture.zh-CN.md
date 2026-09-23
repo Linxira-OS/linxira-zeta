@@ -16,12 +16,12 @@ Browser ── :30141 (Bun.serve, ZetaServer)
 `ZetaServer`（`packages/coding-agent/src/server/zeta-server.ts`）是统一入口。
 其 `classifyRequest()` 决定每个请求的去向：
 
-| 路由类型  | 条件                                                    | 目标                       |
-|-----------|---------------------------------------------------------|----------------------------|
-| `stats`   | `/api/stats*`、`/api/sync`、`/api/request/*`            | Stats Dashboard            |
-| `gateway` | `/api/*` 且非 Next 自有（见下）                          | Web Gateway（`webGatewayFetch`） |
-| `webui`   | 其余路径（以及 Next 自有的 `/api/*`）                    | Web UI Next.js 子进程      |
-| `unavailable` | 未启动 Web UI 后端                                   | 503                        |
+| 路由类型      | 条件                                         | 目标                             |
+| ------------- | -------------------------------------------- | -------------------------------- |
+| `stats`       | `/api/stats*`、`/api/sync`、`/api/request/*` | Stats Dashboard                  |
+| `gateway`     | `/api/*` 且非 Next 自有（见下）              | Web Gateway（`webGatewayFetch`） |
+| `webui`       | 其余路径（以及 Next 自有的 `/api/*`）        | Web UI Next.js 子进程            |
+| `unavailable` | 未启动 Web UI 后端                           | 503                              |
 
 少量 `/api/*` 前缀保留在 Next.js 内，因为它们是纯 Node 代码、不依赖运行时
 （`/api/fs/`、`/api/files/`、`/api/cwd/`、`/api/git/`、`/api/home`、

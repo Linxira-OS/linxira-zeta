@@ -33,13 +33,14 @@ export function formatRelativeTime(date: Date | string, locale: Locale, now = ne
 	const target = date instanceof Date ? date : new Date(date);
 	const diffMs = target.getTime() - now.getTime();
 	const absMs = Math.abs(diffMs);
-	const [unit, divisor] = absMs < 60_000
-		? (["second", 1_000] as const)
-		: absMs < 3_600_000
-			? (["minute", 60_000] as const)
-			: absMs < 86_400_000
-				? (["hour", 3_600_000] as const)
-				: (["day", 86_400_000] as const);
+	const [unit, divisor] =
+		absMs < 60_000
+			? (["second", 1_000] as const)
+			: absMs < 3_600_000
+				? (["minute", 60_000] as const)
+				: absMs < 86_400_000
+					? (["hour", 3_600_000] as const)
+					: (["day", 86_400_000] as const);
 	const value = Math.round(diffMs / divisor);
 	return new Intl.RelativeTimeFormat(locale, { numeric: "always" }).format(value, unit);
 }

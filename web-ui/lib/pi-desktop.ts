@@ -31,7 +31,7 @@ export function hasNativeDirectoryDialog(): boolean {
 export async function selectNativeDirectory(startPath?: string): Promise<string | null> {
 	if (!hasNativeDirectoryDialog()) return null;
 	try {
-		return await window.piDesktop?.selectDirectory(startPath) ?? null;
+		return (await window.piDesktop?.selectDirectory(startPath)) ?? null;
 	} catch {
 		return null;
 	}
@@ -58,15 +58,17 @@ export interface GatewayOpenPath {
 }
 
 export function hasDesktopOpenBridge(): boolean {
-	return typeof window !== "undefined"
-		&& typeof window.piDesktop?.getOpenTargets === "function"
-		&& typeof window.piDesktop?.openTarget === "function";
+	return (
+		typeof window !== "undefined" &&
+		typeof window.piDesktop?.getOpenTargets === "function" &&
+		typeof window.piDesktop?.openTarget === "function"
+	);
 }
 
 export async function getDesktopOpenTargets(): Promise<DesktopOpenTarget[]> {
 	if (!hasDesktopOpenBridge()) return [];
 	try {
-		return await window.piDesktop?.getOpenTargets?.() ?? [];
+		return (await window.piDesktop?.getOpenTargets?.()) ?? [];
 	} catch {
 		return [];
 	}

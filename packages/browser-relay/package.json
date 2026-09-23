@@ -1,17 +1,17 @@
 {
-	"type": "module",
 	"name": "@linxiraos/browser-relay",
 	"version": "0.1.0",
 	"private": true,
 	"description": "Chrome extension that lets the omp browser tool drive your existing tabs (relay server lives in the omp CLI: `omp browser-relay`)",
 	"homepage": "https://github.com/Linxira-OS/linxira-zeta",
-	"author": "Linxira-OS",
 	"license": "MIT",
+	"author": "Linxira-OS",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/browser-relay"
 	},
+	"type": "module",
 	"scripts": {
 		"build": "bun scripts/build-extension.ts",
 		"check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",

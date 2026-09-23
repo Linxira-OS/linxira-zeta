@@ -4,12 +4,12 @@
 	"description": "Unified LLM API with automatic model discovery and provider configuration",
 	"keywords": [
 		"ai",
+		"anthropic",
+		"api",
+		"gemini",
 		"llm",
 		"openai",
-		"anthropic",
-		"gemini",
-		"unified",
-		"api"
+		"unified"
 	],
 	"homepage": "https://linxira-os.github.io/zeta/",
 	"bugs": {
@@ -21,9 +21,9 @@
 		"Mario Zechner"
 	],
 	"repository": {
-		"directory": "packages/ai",
+		"type": "git",
 		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-		"type": "git"
+		"directory": "packages/ai"
 	},
 	"files": [
 		"src",
@@ -125,9 +125,9 @@
 		"fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
 	},
 	"dependencies": {
-		"@linxiraos/pi-omptype": "catalog:",
 		"@linxiraos/pi-catalog": "catalog:",
 		"@linxiraos/pi-natives": "catalog:",
+		"@linxiraos/pi-omptype": "catalog:",
 		"@linxiraos/pi-utils": "catalog:",
 		"@linxiraos/pi-wire": "catalog:"
 	},

@@ -35,16 +35,16 @@ Terminal settings in `settings.json`:
 
 ```json
 {
-  "terminal": {
-    "shell": "/bin/zsh",
-    "scrollback": 1000
-  }
+	"terminal": {
+		"shell": "/bin/zsh",
+		"scrollback": 1000
+	}
 }
 ```
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `terminal.shell` | string | `""` | Shell command (empty uses system default) |
-| `terminal.scrollback` | int | `1000` | Number of scrollback lines to retain |
+| Key                   | Type   | Default | Description                               |
+| --------------------- | ------ | ------- | ----------------------------------------- |
+| `terminal.shell`      | string | `""`    | Shell command (empty uses system default) |
+| `terminal.scrollback` | int    | `1000`  | Number of scrollback lines to retain      |
 
 Terminal ANSI colors are configurable via the `terminal` field in your theme file.

@@ -911,6 +911,31 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// Bundled TTT editor (cross-surface handoff)
+	"editor.autoInstall": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "appearance",
+			group: "Editor",
+			label: "Auto-install Editor",
+			description:
+				"Install the @linxiraos/editor package automatically when a switch to the editor needs it and the package is missing",
+		},
+	},
+
+	"editor.handoffSession": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "appearance",
+			group: "Editor",
+			label: "Hand Off Session",
+			description:
+				"Write the current session into the handoff file so the editor side can restore the conversation context",
+		},
+	},
+
 	"images.autoResize": {
 		type: "boolean",
 		default: true,

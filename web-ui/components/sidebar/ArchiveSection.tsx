@@ -200,7 +200,16 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 									e.currentTarget.style.background = "none";
 								}}
 							>
-								<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+								<svg
+									width="11"
+									height="11"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
 									<polyline points="3 6 5 6 21 6" />
 									<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
 									<path d="M10 11v6M14 11v6" />

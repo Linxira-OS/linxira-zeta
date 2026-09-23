@@ -8,31 +8,31 @@ import { createTempDir, createTempFile, cleanupDir, readFile } from "./helpers.j
 let dir;
 
 afterEach(() => {
-  tui.kill();
-  if (dir) cleanupDir(dir);
+	tui.kill();
+	if (dir) cleanupDir(dir);
 });
 
 describe("BUG-009: cursor and backspace split ZWJ grapheme clusters", () => {
-  it.fails("backspace after crossing an emoji deletes the whole cluster", () => {
-    dir = createTempDir();
-    // Family emoji = 7 runes: MAN ZWJ WOMAN ZWJ GIRL ZWJ BOY
-    const file = createTempFile(dir, "zwj.txt", "a👨‍👩‍👧‍👦b\n");
+	it.fails("backspace after crossing an emoji deletes the whole cluster", () => {
+		dir = createTempDir();
+		// Family emoji = 7 runes: MAN ZWJ WOMAN ZWJ GIRL ZWJ BOY
+		const file = createTempFile(dir, "zwj.txt", "a👨‍👩‍👧‍👦b\n");
 
-    tui.start(file);
-    tui.waitFor("a");
+		tui.start(file);
+		tui.waitFor("a");
 
-    // Grapheme-atomic movement: right lands after "a", the next right
-    // crosses the ENTIRE family emoji; backspace then removes it whole.
-    tui.press("arrow_right");
-    tui.press("arrow_right");
-    tui.press("backspace");
+		// Grapheme-atomic movement: right lands after "a", the next right
+		// crosses the ENTIRE family emoji; backspace then removes it whole.
+		tui.press("arrow_right");
+		tui.press("arrow_right");
+		tui.press("backspace");
 
-    tui.press("ctrl+s");
-    tui.run();
+		tui.press("ctrl+s");
+		tui.run();
 
-    // Buggy behavior: the second right stops mid-cluster (rune col 2) and
-    // backspace deletes only the MAN rune, leaving a dangling ZWJ — the
-    // emoji renders exploded ("a 👩 👧 👦b").
-    expect(readFile(file)).toBe("ab\n");
-  });
+		// Buggy behavior: the second right stops mid-cluster (rune col 2) and
+		// backspace deletes only the MAN rune, leaving a dangling ZWJ — the
+		// emoji renders exploded ("a 👩 👧 👦b").
+		expect(readFile(file)).toBe("ab\n");
+	});
 });

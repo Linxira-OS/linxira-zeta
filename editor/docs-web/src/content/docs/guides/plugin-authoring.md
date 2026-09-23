@@ -30,29 +30,29 @@ Every plugin requires a `plugin.ttt.json` manifest file at the root of its direc
 
 ```json
 {
-  "name": "my-plugin",
-  "displayName": "My Plugin",
-  "description": "A short description of what this plugin does",
-  "version": "1.0.0",
-  "author": "Your Name",
-  "entry": "init.lua",
-  "api": 1,
-  "permissions": {
-    "panel.sidebar": true
-  }
+	"name": "my-plugin",
+	"displayName": "My Plugin",
+	"description": "A short description of what this plugin does",
+	"version": "1.0.0",
+	"author": "Your Name",
+	"entry": "init.lua",
+	"api": 1,
+	"permissions": {
+		"panel.sidebar": true
+	}
 }
 ```
 
-| Field         | Type   | Required | Description                                         |
-|---------------|--------|----------|-----------------------------------------------------|
+| Field         | Type   | Required | Description                                                                                                                                       |
+| ------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`        | string | yes      | Unique plugin identifier. Must match directory name. Used for the install directory, registry key, and panel IDs — keep it stable and kebab-case. |
-| `displayName` | string | no       | Human-facing name shown in the plugin list, approval dialog, and detail view. Falls back to `name` when omitted. |
-| `description` | string | no       | Shown in the plugin list dialog.                    |
-| `version`     | string | no       | Semver version string.                              |
-| `author`      | string | no       | Plugin author name.                                 |
-| `entry`       | string | yes      | Path to the Lua entry point, relative to the plugin directory. |
+| `displayName` | string | no       | Human-facing name shown in the plugin list, approval dialog, and detail view. Falls back to `name` when omitted.                                  |
+| `description` | string | no       | Shown in the plugin list dialog.                                                                                                                  |
+| `version`     | string | no       | Semver version string.                                                                                                                            |
+| `author`      | string | no       | Plugin author name.                                                                                                                               |
+| `entry`       | string | yes      | Path to the Lua entry point, relative to the plugin directory.                                                                                    |
 | `api`         | number | no       | Plugin API version the plugin targets. Defaults to `1` when omitted. The editor refuses to load plugins that target a newer API than it supports. |
-| `permissions` | object | no       | Object declaring required permissions (see [Permissions Reference](#permissions-reference)). |
+| `permissions` | object | no       | Object declaring required permissions (see [Permissions Reference](#permissions-reference)).                                                      |
 
 ### Minimal Example
 
@@ -60,9 +60,9 @@ Every plugin requires a `plugin.ttt.json` manifest file at the root of its direc
 
 ```json
 {
-  "name": "hello",
-  "entry": "init.lua",
-  "permissions": { "panel.sidebar": true }
+	"name": "hello",
+	"entry": "init.lua",
+	"permissions": { "panel.sidebar": true }
 }
 ```
 
@@ -135,12 +135,12 @@ ttt.register({
 
 Sidebar panels appear in the left sidebar alongside the file explorer. Requires the `panel.sidebar` permission.
 
-| Field       | Type     | Required | Description                                                             |
-|-------------|----------|----------|-------------------------------------------------------------------------|
-| `title`     | string   | yes      | Displayed as the panel's tab label.                                     |
-| `render`    | function | yes      | Called each render frame. Receives a [panel proxy](#widget-api) object. |
-| `on_event`  | function | no       | Fallback handler for key/mouse events not consumed by widgets.          |
-| `actions`   | table    | no       | Array of menu entries for the panel's "..." header menu.                |
+| Field       | Type     | Required | Description                                                                  |
+| ----------- | -------- | -------- | ---------------------------------------------------------------------------- |
+| `title`     | string   | yes      | Displayed as the panel's tab label.                                          |
+| `render`    | function | yes      | Called each render frame. Receives a [panel proxy](#widget-api) object.      |
+| `on_event`  | function | no       | Fallback handler for key/mouse events not consumed by widgets.               |
+| `actions`   | table    | no       | Array of menu entries for the panel's "..." header menu.                     |
 | `on_action` | function | no       | Callback when a header menu action is selected. Receives the command string. |
 
 The `actions` array defines entries for the sidebar panel's header menu (the "..." button). Each entry uses the [menu entry format](#menu-entry-format):
@@ -169,7 +169,7 @@ sidebar = {
 Bottom panels appear in the bottom panel alongside the terminal. Requires the `panel.bottom` permission.
 
 | Field      | Type     | Required | Description                                                    |
-|------------|----------|----------|----------------------------------------------------------------|
+| ---------- | -------- | -------- | -------------------------------------------------------------- |
 | `title`    | string   | yes      | Displayed as the panel's tab label.                            |
 | `render`   | function | yes      | Called each render frame. Receives a panel proxy object.       |
 | `on_event` | function | no       | Fallback handler for key/mouse events not consumed by widgets. |
@@ -181,10 +181,10 @@ Plugins can register commands that appear in the command palette. Requires the `
 Each command entry is a table with:
 
 | Field     | Type     | Required | Description                              |
-|-----------|----------|----------|------------------------------------------|
+| --------- | -------- | -------- | ---------------------------------------- |
 | `id`      | string   | yes      | Unique command ID (e.g. `myplugin.run`). |
-| `title`   | string   | yes      | Display title in the command palette.     |
-| `handler` | function | yes      | Function called when the command runs.    |
+| `title`   | string   | yes      | Display title in the command palette.    |
+| `handler` | function | yes      | Function called when the command runs.   |
 
 ### Keybindings
 
@@ -193,7 +193,7 @@ Plugins can register keyboard shortcuts for their commands. Requires the `keybin
 Each keybinding entry is a table with:
 
 | Field     | Type   | Required | Description                                           |
-|-----------|--------|----------|-------------------------------------------------------|
+| --------- | ------ | -------- | ----------------------------------------------------- |
 | `key`     | string | yes      | Key combination string (e.g. `ctrl+k d` for a chord). |
 | `command` | string | yes      | Command ID to execute when the key is pressed.        |
 
@@ -227,10 +227,10 @@ See [Logging](#logging) for details.
 
 Show a confirmation dialog. The callback is called (with no arguments) only if the user clicks "Allow" / confirms.
 
-| Parameter  | Type     | Description                                       |
-|------------|----------|---------------------------------------------------|
-| `message`  | string   | Question or warning text shown in the dialog.     |
-| `callback` | function | Called with no arguments if the user confirms.    |
+| Parameter  | Type     | Description                                    |
+| ---------- | -------- | ---------------------------------------------- |
+| `message`  | string   | Question or warning text shown in the dialog.  |
+| `callback` | function | Called with no arguments if the user confirms. |
 
 ```lua
 ttt.confirm("Remove container 'web-app'?", function()
@@ -246,10 +246,10 @@ end)
 
 Show an informational dialog with key-value pairs.
 
-| Parameter | Type   | Description                                          |
-|-----------|--------|------------------------------------------------------|
-| `title`   | string | Dialog title.                                        |
-| `entries` | table  | Array of `{key = string, value = string}` tables.    |
+| Parameter | Type   | Description                                       |
+| --------- | ------ | ------------------------------------------------- |
+| `title`   | string | Dialog title.                                     |
+| `entries` | table  | Array of `{key = string, value = string}` tables. |
 
 ```lua
 ttt.show_info("Shortcuts", {
@@ -264,7 +264,7 @@ ttt.show_info("Shortcuts", {
 Show a transient message in the status bar.
 
 | Parameter | Type   | Required | Description                                                       |
-|-----------|--------|----------|-------------------------------------------------------------------|
+| --------- | ------ | -------- | ----------------------------------------------------------------- |
 | `message` | string | yes      | The text to show.                                                 |
 | `level`   | string | no       | `"info"` (default), `"warn"`, or `"error"` — controls the colour. |
 
@@ -282,19 +282,19 @@ use [`ttt.confirm`](#ttt-confirm) or [`ttt.show_info`](#ttt-show_info) instead.
 
 Add or update a status bar segment. Requires the `commands` permission.
 
-| Parameter | Type   | Required | Description                                                        |
-|-----------|--------|----------|--------------------------------------------------------------------|
-| `side`    | string | yes      | `"left"` or `"right"` — which side of the status bar.              |
+| Parameter | Type   | Required | Description                                                               |
+| --------- | ------ | -------- | ------------------------------------------------------------------------- |
+| `side`    | string | yes      | `"left"` or `"right"` — which side of the status bar.                     |
 | `id`      | string | yes      | Unique segment identifier (scoped per plugin: stored as `pluginName:id`). |
-| `text`    | string | yes      | Text to display in the segment.                                    |
-| `opts`    | table  | no       | Options table (see below).                                         |
+| `text`    | string | yes      | Text to display in the segment.                                           |
+| `opts`    | table  | no       | Options table (see below).                                                |
 
 **Options:**
 
-| Field      | Type     | Default | Description                                      |
-|------------|----------|---------|--------------------------------------------------|
+| Field      | Type     | Default | Description                                            |
+| ---------- | -------- | ------- | ------------------------------------------------------ |
 | `priority` | number   | `1000`  | Lower = closer to the edge. Core segments use 100–500. |
-| `on_click` | function | nil     | Callback when the segment is clicked.            |
+| `on_click` | function | nil     | Callback when the segment is clicked.                  |
 
 ```lua
 -- Simple status item
@@ -355,18 +355,18 @@ While the command line is open it consumes **all** keys. In particular, a plugin
 
 Open the command line and move focus to it. If one is already open, it is replaced rather than stacked. The call is a no-op while another overlay (a dialog, the command palette, a menu) is up.
 
-| Field       | Type     | Description                                                        |
-|-------------|----------|--------------------------------------------------------------------|
-| `prefix`    | string   | Prompt character shown before the text. Default `":"`. Typically `":"`, `"/"`, or `"?"`. |
-| `text`      | string   | Initial text. Default empty.                                       |
-| `on_change` | function | Called with the full text after every edit. Use for incremental search. |
-| `on_submit` | function | Called with the full text when Enter is pressed. The command line closes first. |
-| `on_cancel` | function | Called when Escape is pressed. The command line closes first.      |
+| Field       | Type     | Description                                                                                                           |
+| ----------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| `prefix`    | string   | Prompt character shown before the text. Default `":"`. Typically `":"`, `"/"`, or `"?"`.                              |
+| `text`      | string   | Initial text. Default empty.                                                                                          |
+| `on_change` | function | Called with the full text after every edit. Use for incremental search.                                               |
+| `on_submit` | function | Called with the full text when Enter is pressed. The command line closes first.                                       |
+| `on_cancel` | function | Called when Escape is pressed. The command line closes first.                                                         |
 | `on_key`    | function | Called with a key event **before** the input handles it. Return `true` to consume the key, `false` to let it through. |
 
 ##### `on_key`: driving the prompt yourself
 
-`on_change` and `on_submit` are enough for a "type a string, press Enter" prompt. They are not enough when the *keys themselves* are the interface — an Emacs-style incremental search binds `Ctrl+S` to "next match", `Ctrl+G` to "abort back to where I started", and Backspace to "undo the last search step, not the last character". None of those are recoverable from watching the text change.
+`on_change` and `on_submit` are enough for a "type a string, press Enter" prompt. They are not enough when the _keys themselves_ are the interface — an Emacs-style incremental search binds `Ctrl+S` to "next match", `Ctrl+G` to "abort back to where I started", and Backspace to "undo the last search step, not the last character". None of those are recoverable from watching the text change.
 
 `on_key` receives the same event table as a [`key.press`](#keypress) listener — `{ type, key, rune, mod }` — so whatever key-normalisation a plugin already has works unchanged in both places. It sees **every** key including Enter and Escape, so it can preempt `on_submit` and `on_cancel`.
 
@@ -441,12 +441,12 @@ Replace the current text. Fires `on_change`, exactly as typing would. No-op if n
 
 Open a drawer panel anchored to the left or right side of the editor. Requires `panel.drawer` permission.
 
-| Parameter   | Type     | Required | Description                                      |
-|-------------|----------|----------|--------------------------------------------------|
-| `width`     | number   | no       | Initial drawer width in columns. Default: `40`.  |
-| `min_width` | number   | no       | Minimum resize width in columns. Default: `20`.  |
-| `side`      | string   | no       | `"left"` or `"right"`. Default: `"right"`.       |
-| `render`    | function | yes      | Render function. Receives a panel proxy object.  |
+| Parameter   | Type     | Required | Description                                     |
+| ----------- | -------- | -------- | ----------------------------------------------- |
+| `width`     | number   | no       | Initial drawer width in columns. Default: `40`. |
+| `min_width` | number   | no       | Minimum resize width in columns. Default: `20`. |
+| `side`      | string   | no       | `"left"` or `"right"`. Default: `"right"`.      |
+| `render`    | function | yes      | Render function. Receives a panel proxy object. |
 
 ```lua
 ttt.open_drawer({
@@ -471,10 +471,10 @@ ttt.close_drawer()
 
 Open a custom editor tab with plugin-rendered content. Requires `panel.editor` permission.
 
-| Parameter  | Type     | Required | Description                                       |
-|------------|----------|----------|---------------------------------------------------|
-| `title`    | string   | yes      | Tab title displayed in the editor tab bar.        |
-| `render`   | function | yes      | Render function. Receives a panel proxy object.   |
+| Parameter  | Type     | Required | Description                                                    |
+| ---------- | -------- | -------- | -------------------------------------------------------------- |
+| `title`    | string   | yes      | Tab title displayed in the editor tab bar.                     |
+| `render`   | function | yes      | Render function. Receives a panel proxy object.                |
 | `on_event` | function | no       | Fallback handler for key/mouse events not consumed by widgets. |
 
 ```lua
@@ -499,10 +499,10 @@ ttt.close_tab("my-tab-id")
 
 Open a file in the editor, optionally jumping to a specific line and/or opening it in readonly mode.
 
-| Parameter  | Type    | Required | Description                                    |
-|------------|---------|----------|------------------------------------------------|
-| `path`     | string  | yes      | File path (absolute or relative to the workspace root). |
-| `line`     | number  | no       | 1-based line number to jump to after opening.  |
+| Parameter  | Type    | Required | Description                                                                               |
+| ---------- | ------- | -------- | ----------------------------------------------------------------------------------------- |
+| `path`     | string  | yes      | File path (absolute or relative to the workspace root).                                   |
+| `line`     | number  | no       | 1-based line number to jump to after opening.                                             |
 | `readonly` | boolean | no       | When `true`, the file opens in readonly mode -- typing, deleting, and saving are blocked. |
 
 ```lua
@@ -522,11 +522,11 @@ No special permission is required — any plugin can open files.
 
 Open a native styled diff tab showing differences between two sets of lines. It uses the shared diff presentation model and the user's saved split/unified, context, wrapping, and high-contrast preferences, with syntax highlighting layered on diff backgrounds.
 
-| Parameter   | Type   | Required | Description                                    |
-|-------------|--------|----------|------------------------------------------------|
-| `title`     | string | yes      | Tab title displayed in the editor tab bar.     |
-| `old_lines` | table  | yes      | Array of strings representing the old content. |
-| `new_lines` | table  | yes      | Array of strings representing the new content. |
+| Parameter   | Type   | Required | Description                                                    |
+| ----------- | ------ | -------- | -------------------------------------------------------------- |
+| `title`     | string | yes      | Tab title displayed in the editor tab bar.                     |
+| `old_lines` | table  | yes      | Array of strings representing the old content.                 |
+| `new_lines` | table  | yes      | Array of strings representing the new content.                 |
 | `file_path` | string | no       | File path used for syntax highlighting (matched by extension). |
 
 ```lua
@@ -542,10 +542,10 @@ No special permission is required — any plugin can open diff tabs.
 
 Open a readonly buffer tab with content provided directly. The tab is not backed by a file on disk -- it displays the provided lines with syntax highlighting based on the file path extension.
 
-| Parameter   | Type   | Required | Description                                    |
-|-------------|--------|----------|------------------------------------------------|
-| `title`     | string | yes      | Tab title displayed in the editor tab bar.     |
-| `lines`     | table  | yes      | Array of strings to display.                   |
+| Parameter   | Type   | Required | Description                                                    |
+| ----------- | ------ | -------- | -------------------------------------------------------------- |
+| `title`     | string | yes      | Tab title displayed in the editor tab bar.                     |
+| `lines`     | table  | yes      | Array of strings to display.                                   |
 | `file_path` | string | no       | File path used for syntax highlighting (matched by extension). |
 
 ```lua
@@ -578,11 +578,11 @@ Note: the plugin directory is a git clone that `Plugins: Update` pulls into, and
 
 Return the host OS, CPU architecture, and running ttt version. No permission required.
 
-| Function          | Returns                                                                 |
-|-------------------|--------------------------------------------------------------------------|
-| `ttt.platform()`  | Go `GOOS` value: `"linux"`, `"darwin"`, or `"windows"`.                 |
-| `ttt.arch()`      | Go `GOARCH` value, e.g. `"amd64"`, `"arm64"`.                           |
-| `ttt.version()`   | ttt's version string, e.g. `"1.2.3"` (`"dev"` for unreleased builds).   |
+| Function         | Returns                                                               |
+| ---------------- | --------------------------------------------------------------------- |
+| `ttt.platform()` | Go `GOOS` value: `"linux"`, `"darwin"`, or `"windows"`.               |
+| `ttt.arch()`     | Go `GOARCH` value, e.g. `"amd64"`, `"arm64"`.                         |
+| `ttt.version()`  | ttt's version string, e.g. `"1.2.3"` (`"dev"` for unreleased builds). |
 
 ```lua
 local ttt = require("ttt")
@@ -670,13 +670,13 @@ local lines = ttt.markdown("# Hello\nSome **bold** text")
 
 These drive and capture the editor for automated testing (see [Testing Plugins](/guides/plugin-testing/)). They are the Lua equivalents of the `--exec` script commands. No permission required.
 
-| Function | Description |
-|----------|-------------|
-| `ttt.screenshot(path)` | Write the current screen (plain text) to a file. |
-| `ttt.debug(path)` | Write the editor's full state as JSON to a file (cursor, panels, widget tree, OUTPUT log). |
-| `ttt.click(x, y)` | Simulate a mouse click at screen coordinates. |
-| `ttt.drag(x1, y1, x2, y2)` | Simulate a mouse drag between two points. |
-| `ttt.quit()` | Exit the editor. |
+| Function                   | Description                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `ttt.screenshot(path)`     | Write the current screen (plain text) to a file.                                           |
+| `ttt.debug(path)`          | Write the editor's full state as JSON to a file (cursor, panels, widget tree, OUTPUT log). |
+| `ttt.click(x, y)`          | Simulate a mouse click at screen coordinates.                                              |
+| `ttt.drag(x1, y1, x2, y2)` | Simulate a mouse drag between two points.                                                  |
+| `ttt.quit()`               | Exit the editor.                                                                           |
 
 ### `ttt.json` Module
 
@@ -732,14 +732,14 @@ panel:label({ text = "Containers", style = "muted", badge = "5" })
 panel:label({ text = "Hint: press Enter", style = "muted", padding_left = 1 })
 ```
 
-| Field   | Type   | Required | Description                                       |
-|---------|--------|----------|---------------------------------------------------|
-| `text`  | string | yes      | Label text to display.                            |
-| `style` | string | no       | Named style (see [Styles](#styles)). Default: `"default"`. |
-| `badge` | string | no       | Badge text displayed after the label.             |
-| `width` | number | no       | Fixed width in columns. Text is truncated or padded to fit. |
-| `border` / `border_top` / `border_bottom` / `border_left` / `border_right` | boolean | no | Draw a border around the label (same semantics as [Box](#box)). |
-| + [box model fields](#box-model) | | | Margin and padding. |
+| Field                                                                      | Type    | Required | Description                                                     |
+| -------------------------------------------------------------------------- | ------- | -------- | --------------------------------------------------------------- |
+| `text`                                                                     | string  | yes      | Label text to display.                                          |
+| `style`                                                                    | string  | no       | Named style (see [Styles](#styles)). Default: `"default"`.      |
+| `badge`                                                                    | string  | no       | Badge text displayed after the label.                           |
+| `width`                                                                    | number  | no       | Fixed width in columns. Text is truncated or padded to fit.     |
+| `border` / `border_top` / `border_bottom` / `border_left` / `border_right` | boolean | no       | Draw a border around the label (same semantics as [Box](#box)). |
+| + [box model fields](#box-model)                                           |         |          | Margin and padding.                                             |
 
 Labels are not focusable — they display text only and don't receive keyboard events.
 
@@ -772,15 +772,15 @@ panel:title({
 })
 ```
 
-| Field     | Type     | Required | Description            |
-|-----------|----------|----------|------------------------|
-| `text`    | string   | yes      | Title text to display. |
-| `badge`   | string   | no       | Right-aligned badge text, rendered muted. |
-| `menu`    | table    | no       | Array of [menu entries](#menu-entry-format). Adds a dropdown button on the right edge. |
-| `on_menu` | function | no       | Callback when a menu item is selected. Receives the command string. |
-| `icon`    | string   | no       | Overrides the dropdown button icon (default `⋮`). |
-| `padded`  | boolean  | no       | Adds horizontal padding around the dropdown button. |
-| + [box model fields](#box-model) | | | Margin and padding. |
+| Field                            | Type     | Required | Description                                                                            |
+| -------------------------------- | -------- | -------- | -------------------------------------------------------------------------------------- |
+| `text`                           | string   | yes      | Title text to display.                                                                 |
+| `badge`                          | string   | no       | Right-aligned badge text, rendered muted.                                              |
+| `menu`                           | table    | no       | Array of [menu entries](#menu-entry-format). Adds a dropdown button on the right edge. |
+| `on_menu`                        | function | no       | Callback when a menu item is selected. Receives the command string.                    |
+| `icon`                           | string   | no       | Overrides the dropdown button icon (default `⋮`).                                      |
+| `padded`                         | boolean  | no       | Adds horizontal padding around the dropdown button.                                    |
+| + [box model fields](#box-model) |          |          | Margin and padding.                                                                    |
 
 Titles are not keyboard-focusable; the dropdown menu button is operated with the mouse.
 
@@ -799,7 +799,7 @@ panel:keyvalue({
 The argument is an array of tables, each with:
 
 | Field   | Type   | Required | Description   |
-|---------|--------|----------|---------------|
+| ------- | ------ | -------- | ------------- |
 | `key`   | string | yes      | Left column.  |
 | `value` | string | yes      | Right column. |
 
@@ -846,15 +846,15 @@ panel:tree({
 
 **Tree config fields:**
 
-| Field        | Type     | Default | Description                                    |
-|--------------|----------|---------|------------------------------------------------|
-| `items`      | table    | `{}`    | Array of [tree node tables](#tree-node-format). |
-| `indent`     | number   | `2`     | Number of spaces per nesting level.            |
-| `on_select`  | function | nil     | Callback when a node is activated (Enter or double-click). Receives the node table. |
-| `on_expand`  | function | nil     | Callback when a node is expanded (not fired on collapse — intended for lazy-loading children). Receives the node table. |
-| `on_command`   | function | nil     | Callback when a context menu command or key command is selected. Receives `(command, node)`. |
-| `node_menu`    | table    | nil     | Array of [menu entries](#menu-entry-format) for right-click context menu on nodes. |
-| `key_commands` | table    | nil     | Map of single-char keys to command strings. When pressed, triggers `on_command(command, selected_node)`. |
+| Field          | Type     | Default | Description                                                                                                             |
+| -------------- | -------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `items`        | table    | `{}`    | Array of [tree node tables](#tree-node-format).                                                                         |
+| `indent`       | number   | `2`     | Number of spaces per nesting level.                                                                                     |
+| `on_select`    | function | nil     | Callback when a node is activated (Enter or double-click). Receives the node table.                                     |
+| `on_expand`    | function | nil     | Callback when a node is expanded (not fired on collapse — intended for lazy-loading children). Receives the node table. |
+| `on_command`   | function | nil     | Callback when a context menu command or key command is selected. Receives `(command, node)`.                            |
+| `node_menu`    | table    | nil     | Array of [menu entries](#menu-entry-format) for right-click context menu on nodes.                                      |
+| `key_commands` | table    | nil     | Map of single-char keys to command strings. When pressed, triggers `on_command(command, selected_node)`.                |
 
 **Keyboard navigation:** When focused, Up/Down arrows move selection, Enter activates `on_select`, Left/Right collapse/expand nodes. Shift+Enter opens the context menu on the selected node.
 
@@ -886,12 +886,12 @@ panel:list({
 
 **List config fields:**
 
-| Field        | Type     | Default | Description                                            |
-|--------------|----------|---------|--------------------------------------------------------|
-| `items`        | table    | `{}`    | Array of [tree node tables](#tree-node-format).        |
-| `on_select`    | function | nil     | Callback when an item is activated. Receives the node table. |
-| `on_command`   | function | nil     | Callback when a context menu command or key command is selected. Receives `(command, node)`. |
-| `node_menu`    | table    | nil     | Array of [menu entries](#menu-entry-format) for the right-click context menu. |
+| Field          | Type     | Default | Description                                                                                              |
+| -------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `items`        | table    | `{}`    | Array of [tree node tables](#tree-node-format).                                                          |
+| `on_select`    | function | nil     | Callback when an item is activated. Receives the node table.                                             |
+| `on_command`   | function | nil     | Callback when a context menu command or key command is selected. Receives `(command, node)`.             |
+| `node_menu`    | table    | nil     | Array of [menu entries](#menu-entry-format) for the right-click context menu.                            |
 | `key_commands` | table    | nil     | Map of single-char keys to command strings. When pressed, triggers `on_command(command, selected_node)`. |
 
 ### Button
@@ -909,10 +909,10 @@ panel:button({
 
 **Button config fields:**
 
-| Field      | Type     | Required | Description                                    |
-|------------|----------|----------|------------------------------------------------|
+| Field      | Type     | Required | Description                                                      |
+| ---------- | -------- | -------- | ---------------------------------------------------------------- |
 | `label`    | string   | yes      | Button text. Use `&` for an accelerator: `"&Save"` underlines S. |
-| `on_click` | function | no       | Callback when the button is pressed.           |
+| `on_click` | function | no       | Callback when the button is pressed.                             |
 
 ### Checkbox
 
@@ -931,11 +931,11 @@ panel:checkbox({
 
 **Checkbox config fields:**
 
-| Field       | Type     | Default | Description                                    |
-|-------------|----------|---------|------------------------------------------------|
-| `label`     | string   | `""`    | Text displayed next to the checkbox.           |
-| `checked`   | boolean  | `false` | Whether the checkbox is checked.               |
-| `style`     | string   | default | Named style (e.g. `"muted"`, `"bold"`).        |
+| Field       | Type     | Default | Description                                                    |
+| ----------- | -------- | ------- | -------------------------------------------------------------- |
+| `label`     | string   | `""`    | Text displayed next to the checkbox.                           |
+| `checked`   | boolean  | `false` | Whether the checkbox is checked.                               |
+| `style`     | string   | default | Named style (e.g. `"muted"`, `"bold"`).                        |
 | `on_change` | function | nil     | Called when toggled. Receives the new checked state (boolean). |
 
 ### Input
@@ -957,13 +957,13 @@ panel:input({
 
 **Input config fields:**
 
-| Field              | Type     | Default | Description                                    |
-|--------------------|----------|---------|------------------------------------------------|
-| `placeholder`      | string   | `""`    | Grayed-out hint text shown when input is empty.|
-| `prefix`           | string   | `""`    | Non-editable text displayed before the input.  |
-| `clear_on_submit`  | boolean  | `false` | When `true`, the input text is cleared after `on_submit` fires. |
-| `on_change`        | function | nil     | Called after every text change. Receives the current text (string). |
-| `on_submit`        | function | nil     | Called when Enter is pressed. Receives the current text (string). |
+| Field             | Type     | Default | Description                                                         |
+| ----------------- | -------- | ------- | ------------------------------------------------------------------- |
+| `placeholder`     | string   | `""`    | Grayed-out hint text shown when input is empty.                     |
+| `prefix`          | string   | `""`    | Non-editable text displayed before the input.                       |
+| `clear_on_submit` | boolean  | `false` | When `true`, the input text is cleared after `on_submit` fires.     |
+| `on_change`       | function | nil     | Called after every text change. Receives the current text (string). |
+| `on_submit`       | function | nil     | Called when Enter is pressed. Receives the current text (string).   |
 
 The input text and cursor position are automatically preserved across re-renders.
 
@@ -983,10 +983,10 @@ panel:vstack({
 
 **VStack config fields:**
 
-| Field    | Type     | Required | Description                                                |
-|----------|----------|----------|------------------------------------------------------------|
+| Field    | Type     | Required | Description                                                                                    |
+| -------- | -------- | -------- | ---------------------------------------------------------------------------------------------- |
 | `render` | function | yes      | Builder function that receives a child panel proxy. Call widget methods on it to add children. |
-| `gap`    | number   | no       | Vertical gap (in rows) between children. Default: `0`.     |
+| `gap`    | number   | no       | Vertical gap (in rows) between children. Default: `0`.                                         |
 
 VStack is useful for grouping related widgets into sections. The child panel proxy supports all the same widget methods.
 
@@ -1006,11 +1006,11 @@ panel:hstack({
 
 **HStack config fields:**
 
-| Field    | Type     | Required | Description                                                |
-|----------|----------|----------|------------------------------------------------------------|
+| Field    | Type     | Required | Description                                                                                    |
+| -------- | -------- | -------- | ---------------------------------------------------------------------------------------------- |
 | `render` | function | yes      | Builder function that receives a child panel proxy. Call widget methods on it to add children. |
-| `gap`    | number   | no       | Horizontal gap (in columns) between children. Default: `0`. |
-| `height` | number   | no       | Fixed height in rows.                                       |
+| `gap`    | number   | no       | Horizontal gap (in columns) between children. Default: `0`.                                    |
+| `height` | number   | no       | Fixed height in rows.                                                                          |
 
 The first child in the hstack expands to fill remaining horizontal space. All subsequent children are given their natural/fixed width. This is useful for toolbar-style layouts with a label or spacer on the left and action buttons on the right.
 
@@ -1030,8 +1030,8 @@ panel:scrollview({
 
 **ScrollView config fields:**
 
-| Field    | Type     | Required | Description                                                |
-|----------|----------|----------|------------------------------------------------------------|
+| Field    | Type     | Required | Description                                                                                    |
+| -------- | -------- | -------- | ---------------------------------------------------------------------------------------------- |
 | `render` | function | yes      | Builder function that receives a child panel proxy. Call widget methods on it to add children. |
 
 Use `scrollview` when the content may exceed the panel height. The scroll position is preserved across re-renders. A scrollbar indicator appears on the right edge when content overflows.
@@ -1054,15 +1054,15 @@ panel:box({
 
 **Box config fields:**
 
-| Field           | Type     | Default | Description                                    |
-|-----------------|----------|---------|------------------------------------------------|
+| Field           | Type     | Default | Description                                         |
+| --------------- | -------- | ------- | --------------------------------------------------- |
 | `render`        | function | yes     | Builder function that receives a child panel proxy. |
-| `border`        | boolean  | false   | Draw a full border around the box.             |
-| `border_top`    | boolean  | false   | Draw only the top border.                      |
-| `border_bottom` | boolean  | false   | Draw only the bottom border.                   |
-| `border_left`   | boolean  | false   | Draw only the left border.                     |
-| `border_right`  | boolean  | false   | Draw only the right border.                    |
-| `height`        | number   | 0       | Fixed height in rows. `0` means auto-size.     |
+| `border`        | boolean  | false   | Draw a full border around the box.                  |
+| `border_top`    | boolean  | false   | Draw only the top border.                           |
+| `border_bottom` | boolean  | false   | Draw only the bottom border.                        |
+| `border_left`   | boolean  | false   | Draw only the left border.                          |
+| `border_right`  | boolean  | false   | Draw only the right border.                         |
+| `height`        | number   | 0       | Fixed height in rows. `0` means auto-size.          |
 
 Individual `border_*` flags can be combined. If `border` is true, all four sides are drawn regardless of individual flags.
 
@@ -1115,10 +1115,10 @@ panel:dropdown({
 
 **Dropdown config fields:**
 
-| Field     | Type     | Required | Description                                                |
-|-----------|----------|----------|------------------------------------------------------------|
-| `label`   | string   | yes      | Button text displayed.                                     |
-| `entries` | table    | yes      | Array of [menu entries](#menu-entry-format) for the popup. |
+| Field     | Type     | Required | Description                                                         |
+| --------- | -------- | -------- | ------------------------------------------------------------------- |
+| `label`   | string   | yes      | Button text displayed.                                              |
+| `entries` | table    | yes      | Array of [menu entries](#menu-entry-format) for the popup.          |
 | `on_menu` | function | no       | Callback when a menu item is selected. Receives the command string. |
 
 ### Progress
@@ -1132,12 +1132,12 @@ panel:progress({ value = 0.9, style = "success", char = "█" })
 
 **Progress config fields:**
 
-| Field   | Type   | Required | Description                                       |
-|---------|--------|----------|---------------------------------------------------|
-| `value` | number | yes      | Fill ratio between `0.0` and `1.0`.               |
-| `style` | string | no       | Named style for the filled portion. Default: `"default"`. |
-| `char`  | string | no       | Fill character (first rune used). Default: `▄`.   |
-| + [box model fields](#box-model) | | | Margin and padding. |
+| Field                            | Type   | Required | Description                                               |
+| -------------------------------- | ------ | -------- | --------------------------------------------------------- |
+| `value`                          | number | yes      | Fill ratio between `0.0` and `1.0`.                       |
+| `style`                          | string | no       | Named style for the filled portion. Default: `"default"`. |
+| `char`                           | string | no       | Fill character (first rune used). Default: `▄`.           |
+| + [box model fields](#box-model) |        |          | Margin and padding.                                       |
 
 Progress bars are not focusable.
 
@@ -1171,15 +1171,15 @@ panel:table({
 
 **Table config fields:**
 
-| Field          | Type     | Required | Description                                                 |
-|----------------|----------|----------|-------------------------------------------------------------|
-| `columns`      | table    | yes      | Array of column tables: `{label, width, align}`. `width` is fixed columns (omit to auto-size); `align` is `"right"` or default left. |
-| `rows`         | table    | yes      | Array of rows; each row is an array of cell strings.        |
-| `on_select`    | function | no       | Callback when the selected row changes (arrow keys, click) or Enter is pressed. Receives the 1-based row index. |
-| `on_command`   | function | no       | Callback for context menu or key commands. Receives `(command, row_index)`. |
-| `node_menu`    | table    | no       | Array of [menu entries](#menu-entry-format) for the right-click context menu on rows. |
-| `key_commands` | table    | no       | Map of single-char keys to command strings. Triggers `on_command(command, selected_row_index)`. |
-| + [box model fields](#box-model) | | | Margin and padding. |
+| Field                            | Type     | Required | Description                                                                                                                          |
+| -------------------------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `columns`                        | table    | yes      | Array of column tables: `{label, width, align}`. `width` is fixed columns (omit to auto-size); `align` is `"right"` or default left. |
+| `rows`                           | table    | yes      | Array of rows; each row is an array of cell strings.                                                                                 |
+| `on_select`                      | function | no       | Callback when the selected row changes (arrow keys, click) or Enter is pressed. Receives the 1-based row index.                      |
+| `on_command`                     | function | no       | Callback for context menu or key commands. Receives `(command, row_index)`.                                                          |
+| `node_menu`                      | table    | no       | Array of [menu entries](#menu-entry-format) for the right-click context menu on rows.                                                |
+| `key_commands`                   | table    | no       | Map of single-char keys to command strings. Triggers `on_command(command, selected_row_index)`.                                      |
+| + [box model fields](#box-model) |          |          | Margin and padding.                                                                                                                  |
 
 ### Markdown
 
@@ -1197,10 +1197,10 @@ panel:markdown("# Title\n\nSome **bold** and `code` text.")
 panel:markdown({ text = readme_content, margin_top = 1 })
 ```
 
-| Field  | Type   | Required | Description               |
-|--------|--------|----------|---------------------------|
-| `text` | string | yes      | Markdown source to render. |
-| + [box model fields](#box-model) | | | Margin and padding. |
+| Field                            | Type   | Required | Description                |
+| -------------------------------- | ------ | -------- | -------------------------- |
+| `text`                           | string | yes      | Markdown source to render. |
+| + [box model fields](#box-model) |        |          | Margin and padding.        |
 
 Prose lines wrap at the `markdown.wrapWidth` setting (default 80). Headings, bold, italic, code spans, fenced code blocks, lists, and links are styled using the theme's styles. Text inside the widget can be selected with the mouse and copied.
 
@@ -1208,16 +1208,16 @@ Prose lines wrap at the `markdown.wrapWidth` setting (default 80). Headings, bol
 
 Used in `items` arrays for both `tree` and `list` widgets.
 
-| Field        | Type    | Default | Description                                  |
-|--------------|---------|---------|----------------------------------------------|
-| `id`         | string  | `""`    | Unique identifier. **Required for state preservation.** |
-| `label`      | string  | `""`    | Display text.                                |
-| `icon`       | string  | `""`    | Icon string displayed before the label.      |
-| `badge`      | string  | `""`    | Badge text displayed after the label.        |
-| `muted`      | boolean | `false` | Render the label in a dimmed style.          |
-| `expandable` | boolean | `false` | Show expand/collapse chevron indicator. Auto-set to `true` if `children` is non-empty. |
-| `expanded`   | boolean | `false` | Initial expanded state (only used on first render — see [Reconciliation and State Preservation](#reconciliation-and-state-preservation)). |
-| `children`   | table   | `{}`    | Array of child node tables (recursive).      |
+| Field        | Type    | Default | Description                                                                                                                                                                                                                                                                              |
+| ------------ | ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`         | string  | `""`    | Unique identifier. **Required for state preservation.**                                                                                                                                                                                                                                  |
+| `label`      | string  | `""`    | Display text.                                                                                                                                                                                                                                                                            |
+| `icon`       | string  | `""`    | Icon string displayed before the label.                                                                                                                                                                                                                                                  |
+| `badge`      | string  | `""`    | Badge text displayed after the label.                                                                                                                                                                                                                                                    |
+| `muted`      | boolean | `false` | Render the label in a dimmed style.                                                                                                                                                                                                                                                      |
+| `expandable` | boolean | `false` | Show expand/collapse chevron indicator. Auto-set to `true` if `children` is non-empty.                                                                                                                                                                                                   |
+| `expanded`   | boolean | `false` | Initial expanded state (only used on first render — see [Reconciliation and State Preservation](#reconciliation-and-state-preservation)).                                                                                                                                                |
+| `children`   | table   | `{}`    | Array of child node tables (recursive).                                                                                                                                                                                                                                                  |
 | `actions`    | table   | `{}`    | Array of `{icon, command}` tables rendered as inline, always-visible icons on the right edge of the row — no submenu required. Clicking one triggers `on_command(command, node)`, same as `node_menu` and `key_commands`. Used by the Changes panel for its stage/unstage/discard icons. |
 
 **Callback argument:** `on_select` and `on_expand` callbacks receive a Lua table with the same fields as the node: `id`, `label`, `icon` (if non-empty), `badge` (if non-empty), `expanded`, `muted`, and `children` (if present). `expandable` and `actions` are not included — the node's `id` is enough to look the item back up, and `on_command`'s own `command_string` argument already tells you which action fired. The `on_command` callback receives two arguments: `(command_string, node_table)`, where `node_table` has the same shape.
@@ -1226,11 +1226,11 @@ Used in `items` arrays for both `tree` and `list` widgets.
 
 Used in `actions` (sidebar header menu), `menu` (title menu), `node_menu` (tree/list/table context menu), and `entries` (dropdown).
 
-| Field       | Type    | Required | Description                             |
-|-------------|---------|----------|-----------------------------------------|
-| `label`     | string  | yes*     | Display text of the menu item.          |
-| `command`   | string  | yes*     | Command identifier passed to the callback. |
-| `separator` | boolean | no       | If `true`, renders as a separator line instead of an item. When `true`, `label` and `command` are ignored. |
+| Field       | Type    | Required | Description                                                                                                                                                           |
+| ----------- | ------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `label`     | string  | yes*     | Display text of the menu item.                                                                                                                                        |
+| `command`   | string  | yes*     | Command identifier passed to the callback.                                                                                                                            |
+| `separator` | boolean | no       | If `true`, renders as a separator line instead of an item. When `true`, `label` and `command` are ignored.                                                            |
 | `checked`   | boolean | no       | If provided, reserves a check indicator: `true` shows a checkmark and `false` shows an empty slot. Omit it to keep the menu indicator-free with its existing spacing. |
 
 ```lua
@@ -1247,16 +1247,16 @@ Used in `actions` (sidebar header menu), `menu` (title menu), `node_menu` (tree/
 
 Many widgets support margin and padding fields for spacing control. These fields can be included in the widget's configuration table.
 
-| Field            | Type   | Default | Description               |
-|------------------|--------|---------|---------------------------|
-| `margin_top`     | number | `0`     | Space above the widget.   |
-| `margin_bottom`  | number | `0`     | Space below the widget.   |
-| `margin_left`    | number | `0`     | Space to the left.        |
-| `margin_right`   | number | `0`     | Space to the right.       |
-| `padding_top`    | number | `0`     | Internal top padding.     |
-| `padding_bottom` | number | `0`     | Internal bottom padding.  |
-| `padding_left`   | number | `0`     | Internal left padding.    |
-| `padding_right`  | number | `0`     | Internal right padding.   |
+| Field            | Type   | Default | Description              |
+| ---------------- | ------ | ------- | ------------------------ |
+| `margin_top`     | number | `0`     | Space above the widget.  |
+| `margin_bottom`  | number | `0`     | Space below the widget.  |
+| `margin_left`    | number | `0`     | Space to the left.       |
+| `margin_right`   | number | `0`     | Space to the right.      |
+| `padding_top`    | number | `0`     | Internal top padding.    |
+| `padding_bottom` | number | `0`     | Internal bottom padding. |
+| `padding_left`   | number | `0`     | Internal left padding.   |
+| `padding_right`  | number | `0`     | Internal right padding.  |
 
 All widgets support box model fields except `divider` (which takes no configuration).
 
@@ -1317,11 +1317,11 @@ panel:cell(1, 0, "Y", "success")              -- named style as string
 panel:cell(2, 0, "Z", { style = "danger" })   -- named style as table
 ```
 
-| Parameter | Type            | Required | Description                                |
-|-----------|-----------------|----------|--------------------------------------------|
-| `x`       | number          | yes      | Column (0-based).                          |
-| `y`       | number          | yes      | Row (0-based).                             |
-| `char`    | string          | yes      | Single character to draw (first rune used).|
+| Parameter | Type            | Required | Description                                     |
+| --------- | --------------- | -------- | ----------------------------------------------- |
+| `x`       | number          | yes      | Column (0-based).                               |
+| `y`       | number          | yes      | Row (0-based).                                  |
+| `char`    | string          | yes      | Single character to draw (first rune used).     |
 | `style`   | string or table | no       | Named style string or table with `style` field. |
 
 ### `panel:text(x, y, text, [style])`
@@ -1334,12 +1334,12 @@ panel:text(0, 1, "Error!", "danger")           -- named style as string
 panel:text(0, 2, "Hint", { style = "muted" }) -- named style as table
 ```
 
-| Parameter | Type            | Required | Description                                |
-|-----------|-----------------|----------|--------------------------------------------|
-| `x`       | number          | yes      | Starting column (0-based).                 |
-| `y`       | number          | yes      | Row (0-based).                             |
-| `text`    | string          | yes      | Text to draw.                              |
-| `style`   | string or table | no       | Named style.                               |
+| Parameter | Type            | Required | Description                |
+| --------- | --------------- | -------- | -------------------------- |
+| `x`       | number          | yes      | Starting column (0-based). |
+| `y`       | number          | yes      | Row (0-based).             |
+| `text`    | string          | yes      | Text to draw.              |
+| `style`   | string or table | no       | Named style.               |
 
 ### `panel:clear(x, y, w, h)`
 
@@ -1349,12 +1349,12 @@ Clear a rectangular region, filling it with spaces in the default style.
 panel:clear(0, 0, 40, 10)
 ```
 
-| Parameter | Type   | Required | Description         |
-|-----------|--------|----------|---------------------|
-| `x`       | number | yes      | Left column.        |
-| `y`       | number | yes      | Top row.            |
-| `w`       | number | yes      | Width in cells.     |
-| `h`       | number | yes      | Height in cells.    |
+| Parameter | Type   | Required | Description      |
+| --------- | ------ | -------- | ---------------- |
+| `x`       | number | yes      | Left column.     |
+| `y`       | number | yes      | Top row.         |
+| `w`       | number | yes      | Width in cells.  |
+| `h`       | number | yes      | Height in cells. |
 
 ## Mixing Widgets and Raw Cells
 
@@ -1421,11 +1421,13 @@ The widget system uses a **reconciliation** algorithm to preserve interactive st
 4. If the type changed, the old widget is replaced with a new one.
 
 **What is preserved:**
+
 - **Tree/List:** Expanded/collapsed state of nodes (matched by `id`), selected item, scroll position.
 - **Input:** Text content, cursor position.
 - **Button:** Focus state.
 
 **What is NOT preserved:**
+
 - Anything that changes when you provide different data (labels, items, badges, icons — these update to reflect the new values).
 - State across type changes (if position 0 was a label and becomes a tree, the tree starts fresh).
 
@@ -1451,20 +1453,20 @@ There are two levels of event handling:
 
 Widget-specific events are routed automatically to the callbacks you provide:
 
-| Widget   | Event              | Callback     | Argument(s)                         |
-|----------|--------------------|--------------|-------------------------------------|
-| Tree     | node activated     | `on_select`  | Node table (`{id, label, ...}`)     |
-| Tree     | node expanded      | `on_expand`  | Node table                          |
-| Tree     | context menu cmd   | `on_command` | `(command_string, node_table)`      |
-| List     | item activated     | `on_select`  | Node table                          |
-| List     | context menu cmd   | `on_command` | `(command_string, node_table)`      |
-| Button   | pressed            | `on_click`   | (none)                              |
-| Input    | text changed       | `on_change`  | Current text (string)               |
-| Input    | Enter pressed      | `on_submit`  | Current text (string)               |
-| Dropdown | menu item selected | `on_menu`    | Command string                      |
-| Table    | row selected       | `on_select`  | Row index (number, 1-based)         |
-| Table    | context menu cmd   | `on_command` | `(command_string, row_index)`       |
-| Title    | menu item selected | `on_menu`    | Command string                      |
+| Widget   | Event              | Callback     | Argument(s)                     |
+| -------- | ------------------ | ------------ | ------------------------------- |
+| Tree     | node activated     | `on_select`  | Node table (`{id, label, ...}`) |
+| Tree     | node expanded      | `on_expand`  | Node table                      |
+| Tree     | context menu cmd   | `on_command` | `(command_string, node_table)`  |
+| List     | item activated     | `on_select`  | Node table                      |
+| List     | context menu cmd   | `on_command` | `(command_string, node_table)`  |
+| Button   | pressed            | `on_click`   | (none)                          |
+| Input    | text changed       | `on_change`  | Current text (string)           |
+| Input    | Enter pressed      | `on_submit`  | Current text (string)           |
+| Dropdown | menu item selected | `on_menu`    | Command string                  |
+| Table    | row selected       | `on_select`  | Row index (number, 1-based)     |
+| Table    | context menu cmd   | `on_command` | `(command_string, row_index)`   |
+| Title    | menu item selected | `on_menu`    | Command string                  |
 
 ### Fallback Event Handler (`on_event`)
 
@@ -1521,23 +1523,23 @@ local editor = require("ttt.editor")
 
 Require the `editor.read` permission.
 
-| Function               | Returns                                                   | Description                          |
-|------------------------|-----------------------------------------------------------|--------------------------------------|
-| `editor.buffer_text()` | string                                                    | Full buffer content as a single string. |
-| `editor.buffer_lines()`| table of strings                                          | Array of lines.                      |
-| `editor.current_line()`| string                                                    | Text of the line at cursor.          |
-| `editor.get_line(n)`   | string                                                    | Text of line `n` (1-based).          |
-| `editor.line_count()`  | number                                                    | Total number of lines in the buffer. |
-| `editor.viewport()`    | `{top_line, bottom_line, height}`                         | Visible viewport range (1-based lines) and height in rows. |
-| `editor.cursor()`      | `{line, col}`                                             | Current cursor position (1-based).   |
-| `editor.selection()`   | `{active, start_line, start_col, end_line, end_col}`     | Selection state (1-based). `active` is boolean. |
-| `editor.selection_text()` | string                                                 | Selected text (empty if no selection).|
-| `editor.file_path()`   | string                                                    | Absolute path of the active file.    |
-| `editor.file_name()`   | string                                                    | Filename only.                       |
-| `editor.language()`    | string                                                    | Detected language (e.g. `"go"`, `"lua"`). |
-| `editor.byte_to_col(text, byte)` | number                                          | Convert a 1-based **byte** offset in `text` to a 1-based **rune column**. |
-| `editor.col_to_byte(text, col)`  | number                                          | Convert a 1-based **rune column** in `text` to a 1-based **byte** offset. |
-| `editor.get_cursors()`           | table of `{line, col}`                          | All cursor positions (1-based). Returns a single-element table when no extra cursors are active. |
+| Function                         | Returns                                              | Description                                                                                      |
+| -------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `editor.buffer_text()`           | string                                               | Full buffer content as a single string.                                                          |
+| `editor.buffer_lines()`          | table of strings                                     | Array of lines.                                                                                  |
+| `editor.current_line()`          | string                                               | Text of the line at cursor.                                                                      |
+| `editor.get_line(n)`             | string                                               | Text of line `n` (1-based).                                                                      |
+| `editor.line_count()`            | number                                               | Total number of lines in the buffer.                                                             |
+| `editor.viewport()`              | `{top_line, bottom_line, height}`                    | Visible viewport range (1-based lines) and height in rows.                                       |
+| `editor.cursor()`                | `{line, col}`                                        | Current cursor position (1-based).                                                               |
+| `editor.selection()`             | `{active, start_line, start_col, end_line, end_col}` | Selection state (1-based). `active` is boolean.                                                  |
+| `editor.selection_text()`        | string                                               | Selected text (empty if no selection).                                                           |
+| `editor.file_path()`             | string                                               | Absolute path of the active file.                                                                |
+| `editor.file_name()`             | string                                               | Filename only.                                                                                   |
+| `editor.language()`              | string                                               | Detected language (e.g. `"go"`, `"lua"`).                                                        |
+| `editor.byte_to_col(text, byte)` | number                                               | Convert a 1-based **byte** offset in `text` to a 1-based **rune column**.                        |
+| `editor.col_to_byte(text, col)`  | number                                               | Convert a 1-based **rune column** in `text` to a 1-based **byte** offset.                        |
+| `editor.get_cursors()`           | table of `{line, col}`                               | All cursor positions (1-based). Returns a single-element table when no extra cursors are active. |
 
 > **Columns are runes, not bytes.** The editor — and every position in the
 > `editor.replace` and diagnostics APIs — uses 1-based **rune (visual) columns**.
@@ -1559,20 +1561,20 @@ Require the `editor.read` permission.
 
 Require the `editor.write` permission.
 
-| Function                                          | Description                                    |
-|---------------------------------------------------|------------------------------------------------|
-| `editor.insert(line, col, text)`                  | Insert text at position (1-based).             |
-| `editor.set_line(line, text)`                     | Replace the entire content of line `line` (1-based). |
-| `editor.scroll_to(line)`                          | Scroll so that `line` (1-based) is at the top of the viewport. |
-| `editor.scroll_by(delta)`                         | Scroll up/down by `delta` lines (negative = up). |
-| `editor.replace(start_line, start_col, end_line, end_col, text)` | Replace a range with text (1-based). |
-| `editor.set_cursor(line, col)`                    | Move the cursor (1-based).                     |
-| `editor.set_selection(start_line, start_col, end_line, end_col)` | Set selection range (1-based).     |
-| `editor.clear_selection()`                        | Clear the current selection.                   |
-| `editor.begin_undo_group()`                       | Start grouping subsequent edits into a single undo step. |
-| `editor.end_undo_group()`                         | Close the group; all edits since `begin` undo/redo as one operation. |
-| `editor.add_cursor(line, col)`                    | Add a cursor at position (1-based). Duplicates are ignored. |
-| `editor.clear_cursors()`                          | Collapse back to a single cursor (the primary). |
+| Function                                                         | Description                                                          |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `editor.insert(line, col, text)`                                 | Insert text at position (1-based).                                   |
+| `editor.set_line(line, text)`                                    | Replace the entire content of line `line` (1-based).                 |
+| `editor.scroll_to(line)`                                         | Scroll so that `line` (1-based) is at the top of the viewport.       |
+| `editor.scroll_by(delta)`                                        | Scroll up/down by `delta` lines (negative = up).                     |
+| `editor.replace(start_line, start_col, end_line, end_col, text)` | Replace a range with text (1-based).                                 |
+| `editor.set_cursor(line, col)`                                   | Move the cursor (1-based).                                           |
+| `editor.set_selection(start_line, start_col, end_line, end_col)` | Set selection range (1-based).                                       |
+| `editor.clear_selection()`                                       | Clear the current selection.                                         |
+| `editor.begin_undo_group()`                                      | Start grouping subsequent edits into a single undo step.             |
+| `editor.end_undo_group()`                                        | Close the group; all edits since `begin` undo/redo as one operation. |
+| `editor.add_cursor(line, col)`                                   | Add a cursor at position (1-based). Duplicates are ignored.          |
+| `editor.clear_cursors()`                                         | Collapse back to a single cursor (the primary).                      |
 
 All write operations go through the undo system — they can be undone with Ctrl+Z.
 
@@ -1617,9 +1619,9 @@ diag.clear()                          -- clear all of this plugin's diagnostics
 
 Replaces this plugin's diagnostics for `path` with `items`. Each item is a table:
 
-| Field      | Type   | Required | Description                                                              |
-|------------|--------|----------|--------------------------------------------------------------------------|
-| `line`     | number | yes      | 1-based start line.                                                      |
+| Field      | Type   | Required | Description                                                             |
+| ---------- | ------ | -------- | ----------------------------------------------------------------------- |
+| `line`     | number | yes      | 1-based start line.                                                     |
 | `col`      | number | yes      | 1-based start **rune column** (see the note below).                     |
 | `end_line` | number | no       | 1-based end line. Defaults to `line`.                                   |
 | `end_col`  | number | no       | 1-based end column, exclusive. Defaults to `col + 1`.                   |
@@ -1634,7 +1636,7 @@ and are cleared automatically when the plugin is disabled, reloaded or
 uninstalled.
 
 > **Columns are rune columns, not bytes.** `col`/`end_col` are 1-based rune
-> (visual) columns. Lua's `string.find` returns *byte* offsets, which diverge on
+> (visual) columns. Lua's `string.find` returns _byte_ offsets, which diverge on
 > multi-byte lines — convert them with `editor.byte_to_col` before publishing,
 > or squiggles will land in the wrong place.
 
@@ -1749,24 +1751,24 @@ local sys = require("ttt.system")
 
 Execute a command synchronously. Requires the `system.exec` permission with the binary listed in the allowlist.
 
-| Parameter | Type   | Required | Description                              |
-|-----------|--------|----------|------------------------------------------|
+| Parameter | Type   | Required | Description                                                            |
+| --------- | ------ | -------- | ---------------------------------------------------------------------- |
 | `binary`  | string | yes      | Command to execute. Must be in the `system.exec` permission allowlist. |
-| `args`    | table  | no       | Array of string arguments.               |
-| `opts`    | table  | no       | Options table. Only `stdin` is supported. |
+| `args`    | table  | no       | Array of string arguments.                                             |
+| `opts`    | table  | no       | Options table. Only `stdin` is supported.                              |
 
 **Options:**
 
-| Field   | Type   | Description                                                      |
-|---------|--------|------------------------------------------------------------------|
+| Field   | Type   | Description                                                                        |
+| ------- | ------ | ---------------------------------------------------------------------------------- |
 | `stdin` | string | Written to the command's standard input. Nothing is written when omitted or empty. |
 
 **Returns** a table:
 
-| Field       | Type   | Description                                     |
-|-------------|--------|-------------------------------------------------|
-| `stdout`    | string | Standard output.                                |
-| `stderr`    | string | Standard error.                                 |
+| Field       | Type   | Description                                        |
+| ----------- | ------ | -------------------------------------------------- |
+| `stdout`    | string | Standard output.                                   |
+| `stderr`    | string | Standard error.                                    |
 | `exit_code` | number | Exit code (`0` for success, `-1` for exec errors). |
 
 ```lua
@@ -1796,12 +1798,12 @@ Arguments are validated before execution: shell-injection patterns and dangerous
 
 Execute a command asynchronously. The callback receives the same result table and is called on the main thread when the command completes. The UI remains responsive during execution.
 
-| Parameter  | Type     | Required | Description                                  |
-|------------|----------|----------|----------------------------------------------|
-| `binary`   | string   | yes      | Command to execute.                          |
+| Parameter  | Type     | Required | Description                                                                          |
+| ---------- | -------- | -------- | ------------------------------------------------------------------------------------ |
+| `binary`   | string   | yes      | Command to execute.                                                                  |
 | `args`     | table    | no       | Array of string arguments. May be omitted — the callback can be the second argument. |
-| `opts`     | table    | no       | Options table, same fields as `sys.exec`. Requires `args` to be passed too. |
-| `callback` | function | yes      | Receives the result table when done.         |
+| `opts`     | table    | no       | Options table, same fields as `sys.exec`. Requires `args` to be passed too.          |
+| `callback` | function | yes      | Receives the result table when done.                                                 |
 
 ```lua
 sys.exec_async("docker", {"ps", "--format", "{{.Names}}"}, function(result)
@@ -1859,20 +1861,20 @@ When an array is declared, `ttt.net` requests to any other host fail with a perm
 
 All HTTP functions return (or pass to callbacks) a response table:
 
-| Field     | Type   | Present      | Description                    |
-|-----------|--------|--------------|--------------------------------|
-| `status`  | number | always       | HTTP status code (`0` on error). |
-| `body`    | string | always       | Response body (empty on error). |
-| `headers` | table  | on success   | String-to-string map of response headers. |
-| `error`   | string | on error only | Error message.                 |
+| Field     | Type   | Present       | Description                               |
+| --------- | ------ | ------------- | ----------------------------------------- |
+| `status`  | number | always        | HTTP status code (`0` on error).          |
+| `body`    | string | always        | Response body (empty on error).           |
+| `headers` | table  | on success    | String-to-string map of response headers. |
+| `error`   | string | on error only | Error message.                            |
 
 ### `net.get(url, [opts])`
 
 Synchronous HTTP GET.
 
-| Parameter | Type   | Required | Description                                |
-|-----------|--------|----------|--------------------------------------------|
-| `url`     | string | yes      | Request URL.                               |
+| Parameter | Type   | Required | Description                                          |
+| --------- | ------ | -------- | ---------------------------------------------------- |
+| `url`     | string | yes      | Request URL.                                         |
 | `opts`    | table  | no       | Options table with `headers` (string-to-string map). |
 
 ```lua
@@ -1893,9 +1895,9 @@ local resp = net.get("https://api.example.com/data", {
 
 Synchronous HTTP POST.
 
-| Parameter | Type   | Required | Description                                |
-|-----------|--------|----------|--------------------------------------------|
-| `url`     | string | yes      | Request URL.                               |
+| Parameter | Type   | Required | Description                                   |
+| --------- | ------ | -------- | --------------------------------------------- |
+| `url`     | string | yes      | Request URL.                                  |
 | `opts`    | table  | no       | Options: `headers` (map) and `body` (string). |
 
 ```lua
@@ -1957,36 +1959,36 @@ Register an event listener. Multiple listeners can be registered for the same ev
 
 **File events** (require `events.file` permission):
 
-| Event         | Description                 |
-|---------------|-----------------------------|
-| `file.open`   | A file was opened.          |
-| `file.close`  | A file tab was closed.      |
-| `file.save`   | A file was saved.           |
+| Event        | Description            |
+| ------------ | ---------------------- |
+| `file.open`  | A file was opened.     |
+| `file.close` | A file tab was closed. |
+| `file.save`  | A file was saved.      |
 
 **Editor events** (require `events.editor` permission):
 
-| Event           | Description                 |
-|-----------------|-----------------------------|
-| `editor.change` | Buffer content changed.     |
-| `cursor.change` | Cursor position changed (line or column). |
+| Event           | Description                                                                                                          |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `editor.change` | Buffer content changed.                                                                                              |
+| `cursor.change` | Cursor position changed (line or column).                                                                            |
 | `tab.change`    | The active file changed — a tab switch, or a file opened from the CLI. Useful for re-scanning the newly active file. |
 
 File and editor callbacks receive the file path of the affected file as their single argument.
 
 **Key events** (require `keybindings` permission):
 
-| Event       | Description                                    |
-|-------------|------------------------------------------------|
-| `key.press` | A key was pressed while the editor has focus.  |
+| Event       | Description                                   |
+| ----------- | --------------------------------------------- |
+| `key.press` | A key was pressed while the editor has focus. |
 
 `key.press` is the hook for modal editing: it lets a plugin own the keyboard. The callback receives an event table and its return value decides what happens to the key.
 
-| Field  | Type   | Description                                                                 |
-|--------|--------|-----------------------------------------------------------------------------|
-| `type` | string | Always `"key"`.                                                             |
+| Field  | Type   | Description                                                                                                          |
+| ------ | ------ | -------------------------------------------------------------------------------------------------------------------- |
+| `type` | string | Always `"key"`.                                                                                                      |
 | `key`  | string | For printable keys, the character itself (`"j"`, `":"`). Otherwise the key name (`"Enter"`, `"Escape"`, `"Ctrl-D"`). |
-| `rune` | string | The character, present only for printable keys.                             |
-| `mod`  | string | Active modifiers joined by `+` (`"ctrl"`, `"ctrl+shift"`, `"alt"`). Absent when there are none. |
+| `rune` | string | The character, present only for printable keys.                                                                      |
+| `mod`  | string | Active modifiers joined by `+` (`"ctrl"`, `"ctrl+shift"`, `"alt"`). Absent when there are none.                      |
 
 **Returning `true` consumes the key** — the editor never sees it. Returning `false` (or nothing) lets it through to normal handling.
 
@@ -2066,10 +2068,10 @@ settings.set("formatters.go", nil)  -- removes the key
 
 ```json
 {
-  "permissions": {
-    "settings": true,
-    "settings_keys": ["formatters.*"]
-  }
+	"permissions": {
+		"settings": true,
+		"settings_keys": ["formatters.*"]
+	}
 }
 ```
 
@@ -2084,32 +2086,32 @@ settings.set("formatters.go", "gofmt")
 
 Named styles available for both widget and raw cell rendering. Actual colors depend on the user's theme.
 
-| Name       | Typical Usage                  |
-|------------|--------------------------------|
-| `default`  | Normal text                    |
-| `muted`    | Dimmed, secondary text         |
-| `border`   | Panel borders, separators      |
-| `success`  | Green, positive status         |
-| `danger`   | Red, errors                    |
-| `warning`  | Yellow, caution                |
-| `selected` | Highlighted/selected item      |
-| `item`     | List/palette item              |
-| `line`     | Line numbers                   |
-| `input`    | Input field text               |
-| `bold`     | Bold/emphasized text           |
-| `italic`   | Italic text                    |
-| `code`     | Code/monospace text            |
-| `syntax_comment`   | Syntax: comments       |
-| `syntax_string`    | Syntax: string literals |
-| `syntax_keyword`   | Syntax: keywords       |
-| `syntax_number`    | Syntax: numeric literals |
-| `syntax_operator`  | Syntax: operators      |
-| `syntax_function`  | Syntax: function names |
-| `syntax_type`      | Syntax: type names     |
+| Name               | Typical Usage                |
+| ------------------ | ---------------------------- |
+| `default`          | Normal text                  |
+| `muted`            | Dimmed, secondary text       |
+| `border`           | Panel borders, separators    |
+| `success`          | Green, positive status       |
+| `danger`           | Red, errors                  |
+| `warning`          | Yellow, caution              |
+| `selected`         | Highlighted/selected item    |
+| `item`             | List/palette item            |
+| `line`             | Line numbers                 |
+| `input`            | Input field text             |
+| `bold`             | Bold/emphasized text         |
+| `italic`           | Italic text                  |
+| `code`             | Code/monospace text          |
+| `syntax_comment`   | Syntax: comments             |
+| `syntax_string`    | Syntax: string literals      |
+| `syntax_keyword`   | Syntax: keywords             |
+| `syntax_number`    | Syntax: numeric literals     |
+| `syntax_operator`  | Syntax: operators            |
+| `syntax_function`  | Syntax: function names       |
+| `syntax_type`      | Syntax: type names           |
 | `syntax_builtin`   | Syntax: built-in identifiers |
-| `syntax_variable`  | Syntax: variables      |
-| `syntax_tag`       | Syntax: HTML/XML tags  |
-| `syntax_attribute` | Syntax: HTML/XML attributes |
+| `syntax_variable`  | Syntax: variables            |
+| `syntax_tag`       | Syntax: HTML/XML tags        |
+| `syntax_attribute` | Syntax: HTML/XML attributes  |
 
 Styles can be passed as a string or a table:
 
@@ -2136,11 +2138,11 @@ ttt.log("warn", "config file not found, using defaults")
 ttt.log("error", "failed to connect to service")
 ```
 
-| Level   | Display                          |
-|---------|----------------------------------|
-| `info`  | Default text color               |
-| `warn`  | Warning color (yellow)           |
-| `error` | Danger color (red)               |
+| Level   | Display                |
+| ------- | ---------------------- |
+| `info`  | Default text color     |
+| `warn`  | Warning color (yellow) |
+| `error` | Danger color (red)     |
 
 Messages appear in the OUTPUT panel with a timestamp and source prefix: `15:04:05 [my-plugin] message`. Open the OUTPUT panel via the bottom panel tabs or **Output: Show Panel** from the command palette.
 
@@ -2173,42 +2175,42 @@ If a callback function (`on_select`, `on_click`, etc.) throws an error, it is ca
 
 Permissions are declared in the manifest's `permissions` object. Boolean permissions are set to `true`; array permissions list specific values.
 
-| Permission       | Type     | Gates                                             |
-|------------------|----------|---------------------------------------------------|
-| `panel.sidebar`  | boolean  | Register a sidebar panel.                         |
-| `panel.bottom`   | boolean  | Register a bottom panel.                          |
-| `panel.drawer`   | boolean  | Open drawer panels via `ttt.open_drawer()`.         |
-| `panel.editor`   | boolean  | Open editor tabs via `ttt.open_tab()`.              |
-| `commands`       | boolean  | Register commands in the command palette.         |
-| `keybindings`    | boolean  | Bind keyboard shortcuts.                          |
-| `editor.read`    | boolean  | Read the contents of editor buffers (`ttt.editor` read functions). |
-| `editor.write`   | boolean  | Modify editor buffers (`ttt.editor` write functions). |
-| `editor.diagnostics` | boolean | Publish editor diagnostics/squiggles via `ttt.diagnostics`. |
-| `fs.read`        | boolean  | Read files and list directories (`ttt.fs` read functions). |
-| `fs.write`       | boolean  | Write files to the file system (`ttt.fs.write`).  |
-| `system.exec`    | string[] | Execute specific system commands. List each allowed binary name. |
-| `system.env`     | boolean  | Read environment variables (`ttt.system.env`).    |
-| `network.http`   | boolean \| string[] | Make outbound HTTP requests (`ttt.net`). `true` allows any host; an array (`["api.github.com"]`) restricts requests to those hostnames. See [Network host scoping](#network-host-scoping). |
-| `events.file`    | boolean  | Listen for file events: `file.open`, `file.close`, `file.save`. |
-| `events.editor`  | boolean  | Listen for editor events: `editor.change`, `cursor.change`, `tab.change`. |
-| `settings`       | boolean  | Read/write editor settings (`ttt.settings`).      |
-| `settings_keys`  | string[] | Allowed settings key patterns. Use `group.*` for prefix match or exact key. |
+| Permission           | Type                | Gates                                                                                                                                                                                      |
+| -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `panel.sidebar`      | boolean             | Register a sidebar panel.                                                                                                                                                                  |
+| `panel.bottom`       | boolean             | Register a bottom panel.                                                                                                                                                                   |
+| `panel.drawer`       | boolean             | Open drawer panels via `ttt.open_drawer()`.                                                                                                                                                |
+| `panel.editor`       | boolean             | Open editor tabs via `ttt.open_tab()`.                                                                                                                                                     |
+| `commands`           | boolean             | Register commands in the command palette.                                                                                                                                                  |
+| `keybindings`        | boolean             | Bind keyboard shortcuts.                                                                                                                                                                   |
+| `editor.read`        | boolean             | Read the contents of editor buffers (`ttt.editor` read functions).                                                                                                                         |
+| `editor.write`       | boolean             | Modify editor buffers (`ttt.editor` write functions).                                                                                                                                      |
+| `editor.diagnostics` | boolean             | Publish editor diagnostics/squiggles via `ttt.diagnostics`.                                                                                                                                |
+| `fs.read`            | boolean             | Read files and list directories (`ttt.fs` read functions).                                                                                                                                 |
+| `fs.write`           | boolean             | Write files to the file system (`ttt.fs.write`).                                                                                                                                           |
+| `system.exec`        | string[]            | Execute specific system commands. List each allowed binary name.                                                                                                                           |
+| `system.env`         | boolean             | Read environment variables (`ttt.system.env`).                                                                                                                                             |
+| `network.http`       | boolean \| string[] | Make outbound HTTP requests (`ttt.net`). `true` allows any host; an array (`["api.github.com"]`) restricts requests to those hostnames. See [Network host scoping](#network-host-scoping). |
+| `events.file`        | boolean             | Listen for file events: `file.open`, `file.close`, `file.save`.                                                                                                                            |
+| `events.editor`      | boolean             | Listen for editor events: `editor.change`, `cursor.change`, `tab.change`.                                                                                                                  |
+| `settings`           | boolean             | Read/write editor settings (`ttt.settings`).                                                                                                                                               |
+| `settings_keys`      | string[]            | Allowed settings key patterns. Use `group.*` for prefix match or exact key.                                                                                                                |
 
 **Example with multiple permissions:**
 
 ```json
 {
-  "name": "docker-manager",
-  "description": "Manage Docker containers, images and volumes",
-  "version": "0.1.0",
-  "author": "eugenioenko",
-  "entry": "init.lua",
-  "permissions": {
-    "panel.sidebar": true,
-    "commands": true,
-    "keybindings": true,
-    "system.exec": ["docker"]
-  }
+	"name": "docker-manager",
+	"description": "Manage Docker containers, images and volumes",
+	"version": "0.1.0",
+	"author": "eugenioenko",
+	"entry": "init.lua",
+	"permissions": {
+		"panel.sidebar": true,
+		"commands": true,
+		"keybindings": true,
+		"system.exec": ["docker"]
+	}
 }
 ```
 
@@ -2218,25 +2220,25 @@ Permissions are declared in the manifest's `permissions` object. Boolean permiss
 
 Plugins run in a sandboxed Lua 5.1 environment. Only safe standard library modules are available:
 
-| Module      | Available | Notes                        |
-|-------------|-----------|------------------------------|
+| Module      | Available | Notes                                                                                                                                                   |
+| ----------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `base`      | yes       | `type`, `tostring`, `tonumber`, `pairs`, `ipairs`, `select`, `unpack`, `error`, `pcall`, `xpcall`, `assert`, `rawequal`, `setmetatable`, `getmetatable` |
-| `string`    | yes       | Full string library (`format`, `find`, `gsub`, `match`, `sub`, `rep`, `upper`, `lower`, `byte`, `char`, `len`, `reverse`) |
-| `table`     | yes       | Full table library (`insert`, `remove`, `sort`, `concat`, `maxn`) |
-| `math`      | yes       | Full math library (`floor`, `ceil`, `sqrt`, `sin`, `cos`, `random`, `pi`, etc.) |
-| `coroutine` | yes       | Full coroutine library (`create`, `resume`, `yield`, `status`, `wrap`) |
-| `os`        | partial   | Safe subset only: `os.time()`, `os.clock()`, `os.date()`. Dangerous functions (`execute`, `remove`, `rename`, `exit`) are not available. |
-| `crypto`    | yes       | `crypto.random_bytes(n)` returns `n` cryptographically secure random bytes as a hex string (max 1024). `crypto.uuid()` returns a random UUID v4. |
-| `io`        | **no**    | Blocked entirely. Use `ttt.fs` instead. |
-| `debug`     | **no**    | Not loaded.                  |
+| `string`    | yes       | Full string library (`format`, `find`, `gsub`, `match`, `sub`, `rep`, `upper`, `lower`, `byte`, `char`, `len`, `reverse`)                               |
+| `table`     | yes       | Full table library (`insert`, `remove`, `sort`, `concat`, `maxn`)                                                                                       |
+| `math`      | yes       | Full math library (`floor`, `ceil`, `sqrt`, `sin`, `cos`, `random`, `pi`, etc.)                                                                         |
+| `coroutine` | yes       | Full coroutine library (`create`, `resume`, `yield`, `status`, `wrap`)                                                                                  |
+| `os`        | partial   | Safe subset only: `os.time()`, `os.clock()`, `os.date()`. Dangerous functions (`execute`, `remove`, `rename`, `exit`) are not available.                |
+| `crypto`    | yes       | `crypto.random_bytes(n)` returns `n` cryptographically secure random bytes as a hex string (max 1024). `crypto.uuid()` returns a random UUID v4.        |
+| `io`        | **no**    | Blocked entirely. Use `ttt.fs` instead.                                                                                                                 |
+| `debug`     | **no**    | Not loaded.                                                                                                                                             |
 
 ### `os` Module (safe subset)
 
-| Function     | Returns | Description |
-|--------------|---------|-------------|
-| `os.time()`  | number  | Current Unix timestamp (seconds since epoch). |
-| `os.clock()` | number  | Seconds elapsed since the editor started (wall-clock, fractional). |
-| `os.date([format])` | string | Format current time. Supports `%Y`, `%m`, `%d`, `%H`, `%M`, `%S`, `%c`, `%A`, `%a`, `%B`, `%b`, `%p`, `%I`, `%Z`, `%%`. Default format is `%c`. |
+| Function            | Returns | Description                                                                                                                                     |
+| ------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `os.time()`         | number  | Current Unix timestamp (seconds since epoch).                                                                                                   |
+| `os.clock()`        | number  | Seconds elapsed since the editor started (wall-clock, fractional).                                                                              |
+| `os.date([format])` | string  | Format current time. Supports `%Y`, `%m`, `%d`, `%H`, `%M`, `%S`, `%c`, `%A`, `%a`, `%B`, `%b`, `%p`, `%I`, `%Z`, `%%`. Default format is `%c`. |
 
 ```lua
 local now = os.time()           -- 1719532800
@@ -2246,10 +2248,10 @@ local date = os.date("%Y-%m-%d") -- "2026-06-28"
 
 ### `crypto` Module
 
-| Function | Returns | Description |
-|----------|---------|-------------|
-| `crypto.random_bytes(n)` | string | `n` cryptographically secure random bytes as a hex string. `n` must be 1–1024. |
-| `crypto.uuid()` | string | Random UUID v4 (e.g. `"550e8400-e29b-41d4-a716-446655440000"`). |
+| Function                 | Returns | Description                                                                    |
+| ------------------------ | ------- | ------------------------------------------------------------------------------ |
+| `crypto.random_bytes(n)` | string  | `n` cryptographically secure random bytes as a hex string. `n` must be 1–1024. |
+| `crypto.uuid()`          | string  | Random UUID v4 (e.g. `"550e8400-e29b-41d4-a716-446655440000"`).                |
 
 ```lua
 local bytes = crypto.random_bytes(16)  -- "a1b2c3d4e5f6..."  (32 hex chars)
@@ -2260,17 +2262,17 @@ local id = crypto.uuid()               -- "550e8400-e29b-41d4-a716-446655440000"
 
 **Module loading:** `require()` only allows these modules:
 
-| Module         | Description                    |
-|----------------|--------------------------------|
-| `ttt`          | Core module: `register`, `log`, `confirm`, `show_info`, `notify`, `set_status_item`, `remove_status_item`, `exec_command`, `list_commands`, `open_drawer`, `close_drawer`, `open_tab`, `close_tab`, `open_file`, `plugin_dir`, `platform`, `arch`, `version`, `set_timeout`, `set_interval`, `clear_timeout`, `clear_interval`, `on_install`, `on_uninstall`, `markdown`, `screenshot`, `debug`, `click`, `drag`, `quit` |
-| `ttt.json`     | JSON encode/decode             |
-| `ttt.editor`   | Editor buffer read/write       |
-| `ttt.diagnostics` | Publish editor diagnostics (squiggles) |
-| `ttt.fs`       | Filesystem access              |
-| `ttt.system`   | Command execution, env vars    |
-| `ttt.net`      | HTTP requests                  |
-| `ttt.events`   | Event listeners                |
-| `ttt.settings` | Read/write editor settings     |
+| Module            | Description                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ttt`             | Core module: `register`, `log`, `confirm`, `show_info`, `notify`, `set_status_item`, `remove_status_item`, `exec_command`, `list_commands`, `open_drawer`, `close_drawer`, `open_tab`, `close_tab`, `open_file`, `plugin_dir`, `platform`, `arch`, `version`, `set_timeout`, `set_interval`, `clear_timeout`, `clear_interval`, `on_install`, `on_uninstall`, `markdown`, `screenshot`, `debug`, `click`, `drag`, `quit` |
+| `ttt.json`        | JSON encode/decode                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `ttt.editor`      | Editor buffer read/write                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `ttt.diagnostics` | Publish editor diagnostics (squiggles)                                                                                                                                                                                                                                                                                                                                                                                   |
+| `ttt.fs`          | Filesystem access                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `ttt.system`      | Command execution, env vars                                                                                                                                                                                                                                                                                                                                                                                              |
+| `ttt.net`         | HTTP requests                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `ttt.events`      | Event listeners                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `ttt.settings`    | Read/write editor settings                                                                                                                                                                                                                                                                                                                                                                                               |
 
 Any other module name passed to `require()` raises an error.
 
@@ -2332,15 +2334,17 @@ Run **Plugins: Enable** or **Plugins: Disable** from the command palette to togg
 A sidebar panel that shows a static file tree:
 
 `plugin.ttt.json`:
+
 ```json
 {
-  "name": "file-tree",
-  "entry": "init.lua",
-  "permissions": { "panel.sidebar": true }
+	"name": "file-tree",
+	"entry": "init.lua",
+	"permissions": { "panel.sidebar": true }
 }
 ```
 
 `init.lua`:
+
 ```lua
 local ttt = require("ttt")
 
@@ -2390,15 +2394,17 @@ ttt.register({
 A bottom panel with a search input and results list:
 
 `plugin.ttt.json`:
+
 ```json
 {
-  "name": "search-panel",
-  "entry": "init.lua",
-  "permissions": { "panel.bottom": true }
+	"name": "search-panel",
+	"entry": "init.lua",
+	"permissions": { "panel.bottom": true }
 }
 ```
 
 `init.lua`:
+
 ```lua
 local ttt = require("ttt")
 
@@ -2457,9 +2463,9 @@ A sidebar panel demonstrating context menus on tree items:
 
 ```json
 {
-  "name": "context-menu-demo",
-  "entry": "init.lua",
-  "permissions": { "panel.sidebar": true }
+	"name": "context-menu-demo",
+	"entry": "init.lua",
+	"permissions": { "panel.sidebar": true }
 }
 ```
 
@@ -2513,9 +2519,9 @@ Demonstrates using VStack and Box for structured layouts:
 
 ```json
 {
-  "name": "layout-demo",
-  "entry": "init.lua",
-  "permissions": { "panel.sidebar": true }
+	"name": "layout-demo",
+	"entry": "init.lua",
+	"permissions": { "panel.sidebar": true }
 }
 ```
 
@@ -2575,9 +2581,9 @@ A sidebar panel using only the raw cell API. (For an actual progress bar, prefer
 
 ```json
 {
-  "name": "progress",
-  "entry": "init.lua",
-  "permissions": { "panel.sidebar": true }
+	"name": "progress",
+	"entry": "init.lua",
+	"permissions": { "panel.sidebar": true }
 }
 ```
 
@@ -2617,20 +2623,22 @@ ttt.register({
 A sidebar panel that shows `git status` output and refreshes on file save:
 
 `plugin.ttt.json`:
+
 ```json
 {
-  "name": "git-status",
-  "entry": "init.lua",
-  "version": "0.1.0",
-  "permissions": {
-    "panel.sidebar": true,
-    "system.exec": ["git"],
-    "events.file": true
-  }
+	"name": "git-status",
+	"entry": "init.lua",
+	"version": "0.1.0",
+	"permissions": {
+		"panel.sidebar": true,
+		"system.exec": ["git"],
+		"events.file": true
+	}
 }
 ```
 
 `init.lua`:
+
 ```lua
 local ttt = require("ttt")
 local sys = require("ttt.system")

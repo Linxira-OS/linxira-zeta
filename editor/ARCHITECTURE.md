@@ -34,12 +34,12 @@ boundaries over a greenfield rewrite.
 
 Recorded on 2026-08-23 at `65fc238`:
 
-| Package | Production Go files | Production LOC | Direct internal package dependencies | Direct tcell importers |
-|---|---:|---:|---:|---:|
-| `internal/app` | 54 | 17,710 | 19 | 22 |
-| `internal/ui` | 59 | 19,393 | 17 | 37 |
-| `internal/widgets` | 30 | 6,608 | 5 | 25 |
-| `internal/plugin` | 25 | 5,898 | 3 | 5 |
+| Package            | Production Go files | Production LOC | Direct internal package dependencies | Direct tcell importers |
+| ------------------ | ------------------: | -------------: | -----------------------------------: | ---------------------: |
+| `internal/app`     |                  54 |         17,710 |                                   19 |                     22 |
+| `internal/ui`      |                  59 |         19,393 |                                   17 |                     37 |
+| `internal/widgets` |                  30 |          6,608 |                                    5 |                     25 |
+| `internal/plugin`  |                  25 |          5,898 |                                    3 |                      5 |
 
 `internal/app` and `internal/ui` contain 37,103 of 57,962 production Go
 lines under `internal` (64.0%). These measurements indicate concentration, not
@@ -137,11 +137,11 @@ Known violations describe current code that conflicts with the target zones.
 They do not authorize similar dependencies. Each violation must have a bounded
 cleanup lane, characterization evidence, and an exit condition.
 
-| Violation | Freeze rule | Cleanup lane | Exit condition |
-|---|---|---|---|
-| Product UI directly owns some search subprocess and filesystem discovery work | Add no new process or filesystem lifecycle to `internal/ui` | IO1 -> IO2 | UI receives typed results and emits intents through an application or service API |
-| App state and lifecycle are spread across the root `App` and feature files | Add new async state only behind an explicit owner or with a named follow-up owner | AL, AT, AP | Selected subsystems own their timers, cancellation, identities, mutation boundary, and shutdown |
-| Input, scrollbar, and diff projection behavior is duplicated | Fix shared invariants in every affected path until consolidation is complete | S1/S2, I1/I2/I3, D1-D4 | One canonical model remains for each shared contract and old paths are deleted |
+| Violation                                                                     | Freeze rule                                                                       | Cleanup lane           | Exit condition                                                                                  |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| Product UI directly owns some search subprocess and filesystem discovery work | Add no new process or filesystem lifecycle to `internal/ui`                       | IO1 -> IO2             | UI receives typed results and emits intents through an application or service API               |
+| App state and lifecycle are spread across the root `App` and feature files    | Add new async state only behind an explicit owner or with a named follow-up owner | AL, AT, AP             | Selected subsystems own their timers, cancellation, identities, mutation boundary, and shutdown |
+| Input, scrollbar, and diff projection behavior is duplicated                  | Fix shared invariants in every affected path until consolidation is complete      | S1/S2, I1/I2/I3, D1-D4 | One canonical model remains for each shared contract and old paths are deleted                  |
 
 Direct `tcell` use in presentation packages is not listed as a violation. It is
 an explicit boundary decision below. Issue #495 is resolved by documenting and

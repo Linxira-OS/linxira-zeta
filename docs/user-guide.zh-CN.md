@@ -123,14 +123,13 @@ Telegram、飞书或微信回复你的消息，并把 agent 的回答转发回�
 Web / 消息渠道 → “关闭窗口时最小化到托盘”）；通过托盘菜单重新打开窗口
 或退出。
 
-
 ## 桌面入口：`zeta-d` 与 `zeta`
 
 桌面安装只向 PATH 注册一个命令：`zeta-d`。
 
 - `zeta-d` — 运行捆绑的 CLI/TUI（与 `zeta` 体验一致）。
 - `zeta-d -d` — 在当前目录打开桌面 GUI；也可传路径（`zeta-d -d
-  ~/projects/foo`）指定工作区。
+~/projects/foo`）指定工作区。
 
 裸 `zeta` 永远属于 npm/源码安装，桌面捆绑包绝不注册该名称，两者共存零冲突。
 npm 安装也可以用 `zeta --desktop [cwd]` 打开桌面 GUI；未找到桌面安装时会列出

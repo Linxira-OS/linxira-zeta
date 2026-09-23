@@ -8,7 +8,7 @@ Disabled by default. Toggle via `/settings` UI or directly in `config.yml`:
 
 ```yaml
 secrets:
-  enabled: true
+   enabled: true
 ```
 
 ## How it works
@@ -36,8 +36,8 @@ Obfuscate-mode plain values and regex matches shorter than 8 characters are igno
 
 Define custom secret entries in YAML. Two locations are checked:
 
-| Level   | Path                       | Purpose                     |
-| ------- | -------------------------- | --------------------------- |
+| Level   | Path                        | Purpose                     |
+| ------- | --------------------------- | --------------------------- |
 | Global  | `~/.zeta/agent/secrets.yml` | Secrets across all projects |
 | Project | `<cwd>/.zeta/secrets.yml`   | Project-specific secrets    |
 

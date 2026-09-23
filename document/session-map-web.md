@@ -8,21 +8,21 @@
 - web-ui 高阶页：surface tab **「地图」**，挂在中央列 surface tabs 体系内
   （与 Chat / Trajectory / Git / Diff / Files / Terminal / Stats 同级）。
 - 两块内容：
-  1. **fork 可视化**——会话级 fork 链 + 轮内分支（entry 级 tree）的图状投影；
-  2. **team agent 对话投影**——agent-team（见
-     [agent-team-plugin.md](./agent-team-plugin.md)）成员消息流的地图视图，
-     属 M2，本期只定数据面契约（§6）。
+   1. **fork 可视化**——会话级 fork 链 + 轮内分支（entry 级 tree）的图状投影；
+   2. **team agent 对话投影**——agent-team（见
+      [agent-team-plugin.md](./agent-team-plugin.md)）成员消息流的地图视图，
+      属 M2，本期只定数据面契约（§6）。
 - 边界（红线一致）：**不建第二套会话历史**；删除/归档操作不进地图；
   私有浏览/本地存储失败不阻塞会话操作（dsh-synapse 语义）。
 
 ## 2. 数据源（全部现有，零后端新面起步）
 
-| 数据 | 来源 | 说明 |
-|---|---|---|
-| 会话 fork 链 | `GET /api/sessions` DTO 的 `parentSessionId`（sessions.ts DTO 组装处，`parentSessionPath → pathToId` 投影） | 会话级父链 |
-| 轮内分支 | `GET /api/sessions/:id` 的 `tree` 字段（`sm.getTree()` 投影） | entry 级分支；`navigate_tree`/`fork` op 已有 |
-| 运行状态 | SSE `/api/agent/running/events` | running 高亮（与侧栏同一事件源） |
-| 会话详情/切换 | 现有 `onSelectSession` 体系 | 点击卡片跳转 |
+| 数据          | 来源                                                                                                        | 说明                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 会话 fork 链  | `GET /api/sessions` DTO 的 `parentSessionId`（sessions.ts DTO 组装处，`parentSessionPath → pathToId` 投影） | 会话级父链                                   |
+| 轮内分支      | `GET /api/sessions/:id` 的 `tree` 字段（`sm.getTree()` 投影）                                               | entry 级分支；`navigate_tree`/`fork` op 已有 |
+| 运行状态      | SSE `/api/agent/running/events`                                                                             | running 高亮（与侧栏同一事件源）             |
+| 会话详情/切换 | 现有 `onSelectSession` 体系                                                                                 | 点击卡片跳转                                 |
 
 ## 3. 投影模型（照 dsh-synapse 架构边界）
 
@@ -43,11 +43,11 @@
 
 ## 5. Milestone
 
-| 阶段 | 内容 | 依赖 |
-|---|---|---|
-| SM0 | surface tab 注册 + 只读投影（fork 链 + tree 分支） | 无（数据面已存在） |
-| SM1 | 拖拽布局 + localStorage 持久化 + running/unread 节点状态 | SM0 |
-| SM2 | team agent 对话投影 | agent-team M0/M1（见 §6） |
+| 阶段 | 内容                                                     | 依赖                      |
+| ---- | -------------------------------------------------------- | ------------------------- |
+| SM0  | surface tab 注册 + 只读投影（fork 链 + tree 分支）       | 无（数据面已存在）        |
+| SM1  | 拖拽布局 + localStorage 持久化 + running/unread 节点状态 | SM0                       |
+| SM2  | team agent 对话投影                                      | agent-team M0/M1（见 §6） |
 
 ## 6. team agent 对话投影的数据面契约（本期不实现）
 

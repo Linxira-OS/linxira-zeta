@@ -29,14 +29,14 @@ Browser ── :30141 (Bun.serve, ZetaServer)
 
 ## 路由归属
 
-| 路径 | 归属 | 状态 |
-| --- | --- | --- |
-| `api/sessions`、`api/sessions/[id]`、`[id]/context`、`[id]/state`、`[id]/entries/[entryId]/thinking`、`[id]/export` | Gateway | W1 ✅ |
-| `api/agent/new`、`api/agent/[id]`、`[id]/events`、`api/agent/running/events` | Gateway（rpc-manager 迁移） | W2 ✅ |
-| `api/agent/[id]/bash-output` | Gateway | W2 不实现（运行时会话无 `pi-bash-*.log` 临时文件，bash 全量输出走 session artifact；`role === "bashExecution"` 消息在运行时会话文件中不存在，web-ui 永远不会为此构建链接 → 保持 404） |
-| `api/auth/*`（5 条）、`api/models`、`api/models-config`、`models-config/test` | Gateway（AuthStorage/ModelRegistry） | W3 ✅ |
-| `api/skills/*`（5 条）、`api/plugins` | Gateway（`DefaultResourceLoader`/`DefaultPackageManager`） | W4 ✅ |
-| `api/fs/*`、`api/files/*`、`api/cwd/*`、`api/git/*`、`api/home`、`api/default-cwd`、`api/worktrees`、`api/tracking`、`api/file-index` | **留在 Next**（纯 Node，无 runtime import） | — |
+| 路径                                                                                                                                  | 归属                                                       | 状态                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api/sessions`、`api/sessions/[id]`、`[id]/context`、`[id]/state`、`[id]/entries/[entryId]/thinking`、`[id]/export`                   | Gateway                                                    | W1 ✅                                                                                                                                                                                 |
+| `api/agent/new`、`api/agent/[id]`、`[id]/events`、`api/agent/running/events`                                                          | Gateway（rpc-manager 迁移）                                | W2 ✅                                                                                                                                                                                 |
+| `api/agent/[id]/bash-output`                                                                                                          | Gateway                                                    | W2 不实现（运行时会话无 `pi-bash-*.log` 临时文件，bash 全量输出走 session artifact；`role === "bashExecution"` 消息在运行时会话文件中不存在，web-ui 永远不会为此构建链接 → 保持 404） |
+| `api/auth/*`（5 条）、`api/models`、`api/models-config`、`models-config/test`                                                         | Gateway（AuthStorage/ModelRegistry）                       | W3 ✅                                                                                                                                                                                 |
+| `api/skills/*`（5 条）、`api/plugins`                                                                                                 | Gateway（`DefaultResourceLoader`/`DefaultPackageManager`） | W4 ✅                                                                                                                                                                                 |
+| `api/fs/*`、`api/files/*`、`api/cwd/*`、`api/git/*`、`api/home`、`api/default-cwd`、`api/worktrees`、`api/tracking`、`api/file-index` | **留在 Next**（纯 Node，无 runtime import）                | —                                                                                                                                                                                     |
 
 ## 网关内部模块（`packages/coding-agent/src/server/web-gateway/`）
 
@@ -120,7 +120,7 @@ web-ui 侧类型定义保留（客户端在用），路由文件删除。
 
 ## 环境变量
 
-| 变量 | 默认 | 说明 |
-| --- | --- | --- |
-| `ZETA_WEB_GATEWAY_PORT` | `30142` | Gateway 监听端口（仅 127.0.0.1） |
-| `ZETA_WEB_GATEWAY_URL` | `http://127.0.0.1:30142` | Next rewrites 目标（web-ui 侧） |
+| 变量                    | 默认                     | 说明                             |
+| ----------------------- | ------------------------ | -------------------------------- |
+| `ZETA_WEB_GATEWAY_PORT` | `30142`                  | Gateway 监听端口（仅 127.0.0.1） |
+| `ZETA_WEB_GATEWAY_URL`  | `http://127.0.0.1:30142` | Next rewrites 目标（web-ui 侧）  |

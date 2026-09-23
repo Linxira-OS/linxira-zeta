@@ -17,10 +17,10 @@ Browser → :30141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:3847
 
 ## Routing
 
-| Path prefix | Backend |
-|---|---|
-| `/api/stats`, `/api/sync`, `/api/request/*` | Stats Dashboard |
-| Everything else | Web UI (Next.js) |
+| Path prefix                                 | Backend          |
+| ------------------------------------------- | ---------------- |
+| `/api/stats`, `/api/sync`, `/api/request/*` | Stats Dashboard  |
+| Everything else                             | Web UI (Next.js) |
 
 ## Usage
 
@@ -46,13 +46,13 @@ zeta serve --no-browser
 import { startZetaServer } from "@linxiraos/zeta/server/zeta-server";
 
 const instance = await startZetaServer({
-  port: 30141,
-  statsPort: 3847,
-  noBrowser: false,
+	port: 30141,
+	statsPort: 3847,
+	noBrowser: false,
 });
 
-console.log(instance.url);       // http://localhost:30141
-console.log(instance.statsUrl);  // http://localhost:3847
+console.log(instance.url); // http://localhost:30141
+console.log(instance.statsUrl); // http://localhost:3847
 
 // Graceful shutdown
 await instance.shutdown();
@@ -60,13 +60,13 @@ await instance.shutdown();
 
 ### Options
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `port` | `number` | `30141` | Main server port |
-| `statsPort` | `number` | `3847` | Stats Dashboard port |
+| Option      | Type      | Default | Description                 |
+| ----------- | --------- | ------- | --------------------------- |
+| `port`      | `number`  | `30141` | Main server port            |
+| `statsPort` | `number`  | `3847`  | Stats Dashboard port        |
 | `noBrowser` | `boolean` | `false` | Don't open browser on start |
-| `statsOnly` | `boolean` | `false` | Start only Stats Dashboard |
-| `webOnly` | `boolean` | `false` | Start only Web UI |
+| `statsOnly` | `boolean` | `false` | Start only Stats Dashboard  |
+| `webOnly`   | `boolean` | `false` | Start only Web UI           |
 
 ## Lifecycle
 
@@ -79,6 +79,7 @@ await instance.shutdown();
 Source: `packages/coding-agent/src/server/zeta-server.ts`
 
 The `ZetaServer` class manages the full lifecycle:
+
 - Stats Dashboard is started via `@linxiraos/pi-stats`'s `startServer()`
 - Web UI is spawned as a child process via `spawnWebUi()` from `commands/web-ui-launcher`
 - The main `Bun.serve` proxy strips hop-by-hop headers and forwards requests to the appropriate backend

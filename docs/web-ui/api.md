@@ -15,7 +15,7 @@ Session ids are `[A-Za-z0-9-]+`; provider ids are `[A-Za-z0-9_.-]+`.
 List all sessions.
 
 ```json
-{ "sessions": [ /* SessionInfo[] */ ], "runningSessionIds": ["..."] }
+{ "sessions": [/* SessionInfo[] */], "runningSessionIds": ["..."] }
 ```
 
 ### `GET /api/sessions/:id`
@@ -44,7 +44,7 @@ Session context. Query: `leafId`, `deferThinking`, `deferMedia`.
 Live agent state. While the RPC session is alive:
 
 ```json
-{ "running": true, "state": { /* AgentState, see below */ } }
+{ "running": true, "state": {/* AgentState, see below */} }
 ```
 
 `AgentState` fields: `sessionId`, `sessionName`, `model`

@@ -5,91 +5,91 @@ import { cleanupDir, createGitRepo, createTempDir, createTempFile, git } from ".
 let dir;
 
 afterEach(() => {
-  tui.kill();
-  if (dir) cleanupDir(dir);
+	tui.kill();
+	if (dir) cleanupDir(dir);
 });
 
 describe("commit history detail", () => {
-  it("opens a selected commit file as its own diff", () => {
-    dir = createGitRepo(createTempDir());
-    createTempFile(dir, "selected-detail.txt", "selected commit content\n");
-    git(dir, "add", "-A");
-    git(dir, "commit", "-qm", "selected detail");
+	it("opens a selected commit file as its own diff", () => {
+		dir = createGitRepo(createTempDir());
+		createTempFile(dir, "selected-detail.txt", "selected commit content\n");
+		git(dir, "add", "-A");
+		git(dir, "commit", "-qm", "selected detail");
 
-    tui.start(dir);
-    tui.pressChord("ctrl+k", "c");
-    tui.waitFor("selected detail");
-    tui.press("tab");
-    tui.press("tab");
-    tui.press("down");
-    tui.press("right");
-    tui.waitFor("selected-detail.txt");
-    tui.press("down");
-    tui.exec("Git: Open Changes");
-    tui.waitFor("selected-detail.txt @");
-    const opened = tui.snapshot();
+		tui.start(dir);
+		tui.pressChord("ctrl+k", "c");
+		tui.waitFor("selected detail");
+		tui.press("tab");
+		tui.press("tab");
+		tui.press("down");
+		tui.press("right");
+		tui.waitFor("selected-detail.txt");
+		tui.press("down");
+		tui.exec("Git: Open Changes");
+		tui.waitFor("selected-detail.txt @");
+		const opened = tui.snapshot();
 
-    const { snapshots } = tui.run();
-    expect(snapshots[opened]).toMatch(/selected-detail\.txt @ [0-9a-f]{7,}/);
-    expect(snapshots[opened]).toContain("selected commit content");
-  });
+		const { snapshots } = tui.run();
+		expect(snapshots[opened]).toMatch(/selected-detail\.txt @ [0-9a-f]{7,}/);
+		expect(snapshots[opened]).toContain("selected commit content");
+	});
 
-  it("appends bounded history pages only from the explicit sentinel", () => {
-    dir = createGitRepo(createTempDir());
-    for (let index = 1; index <= 60; index++) {
-      git(dir, "commit", "--allow-empty", "-qm", `paged ${String(index).padStart(2, "0")}`);
-    }
+	it("appends bounded history pages only from the explicit sentinel", () => {
+		dir = createGitRepo(createTempDir());
+		for (let index = 1; index <= 60; index++) {
+			git(dir, "commit", "--allow-empty", "-qm", `paged ${String(index).padStart(2, "0")}`);
+		}
 
-    tui.start(dir);
-    tui.pressChord("ctrl+k", "c");
-    tui.waitFor("paged 60");
-    tui.press("tab");
-    tui.press("tab");
-    for (let index = 0; index < 11; index++) tui.press("down");
-    const sentinel = tui.snapshot();
-    tui.press("enter");
-    tui.waitFor("paged 50");
-    const firstPage = tui.snapshot();
-    for (let index = 0; index < 50; index++) tui.press("down");
-    tui.press("enter");
-    tui.waitFor("initial commit");
-    const lastPage = tui.snapshot();
+		tui.start(dir);
+		tui.pressChord("ctrl+k", "c");
+		tui.waitFor("paged 60");
+		tui.press("tab");
+		tui.press("tab");
+		for (let index = 0; index < 11; index++) tui.press("down");
+		const sentinel = tui.snapshot();
+		tui.press("enter");
+		tui.waitFor("paged 50");
+		const firstPage = tui.snapshot();
+		for (let index = 0; index < 50; index++) tui.press("down");
+		tui.press("enter");
+		tui.waitFor("initial commit");
+		const lastPage = tui.snapshot();
 
-    const { snapshots } = tui.run();
-    expect(snapshots[sentinel]).toContain("Load older commits…");
-    expect(snapshots[firstPage]).toContain("paged 50");
-    expect(snapshots[lastPage]).toContain("initial commit");
-    expect(snapshots[lastPage]).not.toContain("Load older commits…");
-  });
+		const { snapshots } = tui.run();
+		expect(snapshots[sentinel]).toContain("Load older commits…");
+		expect(snapshots[firstPage]).toContain("paged 50");
+		expect(snapshots[lastPage]).toContain("initial commit");
+		expect(snapshots[lastPage]).not.toContain("Load older commits…");
+	});
 
-  it("opens one read-only document with metadata and every changed file", () => {
-    dir = createGitRepo(createTempDir());
-    createTempFile(dir, "first-detail.txt", "first old\n");
-    createTempFile(dir, "second-detail.txt", "second old\n");
-    git(dir, "add", "-A");
-    git(dir, "commit", "-qm", "detail subject", "-m", "Full detail body.");
+	it("opens one read-only document with metadata and every changed file", () => {
+		dir = createGitRepo(createTempDir());
+		createTempFile(dir, "first-detail.txt", "first old\n");
+		createTempFile(dir, "second-detail.txt", "second old\n");
+		git(dir, "add", "-A");
+		git(dir, "commit", "-qm", "detail subject", "-m", "Full detail body.");
 
-    tui.start(dir);
-    tui.pressChord("ctrl+k", "c");
-    tui.waitFor("detail subject");
-    // Changes focus starts in the working tree. The next two stops are the
-    // commit input and the responsive Commit History tree.
-    tui.press("tab");
-    tui.press("tab");
-    tui.press("down");
-    tui.press("enter");
-    tui.waitFor("Full detail body.");
-    const detail = tui.snapshot();
+		tui.start(dir);
+		tui.pressChord("ctrl+k", "c");
+		tui.waitFor("detail subject");
+		// Changes focus starts in the working tree. The next two stops are the
+		// commit input and the responsive Commit History tree.
+		tui.press("tab");
+		tui.press("tab");
+		tui.press("down");
+		tui.press("enter");
+		tui.waitFor("Full detail body.");
+		const detail = tui.snapshot();
 
-    const { snapshots } = tui.run();
-    expect(snapshots[detail]).toMatch(/Commit [0-9a-f]{7,}/);
-    expect(snapshots[detail]).toContain("detail subject");
-    expect(snapshots[detail]).toContain("Full detail body.");
-    expect(snapshots[detail]).toMatch(/Authored [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d{2}:\d{2} [AP]M [+-]\d{4}/);
-    expect(snapshots[detail]).toContain("first-detail.txt");
-    expect(snapshots[detail]).toContain("first old");
-    expect(snapshots[detail]).toContain("second-detail.txt");
-    expect(snapshots[detail]).toContain("second old");
+		const { snapshots } = tui.run();
+		expect(snapshots[detail]).toMatch(/Commit [0-9a-f]{7,}/);
+		expect(snapshots[detail]).toContain("detail subject");
+		expect(snapshots[detail]).toContain("Full detail body.");
+		expect(snapshots[detail]).toMatch(/Authored [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d{2}:\d{2} [AP]M [+-]\d{4}/);
+		expect(snapshots[detail]).toContain("first-detail.txt");
+		expect(snapshots[detail]).toContain("first old");
+		expect(snapshots[detail]).toContain("second-detail.txt");
+		expect(snapshots[detail]).toContain("second old");
 	});
 
 	it("loads the whole typed file snapshot for Full File context", () => {
@@ -159,33 +159,33 @@ describe("commit history detail", () => {
 		expect(snapshots[tabMenu]).toContain("✓ Unified");
 	});
 
-  it("uses shared Git bulk commands for commit-detail file groupings", () => {
-    dir = createGitRepo(createTempDir());
-    createTempFile(dir, "bulk-detail.txt", "visible detail line\n");
-    git(dir, "add", "-A");
-    git(dir, "commit", "-qm", "bulk detail");
+	it("uses shared Git bulk commands for commit-detail file groupings", () => {
+		dir = createGitRepo(createTempDir());
+		createTempFile(dir, "bulk-detail.txt", "visible detail line\n");
+		git(dir, "add", "-A");
+		git(dir, "commit", "-qm", "bulk detail");
 
-    tui.start(dir);
-    tui.pressChord("ctrl+k", "c");
-    tui.waitFor("bulk detail");
-    tui.press("tab");
-    tui.press("tab");
-    tui.press("down");
-    tui.press("enter");
-    tui.waitFor("visible detail line");
-    const expanded = tui.snapshot();
-    tui.exec("Git: Collapse All File Trees");
-    const collapsed = tui.snapshot();
-    tui.exec("Git: Expand All File Trees");
-    const restored = tui.snapshot();
-    tui.rclick(40, 12);
-    const context = tui.snapshot();
+		tui.start(dir);
+		tui.pressChord("ctrl+k", "c");
+		tui.waitFor("bulk detail");
+		tui.press("tab");
+		tui.press("tab");
+		tui.press("down");
+		tui.press("enter");
+		tui.waitFor("visible detail line");
+		const expanded = tui.snapshot();
+		tui.exec("Git: Collapse All File Trees");
+		const collapsed = tui.snapshot();
+		tui.exec("Git: Expand All File Trees");
+		const restored = tui.snapshot();
+		tui.rclick(40, 12);
+		const context = tui.snapshot();
 
-    const { snapshots } = tui.run();
-    expect(snapshots[expanded]).toContain("visible detail line");
-    expect(snapshots[collapsed]).not.toContain("visible detail line");
-    expect(snapshots[restored]).toContain("visible detail line");
-    expect(snapshots[context]).toContain("Expand All Files");
-    expect(snapshots[context]).toContain("Collapse All Files");
-  });
+		const { snapshots } = tui.run();
+		expect(snapshots[expanded]).toContain("visible detail line");
+		expect(snapshots[collapsed]).not.toContain("visible detail line");
+		expect(snapshots[restored]).toContain("visible detail line");
+		expect(snapshots[context]).toContain("Expand All Files");
+		expect(snapshots[context]).toContain("Collapse All Files");
+	});
 });

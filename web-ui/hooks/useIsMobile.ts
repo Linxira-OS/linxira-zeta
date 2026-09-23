@@ -6,19 +6,19 @@ import { useSyncExternalStore } from "react";
 const MOBILE_QUERY = "(max-width: 640px)";
 
 function subscribe(cb: () => void): () => void {
-  if (typeof window === "undefined" || !window.matchMedia) return () => {};
-  const mql = window.matchMedia(MOBILE_QUERY);
-  mql.addEventListener("change", cb);
-  return () => mql.removeEventListener("change", cb);
+	if (typeof window === "undefined" || !window.matchMedia) return () => {};
+	const mql = window.matchMedia(MOBILE_QUERY);
+	mql.addEventListener("change", cb);
+	return () => mql.removeEventListener("change", cb);
 }
 
 function getSnapshot(): boolean {
-  if (typeof window === "undefined" || !window.matchMedia) return false;
-  return window.matchMedia(MOBILE_QUERY).matches;
+	if (typeof window === "undefined" || !window.matchMedia) return false;
+	return window.matchMedia(MOBILE_QUERY).matches;
 }
 
 function getServerSnapshot(): boolean {
-  return false;
+	return false;
 }
 
 /**
@@ -27,5 +27,5 @@ function getServerSnapshot(): boolean {
  * then syncs to the real viewport after hydration.
  */
 export function useIsMobile(): boolean {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+	return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

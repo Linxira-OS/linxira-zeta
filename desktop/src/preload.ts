@@ -12,7 +12,8 @@ interface DesktopOpenTarget {
  */
 const api = {
 	/** Open the OS directory picker; resolves to the chosen path or null on cancel. */
-	selectDirectory: (startPath?: string): Promise<string | null> => ipcRenderer.invoke("pi:select-directory", startPath),
+	selectDirectory: (startPath?: string): Promise<string | null> =>
+		ipcRenderer.invoke("pi:select-directory", startPath),
 	/** Host-defined open targets; IDs are opaque to the renderer. */
 	getOpenTargets: (): Promise<DesktopOpenTarget[]> => ipcRenderer.invoke("pi:open-targets"),
 	/** Opens only a gateway-authorized directory through a host-defined target. */
@@ -31,7 +32,9 @@ const api = {
 	close: (): Promise<void> => ipcRenderer.invoke("pi:window-close"),
 	/** Query whether the window is currently maximized. */
 	isMaximized: (): Promise<boolean> =>
-		ipcRenderer.invoke("pi:window-state").then((state: unknown) => Boolean((state as { maximized?: boolean } | null)?.maximized)),
+		ipcRenderer
+			.invoke("pi:window-state")
+			.then((state: unknown) => Boolean((state as { maximized?: boolean } | null)?.maximized)),
 	/**
 	 * Subscribe to window-state changes (maximize / restore / full screen).
 	 * Returns an unsubscribe function.

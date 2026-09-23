@@ -76,7 +76,14 @@ function RunningIndicator({ startedMs }: { startedMs: number }) {
 		<span
 			title={t("sidebar.agentRunning")}
 			aria-label={t("sidebar.agentRunning")}
-			style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, color: "var(--accent)", fontVariantNumeric: "tabular-nums" }}
+			style={{
+				display: "inline-flex",
+				alignItems: "center",
+				gap: 4,
+				flexShrink: 0,
+				color: "var(--accent)",
+				fontVariantNumeric: "tabular-nums",
+			}}
 		>
 			<span
 				style={{
@@ -224,11 +231,17 @@ export function SessionNodeItem({
 	return (
 		<div
 			data-session-row={session.id}
-			onClick={confirmDelete || renaming ? undefined : editMode ? e => onToggleSelect?.({ shift: e.shiftKey, visibleIds }) : onClick}
+			onClick={
+				confirmDelete || renaming
+					? undefined
+					: editMode
+						? e => onToggleSelect?.({ shift: e.shiftKey, visibleIds })
+						: onClick
+			}
 			onContextMenu={
 				editMode || confirmDelete || renaming
 					? undefined
-					: (e) => {
+					: e => {
 							if (onRowContextMenu) {
 								e.preventDefault();
 								onRowContextMenu(e);
@@ -306,7 +319,16 @@ export function SessionNodeItem({
 								whiteSpace: "nowrap",
 							}}
 						>
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
 								<polyline points="3 6 5 6 21 6" />
 								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
 								<path d="M10 11v6M14 11v6" />
@@ -387,7 +409,16 @@ export function SessionNodeItem({
 							aria-checked={isChecked}
 						>
 							{isChecked && (
-								<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+								<svg
+									width="10"
+									height="10"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="3"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
 									<polyline points="20 6 9 17 4 12" />
 								</svg>
 							)}
@@ -500,7 +531,17 @@ export function SessionNodeItem({
 										overflow: "hidden",
 									}}
 								>
-									<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+									<svg
+										width="9"
+										height="9"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.4"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										style={{ flexShrink: 0 }}
+									>
 										<line x1="6" y1="3" x2="6" y2="15" />
 										<circle cx="18" cy="6" r="3" />
 										<circle cx="6" cy="18" r="3" />
@@ -544,7 +585,16 @@ export function SessionNodeItem({
 								transition: "transform 0.15s",
 							}}
 						>
-							<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+							<svg
+								width="10"
+								height="10"
+								viewBox="0 0 10 10"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.8"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
 								<polyline points="2 3.5 5 6.5 8 3.5" />
 							</svg>
 						</button>
@@ -592,7 +642,16 @@ export function SessionNodeItem({
 								e.currentTarget.style.borderColor = "var(--border)";
 							}}
 						>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
 								<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
 							</svg>
 						</button>
@@ -625,7 +684,16 @@ export function SessionNodeItem({
 								e.currentTarget.style.borderColor = "var(--border)";
 							}}
 						>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
 								<polyline points="3 6 5 6 21 6" />
 								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
 								<path d="M10 11v6M14 11v6" />

@@ -7,18 +7,18 @@ import { createTempDir, createTempFile, cleanupDir } from "./helpers.js";
 let dir;
 
 afterEach(() => {
-  tui.kill();
-  if (dir) cleanupDir(dir);
+	tui.kill();
+	if (dir) cleanupDir(dir);
 });
 
 describe("plugin menu checked entries", () => {
-  it("renders optional checked states and keeps callbacks interactive", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "test.txt", "hello\n");
-    const plugin = join(dir, "menu-indicators.lua");
-    writeFileSync(
-      plugin,
-      `local ttt = require("ttt")
+	it("renders optional checked states and keeps callbacks interactive", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "test.txt", "hello\n");
+		const plugin = join(dir, "menu-indicators.lua");
+		writeFileSync(
+			plugin,
+			`local ttt = require("ttt")
 
 ttt.register({
   bottom = {
@@ -45,36 +45,36 @@ ttt.register({
   },
 })
 `,
-      "utf8",
-    );
+			"utf8",
+		);
 
-    tui.start("--plugin", plugin, file);
-    tui.setSize(80, 20);
-    tui.panel("plugin.menu-indicators");
+		tui.start("--plugin", plugin, file);
+		tui.setSize(80, 20);
+		tui.panel("plugin.menu-indicators");
 
-    tui.click(35, 12);
-    const checkedStates = tui.snapshot();
-    tui.press("arrow_down");
-    tui.press("enter");
-    const callback = tui.snapshot();
-    tui.click(35, 13);
-    const omitted = tui.snapshot();
-    const { snapshots } = tui.run();
+		tui.click(35, 12);
+		const checkedStates = tui.snapshot();
+		tui.press("arrow_down");
+		tui.press("enter");
+		const callback = tui.snapshot();
+		tui.click(35, 13);
+		const omitted = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    expect(snapshots[checkedStates]).toContain("│✓ Checked mode");
-    expect(snapshots[checkedStates]).toContain("│  Unchecked mode");
-    expect(snapshots[callback]).toContain("selected:unchecked");
-    expect(snapshots[omitted]).not.toContain("✓");
-    expect(snapshots[omitted]).toContain("│ Legacy mode   │");
-  });
+		expect(snapshots[checkedStates]).toContain("│✓ Checked mode");
+		expect(snapshots[checkedStates]).toContain("│  Unchecked mode");
+		expect(snapshots[callback]).toContain("selected:unchecked");
+		expect(snapshots[omitted]).not.toContain("✓");
+		expect(snapshots[omitted]).toContain("│ Legacy mode   │");
+	});
 
-  it("preserves mixed checked states in sidebar actions and action indexes", () => {
-    dir = createTempDir();
-    createTempFile(dir, "test.txt", "hello\n");
-    const plugin = join(dir, "sidebar-menu-indicators.lua");
-    writeFileSync(
-      plugin,
-      `local ttt = require("ttt")
+	it("preserves mixed checked states in sidebar actions and action indexes", () => {
+		dir = createTempDir();
+		createTempFile(dir, "test.txt", "hello\n");
+		const plugin = join(dir, "sidebar-menu-indicators.lua");
+		writeFileSync(
+			plugin,
+			`local ttt = require("ttt")
 
 ttt.register({
   sidebar = {
@@ -94,41 +94,41 @@ ttt.register({
   },
 })
 `,
-      "utf8",
-    );
+			"utf8",
+		);
 
-    tui.start("--plugin", plugin, dir);
-    tui.setSize(80, 20);
-    tui.click(27, 2);
-    tui.click(29, 5);
-    tui.click(29, 2);
-    const mixed = tui.snapshot();
-    tui.press("arrow_down");
-    tui.press("enter");
-    const uncheckedCallback = tui.snapshot();
-    tui.click(29, 2);
-    tui.press("arrow_down");
-    tui.press("arrow_down");
-    tui.press("enter");
-    const checkedCallback = tui.snapshot();
-    const { snapshots } = tui.run();
+		tui.start("--plugin", plugin, dir);
+		tui.setSize(80, 20);
+		tui.click(27, 2);
+		tui.click(29, 5);
+		tui.click(29, 2);
+		const mixed = tui.snapshot();
+		tui.press("arrow_down");
+		tui.press("enter");
+		const uncheckedCallback = tui.snapshot();
+		tui.click(29, 2);
+		tui.press("arrow_down");
+		tui.press("arrow_down");
+		tui.press("enter");
+		const checkedCallback = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    expect(snapshots[mixed]).toContain("│ Omitted");
-    expect(snapshots[mixed]).not.toContain("│  Omitted");
-    expect(snapshots[mixed]).toContain("│  Unchecked");
-    expect(snapshots[mixed]).toContain("│✓ Checked");
-    expect(snapshots[mixed]).toContain("───────────────");
-    expect(snapshots[uncheckedCallback]).toContain("action:unchecked");
-    expect(snapshots[checkedCallback]).toContain("action:checked");
-  });
+		expect(snapshots[mixed]).toContain("│ Omitted");
+		expect(snapshots[mixed]).not.toContain("│  Omitted");
+		expect(snapshots[mixed]).toContain("│  Unchecked");
+		expect(snapshots[mixed]).toContain("│✓ Checked");
+		expect(snapshots[mixed]).toContain("───────────────");
+		expect(snapshots[uncheckedCallback]).toContain("action:unchecked");
+		expect(snapshots[checkedCallback]).toContain("action:checked");
+	});
 
-  it("reconciles dropdown checked state across redraw and reopen", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "test.txt", "hello\n");
-    const plugin = join(dir, "dynamic-menu-indicators.lua");
-    writeFileSync(
-      plugin,
-      `local ttt = require("ttt")
+	it("reconciles dropdown checked state across redraw and reopen", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "test.txt", "hello\n");
+		const plugin = join(dir, "dynamic-menu-indicators.lua");
+		writeFileSync(
+			plugin,
+			`local ttt = require("ttt")
 
 local state = "checked"
 
@@ -165,38 +165,38 @@ ttt.register({
   },
 })
 `,
-      "utf8",
-    );
+			"utf8",
+		);
 
-    tui.start("--plugin", plugin, file);
-    tui.setSize(80, 20);
-    tui.panel("plugin.dynamic-menu-indicators");
+		tui.start("--plugin", plugin, file);
+		tui.setSize(80, 20);
+		tui.panel("plugin.dynamic-menu-indicators");
 
-    tui.click(35, 12);
-    const checked = tui.snapshot();
-    tui.press("enter");
-    tui.click(35, 12);
-    const unchecked = tui.snapshot();
-    tui.press("enter");
-    tui.click(35, 12);
-    const omitted = tui.snapshot();
-    tui.press("enter");
-    tui.click(35, 12);
-    const checkedAgain = tui.snapshot();
-    tui.press("arrow_down");
-    tui.press("enter");
-    const tailCallback = tui.snapshot();
-    const { snapshots } = tui.run();
+		tui.click(35, 12);
+		const checked = tui.snapshot();
+		tui.press("enter");
+		tui.click(35, 12);
+		const unchecked = tui.snapshot();
+		tui.press("enter");
+		tui.click(35, 12);
+		const omitted = tui.snapshot();
+		tui.press("enter");
+		tui.click(35, 12);
+		const checkedAgain = tui.snapshot();
+		tui.press("arrow_down");
+		tui.press("enter");
+		const tailCallback = tui.snapshot();
+		const { snapshots } = tui.run();
 
-    expect(snapshots[checked]).toContain("State checked");
-    expect(snapshots[checked]).toContain("│✓ Dynamic mode");
-    expect(snapshots[unchecked]).toContain("State unchecked");
-    expect(snapshots[unchecked]).toContain("│  Dynamic mode");
-    expect(snapshots[omitted]).toContain("State omitted");
-    expect(snapshots[omitted]).toContain("│ Dynamic mode");
-    expect(snapshots[omitted]).not.toContain("│  Dynamic mode");
-    expect(snapshots[checkedAgain]).toContain("State checked");
-    expect(snapshots[checkedAgain]).toContain("│✓ Dynamic mode");
-    expect(snapshots[tailCallback]).toContain("selected:tail:checked");
-  });
+		expect(snapshots[checked]).toContain("State checked");
+		expect(snapshots[checked]).toContain("│✓ Dynamic mode");
+		expect(snapshots[unchecked]).toContain("State unchecked");
+		expect(snapshots[unchecked]).toContain("│  Dynamic mode");
+		expect(snapshots[omitted]).toContain("State omitted");
+		expect(snapshots[omitted]).toContain("│ Dynamic mode");
+		expect(snapshots[omitted]).not.toContain("│  Dynamic mode");
+		expect(snapshots[checkedAgain]).toContain("State checked");
+		expect(snapshots[checkedAgain]).toContain("│✓ Dynamic mode");
+		expect(snapshots[tailCallback]).toContain("selected:tail:checked");
+	});
 });

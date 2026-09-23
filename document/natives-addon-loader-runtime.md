@@ -29,20 +29,20 @@ At module initialization, `native/index.js` computes:
 - **Platform tag**: `${process.platform}-${process.arch}` (for example `darwin-arm64`).
 - **Package version**: from `packages/natives/package.json`.
 - **Core directories**:
-  - `leafPackageDir`: directory of the platform leaf package, resolved via `require.resolve("@linxiraos/pi-natives-<tag>/package.json")`; `null` when no leaf is installed (e.g. local dev) and forced to `null` in compiled-binary mode.
-  - `nativeDir`: package-local `packages/natives/native`.
-  - `execDir`: directory containing `process.execPath`.
-  - `versionedDir`: `<getNativesDir()>/<packageVersion>`.
-  - `userDataDir` fallback:
-    - Windows: `%LOCALAPPDATA%/zeta` or `%USERPROFILE%/AppData/Local/zeta`.
-    - Non-Windows: `~/.local/bin`.
+   - `leafPackageDir`: directory of the platform leaf package, resolved via `require.resolve("@linxiraos/pi-natives-<tag>/package.json")`; `null` when no leaf is installed (e.g. local dev) and forced to `null` in compiled-binary mode.
+   - `nativeDir`: package-local `packages/natives/native`.
+   - `execDir`: directory containing `process.execPath`.
+   - `versionedDir`: `<getNativesDir()>/<packageVersion>`.
+   - `userDataDir` fallback:
+      - Windows: `%LOCALAPPDATA%/zeta` or `%USERPROFILE%/AppData/Local/zeta`.
+      - Non-Windows: `~/.local/bin`.
 - **Natives cache root** (`getNativesDir()`):
-  - if `$XDG_DATA_HOME/zeta` exists, `$XDG_DATA_HOME/zeta/natives`;
-  - otherwise `~/.zeta/natives`.
+   - if `$XDG_DATA_HOME/zeta` exists, `$XDG_DATA_HOME/zeta/natives`;
+   - otherwise `~/.zeta/natives`.
 - **Compiled-binary mode** (`detectCompiledBinary`): true if any of:
-  - embedded-addon manifest is non-null,
-  - `PI_COMPILED` env var is set,
-  - `import.meta.url` contains Bun embedded markers (`$bunfs`, `~BUN`, `%7EBUN`).
+   - embedded-addon manifest is non-null,
+   - `PI_COMPILED` env var is set,
+   - `import.meta.url` contains Bun embedded markers (`$bunfs`, `~BUN`, `%7EBUN`).
 - **Windows staging mode** (`shouldStageNodeModulesAddon`): true only on Windows, in non-compiled mode, when `nativeDir` is inside `node_modules`.
 - **Variant override**: `PI_NATIVE_VARIANT` (`modern`/`baseline` only; invalid values ignored).
 - **Selected variant**: explicit override, otherwise runtime AVX2 detection on x64 (`modern` if AVX2, else `baseline`).
@@ -80,12 +80,12 @@ No variant suffix is used; the filename is `pi_natives.<platform>-<arch>.node`.
 
 - Non-x64 or no variant: `pi_natives.<tag>.node`
 - x64 + `modern`:
-  1. `pi_natives.<tag>-modern.node`
-  2. `pi_natives.<tag>-baseline.node`
-  3. `pi_natives.<tag>.node`
+   1. `pi_natives.<tag>-modern.node`
+   2. `pi_natives.<tag>-baseline.node`
+   3. `pi_natives.<tag>.node`
 - x64 + `baseline`:
-  1. `pi_natives.<tag>-baseline.node`
-  2. `pi_natives.<tag>.node`
+   1. `pi_natives.<tag>-baseline.node`
+   2. `pi_natives.<tag>.node`
 
 The default unsuffixed fallback remains part of the x64 candidate list.
 

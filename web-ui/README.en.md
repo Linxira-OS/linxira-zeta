@@ -100,15 +100,15 @@ npx omp-web@latest
 Zeta Web is based on the OMP Web snapshot, which carries Pi Web history. The
 table below describes Zeta's compatibility surface and local enhancements:
 
-| Area | Change |
-|---|---|
-| Compatibility binary | `omp-web` remains available for existing scripts |
-| Code Theme Selector | **Added** independent syntax theme selector with support for **One Dark Pro** and others |
-| Data & Role Mapping | Supports `models.db`, `config.yml` model roles, and SQLite credentials under `~/.zeta/agent/` |
-| Chinese & i18n Localization | **Enhanced** full bilingual interface and optimized CJK typography |
-| Runtime dependency | Uses the compatible `@earendil-works/pi-*` runtime packages |
-| Session & Path Compatibility | Works with the compatible session format, tool protocol, and `~/.zeta/agent/` data directory |
-| Default port | 30141 |
+| Area                         | Change                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| Compatibility binary         | `omp-web` remains available for existing scripts                                              |
+| Code Theme Selector          | **Added** independent syntax theme selector with support for **One Dark Pro** and others      |
+| Data & Role Mapping          | Supports `models.db`, `config.yml` model roles, and SQLite credentials under `~/.zeta/agent/` |
+| Chinese & i18n Localization  | **Enhanced** full bilingual interface and optimized CJK typography                            |
+| Runtime dependency           | Uses the compatible `@earendil-works/pi-*` runtime packages                                   |
+| Session & Path Compatibility | Works with the compatible session format, tool protocol, and `~/.zeta/agent/` data directory  |
+| Default port                 | 30141                                                                                         |
 
 Everything else — session reading, AgentSession lifecycle, SSE streaming, fork/branch logic, file access, worktree management — is inherited from pi-web and documented in [AGENTS.md](./AGENTS.md).
 

@@ -81,13 +81,13 @@ export function timeGroups<T extends SortableSession>(
 	rows: readonly T[],
 	now: number,
 ): Array<{ key: TimeGroupKey; label: TimeGroupKey | null; items: T[] }> {
-	const buckets = new Map<TimeGroupKey, T[]>(TIME_GROUP_KEYS.map((k) => [k, []]));
+	const buckets = new Map<TimeGroupKey, T[]>(TIME_GROUP_KEYS.map(k => [k, []]));
 	for (const row of rows) buckets.get(timeGroupOf(row.updatedAt, now))?.push(row);
-	return TIME_GROUP_KEYS.map((key) => ({
+	return TIME_GROUP_KEYS.map(key => ({
 		key,
 		label: key === "today" ? null : key,
 		items: buckets.get(key) as T[],
-	})).filter((g) => g.items.length > 0);
+	})).filter(g => g.items.length > 0);
 }
 
 function ts(v: number | undefined): number {
@@ -111,7 +111,6 @@ export interface SortInput {
 	metaFor: (id: string) => SessionMetaLite | undefined;
 	sort: SessionSort;
 }
-
 
 /** Unified comparator chain: archived → pinned → sort key → updated → id. */
 export function sortSessions<T extends SortableSession>(
@@ -145,10 +144,7 @@ export function sortSessions<T extends SortableSession>(
 }
 
 /** Project comparator: pinned → sort key → path tiebreak. */
-export function sortProjects<T extends SortableProject>(
-	projects: readonly T[],
-	sort: ProjectSort,
-): T[] {
+export function sortProjects<T extends SortableProject>(projects: readonly T[], sort: ProjectSort): T[] {
 	return [...projects].sort((a, b) => {
 		const pin = Number(b.pinned === true) - Number(a.pinned === true);
 		if (pin) return pin;
@@ -223,8 +219,7 @@ export function splitZones<T extends SortableSession>(
 			sessions: sortSessions(rows, sort, metaFor),
 		}))
 		.sort(
-			(a, b) =>
-				ts(b.sessions[0]?.updatedAt) - ts(a.sessions[0]?.updatedAt) || a.project.localeCompare(b.project),
+			(a, b) => ts(b.sessions[0]?.updatedAt) - ts(a.sessions[0]?.updatedAt) || a.project.localeCompare(b.project),
 		);
 	return { pinned: sortedPins, temp: sortedTemp, projectRows };
 }

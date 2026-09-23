@@ -6,31 +6,31 @@ import { cleanupDir, createGitRepo, createTempDir } from "./helpers.js";
 let dir;
 
 afterEach(() => {
-  tui.kill();
-  if (dir) cleanupDir(dir);
+	tui.kill();
+	if (dir) cleanupDir(dir);
 });
 
 describe("reactive git changes", () => {
-  it("shows a saved editor change without a manual refresh", () => {
-    dir = createGitRepo(createTempDir());
-    const tracked = join(dir, "tracked.txt");
+	it("shows a saved editor change without a manual refresh", () => {
+		dir = createGitRepo(createTempDir());
+		const tracked = join(dir, "tracked.txt");
 
-    tui.start(dir, tracked);
-    tui.waitFor("Explore");
-    tui.exec("Show Changes");
-    tui.waitFor("No changes");
-    const clean = tui.snapshot();
+		tui.start(dir, tracked);
+		tui.waitFor("Explore");
+		tui.exec("Show Changes");
+		tui.waitFor("No changes");
+		const clean = tui.snapshot();
 
-    tui.exec("View: Focus Editor");
-    tui.press("end");
-    tui.type("changed");
-    tui.exec("Save File");
-    tui.waitFor("Changes (1)");
-    const updated = tui.snapshot();
+		tui.exec("View: Focus Editor");
+		tui.press("end");
+		tui.type("changed");
+		tui.exec("Save File");
+		tui.waitFor("Changes (1)");
+		const updated = tui.snapshot();
 
-    const { snapshots } = tui.run();
-    expect(snapshots[clean]).toContain("No changes");
-    expect(snapshots[updated]).toContain("Changes (1)");
-    expect(snapshots[updated]).toContain("tracked.txt");
-  });
+		const { snapshots } = tui.run();
+		expect(snapshots[clean]).toContain("No changes");
+		expect(snapshots[updated]).toContain("Changes (1)");
+		expect(snapshots[updated]).toContain("tracked.txt");
+	});
 });

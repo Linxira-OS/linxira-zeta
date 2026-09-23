@@ -55,15 +55,15 @@ plugins/
 
 ```jsonc
 {
-  "id": "pi-messenger",
-  "name": "Messenger",
-  "description": "Inter-agent messaging and file reservation",
-  "source": "https://github.com/nicobailon/pi-messenger",
-  "publish": "@linxiraos/pi-messenger",   // npm 包名（若走 npm）
-  "install": "npm",                        // npm | github | release-zip
-  "compat": { "zeta": "^1.1.0" },
-  "unuse": false,                          // true = 暂不启用（不展示/不安装）
-  "category": "community"                  // official | community
+	"id": "pi-messenger",
+	"name": "Messenger",
+	"description": "Inter-agent messaging and file reservation",
+	"source": "https://github.com/nicobailon/pi-messenger",
+	"publish": "@linxiraos/pi-messenger", // npm 包名（若走 npm）
+	"install": "npm", // npm | github | release-zip
+	"compat": { "zeta": "^1.1.0" },
+	"unuse": false, // true = 暂不启用（不展示/不安装）
+	"category": "community", // official | community
 }
 ```
 
@@ -75,8 +75,8 @@ plugins/
 
 - 任何上游插件集成进 Zeta 前，必须把 `@earendil-works/*`（以及任何上游运行时
   引用）改写成 `@linxiraos/*`：
-  - `package.json` 的 `dependencies`/`optionalDependencies`/`peerDependencies`。
-  - 源码 import（`*.ts`/`*.mjs`/`*.js` 等）。
+   - `package.json` 的 `dependencies`/`optionalDependencies`/`peerDependencies`。
+   - 源码 import（`*.ts`/`*.mjs`/`*.js` 等）。
 - 工具化：`scripts/publish-missing-packages.ts` 的 `rewriteEarendilDeps` 在发布
   pi-messenger 前自动改写、发布后恢复。自 `plugins/official/` 标准路径生效起，
   该改写成为官方插件的**常驻构建步骤**（源码内直接持 `@linxiraos/*` 引用），
@@ -89,8 +89,8 @@ plugins/
 - 查询系统（待设计）：Zeta 自己的插件清单端点/目录，web 与桌面都从它查询，
   支持离线缓存与在线更新；不直接依赖上游仓库的实时状态。
 - 发布路径：
-  - web/CLI：`@linxiraos/*` npm 包（trusted publishing）。
-  - 桌面：GitHub release 插件压缩包，或仓库内 vendored 源码打包。
+   - web/CLI：`@linxiraos/*` npm 包（trusted publishing）。
+   - 桌面：GitHub release 插件压缩包，或仓库内 vendored 源码打包。
 - pi-messenger 当前：已迁移至 `plugins/official/pi-messenger/`（随 Zeta 发布线
   版本化），`temp/` 参考克隆已清理。
 - 插件相关支持包：除 pi-messenger 外，后续大概率还会有更多插件依赖的
@@ -99,15 +99,15 @@ plugins/
 ## 贡献指南与社区准入
 
 - 根 `README.md` 提供第三方插件贡献指南：
-  - 如何把仓库配置正确并正常 npm 发包（trusted publishing / OIDC）。
-  - 即使不走 npm 发包，若 fork 了别人 pi/OMP 的插件，也要在插件清单里
-    写明针对我们 `@linxiraos/*` 的依赖改写关系。
+   - 如何把仓库配置正确并正常 npm 发包（trusted publishing / OIDC）。
+   - 即使不走 npm 发包，若 fork 了别人 pi/OMP 的插件，也要在插件清单里
+     写明针对我们 `@linxiraos/*` 的依赖改写关系。
 - `docs/`（随产品打包的运行时文档树）对包依赖关系做描述，便于贡献者核对。
 - 社区插件准入流程：
-  1. 外部贡献者提交 PR（携带插件清单 + 依赖改写说明）。
-  2. 我们为其提供/要求一套插件 CI 与 test，专门校验依赖是否改写正确
-     （`@earendil-works/*` → `@linxiraos/*`、peer 解析、加载冒烟）。
-  3. 该 CI 通过后，评审通过，才把插件描述加入 `plugins/community/` 索引。
+   1. 外部贡献者提交 PR（携带插件清单 + 依赖改写说明）。
+   2. 我们为其提供/要求一套插件 CI 与 test，专门校验依赖是否改写正确
+      （`@earendil-works/*` → `@linxiraos/*`、peer 解析、加载冒烟）。
+   3. 该 CI 通过后，评审通过，才把插件描述加入 `plugins/community/` 索引。
 - 官方插件定义更严格：仅指我们第一方移植/维护的开源插件（MIT、Apache-2.0
   等）或 Zeta 自研插件；来源与依赖改写都由我们负责。
 
@@ -136,17 +136,17 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
 - 决定：官方插件统一收进 `plugins/official/<plugin-id>/`，成为仓库内受管子仓库。
 - `plugins/official/pi-messenger/` 标准模板：
 
-  ```
-  plugins/official/pi-messenger/
-  ├── plugin.json / plugin.toml    # 清单（id/name/source/publish/install/compat/category）
-  ├── package.json                 # @linxiraos/pi-messenger，peer 全部指向 @linxiraos/*
-  ├── src/ 或入口 index.ts         # 扩展工厂：registerTool / registerCommand
-  ├── crew/agents/*.md             # 团队代理定义
-  ├── skills/                      # 自带 skills
-  ├── locales/{zh,en}.json         # i18n 字符串表（宿主注入 t()）
-  ├── README.md / CHANGELOG.md
-  └── tests/
-  ```
+   ```
+   plugins/official/pi-messenger/
+   ├── plugin.json / plugin.toml    # 清单（id/name/source/publish/install/compat/category）
+   ├── package.json                 # @linxiraos/pi-messenger，peer 全部指向 @linxiraos/*
+   ├── src/ 或入口 index.ts         # 扩展工厂：registerTool / registerCommand
+   ├── crew/agents/*.md             # 团队代理定义
+   ├── skills/                      # 自带 skills
+   ├── locales/{zh,en}.json         # i18n 字符串表（宿主注入 t()）
+   ├── README.md / CHANGELOG.md
+   └── tests/
+   ```
 
 - 打包/发布：从 `plugins/official/<id>/` 构建并 trusted-publish；版本线与 Zeta
   发布版本对齐；`@earendil-works/*` → `@linxiraos/*` 的 peer/源码改写成为该插件

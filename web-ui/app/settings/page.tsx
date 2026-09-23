@@ -7,5 +7,5 @@ import { redirect } from "next/navigation";
  * Electron shell where the tray loads this URL directly.
  */
 export default function SettingsRedirect() {
-  redirect("/?panel=settings");
+	redirect("/?panel=settings");
 }

@@ -10,79 +10,79 @@ copyright: Copyright (c) 2026 Linxira-OS
 electronVersion: 37.10.3
 
 directories:
-  output: release
-  buildResources: build
+   output: release
+   buildResources: build
 
 files:
-  - dist/**
-  - package.json
+   - dist/**
+   - package.json
 
 extraResources:
-  - from: staging/zeta
-    to: zeta
-  - from: build/bin
-    to: bin
-  - from: build/icon.ico
-    to: icon.ico
+   - from: staging/zeta
+     to: zeta
+   - from: build/bin
+     to: bin
+   - from: build/icon.ico
+     to: icon.ico
 
 win:
-  icon: build/icon.ico
-  target:
-    - target: dir
-      arch:
-        - x64
-    - target: zip
-      arch:
-        - x64
-    - target: nsis
-      arch:
-        - x64
+   icon: build/icon.ico
+   target:
+      - target: dir
+        arch:
+           - x64
+      - target: zip
+        arch:
+           - x64
+      - target: nsis
+        arch:
+           - x64
 
 nsis:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
-  include: build/installer.nsh
+   oneClick: false
+   perMachine: false
+   allowToChangeInstallationDirectory: true
+   include: build/installer.nsh
 
 linux:
-  icon: build/icon.png
-  executableName: zeta-desktop
-  category: Development
-  desktop:
-    entry:
-      Name: Zeta
-      Comment: Zeta coding agent desktop
-  target:
-    - target: tar.gz
-      arch:
-        - x64
-    - target: deb
-      arch:
-        - x64
-    - target: AppImage
-      arch:
-        - x64
+   icon: build/icon.png
+   executableName: zeta-desktop
+   category: Development
+   desktop:
+      entry:
+         Name: Zeta
+         Comment: Zeta coding agent desktop
+   target:
+      - target: tar.gz
+        arch:
+           - x64
+      - target: deb
+        arch:
+           - x64
+      - target: AppImage
+        arch:
+           - x64
 
 mac:
-  icon: build/icon.png
-  category: public.app-category.developer-tools
-  hardenedRuntime: true
-  gatekeeperAssess: false
-  target:
-    - target: dir
-      arch:
-        - x64
-        - arm64
-    - target: zip
-      arch:
-        - x64
-        - arm64
-    - target: dmg
-      arch:
-        - x64
-        - arm64
+   icon: build/icon.png
+   category: public.app-category.developer-tools
+   hardenedRuntime: true
+   gatekeeperAssess: false
+   target:
+      - target: dir
+        arch:
+           - x64
+           - arm64
+      - target: zip
+        arch:
+           - x64
+           - arm64
+      - target: dmg
+        arch:
+           - x64
+           - arm64
 
 deb:
-  maintainer: Zeta Contributors
+   maintainer: Zeta Contributors
 
 npmRebuild: false

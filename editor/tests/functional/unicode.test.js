@@ -5,80 +5,80 @@ import { createTempDir, createTempFile, cleanupDir, readFile } from "./helpers.j
 let dir;
 
 afterEach(() => {
-  tui.kill();
-  if (dir) cleanupDir(dir);
+	tui.kill();
+	if (dir) cleanupDir(dir);
 });
 
 describe("unicode editing", () => {
-  it("should display and edit text with accented characters", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "accent.txt", "café résumé naïve");
+	it("should display and edit text with accented characters", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "accent.txt", "café résumé naïve");
 
-    tui.start(file);
-    tui.waitFor("café");
+		tui.start(file);
+		tui.waitFor("café");
 
-    tui.press("end");
-    tui.type(" über");
+		tui.press("end");
+		tui.type(" über");
 
-    tui.press("ctrl+s");
+		tui.press("ctrl+s");
 
-    const { snapshots } = tui.run();
+		const { snapshots } = tui.run();
 
-    const content = readFile(file);
-    expect(content).toContain("café résumé naïve über");
-  });
+		const content = readFile(file);
+		expect(content).toContain("café résumé naïve über");
+	});
 
-  it("should handle CJK characters", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "cjk.txt", "hello world");
+	it("should handle CJK characters", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "cjk.txt", "hello world");
 
-    tui.start(file);
-    tui.waitFor("hello");
+		tui.start(file);
+		tui.waitFor("hello");
 
-    tui.press("end");
-    tui.type(" 你好世界");
+		tui.press("end");
+		tui.type(" 你好世界");
 
-    tui.press("ctrl+s");
+		tui.press("ctrl+s");
 
-    const { snapshots } = tui.run();
+		const { snapshots } = tui.run();
 
-    const content = readFile(file);
-    expect(content).toContain("hello world 你好世界");
-  });
+		const content = readFile(file);
+		expect(content).toContain("hello world 你好世界");
+	});
 
-  it("should handle emoji characters", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "emoji.txt", "start end");
+	it("should handle emoji characters", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "emoji.txt", "start end");
 
-    tui.start(file);
-    tui.waitFor("start");
+		tui.start(file);
+		tui.waitFor("start");
 
-    tui.press("end");
-    tui.type(" 🎉🚀");
+		tui.press("end");
+		tui.type(" 🎉🚀");
 
-    tui.press("ctrl+s");
+		tui.press("ctrl+s");
 
-    const { snapshots } = tui.run();
+		const { snapshots } = tui.run();
 
-    const content = readFile(file);
-    expect(content).toContain("start end 🎉🚀");
-  });
+		const content = readFile(file);
+		expect(content).toContain("start end 🎉🚀");
+	});
 
-  it("should preserve unicode content across edit and save", () => {
-    dir = createTempDir();
-    const file = createTempFile(dir, "mixed.txt", "línea número één");
+	it("should preserve unicode content across edit and save", () => {
+		dir = createTempDir();
+		const file = createTempFile(dir, "mixed.txt", "línea número één");
 
-    tui.start(file);
-    tui.waitFor("línea");
+		tui.start(file);
+		tui.waitFor("línea");
 
-    tui.press("home");
-    tui.type("→ ");
+		tui.press("home");
+		tui.type("→ ");
 
-    tui.press("ctrl+s");
+		tui.press("ctrl+s");
 
-    const { snapshots } = tui.run();
+		const { snapshots } = tui.run();
 
-    const content = readFile(file);
-    expect(content).toBe("→ línea número één\n");
-  });
+		const content = readFile(file);
+		expect(content).toBe("→ línea número één\n");
+	});
 });

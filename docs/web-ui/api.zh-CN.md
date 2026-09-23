@@ -14,7 +14,7 @@ string }` 并带 4xx/5xx 状态码。
 列出所有会话。
 
 ```json
-{ "sessions": [ /* SessionInfo[] */ ], "runningSessionIds": ["..."] }
+{ "sessions": [/* SessionInfo[] */], "runningSessionIds": ["..."] }
 ```
 
 ### `GET /api/sessions/:id`
@@ -43,7 +43,7 @@ string }` 并带 4xx/5xx 状态码。
 实时 agent 状态。当 RPC 会话存活时：
 
 ```json
-{ "running": true, "state": { /* AgentState，见下 */ } }
+{ "running": true, "state": {/* AgentState，见下 */} }
 ```
 
 `AgentState` 字段：`sessionId`、`sessionName`、`model`
