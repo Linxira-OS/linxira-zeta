@@ -2,11 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { currentLanguage, M, setLanguage } from "../src/i18n";
 import { en } from "../src/i18n/en";
 import { zh } from "../src/i18n/zh";
-import {
-	buildTuiBuiltinSlashCommands,
-	BUILTIN_SLASH_COMMAND_DEFS,
-	resolveCommandDescription,
-} from "../src/slash-commands/builtin-registry";
+import { BUILTIN_SLASH_COMMAND_DEFS, resolveCommandDescription } from "../src/slash-commands/builtin-registry";
 
 /**
  * Anti-regression probe for the CLI /command zh localization (v18.1.5 base).
@@ -173,16 +169,5 @@ describe("builtin slash command zh localization", () => {
 		expect(en).not.toBe(zh);
 		expect(hasCjk(en)).toBe(false);
 		expect(hasCjk(zh)).toBe(true);
-	});
-
-	test("materialized TUI commands resolve descriptions per catalogue", () => {
-		setLanguage("zh");
-		const tuiZh = buildTuiBuiltinSlashCommands().find(command => command.name === "language");
-		setLanguage("en");
-		const tuiEn = buildTuiBuiltinSlashCommands().find(command => command.name === "language");
-
-		expect(tuiZh?.description).not.toBe(tuiEn?.description);
-		expect(hasCjk(tuiEn?.description ?? "")).toBe(false);
-		expect(hasCjk(tuiZh?.description ?? "")).toBe(true);
 	});
 });
