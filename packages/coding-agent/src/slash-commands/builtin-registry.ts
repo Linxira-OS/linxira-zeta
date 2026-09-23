@@ -30,7 +30,9 @@ export type { BuiltinSlashCommand, SubcommandDef } from "./types";
 /** TUI-specific runtime accepted by `executeBuiltinSlashCommand`. */
 export type BuiltinSlashCommandRuntime = TuiSlashCommandRuntime;
 
-export interface TuiBuiltinSlashCommand extends BuiltinSlashCommand {
+export interface TuiBuiltinSlashCommand extends Omit<BuiltinSlashCommand, "description"> {
+	/** Materialized commands always carry the resolved string (see materializeTuiBuiltinSlashCommand). */
+	description: string;
 	getArgumentCompletions?: (prefix: string) => AutocompleteItem[] | null | Promise<AutocompleteItem[] | null>;
 	getInlineHint?: (argumentText: string) => string | null;
 	getAutocompleteDescription?: () => string | undefined;
@@ -54,6 +56,18 @@ for (const command of BUILTIN_SLASH_COMMAND_REGISTRY) {
 	}
 }
 
+/**
+ * Resolve a command description against the catalogue active *now*.
+ *
+ * Specs declare localized copy as `description: () => M.cmdFoo` so the value
+ * follows `/language` at runtime; the plain-string form is still accepted for
+ * copy that has no translation (or that is not user-facing). Never cache the
+ * result — every consumer that renders a list must call this per read.
+ */
+export function resolveCommandDescription(description: string | (() => string)): string {
+	return typeof description === "function" ? description() : description;
+}
+
 export const BUILTIN_SLASH_COMMAND_RESERVED_NAMES: ReadonlySet<string> = new Set(BUILTIN_SLASH_COMMAND_LOOKUP.keys());
 
 /** Builtin command metadata used for slash-command autocomplete and help text. */
@@ -62,6 +76,8 @@ export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BU
 		name: command.name,
 		aliases: command.aliases,
 		allowArgs: command.allowArgs === true,
+		// Keep the thunk itself: resolving here would re-freeze the locale that
+		// happens to be active when this module is imported.
 		description: command.description,
 		icon: command.icon,
 		subcommands: command.subcommands,
@@ -74,7 +90,11 @@ function materializeTuiBuiltinSlashCommand(
 	cmd: BuiltinSlashCommand,
 	runtime?: TuiSlashCommandRuntime,
 ): TuiBuiltinSlashCommand {
-	const materialized: TuiBuiltinSlashCommand = { ...cmd };
+	// The TUI contract takes a plain string, so resolve the thunk here. This
+	// runs on every buildTuiBuiltinSlashCommands() call — which is exactly what
+	// /language triggers — so localized descriptions still follow the active
+	// catalogue instead of freezing at import time.
+	const materialized: TuiBuiltinSlashCommand = { ...cmd, description: resolveCommandDescription(cmd.description) };
 	if (cmd.subcommands) {
 		materialized.getArgumentCompletions =
 			cmd.name === "mcp" && runtime

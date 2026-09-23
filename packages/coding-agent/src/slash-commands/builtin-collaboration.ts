@@ -60,15 +60,15 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "advisor",
 		icon: "advisor",
-		description: M.cmdAdvisor,
+		description: () => M.cmdAdvisor,
 		acpDescription: M.cmdAdvisorAcp,
 		acpInputHint: "[on|off|status|dump [raw]|configure]",
 		subcommands: [
-			{ name: "on", description: M.cmdAdvisorOn },
-			{ name: "off", description: M.cmdAdvisorOff },
-			{ name: "status", description: M.cmdAdvisorStatus },
-			{ name: "dump", description: M.cmdAdvisorDump, usage: "[raw]" },
-			{ name: "configure", description: M.cmdAdvisorConfigure },
+			{ name: "on", description: () => M.cmdAdvisorOn },
+			{ name: "off", description: () => M.cmdAdvisorOff },
+			{ name: "status", description: () => M.cmdAdvisorStatus },
+			{ name: "dump", description: () => M.cmdAdvisorDump, usage: "[raw]" },
+			{ name: "configure", description: () => M.cmdAdvisorConfigure },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -179,7 +179,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "export",
 		icon: "export",
-		description: M.cmdExportHtml,
+		description: () => M.cmdExportHtml,
 		inlineHint: "[--themes] [path]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -203,7 +203,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "trace",
 		icon: "stats",
-		description: M.cmdOpenThisSessionsTraceInTheStatsDashboard,
+		description: () => M.cmdOpenThisSessionsTraceInTheStatsDashboard,
 		handle: async (_command, runtime) => {
 			const sessionFile = runtime.session.sessionFile;
 			if (!sessionFile) {
@@ -230,7 +230,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "dump",
 		icon: "clipboard",
-		description: M.cmdDumpTranscript,
+		description: () => M.cmdDumpTranscript,
 		acpDescription: M.cmdDumpAcp,
 		allowArgs: true,
 		handle: async (_command, runtime) => {
@@ -263,7 +263,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "share",
 		icon: "share",
-		description: M.cmdShare,
+		description: () => M.cmdShare,
 		handle: async (_command, runtime) => {
 			try {
 				const result = await shareSession(runtime.sessionManager, {
@@ -289,13 +289,13 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "collab",
 		icon: "broadcast",
-		description: M.cmdCollab,
+		description: () => M.cmdCollab,
 		inlineHint: "[start|view|list|stop|status] [relayUrl]",
 		subcommands: [
-			{ name: "view", description: M.cmdCollabView },
-			{ name: "list", description: M.cmdCollabList },
-			{ name: "status", description: M.cmdCollabStatus },
-			{ name: "stop", description: M.cmdCollabStop },
+			{ name: "view", description: () => M.cmdCollabView },
+			{ name: "list", description: () => M.cmdCollabList },
+			{ name: "status", description: () => M.cmdCollabStatus },
+			{ name: "stop", description: () => M.cmdCollabStop },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -419,7 +419,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "join",
 		icon: "signIn",
-		description: M.cmdCollabJoin,
+		description: () => M.cmdCollabJoin,
 		inlineHint: "<link>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -451,7 +451,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "leave",
 		icon: "signOut",
-		description: M.cmdCollabLeave,
+		description: () => M.cmdCollabLeave,
 		getTuiAutocompleteDescription: runtime => {
 			if (runtime.ctx.collabController.host) return M.acLeaveCollabHosting;
 			if (runtime.ctx.collabGuest) return M.acLeaveCollabGuest;
@@ -476,11 +476,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "browser",
 		icon: "globe",
-		description: M.cmdToggleBrowserEvalPreludeHeadlessVsVisibleMode,
+		description: () => M.cmdToggleBrowserEvalPreludeHeadlessVsVisibleMode,
 		acpInputHint: "[headless|visible]",
 		subcommands: [
-			{ name: "headless", description: M.cmdBrowserHeadless },
-			{ name: "visible", description: M.cmdBrowserVisible },
+			{ name: "headless", description: () => M.cmdBrowserHeadless },
+			{ name: "visible", description: () => M.cmdBrowserVisible },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -550,7 +550,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "copy",
 		icon: "copy",
-		description: M.cmdCopyPick,
+		description: () => M.cmdCopyPick,
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
@@ -604,7 +604,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "open",
 		icon: "globe",
-		description: M.cmdOpenLastLinkFromConversation,
+		description: () => M.cmdOpenLastLinkFromConversation,
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();

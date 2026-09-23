@@ -218,30 +218,30 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "security",
 		icon: "shield",
-		description: M.cmdSecurity,
+		description: () => M.cmdSecurity,
 		allowArgs: true,
 		acpInputHint: "<plan|scan|status|cancel|scans|show|import|export|validate|compare|disposition>",
 		subcommands: [
-			{ name: "plan", description: M.cmdSecurityPlan },
-			{ name: "scan", description: M.cmdSecurityScan },
-			{ name: "status", description: M.cmdSecurityStatus },
-			{ name: "cancel", description: M.cmdSecurityCancel },
-			{ name: "scans", description: M.cmdSecurityScans },
-			{ name: "show", description: M.cmdSecurityShow },
-			{ name: "import", description: M.cmdSecurityImport },
-			{ name: "export", description: M.cmdSecurityExport },
-			{ name: "validate", description: M.cmdSecurityValidate },
-			{ name: "compare", description: M.cmdSecurityCompare },
-			{ name: "disposition", description: M.cmdSecurityDisposition },
+			{ name: "plan", description: () => M.cmdSecurityPlan },
+			{ name: "scan", description: () => M.cmdSecurityScan },
+			{ name: "status", description: () => M.cmdSecurityStatus },
+			{ name: "cancel", description: () => M.cmdSecurityCancel },
+			{ name: "scans", description: () => M.cmdSecurityScans },
+			{ name: "show", description: () => M.cmdSecurityShow },
+			{ name: "import", description: () => M.cmdSecurityImport },
+			{ name: "export", description: () => M.cmdSecurityExport },
+			{ name: "validate", description: () => M.cmdSecurityValidate },
+			{ name: "compare", description: () => M.cmdSecurityCompare },
+			{ name: "disposition", description: () => M.cmdSecurityDisposition },
 		],
 		handle: handleSecurityCommand,
 	},
 	{
 		name: "settings",
 		icon: "settings",
-		description: M.cmdSettings,
+		description: () => M.cmdSettings,
 		allowArgs: true,
-		subcommands: [{ name: "reset", description: M.cmdSettingsReset }],
+		subcommands: [{ name: "reset", description: () => M.cmdSettingsReset }],
 		handleTui: (command, runtime) => {
 			const args = command.args.trim();
 			if (args === "") {
@@ -256,9 +256,9 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "setup",
 		aliases: ["providers"],
 		icon: "gear",
-		description: M.cmdSetup,
+		description: () => M.cmdSetup,
 		allowArgs: true,
-		subcommands: [{ name: "providers", description: M.cmdSetupProviders }],
+		subcommands: [{ name: "providers", description: () => M.cmdSetupProviders }],
 		handleTui: async (command, runtime) => {
 			const args = command.args.trim().toLowerCase();
 			const opensProviders = args === "" || args === "providers";
@@ -273,7 +273,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "plan",
 		icon: "plan",
-		description: M.cmdPlan,
+		description: () => M.cmdPlan,
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -294,7 +294,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "plan-ultra",
 		icon: "plan",
-		description: M.cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor,
+		description: () => M.cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor,
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -317,7 +317,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "plan-review",
 		icon: "plan",
-		description: M.cmdPlanReview,
+		description: () => M.cmdPlanReview,
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.planModeEnabled ? M.acPlanReviewAvailable : M.acPlanReviewInactive,
 		handleTui: async (_command, runtime) => {
@@ -328,7 +328,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "vibe",
 		icon: "wave",
-		description: M.cmdVibe,
+		description: () => M.cmdVibe,
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -346,14 +346,14 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "goal",
 		icon: "goal",
-		description: M.cmdGoal,
+		description: () => M.cmdGoal,
 		subcommands: [
-			{ name: "set", description: M.cmdGoalSet, usage: "<objective>" },
-			{ name: "show", description: M.cmdGoalShow },
-			{ name: "pause", description: M.cmdGoalPause },
-			{ name: "resume", description: M.cmdGoalResume },
-			{ name: "drop", description: M.cmdGoalDrop },
-			{ name: "budget", description: M.cmdGoalBudget, usage: "<N|off>" },
+			{ name: "set", description: () => M.cmdGoalSet, usage: "<objective>" },
+			{ name: "show", description: () => M.cmdGoalShow },
+			{ name: "pause", description: () => M.cmdGoalPause },
+			{ name: "resume", description: () => M.cmdGoalResume },
+			{ name: "drop", description: () => M.cmdGoalDrop },
+			{ name: "budget", description: () => M.cmdGoalBudget, usage: "<N|off>" },
 		],
 		inlineHint: "[objective]",
 		allowArgs: true,
@@ -374,7 +374,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "guided-goal",
 		icon: "compass",
-		description: M.cmdGuidedGoal,
+		description: () => M.cmdGuidedGoal,
 		inlineHint: "[rough objective]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -386,7 +386,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "loop",
 		icon: "loop",
-		description: M.cmdLoopLong,
+		description: () => M.cmdLoopLong,
 
 		inlineHint: "[count|duration] [--while|--until '<cmd>'] [prompt]",
 		allowArgs: true,
@@ -412,7 +412,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "queue",
 		icon: "inbox",
-		description: M.cmdQueue,
+		description: () => M.cmdQueue,
 		inlineHint: "<message>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -423,7 +423,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "model",
 		aliases: ["models"],
 		icon: "model",
-		description: M.cmdModel,
+		description: () => M.cmdModel,
 		acpDescription: M.cmdModelAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const model = runtime.ctx.session.model;
@@ -466,7 +466,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "switch",
 		icon: "swap",
-		description: M.cmdSwitchModelWithSelectors,
+		description: () => M.cmdSwitchModelWithSelectors,
 		acpDescription: M.cmdSwitchModelSessionOnly,
 		acpInputHint: "[model]",
 		inlineHint: "[model]",
@@ -515,13 +515,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "fast",
 		icon: "fast",
-		description: M.cmdFast,
+		description: () => M.cmdFast,
 		acpDescription: M.cmdFastAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: M.cmdFastOn },
-			{ name: "off", description: M.cmdFastOff },
-			{ name: "status", description: M.cmdFastStatus },
+			{ name: "on", description: () => M.cmdFastOn },
+			{ name: "off", description: () => M.cmdFastOff },
+			{ name: "status", description: () => M.cmdFastStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -586,13 +586,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "skillful",
 		icon: "compass",
-		description: M.cmdSkillful,
+		description: () => M.cmdSkillful,
 		acpDescription: M.cmdSkillfulAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: M.cmdSkillfulOn },
-			{ name: "off", description: M.cmdSkillfulOff },
-			{ name: "status", description: M.cmdSkillfulStatus },
+			{ name: "on", description: () => M.cmdSkillfulOn },
+			{ name: "off", description: () => M.cmdSkillfulOff },
+			{ name: "status", description: () => M.cmdSkillfulStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -644,13 +644,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "extended-context",
 		icon: "expand",
-		description: M.cmdToggleExtendedContextWindows,
+		description: () => M.cmdToggleExtendedContextWindows,
 		acpDescription: M.cmdToggleExtendedContext,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: M.cmdEnableLargerContextWindows },
-			{ name: "off", description: M.cmdUseDefaultOrStandardPricingContextWindows },
-			{ name: "status", description: M.cmdShowExtendedContextStatus },
+			{ name: "on", description: () => M.cmdEnableLargerContextWindows },
+			{ name: "off", description: () => M.cmdUseDefaultOrStandardPricingContextWindows },
+			{ name: "status", description: () => M.cmdShowExtendedContextStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -671,13 +671,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "computer",
 		icon: "computer",
-		description: M.cmdToggleTheNativeComputerUseEvalPreludeForThisSession,
+		description: () => M.cmdToggleTheNativeComputerUseEvalPreludeForThisSession,
 		acpDescription: M.cmdComputerAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: M.cmdComputerOn },
-			{ name: "off", description: M.cmdComputerOff },
-			{ name: "status", description: M.cmdComputerStatus },
+			{ name: "on", description: () => M.cmdComputerOn },
+			{ name: "off", description: () => M.cmdComputerOff },
+			{ name: "status", description: () => M.cmdComputerStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -716,11 +716,11 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "prewalk",
 		icon: "prewalk",
-		description: M.cmdPrewalk,
+		description: () => M.cmdPrewalk,
 		allowArgs: true,
 		acpDescription: M.cmdPrewalkAcp,
 		acpInputHint: "[restart]",
-		subcommands: [{ name: "restart", description: M.cmdPrewalkRestart }],
+		subcommands: [{ name: "restart", description: () => M.cmdPrewalkRestart }],
 
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();

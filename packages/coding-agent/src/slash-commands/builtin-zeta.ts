@@ -19,13 +19,13 @@ import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
 export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "language",
-		description: M.cmdLanguage,
+		description: () => M.cmdLanguage,
 		icon: "globe",
 		acpDescription: M.cmdSetTheCLIDisplayLanguage,
 		acpInputHint: "[en|zh]",
 		subcommands: [
-			{ name: "en", description: M.cmdEnglish },
-			{ name: "zh", description: M.languageZhLabel },
+			{ name: "en", description: () => M.cmdEnglish },
+			{ name: "zh", description: () => M.languageZhLabel },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -48,6 +48,10 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			const tag = arg as ZetaLanguage;
 			runtime.settings.set("language" as SettingPath, tag as SettingValue<SettingPath>);
 			setLanguage(tag);
+			// Re-advertise the command list so clients that cache descriptions
+			// (ACP's available_commands_update, RPC) pick up the new locale —
+			// the same contract /mcp reload and /reload-plugins honour.
+			await runtime.refreshCommands?.();
 			await runtime.output(M.languageChangedFmt.replace("%s", tag));
 			return commandConsumed();
 		},
@@ -84,16 +88,16 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "tracking",
-		description: M.cmdTracking,
+		description: () => M.cmdTracking,
 		icon: "eye",
 		acpDescription: M.cmdTrackingAcp,
 		acpInputHint: "<status|plan|log|index|start>",
 		subcommands: [
-			{ name: "status", description: M.cmdTrackingStatus },
-			{ name: "plan", description: M.cmdTrackingPlan },
-			{ name: "log", description: M.cmdTrackingLog },
-			{ name: "index", description: M.cmdTrackingIndex },
-			{ name: "start", description: M.cmdTrackingStart },
+			{ name: "status", description: () => M.cmdTrackingStatus },
+			{ name: "plan", description: () => M.cmdTrackingPlan },
+			{ name: "log", description: () => M.cmdTrackingLog },
+			{ name: "index", description: () => M.cmdTrackingIndex },
+			{ name: "start", description: () => M.cmdTrackingStart },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
