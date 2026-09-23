@@ -36,6 +36,7 @@ type TabBarWidget struct {
 	Borders                   *term.BorderSet
 	ScrollOffset              int
 	MoreButton                *MoreButtonWidget
+	middleDownTab             int // tab index under a pending middle-click, -1 = none
 	OnTabClick                func(index int)
 	OnTabClose                func(index int)
 	OnTabUnpin                func(index int)
@@ -68,7 +69,7 @@ type TabBarWidget struct {
 }
 
 func NewTabBarWidget() *TabBarWidget {
-	return &TabBarWidget{closeDownX: -1}
+	return &TabBarWidget{closeDownX: -1, middleDownTab: -1}
 }
 
 func (t *TabBarWidget) SetTabs(tabs []Tab) {
@@ -348,19 +349,40 @@ func (t *TabBarWidget) HandleEvent(ev tcell.Event) EventResult {
 	// Reuse Render's gutter width so click hit-tests line up with the screen.
 	arrowW := t.renderArrowW
 
-	// Middle click on a tab closes it (standard tabbed-UI convention).
+	// Middle click on a tab closes it — but only on the RELEASE edge landing
+	// on the same tab the press hit: host terminals (Tabby) can report a
+	// drifted release coordinate, and the press edge alone closed the wrong
+	// tab when the pointer moved during the click (v1.1.20 damage).
 	if btn&tcell.Button3 != 0 && prevBtn&tcell.Button3 == 0 {
+		// Middle press: record which tab it hit; the close fires on release.
+		localX := mx - r.X - arrowW + t.ScrollOffset
+		t.middleDownTab = -1
+		for i, s := range t.tabSpans {
+			if localX >= s.start && localX < s.end {
+				t.middleDownTab = i
+				break
+			}
+		}
+	}
+
+	if btn&tcell.Button3 != 0 && t.middleDownTab >= 0 {
 		localX := mx - r.X - arrowW + t.ScrollOffset
 		for i, s := range t.tabSpans {
 			if localX >= s.start && localX < s.end {
-				if t.Tabs[i].Pinned && t.OnTabUnpin != nil {
-					t.OnTabUnpin(i)
-				} else if t.OnTabClose != nil {
-					t.OnTabClose(i)
+				if i == t.middleDownTab {
+					if t.Tabs[i].Pinned && t.OnTabUnpin != nil {
+						t.OnTabUnpin(i)
+					} else if t.OnTabClose != nil {
+						t.OnTabClose(i)
+					}
+					t.middleDownTab = -1
+					return EventConsumed
 				}
-				return EventConsumed
 			}
 		}
+	}
+	if t.middleDownTab >= 0 && btn&tcell.Button3 == 0 {
+		t.middleDownTab = -1 // released elsewhere: cancel, do not close
 	}
 
 	if btn&tcell.Button2 != 0 && prevBtn&tcell.Button2 == 0 && t.OnTabRightClick != nil {
@@ -482,6 +504,7 @@ func (t *TabBarWidget) CancelPointerCapture() bool {
 	t.wasPressed = false
 	t.lastSeenBtn = 0
 	t.closeDownX = -1
+	t.middleDownTab = -1
 	if active && t.pointerCaptureInvalidated != nil {
 		t.pointerCaptureInvalidated()
 	}

@@ -335,8 +335,13 @@ func (r *Root) handleMouse(ev tcell.Event) EventResult {
 		slog.Debug("root", "action", "mouseCapture", "state", "set")
 		return EventConsumed
 	}
+	// TTT is a full-screen TUI: every mouse event that reaches the root is
+	// ours, including wheel and middle-click. Returning EventIgnored lets
+	// the host terminal (observed on Tabby) keep the event — the wheel
+	// scrolled the terminal or another window instead of the focused pane
+	// (v1.1.20 damage). Consume unconditionally.
 	slog.Debug("root", "action", "mouseToMain", "result", result)
-	return result
+	return EventConsumed
 }
 
 func (r *Root) handleChord(kev *tcell.EventKey) EventResult {
