@@ -122,14 +122,14 @@ plugins/official/agent-team/
 | orchestrator plan→work→review 循环                                                                  | action router + 各 handler；`work` 支持 `autonomous` 跑到完成/阻塞                                                                                                        | `crew/index.ts`、`crew/handlers/work.ts`                          |
 | IRC 总线 = 成员消息                                                                                 | 文件型 agent mesh（无 daemon），成员发现/ Presence / 消息投递都在 store 层                                                                                                | `store.ts`、`crew/registry.ts`                                    |
 | manifest v2 `pages` + gateway `/api/plugin-assets`                                                  | **仍未实现**（M0 前置缺失依旧）——Web 显示面走 overlay，不是 iframe page                                                                                                   | —                                                                 |
-| `/team` 本地查询命令                                                                                | 已补：`/team roles` / `profile.list` / `status` / `charter.show`，纯本地读取、不触发模型轮次（无 API key 也能用）                                                         | `team-command.ts`                                                 |
+| `/teamagent` 本地查询命令                                                                           | 已补：`/teamagent roles` / `profile.list` / `status` / `charter.show`（命令名一个词无空格），纯本地读取、不触发模型轮次（无 API key 也能用）                              | `team-command.ts`                                                 |
 
 **启用方式**（无 `team.enabled` 设置键——开关就是插件本身）：
 
 ```sh
 zeta plugin install @linxiraos/pi-messenger
 zeta plugin enable @linxiraos/pi-messenger
-# TUI: /messenger 打开 overlay；/team roles 等做本地查询
+# TUI: /messenger 打开 overlay；/teamagent roles 等做本地查询
 ```
 
 **已知边界**：`-p`（headless one-shot）模式下所有 slash 命令（含内置 `/language`）

@@ -1,5 +1,5 @@
 /**
- * /team — local team/crew queries that never touch the model.
+ * /teamagent — local team/crew queries that never touch the model.
  *
  * Crew state lives on disk (team dir under the project, profiles under the
  * user home), so reading it is pure filesystem work. Routing those reads
@@ -23,7 +23,7 @@ function profiles(cwd: string): string {
 	const active = teamStore.getActiveTeam(cwd);
 	const saved = teamStore.listProfiles();
 	const lines = [
-		`Active team: ${active ? `${active.name} (profile: ${active.profile ?? "default"})` : "(none — run /team setup <name>)"}`,
+		`Active team: ${active ? `${active.name} (profile: ${active.profile ?? "default"})` : "(none — run /teamagent setup <name>)"}`,
 		"",
 		"Profiles:",
 		twoCol(saved.map(profile => [profile.name, profile.description ?? ""] as [string, string])),
@@ -41,7 +41,7 @@ function roles(cwd: string): string {
 
 function status(cwd: string): string {
 	const team = teamStore.getActiveTeam(cwd);
-	if (!team) return "No active team in this project. Activate one with /team setup <name>.";
+	if (!team) return "No active team in this project. Activate one with /teamagent setup <name>.";
 	const profile = teamStore.loadActiveProfile(cwd);
 	const counts = teamStore.memoryCounts(cwd);
 	const memory = Object.entries(counts)
@@ -58,7 +58,7 @@ function status(cwd: string): string {
 
 function charter(cwd: string): string {
 	const text = teamStore.readCharter(cwd);
-	return text ?? "No charter yet. Create one with /team charter <text>.";
+	return text ?? "No charter yet. Create one with /teamagent charter <text>.";
 }
 
 const SUBCOMMANDS: Record<string, { description: string; run: (cwd: string, rest: string) => string }> = {
@@ -69,11 +69,11 @@ const SUBCOMMANDS: Record<string, { description: string; run: (cwd: string, rest
 };
 
 /**
- * Register the local /team command. Safe to call on every extension load:
+ * Register the local /teamagent command. Safe to call on every extension load:
  * the runtime replaces a same-named registration.
  */
 export function registerTeamCommand(pi: ExtensionAPI): void {
-	pi.registerCommand("team", {
+	pi.registerCommand("teamagent", {
 		description: "Local team/crew queries (no model turn)",
 		getArgumentCompletions: prefix => {
 			const token = prefix.trim().toLowerCase();
@@ -85,7 +85,7 @@ export function registerTeamCommand(pi: ExtensionAPI): void {
 			const [sub, ...rest] = args.trim().split(/\s+/).filter(Boolean);
 			if (!sub) {
 				const usage = Object.entries(SUBCOMMANDS)
-					.map(([name, def]) => `  /team ${name.padEnd(14)} ${def.description}`)
+					.map(([name, def]) => `  /teamagent ${name.padEnd(14)} ${def.description}`)
 					.join("\n");
 				pi.sendMessage(
 					{ customType: "team_query", content: `Usage:\n${usage}`, display: true },
