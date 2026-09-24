@@ -1,6 +1,3 @@
-import { highlightOrchestrate } from "./orchestrate";
-import { highlightUltrathink } from "./ultrathink";
-import { highlightWorkflow } from "./workflow";
 import { createGradientHighlighter, type KeywordHighlighter } from "./gradient-highlight";
 import { keywordInProse } from "./markdown-prose";
 
@@ -39,7 +36,7 @@ function magicKeywordRegex(word: string, flags = ""): RegExp {
 	return new RegExp(`${LEFT_BOUNDARY}${escaped}${RIGHT_BOUNDARY}`, `${flags}u`);
 }
 
-interface RegisteredKeyword {
+export interface RegisteredKeyword {
 	readonly word: string;
 	readonly highlight: KeywordHighlighter;
 }
@@ -50,13 +47,13 @@ interface RegisteredKeyword {
  * them wired so a bare pi-tui consumer — a test, an embedder — behaves as it
  * did before the registry existed instead of silently highlighting nothing.
  */
-const BUILTIN_KEYWORDS: readonly RegisteredKeyword[] = [
-	{ word: "ultrathink", highlight: highlightUltrathink },
-	{ word: "orchestrate", highlight: highlightOrchestrate },
-	{ word: "workflowz", highlight: highlightWorkflow },
+export const DEFAULT_MAGIC_KEYWORDS: readonly MagicKeywordSpec[] = [
+	{ word: "ultrathink", hue: [0, 330] },
+	{ word: "orchestrate", hue: [150, 280] },
+	{ word: "workflowz", hue: [30, 150] },
 ];
 
-let registry: readonly RegisteredKeyword[] = BUILTIN_KEYWORDS;
+let registry: readonly RegisteredKeyword[] = buildRegistry(DEFAULT_MAGIC_KEYWORDS);
 
 /** Non-global standalone-prose matcher per word, shared by detection paths. */
 const matchers = new Map<string, RegExp>();
@@ -75,7 +72,12 @@ function matcherFor(word: string): RegExp {
  * until then nothing glows and no word is exempt from autocorrect.
  */
 export function setMagicKeywords(specs: readonly MagicKeywordSpec[]): void {
-	registry = specs.map(({ word, hue: [from, to] }) => ({
+	registry = buildRegistry(specs);
+}
+
+/** Build the painter table for a keyword spec list. */
+function buildRegistry(specs: readonly MagicKeywordSpec[]): readonly RegisteredKeyword[] {
+	return specs.map(({ word, hue: [from, to] }) => ({
 		word,
 		highlight: createGradientHighlighter({
 			probe: word,

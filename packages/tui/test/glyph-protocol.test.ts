@@ -20,6 +20,16 @@ const CONFIRM_REPLY = `\x1b_25a1;q;cp=${CONFIRM_HEX};status=glossary\x1b\\`;
 /** Everything the handshake writes after a `glyf`-capable support reply. */
 const REGISTRATION_WRITE = `${encodeBundledGlyphRegistrations()}${encodeGlyphCoverageQuery(GLYPH_CONFIRMATION_CODEPOINT)}\x1b[c`;
 
+/**
+ * The handshake reaches stdout as one write, except under ConPTY (Windows and
+ * WSL), where ProcessTerminal deliberately splits writes above the chunk cap so
+ * a large paint does not strand the host's viewport tracking. The bundle here is
+ * ~80 KB, so those platforms emit several frames. Compare the concatenation.
+ */
+function expectRegistrationWrites(writes: readonly string[]): void {
+	expect(writes.join("")).toBe(REGISTRATION_WRITE);
+}
+
 describe("glyph protocol codec", () => {
 	it("encodes a registration with the bundle metrics and fire-and-forget reply gate", () => {
 		const seq = encodeGlyphRegistration(
@@ -170,7 +180,7 @@ describe("glyph protocol probe", () => {
 			const before = writes.length;
 
 			process.stdin.emit("data", SUPPORT_REPLY);
-			expect(writes.slice(before)).toEqual([REGISTRATION_WRITE]);
+			expectRegistrationWrites(writes.slice(before));
 			// Not confirmed yet: the bundle is in flight until the `q` answer lands.
 			expect(TERMINAL.glyphProtocol).toBe(false);
 			expect(reports).toEqual([]);
@@ -232,7 +242,7 @@ describe("glyph protocol probe", () => {
 			const before = writes.length;
 			process.stdin.emit("data", "\x1b_25a1;s;fmt=gl");
 			process.stdin.emit("data", "yf\x1b\\");
-			expect(writes.slice(before)).toEqual([REGISTRATION_WRITE]);
+			expectRegistrationWrites(writes.slice(before));
 			expect(received).toEqual([]);
 		} finally {
 			terminal.stop();

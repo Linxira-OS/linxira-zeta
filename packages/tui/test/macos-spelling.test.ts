@@ -4,7 +4,7 @@ import {
 	type SpellingBackend,
 	type SpellingDecorationContext,
 } from "@linxiraos/pi-tui/prompt/macos-spelling";
-import { setMagicKeywords } from "@linxiraos/pi-tui/prompt/magic-keywords";
+import { setMagicKeywords, DEFAULT_MAGIC_KEYWORDS } from "@linxiraos/pi-tui/prompt/magic-keywords";
 
 function backend(overrides: Partial<SpellingBackend>): SpellingBackend {
 	return {
@@ -221,7 +221,10 @@ describe("macOS spelling feature gates", () => {
 				"workflowz \x1b[4:3m\x1b[58:2::255:95:95mrecieved\x1b[4:0m\x1b[59m",
 			);
 		} finally {
-			setMagicKeywords([]);
+			// The registry is process-global. Restoring the built-ins (rather
+			// than clearing) keeps later suites in the same bun process — the
+			// magic-keyword ones — highlighting the default keywords.
+			setMagicKeywords(DEFAULT_MAGIC_KEYWORDS);
 		}
 	});
 
