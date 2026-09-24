@@ -357,6 +357,32 @@ native / web build）跑完后才扇出 10+ 个测试桶。只看前置阶段的
 `gh run view <id> --json jobs` 里 **completed** 状态的 run，或至少等到
 测试桶出现在列表里。
 
+**结论 10（注入类全局必须两侧一起 sweep）**：类别 9 的 sweep 不能只做一半。
+v18.2.8–.11 把 `eval/js/shared/runtime.ts` 的 `__zeta_import__` 改成
+`__omp_import__`、`eval/py/runner.py` 的 8 个 `__zeta_*` 改成 `__omp_*`，而
+消费侧 `rewrite-imports.ts` / `prelude.py` 仍发/调 `__zeta_*` —— 两半对不上，
+每个含 import 的 JS cell 和 Python completion/judge_batch 桥直接
+ReferenceError。判定方法固定：merge 后对每个注入符号在 **provider 与 consumer
+两侧**各 grep 一次，两边名字必须一致；`__omp_tool_bridge__` /
+`__omp_with_call_site__` 这类进程间协议名则两侧都保持上游名。
+
+**结论 11（协议/设置面被上游体覆盖时，优先恢复我们的实现再逐项补上游增量）**：
+两处同一形态——merge 用上游文件体覆盖了 Zeta 面：
+`tui/prompt/magic-keywords.ts`（内置高亮器表 → 空 registry）与
+`internal-urls/zeta-protocol.ts`（`zeta://` scheme → `omp://`）。两者在
+main 上都有测试守着，症状是"本包全量跑红、单跑绿"（前者还会因
+`setMagicKeywords([])` 污染同进程后续套件）。这类不要顺着上游测试改我们的
+契约，而是恢复我们的实现，再把上游新增能力逐项并进来（`zeta-protocol` 的
+上游版把 traversal 校验挪进了 URL grammar，我们的版本在 handler 里自己做了，
+还多了 did-you-mean 建议，恢复即 superior）。
+
+**结论 12（做基线对照前先确认 checkout 覆盖到了本次改动的路径）**：修完
+`packages/` 下的文件后，用 `git checkout origin/main -- packages/` 做对照，
+再用 `git checkout HEAD -- packages/` 还原。中间任何一次 `git stash pop`
+或 `git reset` 都可能把刚修好的文件打回 HEAD 形态而无人察觉——本轮因此
+把同一处修复重做了三次（umans cost、eval 符号、zeta-protocol）。**每次
+基线对照结束后立刻 `git status` 确认工作树与预期一致。**
+
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
 squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶分诊结论与
