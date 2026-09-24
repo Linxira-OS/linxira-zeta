@@ -260,6 +260,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "显示内联图片",
 		description: "在终端内联渲染图片",
 	},
+	"editor.autoInstall": {
+		label: "自动安装编辑器",
+		description: "切换到编辑器时若未安装 @linxiraos/editor 包则自动安装",
+	},
+	"editor.handoffSession": {
+		label: "交接当前会话",
+		description: "将会话写入交接文件，使编辑器侧可恢复对话上下文",
+	},
 	"images.autoResize": {
 		label: "自动调整图片大小",
 		description: "将大图片调整为最大 2000x2000 以获得更好的模型兼容性",
