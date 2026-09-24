@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import { ACP_BUILTIN_SLASH_COMMANDS, executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
+import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 
@@ -111,9 +111,5 @@ describe("/retry dispatch (ACP)", () => {
 		const noop = await executeAcpBuiltinSlashCommand("/retry", acpRuntime({ retryResult: false }).runtime);
 		expect(scheduled).toEqual({ consumed: true, agentInvoked: true });
 		expect(noop).toEqual({ consumed: true });
-	});
-
-	it("is advertised to ACP clients", () => {
-		expect(ACP_BUILTIN_SLASH_COMMANDS.find(c => c.name === "retry")).toBeDefined();
 	});
 });

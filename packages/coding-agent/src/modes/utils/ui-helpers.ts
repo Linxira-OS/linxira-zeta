@@ -45,9 +45,8 @@ import { createUsageRowBlock, turnElapsedMs } from "@linxiraos/pi-tui/overlays/u
 import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
 import { decodeStreamedToolArgs, streamingStringKeysForTool } from "../../modes/controllers/tool-args-reveal";
 import { materializeImageReferenceLinksSync } from "@linxiraos/pi-tui/prompt/image-references";
-import { videoPreviewSource } from "@linxiraos/pi-tui/prompt/video";
+import { imageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
 import { theme } from "@linxiraos/pi-tui/theme";
-
 import type { CompactionQueuedMessage, InteractiveModeContext, RenderSessionContextOptions } from "../../modes/types";
 import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "../../session/launch-completion";
 import {
@@ -123,7 +122,7 @@ function imageLinksForMessage(
 			content.type === "image" && typeof content.data === "string" && typeof content.mimeType === "string",
 	);
 	const materialized = materializeImageReferenceLinksSync(images, putBlobSync);
-	return images.map((image, index) => videoPreviewSource(image) ?? materialized?.[index]);
+	return images.map((image, index) => imageAttachmentSource(image)?.path ?? materialized?.[index]);
 }
 
 export class UiHelpers {

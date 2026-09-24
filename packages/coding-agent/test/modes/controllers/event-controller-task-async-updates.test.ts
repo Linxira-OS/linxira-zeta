@@ -22,7 +22,7 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";
 import type { TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
-import type { BashToolDetails } from "@linxiraos/pi-tui/tools/bash";
+import { type BashToolDetails, formatBackgroundNotice } from "@linxiraos/pi-tui/tools/bash";
 import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
@@ -226,7 +226,7 @@ describe("EventController async update finalization", () => {
 			type: "tool_execution_end",
 			toolCallId: "tc-bash",
 			toolName: "bash",
-			result: bashResult("Backgrounded as job bash-1; result will be delivered automatically."),
+			result: bashResult(formatBackgroundNotice("bash-1")),
 			isError: false,
 		});
 

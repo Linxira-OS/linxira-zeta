@@ -68,7 +68,7 @@ npx omp-web@latest
 ## 特色与增强功能
 
 - **独立代码块语法主题选择器**：新增多主题代码渲染支持，内置 **One Dark Pro**、VS Code Dark+、VS Code Light 等高亮主题，用户可自由切换代码视觉风格。
-- **Zeta 兼容层**：默认使用 `~/.zeta/agent/` 目录结构（`models.json`、`models.db`、`config.yml`、`agent.db` 等），兼容 `~/.omp/agent/` 旧目录。支持角色模型（如 `defaultModel`、`smallModel`）和 SQLite 凭据。
+- **Zeta 兼容层**：默认使用 `~/.zeta/agent/` 目录结构（`models.json`、`models.db`、`config.yml`、`agent.db` 等），兼容 `~/.zeta/agent/` 旧目录。支持角色模型（如 `defaultModel`、`smallModel`）和 SQLite 凭据。
 - **全界面中文与双语本地化**：提供全面中文化的 UI 交互体验，优化 CJK 排版、字体与搜索体验。
 - **按项目找回历史对话**：打开网页即可按项目检索以前的 Zeta 会话，不必在终端里翻文件或记住会话路径。
 - **放心探索不同方向**：从任意历史消息重新开始，或将会话 Fork 成独立路线，不会影响原来的对话。

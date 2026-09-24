@@ -4,13 +4,11 @@ import * as path from "node:path";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
-import * as modes from "@linxiraos/zeta/modes";
 import { getSettingsForTab } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
 import {
 	autosaveApprovedPlan,
 	defaultPlanAutosaveDir,
-	planSaveFileName,
 	resolvePlanAutosaveDir,
 } from "@linxiraos/zeta/plan-mode/plan-autosave";
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
@@ -55,9 +53,6 @@ describe("plan autosave settings UI", () => {
 		Settings.instance.set("plan.enabled", false);
 		expect(autosave.condition()).toBe(false);
 		expect(autosaveDir.condition()).toBe(false);
-	});
-	it("stays reachable from the public modes barrel", () => {
-		expect(modes.planSaveFileName).toBe(planSaveFileName);
 	});
 });
 

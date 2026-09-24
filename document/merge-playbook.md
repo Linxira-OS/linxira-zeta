@@ -36,7 +36,7 @@ triage 表、推送门槛）在根 `AGENTS.md`，本文只放操作步骤与工�
    （或文档）时，成对整体接受。**Tests must be merged as contract, not as
    ours-vs-theirs text.**（`v17.2.11` 教训：`38b61ae342` 把 retry-after delay
    30s → 200ms 改到上游，合并却保留了我们的 `delayMs: 30_000` 旧断言，CI 红。）
-   `.omp` fixture 路径类损伤（AGENTS.md 损伤表第 6 类）在本阶段处理：只在
+   `.zeta` fixture 路径类损伤（AGENTS.md 损伤表第 6 类）在本阶段处理：只在
    Linux/XDG 分支生效的测试，Windows 本地全绿不代表合并适配完整。
 5. **brand-check 归零 + 全测试绿。** `bun scripts/brand/brand-check.ts` 必须
    exit 0——判断题命中逐条手工 resolve（改代码或按依据扩 allow-list），不许为
@@ -62,11 +62,11 @@ triage 表、推送门槛）在根 `AGENTS.md`，本文只放操作步骤与工�
   documented conflict decisions, then make any required Zeta brand, package,
   Bun, CI, or product adaptations in separate commits after the merge. Do not
   use later untagged upstream work to resolve conflicts.
-- **无 `.omp` 兼容面。** Zeta's config dir is `.zeta` and `~/.zeta` only; we do
-  not maintain legacy `.omp` path aliases — the compatibility cost outweighs
-  the value. Upstream tests or docs that carry `.omp` paths must be adapted to
+- **无 `.zeta` 兼容面。** Zeta's config dir is `.zeta` and `~/.zeta` only; we do
+  not maintain legacy `.zeta` path aliases — the compatibility cost outweighs
+  the value. Upstream tests or docs that carry `.zeta` paths must be adapted to
   `.zeta` during the merge and that decision recorded in the ledger
-  (e.g. `acp-agent.test.ts` wrote `path.join(cwd, ".omp", "agents")`; zeta
+  (e.g. `acp-agent.test.ts` wrote `path.join(cwd, ".zeta", "agents")`; zeta
   resolves `.zeta/agents`).
 - **产品前门是 Zeta 资产。** Treat the root `README.md`, Zeta logo assets,
   product name, homepage, install instructions, and public examples as
@@ -102,7 +102,7 @@ bun scripts/brand/brand-overlay.ts         # apply：直接改写工作树
 - apply 模式基于 `git ls-files` 扫描受跟踪产品源码，把 brand-rules.ts 里
   **Zeta 规范形无歧义**的机械 token 批量改写：`USER_AGENT = \`omp/\${VERSION}\``
   → `zeta/`、`PREVIEW_TITLE`/`APP_NAME`/profile alias 的 `"omp"` → `"ζ"`/`"zeta"`、
-  `name: "oh-my-pi"` → `"zeta"`、`.omp` 路径 fixture → `.zeta`（skills/agent/
+  `name: "oh-my-pi"` → `"zeta"`、`.zeta` 路径 fixture → `.zeta`（skills/agent/
   plugins/cache 等参数面）、mcp/theme schema URL 指向 Zeta 仓库 raw 地址、
   doc-comment 与 `$XDG_*/omp/` 文档路径、`.omp\` Windows 路径等。
 - **幂等且刻意窄**：只改无歧义 token。语义面（测试契约、上游互操作面）留给
@@ -118,7 +118,7 @@ bun scripts/brand/brand-check.ts --json   # 机器可读报告
 ```
 
 扫描受跟踪产品源码里品牌注册表禁止的上游 OMP 标记（`PI_LOGO`、`@linxiraos/`
-scope、越界 `.omp` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断言缺失等），
+scope、越界 `.zeta` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断言缺失等），
 任何未解决命中都 exit 1，合并不得静默回退 Zeta 产品面。判断题（语义分歧、
 测试契约）不是它的职责——按本文"逐 bucket 测试契约 resolve"处理。
 
@@ -155,7 +155,7 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 - `package.json` — `PI_IMAGE` docker tag 默认 `oh-my-pi/pi:dev` + robomp scripts
 - `CONTRIBUTING.md` — 标题仍是 "Contributing to oh-my-pi"（upstream-facing 文档）
 - `scripts/rewrite-changelog.ts` — db path doc comment（`OMP_PATH_ALLOW` 注释）
-- `scripts/install.sh` — 如有：当前无 `oh-my-pi`/`.omp` 命中、也无 allow-list
+- `scripts/install.sh` — 如有：当前无 `oh-my-pi`/`.zeta` 命中、也无 allow-list
   条目；合并若引入残留，先扩 allow-list 注释登记，再排期 sweep
 - 其余 allow-list 条目为 fixture 级（gh/update-cli/git-hosting/oauth/otel
   probe/gallery-fixtures/telemetry 等测试与注释），同为欠账，见
@@ -215,7 +215,7 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    rules.json 留旧版导致 compat/conformance/tokenizer 套件全红）。
 6. **收口扫描（无扩展名白名单）**：
    - 冲突标记：`git grep -nE "^(<<<<<<<|>>>>>>>) " -- .`
-   - 上游符号/品牌：`git grep -nE "@oh-my-pi/|__omp_|PI_CODING_AGENT_DIR|PI_LOGO" -- .`
+   - 上游符号/品牌：`git grep -nE "@linxiraos/|__omp_|PI_CODING_AGENT_DIR|PI_LOGO" -- .`
      （逐命中判定，豁免清单见 brand-rules.ts 与本 playbook 各教训节）
    - 覆盖全部文本类型（.txt/.py/.rs/.nix/.kdl/.toml/.lock 与无扩展文件都在
      扫描范围内——prelude.txt、tests.rs、bun.nix 三次踩坑）。
@@ -294,7 +294,7 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 - **指纹**：子进程 spawn 型测试成批失败（logger 字节契约、DailyRotateFile、
   ptree stderr、stderr guard、任何断言 `stderr === ""` 的测试），断言 diff
   里出现 `warn: Duplicate key "@linxiraos/xxx" in package.json:N`。
-- **根因**：合并 driver union 把上游 `@oh-my-pi/*` 依赖与 Zeta
+- **根因**：合并 driver union 把上游 `@linxiraos/*` 依赖与 Zeta
   `@linxiraos/*` 同名键并存的 manifest，再经 scope sweep 字符串改名后
   同一对象内出现重复键。bun 每次进程启动都向 stderr 打警告。
 - **修复**：`object_pairs_hook` 计数去重全部 `packages/*/package.json`；
@@ -349,7 +349,7 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 ### 分段快进推送的必然产物
 
 - squash 分支是"重建的树"，**不继承完整合并分支已通过的任何清扫**——
-  每个 tag 合并带进来的 CHANGELOG 段/scope/`.omp` 残留在 squash 树上要
+  每个 tag 合并带进来的 CHANGELOG 段/scope/`.zeta` 残留在 squash 树上要
   **全部重扫一遍**（本次 CHANGELOG 311 段、scope 14 文件）。
 - browser-launch 的 CfT buildId 适配：不能拍脑袋 pin 版本号，必须从
   启动器同源读取（browsers.ts 内部的 revision 常量/导出），否则

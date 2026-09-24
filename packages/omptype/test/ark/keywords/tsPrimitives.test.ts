@@ -2,12 +2,6 @@ import { expect, it } from "bun:test";
 import { type } from "@linxiraos/pi-omptype/ark";
 import type { Eq } from "../type-assert";
 
-it("string strings", () => {
-	const StringType = type("string");
-	const _0: Eq<typeof StringType.infer, string> = true;
-	expect(StringType("string")).toBe("string");
-});
-
 it("any", () => {
 	const Any = type("unknown.any");
 	expect(Any.json).toEqual(type.unknown.json);

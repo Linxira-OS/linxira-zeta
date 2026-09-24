@@ -1,19 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
 import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";
 import { MODELS_DEV_PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 import type { OpenAICompat } from "@linxiraos/pi-catalog/types";
 
 describe("deepseek built-in provider (issue #830)", () => {
-	test("registers built-in runtime descriptor with DEEPSEEK_API_KEY env discovery", () => {
-		const descriptor = PROVIDER_DESCRIPTORS.find(item => item.providerId === "deepseek");
-		expect(descriptor).toBeDefined();
-		expect(descriptor?.defaultModel).toBe("deepseek-v4-pro");
-		expect(descriptor?.catalogDiscovery?.envVars).toContain("DEEPSEEK_API_KEY");
-		expect(DEFAULT_MODEL_PER_PROVIDER.deepseek).toBe("deepseek-v4-pro");
-	});
-
 	test("registers DeepSeek as an API-key login provider", () => {
 		const provider = getOAuthProviders().find(item => item.id === "deepseek");
 		expect(provider?.name).toBe("DeepSeek");

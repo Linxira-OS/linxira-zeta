@@ -12,6 +12,7 @@ import {
 	parseClaudePluginsRegistry,
 } from "@linxiraos/zeta/discovery/helpers";
 import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
+import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
 import "@linxiraos/zeta/discovery/claude-plugins";
 
 describe("parseClaudePluginsRegistry", () => {
@@ -87,7 +88,7 @@ describe("listClaudePluginRoots", () => {
 		process.env.HOME = tempDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempDir);
 		// Point the agent dir at a temp dir so user-scope discovery (native MCP
-		// config, skills, etc.) cannot read the real ~/.omp/agent profile.
+		// config, skills, etc.) cannot read the real ~/.zeta/agent profile.
 		setAgentDir(testAgentDir);
 		enableProvider("claude-plugins");
 		disableUserSource("claude-plugins");
@@ -609,6 +610,66 @@ describe("listClaudePluginRoots", () => {
 
 		expect(skills.map(s => s.name)).toContain("omp-demo");
 		expect(skills.map(s => s.name)).not.toContain("claude-demo");
+	});
+
+	test("dashboard marks omp-origin plugin capabilities active without enabling the Claude source (#12776)", async () => {
+		// Regression (#12776): the loader exempts ~/.zeta/plugins marketplace roots
+		// (origin !== "claude") from the foreign user opt-in gate, but the
+		// /extensions dashboard's resolveState re-dropped them as "user-opt-in".
+		// The omp-origin skill AND rule must render active; the claude-origin skill
+		// must stay opt-in disabled. The rule proves origin now rides the
+		// non-skill _source built by loadFilesFromDir, not just skills.
+		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
+		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
+		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
+		await Promise.all([
+			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),
+			fs.mkdir(path.join(ompPluginPath, "rules"), { recursive: true }),
+			fs.mkdir(path.join(claudePluginPath, "skills", "claude-demo"), { recursive: true }),
+			fs.mkdir(path.dirname(ompRegistryPath), { recursive: true }),
+			fs.mkdir(path.dirname(claudeRegistryPath), { recursive: true }),
+		]);
+		await Promise.all([
+			fs.writeFile(
+				path.join(ompPluginPath, "skills", "omp-demo", "SKILL.md"),
+				"---\nname: omp-demo\ndescription: OMP skill\n---\nBody\n",
+			),
+			fs.writeFile(path.join(ompPluginPath, "rules", "omp-rule.md"), "---\ndescription: OMP rule\n---\nBody\n"),
+			fs.writeFile(
+				path.join(claudePluginPath, "skills", "claude-demo", "SKILL.md"),
+				"---\nname: claude-demo\ndescription: Claude skill\n---\nBody\n",
+			),
+			fs.writeFile(
+				ompRegistryPath,
+				JSON.stringify({
+					version: 2,
+					plugins: {
+						"omp-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
+					},
+				}),
+			),
+			fs.writeFile(
+				claudeRegistryPath,
+				JSON.stringify({
+					version: 2,
+					plugins: {
+						"claude-owned@market": [{ scope: "user", installPath: claudePluginPath, version: "1.0.0" }],
+					},
+				}),
+			),
+		]);
+
+		const extensions = await loadAllExtensions(tempDir);
+		const ompSkill = extensions.find(e => e.id === "skill:omp-demo");
+		const ompRule = extensions.find(e => e.id === "rule:omp-rule");
+		const claudeSkill = extensions.find(e => e.id === "skill:claude-demo");
+
+		expect(ompSkill?.state).toBe("active");
+		expect(ompRule?.state).toBe("active");
+		// The foreign ~/.claude marketplace plugin still requires the opt-in.
+		expect(claudeSkill?.state).toBe("disabled");
+		expect(claudeSkill?.disabledReason).toBe("user-opt-in");
 	});
 
 	for (const catalogDir of [".claude-plugin", ".omp-plugin"]) {

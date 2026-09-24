@@ -65,7 +65,7 @@ id-token: write` in the workflow, cloud-hosted runners, npm CLI ≥ 11.5.1,
   tokens lose direct publish in January 2027, and staged publishing (`npm
 stage publish` + maintainer 2FA approval) is the recommended pairing for
   CI-originated publishes. Every published package uses the `@linxiraos/*` name —
-  no `@linxiraos/*` or legacy names, and no `.omp` compatibility packages.
+  no `@linxiraos/*` or legacy names, and no `.zeta` compatibility packages.
 - **The `@linxiraos` publish chain is live** (v1.0.9 published 2026-08-19 via
   trusted publishing).
 - **Trusted-publisher 配置是逐包的**（v1.1.9 教训：`@linxiraos/pi-natives-win32-arm64`

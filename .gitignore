@@ -17,6 +17,7 @@ target/
 
 # Environment
 .env
+.venv
 
 # WSL-local toolchain (bun/bazel/rustup homes) for building natives without
 # VS Build Tools; never committed
@@ -48,7 +49,7 @@ coverage/
 packages/ai/test/.temp-images/
 
 # Project specific
-.omp/
+.zeta/
 .pi_config/
 .opencode/
 .worktrees/

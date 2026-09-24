@@ -2,7 +2,7 @@ import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
 import { type Component, Loader, TERMINAL } from "@linxiraos/pi-tui";
-import { formatDuration, logger, prompt, sanitizeText } from "@linxiraos/pi-utils";
+import { formatDuration, isRecord, logger, prompt, sanitizeText } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { extractTextContent } from "../../commit/utils";
 import { settings } from "../../config/settings";
@@ -37,7 +37,7 @@ import {
 	resolveAbortLabel,
 } from "../../session/messages";
 import { type ApprovalMode, resolveApproval } from "../../tools/approval";
-import { previewLine, TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
+import { previewLine, PREVIEW_LIMITS, TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
 import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import { writeDeviceDispatch } from "../../tools/resolve";
 import { nextActionableTask } from "../../tools/todo";
@@ -76,6 +76,14 @@ const IDLE_RECAP_MIN_SECONDS = 1;
 const IDLE_RECAP_MAX_SECONDS = 3600;
 
 const RAW_PARTIAL_JSON_RENDERERS: Record<string, true> = { bash: true, edit: true, apply_patch: true };
+
+function hasNestedTodo(details: unknown): boolean {
+	return (
+		isRecord(details) &&
+		Array.isArray(details.statusEvents) &&
+		details.statusEvents.some(event => isRecord(event) && event.op === "todo" && event.committed === true)
+	);
+}
 
 function exposesRawPartialJson(toolName: string, rawInput: boolean, tool: unknown): boolean {
 	if (rawInput) return true;
@@ -1938,6 +1946,9 @@ export class EventController {
 			const details = event.result.details as { op?: string; phases?: TodoPhase[] } | undefined;
 			if (details?.op !== "view" && details?.phases) this.ctx.setTodos(details.phases);
 		}
+		if (event.toolName === "eval" && hasNestedTodo(event.result.details)) {
+			this.ctx.setTodos(this.ctx.viewSession.getTodoPhases());
+		}
 		if (event.toolName === "todo" && event.isError) {
 			const textContent = event.result.content.find(
 				(content: { type: string; text?: string }) => content.type === "text",
@@ -2351,7 +2362,10 @@ export class EventController {
 	async #handleRetryFallbackApplied(
 		event: Extract<AgentSessionEvent, { type: "retry_fallback_applied" }>,
 	): Promise<void> {
-		this.ctx.showWarning(M.ecFallbackFmt.replace("%s", event.from).replace("%s", event.to));
+		const reason = event.reason
+			? `\n${previewLine(sanitizeText(event.reason), TRUNCATE_LENGTHS.LINE * PREVIEW_LIMITS.COLLAPSED_LINES)}`
+			: "";
+		this.ctx.showWarning(`Fallback: ${event.from} -> ${event.to}${reason}`);
 	}
 
 	async #handleRetryFallbackSucceeded(

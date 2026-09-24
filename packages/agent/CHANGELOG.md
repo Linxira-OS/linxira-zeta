@@ -3,9 +3,6 @@
 ## [Unreleased]
 
 ## [1.1.20] - 2026-09-23
-
-- 版本线推进;`__piNatives` 哨兵派生规则与 set-version 对齐(dots-only → 全部非字母数字),prerelease 下不再推出非法 Rust 标识符。
-
 ## [9.2.2] - 2026-01-31
 
 ### Added

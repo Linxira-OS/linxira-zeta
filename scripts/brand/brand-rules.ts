@@ -24,7 +24,7 @@ export const SKIP_PREFIXES = [
 	"crates/pi-natives/src/syntaxes/", // highlight grammars (Julia π constant)
 	"plugins/", // shipped extension assets
 	"infra/", // self-hosted ARC deployment docs/lists; historical runner labels are data
-	".omp/", // in-repo dev-tool directory (not the product config dir)
+	".zeta/", // in-repo dev-tool directory (not the product config dir)
 	".oxlintrc.json", // lint-glob config; tooling cleanup tracked separately
 	"scripts/brand/", // the guard's own rule table names the tokens it bans
 	".zcode/",
@@ -79,7 +79,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 export const OH_MY_PI_ALLOW_PATTERNS = [/github\.com\/can1357\/oh-my-pi/, /oh-my-pi#\d+/, /oh-my-pi issue #\d+/];
 
 /**
- * `.omp` path-segment strings are flagged in src files unless the line matches
+ * `.zeta` path-segment strings are flagged in src files unless the line matches
  * an allow pattern. Each entry: the interop surface that must keep reading or
  * writing OMP-native locations. Test fixtures are exempt (self-consistent
  * temp paths; the per-bucket merge procedure resolves them when CI proves a
@@ -98,7 +98,7 @@ export const OMP_PATH_ALLOW = [
 	/\.omp-plugin|\.ompshare|omp\.sh|__omp|ZETA_PROFILE|ompprurl|@omp-|omp-\$\{/,
 	/\.omp[a-zA-Z]*Url|ompPr|ompPersisted|ompToolViews|ompCmd|ompGroup/,
 	/rewrite-changelog\.ts$/, // pre-existing main debt: doc comment on db path
-	/crates\/pi-natives\/src\/oauth_callback\/tests\.rs$/, // negative assertion: .omp must NOT exist
+	/crates\/pi-natives\/src\/oauth_callback\/tests\.rs$/, // negative assertion: .zeta must NOT exist
 	/extensibility\/plugins\/loader\.ts$/, // OMP/Claude project-anchor detection docs
 	/packages\/browser-relay\//, // relay README pairs with OMP-compatible CLI surfaces
 ];

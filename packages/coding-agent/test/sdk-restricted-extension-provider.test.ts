@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -20,7 +20,9 @@ import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { __resetDirsFromEnvForTests, setAgentDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { restoreEnvValue as restoreEnv } from "./helpers/settings-test-state";
 
 const providerName = "restricted-session-provider";
 const modelId = "restricted-session-model";
@@ -34,9 +36,15 @@ describe("restricted sessions sharing extension providers", () => {
 	let providerRequests: number;
 	let settings: Settings;
 
+	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const originalPiProfile = process.env.PI_PROFILE;
+	const originalOmpProfile = process.env.OMP_PROFILE;
+
 	beforeEach(() => {
 		tempDir = path.join(os.tmpdir(), `pi-sdk-restricted-provider-${Snowflake.next()}`);
-		fs.mkdirSync(tempDir, { recursive: true });
+		const testAgentDir = path.join(tempDir, "agent");
+		fs.mkdirSync(testAgentDir, { recursive: true });
+		setAgentDir(testAgentDir);
 		authStorage = createInMemoryAuthStorage();
 		modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
 		settings = Settings.isolated();
@@ -45,10 +53,24 @@ describe("restricted sessions sharing extension providers", () => {
 	});
 
 	afterEach(() => {
-		vi.restoreAllMocks();
-		modelRegistry.clearSourceRegistrations(sourceId);
-		authStorage.close();
-		removeSyncWithRetries(tempDir);
+		try {
+			vi.restoreAllMocks();
+			modelRegistry.clearSourceRegistrations(sourceId);
+			authStorage.close();
+		} finally {
+			restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+			restoreEnv("PI_PROFILE", originalPiProfile);
+			restoreEnv("OMP_PROFILE", originalOmpProfile);
+			__resetDirsFromEnvForTests();
+			removeSyncWithRetries(tempDir);
+		}
+	});
+
+	afterAll(() => {
+		restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+		restoreEnv("PI_PROFILE", originalPiProfile);
+		restoreEnv("OMP_PROFILE", originalOmpProfile);
+		__resetDirsFromEnvForTests();
 	});
 
 	const providerExtension: ExtensionFactory = pi => {
@@ -342,6 +364,7 @@ describe("restricted sessions sharing extension providers", () => {
 				settings,
 				modelRegistry,
 				authStorage,
+				sessionManager: SessionManager.inMemory(),
 				changelogTargets: [],
 				requireChangelog: false,
 			});

@@ -6,8 +6,13 @@ import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import type { Component, OverlayHandle, ResizeScrollbackMode } from "@linxiraos/pi-tui";
 import { Loader, Spacer, setTuiTight, Text } from "@linxiraos/pi-tui";
-import { getAgentDbPath, getAgentDir, getProjectDir, normalizePathForComparison } from "@linxiraos/pi-utils";
-
+import {
+	getAgentDbPath,
+	getAgentDir,
+	getProjectDir,
+	normalizePathForComparison,
+	sanitizeText,
+} from "@linxiraos/pi-utils";
 import {
 	ADVISOR_DEFAULT_TOOL_NAMES,
 	discoverAdvisorConfigs,
@@ -2403,13 +2408,18 @@ export class SelectorController {
 			statuses = await session.listResetCredits();
 		} catch (error) {
 			this.ctx.showError(
-				M.statusCouldNotLoadSavedResetsFmt.replace("%s", error instanceof Error ? error.message : String(error)),
+				sanitizeText(
+					`Could not load saved resets: ${error instanceof Error ? error.message : String(error)}`.replace(
+						/[\r\n\t]+/g,
+						" ",
+					),
+				),
 			);
 			return;
 		}
 		const accounts = toResetUsageAccounts(statuses);
 		if (accounts.length === 0) {
-			this.ctx.showStatus(M.statusNoCodexAccountsFoundUseLoginToAddOne);
+			this.ctx.showStatus("No provider accounts found. Use /login to add one.");
 			return;
 		}
 		if (!accounts.some(account => account.availableCount > 0)) {
@@ -2435,19 +2445,25 @@ export class SelectorController {
 	}
 
 	async #redeemReset(account: ResetUsageAccount): Promise<void> {
-		this.ctx.showStatus(M.statusSpendingSavedResetFmt.replace("%s", account.label), { dim: true });
+		this.ctx.showStatus(
+			`Spending 1 saved reset for ${sanitizeText(account.label.replace(/[\r\n\t]+/g, " "))} (${account.providerLabel})…`,
+			{ dim: true },
+		);
 		let outcome: ResetCreditRedeemOutcome;
 		try {
 			outcome = await this.ctx.session.redeemResetCredit(account.target);
 		} catch (error) {
 			this.ctx.showError(
-				M.statusResetFailedFmt
-					.replace("%s", account.label)
-					.replace("%s", error instanceof Error ? error.message : String(error)),
+				sanitizeText(
+					`Reset failed for ${account.label}: ${error instanceof Error ? error.message : String(error)}`.replace(
+						/[\r\n\t]+/g,
+						" ",
+					),
+				),
 			);
 			return;
 		}
-		const message = describeRedeemOutcome(outcome, account.label);
+		const message = sanitizeText(describeRedeemOutcome(outcome, account.label).replace(/[\r\n\t]+/g, " "));
 		if (outcome.ok) {
 			this.ctx.showStatus(message);
 			// Refresh the status-line usage so the freshly-reset window shows.

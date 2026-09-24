@@ -5,9 +5,6 @@
 - **agent ↔ editor 双向切换**:`/editor` 命令与右上角圆角按钮写 handoff(cwd/gitRoot/sessionFile/file:line:col)后 detached spawn editor;配套 `editor.autoInstall` / `editor.handoffSession` 设置键(挂 interaction→Agent 组)。
 - **`/teamagent` 指令**:crew 角色 → 标准 AgentDefinition 写 `<project|user>/.zeta/agents`,含 add/remove/agents/roles/status/profile.list/charter.show 七动词。
 ## [1.1.20] - 2026-09-23
-
-- 斜杠命令描述跟随 `/language` 实时切换(此前 import 时快照固化,切换只重建列表、文字停留 OS 语言);`/language` 文本模式补 `refreshCommands()`,ACP/RPC 客户端重新广告命令列表。
-
 ## [1.1.19] - 2026-09-22
 
 - 内嵌 TTT 编辑器修复:无按键移动不再自动弹出右键菜单(按下沿检测,免疫终端 SGR release 残留位);About/--help 品牌面清理(上游链接移除);内嵌终端鼠标按钮映射与 tcell v3 语义对齐。
@@ -245,3 +242,4 @@
 - Fixed Enter being ignored during the first turn when omp starts with an initial prompt.
 - Fixed idle compaction discarding context while the session was still waiting on a backgrounded async job ([#10223](https://github.com/can1357/oh-my-pi/pull/10223) by [@mattwilkinsonn](https://github.com/mattwilkinsonn)).
 - Fixed LSP idle timeout clobbering in multi-workspace sessions and unmanaged timer spawning on pure config reads ([#10237](https://github.com/can1357/oh-my-pi/pull/10237) by [@harshaygadekar](https://github.com/harshaygadekar)).
+

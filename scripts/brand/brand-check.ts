@@ -76,7 +76,7 @@ for (const file of trackedFiles()) {
 		});
 	}
 
-	// .omp path segments outside the interop allow-list. `.omp` followed by a
+	// .zeta path segments outside the interop allow-list. `.zeta` followed by a
 	// word char, dot or hyphen is a retained surface (.omp-plugin, .omp-tmp,
 	// pkg.omp, theme.icon.omp); allow patterns match "file ⟶ line" so entries
 	// may scope by file path or content; test fixtures are exempt.
@@ -85,7 +85,7 @@ for (const file of trackedFiles()) {
 		if (/\/test\//.test(relPath)) return;
 		const hay = `${relPath} ⟶ ${line}`;
 		if (OMP_PATH_ALLOW.some(pattern => pattern.test(hay) || pattern.test(relPath))) return;
-		hits.push({ file: relPath, line: index + 1, text: line.trim().slice(0, 120), rule: ".omp path token" });
+		hits.push({ file: relPath, line: index + 1, text: line.trim().slice(0, 120), rule: ".zeta path token" });
 	});
 
 	// π family must stay out of brand char-art surfaces.

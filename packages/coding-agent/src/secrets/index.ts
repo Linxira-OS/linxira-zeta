@@ -244,6 +244,7 @@ export function builtinCredentialSecretEntries(): SecretEntry[] {
 		flags: pattern.flags,
 		mode: "obfuscate",
 		friendlyName: pattern.name,
+		literalPrefixes: pattern.literalPrefixes,
 	}));
 }
 
