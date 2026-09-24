@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- **agent ↔ editor 双向切换**:`/editor` 命令与右上角圆角按钮写 handoff(cwd/gitRoot/sessionFile/file:line:col)后 detached spawn editor;配套 `editor.autoInstall` / `editor.handoffSession` 设置键(挂 interaction→Agent 组)。
+- **`/teamagent` 指令**:crew 角色 → 标准 AgentDefinition 写 `<project|user>/.zeta/agents`,含 add/remove/agents/roles/status/profile.list/charter.show 七动词。
+
 ## [1.1.20] - 2026-09-23
 
 - 斜杠命令描述跟随 `/language` 实时切换(此前 import 时快照固化,切换只重建列表、文字停留 OS 语言);`/language` 文本模式补 `refreshCommands()`,ACP/RPC 客户端重新广告命令列表。

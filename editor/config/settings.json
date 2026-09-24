@@ -43,5 +43,9 @@
   },
   "markdown": {
     "wrapWidth": 80
+  },
+  "agent": {
+    "enabled": true,
+    "handoffFile": true
   }
 }

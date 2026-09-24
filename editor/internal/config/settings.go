@@ -198,6 +198,10 @@ type AgentSettings struct {
 	HandoffFile *bool `json:"handoffFile,omitempty"`
 }
 
+// boolPtr returns a pointer to b, for tri-state settings whose nil value means
+// "inherit the default".
+func boolPtr(b bool) *bool { return &b }
+
 func (a AgentSettings) IsEnabled() bool {
 	return a.Enabled == nil || *a.Enabled
 }
@@ -316,6 +320,13 @@ func DefaultSettings() Settings {
 		LSP:          DefaultLSPSettings(),
 		Autocomplete: DefaultAutocompleteSettings(),
 		Markdown:     DefaultMarkdownSettings(),
+		// Explicit (not nil) so a written config shows the agent block and the
+		// settings UI can round-trip it; IsEnabled/HandsOffFile still treat nil
+		// as "on" for configs written before this block existed.
+		Agent: AgentSettings{
+			Enabled:     boolPtr(true),
+			HandoffFile: boolPtr(true),
+		},
 	}
 }
 

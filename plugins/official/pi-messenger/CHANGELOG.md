@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- **handoff 契约模块**(`handoff.ts`):write-then-rename + 读一次即删,`path:line:col` 解析处理 Windows 盘符冒号;损坏/空 payload 不阻塞启动;显式 CLI 参数优先,同目录已开工作区不拆。
+- **`/editor` + 右上角圆角按钮**:header 挂点(`setHeader` 需要 live ctx,故从 `session_start` 装)而非 status-line segment;`editor.autoInstall` 缺失自动 `npm i -g`,Linux EACCES 走 `sudo -n` 重试,需密码时返回确切命令。
+- **`/teamagent`**:crew 角色注册为可 spawn subagent(七动词归一个命令,原 `/team` 删除消除同名双注册);scope 默认 project,`--user` 全局;保留名与非法名写入前拒绝。
+
 ## [0.15.2] - 2026-09-20
 
 ### Fixed
