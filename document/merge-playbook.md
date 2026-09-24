@@ -283,6 +283,48 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    归零 → biome 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
    已知噪声：natives 5s 加载超时、ENAMETOOLONG、symlink EPERM）。
 
+### v18.2.6 / v18.2.7 实测：干跑冲突量与"整文件取一侧"的失效边界
+
+在 `dev/main`（用户指定的实验分支）上按本规程逐步合并 v18.2.5→v18.2.6→v18.2.7，
+记录可复用的量级数据与失效边界：
+
+| 步 | 增量 | `git merge-tree` 干跑冲突 | 备注 |
+|---|---|---|---|
+| v18.2.5→v18.2.6 | 32 文件 | 7 | 全是版本线/sentinel/锁文件/上游测试契约，机械可解 |
+| v18.2.6→v18.2.7 | 629 文件 | 171 | 6 机械 + 66 测试契约 + 94 source + 1 品牌面 |
+| 干跑 HEAD→v18.2.10（跨 3 个 tag） | — | 150 | 跨 tag 累积与逐 tag 之和（266）仅差 15% |
+| 干跑 HEAD→v18.3.0（跨 4 个 tag） | — | 305 | 同上：步数少 4 次，冲突面几乎不增 |
+
+**结论 1（步长）**：跨若干 tag 一次合与逐 tag 合的**冲突面几乎相同**
+（305 vs 266，+15%），但省掉 4 次 merge + 4 次收口。冲突量不是逐 tag 累积的
+——上游改动在 tag 间距内相互重叠，一次合并没有额外代价。**步长由"改动的独立性"
+决定，不由冲突量决定**；冲突量只决定每轮人工要盯多少块。
+
+**结论 2（干跑可信）**：`git merge-tree --write-tree HEAD <tag>` 的冲突数与
+真实 `git merge` 落地结果**逐个相符**（v18.2.7 干跑 171 / 实际 171）。干跑
+可以在不碰工作树的前提下量出任意步长的冲突面，步长决策应基于干跑。
+
+**结论 3（整文件取一侧的失效边界，v18.2.7 实测）**：
+「整文件取 theirs + scope 重写」只在**纯上游面**成立。v18.2.7 里它造成 62 个
+文件带着冲突标记进入 commit，并连带删掉整批 Zeta-only API——全部是
+`check:ts` 才能探到的（AGENTS.md 损伤类别 4）。分界线：
+
+- **可整文件取 theirs**：测试文件、上游自有模块、生成物（`models.json`、
+  `rules.json`）。前提是随后跑 `gen:compat` + 全库 scope 扫描。
+- **必须逐 hunk / 整文件取 ours**：内容本身就是 Zeta 扩展的模块
+  （`interactive-mode.ts`、`settings-zh.ts`、`web/search/*`、`provider-globals.ts`、
+  `image-gen.ts`、`tiny/models.ts`、`tts/models.ts`、`stt-controller.ts`、
+  pi-tui 的 `prompt/{magic-keyword-boundary,orchestrate,ultrathink,workflow}.ts`）
+  以及 schema 键（`stt.modelName` / `providers.*` / `magicKeywords.*` 共 15 个）。
+- **Zeta 有意分歧的机制**：v18.2.7 上游把 web search 从"引擎链"重写成
+  "model role 链"（candidate 变成 `{model, explicit}`，新增 grounded provider）。
+  这不是改名而是设计变更，**不要顺着上游测试改造我们的实现**：
+  `test/web/search/query-pipeline.test.ts` 保留 Zeta 的引擎链契约。
+
+**结论 4（收口扫描必须覆盖已提交树）**：批量脚本按 Windows 路径回车处理
+`grep` 输出时会静默漏文件，冲突标记能一路进到 commit。收口后必须对
+**已提交内容**再扫一次：`git grep -lE "^<<<<<<< " HEAD`，不能只扫工作树。
+
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
 squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶分诊结论与
