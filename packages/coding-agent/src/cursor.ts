@@ -26,7 +26,7 @@ import {
 	piLsPath,
 	piReadPath,
 	piTimeout,
-} from "@linxiraos/pi-ai/providers/cursor/exec-modern";
+} from "@linxiraos/pi-ai/providers/cursor-pi-args";
 import { sanitizeText } from "@linxiraos/pi-utils";
 import { cursorMcpPrefersReplaceEdit, normalizeCursorReplaceArgs } from "./cursor-bridge-tools";
 import type { MCPResourceReadResult } from "./mcp/types";

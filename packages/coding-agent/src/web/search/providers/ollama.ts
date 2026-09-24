@@ -6,7 +6,7 @@
  * Endpoint: POST https://ollama.com/api/web_search
  */
 import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
-import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../types";
 import { formatQuery, parseSearchQuery } from "../query";
 import { clampNumResults } from "../utils";

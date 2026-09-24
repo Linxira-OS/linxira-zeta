@@ -2,7 +2,7 @@ import type { AuthStorage } from "@linxiraos/pi-ai";
 import { untilAborted } from "@linxiraos/pi-utils";
 import { parseHTML } from "@linxiraos/pi-utils/dom";
 import type { Page } from "puppeteer-core";
-import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatScraperQuery, type QuerySyntax } from "../query";
 import { clampNumResults } from "../utils";

@@ -1,11 +1,34 @@
+<<<<<<< HEAD
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import { searchTavily } from "@linxiraos/zeta/web/search/providers/tavily";
 import type { SearchProviderError } from "@linxiraos/zeta/web/search/types";
+=======
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import type { FetchImpl } from "@oh-my-pi/pi-ai";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { searchTavily } from "@oh-my-pi/pi-coding-agent/web/search/providers/tavily";
+import type { SearchProviderError } from "@oh-my-pi/pi-coding-agent/web/search/types";
+import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
+
+const authStorage = createInMemoryAuthStorage();
+const { modelRegistry, model: tavilyModel } = (() => {
+	const modelRegistry = new ModelRegistry(authStorage);
+	const model = modelRegistry.find("web", "tavily");
+	if (!model) throw new Error("Expected bundled web/tavily model");
+	return { modelRegistry, model };
+})();
+
+afterAll(() => authStorage.close());
+>>>>>>> v18.2.7
 
 describe("Tavily web search provider", () => {
 	beforeEach(() => {
 		process.env.TAVILY_API_KEY = "test-tavily-key";
+		vi.spyOn(authStorage, "resolver").mockImplementation(provider => {
+			expect(provider).toBe("tavily");
+			return async () => process.env.TAVILY_API_KEY;
+		});
 	});
 
 	afterEach(() => {
@@ -13,25 +36,12 @@ describe("Tavily web search provider", () => {
 		delete process.env.TAVILY_API_KEY;
 	});
 
-	const fakeAuthStorage = {
-		async getApiKey() {
-			return process.env.TAVILY_API_KEY ?? undefined;
-		},
-		hasAuth() {
-			return Boolean(process.env.TAVILY_API_KEY);
-		},
-		resolver(_provider: string) {
-			return async () => process.env.TAVILY_API_KEY ?? undefined;
-		},
-		async rotateSessionCredential() {
-			return false;
-		},
-	} as unknown as AuthStorage;
-
 	function makeParams(query: string) {
 		return {
 			query,
-			authStorage: fakeAuthStorage,
+			authStorage,
+			model: tavilyModel,
+			modelRegistry,
 			systemPrompt: "Tavily test prompt",
 		} as const;
 	}
@@ -39,7 +49,7 @@ describe("Tavily web search provider", () => {
 	it("maps Tavily responses into SearchResponse and forwards recency filters", async () => {
 		let requestBody: Record<string, unknown> | null = null;
 
-		const fetchMock = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+		const fetchMock: FetchImpl = async (_input, init) => {
 			requestBody = JSON.parse(String(init?.body ?? "null")) as Record<string, unknown>;
 			return new Response(
 				JSON.stringify({
@@ -122,7 +132,7 @@ describe("Tavily web search provider", () => {
 			),
 		];
 
-		const fetchMock = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+		const fetchMock: FetchImpl = async (_input, init) => {
 			requestBodies.push(JSON.parse(String(init?.body ?? "null")) as Record<string, unknown>);
 			const response = responses.shift();
 			if (!response) throw new Error("unexpected extra Tavily request");
@@ -162,7 +172,7 @@ describe("Tavily web search provider", () => {
 	});
 
 	it("surfaces structured API errors", async () => {
-		const fetchMock = (): Promise<Response> =>
+		const fetchMock: FetchImpl = () =>
 			Promise.resolve(
 				new Response(JSON.stringify({ detail: { error: "invalid api key" } }), {
 					status: 401,

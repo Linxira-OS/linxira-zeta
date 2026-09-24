@@ -5,7 +5,7 @@
  * SearchResponse shape used by the web search tool.
  */
 import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
-import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery, type QuerySyntax } from "../query";
 import { clampNumResults } from "../utils";

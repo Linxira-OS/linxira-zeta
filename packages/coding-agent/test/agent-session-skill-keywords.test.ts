@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
+<<<<<<< HEAD
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
@@ -12,6 +13,24 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm, SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+=======
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { renderWorkflowNotice } from "@oh-my-pi/pi-coding-agent/modes/magic-keywords";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import {
+	convertToLlm,
+	SKILL_PROMPT_MESSAGE_TYPE,
+	type SkillPromptDetails,
+} from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
+>>>>>>> v18.2.7
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 type ObservedSkillTurn = {
@@ -121,7 +140,9 @@ describe("AgentSession skill prompt keyword steering", () => {
 		const observedTurn = observedTurns[0];
 		if (!observedTurn) throw new Error("Expected prompt context to be captured");
 		expect(observedTurn.texts).toContain(`Skill body\n\n---\n\nSkill: ${skillPath}\nUser: ${details.args}`);
-		expect(observedTurn.texts).toContain(WORKFLOW_NOTICE);
+		expect(observedTurn.texts).toContain(
+			renderWorkflowNotice({ taskBatch: true, scoutAvailable: true, evalTools: true }),
+		);
 		expect(session.sessionManager.getTurnBudget()).toEqual({ total: 500_000, spent: 0, hard: true });
 	});
 });

@@ -1,19 +1,10 @@
 import { type Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type {
-	Model,
-	ProviderSessionState,
-	ServiceTier,
-	ServiceTierByFamily,
-	ServiceTierFamily,
-} from "@linxiraos/pi-ai";
+import type { Model, ProviderSessionState, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@linxiraos/pi-ai";
+import { Effort, realizesPriorityServiceTier, resolveModelServiceTier, serviceTierFamily } from "@linxiraos/pi-ai";
 import {
 	clearAnthropicFastModeFallback,
-	Effort,
 	isAnthropicFastModeFallbackDisabled,
-	realizesPriorityServiceTier,
-	resolveModelServiceTier,
-	serviceTierFamily,
-} from "@linxiraos/pi-ai";
+} from "@linxiraos/pi-ai/providers/anthropic-state";
 import { isFireworksFastModelId } from "@linxiraos/pi-catalog/fireworks-model-id";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
@@ -29,7 +20,8 @@ import {
 } from "../config/model-resolver";
 import { getKnownRoleIds } from "../config/model-roles";
 import type { Settings } from "../config/settings";
-import { containsUltrathink } from "@linxiraos/pi-tui/prompt/ultrathink";
+import { containsMagicKeyword } from "@linxiraos/pi-tui/prompt/magic-keywords";
+import type { MagicKeywordId } from "../modes/magic-keywords";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -62,7 +54,7 @@ export interface ModelControlsHost {
 	setModelWithProviderSessionReset(model: Model): Promise<void>;
 	clearActiveRetryFallback(): void;
 	clearInheritedProviderPromptCacheKey(): void;
-	magicKeywordEnabled(keyword: "orchestrate" | "ultrathink" | "workflow"): boolean;
+	magicKeywordEnabled(keyword: MagicKeywordId): boolean;
 	emit(event: AgentSessionEvent): void;
 	emitSessionEvent(event: AgentSessionEvent): Promise<void>;
 	emitNotice(level: "info" | "warning" | "error", message: string, source?: string): void;
@@ -610,7 +602,7 @@ export class ModelControls {
 		if (getSupportedEfforts(model).length === 0) return;
 
 		let resolved: Effort | undefined;
-		if (this.#host.magicKeywordEnabled("ultrathink") && containsUltrathink(promptText)) {
+		if (this.#host.magicKeywordEnabled("ultrathink") && containsMagicKeyword(promptText, "ultrathink")) {
 			// The user explicitly asked for maximum thinking; bypass the classifier
 			// (and the `providers.autoThinkingMaxEffort` ceiling) and jump straight
 			// to the highest supported level for this model.

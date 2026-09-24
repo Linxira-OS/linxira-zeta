@@ -24,7 +24,7 @@ import type {
 	Usage,
 } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
-import { supportsAnthropicCompaction } from "@linxiraos/pi-ai/providers/anthropic";
+import { supportsAnthropicCompaction } from "@linxiraos/pi-ai/providers/anthropic-compaction";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
 import { type InstrumentedChatSpanOptions, instrumentedCompleteSimple } from "../telemetry";
 import anthropicCompactionInstructionsPrompt from "./prompts/anthropic-compaction-instructions.md" with { type: "text" };

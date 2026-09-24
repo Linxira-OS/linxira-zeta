@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
+<<<<<<< HEAD
 import { Agent, AgentBusyError } from "@linxiraos/pi-agent-core";
 import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
@@ -15,6 +16,24 @@ import * as unexpectedStopClassifier from "@linxiraos/zeta/session/unexpected-st
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import * as logger from "@linxiraos/pi-utils/logger";
+=======
+import { Agent, AgentBusyError } from "@oh-my-pi/pi-agent-core";
+import { CompactionCancelledError } from "@oh-my-pi/pi-agent-core/compaction";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import type { CompactOptions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import * as unexpectedStopClassifier from "@oh-my-pi/pi-coding-agent/session/unexpected-stop-classifier";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { TempDir, withTimeout } from "@oh-my-pi/pi-utils";
+import * as logger from "@oh-my-pi/pi-utils/logger";
+>>>>>>> v18.2.7
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
 const runtimeSignalStoreKey = "__ompRuntimeSignals";
@@ -49,6 +68,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		tempDir = TempDir.createSync("@pi-auto-compaction-queue-");
 		authStorage = await AuthStorage.create(":memory:");
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
+		authStorage.setRuntimeApiKey("mock", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
 	});
 
@@ -1572,7 +1592,13 @@ describe("AgentSession auto-compaction queue resume", () => {
 		session.settings.set("compaction.autoContinue", true);
 		session.settings.set("contextPromotion.enabled", false);
 		session.settings.set("features.unexpectedStopDetection", "smart");
-		session.settings.set("providers.unexpectedStopModel", "online");
+		const judgeModel = createMockModel();
+		const getAvailable = modelRegistry.getAvailable.bind(modelRegistry);
+		vi.spyOn(modelRegistry, "getAvailable").mockImplementation(kind =>
+			kind === "all" ? [judgeModel] : getAvailable(kind),
+		);
+		session.settings.setModelRole("judge", `${judgeModel.provider}/${judgeModel.id}`);
+		session.settings.set("retry.fallbackChains", { judge: [] });
 
 		vi.spyOn(unexpectedStopClassifier, "classifyUnexpectedStop").mockResolvedValue(true);
 		vi.spyOn(session.agent, "continue").mockImplementation(async () => {

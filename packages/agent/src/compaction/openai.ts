@@ -16,12 +16,10 @@
  */
 
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { getCodexAttestationHeader } from "@linxiraos/pi-ai/providers/openai-codex-attestation";
+import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-compaction";
 import { applyCodexResponsesLiteShape } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
-import {
-	createOpenAICodexCompactionRequestContext,
-	createOpenAICodexCompatibilityMetadata,
-	getCodexAttestationHeader,
-} from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { createOpenAICodexCompatibilityMetadata } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import {
 	encodeResponsesToolResultOutput,
 	hoistInterleavedResponsesToolBatchMessages,

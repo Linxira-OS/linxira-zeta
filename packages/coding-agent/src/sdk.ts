@@ -24,10 +24,8 @@ import type {
 } from "@linxiraos/pi-ai";
 import { resolveApiKeyOnce } from "@linxiraos/pi-ai/auth-retry";
 import type { Dialect } from "@linxiraos/pi-ai/dialect";
-import {
-	getOpenAICodexTransportDetails,
-	prewarmOpenAICodexResponses,
-} from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { prewarmOpenAICodexResponses } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { isOpenAICodexWebSocketPreferred } from "@linxiraos/pi-ai/providers/openai-codex-transport";
 import { FALLBACK_DIALECT, preferredDialect } from "@linxiraos/pi-catalog/identity";
 import type { Component } from "@linxiraos/pi-tui";
 import { $env, $flag } from "@linxiraos/pi-utils/env";
@@ -36,8 +34,7 @@ import * as logger from "@linxiraos/pi-utils/logger";
 import * as postmortem from "@linxiraos/pi-utils/postmortem";
 import * as prompt from "@linxiraos/pi-utils/prompt";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
-import { INTENT_FIELD } from "@linxiraos/pi-wire";
-
+import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
 import {
 	discoverAdvisorConfigs,
 	discoverWatchdogFiles,
@@ -74,7 +71,6 @@ import {
 } from "./config/model-resolver";
 import { formatModelSelectorValue, parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
 import { loadPromptTemplates as loadPromptTemplatesInternal, type PromptTemplate } from "./config/prompt-templates";
-import { applyProviderGlobalsFromSettings } from "./config/provider-globals";
 import { buildServiceTierByFamily } from "./config/service-tier";
 import { Settings, type SkillsSettings } from "./config/settings";
 import { CursorExecHandlers, type CursorMcpResourceAdapter } from "./cursor";
@@ -258,6 +254,7 @@ import { formatLocalCalendarDate } from "@linxiraos/pi-tui/chrome/local-date";
 import { normalizePromptPath } from "./utils/prompt-path";
 import { buildNamedToolChoice } from "./utils/tool-choice";
 import { VibeSessionRegistry } from "./vibe/runtime";
+import { registerLocalInferenceApi } from "./tiny/local-inference-api";
 import { buildWorkspaceTree, type WorkspaceTree } from "./workspace-tree";
 
 type McpNotificationEntry = {
@@ -448,6 +445,8 @@ export interface CreateAgentSessionOptions {
 
 	/** Provider-facing system prompt override. Replaces the fully rendered default blocks. */
 	systemPrompt?: string | string[] | ((defaultPrompt: string[]) => string | string[]);
+	/** Raw Handlebars template replacing the bundled default system prompt rendering. */
+	systemPromptTemplate?: string;
 	/** Already-loaded custom prompt text rendered through the bundled custom system prompt template. */
 	customSystemPrompt?: string;
 	/** Already-loaded text appended through the bundled system prompt templates. */
@@ -961,6 +960,8 @@ export interface BuildSystemPromptOptions {
 	contextFiles?: Array<{ path: string; content: string }>;
 	cwd?: string;
 	customPrompt?: string;
+	/** Raw Handlebars template replacing the bundled default system prompt rendering. */
+	systemPromptTemplate?: string;
 	appendPrompt?: string;
 	inlineToolDescriptors?: boolean;
 	includeWorkspaceTree?: boolean;
@@ -990,6 +991,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 	return await buildSystemPromptInternal({
 		cwd: options.cwd,
 		customPrompt: options.customPrompt,
+		systemPromptTemplate: options.systemPromptTemplate,
 		skills: options.skills,
 		contextFiles: options.contextFiles,
 		appendSystemPrompt: options.appendPrompt,
@@ -1355,6 +1357,7 @@ export function createAutoLearnCaptureRunner(
  * ```
  */
 export async function createAgentSession(options: CreateAgentSessionOptions = {}): Promise<CreateAgentSessionResult> {
+	registerLocalInferenceApi();
 	const extensionRoots = options.extensionRoots?.();
 	const explicit = extensionRoots?.explicit ?? options.additionalExtensionPaths ?? [];
 	const mode = extensionRoots?.mode ?? (options.disableExtensionDiscovery ? "explicit-only" : "merge");
@@ -1362,6 +1365,9 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 }
 
 async function createAgentSessionScoped(options: CreateAgentSessionOptions): Promise<CreateAgentSessionResult> {
+	if (options.systemPromptTemplate !== undefined && options.customSystemPrompt !== undefined) {
+		throw new Error("systemPromptTemplate cannot be combined with a literal custom system prompt");
+	}
 	const cwd = options.cwd ?? getProjectDir();
 	const agentDir = options.agentDir ?? getAgentDir();
 	const eventBus = options.eventBus ?? new EventBus();
@@ -1419,7 +1425,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			startupCredentialDisabledEvents.push(event);
 		}
 	});
-	await modelRegistry.hydrateCredentialScopedModelCaches();
+	await logger.time("hydrateCredentialScopedModelCaches", () => modelRegistry.hydrateCredentialScopedModelCaches());
 	if (!options.modelRegistry) {
 		modelRegistry.refreshInBackground();
 	}
@@ -1481,9 +1487,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			: undefined;
 	discoveredSkillsPromise?.catch(() => {});
 
-	// Initialize provider preferences from settings
-	applyProviderGlobalsFromSettings(settings);
-
 	const sessionManager =
 		options.sessionManager ??
 		logger.time("sessionManager", () =>
@@ -1507,6 +1510,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		options.modelPattern !== undefined ||
 		options.thinkingLevel !== undefined ||
 		options.systemPrompt !== undefined ||
+		options.systemPromptTemplate !== undefined ||
 		options.customSystemPrompt !== undefined ||
 		options.appendSystemPrompt !== undefined ||
 		options.toolNames !== undefined ||
@@ -3250,6 +3254,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// tool-availability caveat lives in the wrapper template.
 			advisorMemoryPrompt = formatAdvisorMemoryPrompt(memoryInstructions);
 			if (hasSession) session.setAdvisorMemoryPrompt(advisorMemoryPrompt);
+			// A fixed string or array in systemPrompt replaces all generated blocks.
+			// Preserve the bookkeeping above, but skip discovering or rendering a
+			// template whose output would be discarded.
+			if (options.systemPrompt !== undefined && typeof options.systemPrompt !== "function") {
+				return {
+					systemPrompt: typeof options.systemPrompt === "string" ? [options.systemPrompt] : options.systemPrompt,
+				};
+			}
 
 			// Build combined append prompt: memory instructions + auto-learn guidance
 			// + mounted MCP route guidance + optional MCP server instructions. For UI
@@ -3323,6 +3335,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					? xdevDocsAll(toolSession.xdev, settings.get("tools.xdevDocs"), settings.get("tools.xdevInlineDevices"))
 					: "",
 				resolvedCustomPrompt: options.customSystemPrompt,
+				systemPromptTemplate: options.systemPromptTemplate,
 				skills: settings.get("skillful") ? (session?.skills ?? skills) : [],
 				contextFiles,
 				tools: promptTools,
@@ -3363,13 +3376,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				activeRepoContext,
 			});
 
-			if (options.systemPrompt === undefined) {
+			if (typeof options.systemPrompt !== "function") {
 				return defaultPrompt;
 			}
-			const customPrompt =
-				typeof options.systemPrompt === "function"
-					? options.systemPrompt(defaultPrompt.systemPrompt)
-					: options.systemPrompt;
+			const customPrompt = options.systemPrompt(defaultPrompt.systemPrompt);
 			return {
 				systemPrompt: typeof customPrompt === "string" ? [customPrompt] : customPrompt,
 			};
@@ -4195,13 +4205,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		if (model?.api === "openai-codex-responses") {
 			// `.api` equality doesn't narrow the generic; the guard makes this cast sound.
 			const codexModel = model as Model<"openai-codex-responses">;
-			const codexTransport = getOpenAICodexTransportDetails(codexModel, {
-				sessionId: providerSessionId,
-				baseUrl: codexModel.baseUrl,
-				preferWebsockets: preferOpenAICodexWebsockets,
-				providerSessionState: session.providerSessionState,
-			});
-			if (codexTransport.websocketPreferred) {
+			if (isOpenAICodexWebSocketPreferred(codexModel, { preferWebsockets: preferOpenAICodexWebsockets })) {
 				void (async () => {
 					try {
 						const codexPrewarmApiKey = options.getApiKey

@@ -74,13 +74,7 @@ import {
 	concreteThinkingLevel,
 	parseConfiguredThinkingLevel,
 } from "@linxiraos/pi-tui/thinking";
-import {
-	isSearchProviderId,
-	setExcludedSearchProviders,
-	setImageProviderOrder,
-	setSearchProviderOrder,
-	type ToolSession,
-} from "../../tools";
+import type { ToolSession } from "../../tools";
 import { AskTool, type AskToolInput } from "../../tools/ask";
 import { type AskToolDetails } from "@linxiraos/pi-tui/tools/ask";
 import { sanitizeDisplayWarnings, shortenPath } from "@linxiraos/pi-tui/render/render-utils";
@@ -900,23 +894,6 @@ export class SelectorController {
 				this.ctx.ui.requestRender();
 				break;
 			}
-
-			// Provider settings - update runtime preferences
-			case "providers.webSearchOrder":
-				if (Array.isArray(value)) {
-					setSearchProviderOrder(value.filter(isSearchProviderId));
-				}
-				break;
-			case "providers.webSearchExclude":
-				if (Array.isArray(value)) {
-					setExcludedSearchProviders(value.filter(isSearchProviderId));
-				}
-				break;
-			case "providers.imageOrder":
-				if (Array.isArray(value)) {
-					setImageProviderOrder(value.filter((entry): entry is string => typeof entry === "string"));
-				}
-				break;
 
 			// MCP update injection - live subscribe/unsubscribe
 			case "mcp.notifications":
@@ -1913,7 +1890,7 @@ export class SelectorController {
 			};
 		} else {
 			const [loadedSessions, pinnedIds] = await Promise.all([
-				SessionManager.list(this.ctx.sessionManager.getCwd(), this.ctx.sessionManager.getSessionDir()),
+				SessionManager.listForPicker(this.ctx.sessionManager.getCwd(), this.ctx.sessionManager.getSessionDir()),
 				loadPinnedSessionIds(),
 			]);
 			sessions = loadedSessions;
@@ -1939,7 +1916,7 @@ export class SelectorController {
 					}
 				},
 				historyMatcher,
-				loadAllSessions: () => SessionManager.listAll(),
+				loadAllSessions: () => SessionManager.listAllForPicker(),
 				pinnedIds,
 				// Live getter so detach/newSession stays accurate; tolerant of partial
 				// contexts and in-memory sessions (undefined file means no marker).
