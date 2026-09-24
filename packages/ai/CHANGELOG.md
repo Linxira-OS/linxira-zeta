@@ -2,17 +2,12 @@
 
 ## [Unreleased]
 
+### 修复
+
+- Anthropic 提示缓存头基线随记忆召回刷新而重置：系统断点现锚定最后稳定段而非易变 recall 后缀（[18.2.6] 上游契约）。
+- auth-broker 在 Windows 读 token/config.yml 静默失败：改用 `node:fs` 而非 `Bun.file`（[18.2.6] 上游契约）。
+
 ## [1.1.20] - 2026-09-23
-## [18.2.6] - 2026-09-18
-
-### Fixed
-
-- Fixed Anthropic prompt-cache head re-baselining on every memory recall refresh: the system breakpoint now anchors on the last stable segment instead of the volatile recall suffix, and the stable-system fingerprint ignores recall blocks, so a recall refresh re-bills only the suffix instead of the whole tools+system head.
-- Fixed auth-broker client config resolution failing silently on Windows when reading the token file or `config.yml`; reads now use `node:fs` instead of `Bun.file`.
-
-## [18.2.5] - 2026-09-17
-
-- 版本线推进;本版无独立用户可见变化。
 
 ## [1.1.19] - 2026-09-22
 
