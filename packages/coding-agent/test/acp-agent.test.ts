@@ -12,36 +12,14 @@ import {
 	ACP_BOOTSTRAP_RACE_GUARD_MS,
 	AcpAgent,
 	createAcpExtensionUiContext,
-<<<<<<< HEAD
 } from "@linxiraos/zeta/modes/acp/acp-agent";
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
 import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@linxiraos/zeta/stt/models";
 import { TaskTool } from "@linxiraos/zeta/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import {
-	DEFAULT_TTS_LOCAL_MODEL_KEY,
-	DEFAULT_TTS_VOICE,
-	TTS_LOCAL_MODELS,
-	TTS_LOCAL_VOICE_OPTIONS,
-} from "@linxiraos/zeta/tts/models";
 import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
-=======
-} from "@oh-my-pi/pi-coding-agent/modes/acp/acp-agent";
-import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
-import type {
-	AgentSession,
-	AgentSessionEvent,
-	UsageFallbackConfirmation,
-} from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { getConfigRootDir, setAgentDir } from "@oh-my-pi/pi-utils";
->>>>>>> v18.2.7
 import type {
 	AgentSideConnection,
 	ClientCapabilities,
@@ -473,7 +451,7 @@ function expectAcpNotifications(updates: SessionNotification[]): void {
 }
 
 const cleanupRoots: string[] = [];
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 afterEach(async () => {
@@ -482,7 +460,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.PI_CODING_AGENT_DIR;
 	}
 	resetSettingsForTest();
 
@@ -798,7 +776,7 @@ describe("ACP agent", () => {
 		expect(result.content[0]?.text).toMatch(/Plan approved/);
 		expect(result.content[0]?.text).not.toContain(harness.cwdA);
 		expect(result.content[0]?.text).not.toContain("autosaved to");
-		const saved = path.join(harness.cwdA, ".zeta", "plans", "WORDS_COUNTER_PLAN.md");
+		const saved = path.join(harness.cwdA, ".omp", "plans", "WORDS_COUNTER_PLAN.md");
 		expect(await Bun.file(saved).text()).toBe("# Words Counter\n\nFile contents.");
 		expect(session.planModeState).toBeUndefined();
 
@@ -1801,7 +1779,7 @@ describe("ACP agent", () => {
 
 	it("refreshes task agent descriptions on ACP /reload-plugins", async () => {
 		const harness = await createHarness();
-		const agentDir = path.join(harness.cwdA, ".zeta", "agents");
+		const agentDir = path.join(harness.cwdA, ".omp", "agents");
 		const agentFile = path.join(agentDir, "acp-reload-agent.md");
 		await fs.promises.mkdir(agentDir, { recursive: true });
 		await fs.promises.writeFile(

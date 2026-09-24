@@ -1,19 +1,11 @@
-<<<<<<< HEAD
-import { afterEach, describe, expect, it, vi } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchOllama } from "@linxiraos/zeta/web/search/providers/ollama";
 import { parseSearchQuery } from "@linxiraos/zeta/web/search/query";
-=======
-import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@oh-my-pi/pi-ai";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchOllama } from "@oh-my-pi/pi-coding-agent/web/search/providers/ollama";
-import { parseSearchQuery } from "@oh-my-pi/pi-coding-agent/web/search/query";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 const OLLAMA_SEARCH_URL = "https://ollama.com/api/web_search";
 const catalogAuthStorage = createInMemoryAuthStorage();

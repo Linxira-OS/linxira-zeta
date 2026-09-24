@@ -2,21 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-<<<<<<< HEAD
-import { getTinyModelsCacheDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { Settings, settings } from "@linxiraos/zeta/config/settings";
 import * as asrClient from "@linxiraos/zeta/stt/asr-client";
 import * as downloader from "@linxiraos/zeta/stt/downloader";
 import { STTController } from "@linxiraos/zeta/stt/stt-controller";
-=======
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as asrClient from "@oh-my-pi/pi-coding-agent/stt/asr-client";
-import * as downloader from "@oh-my-pi/pi-coding-agent/stt/downloader";
-import { STTController } from "@oh-my-pi/pi-coding-agent/stt/stt-controller";
-import type { ModelBrowserRegistry } from "@oh-my-pi/pi-tui/overlays/model-browser";
-import { getTinyModelsCacheDir, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
->>>>>>> v18.2.7
+import type { ModelBrowserRegistry } from "@linxiraos/pi-tui/overlays/model-browser";
+import { getTinyModelsCacheDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 const WHISPER_BASE_REPO = "onnx-community/whisper-base";
@@ -105,6 +97,7 @@ describe("STTController preflight", () => {
 		return {
 			showWarning: vi.fn(),
 			showStatus: vi.fn(),
+			requestRender: vi.fn(),
 			onStateChange: vi.fn(),
 		};
 	}

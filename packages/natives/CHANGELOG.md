@@ -3,26 +3,6 @@
 ## [Unreleased]
 
 ## [1.1.20] - 2026-09-23
-## [18.2.7] - 2026-09-21
-
-### Added
-
-- Added `renderMermaidAscii`, a native Mermaid-to-ASCII/Unicode renderer supporting flowcharts, state, sequence, class, ER, and xychart diagrams with color modes, themes, and direction overrides.
-- Added a `default` package export condition so CommonJS consumers, including bytecode bundles, can load the native bindings.
-
-### Changed
-
-- Improved Mermaid flowchart rendering to respect dependency order, reduce crossings, align branches, and wrap long labels without truncation.
-
-### Fixed
-
-- Fixed Mermaid rendering issues involving arrowhead alignment and duplicate edge junctions around mixed-width node shapes.
-- Fixed sloppy edit grammar compatibility with Codex constrained decoding.
-
-## [18.2.1] - 2026-09-15
-
-- 版本线推进;`crates/*/BUILD.bazel` 版本属性同步(setter 正则改为匹配任意缩进),修复 9 个 crate 自 1.1.17 起的版本漂移。
-
 ## [1.1.19] - 2026-09-22
 
 - 版本线推进;本版无独立用户可见变化。

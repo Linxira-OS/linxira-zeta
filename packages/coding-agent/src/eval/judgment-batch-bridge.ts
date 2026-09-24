@@ -16,12 +16,12 @@
  * batch survives kernel resets (`attach(id)`) until `close()` or its owner
  * session releases it.
  */
-import type { JudgmentState, Question } from "@oh-my-pi/pi-ai";
-import { isRecord, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import type { JudgmentState, Question } from "@linxiraos/pi-ai";
+import { isRecord, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { ChainJudge } from "../judgment";
 import { MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { withBridgeTimeoutPause } from "./bridge-timeout";
 import { EVAL_HANDLE_CONCURRENCY, evalRequestSlots } from "./completion-bridge";
 import type { JsStatusEvent } from "./js/shared/types";

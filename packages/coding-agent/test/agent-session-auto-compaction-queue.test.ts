@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-<<<<<<< HEAD
 import { Agent, AgentBusyError } from "@linxiraos/pi-agent-core";
 import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -16,24 +16,6 @@ import * as unexpectedStopClassifier from "@linxiraos/zeta/session/unexpected-st
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import * as logger from "@linxiraos/pi-utils/logger";
-=======
-import { Agent, AgentBusyError } from "@oh-my-pi/pi-agent-core";
-import { CompactionCancelledError } from "@oh-my-pi/pi-agent-core/compaction";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import type { CompactOptions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as unexpectedStopClassifier from "@oh-my-pi/pi-coding-agent/session/unexpected-stop-classifier";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir, withTimeout } from "@oh-my-pi/pi-utils";
-import * as logger from "@oh-my-pi/pi-utils/logger";
->>>>>>> v18.2.7
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
 const runtimeSignalStoreKey = "__ompRuntimeSignals";
@@ -82,8 +64,8 @@ describe("AgentSession auto-compaction queue resume", () => {
 			pi => {
 				pi.on("session_before_compact", async event => {
 					getRuntimeSignals().push("before_compact:enter");
-					const gate = (globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> })
-						.__zetaManualCompactGate;
+					const gate = (globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> })
+						.__ompManualCompactGate;
 					if (gate) await gate;
 					if (
 						(globalThis as typeof globalThis & { __ompManualCompactCancel?: boolean }).__ompManualCompactCancel
@@ -192,7 +174,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 				await Bun.sleep(0);
 			} finally {
 				getRuntimeSignals().length = 0;
-				(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+				(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 					undefined;
 				(globalThis as typeof globalThis & { __ompAgentStartGate?: AgentStartGate }).__ompAgentStartGate =
 					undefined;
@@ -369,7 +351,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Park compaction inside its awaited hook so we can queue a follow-up while
 		// the session is disconnected and abort has already run its finally.
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			gate.promise;
 
 		const compactPromise = session.compact();
@@ -598,7 +580,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Park the compaction inside its awaited hook so the prompt below arrives
 		// while it is in flight.
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -654,7 +636,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -717,7 +699,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -768,7 +750,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -832,7 +814,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			});
 
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			compactGate.promise;
 		const startGate: AgentStartGate = {
 			entered: Promise.withResolvers<void>(),
@@ -970,7 +952,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			compactGate.promise;
 		const parkGate = Promise.withResolvers<void>();
 		(globalThis as ParkCommandGlobals).__ompParkGate = parkGate.promise;
@@ -988,8 +970,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Second manual pass while the command is still pending. Nothing is
 		// streaming, so it interrupts nothing of its own; the branch already ends
 		// in a compaction entry, so it may also reject as already compacted.
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
-			undefined;
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate = undefined;
 		await session.compact().catch(() => undefined);
 		await session.waitForIdle();
 		expect(prompted).toHaveLength(0);
@@ -1045,7 +1026,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			compactGate.promise;
 		const parkGate = Promise.withResolvers<void>();
 		(globalThis as ParkCommandGlobals).__ompParkGate = parkGate.promise;
@@ -1062,8 +1043,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Give the second pass something to compact so it reaches the hook, then
 		// veto it there.
 		appendAssistant("next answer");
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
-			undefined;
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate = undefined;
 		(globalThis as typeof globalThis & { __ompManualCompactCancel?: boolean }).__ompManualCompactCancel = true;
 		await expect(session.compact(undefined, options)).rejects.toBeInstanceOf(CompactionCancelledError);
 		await session.waitForIdle();
@@ -1132,7 +1112,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			compactGate.promise;
 		const parkGate = Promise.withResolvers<void>();
 		(globalThis as ParkCommandGlobals).__ompParkGate = parkGate.promise;
@@ -1200,7 +1180,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			);
 		};
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			compactGate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -1246,7 +1226,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// #autoCompactionAbortController stays installed across the manual /compact
 		// startup abort below.
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __zetaManualCompactGate?: Promise<void> }).__zetaManualCompactGate =
+		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
 			gate.promise;
 
 		const appendCompactionSpy = vi.spyOn(sessionManager, "appendCompaction");

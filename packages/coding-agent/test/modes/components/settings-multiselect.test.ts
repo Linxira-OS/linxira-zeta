@@ -1,18 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-<<<<<<< HEAD
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
 import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
 import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/settings-host";
 import { initTheme } from "@linxiraos/pi-tui/theme";
-import { SEARCH_PROVIDER_CHOICES } from "@linxiraos/zeta/web/search/types";
-=======
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SettingsSelectorComponent } from "@oh-my-pi/pi-tui/overlays/settings-selector";
-import { createSettingsHost } from "@oh-my-pi/pi-coding-agent/config/settings-ui";
-import { createPluginSettingsHost } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/settings-host";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
->>>>>>> v18.2.7
 
 beforeAll(async () => {
 	await initTheme();

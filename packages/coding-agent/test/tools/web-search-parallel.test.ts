@@ -1,20 +1,11 @@
-<<<<<<< HEAD
-import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
 import { AuthStorage, type FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resolveConfigValue } from "@linxiraos/zeta/config/resolve-config-value";
 import type { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { searchWithParallel } from "@linxiraos/zeta/web/parallel";
 import { ParallelProvider, searchParallel } from "@linxiraos/zeta/web/search/providers/parallel";
 import { USER_AGENT } from "@linxiraos/pi-utils";
-=======
-import { afterAll, afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { AuthStorage, type FetchImpl } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resolveConfigValue } from "@oh-my-pi/pi-coding-agent/config/resolve-config-value";
-import type { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { searchWithParallel } from "@oh-my-pi/pi-coding-agent/web/parallel";
-import { ParallelProvider, searchParallel } from "@oh-my-pi/pi-coding-agent/web/search/providers/parallel";
-import { USER_AGENT } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const anonymousAuthStorage = createInMemoryAuthStorage();
@@ -25,7 +16,6 @@ if (!parallelModel) throw new Error("Expected bundled web/parallel model");
 afterAll(() => {
 	anonymousAuthStorage.close();
 });
->>>>>>> v18.2.7
 
 describe("Parallel web search", () => {
 	const fakeStorage = {

@@ -6,12 +6,12 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
-import type { FindToolDetails } from "@oh-my-pi/pi-tui/tools/find";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
-import { formatBytes, formatDuration, formatNumber, isEnoent } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
+import type { FindToolDetails } from "@linxiraos/pi-tui/tools/find";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { formatBytes, formatDuration, formatNumber, isEnoent } from "@linxiraos/pi-utils";
 import { journalJudgmentUsage, resolveJudge } from "../../judgment";
 import findDescription from "../../prompts/tools/find.md" with { type: "text" };
 import type { ToolSession } from "..";

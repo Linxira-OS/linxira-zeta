@@ -3,36 +3,21 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, spyOn, te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-<<<<<<< HEAD
 import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@linxiraos/pi-ai";
 import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { fingerprintStaticModels } from "@linxiraos/pi-catalog/model-manager";
 import { calculateUsageCost, getBundledModels } from "@linxiraos/pi-catalog/models";
+import { modelKind } from "@linxiraos/pi-catalog/types";
 import { finalizeCustomModel } from "@linxiraos/zeta/config/custom-models";
 import { applyModelPatch, mergeDiscoveredModel } from "@linxiraos/zeta/config/model-patch";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resolveRoleChain } from "@linxiraos/zeta/config/model-resolver";
+import { roleCandidatePool } from "@linxiraos/zeta/config/model-roles";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
-=======
-import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@oh-my-pi/pi-ai";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { fingerprintStaticModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { calculateUsageCost, getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import { modelKind } from "@oh-my-pi/pi-catalog/types";
-import { finalizeCustomModel } from "@oh-my-pi/pi-coding-agent/config/custom-models";
-import { applyModelPatch, mergeDiscoveredModel } from "@oh-my-pi/pi-coding-agent/config/model-patch";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resolveRoleChain } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { roleCandidatePool } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
->>>>>>> v18.2.7
 
 describe("ModelRegistry", () => {
 	let tempDir: string;

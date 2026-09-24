@@ -1,16 +1,9 @@
 import { afterEach, describe, expect, it, mock, vi } from "bun:test";
-<<<<<<< HEAD
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { webModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/special";
 import { runOnboardingSetup } from "@linxiraos/zeta/commands/setup";
 import { Settings } from "@linxiraos/zeta/config/settings";
-=======
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { webModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/special";
-import { runOnboardingSetup } from "@oh-my-pi/pi-coding-agent/commands/setup";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
->>>>>>> v18.2.7
 import {
 	ALL_SCENES,
 	createSetupHost,
@@ -20,27 +13,15 @@ import {
 	type SetupScene,
 	type SetupSceneHost,
 	selectSetupScenes,
-<<<<<<< HEAD
 } from "@linxiraos/zeta/modes/setup";
 import { providersSetupScene } from "@linxiraos/pi-tui/setup/scenes/providers";
 import { themeSetupScene } from "@linxiraos/pi-tui/setup/scenes/theme";
 import { WebSearchTab } from "@linxiraos/pi-tui/setup/scenes/web-search";
 import { SetupWizardComponent } from "@linxiraos/pi-tui/setup/wizard-overlay";
+import { setTerminalGlyphProtocol } from "@linxiraos/pi-tui/terminal-capabilities";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { SEARCH_PROVIDER_OPTIONS } from "@linxiraos/pi-tui/tools/web-search";
-import { SEARCH_PROVIDER_ORDER } from "@linxiraos/zeta/web/search/types";
-=======
-} from "@oh-my-pi/pi-coding-agent/modes/setup";
-import { providersSetupScene } from "@oh-my-pi/pi-tui/setup/scenes/providers";
-import { themeSetupScene } from "@oh-my-pi/pi-tui/setup/scenes/theme";
-import { WebSearchTab } from "@oh-my-pi/pi-tui/setup/scenes/web-search";
-import { SetupWizardComponent } from "@oh-my-pi/pi-tui/setup/wizard-overlay";
-import { setTerminalGlyphProtocol } from "@oh-my-pi/pi-tui/terminal-capabilities";
-import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { SEARCH_PROVIDER_OPTIONS } from "@oh-my-pi/pi-tui/tools/web-search";
->>>>>>> v18.2.7
 
 type SetupApplicationSceneHost = Omit<SetupSceneHost, "ctx"> & { ctx: InteractiveModeContext };
 

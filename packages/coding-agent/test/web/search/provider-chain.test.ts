@@ -1,23 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-<<<<<<< HEAD
-import type { AuthStorage } from "@linxiraos/pi-ai";
-import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
-import {
-	resolveProviderCandidates,
-	resolveProviderChain,
-	setExcludedSearchProviders,
-	setSearchProviderOrder,
-} from "@linxiraos/zeta/web/search/provider";
-import { SEARCH_PROVIDER_ORDER } from "@linxiraos/zeta/web/search/types";
-=======
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resolveModelRoleValue, resolveRoleChain } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { roleCandidatePool } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { getSearchProvider } from "@oh-my-pi/pi-coding-agent/web/search/provider";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resolveModelRoleValue, resolveRoleChain } from "@linxiraos/zeta/config/model-resolver";
+import { roleCandidatePool } from "@linxiraos/zeta/config/model-roles";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { getSearchProvider } from "@linxiraos/zeta/web/search/provider";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 const originalPerplexityApiKey = process.env.PERPLEXITY_API_KEY;
 const originalPerplexityCookies = process.env.PERPLEXITY_COOKIES;

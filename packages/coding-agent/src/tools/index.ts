@@ -8,6 +8,7 @@ import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { ImControlParams, ImControlResult } from "../channels/im-control";
+import { ImControlTool } from "./im-control";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
@@ -126,19 +127,6 @@ export * from "./glob";
 export * from "./grep";
 export * from "./hub";
 export * from "./jfind";
-export type {
-	HubOp,
-	HubPeerInfo,
-	HubListStatus,
-	HubRosterCounts,
-	JobSnapshot,
-	CancelStatus,
-	CancelOutcome,
-	AgentActivitySnapshot,
-	CoordinationDetails,
-	HubDetails,
-	HubRenderArgs,
-} from "@linxiraos/pi-tui/tools/hub";
 export * from "./image-gen";
 export * from "./learn";
 export * from "./manage-skill";

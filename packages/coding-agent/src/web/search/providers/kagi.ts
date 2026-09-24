@@ -3,8 +3,8 @@
  *
  * Thin wrapper that adapts shared Kagi API utilities to SearchResponse shape.
  */
-import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
-import type { SearchResponse } from "../types";
+import type { AuthStorage, FetchImpl, Model } from "@linxiraos/pi-ai";
+import type { SearchResponse } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { KagiApiError, searchWithKagi } from "../../kagi";
 import type { StructuredQuery } from "../query";
@@ -76,7 +76,7 @@ export class KagiProvider extends SearchProvider {
 	readonly id = "kagi";
 	readonly label = "Kagi";
 
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		return authStorage.hasAuth("kagi");
 	}
 

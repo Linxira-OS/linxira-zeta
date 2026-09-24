@@ -5,8 +5,9 @@
  * Endpoint: POST https://api.synthetic.new/v2/search
  */
 
+import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";
 import type { SearchParams } from "./base";
@@ -116,7 +117,7 @@ export class SyntheticProvider extends SearchProvider {
 	readonly id = "synthetic";
 	readonly label = "Synthetic";
 
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		return authStorage.hasAuth("synthetic") || !!getEnvApiKey("synthetic");
 	}
 

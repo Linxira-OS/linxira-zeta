@@ -476,11 +476,7 @@ class ZetaLocal(BaseInstalledAgent):
         return "\n".join(lines)
 
     async def _write_config(self, environment: BaseEnvironment) -> None:
-<<<<<<< HEAD:packages/metaharness/agent/zeta_local.py
         """Write $HOME/.zeta/agent/config.yml: the web_search toggle.
-=======
-        """Write $HOME/.omp/agent/config.yml: the web_search and find toggles.
->>>>>>> v18.2.7:packages/metaharness/agent/omp_local.py
 
         web_search can't authenticate through the gateway, so it's off by default.
         find is off by default in omp; it is enabled only when the tool allowlist

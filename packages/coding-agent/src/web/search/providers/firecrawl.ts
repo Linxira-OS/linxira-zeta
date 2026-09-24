@@ -4,6 +4,7 @@
  * Calls Firecrawl's search API and maps web results into the unified
  * SearchResponse shape used by the web search tool.
  */
+import type { Model } from "@linxiraos/pi-ai";
 import {
 	type AuthStorage,
 	type FetchImpl,
@@ -12,7 +13,7 @@ import {
 	seedApiKeyResolver,
 	withAuth,
 } from "@linxiraos/pi-ai";
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { resolveFirecrawlUrl } from "../../firecrawl";
 import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery, type StructuredQuery } from "../query";
@@ -214,7 +215,7 @@ export class FirecrawlProvider extends SearchProvider {
 	 * configured self-hosted endpoint. Hosted keyless mode remains explicit-only
 	 * so it does not displace providers the user configured.
 	 */
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		const configuredBaseUrl = process.env.FIRECRAWL_BASE_URL ?? process.env.FIRECRAWL_API_URL;
 		return !!configuredBaseUrl?.trim() || authStorage.hasAuth("firecrawl") || !!getEnvApiKey("firecrawl");
 	}

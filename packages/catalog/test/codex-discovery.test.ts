@@ -3,7 +3,6 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-<<<<<<< HEAD
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { fetchCodexModels } from "@linxiraos/pi-catalog/discovery/codex";
 import { Effort } from "@linxiraos/pi-catalog/effort";
@@ -11,19 +10,8 @@ import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { openaiCodexModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/special";
-import type { ModelSpec } from "@linxiraos/pi-catalog/types";
+import { modelKind, type ModelSpec } from "@linxiraos/pi-catalog/types";
 import { resolveProviderModelReference } from "@linxiraos/zeta/config/model-resolver";
-=======
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { fetchCodexModels } from "@oh-my-pi/pi-catalog/discovery/codex";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { openaiCodexModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/special";
-import { modelKind, type ModelSpec } from "@oh-my-pi/pi-catalog/types";
-import { resolveProviderModelReference } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
->>>>>>> v18.2.7
 
 describe("Codex model discovery", () => {
 	it("normalizes optional maximum context windows separately from the default window", async () => {

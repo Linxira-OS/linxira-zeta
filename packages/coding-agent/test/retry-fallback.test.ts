@@ -1,24 +1,15 @@
 import { describe, expect, it } from "bun:test";
-<<<<<<< HEAD
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model, ModelKind } from "@linxiraos/pi-catalog/types";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-=======
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model, ModelKind } from "@oh-my-pi/pi-catalog/types";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
->>>>>>> v18.2.7
 import {
 	expandDefaultRetryFallbackChains,
 	findRetryFallbackCandidates,
 	type RetryFallbackResolutionContext,
 	resolveRetryFallbackChainKey,
-<<<<<<< HEAD
-} from "@linxiraos/zeta/session/retry-fallback-chains";
-=======
 	validateRetryFallbackChains,
-} from "@oh-my-pi/pi-coding-agent/session/retry-fallback-chains";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
->>>>>>> v18.2.7
+} from "@linxiraos/zeta/session/retry-fallback-chains";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 function createContext(
 	chains: RetryFallbackResolutionContext["chains"],

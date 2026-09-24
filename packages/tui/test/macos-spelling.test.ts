@@ -3,12 +3,8 @@ import {
 	MacOSSpellingProvider,
 	type SpellingBackend,
 	type SpellingDecorationContext,
-<<<<<<< HEAD
 } from "@linxiraos/pi-tui/prompt/macos-spelling";
-=======
-} from "@oh-my-pi/pi-tui/prompt/macos-spelling";
-import { setMagicKeywords } from "@oh-my-pi/pi-tui/prompt/magic-keywords";
->>>>>>> v18.2.7
+import { setMagicKeywords } from "@linxiraos/pi-tui/prompt/magic-keywords";
 
 function backend(overrides: Partial<SpellingBackend>): SpellingBackend {
 	return {

@@ -1,15 +1,8 @@
 import { describe, expect, it } from "bun:test";
-<<<<<<< HEAD
+import { isAssistantMessageLine } from "@linxiraos/zeta/session/session-entries";
 import type { SessionStatus } from "@linxiraos/zeta/session/session-listing";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
-
-=======
-import { isAssistantMessageLine } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import type { SessionStatus } from "@oh-my-pi/pi-coding-agent/session/session-listing";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { MemorySessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
->>>>>>> v18.2.7
 const SESSION_DIR = "/sessions/status-proj";
 
 function line(obj: unknown): string {

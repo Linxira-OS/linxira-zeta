@@ -1,44 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-<<<<<<< HEAD
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import {
-	SEARCH_PROVIDER_ORDER,
-	setExcludedSearchProviders,
-	setSearchProviderOrder,
-} from "@linxiraos/zeta/web/search/provider";
-import { runSearchCommand } from "../../../src/cli/web-search-cli";
-
-const WEB_SEARCH_ENV_KEYS = [
-	"ANTHROPIC_API_KEY",
-	"BRAVE_API_KEY",
-	"EXA_API_KEY",
-	"FIRECRAWL_API_KEY",
-	"JINA_API_KEY",
-	"KAGI_API_KEY",
-	"MOONSHOT_API_KEY",
-	"MOONSHOT_SEARCH_API_KEY",
-	"PARALLEL_API_KEY",
-	"PERPLEXITY_API_KEY",
-	"SEARXNG_ENDPOINT",
-	"SYNTHETIC_API_KEY",
-	"TAVILY_API_KEY",
-	"TINYFISH_API_KEY",
-	"XAI_API_KEY",
-] as const;
-
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
-const originalZetaProfile = process.env.ZETA_PROFILE;
-=======
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { runSearchCommand } from "../../../src/cli/web-search-cli";
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalOmpProfile = process.env.OMP_PROFILE;
 const originalPiProfile = process.env.PI_PROFILE;
->>>>>>> v18.2.7
 
 let tempAgentDir: TempDir | undefined;
 let originalExitCode: typeof process.exitCode;
@@ -91,17 +59,9 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	resetSettingsForTest();
 	process.exitCode = originalExitCode;
-<<<<<<< HEAD
-	for (const key of WEB_SEARCH_ENV_KEYS) {
-		restoreEnv(key, originalEnv[key]);
-	}
-	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
-	restoreEnv("ZETA_PROFILE", originalZetaProfile);
-=======
 	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
 	restoreEnv("PI_PROFILE", originalPiProfile);
->>>>>>> v18.2.7
 	__resetDirsFromEnvForTests();
 	if (tempAgentDir) {
 		await tempAgentDir.remove();

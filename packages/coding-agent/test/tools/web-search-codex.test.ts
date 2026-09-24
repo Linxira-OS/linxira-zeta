@@ -1,18 +1,10 @@
-<<<<<<< HEAD
-import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
-import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
-import { hasCodexSearch, searchCodex } from "@linxiraos/zeta/web/search/providers/codex";
-=======
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { hasCodexSearch, searchCodex } from "@oh-my-pi/pi-coding-agent/web/search/providers/codex";
->>>>>>> v18.2.7
+import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import { hasCodexSearch, searchCodex } from "@linxiraos/zeta/web/search/providers/codex";
 
 type CapturedRequest = {
 	url: string;

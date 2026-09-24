@@ -4,9 +4,10 @@
  * Calls Z.AI's remote MCP server (`webSearchPrime`) and adapts results into
  * the unified SearchResponse shape used by the web search tool.
  */
+import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery, type QuerySyntax } from "../query";
 import { dateToAgeSeconds } from "../utils";
@@ -441,7 +442,7 @@ export class ZaiProvider extends SearchProvider {
 	readonly id = "zai";
 	readonly label = "Z.AI";
 
-	isAvailable(authStorage: AuthStorage): Promise<boolean> | boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): Promise<boolean> | boolean {
 		return authStorage.hasAuth("zai") || !!getEnvApiKey("zai");
 	}
 

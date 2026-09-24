@@ -2,33 +2,23 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-<<<<<<< HEAD
 import type { Skill } from "@linxiraos/zeta/extensibility/skills";
-import { applyResolvedSystemPromptInputs, readPipedInput, submitInteractiveInput } from "@linxiraos/zeta/main";
-import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
-import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
-import { discoverTitleSystemPromptFile } from "@linxiraos/zeta/system-prompt";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-=======
-import type { Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	applyResolvedSystemPromptInputs,
 	buildSessionOptions,
 	readPipedInput,
 	submitInteractiveInput,
-} from "@oh-my-pi/pi-coding-agent/main";
-import type { SubmittedUserInput } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { discoverTitleSystemPromptFile } from "@oh-my-pi/pi-coding-agent/system-prompt";
-import type { CreateAgentSessionOptions } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
->>>>>>> v18.2.7
+} from "@linxiraos/zeta/main";
+import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
+import { discoverTitleSystemPromptFile } from "@linxiraos/zeta/system-prompt";
+import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const cleanupDirs: string[] = [];
 
@@ -49,9 +39,9 @@ function createInput(overrides: Partial<SubmittedUserInput> = {}): SubmittedUser
 
 describe("discoverTitleSystemPromptFile", () => {
 	it("discovers TITLE_SYSTEM.md from the project omp config directory", async () => {
-		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-title-system-"));
+		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-title-system-"));
 		cleanupDirs.push(projectDir);
-		const configDir = path.join(projectDir, ".zeta");
+		const configDir = path.join(projectDir, ".omp");
 		await fs.mkdir(configDir, { recursive: true });
 		const promptPath = path.join(configDir, "TITLE_SYSTEM.md");
 		await fs.writeFile(promptPath, "custom title prompt");

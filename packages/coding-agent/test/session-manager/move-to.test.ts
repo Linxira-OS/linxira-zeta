@@ -3,20 +3,12 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-<<<<<<< HEAD
-import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import type { SessionHeader } from "@linxiraos/zeta/session/session-entries";
 import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { resolveResumableSession } from "@linxiraos/zeta/session/session-listing";
 import { stripOuterDoubleQuotes } from "@linxiraos/zeta/tools/path-utils";
-=======
-import type { SessionHeader } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { resolveResumableSession } from "@oh-my-pi/pi-coding-agent/session/session-listing";
-import { stripOuterDoubleQuotes } from "@oh-my-pi/pi-coding-agent/tools/path-utils";
-import { getConfigRootDir, setAgentDir } from "@oh-my-pi/pi-utils";
->>>>>>> v18.2.7
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 
 // -- helpers ----------------------------------------------------------------
 
@@ -72,7 +64,7 @@ describe("SessionManager.moveTo", () => {
 	let testAgentDir: string;
 	let cwdA: string;
 	let cwdB: string;
-	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 	const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 	beforeEach(async () => {
@@ -89,7 +81,7 @@ describe("SessionManager.moveTo", () => {
 			setAgentDir(originalAgentDir);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.ZETA_CODING_AGENT_DIR;
+			delete process.env.PI_CODING_AGENT_DIR;
 		}
 		await fsp.rm(testAgentDir, { recursive: true, force: true });
 	});

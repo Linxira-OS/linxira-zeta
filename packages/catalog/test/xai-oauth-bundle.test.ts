@@ -1,17 +1,9 @@
 import { describe, expect, it } from "bun:test";
-<<<<<<< HEAD
 import MODELS_JSON from "@linxiraos/pi-catalog/models.json" with { type: "json" };
 import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
 import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models/descriptors";
 import { buildXaiOAuthStaticSeed } from "@linxiraos/pi-catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@linxiraos/pi-catalog/types";
-=======
-import MODELS_JSON from "@oh-my-pi/pi-catalog/models.json" with { type: "json" };
-import { providerEntry } from "@oh-my-pi/pi-catalog/compat/providers";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models/descriptors";
-import { buildXaiOAuthStaticSeed } from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { Api, ModelSpec } from "@oh-my-pi/pi-catalog/types";
->>>>>>> v18.2.7
+import type { Api, ModelSpec } from "@linxiraos/pi-catalog/types";
 
 // Pins the invariant: bundled `models.json` carries every entry the runtime
 // xai-oauth KDL seed (surfaced via buildXaiOAuthStaticSeed) emits. Without

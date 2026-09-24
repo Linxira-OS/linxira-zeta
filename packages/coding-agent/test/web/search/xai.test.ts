@@ -1,17 +1,10 @@
-<<<<<<< HEAD
-import { describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@linxiraos/pi-ai";
-import type { FetchImpl } from "@linxiraos/pi-ai/types";
-import { searchXAI } from "@linxiraos/zeta/web/search/providers/xai";
-=======
 import { afterAll, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchXAI } from "@oh-my-pi/pi-coding-agent/web/search/providers/xai";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import { searchXAI } from "@linxiraos/zeta/web/search/providers/xai";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 const SELECTED_MODEL_ID = "grok-selected-grounding";
 const SELECTED_BASE_URL = "https://xai-grounding.example.test/v1";

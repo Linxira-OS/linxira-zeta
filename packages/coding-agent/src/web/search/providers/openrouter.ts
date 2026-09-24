@@ -1,6 +1,6 @@
-import { type Api, type AuthStorage, type Model, withAuth } from "@oh-my-pi/pi-ai";
+import { type Api, type AuthStorage, type Model, withAuth } from "@linxiraos/pi-ai";
 import type { SearchCitation, SearchResponse, SearchSource, SearchUsage } from "../types";
-import { asRecord } from "@oh-my-pi/pi-utils";
+import { asRecord } from "@linxiraos/pi-utils";
 import { SearchProviderError } from "../../../web/search/types";
 import type { SearchParams } from "./base";
 import { SearchProvider } from "./base";
@@ -172,29 +172,30 @@ function parseResponse(response: OpenRouterResponse, modelId: string): SearchRes
 
 /** Execute OpenRouter chat-completions grounding with the web plugin. */
 export async function searchOpenRouterGrounded(params: SearchParams): Promise<SearchResponse> {
+	const registry = params.modelRegistry;
+	const model = params.model;
+	if (!model) throw new SearchProviderError("openrouter", "OpenRouter grounding requires a selected model.", 400);
+	if (!registry) throw new SearchProviderError("openrouter", "OpenRouter grounding requires a model registry.", 400);
 	const numSearchResults = params.numSearchResults ?? DEFAULT_NUM_RESULTS;
-	const keyOrResolver = params.modelRegistry.resolver(params.model, params.sessionId);
+	const keyOrResolver = registry.resolver(model, params.sessionId);
 	const response = await withAuth(
 		keyOrResolver,
 		async apiKey => {
-			const configuredHeaders = await params.modelRegistry.resolveModelHeaders(params.model, params.signal);
-			const httpResponse = await (params.fetch ?? fetch)(
-				`${params.model.baseUrl.replace(/\/+$/, "")}/chat/completions`,
-				{
-					method: "POST",
-					headers: {
-						...configuredHeaders,
-						Authorization: `Bearer ${apiKey}`,
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						model: params.model.id,
-						plugins: [{ id: "web", max_results: numSearchResults }],
-						messages: [{ role: "user", content: params.query }],
-					}),
-					signal: withHardTimeout(params.signal, params.timeoutMs),
+			const configuredHeaders = await registry.resolveModelHeaders(model, params.signal);
+			const httpResponse = await (params.fetch ?? fetch)(`${model.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+				method: "POST",
+				headers: {
+					...configuredHeaders,
+					Authorization: `Bearer ${apiKey}`,
+					"Content-Type": "application/json",
 				},
-			);
+				body: JSON.stringify({
+					model: model.id,
+					plugins: [{ id: "web", max_results: numSearchResults }],
+					messages: [{ role: "user", content: params.query }],
+				}),
+				signal: withHardTimeout(params.signal, params.timeoutMs),
+			});
 			if (!httpResponse.ok) {
 				const errorText = await httpResponse.text();
 				const classified = classifyProviderHttpError("openrouter", httpResponse.status, errorText);
@@ -210,7 +211,7 @@ export async function searchOpenRouterGrounded(params: SearchParams): Promise<Se
 				if (!isOpenRouterResponse(payload)) {
 					throw new Error("response did not match the expected chat-completion shape");
 				}
-				return parseResponse(payload, params.model.id);
+				return parseResponse(payload, model.id);
 			} catch (error) {
 				if (error instanceof SearchProviderError) throw error;
 				const message = error instanceof Error ? error.message : String(error);
@@ -219,7 +220,7 @@ export async function searchOpenRouterGrounded(params: SearchParams): Promise<Se
 		},
 		{
 			signal: params.signal,
-			missingKeyMessage: `OpenRouter credentials not found for selected provider "${params.model.provider}".`,
+			missingKeyMessage: `OpenRouter credentials not found for selected provider "${model.provider}".`,
 		},
 	);
 

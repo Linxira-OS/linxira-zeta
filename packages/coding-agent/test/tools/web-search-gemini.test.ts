@@ -1,18 +1,10 @@
-<<<<<<< HEAD
-import { afterEach, describe, expect, it } from "bun:test";
-import type { AuthStorage } from "@linxiraos/pi-ai";
-import type { FetchImpl } from "@linxiraos/pi-ai/types";
-import { serializeCloudflareAiGatewayCredential } from "@linxiraos/pi-catalog/wire/cloudflare-ai-gateway";
-import { GeminiProvider, searchGemini } from "@linxiraos/zeta/web/search/providers/gemini";
-=======
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { serializeCloudflareAiGatewayCredential } from "@oh-my-pi/pi-catalog/wire/cloudflare-ai-gateway";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { GeminiProvider, searchGemini } from "@oh-my-pi/pi-coding-agent/web/search/providers/gemini";
->>>>>>> v18.2.7
+import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { serializeCloudflareAiGatewayCredential } from "@linxiraos/pi-catalog/wire/cloudflare-ai-gateway";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { GeminiProvider, searchGemini } from "@linxiraos/zeta/web/search/providers/gemini";
 
 const SSE_RESPONSE =
 	'data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"Gemini answer"}]}}],"modelVersion":"gemini-2.5-flash"}}\n\n';

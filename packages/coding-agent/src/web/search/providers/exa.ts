@@ -6,12 +6,13 @@
  * Requests per-result summaries via `contents.summary` and synthesizes
  * them into a combined `answer` string on the SearchResponse.
  */
+import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
 import { getDefault, settings } from "../../../config/settings";
 import { findApiKey, isSearchResponse } from "../../../exa/mcp-client";
 import { readMcpJsonRpcResponse } from "../../../mcp/json-rpc";
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery, type StructuredQuery } from "../query";
 import { dateToAgeSeconds } from "../utils";
@@ -480,7 +481,7 @@ export class ExaProvider extends SearchProvider {
 	readonly id = "exa";
 	readonly label = "Exa";
 
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		if (!this.#settingsAllowSearch()) return false;
 		return !!getEnvApiKey("exa") || authStorage.hasAuth("exa");
 	}

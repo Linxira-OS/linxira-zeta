@@ -6,8 +6,8 @@
  * obvious credential material.
  */
 import * as path from "node:path";
-import * as natives from "@oh-my-pi/pi-natives";
-import { buildPathTree, type PathTreeInput, walkPathTree } from "@oh-my-pi/pi-utils";
+import * as natives from "@linxiraos/pi-natives";
+import { buildPathTree, type PathTreeInput, walkPathTree } from "@linxiraos/pi-utils";
 
 /** One eligible file under the search root. */
 export interface FileEntry {

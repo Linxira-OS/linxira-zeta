@@ -36,7 +36,7 @@
 import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
 
 import { settings } from "../../../config/settings";
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import type { StructuredQuery } from "../query";
 import { formatScraperQuery, parseSearchQuery } from "../query";

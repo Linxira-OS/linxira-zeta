@@ -1,5 +1,5 @@
-import { isOfficialAnthropicApiUrl } from "@oh-my-pi/pi-catalog/compat/anthropic";
-import { $env } from "@oh-my-pi/pi-utils";
+import { isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import { $env } from "@linxiraos/pi-utils";
 import type { Api, Model, ProviderSessionState } from "../types";
 import { isFoundryEnabled } from "../utils/foundry";
 

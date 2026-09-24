@@ -5,8 +5,9 @@
  * SearchResponse shape used by the web search tool.
  * Endpoint: POST https://ollama.com/api/web_search
  */
+import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../types";
 import { formatQuery, parseSearchQuery } from "../query";
 import { clampNumResults } from "../utils";
@@ -125,7 +126,7 @@ export class OllamaProvider extends SearchProvider {
 	readonly id = "ollama" as const;
 	readonly label = "Ollama";
 
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		return authStorage.hasAuth("ollama-cloud");
 	}
 

@@ -4,8 +4,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { formatBytes, formatDuration, formatNumber, isEnoent } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatBytes, formatDuration, formatNumber, isEnoent } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { resolveJudge } from "../judgment";

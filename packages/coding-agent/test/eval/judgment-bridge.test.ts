@@ -1,14 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as vm from "node:vm";
-<<<<<<< HEAD
 import type { Api, AssistantMessage, Model } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
-import type { ModelRegistry } from "../../src/config/model-registry";
-=======
-import type { Api, AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
 import { ModelRegistry } from "../../src/config/model-registry";
->>>>>>> v18.2.7
 import { Settings } from "../../src/config/settings";
 import { runEvalJudgment } from "../../src/eval/judgment-bridge";
 import { JAVASCRIPT_PRELUDE_SOURCE } from "../../src/eval/js/shared/prelude";
@@ -172,7 +166,7 @@ describe("eval js judge() prelude", () => {
 	it("awaits to the structured answers", async () => {
 		const calls: Array<{ name: string; args: unknown }> = [];
 		const sandbox: Record<string, unknown> = {
-			__zeta_call_tool__: async (name: string, args: unknown) => {
+			__omp_call_tool__: async (name: string, args: unknown) => {
 				calls.push({ name, args });
 				if (name === "__judge__") return { answers: { ok: { type: "bool", bool: 1 } }, model: "p/smol" };
 				throw new Error(`unexpected bridge call ${name}`);

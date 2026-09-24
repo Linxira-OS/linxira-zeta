@@ -1,18 +1,9 @@
 import type { BodyInit } from "bun";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-<<<<<<< HEAD
-import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-=======
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
->>>>>>> v18.2.7
 import {
 	buildExaRequestBody,
 	ExaProvider,
@@ -20,14 +11,9 @@ import {
 	resetExaSearchThrottleForTest,
 	searchExa,
 	synthesizeAnswer,
-<<<<<<< HEAD
 } from "@linxiraos/zeta/web/search/providers/exa";
-import { isRecord, removeWithRetries } from "@linxiraos/pi-utils";
-=======
-} from "@oh-my-pi/pi-coding-agent/web/search/providers/exa";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 type PostedMcpRequest = Record<string, unknown> & { id: string | number };
 

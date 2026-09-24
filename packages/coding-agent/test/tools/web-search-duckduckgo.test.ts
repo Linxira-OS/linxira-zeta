@@ -1,15 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
-<<<<<<< HEAD
-import { AuthStorage, type FetchImpl, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchDuckDuckGo } from "@linxiraos/zeta/web/search/providers/duckduckgo";
 import { applyQueryConstraints, parseSearchQuery } from "@linxiraos/zeta/web/search/query";
-=======
-import type { FetchImpl } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchDuckDuckGo } from "@oh-my-pi/pi-coding-agent/web/search/providers/duckduckgo";
-import { applyQueryConstraints, parseSearchQuery } from "@oh-my-pi/pi-coding-agent/web/search/query";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const sharedAuthStorage = createInMemoryAuthStorage();
@@ -21,7 +15,6 @@ const { modelRegistry, model: duckDuckGoModel } = (() => {
 })();
 
 afterAll(() => sharedAuthStorage.close());
->>>>>>> v18.2.7
 
 function duckResult(index: number): string {
 	return `<div class="result results_links"><a class="result__a" href="https://example.com/${index}">Result ${index}</a><a class="result__snippet">Snippet ${index}</a></div>`;

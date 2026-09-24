@@ -1,19 +1,10 @@
-<<<<<<< HEAD
-import { afterEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import type { AuthStorage, CredentialOriginKind, FetchImpl } from "@linxiraos/pi-ai";
-import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { runSearchQuery } from "@linxiraos/zeta/web/search";
-import { searchXAI, XAIProvider } from "@linxiraos/zeta/web/search/providers/xai";
-import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
-=======
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { searchXAI, XAIProvider } from "@oh-my-pi/pi-coding-agent/web/search/providers/xai";
-import { SearchProviderError } from "@oh-my-pi/pi-coding-agent/web/search/types";
->>>>>>> v18.2.7
+import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { searchXAI, XAIProvider } from "@linxiraos/zeta/web/search/providers/xai";
+import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
 
 type CapturedRequest = {
 	url: string;

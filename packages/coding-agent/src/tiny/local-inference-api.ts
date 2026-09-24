@@ -6,9 +6,9 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	type Usage,
-} from "@oh-my-pi/pi-ai";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { registerCustomApi } from "@oh-my-pi/pi-ai/api-registry";
+} from "@linxiraos/pi-ai";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { registerCustomApi } from "@linxiraos/pi-ai/api-registry";
 import { isTinyLocalModelKey } from "./models";
 import { tinyModelClient } from "./title-client";
 import type { TinyChatMessage } from "./title-protocol";

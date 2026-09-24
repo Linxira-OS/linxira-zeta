@@ -1,12 +1,7 @@
-<<<<<<< HEAD
-import { describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
-import { searchZai, ZaiProvider } from "@linxiraos/zeta/web/search/providers/zai";
-=======
 import { afterAll, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { searchZai, ZaiProvider } from "@oh-my-pi/pi-coding-agent/web/search/providers/zai";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { searchZai, ZaiProvider } from "@linxiraos/zeta/web/search/providers/zai";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();
@@ -18,7 +13,6 @@ if (!zaiModel) throw new Error("Expected bundled web/zai model");
 afterAll(() => {
 	authStorage.close();
 });
->>>>>>> v18.2.7
 
 interface CapturedRequest {
 	method: string | undefined;

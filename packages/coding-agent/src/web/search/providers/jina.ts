@@ -5,8 +5,9 @@
  * cleaned content.
  */
 
+import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";
 import { clampNumResults } from "../utils";
@@ -130,7 +131,7 @@ export class JinaProvider extends SearchProvider {
 	readonly id = "jina";
 	readonly label = "Jina";
 
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		return authStorage.hasAuth("jina");
 	}
 

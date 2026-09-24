@@ -17,24 +17,13 @@ import {
 	resetSettingsForTest,
 	type SettingPath,
 	Settings,
-<<<<<<< HEAD
 } from "@linxiraos/zeta/config/settings";
 import { SETTINGS_SCHEMA } from "@linxiraos/zeta/config/settings-schema";
 import * as discovery from "@linxiraos/zeta/discovery";
+import MODEL_PRIO from "../src/priority.json" with { type: "json" };
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import { AUTO_IMAGE_PROVIDER_ORDER } from "@linxiraos/zeta/tools/image-providers";
-import { SEARCH_PROVIDER_ORDER } from "@linxiraos/zeta/web/search/types";
 import { getAgentDbPath, getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
 import * as fileLock from "@linxiraos/pi-utils/file-lock";
-=======
-} from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SETTINGS_SCHEMA } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import * as discovery from "@oh-my-pi/pi-coding-agent/discovery";
-import MODEL_PRIO from "../src/priority.json" with { type: "json" };
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { getAgentDbPath, getProjectAgentDir, logger, TempDir } from "@oh-my-pi/pi-utils";
-import * as fileLock from "@oh-my-pi/pi-utils/file-lock";
->>>>>>> v18.2.7
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
@@ -368,7 +357,7 @@ describe("Settings", () => {
 
 		it("backs up a corrupted project config and retains the pending project role for retry", async () => {
 			await writeSettings({});
-			const projectConfigPath = path.join(projectDir, ".zeta", "config.yml");
+			const projectConfigPath = path.join(projectDir, ".omp", "config.yml");
 			await Bun.write(
 				projectConfigPath,
 				YAML.stringify({ modelRoles: { default: "keep/default" }, custom: { keep: true } }, null, 2),
@@ -980,7 +969,7 @@ describe("Settings", () => {
 
 		it("leaves an unreadable project config untouched and retains its pending role", async () => {
 			await writeSettings({});
-			const projectConfigPath = path.join(projectDir, ".zeta", "config.yml");
+			const projectConfigPath = path.join(projectDir, ".omp", "config.yml");
 			const original = YAML.stringify({ modelRoles: { default: "keep/default" }, custom: { keep: true } }, null, 2);
 			await Bun.write(projectConfigPath, original);
 			const settings = await Settings.init({ cwd: projectDir, agentDir });
@@ -1006,7 +995,7 @@ describe("Settings", () => {
 			const malformed = 'modelRoles:\n  default: "unterminated\n';
 			await Promise.all([
 				Bun.write(getConfigPath(), malformed),
-				Bun.write(path.join(projectDir, ".zeta", "config.yml"), malformed),
+				Bun.write(path.join(projectDir, ".omp", "config.yml"), malformed),
 			]);
 			const unhandled: unknown[] = [];
 			const onUnhandled = (reason: unknown): void => {
@@ -1018,7 +1007,7 @@ describe("Settings", () => {
 				expect(unhandled).toEqual([]);
 				expect(fs.readdirSync(agentDir).some(name => name.startsWith("config.yml.broken-"))).toBe(true);
 				expect(
-					fs.readdirSync(path.join(projectDir, ".zeta")).some(name => name.startsWith("config.yml.broken-")),
+					fs.readdirSync(path.join(projectDir, ".omp")).some(name => name.startsWith("config.yml.broken-")),
 				).toBe(true);
 			} finally {
 				process.removeListener("unhandledRejection", onUnhandled);
@@ -1028,7 +1017,7 @@ describe("Settings", () => {
 
 	describe("live persisted reload", () => {
 		it("rejects malformed live configs without moving them aside or replacing effective settings", async () => {
-			const projectConfigPath = path.join(projectDir, ".zeta", "config.yml");
+			const projectConfigPath = path.join(projectDir, ".omp", "config.yml");
 			await writeSettings({
 				setupVersion: 1,
 				modelRoles: { global_role: "openai/global" },

@@ -1,18 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-<<<<<<< HEAD
 import * as ai from "@linxiraos/pi-ai";
-import { Effort } from "@linxiraos/pi-ai";
+import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { generateCommitMessage } from "@linxiraos/zeta/utils/commit-message-generator";
 import { generateSessionTitle } from "@linxiraos/zeta/utils/title-generator";
-=======
-import * as ai from "@oh-my-pi/pi-ai";
-import { type Api, Effort, type Model } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { generateCommitMessage } from "@oh-my-pi/pi-coding-agent/utils/commit-message-generator";
-import { generateSessionTitle } from "@oh-my-pi/pi-coding-agent/utils/title-generator";
->>>>>>> v18.2.7
 
 function getModelOrThrow(id: string) {
 	const model = getBundledModel("anthropic", id);

@@ -31,6 +31,7 @@ import { createPromptActionAutocompleteProvider } from "@linxiraos/pi-tui/prompt
 import { createModelMentionSource } from "@linxiraos/pi-tui/prompt/model-mention-autocomplete";
 import { createModelBrowserSource } from "../model-browser-source";
 import { parseQueueShorthand, splitQueuedMessages } from "@linxiraos/pi-tui/prompt/queue-input";
+import { M } from "../../i18n";
 
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "../../modes/skill-command";
 import type { InteractiveModeContext } from "../../modes/types";

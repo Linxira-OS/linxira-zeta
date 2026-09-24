@@ -1,31 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-<<<<<<< HEAD
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { MAGIC_KEYWORDS } from "@linxiraos/zeta/modes/magic-keywords";
 import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
 import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
 import { chipLabel, modelChipStyle, modelMentionChipLabel } from "@linxiraos/pi-tui/prompt/composer-attachments";
 import { imageReferenceHyperlink } from "@linxiraos/pi-tui/prompt/image-references";
+import { setMagicKeywords } from "@linxiraos/pi-tui/prompt/magic-keywords";
 import { getEditorTheme, initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { Container } from "@linxiraos/pi-tui";
-=======
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { MAGIC_KEYWORDS } from "@oh-my-pi/pi-coding-agent/modes/magic-keywords";
-import { CustomEditor } from "@oh-my-pi/pi-tui/prompt/custom-editor";
-import { UserMessageComponent } from "@oh-my-pi/pi-tui/chat/user-message";
-import { chipLabel, modelChipStyle, modelMentionChipLabel } from "@oh-my-pi/pi-tui/prompt/composer-attachments";
-import { imageReferenceHyperlink } from "@oh-my-pi/pi-tui/prompt/image-references";
-import { setMagicKeywords } from "@oh-my-pi/pi-tui/prompt/magic-keywords";
-import { getEditorTheme, initTheme, theme } from "@oh-my-pi/pi-tui/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { Container } from "@oh-my-pi/pi-tui";
->>>>>>> v18.2.7
 
 beforeAll(async () => {
 	resetSettingsForTest();

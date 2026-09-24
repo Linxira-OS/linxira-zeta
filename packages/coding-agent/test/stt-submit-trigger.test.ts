@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { ModelBrowserRegistry } from "@oh-my-pi/pi-tui/overlays/model-browser";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { ModelBrowserRegistry } from "@linxiraos/pi-tui/overlays/model-browser";
 import { Settings, settings } from "../src/config/settings";
 import * as asrClient from "../src/stt/asr-client";
 import * as downloader from "../src/stt/downloader";
@@ -192,6 +192,7 @@ describe("STTController submit trigger integration", () => {
 		return {
 			showWarning: vi.fn(),
 			showStatus: vi.fn(),
+			requestRender: vi.fn(),
 			onStateChange: vi.fn(),
 		};
 	}

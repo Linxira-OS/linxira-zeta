@@ -1,19 +1,9 @@
 import { describe, expect, it } from "bun:test";
-<<<<<<< HEAD
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getRoleInfo } from "@linxiraos/zeta/config/model-roles";
 import { formatModelStringWithRouting } from "@linxiraos/zeta/config/model-resolver";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { collectOnlineTinyCandidates, expandOnlineTinyModelFallbacks } from "@linxiraos/zeta/tiny/online-candidates";
-=======
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { getRoleInfo } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { formatModelStringWithRouting } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import {
-	collectOnlineTinyCandidates,
-	expandOnlineTinyModelFallbacks,
-} from "@oh-my-pi/pi-coding-agent/tiny/online-candidates";
->>>>>>> v18.2.7
 
 const localTiny = getBundledModel("local", "lfm2.5-230m")!;
 const primary = getBundledModel("google", "gemini-2.5-flash")!;

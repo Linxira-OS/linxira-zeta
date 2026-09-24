@@ -1,11 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import {
-	MAGIC_KEYWORDS,
-	renderOrchestrateNotice,
-	renderWorkflowNotice,
-} from "@oh-my-pi/pi-coding-agent/modes/magic-keywords";
-import { SETTINGS_SCHEMA } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import { clearBundledCommandsCache, loadBundledCommands } from "@oh-my-pi/pi-coding-agent/task/commands";
+import { MAGIC_KEYWORDS, renderOrchestrateNotice, renderWorkflowNotice } from "@linxiraos/zeta/modes/magic-keywords";
+import { SETTINGS_SCHEMA } from "@linxiraos/zeta/config/settings-schema";
+import { clearBundledCommandsCache, loadBundledCommands } from "@linxiraos/zeta/task/commands";
 
 describe("magic keyword registry", () => {
 	it("derives one settings toggle per keyword and names every word in the master switch", () => {

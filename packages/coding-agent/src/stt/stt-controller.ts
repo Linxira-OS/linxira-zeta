@@ -14,6 +14,7 @@ export type SttState = "idle" | "recording" | "transcribing";
 interface ToggleOptions {
 	showWarning(msg: string): void;
 	showStatus(msg: string): void;
+	requestRender(): void;
 	onStateChange(state: SttState): void;
 }
 

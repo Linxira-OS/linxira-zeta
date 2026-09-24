@@ -26,6 +26,7 @@ import {
 import type { Dialect } from "@linxiraos/pi-ai/dialect";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-compaction";
+import type { InputItem as CodexInputItem } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import {
 	buildTransformedCodexRequestBody,
 	type OpenAICodexCompactionBody,

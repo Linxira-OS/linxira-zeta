@@ -9,15 +9,12 @@ import type { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";
 import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "../../src/eval/bridge-timeout";
 import {
-<<<<<<< HEAD
-	type EvalCompletionBridgeOptions,
-	type EvalCompletionResult,
-=======
 	EVAL_HANDLE_CONCURRENCY,
->>>>>>> v18.2.7
 	getCompletionHandle,
 	releaseCompletionHandles,
 	runEvalCompletion,
+	type EvalCompletionBridgeOptions,
+	type EvalCompletionResult,
 } from "../../src/eval/completion-bridge";
 import { runEvalWait } from "../../src/eval/handle-bridge";
 import { IdleTimeout } from "../../src/eval/idle-timeout";

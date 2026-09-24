@@ -34,7 +34,7 @@ import * as logger from "@linxiraos/pi-utils/logger";
 import * as postmortem from "@linxiraos/pi-utils/postmortem";
 import * as prompt from "@linxiraos/pi-utils/prompt";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import {
 	discoverAdvisorConfigs,
 	discoverWatchdogFiles,

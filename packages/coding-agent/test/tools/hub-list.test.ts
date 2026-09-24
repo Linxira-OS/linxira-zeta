@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-<<<<<<< HEAD
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentProtocolHandler } from "@linxiraos/zeta/internal-urls/agent-protocol";
 import { HistoryProtocolHandler } from "@linxiraos/zeta/internal-urls/history-protocol";
@@ -17,25 +16,7 @@ import type { ToolSession } from "@linxiraos/zeta/tools";
 import { HubTool } from "@linxiraos/zeta/tools/hub";
 import { executeList, executeSend } from "@linxiraos/zeta/tools/hub/messaging";
 import { DEFAULT_HUB_LIST_LIMIT, MAX_HUB_LIST_LIMIT } from "@linxiraos/pi-tui/tools/hub";
-import { prompt, TempDir } from "@linxiraos/pi-utils";
-=======
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/agent-protocol";
-import { HistoryProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/history-protocol";
-import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, getAgentTombstonePath, MAIN_AGENT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { ensurePersistedRoster, registerPersistedSubagents } from "@oh-my-pi/pi-coding-agent/registry/persisted-agents";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { collectIrcPeerRoster } from "@oh-my-pi/pi-coding-agent/task/executor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { HubTool } from "@oh-my-pi/pi-coding-agent/tools/hub";
-import { executeList, executeSend } from "@oh-my-pi/pi-coding-agent/tools/hub/messaging";
-import { DEFAULT_HUB_LIST_LIMIT, MAX_HUB_LIST_LIMIT } from "@oh-my-pi/pi-tui/tools/hub";
-import { prompt, TempDir, withTimeout } from "@oh-my-pi/pi-utils";
->>>>>>> v18.2.7
+import { prompt, TempDir, withTimeout } from "@linxiraos/pi-utils";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({

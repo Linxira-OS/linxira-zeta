@@ -1,32 +1,14 @@
-<<<<<<< HEAD
-import { afterAll, afterEach, describe, expect, it } from "bun:test";
-import type { Model } from "@linxiraos/pi-ai";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import type { CustomToolContext } from "@linxiraos/zeta/extensibility/custom-tools";
-import type { ReadonlySessionManager } from "@linxiraos/zeta/session/session-manager";
-=======
 import { afterAll, describe, expect, it } from "bun:test";
-import { type Api, type FetchImpl, type Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { modelKind } from "@oh-my-pi/pi-catalog/types";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CustomToolContext, CustomToolResult } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
->>>>>>> v18.2.7
-import {
-	getImageGenTools,
-	getImageGenToolsWithRegistry,
-	imageGenTool,
-<<<<<<< HEAD
-	setImageProviderOrder,
-} from "@linxiraos/zeta/tools/image-gen";
-import { removeWithRetries, USER_AGENT } from "@linxiraos/pi-utils";
-=======
-} from "@oh-my-pi/pi-coding-agent/tools/image-gen";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { type Api, type FetchImpl, type Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CustomToolContext, CustomToolResult } from "@linxiraos/zeta/extensibility/custom-tools";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { getImageGenTools, getImageGenToolsWithRegistry, imageGenTool } from "@linxiraos/zeta/tools/image-gen";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 const generatedImagePaths: string[] = [];
 const PNG_DATA = Buffer.from("catalog-image").toString("base64");

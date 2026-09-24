@@ -1,14 +1,8 @@
-<<<<<<< HEAD
-import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@linxiraos/pi-ai";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { searchTavily } from "@linxiraos/zeta/web/search/providers/tavily";
 import type { SearchProviderError } from "@linxiraos/zeta/web/search/types";
-=======
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { searchTavily } from "@oh-my-pi/pi-coding-agent/web/search/providers/tavily";
-import type { SearchProviderError } from "@oh-my-pi/pi-coding-agent/web/search/types";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();
@@ -20,7 +14,6 @@ const { modelRegistry, model: tavilyModel } = (() => {
 })();
 
 afterAll(() => authStorage.close());
->>>>>>> v18.2.7
 
 describe("Tavily web search provider", () => {
 	beforeEach(() => {

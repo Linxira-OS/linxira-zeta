@@ -1,28 +1,14 @@
-<<<<<<< HEAD
-import { afterEach, describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
-import { setExcludedSearchProviders } from "@linxiraos/zeta/web/search/provider";
+import { afterAll, describe, expect, it } from "bun:test";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchPublicWeb } from "@linxiraos/zeta/web/search/providers/public";
 import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
-import { type SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
-=======
-import { afterAll, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchPublicWeb } from "@oh-my-pi/pi-coding-agent/web/search/providers/public";
-import { SearchProviderError } from "@oh-my-pi/pi-coding-agent/web/search/types";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 const authStorage = createInMemoryAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);
 
-<<<<<<< HEAD
-/** Restrict the fan-out to the two engines these tests provide fixtures for. */
-const NON_TEST_ENGINES: readonly SearchProviderId[] = ["bing", "ecosia", "startpage", "mojeek"];
-=======
 function requirePublicModel() {
 	const model = modelRegistry.find("web", "public");
 	if (!model) throw new Error("Expected bundled web/public model");
@@ -34,7 +20,6 @@ const publicModel = requirePublicModel();
 afterAll(() => {
 	authStorage.close();
 });
->>>>>>> v18.2.7
 
 function makeParams(query: string, fetch: FetchImpl): SearchParams {
 	return {

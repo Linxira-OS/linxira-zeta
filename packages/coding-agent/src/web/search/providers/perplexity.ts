@@ -8,6 +8,7 @@
  * - Anonymous via `www.perplexity.ai/rest/sse/perplexity_ask`
  */
 
+import type { Model } from "@linxiraos/pi-ai";
 import {
 	type AssistantMessage,
 	type AssistantMessageEventStream,
@@ -20,10 +21,10 @@ import {
 import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
 import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import type { Model, ModelSpec } from "@linxiraos/pi-catalog/types";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 import { $env, readSseJson } from "@linxiraos/pi-utils";
 import type { PerplexityRequest, PerplexitySearchResult } from "../../../web/search/types";
-import type { SearchCitation, SearchResponse, SearchSource } from "../types";
+import type { SearchCitation, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery, type QuerySyntax, type StructuredQuery } from "../query";
 import { dateToAgeSeconds } from "../utils";
@@ -317,6 +318,8 @@ function sourcesFromTextPayload(text: string | undefined): SearchSource[] {
 	return sources;
 }
 export interface PerplexitySearchParams {
+	/** True when the user pinned Perplexity explicitly rather than the chain picking it. */
+	explicit?: boolean;
 	signal?: AbortSignal;
 	timeoutMs?: number;
 	query: string;
@@ -337,8 +340,6 @@ export interface PerplexitySearchParams {
 	num_search_results?: number;
 	authStorage: AuthStorage;
 	sessionId?: string;
-	/** Anonymous consumer transport is only admitted for an explicit model candidate. */
-	explicit?: boolean;
 	fetch?: FetchImpl;
 }
 
@@ -912,9 +913,7 @@ export async function searchPerplexity(params: PerplexitySearchParams): Promise<
 		request.search_recency_filter = params.search_recency_filter;
 	}
 
-	const authMethods = (
-		await getAvailableAuthMethods(params.authStorage, params.sessionId, { signal: params.signal })
-	).filter(auth => auth.type !== "anonymous" || params.explicit === true);
+	const authMethods = await getAvailableAuthMethods(params.authStorage, params.sessionId, { signal: params.signal });
 	let lastError: unknown;
 
 	for (const auth of authMethods) {
@@ -973,12 +972,12 @@ export class PerplexityProvider extends SearchProvider {
 	 * OpenRouter auth is intentionally NOT accepted here: silently using
 	 * OpenRouter's `perplexity/sonar-pro` whenever any OpenRouter key is
 	 * configured surprises users (and bills them) for a path they never
-	 * asked for. The default role chain skips Perplexity in that case and falls
-	 * through to the next candidate. Users who DO want the OpenRouter-backed
-	 * Perplexity path can still opt in with the `web/perplexity` model selector —
-	 * see {@link isExplicitlyAvailable}.
+	 * asked for. The auto chain skips Perplexity in that case and falls
+	 * through to the next configured provider. Users who DO want the
+	 * OpenRouter-backed Perplexity path can still opt in by setting
+	 * `webSearch: perplexity` explicitly — see {@link isExplicitlyAvailable}.
 	 */
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		return !!$env.PERPLEXITY_COOKIES?.trim() || authStorage.hasAuth("perplexity");
 	}
 
@@ -1007,7 +1006,6 @@ export class PerplexityProvider extends SearchProvider {
 			num_results: params.limit,
 			authStorage: params.authStorage,
 			sessionId: params.sessionId,
-			explicit: params.explicit,
 			fetch: params.fetch,
 		});
 	}

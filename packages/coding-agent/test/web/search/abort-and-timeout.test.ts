@@ -12,35 +12,19 @@
  * helper itself is exercised directly.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-<<<<<<< HEAD
 import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import { runSearchQuery, WebSearchTool } from "@linxiraos/zeta/web/search";
+import { runSearchQuery } from "@linxiraos/zeta/web/search";
 import * as provider from "@linxiraos/zeta/web/search/provider";
 import { searchAnthropic } from "@linxiraos/zeta/web/search/providers/anthropic";
 import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchBrave } from "@linxiraos/zeta/web/search/providers/brave";
 import { withHardTimeout } from "@linxiraos/zeta/web/search/providers/utils";
 import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
-import { type SearchProviderId, type SearchResponse } from "@linxiraos/pi-tui/tools/web-search";
-=======
-import type { AuthStorage, FetchImpl } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { runSearchQuery } from "@oh-my-pi/pi-coding-agent/web/search";
-import * as provider from "@oh-my-pi/pi-coding-agent/web/search/provider";
-import { searchAnthropic } from "@oh-my-pi/pi-coding-agent/web/search/providers/anthropic";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchBrave } from "@oh-my-pi/pi-coding-agent/web/search/providers/brave";
-import { withHardTimeout } from "@oh-my-pi/pi-coding-agent/web/search/providers/utils";
-import { SearchProviderError } from "@oh-my-pi/pi-coding-agent/web/search/types";
-import { type SearchProviderId, type SearchResponse } from "@oh-my-pi/pi-coding-agent/web/search/types";
+import { type SearchProviderId, type SearchResponse } from "@linxiraos/zeta/web/search/types";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 const openAuthStorages: AuthStorage[] = [];
 

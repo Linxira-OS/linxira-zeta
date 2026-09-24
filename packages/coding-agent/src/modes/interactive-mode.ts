@@ -142,6 +142,7 @@ import { CollabController } from "../collab/controller";
 import type { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import { formatModelString, type ResolvedModelRoleValue } from "../config/model-resolver";
+import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
 import {
 	isSettingsInitialized,
 	onModelRolesChanged,
@@ -212,9 +213,7 @@ import { STTController, type SttState } from "../stt";
 import { resolveCliEntryCmd } from "../subprocess/worker-client";
 import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-prompt";
 import { labelEchoesHandle } from "../task/label";
-import { agentTypeBadge, formatTaskId } from "@linxiraos/pi-tui/tools/task";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import { isMCPToolName } from "../tools/builtin-names";
+import { tinyTitleClient } from "../tiny/title-client";
 import type { LspStartupServerInfo } from "../tools";
 import { isMCPToolName } from "../tools/builtin-names";
 import { normalizeLocalScheme, resolveToCwd } from "../tools/path-utils";
@@ -249,33 +248,7 @@ import {
 	type VibeParentSession,
 	VibeSessionRegistry,
 } from "../vibe/runtime";
-import type { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
-import { AttachmentChipsBand } from "@linxiraos/pi-tui/prompt/attachment-chips";
-import type { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
-import { ChatBlock, type ChatBlockHost } from "@linxiraos/pi-tui/chrome/chat-block";
-import { CodexResetFireworksController } from "@linxiraos/pi-tui/overlays/codex-reset-fireworks";
-import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
-import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
-import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
-import { ErrorBannerComponent } from "@linxiraos/pi-tui/overlays/error-banner";
-import type { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
-import type { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
-import type { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
-import type { HookSelectorComponent, HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
-import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@linxiraos/pi-tui/overlays/plan-review-overlay";
-import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@linxiraos/pi-tui/overlays/plan-save-overlay";
-import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
-import { SessionInfoOverlay } from "@linxiraos/pi-tui/overlays/session-info-overlay";
-import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
-import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
-import { statusLineHost } from "./status-line-host";
-import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
-import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
-import type { LspServerInfo as WelcomeLspServerInfo } from "@linxiraos/pi-tui/prompt/welcome";
-import { Composer, PINNED_HUD_TOGGLE_ID, type ComposerStatusSnapshot } from "@linxiraos/pi-tui/prompt/composer";
-import { setMagicKeywords } from "@linxiraos/pi-tui/prompt/magic-keywords";
-import { MAGIC_KEYWORDS } from "./magic-keywords";
-import { writeComposerStatusCache, writeComposerWelcomeCache } from "@linxiraos/pi-tui/prompt/composer-cache";
+import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
 import { BtwController } from "./controllers/btw-controller";
 import { CleanseCommandController } from "./controllers/cleanse-command-controller";
 import { CommandController } from "./controllers/command-controller";
@@ -303,20 +276,7 @@ import {
 import { OAuthManualInputManager } from "./oauth-manual-input";
 import { createSessionTeardown, type SessionTeardown } from "./session-teardown";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./skill-command";
-import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
-import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@linxiraos/pi-tui/theme/shimmer";
-import type { Theme } from "@linxiraos/pi-tui/theme";
-import {
-	getEditorTheme,
-	getMarkdownTheme,
-	onTerminalAppearanceChange,
-	onThemeChange,
-	setMarkdownMermaidRendering,
-	setSymbolPreset,
-	startMacOSAppearanceReprobeFallback,
-	theme,
-} from "@linxiraos/pi-tui/theme";
-import { getSlashCommandTypeIcon } from "@linxiraos/pi-tui/theme/tui-adapters";
+import { statusLineHost } from "./status-line-host";
 import type {
 	AgentHubOpenOptions,
 	CompactionQueuedMessage,
@@ -1205,7 +1165,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		// Bridge pi-tui chrome strings to the localized catalogue (live).
 		wireTuiTexts();
 		const wasStarted = composer?.started ?? false;
-		setMagicKeywords(MAGIC_KEYWORDS);
 		this.composer =
 			composer ??
 			new Composer({
@@ -1734,7 +1693,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// spawn syscall never lands in the same loop turn ahead of the first paint.
 		setImmediate(() => {
 			if (!$env.PI_NO_TITLE && !this.sessionManager.getSessionName()) {
-				this.#inputController.prewarmTinyTitleModel();
+				tinyTitleClient.prewarm(this.settings.get("providers.tinyModel"));
 			}
 		});
 
@@ -1844,19 +1803,6 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.ui.requestRender(true, { clearScrollback: true });
 			}),
 		);
-		// A confirmed Glyph Protocol handshake means omp's own icons render in
-		// this terminal without a Nerd Font, so the default `unicode` preset is
-		// upgraded to `nerd` for this session. The persisted setting is left
-		// alone: it travels to terminals (ssh, tmux) where the upgrade would
-		// show tofu. Explicit `ascii`/`nerd` choices are never touched.
-		this.ui.terminal.onGlyphProtocolReport?.(supported => {
-			if (!supported || settings.get("symbolPreset") !== "unicode" || theme.getSymbolPreset() !== "unicode") return;
-			void setSymbolPreset("nerd").then(() => {
-				this.statusLine.invalidate();
-				this.ui.invalidate();
-				this.ui.requestRender();
-			});
-		});
 
 		// Subscribe to terminal dark/light appearance changes.
 		// The terminal queries background color via OSC 11 at startup and on
@@ -2070,6 +2016,11 @@ export class InteractiveMode implements InteractiveModeContext {
 				// before the move commits so the next prompt cannot recall or
 				// retain against the source project's memory.
 				await rebindMemoryBackendForCwd(this.session);
+				// Reapply provider preferences from the newly-loaded settings so the
+				// module-level search/image provider state reflects the destination
+				// project's configuration. Without this, the previous project's
+				// exclusions leak and newly-excluded providers are still used.
+				applyProviderGlobalsFromSettings(settings);
 			}
 			// Re-warm plugin roots, capabilities, slash commands, and the ssh tool so
 			// the next prompt sees everything scoped to the new project directory.
@@ -2089,6 +2040,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				if (isSettingsInitialized()) {
 					await settings.reloadForCwd(previousCwd);
 					await rebindMemoryBackendForCwd(this.session);
+					applyProviderGlobalsFromSettings(settings);
 				}
 				clearClaudePluginRootsCache();
 				await this.refreshTitleSystemPrompt(previousCwd);
@@ -2102,6 +2054,7 @@ export class InteractiveMode implements InteractiveModeContext {
 					if (isSettingsInitialized()) {
 						await settings.reloadForCwd(actual);
 						await rebindMemoryBackendForCwd(this.session);
+						applyProviderGlobalsFromSettings(settings);
 					}
 					clearClaudePluginRootsCache();
 					await this.refreshTitleSystemPrompt(actual);
@@ -6527,6 +6480,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		await this.#sttController.toggle(this.editor, {
 			showWarning: (msg: string) => this.showWarning(msg),
 			showStatus: (msg: string) => this.showStatus(msg),
+			requestRender: () => this.ui.requestRender(),
 			onStateChange: (state: SttState) => {
 				// Duck assistant speech while the user is talking (push-to-talk); restore after.
 				if (state === "recording") vocalizer.duck();

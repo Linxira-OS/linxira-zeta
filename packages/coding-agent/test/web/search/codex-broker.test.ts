@@ -1,21 +1,13 @@
 import { describe, expect, it, vi } from "bun:test";
-<<<<<<< HEAD
-import type { AuthStorage } from "@linxiraos/pi-ai";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { resolveCodexResponsesUrl } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { CODEX_BASE_URL } from "@linxiraos/pi-catalog/wire/codex";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchCodex } from "@linxiraos/zeta/web/search/providers/codex";
-=======
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { resolveCodexResponsesUrl } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { CODEX_BASE_URL } from "@oh-my-pi/pi-catalog/wire/codex";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchCodex } from "@oh-my-pi/pi-coding-agent/web/search/providers/codex";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 function makeSseResponse(): string {
 	return [

@@ -1,21 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-<<<<<<< HEAD
-import type { AssistantMessage } from "@linxiraos/pi-ai";
+import type { Api, AssistantMessage, Model } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { classifyUnexpectedStop, isUnexpectedStopCandidate } from "@linxiraos/zeta/session/unexpected-stop-classifier";
-=======
-import type { Api, AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import {
-	classifyUnexpectedStop,
-	isUnexpectedStopCandidate,
-} from "@oh-my-pi/pi-coding-agent/session/unexpected-stop-classifier";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
->>>>>>> v18.2.7
 import { asGlobalFetch } from "./helpers/fetch-mock";
 
 function makeAssistantMessage(options: {

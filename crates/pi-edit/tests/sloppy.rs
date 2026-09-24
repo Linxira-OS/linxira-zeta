@@ -129,7 +129,6 @@ async fn no_match_correction_resends_verbatim() {
 }
 
 #[tokio::test]
-<<<<<<< HEAD
 async fn tags_glued_to_content_lines_still_close_and_open_blocks() {
 	let workspace = Workspace::new(EditMode::Sloppy);
 	workspace.write("a.txt", "fn run() {\n\tfirst();\n}\n");
@@ -141,9 +140,8 @@ async fn tags_glued_to_content_lines_still_close_and_open_blocks() {
 		.expect("glued tags are still tags");
 	assert_eq!(workspace.read("a.txt").unwrap(), "fn run() {\n\tsecond();\n}\n");
 }
+
 #[tokio::test]
-=======
->>>>>>> v18.2.7
 async fn after_preview_matches_application_and_supports_inline_payloads() {
 	let workspace = Workspace::new(EditMode::Sloppy);
 	workspace.write("a.txt", "anchor\nnext\n");

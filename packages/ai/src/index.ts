@@ -11,7 +11,7 @@ export * from "./oneshot-retry";
 export * from "./provider-details";
 export * from "./provider-session-state";
 // Provider-specific runtime APIs are imported from their providers/* subpaths.
-export type * from "./providers/anthropic";
+export * from "./providers/anthropic";
 export * from "./providers/anthropic-identity";
 export * from "./providers/anthropic-state";
 export type * from "./providers/anthropic-client";

@@ -1,13 +1,8 @@
 import { describe, expect, test } from "bun:test";
-<<<<<<< HEAD
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getRoleInfo } from "@linxiraos/zeta/config/model-roles";
 import { Settings } from "@linxiraos/zeta/config/settings";
-=======
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getRoleInfo } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
->>>>>>> v18.2.7
 
 function makeModel(id: string, metadata: Partial<Pick<Model, "kind" | "webSearch">> = {}): Model {
 	return buildModel({

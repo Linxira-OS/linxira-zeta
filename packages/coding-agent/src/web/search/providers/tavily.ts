@@ -4,8 +4,9 @@
  * Uses Tavily's agent-focused search API to return structured results with an
  * optional synthesized answer.
  */
+import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";
 import { clampNumResults, dateToAgeSeconds } from "../utils";
@@ -235,7 +236,7 @@ export class TavilyProvider extends SearchProvider {
 	readonly id = "tavily";
 	readonly label = "Tavily";
 
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		return authStorage.hasAuth("tavily") || !!getEnvApiKey("tavily");
 	}
 

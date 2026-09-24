@@ -2,22 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Judge, JudgmentRequest, JudgmentResult, NoulAnswer, Questions } from "@oh-my-pi/pi-ai";
-import { tokenUsage } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { FindTool } from "@oh-my-pi/pi-coding-agent/tools/jfind";
-import { runCascade } from "@oh-my-pi/pi-coding-agent/tools/jfind/cascade";
-import { keywordsFromQuery } from "@oh-my-pi/pi-coding-agent/tools/jfind/keywords";
-import {
-	mergeHeat,
-	type Passage,
-	selectWindows,
-	sketch,
-	windows,
-} from "@oh-my-pi/pi-coding-agent/tools/jfind/passages";
-import { readText, ReadTextError } from "@oh-my-pi/pi-coding-agent/tools/jfind/text";
-import { eligibleFile, renderTree } from "@oh-my-pi/pi-coding-agent/tools/jfind/tree";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { Judge, JudgmentRequest, JudgmentResult, NoulAnswer, Questions } from "@linxiraos/pi-ai";
+import { tokenUsage } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { FindTool } from "@linxiraos/zeta/tools/jfind";
+import { runCascade } from "@linxiraos/zeta/tools/jfind/cascade";
+import { keywordsFromQuery } from "@linxiraos/zeta/tools/jfind/keywords";
+import { mergeHeat, type Passage, selectWindows, sketch, windows } from "@linxiraos/zeta/tools/jfind/passages";
+import { readText, ReadTextError } from "@linxiraos/zeta/tools/jfind/text";
+import { eligibleFile, renderTree } from "@linxiraos/zeta/tools/jfind/tree";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("jfind keywords", () => {
 	it("keeps quoted phrases whole, drops stopwords and numbers, and stems inflections", () => {

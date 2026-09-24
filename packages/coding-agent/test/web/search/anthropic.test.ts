@@ -1,18 +1,9 @@
-<<<<<<< HEAD
-import { describe, expect, it } from "bun:test";
-import * as path from "node:path";
-import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
-import { AuthStorage as CodingAuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { searchAnthropic } from "@linxiraos/zeta/web/search/providers/anthropic";
-=======
 import { describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { searchAnthropic } from "@oh-my-pi/pi-coding-agent/web/search/providers/anthropic";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { searchAnthropic } from "@linxiraos/zeta/web/search/providers/anthropic";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
->>>>>>> v18.2.7
 
 const SELECTED_BASE_URL = "https://anthropic-grounding.example.test/v1";
 

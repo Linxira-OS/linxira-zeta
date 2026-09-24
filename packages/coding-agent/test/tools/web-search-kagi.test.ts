@@ -1,16 +1,9 @@
-<<<<<<< HEAD
-import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
 import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { type KagiSearchRequest, searchWithKagi } from "@linxiraos/zeta/web/kagi";
 import { KagiProvider, searchKagi } from "@linxiraos/zeta/web/search/providers/kagi";
 import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
-=======
-import { afterAll, afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { type KagiSearchRequest, searchWithKagi } from "@oh-my-pi/pi-coding-agent/web/kagi";
-import { KagiProvider, searchKagi } from "@oh-my-pi/pi-coding-agent/web/search/providers/kagi";
-import { SearchProviderError } from "@oh-my-pi/pi-coding-agent/web/search/types";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const providerAuthStorage = createInMemoryAuthStorage();
@@ -22,7 +15,6 @@ if (!kagiModel) throw new Error("Expected bundled web/kagi model");
 afterAll(() => {
 	providerAuthStorage.close();
 });
->>>>>>> v18.2.7
 
 const fakeAuthStorage = {
 	async getApiKey() {

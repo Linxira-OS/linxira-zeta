@@ -51,6 +51,7 @@ import {
 	type StripState as HubStripState,
 } from "./hub-frame";
 import { renderSegmentTrack } from "../chrome/segment-track";
+import { tuiText, tuiTextFmt } from "../i18n";
 
 /**
  * A row of the Roles view: a role, a model/wildcard chain-key header, one of a

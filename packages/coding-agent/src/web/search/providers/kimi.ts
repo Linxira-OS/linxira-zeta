@@ -7,10 +7,11 @@
  * `MOONSHOT_SEARCH_API_KEY` / `KIMI_SEARCH_API_KEY`), not `MOONSHOT_API_KEY`.
  * Endpoint: POST https://api.kimi.com/coding/v1/search
  */
+import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
 import { $env } from "@linxiraos/pi-utils";
 
-import type { SearchResponse, SearchSource } from "../types";
+import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery, type QuerySyntax, type StructuredQuery } from "../query";
 import { clampNumResults, dateToAgeSeconds } from "../utils";
@@ -196,7 +197,7 @@ export class KimiProvider extends SearchProvider {
 	readonly id = "kimi";
 	readonly label = "Kimi";
 
-	isAvailable(authStorage: AuthStorage): boolean {
+	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
 		return (
 			!!asTrimmed($env.MOONSHOT_SEARCH_API_KEY) ||
 			!!asTrimmed($env.KIMI_SEARCH_API_KEY) ||
