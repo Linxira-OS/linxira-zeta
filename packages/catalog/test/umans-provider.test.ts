@@ -78,7 +78,7 @@ describe("umans provider catalog", () => {
 			baseUrl: "https://api.code.umans.ai",
 			reasoning: true,
 			input: ["text", "image"],
-			cost: { input: 0.95, output: 4, cacheRead: 0.19, cacheWrite: 0 },
+			cost: { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 },
 			contextWindow: 262_144,
 			maxTokens: 32_768,
 			thinking: { defaultLevel: "medium" },
