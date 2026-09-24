@@ -831,7 +831,7 @@ describe("title generator", () => {
 
 // The terminal title runtime is a module-global. `emitTerminalTitle()` composes
 // the emitted OSC title from three inputs — an extension override, a run-state
-// separator (spinner frame, static WSL `:`, `>`, or `!` between the `π`
+// separator (spinner frame, static WSL `:`, `>`, or `!` between the `ζ`
 // brand and the session label), and the session label — and writes it to
 // `process.stdout` as `ESC]0;<title>BEL`. These tests pin the observable
 // contract at that sink: what string actually reaches the terminal after a
@@ -854,7 +854,7 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 // renders instead of skipping the platform: the contract under test — the override was
 // released, so the run state drives the title again — holds identically on both.
 function expectWorkingSeparator(title: string | undefined, label: string): void {
-	if (isWsl()) expect(title).toBe(`π : ${label}`);
+	if (isWsl()) expect(title).toBe(`ζ : ${label}`);
 	else expect(SPINNER_FRAMES.some(frame => title?.includes(frame))).toBe(true);
 }
 
@@ -1001,14 +1001,14 @@ describe("terminal title runtime", () => {
 			resetEmitted();
 
 			setTerminalTitleState("working");
-			expect(emittedTitles()).toEqual(["π ⠋ windows-project"]);
+			expect(emittedTitles()).toEqual(["ζ ⠋ windows-project"]);
 
 			resetEmitted();
 			vi.advanceTimersByTime(160);
 			const titles = emittedTitles();
 			expect(titles.length).toBeGreaterThan(0);
 			expect(titles.every(title => SPINNER_FRAMES.some(frame => title.includes(frame)))).toBe(true);
-			expect(titles.some(title => title !== "π ⠋ windows-project")).toBe(true);
+			expect(titles.some(title => title !== "ζ ⠋ windows-project")).toBe(true);
 		} finally {
 			Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
 		}
@@ -1024,7 +1024,7 @@ describe("terminal title runtime", () => {
 			resetEmitted();
 
 			setTerminalTitleState("working");
-			expect(emittedTitles()).toEqual(["π : wsl-project"]);
+			expect(emittedTitles()).toEqual(["ζ : wsl-project"]);
 
 			resetEmitted();
 			vi.advanceTimersByTime(400);
@@ -1095,7 +1095,7 @@ describe("terminal title runtime", () => {
 			native.succeeds = false;
 			setSessionTerminalTitle("windows-project-2");
 
-			expect(emittedTitles().at(-1)).toBe("π : windows-project-2");
+			expect(emittedTitles().at(-1)).toBe("ζ : windows-project-2");
 			expect(vi.getTimerCount()).toBe(0);
 			resetEmitted();
 			vi.advanceTimersByTime(400);
@@ -1116,7 +1116,7 @@ describe("terminal title runtime", () => {
 
 		setExtensionTerminalTitle("");
 
-		// The composed run-state title is back, not the bare `π` default.
+		// The composed run-state title is back, not the bare `ζ` default.
 		const last = emittedTitles().at(-1);
 		expect(last).toBeDefined();
 		expect(last).toContain("my-session");
@@ -1143,7 +1143,7 @@ describe("terminal title runtime", () => {
 	it("releases the override for a blank title, not just an empty string", () => {
 		// CONTRACT: release is defined by what the title RENDERS to, not by JS
 		// falsiness. `setTerminalTitle` sanitizes with `sanitizeTerminalTitlePart`,
-		// which trims — so `"   "` renders as the bare `π` default while being
+		// which trims — so `"   "` renders as the bare `ζ` default while being
 		// truthy. Storing it verbatim would latch it as a live override and strand
 		// the run state exactly as `""` did.
 		setSessionTerminalTitle("my-session");

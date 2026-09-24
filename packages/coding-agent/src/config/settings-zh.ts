@@ -103,6 +103,34 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "自动恢复",
 		description: "自动恢复当前目录中的最近会话",
 	},
+	"claudeResets.salvageHorizonHours": {
+		label: "重置抢救窗口",
+		description: "仅当被覆盖的限额窗口确有可恢复用量、且授权允许提前使用时，才在该小时数内采用服务端选定的 Cedar 重置；0 表示关闭抢救",
+	},
+	"claudeResets.keepCredits": {
+		label: "保留重置额度",
+		description: "至少保留这么多次 Claude 重置（0 允许自动花掉最后一次可用重置）；该保留量同样适用于到期抢救",
+	},
+	"claudeResets.minBlockedMinutes": {
+		label: "自动兑换冷却",
+		description: "仅当自然解封（已耗尽窗口中最晚的那次重置）距离此时限至少这么多分钟时才自动兑换；纯 5 小时重置绝不用于周度或模型级封锁",
+	},
+	"claudeResets.autoRedeem": {
+		label: "自动兑换重置",
+		description: "自动花掉可用的 Claude Cedar / Juniper 重置：Cedar 仅用于其覆盖的限额，Juniper 只能恢复单一的 5 小时封锁。unset 在首次花费前询问，yes 直接花费，no 关闭封锁恢复与到期抢救",
+	},
+	"find.enabled": {
+		label: "启用 find 工具",
+		description: "以自然语言搜索文件与行范围，由 judge 模型角色裁决；仅当 judge 角色解析为原生 TypeSafe jev 模型时才自动启用",
+	},
+	"eval.autoProvision": {
+		label: "自动配置 eval 环境",
+		description: "首次安装时自动创建受管的 JavaScript eval 包环境",
+	},
+	"ttsr.judge": {
+		label: "JIT 规则判定",
+		description: "让 judge 模型角色对每条 `question` 规则提问（基于已完成的回复、推理与工具调用）；肯定回答则以警告形式注入该规则",
+	},
 	"composer.shape": {
 		label: "编辑器形状",
 		description: "输入编辑器和状态行的视觉布局",
@@ -641,6 +669,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"magicKeywords.workflow": {
 		label: "Workflow 关键词",
 		description: "让独立的 workflowz 追加其隐藏的 eval 工作流提示",
+	},
+	"magicKeywords.jevify": {
+		label: "Jevify 关键词",
+		description: "让独立的 jevify 追加其隐藏的批量分类提示",
 	},
 	"completion.notify": {
 		label: "完成通知",
@@ -1454,6 +1486,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"task.showResolvedModelBadge": {
 		label: "显示已解析模型徽标",
 		description: "在任务组件状态栏中显示每个子代理实际使用的模型 ID",
+	},
+	"skills.registryUrl": {
+		label: "技能注册表地址",
+		description: "从技能注册表安装技能时使用的 URL",
 	},
 	"skills.enabled": {
 		label: "技能",

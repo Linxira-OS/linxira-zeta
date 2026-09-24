@@ -161,22 +161,29 @@ describe("executeSearch abort propagation", () => {
 		};
 	}
 
-	async function configureProviderChain(providers: provider.SearchProvider[]) {
-		const primary = providers[0];
-		if (!primary) throw new Error("Provider chain must contain a primary candidate");
-		const config = await Settings.init({ inMemory: true });
-		config.setModelRole("web", `web/${primary.id}`);
-		config.set("retry.fallbackChains", { web: providers.slice(1).map(candidate => `web/${candidate.id}`) });
-		const authStorage = createInMemoryAuthStorage();
-		openAuthStorages.push(authStorage);
-		const modelRegistry = new ModelRegistry(authStorage, undefined, { settings: config });
-		const getProvider = vi.spyOn(provider, "getSearchProvider").mockImplementation(async id => {
+	// Zeta's web search resolves an explicit engine chain (resolveProviderCandidates),
+	// not the upstream model-role chain. Mock the candidate list directly so the
+	// tests exercise our resolution path.
+	function mockProviderChain(providers: provider.SearchProvider[], options?: { explicitFirst?: boolean }) {
+		vi.spyOn(provider, "resolveProviderCandidates").mockReturnValue(
+			providers.map(({ id }, index) => ({ id, explicit: options?.explicitFirst === true && index === 0 })),
+		);
+		return vi.spyOn(provider, "getSearchProvider").mockImplementation(async id => {
 			const match = providers.find(candidate => candidate.id === id);
 			if (!match) throw new Error(`Unexpected provider: ${id}`);
 			return match;
 		});
+	}
+
+	async function configureProviderChain(providers: provider.SearchProvider[]) {
+		const config = await Settings.init({ inMemory: true });
+		const authStorage = createInMemoryAuthStorage();
+		openAuthStorages.push(authStorage);
+		const modelRegistry = new ModelRegistry(authStorage, undefined, { settings: config });
+		const getProvider = mockProviderChain(providers);
 		return { authStorage, modelRegistry, getProvider };
 	}
+
 
 	it("passes the configured provider-request timeout into the search adapter", async () => {
 		let timeoutMs: number | undefined;
@@ -328,7 +335,7 @@ describe("executeSearch abort propagation", () => {
 		expect(fallbackSearch).toHaveBeenCalledTimes(1);
 	});
 
-	it("treats a request model override as a single explicit candidate", async () => {
+	it("treats a request provider override as a single explicit candidate", async () => {
 		const fallbackSearch = vi.fn(async (): Promise<SearchResponse> => ({
 			provider: "brave",
 			sources: [{ title: "Hidden fallback", url: "https://example.com/fallback" }],
@@ -340,7 +347,8 @@ describe("executeSearch abort propagation", () => {
 			fakeProvider("brave", fallbackSearch),
 		]);
 
-		const result = await runSearchQuery({ query: "anything", model: "web/exa" }, context);
+		// Zeta pins the engine with `provider`, not the upstream `model` role.
+		const result = await runSearchQuery({ query: "anything", provider: "exa" }, context);
 
 		expect(result.details.error).toContain("Explicit Exa search failed.");
 		expect(result.details.response.provider).toBe("exa");
