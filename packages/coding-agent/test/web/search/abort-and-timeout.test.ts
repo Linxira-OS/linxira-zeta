@@ -184,7 +184,6 @@ describe("executeSearch abort propagation", () => {
 		return { authStorage, modelRegistry, getProvider };
 	}
 
-
 	it("passes the configured provider-request timeout into the search adapter", async () => {
 		let timeoutMs: number | undefined;
 		const context = await configureProviderChain([
