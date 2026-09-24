@@ -353,6 +353,21 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
 `main` stays reserved for released/stable work; a new direction only lands on
 `main` via this merge path, never by committing directly to it.
 
+### `dev/*` — 用户指定的实验分支
+
+`dev/<topic>` 是**由用户明确指定**的实验分支，用于验证某个机制/做法是否成立；
+结论未定之前它**不进入**上面的 feature-branch → PR → `main` 路径。
+
+- **只能由用户指定**，agent 不得自行开 `dev/*`；用户点名时按点名建。
+- **不要求 PR、不要求 CI 绿**——实验的目的是先拿到结论，不是交付。
+- **永不合并进 `main`**。实验成功后，把结论沉淀成规则（写进 AGENTS.md /
+  `document/merge-playbook.md` 等），代码本身按正常流程重新落地。
+- **失败或废弃即删**（本地 + 远端）；不留在仓库里当历史包袱。
+- 命名 `dev/<topic>`，topic 描述被验证的东西，不用来放功能开发。
+
+首个实例：`dev/main` — 验证"上游同步只取上游 tag 间原生差异"的合并机制
+（v18.2.5 → v18.3.0），结论成立则写入 `document/merge-playbook.md`。
+
 ## Commands
 
 - NEVER commit unless asked.
