@@ -283,6 +283,56 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    归零 → biome 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
    已知噪声：natives 5s 加载超时、ENAMETOOLONG、symlink EPERM）。
 
+### v18.2.6 → v18.2.11 实测：步长、失效边界与全树收口
+
+在 `dev/main`（用户指定的实验分支）上按本规程合并，实测三步。冲突数与
+`git merge-tree --write-tree HEAD <tag>` 的干跑预测**逐个相符**（171/171、175/175），
+所以步长决策可以纯靠干跑做，不用来回试。
+
+| 步 | 跨度 | 增量 | 冲突 | 类型 |
+|---|---|---|---|---|
+| v18.2.5→v18.2.6 | 1 tag | 32 文件 | 7 | 纯机械 |
+| v18.2.7 轮 | 1 tag | 629 文件 | 171 | 含 Zeta 扩展模块 |
+| v18.2.7→v18.2.11 | **3 tag** | 830 文件 / 798 commits | 175 | 机械为主 |
+| （对照）→v18.3.0 | 4 tag | 1906 文件 / 997 commits | 325 | **含架构重构** |
+
+**结论 1（步长由改动独立性决定，不由冲突量决定）**：跨 3 个 tag 与逐 tag 合的
+冲突面几乎相同（175 vs 15+113+17=145），但步数少 3 次。反过来，一次跨到
+v18.3.0 的冲突面只多 15%（325 vs 266），**却多出 227 个类型错误**——全部来自
+v18.2.11→v18.3.0 的 hub 单体拆解（`src/tools/hub/*` → `tools/wait.ts` +
+`irc/bus` + `registry/agent-registry` + `async/job-manager`）。判据是
+`git diff <prev> <tag> -- <Zeta 扩展所依附的目录>`：目录级新增/删除即架构变更，
+应单独成步；纯文件内改动可以攒着合。
+
+**结论 2（scope 反写必须覆盖全树，不能只改冲突块）**：git 对无冲突文件做的是
+auto-merge，那些文件里的 `@oh-my-pi/` import 不会进冲突列表。只重写冲突块会
+留下数百处（v18.2.7 轮实测 600 处）。正确做法：merge 落地后按
+`git diff --name-only HEAD $(git rev-parse MERGE_HEAD)` 取全部触及文件做重写。
+`.omp` → `.zeta` 同理，且 `.omp-plugin` 是品牌面注册表里的保留项，不得改。
+
+**结论 3（Zeta 扩展模块用三方合并，base 取上一个已集成 tag）**：整文件取 ours
+会丢上游功能（v18.2.11 轮的 `reset-usage-selector.ts`：ours 缺上游新增的
+`providerLabel` / `redeemableCount` / `expiresAt`），整文件取 theirs 会删 Zeta
+自有定义（`image-gen.ts` 的 provider 类型、`agent-session.ts` 的 mode API）。
+对这两类文件跑
+`git merge-file -L ours -L base -L theirs <ours> <base=v上一tag> <theirs+scope反写>`，
+冲突块多为**纯增量 import**，取并集即可。
+
+**结论 4（一个 re-export 能清掉上百个错误）**：`AgentSessionEvent` 在上游被移到
+`session/agent-session-events.ts` 且不再从 `session/agent-session.ts` re-export，
+而约 83 处 Zeta 调用点从后者导入。补回
+`export type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";`
+把 333 个错误降到 227，再降一轮。合并后 `TS2724` 计数最高的导出名就是首要线索。
+
+**结论 5（收口扫描要跑在已提交树上）**：批量脚本按 Windows 路径回车处理 `grep`
+输出时会静默漏文件，冲突标记能一路进到 commit。收口后必须
+`git grep -lE "^<<<<<<< " HEAD`，不能只扫工作树。
+
+**结论 6（merge 引入新依赖后必须刷新 lockfile）**：CI 的 bun-install 走 frozen，
+merge 带来的新 devDependency（v18.2.11 轮是 oxlint 1.85.0 及其平台 binding）
+不落进 `bun.lock` 就会让 install 步骤直接失败。合并收口的最后一步固定跑
+`bun install` + `bunx bun2nix`。
+
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
 squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶分诊结论与
