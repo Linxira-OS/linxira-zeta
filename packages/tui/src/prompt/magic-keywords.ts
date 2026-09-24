@@ -1,3 +1,6 @@
+import { highlightOrchestrate } from "./orchestrate";
+import { highlightUltrathink } from "./ultrathink";
+import { highlightWorkflow } from "./workflow";
 import { createGradientHighlighter, type KeywordHighlighter } from "./gradient-highlight";
 import { keywordInProse } from "./markdown-prose";
 
@@ -41,7 +44,19 @@ interface RegisteredKeyword {
 	readonly highlight: KeywordHighlighter;
 }
 
-let registry: readonly RegisteredKeyword[] = [];
+/**
+ * The three built-in keywords. The host re-registers at startup with its own
+ * table (coding-agent `modes/magic-keywords.ts`), but the module ships with
+ * them wired so a bare pi-tui consumer — a test, an embedder — behaves as it
+ * did before the registry existed instead of silently highlighting nothing.
+ */
+const BUILTIN_KEYWORDS: readonly RegisteredKeyword[] = [
+	{ word: "ultrathink", highlight: highlightUltrathink },
+	{ word: "orchestrate", highlight: highlightOrchestrate },
+	{ word: "workflowz", highlight: highlightWorkflow },
+];
+
+let registry: readonly RegisteredKeyword[] = BUILTIN_KEYWORDS;
 
 /** Non-global standalone-prose matcher per word, shared by detection paths. */
 const matchers = new Map<string, RegExp>();
