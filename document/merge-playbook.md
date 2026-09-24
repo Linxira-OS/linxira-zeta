@@ -333,6 +333,30 @@ merge 带来的新 devDependency（v18.2.11 轮是 oxlint 1.85.0 及其平台 bi
 不落进 `bun.lock` 就会让 install 步骤直接失败。合并收口的最后一步固定跑
 `bun install` + `bunx bun2nix`。
 
+**结论 7（"改成宿主注册"的重构要保留种子默认值）**：v18.2.8–.11 把
+`tui/prompt/magic-keywords` 从"直接 import 三个内置高亮器"改成
+`setMagicKeywords(specs)` + 空 registry。宿主（coding-agent
+`modes/startup-composer`）启动时注册，所以 TUI 照常工作——**但裸用 pi-tui 的
+消费方（本包自己的测试）什么都不高亮**，且该文件在本包全量跑时红 9 个、
+单跑绿 0 个，表现为"跨文件污染"而非直接失败。凡是把内置表外置成注册表的
+上游重构，合并时要给空 registry 播种内置默认值（`DEFAULT_*` 导出，形态与
+注册函数入参一致），宿主仍可覆盖；并检查其它测试里 `setX([])` 之类的清空
+调用是否会把同进程后续套件清空。
+
+**结论 8（基线对照不要用 workspace 内的 worktree）**：为了做 merge 前后对照
+建的 `.git/xxx` worktree 里，`node_modules/@linxiraos/*` 是指向**主树当前
+代码**的符号链接，于是"在基线 worktree 跑测试"实际跑的是合并后的实现，对照
+结论全错（本轮据此误判过两次）。可靠做法只有两种：在主树
+`git checkout origin/main -- packages/` 再 `git checkout HEAD -- packages/`
+还原，或新建 worktree 后**重装依赖**。验证基线时先确认
+`readlink <worktree>/node_modules/@linxiraos/<pkg>` 指向自身。
+
+**结论 9（CI 判定必须等 fan-out 阶段）**：CI 的 7 个前置 job（lint / rust /
+native / web build）跑完后才扇出 10+ 个测试桶。只看前置阶段的 job 列表就下
+"0 失败"会漏掉全部测试桶——本轮据此漏报过一次 v18.2.7 的失败。判定标准是
+`gh run view <id> --json jobs` 里 **completed** 状态的 run，或至少等到
+测试桶出现在列表里。
+
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
 squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶分诊结论与
