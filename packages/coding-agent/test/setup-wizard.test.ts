@@ -21,7 +21,7 @@ import { SetupWizardComponent } from "@linxiraos/pi-tui/setup/wizard-overlay";
 import { setTerminalGlyphProtocol } from "@linxiraos/pi-tui/terminal-capabilities";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import { SEARCH_PROVIDER_OPTIONS } from "@linxiraos/pi-tui/tools/web-search";
+import { SEARCH_PROVIDER_OPTIONS, type SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
 
 type SetupApplicationSceneHost = Omit<SetupSceneHost, "ctx"> & { ctx: InteractiveModeContext };
 
@@ -558,12 +558,10 @@ describe("setup wizard web search tab", () => {
 		const lastOption = SEARCH_PROVIDER_OPTIONS[SEARCH_PROVIDER_OPTIONS.length - 1]!;
 		const lastValue = lastOption.value;
 		if (lastValue === "auto") throw new Error("last option must be a concrete provider");
-		expect(settings.get("providers.webSearchOrder")).toEqual([
-			lastValue,
-			...SEARCH_PROVIDER_OPTIONS.map(option => option.value).filter(
-				value => value !== "auto" && value !== lastValue,
-			),
-		]);
+		const remainingProviders = SEARCH_PROVIDER_OPTIONS.map(option => option.value).filter(
+			(value): value is SearchProviderId => value !== "auto" && value !== lastValue,
+		);
+		expect(settings.get("providers.webSearchOrder")).toEqual([lastValue, ...remainingProviders]);
 	});
 });
 
