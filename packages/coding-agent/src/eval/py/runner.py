@@ -923,12 +923,12 @@ def transform_cell(source: str) -> str:
 
     Rules
     -----
-    * ``%name args``              -> ``__omp_magic("name", "args")``
-    * ``%load path``              -> ``await __omp_magic_async("load", "path")``
-    * ``var = %name args``        -> ``var = __omp_magic("name", "args")``
-    * ``!cmd``                    -> ``__omp_shell("cmd")``
-    * ``var = !cmd``              -> ``var = __omp_shell("cmd")``
-    * ``%%name args\\n<body>``    -> ``__omp_magic_cell("name", "args", "<body>")``
+    * ``%name args``              -> ``__zeta_magic("name", "args")``
+    * ``%load path``              -> ``await __zeta_magic_async("load", "path")``
+    * ``var = %name args``        -> ``var = __zeta_magic("name", "args")``
+    * ``!cmd``                    -> ``__zeta_shell("cmd")``
+    * ``var = !cmd``              -> ``var = __zeta_shell("cmd")``
+    * ``%%name args\\n<body>``    -> ``__zeta_magic_cell("name", "args", "<body>")``
       (cell magic must be the first non-whitespace token of a top-level line and
       consumes the remainder of the cell)
 
@@ -967,7 +967,7 @@ def transform_cell(source: str) -> str:
             indent = folded[: len(folded) - len(stripped_folded)]
             head, _ = _split_magic_head(stripped_folded[1:])
             name, args = head
-            call = "__omp_magic_async" if name == "load" else "__omp_magic"
+            call = "__zeta_magic_async" if name == "load" else "__zeta_magic"
             prefix = "await " if name == "load" else ""
             out.append(f"{indent}{prefix}{call}({_quote_arg(name)}, {_quote_arg(args)})")
             i += consumed
@@ -996,7 +996,7 @@ def transform_cell(source: str) -> str:
             if rhs.startswith("%") and not rhs.startswith("%%"):
                 head, _ = _split_magic_head(rhs[1:])
                 name, args = head
-                call = "__omp_magic_async" if name == "load" else "__omp_magic"
+                call = "__zeta_magic_async" if name == "load" else "__zeta_magic"
                 prefix = "await " if name == "load" else ""
                 out.append(
                     f"{m.group('indent')}{m.group('lhs').rstrip()} = {prefix}{call}({_quote_arg(name)}, {_quote_arg(args)})"
@@ -1492,12 +1492,12 @@ def __zeta_magic(name: str, args: str) -> Any:
     return fn(args)
 
 
-async def __omp_magic_async(name: str, args: str) -> Any:
-    result = __omp_magic(name, args)
+async def __zeta_magic_async(name: str, args: str) -> Any:
+    result = __zeta_magic(name, args)
     return await result if inspect.isawaitable(result) else result
 
 
-def __omp_magic_cell(name: str, args: str, body: str) -> Any:
+def __zeta_magic_cell(name: str, args: str, body: str) -> Any:
     fn = _CELL_MAGICS.get(name)
     if fn is None:
         raise NameError(f"UsageError: Cell magic function '%%{name}' not found.")
@@ -1700,12 +1700,12 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 
 
 def _install_builtins(ns: dict) -> None:
-    ns["display"] = __omp_display
-    ns["__omp_display"] = __omp_display
-    ns["__omp_magic"] = __omp_magic
-    ns["__omp_magic_async"] = __omp_magic_async
-    ns["__omp_magic_cell"] = __omp_magic_cell
-    ns["__omp_shell"] = __omp_shell
+    ns["display"] = __zeta_display
+    ns["__zeta_display"] = __zeta_display
+    ns["__zeta_magic"] = __zeta_magic
+    ns["__zeta_magic_async"] = __zeta_magic_async
+    ns["__zeta_magic_cell"] = __zeta_magic_cell
+    ns["__zeta_shell"] = __zeta_shell
     ns["__omp_current_run_id__"] = lambda: _CURRENT_RID.get()
 
 

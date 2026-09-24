@@ -659,7 +659,7 @@ export class JsRuntime {
 				const payload = { name, parameters };
 				return surfaceBridgedToolImages(await hooks.callTool("__prelude__", payload), hooks);
 			},
-			__omp_import__: async (source: string, options?: ImportCallOptions) => {
+			__zeta_import__: async (source: string, options?: ImportCallOptions) => {
 				const filename = this.#activeFilename();
 				const baseDir = filename ? path.dirname(filename) : this.#activeCwd();
 				const resolved = await this.#moduleLoader.resolveForRun(baseDir, source);

@@ -309,7 +309,7 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 
 	const judge = async (state, questions) => {
 		checkQuestions(questions);
-		const result = await globalThis.__omp_call_tool__("__judge__", { state, questions });
+		const result = await globalThis.__zeta_call_tool__("__judge__", { state, questions });
 		if (!result || !isPlainObject(result.answers)) throw new Error("judge() did not return answers");
 		return result.answers;
 	};
@@ -344,7 +344,7 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 		}
 
 		async _call(op, args = {}) {
-			return await globalThis.__omp_call_tool__("__judge_batch__", { op, id: this.id, ...args });
+			return await globalThis.__zeta_call_tool__("__judge_batch__", { op, id: this.id, ...args });
 		}
 
 		async status() {
@@ -424,13 +424,13 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 		else if (isPlainObject(states)) items = Object.entries(states).map(([key, state]) => ({ key, state }));
 		else throw new TypeError("judgeBatch(states, questions) expects states as an object or array");
 		return judgeBatchFrom(
-			await globalThis.__omp_call_tool__("__judge_batch__", { op: "create", items, questions, ...options }),
+			await globalThis.__zeta_call_tool__("__judge_batch__", { op: "create", items, questions, ...options }),
 		);
 	};
 
 	// Re-create a batch ref by id (after a VM reset or from another runtime).
 	judgeBatch.attach = async id =>
-		judgeBatchFrom(await globalThis.__omp_call_tool__("__judge_batch__", { op: "attach", id: String(id) }));
+		judgeBatchFrom(await globalThis.__zeta_call_tool__("__judge_batch__", { op: "attach", id: String(id) }));
 
 	const agent = (prompt, opts, ...rest) => {
 		const promise = (async () => {
