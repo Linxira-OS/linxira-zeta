@@ -206,7 +206,7 @@ export async function findApiKey(
 	sessionId?: string,
 	signal?: AbortSignal,
 ): Promise<string | null> {
-	return (await authStorage.getApiKey("zai", sessionId, { signal })) ?? null;
+	return (await authStorage.keys.get("zai", sessionId, { signal })) ?? null;
 }
 
 async function callZaiTool(
@@ -412,7 +412,7 @@ function toSources(results: ZaiSearchResult[]): SearchSource[] {
 
 /** Execute Z.AI web search via remote MCP endpoint. */
 export async function searchZai(params: ZaiSearchParams): Promise<SearchResponse> {
-	const keyOrResolver: ApiKey = params.authStorage.resolver("zai", {
+	const keyOrResolver: ApiKey = params.authStorage.keys.resolver("zai", {
 		sessionId: params.sessionId,
 	});
 
@@ -442,8 +442,8 @@ export class ZaiProvider extends SearchProvider {
 	readonly id = "zai";
 	readonly label = "Z.AI";
 
-	isAvailable(authStorage: AuthStorage, _model?: Model): Promise<boolean> | boolean {
-		return authStorage.hasAuth("zai") || !!getEnvApiKey("zai");
+	isAvailable(authStorage: AuthStorage): Promise<boolean> | boolean {
+		return authStorage.keys.source("zai") !== undefined || !!getEnvApiKey("zai");
 	}
 
 	search(params: SearchParams): Promise<SearchResponse> {

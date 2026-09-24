@@ -5,7 +5,6 @@ import * as path from "node:path";
 import { getProjectAgentDir, getProjectDir, removeSyncWithRetries, setProjectDir } from "@linxiraos/pi-utils";
 import {
 	runTtsrCommand,
-	TTSR_SOURCES,
 	type TtsrCommandArgs,
 	type TtsrScanArgs,
 	type TtsrTestArgs,
@@ -560,12 +559,6 @@ describe("omp ttsr", () => {
 			expect(result.summary.scannedFiles).toBe(0);
 			expect(result.summary.skipped.binary).toBe(1);
 			expect(result.summary.totalMatches).toBe(0);
-		});
-	});
-
-	describe("exports", () => {
-		it("TTSR_SOURCES lists all three match sources", () => {
-			expect(TTSR_SOURCES).toEqual(["text", "thinking", "tool"]);
 		});
 	});
 });

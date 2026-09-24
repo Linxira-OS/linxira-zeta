@@ -157,7 +157,7 @@
 
 - v18.1.10 合并损伤清零：UA 常量（全 provider 请求回到 `zeta/<version>`）、基础系统提示字节守卫、计划文件读取窗口、扩展检查器配置目录键、channel 工具顶层会话独占门控、`tracking_update` 门控、Windows 安装器（install.ps1）包名/仓库/二进制名还原。
 - Rust 作业控制修复：管道子进程在等待注册前自行 SIGSTOP 时，brush-core 的停机检测永久失明（`run_string` 挂死）——`waitid` 改按 pid 查询 + wait 入口预检查已停子进程，附红绿回归测试；GitHub 托管 runner 首次执行 Rust 门禁即触发的环境潜伏缺陷。
-- 品牌残留清零并进入 CI 守卫（`scripts/brand/brand-check.ts`，check job 每次运行）：oh-my-pi/.omp/π 家族标记五级分类规则表 + 品牌 overlay 脚本（`brand-overlay.ts`），后续 OMP 合并的机械替换一步完成。
+- 品牌残留清零并进入 CI 守卫（`scripts/brand/brand-check.ts`，check job 每次运行）：oh-my-pi/.zeta/π 家族标记五级分类规则表 + 品牌 overlay 脚本（`brand-overlay.ts`），后续 OMP 合并的机械替换一步完成。
 - i18n：zh 目录 OMP 自指清零（守卫测试固定）、设置项占位假翻译 74 处换真文案、上游 issue 链接等合法引用入册豁免。
 
 ### 1.1.8（历史）
@@ -191,7 +191,7 @@
 ### 修复
 
 - v18.0.9/v18.0.10 合并损伤修复：恢复 AgentSession 会话层 mode API（plan/goal/vibe，web 网关与 ACP 外部客户端恢复可用）、channel 工具（`channel_send`/`workspace_run`/`im_control`）接线、root catalog `@linxiraos/*` 键与版本线（1.1.5）、包名规范与 `.zeta` 测试契约。
-- 修复扩展发现读不到项目级配置：原生扩展根解析把项目配置目录写死为 `.omp`，`<project>/.zeta/` 下的扩展注册失效。
+- 修复扩展发现读不到项目级配置：原生扩展根解析把项目配置目录写死为 `.zeta`，`<project>/.zeta/` 下的扩展注册失效。
 - CI 门禁修复：PR 不再拉取 npm 最新发布 addon 充当测试产物（同步分支因旧 addon 缺新原生导出而必红），所有事件一律从源码构建；隔离上游继承的 issue-966 restage 竞态测试并立项（roadmap P1）。
 - 发布链修复：1.1.0 各 `@linxiraos/*` 包依赖误带 Bun `catalog:` 协议（npm 无法解析、安装即报错），1.1.1 起发布时重写为实际版本并重发全部包。
 - 1.1.2 空涨重发：重置 `latest` 指向，彻底排除坏的 1.1.0（内容与 1.1.1 无功能差异）。
@@ -248,7 +248,7 @@
 - 当前基于 **OMP v18.0.4**（`5eef8a2386`；v18.0.3 `160ed439ac` 亦已合并，`git merge-base --is-ancestor` 均验证通过）。
 - **OMP v18.0.3 合并**：TUI 采用上游新渲染架构（provider window / resize replay），streaming edit guard 改为异步增量验证，Julia 内核可用性探测加固（超时上限 + 进程组击杀）；Zeta 侧保留 web-gateway / i18n / `.zeta` 路径与 scrollback 扩展（tui.ts 三方融合）。
 - **OMP v18.0.4 合并**：update-cli 异步增量重构、streaming guard 漂移下限放宽（CI 抖动，上游 `4854db856c`）、zh 本地化 overlay（`38a7dff556`）。
-- **Zeta 品牌适配**：14 包统一 `@linxiraos/*` 版本线 1.0.11、`@oh-my-pi` 残留清零、`.omp` → `.zeta` 路径、desktop / web-ui 版本号识别单源（desktop `package.json`）。
+- **Zeta 品牌适配**：14 包统一 `@linxiraos/*` 版本线 1.0.11、`@oh-my-pi` 残留清零、`.zeta` → `.zeta` 路径、desktop / web-ui 版本号识别单源（desktop `package.json`）。
 
 ### 版本与发布流程（v1.1.0）
 
@@ -260,7 +260,7 @@
 - 完整合并 OMP 17.3.8 官方 tag（分支 `zeta/v1.1.10-17.3.8`，合并提交 `2bf455c9c3`，`git merge-base --is-ancestor` 已验证），59 个冲突按 AGENTS.md 政策表解决：
    - 保留 Zeta 包名/版本（`@linxiraos/*` @ 1.0.9、workspace 1.0.9、native sentinel `__piNativesV1_0_9`）。
    - 接受上游依赖图（`bun.lock` 以 `@linxiraos/*` 名重新生成、`Cargo.lock` 经 `cargo metadata` 对齐）。
-   - 上游实现 + Zeta 覆盖（i18n 键、`.zeta` 路径、`@linxiraos` 导入、Zeta 特性）逐文件保留；测试按 tests-as-contract 成对接受并适配 `.omp` → `.zeta`。
+   - 上游实现 + Zeta 覆盖（i18n 键、`.zeta` 路径、`@linxiraos` 导入、Zeta 特性）逐文件保留；测试按 tests-as-contract 成对接受并适配 `.zeta` → `.zeta`。
    - `issue-887-repro.test.ts` 保留（上游删除），其 qwen3.7-max 断言随 17.3.8 `models.json` 路由更新。
 - 合并分支已并入 `main`（合并提交 `76588be094`，无冲突；跟随修复提交 `82309f384d` 在其上保留）。
 - 跟随修复（Phase 1-8，见各包 `CHANGELOG.md`）：stats 独立窗口导航、更新流程（checking 态 / 已是最新提示 / CLI 交互确认与 `--yes`）、微信 v1 API 登录与 peer 持久化及解绑、飞书首聊 onboarding、`allowedPeers` 白名单、web-ui `/plan` 进入计划模式、models 配置卡片去重、desktop 二次点击恢复、桌面菜单 i18n、设置面板新增可编辑项。
@@ -269,7 +269,7 @@
 
 - v1.0.10 已发布：13 个 `@linxiraos/*` 包全量 1.0.10（trusted publishing），GitHub Release `v1.0.10` 含 18 个二进制/桌面/checksum 资产。
 - 发布门新增修复（release-v2 工具）：`selectLatestZetaTag` 现在排除上游 OMP 17.x tag（其自带 `chore: bump version to 17.x` subject，会误判为 Zeta tag 阻断发布）；Cargo.toml `[workspace.package]` 缩进版本格式适配。
-- 发布 CI 首轮暴露并修复：`retry.enabled` 设置分组错放（interaction → model）、9 个新增 `ui:` 块补全 zh 文案（含 17.3.8 新增的 `providers.cacheRetention` 及选项）、`structured-subagent.test.ts` 的 `.omp` 路径适配 `.zeta`。
+- 发布 CI 首轮暴露并修复：`retry.enabled` 设置分组错放（interaction → model）、9 个新增 `ui:` 块补全 zh 文案（含 17.3.8 新增的 `providers.cacheRetention` 及选项）、`structured-subagent.test.ts` 的 `.zeta` 路径适配 `.zeta`。
 
 ### 版本准备（1.0.11）
 

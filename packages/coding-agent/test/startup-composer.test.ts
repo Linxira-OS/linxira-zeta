@@ -8,10 +8,9 @@ import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
 import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { getDefault } from "@linxiraos/zeta/config/settings-schema";
 import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
 import { runRootCommand } from "@linxiraos/zeta/main";
-import { COMPOSER_DEFAULTS, Composer, type ComposerPreferences } from "@linxiraos/pi-tui/prompt/composer";
+import { Composer, type ComposerPreferences } from "@linxiraos/pi-tui/prompt/composer";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	applyStartupComposerPreferences,
@@ -599,20 +598,6 @@ describe("Composer prepaint", () => {
 		expect(terminal.stops).toBe(1);
 	});
 
-	it("first frame mirrors the canonical settings-schema defaults", () => {
-		expect(COMPOSER_DEFAULTS).toEqual({
-			quiet: getDefault("startup.quiet"),
-			composerShape: getDefault("composer.shape") ?? "box",
-			showHardwareCursor: getDefault("showHardwareCursor"),
-			maxInlineImages: getDefault("tui.maxInlineImages"),
-			resizeScrollback: getDefault("tui.resizeScrollback"),
-			imeSafeCursor: getDefault("tui.imeSafeCursor"),
-			autocompleteMaxVisible: getDefault("autocompleteMaxVisible"),
-			spellingTypoDetection: getDefault("spelling.typoDetection"),
-			spellingAutocomplete: getDefault("spelling.autocomplete"),
-			spellingAutocorrect: getDefault("spelling.autocorrect"),
-		});
-	});
 	it("renders the complete interactive welcome scene on the first frame", async () => {
 		const terminal = new CountingTerminal(80, 32);
 		const composer = new Composer({

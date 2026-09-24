@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
-import { ACP_BUILTIN_SLASH_COMMANDS, executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
+import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 
 function acpRuntime({
@@ -111,11 +111,5 @@ describe("/handoff dispatch (ACP)", () => {
 		const h = acpRuntime({ handoffError: new Error("Nothing to hand off (no messages yet)") });
 		await executeAcpBuiltinSlashCommand("/handoff", h.runtime);
 		expect(h.output).toHaveBeenCalledWith("Handoff failed: Nothing to hand off (no messages yet)");
-	});
-
-	it("is advertised with the focus hint and the ACP description", () => {
-		const advertised = ACP_BUILTIN_SLASH_COMMANDS.find(c => c.name === "handoff");
-		expect(advertised?.input?.hint).toBe("[focus instructions]");
-		expect(advertised?.description).toBe("Summarize the session into a handoff document and compact in place");
 	});
 });

@@ -1,10 +1,10 @@
-"""Harbor agent that runs the LOCAL oh-my-pi (`zeta`) build inside task containers.
+"""Harbor agent that runs the LOCAL `omp` build inside task containers.
 
 Unlike Harbor's built-in `pi` agent (which `npm i -g @mariozechner/pi-coding-agent`),
 this runs the working tree at `/work/pi`. Install modes (`OMP_BENCH_INSTALL`):
 
   * `source` (default): the runner bind-mounts the repo read-only plus a
-    prebuilt linux `node_modules` tree and a linux `bun` binary; zeta runs
+    prebuilt linux `node_modules` tree and a linux `bun` binary; omp runs
     straight from `packages/coding-agent/src/cli.ts`. Zero-network setup, and
     host TS edits apply to the next trial with no rebuild (Rust natives load
     from the in-tree `packages/natives/native/*.node` prebuilds).
@@ -12,7 +12,7 @@ this runs the working tree at `/work/pi`. Install modes (`OMP_BENCH_INSTALL`):
     (bundles every workspace TS package into `dist/cli.js`) and hands us the
     tarball path; we upload it, install Bun, `bun install` the bundle's
     external deps + the platform native addon, and run `bun .../dist/cli.js`.
-  * binary (`--binary`): a self-contained compiled zeta binary is uploaded.
+  * binary (`--binary`): a self-contained compiled omp binary is uploaded.
 
 Auth never enters the container: a generated `~/.zeta/agent/models.yml` routes the
 configured providers' `baseUrl` at the host's pm2 auth-gateway (default
@@ -22,7 +22,7 @@ resolves credentials host-side. No provider API keys are passed in.
 All knobs come from environment variables the runner sets on the `harbor` process
 (see `OMP_BENCH_*` below); the agent reads them from `os.environ` directly.
 
-Selected via `harbor run --agent-import-path zeta_local:ZetaLocal` with the
+Selected via `harbor run --agent-import-path omp_local:OmpLocal` with the
 directory of this file on `PYTHONPATH`.
 """
 
@@ -117,10 +117,10 @@ _patch_harbor_cleanup_cancellation()
 _patch_apple_container_dns()
 
 # Container-side staging paths (absolute; never depend on $HOME at write time).
-_TARBALL_DST = "/tmp/zeta-local.tgz"
-_MODELS_DST = "/tmp/zeta-models.yml"
-_CONFIG_DST = "/tmp/zeta-config.yml"
-_OUTPUT_FILENAME = "zeta.txt"
+_TARBALL_DST = "/tmp/omp-local.tgz"
+_MODELS_DST = "/tmp/omp-models.yml"
+_CONFIG_DST = "/tmp/omp-config.yml"
+_OUTPUT_FILENAME = "omp.txt"
 
 # Provider → host env vars used in --no-gateway (direct-auth) mode only.
 _PROVIDER_KEYS: dict[str, list[str]] = {
@@ -152,6 +152,22 @@ def _env(name: str, default: str = "") -> str:
 
 def _truthy(value: str) -> bool:
     return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _yaml(tree: dict, indent: int = 0) -> str:
+    """Render a nested dict of scalars/lists as YAML (config.yml subset; no anchors or multiline strings)."""
+    pad = "  " * indent
+    out: list[str] = []
+    for key, value in tree.items():
+        if isinstance(value, dict):
+            out.append(f"{pad}{key}:")
+            out.append(_yaml(value, indent + 1))
+        elif isinstance(value, list):
+            out.append(f"{pad}{key}:")
+            out.extend(f"{pad}  - {json.dumps(item)}" for item in value)
+        else:
+            out.append(f"{pad}{key}: {json.dumps(value)}")
+    return "\n".join(out)
 
 
 def _loads(line: str) -> dict | None:
@@ -190,7 +206,7 @@ class _Usage:
         return self.in_tok == 0 and self.out_tok == 0 and self.cost == 0.0
 
 
-class ZetaLocal(BaseInstalledAgent):
+class OmpLocal(BaseInstalledAgent):
     # No declarative CLI flags: the run command is built by hand so model/thinking
     # routing stays in one place.
     CLI_FLAGS = []  # type: ignore[assignment]
@@ -215,7 +231,7 @@ class ZetaLocal(BaseInstalledAgent):
         ]
         self._thinking = _env("OMP_BENCH_THINKING")
         self._auto_approve = _truthy(_env("OMP_BENCH_AUTO_APPROVE", "1"))
-        # Extra CLI args forwarded verbatim to the in-container zeta invocation,
+        # Extra CLI args forwarded verbatim to the in-container omp invocation,
         # JSON-array-encoded by the runner (OMP_BENCH_AGENT_ARGS) so multi-word
         # values survive without a second layer of shell quoting.
         self._agent_args = self._parse_agent_args()
@@ -227,17 +243,20 @@ class ZetaLocal(BaseInstalledAgent):
         self._web_search = _truthy(_env("OMP_BENCH_WEB_SEARCH", "0"))
         # omp tool allowlist (`--tools`); empty keeps omp's default tool set.
         self._tools = [t for t in _env("OMP_BENCH_TOOLS", "").split(",") if t]
+        # Extra settings for the container config.yml: {"edit.mode": "sloppy", ...}.
+        raw_settings = _env("OMP_BENCH_SETTINGS")
+        self._settings: dict[str, object] = json.loads(raw_settings) if raw_settings else {}
         # Extra env (PI_* dialect knobs, explicit --env) the runner forwards into
-        # the in-container zeta run, JSON-encoded in OMP_BENCH_FORWARD_ENV.
+        # the in-container omp run, JSON-encoded in OMP_BENCH_FORWARD_ENV.
         self._forward_env = self._parse_forward_env()
         # Source-mount paths (defaults must match the runner's compose overlay).
-        self._source_dir = _env("OMP_BENCH_SOURCE_DIR", "/opt/zeta/src")
-        self._source_bun = _env("OMP_BENCH_SOURCE_BUN", "/opt/zeta/bin/bun")
+        self._source_dir = _env("OMP_BENCH_SOURCE_DIR", "/opt/omp/src")
+        self._source_bun = _env("OMP_BENCH_SOURCE_BUN", "/opt/omp/bin/bun")
         self._source_arch = _env("OMP_BENCH_SOURCE_ARCH")
         # Resolved during install(); reused by version + run commands.
         self._home = "/root"
         self._bun = "/root/.bun/bin/bun"
-        self._cli = "/root/.zeta-bench/app/dist/cli.js"
+        self._cli = "/root/.omp-bench/app/dist/cli.js"
         self._binary_arm64 = _env("OMP_BENCH_BINARY_ARM64")
         self._binary_x64 = _env("OMP_BENCH_BINARY_X64")
         self._binary = bool(self._binary_arm64 or self._binary_x64)
@@ -245,7 +264,7 @@ class ZetaLocal(BaseInstalledAgent):
     @staticmethod
     @override
     def name() -> str:
-        return "zeta"
+        return "omp"
 
     @override
     def version(self) -> str | None:
@@ -268,7 +287,7 @@ class ZetaLocal(BaseInstalledAgent):
     def _wrap(self, command: str) -> str:
         """Prefix a command with the Bun runtime on PATH.
 
-        zeta spawns Bun worker subprocesses at runtime, so `bun` must resolve on
+        omp spawns Bun worker subprocesses at runtime, so `bun` must resolve on
         PATH during `run()` too — not just for the entrypoint.
         """
         bun_dir = os.path.dirname(self._bun)
@@ -324,14 +343,14 @@ class ZetaLocal(BaseInstalledAgent):
             else:
                 self._cli = await self._install_local(environment)
 
-        # 3) Auth + model config under $HOME/.zeta/agent.
+        # 3) Auth + model config under $HOME/.omp/agent.
         if self._gateway_on:
             # Gateway routing — no provider keys ever enter the container.
             await self._write_models_yaml(environment)
         await self._write_config(environment)
 
     async def _install_source(self, environment: BaseEnvironment) -> str:
-        """Verify the read-only repo + linux deps mounts and run zeta from TS source.
+        """Verify the read-only repo + linux deps mounts and run omp from TS source.
 
         The runner mounts the repo at `self._source_dir`, shadows every host
         `node_modules` with a linux tree, and mounts a linux `bun` binary — so
@@ -358,10 +377,10 @@ class ZetaLocal(BaseInstalledAgent):
             environment,
             command=(
                 "set -e; "
-                f"test -x {q(self._source_bun)} || {{ echo 'zeta source mode: bun mount missing' >&2; exit 5; }}; "
-                f"test -f {q(cli)} || {{ echo 'zeta source mode: repo mount missing' >&2; exit 5; }}; "
-                f"test -d {q(self._source_dir + '/node_modules/@linxiraos')} || "
-                "{ echo 'zeta source mode: linux deps mount missing' >&2; exit 5; }; "
+                f"test -x {q(self._source_bun)} || {{ echo 'omp source mode: bun mount missing' >&2; exit 5; }}; "
+                f"test -f {q(cli)} || {{ echo 'omp source mode: repo mount missing' >&2; exit 5; }}; "
+                f"test -d {q(self._source_dir + '/node_modules/@oh-my-pi')} || "
+                "{ echo 'omp source mode: linux deps mount missing' >&2; exit 5; }; "
                 f"{q(self._source_bun)} --version"
             ),
         )
@@ -373,7 +392,7 @@ class ZetaLocal(BaseInstalledAgent):
                 "OMP_BENCH_INSTALL=local requires OMP_BENCH_TARBALL (host tarball path)"
             )
         await environment.upload_file(self._tarball, _TARBALL_DST)
-        app = f"{self._home}/.zeta-bench/app"
+        app = f"{self._home}/.omp-bench/app"
         await self.exec_as_agent(
             environment,
             command=self._wrap(
@@ -398,7 +417,7 @@ class ZetaLocal(BaseInstalledAgent):
         return f"{app}/dist/cli.js"
 
     async def _install_binary(self, environment: BaseEnvironment) -> str:
-        """Probe container arch, upload only the matching self-contained zeta binary."""
+        """Probe container arch, upload only the matching self-contained omp binary."""
         arch = (
             await self.exec_as_agent(environment, command="uname -m")
         ).stdout.strip()
@@ -410,11 +429,11 @@ class ZetaLocal(BaseInstalledAgent):
             raise RuntimeError(f"binary mode: unsupported container arch {arch!r}")
         if not hostbin:
             raise RuntimeError(
-                f"binary mode: no zeta binary provided for container arch {arch}"
+                f"binary mode: no omp binary provided for container arch {arch}"
             )
-        app_dir = f"{self._home}/.zeta-bench"
-        dst = f"{app_dir}/zeta"
-        staging = "/tmp/zeta-bin"
+        app_dir = f"{self._home}/.omp-bench"
+        dst = f"{app_dir}/omp"
+        staging = "/tmp/omp-bin"
         await self.exec_as_agent(
             environment, command=f"mkdir -p {shlex.quote(app_dir)}"
         )
@@ -427,7 +446,7 @@ class ZetaLocal(BaseInstalledAgent):
         return dst
 
     async def _install_published(self, environment: BaseEnvironment) -> str:
-        app = f"{self._home}/.zeta-bench/app"
+        app = f"{self._home}/.omp-bench/app"
         spec = f"@linxiraos/zeta@{self._pkg_version}"
         await self.exec_as_agent(
             environment,
@@ -449,14 +468,14 @@ class ZetaLocal(BaseInstalledAgent):
             content = self._generate_models_yaml()
             staged = _MODELS_DST
             heredoc = (
-                f"cat > {_MODELS_DST} <<'ZETA_MODELS_EOF'\n{content}\nZETA_MODELS_EOF"
+                f"cat > {_MODELS_DST} <<'OMP_MODELS_EOF'\n{content}\nOMP_MODELS_EOF"
             )
             await self.exec_as_agent(environment, command=heredoc)
         await self.exec_as_agent(
             environment,
             command=(
-                f'mkdir -p "$HOME/.zeta/agent"; '
-                f'cp {shlex.quote(staged)} "$HOME/.zeta/agent/models.yml"'
+                f'mkdir -p "$HOME/.omp/agent"; '
+                f'cp {shlex.quote(staged)} "$HOME/.omp/agent/models.yml"'
             ),
         )
 
@@ -476,27 +495,32 @@ class ZetaLocal(BaseInstalledAgent):
         return "\n".join(lines)
 
     async def _write_config(self, environment: BaseEnvironment) -> None:
-        """Write $HOME/.zeta/agent/config.yml: the web_search toggle.
+        """Write $HOME/.omp/agent/config.yml: the web_search and find toggles.
 
         web_search can't authenticate through the gateway, so it's off by default.
         find is off by default in omp; it is enabled only when the tool allowlist
         names it (the judge role then needs credentials forwarded via --env).
         """
-        lines = [
-            "# Generated by metaharness runner.",
-            "web_search:",
-            f"  enabled: {'true' if self._web_search else 'false'}",
-            "find:",
-            f"  enabled: {'true' if 'find' in self._tools else 'false'}",
-        ]
-        content = "\n".join(lines)
-        heredoc = f"cat > {_CONFIG_DST} <<'ZETA_CONFIG_EOF'\n{content}\nZETA_CONFIG_EOF"
+        tree: dict = {
+            "web_search": {"enabled": self._web_search},
+            "find": {"enabled": "find" in self._tools},
+        }
+        for dotted, value in self._settings.items():
+            node = tree
+            parts = dotted.split(".")
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+                if not isinstance(node, dict):
+                    raise ValueError(f"setting {dotted!r} conflicts with a scalar parent")
+            node[parts[-1]] = value
+        content = "# Generated by metaharness runner.\n" + _yaml(tree)
+        heredoc = f"cat > {_CONFIG_DST} <<'OMP_CONFIG_EOF'\n{content}\nOMP_CONFIG_EOF"
         await self.exec_as_agent(environment, command=heredoc)
         await self.exec_as_agent(
             environment,
             command=(
-                f'mkdir -p "$HOME/.zeta/agent"; '
-                f'cp {shlex.quote(_CONFIG_DST)} "$HOME/.zeta/agent/config.yml"'
+                f'mkdir -p "$HOME/.omp/agent"; '
+                f'cp {shlex.quote(_CONFIG_DST)} "$HOME/.omp/agent/config.yml"'
             ),
         )
 
@@ -572,14 +596,15 @@ class ZetaLocal(BaseInstalledAgent):
             parts.append(f"--tools {shlex.quote(','.join(self._tools))}")
         parts.extend(shlex.quote(arg) for arg in self._agent_args)
         # POSIX positional separator: some task prompts start with "-" (e.g. a
-        # markdown bullet, as in pytorch-model-recovery). Without this, zeta parses
+        # markdown bullet, as in pytorch-model-recovery). Without this, omp parses
         # the prompt as an unknown flag and exits 2. `--` forces positional mode.
         parts.append("--")
         parts.append(shlex.quote(instruction))
-        # No pipes/stdbuf (absent in minimal images): redirect raw JSONL to the
-        # mounted agent log dir; populate_context_post_run parses it on the host.
-        run = " ".join(parts) + f" > /logs/agent/{_OUTPUT_FILENAME} 2>&1"
-        # Exec env for the zeta run. Direct-auth (no-gateway) mode contributes the
+        # No pipes/stdbuf (absent in minimal images): stdin is unused because the
+        # prompt is positional, so close it explicitly; redirect raw JSONL to the
+        # mounted agent log dir for populate_context_post_run to parse on the host.
+        run = " ".join(parts) + f" < /dev/null > /logs/agent/{_OUTPUT_FILENAME} 2>&1"
+        # Exec env for the omp run. Direct-auth (no-gateway) mode contributes the
         # selected providers' keys (via exec env, never argv); forwarded PI_* /
         # --env knobs apply last so an explicit --env always wins.
         run_env: dict[str, str] = {}
@@ -608,7 +633,7 @@ class ZetaLocal(BaseInstalledAgent):
         }
 
     def _sum_main(self, path: Path, acc: "_Usage") -> None:
-        """Sum assistant `message_end` usage from zeta's stdout JSONL.
+        """Sum assistant `message_end` usage from omp's stdout JSONL.
 
         Streams line-by-line: a runaway transcript must not OOM the host-side
         post-run parse.

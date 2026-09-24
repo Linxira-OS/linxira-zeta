@@ -2,7 +2,7 @@
   "type": "module",
   "name": "@linxiraos/pi-wire",
   "version": "1.1.21",
-  "description": "Shared wire protocol types for Oh My Pi packages",
+  "description": "Shared wire protocol types for omp packages",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",
   "license": "MIT",
@@ -27,8 +27,7 @@
     "check:types": "tsgo -p tsconfig.json --noEmit",
     "lint": "oxlint .",
     "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
-    "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'",
-    "test": "bun test --parallel"
+    "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

@@ -2,9 +2,9 @@
  * Google Gemini Web Search Provider
  *
  * Uses Gemini's Google Search grounding via Cloud Code Assist API.
- * Auth is resolved through `AuthStorage.getOAuthAccess(...)` for both
- * `google-gemini-cli` (stable prod) and `google-antigravity` (daily sandbox)
- * — the broker is the sole refresh authority, so this module never opens a
+ * Cloud Code Assist auth is resolved through `AuthStorage.oauth.access(...)`
+ * for the selected catalog provider; developer API auth uses the selected
+ * model's registry resolver. The broker is the sole refresh authority, so this module never opens a
  * sibling SQLite store and never POSTs the broker sentinel to a Google token
  * endpoint.
  */
@@ -141,16 +141,9 @@ export async function findGeminiAuth(
 	sessionId: string | undefined,
 	signal: AbortSignal | undefined,
 ): Promise<GeminiAuthSeed | null> {
-	for (const provider of GEMINI_PROVIDERS) {
-		const access = await authStorage.getOAuthAccess(provider, sessionId, { signal });
-		if (!access?.accessToken || !access.projectId) continue;
-		return { provider, access, projectId: access.projectId };
-	}
-	return null;
-}
-
-function hasGeminiOAuth(authStorage: AuthStorage): boolean {
-	return GEMINI_PROVIDERS.some((provider: GeminiProviderId) => authStorage.hasOAuth(provider));
+	const access = await authStorage.oauth.access(provider, sessionId, { signal });
+	if (!access?.accessToken || !access.projectId) return null;
+	return { provider, access, projectId: access.projectId };
 }
 
 /** Cloud Code Assist API response types */
@@ -712,16 +705,17 @@ export class GeminiProvider extends SearchProvider {
 	readonly id = "gemini";
 	readonly label = "Gemini";
 
-	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
-		// Cheap, in-memory check — avoids driving the refresh pipeline during
-		// the provider-chain probe. `searchGemini` refreshes OAuth lazily on the
-		// actual request and resolves developer API keys through AuthStorage.
-		if (hasGeminiOAuth(authStorage)) return true;
-		try {
-			return authStorage.hasAuth(resolveGeminiDeveloperEndpoint().authProvider);
-		} catch {
+	isAvailable(authStorage: AuthStorage, model?: Model<Api>): boolean {
+		if (model) {
+			if (model.api === "google-gemini-cli") return authStorage.credentials.hasOAuth(model.provider);
+			if (model.api === "google-generative-ai") return authStorage.keys.source(model.provider) !== undefined;
 			return false;
 		}
+		return (
+			authStorage.credentials.hasOAuth("google-antigravity") ||
+			authStorage.credentials.hasOAuth("google-gemini-cli") ||
+			authStorage.keys.source("google") !== undefined
+		);
 	}
 
 	search(params: SearchParams): Promise<SearchResponse> {

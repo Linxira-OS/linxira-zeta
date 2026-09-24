@@ -7,13 +7,7 @@ import type { TruncationResult } from "./streaming-output";
 import { toPathList } from "../render/render-utils";
 import * as path from "node:path";
 import { Ellipsis, fileHyperlink, renderFileList, renderStatusLine, renderTreeList, truncateToWidth } from "../render";
-import {
-	createCachedComponent,
-	formatCount,
-	formatEmptyMessage,
-	formatErrorMessage,
-	PREVIEW_LIMITS,
-} from "../render/render-utils";
+import { createCachedComponent, formatEmptyMessage, formatErrorMessage, PREVIEW_LIMITS } from "../render/render-utils";
 import { formatFullOutputReference } from "./output-meta";
 import { tuiText, tuiTextFmt } from "../i18n";
 

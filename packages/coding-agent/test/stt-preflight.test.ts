@@ -6,8 +6,7 @@ import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { Settings, settings } from "@linxiraos/zeta/config/settings";
 import * as asrClient from "@linxiraos/zeta/stt/asr-client";
 import * as downloader from "@linxiraos/zeta/stt/downloader";
-import { STTController } from "@linxiraos/zeta/stt/stt-controller";
-import type { ModelBrowserRegistry } from "@linxiraos/pi-tui/overlays/model-browser";
+import { STTController, type STTControllerDependencies } from "@linxiraos/zeta/stt/stt-controller";
 import { getTinyModelsCacheDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
@@ -19,10 +18,11 @@ const DICTATION_MODELS = [
 	getBundledModel("local", "whisper-large-v3-turbo"),
 	getBundledModel("local", "parakeet-tdt-0.6b-v3"),
 ];
-const registry: ModelBrowserRegistry = {
+const registry: STTControllerDependencies["registry"] = {
 	getError: () => undefined,
 	getAvailable: () => DICTATION_MODELS,
 	getAll: () => DICTATION_MODELS,
+	resolver: () => () => "test-key",
 };
 
 async function touch(file: string): Promise<void> {
@@ -198,10 +198,11 @@ describe("STTController preflight", () => {
 
 	it("falls back to the full parakeet id when the dictation chain is empty", async () => {
 		settings.setModelRole("dictation", "missing/model");
-		const emptyRegistry: ModelBrowserRegistry = {
+		const emptyRegistry: STTControllerDependencies["registry"] = {
 			getError: () => undefined,
 			getAvailable: () => [],
 			getAll: () => [],
+			resolver: () => () => "test-key",
 		};
 		const isCached = vi.spyOn(downloader, "isSttModelCached").mockResolvedValue(true);
 		vi.spyOn(downloader, "downloadSttModel").mockReturnValue(new Promise<void>(() => {}));

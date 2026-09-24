@@ -64,7 +64,7 @@ export function findApiKey(
 	sessionId?: string,
 	signal?: AbortSignal,
 ): Promise<string | undefined> {
-	return authStorage.getApiKey("tinyfish", sessionId, { signal });
+	return authStorage.keys.get("tinyfish", sessionId, { signal });
 }
 
 async function callTinyFishSearch(apiKey: string, params: TinyFishSearchParams): Promise<TinyFishSearchResponse> {
@@ -179,7 +179,7 @@ export async function searchTinyFish(params: SearchParams): Promise<SearchRespon
 	const { location, language } = tinyFishLocale(parsed.lang);
 	if (location) tinyFishParams.location = location;
 	if (language) tinyFishParams.language = language;
-	const keyOrResolver: ApiKey = params.authStorage.resolver("tinyfish", {
+	const keyOrResolver: ApiKey = params.authStorage.keys.resolver("tinyfish", {
 		sessionId: params.sessionId,
 	});
 	const sources = await withAuth(
@@ -217,8 +217,8 @@ export class TinyFishProvider extends SearchProvider {
 	readonly id = "tinyfish";
 	readonly label = "TinyFish";
 
-	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
-		return authStorage.hasAuth("tinyfish") || !!getEnvApiKey("tinyfish");
+	isAvailable(authStorage: AuthStorage): boolean {
+		return authStorage.keys.source("tinyfish") !== undefined || !!getEnvApiKey("tinyfish");
 	}
 
 	search(params: SearchParams): Promise<SearchResponse> {

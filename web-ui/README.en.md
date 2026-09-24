@@ -74,7 +74,7 @@ npx omp-web@latest
 ## Features & Enhancements
 
 - **Code Highlighting Theme Selector**: Independent code block theme selector supporting **One Dark Pro**, VS Code Dark+, VS Code Light, and more.
-- **Zeta Compatibility**: Uses `~/.zeta/agent/` directory structure by default (`models.json`, `models.db`, `config.yml`, `agent.db`), backward-compatible with `~/.omp/agent/`. Supports role models (`defaultModel`, `smallModel`) and SQLite API credentials.
+- **Zeta Compatibility**: Uses `~/.zeta/agent/` directory structure by default (`models.json`, `models.db`, `config.yml`, `agent.db`), backward-compatible with `~/.zeta/agent/`. Supports role models (`defaultModel`, `smallModel`) and SQLite API credentials.
 - **Full i18n & Chinese Localization**: Complete bilingual UI, optimized CJK typography, fonts, and search experience.
 - **Browse sessions by project**: find previous Zeta conversations without digging through terminal history or session paths.
 - **Fork or branch safely**: continue from any earlier message, or fork a session into a separate route without touching the original.

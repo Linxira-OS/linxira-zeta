@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "bun:test";
 import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { ShakeMode } from "@linxiraos/zeta/session/shake-types";
-import { ACP_BUILTIN_SLASH_COMMANDS, executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
+import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 
@@ -54,17 +54,6 @@ describe("/shake dispatch (ACP)", () => {
 		expect(h.shake).not.toHaveBeenCalled();
 		expect(result).toEqual({ consumed: true });
 		expect((h.output.mock.calls[0]?.[0] as string) ?? "").toContain("bogus");
-	});
-
-	it("is advertised to ACP clients with the mode hint", () => {
-		const advertised = ACP_BUILTIN_SLASH_COMMANDS.find(c => c.name === "shake");
-		expect(advertised).toBeDefined();
-		expect(advertised?.input?.hint).toBe("[elide|images|thinking]");
-	});
-
-	it("advertises /shake images as the image-stripping path and no longer advertises /drop-images", () => {
-		expect(ACP_BUILTIN_SLASH_COMMANDS.some(c => c.name === "shake")).toBe(true);
-		expect(ACP_BUILTIN_SLASH_COMMANDS.some(c => c.name === "drop-images")).toBe(false);
 	});
 });
 

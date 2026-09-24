@@ -541,4 +541,4 @@ python-docx / python-pptx / openpyxl / pandoc，SKILL.md 内含安装指引）�
 ### 11.3 小活（可穿插任意批次）
 
 - `/api/open` EDITOR_CLIS 加 ttt/zeta-editor 探测（§6，约两行 + 契约测试）。
-- `docs/` 中 tracking 文档之外残留 `.omp` 路径表述的巡检。
+- `docs/` 中 tracking 文档之外残留 `.zeta` 路径表述的巡检。

@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ## [1.1.20] - 2026-09-23
+## [18.2.9] - 2026-09-22
+
+### Fixed
+
+- Fixed background statistics spans to use unique identifiers and close jobs correctly.
+
+## [18.2.5] - 2026-09-17
 
 - 版本线推进;本版无独立用户可见变化。
 

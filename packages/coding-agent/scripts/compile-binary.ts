@@ -52,12 +52,9 @@ export async function compileCodingAgent(options: CodingAgentCompileOptions): Pr
 			},
 			// Precompiled bytecode skips parsing the ~20 MB bundle at boot:
 			// `omp --version` 256 ms -> 30 ms on M4 Max (+52 MB binary).
-			// Bytecode rejects top-level await in the bundle graph.
-			// Zeta divergence: bun 1.4.0's bytecode compiler misloads the entry as CJS
-			// ("import.meta is only valid inside modules" at boot, every platform).
-			// Upstream builds with bun@>=1.4 (latest) where this works; Zeta pins
-			// bun@1.4.0 for toolchain lockstep. Re-test when the pin moves.
-			bytecode: false,
+			// Keep import.meta.resolve in bundled dependencies valid under bytecode.
+			format: "esm",
+			bytecode: true,
 			minify: {
 				identifiers: options.minifyIdentifiers ?? false,
 				keepNames: true,

@@ -330,31 +330,17 @@ function parseResponse(response: AnthropicApiResponse): SearchResponse {
  * @returns Search response with synthesized answer, sources, and citations
  * @throws {Error} If no Anthropic credentials are configured
  */
-export async function searchAnthropic(
-	params: SearchParams | AnthropicSearchParams,
-	_legacyStorage?: unknown,
-): Promise<SearchResponse> {
-	const searchApiKey = $env.ANTHROPIC_SEARCH_API_KEY;
-	const searchBaseUrl = $env.ANTHROPIC_SEARCH_BASE_URL;
-	const keyOrResolver: ApiKey | undefined = searchApiKey
-		? searchApiKey
-		: "authStorage" in params
-			? params.authStorage.resolver("anthropic", { sessionId: params.sessionId })
-			: undefined;
-
-	if (!keyOrResolver) {
-		throw new Error(
-			"No Anthropic credentials found. Set ANTHROPIC_SEARCH_API_KEY or ANTHROPIC_API_KEY, or configure Anthropic OAuth.",
-		);
-	}
-
-	const model = getModel();
-	const systemPrompt = "authStorage" in params ? params.systemPrompt : params.system_prompt;
-	const maxTokens = "authStorage" in params ? params.maxOutputTokens : params.max_tokens;
-	const callerSessionId = "authStorage" in params ? params.sessionId : undefined;
-	const accountId =
-		"authStorage" in params ? params.authStorage.getOAuthAccountId("anthropic", params.sessionId) : undefined;
-	const parsed = ("parsedQuery" in params ? params.parsedQuery : undefined) ?? parseSearchQuery(params.query);
+export async function searchAnthropic(params: SearchParams): Promise<SearchResponse> {
+	const registryResolver = params.modelRegistry.resolver(params.model, params.sessionId);
+	const searchApiKey = params.model.provider === "anthropic" ? $env.ANTHROPIC_SEARCH_API_KEY : undefined;
+	const keyOrResolver: ApiKey = searchApiKey
+		? async context => {
+				if (context.error === undefined && !context.lastChance) return searchApiKey;
+				return (await registryResolver(context)) ?? searchApiKey;
+			}
+		: registryResolver;
+	const accountId = params.authStorage.oauth.identity(params.model.provider, params.sessionId)?.accountId;
+	const parsed = params.parsedQuery ?? parseSearchQuery(params.query);
 	const plan = planQuery(params.query, parsed);
 	const response = await withAuth(
 		keyOrResolver,
@@ -407,8 +393,14 @@ export class AnthropicProvider extends SearchProvider {
 	readonly id = "anthropic";
 	readonly label = "Anthropic";
 
-	isAvailable(authStorage: AuthStorage, _model?: Model): Promise<boolean> | boolean {
-		return Boolean($env.ANTHROPIC_SEARCH_API_KEY) || authStorage.hasAuth("anthropic");
+	isAvailable(authStorage: AuthStorage, model?: Model<Api>): Promise<boolean> | boolean {
+		if (model) {
+			return (
+				authStorage.keys.source(model.provider) !== undefined ||
+				(model.provider === "anthropic" && Boolean($env.ANTHROPIC_SEARCH_API_KEY))
+			);
+		}
+		return Boolean($env.ANTHROPIC_SEARCH_API_KEY) || authStorage.keys.source("anthropic") !== undefined;
 	}
 
 	search(params: SearchParams): Promise<SearchResponse> {

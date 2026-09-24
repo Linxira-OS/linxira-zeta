@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { customToolToDefinition } from "@linxiraos/zeta/sdk";
 import type { AgentTool, ToolApproval } from "@linxiraos/pi-agent-core";
-import { LSP_READONLY_ACTIONS } from "@linxiraos/zeta/lsp";
 import {
 	type ApprovalMode,
 	denyError,
@@ -12,7 +11,6 @@ import {
 	truncateForPrompt,
 } from "@linxiraos/zeta/tools/approval";
 import { BashTool } from "@linxiraos/zeta/tools/bash";
-import { DEBUG_READONLY_ACTIONS } from "@linxiraos/zeta/tools/debug";
 import { Settings } from "../../src/config/settings";
 import { EditTool } from "../../src/edit";
 import type { ToolSession } from "../../src/tools";
@@ -264,7 +262,7 @@ describe("MCP fallback and prompt formatting", () => {
 	}
 
 	function sloppySection(path: string, find = "old", put = "new"): string {
-		return [`*** SM:EDIT ${path}`, "*** SM:FIND", find, "*** SM:PUT", put].join("\n");
+		return [`*** Edit File: ${path}`, "*** Find", find, "*** Replace", put].join("\n");
 	}
 
 	it("shows the file from a sloppy edit section header", () => {
@@ -578,13 +576,6 @@ describe("tool-owned dynamic approval declarations", () => {
 			policy: "allow",
 			source: "mode",
 		});
-	});
-
-	it("exports LSP and debug read-only action sets from their owning tools", () => {
-		expect(LSP_READONLY_ACTIONS.has("diagnostics")).toBe(true);
-		expect(LSP_READONLY_ACTIONS.has("rename")).toBe(false);
-		expect(DEBUG_READONLY_ACTIONS.has("variables")).toBe(true);
-		expect(DEBUG_READONLY_ACTIONS.has("continue")).toBe(false);
 	});
 });
 

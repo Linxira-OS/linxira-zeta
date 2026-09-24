@@ -25,7 +25,7 @@ import { buildWakeRelayBody } from "@linxiraos/zeta/task/executor";
 import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
-import { type IrcMessage } from "@linxiraos/pi-tui/tools/hub";
+import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
@@ -262,7 +262,7 @@ describe("persisted subagent revival", () => {
 			configuredLevel: "project",
 		};
 		const authStorage = await AuthStorage.create(path.join(cwd, "auth.db"));
-		authStorage.setRuntimeApiKey("anthropic", "test-key");
+		authStorage.keys.setRuntime("anthropic", "test-key");
 		const modelRegistry = new ModelRegistry(authStorage, path.join(cwd, "models.yml"));
 		MCPManager.setInstance(new MCPManager(cwd));
 		const ref = AgentRegistry.global().register(createRef(sessionFile));
@@ -326,7 +326,7 @@ describe("persisted subagent revival", () => {
 			},
 		];
 		const authStorage = await AuthStorage.create(path.join(cwd, "auth.db"));
-		authStorage.setRuntimeApiKey("anthropic", "test-key");
+		authStorage.keys.setRuntime("anthropic", "test-key");
 		const modelRegistry = new ModelRegistry(authStorage, path.join(cwd, "models.yml"));
 		const ref = AgentRegistry.global().register(createRef(sessionFile));
 		const reviver = await createFactory(cwd, undefined, {

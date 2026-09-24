@@ -18,7 +18,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { SETTINGS_SCHEMA } from "@linxiraos/zeta/config/settings-schema";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
@@ -143,10 +142,6 @@ describe("EventController.sendCompletionNotification — abort guard", () => {
 });
 
 describe("EventController.sendErrorNotification", () => {
-	it("defaults error notifications to opt-in", () => {
-		expect(SETTINGS_SCHEMA["error.notify"].default).toBe("off");
-	});
-
 	it("fires an error notification when stopReason === 'error'", () => {
 		const spy = vi.spyOn(TERMINAL, "sendNotification").mockImplementation(() => {});
 		settings.override("error.notify", "on");

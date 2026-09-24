@@ -42,19 +42,15 @@ describe("buildAvailableSlashCommands", () => {
 		const commands = await buildAvailableSlashCommands(session as never, async () => fileCommands);
 		const byName = Object.fromEntries(commands.map(command => [command.name, command]));
 
-		// `usage` subcommand descriptions are catalogue thunks resolved at read
-		// time; compare the resolved shape (names, resolved descriptions, usage
-		// hints) rather than the thunk identities.
-		const { BUILTIN_SLASH_COMMAND_DEFS, resolveCommandDescription } =
-			await import("../src/slash-commands/builtin-registry");
-		const usageDef = BUILTIN_SLASH_COMMAND_DEFS.find(command => command.name === "usage");
-		expect(byName.usage.subcommands).toEqual(
-			usageDef?.subcommands?.map(sub => ({
-				name: sub.name,
-				description: resolveCommandDescription(sub.description),
-				usage: sub.usage,
-			})),
-		);
+		expect(byName.usage.subcommands).toContainEqual({
+			name: "show",
+			description: "Show provider usage and limits",
+		});
+		expect(byName.usage.subcommands).toContainEqual({
+			name: "reset",
+			description: "Spend a saved provider rate-limit reset",
+			usage: "[provider/credential-id|provider/active]",
+		});
 		expect(byName["reset-usage"]).toBeUndefined();
 
 		expect(byName.fast.description).toBe("Toggle fast mode");

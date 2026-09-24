@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { removeWithRetries, TempDir } from "@linxiraos/pi-utils";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 const tempDirs: TempDir[] = [];
 
@@ -12,7 +12,27 @@ function makeTempDir(prefix: string): string {
 	return dir.path();
 }
 
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalPiProfile = process.env.PI_PROFILE;
+const originalOmpProfile = process.env.OMP_PROFILE;
+
+function restoreEnv(key: string, value: string | undefined): void {
+	if (value === undefined) {
+		delete process.env[key];
+	} else {
+		process.env[key] = value;
+	}
+}
+
+beforeEach(() => {
+	setAgentDir(path.join(makeTempDir("@pi-cwd-agent-dir-"), "agent"));
+});
+
 afterEach(async () => {
+	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+	restoreEnv("PI_PROFILE", originalPiProfile);
+	restoreEnv("OMP_PROFILE", originalOmpProfile);
+	__resetDirsFromEnvForTests();
 	await Promise.all(tempDirs.splice(0).map(dir => dir.remove()));
 });
 

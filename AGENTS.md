@@ -61,8 +61,8 @@ hard release-boundary rule, not a suggestion.
   30s → 200ms while the merge kept our old `delayMs: 30_000` — red CI). Every
   incoming test file touched by the merge is diffed against its `v<tag>`
   version and resolved per-file.
-- **No `.omp` compatibility surface.** Zeta's config dir is `.zeta` and
-  `~/.zeta` only; upstream tests/docs carrying `.omp` paths are adapted to
+- **No `.zeta` compatibility surface.** Zeta's config dir is `.zeta` and
+  `~/.zeta` only; upstream tests/docs carrying `.zeta` paths are adapted to
   `.zeta` during the merge and the decision recorded in the ledger.
 - The product front door (root `README.md`, logo assets, product name,
   homepage, install instructions, public examples) is Zeta-owned: never skip
@@ -138,7 +138,7 @@ brand-overlay.ts`，脚本已入库）→ 逐 bucket 测试契约 resolve → br
 
 Zeta owns its product brand surface. Each upstream OMP merge must re-check
 this table row by row and restore the Zeta canonical form wherever the merge
-pulled an OMP (`π` / `PI_LOGO` / `@oh-my-pi` / `.omp`) value back in. This is
+pulled an OMP (`π` / `PI_LOGO` / `@oh-my-pi` / `.zeta`) value back in. This is
 a hard merge rule — the v18.0.3 merge (c5ceed6285) silently reverted the ζ CLI
 brand, which this registry exists to prevent. Mechanical enforcement lives in
 `scripts/brand/` (usage: `document/merge-playbook.md`).
@@ -150,7 +150,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | `icon.omp` unicode 预设（symbols.ts） | `ζ`（ascii 预设 `zeta`） | 重引 `π`/`pi` 即恢复；nerd 预设 `U+F0D57` 保留（v18.0.10 决议） |
 | `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
 | latex-to-unicode π 条目 | `π` | 保留——数学转换 |
-| 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名 |
+| 配置目录 | `.zeta` / `~/.zeta` | 无 `.zeta` 别名 |
 | npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@linxiraos/*` 全量改写 |
 | Native 哨兵 | `__piNativesV1_X_Y` | 保留 Zeta 版本线 |
 | Native Tokio 安装导出 | `__ompInstallTokioRuntime` | crate/index.js/loader 三方一致；勿 sweep 成 `__zeta*`（v18.0.10 改断，Tokio 静默不装） |
@@ -173,7 +173,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | 3 | OMP 包名经机械 scope 改写泄漏（上游包名 `omptype` → `@linxiraos/omptype`，而 Zeta 发布名是 `@linxiraos/pi-omptype`） | `bun check:ts` 报 `Cannot find module '@linxiraos/omptype'`；npm registry 无此包 | 全库 grep：每个 `@linxiraos/<name>` import 必须能在 `workspaces.catalog`/npm 找到；对上游包名做映射改写，不是 scope 替换 |
 | 4 | 冲突解决时静默丢弃 Zeta-only 代码。已知清单：AgentSession 会话层 mode API（`ModeId`/`getModeState`/`enterMode`/`exitMode`/`enterPlanMode`/`exitPlanMode`/`enterGoalMode`/`exitGoalMode`/`enterVibeMode`/`exitVibeMode`/`getStateVersion`/`bumpStateVersion`/`getPlanFileContent`/`resetModeTransientState`/`flushPendingModelSwitch`/`restorePlanPreviousModel` + `#stateVersion`/快照字段 + `state_version_changed` 事件）；`sdk.ts` 的 `channelSend`/`workspaceRun`/`imControl` sinks；IRC auto-reply（`setIrcAutoReplyListener` + `IrcBridgeHost.onAutoReply` 接线）；`utils/dirs.ts` tracking 路径 helpers | mode API 刻意存在两层：`InteractiveMode`（CLI）**和** `AgentSession`（web-gateway/ACP 外部客户端，headless）。会话层丢失只让 `web-gateway/agents.ts`/`zeta-server.ts` 编译失败，测试跑不到——`bun run check:ts` 是探测器 | 逐项恢复（上游无这些 API，源是合并前 Zeta 基线），恢复后 `check:ts` 零错误 |
 | 5 | 本地预编译 natives `.node`（不入库）落后于合并后 bindings（合并新增 natives 函数如 `vcsGitDiscover`，本地旧二进制缺符号） | 本地测试报 `api().vcsGitDiscover is not a function`（status-line/mode 测试成批失败）；CI bazel 现场构建，无此问题——纯本地噪声 | 本地重建：`packages/natives` `bun run build`（Windows 需 VS Build Tools 开发者 shell；WSL：`pacman -S bun` + glibc ≥ 2.44 + ninja；rustup 慢用 `RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static`） |
-| 6 | 上游测试携带 `.omp` 配置目录契约原样合入（`dirs-cache` 的 `$XDG/omp/cache`、`acp-agent`/`mcp-config-scope-dedup`/`sdk-skills`/`tools/gh` 的 fixture 路径），源码只解析 `.zeta` | 只在 Linux/XDG 分支生效：Windows 本地全绿，push 云端 Linux CI 才爆——`bun test` 全绿 ≠ 合并适配完整 | 每个触碰的测试文件对照 `v<tag>` 版本逐文件 resolve；grep `"\.omp"`（排除刻意保留的 `.omp-plugin`）必须为 0 |
+| 6 | 上游测试携带 `.zeta` 配置目录契约原样合入（`dirs-cache` 的 `$XDG/omp/cache`、`acp-agent`/`mcp-config-scope-dedup`/`sdk-skills`/`tools/gh` 的 fixture 路径），源码只解析 `.zeta` | 只在 Linux/XDG 分支生效：Windows 本地全绿，push 云端 Linux CI 才爆——`bun test` 全绿 ≠ 合并适配完整 | 每个触碰的测试文件对照 `v<tag>` 版本逐文件 resolve；grep `"\.zeta"`（排除刻意保留的 `.omp-plugin`）必须为 0 |
 | 7 | 上游 CI 基础设施原样合入：`runs-on: omp-kata`（上游自有 runner label，Zeta 仓库无此 runner）及上游产物命名（如 release 矩阵的 `binaries/omp-*`，v18.1.10 曾致 darwin/linux binary job 首个 tag run 即崩） | 非 tag run 跳过受影响 job 时全绿；tag release run 的 job 无限排队（runner 不存在）或冒烟步骤找不到产物 | `runs-on` 一律 GitHub 云（`ubuntu-22.04`/`macos-14`）；产物命名以 `scripts/ci-release-build-binaries.ts` 与安装器（`zeta-cli-*`）为准；守卫：`grep omp-kata .github/workflows/ci.yml` 只允许注释，`bun scripts/brand/brand-check.ts` 归零 |
 | 8 | 品牌字符串替换改变 rustfmt 折叠决策：`"oh-my-pi"`→`"zeta"` 等缩短让原本超宽的多行结构体字面量/表达式落回 `max_width=100` 内，rustfmt 期望翻转（v18.1.10 `pi-vcs/git/mutate.rs` 的 `SignatureRef`）。被三层掩蔽：validate job 在 PR 事件整跳过、release run 只暴露第一个失败的 step、bazel `*.rustfmt.ok` 动作只在缓存 miss 时执行 | `Validate Rust workspace (bazel)` 挂在最后一步 `Rustfmt`（`pi-<crate>.rustfmt.ok` FAILED，exit 1）；测试与三段 clippy 全绿时才轮到它 | 合并适配 commit 后、push 前跑 `cargo fmt --all --check`（本地 rustfmt 与 CI 结论在此类构造上一致）； offender 直接 `cargo fmt --all` 归零。注意 rustfmt.toml `ignore` 名单（brush-core/pi-builtins）且 bazel 只对有 rustfmt 规则的 crate 设门禁 |
 | 9 | 测试文件取自上游但 `__omp_*` 运行时全局符号未随 A3 sweep 改名（v18.1.21 命中：`runtime-global-dispose` 的 `__zeta_import__`/`__zeta_helpers__`/`__zeta_session__`，js-executor/python-bridge/prelude 的 `__zeta_run_id__`/`__zeta_tools__` 等）。反向陷阱：上游**内部协议**符号（`__omp_with_call_site__`、`__omp_tool_bridge__`、`__omp_final_expr__` 负断言 marker）源码并未 sweep，不能机械全改——按"源码实际定义哪个名字"逐符号判定 | 测试报 `Expected "function", Received "undefined"` 或 rejects，且该套件在干净分支同样红；grep 测试树 `__omp_[a-z]` 与 `src/` 定义对照 | sweep 规则：源码注入的 global → `__zeta_*`（与 `runtime.ts`/`prelude.py` 一致）；上游进程间协议名/负断言 marker → 保留上游名。每符号在 src 里 grep 确认 provider 后再改测试；改完跑该 eval/core bucket |

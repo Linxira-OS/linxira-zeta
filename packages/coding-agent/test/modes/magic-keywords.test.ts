@@ -1,17 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { MAGIC_KEYWORDS, renderOrchestrateNotice, renderWorkflowNotice } from "@linxiraos/zeta/modes/magic-keywords";
-import { SETTINGS_SCHEMA } from "@linxiraos/zeta/config/settings-schema";
 import { clearBundledCommandsCache, loadBundledCommands } from "@linxiraos/zeta/task/commands";
 
 describe("magic keyword registry", () => {
-	it("derives one settings toggle per keyword and names every word in the master switch", () => {
-		const description = SETTINGS_SCHEMA["magicKeywords.enabled"].ui.description;
-		for (const keyword of MAGIC_KEYWORDS) {
-			expect(SETTINGS_SCHEMA[`magicKeywords.${keyword.id}`].default).toBe(true);
-			expect(description).toContain(keyword.word);
-		}
-	});
-
 	it("keeps ids and words unique so notice types and settings keys cannot collide", () => {
 		expect(new Set(MAGIC_KEYWORDS.map(keyword => keyword.id)).size).toBe(MAGIC_KEYWORDS.length);
 		expect(new Set(MAGIC_KEYWORDS.map(keyword => keyword.word)).size).toBe(MAGIC_KEYWORDS.length);

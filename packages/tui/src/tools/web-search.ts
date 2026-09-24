@@ -11,7 +11,6 @@ import type { RenderResultOptions } from "./renderer";
 import { getMarkdownTheme, type Theme } from "../theme/theme";
 import {
 	formatAge,
-	formatCount,
 	formatExpandHint,
 	formatMoreItems,
 	formatStatusIcon,

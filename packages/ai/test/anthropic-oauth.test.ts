@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { claudeCodeVersion } from "@linxiraos/pi-ai/providers/claude-code-fingerprint";
+import { getClaudeCodeVersion } from "@linxiraos/pi-ai/providers/claude-code-fingerprint";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
-import type { OAuthController, OAuthCredentials } from "@linxiraos/pi-ai/registry/oauth/types";
+import type { OAuthCredentials, OAuthController } from "@linxiraos/pi-ai/registry/oauth/types";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import {
 	buildAnthropicAuthConfig,
@@ -121,7 +121,7 @@ describe("anthropic oauth alignment", () => {
 			expect(url).toBe("https://api.anthropic.com/api/claude_cli/bootstrap?entrypoint=cli&model=claude-opus-4-8");
 			const headers = new Headers(init?.headers);
 			expect(headers.get("Authorization")).toBe("Bearer access-token");
-			expect(headers.get("User-Agent")).toBe(`claude-code/${claudeCodeVersion}`);
+			expect(headers.get("User-Agent")).toBe(`claude-code/${getClaudeCodeVersion()}`);
 			return new Response(
 				JSON.stringify({
 					oauth_account: {

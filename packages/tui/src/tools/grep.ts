@@ -17,7 +17,6 @@ import {
 } from "../render";
 import {
 	createCachedComponent,
-	formatCount,
 	formatEmptyMessage,
 	formatErrorMessage,
 	formatMoreItems,

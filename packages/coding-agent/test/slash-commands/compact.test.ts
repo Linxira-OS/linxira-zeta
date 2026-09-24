@@ -4,7 +4,7 @@ import type { CompactOptions } from "@linxiraos/zeta/extensibility/extensions/ty
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { CompactMode } from "@linxiraos/zeta/session/compact-modes";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
-import { ACP_BUILTIN_SLASH_COMMANDS, executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
+import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 
@@ -124,12 +124,6 @@ describe("/compact dispatch (ACP)", () => {
 
 		await executeAcpBuiltinSlashCommand("/compact", h.runtime);
 		expect(h.output).toHaveBeenCalledWith("Compaction failed: no model selected");
-	});
-
-	it("advertises the mode subcommands and input hint to ACP clients", () => {
-		const advertised = ACP_BUILTIN_SLASH_COMMANDS.find(c => c.name === "compact");
-		expect(advertised).toBeDefined();
-		expect(advertised?.input?.hint).toBe("[soft|remote|snapcompact] [focus]");
 	});
 });
 

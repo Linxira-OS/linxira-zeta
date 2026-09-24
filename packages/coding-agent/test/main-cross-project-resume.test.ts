@@ -11,7 +11,6 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir, normalizePathForComparison, setProjectDir } from "@linxiraos/pi-utils";
 import { type Args, parseArgs } from "@linxiraos/zeta/cli/args";
 import * as modelResolverModule from "@linxiraos/zeta/config/model-resolver";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -23,6 +22,41 @@ import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 import * as sessionListingModule from "@linxiraos/zeta/session/session-listing";
 import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import {
+	__resetDirsFromEnvForTests,
+	getProjectDir,
+	normalizePathForComparison,
+	setAgentDir,
+	setProjectDir,
+} from "@linxiraos/pi-utils";
+
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalPiProfile = process.env.PI_PROFILE;
+const originalOmpProfile = process.env.OMP_PROFILE;
+let agentDirRoot: string | undefined;
+
+function restoreEnv(key: string, value: string | undefined): void {
+	if (value === undefined) {
+		delete process.env[key];
+	} else {
+		process.env[key] = value;
+	}
+}
+
+beforeEach(async () => {
+	agentDirRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-xproj-agent-dir-"));
+	setAgentDir(path.join(agentDirRoot, "agent"));
+});
+
+afterEach(async () => {
+	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+	restoreEnv("PI_PROFILE", originalPiProfile);
+	restoreEnv("OMP_PROFILE", originalOmpProfile);
+	__resetDirsFromEnvForTests();
+	if (agentDirRoot) {
+		await fsp.rm(agentDirRoot, { recursive: true, force: true });
+	}
+});
 
 function buildArgs(resume: string, sessionDir?: string): Args {
 	return {

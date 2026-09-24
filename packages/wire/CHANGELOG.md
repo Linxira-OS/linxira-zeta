@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ## [1.1.20] - 2026-09-23
+## [18.2.11] - 2026-09-23
+
+### Added
+
+- Added public API contract and authentication schemas for the Skillshare registry.
+
+## [18.2.5] - 2026-09-17
 
 - 版本线推进;本版无独立用户可见变化。
 

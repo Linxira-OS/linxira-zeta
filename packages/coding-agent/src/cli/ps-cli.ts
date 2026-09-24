@@ -18,7 +18,7 @@ import {
 	daemonClientForGlobal,
 	daemonClientForProject,
 } from "../launch/client";
-import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/hub";
+import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
 import {
 	daemonLabel,
 	formatCommand,

@@ -732,12 +732,11 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 
 	let result: CodexSearchResult;
 	if (transport.customEndpoint) {
-		// ModelRegistry resolves command-backed provider keys before consulting
-		// its AuthStorage, so a lower-priority OAuth origin is irrelevant when
-		// that command source is configured.
-		const credentialSource = params.modelRegistry?.authStorage ?? params.authStorage;
-		const credentialOrigin = credentialSource.getCredentialOrigin("openai-codex");
-		const hasCommandBackedKey = params.modelRegistry?.hasCommandBackedApiKey("openai-codex") === true;
+		// The registry resolver and provenance guard must consult the same storage;
+		// params.authStorage may be a divergent caller handle. Command-backed keys
+		// still outrank lower-priority OAuth credentials in the registry storage.
+		const credentialOrigin = params.modelRegistry.authStorage.keys.source(params.model.provider);
+		const hasCommandBackedKey = params.modelRegistry.hasCommandBackedApiKey(params.model.provider);
 		if (!hasCommandBackedKey && (credentialOrigin?.kind === "oauth" || credentialOrigin?.kind === "env")) {
 			throw new SearchProviderError(
 				"codex",
@@ -772,7 +771,7 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 			},
 		);
 	} else {
-		const seed = await params.authStorage.getOAuthAccess("openai-codex", params.sessionId, {
+		const seed = await params.authStorage.oauth.access(params.model.provider, params.sessionId, {
 			signal: params.signal,
 		});
 		if (!seed) {
@@ -828,8 +827,8 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 /**
  * Checks whether Codex web search has an API key or OAuth credential.
  */
-export async function hasCodexSearch(authStorage: AuthStorage): Promise<boolean> {
-	return authStorage.hasAuth("openai-codex");
+export async function hasCodexSearch(authStorage: AuthStorage, model?: Model<Api>): Promise<boolean> {
+	return authStorage.keys.source(model?.provider ?? "openai-codex") !== undefined;
 }
 
 /** Search provider for OpenAI Codex web search. */
