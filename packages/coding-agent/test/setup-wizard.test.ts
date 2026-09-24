@@ -509,7 +509,7 @@ describe("setup wizard glyph scene", () => {
 describe("setup wizard web search tab", () => {
 	const webModels = (webModelManagerOptions().staticModels ?? []).map(model => buildModel(model));
 
-	it("persists the highlighted provider as the web model role", async () => {
+	it("persists the highlighted provider as the head of the web search order", async () => {
 		const settings = Settings.isolated();
 		const host = bindSceneHost({
 			ctx: {
@@ -529,7 +529,10 @@ describe("setup wizard web search tab", () => {
 
 		const expected = SEARCH_PROVIDER_OPTIONS[1]!.value;
 		expect(expected).not.toBe("auto");
-		expect(settings.getModelRole("web")).toBe(`web/${expected}`);
+		expect(settings.get("providers.webSearchOrder")).toEqual([
+			expected,
+			...SEARCH_PROVIDER_OPTIONS.map(option => option.value).filter(value => value !== "auto" && value !== expected),
+		]);
 	});
 
 	it("can select the last provider in the setup TUI list", async () => {
@@ -555,7 +558,11 @@ describe("setup wizard web search tab", () => {
 		const lastOption = SEARCH_PROVIDER_OPTIONS[SEARCH_PROVIDER_OPTIONS.length - 1]!;
 		const lastValue = lastOption.value;
 		if (lastValue === "auto") throw new Error("last option must be a concrete provider");
-		expect(settings.getModelRole("web")).toBe(`web/${lastValue}`);
+		expect(settings.get("providers.webSearchOrder")).toEqual([
+			lastValue,
+			...SEARCH_PROVIDER_OPTIONS.map(option => option.value)
+				.filter(value => value !== "auto" && value !== lastValue),
+		]);
 	});
 });
 
