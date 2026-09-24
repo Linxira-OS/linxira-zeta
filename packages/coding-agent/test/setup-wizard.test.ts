@@ -560,8 +560,9 @@ describe("setup wizard web search tab", () => {
 		if (lastValue === "auto") throw new Error("last option must be a concrete provider");
 		expect(settings.get("providers.webSearchOrder")).toEqual([
 			lastValue,
-			...SEARCH_PROVIDER_OPTIONS.map(option => option.value)
-				.filter(value => value !== "auto" && value !== lastValue),
+			...SEARCH_PROVIDER_OPTIONS.map(option => option.value).filter(
+				value => value !== "auto" && value !== lastValue,
+			),
 		]);
 	});
 });
