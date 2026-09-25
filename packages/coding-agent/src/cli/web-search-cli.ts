@@ -84,6 +84,9 @@ export async function runSearchCommand(cmd: SearchCommandArgs): Promise<void> {
 
 	const params: SearchQueryParams = {
 		query: cmd.query,
+		// --model pins the engine for this one call; without it the web role
+		// default wins and the flag is silently ignored.
+		model: cmd.model,
 		recency: cmd.recency,
 		limit: cmd.limit,
 	};

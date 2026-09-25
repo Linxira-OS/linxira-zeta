@@ -1,6 +1,7 @@
 // Ported from NousResearch/hermes-agent (MIT) — tools/xai_http.py.
 
 import { getBundledModels } from "@linxiraos/pi-catalog/models";
+import type { Model } from "@linxiraos/pi-catalog/types";
 import { $env } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 
@@ -81,11 +82,15 @@ function resolveXAIBaseURL(
 export async function resolveXAIHttpTransport(
 	modelRegistry: ModelRegistry,
 	provider: XAIHttpProvider,
-	modelId?: string,
+	modelOrId?: Model | string,
 ): Promise<XAIHttpTransport> {
-	const model = modelId ? modelRegistry.find(provider, modelId) : undefined;
+	// Accept the caller's selected model directly: a session may run a model the
+	// registry never saw (extension-provided, ad-hoc), and resolving by id alone
+	// would silently fall back to the provider's default endpoint.
+	const model = typeof modelOrId === "string" ? modelRegistry.find(provider, modelOrId) : modelOrId;
+	const modelId = typeof modelOrId === "string" ? modelOrId : modelOrId?.id;
 	return {
-		baseURL: resolveXAIBaseURL(modelRegistry, provider, modelId),
+		baseURL: model?.baseUrl ? model.baseUrl.replace(/\/$/, "") : resolveXAIBaseURL(modelRegistry, provider, modelId),
 		headers: model
 			? await modelRegistry.resolveModelHeaders(model)
 			: await modelRegistry.getProviderHeaders(provider),

@@ -913,7 +913,10 @@ export async function searchPerplexity(params: PerplexitySearchParams): Promise<
 		request.search_recency_filter = params.search_recency_filter;
 	}
 
-	const authMethods = await getAvailableAuthMethods(params.authStorage, params.sessionId, { signal: params.signal });
+	const authMethods = (await getAvailableAuthMethods(params.authStorage, params.sessionId, { signal: params.signal }))
+		// The anonymous consumer transport is only admitted for an explicitly
+		// chosen model; the auto chain stays credential-gated.
+		.filter(auth => auth.type !== "anonymous" || params.explicit === true);
 	let lastError: unknown;
 
 	for (const auth of authMethods) {

@@ -124,7 +124,9 @@ function buildRequestBody(params: SearchParams): Record<string, unknown> {
 	}
 
 	const body: Record<string, unknown> = {
-		model: XAI_WEB_SEARCH_MODEL,
+		// The caller's model wins; the constant is only the fallback when the
+		// caller did not name one.
+		model: params.model?.id ?? XAI_WEB_SEARCH_MODEL,
 		input: [
 			{ role: "system", content: params.systemPrompt },
 			{ role: "user", content: query },
@@ -449,9 +451,13 @@ function resolveXAIWebSearchAuth(params: SearchParams): XAIWebSearchAuth {
 /** Execute xAI Responses API web search. */
 export async function searchXAI(params: SearchParams): Promise<SearchResponse> {
 	const auth = resolveXAIWebSearchAuth(params);
-	const transport = params.modelRegistry
-		? await resolveXAIHttpTransport(params.modelRegistry, auth.provider, XAI_WEB_SEARCH_MODEL)
-		: { baseURL: XAI_DEFAULT_BASE_URL };
+	// Resolve the transport from the model the caller actually selected: looking
+	// up a hardcoded id loses a custom baseUrl configured on that model.
+	const transport = await resolveXAIHttpTransport(
+		params.modelRegistry,
+		auth.provider,
+		params.model ?? XAI_WEB_SEARCH_MODEL,
+	);
 	const customEndpoint = transport.baseURL.replace(/\/+$/, "") !== XAI_DEFAULT_BASE_URL;
 	const credentialOrigin = params.authStorage.keys.source(params.model.provider);
 	const hasCommandBackedKey = params.modelRegistry.hasCommandBackedApiKey(params.model.provider);
@@ -472,12 +478,9 @@ export async function searchXAI(params: SearchParams): Promise<SearchResponse> {
 	const resultCap = clampNumResults(params.numSearchResults ?? params.limit, DEFAULT_NUM_RESULTS, MAX_NUM_RESULTS);
 	const response = await withAuth(
 		keyOrResolver,
-		async (key: string) => {
-			const requestTransport = params.modelRegistry
-				? await resolveXAIHttpTransport(params.modelRegistry, auth.provider, XAI_WEB_SEARCH_MODEL)
-				: transport;
-			return callXAIResponses(key, params, requestTransport);
-		},
+		// `transport` is already resolved from the caller's model above; resolving
+		// again here with a hardcoded id discarded a custom baseUrl.
+		async (key: string) => callXAIResponses(key, params, transport),
 		{
 			signal: params.signal,
 			missingKeyMessage: 'xAI credentials not found. Set XAI_API_KEY or configure an API key for provider "xai".',

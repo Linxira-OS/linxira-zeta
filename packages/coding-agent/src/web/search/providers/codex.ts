@@ -74,7 +74,15 @@ function getBundledCodexModels(): CodexSearchModel[] {
 	return models;
 }
 
-function getConfiguredModel(): CodexModelCandidate | undefined {
+function getConfiguredModel(selected?: Model): CodexModelCandidate | undefined {
+	// A model the caller explicitly selected outranks both the env override and
+	// the bundled preference list.
+	if (selected) {
+		// `catalogModel` is the narrow Codex-shaped view; a caller-supplied model
+		// may be any provider model, so only carry it when the shape matches.
+		const codexModel = selected as CodexSearchModel;
+		return { modelId: selected.id, catalogModel: codexModel };
+	}
 	const configuredModel = $env.PI_CODEX_WEB_SEARCH_MODEL?.trim();
 	if (!configuredModel) return undefined;
 
@@ -714,7 +722,7 @@ async function runCodexSearchCandidates(options: {
  *   rejects.
  */
 export async function searchCodex(params: SearchParams): Promise<SearchResponse> {
-	const configuredModel = getConfiguredModel();
+	const configuredModel = getConfiguredModel(params.model);
 	const modelCandidates = configuredModel ? [configuredModel] : getDefaultModelCandidates();
 	const firstCandidate = modelCandidates[0];
 	if (!firstCandidate) {
