@@ -1,4 +1,10 @@
 import { lookup } from "./registry";
+// Side-effect import: the registry only knows a setting once its domain module
+// has run `register()`. The schema helpers below are reached from the gateway
+// panel and `/settings reset`, which can be the first thing to touch config —
+// without this the Zeta-owned keys that were migrated out of this file would
+// look unregistered and fall through to a schema that no longer holds them.
+import "./all-settings";
 import { SHAPE_VARIANT_NAMES } from "../../../snapcompact/src/snapcompact";
 import type { SettingTab } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { TREE_FILTER_MODES } from "../../../tui/src/overlays/tree-selector";

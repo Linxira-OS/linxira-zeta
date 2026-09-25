@@ -5,6 +5,8 @@
  */
 import { all, type AnySetting, Setting } from "./registry";
 import * as zetaSettings from "../zeta-settings";
+import * as providerOrderSettings from "../web/search/provider-order-settings";
+import * as tinySettings from "../tiny/settings";
 import * as modesSettings from "../modes/settings";
 import * as sessionSettings from "../session/settings";
 import * as advisorSettings from "../advisor/settings";
@@ -43,6 +45,8 @@ import * as cliGcSettings from "../cli/gc-settings";
 
 const DOMAINS: readonly Readonly<Record<string, unknown>>[] = [
 	zetaSettings,
+	providerOrderSettings,
+	tinySettings,
 	configModelSettings,
 	modesSettings,
 	sessionSettings,
