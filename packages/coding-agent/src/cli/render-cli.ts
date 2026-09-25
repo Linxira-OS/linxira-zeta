@@ -25,7 +25,7 @@ import { Composer } from "@linxiraos/pi-tui/prompt/composer";
 import { InteractiveMode } from "../modes/interactive-mode";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "../session/agent-session";
-import type { AuthStorage, SqliteAuthCredentialStore } from "../session/auth-storage";
+import { AuthStorage, SqliteAuthCredentialStore } from "../session/auth-storage";
 import { findMostRecentSession, resolveResumableSession } from "../session/session-listing";
 import { SessionManager } from "../session/session-manager";
 

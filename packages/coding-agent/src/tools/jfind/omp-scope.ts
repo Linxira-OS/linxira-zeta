@@ -57,7 +57,7 @@ export async function materializeOmpScope(rawInput: string, context?: ResolveCon
 		if (rel.length === 0) {
 			const entries = await ompDocsScopeEntries(context);
 			if (entries.length === 0) throw new ToolError("No documentation files found");
-			for (const entry of entries) await Bun.write(path.join(dir, entry.rel), entry.content);
+			for (const entry of entries) await Bun.write(path.join(dir, entry.url.slice("omp://".length)), entry.content);
 			return { dir, cleanup, toOmpRel, scopePath: "omp://" };
 		}
 

@@ -292,6 +292,14 @@ function assertNotInternalUrl(expanded: string, original: string): void {
 }
 
 /** Whether `filePath` (after `@`/single-slash alias normalization) is a URL of a registered internal scheme. */
+/**
+ * `local:/path` is a valid one-slash form of `local://path`, but path handling
+ * on Linux would otherwise treat `local:` as a directory name.
+ */
+export function normalizeLocalScheme(filePath: string): string {
+	return filePath.replace(/^(local:)\/(?!\/)/, "$1//");
+}
+
 function isInternalUrlPath(filePath: string): boolean {
 	return InternalUrlRouter.instance().canHandle(expandPath(filePath));
 }

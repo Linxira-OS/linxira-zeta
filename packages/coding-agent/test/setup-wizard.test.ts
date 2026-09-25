@@ -24,6 +24,7 @@ import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { SEARCH_PROVIDER_OPTIONS, type SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
 
 import { cfgSetupVersion, cfgSymbolPreset } from "@linxiraos/zeta/modes/settings";
+import { cfgProvidersWebSearchOrder } from "@linxiraos/zeta/web/search/provider-order-settings";
 
 type SetupApplicationSceneHost = Omit<SetupSceneHost, "ctx"> & { ctx: InteractiveModeContext };
 
@@ -549,7 +550,7 @@ describe("setup wizard web search tab", () => {
 
 		const expected = SEARCH_PROVIDER_OPTIONS[1]!.value;
 		expect(expected).not.toBe("auto");
-		expect(settings.get("providers.webSearchOrder")).toEqual([
+		expect(cfgProvidersWebSearchOrder.get(settings)).toEqual([
 			expected,
 			...SEARCH_PROVIDER_OPTIONS.map(option => option.value).filter(value => value !== "auto" && value !== expected),
 		]);
@@ -587,7 +588,7 @@ describe("setup wizard web search tab", () => {
 		const remainingProviders = SEARCH_PROVIDER_OPTIONS.map(option => option.value).filter(
 			(value): value is SearchProviderId => value !== "auto" && value !== lastValue,
 		);
-		expect(settings.get("providers.webSearchOrder")).toEqual([lastValue, ...remainingProviders]);
+		expect(cfgProvidersWebSearchOrder.get(settings)).toEqual([lastValue, ...remainingProviders]);
 	});
 
 	it("reports Gemini ready when only Antigravity OAuth is signed in", async () => {

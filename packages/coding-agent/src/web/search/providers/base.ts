@@ -2,7 +2,7 @@ import type { Api, AuthStorage, FetchImpl, Model } from "@linxiraos/pi-ai";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { ModelRegistry } from "../../../config/model-registry";
 import type { StructuredQuery } from "../query";
-import type { SearchProviderId, SearchResponse } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchProviderId, SearchResponse } from "../types";
 
 /**
  * Shared web search parameters passed to providers.
@@ -70,11 +70,9 @@ export interface SearchParams {
 	/** Thinking selector resolved from the model-role candidate. */
 	thinkingLevel?: ConfiguredThinkingLevel;
 	/** Provider/model transport settings used by native search endpoints. */
-	/** Selected catalog model that chose this engine or grounding backend. */
-	model?: Model;
-	/** True when the user pinned this engine explicitly rather than letting the chain pick it. */
-	explicit?: boolean;
 	modelRegistry: ModelRegistry;
+	/** Whether the selected model came from an explicit role-chain entry. */
+	explicit?: boolean;
 	/** Exact active model identifier, when the caller has trusted session metadata. */
 	modelName?: string;
 	/**

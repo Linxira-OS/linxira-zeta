@@ -211,9 +211,9 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		why: "tracking tool registered in the builtin tool name table",
 	},
 	{
-		file: "packages/coding-agent/src/config/settings-schema.ts",
-		symbol: '"tracking.enabled"',
-		why: "tracking tool gate setting",
+		file: "packages/coding-agent/src/tools/settings.ts",
+		symbol: 'id: "tracking.enabled"',
+		why: "tracking tool gate setting (registry, since v18.3.1)",
 	},
 	// -- Brand surface (duplicate of brand-check MUST_CONTAIN but merges can hit
 	//    files brand-check skips, and these need per-merge re-verification) -----

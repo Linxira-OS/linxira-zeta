@@ -5,24 +5,20 @@
  * messaging/job suites.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { type CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
-import { HubTool } from "@linxiraos/zeta/tools/hub";
+import { HubTool } from "@linxiraos/zeta/tools/hub/index";
 
 const SELF_ID = "Main";
 
 function makeSession(manager: AsyncJobManager | undefined): ToolSession {
 	const stub = {
 		cwd: process.cwd(),
-		settings: {
-			get(key: string): unknown {
-				if (key === "irc.timeoutMs") return 120_000;
-				return undefined;
-			},
-		},
+		settings: Settings.isolated({ "irc.timeoutMs": 120_000 }),
 		agentRegistry: AgentRegistry.global(),
 		asyncJobManager: manager,
 		getAgentId: () => SELF_ID,
@@ -196,10 +192,8 @@ describe("hub unified wait", () => {
 		expect(details.waited?.body).toBe("picked up the lock");
 		// Consumed exactly one message, not merely peeked or drained the backlog.
 		expect(IrcBus.global().unreadCount(SELF_ID)).toBe(1);
-		expect(
-			IrcBus.global()
-				.inbox(SELF_ID)
-				.map(message => message.body),
-		).toEqual(["starting the edit"]);
+		const remaining = await new HubTool(makeSession(manager)).execute("call_6", { op: "inbox", peek: true });
+		if (!remaining.details || !("inbox" in remaining.details)) throw new Error("Expected inbox details");
+		expect(remaining.details.inbox?.map(message => message.body)).toEqual(["starting the edit"]);
 	});
 });

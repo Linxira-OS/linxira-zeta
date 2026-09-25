@@ -1,12 +1,17 @@
 import { lookup } from "./registry";
 import { SHAPE_VARIANT_NAMES } from "../../../snapcompact/src/snapcompact";
-import { SettingTab } from "../../../tui/src/overlays/settings-defs";
+import type { SettingTab } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { TREE_FILTER_MODES } from "../../../tui/src/overlays/tree-selector";
 import type { AnyUiMetadata, SubmenuOption, UiBase } from "@linxiraos/pi-tui/overlays/settings-defs";
-import { AUTO_THINKING, getThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
+import {
+	AUTO_THINKING,
+	getConfiguredThinkingLevelMetadata,
+	getThinkingLevelMetadata,
+} from "@linxiraos/pi-tui/thinking";
 import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
 import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
 import { DEFAULT_STREAM_URL } from "@linxiraos/pi-wire/stream";
+import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import { type AuthAccountPolicies, DEFAULT_USAGE_RESERVE_PCT } from "@linxiraos/pi-ai/auth-storage";
 import { ADVISOR_DEFAULT_BUDGET_PER_UPDATE } from "../advisor/emission-guard";
 import { DEFAULT_SKILLS_URL } from "@linxiraos/pi-wire/skillshare";
@@ -60,7 +65,7 @@ import {
 	MAX_WEB_SEARCH_TIMEOUT_SECONDS,
 	SEARCH_PROVIDER_CHOICES,
 } from "../web/search/types";
-import { EDIT_MODES } from "../utils/edit-mode";
+import { EDIT_MODES } from "../edit/settings";
 import {
 	SERVICE_TIER_ANTHROPIC_OPTIONS,
 	SERVICE_TIER_ANTHROPIC_VALUES,
@@ -891,17 +896,6 @@ export const SETTINGS_SCHEMA = {
 			group: "Status Line",
 			label: "Turn Telemetry",
 			description: "Show a transient TPS/TTFT/duration/cost line after each turn",
-		},
-	},
-
-	"tui.sidebarWidgets": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "appearance",
-			group: "Display",
-			label: "Sidebar Widgets",
-			description: "Show third-party sidebar widgets registered by extensions",
 		},
 	},
 
@@ -4240,16 +4234,6 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Project tracking tool (off by default; opt-in per AGENTS.md direction)
-	"tracking.enabled": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "tools",
-			group: "Available Tools",
-			label: "Project Tracking",
-			description: "Enable the tracking_update tool so the agent maintains project tracking documents",
-		},
-	},
 
 	// IM channel tools (web/desktop only; CLI sessions reject them regardless)
 	"channels.enabled": {
@@ -6309,17 +6293,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"providers.webSearchGeminiModel": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Gemini web_search model",
-			description: "Model ID for Gemini Google Search grounding. Defaults to gemini-2.5-flash.",
-		},
-	},
-
 	"zeta.contextCache.memoryWriteEnabled": {
 		type: "boolean",
 		default: true,
@@ -6351,28 +6324,39 @@ export const SETTINGS_SCHEMA = {
 type Schema = typeof SETTINGS_SCHEMA;
 
 /** All valid setting paths */
-export type SettingPath = keyof Schema;
+/**
+ * Every addressable setting path. The v18.3.1 registry owns the bulk of these;
+ * the keys still carried by {@link Schema} are the Zeta-owned remainder. Kept
+ * as `string` because the registry ids cannot be named here without importing
+ * `all-settings`, which imports this module back.
+ */
+export type SettingPath = string;
 
-/** Infer the value type for a setting path */
-export type SettingValue<P extends SettingPath> = Schema[P] extends { type: "boolean"; default: undefined }
-	? boolean | undefined
-	: Schema[P] extends { type: "boolean" }
-		? boolean
-		: Schema[P] extends { type: "string" }
-			? string | undefined
-			: Schema[P] extends { type: "number"; default: undefined }
-				? number | undefined
-				: Schema[P] extends { type: "number" }
-					? number
-					: Schema[P] extends { type: "enum"; values: infer V }
-						? V extends readonly string[]
-							? V[number]
-							: never
-						: Schema[P] extends { type: "array"; default: infer D }
-							? D
-							: Schema[P] extends { type: "record"; default: infer D }
+/**
+ * Infer the value type for a setting path. Registry-only paths (the v18.3.1
+ * surface) have no entry in the retained schema, so they resolve to `unknown`.
+ */
+export type SettingValue<P extends SettingPath> = P extends keyof Schema
+	? Schema[P] extends { type: "boolean"; default: undefined }
+		? boolean | undefined
+		: Schema[P] extends { type: "boolean" }
+			? boolean
+			: Schema[P] extends { type: "string" }
+				? string | undefined
+				: Schema[P] extends { type: "number"; default: undefined }
+					? number | undefined
+					: Schema[P] extends { type: "number" }
+						? number
+						: Schema[P] extends { type: "enum"; values: infer V }
+							? V extends readonly string[]
+								? V[number]
+								: never
+							: Schema[P] extends { type: "array"; default: infer D }
 								? D
-								: never;
+								: Schema[P] extends { type: "record"; default: infer D }
+									? D
+									: unknown
+	: unknown;
 
 /** Get the default value for a setting path */
 export function getDefault<P extends SettingPath>(path: P): SettingValue<P> {
@@ -6385,7 +6369,8 @@ export function getDefault<P extends SettingPath>(path: P): SettingValue<P> {
 				: fallback
 		) as SettingValue<P>;
 	}
-	const definition = SETTINGS_SCHEMA[path];
+	const definition = SETTINGS_SCHEMA[path as keyof Schema];
+	if (!definition) return undefined as SettingValue<P>;
 	if (definition.type === "array" || definition.type === "record") {
 		return structuredClone(definition.default) as SettingValue<P>;
 	}
@@ -6394,7 +6379,8 @@ export function getDefault<P extends SettingPath>(path: P): SettingValue<P> {
 
 /** Check if a path has UI metadata (should appear in settings panel) */
 export function hasUi(path: SettingPath): boolean {
-	return "ui" in SETTINGS_SCHEMA[path];
+	const definition = SETTINGS_SCHEMA[path as keyof Schema];
+	return definition !== undefined && "ui" in definition;
 }
 
 /**
@@ -6403,8 +6389,8 @@ export function hasUi(path: SettingPath): boolean {
  * masking, so the two cannot disagree.
  */
 export function isCredential(path: SettingPath): boolean {
-	const def = SETTINGS_SCHEMA[path];
-	if ("credential" in def && def.credential === true) return true;
+	const def = SETTINGS_SCHEMA[path as keyof Schema];
+	if (def && "credential" in def && def.credential === true) return true;
 	// `ui.secret` predates this marker and still means "never display". Reading
 	// both here keeps ONE accessor, so the two spellings cannot produce
 	// different behaviour on different surfaces.
@@ -6417,8 +6403,8 @@ export function getUi(path: SettingPath): AnyUiMetadata | undefined {
 	// now only carries the Zeta-owned keys. Registry first, schema as fallback.
 	const registered = lookup(path)?.definition;
 	if (registered && "ui" in registered) return registered.ui as AnyUiMetadata;
-	const def = SETTINGS_SCHEMA[path];
-	return "ui" in def ? (def.ui as AnyUiMetadata) : undefined;
+	const def = SETTINGS_SCHEMA[path as keyof Schema];
+	return def && "ui" in def ? (def.ui as AnyUiMetadata) : undefined;
 }
 
 /** Get all paths for a specific tab */
@@ -6433,15 +6419,15 @@ export function getPathsForTab(tab: SettingTab): SettingPath[] {
 export function getType(path: SettingPath): SettingDef["type"] {
 	const registered = lookup(path)?.definition;
 	if (registered) return registered.type as SettingDef["type"];
-	return SETTINGS_SCHEMA[path].type;
+	return SETTINGS_SCHEMA[path as keyof Schema]?.type as SettingDef["type"];
 }
 
 /** Get enum values for an enum setting */
 export function getEnumValues(path: SettingPath): readonly string[] | undefined {
 	const registered = lookup(path)?.definition;
 	if (registered) return "values" in registered ? (registered.values as readonly string[]) : undefined;
-	const def = SETTINGS_SCHEMA[path];
-	return "values" in def ? (def.values as readonly string[]) : undefined;
+	const def = SETTINGS_SCHEMA[path as keyof Schema];
+	return def && "values" in def ? (def.values as readonly string[]) : undefined;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

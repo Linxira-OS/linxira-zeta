@@ -2,19 +2,25 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Settings, settings } from "@linxiraos/zeta";
 import { M } from "@linxiraos/zeta/i18n/index";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { cfgStatusLineTransparent, cfgTuiSidebar, cfgTuiSidebarWidgets } from "@linxiraos/zeta/modes/settings";
 import {
 	BUILTIN_SLASH_COMMAND_DEFS,
 	executeBuiltinSlashCommand,
 } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
-const TOUCHED_KEYS = ["tui.sidebar", "tui.sidebarWidgets", "statusLine.transparent"] as const;
+const TOUCHED_HANDLES = [cfgTuiSidebar, cfgTuiSidebarWidgets, cfgStatusLineTransparent] as const;
+
+function resetSetting(setting: (typeof TOUCHED_HANDLES)[number]): void {
+	setting.unset(settings);
+	setting.clearOverride(settings);
+}
 
 beforeAll(async () => {
 	await Settings.init({ inMemory: true });
 });
 
 beforeEach(() => {
-	for (const key of TOUCHED_KEYS) settings.reset(key);
+	for (const setting of TOUCHED_HANDLES) resetSetting(setting);
 });
 
 function createRuntime() {
@@ -41,47 +47,47 @@ function createRuntime() {
 	return { showSettingsSelector, showStatus, showWarning, applySidebar, invalidate, setText, runtime };
 }
 
-describe("Settings.reset", () => {
+describe("registry-driven settings reset", () => {
 	it("restores a single setting to its schema default across the persisted layer", () => {
-		expect(settings.get("tui.sidebar")).toBe(false);
-		settings.set("tui.sidebar", true);
-		expect(settings.isConfigured("tui.sidebar")).toBe(true);
+		expect(cfgTuiSidebar.get(settings)).toBe(false);
+		cfgTuiSidebar.set(settings, true);
+		expect(cfgTuiSidebar.isConfigured(settings)).toBe(true);
 
-		expect(settings.reset("tui.sidebar")).toBe(true);
+		cfgTuiSidebar.unset(settings);
 
-		expect(settings.get("tui.sidebar")).toBe(false);
-		expect(settings.isConfigured("tui.sidebar")).toBe(false);
-		expect(settings.reset("tui.sidebar")).toBe(false);
+		expect(cfgTuiSidebar.get(settings)).toBe(false);
+		expect(cfgTuiSidebar.isConfigured(settings)).toBe(false);
+		cfgTuiSidebar.unset(settings);
+		expect(cfgTuiSidebar.get(settings)).toBe(false);
+		expect(cfgTuiSidebar.isConfigured(settings)).toBe(false);
 	});
 
 	it("also clears runtime overrides", () => {
-		settings.override("statusLine.transparent", true);
-		expect(settings.get("statusLine.transparent")).toBe(true);
+		cfgStatusLineTransparent.override(settings, true);
+		expect(cfgStatusLineTransparent.get(settings)).toBe(true);
 
-		expect(settings.reset("statusLine.transparent")).toBe(true);
+		resetSetting(cfgStatusLineTransparent);
 
-		expect(settings.get("statusLine.transparent")).toBe(false);
-		expect(settings.isConfigured("statusLine.transparent")).toBe(false);
+		expect(cfgStatusLineTransparent.get(settings)).toBe(false);
+		expect(cfgStatusLineTransparent.isConfigured(settings)).toBe(false);
 	});
 
 	it("prunes emptied parent groups so no empty stub remains", () => {
-		settings.set("tui.sidebarWidgets", true);
-		expect(settings.reset("tui.sidebarWidgets")).toBe(true);
-		expect(settings.isConfigured("tui.sidebarWidgets")).toBe(false);
+		cfgTuiSidebarWidgets.set(settings, true);
+		resetSetting(cfgTuiSidebarWidgets);
+		expect(cfgTuiSidebarWidgets.isConfigured(settings)).toBe(false);
 	});
 
 	it("resets every key back to its default when driven across the whole schema", () => {
-		settings.set("tui.sidebar", true);
-		settings.set("statusLine.transparent", true);
-		settings.override("tui.sidebarWidgets", true);
+		cfgTuiSidebar.set(settings, true);
+		cfgStatusLineTransparent.set(settings, true);
+		cfgTuiSidebarWidgets.override(settings, true);
 
-		for (const key of TOUCHED_KEYS) {
-			expect(settings.reset(key)).toBe(true);
-		}
+		for (const setting of TOUCHED_HANDLES) resetSetting(setting);
 
-		expect(settings.get("tui.sidebar")).toBe(false);
-		expect(settings.get("statusLine.transparent")).toBe(false);
-		expect(settings.get("tui.sidebarWidgets")).toBe(false);
+		expect(cfgTuiSidebar.get(settings)).toBe(false);
+		expect(cfgStatusLineTransparent.get(settings)).toBe(false);
+		expect(cfgTuiSidebarWidgets.get(settings)).toBe(false);
 	});
 });
 
@@ -100,48 +106,48 @@ describe("/settings reset", () => {
 	});
 
 	it("requires an explicit confirm before touching any stored setting", async () => {
-		settings.set("tui.sidebar", true);
+		cfgTuiSidebar.set(settings, true);
 		const harness = createRuntime();
 
 		await executeBuiltinSlashCommand("/settings reset", harness.runtime);
 
 		expect(harness.showStatus).toHaveBeenCalledWith(M.settingsResetConfirmHint.replace("%s", "1"));
-		expect(settings.get("tui.sidebar")).toBe(true);
+		expect(cfgTuiSidebar.get(settings)).toBe(true);
 		expect(harness.setText).toHaveBeenCalledWith("");
 	});
 
 	it("resets every configured setting after /settings reset confirm", async () => {
-		settings.set("tui.sidebar", true);
-		settings.set("statusLine.transparent", true);
+		cfgTuiSidebar.set(settings, true);
+		cfgStatusLineTransparent.set(settings, true);
 		const harness = createRuntime();
 
 		await executeBuiltinSlashCommand("/settings reset confirm", harness.runtime);
 
 		expect(harness.showStatus).toHaveBeenCalledWith(M.settingsResetDoneFmt.replace("%s", "2"));
-		expect(settings.get("tui.sidebar")).toBe(false);
-		expect(settings.get("statusLine.transparent")).toBe(false);
+		expect(cfgTuiSidebar.get(settings)).toBe(false);
+		expect(cfgStatusLineTransparent.get(settings)).toBe(false);
 		expect(harness.applySidebar).toHaveBeenCalled();
 		expect(harness.invalidate).toHaveBeenCalled();
 	});
 
 	it("resets a single key directly", async () => {
-		settings.set("tui.sidebar", true);
+		cfgTuiSidebar.set(settings, true);
 		const harness = createRuntime();
 
 		await executeBuiltinSlashCommand("/settings reset tui.sidebar", harness.runtime);
 
 		expect(harness.showStatus).toHaveBeenCalledWith(M.settingsResetKeyDoneFmt.replace("%s", "tui.sidebar"));
-		expect(settings.get("tui.sidebar")).toBe(false);
+		expect(cfgTuiSidebar.get(settings)).toBe(false);
 	});
 
 	it("rejects unknown setting keys without touching stored state", async () => {
-		settings.set("tui.sidebar", true);
+		cfgTuiSidebar.set(settings, true);
 		const harness = createRuntime();
 
 		await executeBuiltinSlashCommand("/settings reset not.a.real.key", harness.runtime);
 
 		expect(harness.showWarning).toHaveBeenCalledWith("Unknown setting: not.a.real.key");
-		expect(settings.get("tui.sidebar")).toBe(true);
+		expect(cfgTuiSidebar.get(settings)).toBe(true);
 	});
 
 	it("reports nothing to reset when the confirmation preview finds no stored settings", async () => {

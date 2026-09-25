@@ -1,3 +1,4 @@
+import { cfgIrcTimeoutMs } from "../settings";
 import { cfgTaskMaxRecursionDepth } from "../../task/settings";
 import { LIST_STATUS_ORDER } from "@linxiraos/pi-tui/tools/hub";
 /**
@@ -243,7 +244,7 @@ export async function executeSend(
 
 	const bus = IrcBus.global();
 	let waited: IrcMessage | null | undefined;
-	const timeoutMs = params.await ? normalizeIrcTimeoutMs(settings.get("irc.timeoutMs")) : undefined;
+	const timeoutMs = params.await ? normalizeIrcTimeoutMs(cfgIrcTimeoutMs.get(settings)) : undefined;
 	const awaitAbort = params.await ? new AbortController() : undefined;
 	const awaitCancelled = new Error("IRC await cancelled");
 	let removeAwaitAbortListener: (() => void) | undefined;
@@ -251,7 +252,7 @@ export async function executeSend(
 		? bus
 				.wait(senderId, { from: to }, timeoutMs ?? DEFAULT_IRC_TIMEOUT_MS, awaitAbort?.signal, {
 					drainPending: false,
-					awaitTarget: { registry, target: to },
+					liveness: { registry, senderId },
 				})
 				.then(
 					message => ({ message, error: null as Error | null }),

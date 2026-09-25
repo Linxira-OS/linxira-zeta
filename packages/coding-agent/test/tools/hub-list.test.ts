@@ -13,7 +13,7 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 import { collectIrcPeerRoster } from "@linxiraos/zeta/task/executor";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { HubTool } from "@linxiraos/zeta/tools/hub";
+import { HubTool } from "@linxiraos/zeta/tools/hub/index";
 import { executeList, executeSend } from "@linxiraos/zeta/tools/hub/messaging";
 import { DEFAULT_HUB_LIST_LIMIT, MAX_HUB_LIST_LIMIT } from "@linxiraos/pi-tui/tools/hub";
 import { prompt, TempDir, withTimeout } from "@linxiraos/pi-utils";
@@ -1677,7 +1677,7 @@ describe("hub direct addressing refreshes the caller root without a prior list",
 			let delivered: string[] = [];
 			AgentLifecycleManager.global().setPersistedSubagentReviverFactory(
 				async () => async () => fakeRevivedSession(delivered),
-				0,
+				() => 0,
 			);
 			const sent = await executeSend(
 				{ registry, senderId: MAIN_AGENT_ID, settings: Settings.isolated(), sessionFileHint: rootA },
@@ -1839,7 +1839,7 @@ describe("hub direct addressing refreshes the caller root without a prior list",
 		const delivered: string[] = [];
 		AgentLifecycleManager.global().setPersistedSubagentReviverFactory(
 			async () => async () => fakeRevivedSession(delivered),
-			0,
+			() => 0,
 		);
 		const sent = await executeSend(
 			{ registry, senderId: MAIN_AGENT_ID, settings: Settings.isolated(), sessionFileHint: missingRoot },

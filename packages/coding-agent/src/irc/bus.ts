@@ -24,6 +24,18 @@ interface IrcWaiter {
 /** Mailbox cap per agent; oldest messages are dropped beyond it. */
 const MAILBOX_CAP = 100;
 
+/**
+ * Raised when a peer's `await` window closes because that peer stopped rather
+ * than because the wait timed out — distinct from a normal timeout so callers
+ * can report the real cause.
+ */
+export class IrcAwaitTargetStopped extends Error {
+	constructor(target: string) {
+		super(`Awaited peer "${target}" stopped without replying.`);
+		this.name = "IrcAwaitTargetStopped";
+	}
+}
+
 export class IrcBus {
 	static #global: IrcBus | undefined;
 
@@ -70,7 +82,18 @@ export class IrcBus {
 	 * agent directly: the main agent then already sees the body as its own
 	 * incoming card, so relaying the sibling legs would duplicate it.
 	 */
-	async send(msg: Omit<IrcMessage, "id" | "ts">, opts?: { suppressRelay?: boolean }): Promise<IrcDeliveryReceipt> {
+	/**
+	 * `opts.expectsReply` marks sends whose caller is blocked on an answer
+	 * (`send await:true`). It is forwarded to the recipient session so a
+	 * mid-turn recipient that cannot reach a step boundary can generate an
+	 * ephemeral auto-reply instead of stranding the sender until timeout.
+	 *
+	 * `opts.suppressRelay` skips the display-only main-UI relay for this leg.
+	 */
+	async send(
+		msg: Omit<IrcMessage, "id" | "ts">,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+	): Promise<IrcDeliveryReceipt> {
 		const message: IrcMessage = { ...msg, id: Snowflake.next(), ts: Date.now() };
 		const receipt = await this.#deliver(message, opts);
 		if (receipt.outcome !== "failed") {
@@ -94,7 +117,10 @@ export class IrcBus {
 		return ts !== undefined && ts >= sinceTs;
 	}
 
-	async #deliver(message: IrcMessage, opts?: { suppressRelay?: boolean }): Promise<IrcDeliveryReceipt> {
+	async #deliver(
+		message: IrcMessage,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+	): Promise<IrcDeliveryReceipt> {
 		const ref = this.#registry.get(message.to);
 		if (!ref) {
 			return {
@@ -292,6 +318,18 @@ export class IrcBus {
 	 * atomic step `wait` performs on entry, exposed for callers that must not
 	 * block without draining the entire backlog.
 	 */
+	/**
+	 * Drain (or peek at) an agent's mailbox. `peek` leaves the messages in place
+	 * so a later `inbox` still returns them.
+	 */
+	inbox(agentId: string, opts?: { peek?: boolean }): IrcMessage[] {
+		const mailbox = this.#mailboxes.get(agentId);
+		if (!mailbox || mailbox.length === 0) return [];
+		if (opts?.peek) return [...mailbox];
+		this.#mailboxes.delete(agentId);
+		return mailbox;
+	}
+
 	take(agentId: string, from?: string): IrcMessage | undefined {
 		return this.#takeFromMailbox(agentId, from);
 	}

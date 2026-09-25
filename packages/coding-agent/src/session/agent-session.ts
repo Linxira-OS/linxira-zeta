@@ -7880,6 +7880,7 @@ export class AgentSession implements SettingsScope {
 
 		return {
 			ui: noOpUIContext,
+			settings: this.settings,
 			mode: "print",
 			hasUI: false,
 			cwd: this.sessionManager.getCwd(),

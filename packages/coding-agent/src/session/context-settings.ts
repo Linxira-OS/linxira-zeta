@@ -50,6 +50,55 @@ export const cfgExtendedContext = register({
 	},
 });
 
+export const cfgZetaContextCacheEnabled = register({
+	id: "zeta.contextCache.enabled",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "context",
+		group: "Zeta Context Cache",
+		label: "Enable Context Cache",
+		description: "Enable the dual state machine for context-aware memory writing and endTurn compaction",
+	},
+});
+
+export const cfgZetaContextCacheThresholdTokens = register({
+	id: "zeta.contextCache.thresholdTokens",
+	type: "number",
+	default: 400_000,
+	ui: {
+		tab: "context",
+		group: "Zeta Context Cache",
+		label: "Memory Write Threshold",
+		description: "Context token threshold that triggers a soft memory_edit requirement (State Machine A)",
+	},
+});
+
+export const cfgZetaContextCacheMemoryWriteEnabled = register({
+	id: "zeta.contextCache.memoryWriteEnabled",
+	type: "boolean",
+	default: true,
+	ui: {
+		tab: "context",
+		group: "Zeta Context Cache",
+		label: "Memory Write (State Machine A)",
+		description:
+			"When context exceeds the threshold, prompt the model to save important info to memory via memory_edit",
+	},
+});
+
+export const cfgZetaContextCacheEndTurnCompactionEnabled = register({
+	id: "zeta.contextCache.endTurnCompactionEnabled",
+	type: "boolean",
+	default: true,
+	ui: {
+		tab: "context",
+		group: "Zeta Context Cache",
+		label: "EndTurn Compaction (State Machine B)",
+		description: "Trigger auto-compaction when the model emits an endTurn tag",
+	},
+});
+
 // Compaction
 export const cfgCompactionEnabled = register({
 	id: "compaction.enabled",

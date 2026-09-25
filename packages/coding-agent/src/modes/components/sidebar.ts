@@ -8,6 +8,7 @@
  * are separated by the dim rule. The Model, Usage, and Git rows stay owned by
  * the status line.
  */
+import { cfgTuiSidebarWidgets } from "../settings";
 import { type Component, Ellipsis, truncateToWidth } from "@linxiraos/pi-tui";
 import { pluralize } from "@linxiraos/pi-utils";
 import { settings } from "../../config/settings";
@@ -216,7 +217,7 @@ export class SidebarComponent implements Component {
 	render(width: number): readonly string[] {
 		const w = Math.max(12, width);
 		const ctx = this.#sources.statusLine.getSidebarContext(w);
-		const thirdPartyAllowed = settings.get("tui.sidebarWidgets");
+		const thirdPartyAllowed = cfgTuiSidebarWidgets.get(settings);
 		const widgets = [...this.#widgets.values()]
 			.filter(entry => entry.builtin || thirdPartyAllowed)
 			.map(entry => entry.widget)

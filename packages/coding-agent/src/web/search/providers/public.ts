@@ -1,6 +1,6 @@
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import { formatSearchProviderFailures, getSearchProvider, isSearchProviderExcluded } from "../provider";
-import type { SearchProviderId, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchProviderId, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../types";
 import { clampNumResults } from "../utils";
 import type { SearchParams } from "./base";

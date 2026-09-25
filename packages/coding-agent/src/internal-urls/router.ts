@@ -111,7 +111,7 @@ export class InternalUrlRouter {
 		this.register(new IssueProtocolHandler());
 		this.register(new PrProtocolHandler());
 		this.register(resourceFallback);
-		this.register(new OmpProtocolHandler());
+		this.register(new ZetaProtocolHandler());
 		this.register(new XdProtocolHandler());
 		this.register(new AttachmentProtocolHandler());
 		this.register(new ConflictProtocolHandler());

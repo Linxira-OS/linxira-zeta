@@ -6,25 +6,21 @@
  * carrying data must advertise the `agent://<id>` handle (PR #10625 review).
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { AsyncJobManager } from "@linxiraos/pi-coding-agent/async/job-manager";
-import type { AsyncJobRunResult } from "@linxiraos/pi-coding-agent/async/job-manager";
-import { IrcBus } from "@linxiraos/pi-coding-agent/irc/bus";
-import { AgentRegistry } from "@linxiraos/pi-coding-agent/registry/agent-registry";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import type { AsyncJobRunResult } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { buildJobResult } from "@linxiraos/zeta/tools/hub/jobs";
 import type { StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
-import type { ToolSession } from "@linxiraos/pi-coding-agent/tools";
-import { buildJobResult } from "@linxiraos/pi-coding-agent/async/job-control";
 
 const SELF_ID = "Main";
 
 function makeSession(manager: AsyncJobManager): ToolSession {
 	const stub = {
 		cwd: process.cwd(),
-		settings: {
-			get(key: string): unknown {
-				if (key === "launch.enabled") return false;
-				return undefined;
-			},
-		},
+		settings: Settings.isolated({ "launch.enabled": false }),
 		agentRegistry: AgentRegistry.global(),
 		asyncJobManager: manager,
 		getAgentId: () => SELF_ID,

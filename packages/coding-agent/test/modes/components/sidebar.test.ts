@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { visibleWidth } from "@linxiraos/pi-tui";
 import { createGallerySegmentContext } from "../../../src/cli/gallery-fixtures/segments";
 import { Settings, settings } from "../../../src/config/settings";
+import { cfgTuiSidebarWidgets } from "../../../src/modes/settings";
 import {
 	SIDEBAR_WIDTH,
 	SidebarComponent,
@@ -210,11 +211,11 @@ describe("SidebarComponent", () => {
 
 describe("SidebarWidget registry", () => {
 	beforeEach(() => {
-		settings.override("tui.sidebarWidgets", true);
+		cfgTuiSidebarWidgets.override(settings, true);
 	});
 
 	afterEach(() => {
-		settings.clearOverride("tui.sidebarWidgets");
+		cfgTuiSidebarWidgets.clearOverride(settings);
 	});
 
 	function widget(id: string, order: number, marker: string, rows: string[] = [marker]): SidebarWidget {
@@ -273,11 +274,11 @@ describe("SidebarWidget registry", () => {
 		});
 		sidebar.registerWidget(widget("third-party", 5, "[third-party]"));
 		// beforeEach enabled the gate; turn it off to prove the default-off behavior.
-		settings.clearOverride("tui.sidebarWidgets");
+		cfgTuiSidebarWidgets.clearOverride(settings);
 		const gated = [...sidebar.render(SIDEBAR_WIDTH)];
 		expect(gated.every(row => !row.includes("[third-party]"))).toBe(true);
 
-		settings.override("tui.sidebarWidgets", true);
+		cfgTuiSidebarWidgets.override(settings, true);
 		const allowed = [...sidebar.render(SIDEBAR_WIDTH)];
 		expect(allowed.some(row => row.includes("[third-party]"))).toBe(true);
 	});

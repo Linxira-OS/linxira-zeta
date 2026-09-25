@@ -1,25 +1,32 @@
-import { describe, expect, it } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchBing } from "@linxiraos/zeta/web/search/providers/bing";
 import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
+import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
-const fakeAuthStorage = {
-	async getApiKey() {
+const authStorage = createInMemoryAuthStorage();
+const modelRegistry = new ModelRegistry(authStorage);
+const model = modelRegistry.find("web", "brave");
+if (!model) throw new Error("Expected bundled web/brave model");
+
+beforeEach(() => {
+	vi.spyOn(authStorage.keys, "get").mockImplementation(() => {
 		throw new Error("Bing search must not request API keys");
-	},
-	resolver() {
-		throw new Error("Bing search must not request credential resolvers");
-	},
-	hasAuth() {
-		throw new Error("Bing search must not check auth");
-	},
-} as unknown as AuthStorage;
+	});
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+afterAll(() => authStorage.close());
 
 function makeParams(query: string, fetch: FetchImpl): SearchParams {
 	return {
 		query,
-		authStorage: fakeAuthStorage,
+		authStorage,
+		model: model!,
+		modelRegistry,
 		systemPrompt: "Bing search test prompt",
 		fetch,
 	};

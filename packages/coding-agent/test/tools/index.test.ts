@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
+import type { ImControlParams } from "@linxiraos/zeta/channels/im-control";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 

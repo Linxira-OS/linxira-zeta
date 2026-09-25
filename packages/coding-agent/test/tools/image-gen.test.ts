@@ -1,5 +1,7 @@
 import { afterAll, afterEach, describe, expect, it } from "bun:test";
-import type { Model } from "@linxiraos/pi-ai";
+import { type Api, type Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { modelKind } from "@linxiraos/pi-catalog/types";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { CustomToolContext } from "@linxiraos/zeta/extensibility/custom-tools";
 import type { ReadonlySessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -10,6 +12,7 @@ import {
 	setImageProviderOrder,
 } from "@linxiraos/zeta/tools/image-gen";
 import { removeWithRetries, USER_AGENT } from "@linxiraos/pi-utils";
+import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const originalOpenRouterKey = Bun.env.OPENROUTER_API_KEY;
 const generatedImagePaths: string[] = [];

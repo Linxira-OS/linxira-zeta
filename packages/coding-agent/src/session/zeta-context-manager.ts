@@ -18,6 +18,12 @@ import type { Agent, SoftToolRequirement } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import type { Settings } from "../config/settings";
 import type { ContextUsage } from "../extensibility/extensions/types";
+import {
+	cfgZetaContextCacheEnabled,
+	cfgZetaContextCacheEndTurnCompactionEnabled,
+	cfgZetaContextCacheMemoryWriteEnabled,
+	cfgZetaContextCacheThresholdTokens,
+} from "./context-settings";
 import type { CompactionCheckResult } from "./session-maintenance";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -42,15 +48,6 @@ export interface ZetaContextManagerHost {
 	/** The last assistant message in the active context (for endTurn detection). */
 	findLastAssistantMessage(): AssistantMessage | undefined;
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Constants
-// ═══════════════════════════════════════════════════════════════════════════
-
-const DEFAULT_THRESHOLD_TOKENS = 400_000;
-const DEFAULT_MEMORY_WRITE_ENABLED = true;
-const DEFAULT_ENDTURN_COMPACTION_ENABLED = true;
-const DEFAULT_ENABLED = false;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ZetaContextManager
@@ -102,12 +99,12 @@ export class ZetaContextManager {
 	 */
 	async #checkThresholdAndMaybeMemoryWrite(_signal?: AbortSignal): Promise<void> {
 		if (!this.#getEnabled()) return;
-		if (!this.#getMemoryWriteEnabled()) return;
+		if (!cfgZetaContextCacheMemoryWriteEnabled.get(this.#host.settings)) return;
 
 		const usage = this.#host.getContextUsage();
 		if (!usage) return;
 
-		const threshold = this.#getThresholdTokens();
+		const threshold = cfgZetaContextCacheThresholdTokens.get(this.#host.settings);
 		if (usage.tokens >= threshold) {
 			if (!this.#pendingMemoryWrite) {
 				this.#pendingMemoryWrite = true;
@@ -121,7 +118,11 @@ export class ZetaContextManager {
 
 	/** Whether State Machine A has an active memory-write requirement. */
 	needsMemoryWrite(): boolean {
-		return this.#pendingMemoryWrite && this.#getEnabled() && this.#getMemoryWriteEnabled();
+		return (
+			this.#pendingMemoryWrite &&
+			this.#getEnabled() &&
+			cfgZetaContextCacheMemoryWriteEnabled.get(this.#host.settings)
+		);
 	}
 
 	/**
@@ -163,7 +164,7 @@ export class ZetaContextManager {
 	 */
 	async #checkEndTurnAndMaybeCompact(signal?: AbortSignal): Promise<void> {
 		if (!this.#getEnabled()) return;
-		if (!this.#getEndTurnCompactionEnabled()) return;
+		if (!cfgZetaContextCacheEndTurnCompactionEnabled.get(this.#host.settings)) return;
 		if (this.#endTurnCompactionPending) return;
 
 		const lastMsg = this.#host.findLastAssistantMessage();
@@ -190,20 +191,6 @@ export class ZetaContextManager {
 	// ── Settings Helpers ────────────────────────────────────────────────────
 
 	#getEnabled(): boolean {
-		return this.#host.settings.get("zeta.contextCache.enabled") ?? DEFAULT_ENABLED;
-	}
-
-	#getThresholdTokens(): number {
-		return this.#host.settings.get("zeta.contextCache.thresholdTokens") ?? DEFAULT_THRESHOLD_TOKENS;
-	}
-
-	#getMemoryWriteEnabled(): boolean {
-		return this.#host.settings.get("zeta.contextCache.memoryWriteEnabled") ?? DEFAULT_MEMORY_WRITE_ENABLED;
-	}
-
-	#getEndTurnCompactionEnabled(): boolean {
-		return (
-			this.#host.settings.get("zeta.contextCache.endTurnCompactionEnabled") ?? DEFAULT_ENDTURN_COMPACTION_ENABLED
-		);
+		return cfgZetaContextCacheEnabled.get(this.#host.settings);
 	}
 }

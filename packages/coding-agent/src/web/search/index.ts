@@ -5,7 +5,9 @@
  * providers with provider-specific parameters exposed conditionally.
  */
 
-import { SearchResultDetails } from "./types";
+import { cfgProvidersWebSearchGeminiModel } from "./provider-order-settings";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import { isSearchProviderId, type SearchResultDetails } from "./types";
 import { resolveModelRoleValue, resolveRoleChain } from "../../config/model-resolver";
 import { roleCandidatePool } from "../../config/model-roles";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
@@ -26,6 +28,7 @@ import {
 	formatSearchProviderFailure,
 	formatSearchProviderFailures,
 	getSearchProvider,
+	getGroundedSearchProvider,
 	resolveProviderCandidates,
 	type SearchProvider,
 	type SearchProviderCandidate,
@@ -142,10 +145,11 @@ async function executeSearch(
 	_toolCallId: string,
 	params: SearchQueryParams,
 	options: ExecuteSearchOptions,
-): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchResultDetails }> {
+): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchRenderDetails }> {
 	const { authStorage, sessionId, signal } = options;
 	const modelRegistry = options.modelRegistry ?? new ModelRegistry(authStorage, undefined, { settings });
 	const pool = roleCandidatePool("web", settings, modelRegistry);
+	const forcedProvider = params.provider !== undefined && params.provider !== "auto" ? params.provider : undefined;
 	const candidates = params.model
 		? (() => {
 				const resolved = resolveModelRoleValue(params.model, pool, { settings });
@@ -153,7 +157,23 @@ async function executeSearch(
 					? [{ model: resolved.model, explicit: true, thinkingLevel: resolved.thinkingLevel }]
 					: [];
 			})()
-		: resolveRoleChain("web", settings, pool);
+		: resolveRoleChain(
+				"web",
+				settings,
+				pool,
+				forcedProvider === undefined ? undefined : { hoistProvider: forcedProvider },
+			);
+	// Zeta pins the engine with `provider`, not the upstream `model` role: a forced
+	// provider is the only candidate, and it must not silently fall through to
+	// another engine when it fails.
+	const scopedCandidates =
+		forcedProvider === undefined
+			? candidates
+			: candidates.filter(
+					candidate => candidate.model.id === forcedProvider || candidate.model.webSearch === forcedProvider,
+				);
+	const finalCandidates =
+		scopedCandidates.length > 0 ? scopedCandidates : forcedProvider === undefined ? [] : candidates.slice(0, 1);
 
 	const parsedQuery = parseSearchQuery(params.query);
 
@@ -169,7 +189,7 @@ async function executeSearch(
 
 	let geminiModel: string | undefined;
 	try {
-		geminiModel = settings.get("providers.webSearchGeminiModel");
+		geminiModel = cfgProvidersWebSearchGeminiModel.get(settings);
 	} catch {
 		geminiModel = undefined;
 	}
@@ -184,18 +204,30 @@ async function executeSearch(
 		// Preserve the default for one-shot callers that do not initialize Settings.
 	}
 
-	const failures: Array<{ provider: Pick<SearchProvider, "id" | "label">; error: unknown }> = [];
+	const failures: Array<{ provider: { id: string; label: string }; error: unknown }> = [];
 	let availableProviderCount = 0;
-	let lastProvider: Pick<SearchProvider, "id" | "label"> | undefined;
-	for (const candidate of candidates) {
+	let lastProvider: { id: string; label: string } | undefined;
+	for (const candidate of finalCandidates) {
 		let provider: SearchProvider | undefined;
-		const providerMeta = { id: candidate.id, label: getSearchProviderLabel(candidate.id) };
-		lastProvider = providerMeta;
+		// v18.3.1 widened the chain from providers to models: each candidate
+		// carries a catalog model, and a model either names a search backend or
+		// grounds through its own webSearch tool.
+		const candidateMeta = { id: candidate.model.id, label: candidate.model.name } as {
+			id: SearchProviderId;
+			label: string;
+		};
+		lastProvider = candidateMeta;
 		try {
-			provider = await getSearchProvider(candidate.id);
+			if (modelKind(candidate.model) === "search") {
+				provider = await getSearchProvider(candidate.model.id);
+			} else if (candidate.model.webSearch) {
+				provider = await getGroundedSearchProvider(candidate.model.webSearch);
+			} else {
+				throw new Error(`Model ${candidate.model.provider}/${candidate.model.id} does not support web search`);
+			}
 			const available = candidate.explicit
-				? await provider.isExplicitlyAvailable(authStorage)
-				: await provider.isAvailable(authStorage);
+				? await provider.isExplicitlyAvailable(authStorage, candidate.model)
+				: await provider.isAvailable(authStorage, candidate.model);
 			if (!available && !candidate.explicit) continue;
 			if (!available && candidate.explicit) {
 				throw new SearchProviderError(
@@ -221,7 +253,7 @@ async function executeSearch(
 				model: candidate.model,
 				thinkingLevel: candidate.thinkingLevel,
 				modelRegistry,
-				modelName,
+				explicit: candidate.explicit,
 				sessionId,
 				antigravityEndpointMode,
 				geminiModel,
@@ -260,7 +292,7 @@ async function executeSearch(
 			// failure and the loop falls through to the next provider (or to the
 			// summary error), masking the cancellation.
 			throwIfAborted(signal);
-			failures.push({ provider: provider ?? providerMeta, error });
+			failures.push({ provider: provider ?? candidateMeta, error });
 		}
 	}
 
@@ -273,6 +305,8 @@ async function executeSearch(
 	}
 
 	const lastFailure = failures[failures.length - 1];
+	// tui's SearchResponse.provider is `SearchProviderId | "none"`; the failure
+	// records carry a plain string id, so narrow once here.
 	const baseMessage = lastFailure
 		? formatSearchProviderFailure(lastFailure.error, lastFailure.provider)
 		: `Unknown error from ${lastProvider?.label ?? "web search provider"}`;
@@ -282,7 +316,10 @@ async function executeSearch(
 	return {
 		content: [{ type: "text" as const, text: `Error: ${message}` }],
 		details: {
-			response: { provider: lastFailure?.provider.id ?? lastProvider?.id ?? "none", sources: [] },
+			response: {
+				provider: (lastFailure?.provider.id ?? lastProvider?.id ?? "none") as SearchProviderId | "none",
+				sources: [],
+			},
 			error: message,
 		},
 	};

@@ -627,7 +627,7 @@ export class SessionRouter {
 			ts: Date.now(),
 		};
 		try {
-			await handle.session.deliverIrcMessage(msg, { expectsReply: true });
+			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
 			// Remove exactly the slot we pushed; the session may still hold
 			// older pending replies from other chats.
@@ -702,7 +702,7 @@ export class SessionRouter {
 			ts: Date.now(),
 		};
 		try {
-			await handle.session.deliverIrcMessage(msg, { expectsReply: true });
+			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
 			this.#directReplies.delete(dir);
 			const detail = error instanceof Error ? error.message : String(error);
@@ -752,7 +752,7 @@ export class SessionRouter {
 		this.#activeRun = { resolve, timer, dir };
 
 		try {
-			await handle.session.deliverIrcMessage(msg, { expectsReply: true });
+			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
 			clearTimeout(timer);
 			this.#activeRun = null;

@@ -72,7 +72,7 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "installed", description: () => M.cmdSkillsInstalled },
 			{
 				name: "update",
-				description: "Update registry skills within their ranges",
+				description: () => M.cmdSkillsUpdate,
 				usage: "[@scope/name…] [--global]",
 			},
 		],

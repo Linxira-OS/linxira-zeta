@@ -18,7 +18,7 @@ import {
 } from "@linxiraos/pi-catalog/wire/codex";
 import { $env, readSseJson, USER_AGENT } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../../../config/model-registry";
-import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";
 import type { SearchParams } from "./base";
@@ -750,9 +750,7 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 			baseUrl: transport.baseUrl,
 			modelId: firstCandidate.modelId,
 		};
-		const keyOrResolver = params.modelRegistry
-			? params.modelRegistry.resolver("openai-codex", resolverOptions)
-			: params.authStorage.resolver("openai-codex", resolverOptions);
+		const keyOrResolver = params.modelRegistry.resolver("openai-codex", resolverOptions);
 		result = await withAuth(
 			keyOrResolver,
 			async accessToken => {

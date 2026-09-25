@@ -274,7 +274,7 @@ export interface IrcDeliveryReceipt {
 }
 /** Broker-facing launch parameters; the hub adapts its `ps` op to `list` before calling in. */
 export interface LaunchParams {
-	op: "start" | "list" | "logs" | "wait" | "send" | "stop" | "restart" | "describe";
+	op: "start" | "list" | "logs" | "wait" | "send" | "stop" | "restart" | "describe" | "mode";
 	name?: string;
 	application?: string;
 	args?: string[];
@@ -297,6 +297,8 @@ export interface LaunchParams {
 	keys?: string[];
 	signal?: "SIGINT" | "SIGTERM" | "SIGHUP" | "SIGQUIT" | "SIGKILL";
 	timeout?: number;
+	/** mode: process lifetime to switch the daemon to. */
+	mode?: "persist" | "session" | "detached";
 }
 
 /** Structured launch state retained for compact TUI rendering. */

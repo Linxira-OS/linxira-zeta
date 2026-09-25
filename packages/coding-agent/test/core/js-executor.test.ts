@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { cfgEvalToolsEnabled } from "@linxiraos/zeta/eval/settings";
 import {
 	disposeAllVmContexts,
 	invokeJsTool,
@@ -257,7 +258,7 @@ describe("executeJs", () => {
 		});
 		expect(alive.output.trim()).toBe("still here");
 
-		evalSession.settings.set("eval.tools.enabled", false);
+		cfgEvalToolsEnabled.set(evalSession.settings, false);
 		await expect(describeEvalTools(evalSession, ["dbl"])).rejects.toThrow("Eval-defined tools are disabled");
 	});
 

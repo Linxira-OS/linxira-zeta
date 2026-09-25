@@ -6,12 +6,15 @@
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import type { AuthStorage } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { runSearchQuery } from "@linxiraos/zeta/web/search";
 import type { SearchParams } from "@linxiraos/zeta/web/search/provider";
 import * as provider from "@linxiraos/zeta/web/search/provider";
-import type { SearchProviderId, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchProviderId, SearchResponse, SearchSource } from "@linxiraos/zeta/web/search/types";
 
 import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const SOURCES: SearchSource[] = [
 	{ title: "Docs page", url: "https://docs.example.com/guide" },
@@ -20,7 +23,7 @@ const SOURCES: SearchSource[] = [
 
 const openAuthStorages: AuthStorage[] = [];
 
-async function stubRoleProvider(id: SearchProviderId, behaviour: (params: SearchParams) => Promise<SearchResponse>) {
+async function stubProvider(id: SearchProviderId, behaviour: (params: SearchParams) => Promise<SearchResponse>) {
 	const settings = await Settings.init({ inMemory: true });
 	settings.setModelRole("web", `web/${id}`);
 	cfgRetryFallbackChains.set(settings, { web: [] });
@@ -34,27 +37,28 @@ async function stubRoleProvider(id: SearchProviderId, behaviour: (params: Search
 		isExplicitlyAvailable: () => true,
 		search: behaviour,
 	};
-	vi.spyOn(provider, "resolveProviderCandidates").mockReturnValue([{ id, explicit: true }]);
 	vi.spyOn(provider, "getSearchProvider").mockImplementation(async requested => {
 		if (requested !== id) throw new Error(`Unexpected provider: ${requested}`);
 		return stub;
 	});
+	return { authStorage, modelRegistry };
 }
 
 describe("web search directive pipeline", () => {
-	afterEach(() => vi.restoreAllMocks());
+	afterEach(() => {
+		vi.restoreAllMocks();
+		resetSettingsForTest();
+		for (const authStorage of openAuthStorages.splice(0)) authStorage.close();
+	});
 
 	it("passes the parsed query to the provider and post-filters sources it did not constrain", async () => {
 		let seen: SearchParams | undefined;
-		stubProvider("brave", async params => {
+		const context = await stubProvider("brave", async params => {
 			seen = params;
 			return { provider: "brave", sources: SOURCES };
 		});
 
-		const result = await runSearchQuery(
-			{ query: "guide site:docs.example.com", provider: "brave" },
-			{ authStorage: {} as AuthStorage },
-		);
+		const result = await runSearchQuery({ query: "guide site:docs.example.com", provider: "brave" }, context);
 
 		expect(seen?.parsedQuery?.sites).toEqual(["docs.example.com"]);
 		expect(seen?.parsedQuery?.text).toBe("guide");
@@ -63,12 +67,9 @@ describe("web search directive pipeline", () => {
 	});
 
 	it("relaxes a constraint that matches nothing and leads the LLM text with a note", async () => {
-		stubProvider("brave", async () => ({ provider: "brave", sources: SOURCES }));
+		const context = await stubProvider("brave", async () => ({ provider: "brave", sources: SOURCES }));
 
-		const result = await runSearchQuery(
-			{ query: "guide site:nowhere.example", provider: "brave" },
-			{ authStorage: {} as AuthStorage },
-		);
+		const result = await runSearchQuery({ query: "guide site:nowhere.example", provider: "brave" }, context);
 
 		// Leniency: nothing matched site:nowhere.example, so all sources survive
 		// and the model is told the constraint was relaxed.

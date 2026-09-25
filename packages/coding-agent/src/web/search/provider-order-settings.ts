@@ -7,7 +7,7 @@
  * through the v18.3.1 registry like every other setting.
  */
 import { register } from "../../config/registry";
-import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchProviderId } from "./types";
 import { SEARCH_PROVIDER_CHOICES } from "./types";
 
 /** Prioritized web_search providers; unlisted ones keep their default order. */
@@ -37,5 +37,21 @@ export const cfgProvidersWebSearchExclude = register({
 		label: "Excluded Web Search Providers",
 		description: "Providers that web_search should never use, even as fallbacks",
 		options: SEARCH_PROVIDER_CHOICES,
+	},
+});
+
+/**
+ * Model ID for Gemini Google Search grounding. Empty means the provider's
+ * own default (`gemini-2.5-flash`).
+ */
+export const cfgProvidersWebSearchGeminiModel = register({
+	id: "providers.webSearchGeminiModel",
+	type: "string",
+	default: undefined,
+	ui: {
+		tab: "providers",
+		group: "Services",
+		label: "Gemini web_search model",
+		description: "Model ID for Gemini Google Search grounding. Defaults to gemini-2.5-flash.",
 	},
 });

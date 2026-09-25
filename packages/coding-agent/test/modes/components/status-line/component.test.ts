@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createGallerySegmentContext } from "../../../../src/cli/gallery-fixtures/segments";
 import { Settings, settings } from "../../../../src/config/settings";
+import { cfgTuiSidebar } from "../../../../src/modes/settings";
 import { StatusLineComponent } from "@linxiraos/pi-tui/status-line/component";
 import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
 import { renderSegment } from "@linxiraos/pi-tui/status-line/segments";
@@ -295,15 +296,15 @@ describe("session_name segment while the sidebar is open", () => {
 		});
 
 		try {
-			settings.override("tui.sidebar", true);
+			cfgTuiSidebar.override(settings, true);
 			const withSidebar = Bun.stripANSI(statusLine.getTopBorder(200).content);
 			expect(withSidebar).not.toContain("dedupe-probe");
 
-			settings.clearOverride("tui.sidebar");
+			cfgTuiSidebar.clearOverride(settings);
 			const withoutSidebar = Bun.stripANSI(statusLine.getTopBorder(200).content);
 			expect(withoutSidebar).toContain("dedupe-probe");
 		} finally {
-			settings.clearOverride("tui.sidebar");
+			cfgTuiSidebar.clearOverride(settings);
 		}
 	});
 });

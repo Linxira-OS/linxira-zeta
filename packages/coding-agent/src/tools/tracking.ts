@@ -5,6 +5,7 @@
  * 文件存放在 `<project>/.zeta/tracking/` 目录下。
  */
 
+import { cfgTrackingEnabled } from "./settings";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
@@ -103,7 +104,7 @@ export class TrackingRecorder {
 	}
 
 	async recordCompaction(cwd: string, entry: CompactionEntry): Promise<void> {
-		if (this.#settings.get("tracking.enabled") !== true) return;
+		if (cfgTrackingEnabled.get(this.#settings) !== true) return;
 
 		try {
 			const trackingDir = getProjectTrackingDir(cwd);
@@ -357,12 +358,12 @@ async function handleLogAction(cwd: string, params: TrackingSchema): Promise<str
  *  Read-only copy of the plan text; no-ops when tracking is disabled. Returns
  *  the mirror path, or null when disabled/empty/failed. */
 export async function mirrorPlanToTracking(input: {
-	settings: Pick<Settings, "get">;
+	settings: Settings;
 	cwd: string;
 	slug: string;
 	planContent: string;
 }): Promise<string | null> {
-	if (input.settings.get("tracking.enabled") !== true) return null;
+	if (cfgTrackingEnabled.get(input.settings) !== true) return null;
 	if (input.planContent.trim() === "") return null;
 	try {
 		const trackingDir = getProjectTrackingDir(input.cwd);

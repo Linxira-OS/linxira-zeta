@@ -24,7 +24,7 @@ import { buildModel } from "@linxiraos/pi-catalog/build";
 import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 import { $env, readSseJson } from "@linxiraos/pi-utils";
 import type { PerplexityRequest, PerplexitySearchResult } from "../../../web/search/types";
-import type { SearchCitation, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchCitation, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery, type QuerySyntax, type StructuredQuery } from "../query";
 import { dateToAgeSeconds } from "../utils";

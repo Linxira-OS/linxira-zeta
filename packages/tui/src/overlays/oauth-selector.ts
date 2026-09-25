@@ -235,8 +235,6 @@ export class OAuthSelectorComponent extends OverlayPanel {
 				return tuiText("oauthOriginApiKey", ORIGIN_LABELS.api_key);
 			case "env":
 				return tuiText("oauthOriginEnv", ORIGIN_LABELS.env);
-			case "fallback":
-				return tuiText("oauthOriginCustomProvider", ORIGIN_LABELS.fallback);
 		}
 	}
 

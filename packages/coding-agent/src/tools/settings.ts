@@ -1018,3 +1018,42 @@ export const cfgProvidersImageOrder = register({
 		ordered: true,
 	},
 });
+
+/**
+ * Project tracking. Gates the `tracking_update` tool; the tracking layer
+ * mirrors session plan state into `<project>/.zeta/tracking/`.
+ */
+export const cfgTrackingEnabled = register({
+	id: "tracking.enabled",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "tools",
+		group: "Available Tools",
+		label: "Project Tracking",
+		description: "Enable the tracking_update tool so the agent maintains project tracking documents",
+	},
+});
+
+/**
+ * Window for a peer `await` in the hub messaging surface. 0 disables the
+ * timeout and waits for the peer to stop instead.
+ */
+export const cfgIrcTimeoutMs = register({
+	id: "irc.timeoutMs",
+	type: "number",
+	default: 120_000,
+	ui: {
+		tab: "tools",
+		group: "Execution",
+		label: "IRC Timeout",
+		description: "Timeout for hub send await:true in milliseconds; 0 disables the timeout",
+		options: [
+			{ value: "0", label: "Disabled" },
+			{ value: "30000", label: "30 seconds" },
+			{ value: "60000", label: "1 minute" },
+			{ value: "120000", label: "2 minutes" },
+			{ value: "300000", label: "5 minutes" },
+		],
+	},
+});

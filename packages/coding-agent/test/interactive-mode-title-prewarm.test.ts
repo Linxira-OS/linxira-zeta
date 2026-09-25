@@ -8,6 +8,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { isTinyTitleLocalModelKey } from "@linxiraos/zeta/tiny/models";
+import { cfgProvidersTinyModel } from "@linxiraos/zeta/tiny/settings";
 import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
@@ -96,7 +97,7 @@ describe("InteractiveMode tiny-title prewarm", () => {
 	});
 
 	it("prewarms the configured local tiny role on startup for an unnamed session", async () => {
-		session.settings.set("providers.tinyModel", "lfm2.5-230m");
+		cfgProvidersTinyModel.set(session.settings, "lfm2.5-230m");
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
 
 		await mode.init();
@@ -113,7 +114,7 @@ describe("InteractiveMode tiny-title prewarm", () => {
 	});
 
 	it("does not prewarm when the session is already named", async () => {
-		session.settings.set("providers.tinyModel", "lfm2.5-230m");
+		cfgProvidersTinyModel.set(session.settings, "lfm2.5-230m");
 		vi.spyOn(mode.sessionManager, "getSessionName").mockReturnValue("resumed-session");
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
 
@@ -141,7 +142,7 @@ describe("InteractiveMode tiny-title prewarm", () => {
 
 	it("does not start a worker for a paid tiny role", async () => {
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
-		session.settings.set("providers.tinyModel", "online");
+		cfgProvidersTinyModel.set(session.settings, "online");
 
 		await mode.init();
 		const immediateFlushed = Promise.withResolvers<void>();

@@ -3,7 +3,7 @@ import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type ApiKeyResolver, type AuthStorage, withAuth } from "@linxiraos/pi-ai";
 import { $env } from "@linxiraos/pi-utils";
 import { resolveXAIHttpTransport, type XAIHttpProvider, type XAIHttpTransport } from "../../../lib/xai-http";
-import type { SearchCitation, SearchResponse, SearchSource, SearchUsage } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchCitation, SearchResponse, SearchSource, SearchUsage } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery, type QuerySyntax } from "../query";
 import { clampNumResults } from "../utils";
@@ -465,15 +465,9 @@ export async function searchXAI(params: SearchParams): Promise<SearchResponse> {
 			`Refusing to send official xAI OAuth credentials to custom endpoint ${transport.baseURL}. Configure an API key for provider "xai-oauth".`,
 		);
 	}
-	const keyOrResolver: ApiKey = params.modelRegistry
-		? params.modelRegistry.resolver(auth.provider, {
-				sessionId: params.sessionId,
-				baseUrl: transport.baseURL,
-				modelId: XAI_WEB_SEARCH_MODEL,
-			})
-		: customEndpoint
-			? params.authStorage.resolver(auth.provider, { sessionId: params.sessionId })
-			: auth.keyOrResolver;
+	const keyOrResolver: ApiKey = customEndpoint
+		? params.modelRegistry.resolver(auth.provider, { sessionId: params.sessionId })
+		: auth.keyOrResolver;
 
 	const resultCap = clampNumResults(params.numSearchResults ?? params.limit, DEFAULT_NUM_RESULTS, MAX_NUM_RESULTS);
 	const response = await withAuth(

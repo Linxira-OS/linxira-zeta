@@ -6,6 +6,7 @@ import { createMockModel, type MockResponseSource } from "@linxiraos/pi-ai/provi
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { type CustomMessage, convertToLlm } from "@linxiraos/zeta/session/messages";
@@ -115,6 +116,8 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		exposeXdevCatalog?: boolean;
 		/** Optional per-turn system prompt replacement returned by before_agent_start. */
 		beforeAgentStartSystemPrompt?: string[];
+		/** Pre-loaded skills handed to the session's hint snapshot. */
+		skills?: Skill[];
 		/** Provider prompt-cache key inherited by a forked session. */
 		inheritedPromptCacheKey?: string;
 	}
@@ -207,6 +210,7 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 			},
 			getMcpServerInstructions: options.getMcpServerInstructions,
 			xdev: options.xdev,
+			skills: options.skills,
 			providerPromptCacheKeySource: options.inheritedPromptCacheKey ? "fork" : undefined,
 		});
 		sessions.push(session);

@@ -1,4 +1,4 @@
-import type { Settings } from "../config/settings";
+import type { Settings } from "../../config/settings";
 /**
  * Extension system types.
  *

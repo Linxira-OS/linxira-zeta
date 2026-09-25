@@ -10,6 +10,7 @@
  *   const isolated = Settings.isolated({ "compaction.enabled": false });
  */
 
+import { cfgLanguage } from "../zeta-settings";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
@@ -666,8 +667,8 @@ export class Settings {
 					// `get()` resolves to the schema default ("en") which would
 					// otherwise win over `LC_ALL`/`Intl`. Only an explicitly
 					// configured value counts as a config override.
-					if (instance.getKeyProvenance("language") === "default") return undefined;
-					const value = instance.get("language");
+					if (cfgLanguage.provenance(instance) === "default") return undefined;
+					const value = cfgLanguage.get(instance);
 					return typeof value === "string" ? value : undefined;
 				});
 				globalInstancePromise = Promise.resolve(instance);

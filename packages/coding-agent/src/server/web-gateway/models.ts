@@ -21,6 +21,7 @@ import { type AssistantMessage, completeSimple } from "@linxiraos/pi-ai";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { ModelRegistry } from "../../config/model-registry";
+import { cfgEnabledModels, cfgModelRoles } from "../../config/model-settings";
 import { ModelsConfigFile } from "../../config/models-config";
 import { Settings } from "../../config/settings";
 import { getSharedAuthStorage, getSharedModelRegistry, refreshSharedModelRegistry } from "./auth";
@@ -66,7 +67,7 @@ function stripThinkingSuffix(modelRef: string): string {
 
 function filterByExactEnabledModels<T extends { id: string; provider: string }>(
 	available: readonly T[],
-	enabledModels: string[] | undefined,
+	enabledModels: readonly string[] | undefined,
 ): readonly T[] {
 	if (!enabledModels || enabledModels.length === 0) return available;
 
@@ -75,7 +76,9 @@ function filterByExactEnabledModels<T extends { id: string; provider: string }>(
 	return visible.length > 0 ? visible : available;
 }
 
-function parseDefaultModel(roles: Record<string, string> | undefined): { provider: string; modelId: string } | null {
+function parseDefaultModel(
+	roles: Readonly<Record<string, string>> | undefined,
+): { provider: string; modelId: string } | null {
 	const defaultRef = roles?.default;
 	if (typeof defaultRef !== "string" || !defaultRef.trim()) return null;
 	const cleanRef = stripThinkingSuffix(defaultRef.trim());
@@ -95,8 +98,8 @@ async function loadModels(cwd: string): Promise<ModelsData> {
 	const settings = await Settings.init({ cwd });
 
 	const available = registry.getAvailable();
-	const enabledModels = settings.get("enabledModels");
-	const roles = settings.get("modelRoles") ?? {};
+	const enabledModels = cfgEnabledModels.get(settings);
+	const roles = cfgModelRoles.get(settings);
 
 	// 1. Build role-model entries from the configured modelRoles.
 	const roleModelEntries: { id: string; name: string; provider: string; contextWindow?: number }[] = [];
@@ -240,8 +243,8 @@ export async function handleModelsDefaultPut(req: Request): Promise<Response> {
 		const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
 		const agentDir = getAgentDir();
 		const settings = await Settings.loadIsolated({ cwd, agentDir });
-		const roles = settings.get("modelRoles") ?? {};
-		settings.set("modelRoles", { ...roles, default: `${provider}/${modelId}` });
+		const roles = cfgModelRoles.get(settings);
+		settings.writeValue(cfgModelRoles, { ...roles, default: `${provider}/${modelId}` }, "global");
 		await settings.flush();
 		return json({ success: true, default: `${provider}/${modelId}` });
 	} catch (error) {

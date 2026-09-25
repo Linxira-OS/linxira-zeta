@@ -13,7 +13,13 @@ import type { AgentSessionEvent } from "./agent-session-events";
 import type { SessionManager } from "./session-manager";
 
 import { cfgTaskBatch, cfgTaskEager } from "../task/settings";
-import { cfgTodoEager, cfgTodoEnabled, cfgTodoReminders, cfgTodoRemindersMax } from "../tools/settings";
+import {
+	cfgTodoEager,
+	cfgTodoEnabled,
+	cfgTodoReminders,
+	cfgTodoRemindersMax,
+	cfgTrackingEnabled,
+} from "../tools/settings";
 
 const MID_RUN_NUDGE_MUTATION_THRESHOLD = 12;
 const MID_RUN_NUDGE_MAX_PER_CYCLE = 2;
@@ -319,7 +325,7 @@ export class TodoTracker {
 		// the completion itself is the trigger — but consumed exactly once.
 		if (this.#completedPhasePendingMirror !== null) {
 			if (
-				this.#host.settings.get("tracking.enabled") === true &&
+				cfgTrackingEnabled.get(this.#host.settings) &&
 				this.#host.getActiveToolNames().includes("tracking_update")
 			) {
 				const phaseName = this.#completedPhasePendingMirror;

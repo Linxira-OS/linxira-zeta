@@ -3,7 +3,7 @@
  * Handles TUI rendering and user interaction, delegating business logic to AgentSession.
  */
 import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
-import { SIDEBAR_WIDTH, SidebarComponent } from "components/sidebar.ts";
+import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
 import { StreamRedactor } from "../stream/redactor";
 import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
 import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";

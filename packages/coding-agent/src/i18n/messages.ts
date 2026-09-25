@@ -270,6 +270,11 @@ export interface Messages {
 	cmdSetTheCLIDisplayLanguage: string; // Set the CLI display language
 	cmdShakeHeavyContentOutOfTheConversationContext: string; // Shake heavy content out of the conversation context
 	cmdShareAReadOnlyLinkGuestsCanWatchNotPrompt: string; // Share a read-only link (guests can watch, not prompt)
+	cmdSkills: string; // Search, install, and update skills from the skills registry
+	cmdSkillsSearch: string; // Search the skill registry
+	cmdSkillsInstall: string; // Install registry skills
+	cmdSkillsInstalled: string; // List installed registry skills
+	cmdSkillsUpdate: string; // Update registry skills within their ranges
 	cmdShareSessionViaAnEncryptedLinkShareServerOrSecretGist: string; // Share session via an encrypted link (share server or secret gist)
 	cmdShareThisSessionLiveViaARelay: string; // Share this session live via a relay
 	cmdShowAdvisorStatus: string; // Show advisor status

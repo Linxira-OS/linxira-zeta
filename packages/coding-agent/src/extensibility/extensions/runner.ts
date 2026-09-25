@@ -19,7 +19,7 @@ import {
 import type { KeyId } from "@linxiraos/pi-tui";
 import { logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../../config/model-registry";
-import { type Settings, withActiveSettings } from "../../config/settings";
+import { Settings, withActiveSettings } from "../../config/settings";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
 import { type Theme, theme } from "@linxiraos/pi-tui/theme";
@@ -1240,7 +1240,9 @@ export class ExtensionRunner {
 		const runEphemeralTurn = this.#runEphemeralTurnFn;
 		return {
 			ui: this.#uiContext,
-			settings: this.settings,
+			// One-shot callers construct a runner without a Settings instance; hand
+			// them an isolated one rather than making every handler null-check.
+			settings: this.settings ?? Settings.isolated(),
 			mode: this.#mode,
 			getContextUsage: () => this.#getContextUsageFn(),
 			compact: instructionsOrOptions => this.#compactFn(instructionsOrOptions),

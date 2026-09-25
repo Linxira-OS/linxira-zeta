@@ -1,3 +1,4 @@
+import { cfgLanguage } from "../zeta-settings";
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -112,7 +113,7 @@ describe("detectLanguage", () => {
 		try {
 			resetSettingsForTest();
 			await Settings.init({ inMemory: true, cwd: tmpdir });
-			settings.override("language", "en");
+			settings.writeValue(cfgLanguage, "en", "override");
 			Bun.env.LC_ALL = "zh_CN.UTF-8";
 			expect(detectLanguage()).toBe("en");
 		} finally {

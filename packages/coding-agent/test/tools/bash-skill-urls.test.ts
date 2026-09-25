@@ -76,12 +76,12 @@ describe("expandInternalUrls", () => {
 		const cwd = "/tmp/session-b";
 		const sourcePath = "/tmp/session-b-memory/memory_summary.md";
 		let observedCwd: string | undefined;
-		let observedPathOnly: boolean | undefined;
+		let observedSkipDirectoryListing: boolean | undefined;
 		const router = {
 			canHandle: (input: string) => input === "memory://root/memory_summary.md",
 			resolve: async (input: string, context?: ResolveContext) => {
 				observedCwd = context?.cwd;
-				observedPathOnly = context?.pathOnly;
+				observedSkipDirectoryListing = context?.skipDirectoryListing;
 				return {
 					url: input,
 					content: "",
@@ -96,7 +96,7 @@ describe("expandInternalUrls", () => {
 			expandInternalUrls("cat memory://root/memory_summary.md", { skills: [], internalRouter: router, cwd }),
 		).resolves.toBe(`cat ${shellEscape(sourcePath)}`);
 		expect(observedCwd).toBe(cwd);
-		expect(observedPathOnly).toBe(true);
+		expect(observedSkipDirectoryListing).toBe(true);
 	});
 
 	it("forwards the session's scoped rules to the router when expanding rule:// URLs", async () => {

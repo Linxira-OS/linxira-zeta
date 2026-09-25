@@ -366,15 +366,15 @@ export async function handleSettingsPut(req: Request): Promise<Response> {
 		if (!isKnownSettingPath(path)) {
 			return json({ error: `Unknown setting path: ${String(path)}` }, 400);
 		}
-		const settingPath = path;
-		if (!hasUi(settingPath)) {
-			return json({ error: `Setting has no UI metadata: ${settingPath}` }, 400);
+		const setting = lookup(path);
+		if (!setting || !hasUi(path)) {
+			return json({ error: `Setting has no UI metadata: ${path}` }, 400);
 		}
 
 		const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
 		const agentDir = getAgentDir();
 		const settings = await Settings.loadIsolated({ cwd, agentDir });
-		settings.set(settingPath, body.value as never);
+		settings.writeValue(setting, body.value, "global");
 		await settings.flush();
 		return json({ ok: true });
 	} catch (error) {

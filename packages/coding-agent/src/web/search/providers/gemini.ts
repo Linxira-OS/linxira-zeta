@@ -24,7 +24,7 @@ import { getAntigravityUserAgent, getGeminiCliHeaders } from "@linxiraos/pi-cata
 import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import { fetchWithRetry, USER_AGENT } from "@linxiraos/pi-utils";
 
-import type { SearchCitation, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchCitation, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery, type StructuredQuery } from "../query";
 import type { SearchParams } from "./base";
@@ -151,12 +151,13 @@ interface GeminiSearchResult {
  */
 export async function findGeminiAuth(
 	authStorage: AuthStorage,
+	provider: string,
 	sessionId: string | undefined,
 	signal: AbortSignal | undefined,
 ): Promise<GeminiAuthSeed | null> {
 	const access = await authStorage.oauth.access(provider, sessionId, { signal });
 	if (!access?.accessToken || !access.projectId) return null;
-	return { provider, access, projectId: access.projectId };
+	return { provider: provider as GeminiProviderId, access, projectId: access.projectId };
 }
 
 /** Cloud Code Assist API response types */
@@ -631,7 +632,7 @@ export async function searchGemini(params: GeminiSearchParams): Promise<SearchRe
 	// directive-free queries byte-identical.
 	const parsed = params.parsedQuery ?? parseSearchQuery(params.query);
 	const searchQuery = parsed.hasDirectives ? formatQuery(parsed, GOOGLE_QUERY_SYNTAX) : params.query;
-	const seed = await findGeminiAuth(params.authStorage, params.sessionId, params.signal);
+	const seed = await findGeminiAuth(params.authStorage, params.model.provider, params.sessionId, params.signal);
 	let result: GeminiSearchResult;
 
 	if (seed) {

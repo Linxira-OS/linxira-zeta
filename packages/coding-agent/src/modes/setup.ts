@@ -1,4 +1,9 @@
-import { SEARCH_PROVIDER_OPTIONS, SearchProviderId } from "../../../tui/src/tools/web-search";
+import {
+	isSearchProviderId,
+	SEARCH_PROVIDER_OPTIONS,
+	SEARCH_PROVIDER_ORDER,
+	type SearchProviderId,
+} from "../web/search/types";
 import type { Model, WebSearchGrounding } from "@linxiraos/pi-catalog/types";
 import { runProviderSetupWizard as runProviderWizard } from "@linxiraos/pi-tui/setup/lazy";
 import type { SetupHost, SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";
@@ -12,11 +17,11 @@ import {
 } from "@linxiraos/pi-tui/setup/wizard";
 import { formatModelString, resolveModelRoleValue, rolePriorityDefaults } from "../config/model-resolver";
 import { getRoleInfo, roleCandidatePool } from "../config/model-roles";
+import { cfgDisabledProviders, cfgModelRoleStorage } from "../config/model-settings";
 import type { Settings } from "../config/settings";
 import { captureBrowserSession } from "../utils/browser-session";
 import { copyToClipboard } from "../utils/clipboard";
 import { getSearchProvider, setSearchProviderOrder } from "../web/search/provider";
-import { SEARCH_PROVIDER_ORDER } from "../web/search/types";
 import { createModelBrowserSource } from "./model-browser-source";
 import type { InteractiveModeContext } from "./types";
 
@@ -28,7 +33,7 @@ import {
 	cfgThemeDark,
 	cfgThemeLight,
 } from "./settings";
-import { cfgDisabledProviders, cfgModelRoleStorage } from "../config/model-settings";
+import { cfgProvidersWebSearchOrder } from "../web/search/provider-order-settings";
 
 export { ALL_SCENES, CURRENT_SETUP_VERSION };
 export type { SetupScene, SetupSceneHost } from "@linxiraos/pi-tui/setup/scenes/types";
@@ -102,7 +107,7 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 			}
 			if (model?.provider === "web") {
 				const option = SEARCH_PROVIDER_OPTIONS.find(candidate => candidate.value === model.id);
-				if (option && option.value !== "auto" && option.value !== "none") return [option.value];
+				if (option && option.value !== "auto") return [option.value];
 			}
 			return model?.webSearch ? [model.webSearch] : [];
 		},
@@ -127,25 +132,28 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 		},
 		refreshProvider: provider => ctx.session.modelRegistry.refreshProvider(provider, "online"),
 		saveComposerShape: async shape => {
-			cfgComposerShape.set(ctx.settings, shape);
+			ctx.settings.writeValue(cfgComposerShape, shape, "global");
 			await ctx.settings.flush();
 		},
 		saveSymbolPreset: preset => {
-			cfgSymbolPreset.set(ctx.settings, preset);
+			ctx.settings.writeValue(cfgSymbolPreset, preset, "global");
 		},
 		saveColorBlindMode: enabled => {
-			cfgColorBlindMode.set(ctx.settings, enabled);
+			ctx.settings.writeValue(cfgColorBlindMode, enabled, "global");
 		},
 		saveTheme: (mode, name) => {
-			(mode === "dark" ? cfgThemeDark : cfgThemeLight).set(ctx.settings, name);
+			ctx.settings.writeValue(mode === "dark" ? cfgThemeDark : cfgThemeLight, name, "global");
 		},
 		isSearchProviderAvailable: async id => {
 			const provider = await getSearchProvider(id);
 			return provider.isExplicitlyAvailable(ctx.session.modelRegistry.authStorage);
 		},
 		saveSearchProvider: id => {
+			// The TUI's provider id union is a superset (it still carries `bing`),
+			// so narrow before it reaches the coding-agent chain.
+			if (id !== "auto" && !isSearchProviderId(id)) return;
 			const order = id === "auto" ? [] : [id, ...SEARCH_PROVIDER_ORDER.filter(candidate => candidate !== id)];
-			ctx.settings.set("providers.webSearchOrder", order);
+			ctx.settings.writeValue(cfgProvidersWebSearchOrder, order, "global");
 			setSearchProviderOrder(order);
 		},
 		captureBrowserSession,
@@ -159,7 +167,7 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 
 /** Persist completion only after the setup overlay finishes. */
 export async function markSetupWizardComplete(settings: Settings, version = CURRENT_SETUP_VERSION): Promise<void> {
-	cfgSetupVersion.set(settings, version);
+	settings.writeValue(cfgSetupVersion, version, "global");
 	await settings.flush();
 }
 

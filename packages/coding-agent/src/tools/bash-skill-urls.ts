@@ -5,7 +5,7 @@ import type { Rule } from "../capability/rule";
 import { resolveContainedPathSync } from "../discovery/contained-path";
 import type { Skill } from "../extensibility/skills";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
-import { validateRelativePath } from "../internal-urls/skill-protocol";
+import { validateRelativePath } from "../internal-urls/filesystem-resource";
 import type { InternalResource, ResolveContext } from "../internal-urls/types";
 import type { ImageAttachmentEntry } from ".";
 import { normalizeLocalScheme } from "./path-utils";
@@ -116,7 +116,7 @@ function parseSkillUrlTarget(
 		throw new ToolError(`Invalid skill:// URL path encoding: ${url}`);
 	}
 	try {
-		validateRelativePath(relativePath);
+		validateRelativePath(relativePath, "skill");
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		throw new ToolError(message);
@@ -343,7 +343,6 @@ async function resolveInternalUrlToPath(
 	try {
 		resource = await internalRouter.resolve(url, {
 			cwd,
-			pathOnly: true,
 			sessionFile,
 			sessionId,
 			agentRegistry,

@@ -40,6 +40,25 @@ const RETAINED_ARTIFACTS_CLEANUP_GRACE_MS = 60_000;
 const RETAINED_ARTIFACTS_CLEANUP_MAX_WAIT_MS = DEFAULT_RETENTION_MS;
 const DEFAULT_MAX_RUNNING_JOBS = 15;
 /** Abort reason used only when the owning session shuts down the entire manager. */
+/**
+ * Adaptive backoff ladder for the hub tool's `wait` action: a wait that returns
+ * quickly escalates, a gap long enough to mean real work resets to the floor.
+ */
+export const POLL_WAIT_LADDER_MS = [5_000, 10_000, 30_000, 60_000, 300_000] as const;
+
+/** A gap at least this long means the agent left the loop; reset to the floor. */
+const POLL_ESCALATION_RESET_MS = 60_000;
+
+/** Map key standing in for waits that have no owner id. */
+const OWNERLESS_POLL_KEY = "\u0000ownerless";
+
+interface PollEscalationState {
+	/** Index into POLL_WAIT_LADDER_MS used for the most recent wait. */
+	level: number;
+	/** Timestamp (ms) when the most recent wait returned. */
+	lastPollEndAt: number;
+}
+
 export const ASYNC_JOB_MANAGER_SHUTDOWN_REASON = Symbol("AsyncJobManager shutdown");
 
 /** Kind of work a managed job runs; drives job-row badges and delivery labels. */
@@ -230,6 +249,36 @@ export interface AsyncJobFilter {
 }
 
 export class AsyncJobManager {
+	/** Per-owner adaptive-wait state; see {@link POLL_WAIT_LADDER_MS}. */
+	readonly #pollEscalation = new Map<string, PollEscalationState>();
+
+	/**
+	 * Next wait window for `ownerId`, escalating while waits keep returning
+	 * quickly and resetting to the ladder floor once a gap of at least
+	 * {@link POLL_ESCALATION_RESET_MS} suggests the agent left the loop.
+	 */
+	nextPollWaitMs(ownerId: string | undefined, now: number = Date.now()): number {
+		// An owner-less wait shares one ladder slot: there is nobody to separate
+		// its escalation from another owner-less wait.
+		const key = ownerId ?? OWNERLESS_POLL_KEY;
+		const prev = this.#pollEscalation.get(key);
+		const reset = !prev || now - prev.lastPollEndAt >= POLL_ESCALATION_RESET_MS;
+		const level = reset ? 0 : Math.min(prev.level + 1, POLL_WAIT_LADDER_MS.length - 1);
+		this.#pollEscalation.set(key, { level, lastPollEndAt: prev?.lastPollEndAt ?? now });
+		return POLL_WAIT_LADDER_MS[level];
+	}
+
+	/**
+	 * Mark a blocking wait as finished so the idle-reset window is measured from
+	 * now. Waiting again before {@link POLL_ESCALATION_RESET_MS} elapses keeps
+	 * climbing the ladder; a longer gap resets it to the floor.
+	 */
+	recordPollWaitEnd(ownerId: string | undefined, now: number = Date.now()): void {
+		const key = ownerId ?? OWNERLESS_POLL_KEY;
+		const prev = this.#pollEscalation.get(key);
+		this.#pollEscalation.set(key, { level: prev?.level ?? 0, lastPollEndAt: now });
+	}
+
 	static #instance: AsyncJobManager | undefined;
 
 	/** Process-global instance shared by internal URL protocol handlers and tools. */

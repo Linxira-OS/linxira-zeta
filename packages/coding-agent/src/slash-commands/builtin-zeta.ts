@@ -1,7 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
-import type { SettingPath, SettingValue } from "../config/settings";
+import { cfgLanguage } from "../zeta-settings";
+import { cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
 import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
 import type { TrackingStatus } from "../tools/tracking";
@@ -46,7 +47,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				return usage(M.languageUnknownFmt.replace("%s", arg), runtime);
 			}
 			const tag = arg as ZetaLanguage;
-			runtime.settings.set("language" as SettingPath, tag as SettingValue<SettingPath>);
+			runtime.settings.writeValue(cfgLanguage, tag, "global");
 			setLanguage(tag);
 			// Re-advertise the command list so clients that cache descriptions
 			// (ACP's available_commands_update, RPC) pick up the new locale —
@@ -76,7 +77,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				return;
 			}
 			const tag = arg as ZetaLanguage;
-			runtime.ctx.settings.set("language" as SettingPath, tag as SettingValue<SettingPath>);
+			runtime.ctx.settings.writeValue(cfgLanguage, tag, "global");
 			setLanguage(tag);
 			// Descriptions/snapshots for builtins re-resolve on the next
 			// autocomplete rebuild; refresh immediately so the open editor
@@ -101,7 +102,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
-			if (!runtime.settings.get("tracking.enabled")) {
+			if (!cfgTrackingEnabled.get(runtime.settings)) {
 				await runtime.output(
 					"项目追踪默认关闭。用 /settings 打开 tools → Project Tracking（tracking.enabled）后，再用 /tracking 维护项目追踪文档。",
 				);
@@ -111,7 +112,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {
-			if (!runtime.ctx.settings.get("tracking.enabled")) {
+			if (!cfgTrackingEnabled.get(runtime.ctx.settings)) {
 				runtime.ctx.showStatus("项目追踪默认关闭。请先开启 tracking.enabled（/settings → tools）。");
 				runtime.ctx.editor.setText("");
 				return;

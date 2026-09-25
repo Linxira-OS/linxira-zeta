@@ -335,7 +335,7 @@ export class HubTool implements AgentTool<typeof hubSchema, HubDetails> {
 		op: LaunchParams["op"],
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<HubDetails>> {
-		if (!this.session.cfgLaunchEnabled.get(settings)) {
+		if (!cfgLaunchEnabled.get(this.session.settings)) {
 			return hubErrorResult("Process supervision is disabled (launch.enabled=false).", { op: params.op });
 		}
 		const { op: _hubOp, ...rest } = params;

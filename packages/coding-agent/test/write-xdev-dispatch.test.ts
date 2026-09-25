@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as themeModule from "@linxiraos/pi-tui/theme";
 import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";

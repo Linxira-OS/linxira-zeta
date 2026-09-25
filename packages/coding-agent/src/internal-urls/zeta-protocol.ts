@@ -8,7 +8,7 @@
  */
 import * as path from "node:path";
 import { getDocFilenames, getEmbeddedDoc } from "./docs-index";
-import type { InternalResource, InternalUrl, ProtocolHandler, UrlCompletion } from "./types";
+import type { InternalResource, InternalUrl, ProtocolHandler, SchemeSpec, UrlCompletion } from "./types";
 
 /**
  * Handler for zeta:// URLs.
@@ -17,7 +17,7 @@ import type { InternalResource, InternalUrl, ProtocolHandler, UrlCompletion } fr
  */
 export class ZetaProtocolHandler implements ProtocolHandler {
 	readonly scheme = "zeta";
-	readonly immutable = true;
+	readonly spec: SchemeSpec = { backing: "virtual", selectors: "lines", immutable: true };
 
 	async resolve(url: InternalUrl): Promise<InternalResource> {
 		// Extract filename from host + path
@@ -29,7 +29,7 @@ export class ZetaProtocolHandler implements ProtocolHandler {
 			return this.#listDocs(url);
 		}
 
-		return this.#readDoc(filename, url);
+		return this.#readDoc(filename, filename, url);
 	}
 
 	async complete(): Promise<UrlCompletion[]> {

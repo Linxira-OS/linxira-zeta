@@ -1,6 +1,6 @@
 import { M } from "../i18n";
 import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
-
+import { cfgTuiSidebar } from "../modes/settings";
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
@@ -95,7 +95,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "gauge",
 		description: () => M.cmdSidebar,
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.settings.get("tui.sidebar") ? M.acSidebarOn : M.acSidebarOff,
+			cfgTuiSidebar.get(runtime.ctx.settings) ? M.acSidebarOn : M.acSidebarOff,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.handleSidebarToggle();
 		},

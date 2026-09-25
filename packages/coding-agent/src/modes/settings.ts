@@ -1169,3 +1169,19 @@ export const cfgTuiSidebar = register({
 		description: "Show the right-hand sidebar (context, usage, git, model)",
 	},
 });
+
+/**
+ * Third-party sidebar widgets registered by extensions. Off by default: the
+ * widgets come from user-installed code, so they stay opt-in.
+ */
+export const cfgTuiSidebarWidgets = register({
+	id: "tui.sidebarWidgets",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "appearance",
+		group: "Display",
+		label: "Sidebar Widgets",
+		description: "Show third-party sidebar widgets registered by extensions",
+	},
+});

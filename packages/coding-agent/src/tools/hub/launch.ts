@@ -207,6 +207,10 @@ function operationFor(params: LaunchParams, session: ToolSession): DaemonOperati
 			return { op: "restart", name: requiredName(params) };
 		case "describe":
 			return { op: "describe", name: requiredName(params) };
+		case "mode":
+			return { op: "mode", name: requiredName(params), mode: params.mode ?? "session" };
+		default:
+			return assertUnreachable(params.op);
 	}
 }
 
@@ -216,6 +220,11 @@ function daemonLabel(daemon: DaemonSnapshot): string {
 	return `${daemon.name}: ${daemon.state}${pid}${exit} uptime=${formatDuration(
 		(daemon.exitedAt ?? Date.now()) - daemon.startedAt,
 	)} restarts=${daemon.restartCount}${daemon.detached ? " detached" : daemon.persist ? " persistent" : ""}`;
+}
+
+/** Compile-time exhaustiveness guard for the DaemonRpcResult op union. */
+function assertUnreachable(value: never): never {
+	throw new Error(`Unhandled daemon result: ${JSON.stringify(value)}`);
 }
 
 function toolContent(result: DaemonRpcResult, params: LaunchParams): string {
@@ -263,6 +272,8 @@ function toolContent(result: DaemonRpcResult, params: LaunchParams): string {
 			return `Stopped ${daemonLabel(result.daemon)}`;
 		case "restart":
 			return `Restarted ${daemonLabel(result.daemon)}`;
+		case "mode":
+			return `Updated mode for ${daemonLabel(result.daemon)}`;
 		case "describe":
 			return [
 				daemonLabel(result.daemon),
@@ -270,6 +281,8 @@ function toolContent(result: DaemonRpcResult, params: LaunchParams): string {
 				`Cwd: ${shortenPath(result.spec.cwd)}`,
 				`PTY: ${result.spec.pty}; restart=${result.spec.restart}; persist=${result.spec.persist}; detached=${result.spec.detached}`,
 			].join("\n");
+		default:
+			return assertUnreachable(result);
 	}
 }
 
@@ -308,11 +321,15 @@ async function toolDetails(result: DaemonRpcResult, params: LaunchParams): Promi
 			return { op: "stop", daemon: result.daemon };
 		case "restart":
 			return { op: "restart", daemon: result.daemon };
+		case "mode":
+			return { op: "mode", daemon: result.daemon };
 		case "describe":
 			return { op: "describe", daemon: result.daemon, spec: result.spec };
 		case "ping":
 		case "shutdown":
 			throw new ToolError(`Internal daemon result ${result.op} is not tool-visible`);
+		default:
+			return assertUnreachable(result);
 	}
 }
 
