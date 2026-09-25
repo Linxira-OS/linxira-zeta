@@ -13,6 +13,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { cfgCompaction } from "@linxiraos/zeta/session/context-settings";
 import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 const noopSchema = type({});
@@ -240,7 +241,7 @@ describe("AgentSession mid-turn compaction dead-end", () => {
 				isSplitTurn: false,
 				tokensBefore: 190_000,
 				fileOps: { read: new Set(), written: new Set(), edited: new Set() },
-				settings: session.settings.getGroup("compaction"),
+				settings: cfgCompaction.get(session.settings),
 			};
 		});
 

@@ -26,6 +26,8 @@ import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
 import { type SearchProviderId, type SearchResponse } from "@linxiraos/zeta/web/search/types";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
+import { cfgProvidersWebSearchTimeoutSeconds, cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+
 const openAuthStorages: AuthStorage[] = [];
 
 function createSearchContext(modelProvider: string, modelId: string) {
@@ -161,14 +163,16 @@ describe("executeSearch abort propagation", () => {
 		};
 	}
 
-	// Zeta's web search resolves an explicit engine chain (resolveProviderCandidates),
-	// not the upstream model-role chain. Mock the candidate list directly so the
-	// tests exercise our resolution path.
-	function mockProviderChain(providers: provider.SearchProvider[], options?: { explicitFirst?: boolean }) {
-		vi.spyOn(provider, "resolveProviderCandidates").mockReturnValue(
-			providers.map(({ id }, index) => ({ id, explicit: options?.explicitFirst === true && index === 0 })),
-		);
-		return vi.spyOn(provider, "getSearchProvider").mockImplementation(async id => {
+	async function configureProviderChain(providers: provider.SearchProvider[]) {
+		const primary = providers[0];
+		if (!primary) throw new Error("Provider chain must contain a primary candidate");
+		const config = await Settings.init({ inMemory: true });
+		config.setModelRole("web", `web/${primary.id}`);
+		cfgRetryFallbackChains.set(config, { web: providers.slice(1).map(candidate => `web/${candidate.id}`) });
+		const authStorage = createInMemoryAuthStorage();
+		openAuthStorages.push(authStorage);
+		const modelRegistry = new ModelRegistry(authStorage, undefined, { settings: config });
+		const getProvider = vi.spyOn(provider, "getSearchProvider").mockImplementation(async id => {
 			const match = providers.find(candidate => candidate.id === id);
 			if (!match) throw new Error(`Unexpected provider: ${id}`);
 			return match;
@@ -197,8 +201,8 @@ describe("executeSearch abort propagation", () => {
 		]);
 		const config = await Settings.init({ inMemory: true });
 		config.setModelRole("web", "web/brave");
-		config.set("retry.fallbackChains", { web: [] });
-		config.set("providers.webSearchTimeoutSeconds", 180);
+		cfgRetryFallbackChains.set(config, { web: [] });
+		cfgProvidersWebSearchTimeoutSeconds.set(config, 180);
 
 		const result = await runSearchQuery({ query: "anything" }, context);
 
@@ -219,8 +223,8 @@ describe("executeSearch abort propagation", () => {
 		]);
 		const config = await Settings.init({ inMemory: true });
 		config.setModelRole("web", "web/brave");
-		config.set("retry.fallbackChains", { web: [] });
-		config.set("providers.webSearchTimeoutSeconds", 600);
+		cfgRetryFallbackChains.set(config, { web: [] });
+		cfgProvidersWebSearchTimeoutSeconds.set(config, 600);
 
 		await runSearchQuery({ query: "anything" }, context);
 
@@ -240,8 +244,8 @@ describe("executeSearch abort propagation", () => {
 		]);
 		const config = await Settings.init({ inMemory: true });
 		config.setModelRole("web", "web/brave");
-		config.set("retry.fallbackChains", { web: [] });
-		config.set("providers.webSearchTimeoutSeconds", 0);
+		cfgRetryFallbackChains.set(config, { web: [] });
+		cfgProvidersWebSearchTimeoutSeconds.set(config, 0);
 
 		await runSearchQuery({ query: "anything" }, context);
 

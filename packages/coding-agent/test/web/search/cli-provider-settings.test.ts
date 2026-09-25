@@ -4,6 +4,8 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { runSearchCommand } from "../../../src/cli/web-search-cli";
 
+import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalOmpProfile = process.env.OMP_PROFILE;
 const originalPiProfile = process.env.PI_PROFILE;
@@ -52,7 +54,7 @@ beforeEach(async () => {
 	setAgentDir(tempAgentDir.path());
 	const settings = await Settings.init({ inMemory: true, cwd: tempAgentDir.path() });
 	settings.setModelRole("web", "web/startpage");
-	settings.set("retry.fallbackChains", { web: [] });
+	cfgRetryFallbackChains.set(settings, { web: [] });
 });
 
 afterEach(async () => {

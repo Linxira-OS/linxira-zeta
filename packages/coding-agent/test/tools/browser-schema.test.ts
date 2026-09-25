@@ -4,6 +4,8 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/sdk";
 import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
 
+import { cfgBrowserEnabled } from "@linxiraos/zeta/tools/browser/settings";
+
 function makeSession(settings = Settings.isolated({ "browser.enabled": true })): ToolSession {
 	return {
 		cwd: "/tmp/test",
@@ -17,11 +19,11 @@ function makeSession(settings = Settings.isolated({ "browser.enabled": true })):
 describe("browser prelude", () => {
 	it("tracks the live browser capability setting", () => {
 		const settings = Settings.isolated();
-		settings.set("browser.enabled", false);
+		cfgBrowserEnabled.set(settings, false);
 		const prelude = createBrowserPrelude(makeSession(settings));
 
 		expect(prelude.enabled?.()).toBe(false);
-		settings.set("browser.enabled", true);
+		cfgBrowserEnabled.set(settings, true);
 		expect(prelude.enabled?.()).toBe(true);
 	});
 

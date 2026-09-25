@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import * as logger from "@linxiraos/pi-utils/logger";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { SpaceHoldGesture } from "@linxiraos/pi-tui/space-hold";
 import type { InteractiveModeContext, SubmittedUserInput } from "@linxiraos/zeta/modes/types";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { vocalizer } from "@linxiraos/zeta/tts/vocalizer";
+import * as logger from "@linxiraos/pi-utils/logger";
+
+import { cfgDoubleEscapeAction } from "@linxiraos/zeta/modes/settings";
 
 type Spy = Mock<(...args: unknown[]) => unknown>;
 type StartPendingSubmissionSpy = Mock<InteractiveModeContext["startPendingSubmission"]>;
@@ -31,6 +34,7 @@ type FakeEditor = {
 	setActionKeys(action: string, keys: string[]): void;
 	setCustomKeyHandler(key: string, handler: () => void): void;
 	clearCustomKeyHandlers(): void;
+	spaceHold: SpaceHoldGesture;
 	pendingImages: ImageContent[];
 	pendingImageLinks: (string | undefined)[];
 };
@@ -122,6 +126,7 @@ function createContext(): {
 		setActionKeys: vi.fn(),
 		setCustomKeyHandler: vi.fn(),
 		clearCustomKeyHandlers: vi.fn(),
+		spaceHold: new SpaceHoldGesture(() => {}),
 		pendingImages: [],
 		pendingImageLinks: [],
 	};
@@ -211,6 +216,7 @@ function createContext(): {
 		unfocusSession: vi.fn(async () => {}),
 		focusParentSession: vi.fn(async () => {}),
 		handleSTTToggle: vi.fn(),
+		dictationSpaceHold: vi.fn(),
 		handleBtwEscape,
 		handleBtwCommand,
 		hasActiveBtw,
@@ -693,7 +699,7 @@ describe("InputController escape behavior", () => {
 	});
 
 	it("ignores double-Esc when the action is disabled", () => {
-		Settings.instance.override("doubleEscapeAction", "none");
+		cfgDoubleEscapeAction.override(Settings.instance, "none");
 		const { ctx, editor, spies } = createContext();
 		const controller = new InputController(ctx);
 
@@ -707,7 +713,7 @@ describe("InputController escape behavior", () => {
 	});
 
 	it("opens the session tree on double-Esc when the action is tree", () => {
-		Settings.instance.override("doubleEscapeAction", "tree");
+		cfgDoubleEscapeAction.override(Settings.instance, "tree");
 		const { ctx, editor, spies } = createContext();
 		const controller = new InputController(ctx);
 

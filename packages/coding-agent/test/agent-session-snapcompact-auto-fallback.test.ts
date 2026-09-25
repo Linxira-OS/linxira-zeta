@@ -9,6 +9,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { CompactionMethod } from "@linxiraos/zeta/session/compaction-methods";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { cfgCompaction } from "@linxiraos/zeta/session/context-settings";
 
 const UNRENDERABLE_SNAPCOMPACT_TEXT = "\uE000\uE001\uE002\uE003\uE004\uE005\uE006\uE007\uE008\uE009";
 
@@ -87,7 +88,7 @@ async function createHarness(modelRegistry: ModelRegistry, options: HarnessOptio
 		// metadata changes (claude-sonnet-4-5's 200k window is narrower than the
 		// vision-role qwen's, so a fixed count would overflow one of them).
 		const contextWindow = activeModel.contextWindow ?? 0;
-		const thresholdTokens = compactionModule.resolveThresholdTokens(contextWindow, settings.getGroup("compaction"));
+		const thresholdTokens = compactionModule.resolveThresholdTokens(contextWindow, cfgCompaction.get(settings));
 		const promptTokens = contextWindow > 0 ? Math.floor((thresholdTokens + contextWindow) / 2) : 246_000;
 		const assistantMsg = {
 			role: "assistant" as const,

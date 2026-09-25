@@ -29,6 +29,8 @@ import {
 } from "@linxiraos/zeta/tools/computer/supervisor";
 import { ComputerWorkerCore, type NativeDesktopSession } from "@linxiraos/zeta/tools/computer/worker";
 
+import { cfgComputerEnabled } from "@linxiraos/zeta/tools/settings";
+
 /** Method name of the last step in a facade call chain, or "" when the chain is malformed. */
 function terminalMethod(chain: unknown): string {
 	if (!Array.isArray(chain) || chain.length === 0) return "";
@@ -749,7 +751,7 @@ describe("computer prelude", () => {
 		}));
 
 		expect(prelude.enabled?.()).toBe(true);
-		session.settings.override("computer.enabled", false);
+		cfgComputerEnabled.override(session.settings, false);
 		expect(prelude.enabled?.()).toBe(false);
 	});
 });

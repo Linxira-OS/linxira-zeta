@@ -10,6 +10,8 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { YAML } from "bun";
 
+import { cfgDisabledProviders, cfgEnabledModels } from "@linxiraos/zeta/config/model-settings";
+
 /**
  * Issue #1022: when path-scoped `enabledModels`/`disabledProviders` are
  * configured, the default-model fallback ignores the path-scoped allow-list and
@@ -54,8 +56,8 @@ describe("issue #1022 — path-scoped enabledModels respected by default fallbac
 
 		const settings = await Settings.init({ cwd, agentDir });
 		// Sanity-check the path-scoped values resolved correctly for this cwd.
-		expect(settings.get("enabledModels")).toEqual(["openai-codex"]);
-		expect(settings.get("disabledProviders")).toEqual(["github-copilot"]);
+		expect(cfgEnabledModels.get(settings)).toEqual(["openai-codex"]);
+		expect(cfgDisabledProviders.get(settings)).toEqual(["github-copilot"]);
 
 		const authStorage = await AuthStorage.create(":memory:");
 		// Only anthropic has credentials. Per `enabledModels` the path allows

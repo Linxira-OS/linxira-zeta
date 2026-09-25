@@ -32,12 +32,13 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as logger from "@linxiraos/pi-utils/logger";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CmuxKind } from "@linxiraos/zeta/tools/browser/cmux/rpc";
 import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
 import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
 import { acquireTab, getTabsMapForTest, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import * as logger from "@linxiraos/pi-utils/logger";
 
 function makeKind(socketSuffix: string): CmuxKind {
 	return {
@@ -48,12 +49,12 @@ function makeKind(socketSuffix: string): CmuxKind {
 }
 
 function makeSession(cwd: string, screenshotDir?: string): ToolSession {
-	// Minimal shape: `runInTab` reads `cwd`, `settings.get("browser.screenshotDir")`,
+	// Minimal shape: `runInTab` reads `cwd`, the `browser.screenshotDir` setting,
 	// and `getActiveModel?.()`. Everything else is untouched by this flow.
 	return {
 		cwd,
 		hasUI: false,
-		settings: { get: (key: string) => (key === "browser.screenshotDir" ? screenshotDir : undefined) },
+		settings: Settings.isolated({ "browser.screenshotDir": screenshotDir }),
 		getSessionFile: () => null,
 	} as unknown as ToolSession;
 }

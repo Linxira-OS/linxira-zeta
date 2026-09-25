@@ -436,18 +436,6 @@
     "@linxiraos/pi-wire": "1.1.21",
     "@linxiraos/zeta": "1.1.21",
     "@napi-rs/cli": "3.7.2",
-    "@oh-my-pi/omp-stats": "18.3.0",
-    "@oh-my-pi/omptype": "18.3.0",
-    "@oh-my-pi/pi-agent-core": "18.3.0",
-    "@oh-my-pi/pi-ai": "18.3.0",
-    "@oh-my-pi/pi-catalog": "18.3.0",
-    "@oh-my-pi/pi-coding-agent": "18.3.0",
-    "@oh-my-pi/pi-mnemopi": "18.3.0",
-    "@oh-my-pi/pi-natives": "18.3.0",
-    "@oh-my-pi/pi-tui": "18.3.0",
-    "@oh-my-pi/pi-utils": "18.3.0",
-    "@oh-my-pi/pi-wire": "18.3.0",
-    "@oh-my-pi/snapcompact": "18.3.0",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.220.0",
     "@opentelemetry/context-async-hooks": "^2.9.0",
@@ -558,11 +546,11 @@
 
     "@huggingface/blake3-jit": ["@huggingface/blake3-jit@0.0.2", "", {}, "sha512-Bq7B5qabyjrJfhBsl85Jd2QBtf+HzRD7h7A9GfN2lzrrsABhOa5evVPgzoCTxR7Ub0QFj7YDK1YkYRWBU25+2w=="],
 
-    "@huggingface/hub": ["@huggingface/hub@2.17.2", "", { "dependencies": { "@huggingface/tasks": "^0.21.45", "@huggingface/xetchunk-wasm": "^0.2.0" }, "optionalDependencies": { "cli-progress": "^3.12.0" }, "bin": { "hfjs": "dist/cli.js" } }, "sha512-hOS0W0tqhiUInjBHtSRNxzAFoxMJC0cw3CeqGfUMf2VYJJP8CcGXr3/Tnjxz/+z4w8cZtc5f3b4EZ+Ma9etIQg=="],
+    "@huggingface/hub": ["@huggingface/hub@2.17.5", "", { "dependencies": { "@huggingface/tasks": "^0.21.47", "@huggingface/xetchunk-wasm": "^0.2.0" }, "optionalDependencies": { "cli-progress": "^3.12.0" }, "bin": { "hfjs": "dist/cli.js" } }, "sha512-FbS39It+C+K5F10jyaNAI2wmMaLpOu+KN0Om8ycXc0um/RIisxOyE/5eTqPELy9bAI8JZdGQ29nZYzcZeXzvFg=="],
 
     "@huggingface/jinja": ["@huggingface/jinja@0.5.10", "", {}, "sha512-SgS1D1bglQ94ceD4ZCL6eayUDy9uV1xuyk61OjgSxU5GJh7upqZCKII0JoTYMc6wWsg3JUgaPRX0ElQzXPk3Cw=="],
 
-    "@huggingface/tasks": ["@huggingface/tasks@0.21.46", "", {}, "sha512-iyRohYSg3tTD0vz6XUOUjN4il/wX/W9SuPfoVo2ZrDKOIPUqE6MCDu83OHekjlSuU6Prqt6nNW0Kpfg3iduewA=="],
+    "@huggingface/tasks": ["@huggingface/tasks@0.21.47", "", {}, "sha512-xqMVJuk2nZRT/Nn8Hi4ZGZLHZTQ8i9Ft7xBCqp3iflgwRTaO+42AVZTmfDN+Vz9w9kbB3QKcjOtUSMkvbuxKbw=="],
 
     "@huggingface/tokenizers": ["@huggingface/tokenizers@0.2.0", "", {}, "sha512-LidMHe1FpcSYH4vcSjXooda34pC0M8m1gmDOv7SQi6Iv+ib1zX7J3sHBCC9/3FPCkn2k1b55FneVqMRxrr99pg=="],
 

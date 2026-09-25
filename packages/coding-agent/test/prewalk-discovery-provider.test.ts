@@ -27,6 +27,8 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
+import { cfgPrewalkEnabled } from "@linxiraos/zeta/session/settings";
+
 describe("issue #11820 prewalk into a models.yml discovery provider target", () => {
 	let tempDir: string;
 	const authStoragesToClose: AuthStorage[] = [];
@@ -99,7 +101,7 @@ describe("issue #11820 prewalk into a models.yml discovery provider target", () 
 	test("arms prewalk for the configured smol role after discovery", async () => {
 		const modelRegistry = registry();
 		const settings = Settings.isolated();
-		settings.set("prewalk.enabled", true);
+		cfgPrewalkEnabled.set(settings, true);
 		settings.setModelRole("smol", "my-provider/some-model");
 
 		const options = await buildSessionOptions(parseArgs([]), [], SessionManager.inMemory(), modelRegistry, settings);

@@ -15,6 +15,10 @@ import { collectMountedMCPToolRoutes, projectMountedMCPXdevGuidance } from "@lin
 import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@linxiraos/zeta/tools/xdev";
 import { logger } from "@linxiraos/pi-utils";
 
+import { cfgSkillful } from "@linxiraos/zeta/session/settings";
+import { cfgStartupQuiet } from "@linxiraos/zeta/modes/settings";
+import { cfgToolsXdevDocs, cfgToolsXdevInlineDevices } from "@linxiraos/zeta/tools/settings";
+
 // Cache-stability invariant: when MCP servers reconnect with byte-identical tool
 // definitions, `refreshMCPTools` must not rebuild the system prompt. A rebuild
 // invalidates the Anthropic prompt-cache breakpoint placed on the system block
@@ -691,26 +695,107 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		expect(session.systemPrompt).toEqual(["initial"]);
 	});
 
-	it("applies changed rendered context bytes and clears the inherited provider cache", async () => {
-		let renderedContext = "context v1";
-		const inheritedPromptCacheKey = "parent-cache-key";
-		const { agent, session } = newSession(async toolNames => `tools:${toolNames.join(",")}\n${renderedContext}`, {
-			inheritedPromptCacheKey,
+	it("keeps the committed skill hint frozen when a conditional refresh is discarded", async () => {
+		const rebuild = Promise.withResolvers<void>();
+		const { session } = newSession(
+			async () => {
+				await rebuild.promise;
+				return "abandoned rebuild";
+			},
+			{
+				skills: [
+					{
+						name: "rebuild-skip-skill",
+						description: "Skill loaded for hint rollback coverage",
+						filePath: "/skills/rebuild-skip-skill/SKILL.md",
+						baseDir: "/skills/rebuild-skip-skill",
+						source: "test",
+					},
+				],
+			},
+		);
+
+		// Default skillful=true with a loaded skill: the committed snapshot
+		// starts true.
+		expect(session.getSkillHintVisible()).toBe(true);
+		// Flip the live setting mid-flight: a global pre-commit stage would
+		// publish false before the producer is refused and never restore it.
+		cfgSkillful.set(session.settings, false);
+
+		const refresh = session.refreshBaseSystemPrompt(() => false);
+		rebuild.resolve();
+		await refresh;
+
+		// The declined commit leaves the committed hint untouched: the candidate
+		// lived only inside the render frame.
+		expect(session.getSkillHintVisible()).toBe(true);
+		expect(session.systemPrompt).toEqual(["initial"]);
+	});
+
+	it("renders the prompt from the candidate hint visibility before publishing it", async () => {
+		const entered = Promise.withResolvers<void>();
+		const resume = Promise.withResolvers<void>();
+		const { session } = newSession(
+			async () => {
+				entered.resolve();
+				await resume.promise;
+				// The rebuild stub renders what the tool getters currently see:
+				// inside the frame the candidate, outside it the committed value.
+				return session.getSkillHintVisible() ? "hint-visible" : "hint-hidden";
+			},
+			{
+				skills: [
+					{
+						name: "scoped-render-skill",
+						description: "Skill loaded for scoped render coverage",
+						filePath: "/skills/scoped-render-skill/SKILL.md",
+						baseDir: "/skills/scoped-render-skill",
+						source: "test",
+					},
+				],
+			},
+		);
+
+		// Committed baseline: skillful=true + skill loaded.
+		expect(session.getSkillHintVisible()).toBe(true);
+		cfgSkillful.set(session.settings, false);
+
+		const refresh = session.refreshBaseSystemPrompt();
+		await entered.promise;
+		// Readers outside the suspended render still see the committed prefix.
+		expect(session.getSkillHintVisible()).toBe(true);
+		cfgSkillful.set(session.settings, true);
+		resume.resolve();
+		await refresh;
+
+		// The frame rendered the candidate false and the commit published it:
+		// prompt and committed snapshot describe the same state.
+		expect(session.systemPrompt).toEqual(["hint-hidden"]);
+		expect(session.getSkillHintVisible()).toBe(false);
+	});
+
+	it("preserves the committed prompt and hint when descriptor preparation throws", async () => {
+		const { session, toolRegistry } = newSession(async () => "uncommitted", {
+			skills: [
+				{
+					name: "test",
+					description: "test",
+					filePath: "/skills/test/SKILL.md",
+					baseDir: "/skills/test",
+					source: "test",
+				},
+			],
 		});
-
-		const setSystemPrompt = vi.spyOn(agent, "setSystemPrompt");
-		const tool = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search");
-		await session.refreshMCPTools([tool]);
-		expect(agent.state.systemPrompt).toEqual(["tools:read,mcp__nucleus_search\ncontext v1"]);
-		expect(agent.promptCacheKey).toBe(inheritedPromptCacheKey);
-		const appliedAfterFirstRefresh = setSystemPrompt.mock.calls.length;
-
-		renderedContext = "context v2";
-		await session.refreshBaseSystemPrompt();
-
-		expect(agent.state.systemPrompt).toEqual(["tools:read,mcp__nucleus_search\ncontext v2"]);
-		expect(setSystemPrompt).toHaveBeenCalledTimes(appliedAfterFirstRefresh + 1);
-		expect(agent.promptCacheKey).toBeUndefined();
+		const read = toolRegistry.get("read")!;
+		Object.defineProperty(read, "description", {
+			get: () => {
+				throw new Error("descriptor unavailable");
+			},
+		});
+		cfgSkillful.set(session.settings, false);
+		await expect(session.refreshBaseSystemPrompt()).rejects.toThrow("descriptor unavailable");
+		expect(session.systemPrompt).toEqual(["initial"]);
+		expect(session.getSkillHintVisible()).toBe(true);
 	});
 
 	it("rebuilds when the refresh argument tool order changes", async () => {
@@ -1018,8 +1103,8 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 			xdev: createTestXdevState(),
 			responses: [{ content: ["ok"] }],
 		});
-		session.settings.set("tools.xdevDocs", "builtins");
-		session.settings.set("tools.xdevInlineDevices", ["mcp__nucleus_*"]);
+		cfgToolsXdevDocs.set(session.settings, "builtins");
+		cfgToolsXdevInlineDevices.set(session.settings, ["mcp__nucleus_*"]);
 		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
 		const maintenanceMessages: AgentMessage[][] = [];
 		const maintenanceSpy = vi
@@ -1053,8 +1138,8 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 			xdev: createTestXdevState(),
 			responses: [{ content: ["ok"] }, { content: ["ok"] }],
 		});
-		session.settings.set("tools.xdevDocs", "builtins");
-		session.settings.set("tools.xdevInlineDevices", ["mcp__nucleus_*"]);
+		cfgToolsXdevDocs.set(session.settings, "builtins");
+		cfgToolsXdevInlineDevices.set(session.settings, ["mcp__nucleus_*"]);
 		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
 		const fetch = createMcpCustomTool("mcp__nucleus_fetch", "nucleus", "fetch", "Fetch nucleus");
 		await session.refreshMCPTools([search]);
@@ -1087,8 +1172,8 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 			xdev: createTestXdevState(),
 			responses: [{ content: ["ok"] }, { content: ["ok"] }],
 		});
-		session.settings.set("tools.xdevDocs", "builtins");
-		session.settings.set("tools.xdevInlineDevices", ["mcp__nucleus_*"]);
+		cfgToolsXdevDocs.set(session.settings, "builtins");
+		cfgToolsXdevInlineDevices.set(session.settings, ["mcp__nucleus_*"]);
 		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
 		const searchReconnected = createMcpCustomTool(
 			"mcp__nucleus_search",
@@ -1395,7 +1480,7 @@ These tools became available:
 			xdev: createTestXdevState(),
 			responses: [{ content: ["ok"] }],
 		});
-		session.settings.set("startup.quiet", true);
+		cfgStartupQuiet.set(session.settings, true);
 		const notices: string[] = [];
 		session.subscribe(event => {
 			if (event.type === "notice" && event.source === "xdev") notices.push(event.message);

@@ -14,6 +14,8 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
+import { cfgModelRoles } from "@linxiraos/zeta/config/model-settings";
+
 describe("plan mode thinking level", () => {
 	let session: AgentSession;
 	let modelRegistry: ModelRegistry;
@@ -43,7 +45,7 @@ describe("plan mode thinking level", () => {
 	});
 
 	function configureRoles(modelRoles: Record<string, string>): AgentSession {
-		sessionSettings.override("modelRoles", modelRoles);
+		cfgModelRoles.override(sessionSettings, modelRoles);
 		return session;
 	}
 

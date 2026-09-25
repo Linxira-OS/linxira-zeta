@@ -7,6 +7,8 @@ import { STTController, type STTControllerDependencies } from "../src/stt/stt-co
 import { evaluateSubmitTrigger, type SttSubmitTrigger } from "../src/stt/submit-trigger";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
+import { cfgSttSubmitTrigger } from "@linxiraos/zeta/stt/settings";
+
 const DICTATION_MODELS = [getBundledModel("local", "whisper-base")];
 const registry: STTControllerDependencies["registry"] = {
 	getError: () => undefined,
@@ -198,7 +200,7 @@ describe("STTController submit trigger integration", () => {
 	}
 
 	async function transcribeStream(transcript: string, trigger: SttSubmitTrigger) {
-		settings.set("stt.submitTrigger", trigger);
+		cfgSttSubmitTrigger.set(settings, trigger);
 		vi.spyOn(asrClient.sttClient, "startStream").mockReturnValue({
 			pushAudio: vi.fn(),
 			stop: vi.fn().mockResolvedValue(transcript),
@@ -220,7 +222,7 @@ describe("STTController submit trigger integration", () => {
 		state = beginSettingsTest();
 		await Settings.init({ inMemory: true });
 		settings.setModelRole("dictation", "local/whisper-base");
-		settings.set("stt.submitTrigger", "never");
+		cfgSttSubmitTrigger.set(settings, "never");
 		vi.spyOn(downloader, "isSttModelCached").mockResolvedValue(true);
 		vi.spyOn(downloader, "downloadSttModel").mockResolvedValue(undefined);
 	});

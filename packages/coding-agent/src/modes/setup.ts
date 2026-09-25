@@ -1,3 +1,4 @@
+import type { Model, WebSearchGrounding } from "@linxiraos/pi-catalog/types";
 import { runProviderSetupWizard as runProviderWizard } from "@linxiraos/pi-tui/setup/lazy";
 import type { SetupHost, SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";
 import {
@@ -8,6 +9,8 @@ import {
 	selectSetupScenes as selectScenes,
 	type SetupSceneSelectionOptions,
 } from "@linxiraos/pi-tui/setup/wizard";
+import { formatModelString, resolveModelRoleValue, rolePriorityDefaults } from "../config/model-resolver";
+import { getRoleInfo, roleCandidatePool } from "../config/model-roles";
 import type { Settings } from "../config/settings";
 import { captureBrowserSession } from "../utils/browser-session";
 import { copyToClipboard } from "../utils/clipboard";
@@ -16,9 +19,60 @@ import { SEARCH_PROVIDER_ORDER } from "../web/search/types";
 import { createModelBrowserSource } from "./model-browser-source";
 import type { InteractiveModeContext } from "./types";
 
+import {
+	cfgColorBlindMode,
+	cfgComposerShape,
+	cfgSetupVersion,
+	cfgSymbolPreset,
+	cfgThemeDark,
+	cfgThemeLight,
+} from "./settings";
+import { cfgDisabledProviders, cfgModelRoleStorage } from "../config/model-settings";
+
 export { ALL_SCENES, CURRENT_SETUP_VERSION };
 export type { SetupScene, SetupSceneHost } from "@linxiraos/pi-tui/setup/scenes/types";
 export { runStartupSplash } from "@linxiraos/pi-tui/setup/startup-splash";
+
+const WEB_SEARCH_GROUNDINGS: Readonly<Record<WebSearchGrounding, true>> = {
+	gemini: true,
+	anthropic: true,
+	codex: true,
+	xai: true,
+	openrouter: true,
+};
+
+function isWebSearchGrounding(id: SearchProviderId): id is WebSearchGrounding {
+	return id in WEB_SEARCH_GROUNDINGS;
+}
+
+/**
+ * Web-role candidate pools, lazily: the credentialed pool the runtime resolves
+ * against first (#13023), then the full catalog so an unconfigured provider can
+ * still be saved and highlighted as the preference.
+ */
+function* webRolePools(ctx: InteractiveModeContext): Generator<Model[]> {
+	yield roleCandidatePool("web", ctx.settings, ctx.session.modelRegistry);
+	yield ctx.session.modelRegistry.getAll("all").filter(getRoleInfo("web", ctx.settings).accepts);
+}
+
+function resolveWebSearchSelection(ctx: InteractiveModeContext, id: SearchProviderId) {
+	for (const models of webRolePools(ctx)) {
+		if (!isWebSearchGrounding(id)) {
+			const selector = `web/${id}`;
+			const model = resolveModelRoleValue(selector, models, { settings: ctx.settings }).model;
+			if (model) return { selector, model };
+			continue;
+		}
+
+		for (const selector of rolePriorityDefaults("web")) {
+			const model = resolveModelRoleValue(selector, models, { settings: ctx.settings }).model;
+			if (model?.webSearch === id) return { selector, model };
+		}
+		const model = models.find(candidate => candidate.webSearch === id);
+		if (model) return { selector: formatModelString(model), model };
+	}
+	return undefined;
+}
 
 /** Bind application preferences and runtime effects to the setup presentation. */
 export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
@@ -29,19 +83,30 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 			return ctx.statusLine;
 		},
 		get composerShape() {
-			return ctx.settings.get("composer.shape") ?? "band";
+			return cfgComposerShape.get(ctx.settings);
 		},
 		get symbolPreset() {
-			return ctx.settings.get("symbolPreset");
+			return cfgSymbolPreset.get(ctx.settings);
 		},
 		get colorBlindMode() {
-			return ctx.settings.get("colorBlindMode");
+			return cfgColorBlindMode.get(ctx.settings);
 		},
 		get webSearchOrder() {
-			return ctx.settings.get("providers.webSearchOrder");
+			const configured = ctx.settings.getModelRole("web")?.trim();
+			if (!configured) return [];
+			let model: Model | undefined;
+			for (const models of webRolePools(ctx)) {
+				model = resolveModelRoleValue(configured, models, { settings: ctx.settings }).model;
+				if (model) break;
+			}
+			if (model?.provider === "web") {
+				const option = SEARCH_PROVIDER_OPTIONS.find(candidate => candidate.value === model.id);
+				if (option && option.value !== "auto" && option.value !== "none") return [option.value];
+			}
+			return model?.webSearch ? [model.webSearch] : [];
 		},
 		get disabledProviders() {
-			return ctx.settings.get("disabledProviders");
+			return cfgDisabledProviders.get(ctx.settings);
 		},
 		get authStorage() {
 			return ctx.session.modelRegistry.authStorage;
@@ -54,24 +119,24 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 		}),
 		refreshModels: () => ctx.session.modelRegistry.refresh("online-if-uncached"),
 		selectModel: async (model, selector) => {
-			const projectScope = ctx.settings.get("modelRoleStorage") === "project";
+			const projectScope = cfgModelRoleStorage.get(ctx.settings) === "project";
 			await ctx.session.setModel(model, "default", { selector, persist: !projectScope });
 			if (projectScope) ctx.settings.setProjectModelRole("default", selector);
 			await ctx.settings.flush();
 		},
 		refreshProvider: provider => ctx.session.modelRegistry.refreshProvider(provider, "online"),
 		saveComposerShape: async shape => {
-			ctx.settings.set("composer.shape", shape);
+			cfgComposerShape.set(ctx.settings, shape);
 			await ctx.settings.flush();
 		},
 		saveSymbolPreset: preset => {
-			ctx.settings.set("symbolPreset", preset);
+			cfgSymbolPreset.set(ctx.settings, preset);
 		},
 		saveColorBlindMode: enabled => {
-			ctx.settings.set("colorBlindMode", enabled);
+			cfgColorBlindMode.set(ctx.settings, enabled);
 		},
 		saveTheme: (mode, name) => {
-			ctx.settings.set(`theme.${mode}`, name);
+			(mode === "dark" ? cfgThemeDark : cfgThemeLight).set(ctx.settings, name);
 		},
 		isSearchProviderAvailable: async id => {
 			const provider = await getSearchProvider(id);
@@ -93,7 +158,7 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 
 /** Persist completion only after the setup overlay finishes. */
 export async function markSetupWizardComplete(settings: Settings, version = CURRENT_SETUP_VERSION): Promise<void> {
-	settings.set("setupVersion", version);
+	cfgSetupVersion.set(settings, version);
 	await settings.flush();
 }
 

@@ -9,7 +9,8 @@ Primary implementation:
 - `packages/coding-agent/src/config.ts`
 - `packages/coding-agent/src/config/config-file.ts` (re-exported from `config.ts`)
 - `packages/coding-agent/src/config/settings.ts`
-- `packages/coding-agent/src/config/settings-schema.ts`
+- `packages/coding-agent/src/config/registry.ts` (setting definitions, typed handles)
+- `packages/coding-agent/src/config/all-settings.ts` (imports every domain's `settings.ts` definitions)
 - `packages/coding-agent/src/discovery/builtin.ts`
 - `packages/coding-agent/src/discovery/helpers.ts`
 
@@ -147,7 +148,7 @@ Legacy migration still supported:
 
 ## 4) Settings resolution model (`src/config/settings.ts`)
 
-The runtime settings model is layered:
+### Definitions (`src/config/registry.ts`)
 
 1. Global settings: the first present file among `~/.zeta/agent/config.yml` and `config.yaml`
 2. Project settings: discovered via the settings capability (`settings.json` and `config.yml` from providers)
@@ -155,16 +156,15 @@ The runtime settings model is layered:
 4. Runtime overrides: in-memory, non-persistent
 5. Schema defaults: from `SETTINGS_SCHEMA`
 
-Effective precedence:
+A definition may instead declare `env: { name, fallback: true }`: that variable only replaces the default, and any layer configuring a non-null value wins over it (used by `SEARXNG_BASIC_*`). `fallback: "blank"` also lets the variable win over a configured empty or whitespace string (used by `SEARXNG_ENDPOINT`, `SEARXNG_TOKEN`, and `MNEMOPI_EMBEDDING_MODEL`).
 
-`defaults <- global <- project <- PI_CONFIG_FILES overlays <- --config overlays <- runtime overrides`
+Within the overlay list, later files override earlier files (`PI_CONFIG_FILES` entries load before `--config` files). Overlay paths are resolved relative to the active project directory (after `~` expansion).
 
-Within either overlay list, later files override earlier files. Overlay paths are resolved relative to the active project directory (after `~` expansion).
+Definitions with `protocolDefault: ["rpc", "acp"]` make RPC/ACP hosts start from the definition default: at startup `applyProtocolDefaults` (`src/main.ts`) pins the default as a soft runtime override unless the value is already configured. The pin is released by a `cfgX.set`/`cfgX.unset` of that setting (settings panel, agents hub, `cfg://`), by a reload that finds a persisted layer configuring it (a `config.yml` edit picked up by the RPC file watcher), and by a re-scope or clone into a project that configures it (an ACP session's own project config).
 
-Write behavior:
+Subagents receive `parent.overlay(overrides)`: reads fall through to the parent live, while the overrides and any later writes stay in the child and are never persisted.
 
-- `settings.set(...)` writes to the **global** layer (the global YAML file selected at startup) and queues a background save.
-- Project settings and config overlays are read-only from the settings API.
+Project settings and config overlays are read-only from the settings API.
 
 ### Settings load failures
 

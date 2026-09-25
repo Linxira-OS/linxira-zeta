@@ -13,6 +13,8 @@ import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta/tools/context-
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { TempDir } from "@linxiraos/pi-utils";
 
+import { cfgCompactionExperimentalContextManagement } from "@linxiraos/zeta/session/context-settings";
+
 const NOW = "2026-09-04T00:00:00.000Z";
 
 function noteEntry(id: string, parentId: string | null, text: string): CustomEntry<ContextNotesEntry> {
@@ -159,7 +161,7 @@ describe("experimental context notes", () => {
 		try {
 			const pendingWrite = tool.execute("disabled-mid-write", { text: "must not persist" });
 			await Promise.resolve();
-			settings.override("compaction.experimentalContextManagement", false);
+			cfgCompactionExperimentalContextManagement.override(settings, false);
 			pendingEnsure.resolve();
 			await expect(pendingWrite).rejects.toThrow("Experimental context management is disabled.");
 			expect(getContextNotes(sessionManager.getBranch())).toBeUndefined();

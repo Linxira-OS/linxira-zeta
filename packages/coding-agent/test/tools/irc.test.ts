@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { SettingPath } from "@linxiraos/zeta/config/settings-schema";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
@@ -56,7 +55,7 @@ function makeFakeSession(): FakeSession {
 	};
 }
 
-function createRealSession(overrides: Partial<Record<SettingPath, unknown>> = {}): {
+function createRealSession(overrides: Record<string, unknown> = {}): {
 	session: AgentSession;
 	sessionManager: SessionManager;
 } {

@@ -2,6 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { lookup } from "@linxiraos/zeta/config/registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAcpConnection } from "@linxiraos/zeta/modes/acp/acp-mode";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
 import {
 	type Client,
@@ -13,12 +19,10 @@ import {
 	type RequestPermissionResponse,
 	type SessionNotification,
 } from "@linxiraos/pi-utils/acp";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { createAcpConnection } from "@linxiraos/zeta/modes/acp/acp-mode";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+
+import { cfgAsyncEnabled, cfgAsyncMaxJobs } from "@linxiraos/zeta/tools/settings";
+import { cfgBashAutoBackgroundEnabled, cfgBashAutoBackgroundThresholdMs } from "@linxiraos/zeta/exec/settings";
 
 const TEST_MODEL: Model = buildModel({
 	id: "claude-sonnet-4-20250514",
@@ -78,7 +82,7 @@ class LazyFakeSession {
 	queuedMessageCount = 0;
 	systemPrompt = "system";
 	disposed = false;
-	settings = { get: (_path: string) => false };
+	settings = Settings.isolated({ "plan.enabled": false });
 
 	constructor(cwd: string) {
 		this.sessionManager = SessionManager.inMemory(cwd);
@@ -203,10 +207,10 @@ describe("ACP lazy startup", () => {
 						settings,
 						runAcpMode: async () => {
 							observed = {
-								asyncEnabled: settings.get("async.enabled"),
-								asyncMaxJobs: settings.get("async.maxJobs"),
-								bashAutoBackground: settings.get("bash.autoBackground.enabled"),
-								bashAutoBackgroundThresholdMs: settings.get("bash.autoBackground.thresholdMs"),
+								asyncEnabled: cfgAsyncEnabled.get(settings),
+								asyncMaxJobs: cfgAsyncMaxJobs.get(settings),
+								bashAutoBackground: cfgBashAutoBackgroundEnabled.get(settings),
+								bashAutoBackgroundThresholdMs: cfgBashAutoBackgroundThresholdMs.get(settings),
 							};
 							throw new Error(stopMessage);
 						},
@@ -283,7 +287,9 @@ describe("ACP lazy startup", () => {
 			const observe = () => {
 				observed = {};
 				for (const key of allPaths) {
-					observed[key] = settings.get(key);
+					const setting = lookup(key);
+					if (!setting) throw new Error(`Unknown setting: ${key}`);
+					observed[key] = setting.get(settings);
 				}
 				throw new Error(stopMessage);
 			};

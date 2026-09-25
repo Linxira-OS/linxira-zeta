@@ -3,7 +3,6 @@ import { toClinePassPublicModelId, toClinePassWireModelId } from "@linxiraos/pi-
 import { isBareIdReferenceProvider } from "@linxiraos/pi-catalog/compat/behavior";
 import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
 import { Effort } from "@linxiraos/pi-catalog/effort";
-import { getBundledModels } from "@linxiraos/pi-catalog/models";
 import {
 	DEFAULT_MODEL_PER_PROVIDER,
 	MODELS_DEV_PROVIDER_DESCRIPTORS,

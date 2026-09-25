@@ -5,7 +5,7 @@ import {
 	shouldUseProviderNativeCompaction,
 } from "@linxiraos/pi-agent-core/compaction";
 import type { Model } from "@linxiraos/pi-ai";
-import type { CompactionSettings } from "../config/settings-schema";
+import type { CompactionSettings } from "./context-settings";
 
 /** Choices presented by the ordered compaction-method setting. */
 export const COMPACTION_METHOD_CHOICES = [

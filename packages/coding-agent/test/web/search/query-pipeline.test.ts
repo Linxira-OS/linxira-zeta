@@ -11,12 +11,22 @@ import type { SearchParams } from "@linxiraos/zeta/web/search/provider";
 import * as provider from "@linxiraos/zeta/web/search/provider";
 import type { SearchProviderId, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
 
+import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+
 const SOURCES: SearchSource[] = [
 	{ title: "Docs page", url: "https://docs.example.com/guide" },
 	{ title: "Blog post", url: "https://blog.other.com/post" },
 ];
 
-function stubProvider(id: SearchProviderId, behaviour: (params: SearchParams) => Promise<SearchResponse>) {
+const openAuthStorages: AuthStorage[] = [];
+
+async function stubRoleProvider(id: SearchProviderId, behaviour: (params: SearchParams) => Promise<SearchResponse>) {
+	const settings = await Settings.init({ inMemory: true });
+	settings.setModelRole("web", `web/${id}`);
+	cfgRetryFallbackChains.set(settings, { web: [] });
+	const authStorage = createInMemoryAuthStorage();
+	openAuthStorages.push(authStorage);
+	const modelRegistry = new ModelRegistry(authStorage, undefined, { settings });
 	const stub: provider.SearchProvider = {
 		id,
 		label: id,

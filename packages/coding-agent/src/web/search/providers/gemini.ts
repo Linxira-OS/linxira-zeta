@@ -8,10 +8,19 @@
  * sibling SQLite store and never POSTs the broker sentinel to a Google token
  * endpoint.
  */
-import type { Model } from "@linxiraos/pi-ai";
-import { type AuthStorage, type FetchImpl, type OAuthAccess, withOAuthAccess } from "@linxiraos/pi-ai";
+import {
+	type Api,
+	type AuthStorage,
+	type FetchImpl,
+	type Model,
+	type OAuthAccess,
+	withAuth,
+	withOAuthAccess,
+} from "@linxiraos/pi-ai";
+import { clampThinkingLevelForModel, resolveWireModelId } from "@linxiraos/pi-catalog/model-thinking";
 import { parseCloudflareAiGatewayCredential } from "@linxiraos/pi-catalog/wire/cloudflare-ai-gateway";
 import { getAntigravityUserAgent, getGeminiCliHeaders } from "@linxiraos/pi-catalog/wire/gemini-headers";
+import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import { fetchWithRetry, USER_AGENT } from "@linxiraos/pi-utils";
 
 import type { SearchCitation, SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
@@ -89,6 +98,9 @@ export interface GeminiSearchParams extends GeminiToolParams {
 	signal?: AbortSignal;
 	timeoutMs?: number;
 	authStorage: AuthStorage;
+	model: Model<Api>;
+	thinkingLevel?: ConfiguredThinkingLevel;
+	modelRegistry: ModelRegistry;
 	sessionId?: string;
 	fetch?: FetchImpl;
 	antigravityEndpointMode?: "auto" | "production" | "sandbox";
@@ -606,7 +618,12 @@ async function callGeminiDeveloperSearch(
  * Executes a web search using Google Gemini with Google Search grounding.
  */
 export async function searchGemini(params: GeminiSearchParams): Promise<SearchResponse> {
-	const selectedModel = resolveGeminiSearchModel(params.geminiModel);
+	// Clamp like chat does so an unsupported level (`:xhigh` on a high-capped
+	// family) lands on the nearest routed tier instead of the default wire id.
+	const selectedModel = resolveWireModelId(
+		params.model,
+		clampThinkingLevelForModel(params.model, toReasoningEffort(concreteThinkingLevel(params.thinkingLevel))),
+	);
 	// Gemini's googleSearch grounding forwards the query to Google Search, which
 	// understands the classic operator set natively. Normalize directive aliases
 	// (domain: → site:, since: → after:, …) to canonical Google forms; leave
@@ -732,6 +749,9 @@ export class GeminiProvider extends SearchProvider {
 			signal: params.signal,
 			timeoutMs: params.timeoutMs,
 			authStorage: params.authStorage,
+			model: params.model,
+			thinkingLevel: params.thinkingLevel,
+			modelRegistry: params.modelRegistry,
 			sessionId: params.sessionId,
 			fetch: params.fetch,
 			geminiModel: params.geminiModel,

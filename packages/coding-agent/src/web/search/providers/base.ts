@@ -1,5 +1,5 @@
-import type { AuthStorage, FetchImpl } from "@linxiraos/pi-ai";
-import type { Api, Model } from "@linxiraos/pi-ai";
+import type { Api, AuthStorage, FetchImpl, Model } from "@linxiraos/pi-ai";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { ModelRegistry } from "../../../config/model-registry";
 import type { StructuredQuery } from "../query";
 import type { SearchProviderId, SearchResponse } from "@linxiraos/pi-tui/tools/web-search";
@@ -65,6 +65,10 @@ export interface SearchParams {
 	 * the per-credential single-flight refresh.
 	 */
 	authStorage: AuthStorage;
+	/** Selected catalog model that chose this engine or grounding backend. */
+	model: Model<Api>;
+	/** Thinking selector resolved from the model-role candidate. */
+	thinkingLevel?: ConfiguredThinkingLevel;
 	/** Provider/model transport settings used by native search endpoints. */
 	/** Selected catalog model that chose this engine or grounding backend. */
 	model?: Model;

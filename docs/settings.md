@@ -93,7 +93,7 @@ Keys must match a real schema path exactly. There is no shorthand — set `theme
 From lowest to highest priority, the effective value of a setting is built as:
 
 ```text
-built-in defaults  <-  global config  <-  project config  <-  CLI overlays  <-  runtime overrides
+built-in defaults  <-  global config  <-  project config  <-  CLI overlays  <-  runtime overrides  <-  setting env var
 ```
 
 From highest to lowest:
@@ -104,11 +104,11 @@ From highest to lowest:
 4. **Global settings** — `~/.zeta/agent/config.yml`.
 5. **Built-in defaults** — from the settings schema.
 
-A key that is unset at every layer resolves to its schema default at read time.
+A key that is unset at every layer resolves to its default at read time.
 
 ### Environment overrides
 
-Environment variables are **not** a single settings layer. Each is read by the feature that owns the value, usually as a per-machine override or fallback, and is never written back to `config.yml`. The ones that map directly onto a setting:
+Environment variables are never written back to `config.yml`. Variables declared on a setting definition form the top layer described above; others are read directly by the feature that owns the value (`PI_NO_PTY`) or applied as runtime overrides (`PI_SMOL_MODEL` sets the `smol` model role for the process). The ones that map directly onto a setting:
 
 | Env var                 | Overrides setting           | Notes                                                                                             |
 | ----------------------- | --------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -150,7 +150,7 @@ tools:
 
 ### Bash command approval patterns
 
-`tools.approval` is a record keyed by tool name; dotted forms such as `tools.approval.eval` and `tools.approval.computer` identify entries in that record, not separate settings-schema paths. Each entry sets that tool's default policy. For bash, you can add ordered command rules with `bash.patterns`; the first matching rule wins. Patterns support literal text plus `*` as a wildcard.
+`tools.approval` is a record keyed by tool name; dotted forms such as `tools.approval.eval` and `tools.approval.computer` identify entries in that record, not separate setting ids. Each entry sets that tool's default policy. For bash, you can add ordered command rules with `bash.patterns`; the first matching rule wins. Patterns support literal text plus `*` as a wildcard.
 
 By default, an `allow` rule must match the entire command and cannot approve a compound line. Set `bash.allowCompoundCommands: true` to also evaluate conservative chains of two or more literal commands joined only by `&&`:
 
@@ -552,7 +552,7 @@ tools:
 
 | Key                            | Type    | Default | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | ------------------------------ | ------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tools.format`                 | enum    | `auto`  | Tool wire format: `auto`, `native`, `glm`, `hermes`, `kimi`, `xml`, `anthropic`, `deepseek`, `harmony`, `qwen3`, `gemini`, `gemma`, or `minimax`. `native` always uses provider-native tool calls. `auto` also uses native calls unless the selected model explicitly has `supportsTools: false`; then it selects the model-family owned dialect, falling back to GLM when no specific family dialect is known. Other values force that owned in-band dialect. `xml` is the [generic XML format](./toolconv/xml.md); `minimax` is the [MiniMax format](./toolconv/minimax.md). Applies on session start. See [GLM](./toolconv/glm-4.5.md), [Qwen3/Hermes](./toolconv/qwen3.md), [Kimi](./toolconv/kimi-k2.md), [Anthropic](./toolconv/anthropic.md), [DeepSeek](./toolconv/deepseek.md), [Harmony](./toolconv/harmony.md), [Gemini](./toolconv/gemini.md), and [Gemma](./toolconv/gemma.md). |
+| `tools.format`                 | enum    | `auto`  | Tool wire format: `auto`, `native`, `glm`, `hermes`, `kimi`, `xml`, `anthropic`, `deepseek`, `harmony`, `qwen3`, `gemini`, `gemma`, or `minimax`. `native` always uses provider-native tool calls. `auto` also uses native calls unless the selected model explicitly has `supportsTools: false`; then it selects the model-family owned dialect, falling back to GLM when no specific family dialect is known. Other values force that owned in-band dialect. `xml` is the [generic XML format](./toolconv/xml.md); `minimax` is the [MiniMax format](./toolconv/minimax.md). See [GLM](./toolconv/glm-4.5.md), [Qwen3/Hermes](./toolconv/qwen3.md), [Kimi](./toolconv/kimi-k2.md), [Anthropic](./toolconv/anthropic.md), [DeepSeek](./toolconv/deepseek.md), [Harmony](./toolconv/harmony.md), [Gemini](./toolconv/gemini.md), and [Gemma](./toolconv/gemma.md). |
 | `tools.approvalMode`           | enum    | `yolo`  | `always-ask` (auto-approve read-only), `write` (auto-approve read + workspace-write), `yolo` (auto-approve all tiers). `--approval-mode` and `--auto-approve`/`--yolo` override per run.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `tools.approval`               | record  | `{}`    | Per-tool policy keyed by tool name; each value is `allow`, `deny`, or `prompt`. e.g. `zeta config set tools.approval '{"bash":"prompt"}'`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `tools.maxTimeout`             | number  | `0`     | Max tool runtime in seconds; `0` = no cap.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -693,6 +693,7 @@ memory:
 | `compaction.methodOrder`      | array   | `remote, snapcompact, handoff, shake, soft` | Ordered fallbacks. `remote` uses provider-native server compaction (OpenAI Responses compact, Anthropic compaction beta); unavailable or failed methods advance. |
 | `compaction.thresholdPercent` | number  | `-1`                                     | Percent-of-context trigger; `-1` = reserve-based default.                                                                                                                                                                                 |
 | `compaction.thresholdTokens`  | number  | `-1`                                     | Fixed token trigger when `> 0`.                                                                                                                                                                                                           |
+| `task.agentCompactionThresholdOverrides` | record | `{}` | Exact-name task/eval agent → compaction trigger: a positive token count (`90000`) or a percentage string (`"80%"`). See below. |
 | `compaction.reserveTokens`    | number  | _(unset)_                                | Absolute reserve floor. When unset, the effective reserve is the larger of `16384` and 15% of the context window; if that default would leave no practical small-window budget, it falls back to the 15% reserve.                         |
 | `compaction.keepRecentTokens` | number  | `20000`                                  | Recent tokens always preserved.                                                                                                                                                                                                           |
 | `compaction.autoContinue`     | boolean | `true`                                   | Continue automatically after compaction.                                                                                                                                                                                                  |
@@ -702,6 +703,24 @@ memory:
 | `autolearn.minToolCalls`      | number  | `5`           | Only nudge after a turn that used at least this many tools.                                                                                                                                                                               |
 
 `compaction` has additional tuning keys (idle compaction, supersede/drop heuristics) visible in `zeta config list`. See [Compaction](./compaction.md) for the full strategy reference.
+
+Per-agent compaction triggers for task/eval subagents. This keeps the main session at 40,000 tokens while `scout` compacts at 80% of its window and `task` at 90,000 tokens:
+
+```yaml
+compaction:
+  thresholdTokens: 40000
+
+task:
+  agentCompactionThresholdOverrides:
+    scout: "80%"
+    task: 90000
+```
+
+- Keys are exact, case-sensitive agent names (`scout` does not match `Scout`).
+- A number is a fixed token trigger (positive integer); a `"N%"` string is a percentage of the context window, `0 < N ≤ 100`. An entry replaces both `compaction.thresholdTokens` and `compaction.thresholdPercent` for that agent.
+- `null` clears an entry set by a lower-priority settings layer. Any other value fails settings load.
+- Agents without an entry — including agents spawned by an overridden agent — use the main session's `compaction.*` thresholds. The main session and Vibe workers are unaffected.
+- The resolved trigger is stored with the subagent session and reused when it is revived.
 
 ### Appearance and terminal
 
@@ -776,6 +795,7 @@ providers:
   tinyModelDevice: default
   tinyModelDtype: default
   openaiWebsockets: auto
+  openaiLiveSteering: true
   openrouterVariant: default
   kimiApiFormat: auto
   cacheRetention: auto
@@ -819,6 +839,7 @@ searxng:
 | `stt.language`                      | string  | `en`      | Source language hint for speech-to-text.                                                                                                                                                                                                                                                                                                                                                                                               |
 | `stt.submitTrigger`                 | enum    | `never`   | When completed dictation auto-submits: `never`, `release`, `release-complete`, or `say-submit`.                                                                                                                                                                                                                                                                                                                                        |
 | `providers.openaiWebsockets`        | enum    | `auto`    | `auto`, `off`, `on`.                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `providers.openaiLiveSteering`      | boolean | `true`    | Deliver messages typed while a GPT-6 response streams into that response (`response.steer` over the Codex WebSocket) instead of waiting for the next tool boundary.                                                                                                                                                                                                                                                                    |
 | `providers.openrouterVariant`       | enum    | `default` | `default`, `nitro`, `floor`, `online`, `exacto`.                                                                                                                                                                                                                                                                                                                                                                                       |
 | `providers.kimiApiFormat`           | enum    | `auto`    | `auto`, `openai`, `anthropic`. `auto` follows live model metadata.                                                                                                                                                                                                                                                                                                                                                                     |
 | `providers.cacheRetention`          | enum    | `auto`    | `auto`, `short`, `long`, `none`. Prompt-cache retention forwarded to providers that support it. `auto` keeps provider defaults (Anthropic: 1h entries on OAuth subscriber sessions, 5m entries plus idle keep-alive refreshes on API keys) and honors `PI_CACHE_RETENTION`; `short` forces 5m; `long` uses 1h TTLs where supported and disables keep-alive refreshes; `none` disables prompt caching and cache-affinity routing.         |

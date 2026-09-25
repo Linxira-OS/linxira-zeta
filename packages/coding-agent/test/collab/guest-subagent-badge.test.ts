@@ -3,6 +3,7 @@ import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
 import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
 import { type AgentSnapshot, COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	getRunningSubagentBadgeAgentIds,
 	getRunningSubagentBadgeRegistry,
@@ -41,7 +42,7 @@ function makeGuestContext(): InteractiveModeContext {
 	let statusLineCount = 0;
 	const ctx = {
 		collabGuest: undefined as CollabGuestLink | undefined,
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager: {
 			getSessionFile: () => null,
 			getSessionName: () => "local session",

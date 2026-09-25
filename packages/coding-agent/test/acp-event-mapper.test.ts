@@ -15,6 +15,7 @@ const arkSessionNotification = type({
 
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { AcpAgent } from "@linxiraos/zeta/modes/acp/acp-agent";
 import {
 	buildToolCallStartUpdate,
@@ -78,7 +79,7 @@ class ReplayTestSession {
 	customCommands: [] = [];
 	skills: [] = [];
 	extensionRunner = undefined;
-	settings = { get: (_key: string) => false };
+	settings = Settings.isolated();
 
 	constructor(cwd: string, sessionDir?: string) {
 		this.sessionManager = SessionManager.create(cwd, sessionDir);

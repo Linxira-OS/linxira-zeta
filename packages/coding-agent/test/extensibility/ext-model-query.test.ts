@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Api, Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import type { Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { createExtensionModelQuery } from "../../src/extensibility/extensions/model-api";
 
 function model(id: string, name: string, provider: string): Model<"anthropic-messages"> {
@@ -50,9 +50,7 @@ describe("createExtensionModelQuery", () => {
 	});
 
 	test("resolve() honors configured role aliases via the same settings-backed path as core", () => {
-		const settings = {
-			getModelRole: (role: string) => (role === "slow" ? "anthropic/claude-opus-4-8" : undefined),
-		} as unknown as Settings;
+		const settings = Settings.isolated({ modelRoles: { slow: "anthropic/claude-opus-4-8" } });
 		const q = createExtensionModelQuery(registry(), settings, () => undefined);
 		expect(q.resolve("@slow")).toBe(claude);
 	});

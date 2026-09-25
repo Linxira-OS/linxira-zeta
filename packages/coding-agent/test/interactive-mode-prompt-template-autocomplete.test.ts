@@ -22,6 +22,8 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { AutocompleteProvider } from "@linxiraos/pi-tui";
 import { TempDir } from "@linxiraos/pi-utils";
 
+import { cfgStartupQuiet } from "@linxiraos/zeta/modes/settings";
+
 function makeTool(name: string): AgentTool {
 	return {
 		name,
@@ -56,7 +58,7 @@ describe("InteractiveMode prompt-template autocomplete (#2462)", () => {
 		originalHome = process.env.HOME;
 		process.env.HOME = tempDir.path();
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
-		Settings.instance.set("startup.quiet", true);
+		cfgStartupQuiet.set(Settings.instance, true);
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 		authStorage.keys.setRuntime("anthropic", "test-key");
 		// ModelRegistry (bundled-model load) and the resolved model are immutable across

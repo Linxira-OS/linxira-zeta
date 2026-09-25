@@ -5,6 +5,8 @@ import { OAuthSelectorComponent } from "@linxiraos/pi-tui/overlays/oauth-selecto
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
+import { cfgDisabledProviders } from "@linxiraos/zeta/config/model-settings";
+
 beforeAll(async () => {
 	await initTheme();
 });
@@ -131,7 +133,7 @@ describe("OAuthSelectorComponent", () => {
 				authStorage,
 				() => {},
 				() => {},
-				{ disabledProviders: settings.get("disabledProviders") },
+				{ disabledProviders: cfgDisabledProviders.get(settings) },
 			);
 			for (const char of victim.id) {
 				component.handleInput(char);
@@ -157,7 +159,7 @@ describe("OAuthSelectorComponent", () => {
 				authStorage,
 				() => {},
 				() => {},
-				{ disabledProviders: settings.get("disabledProviders") },
+				{ disabledProviders: cfgDisabledProviders.get(settings) },
 			);
 			for (const char of alias.id) {
 				component.handleInput(char);
@@ -185,7 +187,7 @@ describe("OAuthSelectorComponent", () => {
 				} as unknown as AuthStorage,
 				providerId => selected.push(providerId),
 				() => {},
-				{ disabledProviders: settings.get("disabledProviders") },
+				{ disabledProviders: cfgDisabledProviders.get(settings) },
 			);
 			for (const char of "opencode-go") {
 				component.handleInput(char);

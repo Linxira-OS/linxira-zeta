@@ -19,6 +19,8 @@ import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 
+import { cfgReadSummarizeEnabled } from "@linxiraos/zeta/tools/settings";
+
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content
 		.filter(c => c.type === "text")
@@ -30,7 +32,7 @@ function createSession(cwd: string): ToolSession {
 	const settings = Settings.isolated();
 	// Structural summarization would answer whole-file reads from the summarizer
 	// instead of the range path under test.
-	settings.set("read.summarize.enabled", false);
+	cfgReadSummarizeEnabled.set(settings, false);
 	return {
 		cwd,
 		hasUI: false,

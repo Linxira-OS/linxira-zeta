@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { TOOL_INTERRUPT_ABORT_REASON } from "@linxiraos/pi-agent-core";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -9,7 +10,7 @@ import { WaitTool } from "@linxiraos/zeta/tools/wait";
 function session(manager?: AsyncJobManager): ToolSession {
 	return {
 		cwd: process.cwd(),
-		settings: { get: () => false },
+		settings: Settings.isolated({ "launch.enabled": false }),
 		agentRegistry: AgentRegistry.global(),
 		asyncJobManager: manager,
 		getAgentId: () => "Main",

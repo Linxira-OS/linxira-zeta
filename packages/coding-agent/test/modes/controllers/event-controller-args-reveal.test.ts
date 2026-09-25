@@ -18,6 +18,8 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
+import { cfgDisplaySmoothStreaming } from "@linxiraos/zeta/modes/settings";
+
 beforeAll(async () => {
 	await initTheme();
 });
@@ -159,7 +161,7 @@ describe("EventController paces streamed tool args", () => {
 
 	it("streams the full target through unpaced when smoothing is disabled", async () => {
 		await Settings.init({ inMemory: true, cwd: process.cwd() });
-		settings.set("display.smoothStreaming", false);
+		cfgDisplaySmoothStreaming.set(settings, false);
 		vi.useFakeTimers();
 		const updateArgsSpy = vi.spyOn(ToolExecutionComponent.prototype, "updateArgs");
 		const target = `{"path":"/tmp/a.ts","content":"abc"}`;

@@ -13,6 +13,7 @@
  * fires (so `process.exit` can't discard it), and the full record is delivered.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { runPrintMode } from "@linxiraos/zeta/modes/print-mode";
 import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 
@@ -38,7 +39,7 @@ function createFlushHarness(): FlushHarness {
 			getEntries: () => [],
 			onPersistenceError: () => () => {},
 		},
-		settings: { get: () => false },
+		settings: Settings.isolated(),
 		getLastAssistantMessage: () => undefined,
 		extensionRunner: undefined,
 		subscribe: (listener: (event: AgentSessionEvent) => void) => {

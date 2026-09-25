@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { callTool } from "@linxiraos/zeta/mcp/client";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import { resolveMCPStartupTimeoutMs } from "@linxiraos/zeta/mcp/timeout";
@@ -57,7 +58,7 @@ function printSession(manager: MCPManager, refreshGate?: Promise<void>, onRefres
 	const session = {
 		extensionRunner: undefined,
 		subscribe: () => {},
-		settings: { get: () => false },
+		settings: Settings.isolated(),
 		sessionManager: {
 			buildSessionContext: () => ({ messages: [] }),
 			getHeader: () => undefined,

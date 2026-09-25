@@ -13,6 +13,7 @@ import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
 import { CollabHost } from "@linxiraos/zeta/collab/host";
 import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -39,7 +40,7 @@ function makeHostContext(): HostHarness {
 	const aborts = { count: 0 };
 	const promptWaiters: ((details: { from?: string }) => void)[] = [];
 	const ctx = {
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager: {
 			getSessionId: () => "sess-1",
 			getCwd: () => "/tmp",

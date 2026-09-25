@@ -1,14 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { getConfigRootDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { runConfigCommand } from "@linxiraos/zeta/cli/config-cli";
 import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import { isCredential, SETTINGS_SCHEMA, type SettingPath } from "../src/config/settings-schema";
+import { getConfigRootDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { all, lookup } from "@linxiraos/zeta/config/registry";
 import { getSettingDef } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { createSettingsHost } from "../src/config/settings-ui";
-
-const paths = Object.keys(SETTINGS_SCHEMA) as SettingPath[];
 
 describe("credential settings", () => {
 	it("marks every known credential, including those with no settings panel entry", () => {
@@ -19,7 +17,7 @@ describe("credential settings", () => {
 			"dev.autoqaPush.token",
 			"hindsight.apiToken",
 		] as const) {
-			expect(isCredential(path)).toBe(true);
+			expect(lookup(path)?.isCredential).toBe(true);
 		}
 	});
 
@@ -27,21 +25,21 @@ describe("credential settings", () => {
 		// One field, not two: there is no separate UI-only masking flag that could
 		// drift away from this classification.
 		for (const path of ["mnemopi.embeddingApiKey", "mnemopi.llmApiKey"] as const) {
-			expect(isCredential(path)).toBe(true);
+			expect(lookup(path)?.isCredential).toBe(true);
 		}
 	});
 
 	it("does not sweep ordinary settings into the credential set", () => {
 		// Token-budget settings read like credentials by name but are plain numbers.
 		for (const path of ["compaction.thresholdTokens", "display.showTokenUsage", "autoResume"] as const) {
-			expect(isCredential(path)).toBe(false);
+			expect(lookup(path)?.isCredential).toBe(false);
 		}
 	});
 
 	it("only marks string or record settings as credentials", () => {
-		for (const path of paths) {
-			if (!isCredential(path)) continue;
-			expect(["string", "record"]).toContain(SETTINGS_SCHEMA[path].type);
+		for (const setting of all()) {
+			if (!setting.isCredential) continue;
+			expect(["string", "record"]).toContain(setting.type);
 		}
 	});
 });
@@ -170,7 +168,7 @@ describe("config list output", () => {
 		const url = "https://hindsight.example.test";
 		await runConfigCommand({ action: "set", key: "hindsight.apiUrl", value: url, flags: { json: true } });
 		await runConfigCommand({ action: "set", key: "hindsight.apiToken", value: SECRET, flags: { json: true } });
-		expect(isCredential("hindsight.apiUrl")).toBe(false);
+		expect(lookup("hindsight.apiUrl")?.isCredential).toBe(false);
 
 		const output = await humanList();
 		expect(output).toContain(`hindsight.apiUrl = ${url}`);

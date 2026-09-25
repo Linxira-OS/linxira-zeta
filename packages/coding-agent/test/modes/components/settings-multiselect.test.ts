@@ -5,6 +5,8 @@ import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
 import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/settings-host";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 
+import { cfgDevAutoqa } from "@linxiraos/zeta/tools/settings";
+
 beforeAll(async () => {
 	await initTheme();
 });
@@ -78,12 +80,12 @@ describe("settings section sidebar", () => {
 	it("does not toggle the selected section's first setting", () => {
 		const comp = createSelector();
 		for (let i = 0; i < 7; i++) comp.handleInput("\x1b[C");
-		expect(settings.get("dev.autoqa")).toBe(true);
+		expect(cfgDevAutoqa.get(settings)).toBe(true);
 
 		clickOption(comp, "Developer");
-		expect(settings.get("dev.autoqa")).toBe(true);
+		expect(cfgDevAutoqa.get(settings)).toBe(true);
 
 		clickOption(comp, "Developer");
-		expect(settings.get("dev.autoqa")).toBe(true);
+		expect(cfgDevAutoqa.get(settings)).toBe(true);
 	});
 });

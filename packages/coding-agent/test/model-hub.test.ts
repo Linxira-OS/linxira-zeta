@@ -20,6 +20,9 @@ import {
 import { getThemeByName, setThemeInstance, theme } from "@linxiraos/pi-tui/theme";
 import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
 
+import { cfgCycleOrder } from "@linxiraos/zeta/config/model-settings";
+import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();
 }
@@ -125,13 +128,13 @@ function createHub(options: {
 	const onCancel = vi.fn();
 	// Mirror the controller: persist chain edits so the hub's re-read sees them.
 	const onFallbackChainChange = vi.fn((role: string, chain: string[]) => {
-		const chains = { ...settings.get("retry.fallbackChains") };
+		const chains = { ...cfgRetryFallbackChains.get(settings) };
 		if (chain.length === 0) {
 			delete chains[role];
 		} else {
 			chains[role] = chain;
 		}
-		settings.override("retry.fallbackChains", chains);
+		cfgRetryFallbackChains.override(settings, chains);
 	});
 	const hub = new ModelHubComponent(
 		ui,
@@ -521,7 +524,7 @@ describe("ModelHub", () => {
 				callbacks: {
 					onCycleOrderChange: order => {
 						changes.push([...order]);
-						settings.set("cycleOrder", order);
+						cfgCycleOrder.set(settings, order);
 					},
 				},
 			});

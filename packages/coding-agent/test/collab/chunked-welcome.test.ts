@@ -16,6 +16,7 @@ import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
 import { CollabHost } from "@linxiraos/zeta/collab/host";
 import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
@@ -56,7 +57,7 @@ function makeLargeSnapshot(): SizedSnapshot {
 
 function makeHostContext(snapshot: SizedSnapshot): InteractiveModeContext {
 	const ctx = {
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager: {
 			getSessionId: () => snapshot.header.id,
 			getCwd: () => snapshot.header.cwd,
@@ -89,7 +90,7 @@ function makeHostContext(snapshot: SizedSnapshot): InteractiveModeContext {
 
 function makeFailingGuestContext(failure: Error): InteractiveModeContext {
 	const ctx = {
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager: {
 			getSessionFile: () => null,
 			switchSession: () => Promise.reject(failure),
@@ -130,7 +131,7 @@ function makeCancelledSwitchGuestContext(
 	events: string[],
 ): InteractiveModeContext {
 	return {
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager: {
 			getSessionFile: () => null,
 			getSessionName: () => undefined,

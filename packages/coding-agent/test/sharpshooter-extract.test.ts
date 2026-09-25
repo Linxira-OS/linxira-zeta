@@ -7,7 +7,7 @@ import type { AssistantMessage } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import type { Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { buildSharpshooterEnvelope, maybeStartSharpshooterExtraction } from "@linxiraos/zeta/sharpshooter/extract";
 import { listSharpshooterDeltas } from "@linxiraos/zeta/sharpshooter/queue";
@@ -39,18 +39,7 @@ function assistantResponse(content: AssistantMessage["content"]): AssistantMessa
 function extractionDependencies(cwd: string, messages: AgentMessage[], sessionId = "session-extract") {
 	const model = getBundledModel("anthropic", "claude-haiku-4-5");
 	if (!model) throw new Error("Expected bundled Claude Haiku model");
-	const settings = {
-		get(key: string) {
-			if (key === "sharpshooter.model") return `${model.provider}/${model.id}`;
-			return undefined;
-		},
-		getModelRole() {
-			return undefined;
-		},
-		getStorage() {
-			return undefined;
-		},
-	} as unknown as Settings;
+	const settings = Settings.isolated({ "sharpshooter.model": `${model.provider}/${model.id}` });
 	const modelRegistry = {
 		getAll: () => [model],
 		getAvailable: () => [model],

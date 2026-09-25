@@ -14,14 +14,8 @@ import type { Theme } from "@linxiraos/pi-tui/theme";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import { CopySelectorComponent } from "@linxiraos/pi-tui/overlays/copy-selector";
 import type { SessionPick } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/text-source";
-import {
-	AnnotateCommand,
-	runAnnotateCommand,
-} from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate";
-import type {
-	CustomCommandAPI,
-	CustomCommandContext,
-} from "@linxiraos/zeta/extensibility/custom-commands/types";
+import { AnnotateCommand, runAnnotateCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate";
+import type { CustomCommandAPI, CustomCommandContext } from "@linxiraos/zeta/extensibility/custom-commands/types";
 import type { ReviewPrRef } from "@linxiraos/zeta/extensibility/custom-commands/bundled/review";
 import {
 	createResolvedReviewTarget,

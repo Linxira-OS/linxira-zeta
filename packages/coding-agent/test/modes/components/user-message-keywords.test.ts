@@ -14,10 +14,12 @@ import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { Container } from "@linxiraos/pi-tui";
 
+import { cfgTuiHyperlinks } from "@linxiraos/zeta/modes/settings";
+
 beforeAll(async () => {
 	resetSettingsForTest();
 	await Settings.init({ inMemory: true });
-	Settings.instance.set("tui.hyperlinks", "always");
+	cfgTuiHyperlinks.set(Settings.instance, "always");
 	await initTheme(false);
 	// The host registers keywords at startup; without this nothing glows.
 	setMagicKeywords(MAGIC_KEYWORDS);

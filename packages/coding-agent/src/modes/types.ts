@@ -28,6 +28,8 @@ import type { HistoryStorage } from "../session/history-storage";
 import type { SessionContext } from "../session/session-context";
 import type { SessionManager } from "../session/session-manager";
 import type { ShakeMode } from "../session/shake-types";
+import type { DictationTarget } from "../stt";
+import type { SpaceHoldHandler } from "@linxiraos/pi-tui/space-hold";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { LspStartupServerInfo } from "../tools";
 import type { EventBus } from "../utils/event-bus";
@@ -131,7 +133,6 @@ export interface InteractiveModeContext {
 	/** Re-wire the engine's sidebar/main-width override from the `tui.sidebar` setting. */
 	applySidebar(): void;
 	syncComposerShape(): void;
-	syncEditorSpelling(): void;
 
 	// Session access
 	session: AgentSession;
@@ -154,8 +155,6 @@ export interface InteractiveModeContext {
 	resolveViewportClickCandidates(index: number): string[];
 	/** Flip the pinned jump list between its collapsed few and the full list. */
 	togglePinnedHudExpanded(): void;
-	/** Rebuild the pinned jump list for a `display.pinnedAgents` change. */
-	applyPinnedAgentsSetting(): void;
 	/** Point the inline hover band at a click-candidate id (or clear it). */
 	setClickHoverId(id: string | undefined): void;
 	/** Clear loader, transient HUD/pending containers, streaming state, and pending tools. */
@@ -404,11 +403,6 @@ export interface InteractiveModeContext {
 	/** Refresh the running-subagents status badge from the active local or collab registry. */
 	syncRunningSubagentBadge(): void;
 	updateEditorBorderColor(): void;
-	/**
-	 * Re-apply `tui.vimMode` to the live editor and refresh the mode chrome (border, status-line
-	 * segment, cursor shape). Lets the setting take effect without restarting the session.
-	 */
-	applyVimModeSetting(): void;
 	rebuildChatFromMessages(options?: { reuseSettledComponents?: boolean }): void;
 	setTodos(todos: TodoItem[] | TodoPhase[]): void;
 	reloadTodos(source?: AgentSession): Promise<void>;
@@ -454,6 +448,9 @@ export interface InteractiveModeContext {
 	handleRenameCommand(title: string): Promise<void>;
 	handleMemoryCommand(text: string): Promise<void>;
 	handleSTTToggle(): Promise<void>;
+	/** Space-bar push-to-talk into `target`: a recognized hold starts dictation and its release stops
+	 *  it. Gated on `stt.enabled`, so a disabled STT leaves the space bar typing normally. */
+	dictationSpaceHold(target: DictationTarget): SpaceHoldHandler;
 	/** Start or stop the Codex-backed realtime voice session. */
 	handleLiveCommand(): Promise<void>;
 	/** Start a `/record` screen capture, or stop the running one. */

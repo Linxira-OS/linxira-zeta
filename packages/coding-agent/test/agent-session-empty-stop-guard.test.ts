@@ -5,7 +5,7 @@ import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-co
 import type { ThinkingContent } from "@linxiraos/pi-ai";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -20,7 +20,7 @@ type Harness = {
 	session: AgentSession;
 	tempDir: TempDir;
 };
-type SettingsOverrides = Partial<Record<SettingPath, unknown>>;
+type SettingsOverrides = Record<string, unknown>;
 
 const activeHarnesses: Harness[] = [];
 const sharedDir = TempDir.createSync("@pi-empty-stop-guard-shared-");

@@ -1,6 +1,5 @@
 /**
- * Protocol handler for zeta:// URLs.
- *
+ * Protocol handler for zeta:// URLs. *
  * Serves statically embedded documentation files bundled at build time.
  *
  * URL forms:
@@ -54,23 +53,7 @@ export class ZetaProtocolHandler implements ProtocolHandler {
 		};
 	}
 
-	async #readDoc(filename: string, url: InternalUrl): Promise<InternalResource> {
-		// Validate: no traversal, no absolute paths
-		if (path.isAbsolute(filename)) {
-			throw new Error("Absolute paths are not allowed in zeta:// URLs");
-		}
-
-		const normalized = path.posix.normalize(filename.replaceAll("\\", "/"));
-		if (normalized === ".." || normalized.startsWith("../") || normalized.includes("/../")) {
-			throw new Error("Path traversal (..) is not allowed in zeta:// URLs");
-		}
-
-		const docPath =
-			normalized === "docs" ? "" : normalized.startsWith("docs/") ? normalized.slice("docs/".length) : normalized;
-		if (!docPath) {
-			return this.#listDocs(url);
-		}
-
+	async #readDoc(docPath: string, filename: string, url: InternalUrl): Promise<InternalResource> {
 		const content = await getEmbeddedDoc(docPath);
 		if (content === undefined) {
 			const lookup = docPath.replace(/\.md$/, "");

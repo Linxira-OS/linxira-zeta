@@ -7,6 +7,9 @@ import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { setLanguage } from "../../../src/i18n";
 
+import { cfgHindsightApiToken } from "@linxiraos/zeta/hindsight/settings";
+import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
+
 beforeAll(async () => {
 	// The localized selector renders zh chrome under zh locales; pin en so the
 	// English row-text assertions below are environment-independent.
@@ -72,7 +75,7 @@ function focusMemoryTab(comp: SettingsSelectorComponent): void {
 
 describe("SettingsSelectorComponent memory tab", () => {
 	it("reveals condition-gated Hindsight rows the moment memory.backend changes via the submenu", () => {
-		settings.set("memory.backend", "off");
+		cfgMemoryBackend.set(settings, "off");
 		const comp = createSelector();
 		focusMemoryTab(comp);
 		// Width 70 keeps the flat single-column layout (the wide split layout
@@ -89,7 +92,7 @@ describe("SettingsSelectorComponent memory tab", () => {
 		comp.handleInput("\x1b[B");
 		comp.handleInput("\n");
 
-		expect(settings.get("memory.backend")).toBe("hindsight");
+		expect(cfgMemoryBackend.get(settings)).toBe("hindsight");
 		const after = comp.render(70).join("\n");
 		expect(after).toContain("Memory Backend");
 		expect(after).toContain("Hindsight API URL");
@@ -98,8 +101,8 @@ describe("SettingsSelectorComponent memory tab", () => {
 	});
 
 	it("saves a pasted Hindsight API token from its settings row", () => {
-		settings.set("memory.backend", "hindsight");
-		settings.set("hindsight.apiToken", "saved-secret-token");
+		cfgMemoryBackend.set(settings, "hindsight");
+		cfgHindsightApiToken.set(settings, "saved-secret-token");
 		const comp = createSelector();
 
 		for (const ch of "hindsight api token") comp.handleInput(ch);
@@ -111,7 +114,7 @@ describe("SettingsSelectorComponent memory tab", () => {
 		comp.handleInput("\n");
 		expect(comp.render(120).join("\n")).not.toContain("saved-secret-token");
 		comp.handleInput("\n");
-		expect(settings.get("hindsight.apiToken")).toBe("saved-secret-token");
+		expect(cfgHindsightApiToken.get(settings)).toBe("saved-secret-token");
 		expect(comp.render(120).join("\n")).not.toContain("saved-secret-token");
 
 		comp.handleInput("\n");
@@ -120,13 +123,13 @@ describe("SettingsSelectorComponent memory tab", () => {
 		expect(comp.render(120).join("\n")).not.toContain("test-token-123");
 		comp.handleInput("\n");
 
-		expect(settings.get("hindsight.apiToken")).toBe("test-token-123");
-		expect(loadHindsightConfig(settings, {}).hindsightApiToken).toBe("test-token-123");
+		expect(cfgHindsightApiToken.get(settings)).toBe("test-token-123");
+		expect(loadHindsightConfig(settings).hindsightApiToken).toBe("test-token-123");
 		expect(comp.render(120).join("\n")).not.toContain("test-token-123");
 	});
 
 	it("hides Hindsight rows again when the backend is switched back to off without leaving the tab", () => {
-		settings.set("memory.backend", "hindsight");
+		cfgMemoryBackend.set(settings, "hindsight");
 		const comp = createSelector();
 		focusMemoryTab(comp);
 		// Width 70 keeps the flat layout so all sections' rows render inline.
@@ -139,7 +142,7 @@ describe("SettingsSelectorComponent memory tab", () => {
 		comp.handleInput("\x1b[A");
 		comp.handleInput("\n");
 
-		expect(settings.get("memory.backend")).toBe("off");
+		expect(cfgMemoryBackend.get(settings)).toBe("off");
 		const after = comp.render(70).join("\n");
 		expect(after).toContain("Memory Backend");
 		expect(after).not.toContain("Hindsight API URL");
@@ -216,7 +219,7 @@ describe("SettingsSelectorComponent memory tab", () => {
 
 	it("delegates Escape to an open settings submenu before closing the selector", () => {
 		let cancelCount = 0;
-		settings.set("memory.backend", "off");
+		cfgMemoryBackend.set(settings, "off");
 		const comp = createSelector(() => {
 			cancelCount++;
 		});

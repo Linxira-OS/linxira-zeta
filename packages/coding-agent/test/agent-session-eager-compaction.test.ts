@@ -16,6 +16,8 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TodoTool, type ToolSession, USER_TODO_EDIT_CUSTOM_TYPE } from "@linxiraos/zeta/tools";
 
+import { cfgTodoEnabled } from "@linxiraos/zeta/tools/settings";
+
 // Re-injecting eager preludes after compaction: the first-message preludes are the
 // oldest messages, so compaction summarizes them away and the agent silently loses
 // the delegate-via-tasks / phased-todo guidance. The post-compaction auto-continuation
@@ -199,7 +201,7 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 			parameters: type({}),
 			execute: async () => ({ content: [{ type: "text" as const, text: "ok" }] }),
 		};
-		const todoEnabled = settings.get("todo.enabled") === true;
+		const todoEnabled = cfgTodoEnabled.get(settings) === true;
 		const toolSession: ToolSession = {
 			cwd: tempDir.path(),
 			hasUI: false,

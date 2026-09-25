@@ -32,6 +32,10 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
 import { resetYieldTurnState } from "@linxiraos/zeta/tools/yield";
 
+import { cfgExternalThinking } from "@linxiraos/zeta/session/settings";
+import { cfgPlanEnabled } from "@linxiraos/zeta/plan-mode/settings";
+import { cfgToolsXdev } from "@linxiraos/zeta/tools/settings";
+
 const toolActivationExtension: ExtensionFactory = pi => {
 	pi.registerTool({
 		name: "default_inactive_tool",
@@ -362,15 +366,19 @@ describe("createAgentSession defaultInactive tool activation", () => {
 			expect(session.getToolByName("think")).toBeUndefined();
 			expect(session.getActiveToolNames()).not.toContain("think");
 
-			settings.set("externalThinking", true);
-			await session.setThinkToolEnabled(true);
+			// The setting watch fires on the next microtask and queues the tool-registry
+			// mutation; a prompt refresh serializes behind it.
+			cfgExternalThinking.set(settings, true);
+			await Promise.resolve();
+			await session.refreshBaseSystemPrompt();
 
 			expect(session.getToolByName("think")).toBeDefined();
 			expect(session.getActiveToolNames()).toContain("think");
 			expect(session.getXdevToolEntries().map(entry => entry.name)).not.toContain("think");
 
-			settings.set("externalThinking", false);
-			await session.setThinkToolEnabled(false);
+			cfgExternalThinking.set(settings, false);
+			await Promise.resolve();
+			await session.refreshBaseSystemPrompt();
 			expect(session.getActiveToolNames()).not.toContain("think");
 		} finally {
 			await session.dispose();
@@ -1944,7 +1952,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 		const tempDir = makeTempDir();
 
 		const settings = Settings.isolated();
-		settings.set("plan.enabled", false);
+		cfgPlanEnabled.set(settings, false);
 
 		const { session } = await createAgentSession({
 			...baseOptions(tempDir),
@@ -2647,7 +2655,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 		// because the absence of that state is precisely what is under test.
 		const tempDir = makeTempDir();
 		const settings = Settings.isolated();
-		settings.set("tools.xdev", false);
+		cfgToolsXdev.set(settings, false);
 
 		await withProviderAuth(["openai"], async () => {
 			const { session } = await createAgentSession({ ...baseOptions(tempDir), settings });

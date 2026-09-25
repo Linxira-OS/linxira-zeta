@@ -8,6 +8,8 @@ import { skillChipLabel } from "@linxiraos/pi-tui/prompt/composer-attachments";
 import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
 import type { CustomMessage, SkillPromptDetails } from "../../../src/session/messages";
 
+import { cfgTuiHyperlinks } from "@linxiraos/zeta/modes/settings";
+
 // Drop SGR colors and OSC 8 hyperlink wrappers so assertions see the visible text only.
 const strip = (lines: readonly string[]): string =>
 	lines
@@ -28,7 +30,7 @@ describe("SkillMessageComponent", () => {
 	beforeAll(async () => {
 		resetSettingsForTest();
 		await Settings.init({ inMemory: true });
-		Settings.instance.set("tui.hyperlinks", "always");
+		cfgTuiHyperlinks.set(Settings.instance, "always");
 		const loaded = await getThemeByName("dark");
 		if (!loaded) throw new Error("theme unavailable");
 		uiTheme = loaded;

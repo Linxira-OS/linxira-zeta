@@ -6,10 +6,9 @@
  * Requests per-result summaries via `contents.summary` and synthesizes
  * them into a combined `answer` string on the SearchResponse.
  */
-import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
-import { getDefault, settings } from "../../../config/settings";
+import { settings } from "../../../config/settings";
 import { findApiKey, isSearchResponse } from "../../../exa/mcp-client";
 import { readMcpJsonRpcResponse } from "../../../mcp/json-rpc";
 import type { SearchResponse, SearchSource } from "@linxiraos/pi-tui/tools/web-search";
@@ -20,18 +19,20 @@ import type { SearchParams } from "./base";
 import { SearchProvider } from "./base";
 import { classifyProviderHttpError, withHardTimeout } from "./utils";
 
+import { cfgExaEnabled, cfgExaSearchDelayMs } from "../../settings";
+
 const EXA_API_URL = "https://api.exa.ai/search";
 const EXA_MCP_URL = "https://mcp.exa.ai/mcp";
 const EXA_MCP_SOURCE = "oh-my-pi";
 const MAX_EXA_SNIPPET_CHARS = 500;
-const DEFAULT_EXA_SEARCH_DELAY_MS = getDefault("exa.searchDelayMs");
+const DEFAULT_EXA_SEARCH_DELAY_MS = cfgExaSearchDelayMs.default;
 
 let nextExaSearchRequestAt = 0;
 let exaSearchThrottle = Promise.resolve();
 
 function configuredExaSearchDelayMs(): number {
 	try {
-		const delayMs = settings.get("exa.searchDelayMs");
+		const delayMs = cfgExaSearchDelayMs.get(settings);
 		return Number.isFinite(delayMs) && delayMs > 0 ? Math.floor(delayMs) : 0;
 	} catch {
 		return DEFAULT_EXA_SEARCH_DELAY_MS;
@@ -499,7 +500,7 @@ export class ExaProvider extends SearchProvider {
 
 	#settingsAllowSearch(): boolean {
 		try {
-			if (settings.get("exa.enabled") === false) {
+			if (cfgExaEnabled.get(settings) === false) {
 				return false;
 			}
 		} catch {

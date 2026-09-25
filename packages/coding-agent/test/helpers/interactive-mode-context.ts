@@ -43,6 +43,8 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TokenRateMeter } from "@linxiraos/zeta/utils/token-rate";
 import { type Component, Container } from "@linxiraos/pi-tui";
 
+import { cfgTerminalShowImages } from "@linxiraos/zeta/modes/settings";
+
 type AnyFn = (...args: never[]) => unknown;
 
 /** Partial at every depth; function members keep their exact signature. */
@@ -240,7 +242,7 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 			return this.hideThinkingBlock;
 		},
 		get assistantImagesVisible() {
-			return contextSettings.get("terminal.showImages");
+			return cfgTerminalShowImages.get(contextSettings);
 		},
 		hasDisplayableThinkingContent: false,
 		noteDisplayableThinkingContent: vi.fn(() => false),

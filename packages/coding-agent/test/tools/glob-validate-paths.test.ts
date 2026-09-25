@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { RenderResultOptions } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";
 import { getThemeByName, initTheme, type Theme } from "@linxiraos/pi-tui/theme";
 import {
 	expandDelimitedPathEntries,
@@ -145,6 +146,7 @@ describe("delimited path expansion", () => {
 			rawPaths: ["apps\\**\\*.txt"],
 			cwd: tempDir,
 			internalUrlAction: "search",
+			filesystem: new InternalUrlFilesystem({ context: {}, tier: "read" }),
 		});
 
 		expect(scope.searchPath).toBe(path.join(tempDir, "apps"));

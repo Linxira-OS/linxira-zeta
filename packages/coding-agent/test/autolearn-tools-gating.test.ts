@@ -3,21 +3,18 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 import { getManagedSkillsDir } from "@linxiraos/zeta/autolearn/managed-skills";
-import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
 import type { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
 import type { MnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
 import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
 import { LearnTool } from "@linxiraos/zeta/tools/learn";
 import { ManageSkillTool } from "@linxiraos/zeta/tools/manage-skill";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 
-function makeSession(
-	settingsOverrides: Partial<Record<SettingPath, unknown>> = {},
-	extra: Partial<ToolSession> = {},
-): ToolSession {
+function makeSession(settingsOverrides: Record<string, unknown> = {}, extra: Partial<ToolSession> = {}): ToolSession {
 	return {
 		cwd: "/tmp/test",
 		hasUI: false,
@@ -301,11 +298,13 @@ describe("learn execute", () => {
 		expect(queued).toEqual(["queued lesson"]);
 	});
 
-	it("fails the lesson and skips the skill when mnemopi returns no id", async () => {
+	it("fails the lesson with the write error and skips the skill when the mnemopi write fails", async () => {
 		const failingState = {
 			sessionId: "sess-2",
 			session: { sessionManager: { getCwd: () => "/tmp/work" } },
-			rememberScoped: () => undefined,
+			rememberScoped: () => {
+				throw new Error("database or disk is full");
+			},
 		};
 		const session = makeSession(
 			{ "autolearn.enabled": true, "memory.backend": "mnemopi" },
@@ -316,7 +315,7 @@ describe("learn execute", () => {
 				memory: "lesson",
 				skill: { action: "create", name: "should-not-exist", description: "d", body: "b" },
 			}),
-		).rejects.toThrow(/did not store/i);
+		).rejects.toThrow("Mnemopi did not store the lesson: database or disk is full");
 		// A failed lesson must not leave a minted skill behind.
 		expect(await Bun.file(path.join(getManagedSkillsDir(), "should-not-exist", "SKILL.md")).exists()).toBe(false);
 	});

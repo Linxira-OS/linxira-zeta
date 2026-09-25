@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { runPrintMode } from "@linxiraos/zeta/modes/print-mode";
 import {
 	type AgentSession,
@@ -45,7 +46,7 @@ function createMockSession(
 	return {
 		state: { messages },
 		getLastAssistantMessage: () => messages.findLast(message => message.role === "assistant"),
-		settings: { get: () => false },
+		settings: Settings.isolated(),
 		sessionManager: {
 			getHeader: () => undefined,
 			buildSessionContext: () => ({ messages: [] }),

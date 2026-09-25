@@ -33,6 +33,8 @@ import { renderSearchCall, renderSearchResult, type SearchRenderDetails } from "
 import { DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS, MAX_WEB_SEARCH_TIMEOUT_SECONDS, SearchProviderError } from "./types";
 import { type SearchProviderId, type SearchResponse } from "@linxiraos/pi-tui/tools/web-search";
 
+import { cfgProvidersAntigravityEndpoint, cfgProvidersWebSearchTimeoutSeconds } from "../../session/settings";
+
 /** Web search tool parameters schema */
 export const webSearchSchema = type({
 	query: "string",
@@ -137,17 +139,18 @@ async function executeSearch(
 	_toolCallId: string,
 	params: SearchQueryParams,
 	options: ExecuteSearchOptions,
-): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchRenderDetails }> {
-	const { authStorage, modelRegistry, modelName, sessionId, signal } = options;
-	const explicitProvider = params.provider;
-	let candidates: SearchProviderCandidate[];
-	if (explicitProvider && explicitProvider !== "auto") {
-		candidates = [{ id: explicitProvider, explicit: true }];
-	} else {
-		// `--provider auto` and the default both walk the configured chain;
-		// exclusions still apply.
-		candidates = resolveProviderCandidates();
-	}
+): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchResultDetails }> {
+	const { authStorage, sessionId, signal } = options;
+	const modelRegistry = options.modelRegistry ?? new ModelRegistry(authStorage, undefined, { settings });
+	const pool = roleCandidatePool("web", settings, modelRegistry);
+	const candidates = params.model
+		? (() => {
+				const resolved = resolveModelRoleValue(params.model, pool, { settings });
+				return resolved.model
+					? [{ model: resolved.model, explicit: true, thinkingLevel: resolved.thinkingLevel }]
+					: [];
+			})()
+		: resolveRoleChain("web", settings, pool);
 
 	const parsedQuery = parseSearchQuery(params.query);
 
@@ -156,7 +159,7 @@ async function executeSearch(
 	// provider-fallback loop never aborts before any provider runs.
 	let antigravityEndpointMode: "auto" | "production" | "sandbox" | undefined;
 	try {
-		antigravityEndpointMode = settings.get("providers.antigravityEndpoint");
+		antigravityEndpointMode = cfgProvidersAntigravityEndpoint.get(settings);
 	} catch {
 		antigravityEndpointMode = undefined;
 	}
@@ -170,7 +173,7 @@ async function executeSearch(
 
 	let timeoutMs = DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS * 1_000;
 	try {
-		const configuredSeconds = settings.get("providers.webSearchTimeoutSeconds");
+		const configuredSeconds = cfgProvidersWebSearchTimeoutSeconds.get(settings);
 		if (Number.isFinite(configuredSeconds) && configuredSeconds > 0) {
 			timeoutMs = Math.ceil(Math.min(configuredSeconds, MAX_WEB_SEARCH_TIMEOUT_SECONDS) * 1_000);
 		}
@@ -212,6 +215,8 @@ async function executeSearch(
 				signal,
 				timeoutMs,
 				authStorage,
+				model: candidate.model,
+				thinkingLevel: candidate.thinkingLevel,
 				modelRegistry,
 				modelName,
 				sessionId,

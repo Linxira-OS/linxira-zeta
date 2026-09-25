@@ -3,13 +3,14 @@ import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
 import { CollabHost } from "@linxiraos/zeta/collab/host";
 import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 function makeHostContext(manager: SessionManager): InteractiveModeContext {
 	return {
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager: manager,
 		session: {
 			isStreaming: false,

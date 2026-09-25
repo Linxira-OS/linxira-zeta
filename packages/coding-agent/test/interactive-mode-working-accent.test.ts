@@ -9,6 +9,8 @@ import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/built
 import * as sessionColor from "@linxiraos/pi-tui/theme/session-color";
 import { adjustHsv, TempDir } from "@linxiraos/pi-utils";
 
+import { cfgStatusLineSessionAccent } from "@linxiraos/zeta/modes/settings";
+
 type Harness = {
 	mode: InteractiveMode;
 	sessionManager: SessionManager;
@@ -174,12 +176,12 @@ describe("InteractiveMode working-message session accent cache", () => {
 		expect(renderLoader(mode)).toContain(accentAnsi);
 		expect(getHex).toHaveBeenCalledTimes(1);
 
-		settings.set("statusLine.sessionAccent", false);
+		cfgStatusLineSessionAccent.set(settings, false);
 		mode.loadingAnimation?.setMessage("Accent disabled");
 		expect(renderLoader(mode)).not.toContain(accentAnsi);
 		expect(getHex).toHaveBeenCalledTimes(1);
 
-		settings.set("statusLine.sessionAccent", true);
+		cfgStatusLineSessionAccent.set(settings, true);
 		mode.loadingAnimation?.setMessage("Accent enabled");
 		expect(renderLoader(mode)).toContain(accentAnsi);
 		expect(getHex).toHaveBeenCalledTimes(2);

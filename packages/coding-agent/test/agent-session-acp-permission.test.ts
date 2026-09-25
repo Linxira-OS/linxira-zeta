@@ -11,7 +11,7 @@ import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockModelOptions } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { EditTool } from "@linxiraos/zeta/edit";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
@@ -84,7 +84,7 @@ function makeBridge(outcome: ClientBridgePermissionOutcome): ClientBridge {
 async function createSession(
 	tools: AgentTool[],
 	bridge?: ClientBridge,
-	settingsOverrides: Partial<Record<SettingPath, unknown>> = {},
+	settingsOverrides: Record<string, unknown> = {},
 	options?: {
 		xdev?: XdevState;
 		builtInToolNames?: string[];
@@ -262,7 +262,7 @@ it("always-ask: an ACP grant satisfies the inner wrapper's explicit prompt polic
 	const wrapped = new ExtensionToolWrapper(bashTool, noUiRunner()) as unknown as AgentTool;
 	const bridge = makeBridge({ outcome: "selected", optionId: "allow_once", kind: "allow_once" });
 	const permissionSpy = spyOn(bridge, "requestPermission");
-	const approvalSettings: Partial<Record<SettingPath, unknown>> = {
+	const approvalSettings: Record<string, unknown> = {
 		"tools.approvalMode": "always-ask",
 		"tools.approval": { bash: "prompt" },
 	};

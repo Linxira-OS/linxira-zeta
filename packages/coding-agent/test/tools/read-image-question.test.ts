@@ -9,6 +9,8 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ImageAttachmentEntry, ToolSession } from "@linxiraos/zeta/tools";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 
+import { cfgImagesAutoResize } from "@linxiraos/zeta/modes/settings";
+
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
 const TINY_SVG =
@@ -59,7 +61,7 @@ function createSession(
 	settings = Settings.isolated(),
 	options: CreateSessionOptions = {},
 ): ToolSession {
-	settings.set("images.autoResize", false);
+	cfgImagesAutoResize.set(settings, false);
 	const availableModels = options.availableModels ?? [model];
 	const activeModel = options.activeModel ?? model;
 	if (options.configureVisionRole !== false) {

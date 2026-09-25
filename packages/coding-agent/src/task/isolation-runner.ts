@@ -51,6 +51,8 @@ import {
 	type WorktreeBaseline,
 } from "./worktree";
 
+import { cfgTaskIsolationCommits } from "./settings";
+
 type IsoBackendKind = natives.IsoBackendKind;
 
 /** Which isolation outcome `isolation-summary.md` should describe. */
@@ -164,7 +166,7 @@ export type BuildCommitMessage = () => undefined | ((diff: string) => Promise<st
  */
 export function makeIsolationCommitMessage(session: ToolSession): BuildCommitMessage {
 	return () => {
-		const style = session.settings.get("task.isolation.commits");
+		const style = cfgTaskIsolationCommits.get(session.settings);
 		if (style !== "ai" || !session.modelRegistry) return undefined;
 		const registry = session.modelRegistry;
 		const settings = session.settings;

@@ -20,6 +20,8 @@ import { Loader } from "@linxiraos/pi-tui";
 import { PREVIEW_LIMITS, TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
+import { cfgDisplaySmoothStreaming } from "@linxiraos/zeta/modes/settings";
+
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {
 		role: "assistant",
@@ -48,7 +50,7 @@ beforeAll(async () => {
 beforeEach(async () => {
 	resetSettingsForTest();
 	await Settings.init({ inMemory: true });
-	settings.set("display.smoothStreaming", false);
+	cfgDisplaySmoothStreaming.set(settings, false);
 });
 
 afterEach(() => {

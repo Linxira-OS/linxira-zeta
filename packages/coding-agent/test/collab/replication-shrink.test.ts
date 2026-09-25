@@ -49,6 +49,7 @@ import {
 	shrinkReplicatedEntry,
 	shrinkReplicatedEvent,
 } from "@linxiraos/zeta/collab/replication-shrink";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -210,7 +211,7 @@ function makeHostContext(snapshot: HostSnapshot): HostHarness {
 function makeHostHarness(sessionManager: HostReplicationSource): HostHarness {
 	const statusMessages: string[] = [];
 	const ctx = {
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager,
 		session: {
 			isStreaming: false,

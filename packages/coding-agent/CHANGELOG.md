@@ -7,12 +7,6 @@
 ## [1.1.20] - 2026-09-23
 ## [1.1.19] - 2026-09-22
 ## [1.1.18] - 2026-09-22
-
-- 全面板 i18n:宿主可注入 tuiText 文本层,约 700 个 key 覆盖全部 TUI 面板、设置、setup 场景与聊天/状态栏;`/language` 切换即时生效,无需重启。
-- Tracking v2:`tracking_update` 新增 `sync_todo`(todo 阶段镜像进 status.json,阶段推进记录 phase_complete);全局追踪索引升级为对象行(含阶段/进度/最近会话);INDEX.md 首次使用自动落三读者模板;批准的 plan 镜像至 tracking/plans/;todo 阶段完成后自动提醒同步追踪文档。
-- Web 网关新增 `GET /api/plan` 白名单端点(仅限当前会话 plan 文件),`/api/tracking` 追加压缩摘要与 plan 镜像列表,agent 状态暴露实时 todo 阶段。
-- 修复 i18n 覆盖后 todo 警告选项丢失与测试语言钉扎问题。
-
 ## [1.1.16] - 2026-09-19
 
 - 上游 v18.2.5 同步:streaming CLI 命令、热路径记忆化(工具 schema/stamp/which 缓存)、TUI 主题与覆盖层组件迁移至 pi-tui、Astra 上下文确定性策略、eval 判定桥与 Python prelude 维护。

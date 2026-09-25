@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { CompactionCancelledError, type CompactionResult } from "@linxiraos/pi-agent-core/compaction";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
 import { getThemeByName, setThemeInstance, type Theme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
@@ -50,7 +51,7 @@ function buildCtx(compact: InteractiveModeContext["session"]["compact"]) {
 		flushCompactionQueue: vi.fn(async () => undefined),
 		// executeCompaction consults display.collapseCompacted on the ok path to
 		// decide whether the rebuild replaces the terminal transcript.
-		settings: { get: vi.fn(() => true) },
+		settings: Settings.isolated({ "display.collapseCompacted": true }),
 	} as unknown as InteractiveModeContext;
 
 	return {

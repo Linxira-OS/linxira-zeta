@@ -5,6 +5,8 @@ import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-contain
 import * as themeModule from "@linxiraos/pi-tui/theme";
 import type { Component } from "@linxiraos/pi-tui";
 
+import { cfgTuiHyperlinks } from "@linxiraos/zeta/modes/settings";
+
 /** Minimal transcript block whose finalized state is fixed at construction. */
 class StubBlock implements Component {
 	constructor(private readonly finalized: boolean) {}
@@ -28,7 +30,7 @@ describe("ReadToolGroupComponent transcript freezing", () => {
 	});
 
 	afterEach(() => {
-		settings.clearOverride("tui.hyperlinks");
+		cfgTuiHyperlinks.clearOverride(settings);
 		vi.restoreAllMocks();
 	});
 

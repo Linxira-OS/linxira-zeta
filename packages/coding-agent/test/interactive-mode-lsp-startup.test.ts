@@ -14,6 +14,8 @@ import type { LspStartupServerInfo } from "@linxiraos/zeta/tools";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir } from "@linxiraos/pi-utils";
 
+import { cfgStartupQuiet } from "@linxiraos/zeta/modes/settings";
+
 describe("InteractiveMode LSP startup welcome banner", () => {
 	let authStorage: AuthStorage;
 	let eventBus: EventBus;
@@ -120,7 +122,7 @@ describe("InteractiveMode LSP startup welcome banner", () => {
 		expect(findServerLine()).toContain(theme.status.enabled);
 		expect(findServerLine()).not.toContain(theme.status.pending);
 
-		session.settings.set("startup.quiet", true);
+		cfgStartupQuiet.set(session.settings, true);
 		const showWarningSpy = vi.spyOn(mode, "showWarning").mockImplementation(() => {});
 		eventBus.emit(LSP_STARTUP_EVENT_CHANNEL, {
 			type: "failed",

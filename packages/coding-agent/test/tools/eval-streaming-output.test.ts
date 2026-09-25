@@ -16,6 +16,8 @@ import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
 import { removeWithRetries, sanitizeText } from "@linxiraos/pi-utils";
 
+import { cfgToolsOutputMaxColumns } from "@linxiraos/zeta/tools/settings";
+
 function makeSession(settings = Settings.isolated()): ToolSession {
 	return {
 		cwd: "/tmp/eval-test",
@@ -98,7 +100,7 @@ describe("EvalTool live stdout streaming", () => {
 
 	it("preserves the column-cap notice after rebuilding the final eval summary", async () => {
 		const settings = Settings.isolated();
-		settings.set("tools.outputMaxColumns", 8);
+		cfgToolsOutputMaxColumns.set(settings, 8);
 		vi.spyOn(evalIndex.jsBackend, "execute").mockImplementation((async (
 			_code: string,
 			options: { onChunk?: (chunk: string) => void },

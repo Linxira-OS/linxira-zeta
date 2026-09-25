@@ -11,6 +11,8 @@ import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 
+import { cfgReadSummarizeEnabled } from "@linxiraos/zeta/tools/settings";
+
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content
 		.filter(c => c.type === "text")
@@ -22,7 +24,7 @@ function createSession(cwd: string, bridge?: ClientBridge): ToolSession {
 	const settings = Settings.isolated();
 	// Disable structural summarization so multi-range tests assert raw line content
 	// regardless of language heuristics.
-	settings.set("read.summarize.enabled", false);
+	cfgReadSummarizeEnabled.set(settings, false);
 	return {
 		cwd,
 		hasUI: false,

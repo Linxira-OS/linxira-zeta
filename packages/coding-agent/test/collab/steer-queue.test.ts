@@ -15,6 +15,7 @@ import {
 	unpackEnvelope,
 } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 interface RelayData {
@@ -90,7 +91,7 @@ function makeStreamingHostContext(): StreamingHostHarness {
 	const prompts: CapturedPrompt[] = [];
 	const promptWaiters: ((prompt: CapturedPrompt) => void)[] = [];
 	const ctx = {
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager: {
 			getSessionId: () => "sess-1",
 			getCwd: () => "/tmp",

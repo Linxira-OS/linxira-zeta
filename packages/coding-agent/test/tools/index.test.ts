@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ImControlParams } from "@linxiraos/zeta/channels/im-control";
-import { type SettingPath, Settings } from "@linxiraos/zeta/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@linxiraos/zeta/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 
@@ -16,7 +15,7 @@ function createTestSession(overrides: Partial<ToolSession> = {}): ToolSession {
 	};
 }
 
-function createSettingsWithOverrides(overrides: Partial<Record<SettingPath, unknown>> = {}): Settings {
+function createSettingsWithOverrides(overrides: Record<string, unknown> = {}): Settings {
 	return Settings.isolated({
 		"lsp.formatOnWrite": true,
 		"bashInterceptor.enabled": true,

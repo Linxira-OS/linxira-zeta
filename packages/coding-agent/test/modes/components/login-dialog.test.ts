@@ -5,6 +5,8 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import * as openModule from "@linxiraos/zeta/utils/open";
 import type { TUI } from "@linxiraos/pi-tui";
 
+import { cfgTuiHyperlinks } from "@linxiraos/zeta/modes/settings";
+
 beforeAll(async () => {
 	resetSettingsForTest();
 	await Settings.init({ inMemory: true });
@@ -12,7 +14,7 @@ beforeAll(async () => {
 });
 
 afterEach(() => {
-	settings.clearOverride("tui.hyperlinks");
+	cfgTuiHyperlinks.clearOverride(settings);
 });
 
 afterAll(() => {
@@ -21,7 +23,7 @@ afterAll(() => {
 
 describe("LoginDialogComponent", () => {
 	it("links every wrapped authorization URL row to the complete URL", () => {
-		settings.override("tui.hyperlinks", "always");
+		cfgTuiHyperlinks.override(settings, "always");
 		const openSpy = spyOn(openModule, "openPath").mockImplementation(() => {});
 		try {
 			const tui = { requestRender() {} } as unknown as TUI;

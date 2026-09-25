@@ -14,6 +14,8 @@ import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import type { SingleResult, StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 
+import { cfgTaskIsolationEnabled } from "@linxiraos/zeta/task/settings";
+
 const jobManagers = new Set<AsyncJobManager>();
 
 function isEvalAgentResult(value: unknown): value is EvalAgentResult {
@@ -214,7 +216,7 @@ describe("runEvalAgent", () => {
 		const sessionManager = SessionManager.inMemory();
 		sessionManager.beginTurnBudget(100_000, true);
 		const session = createBudgetSession(sessionManager);
-		session.settings.set("task.isolation.enabled", true);
+		cfgTaskIsolationEnabled.set(session.settings, true);
 		vi.spyOn(taskDiscovery, "discoverAgents").mockResolvedValue({ agents: [agent], projectAgentsDir: null });
 		vi.spyOn(isolationRunner, "prepareIsolationContext").mockResolvedValue({
 			repoRoot: "/tmp",

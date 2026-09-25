@@ -25,6 +25,8 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { discoverAgents } from "@linxiraos/zeta/task/discovery";
 
+import { cfgExtensions } from "@linxiraos/zeta/extensibility/settings";
+
 interface SessionInputs {
 	additionalExtensionPaths?: readonly string[];
 	disableExtensionDiscovery?: boolean;
@@ -154,7 +156,7 @@ describe("AgentSession extension-root discovery (post-startup)", () => {
 		expect(session.skills.map(skill => skill.name)).not.toContain("configured-skill");
 
 		// The live getter reads settings per call, so the override lands on refresh.
-		session.settings.override("extensions", [configuredExt]);
+		cfgExtensions.override(session.settings, [configuredExt]);
 		await session.refreshSkills();
 		expect(session.skills.map(skill => skill.name)).toContain("configured-skill");
 	});

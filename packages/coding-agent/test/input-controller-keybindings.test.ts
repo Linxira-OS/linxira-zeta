@@ -3,7 +3,9 @@ import type { ImageContent } from "@linxiraos/pi-ai";
 import { AskDialogComponent } from "@linxiraos/pi-tui/overlays/ask-dialog";
 import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
 import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { SpaceHoldGesture } from "@linxiraos/pi-tui/space-hold";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
@@ -35,6 +37,7 @@ type FakeEditor = {
 	setActionKeys(action: string, keys: string[]): void;
 	setCustomKeyHandler(key: string, handler: () => void): void;
 	clearCustomKeyHandlers(): void;
+	spaceHold: SpaceHoldGesture;
 	pasteText(text: string): void;
 	imageLinks?: (string | undefined)[];
 	pendingImages: ImageContent[];
@@ -143,6 +146,7 @@ async function createContext() {
 		setActionKeys,
 		setCustomKeyHandler,
 		clearCustomKeyHandlers,
+		spaceHold: new SpaceHoldGesture(() => {}),
 		pendingImages: [],
 		pendingImageLinks: [],
 		clearDraft(historyText?: string) {
@@ -214,7 +218,7 @@ async function createContext() {
 		isPythonMode: false,
 		hideToolActivity: false,
 		toolOutputExpanded: false,
-		settings: { set: vi.fn() },
+		settings: Settings.isolated(),
 		chatContainer: { children: [], setToolActivityVisible: vi.fn() },
 		handleHotkeysCommand: vi.fn(),
 		handlePlanModeCommand: vi.fn(),
@@ -223,6 +227,7 @@ async function createContext() {
 		showUserMessageSelector: vi.fn(),
 		showSessionSelector: vi.fn(),
 		handleSTTToggle: vi.fn(),
+		dictationSpaceHold: vi.fn(),
 		showDebugSelector: vi.fn(),
 		showHistorySearch: vi.fn(),
 		toggleThinkingBlockVisibility: vi.fn(),

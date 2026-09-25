@@ -17,6 +17,7 @@
  */
 
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CmuxKind } from "@linxiraos/zeta/tools/browser/cmux/rpc";
 import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
 import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
@@ -52,7 +53,7 @@ function makeSession(cwd: string): ToolSession {
 	return {
 		cwd,
 		hasUI: false,
-		settings: { get: () => undefined },
+		settings: Settings.isolated(),
 		getSessionFile: () => null,
 	} as unknown as ToolSession;
 }

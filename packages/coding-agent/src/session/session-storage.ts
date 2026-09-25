@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { FileLock as NativeFileLock } from "@linxiraos/pi-natives";
 import { withFileLockSync } from "@linxiraos/pi-utils/file-lock";
 import { hasFsCode, isEnoent } from "@linxiraos/pi-utils/fs-error";
+import { openCloexecSync } from "@linxiraos/pi-utils/fs-open";
 import * as logger from "@linxiraos/pi-utils/logger";
 import { peekFileEnds } from "@linxiraos/pi-utils/peek-file";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
@@ -11,6 +12,8 @@ import { toError } from "@linxiraos/pi-utils/type-guards";
 import { isAssistantMessageLine } from "./session-entries";
 import { overlayTitleSlotContent, type SessionTitleUpdate, serializeTitleSlot } from "./session-title-slot";
 
+/** Shared base flags for the held transcript descriptor; callers add `O_APPEND` or `O_TRUNC`. */
+const SESSION_WRITE_FLAGS = fs.constants.O_WRONLY | fs.constants.O_CREAT;
 const utf8Decoder = new TextDecoder("utf-8");
 
 export interface SessionStorageStat {
@@ -213,7 +216,10 @@ class FileSessionStorageWriter implements SessionStorageWriter {
 			fs.mkdirSync(dir, { recursive: true });
 		}
 		// Open file once, keep fd for lifetime
-		this.#fd = fs.openSync(fpath, flags === "w" ? "w" : "a");
+		this.#fd = openCloexecSync(
+			fpath,
+			SESSION_WRITE_FLAGS | (flags === "w" ? fs.constants.O_TRUNC : fs.constants.O_APPEND),
+		);
 		// Register for cleanup if abandoned without close()
 		writerRegistry.register(this, this.#fd, this);
 	}
@@ -233,7 +239,7 @@ class FileSessionStorageWriter implements SessionStorageWriter {
 			throw err;
 		}
 		if (live.ino === fs.fstatSync(this.#fd).ino) return;
-		const nextFd = fs.openSync(this.#fpath, "a");
+		const nextFd = openCloexecSync(this.#fpath, SESSION_WRITE_FLAGS | fs.constants.O_APPEND);
 		writerRegistry.unregister(this);
 		try {
 			fs.closeSync(this.#fd);

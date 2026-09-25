@@ -40,6 +40,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"packages/coding-agent/src/web/search/providers/exa.ts", // upstream referer
 	"packages/coding-agent/src/extensibility/plugins/legacy-pi-compat.ts", // deliberate alias table
 	"packages/coding-agent/src/extensibility/plugins/legacy-pi-coding-agent-shim.ts",
+	"packages/coding-agent/test/extensibility/legacy-pi-canonical-require.test.ts", // deliberate legacy-scope remap fixture
 	"packages/ai/test/fixtures/harmony-leak-corpus.json", // leak corpus fixture
 	"packages/ai/test/cursor-exec-modern.test.ts", // upstream repo fixtures
 	"packages/ai/test/deepinfra-reasoning-contract.test.ts", // issue-reference comments

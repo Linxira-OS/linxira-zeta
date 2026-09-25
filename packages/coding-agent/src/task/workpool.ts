@@ -22,6 +22,9 @@ import {
 } from "@linxiraos/pi-tui/tools/task";
 import { buildWorkPoolOutputSchema, type WorkPoolYieldItem } from "./workpool-yield";
 
+import { cfgEvalWorkpoolFreshAgents } from "../eval/settings";
+import { cfgTaskMaxConcurrency, cfgTaskMaxRuntimeMs } from "./settings";
+
 /** One user-supplied unit tracked through a workpool batch. */
 export interface WorkPoolItem {
 	id: string;
@@ -135,7 +138,7 @@ export class WorkPool {
 		this.policy = options.policy;
 		this.context = options.context;
 		this.customTools = options.customTools ?? [];
-		this.freshAgents = session.settings.get("eval.workpool.freshAgents");
+		this.freshAgents = cfgEvalWorkpoolFreshAgents.get(session.settings);
 		if (!session.asyncJobManager) {
 			throw new ToolError("workpool() needs the session's async job manager; unavailable here");
 		}
@@ -146,7 +149,7 @@ export class WorkPool {
 
 	/** Current worker ceiling from the live `task.maxConcurrency` setting. */
 	limit(): number {
-		const configured = this.session.settings.get("task.maxConcurrency");
+		const configured = cfgTaskMaxConcurrency.get(this.session.settings);
 		return configured > 0 ? configured : Infinity;
 	}
 
@@ -412,7 +415,7 @@ export class WorkPool {
 							eventBus: this.session.eventBus,
 							subagentEventBus: this.session.subagentEventBus,
 							artifactsDir: this.session.getSessionFile()?.slice(0, -6),
-							maxRuntimeMs: this.session.settings.get("task.maxRuntimeMs"),
+							maxRuntimeMs: cfgTaskMaxRuntimeMs.get(this.session.settings),
 						});
 					}
 				} catch (error) {

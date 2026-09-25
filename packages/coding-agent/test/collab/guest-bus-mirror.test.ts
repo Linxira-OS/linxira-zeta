@@ -3,6 +3,7 @@ import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
 import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
 import { COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
 import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task/types";
@@ -26,7 +27,7 @@ function makeState(): Extract<CollabFrame, { t: "welcome" }>["state"] {
 function makeGuestContext(eventBus: EventBus): InteractiveModeContext {
 	const ctx = {
 		collabGuest: undefined as CollabGuestLink | undefined,
-		settings: { get: () => "" },
+		settings: Settings.isolated(),
 		sessionManager: {
 			getSessionFile: () => null,
 			getSessionName: () => "local session",

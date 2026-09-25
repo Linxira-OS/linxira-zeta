@@ -5,6 +5,8 @@ import { MCPAuthorizationLinkPrompt } from "@linxiraos/zeta/modes/controllers/mc
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { visibleWidth } from "@linxiraos/pi-tui";
 
+import { cfgTuiHyperlinks } from "@linxiraos/zeta/modes/settings";
+
 const OSC = "\x1b]";
 const BEL = "\x07";
 
@@ -57,7 +59,7 @@ describe("MCPAuthorizationLinkPrompt", () => {
 	});
 
 	afterEach(() => {
-		settings.clearOverride("tui.hyperlinks");
+		cfgTuiHyperlinks.clearOverride(settings);
 		resetSettingsForTest();
 	});
 
