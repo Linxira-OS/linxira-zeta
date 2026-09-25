@@ -2,6 +2,7 @@
  * Built-in model roles and role metadata helpers.
  */
 
+import MODEL_PRIO from "../priority.json";
 import { modelKind, type Model } from "@linxiraos/pi-catalog/types";
 import {
 	KIND_ROLE_IDS,
@@ -100,9 +101,35 @@ function isModelRole(role: string): role is ModelRole {
 	return MODEL_ROLE_IDS.some(id => id === role);
 }
 
-/** Available models eligible for a role, including keyless runner models. */
+/**
+ * Available models eligible for a role, including keyless runner models.
+ *
+ * The bundled catalog ships no `web/*` entries, but the web role still has to
+ * resolve `web/<engine>` patterns — `priority.json` lists every engine, and
+ * `--model web/duckduckgo` is a documented override. Synthesize one marker
+ * model per configured engine so both the role chain and that override resolve
+ * without teaching the catalog about search-only providers.
+ */
 export function roleCandidatePool(role: string, settings: Settings, registry: ModelBrowserRegistry): Model[] {
-	return registry.getAvailable("all").filter(getRoleInfo(role, settings).accepts);
+	const available = registry.getAvailable("all").filter(getRoleInfo(role, settings).accepts);
+	if (role !== "web" || available.some(model => model.provider === "web")) return available;
+	return [...available, ...searchEngineMarkerModels()];
+}
+
+/** One synthetic `web/<engine>` model per entry in the web priority list. */
+function searchEngineMarkerModels(): Model[] {
+	return (MODEL_PRIO.web ?? [])
+		.filter((pattern): pattern is string => typeof pattern === "string" && pattern.startsWith("web/"))
+		.map(pattern => ({
+			id: pattern.slice("web/".length),
+			name: pattern,
+			provider: "web",
+			api: "web-search",
+			kind: "search",
+			baseUrl: "",
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			limit: { context: 0, output: 0 },
+		})) as unknown as Model[];
 }
 
 /**
