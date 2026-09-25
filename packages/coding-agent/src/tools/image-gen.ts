@@ -112,7 +112,6 @@ export const imageGenSchema = type({
 	"image_size?": imageSizeSchema,
 	"input?": inputImageSchema.array().describe("input images"),
 	"provider?": imageProviderSchema,
-	"model?": type("string").describe("image model selector for this request"),
 });
 export type ImageGenParams = typeof imageGenSchema.infer;
 export type GeminiResponseModality = typeof responseModalitySchema.infer;
