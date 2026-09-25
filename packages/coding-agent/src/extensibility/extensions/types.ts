@@ -1,3 +1,4 @@
+import type { Settings } from "../config/settings";
 /**
  * Extension system types.
  *
@@ -459,6 +460,13 @@ export type ExtensionMode = "tui" | "rpc" | "json" | "print";
 export interface ExtensionContext {
 	/** UI methods for user interaction */
 	ui: ExtensionUIContext;
+	/**
+	 * Read access to the session's settings. Extensions read through the
+	 * registered handles (`cfgFoo.get(ctx.settings)`) rather than string paths,
+	 * so a renamed or deleted setting is a type error instead of a silent
+	 * `undefined`.
+	 */
+	readonly settings: Settings;
 	/** Current run mode. Use `"tui"` to guard terminal-only UI such as custom components. */
 	mode: ExtensionMode;
 	/** Get current context usage for the active model. */

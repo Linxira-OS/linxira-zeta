@@ -11,6 +11,7 @@
  * another switch, and a crashed editor never takes the session with it.
  */
 
+import { cfgEditorAutoInstall, cfgEditorHandoffSession } from "@linxiraos/zeta/session/settings";
 import * as cp from "node:child_process";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@linxiraos/zeta";
@@ -51,10 +52,8 @@ export function registerEditorCommand(pi: ExtensionAPI): void {
  */
 export async function switchToEditor(ctx: ExtensionCommandContext): Promise<void> {
 	const cwd = ctx.cwd;
-	const sessionFile =
-		(ctx.settings?.get("editor.handoffSession") ?? true) === true
-			? (ctx.sessionManager?.getSessionFile?.() ?? undefined)
-			: undefined;
+	const handoffSession = ctx.settings ? cfgEditorHandoffSession.get(ctx.settings) : true;
+	const sessionFile = handoffSession ? (ctx.sessionManager?.getSessionFile?.() ?? undefined) : undefined;
 	const handoff = await writeHandoff({
 		cwd,
 		gitRoot: detectGitRoot(cwd),
@@ -62,7 +61,7 @@ export async function switchToEditor(ctx: ExtensionCommandContext): Promise<void
 		from: "zeta",
 	});
 
-	const autoInstall = ctx.settings?.get("editor.autoInstall") ?? true;
+	const autoInstall = ctx.settings ? cfgEditorAutoInstall.get(ctx.settings) : true;
 	const resolved = ensureEditorBinary(autoInstall === true);
 	if (!resolved.binary) {
 		ctx.ui?.notify?.(resolved.error ?? "The editor is unavailable.", "error");

@@ -1,8 +1,9 @@
 /**
  * Simplified Chinese localization for the settings UI.
  *
- * The settings schema (`settings-schema.ts`) ships English `ui.label` /
- * `ui.description` / `ui.options` text and English group/tab names. This
+ * The registered settings (each `register()` definition in the per-domain
+ * `settings.ts` files) ship English `ui.label` / `ui.description` /
+ * `ui.options` text and English group/tab names. This
  * module is the zh overlay: it maps every tab, every TAB_GROUPS group, every
  * setting with a `ui:` block, and every submenu option to natural Simplified
  * Chinese. The TUI selector consumes these maps through
@@ -10,7 +11,7 @@
  * settings panel consumes them directly via the gateway; both fall back to
  * the schema text for any key that is missing here.
  *
- * Keep this file in lockstep with the schema: the completeness script asserts
+ * Keep this file in lockstep with the registry: the completeness test asserts
  * that every tab, group, ui-blocked path, and ui.options entry is covered.
  */
 import type { AnyUiMetadata, SettingTab } from "@linxiraos/pi-tui/overlays/settings-defs";

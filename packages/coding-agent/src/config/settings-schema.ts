@@ -927,29 +927,6 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Bundled TTT editor (cross-surface handoff)
-	"editor.autoInstall": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Agent",
-			label: "Auto-install Editor",
-			description:
-				"Install the @linxiraos/editor package automatically when a switch to the editor needs it and the package is missing",
-		},
-	},
-
-	"editor.handoffSession": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Agent",
-			label: "Hand Off Session",
-			description:
-				"Write the current session into the handoff file so the editor side can restore the conversation context",
-		},
-	},
 
 	"images.autoResize": {
 		type: "boolean",
@@ -2321,16 +2298,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"magicKeywords.enabled": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Magic Keywords",
-			label: "Magic Keywords",
-			description: `Enable hidden notices for standalone ${MAGIC_KEYWORDS.map(keyword => keyword.word).join(", ")} keywords`,
-		},
-	},
 	...MAGIC_KEYWORD_SETTINGS,
 
 	// Notifications
@@ -2564,41 +2531,6 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Speech-to-text
-	"stt.enabled": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "interaction",
-			group: "Speech",
-			label: "Speech-to-Text",
-			description: "Enable speech-to-text input via microphone",
-		},
-	},
-
-	"stt.language": {
-		type: "string",
-		default: "en",
-		ui: {
-			tab: "interaction",
-			group: "Speech",
-			label: "Speech Language",
-			description: "Speech-to-text recognition language (e.g. en, zh-CN)",
-		},
-	},
-
-	"stt.submitTrigger": {
-		type: "enum",
-		values: STT_SUBMIT_TRIGGER_VALUES,
-		default: "never",
-		ui: {
-			tab: "interaction",
-			group: "Speech",
-			label: "Speech-to-Text Submit Trigger",
-			description:
-				"Choose when speech dictation automatically submits: Never, Release (2+ words), Release with complete sentence, or When I Say Submit.",
-			options: STT_SUBMIT_TRIGGER_OPTIONS,
-		},
-	},
 
 	// ────────────────────────────────────────────────────────────────────────
 	// Context
@@ -5669,18 +5601,6 @@ export const SETTINGS_SCHEMA = {
 			options: LIVE_VOICE_OPTIONS,
 		},
 	},
-	"tts.localVoice": {
-		type: "enum",
-		values: TTS_LOCAL_VOICE_VALUES,
-		default: DEFAULT_TTS_VOICE,
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Local TTS Voice",
-			description: "Kokoro voice used by the local TTS backend (American/British, female/male)",
-			options: TTS_LOCAL_VOICE_OPTIONS,
-		},
-	},
 	"speech.enabled": {
 		type: "boolean",
 		default: false,
@@ -6288,38 +6208,6 @@ export const SETTINGS_SCHEMA = {
 			description: "Context token threshold that triggers a soft memory_edit requirement (State Machine A)",
 		},
 	},
-	"magicKeywords.orchestrate": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Magic Keywords",
-			label: "Orchestrate Keyword",
-			description: "Let standalone orchestrate append its hidden multi-agent orchestration notice",
-		},
-	},
-
-	"magicKeywords.ultrathink": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Magic Keywords",
-			label: "Ultrathink Keyword",
-			description: "Let standalone ultrathink request maximum automatic thinking and append its hidden notice",
-		},
-	},
-
-	"magicKeywords.workflow": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Magic Keywords",
-			label: "Workflow Keyword",
-			description: "Let standalone workflowz append its hidden eval workflow notice",
-		},
-	},
 
 	"providers.autoThinkingModel": {
 		type: "enum",
@@ -6446,33 +6334,6 @@ export const SETTINGS_SCHEMA = {
 			label: "Excluded Web Search Providers",
 			description: "Providers that web_search should never use, even as fallbacks",
 			options: SEARCH_PROVIDER_CHOICES,
-		},
-	},
-
-	"tts.localModel": {
-		type: "enum",
-		values: TTS_LOCAL_MODEL_VALUES,
-		default: DEFAULT_TTS_LOCAL_MODEL_KEY,
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Local TTS Model",
-			description: "On-device neural TTS model (Kokoro-82M) used by the local TTS backend",
-			options: TTS_LOCAL_MODEL_OPTIONS,
-		},
-	},
-
-	"stt.modelName": {
-		type: "enum",
-		values: STT_MODEL_VALUES,
-		default: DEFAULT_STT_MODEL_KEY,
-		ui: {
-			tab: "interaction",
-			group: "Speech",
-			label: "Speech Model",
-			description:
-				"Local on-device speech model. Parakeet TDT v3 (sherpa-onnx) is the SoTA default; Whisper base/small/large-v3-turbo tiers (transformers.js) trade size for multilingual coverage. Downloaded on first use.",
-			options: STT_MODEL_OPTIONS,
 		},
 	},
 

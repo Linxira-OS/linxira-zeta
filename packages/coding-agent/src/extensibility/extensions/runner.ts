@@ -1240,6 +1240,7 @@ export class ExtensionRunner {
 		const runEphemeralTurn = this.#runEphemeralTurnFn;
 		return {
 			ui: this.#uiContext,
+			settings: this.settings,
 			mode: this.#mode,
 			getContextUsage: () => this.#getContextUsageFn(),
 			compact: instructionsOrOptions => this.#compactFn(instructionsOrOptions),
