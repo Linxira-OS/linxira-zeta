@@ -210,6 +210,34 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "模型角色存储",
 		description: "模型选择器角色分配保存的位置",
 	},
+	"providers.openaiLiveSteering": {
+		label: "OpenAI 实时引导",
+		description: "允许在 OpenAI 实时会话进行中注入引导指令",
+	},
+	"mcp.startupTimeoutMs": {
+		label: "MCP 启动等待窗口",
+		description: "等待 MCP 服务器完成初始化的毫秒数；超时后按未连接处理",
+	},
+	"ida.enabled": {
+		label: "IDA Pro 集成",
+		description: "允许代理读取并在 IDA Pro 中标注反编译结果",
+	},
+	"ida.python": {
+		label: "IDA Python 解释器",
+		description: "用于 IDAPython 脚本的 Python 解释器路径",
+	},
+	"ida.installDir": {
+		label: "IDA 安装目录",
+		description: "IDA Pro 的安装目录；用于定位 idalib 与头文件",
+	},
+	"ida.maxOpen": {
+		label: "IDA 最大打开数据库数",
+		description: "同时保持打开的 IDA 数据库上限",
+	},
+	"ida.idleCloseSec": {
+		label: "IDA 空闲关闭超时（分钟）",
+		description: "无操作达到该时长后自动关闭 IDA 数据库；0 表示不自动关闭",
+	},
 	language: {
 		label: "语言",
 		description: "面向用户文本的 CLI 语言（系统提示词保持英文）",

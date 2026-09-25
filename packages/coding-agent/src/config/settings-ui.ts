@@ -1,4 +1,5 @@
 import { currentLanguage } from "../i18n";
+import { ZH_GROUP_LABELS, ZH_OPTION_TEXTS, ZH_SETTING_TEXTS, ZH_TAB_LABELS } from "./settings-zh";
 import { TERMINAL } from "@linxiraos/pi-tui";
 import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { isSettingsInitialized, Settings, settings } from "./settings";
@@ -57,11 +58,36 @@ export function createSettingsHost(): SettingsHost {
 			const ui = setting.ui;
 			if (ui?.tab !== tab) continue;
 			const note = envNote(setting);
+			// The registry carries the English copy; the zh overlay is applied here so
+			// both the TUI selector and the web panel read the same localized text.
+			const text = zh ? ZH_SETTING_TEXTS[setting.id] : undefined;
+			const localizedUi = text
+				? {
+						...ui,
+						label: text.label ?? ui.label,
+						description: text.description ?? ui.description,
+						group: ZH_GROUP_LABELS[ui.group ?? ""] ?? ui.group,
+						// `options` is either a concrete list or the "runtime" sentinel
+						// (values computed at read time), which has nothing to translate.
+						options: Array.isArray(ui.options)
+							? ui.options.map(option => {
+									const optionText = zh ? ZH_OPTION_TEXTS[option.value] : undefined;
+									return optionText
+										? {
+												...option,
+												label: optionText.label,
+												description: optionText.description ?? option.description,
+											}
+										: option;
+								})
+							: ui.options,
+					}
+				: ui;
 			entries.push({
 				path: setting.id,
 				type: setting.type,
 				defaultValue: setting.default,
-				ui: note ? { ...ui, description: `${ui.description}${note}` } : ui,
+				ui: note ? { ...localizedUi, description: `${localizedUi.description ?? ""}${note}` } : localizedUi,
 				enumValues: setting.enumValues,
 				credential: setting.isCredential,
 				condition: ui.condition ? CONDITIONS[ui.condition] : undefined,
